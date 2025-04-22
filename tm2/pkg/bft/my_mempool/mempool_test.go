@@ -2,598 +2,570 @@ package my_mempool
 
 import (
 	"fmt"
-	"math/rand"
-	"sort"
-	"strings"
 	"sync"
 	"testing"
 )
 
-func TestRejectEmptySender(t *testing.T) {
+func TestInsertAndSelectionOrder(t *testing.T) {
 	mp := NewMempool()
-	tx := Transaction{Sender: "", Nonce: 1, GasFee: 100}
-	if err := mp.CheckTx(tx); err == nil {
-		t.Error("Expected error for empty sender, got nil")
-	}
-}
 
-func TestRejectNonceGap(t *testing.T) {
-	mp := NewMempool()
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 3, GasFee: 200})
-	selected := mp.Update(10)
-	if len(selected) != 1 || selected[0].Nonce != 1 {
-		t.Errorf("Expected only tx with nonce 1, got %+v", selected)
-	}
-}
+	mp.CheckTx(Transaction{Sender: "a", Nonce: 2, GasFee: 50})
+	mp.CheckTx(Transaction{Sender: "a", Nonce: 1, GasFee: 100})
+	mp.CheckTx(Transaction{Sender: "b", Nonce: 1, GasFee: 90})
 
-func TestMaxPerSenderLimit(t *testing.T) {
-	mp := NewMempool()
-	for i := 1; i <= 15; i++ {
-		tx := Transaction{Sender: "bob", Nonce: uint64(i), GasFee: 100 + uint64(i)}
-		_ = mp.CheckTx(tx)
-	}
-	selected := mp.Update(20)
-	if len(selected) != 10 {
-		t.Errorf("Expected 10 txs due to per-sender limit, got %d", len(selected))
-	}
-}
+	selected := mp.CollectTxsForBlock(3)
 
-func TestGasFeePriority(t *testing.T) {
-	mp := NewMempool()
-	_ = mp.CheckTx(Transaction{Sender: "low", Nonce: 1, GasFee: 1})
-	_ = mp.CheckTx(Transaction{Sender: "high", Nonce: 1, GasFee: 1000})
-	selected := mp.Update(1)
-	if selected[0].Sender != "high" {
-		t.Errorf("Expected high-fee sender first, got %s", selected[0].Sender)
+	expectedOrder := []struct {
+		Sender string
+		Nonce  uint64
+	}{
+		{"a", 1},
+		{"b", 1},
+		{"a", 2},
 	}
-}
 
-func TestSenderCleanup(t *testing.T) {
-	mp := NewMempool()
-	_ = mp.CheckTx(Transaction{Sender: "carol", Nonce: 1, GasFee: 99})
-	_ = mp.Update(1)
-	if _, exists := mp.senderMap["carol"]; exists {
-		t.Error("Expected sender carol to be removed from heap map after update")
-	}
-	if len(mp.txsBySender["carol"]) != 0 {
-		t.Error("Expected carol's txs to be empty after update")
-	}
-}
-
-func TestHeapConsistency(t *testing.T) {
-	mp := NewMempool()
-	_ = mp.CheckTx(Transaction{Sender: "dave", Nonce: 1, GasFee: 10})
-	_ = mp.CheckTx(Transaction{Sender: "dave", Nonce: 2, GasFee: 50})
-	selected := mp.Update(1)
-	if len(selected) != 1 {
-		t.Errorf("Expected 1 transaction, got %d", len(selected))
-	}
-	entry, exists := mp.senderMap["dave"]
-	if !exists {
-		t.Error("Expected dave to still exist in senderMap")
-	}
-	if entry.fee != 50 {
-		t.Errorf("Expected fee to be 50, got %d", entry.fee)
-	}
-}
-
-func TestMultipleSendersFairness(t *testing.T) {
-	mp := NewMempool()
-	for i := 1; i <= 10; i++ {
-		_ = mp.CheckTx(Transaction{Sender: "a", Nonce: uint64(i), GasFee: 10})
-		_ = mp.CheckTx(Transaction{Sender: "b", Nonce: uint64(i), GasFee: 100 + uint64(i)})
-	}
-	selected := mp.Update(15)
-	countA, countB := 0, 0
-	for _, tx := range selected {
-		if tx.Sender == "a" {
-			countA++
-		} else if tx.Sender == "b" {
-			countB++
+	for i, tx := range selected {
+		if tx.Sender != expectedOrder[i].Sender || tx.Nonce != expectedOrder[i].Nonce {
+			t.Errorf("tx %d: expected %s:%d, got %s:%d", i, expectedOrder[i].Sender, expectedOrder[i].Nonce, tx.Sender, tx.Nonce)
 		}
 	}
-	if countB < countA {
-		t.Errorf("Expected sender B with higher gas fee to be prioritized, got A:%d B:%d", countA, countB)
-	}
 }
 
-func TestZeroMaxTxs(t *testing.T) {
+func TestCacheFillsAndRollbackRestores(t *testing.T) {
 	mp := NewMempool()
-	_ = mp.CheckTx(Transaction{Sender: "zed", Nonce: 1, GasFee: 1})
-	selected := mp.Update(0)
-	if len(selected) != 0 {
-		t.Errorf("Expected no transactions returned when maxTxs=0, got %d", len(selected))
-	}
-}
 
-func TestUpdateExactFit(t *testing.T) {
-	mp := NewMempool()
-	_ = mp.CheckTx(Transaction{Sender: "fizz", Nonce: 1, GasFee: 20})
-	_ = mp.CheckTx(Transaction{Sender: "fizz", Nonce: 2, GasFee: 30})
-	selected := mp.Update(2)
+	mp.CheckTx(Transaction{Sender: "x", Nonce: 1, GasFee: 100})
+	mp.CheckTx(Transaction{Sender: "y", Nonce: 1, GasFee: 200})
+
+	selected := mp.CollectTxsForBlock(2)
+
 	if len(selected) != 2 {
-		t.Errorf("Expected exactly 2 transactions, got %d", len(selected))
+		t.Errorf("expected 2 selected txs, got %d", len(selected))
+	}
+
+	if len(mp.cachedTxs) != 2 {
+		t.Errorf("expected 2 cached txs, got %d", len(mp.cachedTxs))
+	}
+
+	mp.Rollback()
+
+	if mp.Size() != 2 {
+		t.Errorf("expected 2 txs after rollback, got %d", mp.Size())
 	}
 }
 
-func TestSenderRemovalWhenAllTxsConsumed(t *testing.T) {
-	mp := NewMempool()
-	_ = mp.CheckTx(Transaction{Sender: "gone", Nonce: 1, GasFee: 100})
-	_ = mp.Update(1)
-	if _, exists := mp.txsBySender["gone"]; exists {
-		t.Error("Expected gone to be removed from txsBySender")
+func TestUpdateOnlyKeepsUncommitted(t *testing.T) {
+	mp1 := NewMempool()
+	mp2 := NewMempool()
+
+	txs := []Transaction{
+		{Sender: "alice", Nonce: 1, GasFee: 100},
+		{Sender: "bob", Nonce: 1, GasFee: 200},
+		{Sender: "alice", Nonce: 2, GasFee: 150},
 	}
-	if _, exists := mp.senderMap["gone"]; exists {
-		t.Error("Expected gone to be removed from senderMap")
+
+	for _, tx := range txs {
+		mp1.CheckTx(tx)
+		mp2.CheckTx(tx)
+	}
+
+	selected := mp1.CollectTxsForBlock(3)
+
+	committed := []Transaction{selected[0], selected[2]} // commit bob:1 and alice:2
+
+	mp2.Update(committed)
+
+	remaining := mp2.GetAllTransactions()
+	if len(remaining) != 1 {
+		t.Errorf("expected 1 tx in mp2 after Update, got %d", len(remaining))
+	}
+	if remaining[0].Sender != "alice" || remaining[0].Nonce != 1 {
+		t.Errorf("expected remaining tx to be alice:1, got %+v", remaining[0])
 	}
 }
 
-func TestNonceOrdering(t *testing.T) {
+func TestHeapOrdering(t *testing.T) {
 	mp := NewMempool()
-	// Add transactions in reverse nonce order
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 3, GasFee: 100})
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 2, GasFee: 100})
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
 
-	selected := mp.Update(10)
+	mp.CheckTx(Transaction{Sender: "z", Nonce: 1, GasFee: 100})
+	mp.CheckTx(Transaction{Sender: "x", Nonce: 1, GasFee: 300})
+	mp.CheckTx(Transaction{Sender: "y", Nonce: 1, GasFee: 200})
 
-	// Should select transactions in correct nonce order
-	if len(selected) != 3 {
-		t.Errorf("Expected 3 transactions, got %d", len(selected))
-	}
+	selected := mp.CollectTxsForBlock(3)
 
-	for i, expectedNonce := range []uint64{1, 2, 3} {
-		if selected[i].Nonce != expectedNonce {
-			t.Errorf("Expected nonce %d at position %d, got %d", expectedNonce, i, selected[i].Nonce)
+	expectedFees := []uint64{300, 200, 100}
+	for i, tx := range selected {
+		if tx.GasFee != expectedFees[i] {
+			t.Errorf("expected fee %d at index %d, got %d", expectedFees[i], i, tx.GasFee)
 		}
 	}
 }
 
-func TestMultipleSendersWithNonceGaps(t *testing.T) {
+func TestConcurrentInsertion(t *testing.T) {
 	mp := NewMempool()
+	wg := sync.WaitGroup{}
 
-	// Alice has continuous nonces
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 200})
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 2, GasFee: 200})
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 3, GasFee: 200})
-
-	// Bob has a nonce gap
-	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 1, GasFee: 300})
-	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 3, GasFee: 300}) // Gap here
-
-	selected := mp.Update(10)
-
-	// Count transactions by sender
-	aliceTxs, bobTxs := 0, 0
-	for _, tx := range selected {
-		if tx.Sender == "alice" {
-			aliceTxs++
-		} else if tx.Sender == "bob" {
-			bobTxs++
-		}
+	for i := 0; i < 10; i++ {
+		sender := string(rune('a' + i))
+		wg.Add(1)
+		go func(sender string) {
+			defer wg.Done()
+			for j := 1; j <= 5; j++ {
+				mp.CheckTx(Transaction{Sender: sender, Nonce: uint64(j), GasFee: uint64(j * 10)})
+			}
+		}(sender)
 	}
 
-	if aliceTxs != 3 {
-		t.Errorf("Expected 3 transactions from Alice, got %d", aliceTxs)
-	}
+	wg.Wait()
 
-	if bobTxs != 1 {
-		t.Errorf("Expected 1 transaction from Bob (due to nonce gap), got %d", bobTxs)
+	if mp.Size() != 50 {
+		t.Errorf("expected 50 transactions after concurrent insert, got %d", mp.Size())
 	}
 }
 
-func TestHeapReordering(t *testing.T) {
+func TestBasicInsertAndRetrieve(t *testing.T) {
 	mp := NewMempool()
 
-	// Add transactions with increasing fees
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
-	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 1, GasFee: 200})
+	tx1 := Transaction{Sender: "alice", Nonce: 1, GasFee: 100}
+	tx2 := Transaction{Sender: "bob", Nonce: 1, GasFee: 200}
 
-	// First update should prioritize Bob
-	selected := mp.Update(1)
-	if selected[0].Sender != "bob" {
-		t.Errorf("Expected Bob's transaction first, got %s", selected[0].Sender)
+	_ = mp.CheckTx(tx1)
+	_ = mp.CheckTx(tx2)
+
+	if mp.Size() != 2 {
+		t.Errorf("Expected mempool size 2, got %d", mp.Size())
 	}
 
-	// Now add a higher fee transaction for Alice
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 2, GasFee: 300})
+	allTxs := mp.GetAllTransactions()
+	if len(allTxs) != 2 {
+		t.Errorf("Expected 2 transactions, got %d", len(allTxs))
+	}
 
-	// Second update should prioritize Alice
-	selected = mp.Update(1)
-	if selected[0].Sender != "alice" {
-		t.Errorf("Expected Alice's transaction first after fee increase, got %s", selected[0].Sender)
+	// Check that we can retrieve by sender
+	aliceTxs := mp.GetTransactionsBySender("alice")
+	if len(aliceTxs) != 1 || aliceTxs[0].Nonce != 1 {
+		t.Errorf("Expected 1 transaction for Alice with nonce 1, got %+v", aliceTxs)
 	}
 }
 
-func TestMaxTxsLimit(t *testing.T) {
-	mp := NewMempool()
-
-	// Add 5 transactions from different senders
-	for i := 1; i <= 5; i++ {
-		sender := string(rune('a' + i - 1))
-		_ = mp.CheckTx(Transaction{Sender: sender, Nonce: 1, GasFee: 100})
-	}
-
-	// Request only 3 transactions
-	selected := mp.Update(3)
-
-	if len(selected) != 3 {
-		t.Errorf("Expected exactly 3 transactions, got %d", len(selected))
-	}
-}
-
-func TestFeeUpdatesAfterPartialSelection(t *testing.T) {
+func TestPriorityBasedSelection(t *testing.T) {
 	mp := NewMempool()
 
 	// Add transactions with different fees
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 300})
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 2, GasFee: 100})
-	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 1, GasFee: 200})
+	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 50})
+	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 1, GasFee: 150})
+	_ = mp.CheckTx(Transaction{Sender: "charlie", Nonce: 1, GasFee: 100})
 
-	// First update should take Alice's first tx (highest fee)
-	selected := mp.Update(1)
-	if selected[0].Sender != "alice" || selected[0].GasFee != 300 {
-		t.Errorf("Expected Alice's tx with fee 300, got %s with fee %d", selected[0].Sender, selected[0].GasFee)
+	// Expected order: bob (150), charlie (100), alice (50)
+	selected := mp.CollectTxsForBlock(3)
+
+	if len(selected) != 3 {
+		t.Fatalf("Expected 3 transactions, got %d", len(selected))
 	}
 
-	// Second update should take Bob's tx since Alice's remaining tx has lower fee
-	selected = mp.Update(1)
-	if selected[0].Sender != "bob" || selected[0].GasFee != 200 {
-		t.Errorf("Expected Bob's tx with fee 200, got %s with fee %d", selected[0].Sender, selected[0].GasFee)
+	expectedOrder := []struct {
+		sender string
+		fee    uint64
+	}{
+		{"bob", 150},
+		{"charlie", 100},
+		{"alice", 50},
+	}
+
+	for i, tx := range selected {
+		if tx.Sender != expectedOrder[i].sender || tx.GasFee != expectedOrder[i].fee {
+			t.Errorf("Position %d: expected %s with fee %d, got %s with fee %d",
+				i, expectedOrder[i].sender, expectedOrder[i].fee, tx.Sender, tx.GasFee)
+		}
+	}
+}
+
+func TestMultipleTransactionsPerSender(t *testing.T) {
+	mp := NewMempool()
+
+	// Add multiple transactions for the same sender
+	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 180})
+	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 2, GasFee: 150})
+	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 3, GasFee: 200})
+
+	// Add one transaction from another sender
+	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 1, GasFee: 160})
+
+	// Collect all transactions
+	selected := mp.CollectTxsForBlock(4)
+
+	if len(selected) != 4 {
+		t.Fatalf("Expected 4 transactions, got %d", len(selected))
+	}
+
+	// First should be Alice's first tx, then Bob's, then Alice's remaining txs
+	expectedOrder := []struct {
+		sender string
+		nonce  uint64
+	}{
+		{"alice", 1},
+		{"bob", 1},
+		{"alice", 2},
+		{"alice", 3},
+	}
+
+	for i, tx := range selected {
+		if tx.Sender != expectedOrder[i].sender || tx.Nonce != expectedOrder[i].nonce {
+			t.Errorf("Position %d: expected %s with nonce %d, got %s with nonce %d",
+				i, expectedOrder[i].sender, expectedOrder[i].nonce, tx.Sender, tx.Nonce)
+		}
+	}
+}
+
+func TestPartialCollection(t *testing.T) {
+	mp := NewMempool()
+
+	// Add 10 transactions
+	for i := 1; i <= 5; i++ {
+		_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: uint64(i), GasFee: 100})
+		_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: uint64(i), GasFee: 100})
+	}
+
+	// Collect only 3 transactions
+	selected := mp.CollectTxsForBlock(3)
+
+	if len(selected) != 3 {
+		t.Fatalf("Expected 3 transactions, got %d", len(selected))
+	}
+
+	// Verify remaining count
+	if mp.Size() != 7 {
+		t.Errorf("Expected 7 transactions remaining, got %d", mp.Size())
+	}
+
+	// Collect 5 more
+	selected = mp.CollectTxsForBlock(5)
+
+	if len(selected) != 5 {
+		t.Fatalf("Expected 5 transactions, got %d", len(selected))
+	}
+
+	// Verify remaining count
+	if mp.Size() != 2 {
+		t.Errorf("Expected 2 transactions remaining, got %d", mp.Size())
 	}
 }
 
 func TestEmptyMempool(t *testing.T) {
 	mp := NewMempool()
 
-	selected := mp.Update(10)
+	// Try to collect from empty mempool
+	selected := mp.CollectTxsForBlock(10)
+
 	if len(selected) != 0 {
 		t.Errorf("Expected 0 transactions from empty mempool, got %d", len(selected))
 	}
 
-	if mp.Size() != 0 {
-		t.Errorf("Expected empty mempool to have size 0, got %d", mp.Size())
+	// Add and remove all transactions
+	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
+	selected = mp.CollectTxsForBlock(1)
+
+	if len(selected) != 1 {
+		t.Fatalf("Expected 1 transaction, got %d", len(selected))
+	}
+
+	// Try to collect again
+	selected = mp.CollectTxsForBlock(1)
+
+	if len(selected) != 0 {
+		t.Errorf("Expected 0 transactions after emptying mempool, got %d", len(selected))
 	}
 }
 
-func TestGetAllTransactions(t *testing.T) {
+func TestRollbackFunctionality(t *testing.T) {
 	mp := NewMempool()
 
-	// Add 5 transactions
-	for i := 1; i <= 5; i++ {
-		_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: uint64(i), GasFee: 100})
+	// Add transactions
+	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
+	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 1, GasFee: 200})
+
+	// Collect all
+	selected := mp.CollectTxsForBlock(2)
+
+	if len(selected) != 2 {
+		t.Fatalf("Expected 2 transactions, got %d", len(selected))
+	}
+
+	// Verify mempool is empty
+	if mp.Size() != 0 {
+		t.Errorf("Expected empty mempool after collection, got size %d", mp.Size())
+	}
+
+	// Rollback
+	mp.Rollback()
+
+	// Verify transactions are back
+	if mp.Size() != 2 {
+		t.Errorf("Expected 2 transactions after rollback, got %d", mp.Size())
+	}
+
+	// Verify we can collect them again
+	selected = mp.CollectTxsForBlock(2)
+
+	if len(selected) != 2 {
+		t.Errorf("Expected to collect 2 transactions after rollback, got %d", len(selected))
+	}
+}
+
+func TestUpdateRemovesCommitted(t *testing.T) {
+	mp := NewMempool()
+
+	// Add transactions
+	tx1 := Transaction{Sender: "alice", Nonce: 1, GasFee: 100}
+	tx2 := Transaction{Sender: "alice", Nonce: 2, GasFee: 150}
+	tx3 := Transaction{Sender: "bob", Nonce: 1, GasFee: 200}
+
+	_ = mp.CheckTx(tx1)
+	_ = mp.CheckTx(tx2)
+	_ = mp.CheckTx(tx3)
+
+	// Update with committed transactions
+	mp.Update([]Transaction{tx1, tx3})
+
+	// Verify only tx2 remains
+	if mp.Size() != 1 {
+		t.Errorf("Expected 1 transaction after update, got %d", mp.Size())
 	}
 
 	allTxs := mp.GetAllTransactions()
-	if len(allTxs) != 5 {
-		t.Errorf("Expected GetAllTransactions to return 5 txs, got %d", len(allTxs))
-	}
-
-	// After update, should have fewer transactions
-	_ = mp.Update(3)
-	allTxs = mp.GetAllTransactions()
-	if len(allTxs) != 2 {
-		t.Errorf("Expected 2 remaining transactions after update, got %d", len(allTxs))
+	if len(allTxs) != 1 || allTxs[0].Sender != "alice" || allTxs[0].Nonce != 2 {
+		t.Errorf("Expected only Alice's second tx to remain, got %+v", allTxs)
 	}
 }
 
-func TestGetTransactionsBySender(t *testing.T) {
+func TestHighVolumeOperations(t *testing.T) {
 	mp := NewMempool()
 
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 2, GasFee: 100})
-	_ = mp.CheckTx(Transaction{Sender: "bob", Nonce: 1, GasFee: 100})
-
-	aliceTxs := mp.GetTransactionsBySender("alice")
-	if len(aliceTxs) != 2 {
-		t.Errorf("Expected 2 transactions for Alice, got %d", len(aliceTxs))
+	// Add 1000 transactions from 10 senders
+	for i := 0; i < 10; i++ {
+		sender := string(rune('a' + i))
+		for j := 1; j <= 100; j++ {
+			_ = mp.CheckTx(Transaction{
+				Sender: sender,
+				Nonce:  uint64(j),
+				GasFee: uint64(100 + (i * 10) + (j % 50)), // Varied fees
+			})
+		}
 	}
 
-	bobTxs := mp.GetTransactionsBySender("bob")
-	if len(bobTxs) != 1 {
-		t.Errorf("Expected 1 transaction for Bob, got %d", len(bobTxs))
+	// Verify size
+	if mp.Size() != 1000 {
+		t.Errorf("Expected 1000 transactions, got %d", mp.Size())
 	}
 
-	charlieTxs := mp.GetTransactionsBySender("charlie")
-	if len(charlieTxs) != 0 {
-		t.Errorf("Expected 0 transactions for Charlie, got %d", len(charlieTxs))
+	// Collect in batches
+	var allCollected []Transaction
+	for i := 0; i < 10; i++ {
+		batch := mp.CollectTxsForBlock(100)
+		allCollected = append(allCollected, batch...)
+	}
+
+	// Verify all collected
+	if len(allCollected) != 1000 {
+		t.Errorf("Expected to collect all 1000 transactions, got %d", len(allCollected))
+	}
+
+	// Verify mempool is empty
+	if mp.Size() != 0 {
+		t.Errorf("Expected empty mempool after collecting all, got size %d", mp.Size())
 	}
 }
 
-func TestConcurrentAccess(t *testing.T) {
+func TestFeeBasedPrioritization(t *testing.T) {
+	mp := NewMempool()
+
+	// Add transactions with increasing fees
+	for i := 1; i <= 10; i++ {
+		_ = mp.CheckTx(Transaction{
+			Sender: string(rune('a' + i - 1)),
+			Nonce:  1,
+			GasFee: uint64(i * 100),
+		})
+	}
+
+	// Collect all
+	selected := mp.CollectTxsForBlock(10)
+
+	// Verify order is by decreasing fee
+	for i := 0; i < len(selected)-1; i++ {
+		if selected[i].GasFee < selected[i+1].GasFee {
+			t.Errorf("Transactions not ordered by fee: %d before %d",
+				selected[i].GasFee, selected[i+1].GasFee)
+		}
+	}
+}
+
+func TestConcurrentOperations(t *testing.T) {
 	mp := NewMempool()
 	var wg sync.WaitGroup
 
-	// Add 100 transactions concurrently
-	for i := 1; i <= 100; i++ {
+	// Concurrently add transactions
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			sender := string(rune('a' + (i % 5))) // Use 5 different senders
-			_ = mp.CheckTx(Transaction{Sender: sender, Nonce: uint64(i), GasFee: uint64(i * 10)})
+			for j := 1; j <= 10; j++ {
+				_ = mp.CheckTx(Transaction{
+					Sender: string(rune('a' + i)),
+					Nonce:  uint64(j),
+					GasFee: uint64(100 + j),
+				})
+			}
 		}(i)
-	}
-
-	// Concurrently read from the mempool
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_ = mp.GetAllTransactions()
-			_ = mp.Size()
-		}()
 	}
 
 	wg.Wait()
 
-	// Verify the mempool has transactions
-	if mp.Size() == 0 {
-		t.Error("Expected non-empty mempool after concurrent additions")
+	// Verify all transactions were added
+	if mp.Size() != 100 {
+		t.Errorf("Expected 100 transactions after concurrent addition, got %d", mp.Size())
+	}
+
+	// Concurrently collect and add
+	var collected sync.Map
+	wg = sync.WaitGroup{}
+
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			txs := mp.CollectTxsForBlock(10)
+			collected.Store(i, txs)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Count collected transactions
+	totalCollected := 0
+	collected.Range(func(_, value interface{}) bool {
+		txs := value.([]Transaction)
+		totalCollected += len(txs)
+		return true
+	})
+
+	// Verify we collected some transactions
+	if totalCollected == 0 {
+		t.Error("Failed to collect any transactions concurrently")
+	}
+
+	t.Logf("Collected %d transactions concurrently", totalCollected)
+	t.Logf("Remaining in mempool: %d", mp.Size())
+}
+
+func TestMempoolStressTest(t *testing.T) {
+	mp := NewMempool()
+
+	// Add a large number of transactions with random fees
+	for i := 0; i < 20; i++ {
+		sender := string(rune('a' + (i % 5))) // 5 different senders
+		for j := 1; j <= 50; j++ {
+			fee := uint64(100 + (j * 10) + (i * 5)) // Different fee pattern
+			_ = mp.CheckTx(Transaction{
+				Sender: sender,
+				Nonce:  uint64(j),
+				GasFee: fee,
+			})
+		}
+	}
+
+	// Verify size
+	expectedSize := 5 * 50 // 5 senders, 50 transactions each
+	if mp.Size() != expectedSize {
+		t.Errorf("Expected %d transactions, got %d", expectedSize, mp.Size())
+	}
+
+	// Collect all in one go
+	selected := mp.CollectTxsForBlock(uint(expectedSize))
+
+	if len(selected) != expectedSize {
+		t.Errorf("Expected to collect %d transactions, got %d", expectedSize, len(selected))
+	}
+
+	// Verify mempool is empty
+	if mp.Size() != 0 {
+		t.Errorf("Expected empty mempool after collection, got size %d", mp.Size())
 	}
 }
 
-func TestReplaceTransaction(t *testing.T) {
+func TestCollectWithLimit(t *testing.T) {
+	mp := NewMempool()
+
+	// Add 10 transactions
+	for i := 1; i <= 10; i++ {
+		_ = mp.CheckTx(Transaction{
+			Sender: "alice",
+			Nonce:  uint64(i),
+			GasFee: 100,
+		})
+	}
+
+	// Collect with different limits
+	testCases := []struct {
+		limit    uint
+		expected int
+	}{
+		{0, 0},
+		{1, 1},
+		{5, 5},
+		{10, 10},
+		{20, 10}, // Should only return 10 since that's all we have
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("Limit_%d", tc.limit), func(t *testing.T) {
+			// Create a fresh mempool for each test case
+			mp := NewMempool()
+			for i := 1; i <= 10; i++ {
+				_ = mp.CheckTx(Transaction{
+					Sender: "alice",
+					Nonce:  uint64(i),
+					GasFee: 100,
+				})
+			}
+
+			selected := mp.CollectTxsForBlock(tc.limit)
+			if len(selected) != tc.expected {
+				t.Errorf("Expected %d transactions with limit %d, got %d",
+					tc.expected, tc.limit, len(selected))
+			}
+		})
+	}
+}
+
+func TestUpdateWithEmptyList(t *testing.T) {
+	mp := NewMempool()
+
+	// Add some transactions
+	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
+
+	// Update with empty list
+	mp.Update([]Transaction{})
+
+	// Verify nothing changed
+	if mp.Size() != 1 {
+		t.Errorf("Expected 1 transaction after empty update, got %d", mp.Size())
+	}
+}
+
+func TestUpdateWithNonExistentTransactions(t *testing.T) {
 	mp := NewMempool()
 
 	// Add a transaction
 	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 100})
 
-	// Check initial state
-	aliceTxs := mp.GetTransactionsBySender("alice")
-	if len(aliceTxs) != 1 {
-		t.Errorf("Expected 1 transaction for Alice, got %d", len(aliceTxs))
+	// Update with non-existent transaction
+	mp.Update([]Transaction{
+		{Sender: "bob", Nonce: 1, GasFee: 200},
+	})
+
+	// Verify nothing changed
+	if mp.Size() != 1 {
+		t.Errorf("Expected 1 transaction after update with non-existent tx, got %d", mp.Size())
 	}
-
-	// Add a transaction with higher fee for the same nonce (should replace or be added alongside)
-	_ = mp.CheckTx(Transaction{Sender: "alice", Nonce: 1, GasFee: 200})
-
-	// Check if the transaction was added
-	aliceTxs = mp.GetTransactionsBySender("alice")
-	if len(aliceTxs) != 2 {
-		t.Errorf("Expected 2 transactions for Alice, got %d", len(aliceTxs))
-	}
-
-	// Verify the highest fee transaction is selected during update
-	selected := mp.Update(1)
-	if len(selected) != 1 {
-		t.Errorf("Expected 1 transaction, got %d", len(selected))
-	}
-
-	if selected[0].GasFee != 200 {
-		t.Errorf("Expected transaction with fee 200 to be selected, got %d", selected[0].GasFee)
-	}
-}
-
-func TestComplexMempoolSimulation(t *testing.T) {
-	mp := NewMempool()
-	var wg sync.WaitGroup
-
-	// Simulacija više epoha sa konkurentnim operacijama
-	const (
-		numSenders    = 20
-		txsPerSender  = 30
-		numEpochs     = 5
-		txsPerEpoch   = 50
-		concurrentOps = 5
-	)
-
-	// Struktura za praćenje nonce-a po pošiljaocu
-	senderNonces := make(map[string]uint64)
-	for i := 0; i < numSenders; i++ {
-		sender := fmt.Sprintf("sender-%d", i)
-		senderNonces[sender] = 1 // Početni nonce
-	}
-
-	// Mutex za zaštitu mape nonce-a
-	var nonceMutex sync.Mutex
-
-	// Funkcija za dodavanje transakcija sa rastućim nonce-om
-	addTxsWithIncreasingNonce := func(sender string, count int, baseFee uint64) {
-		nonceMutex.Lock()
-		startNonce := senderNonces[sender]
-		senderNonces[sender] += uint64(count)
-		nonceMutex.Unlock()
-
-		for i := 0; i < count; i++ {
-			nonce := startNonce + uint64(i)
-			// Varijacija u naknadama
-			fee := baseFee + uint64(rand.Intn(100))
-			tx := Transaction{Sender: sender, Nonce: nonce, GasFee: fee}
-			err := mp.CheckTx(tx)
-			if err != nil {
-				t.Errorf("Failed to add tx: %v", err)
-			}
-		}
-	}
-
-	// Faza 1: Inicijalno punjenje mempool-a
-	t.Log("Phase 1: Initial mempool population")
-	for i := 0; i < numSenders; i++ {
-		sender := fmt.Sprintf("sender-%d", i)
-		// Različite naknade za različite pošiljaoce
-		baseFee := uint64(100 + i*50)
-		// Dodaj različit broj transakcija za različite pošiljaoce
-		txCount := 5 + rand.Intn(10)
-		addTxsWithIncreasingNonce(sender, txCount, baseFee)
-	}
-
-	// Provera inicijalnog stanja
-	initialSize := mp.Size()
-	t.Logf("Initial mempool size: %d", initialSize)
-	if initialSize == 0 {
-		t.Fatal("Expected non-empty mempool after initial population")
-	}
-
-	// Faza 2: Simulacija više epoha obrade
-	t.Log("Phase 2: Multiple epoch simulation")
-	for epoch := 1; epoch <= numEpochs; epoch++ {
-		t.Logf("Epoch %d starting", epoch)
-
-		// Konkurentno dodavanje novih transakcija tokom epohe
-		for i := 0; i < concurrentOps; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				// Nasumično izaberi pošiljaoca
-				senderIdx := rand.Intn(numSenders)
-				sender := fmt.Sprintf("sender-%d", senderIdx)
-				// Dodaj 1-5 transakcija
-				txCount := 1 + rand.Intn(5)
-				baseFee := uint64(150 + rand.Intn(200))
-				addTxsWithIncreasingNonce(sender, txCount, baseFee)
-			}()
-		}
-
-		// Konkurentno čitanje iz mempool-a
-		for i := 0; i < concurrentOps; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				_ = mp.GetAllTransactions()
-				// Nasumično izaberi pošiljaoca za čitanje
-				senderIdx := rand.Intn(numSenders)
-				sender := fmt.Sprintf("sender-%d", senderIdx)
-				_ = mp.GetTransactionsBySender(sender)
-			}()
-		}
-
-		// Sačekaj da se konkurentne operacije završe
-		wg.Wait()
-
-		// Izvrši Update za ovu epohu
-		beforeUpdateSize := mp.Size()
-		selected := mp.Update(uint(txsPerEpoch))
-		afterUpdateSize := mp.Size()
-
-		t.Logf("Epoch %d: Selected %d transactions, mempool size before: %d, after: %d",
-			epoch, len(selected), beforeUpdateSize, afterUpdateSize)
-
-		// Provera da li su transakcije izabrane po redosledu nonce-a
-		senderLastNonce := make(map[string]uint64)
-		for _, tx := range selected {
-			lastNonce, exists := senderLastNonce[tx.Sender]
-			if exists && tx.Nonce <= lastNonce {
-				t.Errorf("Epoch %d: Nonce ordering violation for sender %s: got nonce %d after nonce %d",
-					epoch, tx.Sender, tx.Nonce, lastNonce)
-			}
-			senderLastNonce[tx.Sender] = tx.Nonce
-		}
-
-		// Provera da li je broj izabranih transakcija manji ili jednak limitu
-		if len(selected) > txsPerEpoch {
-			t.Errorf("Epoch %d: Selected more transactions (%d) than limit (%d)",
-				epoch, len(selected), txsPerEpoch)
-		}
-
-		// Provera da li je veličina mempool-a smanjena za broj izabranih transakcija
-		expectedSize := beforeUpdateSize - len(selected)
-		if afterUpdateSize != expectedSize {
-			t.Errorf("Epoch %d: Expected mempool size %d after update, got %d",
-				epoch, expectedSize, afterUpdateSize)
-		}
-
-		// Faza 3: Dodavanje transakcija sa prazninama u nonce-u
-		if epoch == numEpochs/2 {
-			t.Log("Phase 3: Adding transactions with nonce gaps")
-			for i := 0; i < numSenders/2; i++ {
-				sender := fmt.Sprintf("sender-%d", i)
-				nonceMutex.Lock()
-				currentNonce := senderNonces[sender]
-				// Dodaj transakciju sa prazninom u nonce-u
-				gapNonce := currentNonce + 2
-				senderNonces[sender] = gapNonce + 1
-				nonceMutex.Unlock()
-
-				tx := Transaction{Sender: sender, Nonce: gapNonce, GasFee: 500}
-				_ = mp.CheckTx(tx)
-				t.Logf("Added transaction with nonce gap for %s: current %d, gap %d",
-					sender, currentNonce, gapNonce)
-			}
-		}
-
-		// Faza 4: Dodavanje transakcija sa visokim naknadama
-		if epoch == numEpochs-1 {
-			t.Log("Phase 4: Adding high-fee transactions")
-			for i := 0; i < numSenders/4; i++ {
-				sender := fmt.Sprintf("high-fee-sender-%d", i)
-				// Visoke naknade
-				tx := Transaction{Sender: sender, Nonce: 1, GasFee: 10000}
-				_ = mp.CheckTx(tx)
-			}
-
-			// Proveri da li su transakcije sa visokim naknadama prioritizovane
-			selected = mp.Update(numSenders / 4)
-			highFeeCount := 0
-			for _, tx := range selected {
-				if strings.HasPrefix(tx.Sender, "high-fee-sender") {
-					highFeeCount++
-				}
-			}
-			t.Logf("Selected %d high-fee transactions out of %d", highFeeCount, len(selected))
-			if highFeeCount < len(selected)/2 {
-				t.Errorf("Expected high-fee transactions to be prioritized, got only %d out of %d",
-					highFeeCount, len(selected))
-			}
-		}
-	}
-
-	// Faza 5: Provera finalnog stanja
-	t.Log("Phase 5: Final state verification")
-	finalSize := mp.Size()
-	t.Logf("Final mempool size: %d", finalSize)
-
-	// Provera da li su sve transakcije sa kontinuiranim nonce-om obrađene
-	allTxs := mp.GetAllTransactions()
-	senderTxMap := make(map[string][]Transaction)
-	for _, tx := range allTxs {
-		senderTxMap[tx.Sender] = append(senderTxMap[tx.Sender], tx)
-	}
-
-	for sender, txs := range senderTxMap {
-		// Sortiraj transakcije po nonce-u
-		sort.Slice(txs, func(i, j int) bool {
-			return txs[i].Nonce < txs[j].Nonce
-		})
-
-		// Proveri da li postoje praznine u nonce-u
-		hasGap := false
-		for i := 1; i < len(txs); i++ {
-			if txs[i].Nonce > txs[i-1].Nonce+1 {
-				hasGap = true
-				t.Logf("Sender %s has nonce gap: %d -> %d",
-					sender, txs[i-1].Nonce, txs[i].Nonce)
-				break
-			}
-		}
-
-		// Ako postoje praznine, proveri da li je to očekivano
-		if hasGap {
-			// Ovde možete dodati dodatne provere ako je potrebno
-		}
-	}
-
-	// Provera konzistentnosti heap-a
-	// Ovo je indirektna provera - ne možemo direktno pristupiti internim strukturama
-	// Ali možemo proveriti da li Update vraća transakcije u očekivanom redosledu
-	if finalSize > 0 {
-		selected := mp.Update(uint(finalSize))
-
-		// Proveri da li su transakcije sortirane po naknadi između pošiljalaca
-		prevSender := ""
-		prevFee := uint64(0)
-		for i, tx := range selected {
-			if tx.Sender != prevSender {
-				if i > 0 && tx.GasFee > prevFee {
-					// Ovo nije striktna greška, ali može ukazati na problem u prioritizaciji
-					t.Logf("Potential priority issue: sender %s with fee %d selected after sender %s with fee %d",
-						tx.Sender, tx.GasFee, prevSender, prevFee)
-				}
-				prevSender = tx.Sender
-				prevFee = tx.GasFee
-			}
-		}
-	}
-
-	t.Log("Complex mempool simulation completed successfully")
 }
