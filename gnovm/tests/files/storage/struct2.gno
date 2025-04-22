@@ -11,6 +11,7 @@ func init() {
 	somevalue.field = "hello"
 }
 func main() {
+	crossing()
 	somevalue = foo{"h2"}
 	print(somevalue)
 }
@@ -23,7 +24,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/storage_test"]
-// c[334570344df8e77213d2886cb407c37de6da36c1:5](240)={
+// c[334570344df8e77213d2886cb407c37de6da36c1:8](240)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -37,22 +38,22 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:5",
+//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:8",
 //         "ModTime": "0",
-//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[334570344df8e77213d2886cb407c37de6da36c1:2](0)=
-//     @@ -54,8 +54,8 @@
-//                  },
-//                  "V": {
-//                      "@type": "/gno.RefValue",
-//     -                "Hash": "38c5985f800f03536705a87106ec69de0ef17653",
-//     -                "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:3"
-//     +                "Hash": "8aec9f0c1cca83fe81c8cd719c5b3edec450a945",
-//     +                "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:5"
-//                  }
+// u[334570344df8e77213d2886cb407c37de6da36c1:3](0)=
+//     @@ -12,8 +12,8 @@
 //              },
-//              {
-// d[334570344df8e77213d2886cb407c37de6da36c1:3](-245)
+//              "V": {
+//                  "@type": "/gno.RefValue",
+//     -            "Hash": "9410232d5a2f3fe94955796302901cfe3ddc69be",
+//     -            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:4"
+//     +            "Hash": "b30184135e8063eb1e79ec3ed6f1be623913bb37",
+//     +            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:8"
+//              }
+//          }
+//      }
+// d[334570344df8e77213d2886cb407c37de6da36c1:4](-245)

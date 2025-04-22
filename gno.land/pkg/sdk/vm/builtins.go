@@ -7,7 +7,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -69,9 +68,9 @@ func (bnk *SDKBanker) assertEnoughStorageDeposit(from crypto.Address, amt std.Co
 	sendAmt := amt.AmountOf(ugnot.Denom)
 	gnostore := bnk.ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
 	rlm := gnostore.GetPackageRealm(rlmPath)
-	sum := overflow.AddUint64p(rlm.Deposit, uint64(sendAmt))
+	remain := uint64(balance) - uint64(sendAmt)
 
-	if sum > uint64(balance) {
+	if remain < rlm.Deposit {
 		panic(fmt.Sprintf("Cannot send more tokens than allowed. A deposit of %d%s must be held in the balance (current balance: %d%s).", rlm.Deposit, ugnot.Denom, balance, ugnot.Denom))
 	}
 

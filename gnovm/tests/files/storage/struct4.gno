@@ -15,6 +15,7 @@ type Foo struct {
 }
 
 func main() {
+	crossing()
 	// record is object 5,
 	record.name = "aa"
 	// record2 is object 7, object 6 is the reference of record 2
@@ -31,11 +32,11 @@ func main() {
 // &(struct{("bb" string)} gno.land/r/storage_test.Foo)
 
 // Storage:
-// gno.land/r/storage_test: -20
+// gno.land/r/storage_test: -18
 
 // Realm:
 // switchrealm["gno.land/r/storage_test"]
-// c[334570344df8e77213d2886cb407c37de6da36c1:8](214)={
+// c[334570344df8e77213d2886cb407c37de6da36c1:13](215)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -45,13 +46,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:8",
+//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:13",
 //         "ModTime": "0",
-//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[334570344df8e77213d2886cb407c37de6da36c1:5](1)=
+// u[334570344df8e77213d2886cb407c37de6da36c1:10](1)=
 //     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
@@ -62,15 +63,15 @@ func main() {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:5",
+//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:10",
 //     -        "ModTime": "0",
-//     +        "ModTime": "7",
-//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//     +        "ModTime": "12",
+//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "0"
 //          }
 //      }
-// u[334570344df8e77213d2886cb407c37de6da36c1:7](3)=
+// u[334570344df8e77213d2886cb407c37de6da36c1:12](3)=
 //     @@ -7,13 +7,13 @@
 //                  },
 //                  "V": {
@@ -81,81 +82,104 @@ func main() {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:7",
+//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:12",
 //     -        "ModTime": "0",
-//     +        "ModTime": "7",
-//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:6",
+//     +        "ModTime": "12",
+//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:11",
 //              "RefCount": "1"
 //          }
-// u[334570344df8e77213d2886cb407c37de6da36c1:6](2)=
+// u[334570344df8e77213d2886cb407c37de6da36c1:11](2)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:6",
+//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:11",
 //     -        "ModTime": "0",
-//     +        "ModTime": "7",
-//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//     +        "ModTime": "12",
+//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:5",
 //              "RefCount": "1"
 //          },
 //     @@ -12,7 +12,7 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "134e725d6cffbcdc489a987817be1d59af9ca569",
-//     +            "Hash": "2935d4e5350c371a2d9ec161eb48da70cb6d657a",
-//                  "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:7"
+//     -            "Hash": "7df9bf7a04b361753924e514a9864f381c74c053",
+//     +            "Hash": "a82bf3ef0bdb0e30d867989d49993bb82a16af11",
+//                  "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:12"
 //              }
 //          }
-// u[334570344df8e77213d2886cb407c37de6da36c1:2](0)=
-//     @@ -3,7 +3,7 @@
+// u[334570344df8e77213d2886cb407c37de6da36c1:6](132)=
+//     @@ -1,7 +1,7 @@
+//      {
 //          "ObjectInfo": {
-//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:2",
-//              "IsEscaped": true,
-//     -        "ModTime": "4",
-//     +        "ModTime": "7",
-//              "RefCount": "2"
+//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:6",
+//     -        "ModTime": "0",
+//     +        "ModTime": "12",
+//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//              "RefCount": "1"
 //          },
-//          "Parent": null,
-//     @@ -25,8 +25,17 @@
-//                  },
-//                  "V": {
-//                      "@type": "/gno.RefValue",
-//     -                "Hash": "6ab157b02caeaa4894b430dfb81ae5d5018190ee",
-//     -                "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:5"
-//     +                "Hash": "e9a89d647b4af39916fc3cf8a5d8fc3ede124b09",
-//     +                "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:8"
-//     +            }
+//     @@ -12,6 +12,16 @@
+//                      "@type": "/gno.RefType",
+//                      "ID": "gno.land/r/storage_test.Foo"
+//                  }
 //     +        },
-//     +        {
-//     +            "T": {
-//     +                "@type": "/gno.PointerType",
-//     +                "Elt": {
-//     +                    "@type": "/gno.RefType",
-//     +                    "ID": "gno.land/r/storage_test.Foo"
-//     +                }
-//                  }
+//     +        "V": {
+//     +            "@type": "/gno.PointerValue",
+//     +            "Base": {
+//     +                "@type": "/gno.RefValue",
+//     +                "Hash": "210cc5e06c26de8de3f92cd689e1903b7e1523c6",
+//     +                "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:11"
+//     +            },
+//     +            "Index": "0",
+//     +            "TV": null
+//              }
+//          }
+//      }
+// u[334570344df8e77213d2886cb407c37de6da36c1:3](0)=
+//     @@ -1,7 +1,7 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:3",
+//     -        "ModTime": "9",
+//     +        "ModTime": "12",
+//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//              "RefCount": "1"
+//          },
+//     @@ -12,8 +12,8 @@
 //              },
-//              {
-//     @@ -41,20 +50,11 @@
-//                      "@type": "/gno.PointerValue",
-//                      "Base": {
-//                          "@type": "/gno.RefValue",
-//     -                    "Hash": "c60ddc71d28cb7757a230038cf10f977d76291b3",
-//     +                    "Hash": "f86d78491e03b34570bb589e4d255724cf6e4683",
-//                          "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:6"
-//                      },
-//                      "Index": "0",
-//                      "TV": null
-//     -            }
+//              "V": {
+//                  "@type": "/gno.RefValue",
+//     -            "Hash": "6250cc3319a807eddbd7b694e74fd4c71832611c",
+//     -            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:10"
+//     +            "Hash": "bf7dafffd0e4a7e506da9770592c2ba4dee42518",
+//     +            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:13"
+//              }
+//          }
+//      }
+// u[334570344df8e77213d2886cb407c37de6da36c1:5](-130)=
+//     @@ -1,7 +1,7 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:5",
+//     -        "ModTime": "9",
+//     +        "ModTime": "12",
+//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//              "RefCount": "1"
+//          },
+//     @@ -12,16 +12,6 @@
+//                      "@type": "/gno.RefType",
+//                      "ID": "gno.land/r/storage_test.Foo"
+//                  }
 //     -        },
-//     -        {
-//     -            "T": {
-//     -                "@type": "/gno.PointerType",
-//     -                "Elt": {
-//     -                    "@type": "/gno.RefType",
-//     -                    "ID": "gno.land/r/storage_test.Foo"
-//     -                }
-//                  }
-//              },
-//              {
-// d[334570344df8e77213d2886cb407c37de6da36c1:5](-240)
+//     -        "V": {
+//     -            "@type": "/gno.PointerValue",
+//     -            "Base": {
+//     -                "@type": "/gno.RefValue",
+//     -                "Hash": "0dd3adc4c8e151857896a710470c9500917e8a5d",
+//     -                "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:11"
+//     -            },
+//     -            "Index": "0",
+//     -            "TV": null
+//              }
+//          }
+//      }
+// d[334570344df8e77213d2886cb407c37de6da36c1:10](-241)

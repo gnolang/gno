@@ -8,6 +8,7 @@ type foo struct {
 var somevalue *foo
 
 func main() {
+	crossing()
 	somevalue = &foo{}
 	somevalue.Field = "hello"
 	print(somevalue)
@@ -17,11 +18,11 @@ func main() {
 // &(struct{("hello" string)} gno.land/r/storage_test.foo)
 
 // Storage:
-// gno.land/r/storage_test: 715
+// gno.land/r/storage_test: 717
 
 // Realm:
 // switchrealm["gno.land/r/storage_test"]
-// c[334570344df8e77213d2886cb407c37de6da36c1:5](243)={
+// c[334570344df8e77213d2886cb407c37de6da36c1:7](243)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -35,17 +36,17 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:5",
+//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:7",
 //         "ModTime": "0",
-//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:4",
+//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:6",
 //         "RefCount": "1"
 //     }
 // }
-// c[334570344df8e77213d2886cb407c37de6da36c1:4](343)={
+// c[334570344df8e77213d2886cb407c37de6da36c1:6](343)={
 //     "ObjectInfo": {
-//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:4",
+//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:6",
 //         "ModTime": "0",
-//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //         "RefCount": "1"
 //     },
 //     "Value": {
@@ -55,26 +56,35 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "9b1f745c041648964ed2f5c223e8a55861d96b77",
-//             "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:5"
+//             "Hash": "5cbe3dd2cb1a51f75adf8c948a6a19cf6d5d8117",
+//             "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:7"
 //         }
 //     }
 // }
-// u[334570344df8e77213d2886cb407c37de6da36c1:2](129)=
-//     @@ -54,6 +54,16 @@
-//                          "@type": "/gno.RefType",
-//                          "ID": "gno.land/r/storage_test.foo"
-//                      }
-//     +            },
-//     +            "V": {
-//     +                "@type": "/gno.PointerValue",
-//     +                "Base": {
-//     +                    "@type": "/gno.RefValue",
-//     +                    "Hash": "e9f9d33424e77a6b09211b54c3e2dbb6c4e74ecb",
-//     +                    "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:4"
-//     +                },
-//     +                "Index": "0",
-//     +                "TV": null
+// u[334570344df8e77213d2886cb407c37de6da36c1:3](131)=
+//     @@ -1,7 +1,7 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:3",
+//     -        "ModTime": "0",
+//     +        "ModTime": "5",
+//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//              "RefCount": "1"
+//          },
+//     @@ -12,6 +12,16 @@
+//                      "@type": "/gno.RefType",
+//                      "ID": "gno.land/r/storage_test.foo"
 //                  }
-//              },
-//              {
+//     +        },
+//     +        "V": {
+//     +            "@type": "/gno.PointerValue",
+//     +            "Base": {
+//     +                "@type": "/gno.RefValue",
+//     +                "Hash": "a56dc44469c2076358385ec4b936d85d5768be0e",
+//     +                "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:6"
+//     +            },
+//     +            "Index": "0",
+//     +            "TV": null
+//              }
+//          }
+//      }

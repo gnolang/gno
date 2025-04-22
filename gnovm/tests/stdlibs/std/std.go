@@ -173,7 +173,7 @@ func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
 }
 
 // SendCoins implements the Banker interface.
-func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins) {
+func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins, rlmPkgPath string) {
 	fcoins, fexists := tb.CoinTable[from]
 	if !fexists {
 		panic(fmt.Sprintf(

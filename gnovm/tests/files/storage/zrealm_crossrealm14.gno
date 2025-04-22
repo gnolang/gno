@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+	crossing()
 	// even though we are running within a realm,
 	// we aren't storing the result of crossrealm.Make1(),
 	// so this should print fine.
@@ -18,9 +19,6 @@ func main() {
 
 // Storage:
 // gno.land/r/crossrealm_test: 0
-// gno.land/r/demo/tests/crossrealm: 0
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]

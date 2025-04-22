@@ -911,7 +911,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 
 		if diff > 0 {
 			// lock deposit for the additional storage used.
-			requiredDeposit := overflow.Mul64p(diff, price.Amount)
+			requiredDeposit := overflow.Mulp(diff, price.Amount)
 			if depositAmt < requiredDeposit {
 				return fmt.Errorf("not enough deposit to cover the storage usage: requires %d%s for %d bytes", requiredDeposit, ugnot.Denom, diff)
 			}
@@ -926,7 +926,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				panic(fmt.Sprintf("not enough storage to be released for realm %s, realm storage %d bytes; requested release: %d bytes",
 					rlmPath, rlm.Storage, released))
 			}
-			depositUnlocked := overflow.Mul64p(released, price.Amount)
+			depositUnlocked := overflow.Mulp(released, price.Amount)
 			if rlm.Deposit < uint64(depositUnlocked) {
 				panic(fmt.Sprintf("not enough deposit to be unlocked for realm %s, realm deposit %d%s; required to unlock: %d%s",
 					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
@@ -951,9 +951,9 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 		return fmt.Errorf("unable to transfer deposit %s, %w", rlm.Path, err)
 	}
 
-	rlm.Deposit = overflow.AddUint64p(rlm.Deposit, uint64(requiredDeposit))
+	rlm.Deposit = overflow.Addp(rlm.Deposit, uint64(requiredDeposit))
 
-	rlm.Storage = overflow.AddUint64p(rlm.Storage, uint64(diff))
+	rlm.Storage = overflow.Addp(rlm.Storage, uint64(diff))
 	return nil
 }
 

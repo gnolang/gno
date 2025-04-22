@@ -7,6 +7,7 @@ var s string
 var ss []string
 
 func main() {
+	crossing()
 	i = 127
 	is = []int8{0, 127}
 	s = "a"
@@ -15,11 +16,11 @@ func main() {
 }
 
 // Storage:
-// gno.land/r/xx: 844
+// gno.land/r/xx: 854
 
 // Realm:
 // switchrealm["gno.land/r/xx"]
-// c[aea84df38908f9569d0f552575606e6e6e7e22dd:4](253)={
+// c[aea84df38908f9569d0f552575606e6e6e7e22dd:9](253)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -37,13 +38,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:4",
+//         "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:9",
 //         "ModTime": "0",
-//         "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//         "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:4",
 //         "RefCount": "1"
 //     }
 // }
-// c[aea84df38908f9569d0f552575606e6e6e7e22dd:5](302)={
+// c[aea84df38908f9569d0f552575606e6e6e7e22dd:10](303)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -68,64 +69,101 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:5",
+//         "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:10",
 //         "ModTime": "0",
-//         "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//         "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:6",
 //         "RefCount": "1"
 //     }
 // }
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:2](289)=
-//     @@ -19,6 +19,7 @@
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:3](2)=
+//     @@ -1,11 +1,12 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3",
+//     -        "ModTime": "0",
+//     +        "ModTime": "8",
+//              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "RefCount": "1"
 //          },
-//          "Values": [
-//              {
-//     +            "N": "fwAAAAAAAAA=",
-//                  "T": {
-//                      "@type": "/gno.PrimitiveType",
+//          "Value": {
+//     +        "N": "fwAAAAAAAAA=",
+//              "T": {
+//                  "@type": "/gno.PrimitiveType",
+//                  "value": "64"
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:4](134)=
+//     @@ -1,7 +1,7 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:4",
+//     -        "ModTime": "0",
+//     +        "ModTime": "8",
+//              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "RefCount": "1"
+//          },
+//     @@ -13,6 +13,17 @@
 //                      "value": "64"
-//     @@ -32,12 +33,27 @@
-//                          "value": "64"
-//                      },
-//                      "Vrd": false
+//                  },
+//                  "Vrd": false
+//     +        },
+//     +        "V": {
+//     +            "@type": "/gno.SliceValue",
+//     +            "Base": {
+//     +                "@type": "/gno.RefValue",
+//     +                "Hash": "e84e8bceb6edffed359aabd64d88ad4cdaae23c8",
+//     +                "ObjectID": "aea84df38908f9569d0f552575606e6e6e7e22dd:9"
 //     +            },
-//     +            "V": {
-//     +                "@type": "/gno.SliceValue",
-//     +                "Base": {
-//     +                    "@type": "/gno.RefValue",
-//     +                    "Hash": "c56056975e482a4315531d03c1540f79c9eaf42f",
-//     +                    "ObjectID": "aea84df38908f9569d0f552575606e6e6e7e22dd:4"
-//     +                },
-//     +                "Length": "2",
-//     +                "Maxcap": "2",
-//     +                "Offset": "0"
-//                  }
-//              },
-//              {
-//                  "T": {
-//                      "@type": "/gno.PrimitiveType",
+//     +            "Length": "2",
+//     +            "Maxcap": "2",
+//     +            "Offset": "0"
+//              }
+//          }
+//      }
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:5](27)=
+//     @@ -1,7 +1,7 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:5",
+//     -        "ModTime": "0",
+//     +        "ModTime": "8",
+//              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "RefCount": "1"
+//          },
+//     @@ -9,6 +9,10 @@
+//              "T": {
+//                  "@type": "/gno.PrimitiveType",
+//                  "value": "16"
+//     +        },
+//     +        "V": {
+//     +            "@type": "/gno.StringValue",
+//     +            "value": "a"
+//              }
+//          }
+//      }
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:6](135)=
+//     @@ -1,7 +1,7 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:6",
+//     -        "ModTime": "0",
+//     +        "ModTime": "8",
+//              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "RefCount": "1"
+//          },
+//     @@ -13,6 +13,17 @@
 //                      "value": "16"
+//                  },
+//                  "Vrd": false
+//     +        },
+//     +        "V": {
+//     +            "@type": "/gno.SliceValue",
+//     +            "Base": {
+//     +                "@type": "/gno.RefValue",
+//     +                "Hash": "af828a01b9823a07083d08cb1c69bbe1f87c0edb",
+//     +                "ObjectID": "aea84df38908f9569d0f552575606e6e6e7e22dd:10"
 //     +            },
-//     +            "V": {
-//     +                "@type": "/gno.StringValue",
-//     +                "value": "a"
-//                  }
-//              },
-//              {
-//     @@ -48,6 +64,17 @@
-//                          "value": "16"
-//                      },
-//                      "Vrd": false
-//     +            },
-//     +            "V": {
-//     +                "@type": "/gno.SliceValue",
-//     +                "Base": {
-//     +                    "@type": "/gno.RefValue",
-//     +                    "Hash": "666b921823ae903b9b40435f947775fbd7dd5df1",
-//     +                    "ObjectID": "aea84df38908f9569d0f552575606e6e6e7e22dd:5"
-//     +                },
-//     +                "Length": "2",
-//     +                "Maxcap": "2",
-//     +                "Offset": "0"
-//                  }
-//              },
-//              {
+//     +            "Length": "2",
+//     +            "Maxcap": "2",
+//     +            "Offset": "0"
+//              }
+//          }
+//      }
