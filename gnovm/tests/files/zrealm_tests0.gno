@@ -27,7 +27,7 @@ func main() {
 // end
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests"]
+// finalizerealm["gno.land/r/demo/tests"]
 // c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:59]={
 //     "Fields": [
 //         {
@@ -182,4 +182,4 @@ func main() {
 //              "RefCount": "1"
 //          },
 // d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:54]
-// switchrealm["gno.land/r/demo/tests_test"]
+// finalizerealm["gno.land/r/demo/tests_test"]

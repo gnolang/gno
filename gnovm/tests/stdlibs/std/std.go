@@ -132,18 +132,39 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 				return string(caller), pkgPath
 			} else {
 				currlm := lfr.LastRealm
-				caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+				caller, rlmPath := gno.DerivePkgBech32Addr(currlm.Path), currlm.Path
 				return string(caller), rlmPath
 			}
 		}
 		lfr = fr
 	}
 
-	if crosses != height {
-		m.Panic(typedString("frame not found"))
-		return "", ""
+	switch m.Stage {
+	case gno.StageAdd:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			return string(gno.DerivePkgBech32Addr(path)), path
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	case gno.StageRun:
+		switch height {
+		case crosses:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	default:
+		panic("exec kind unspecified")
 	}
 
+<<<<<<< HEAD
 	// Special case if package initialization.
 	if ctx.OriginCaller == "" {
 		fr := m.Frames[0]
@@ -154,6 +175,8 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	// Base case: return OriginCaller.
 	return string(ctx.OriginCaller), ""
+=======
+>>>>>>> origin/master
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {

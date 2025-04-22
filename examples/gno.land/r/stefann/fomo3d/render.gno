@@ -131,7 +131,7 @@ func getDisplayName(addr std.Address) string {
 
 // UpdateFunctionLinks updates the links for game functions
 func UpdateFunctionLinks(buyKeysLink string, claimDividendsLink string, startGameLink string) {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	gameState.BuyKeysLink = buyKeysLink
 	gameState.ClaimDividendsLink = claimDividendsLink
 	gameState.StartGameLink = startGameLink

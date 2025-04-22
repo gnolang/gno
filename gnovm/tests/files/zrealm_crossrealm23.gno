@@ -22,5 +22,5 @@ func main() {
 // g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p gno.land/r/crossrealm_test
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/crossrealm_test"]
