@@ -35,7 +35,7 @@ type Value interface {
 	DeepFill(store Store) Value
 
 	GetShallowSize() int64
-	VisitAssociated(tr Visitor) (stop bool) // for GC
+	VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) // for GC
 }
 
 // Fixed size primitive types are represented in TypedValue.N

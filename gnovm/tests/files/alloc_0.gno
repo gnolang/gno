@@ -16,4 +16,4 @@ func main() {
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:5030}
+// MemStats:  Allocator{maxBytes:100000000, bytes:6518}

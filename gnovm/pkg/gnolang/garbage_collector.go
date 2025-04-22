@@ -64,7 +64,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit frames
 	for _, frame := range m.Frames {
-		stop := frame.Visit(vis)
+		stop := frame.Visit(m.Alloc, vis)
 		if stop {
 			return -1, false
 		}
@@ -77,11 +77,25 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit exceptions
-	stop = m.Exception.Visit(vis)
-	if stop {
-		return -1, false
-	}
+	if m.Exception != nil {
+		e := m.Exception
+		for e != nil {
+			stop = m.Exception.Visit(m.Alloc, vis)
+			if stop {
+				return -1, false
+			}
+			e = e.Previous
+		}
 
+		e = m.Exception.Next
+		for e != nil {
+			stop = m.Exception.Visit(m.Alloc, vis)
+			if stop {
+				return -1, false
+			}
+			e = e.Next
+		}
+	}
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
@@ -128,7 +142,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 		}
 
 		// Invoke the traverser on v.
-		stop := v.VisitAssociated(vis)
+		stop := v.VisitAssociated(alloc, vis)
 
 		return stop
 	}
@@ -138,7 +152,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 // ---------------------------------------------------------------
 // visit associated
 
-func (sv *SliceValue) VisitAssociated(vis Visitor) (stop bool) {
+func (sv *SliceValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// Visit base.
 	if sv.Base != nil {
 		stop = vis(sv.Base)
@@ -146,7 +160,7 @@ func (sv *SliceValue) VisitAssociated(vis Visitor) (stop bool) {
 	return stop
 }
 
-func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
+func (av *ArrayValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
 		v := av.List[i].V
@@ -161,7 +175,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
+func (fv *FuncValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// visit captures
 	for _, tv := range fv.Captures {
 		v := tv.V
@@ -179,7 +193,7 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
+func (sv *StructValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
 		v := sv.Fields[i].V
@@ -194,7 +208,7 @@ func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
+func (bmv *BoundMethodValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// bmv.Func cannot be a closure, it must be a method.
 	// So we do not visit it (for garbage collection).
 
@@ -206,7 +220,7 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
+func (mv *MapValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// visit mv.List.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		// vis key
@@ -232,7 +246,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
+func (pv *PackageValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {
@@ -260,13 +274,19 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
+func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
+		// alloc TypedValue shallowly
+		alloc.Allocate(allocTypedValue)
+
 		v := b.Values[i].V
 		if v == nil {
+			// alloc primitive value
+			alloc.Allocate(allocPrimitiveValue)
 			continue
 		}
+
 		stop = vis(v)
 		if stop {
 			return
@@ -288,15 +308,18 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
+func (hiv *HeapItemValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+	alloc.Allocate(allocTypedValue)
 	v := hiv.Value.V
-	if v != nil {
+	if v == nil {
+		alloc.Allocate(allocPrimitiveValue)
+	} else {
 		stop = vis(hiv.Value.V)
 	}
 	return
 }
 
-func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
+func (pv PointerValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// NOTE: *TV and Key will be visited along with base.
 	v := pv.Base
 	if v != nil {
@@ -305,42 +328,49 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
+func (sv StringValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return false
 }
 
-func (bv BigintValue) VisitAssociated(vis Visitor) (stop bool) {
+func (bv BigintValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return false
 }
 
-func (bv BigdecValue) VisitAssociated(vis Visitor) (stop bool) {
+func (bv BigdecValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return false
 }
 
-func (dbv DataByteValue) VisitAssociated(vis Visitor) (stop bool) {
+func (dbv DataByteValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return false
 }
 
-func (rv RefValue) VisitAssociated(vis Visitor) (stop bool) {
+func (rv RefValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return false
 }
 
 // Do not count the TypeValue, neither shallowly nor deeply.
-func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
+func (tv TypeValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return false
 }
 
 // -------------------------------------------------------------------
 // custom visit methods
 
-func (fr *Frame) Visit(vis Visitor) (stop bool) {
+func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
+	alloc.Allocate(allocFrame) // alloc frame shallowly
+
 	// vis receiver
-	v := fr.Receiver.V
-	if v != nil {
-		stop = vis(v)
-	}
-	if stop {
-		return
+	if fr.Receiver.IsDefined() {
+		alloc.Allocate(allocTypedValue) // alloc shallowly
+
+		if v := fr.Receiver.V; v == nil { // primitive value
+			alloc.Allocate(allocPrimitiveValue)
+		} else {
+			stop = vis(v)
+			if stop {
+				return
+			}
+		}
 	}
 
 	// vis FuncValue
@@ -362,7 +392,11 @@ func (fr *Frame) Visit(vis Visitor) (stop bool) {
 		}
 
 		for _, arg := range dfr.Args {
-			if arg.V != nil {
+			alloc.Allocate(allocTypedValue)
+
+			if arg.V == nil {
+				alloc.Allocate(allocPrimitiveValue)
+			} else {
 				stop = vis(arg.V)
 			}
 			if stop {
@@ -389,10 +423,14 @@ func (fr *Frame) Visit(vis Visitor) (stop bool) {
 	return
 }
 
-func (ex *Exception) Visit(vis Visitor) (stop bool) {
+func (ex *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
+	alloc.Allocate(allocException) // alloc exception shallowly
 	// vis value
+	alloc.Allocate(allocTypedValue)
 	if ex != nil {
-		if v := ex.Value.V; v != nil {
+		if v := ex.Value.V; v == nil {
+			alloc.Allocate(allocPrimitiveValue)
+		} else {
 			stop = vis(v)
 		}
 		if stop {
@@ -400,6 +438,10 @@ func (ex *Exception) Visit(vis Visitor) (stop bool) {
 		}
 	}
 
-	// TODO: previous, next, stacktrace...
+	// vis StacktraceCall
+	for range ex.Stacktrace.Calls {
+		alloc.Allocate(allocStackTraceCall)
+	}
+
 	return
 }

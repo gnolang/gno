@@ -45,32 +45,37 @@ const (
 )
 
 const (
-	allocString      = _allocBase + _allocPointer + _allocStringValue
-	allocStringByte  = 1
-	allocBigint      = _allocBase + _allocPointer + _allocBigint
-	allocBigintByte  = 1
-	allocBigdec      = _allocBase + _allocPointer + _allocBigdec
-	allocBigdecByte  = 1
-	allocPointer     = _allocBase
-	allocArray       = _allocBase + _allocPointer + _allocArrayValue
-	allocArrayItem   = _allocTypedValue
-	allocSlice       = _allocBase + _allocPointer + _allocSliceValue
-	allocStruct      = _allocBase + _allocPointer + _allocStructValue
-	allocStructField = _allocTypedValue
-	allocFunc        = _allocBase + _allocPointer + _allocFuncValue
-	allocMap         = _allocBase + _allocPointer + _allocMapValue
-	allocMapItem     = _allocTypedValue * 3 // XXX
-	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
-	allocBlock       = _allocBase + _allocPointer + _allocBlock
-	allocBlockItem   = _allocTypedValue
-	allocNative      = _allocBase + _allocPointer + _allocNativeValue
-	allocRefValue    = _allocBase + +_allocRefValue
-	allocType        = _allocBase + _allocPointer + _allocType
-	allocDataByte    = 1
-	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
-	allocAmino       = _allocBase + _allocPointer + _allocAny
-	allocAminoByte   = 10 // XXX
-	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
+	allocString         = _allocBase + _allocPointer + _allocStringValue
+	allocStringByte     = 1
+	allocBigint         = _allocBase + _allocPointer + _allocBigint
+	allocBigintByte     = 1
+	allocBigdec         = _allocBase + _allocPointer + _allocBigdec
+	allocBigdecByte     = 1
+	allocPointer        = _allocBase
+	allocArray          = _allocBase + _allocPointer + _allocArrayValue
+	allocArrayItem      = _allocTypedValue
+	allocSlice          = _allocBase + _allocPointer + _allocSliceValue
+	allocStruct         = _allocBase + _allocPointer + _allocStructValue
+	allocStructField    = _allocTypedValue
+	allocFunc           = _allocBase + _allocPointer + _allocFuncValue
+	allocMap            = _allocBase + _allocPointer + _allocMapValue
+	allocMapItem        = _allocTypedValue * 3 // XXX
+	allocBoundMethod    = _allocBase + _allocPointer + _allocBoundMethodValue
+	allocBlock          = _allocBase + _allocPointer + _allocBlock
+	allocBlockItem      = _allocTypedValue
+	allocNative         = _allocBase + _allocPointer + _allocNativeValue
+	allocRefValue       = _allocBase + +_allocRefValue
+	allocType           = _allocBase + _allocPointer + _allocType
+	allocDataByte       = 1
+	allocPackage        = _allocBase + _allocPointer + _allocPackageValue
+	allocAmino          = _allocBase + _allocPointer + _allocAny
+	allocAminoByte      = 10 // XXX
+	allocHeapItem       = _allocBase + _allocPointer + _allocTypedValue
+	allocTypedValue     = _allocTypedValue
+	allocPrimitiveValue = 8
+	allocStackTraceCall = 56
+	allocFrame          = 176
+	allocException      = 80
 )
 
 func NewAllocator(maxBytes int64) *Allocator {
@@ -356,23 +361,23 @@ func (pv *PackageValue) GetShallowSize() int64 {
 }
 
 func (b *Block) GetShallowSize() int64 {
-	return allocBlock
+	return allocBlock + allocBlockItem*int64(len(b.Values))
 }
 
 func (av *ArrayValue) GetShallowSize() int64 {
 	if av.Data != nil {
 		return allocArray + int64(len(av.Data))
 	} else {
-		return allocArray
+		return allocArray + int64(len(av.List)*allocArrayItem)
 	}
 }
 
 func (sv *StructValue) GetShallowSize() int64 {
-	return allocStruct
+	return allocStruct + int64(len(sv.Fields))*allocStructField
 }
 
 func (mv *MapValue) GetShallowSize() int64 {
-	return allocMap
+	return allocMap + allocMapItem*int64(mv.GetLength())
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
@@ -384,7 +389,6 @@ func (hiv *HeapItemValue) GetShallowSize() int64 {
 }
 
 func (rv RefValue) GetShallowSize() int64 {
-	fmt.Println("---refValue, get shallow size...")
 	return allocRefValue
 }
 
@@ -398,10 +402,7 @@ func (sv *SliceValue) GetShallowSize() int64 {
 
 // Only count for closures.
 func (fv *FuncValue) GetShallowSize() int64 {
-	if fv.IsClosure {
-		return allocFunc
-	}
-	return 0
+	return allocFunc
 }
 
 func (sv StringValue) GetShallowSize() int64 {

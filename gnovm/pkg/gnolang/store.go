@@ -444,10 +444,10 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
-		ds.alloc.AllocateAmino(int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		ds.alloc.AllocateAmino(oo.GetShallowSize())
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
