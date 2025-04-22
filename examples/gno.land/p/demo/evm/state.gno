@@ -26,7 +26,7 @@ func (s State) GetResult() []byte {
 
 func (s *State) Execute(code []byte) error {
 	s.code.Reset(code)
-	for !s.code.Ill() {
+	for !s.code.Ill() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
 		if !ok {
 			return opNotImplemented(s)
@@ -35,6 +35,9 @@ func (s *State) Execute(code []byte) error {
 		if err != nil {
 			return err
 		}
+	}
+	if s.code.Ill() {
+		return outOfBounds
 	}
 	return nil
 }

@@ -9,6 +9,7 @@ func main() {
 	err := st.Execute(code)
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 	fmt.Println(st.GetResult())
 }

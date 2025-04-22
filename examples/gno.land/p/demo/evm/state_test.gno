@@ -15,7 +15,7 @@ func TestExecuteEvm(t *testing.T) {
 	}{
 		{
 			name:             "simple addition",
-			code:             []byte{0x60, 1, 0x60, 1, 0x01}, // PUSH1 1, PUSH1 1, ADD
+			code:             []byte{0x60, 1, 0x60, 1, 0x01, 0x00}, // PUSH1 1, PUSH1 1, ADD
 			expected_success: []byte{2},
 			expected_error:   nil,
 		},
@@ -33,7 +33,7 @@ func TestExecuteEvm(t *testing.T) {
 		},
 		{
 			name:             "simple addition and mul",
-			code:             []byte{byte(PUSH1), 10, byte(PUSH1), 11, byte(ADD), byte(PUSH1), 2, byte(MUL)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
+			code:             []byte{byte(PUSH1), 10, byte(PUSH1), 11, byte(ADD), byte(PUSH1), 2, byte(MUL), byte(STOP)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
 			expected_success: []byte{42},
 			expected_error:   nil,
 		},

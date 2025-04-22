@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-var outOfBounds = errors.New("")
+var outOfBounds = errors.New("out of bounds")
 
 func opNotImplemented(s *State) error {
 	return errors.New("op code " + strconv.FormatInt(int64(s.code.Current()), 16) + ": not implemented")
