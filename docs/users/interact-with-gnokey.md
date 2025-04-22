@@ -7,10 +7,6 @@ with the essential operations.
 
 ## Installing gnokey
 
-You can install `gnokey` through various methods:
-
-### Option 1: Install from source
-
 To build and install from source, you'll need:
 - Git
 - Go 1.22+
@@ -24,10 +20,6 @@ cd gno
 # Install gnokey
 make install
 ```
-
-### Option 2: Download prebuilt binaries
-
-Coming soon.
 
 ## Managing key pairs
 
