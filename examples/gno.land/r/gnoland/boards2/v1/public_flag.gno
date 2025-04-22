@@ -9,6 +9,8 @@ import (
 //
 // Threshold is only applicable within the board where it's setted.
 func SetFlaggingThreshold(boardID BoardID, threshold int) {
+	crossing()
+
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
@@ -47,6 +49,8 @@ func GetFlaggingThreshold(boardID BoardID) int {
 // Flagging requires special permissions and hides the thread when
 // the number of flags reaches a pre-defined flagging threshold.
 func FlagThread(boardID BoardID, threadID PostID, reason string) {
+	crossing()
+
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
@@ -89,6 +93,8 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 // Flagging requires special permissions and hides the comment or reply
 // when the number of flags reaches a pre-defined flagging threshold.
 func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
+	crossing()
+
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen

@@ -14,6 +14,8 @@ import (
 // This is relevant for two reasons, one so members can be modified after lock.
 // The other is for realm owners, which can delete threads and comments after lock.
 func LockRealm(lockRealmMembers bool) {
+	crossing()
+
 	assertRealmMembersAreNotLocked()
 
 	// If realm members are not being locked assert that realm is no locked.
