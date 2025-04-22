@@ -162,7 +162,7 @@ const (
 
 var (
 	opCodes map[OpCode]EvmOpData = map[OpCode]EvmOpData{
-		STOP:           {STOP, "STOP", opNotImplemented /*opStop*/},
+		STOP:           {STOP, "STOP", opStop},
 		ADD:            {ADD, "ADD", opAdd},
 		MUL:            {MUL, "MUL", opMul},
 		SUB:            {SUB, "SUB", opNotImplemented /*opSub*/},
