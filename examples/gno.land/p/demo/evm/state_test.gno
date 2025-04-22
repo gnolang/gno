@@ -42,9 +42,9 @@ func TestExecuteEvm(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			st := NewState()
-			err := st.Execute(tc.code)
-			result := st.GetResult()
+			st := newState()
+			err := st.executeByteCode(tc.code)
+			result := st.getResult()
 			if (err != nil && (err.Error() != tc.expected_error.Error())) || (err == nil && tc.expected_error != nil) {
 				t.Errorf("I expected this error:\n -> '%s'\nbut I got than one:\n -> '%s'", tc.expected_error, err)
 			}
