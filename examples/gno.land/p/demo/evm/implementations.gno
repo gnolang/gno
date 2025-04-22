@@ -11,10 +11,6 @@ func opNotImplemented(s *state) error {
 	return errors.New("op code " + strconv.FormatInt(int64(s.code.Current()), 16) + ": not implemented")
 }
 
-func opStop(s *state) error {
-    return nil
-}
-
 func opAdd(s *state) error {
 	a1, err := s.stack.Pop()
 	if err != nil {
