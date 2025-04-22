@@ -247,7 +247,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
-		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
+		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.X("main"))))
 	} else {
 		// Realm case.
 		gno.DisableDebug() // until main call.
@@ -291,7 +291,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		// Call main() like withrealm(main)().
 		// This will switch the realm to the package.
 		// main() must start with crossing().
-		m.RunStatement(gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main"))))) // switch realm.
+		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main"))))) // switch realm.
 	}
 
 	return runResult{

@@ -164,7 +164,7 @@ func makeUverseNode() {
 			"res", GenT("X", nil), // res
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			// As a special case, if arg1 is a string type, first convert it into
 			// a data slice type.
 			if arg1.TV.T != nil && arg1.TV.T.Kind() == StringKind {
@@ -406,7 +406,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -425,7 +425,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
 			switch bdt := baseOf(dst.TV.T).(type) {
 			case *SliceType:
@@ -503,7 +503,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			itv := arg1.Deref()
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
@@ -542,7 +542,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -561,7 +561,7 @@ func makeUverseNode() {
 			"", GenT("T", nil),
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			vargs := arg1
 			vargsl := vargs.TV.GetLength()
 			tt := arg0.TV.GetType()
@@ -684,7 +684,7 @@ func makeUverseNode() {
 			"", GenT("*T", nil),
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			tt := arg0.TV.GetType()
 			tv := defaultTypedValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
@@ -710,7 +710,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
 	)
@@ -720,7 +720,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
 		},
 	)
@@ -730,7 +730,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			ex := arg0.TV.Copy(m.Alloc)
 			m.Panic(ex)
 		},
@@ -767,7 +767,7 @@ func makeUverseNode() {
 			}
 			// Verify prior fr.WithCross or fr.DidCross.
 			// NOTE: fr.WithCross may or may not be true,
-			// switcherealm() (which sets fr.DidCross) can be
+			// crossing() (which sets fr.DidCross) can be
 			// stacked.
 			for i := 1 + 1; ; i++ {
 				fri := m.PeekCallFrame(i)
@@ -803,7 +803,7 @@ func makeUverseNode() {
 			// This is handled by op_call instead.
 			panic("cross is a virtual function")
 			/*
-				arg0 := m.LastBlock().GetParams1()
+				arg0 := m.LastBlock().GetParams1(m.Store)
 				m.PushValue(arg0.Deref())
 			*/
 		},

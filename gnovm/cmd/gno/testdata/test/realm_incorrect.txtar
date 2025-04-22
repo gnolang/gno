@@ -8,7 +8,7 @@ stderr 'Realm diff:'
 stderr '--- Expected'
 stderr '-xxxx'
 stderr '-xxx'
-stderr '\+switchrealm\["gno.land/r/xx"\]'
+stderr '\+finalizerealm\["gno.land/r/xx"\]'
 stderr '\+    @@ -1,11 \+1,12 @@'
 stderr 'x_filetest.gno failed'
 
