@@ -50,6 +50,8 @@ func Withdraw(amount uint64) {
 }
 
 func Render(path string) string {
+	crossing()
+
 	parts := strings.Split(path, "/")
 	c := len(parts)
 
