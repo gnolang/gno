@@ -361,7 +361,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Pay deposit from creator.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
@@ -448,7 +448,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	expr := fmt.Sprintf(`cross(pkg.%s)(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
@@ -943,7 +943,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 }
 
 func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, requiredDeposit int64, diff int64) error {
-	rlmAddr := gno.DerivePkgAddr(rlm.Path)
+	rlmAddr := gno.DerivePkgCryptoAddr(rlm.Path)
 
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
 	err := vm.bank.SendCoinsUnrestricted(ctx, caller, rlmAddr, d)
@@ -958,7 +958,7 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 }
 
 func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
-	rlmAddr := gno.DerivePkgAddr(rlm.Path)
+	rlmAddr := gno.DerivePkgCryptoAddr(rlm.Path)
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
 	err := vm.bank.SendCoinsUnrestricted(ctx, rlmAddr, caller, d)
 	if err != nil {

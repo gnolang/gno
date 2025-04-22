@@ -30,7 +30,7 @@ type MemPackageGetter interface {
 //
 // The syntax checking is performed entirely using Go's go/types package.
 //
-// If format is true, the code will be automatically updated with the
+// If format is true, the code in msmpkg will be automatically updated with the
 // formatted source code.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
 	return typeCheckMemPackage(mempkg, getter, false, format)
@@ -138,16 +138,15 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 			continue
 		}
 
+		//----------------------------------------
+		// Non-logical formatting transforms
+
 		if delFunc != nil {
 			deleteOldIdents(delFunc, f)
 		}
 
-		if err := filterCrossing(f); err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-
-		// enforce formatting
+		// Enforce formatting.
+		// This must happen before logical transforms.
 		if fmt {
 			var buf bytes.Buffer
 			err = format.Node(&buf, fset, f)
@@ -156,6 +155,15 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 				continue
 			}
 			file.Body = buf.String()
+		}
+
+		//----------------------------------------
+		// Logical transforms
+
+		// filter crossings for type checker
+		if err := filterCrossing(f); err != nil {
+			errs = multierr.Append(errs, err)
+			continue
 		}
 
 		files = append(files, f)

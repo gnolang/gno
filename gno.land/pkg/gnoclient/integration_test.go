@@ -61,7 +61,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	msg := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
 	}
@@ -120,7 +120,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	msg1 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{""},
 		Send:    nil,
 	}
@@ -129,7 +129,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	msg2 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
 	}
@@ -324,11 +324,13 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	crossing()
+
+	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter()
+		cross(tests.IncCounter)()
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
 }`
 
 	caller, err := client.Signer.Info()
@@ -339,6 +341,8 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &gnovm.MemPackage{
 			Name: "main",
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
 			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
@@ -402,11 +406,13 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	crossing()
+
+	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter()
+		cross(tests.IncCounter)()
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
 }`
 
 	fileBody2 := `package main
@@ -415,6 +421,8 @@ import (
 	"gno.land/r/demo/deep/very/deep"
 )
 func main() {
+	crossing()
+
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
@@ -426,6 +434,8 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &gnovm.MemPackage{
 			Name: "main",
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
 			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
@@ -439,6 +449,8 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &gnovm.MemPackage{
 			Name: "main",
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
 			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
@@ -531,7 +543,7 @@ func Echo(str string) string {
 	assert.Equal(t, string(query.Response.Data), fileName)
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 1485000}}, baseAcc.GetCoins())
 
@@ -641,8 +653,8 @@ func Hello(str string) string {
 	require.NoError(t, err)
 	assert.Equal(t, string(query.Response.Data), "echo.gno")
 
-	// Query balance to validate that the deposit matches the storage usage
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
+	// Query balance to validate deposit
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
 	assert.Equal(t, "1485000ugnot", baseAcc.GetCoins().String())
 
@@ -655,9 +667,8 @@ func Hello(str string) string {
 	assert.Contains(t, string(query.Response.Data), "hello.gno")
 	assert.Contains(t, string(query.Response.Data), "gno.mod")
 
-	// Query the balance to validate that the deposit matches the storage usage and
-	// the amount received from the creator. Deposit: 1496000ugnot, Sent: 1000000ugnot.
-	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
+	// Query balance to validate deposit
+	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 2496000}}, baseAcc.GetCoins())
 

@@ -431,12 +431,22 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// First init static blocks if blocknode.
+	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
-	if bn, ok := n.(BlockNode); ok {
-		initStaticBlocks(store, ctx, bn)
-	}
+	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
+	// because say n may be a *CallExpr containing an anonymous function.
+	Transcribe(n,
+		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			if bn, ok := n.(BlockNode); ok {
+				initStaticBlocks(store, ctx, bn)
+				return n, TRANS_SKIP
+			}
+			return n, TRANS_CONTINUE
+		})
 
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
@@ -447,12 +457,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX do any of the following need the attr, or similar attrs?
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
-	if bn, ok := n.(BlockNode); ok {
-		// findGotoLoopDefines(ctx, bn)
-		findHeapDefinesByUse(ctx, bn)
-		findHeapUsesDemoteDefines(ctx, bn)
-		findPackageSelectors(bn)
-	}
+	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
+	// because say n may be a *CallExpr containing an anonymous function.
+	Transcribe(n,
+		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			if bn, ok := n.(BlockNode); ok {
+				// findGotoLoopDefines(ctx, bn)
+				findHeapDefinesByUse(ctx, bn)
+				findHeapUsesDemoteDefines(ctx, bn)
+				findPackageSelectors(bn)
+				return n, TRANS_SKIP
+			}
+			return n, TRANS_CONTINUE
+		})
 	return n
 }
 
@@ -2933,7 +2953,10 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 			}
 		}
 	}
-	panic("stop not found in stack")
+	// This can happen e.g. if stop is a package but we are
+	// Preprocess()'ing an expression such as `func(){ ... }()` from
+	// Machine.Eval() on an already preprocessed package.
+	return
 }
 
 // If a name is used as a heap item, Convert all other uses of such names
@@ -4704,16 +4727,16 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			}
 			// The body may get altered during preprocessing later.
 			if !dt.TryDefineMethod(&FuncValue{
-				Type:        ft,
-				IsMethod:    true,
-				Source:      cd,
-				Name:        cd.Name,
-				Parent:      nil, // set lazily
-				FileName:    fileNameOf(last),
-				PkgPath:     pkg.PkgPath,
-				SwitchRealm: cd.Body.isSwitchRealm(),
-				body:        cd.Body,
-				nativeBody:  nil,
+				Type:       ft,
+				IsMethod:   true,
+				Source:     cd,
+				Name:       cd.Name,
+				Parent:     nil, // set lazily
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				Crossing:   cd.Body.isCrossing(),
+				body:       cd.Body,
+				nativeBody: nil,
 			}) {
 				// Revert to old function declarations in the package we're preprocessing.
 				pkg := packageOf(last)
@@ -4976,16 +4999,16 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			// fill in later during *FuncDecl:BLOCK.
 			// The body may get altered during preprocessing later.
 			fv := &FuncValue{
-				Type:        ft,
-				IsMethod:    false,
-				Source:      d,
-				Name:        d.Name,
-				Parent:      nil, // set lazily.
-				FileName:    fileNameOf(last),
-				PkgPath:     pkg.PkgPath,
-				SwitchRealm: d.Body.isSwitchRealm(),
-				body:        d.Body,
-				nativeBody:  nil,
+				Type:       ft,
+				IsMethod:   false,
+				Source:     d,
+				Name:       d.Name,
+				Parent:     nil, // set lazily.
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				Crossing:   d.Body.isCrossing(),
+				body:       d.Body,
+				nativeBody: nil,
 			}
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
 			// len(fv.body) == 0 could mean also {} (ie. no statements inside)
