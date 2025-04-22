@@ -13,3 +13,6 @@ func main() {
 
 // Error:
 // main/files/switch8b.gno:10:3: cannot fallthrough final case in switch
+
+// TypeCheckError:
+// main/files/switch8b.gno:10:3: cannot fallthrough final case in switch

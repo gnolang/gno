@@ -9,3 +9,6 @@ func main() {
 
 // Error:
 // main/files/const25.gno:6:8: [](const-type string){(const ("1" string))} (variable of type []string) is not constant
+
+// TypeCheckError:
+// main/files/const25.gno:6:12: []string{…} (value of type []string) is not constant

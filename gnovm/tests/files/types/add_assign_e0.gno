@@ -26,3 +26,6 @@ func main() {
 
 // Error:
 // main/files/types/add_assign_e0.gno:23:2: invalid operation: mismatched types main.Error1 and main.Error2
+
+// TypeCheckError:
+// main/files/types/add_assign_e0.gno:23:2: invalid operation: e1 += e2 (mismatched types Error1 and Error2)

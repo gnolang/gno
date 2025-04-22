@@ -40,3 +40,6 @@ func main() {
 // p1
 //
 // bye1
+
+// TypeCheckError:
+// main/files/defer0.gno:9:11: invalid operation: invalid use of ... with built-in println

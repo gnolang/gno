@@ -29,12 +29,6 @@ func (opts *TestOptions) RunFiletest(filename string, source []byte) (string, er
 	return opts.runFiletest(filename, source)
 }
 
-var reEndOfLineSpaces = func() *regexp.Regexp {
-	re := regexp.MustCompile(" +\n")
-	re.Longest()
-	return re
-}()
-
 func (opts *TestOptions) runFiletest(filename string, source []byte) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
@@ -71,11 +65,6 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source, opslog)
 
-	// If there was a type-check error, return immediately.
-	if result.TypeCheckError != "" {
-		return "", fmt.Errorf("typecheck error: %s", result.TypeCheckError)
-	}
-
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
 	// returnErr is used as the return value, and may be a MultiError if
@@ -85,22 +74,23 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	// match verifies the content against dir.Content; if different,
 	// either updates dir.Content (for opts.Sync) or appends a new returnErr.
 	match := func(dir *Directive, actual string) {
-		// Remove end-of-line spaces, as these are removed from `fmt` in the filetests anyway.
-		actual = reEndOfLineSpaces.ReplaceAllString(actual, "\n")
-		if dir.Content != actual {
+		content := dir.Content
+		actual = strings.TrimRight(actual, "\n")
+		content = strings.TrimRight(content, "\n")
+		if content != actual {
 			if opts.Sync {
 				dir.Content = actual
 				updated = true
 			} else {
 				returnErr = multierr.Append(
 					returnErr,
-					fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(dir.Content, actual)),
+					fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(content, actual)),
 				)
 			}
 		}
 	}
 
-	// First, check if we have an error, whether we're supposed to get it.
+	// Check if we have an error, whether we're supposed to get it.
 	if result.Error != "" {
 		// Ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
@@ -126,6 +116,9 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			return "", fmt.Errorf("got unexpected debug error(s): %v", gno.GetDebugErrors())
 		}
 	}
+
+	// Set to true if there was a go-typecheck directive..
+	var hasTypeCheckErrorDirective bool
 
 	// Check through each directive and verify it against the values from the test.
 	for idx := range dirs {
@@ -153,7 +146,19 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
+		case DirectiveTypeCheckError:
+			hasTypeCheckErrorDirective = true
+			match(dir, result.TypeCheckError)
 		}
+	}
+
+	if !hasTypeCheckErrorDirective && result.TypeCheckError != "" {
+		dir := Directive{
+			Name:    DirectiveTypeCheckError,
+			Content: "",
+		}
+		match(&dir, result.TypeCheckError)
+		dirs = append(dirs, dir)
 	}
 
 	if updated { // only true if sync == true
@@ -192,6 +197,7 @@ type runResult struct {
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte, opslog io.Writer) (rr runResult) {
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
+	tcError := ""
 
 	// Eagerly load imports.
 	// This is executed using opts.Store, rather than the transaction store;
@@ -221,6 +227,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		if r := recover(); r != nil {
 			rr.Output = opts.filetestBuffer.String()
 			rr.GoPanicStack = debug.Stack()
+			rr.TypeCheckError = tcError
 			switch v := r.(type) {
 			case *gno.TypedValue:
 				rr.Error = v.Sprint(m)
@@ -238,6 +245,22 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) {
+		// Type check.
+		memPkg := &gnovm.MemPackage{
+			Name: string(pkgName),
+			Path: pkgPath,
+			Files: []*gnovm.MemFile{
+				{
+					Name: filename,
+					Body: string(content),
+				},
+			},
+		}
+		// Validate Gno syntax and type check.
+		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+			tcError = fmt.Sprintf("%v", err.Error())
+		}
+
 		// Simple case - pure package.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 		pv := pn.NewPackage()
@@ -246,6 +269,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.SetActivePackage(pv)
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		n := gno.MustParseFile(filename, string(content))
+
 		m.RunFiles(n)
 		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.X("main"))))
 	} else {
@@ -272,7 +296,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 
 		// Validate Gno syntax and type check.
 		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
-			return runResult{TypeCheckError: err.Error()}
+			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
 		// Run decls and init functions.
@@ -295,8 +319,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 	}
 
 	return runResult{
-		Output:        opts.filetestBuffer.String(),
-		GnoStacktrace: m.Stacktrace().String(),
+		Output:         opts.filetestBuffer.String(),
+		GnoStacktrace:  m.Stacktrace().String(),
+		TypeCheckError: tcError,
 	}
 }
 
@@ -312,12 +337,13 @@ const (
 
 	// These are used to match the result of the filetest against known golden
 	// values.
-	DirectiveOutput       = "Output"
-	DirectiveError        = "Error"
-	DirectiveRealm        = "Realm"
-	DirectiveEvents       = "Events"
-	DirectivePreprocessed = "Preprocessed"
-	DirectiveStacktrace   = "Stacktrace"
+	DirectiveOutput         = "Output"
+	DirectiveError          = "Error"
+	DirectiveRealm          = "Realm"
+	DirectiveEvents         = "Events"
+	DirectivePreprocessed   = "Preprocessed"
+	DirectiveStacktrace     = "Stacktrace"
+	DirectiveTypeCheckError = "TypeCheckError"
 )
 
 // Directives contains the directives of a file.
@@ -351,15 +377,20 @@ func (d Directives) FirstDefault(name, defaultValue string) string {
 // FileTest re-generates the filetest from the given directives; the inverse of ParseDirectives.
 func (d Directives) FileTest() string {
 	var bld strings.Builder
-	for _, dir := range d {
+	for i, dir := range d {
+		var ll = ""
+		if i < len(d)-1 {
+			ll = "\n"
+		}
 		switch {
 		case dir.Name == "":
-			bld.WriteString(dir.Content)
-		case strings.ToUpper(dir.Name) == dir.Name: // is it all uppercase?
-			bld.WriteString("// " + dir.Name + ": " + dir.Content + "\n")
+			cnt := strings.TrimRight(dir.Content, "\n ")
+			bld.WriteString(cnt + "\n" + ll)
+		case strings.ToUpper(dir.Name) == dir.Name: // ALLCAPS:
+			bld.WriteString("// " + dir.Name + ": " + dir.Content + ll)
 		default:
 			bld.WriteString("// " + dir.Name + ":\n")
-			cnt := strings.TrimSuffix(dir.Content, "\n")
+			cnt := strings.TrimRight(dir.Content, "\n ")
 			lines := strings.Split(cnt, "\n")
 			for _, line := range lines {
 				if line == "" {
@@ -367,9 +398,10 @@ func (d Directives) FileTest() string {
 					continue
 				}
 				bld.WriteString("// ")
-				bld.WriteString(strings.TrimRight(line, " "))
-				bld.WriteByte('\n')
+				bld.WriteString(line)
+				bld.WriteString("\n")
 			}
+			bld.WriteString(ll)
 		}
 	}
 	return bld.String()
@@ -380,65 +412,108 @@ func (d Directives) FileTest() string {
 // these compose the source file itself, and are used to re-construct the file
 // when a directive is changed.
 type Directive struct {
-	Name    string
-	Content string
+	Name     string
+	Content  string
+	Complete bool
+	LastLine string
 }
 
 // Allows either a `ALLCAPS: content` on a single line, or a `PascalCase:`,
 // with content on the following lines.
-var reDirectiveLine = regexp.MustCompile("^(?:([A-Z][a-z]*):|([A-Z]+): ?(.*))$")
+var reDirectiveLine = regexp.MustCompile("^(?:([A-Za-z]*):|([A-Z]+): ?(.*))$")
 
 // ParseDirectives parses all the directives in the filetest given at source.
 func ParseDirectives(source io.Reader) (Directives, error) {
 	sc := bufio.NewScanner(source)
 	parsed := make(Directives, 0, 8)
+	parsed = append(parsed, Directive{Complete: true}) // faux directive.
 	for sc.Scan() {
-		// Re-append trailing newline.
-		// Useful as we always use it anyway.
-		txt := sc.Text() + "\n"
+		last := &parsed[len(parsed)-1]
+		txt := sc.Text()
 		if !strings.HasPrefix(txt, "//") {
-			if len(parsed) == 0 || parsed[len(parsed)-1].Name != "" {
-				parsed = append(parsed, Directive{Content: txt})
+			// If we're already in an incomplete text directive, simply append there.
+			if last.Name == "" && !last.Complete {
+				last.Content += txt + "\n"
+				last.LastLine = txt
 				continue
 			}
-			parsed[len(parsed)-1].Content += txt
+			// Otherwise make a new directive.
+			parsed = append(parsed,
+				Directive{
+					Content:  txt + "\n",
+					LastLine: txt,
+				})
 			continue
 		}
 
-		comment := txt[2 : len(txt)-1]             // leading double slash, trailing \n
+		comment := txt[2:]                         // leading double slash
 		comment = strings.TrimPrefix(comment, " ") // leading space (if any)
 
-		// If we're already in a directive, simply append there.
-		if len(parsed) > 0 && parsed[len(parsed)-1].Name != "" {
-			parsed[len(parsed)-1].Content += comment + "\n"
-			continue
+		// Special case if following an incomplete comment line,
+		// always append to it even if it looks like `// TODO: ...`.
+		if strings.HasPrefix(txt, "//") &&
+			strings.HasPrefix(last.LastLine, "//") &&
+			!last.Complete {
+
+			if last.Name == "" {
+				// Just append text to it.
+				last.Content += txt + "\n"
+				last.LastLine = txt
+				continue
+			} else {
+				// Just append comment to it.
+				last.Content += comment + "\n"
+				last.LastLine = txt
+				continue
+			}
 		}
 
 		// Find if there is a colon (indicating a possible directive).
 		subm := reDirectiveLine.FindStringSubmatch(comment)
 		switch {
-		case subm == nil:
-			// Not found; append to parsed as a line, or to the previous
-			// directive if it exists.
-			if len(parsed) == 0 {
-				parsed = append(parsed, Directive{Content: txt})
-				continue
+		case subm == nil: // comment...
+			// If we're already in an incomplete directive, simply append there.
+			if !last.Complete {
+				if last.Name == "" {
+					last.Content += txt + "\n"
+					last.LastLine = txt
+					continue
+				} else {
+					last.Content += comment + "\n"
+					last.LastLine = txt
+					continue
+				}
 			}
-			last := &parsed[len(parsed)-1]
-			if last.Name == "" {
-				last.Content += txt
-			} else {
-				last.Content += comment + "\n"
-			}
-		case subm[1] != "": // output directive, with content on newlines
-			parsed = append(parsed, Directive{Name: subm[1]})
-		default: // subm[2] != "", all caps
+			// Otherwise make a new directive.
 			parsed = append(parsed,
-				Directive{Name: subm[2], Content: subm[3]},
-				// enforce new directive later
-				Directive{},
-			)
+				Directive{
+					Content:  txt + "\n",
+					LastLine: txt,
+				})
+		case subm[1] != "": // CamelCase:
+			// output directive, with content on newlines
+			parsed = append(parsed,
+				Directive{
+					Name:     subm[1],
+					LastLine: txt,
+				})
+		default: // subm[2] != "" // ALLCAPS: ...
+			parsed = append(parsed,
+				Directive{
+					Name:     subm[2],
+					Content:  subm[3],
+					Complete: true,
+				})
 		}
 	}
+
+	/*
+		for i, dir := range parsed {
+			fmt.Printf("#%d %s: [[[%s]]]\n", i, dir.Name, dir.Content)
+		}
+	*/
+
+	parsed = parsed[1:]
+
 	return parsed, sc.Err()
 }

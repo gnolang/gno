@@ -8,4 +8,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_5a_err_stdlibs.gno:7:6: cannot take address of (const (255 <untyped> bigint))
+// illegal assignment X expression type *gnolang.ConstExpr
+
+// TypeCheckError:
+// main/files/addressable_5a_err_stdlibs.gno:7:7: invalid operation: cannot take address of math.MaxUint8 (untyped int constant 255)

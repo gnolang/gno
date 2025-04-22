@@ -12,3 +12,6 @@ func main() {
 
 // Error:
 // main/files/types/assign_index.gno:8:2: cannot use int as string
+
+// TypeCheckError:
+// main/files/types/assign_index.gno:8:10: cannot use m["a"] (map index expression of type int) as string value in assignment

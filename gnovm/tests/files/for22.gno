@@ -15,3 +15,6 @@ func main() {
 
 // Error:
 // main/files/for22.gno:7:17: fallthrough statement out of place
+
+// TypeCheckError:
+// main/files/for22.gno:7:17: fallthrough statement out of place

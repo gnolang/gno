@@ -28,10 +28,12 @@ func main() {
 // 123
 // dev
 
+
+
 // Realm:
 // finalizerealm["gno.land/r/test"]
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
-//     @@ -17,7 +17,7 @@
+//     @@ -16,7 +16,7 @@
 //                          "Tag": "",
 //                          "Type": {
 //                              "@type": "/gno.PrimitiveType",
@@ -40,7 +42,7 @@ func main() {
 //                          }
 //                      }
 //                  ]
-//     @@ -25,7 +25,7 @@
+//     @@ -24,7 +24,7 @@
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //                  "Escaped": true,

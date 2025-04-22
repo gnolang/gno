@@ -17,3 +17,6 @@ func main() {
 
 // Error:
 // main/files/for24.gno:8:21: break statement out of place
+
+// TypeCheckError:
+// main/files/for24.gno:8:21: break not in for, switch, or select statement

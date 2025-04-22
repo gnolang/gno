@@ -18,3 +18,6 @@ func main() {
 
 // Error:
 // main/files/types/eql_0f16.gno:16:10: [2]main.word is not comparable
+
+// TypeCheckError:
+// main/files/types/eql_0f16.gno:16:10: invalid operation: a == c ([2]word cannot be compared)

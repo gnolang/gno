@@ -18,3 +18,6 @@ func main() {
 
 // Error:
 // main/files/types/assign_range_c.gno:14:2: index type should be int, but got float32
+
+// TypeCheckError:
+// main/files/types/assign_range_c.gno:14:6: cannot use k (value of type int) as float32 value in assignment; main/files/types/assign_range_c.gno:14:9: cannot use v (value of type string) as float32 value in assignment

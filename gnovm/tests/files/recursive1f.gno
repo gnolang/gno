@@ -11,3 +11,6 @@ func main() {
 
 // Error:
 // main/files/recursive1f.gno:4:7: invalid recursive type: S -> S
+
+// TypeCheckError:
+// main/files/recursive1f.gno:4:7: invalid recursive type: S refers to itself

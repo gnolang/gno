@@ -10,3 +10,6 @@ func main() {
 
 // Error:
 // main/files/types/shift_f1b.gno:7:2: operator << not defined on: BigdecKind
+
+// TypeCheckError:
+// main/files/types/shift_f1b.gno:7:7: invalid operation: shifted operand 1.0 (type float64) must be integer

@@ -26,3 +26,6 @@ func main() {
 
 // Error:
 // main/files/types/eql_0f1.gno:19:5: int64 does not implement .uverse.error (missing method Error)
+
+// TypeCheckError:
+// main/files/types/eql_0f1.gno:19:17: invalid operation: int64(1) == errCmp (mismatched types int64 and error)
