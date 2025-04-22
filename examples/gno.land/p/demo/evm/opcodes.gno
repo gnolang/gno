@@ -232,7 +232,7 @@ var (
 		TSTORE:         {TSTORE, "TSTORE", opNotImplemented /*opTstore*/},
 		MCOPY:          {MCOPY, "MCOPY", opNotImplemented /*opMcopy*/},
 		PUSH0:          {PUSH0, "PUSH0", opPush0},
-		PUSH1:          {PUSH1, "PUSH1", opPush1},
+		PUSH1:          {PUSH1, "PUSH1", opPush(1)},
 		PUSH2:          {PUSH2, "PUSH2", opNotImplemented /*opPush2*/},
 		PUSH3:          {PUSH3, "PUSH3", opNotImplemented /*opPush3*/},
 		PUSH4:          {PUSH4, "PUSH4", opNotImplemented /*opPush4*/},

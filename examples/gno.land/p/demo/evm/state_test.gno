@@ -43,7 +43,7 @@ func TestExecuteEvm(t *testing.T) {
 		{
 			name:               "exchange 1st and 2nd stack items",
 			code:               []byte{byte(PUSH0), byte(PUSH1), 0x42, byte(SWAP1), byte(STOP)}, // PUSH0, PUSH1 0x42, SWAP1
-			expected_stackdata: []*uint256.Uint{uint256.NewFrom64s(60), uint256.New()},
+			expected_stackdata: []*uint256.Uint{uint256.NewFrom64s(66), uint256.New()},
 			expected_error:     nil,
 		},
 		// Add more test cases as needed
@@ -55,11 +55,11 @@ func TestExecuteEvm(t *testing.T) {
 			err := st.executeByteCode(tc.code)
 			result := st.getStackData()
 			if (err != nil && tc.expected_error != nil && (err.Error() != tc.expected_error.Error())) || (err == nil && tc.expected_error != nil) {
-				t.Errorf("I expected this error:\n -> '%s'\nbut I got than one:\n -> '%s'", tc.expected_error, err)
+				t.Errorf("I expected this error:\n -> '%s'\nbut I got that one:\n -> '%s'", tc.expected_error, err)
 			}
 			for i := 0; i < len(result); i++ {
-				if result[i].Equals(tc.expected_stackdata[i]) {
-					t.Errorf("I expected this output:\n -> '%s'\nbut I got than one:\n -> '%s'", tc.expected_stackdata[i].HexString(), result[i].HexString())
+				if !result[i].Equals(tc.expected_stackdata[i]) {
+					t.Errorf("I expected this output:\n -> '%s'\nbut I got that one:\n -> '%s'", tc.expected_stackdata[i].HexString(), result[i].HexString())
 					return
 				}
 			}

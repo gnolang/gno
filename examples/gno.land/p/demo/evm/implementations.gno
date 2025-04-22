@@ -2,7 +2,6 @@ package evm
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"gno.land/p/demo/evm/uint256"
@@ -52,11 +51,13 @@ func opPush0(s *state) error {
 	return nil
 }
 
-func opPush1(s *state) error {
-	s.code.Increment()
-	if s.code.Ill() {
-		return outOfBounds
+func opPush(n int) func(*state) error {
+	return func(s *state) error {
+		s.code.Increment()
+		if s.code.Ill() {
+			return outOfBounds
+		}
+		s.stack.Push(s.code.Read(n))
+		return nil
 	}
-	s.stack.Push(s.code.Read(1))
-	return nil
 }

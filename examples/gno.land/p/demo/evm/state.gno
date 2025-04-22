@@ -1,8 +1,6 @@
 package evm
 
 import (
-	"fmt"
-
 	"gno.land/p/demo/evm/uint256"
 )
 
