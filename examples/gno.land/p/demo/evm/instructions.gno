@@ -1,18 +1,18 @@
 package evm
 
-type Instructions struct {
+type instructions struct {
 	rip          int
 	instructions []byte
 	length       int
 }
 
-func (i *Instructions) Reset(l []byte) {
+func (i *instructions) Reset(l []byte) {
 	i.rip = 0
 	i.instructions = l
 	i.length = len(l)
 }
 
-func (i *Instructions) Increment(more ...int) *Instructions {
+func (i *instructions) Increment(more ...int) *instructions {
 	x := 1
 	if len(more) > 0 {
 		i.rip = more[0]
@@ -25,20 +25,20 @@ func (i *Instructions) Increment(more ...int) *Instructions {
 	return i
 }
 
-func (i Instructions) Current() byte {
+func (i instructions) Current() byte {
 	if i.Ill() {
 		return 0
 	}
 	return i.instructions[i.rip]
 }
 
-func (i Instructions) Ill() bool {
+func (i instructions) Ill() bool {
 	return i.rip < 0
 }
 
 // read n bytes and jump to rip + n
 // TODO: make it uint256
-func (i *Instructions) Read(n int) uint64 {
+func (i *instructions) Read(n int) uint64 {
 	if i.rip < 0 {
 		return 0
 	}

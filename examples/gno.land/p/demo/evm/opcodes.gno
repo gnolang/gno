@@ -5,7 +5,7 @@ type OpCode byte
 type EvmOpData struct {
 	opCode    OpCode
 	name      string
-	operation func(*State) error
+	operation func(*state) error
 }
 
 const (
