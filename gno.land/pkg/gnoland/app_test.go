@@ -56,7 +56,7 @@ func TestNewAppWithOptions(t *testing.T) {
 				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
 					{
 						Name: "demo.gno",
-						Body: "package demo; func Hello() string { return `hello`; }",
+						Body: "package demo; func Hello() string { crossing(); return `hello`; }",
 					},
 				})},
 				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
@@ -373,7 +373,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	var t time.Time = time.Now()
 
 	// GetT returns the time that was saved from genesis
-	func GetT() int64 { return t.Unix() }
+	func GetT() int64 { crossing(); return t.Unix() }
 `
 			)
 

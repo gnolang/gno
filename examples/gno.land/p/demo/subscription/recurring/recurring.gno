@@ -90,7 +90,7 @@ func (rs *RecurringSubscription) GetExpiration(addr std.Address) (time.Time, err
 
 // UpdateAmount allows the owner of the subscription contract to change the required subscription amount.
 func (rs *RecurringSubscription) UpdateAmount(newAmount int64) error {
-	if !rs.CallerIsOwner() {
+	if !rs.OwnedByPrevious() {
 		return ErrNotAuthorized
 	}
 

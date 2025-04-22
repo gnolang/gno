@@ -47,7 +47,7 @@ func AddMember(addr std.Address) {
 }
 
 func GetInstance() *GovDAO {
-	if std.PreviousRealm().PkgPath() != "gno.land/r/gov/dao/v3/loader" {
+	if std.CurrentRealm().PkgPath() != "gno.land/r/gov/dao/v3/loader" {
 		panic("not allowed")
 	}
 

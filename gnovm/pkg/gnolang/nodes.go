@@ -453,7 +453,7 @@ func (x *CallExpr) isWithCross() bool {
 }
 
 // returns true if x is of form crossing().
-func (x *CallExpr) isSwitchRealm() bool {
+func (x *CallExpr) isCrossing() bool {
 	if x == nil {
 		return false
 	}
@@ -859,12 +859,12 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 }
 
 // Convenience, returns true if first statement is crossing()
-func (ss Body) IsSwitchRealm() bool {
-	return ss.isSwitchRealm()
+func (ss Body) IsCrossing() bool {
+	return ss.isCrossing()
 }
 
 // XXX deprecate
-func (ss Body) isSwitchRealm() bool {
+func (ss Body) isCrossing() bool {
 	if len(ss) == 0 {
 		return false
 	}
@@ -874,7 +874,7 @@ func (ss Body) isSwitchRealm() bool {
 		return false
 	}
 	cx, ok := xs.X.(*CallExpr)
-	return cx.isSwitchRealm()
+	return cx.isCrossing()
 }
 
 // ----------------------------------------

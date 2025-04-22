@@ -48,7 +48,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		return
 	}()
 	t.Log("panic trying to redeclare invalid func", result)
-	m.RunStatement(S(Call(X("Redecl"), 11)))
+	m.RunStatement(StageRun, S(Call(X("Redecl"), 11)))
 
 	// Check last value, assuming it is the result of Redecl.
 	v := m.Values[0]

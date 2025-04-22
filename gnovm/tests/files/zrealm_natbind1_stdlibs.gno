@@ -15,4 +15,4 @@ func main() {
 // gno.land
 
 // Realm:
-// switchrealm["gno.land/r/test"]
+// finalizerealm["gno.land/r/test"]

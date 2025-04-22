@@ -11,6 +11,8 @@ package alloc
 var buffer interface{}
 
 func DoAlloc() {
+	crossing()
+
 	var arr [1_000_000_000_000_000]byte
 	buffer = arr
 }

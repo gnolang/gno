@@ -133,26 +133,26 @@ func renderContactsUrl() string {
 }
 
 func UpdateGithubUrl(url string) {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	githubUrl = url
 }
 
 func UpdateLinkedinUrl(url string) {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	linkedinUrl = url
 }
 
 func UpdateAboutMe(text string) {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	aboutMe = text
 }
 
 func UpdateImagePrice(newPrice int64) {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	imageUpdatePrice = newPrice
 }
 
 func UpdateIsValidUrlFunction(f func(string) bool) {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	isValidUrl = f
 }

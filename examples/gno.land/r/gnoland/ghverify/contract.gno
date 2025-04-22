@@ -70,6 +70,8 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
 func RequestVerification(githubHandle string) {
+	crossing()
+
 	gnoAddress := string(std.OriginCaller())
 	if err := oracle.AddFeeds(
 		static.NewSingleValueFeed(
@@ -92,6 +94,8 @@ func RequestVerification(githubHandle string) {
 
 // GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.
 func GnorkleEntrypoint(message string) string {
+	crossing()
+
 	result, err := oracle.HandleMessage(message, postHandler)
 	if err != nil {
 		panic(err)
@@ -116,6 +120,8 @@ func SetOwner(owner std.Address) {
 
 // GetHandleByAddress returns the github handle associated with the given gno address.
 func GetHandleByAddress(address string) string {
+	crossing()
+
 	if value, ok := addressToHandleMap.Get(address); ok {
 		return value.(string)
 	}
@@ -125,6 +131,8 @@ func GetHandleByAddress(address string) string {
 
 // GetAddressByHandle returns the gno address associated with the given github handle.
 func GetAddressByHandle(handle string) string {
+	crossing()
+
 	if value, ok := handleToAddressMap.Get(handle); ok {
 		return value.(string)
 	}
@@ -134,6 +142,8 @@ func GetAddressByHandle(handle string) string {
 
 // Render returns a json object string will all verified handle -> address mappings.
 func Render(_ string) string {
+	crossing()
+
 	result := "{"
 	var appendComma bool
 	handleToAddressMap.Iterate("", "", func(handle string, address any) bool {

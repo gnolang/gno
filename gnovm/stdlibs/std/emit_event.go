@@ -18,7 +18,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		return
 	}
 
-	_, pkgPath := currentRealm(m)
+	pkgPath := currentPkgPath(m)
 
 	ctx := GetContext(m)
 

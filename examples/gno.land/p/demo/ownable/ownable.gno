@@ -13,7 +13,7 @@ type Ownable struct {
 
 func New() *Ownable {
 	return &Ownable{
-		owner: std.PreviousRealm().Address(),
+		owner: std.CurrentRealm().Address(),
 	}
 }
 
@@ -25,7 +25,7 @@ func NewWithAddress(addr std.Address) *Ownable {
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
-	if !o.CallerIsOwner() {
+	if !o.OwnedByPrevious() {
 		return ErrUnauthorized
 	}
 
@@ -48,7 +48,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
 func (o *Ownable) DropOwnership() error {
-	if !o.CallerIsOwner() {
+	if !o.OwnedByPrevious() {
 		return ErrUnauthorized
 	}
 
@@ -72,16 +72,16 @@ func (o *Ownable) Owner() std.Address {
 	return o.owner
 }
 
-// CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o *Ownable) CallerIsOwner() bool {
+// OwnedByPrevious( checks if the caller of the function is the Realm's owner
+func (o *Ownable) OwnedByPrevious() bool {
 	if o == nil {
 		return false
 	}
 	return std.PreviousRealm().Address() == o.owner
 }
 
-// AssertCallerIsOwner panics if the caller is not the owner
-func (o *Ownable) AssertCallerIsOwner() {
+// AssertOwnedByPrevious panics if the caller is not the owner
+func (o *Ownable) AssertOwnedByPrevious() {
 	if o == nil {
 		panic(ErrUnauthorized)
 	}

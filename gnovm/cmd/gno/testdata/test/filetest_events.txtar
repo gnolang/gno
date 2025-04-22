@@ -34,7 +34,7 @@ func main() {
 //   {
 //     "type": "EventA",
 //     "attrs": [],
-//     "pkg_path": ""
+//     "pkg_path": "main"
 //   },
 //   {
 //     "type": "EventB",
@@ -44,6 +44,6 @@ func main() {
 //         "value": "valA"
 //       }
 //     ],
-//     "pkg_path": ""
+//     "pkg_path": "main"
 //   }
 // ]

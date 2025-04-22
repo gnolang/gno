@@ -183,7 +183,7 @@ func (r *Repl) handleExpression(e *ast.File) (string, error) {
 	n := gno.MustParseFile(fn, src)
 	r.state.files[fn] = src
 	r.state.machine.RunFiles(n)
-	r.state.machine.RunStatement(gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
+	r.state.machine.RunStatement(gno.StageRun, gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
 
 	// Read the result from the output buffer after calling main function.
 	b, err := io.ReadAll(r.rw)

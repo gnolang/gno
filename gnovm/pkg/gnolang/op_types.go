@@ -207,7 +207,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(xt.Elem()))
 	case *SelectorExpr:
@@ -215,7 +215,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 
 		// NOTE: this code segment similar to that in op_types.go
@@ -294,7 +294,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				m.PushOp(OpHalt)
 				m.PushExpr(x.X)
 				m.PushOp(OpEval)
-				m.Run() // XXX replace
+				m.Run(StageRun)
 				xv := m.ReapValues(start)[0]
 				pv := xv.V.(*PackageValue)
 				t := pv.GetBlock(m.Store).GetSource(m.Store).GetStaticTypeOfAt(m.Store, x.Path)
@@ -319,7 +319,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				m.PushOp(OpHalt)
 				m.PushExpr(x.X)
 				m.PushOp(OpEval)
-				m.Run() // XXX replace
+				m.Run(StageRun)
 				xt := m.ReapValues(start)[0].GetType()
 				switch cxt := xt.(type) {
 				case *PointerType:
@@ -385,7 +385,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].V.(TypeValue).Type
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(&SliceType{
@@ -403,7 +403,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
@@ -417,7 +417,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
-		m.Run() // XXX replace
+		m.Run(StageRun)
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:

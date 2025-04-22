@@ -23,9 +23,13 @@ var (
 )
 
 func AddToMap(value int) {
+	crossing()
+
 	m[i] = value
 }
 
 func GetFromMap() int {
+	crossing()
+
 	return m[i]
 }

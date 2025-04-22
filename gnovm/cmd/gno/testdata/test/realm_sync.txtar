@@ -36,7 +36,7 @@ func main() {
 }
 
 // Realm:
-// switchrealm["gno.land/r/xx"]
+// finalizerealm["gno.land/r/xx"]
 // u[aea84df38908f9569d0f552575606e6e6e7e22dd:3]=
 //     @@ -1,11 +1,12 @@
 //      {

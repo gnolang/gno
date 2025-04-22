@@ -25,10 +25,12 @@ var (
 const signUpEvent = "SignUp"
 
 func init() {
-	SignUp() // Sign up the deployer
+	cross(SignUp)() // Sign up the deployer
 }
 
 func SignUp() string {
+	crossing()
+
 	// Get transaction caller
 	caller := std.PreviousRealm().Address()
 

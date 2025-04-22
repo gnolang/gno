@@ -37,6 +37,7 @@ type Machine struct {
 	Exception  *Exception    // last exception
 	NumResults int           // number of results returned
 	Cycles     int64         // number of "cpu" cycles
+	Stage      Stage         // add for package init, run otherwise
 
 	Debugger Debugger
 
@@ -641,7 +642,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.RunFunc(fv.Name, false)
+				m.runFunc(StageAdd, fv.Name, false)
 				m.PopBlock()
 			}
 		}
@@ -699,20 +700,16 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) RunFunc(fn Name, withSwitch bool) {
-	if withSwitch {
-		m.RunStatement(S(Call(Call(Nx("cross"), Nx(fn)))))
+func (m *Machine) runFunc(st Stage, fn Name, withCross bool) {
+	if withCross {
+		m.RunStatement(st, S(Call(Call(Nx("cross"), Nx(fn)))))
 	} else {
-		m.RunStatement(S(Call(Nx(fn))))
+		m.RunStatement(st, S(Call(Nx(fn))))
 	}
 }
 
 func (m *Machine) RunMain() {
-	if m.Package.IsRealm() {
-		m.RunStatement(S(Call(Nx("cross"), Nx("main"))))
-	} else {
-		m.RunStatement(S(Call(X("main"))))
-	}
+	m.runFunc(StageRun, "main", m.Package.IsRealm())
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -758,7 +755,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	m.PushOp(OpHalt)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
-	m.Run()
+	m.Run(StageRun)
 	res := m.ReapValues(start)
 	return res
 }
@@ -784,7 +781,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
-	m.Run()
+	m.Run(StageRun)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
 		panic("should not happen")
@@ -813,7 +810,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
 	m.PushOp(OpStaticTypeOf)
-	m.Run()
+	m.Run(StageRun)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
 		panic("should not happen")
@@ -822,13 +819,13 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	return tv.Type
 }
 
-func (m *Machine) RunStatement(s Stmt) {
+func (m *Machine) RunStatement(st Stage, s Stmt) {
 	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
-	m.Run()
+	m.Run(st)
 }
 
 // Runs a declaration after preprocessing d.  If d was already
@@ -872,12 +869,12 @@ func (m *Machine) runDeclaration(d Decl) {
 		m.PushOp(OpHalt)
 		m.PushStmt(d)
 		m.PushOp(OpExec)
-		m.Run()
+		m.Run(StageAdd)
 	case *TypeDecl:
 		m.PushOp(OpHalt)
 		m.PushStmt(d)
 		m.PushOp(OpExec)
-		m.Run()
+		m.Run(StageAdd)
 	default:
 		// Do nothing for package constants.
 	}
@@ -1145,7 +1142,10 @@ const (
 //----------------------------------------
 // main run loop.
 
-func (m *Machine) Run() {
+func (m *Machine) Run(st Stage) {
+	if m.Context != nil {
+		m.Stage = st
+	}
 	if bm.OpsEnabled {
 		defer func() {
 			// output each machine run results to file
@@ -1159,7 +1159,7 @@ func (m *Machine) Run() {
 			switch r := r.(type) {
 			case *Exception:
 				m.Panic(r.Value)
-				m.Run()
+				m.Run(st)
 			default:
 				panic(r)
 			}
@@ -1765,7 +1765,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
-	withSwitch := cx.IsWithCross()
+	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
 		// defer frame calls do not get their args and func from the
@@ -1787,7 +1787,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		IsVarg:        cx.Varg,
 		LastPackage:   m.Package,
 		LastRealm:     m.Realm,
-		WithCross:     withSwitch,
+		WithCross:     withCross,
 		DidCross:      false,
 		Defers:        nil,
 		IsDefer:       isDefer,
@@ -1809,6 +1809,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		m.Exception = nil
 	}
 
+	// NOTE: fr cannot be mutated from hereon, as it is a value.
+	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
 
 	// Set the package.
@@ -1820,20 +1822,15 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	m.Package = pv
 
-	// If no realm, return early.
-	if m.Realm == nil {
-		return
-	}
-
 	// If cross, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
-	if withSwitch {
-		if !fv.IsSwitchRealm() {
+	if withCross {
+		if !fv.IsCrossing() {
 			panic(fmt.Sprintf(
 				"missing crossing() after cross call in %v from %s to %s",
-				fr.Func.String(),
-				m.Realm.Path,
+				fv.String(),
+				m.Realm.GetPath(),
 				pv.Realm.Path,
 			))
 		}
@@ -1842,12 +1839,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 
 	// Not called like cross(fn)(...).
-	if fv.IsSwitchRealm() {
+	if fv.IsCrossing() {
 		if m.Realm != pv.Realm {
 			// panic; not explicit
 			panic(fmt.Sprintf(
 				"missing cross before external crossing() in %v from %s to %s",
-				fr.Func.String(),
+				fv.String(),
 				m.Realm.Path,
 				pv.Realm.Path,
 			))
@@ -1868,17 +1865,24 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			return
 		} else {
 			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() || recvOID.PkgID == m.Realm.ID {
+			if recvOID.IsZero() ||
+				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
 				// no switch
 				return
 			} else {
-				// implicit switch to storage realm.
-				// neither cross nor didswitch.
+				// Implicit switch to storage realm.
+				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
-				fr.DidCross = true
+				// DO NOT set DidCross here. Make DidCross only
+				// happen upon explicit cross(fn)(...) calls to
+				// avoid user confusion. Otherwise whether
+				// DidCross happened or not depends on where
+				// the receiver resides, which isn't explicit
+				// enough to avoid confusion.
+				//   fr.DidCross = true
 				return
 			}
 		}

@@ -31,6 +31,6 @@ func init() {
 	// add pre-registered users
 	for _, res := range preRegisteredUsers {
 		// Try registering, skip if it fails
-		_ = susers.RegisterUser(res.Name, res.Address)
+		cross(susers.RegisterUser)(res.Name, res.Address)
 	}
 }

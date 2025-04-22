@@ -27,7 +27,7 @@ func main() {
 // (slice[(0 gno.land/r/test.word)] gno.land/r/test.nat)
 
 // Realm:
-// switchrealm["gno.land/r/test"]
+// finalizerealm["gno.land/r/test"]
 // c[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]={
 //     "Data": null,
 //     "List": [

@@ -16,7 +16,7 @@ func TestRegistry(t *testing.T) {
 	ledger.Mint(std.CurrentRealm().Address(), 1234567)
 	tokenGetter := func() *grc20.Token { return token }
 	// register
-	Register(tokenGetter, "")
+	cross(Register)(tokenGetter, "")
 	regTokenGetter := Get(realmAddr)
 	regToken := regTokenGetter()
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
@@ -31,14 +31,14 @@ func TestRegistry(t *testing.T) {
 	urequire.True(t, invalidToken == nil)
 
 	// register with a slug
-	Register(tokenGetter, "mySlug")
+	cross(Register)(tokenGetter, "mySlug")
 	regTokenGetter = Get(realmAddr + ".mySlug")
 	regToken = regTokenGetter()
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
 	// override
-	Register(tokenGetter, "")
+	cross(Register)(tokenGetter, "")
 	regTokenGetter = Get(realmAddr + "")
 	regToken = regTokenGetter()
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil

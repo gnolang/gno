@@ -30,5 +30,7 @@ stdout 'TX HASH:    '
 package hello
 
 func SayHello() string {
+	crossing()
+
  	return "hello world!"
 }

@@ -159,7 +159,25 @@ func isUverseName(n Name) bool {
 // other
 
 // For keeping record of package & realm coins.
-func DerivePkgAddr(pkgPath string) crypto.Address {
+// If you need the bech32 address it is faster to call DerivePkgBech32Addr().
+func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
+	b32addr, ok := IsGnoRunPath(pkgPath)
+	if ok {
+		addr, err := crypto.AddressFromBech32(b32addr)
+		if err != nil {
+			panic("invalid bech32 address in run path: " + pkgPath)
+		}
+		return addr
+	}
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
+}
+
+func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {
+	b32addr, ok := IsGnoRunPath(pkgPath)
+	if ok {
+		return crypto.Bech32Address(b32addr)
+	}
+	// NOTE: must not collide with pubkey addrs.
+	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath)).Bech32()
 }

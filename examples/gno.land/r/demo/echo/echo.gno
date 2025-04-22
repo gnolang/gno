@@ -9,5 +9,7 @@ package echo
  * See also r/demo/print (to print various thing like user address)
  */
 func Render(path string) string {
+	crossing()
+
 	return path
 }

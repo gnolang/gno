@@ -20,8 +20,8 @@ func main() {
 // g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
 
 // Realm:
-// switchrealm["gno.land/r/demo/nft"]
-// switchrealm["gno.land/r/demo/nft"]
+// finalizerealm["gno.land/r/demo/nft"]
+// finalizerealm["gno.land/r/demo/nft"]
 // c[67c479d3d51d4056b2f4111d5352912a00be311e:11]={
 //     "Fields": [
 //         {
@@ -228,5 +228,5 @@ func main() {
 //              "OwnerID": "67c479d3d51d4056b2f4111d5352912a00be311e:3",
 //              "RefCount": "1"
 //          }
-// switchrealm["gno.land/r/demo/nft"]
-// switchrealm["gno.land/r/demo/nft_test"]
+// finalizerealm["gno.land/r/demo/nft"]
+// finalizerealm["gno.land/r/demo/nft_test"]

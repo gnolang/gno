@@ -9,18 +9,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const pkgPath = "emit_test"
+const fileName = "emit_test.gno"
+
+var line = 1
+
 func pushFuncFrame(m *gno.Machine, name gno.Name) {
-	fv := &gno.FuncValue{Name: name, PkgPath: m.Package.PkgPath}
+	fd := &gno.FuncDecl{}
+	fd.SetLocation(gno.Location{
+		PkgPath: pkgPath,
+		File:    fileName,
+		Line:    line, // fake unique line no
+		Column:  0,    // fake column
+	})
+	line++
+	fv := &gno.FuncValue{Name: name, PkgPath: m.Package.PkgPath, Source: fd}
 	m.PushFrameCall(gno.Call(name), fv, gno.TypedValue{}, false) // fake frame
 }
 
 func TestEmit(t *testing.T) {
-	m := gno.NewMachine("emit_test", nil)
+	m := gno.NewMachine(pkgPath, nil)
 	m.Context = ExecContext{}
+	m.Stage = gno.StageAdd
 	pushFuncFrame(m, "main")
 	pushFuncFrame(m, "Emit")
 	_, pkgPath := X_getRealm(m, 0)
-	if pkgPath != "emit_test" || m.Package.PkgPath != "emit_test" {
+	if pkgPath != pkgPath || m.Package.PkgPath != pkgPath {
 		panic("inconsistent package paths")
 	}
 	tests := []struct {
@@ -37,7 +51,7 @@ func TestEmit(t *testing.T) {
 			expectedEvents: []GnoEvent{
 				{
 					Type:    "test",
-					PkgPath: "emit_test",
+					PkgPath: pkgPath,
 					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
@@ -59,7 +73,7 @@ func TestEmit(t *testing.T) {
 			expectedEvents: []GnoEvent{
 				{
 					Type:    "test",
-					PkgPath: "emit_test",
+					PkgPath: pkgPath,
 					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: ""},
 						{Key: "key2", Value: "value2"},
@@ -75,7 +89,7 @@ func TestEmit(t *testing.T) {
 			expectedEvents: []GnoEvent{
 				{
 					Type:    "",
-					PkgPath: "emit_test",
+					PkgPath: pkgPath,
 					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
@@ -91,7 +105,7 @@ func TestEmit(t *testing.T) {
 			expectedEvents: []GnoEvent{
 				{
 					Type:    "test",
-					PkgPath: "emit_test",
+					PkgPath: pkgPath,
 					Attributes: []GnoEventAttribute{
 						{Key: "", Value: "value1"},
 						{Key: "key2", Value: "value2"},
@@ -132,7 +146,7 @@ func TestEmit(t *testing.T) {
 
 func TestEmit_MultipleEvents(t *testing.T) {
 	t.Parallel()
-	m := gno.NewMachine("emit_test", nil)
+	m := gno.NewMachine(pkgPath, nil)
 	pushFuncFrame(m, "main")
 	pushFuncFrame(m, "Emit")
 
@@ -154,7 +168,7 @@ func TestEmit_MultipleEvents(t *testing.T) {
 	expect := []GnoEvent{
 		{
 			Type:    "test1",
-			PkgPath: "emit_test",
+			PkgPath: pkgPath,
 			Attributes: []GnoEventAttribute{
 				{Key: "key1", Value: "value1"},
 				{Key: "key2", Value: "value2"},
@@ -162,7 +176,7 @@ func TestEmit_MultipleEvents(t *testing.T) {
 		},
 		{
 			Type:    "test2",
-			PkgPath: "emit_test",
+			PkgPath: pkgPath,
 			Attributes: []GnoEventAttribute{
 				{Key: "key3", Value: "value3"},
 				{Key: "key4", Value: "value4"},

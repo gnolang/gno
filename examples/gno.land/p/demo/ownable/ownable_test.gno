@@ -42,7 +42,7 @@ func TestTransferOwnership(t *testing.T) {
 	uassert.Equal(t, got, bob)
 }
 
-func TestCallerIsOwner(t *testing.T) {
+func TestOwnedByPrevious(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
@@ -50,7 +50,7 @@ func TestCallerIsOwner(t *testing.T) {
 
 	testing.SetOriginCaller(unauthorizedCaller)
 
-	uassert.False(t, o.CallerIsOwner())
+	uassert.False(t, o.OwnedByPrevious())
 }
 
 func TestDropOwnership(t *testing.T) {
@@ -90,14 +90,14 @@ func TestErrInvalidAddress(t *testing.T) {
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }
 
-func TestAssertCallerIsOwner(t *testing.T) {
+func TestAssertOwnedByPrevious(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(alice))
 	testing.SetOriginCaller(alice)
 
 	o := New()
 
 	// Should not panic when caller is owner
-	o.AssertCallerIsOwner()
+	o.AssertOwnedByPrevious()
 
 	// Should panic when caller is not owner
 	testing.SetRealm(std.NewUserRealm(bob))
@@ -112,7 +112,7 @@ func TestAssertCallerIsOwner(t *testing.T) {
 			t.Errorf("expected ErrUnauthorized but got %v", r)
 		}
 	}()
-	o.AssertCallerIsOwner()
+	o.AssertOwnedByPrevious()
 }
 
 func TestNilReceiver(t *testing.T) {
@@ -123,7 +123,7 @@ func TestNilReceiver(t *testing.T) {
 		t.Errorf("expected empty address but got %v", owner)
 	}
 
-	isOwner := o.CallerIsOwner()
+	isOwner := o.OwnedByPrevious()
 	uassert.False(t, isOwner)
 
 	defer func() {
@@ -135,5 +135,5 @@ func TestNilReceiver(t *testing.T) {
 			t.Errorf("expected ErrUnauthorized but got %v", r)
 		}
 	}()
-	o.AssertCallerIsOwner()
+	o.AssertOwnedByPrevious()
 }

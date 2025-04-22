@@ -1,22 +1,24 @@
+# XXX: NEED DOUBLE CHECK, CURRENTLY FIXED NAIVELY
+
 # This tests ensure the consistency of the std.PreviousRealm function, in the
 # following situations:
 #
 #
-# | Num | Msg Type |      Call from      | Entry Point     | Result       |
-# |-----|:--------:|:-------------------:|:---------------:|:------------:|
-# | 1   | MsgCall  | wallet direct       | myrlm.A()       | user address |
-# | 2   |          |                     | myrlm.B()       | user address |
-# | 3   |          | through /r/foo      | myrlm.A()       | r/foo        |
-# | 4   |          |                     | myrlm.B()       | r/foo        |
-# | 5   |          | through /p/demo/bar | bar.A()         | user address |
-# | 6   |          |                     | bar.B()         | user address |
-# | 7   | MsgRun   | wallet direct       | myrlm.A()       | user address |
-# | 8   |          |                     | myrlm.B()       | user address |
-# | 9   |          | through /r/foo      | myrlm.A()       | r/foo        |
-# | 10  |          |                     | myrlm.B()       | r/foo        |
-# | 11  |          | through /p/demo/bar | bar.A()         | user address |
-# | 12  |          |                     | bar.B()         | user address |
-# | 13  | MsgCall  | wallet direct       | std.PreviousRealm() | user address |
+# | Num | Msg Type |      Call from      | Entry Point         | Result       |
+# |-----|:--------:|:-------------------:|:-------------------:|:------------:|
+# | 1   | MsgCall  | wallet direct       | myrlm.A()           | user address |
+# | 2   |          |                     | myrlm.B()           | user address |
+# | 3   |          | through /r/foo      | myrlm.A()           | r/foo        |
+# | 4   |          |                     | myrlm.B()           | r/foo        |
+# | 5   |          | through /p/demo/bar | bar.A()             | <disabled>   |
+# | 6   |          |                     | bar.B()             | <disabled>   |
+# | 7   | MsgRun   | wallet direct       | myrlm.A()           | user address |
+# | 8   |          |                     | myrlm.B()           | user address |
+# | 9   |          | through /r/foo      | myrlm.A()           | user address |
+# | 10  |          |                     | myrlm.B()           | user address |
+# | 11  |          | through /p/demo/bar | bar.A()             | <forbidden>  |
+# | 12  |          |                     | bar.B()             | <forbidden>  |
+# | 13  | MsgCall  | wallet direct       | std.PreviousRealm() | <forbidden>  |
 # | 14  | MsgRun   | wallet direct       | std.PreviousRealm() | user address |
 
 # Init
@@ -31,6 +33,7 @@ loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 gnoland start
 
 env RFOO_USER_ADDR=g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
+env R_UNKNOWN_ADDR=g1a9r05e34s7dxe7wh8v00lnewnxtfnfq02gn5ws # XXX: temp
 
 # Test cases
 ## 1. MsgCall -> myrlm.A: user address
@@ -38,15 +41,15 @@ gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 100000ugnot -gas-w
 stdout ${test1_user_addr}
 
 ## 2. MsgCall -> myrealm.B -> myrlm.A: user address
-gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-wanted 800000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-wanted 1000000 -broadcast -chainid tendermint_test test1
 stdout ${test1_user_addr}
 
 ## 3. MsgCall -> r/foo.A -> myrlm.A: r/foo
-gnokey maketx call -pkgpath gno.land/r/foo -func A -gas-fee 100000ugnot -gas-wanted 800000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func A -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout ${RFOO_USER_ADDR}
 
 ## 4. MsgCall -> r/foo.B -> myrlm.B -> r/foo.A: r/foo
-gnokey maketx call -pkgpath gno.land/r/foo -func B -gas-fee 100000ugnot -gas-wanted 800000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func B -gas-fee 100000ugnot -gas-wanted 1500000 -broadcast -chainid tendermint_test test1
 stdout ${RFOO_USER_ADDR}
 
 ## remove due to update to maketx call can only call realm (case 5, 6, 13)
@@ -75,12 +78,14 @@ gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid 
 stdout ${RFOO_USER_ADDR}
 
 ## 11. MsgRun -> p/demo/bar.A -> myrlm.A: user address
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
-stdout ${test1_user_addr}
+## XXX: crossing call only allowed in realm packages, doesn't work
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
+# stdout ${RFOO_USER_ADDR}
 
 ## 12. MsgRun -> p/demo/bar.B -> myrlm.B -> r/foo.A: user address
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
-stdout ${test1_user_addr}
+## XXX: crossing call only allowed in realm packages, doesn't work
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
+# stdout ${RFOO_USER_ADDR}
 
 ## 13. MsgCall -> std.PreviousRealm(): user address
 ## gnokey maketx call -pkgpath std -func PreviousRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
@@ -96,10 +101,14 @@ package myrlm
 import "std"
 
 func A() string {
+	crossing()
+
 	return std.PreviousRealm().Address().String()
 }
 
 func B() string {
+	crossing()
+
 	return A()
 }
 -- r/foo/foo.gno --
@@ -108,11 +117,15 @@ package foo
 import "gno.land/r/myrlm"
 
 func A() string {
-	return myrlm.A()
+	crossing()
+
+	return cross(myrlm.A)()
 }
 
 func B() string {
-	return myrlm.B()
+	crossing()
+
+	return cross(myrlm.B)()
 }
 -- p/demo/bar/bar.gno --
 package bar
@@ -120,11 +133,15 @@ package bar
 import "std"
 
 func A() string {
+	crossing()
+
 	return std.PreviousRealm().Address().String()
 }
 
 func B() string {
-	return A()
+	crossing()
+
+	return cross(A)()
 }
 -- run/myrlmA.gno --
 package main
@@ -132,7 +149,9 @@ package main
 import myrlm "gno.land/r/myrlm"
 
 func main() {
-	println(myrlm.A())
+	crossing()
+
+	println(cross(myrlm.A)())
 }
 -- run/myrlmB.gno --
 package main
@@ -140,7 +159,9 @@ package main
 import "gno.land/r/myrlm"
 
 func main() {
-	println(myrlm.B())
+	crossing()
+
+	println(cross(myrlm.B)())
 }
 -- run/fooA.gno --
 package main
@@ -148,7 +169,9 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	println(foo.A())
+	crossing()
+
+	println(cross(foo.A)())
 }
 -- run/fooB.gno --
 package main
@@ -156,7 +179,9 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	println(foo.B())
+	crossing()
+
+	println(cross(foo.B)())
 }
 -- run/barA.gno --
 package main
@@ -164,7 +189,9 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
-	println(bar.A())
+	crossing()
+
+	println(cross(bar.A)())
 }
 -- run/barB.gno --
 package main
@@ -172,6 +199,8 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
+	crossing()
+
 	println(bar.B())
 }
 -- run/baz.gno --
@@ -180,5 +209,8 @@ package main
 import "std"
 
 func main() {
-	println(std.PreviousRealm().Address().String())
+	crossing()
+
+	name := std.PreviousRealm().Address().String()
+	println(name)
 }
