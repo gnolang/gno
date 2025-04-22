@@ -43,6 +43,11 @@ func opMul(s *State) error {
 	return nil
 }
 
+func opPush0(s *State) error {
+	s.stack.Push(0)
+	return nil
+}
+
 func opPush1(s *State) error {
 	s.code.Increment()
 	if s.code.Ill() {
