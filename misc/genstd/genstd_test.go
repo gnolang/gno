@@ -26,7 +26,7 @@ func TestIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	if *update {
-		require.NoError(t, os.WriteFile("generated.go.golden", got, 0o644)) // Use 0644 for file permissions
+		require.NoError(t, os.WriteFile("generated.go.golden", got, 0o644))
 	} else {
 		assert.Equal(t, string(want), string(got))
 	}
