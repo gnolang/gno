@@ -36,8 +36,10 @@ func main() {
 // hello D cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
 
+
+
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:29]={
 //     "ObjectInfo": {
 //         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:29",
@@ -78,6 +80,7 @@ func main() {
 //             }
 //         }
 //     ],
+//     "Crossing": false,
 //     "FileName": "",
 //     "IsClosure": false,
 //     "IsMethod": false,
@@ -102,10 +105,8 @@ func main() {
 //             "PkgPath": "gno.land/r/crossrealm_test"
 //         }
 //     },
-//     "SwitchRealm": false,
 //     "Type": {
 //         "@type": "/gno.FuncType",
-//         "IsClosure": false,
 //         "Params": [],
 //         "Results": [
 //             {
@@ -156,9 +157,9 @@ func main() {
 //          },
 //          "Value": {
 //              "T": {
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
 //     @@ -7,13 +7,13 @@
 //                  },
@@ -176,9 +177,9 @@ func main() {
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //              "RefCount": "1"
 //          }
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
 //     @@ -7,7 +7,7 @@
 //                  },
@@ -189,7 +190,7 @@ func main() {
 //                  }
 //              }
 //          ],
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:13]=
 //     @@ -1,7 +1,7 @@
 //      {
@@ -212,7 +213,7 @@ func main() {
 //          }
 //      }
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:7]=
-//     @@ -7,9 +7,10 @@
+//     @@ -8,9 +8,10 @@
 //          "NativePkg": "",
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:7",
@@ -246,9 +247,9 @@ func main() {
 //          }
 // d[1712ac7adcfdc8e58a67e5615e20fb312394c4df:28]
 // d[1712ac7adcfdc8e58a67e5615e20fb312394c4df:29]
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
 //     @@ -7,7 +7,7 @@
 //                  },
@@ -259,8 +260,9 @@ func main() {
 //                  }
 //              }
 //          ],
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:30]={
+//     "Crossing": false,
 //     "FileName": "",
 //     "IsClosure": false,
 //     "IsMethod": false,
@@ -285,10 +287,8 @@ func main() {
 //             "PkgPath": "gno.land/r/demo/tests/crossrealm_b"
 //         }
 //     },
-//     "SwitchRealm": false,
 //     "Type": {
 //         "@type": "/gno.FuncType",
-//         "IsClosure": false,
 //         "Params": [],
 //         "Results": [
 //             {
@@ -316,7 +316,7 @@ func main() {
 //          }
 //      }
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:7]=
-//     @@ -10,7 +10,7 @@
+//     @@ -11,7 +11,7 @@
 //              "IsEscaped": true,
 //              "ModTime": "29",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:6",
@@ -325,6 +325,6 @@ func main() {
 //          },
 //          "Parent": null,
 //          "PkgPath": "gno.land/r/demo/tests/crossrealm_b",
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/crossrealm_test"]
