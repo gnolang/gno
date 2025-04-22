@@ -154,11 +154,13 @@ const (
 	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
 	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
-	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES" // []Name defined within loops.
-	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"    // []Name loop defines actually used.
+	ATTR_HEAP_DEFINES    GnoAttribute = "ATTR_HEAP_DEFINES" // []Name heap items.
+	ATTR_HEAP_USES       GnoAttribute = "ATTR_HEAP_USES"    // []Name heap items used.
 	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
 	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
+	ATTR_PACKAGE_REF     GnoAttribute = "ATTR_PACKAGE_REF"
+	ATTR_PACKAGE_DECL    GnoAttribute = "ATTR_PACKAGE_DECL"
 )
 
 type Attributes struct {
@@ -274,7 +276,6 @@ func (x *IfCaseStmt) assertNode()        {}
 func (x *IncDecStmt) assertNode()        {}
 func (x *RangeStmt) assertNode()         {}
 func (x *ReturnStmt) assertNode()        {}
-func (x *PanicStmt) assertNode()         {}
 func (x *SelectStmt) assertNode()        {}
 func (x *SelectCaseStmt) assertNode()    {}
 func (x *SendStmt) assertNode()          {}
@@ -327,7 +328,6 @@ var (
 	_ Node = &IncDecStmt{}
 	_ Node = &RangeStmt{}
 	_ Node = &ReturnStmt{}
-	_ Node = &PanicStmt{}
 	_ Node = &SelectStmt{}
 	_ Node = &SelectCaseStmt{}
 	_ Node = &SendStmt{}
@@ -351,7 +351,6 @@ var (
 
 type Expr interface {
 	Node
-	addressability() addressabilityStatus
 }
 
 type Exprs []Expr
@@ -392,10 +391,6 @@ type NameExpr struct {
 	Type NameExprType
 }
 
-func (x *NameExpr) addressability() addressabilityStatus {
-	return addressabilityStatusSatisfied
-}
-
 type NameExprs []NameExpr
 
 type BasicLitExpr struct {
@@ -407,10 +402,6 @@ type BasicLitExpr struct {
 	Value string
 }
 
-func (x *BasicLitExpr) addressability() addressabilityStatus {
-	return addressabilityStatusUnsatisfied
-}
-
 type BinaryExpr struct { // (Left Op Right)
 	Attributes
 	Left  Expr // left operand
@@ -418,54 +409,71 @@ type BinaryExpr struct { // (Left Op Right)
 	Right Expr // right operand
 }
 
-func (x *BinaryExpr) addressability() addressabilityStatus {
-	return addressabilityStatusUnsatisfied
-}
-
 type CallExpr struct { // Func(Args<Varg?...>)
 	Attributes
-	Func           Expr  // function expression
-	Args           Exprs // function arguments, if any.
-	Varg           bool  // if true, final arg is variadic.
-	NumArgs        int   // len(Args) or len(Args[0].Results)
-	Addressability addressabilityStatus
+	Func      Expr  // function expression
+	Args      Exprs // function arguments, if any.
+	Varg      bool  // if true, final arg is variadic.
+	NumArgs   int   // len(Args) or len(Args[0].Results)
+	WithCross bool  // if called like cross(fn)(...).
 }
 
-func (x *CallExpr) addressability() addressabilityStatus {
-	return x.Addressability
+// if x is *ConstExpr returns its source.
+func unwrapConstExpr(x Expr) Expr {
+	if cx, ok := x.(*ConstExpr); ok {
+		return cx.Source
+	}
+	return x
+}
+
+// returns true if x is of form cross(fn)(...).
+func (x *CallExpr) isWithCross() bool {
+	if fnc, ok := x.Func.(*CallExpr); ok {
+		if nx, ok := unwrapConstExpr(fnc.Func).(*NameExpr); ok {
+			if nx.Name == "cross" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// returns true if x is of form crossing().
+func (x *CallExpr) isCrossing() bool {
+	if x == nil {
+		return false
+	}
+	if nx, ok := unwrapConstExpr(x.Func).(*NameExpr); ok {
+		if nx.Name == "crossing" {
+			return true
+		}
+	}
+	return false
+}
+
+func (x *CallExpr) SetWithCross() {
+	if !x.isWithCross() {
+		panic("expected cross(fn)(...)")
+	}
+	x.WithCross = true
+}
+
+func (x *CallExpr) IsWithCross() bool {
+	return x.WithCross
 }
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X              Expr // expression
-	Index          Expr // index expression
-	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]
-	Addressability addressabilityStatus
-}
-
-func (x *IndexExpr) addressability() addressabilityStatus {
-	// If not set in TRANS_LEAVE, defer to the the child expression's addressability.
-	if x.Addressability == addressabilityStatusNotApplicable {
-		return x.X.addressability()
-	}
-
-	return x.Addressability
+	X     Expr // expression
+	Index Expr // index expression
+	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
 }
 
 type SelectorExpr struct { // X.Sel
 	Attributes
-	X             Expr      // expression
-	Path          ValuePath // set by preprocessor.
-	Sel           Name      // field selector
-	IsAddressable bool      // true if X is a pointer
-}
-
-func (x *SelectorExpr) addressability() addressabilityStatus {
-	if x.IsAddressable || x.X.addressability() == addressabilityStatusSatisfied {
-		return addressabilityStatusSatisfied
-	}
-
-	return addressabilityStatusUnsatisfied
+	X    Expr      // expression
+	Path ValuePath // set by preprocessor.
+	Sel  Name      // field selector
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -476,10 +484,6 @@ type SliceExpr struct { // X[Low:High:Max]
 	Max  Expr // maximum capacity of slice; or nil; added in Go 1.2
 }
 
-func (x *SliceExpr) addressability() addressabilityStatus {
-	return addressabilityStatusUnsatisfied
-}
-
 // A StarExpr node represents an expression of the form
 // "*" Expression.  Semantically it could be a unary "*"
 // expression, or a pointer type.
@@ -488,33 +492,16 @@ type StarExpr struct { // *X
 	X Expr // operand
 }
 
-func (x *StarExpr) addressability() addressabilityStatus {
-	return addressabilityStatusSatisfied
-}
-
 type RefExpr struct { // &X
 	Attributes
 	X Expr // operand
 }
 
-func (x *RefExpr) addressability() addressabilityStatus {
-	return x.X.addressability()
-}
-
 type TypeAssertExpr struct { // X.(Type)
 	Attributes
-	X             Expr // expression.
-	Type          Expr // asserted type, never nil.
-	HasOK         bool // if true, is form: `_, ok := <X>.(<Type>)`.
-	IsAddressable bool
-}
-
-func (x *TypeAssertExpr) addressability() addressabilityStatus {
-	if x.IsAddressable {
-		return addressabilityStatusSatisfied
-	}
-
-	return addressabilityStatusUnsatisfied
+	X     Expr // expression.
+	Type  Expr // asserted type, never nil.
+	HasOK bool // if true, is form: `_, ok := <X>.(<Type>)`.
 }
 
 // A UnaryExpr node represents a unary expression. Unary
@@ -527,25 +514,12 @@ type UnaryExpr struct { // (Op X)
 	Op Word // operator
 }
 
-func (x *UnaryExpr) addressability() addressabilityStatus {
-	return x.X.addressability()
-}
-
 // MyType{<key>:<value>} struct, array, slice, and map
 // expressions.
 type CompositeLitExpr struct {
 	Attributes
-	Type          Expr          // literal type; or nil
-	Elts          KeyValueExprs // list of struct fields; if any
-	IsAddressable bool
-}
-
-func (x *CompositeLitExpr) addressability() addressabilityStatus {
-	if x.IsAddressable {
-		return addressabilityStatusSatisfied
-	}
-
-	return addressabilityStatusUnsatisfied
+	Type Expr          // literal type; or nil
+	Elts KeyValueExprs // list of struct fields; if any
 }
 
 // Returns true if any elements are keyed.
@@ -578,10 +552,6 @@ type KeyValueExpr struct {
 	Value Expr // never nil
 }
 
-func (x *KeyValueExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
-}
-
 type KeyValueExprs []KeyValueExpr
 
 // A FuncLitExpr node represents a function literal.  Here one
@@ -595,20 +565,12 @@ type FuncLitExpr struct {
 	HeapCaptures NameExprs    // filled in findLoopUses1
 }
 
-func (x *FuncLitExpr) addressability() addressabilityStatus {
-	return addressabilityStatusUnsatisfied
-}
-
 // The preprocessor replaces const expressions
 // with *ConstExpr nodes.
 type ConstExpr struct {
 	Attributes
 	Source Expr // (preprocessed) source of this value.
 	TypedValue
-}
-
-func (x *ConstExpr) addressability() addressabilityStatus {
-	return addressabilityStatusUnsatisfied
 }
 
 // ----------------------------------------
@@ -628,8 +590,6 @@ type TypeExpr interface {
 	Expr
 	assertTypeExpr()
 }
-
-const typeExprAddressability = "the addressability method should not be called on Type Expressions"
 
 // non-pointer receiver to help make immutable.
 func (x *FieldTypeExpr) assertTypeExpr()     {}
@@ -656,7 +616,7 @@ var (
 
 type FieldTypeExpr struct {
 	Attributes
-	Name
+	NameExpr
 	Type Expr
 
 	// Currently only BasicLitExpr allowed.
@@ -664,25 +624,23 @@ type FieldTypeExpr struct {
 	Tag Expr
 }
 
-func (x *FieldTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
-}
-
 type FieldTypeExprs []FieldTypeExpr
 
+// Keep it slow, validating.
+// If you need it faster, memoize it elsewhere.
 func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			if ftx.Name == "" || isHiddenResultVariable(string(ftx.Name)) {
+			if ftx.Name == "" || isMissingResult(ftx.Name) {
 				named = false
 			} else {
 				named = true
 			}
 		} else {
-			if named && ftx.Name == "" {
+			if named && (ftx.Name == "" || isMissingResult(ftx.Name)) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && (ftx.Name != "" || !isHiddenResultVariable(string(ftx.Name))) {
+			} else if !named && (ftx.Name != "" && !isMissingResult(ftx.Name)) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -696,28 +654,16 @@ type ArrayTypeExpr struct {
 	Elt Expr // element type
 }
 
-func (x *ArrayTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
-}
-
 type SliceTypeExpr struct {
 	Attributes
 	Elt Expr // element type
 	Vrd bool // variadic arg expression
 }
 
-func (x *SliceTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
-}
-
 type InterfaceTypeExpr struct {
 	Attributes
 	Methods FieldTypeExprs // list of methods
 	Generic Name           // for uverse generics
-}
-
-func (x *InterfaceTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
 }
 
 type ChanDir int
@@ -737,19 +683,10 @@ type ChanTypeExpr struct {
 	Value Expr    // value type
 }
 
-func (x *ChanTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
-}
-
 type FuncTypeExpr struct {
 	Attributes
-	Params    FieldTypeExprs // (incoming) parameters, if any.
-	Results   FieldTypeExprs // (outgoing) results, if any.
-	IsClosure bool
-}
-
-func (x *FuncTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
+	Params  FieldTypeExprs // (incoming) parameters, if any.
+	Results FieldTypeExprs // (outgoing) results, if any.
 }
 
 type MapTypeExpr struct {
@@ -758,17 +695,9 @@ type MapTypeExpr struct {
 	Value Expr // value type
 }
 
-func (x *MapTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
-}
-
 type StructTypeExpr struct {
 	Attributes
 	Fields FieldTypeExprs // list of field declarations
-}
-
-func (x *StructTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
 }
 
 // Like ConstExpr but for types.
@@ -776,10 +705,6 @@ type constTypeExpr struct {
 	Attributes
 	Source Expr
 	Type   Type
-}
-
-func (x *constTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
 }
 
 // ----------------------------------------
@@ -811,6 +736,25 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	return nil, -1
 }
 
+// Convenience, returns true if first statement is crossing()
+func (ss Body) IsCrossing() bool {
+	return ss.isCrossing()
+}
+
+// XXX deprecate
+func (ss Body) isCrossing() bool {
+	if len(ss) == 0 {
+		return false
+	}
+	fs := ss[0]
+	xs, ok := fs.(*ExprStmt)
+	if !ok {
+		return false
+	}
+	cx, ok := xs.X.(*CallExpr)
+	return cx.isCrossing()
+}
+
 // ----------------------------------------
 
 // non-pointer receiver to help make immutable.
@@ -828,7 +772,6 @@ func (*IfCaseStmt) assertStmt()       {}
 func (*IncDecStmt) assertStmt()       {}
 func (*RangeStmt) assertStmt()        {}
 func (*ReturnStmt) assertStmt()       {}
-func (*PanicStmt) assertStmt()        {}
 func (*SelectStmt) assertStmt()       {}
 func (*SelectCaseStmt) assertStmt()   {}
 func (*SendStmt) assertStmt()         {}
@@ -851,7 +794,6 @@ var (
 	_ Stmt = &IncDecStmt{}
 	_ Stmt = &RangeStmt{}
 	_ Stmt = &ReturnStmt{}
-	_ Stmt = &PanicStmt{}
 	_ Stmt = &SelectStmt{}
 	_ Stmt = &SelectCaseStmt{}
 	_ Stmt = &SendStmt{}
@@ -954,12 +896,8 @@ type RangeStmt struct {
 
 type ReturnStmt struct {
 	Attributes
-	Results Exprs // result expressions; or nil
-}
-
-type PanicStmt struct {
-	Attributes
-	Exception Expr // panic expression; not nil
+	Results     Exprs // result expressions; or nil
+	CopyResults bool  // copy results to block first
 }
 
 type SelectStmt struct {
@@ -1052,12 +990,13 @@ func (x *bodyStmt) String() string {
 			active = fmt.Sprintf(" unexpected active: %v", x.Active)
 		}
 	}
-	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s",
+	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s Active:%v",
 		x.ListLen,
 		x.ListIndex,
 		x.NextBodyIndex,
 		next,
-		active)
+		active,
+		x.Active)
 }
 
 // ----------------------------------------
@@ -1112,6 +1051,8 @@ type FuncDecl struct {
 	Recv     FieldTypeExpr // receiver (if method); or empty (if function)
 	Type     FuncTypeExpr  // function signature: parameters and results
 	Body                   // function body; or empty for external (non-Go) function
+
+	unboundType *FuncTypeExpr // memoized
 }
 
 func (x *FuncDecl) GetDeclNames() []Name {
@@ -1120,6 +1061,22 @@ func (x *FuncDecl) GetDeclNames() []Name {
 	} else {
 		return []Name{x.NameExpr.Name}
 	}
+}
+
+// If FuncDecl is for method, construct a FuncTypeExpr with receiver as first
+// parameter.
+func (x *FuncDecl) GetUnboundTypeExpr() *FuncTypeExpr {
+	if x.IsMethod {
+		if x.unboundType == nil {
+			x.unboundType = &FuncTypeExpr{
+				Attributes: x.Type.Attributes,
+				Params:     append([]FieldTypeExpr{x.Recv}, x.Type.Params...),
+				Results:    x.Type.Results,
+			}
+		}
+		return x.unboundType
+	}
+	return &x.Type
 }
 
 type ImportDecl struct {
@@ -1525,18 +1482,29 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	pnl := len(x.Values)
 	// copy new top-level defined values/types.
 	if pvl < pnl {
-		// XXX: deep copy heap values
 		nvs := make([]TypedValue, pnl-pvl)
 		copy(nvs, x.Values[pvl:pnl])
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
 				fv = fv.Copy(nilAllocator)
-				fv.Closure = pv.fBlocksMap[fv.FileName]
-				if fv.Closure == nil {
+				fv.Parent = pv.fBlocksMap[fv.FileName]
+				if fv.Parent == nil {
 					panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 				}
 				nvs[i].V = fv
+			}
+		}
+		heapItems := x.GetHeapItems()
+		for i, tv := range nvs {
+			if _, ok := tv.T.(heapItemType); ok {
+				panic("unexpected heap item")
+			}
+			if heapItems[pvl+i] {
+				nvs[i] = TypedValue{
+					T: heapItemType{},
+					V: &HeapItemValue{Value: nvs[i]},
+				}
 			}
 		}
 		block.Values = append(block.Values, nvs...)
@@ -1613,6 +1581,8 @@ type BlockNode interface {
 	GetBlockNames() []Name
 	GetExternNames() []Name
 	GetNumNames() uint16
+	SetIsHeapItem(n Name)
+	GetHeapItems() []bool
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
@@ -1638,9 +1608,11 @@ type StaticBlock struct {
 	Types             []Type
 	NumNames          uint16
 	Names             []Name
+	HeapItems         []bool
 	UnassignableNames []Name
 	Consts            []Name // TODO consider merging with Names.
 	Externs           []Name
+	Parent            BlockNode
 	Loc               Location
 
 	// temporary storage for rolling back redefinitions.
@@ -1672,16 +1644,36 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 			Parent: nil,
 		}
 	} else {
-		sb.Block = Block{
-			Source: source,
-			Values: nil,
-			Parent: parent.GetStaticBlock().GetBlock(),
+		switch source.(type) {
+		case *IfCaseStmt, *SwitchClauseStmt:
+			if parent == nil {
+				sb.Block = Block{
+					Source: source,
+					Values: nil,
+					Parent: nil,
+				}
+			} else {
+				parent2 := parent.GetParentNode(nil)
+				sb.Block = Block{
+					Source: source,
+					Values: nil,
+					Parent: parent2.GetStaticBlock().GetBlock(),
+				}
+			}
+		default:
+			sb.Block = Block{
+				Source: source,
+				Values: nil,
+				Parent: parent.GetStaticBlock().GetBlock(),
+			}
 		}
 	}
 	sb.NumNames = 0
 	sb.Names = make([]Name, 0, 16)
+	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
+	sb.Parent = parent
 	return
 }
 
@@ -1713,14 +1705,14 @@ func (sb *StaticBlock) GetBlock() *Block {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetBlockNames() (ns []Name) {
-	return sb.Names // copy?
+	return sb.Names
 }
 
 // Implements BlockNode.
 // NOTE: Extern names may also be local, if declared after usage as an extern
 // (thus shadowing the extern name).
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
-	return sb.Externs // copy?
+	return sb.Externs
 }
 
 func (sb *StaticBlock) addExternName(n Name) {
@@ -1736,13 +1728,22 @@ func (sb *StaticBlock) GetNumNames() (nn uint16) {
 }
 
 // Implements BlockNode.
-func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
-	pblock := sb.Block.GetParent(store)
-	if pblock == nil {
-		return nil
-	} else {
-		return pblock.GetSource(store)
+func (sb *StaticBlock) GetHeapItems() []bool {
+	return sb.HeapItems
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) SetIsHeapItem(n Name) {
+	idx, ok := sb.GetLocalIndex(n)
+	if !ok {
+		panic("name not found in block")
 	}
+	sb.HeapItems[idx] = true
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
+	return sb.Parent
 }
 
 // Implements BlockNode.
@@ -1756,26 +1757,34 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if idx, ok := sb.GetLocalIndex(n); ok {
 		return NewValuePathBlock(uint8(gen), idx, n)
 	}
+	sn := sb.GetSource(store)
 	// Register as extern.
 	// NOTE: uverse names are externs too.
 	// NOTE: externs may also be shadowed later in the block. Thus, usages
 	// before the declaration will have depth > 1; following it, depth == 1,
 	// matching the two different identifiers they refer to.
-	if !isFile(sb.GetSource(store)) {
+	if !isFile(sn) {
 		sb.GetStaticBlock().addExternName(n)
 	}
 	// Check ancestors.
 	gen++
-	bp := sb.GetParentNode(store)
-	for bp != nil {
-		if idx, ok := bp.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen), idx, n)
+	faux := 0
+	sn = sn.GetParentNode(store)
+	if fauxBlockNode(sn) {
+		faux++
+	}
+	for sn != nil {
+		if idx, ok := sn.GetLocalIndex(n); ok {
+			return NewValuePathBlock(uint8(gen-faux), idx, n)
 		} else {
-			if !isFile(bp) {
-				bp.GetStaticBlock().addExternName(n)
+			if !isFile(sn) {
+				sn.GetStaticBlock().addExternName(n)
 			}
-			bp = bp.GetParentNode(store)
 			gen++
+			sn = sn.GetParentNode(store)
+			if fauxBlockNode(sn) {
+				faux++
+			}
 			if 0xff < gen {
 				panic("value path depth overflow")
 			}
@@ -1799,6 +1808,18 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 	bn := sb.GetSource(store)
 	for i := 1; i < int(path.Depth); i++ {
 		bn = bn.GetParentNode(store)
+		if fauxBlockNode(bn) {
+			bn = bn.GetParentNode(store)
+		}
+	}
+
+	// If bn is a faux block node, check also its parent.
+	switch bn := bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		pn := bn.GetParentNode(store)
+		if path.Index < pn.GetNumNames() {
+			return pn
+		}
 	}
 
 	return bn
@@ -1854,7 +1875,6 @@ func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
 }
 
 // Implements BlockNode.
-// XXX XXX what about uverse?
 func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 	idx, ok := sb.GetLocalIndex(n)
 	ts := sb.Types
@@ -1947,7 +1967,10 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Predefine(isConst bool, n Name) {
-	sb.Define2(isConst, n, nil, anyValue(nil))
+	_, exists := sb.GetLocalIndex(n)
+	if !exists {
+		sb.Define2(isConst, n, nil, anyValue(nil))
+	}
 }
 
 // The declared type st may not be the same as the static tv;
@@ -2015,6 +2038,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	} else {
 		// The general case without re-definition.
 		sb.Names = append(sb.Names, n)
+		sb.HeapItems = append(sb.HeapItems, false)
 		if isConst {
 			sb.Consts = append(sb.Consts, n)
 		}
@@ -2290,19 +2314,21 @@ func validatePkgName(name string) error {
 	return nil
 }
 
-const hiddenResultVariable = ".res_"
+// The distinction is used for validation to work
+// both before and after preprocessing.
+const (
+	missingResultNamePrefix    = ".res." // if there was no name
+	underscoreResultNamePrefix = ".res_" // if was underscore
+)
 
-func isHiddenResultVariable(name string) bool {
-	if strings.HasPrefix(name, hiddenResultVariable) {
-		return true
-	}
-	return false
+func isUnnamedResult(name Name) bool {
+	return isMissingResult(name) || isUnderscoreResult(name)
 }
 
-type addressabilityStatus int
+func isMissingResult(name Name) bool {
+	return strings.HasPrefix(string(name), missingResultNamePrefix)
+}
 
-const (
-	addressabilityStatusNotApplicable addressabilityStatus = iota
-	addressabilityStatusSatisfied
-	addressabilityStatusUnsatisfied
-)
+func isUnderscoreResult(name Name) bool {
+	return strings.HasPrefix(string(name), underscoreResultNamePrefix)
+}

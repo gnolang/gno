@@ -14,19 +14,31 @@ import (
 // ReRealmPath and RePackagePath are the regexes used to identify pkgpaths which are meant to
 // be realms with persisted states and pure packages.
 var (
-	ReRealmPath   = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+`)
-	RePackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+`)
+	ReRealmPath   = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+$`)
+	RePackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+$`)
 )
 
 // ReGnoRunPath is the path used for realms executed in maketx run.
 // These are not considered realms, as an exception to the ReRealmPathPrefix rule.
-var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/g[a-z0-9]+/run$`)
+var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/(?P<addr>g1[a-z0-9]+)/run$`)
+var ReGnoRunPathAddrIndex = ReGnoRunPath.SubexpIndex("addr")
 
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
-// should persist the global state.
+// should persist the global state. These include temporary run realms.
 func IsRealmPath(pkgPath string) bool {
-	return ReRealmPath.MatchString(pkgPath) &&
-		!ReGnoRunPath.MatchString(pkgPath)
+	return ReRealmPath.MatchString(pkgPath)
+}
+
+// IsGnoRunPath returns true if it's a run (MsgRun) package path.  These are
+// also realm paths, but they are handled differently; DerivePkgAddr() for
+// example returns the embedded address such that the run package can receive
+// coins on behalf of the user.
+func IsGnoRunPath(pkgPath string) (addr string, ok bool) {
+	matches := ReGnoRunPath.FindStringSubmatch(pkgPath)
+	if matches == nil {
+		return "", false
+	}
+	return matches[ReGnoRunPathAddrIndex], true
 }
 
 // IsInternalPath determines whether the given pkgPath refers to an internal
@@ -73,7 +85,7 @@ func N(n any) Name {
 	case Name:
 		return n
 	default:
-		panic("unexpected name arg")
+		panic("unexpected name type")
 	}
 }
 
@@ -137,8 +149,8 @@ func Flds(args ...any) FieldTypeExprs {
 	list := FieldTypeExprs{}
 	for i := 0; i < len(args); i += 2 {
 		list = append(list, FieldTypeExpr{
-			Name: N(args[i]),
-			Type: X(args[i+1]),
+			NameExpr: *Nx(args[i]),
+			Type:     X(args[i+1]),
 		})
 	}
 	return list
@@ -149,8 +161,8 @@ func Recv(n, t any) FieldTypeExpr {
 		n = blankIdentifier
 	}
 	return FieldTypeExpr{
-		Name: N(n),
-		Type: X(t),
+		NameExpr: *Nx(n),
+		Type:     X(t),
 	}
 }
 
@@ -841,6 +853,24 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 		return else_
 	} else {
 		return &EmptyStmt{}
+	}
+}
+
+// ----------------------------------------
+// AST Query
+
+// Unwraps IndexExpr and SelectorExpr only.
+// (defensive, in case malformed exprs that mix).
+func LeftmostX(x Expr) Expr {
+	for {
+		switch x := x.(type) {
+		case *IndexExpr:
+			return x.X
+		case *SelectorExpr:
+			return x.X
+		default:
+			return x
+		}
 	}
 }
 
