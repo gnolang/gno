@@ -542,7 +542,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 				if meth.Doc != "" {
 					lineComment = fmt.Sprintf("  %s", meth.Doc)
 				}
-				pkg.Printf("%s %s%s\n", indent, meth.Signature, lineComment)
+				pkg.Printf("%s%s%s\n", indent, meth.Signature, lineComment)
 			}
 			pkg.Printf("%s// Has unexported methods.\n", indent)
 			pkg.Printf("}\n")
@@ -781,7 +781,7 @@ func (pkg *pkgPrinter) printFieldDoc(symbol, fieldName string) bool {
 			}
 			lineComment := ""
 			if field.Doc != "" {
-				lineComment = fmt.Sprintf("  %s", field.Doc)
+				lineComment = fmt.Sprintf("  %s", strings.TrimSpace(field.Doc))
 			}
 			pkg.Printf("%s%s %s%s\n", indent, field.Name, field.Type, lineComment)
 			found = true
@@ -790,6 +790,45 @@ func (pkg *pkgPrinter) printFieldDoc(symbol, fieldName string) bool {
 	if found {
 		if numUnmatched > 0 {
 			pkg.Printf("\n    // ... other fields elided ...\n")
+		}
+		pkg.Printf("}\n")
+	}
+	return found
+}
+
+// printInterfaceMethodDoc prints the docs for matches of symbol.methodName.
+// It reports whether it found any field.
+// Both symbol and methodName must be non-empty or it returns false.
+func (pkg *pkgPrinter) printInterfaceMethodDoc(symbol, methodName string) bool {
+	if symbol == "" || methodName == "" {
+		return false
+	}
+	types := pkg.findTypes(symbol)
+	if types == nil {
+		pkg.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.importPath)
+	}
+	found := false
+	numUnmatched := 0
+	for _, typ := range types {
+		for _, meth := range typ.Methods {
+			if !pkg.match(methodName, meth.Name) {
+				numUnmatched++
+				continue
+			}
+			if !found {
+				pkg.Printf("type %s interface {\n", typ.Name)
+			}
+			lineComment := ""
+			if meth.Doc != "" {
+				lineComment = fmt.Sprintf("  %s", strings.TrimSpace(meth.Doc))
+			}
+			pkg.Printf("%s%s%s\n", indent, meth.Signature, lineComment)
+			found = true
+		}
+	}
+	if found {
+		if numUnmatched > 0 {
+			pkg.Printf("\n    // ... other methods elided ...\n")
 		}
 		pkg.Printf("}\n")
 	}

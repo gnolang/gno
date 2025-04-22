@@ -154,6 +154,9 @@ func (d *Documentable) output(pp *pkgPrinter) (err error) {
 		if pp.fieldDoc(d.symbol, d.accessible) {
 			return
 		}
+		if pp.printInterfaceMethodDoc(d.symbol, d.accessible) {
+			return
+		}
 	}
 
 	return
