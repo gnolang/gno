@@ -389,7 +389,7 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write(ufmt.Sprintf("# Vote for Proposal #%d\n", p.ID()))
+	res.Write(ufmt.Sprintf("# Vote: Proposal #%d\n", p.ID()))
 	res.Write(ufmt.Sprintf("[Go to DAO](%s) • ", daoURL(dao)))
 	res.Write(ufmt.Sprintf("[Go to Proposal](%s)", proposalURL(dao, p)))
 	res.Write("\n\n---\n")
