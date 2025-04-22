@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -142,6 +143,11 @@ type TestOptions struct {
 	// Uses Error to print the events emitted.
 	Events bool
 
+	// Enable coverage tracking
+	Coverage bool
+	// Coverage output file
+	CoverageOutput string
+
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
 }
@@ -215,6 +221,12 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	// create coverage tracker
+	var tracker *coverage.CoverageTracker
+	if opts.Coverage {
+		tracker = coverage.NewCoverageTracker()
+	}
+
 	// Eagerly load imports.
 	if err := LoadImports(opts.TestStore, memPkg); err != nil {
 		return err
@@ -235,7 +247,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(memPkg, tset, gs)
+			err := opts.runTestFiles(memPkg, tset, gs, tracker)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -249,7 +261,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, gs)
+			err := opts.runTestFiles(itPkg, itset, gs, tracker)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -290,8 +302,13 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 			} else if opts.Verbose {
 				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
 			}
+		}
+	}
 
-			// XXX: add per-test metrics
+	// generate coverage report
+	if opts.Coverage && tracker != nil {
+		if err := coverage.GenerateReport(tracker, opts.CoverageOutput); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("failed to generate coverage report: %w", err))
 		}
 	}
 
@@ -302,6 +319,7 @@ func (opts *TestOptions) runTestFiles(
 	memPkg *gnovm.MemPackage,
 	files *gno.FileSet,
 	gs gno.TransactionStore,
+	tracker *coverage.CoverageTracker,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -330,6 +348,17 @@ func (opts *TestOptions) runTestFiles(
 	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 	m.Alloc = alloc
 	if gs.GetMemPackage(memPkg.Path) == nil {
+		// if coverage is enabled, instrument the files
+		if opts.Coverage && tracker != nil {
+			for _, file := range memPkg.Files {
+				instrumenter := coverage.NewCoverageInstrumenter(tracker, file.Name)
+				instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
+				if err != nil {
+					return fmt.Errorf("failed to instrument file %s: %w", file.Name, err)
+				}
+				file.Body = string(instrumentedContent)
+			}
+		}
 		m.RunMemPackage(memPkg, true)
 	} else {
 		m.SetActivePackage(gs.GetPackage(memPkg.Path, false))
@@ -339,14 +368,6 @@ func (opts *TestOptions) runTestFiles(
 	m.RunFiles(files.Files...)
 
 	for _, tf := range tests {
-		// TODO(morgan): we could theoretically use wrapping on the baseStore
-		// and gno store to achieve per-test isolation. However, that requires
-		// some deeper changes, as ideally we'd:
-		// - Run the MemPackage independently (so it can also be run as a
-		//   consequence of an import)
-		// - Run the test files before this for loop (but persist it to store;
-		//   RunFiles doesn't do that currently)
-		// - Wrap here.
 		m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)

@@ -382,3 +382,17 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 
 	fn(t)
 }
+
+func MarkLine(filename string, line int) {
+	coverage.MarkLine(filename, line)
+}
+
+// markLine marks a line as executed
+func markLine(line int) {
+	X_markLine(line)
+}
+
+// instrumentCode instruments the code for coverage
+func instrumentCode(code string) string {
+	return X_instrumentCode(code)
+}
