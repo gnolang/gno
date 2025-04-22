@@ -8,7 +8,7 @@ import (
 )
 
 func TestLociStore(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/dev/null"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 
 	t.Run("TestSet", func(t *testing.T) {
 		t.Parallel()
