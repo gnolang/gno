@@ -530,29 +530,44 @@ func (pkg *pkgPrinter) valueDoc(value *JSONValueDecl, printed map[*JSONValueDecl
 // typeDoc prints the docs for a type, including constructors and other items
 // related to it.
 func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
-	saveFieldCount := len(typ.Fields)
-	pkg.trimUnexportedElems(typ)
-	if len(typ.Fields) == saveFieldCount {
-		assign := " "
-		if typ.Alias {
-			assign = " = "
-		}
-		pkg.emit(typ.Doc, "type "+typ.Name+assign+typ.Type)
-	} else {
-		pkg.Printf("type %s struct {\n", typ.Name)
-		for _, field := range typ.Fields {
-			lineComment := ""
-			if field.Doc != "" {
-				lineComment = fmt.Sprintf("  %s", field.Doc)
+	if typ.Kind == interfaceKind {
+		saveMethodCount := len(typ.Methods)
+		pkg.trimUnexportedElems(typ)
+		if len(typ.Methods) == saveMethodCount {
+			pkg.emit(typ.Doc, "type "+typ.Name+" "+typ.Type)
+		} else {
+			pkg.Printf("type %s interface {\n", typ.Name)
+			for _, meth := range typ.Methods {
+				lineComment := ""
+				if meth.Doc != "" {
+					lineComment = fmt.Sprintf("  %s", meth.Doc)
+				}
+				pkg.Printf("%s %s%s\n", indent, meth.Signature, lineComment)
 			}
-			pkg.Printf("%s%s %s%s\n", indent, field.Name, field.Type, lineComment)
+			pkg.Printf("%s// Has unexported methods.\n", indent)
+			pkg.Printf("}\n")
 		}
-		what := "methods"
-		if typ.Kind != interfaceKind {
-			what = "fields"
+	} else {
+		saveFieldCount := len(typ.Fields)
+		pkg.trimUnexportedElems(typ)
+		if len(typ.Fields) == saveFieldCount {
+			assign := " "
+			if typ.Alias {
+				assign = " = "
+			}
+			pkg.emit(typ.Doc, "type "+typ.Name+assign+typ.Type)
+		} else {
+			pkg.Printf("type %s struct {\n", typ.Name)
+			for _, field := range typ.Fields {
+				lineComment := ""
+				if field.Doc != "" {
+					lineComment = fmt.Sprintf("  %s", field.Doc)
+				}
+				pkg.Printf("%s%s %s%s\n", indent, field.Name, field.Type, lineComment)
+			}
+			pkg.Printf("%s// Has unexported fields.\n", indent)
+			pkg.Printf("}\n")
 		}
-		pkg.Printf("%s// Has unexported %s.\n", indent, what)
-		pkg.Printf("}\n")
 	}
 	pkg.newlines(2)
 	// Show associated methods, constants, etc.
@@ -613,11 +628,15 @@ func (pkg *pkgPrinter) trimUnexportedElems(typ *JSONType) {
 	if pkg.opt.Unexported || pkg.opt.Source {
 		return
 	}
-	typ.Fields = pkg.trimUnexportedFields(typ.Fields, typ.Kind == interfaceKind)
+	if typ.Kind == interfaceKind {
+		typ.Methods = pkg.trimUnexportedMethods(typ.Methods)
+	} else {
+		typ.Fields = pkg.trimUnexportedFields(typ.Fields)
+	}
 }
 
 // trimUnexportedFields returns the field list trimmed of unexported fields.
-func (pkg *pkgPrinter) trimUnexportedFields(fields []*JSONField, isInterface bool) []*JSONField {
+func (pkg *pkgPrinter) trimUnexportedFields(fields []*JSONField) []*JSONField {
 	trimmed := false
 	list := make([]*JSONField, 0, len(fields))
 	for _, field := range fields {
@@ -638,6 +657,32 @@ func (pkg *pkgPrinter) trimUnexportedFields(fields []*JSONField, isInterface boo
 	}
 	if !trimmed {
 		return fields
+	}
+	return list
+}
+
+// trimUnexportedMethods returns the method list trimmed of unexported methods.
+func (pkg *pkgPrinter) trimUnexportedMethods(methods []*JSONFunc) []*JSONFunc {
+	trimmed := false
+	list := make([]*JSONFunc, 0, len(methods))
+	for _, meth := range methods {
+		name := meth.Name
+		if name == "" {
+			// Embedded type. Use the name of the type.
+			name = strings.Replace(meth.Type, "*", "", -1)
+		}
+		// Trims if any is unexported. Good enough in practice.
+		ok := true
+		if !pkg.isExported(name) {
+			trimmed = true
+			ok = false
+		}
+		if ok {
+			list = append(list, meth)
+		}
+	}
+	if !trimmed {
+		return methods
 	}
 	return list
 }

@@ -18,7 +18,9 @@ type Rand struct {
 }
 
 type Rander interface {
-	Generate()
+	Generate() // To generate
+	// comment1
+	unexp(x int) string
 }
 
 type RandEmbedder struct {
