@@ -32,7 +32,7 @@ func main() {
 	cross(boards2.DeleteThread)(bid, pid)
 
 	// Ensure thread doesn't exist
-	println(boards2.Render("test-board/1"))
+	println(cross(boards2.Render)("test-board/1"))
 }
 
 // Output:

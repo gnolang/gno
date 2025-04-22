@@ -35,7 +35,7 @@ func main() {
 	println(rid2 == 3)
 
 	// Render content must contain the sub-reply
-	content := boards2.Render(path)
+	content := cross(boards2.Render)(path)
 	println(strings.Contains(content, "\n> > "+comment+"\n"))
 }
 

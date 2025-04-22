@@ -17,13 +17,16 @@ const (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
 	cross(boards2.InviteMember)(0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
-	testing.SetOriginCaller(member)
+
+	testing.SetRealm(std.NewUserRealm(member))
 	cross(users.Register)(name)
+
+	testing.SetOriginCaller(member)
 }
 
 func main() {

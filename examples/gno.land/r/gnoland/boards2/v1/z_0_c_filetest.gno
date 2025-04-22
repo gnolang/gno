@@ -13,8 +13,10 @@ const (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	cross(boards2.CreateBoard)(boardName)
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {

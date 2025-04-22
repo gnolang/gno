@@ -37,7 +37,7 @@ func main() {
 	cross(boards2.FlagReply)(bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply
-	content := boards2.Render("test-board/1/2")
+	content := cross(boards2.Render)("test-board/1/2")
 	println(strings.Contains(content, "> _⚠ Reply is hidden as it has been flagged as inappropriate_"))
 }
 

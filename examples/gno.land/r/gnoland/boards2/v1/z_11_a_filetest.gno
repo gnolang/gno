@@ -32,7 +32,7 @@ func main() {
 	cross(boards2.EditThread)(bid, pid, title, body)
 
 	// Render content must contains thread's title and body
-	content := boards2.Render(path)
+	content := cross(boards2.Render)(path)
 	println(strings.HasPrefix(content, "## "+title))
 	println(strings.Contains(content, body))
 }

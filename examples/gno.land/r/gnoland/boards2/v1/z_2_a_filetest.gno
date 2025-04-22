@@ -34,7 +34,7 @@ func main() {
 	println(rid == 2)
 
 	// Render content must contain the reply
-	content := boards2.Render(path)
+	content := cross(boards2.Render)(path)
 	println(strings.Contains(content, "\n> "+comment+"\n"))
 }
 
