@@ -46,6 +46,12 @@ func TestExecuteEvm(t *testing.T) {
 			expected_stackdata: []*uint256.Uint{uint256.NewFrom64s(66), uint256.New()},
 			expected_error:     nil,
 		},
+		{
+			name:               "push2",
+			code:               []byte{byte(PUSH2), 0x42, 0x42, byte(STOP)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
+			expected_stackdata: []*uint256.Uint{uint256.NewFrom64s(16962)},
+			expected_error:     nil,
+		},
 		// Add more test cases as needed
 	}
 
