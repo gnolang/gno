@@ -28,10 +28,12 @@ func main() {
 // 123
 // dev
 
+
+
 // Realm:
-// switchrealm["gno.land/r/test"]
+// finalizerealm["gno.land/r/test"]
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
-//     @@ -17,7 +17,7 @@
+//     @@ -16,7 +16,7 @@
 //                          "Tag": "",
 //                          "Type": {
 //                              "@type": "/gno.PrimitiveType",
@@ -40,7 +42,7 @@ func main() {
 //                          }
 //                      }
 //                  ]
-//     @@ -25,7 +25,7 @@
+//     @@ -24,7 +24,7 @@
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //                  "Escaped": true,
@@ -50,7 +52,7 @@ func main() {
 //          }
 //      }
 // u[a7f5397443359ea76c50be82c77f1f893a060925:33]=
-//     @@ -7,9 +7,10 @@
+//     @@ -8,9 +8,10 @@
 //          "NativePkg": "std",
 //          "ObjectInfo": {
 //              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:33",
@@ -64,7 +66,7 @@ func main() {
 //          "Parent": {
 //              "@type": "/gno.RefValue",
 // u[a7f5397443359ea76c50be82c77f1f893a060925:36]=
-//     @@ -10,7 +10,7 @@
+//     @@ -11,7 +11,7 @@
 //              "IsEscaped": true,
 //              "ModTime": "6",
 //              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",

@@ -23,3 +23,6 @@ func main() {
 
 // Error:
 // main/files/types/add_assign_f0.gno:20:2: invalid operation: mismatched types int and .uverse.error
+
+// TypeCheckError:
+// main/files/types/add_assign_f0.gno:20:2: invalid operation: r += errCmp (mismatched types int and error)
