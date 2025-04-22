@@ -25,7 +25,7 @@ func Test2Ctor64(t *testing.T) {
 
 func TestCtorBytes(t *testing.T) {
 	u := NewFromBytes([]byte{0x01, 0x02, 0x03}) // [ 0x10203, 0, 0, 0 ] / [01 02 03]
-	if u.String() != "66051" { // 0x010203
+	if u.String() != "66051" {                  // 0x010203
 		t.Error("expected 66051, got " + u.String())
 	}
 
@@ -65,8 +65,8 @@ func TestFromString(t *testing.T) {
 func TestMulLevel(t *testing.T) {
 	u, _ := NewFromString("ffffffffffffffff", 16)
 	u.Mul64(2)
-	if u.data[1] != 1 {
-		t.Error("expected second data to be 1")
+	if u[1] != 1 {
+		t.Error("expected second to be 1")
 	}
 	if u.String() != "36893488147419103230" {
 		t.Error("expected to be 36893488147419103230")
@@ -92,14 +92,14 @@ func TestLastLevel(t *testing.T) {
 	if u.String() != "6277101735386680763835789423207666416102355444464034512896" {
 		t.Error("expected to be 6277101735386680763835789423207666416102355444464034512896")
 	}
-	if u.data[0] != 0 || u.data[1] != 0 || u.data[2] != 0 || u.data[3] != 1 {
+	if u[0] != 0 || u[1] != 0 || u[2] != 0 || u[3] != 1 {
 		t.Error("expected [0, 0, 0, 1]")
 	}
 	u.Add64(1)
 	if u.String() != "6277101735386680763835789423207666416102355444464034512897" {
 		t.Error("expected to be 6277101735386680763835789423207666416102355444464034512897")
 	}
-	if u.data[0] != 1 || u.data[1] != 0 || u.data[2] != 0 || u.data[3] != 1 {
+	if u[0] != 1 || u[1] != 0 || u[2] != 0 || u[3] != 1 {
 		t.Error("expected [1, 0, 0, 1]")
 	}
 }

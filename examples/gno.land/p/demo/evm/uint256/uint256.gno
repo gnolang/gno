@@ -8,9 +8,7 @@ import (
 	"strings"
 )
 
-type Uint struct {
-	data [4]uint64
-}
+type Uint [4]uint64
 
 // usefull
 
@@ -51,26 +49,32 @@ func NewFromString(s string, base int) (*Uint, error) {
 		}
 		u.Mul64(uint64(base))
 		u.Add64(digit)
-		// fmt.Printf(">%#x, %#x, %#x, %#x\n", u.data[0], u.data[1], u.data[2], u.data[3])
+		// fmt.Printf(">%#x, %#x, %#x, %#x\n", u[0], u[1], u[2], u[3])
 	}
 	return u, nil
 }
 
 func New() *Uint {
-	return &Uint{data: [4]uint64{0, 0, 0, 0}}
+	return (&Uint{}).Clear()
 }
 
 func NewFrom64s(us ...uint64) *Uint {
 	u := New()
 	for n := 0; n < len(us) && n < 4; n++ {
-		u.data[n] = us[n]
+		u[n] = us[n]
 	}
 	return u
 }
 
 func NewFromBytes(b []byte) *Uint {
 	u := New()
-	lenBlocs := (len(b) / 8) + 1
+	if len(b) > 32 {
+		return u
+	}
+	lenBlocs := len(b) / 8
+	if len(b)%8 != 0 {
+		lenBlocs += 1
+	}
 	blocs := [4][]byte{}
 	for i := 0; i < lenBlocs; i++ {
 		l := len(b)
@@ -83,35 +87,35 @@ func NewFromBytes(b []byte) *Uint {
 		}
 	}
 	for i := 0; i < lenBlocs; i++ {
-		u.data[i] = binary.BigEndian.Uint64(blocs[i])
+		u[i] = binary.BigEndian.Uint64(blocs[i])
 	}
 	return u
 }
-
-// string
-
 func (u Uint) HexString() string {
-	buf := "0x"
-	last0 := 3
-	for i := 3; i >= 0; i-- {
-		if u.data[i] == 0 {
-			last0 = i
-		} else {
-			break
-		}
-	}
-	if last0 == 0 {
+	if u.IsZero() {
 		return "0x0"
 	}
-	for i := last0 - 1; i >= 0; i-- {
-		n := strconv.FormatUint(u.data[i], 16)
-		if i == last0-1 {
-			buf += n
-		} else {
-			buf += lpad(n, 16, '0')
+
+	lastNonZero := 3
+	for i := 3; i >= 0; i-- {
+		if u[i] != 0 {
+			break
 		}
+		lastNonZero = i
 	}
-	return buf
+
+	result := "0x"
+	for i := lastNonZero; i >= 0; i-- {
+		hex := strconv.FormatUint(u[i], 16)
+		if i < lastNonZero {
+			for len(hex) < 16 {
+				hex = "0" + hex
+			}
+		}
+		result += hex
+	}
+
+	return result
 }
 
 func (u Uint) divMod10() (Uint, uint64) {
@@ -120,9 +124,9 @@ func (u Uint) divMod10() (Uint, uint64) {
 
 	for i := 3; i >= 0; i-- {
 		high := remainder
-		low := u.data[i]
+		low := u[i]
 		quotient, rem := div128by10(high, low)
-		result.data[i] = quotient
+		result[i] = quotient
 		remainder = rem
 	}
 	return result, remainder
@@ -206,8 +210,8 @@ func carryMul(a, b uint64) (lo, hi uint64) {
 
 func (u *Uint) add64Level(x uint64, n int) {
 	for i := n; true; i++ {
-		res, carry := carryAdd(u.data[i], x)
-		u.data[i] = res
+		res, carry := carryAdd(u[i], x)
+		u[i] = res
 		if carry == 0 {
 			break
 		}
@@ -221,38 +225,78 @@ func (u *Uint) Add64(x uint64) {
 
 func (x *Uint) Add256(y *Uint) *Uint {
 	var carry uint64
-	x.data[0], carry = bits.Add64(x.data[0], y.data[0], 0)
-	x.data[1], carry = bits.Add64(x.data[1], y.data[1], carry)
-	x.data[2], carry = bits.Add64(x.data[2], y.data[2], carry)
-	x.data[3], _ = bits.Add64(x.data[3], y.data[3], carry)
+	x[0], carry = bits.Add64(x[0], y[0], 0)
+	x[1], carry = bits.Add64(x[1], y[1], carry)
+	x[2], carry = bits.Add64(x[2], y[2], carry)
+	x[3], _ = bits.Add64(x[3], y[3], carry)
 	return x
 }
-
 func (x *Uint) Mul256(y *Uint) *Uint {
 	result := New()
 	for i := 0; i < 4; i++ {
-		if x.data[i] == 0 {
+		if x[i] == 0 {
 			continue
 		}
 		for j := 0; j < 4; j++ {
 			if i+j >= 4 {
 				break // skip overflow >256 bits
 			}
-			lo, hi := carryMul(x.data[i], y.data[j])
+			lo, hi := carryMul(x[i], y[j])
 			result.add64Level(lo, i+j)
 			if i+j+1 < 4 {
 				result.add64Level(hi, i+j+1)
 			}
 		}
 	}
-	x.data = result.data
+	x.AssignValue(*result)
+	return x
+}
+
+func (x *Uint) Sub256(y Uint) *Uint {
+	var carry uint64
+	x[0], carry = bits.Sub64(x[0], y[0], 0)
+	x[1], carry = bits.Sub64(x[1], y[1], carry)
+	x[2], carry = bits.Sub64(x[2], y[2], carry)
+	x[3], _ = bits.Sub64(x[3], y[3], carry)
+	return x
+}
+
+func (x *Uint) Div256(y *Uint) *Uint {
+	if y.IsZero() || y.Greater(*x) {
+		return x.Clear()
+	}
+	if x.Equals(y) {
+		return x.AssignValue(Uint{1})
+	}
+	if x.IsUint64() {
+		return x.SetUint64(x[3] / y[3])
+	}
+
+	var quotient, remainder Uint
+	dividend := *x
+	divisor := *y
+
+	for i := 255; i >= 0; i-- {
+		remainder = remainder.lsh(1)
+
+		if dividend.GetBit(i) {
+			remainder[0] |= 1
+		}
+
+		if !divisor.Greater(remainder) {
+			remainder.Sub256(divisor)
+			quotient.SetBit(i)
+		}
+	}
+
+	*x = quotient
 	return x
 }
 
 func (u *Uint) Mul64(x uint64) {
 	dup := New()
 	for i := 0; i < 3; i++ {
-		lo, hi := carryMul(u.data[i], x)
+		lo, hi := carryMul(u[i], x)
 		dup.add64Level(lo, i)
 		if hi == 0 {
 			continue
@@ -260,15 +304,71 @@ func (u *Uint) Mul64(x uint64) {
 		if i == 3 { // cant add more than 256 bits
 			break
 		}
-		dup.add64Level(hi, i + 1)
+		dup.add64Level(hi, i+1)
 	}
-	u.data = dup.data
+	u.AssignValue(*dup)
+}
+
+func (u Uint) Greater(x Uint) bool {
+	return !x.Lesser(u)
+}
+
+func (z Uint) Lesser(x Uint) bool {
+	_, carry := bits.Sub64(z[0], x[0], 0)
+	_, carry = bits.Sub64(z[1], x[1], carry)
+	_, carry = bits.Sub64(z[2], x[2], carry)
+	_, carry = bits.Sub64(z[3], x[3], carry)
+	return carry != 0
+}
+
+// bit gets the i-th bit
+func (x Uint) GetBit(i int) bool {
+	word := i / 64
+	bit := uint(i % 64)
+	return (x[word] & (1 << bit)) != 0
+}
+
+// setBit sets the i-th bit to 1
+func (x *Uint) SetBit(i int) {
+	word := i / 64
+	bit := uint(i % 64)
+	x[word] |= 1 << bit
+}
+
+// lsh performs left shift by 1
+func (x Uint) lsh(n uint) (result Uint) {
+	for i := 3; i >= 0; i-- {
+		if i < 3 {
+			result[i+1] |= x[i] >> 63
+		}
+		result[i] = x[i] << 1
+	}
+	return
 }
 
 func (u Uint) IsZero() bool {
-	return u.data[0] == 0 && u.data[1] == 0 && u.data[2] == 0 && u.data[3] == 0
+	return u[0] == 0 && u[1] == 0 && u[2] == 0 && u[3] == 0
+}
+
+func (u *Uint) IsUint64() bool {
+	return (u[1] | u[2] | u[3]) == 0
+}
+
+func (u *Uint) AssignValue(x Uint) *Uint {
+	u[0], u[1], u[2], u[3] = x[0], x[1], x[2], x[3]
+	return u
+}
+
+func (u *Uint) SetUint64(x uint64) *Uint {
+	u[0], u[1], u[2], u[3] = 0, 0, 0, x
+	return u
+}
+
+func (u *Uint) Clear() *Uint {
+	u[0], u[1], u[2], u[3] = 0, 0, 0, 0
+	return u
 }
 
 func (x Uint) Equals(y *Uint) bool {
-	return x.data[0] == y.data[0] && x.data[1] == y.data[1] && x.data[2] == y.data[2] && x.data[3] == y.data[3]
+	return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3]
 }

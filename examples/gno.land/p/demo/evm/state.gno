@@ -8,14 +8,14 @@ const memSize = 30000
 
 type state struct {
 	memory []byte
-	stack  byteStack
+	stack  evmStack
 	buf    []byte
 	code   instructions
 }
 
 func newState() *state {
 	return &state{
-		stack:  *NewByteStack(),
+		stack:  *NewevmStack(),
 		memory: make([]byte, memSize),
 		buf:    []byte{},
 		code:   instructions{},
