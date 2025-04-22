@@ -16,14 +16,16 @@ var (
 )
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "body")
 }
 
 func main() {
-	boards2.FlagReply(bid, tid, rid, "")
+	cross(boards2.FlagReply)(bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply
 	content := boards2.Render("test-board/1/2")

@@ -15,12 +15,14 @@ const (
 var bid boards2.BoardID
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)(name)
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard(name)
 }
 
 func main() {
-	bid2, found := boards2.GetBoardIDFromName(name)
+	bid2, found := cross(boards2.GetBoardIDFromName)(name)
 	println(found)
 	println(bid2 == bid)
 }

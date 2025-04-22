@@ -15,7 +15,7 @@ func init() {
 }
 
 func main() {
-	boards2.SetRealmNotice("Foo")
+	cross(boards2.SetRealmNotice)("Foo")
 }
 
 // Error:

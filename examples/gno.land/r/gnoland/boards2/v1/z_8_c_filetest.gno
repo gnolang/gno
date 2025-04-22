@@ -15,14 +15,14 @@ const (
 var bid boards2.BoardID
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
 
 	testing.SetOriginCaller(user)
 }
 
 func main() {
-	boards2.CreateThread(bid, "Foo", "bar")
+	cross(boards2.CreateThread)(bid, "Foo", "bar")
 }
 
 // Error:

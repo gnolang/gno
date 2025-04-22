@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.RenameBoard("unexisting", "foo")
+	cross(boards2.RenameBoard)("unexisting", "foo")
 }
 
 // Error:

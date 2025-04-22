@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.LockRealm(true)
+	cross(boards2.LockRealm)(true)
 	println(boards2.IsRealmLocked())
 	println(boards2.AreRealmMembersLocked())
 }

@@ -19,18 +19,19 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "body")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to flag replies
-	boards2.InviteMember(bid, moderator, boards2.RoleModerator)
+	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)
+
 	testing.SetOriginCaller(moderator)
 }
 
 func main() {
-	boards2.FlagReply(bid, tid, rid, "")
+	cross(boards2.FlagReply)(bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply
 	content := boards2.Render("test-board/1/2")

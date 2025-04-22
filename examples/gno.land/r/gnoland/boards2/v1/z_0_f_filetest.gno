@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.CreateBoard("gnoland")
+	cross(boards2.CreateBoard)("gnoland")
 }
 
 // Error:

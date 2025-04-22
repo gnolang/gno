@@ -10,14 +10,15 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func init() {
-	testing.SetOriginCaller(owner)
-
 	// Lock the realm without locking realm members
-	boards2.LockRealm(false)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(boards2.LockRealm)(false)
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
-	boards2.LockRealm(true)
+	cross(boards2.LockRealm)(true)
 	println(boards2.IsRealmLocked())
 	println(boards2.AreRealmMembersLocked())
 }

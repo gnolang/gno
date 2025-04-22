@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.CreateReply(404, 1, 0, "comment")
+	cross(boards2.CreateReply)(404, 1, 0, "comment")
 }
 
 // Error:

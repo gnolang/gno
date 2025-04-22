@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.DeleteThread(404, 1)
+	cross(boards2.DeleteThread)(404, 1)
 }
 
 // Error:

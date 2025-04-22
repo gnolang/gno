@@ -12,13 +12,15 @@ const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 var bid boards2.BoardID
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
+	cross(boards2.FreezeBoard)(bid)
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
-	boards2.FreezeBoard(bid)
 }
 
 func main() {
-	boards2.FreezeBoard(bid)
+	cross(boards2.FreezeBoard)(bid)
 }
 
 // Error:

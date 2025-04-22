@@ -20,14 +20,16 @@ var (
 )
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "First comment")
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "First comment")
 }
 
 func main() {
-	rid2 := boards2.CreateReply(bid, tid, rid, comment)
+	rid2 := cross(boards2.CreateReply)(bid, tid, rid, comment)
 
 	// Ensure that returned ID is right
 	println(rid2 == 3)

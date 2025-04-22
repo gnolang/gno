@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.InviteMember(0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", boards2.RoleGuest)
+	cross(boards2.InviteMember)(0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", boards2.RoleGuest)
 }
 
 // Error:

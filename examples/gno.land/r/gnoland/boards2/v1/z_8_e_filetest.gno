@@ -12,12 +12,14 @@ const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 var bid boards2.BoardID
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
 }
 
 func main() {
-	boards2.CreateThread(bid, "Foo", "")
+	cross(boards2.CreateThread)(bid, "Foo", "")
 }
 
 // Error:

@@ -20,22 +20,24 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 
-	bid = boards2.CreateBoard(name)
-	boards2.InviteMember(bid, member, boards2.RoleOwner)
+	bid = cross(boards2.CreateBoard)(name)
+	cross(boards2.InviteMember)(bid, member, boards2.RoleOwner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
+	testing.SetRealm(std.NewUserRealm(member))
+	cross(users.Register)(newName)
+
 	testing.SetOriginCaller(member)
-	users.Register(newName)
 }
 
 func main() {
-	boards2.RenameBoard(name, newName)
+	cross(boards2.RenameBoard)(name, newName)
 
 	// Ensure board is renamed by another board owner
-	bid2, _ := boards2.GetBoardIDFromName(newName)
+	bid2, _ := cross(boards2.GetBoardIDFromName)(newName)
 	println("IDs match =", bid == bid2)
 }
 

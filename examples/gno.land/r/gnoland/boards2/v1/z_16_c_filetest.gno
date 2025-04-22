@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.SetFlaggingThreshold(1, 0)
+	cross(boards2.SetFlaggingThreshold)(1, 0)
 }
 
 // Error:

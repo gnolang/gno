@@ -14,11 +14,11 @@ const (
 
 func init() {
 	testing.SetOriginCaller(owner)
-	boards2.CreateBoard(boardName)
+	cross(boards2.CreateBoard)(boardName)
 }
 
 func main() {
-	boards2.CreateBoard(boardName)
+	cross(boards2.CreateBoard)(boardName)
 }
 
 // Error:

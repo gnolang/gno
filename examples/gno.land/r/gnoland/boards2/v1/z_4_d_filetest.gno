@@ -16,17 +16,17 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
 
-	boards2.InviteMember(bid, admin, boards2.RoleAdmin)
-	boards2.InviteMember(bid, admin2, boards2.RoleAdmin)
+	cross(boards2.InviteMember)(bid, admin, boards2.RoleAdmin)
+	cross(boards2.InviteMember)(bid, admin2, boards2.RoleAdmin)
 
 	testing.SetOriginCaller(admin)
 }
 
 func main() {
-	boards2.ChangeMemberRole(bid, admin2, boards2.RoleOwner)
+	cross(boards2.ChangeMemberRole)(bid, admin2, boards2.RoleOwner)
 }
 
 // Error:

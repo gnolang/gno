@@ -18,17 +18,19 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "Parent comment")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "Parent comment")
 
 	// Flag parent post so it's hidden
-	boards2.FlagReply(bid, tid, rid, "")
+	cross(boards2.FlagReply)(bid, tid, rid, "")
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
-	boards2.CreateReply(bid, tid, rid, "Sub comment")
+	cross(boards2.CreateReply)(bid, tid, rid, "Sub comment")
 }
 
 // Error:

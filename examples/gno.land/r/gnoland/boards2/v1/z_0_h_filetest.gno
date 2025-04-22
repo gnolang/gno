@@ -21,13 +21,13 @@ func init() {
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
-	boards2.InviteMember(0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
+	cross(boards2.InviteMember)(0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
 	testing.SetOriginCaller(member)
-	users.Register(name)
+	cross(users.Register)(name)
 }
 
 func main() {
-	bid := boards2.CreateBoard(name)
+	bid := cross(boards2.CreateBoard)(name)
 	println("ID =", bid)
 }
 

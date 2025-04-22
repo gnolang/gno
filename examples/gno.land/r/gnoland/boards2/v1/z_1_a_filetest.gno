@@ -19,7 +19,7 @@ func init() {
 }
 
 func main() {
-	boards2.InviteMember(bid, user, role)
+	cross(boards2.InviteMember)(bid, user, role)
 
 	// Check that user is invited
 	println(boards2.HasMemberRole(bid, user, role))

@@ -24,7 +24,7 @@ func init() {
 }
 
 func main() {
-	boards2.SetPermissions(bid, perms)
+	cross(boards2.SetPermissions)(bid, perms)
 
 	// Owner that setted new permissions is not a member of the new permissions
 	println(boards2.IsMember(bid, owner))
