@@ -1,26 +1,36 @@
 package evm
 
-import (
-	"errors"
-	"strconv"
-)
-
-func opNotImplemented(rip *int, codes []byte, stack *ByteStack, memory []byte) error {
-	return errors.New("op code " + strconv.FormatInt(int64(codes[*rip]), 16) + "not implemented")
+type Instructions struct {
+	pc int
+	instructions []byte
+	length int
 }
 
-func opAdd(rip *int, codes []byte, stack *ByteStack, memory []byte) error {
-	a1, err := stack.Pop()
-	if err != nil {
-		return errors.New("can't ADD: empty stack")
-	}
+func (i *Instructions) Reset(l []byte) {
+	i.pc = 0
+	i.instructions = l
+	i.length = len(l)
+}
 
-	a2, err := stack.Pop()
-	if err != nil {
-		return errors.New("can't ADD: stack of size 1")
+func (i *Instructions) Increment(more ...int) {
+	x := 1
+	if len(more) > 0 {
+		i.pc = more[0]
 	}
+	if (i.pc + x) >= i.length {
+		i.pc = -1 // out of bounds
+		return
+	}
+	i.pc += x
+}
 
-	stack.Push(a1 + a2)
-	*rip += 1
-	return nil
+func (i Instructions) Current() byte {
+	if i.Ill() {
+		return 0
+	}
+	return i.instructions[i.pc]
+}
+
+func (i Instructions) Ill() bool {
+	return i.pc < 0
 }

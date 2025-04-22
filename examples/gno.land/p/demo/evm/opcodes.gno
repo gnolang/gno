@@ -5,7 +5,7 @@ type OpCode byte
 type EvmOpData struct {
 	opCode    OpCode
 	name      string
-	operation func(rip *int, codes []byte, stack *ByteStack, memory []byte) error
+	operation func(*State) error
 }
 
 const (
@@ -164,7 +164,7 @@ var (
 	opCodes map[OpCode]EvmOpData = map[OpCode]EvmOpData{
 		STOP:           {STOP, "STOP", opNotImplemented /*opStop*/},
 		ADD:            {ADD, "ADD", opAdd},
-		MUL:            {MUL, "MUL", opNotImplemented /*opMul*/},
+		MUL:            {MUL, "MUL", opMul /*opMul*/},
 		SUB:            {SUB, "SUB", opNotImplemented /*opSub*/},
 		DIV:            {DIV, "DIV", opNotImplemented /*opDiv*/},
 		SDIV:           {SDIV, "SDIV", opNotImplemented /*opSdiv*/},
@@ -232,7 +232,7 @@ var (
 		TSTORE:         {TSTORE, "TSTORE", opNotImplemented /*opTstore*/},
 		MCOPY:          {MCOPY, "MCOPY", opNotImplemented /*opMcopy*/},
 		PUSH0:          {PUSH0, "PUSH0", opNotImplemented /*opPush0*/},
-		PUSH1:          {PUSH1, "PUSH1", opNotImplemented /*opPush1*/},
+		PUSH1:          {PUSH1, "PUSH1", opPush1 /*opPush1*/},
 		PUSH2:          {PUSH2, "PUSH2", opNotImplemented /*opPush2*/},
 		PUSH3:          {PUSH3, "PUSH3", opNotImplemented /*opPush3*/},
 		PUSH4:          {PUSH4, "PUSH4", opNotImplemented /*opPush4*/},
