@@ -3,13 +3,13 @@ package evm
 import "errors"
 
 type ByteStack struct {
-	data []byte
+	data   []byte
 	length uint
 }
 
 func NewByteStack() *ByteStack {
 	return &ByteStack{
-		data: make([]byte, 0),
+		data:   make([]byte, 0),
 		length: 0,
 	}
 }

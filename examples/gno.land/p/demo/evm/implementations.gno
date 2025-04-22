@@ -16,7 +16,7 @@ func opAdd(s *State) error {
 	if err != nil {
 		return errors.New("can't ADD: empty stack")
 	}
-	
+
 	a2, err := s.stack.Pop()
 	if err != nil {
 		return errors.New("can't ADD: stack of size 1")
@@ -32,7 +32,7 @@ func opMul(s *State) error {
 	if err != nil {
 		return errors.New("can't MUL: empty stack")
 	}
-	
+
 	a2, err := s.stack.Pop()
 	if err != nil {
 		return errors.New("can't MUL: stack of size 1")
@@ -48,7 +48,7 @@ func opPush1(s *State) error {
 	if s.code.Ill() {
 		return outOfBounds
 	}
-	s.stack.Push(s.code.Current())
-	s.code.Increment()
+	x := s.code.Read(1)
+	s.stack.Push(byte(x))
 	return nil
 }

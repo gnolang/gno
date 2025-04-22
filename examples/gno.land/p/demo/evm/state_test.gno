@@ -45,7 +45,7 @@ func TestExecuteEvm(t *testing.T) {
 			st := newState()
 			err := st.executeByteCode(tc.code)
 			result := st.getResult()
-			if (err != nil && (err.Error() != tc.expected_error.Error())) || (err == nil && tc.expected_error != nil) {
+			if (err != nil && tc.expected_error != nil && (err.Error() != tc.expected_error.Error())) || (err == nil && tc.expected_error != nil) {
 				t.Errorf("I expected this error:\n -> '%s'\nbut I got than one:\n -> '%s'", tc.expected_error, err)
 			}
 			for i := 0; i < len(result); i++ {
