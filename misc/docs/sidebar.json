@@ -37,8 +37,8 @@
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/gno-stdlibs",
-          "resources/glossary",
           "resources/gno-testing",
+          "resources/glossary",
           "resources/go-gno-compatibility",
           {
             "type": "link",
