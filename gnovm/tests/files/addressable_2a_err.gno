@@ -5,4 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_2a_err.gno:4:6: illegal assignment X expression type *gnolang.SliceExpr
+// illegal assignment X expression type *gnolang.SliceExpr
+
+// TypeCheckError:
+// main/files/addressable_2a_err.gno:4:7: invalid operation: cannot take address of []int{…}[:] (value of type []int)

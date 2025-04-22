@@ -9,4 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_10b_err.gno:8:10: illegal assignment X expression type *gnolang.CallExpr
+// illegal assignment X expression type *gnolang.CallExpr
+
+// TypeCheckError:
+// main/files/addressable_10b_err.gno:8:11: invalid operation: cannot take address of new(S) (value of type *S)

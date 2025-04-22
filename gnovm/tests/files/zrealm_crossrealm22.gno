@@ -36,6 +36,8 @@ func main() {
 // hello D cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
 
+
+
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:29]={
@@ -105,7 +107,6 @@ func main() {
 //     },
 //     "Type": {
 //         "@type": "/gno.FuncType",
-//         "IsClosure": false,
 //         "Params": [],
 //         "Results": [
 //             {
@@ -130,54 +131,19 @@ func main() {
 //              "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "RefCount": "1"
 //          },
-//          "Parent": null,
-//     @@ -495,6 +495,46 @@
-//                  "T": {
-//                      "@type": "/gno.RefType",
-//                      "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
-//     +            },
-//     +            "V": {
-//     +                "@type": "/gno.FuncValue",
-//     +                "Closure": {
-//     +                    "@type": "/gno.RefValue",
-//     +                    "Hash": "23de97a577d573252d00394ce9b71c24b0646546",
-//     +                    "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6"
-//     +                },
-//     +                "FileName": "",
-//     +                "IsMethod": false,
-//     +                "Name": "",
-//     +                "NativeName": "",
-//     +                "NativePkg": "",
-//     +                "PkgPath": "gno.land/r/crossrealm_test",
-//     +                "Source": {
-//     +                    "@type": "/gno.RefNode",
-//     +                    "BlockNode": null,
-//     +                    "Location": {
-//     +                        "Column": "28",
-//     +                        "File": "files/zrealm_crossrealm22.gno",
-//     +                        "Line": "13",
-//     +                        "PkgPath": "gno.land/r/crossrealm_test"
-//     +                    }
-//     +                },
-//     +                "Type": {
-//     +                    "@type": "/gno.FuncType",
-//     +                    "Params": null,
-//     +                    "Results": [
-//     +                        {
-//     +                            "Embedded": false,
-//     +                            "Name": "",
-//     +                            "Tag": "",
-//     +                            "Type": {
-//     +                                "@type": "/gno.RefType",
-//     +                                "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
-//     +                            }
-//     +                        }
-//     +                    ]
-//     +                }
-//                  }
-//              },
-//              {
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:3]=
+//     @@ -9,6 +9,11 @@
+//              "T": {
+//                  "@type": "/gno.RefType",
+//                  "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
+//     +        },
+//     +        "V": {
+//     +            "@type": "/gno.RefValue",
+//     +            "Hash": "96fa7ba7744e6e490ac43c0d656e11e09f3e9450",
+//     +            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:28"
+//              }
+//          }
+//      }
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:4]=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
@@ -323,7 +289,6 @@ func main() {
 //     },
 //     "Type": {
 //         "@type": "/gno.FuncType",
-//         "IsClosure": false,
 //         "Params": [],
 //         "Results": [
 //             {

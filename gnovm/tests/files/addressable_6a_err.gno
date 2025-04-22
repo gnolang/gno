@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_6a_err.gno:6:10: illegal assignment X expression type *gnolang.TypeAssertExpr
+// illegal assignment X expression type *gnolang.TypeAssertExpr
+
+// TypeCheckError:
+// main/files/addressable_6a_err.gno:6:11: invalid operation: cannot take address of i.(int) (comma, ok expression of type int)

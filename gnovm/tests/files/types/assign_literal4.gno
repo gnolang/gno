@@ -6,3 +6,6 @@ func main() {
 
 // Error:
 // main/files/types/assign_literal4.gno:4:2: cannot assign to [](const-type int){(const (1 int)), (const (2 int))}
+
+// TypeCheckError:
+// main/files/types/assign_literal4.gno:4:2: cannot assign to []int{…} (neither addressable nor a map index expression)

@@ -11,4 +11,7 @@ func getPtr() *S {
 }
 
 // Error:
-// main/files/addressable_10a_err.gno:4:10: illegal assignment X expression type *gnolang.CallExpr
+// illegal assignment X expression type *gnolang.CallExpr
+
+// TypeCheckError:
+// main/files/addressable_10a_err.gno:4:11: invalid operation: cannot take address of getPtr() (value of type *S)
