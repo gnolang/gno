@@ -30,8 +30,8 @@ func lpad(s string, totalLength int, padChar rune) string {
 
 // ctors
 
-func NewUint256FromString(s string, base int) (*uint256, error) {
-	u := NewUint256()
+func NewFromString(s string, base int) (*uint256, error) {
+	u := New()
 	for _, c := range s {
 		var digit uint64
 		switch {
@@ -54,8 +54,16 @@ func NewUint256FromString(s string, base int) (*uint256, error) {
 	return u, nil
 }
 
-func NewUint256() *uint256 {
+func New() *uint256 {
 	return &uint256{data: [4]uint64{0, 0, 0, 0}}
+}
+
+func NewFrom64s(us ...uint64) *uint256 {
+	u := New()
+	for n := 0; n < len(us) && n < 4; n++ {
+		u.data[n] = us[n]
+	}
+	return u
 }
 
 // string
@@ -190,7 +198,7 @@ func (u *uint256) Add64(x uint64) {
 }
 
 func (u *uint256) Mul64(x uint64) {
-	dup := NewUint256()
+	dup := New()
 	for i := 0; i < 3; i++ {
 		lo, hi := carryMul(u.data[i], x)
 		dup.add64Level(lo, i)

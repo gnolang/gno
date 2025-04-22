@@ -3,14 +3,28 @@ package uint256
 import "testing"
 
 func TestCtor(t *testing.T) {
-	u := NewUint256()
+	u := New()
 	if u.String() != "0" {
 		t.Error("expected to be 0")
 	}
 }
 
+func Test1Ctor64(t *testing.T) {
+	u := NewFrom64s(42)
+	if u.String() != "42" {
+		t.Error("expected to be 42")
+	}
+}
+
+func Test2Ctor64(t *testing.T) {
+	u := NewFrom64s(42, 1)
+	if u.String() != "18446744073709551658" {
+		t.Error("expected to be 18446744073709551658")
+	}
+}
+
 func TestAdd(t *testing.T) {
-	u := NewUint256()
+	u := New()
 	u.Add64(42)
 	if u.String() != "42" {
 		t.Error("expected to be 42")
@@ -18,7 +32,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestMul(t *testing.T) {
-	u := NewUint256()
+	u := New()
 	u.Add64(21)
 	u.Mul64(2)
 	if u.String() != "42" {
@@ -27,7 +41,7 @@ func TestMul(t *testing.T) {
 }
 
 func TestFromString(t *testing.T) {
-	u, err := NewUint256FromString("ffffffffffffffff", 16)
+	u, err := NewFromString("ffffffffffffffff", 16)
 	if err != nil {
 		t.Error(err)
 	}
@@ -37,7 +51,7 @@ func TestFromString(t *testing.T) {
 }
 
 func TestMulLevel(t *testing.T) {
-	u, _ := NewUint256FromString("ffffffffffffffff", 16)
+	u, _ := NewFromString("ffffffffffffffff", 16)
 	u.Mul64(2)
 	if u.data[1] != 1 {
 		t.Error("expected second data to be 1")
@@ -48,14 +62,14 @@ func TestMulLevel(t *testing.T) {
 }
 
 func TestStringBase(t *testing.T) {
-	u, _ := NewUint256FromString("100010101010101000100101110101", 2)
+	u, _ := NewFromString("100010101010101000100101110101", 2)
 	if u.String() != "581601653" {
 		t.Error("expected to be 581601653")
 	}
 }
 
 func TestLastLevel(t *testing.T) {
-	u, err := NewUint256FromString("ffffffffffffffffffffffffffffffffffffffffffffffff", 16)
+	u, err := NewFromString("ffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 	if err != nil {
 		t.Error(err)
 	}
