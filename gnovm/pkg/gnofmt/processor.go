@@ -161,7 +161,19 @@ func (p *Processor) processAndFormat(file *ast.File, filename string, topDecls d
 		return nil, fmt.Errorf("unable to format import: %w", err)
 	}
 
+	// Trim trailing whitespace
+	ret = trimTrailingWhitespace(ret)
+
 	return ret, nil
+}
+
+// trimTrailingWhitespace removes trailing spaces and tabs from each line of the input byte slice.
+func trimTrailingWhitespace(data []byte) []byte {
+	lines := bytes.Split(data, []byte("\n"))
+	for i, line := range lines {
+		lines[i] = bytes.TrimRight(line, " \t")
+	}
+	return bytes.Join(lines, []byte("\n"))
 }
 
 // processPackageFiles processes Gno package files and collects top-level declarations.
