@@ -23,7 +23,7 @@ package coins
 
 import (
 	"std"
-	"strconv"
+	_ "strconv"
 
 	"gno.land/p/demo/mux"
 )
@@ -43,7 +43,7 @@ func init() {
 		// denom := req.GetVar("denom")
 		// banker := std.NewBanker(std.BankerTypeReadonly)
 		// res.Write(renderAddressBalance(banker, denom, denom))
-		panic("not supported yet")
+		panic("total supply not supported yet. coming soon")
 	})
 
 	// address balance
@@ -69,8 +69,8 @@ func renderHomepage() string {
 
 Examples:
 
-- /r/gnoland/coins:ugnot - shows the total supply of `ugnot` (coming soon)
-- /r/gnoland/coins:ugnot/g1... - shows the `ugnot` balance of a specific address
+- /r/gnoland/coins:ugnot - shows the total supply of ` + "`ugnot`" + ` (coming soon)
+- /r/gnoland/coins:ugnot/g1... - shows the ` + "`ugnot`" + ` balance of a specific address
 
 `
 }
@@ -81,13 +81,9 @@ func renderAddressBalance(banker std.Banker, denom string, addr string) string {
 
 	for _, coin := range coins {
 		if coin.Denom == denom {
-			return formatBalance(coin)
+			return "Balance: " + coin.String()
 		}
 	}
 
 	return "Balance: 0 " + denom
-}
-
-func formatBalance(coin std.Coin) string {
-	return "Balance: " + strconv.Itoa(int(coin.Amount)) + " " + coin.Denom
 }

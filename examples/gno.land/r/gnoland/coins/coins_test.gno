@@ -31,21 +31,21 @@ func TestBalanceChecker(t *testing.T) {
 			path:     "",
 			expected: "# gno.land Coins Explorer",
 		},
-		// not supported yet
+		// TODO: not supported yet
 		// {
 		// 	name:     "total supply",
 		// 	path:     denom,
-		// 	expected: "Balance: 1500000 testtoken",
+		// 	expected: "Balance: 1500000testtoken",
 		// },
 		{
 			name:     "addr1's balance",
 			path:     ufmt.Sprintf("%s/%s", denom, addr1.String()),
-			expected: "Balance: 1000000 testtoken",
+			expected: "Balance: 1000000testtoken",
 		},
 		{
 			name:     "addr2's balance",
 			path:     ufmt.Sprintf("%s/%s", denom, addr2.String()),
-			expected: "Balance: 500000 testtoken",
+			expected: "Balance: 500000testtoken",
 		},
 		{
 			name:      "invalid path",
