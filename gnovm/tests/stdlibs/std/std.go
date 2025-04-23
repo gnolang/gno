@@ -92,8 +92,8 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	var (
 		ctx     = m.Context.(*TestExecContext)
-		crosses int                        // track realm crosses
-		lfr     *gno.Frame = m.LastFrame() // last call frame
+		lfr     = m.LastFrame() // last call frame
+		crosses int             // track realm crosses
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
@@ -163,7 +163,6 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	default:
 		panic("exec kind unspecified")
 	}
-
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {
