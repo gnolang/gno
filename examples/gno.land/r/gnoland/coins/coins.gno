@@ -69,8 +69,8 @@ func renderHomepage() string {
 
 Examples:
 
-- /r/gnoland/coins:ugnot - shows the total supply of ugnot
-- /r/gnoland/coins:ugnot/g1... - shows the ugnot balance of a specific address
+- /r/gnoland/coins:ugnot - shows the total supply of `ugnot` (coming soon)
+- /r/gnoland/coins:ugnot/g1... - shows the `ugnot` balance of a specific address
 
 `
 }
