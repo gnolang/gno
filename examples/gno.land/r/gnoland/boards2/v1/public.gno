@@ -86,17 +86,16 @@ func SetPermissions(bid BoardID, p Permissions) {
 func SetRealmNotice(message string) {
 	crossing()
 
-	message = strings.TrimSpace(message)
 	caller := std.PreviousRealm().Address()
-	gPerms.WithPermission(caller, PermissionRealmNotice, nil, func(Args) {
-		gNotice = message
+	assertHasPermission(gPerms, caller, PermissionThreadCreate)
 
-		std.Emit(
-			"RealmNoticeChanged",
-			"caller", caller.String(),
-			"message", message,
-		)
-	})
+	gNotice = strings.TrimSpace(message)
+
+	std.Emit(
+		"RealmNoticeChanged",
+		"caller", caller.String(),
+		"message", gNotice,
+	)
 }
 
 // GetBoardIDFromName searches a board by name and returns it's ID.
@@ -198,7 +197,7 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionThreadCreate)
+	assertHasPermission(board.perms, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
 
@@ -228,7 +227,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionReplyCreate)
+	assertHasPermission(board.perms, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
@@ -271,7 +270,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinat
 	caller := std.PreviousRealm().Address()
 	dst := mustGetBoard(destinationBoardID)
 	assertBoardIsNotFrozen(dst)
-	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
+	assertHasPermission(dst.perms, caller, PermissionThreadRepost)
 
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
@@ -319,7 +318,7 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 		assertThreadIsNotFrozen(thread)
 
 		if caller != thread.GetCreator() {
-			assertHasBoardPermission(board, caller, PermissionThreadDelete)
+			assertHasPermission(board.perms, caller, PermissionThreadDelete)
 		}
 	}
 
@@ -360,7 +359,7 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 		assertReplyIsNotFrozen(reply)
 
 		if caller != reply.GetCreator() {
-			assertHasBoardPermission(board, caller, PermissionReplyDelete)
+			assertHasPermission(board.perms, caller, PermissionReplyDelete)
 		}
 	}
 
@@ -405,7 +404,7 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 
 	caller := std.PreviousRealm().Address()
 	if caller != thread.GetCreator() {
-		assertHasBoardPermission(board, caller, PermissionThreadEdit)
+		assertHasPermission(board.perms, caller, PermissionThreadEdit)
 	}
 
 	thread.Update(title, body)
@@ -601,8 +600,8 @@ func assertUserAddressIsValid(user std.Address) {
 	}
 }
 
-func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
-	if !b.perms.HasPermission(user, p) {
+func assertHasPermission(perms Permissions, user std.Address, p Permission) {
+	if !perms.HasPermission(user, p) {
 		panic("unauthorized")
 	}
 }

@@ -94,7 +94,7 @@ func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionReplyFreeze)
+	assertHasPermission(board.perms, caller, PermissionReplyFreeze)
 
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
@@ -126,7 +126,7 @@ func setThreadReadonly(boardID BoardID, threadID PostID, isReadonly bool) {
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionThreadFreeze)
+	assertHasPermission(board.perms, caller, PermissionThreadFreeze)
 
 	thread := mustGetThread(board, threadID)
 	if isReadonly {
@@ -153,7 +153,7 @@ func setBoardReadonly(boardID BoardID, isReadonly bool) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionBoardFreeze)
+	assertHasPermission(board.perms, caller, PermissionBoardFreeze)
 
 	board.SetReadonly(isReadonly)
 

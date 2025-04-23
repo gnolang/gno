@@ -59,7 +59,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
-		assertHasBoardPermission(board, caller, PermissionThreadFlag)
+		assertHasPermission(board.perms, caller, PermissionThreadFlag)
 	}
 
 	t, ok := board.GetThread(threadID)
@@ -103,7 +103,7 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	if !isRealmOwner {
 		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
-		assertHasBoardPermission(board, caller, PermissionReplyFlag)
+		assertHasPermission(board.perms, caller, PermissionReplyFlag)
 	}
 
 	thread := mustGetThread(board, threadID)
