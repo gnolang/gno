@@ -7,9 +7,33 @@ import (
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/txlink"
 
 	"gno.land/r/sys/users"
 )
+
+// Render handles the rendering of game state
+func Render(path string) string {
+	parts := strings.Split(path, "/")
+	c := len(parts)
+
+	switch {
+	case path == "":
+		return RenderHome()
+	case c == 2 && parts[0] == "player":
+		if gameState.Ended {
+			return ufmt.Sprintf("🔴 Game has not started yet.\n\n Call [StartGame](%s) to start a new round.\n\n", txlink.Call("StartGame"))
+		}
+		addr := stringToAddress(parts[1])
+		if addr == "" || !isPlayerInGame(addr) {
+			return ufmt.Sprintf("Address or namespace not found. You need to [Buy Keys](%s) first to view your stats.\n\n", txlink.Call("BuyKeys"))
+		}
+		keys, dividends := GetPlayerInfo(parts[1])
+		return RenderPlayer(addr, keys, dividends)
+	default:
+		return "404: Invalid path\n\n"
+	}
+}
 
 // RenderHome renders the main game state
 func RenderHome() string {
@@ -34,18 +58,24 @@ func RenderHome() string {
 
 	// Play Game section
 	builder.WriteString("## How to Play\n\n")
-	builder.WriteString(ufmt.Sprintf("1. **Buy Keys** - Send GNOT to this realm with function [`BuyKeys()`](%s)\n", gameState.BuyKeysLink))
-	builder.WriteString(ufmt.Sprintf("2. **Collect Dividends** - Call [`ClaimDividends()`](%s) to collect your earnings\n", gameState.ClaimDividendsLink))
-	builder.WriteString("3. **Check Your Stats** - Append `:player/` followed by your address or namespace to the current URL to view your keys and dividends\n")
 	if gameState.Ended {
-		builder.WriteString(ufmt.Sprintf("4. **Start New Round** - Call [`StartGame()`](%s) to begin a new round\n", gameState.StartGameLink))
+		builder.WriteString(ufmt.Sprintf("1. **Start New Round** - Call [StartGame](%s) to begin a new round\n",
+			txlink.Call("StartGame"),
+		))
 	}
+	builder.WriteString(ufmt.Sprintf("1. **Buy Keys** - Send GNOT to this realm with [BuyKeys](%s)\n",
+		txlink.Call("BuyKeys"),
+	))
+	builder.WriteString(ufmt.Sprintf("1. **Collect Dividends** - Call [ClaimDividends](%s) to collect your earnings\n",
+		txlink.Call("ClaimDividends"),
+	))
+	builder.WriteString("1. **Check Your Stats** - Append `:player/` followed by your address or namespace to the current URL to view your keys and dividends\n")
 	builder.WriteString("\n")
 
 	// Game Status section
 	builder.WriteString("## Game Status\n\n")
 	if gameState.StartBlock == 0 {
-		builder.WriteString("🔴 Game has not started yet.\n\n")
+		builder.WriteString(ufmt.Sprintf("🔴 Game has not started yet. Call [StartGame](%s) to start a new round.\n\n", txlink.Call("StartGame")))
 	} else {
 		if gameState.Ended {
 			builder.WriteString("🔴 **Game Status:** Ended\n")
@@ -58,7 +88,11 @@ func RenderHome() string {
 		builder.WriteString(ufmt.Sprintf("💰 **Jackpot:** %d ugnot\n\n", gameState.Jackpot))
 		builder.WriteString(ufmt.Sprintf("🔑 **Key Price:** %d ugnot\n\n", gameState.KeyPrice))
 		builder.WriteString(ufmt.Sprintf("📊 **Total Keys:** %d\n\n", gameState.TotalKeys))
-		builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** %s\n\n", getDisplayName(gameState.LastBuyer)))
+		if gameState.LastBuyer == "" {
+			builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** No buyers yet, [Buy Keys](%s) to be the first player!\n\n", txlink.Call("BuyKeys")))
+		} else {
+			builder.WriteString(ufmt.Sprintf("👤 **Last Buyer:** %s\n\n", getDisplayName(gameState.LastBuyer)))
+		}
 		builder.WriteString(ufmt.Sprintf("🎮 **Next Round Pot:** %d ugnot\n\n", gameState.NextPot))
 	}
 
@@ -113,9 +147,13 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	}
 
 	builder.WriteString("## Actions\n\n")
-	builder.WriteString(ufmt.Sprintf("* To buy more keys, send GNOT to this realm with [`BuyKeys()`](%s)\n", gameState.BuyKeysLink))
+	builder.WriteString(ufmt.Sprintf("* To buy more keys, send GNOT to this realm with [BuyKeys](%s)\n",
+		txlink.Call("BuyKeys"),
+	))
 	if dividends > 0 {
-		builder.WriteString("* You have unclaimed dividends! Call `ClaimDividends()` to collect them\n")
+		builder.WriteString(ufmt.Sprintf("* You have unclaimed dividends! Call [ClaimDividends](%s) to collect them\n",
+			txlink.Call("ClaimDividends"),
+		))
 	}
 
 	return builder.String()
@@ -127,12 +165,4 @@ func getDisplayName(addr std.Address) string {
 		return user.Name()
 	}
 	return addr.String()
-}
-
-// UpdateFunctionLinks updates the links for game functions
-func UpdateFunctionLinks(buyKeysLink string, claimDividendsLink string, startGameLink string) {
-	Ownable.AssertOwnedByPrevious()
-	gameState.BuyKeysLink = buyKeysLink
-	gameState.ClaimDividendsLink = claimDividendsLink
-	gameState.StartGameLink = startGameLink
 }
