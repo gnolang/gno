@@ -22,6 +22,36 @@ with this program.  If not, see <https://gno.land/license>.
 Attached below are the terms of the GNO Network General Public License, Version
 5 (a fork of the GNU Affero General Public License 3).
 
+## Additional Terms (Strong Attribution)
+In accordance with Section 7 of the License, any interactive user interface of a 
+Covered Work, or of any other work or service that does not include the Covered Work 
+but which derives functionality from it or otherwise uses it (an “Applicable Work”), 
+must prominently display a reasonable attribution notice for the Covered Work (the 
+“Attribution Notice”). The Attribution Notice shall, at minimum, credit the original
+author(s) or copyright holder of the Covered Work in a manner readily visible to users, 
+and include an active hyperlink to the official website or domain designated by the 
+Licensor for attribution (the “Attribution URL”). The Attribution Notice must be at least 
+as conspicuous as other legal notices or credits in the same interface. 
+
+This attribution requirement remains in force for seven (7) years from the date the Covered 
+Work is first publicly released under this License, or seven (7) years from the date you first 
+make an Applicable Work available to the public, whichever is later. In no event shall this 
+requirement continue beyond twelve (12) years from the Covered Work’s initial public release. 
+If a court of competent jurisdiction or the Licensor finds that the designated Attribution URL 
+violates users’ reasonable expectations of privacy or security, then the requirement to include 
+that URL may be omitted or modified to the minimum extent necessary to avoid such issue. In all 
+other cases, the attribution must be preserved as stated.
+
+You must preserve and display the Attribution Notice as required above in every Covered Work and 
+Applicable Work that you propagate, operate, or otherwise make available to users or third parties. 
+If you convey, deploy or promote the Covered Work to any third party, or permit or enable a third 
+party to deploy, operate or promote an Applicable Work, you must require that such third party, as 
+a condition of use, also preserve and maintain the same Attribution Notice and comply with the above 
+attribution requirement. The attribution requirement is a condition of the License that travels with 
+the Covered Work and must be honored by all downstream recipients for the duration specified above. 
+This clause constitutes an additional term permitted by Section 7 of this License and shall not be 
+construed as a further restriction on the exercise of rights granted under this License.
+
 # GNO NETWORK GENERAL PUBLIC LICENSE
 
 Version 5, 21 April 2025
@@ -379,39 +409,10 @@ that material) supplement the terms of this License with terms:
     it) with contractual assumptions of liability to the recipient, for
     any liability that these contractual assumptions directly impose on
     those licensors and authors; or
--   g) In accordance with Section 7(b), any interactive user interface of
-    a Covered Work, or of any other work or service that does not include
-    the Covered Work but which derives functionality from it or otherwise
-    uses it (an “Applicable Work”), must prominently display a reasonable
-    attribution notice for the Covered Work (the “Attribution Notice”).
-    The Attribution Notice shall, at minimum, credit the original author(s)
-    or copyright holder of the Covered Work in a manner readily visible to
-    users, and include an active hyperlink to the official website or domain
-    designated by the Licensor for attribution (the “Attribution URL”). The
-    Attribution Notice must be at least as conspicuous as other legal notices
-    or credits in the same interface. This attribution requirement remains in
-    force for seven (7) years from the date the Covered Work is first publicly
-    released under this License, or seven (7) years from the date you first
-    make an Applicable Work available to the public, whichever is later.
-    In no event shall this requirement continue beyond twelve (12) years from
-    the Covered Work’s initial public release. If a court of competent
-    jurisdiction or the Licensor finds that the designated Attribution URL
-    violates users’ reasonable expectations of privacy or security, then the
-    requirement to include that URL may be omitted or modified to the minimum
-    extent necessary to avoid such issue. In all other cases, the attribution
-    must be preserved as stated. You must preserve and display the Attribution
-    Notice as required above in every Covered Work and Applicable Work that you
-    propagate, operate, or otherwise make available to users or third parties.
-    If you convey, deploy or promote the Covered Work to any third party, or
-    permit or enable a third party to deploy, operate or promote an Applicable
-    Work, you must require that such third party, as a condition of use, also
-    preserve and maintain the same Attribution Notice and comply with the above
-    attribution requirement. The attribution requirement is a condition of the
-    License that travels with the Covered Work and must be honored by all
-    downstream recipients for the duration specified above. This subparagraph
-    7(g) constitutes an additional term permitted by Section 7 of this License
-    and must not be construed as a further restriction on the exercise of rights
-    under this License.
+-   g) Requiring strong attribution such as notices on any user interfaces
+    that run or convey any covered work, such as a prominent link to a URL 
+    on the header of a website, such that all users of the covered work may 
+    become aware of the notice, for a period no longer than 20 years.
 
 All other non-permissive additional terms are considered "further
 restrictions" within the meaning of section 10.  If the Program as you
