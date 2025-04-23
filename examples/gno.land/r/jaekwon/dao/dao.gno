@@ -1,6 +1,10 @@
 package dao
 
-import "fmt"
+import (
+	"fmt"
+
+	"gno.land/p/demo/avl"
+)
 
 const (
 	DAONameLead        = "lead"
