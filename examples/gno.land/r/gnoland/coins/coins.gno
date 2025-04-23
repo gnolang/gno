@@ -23,7 +23,6 @@ package coins
 
 import (
 	"std"
-	_ "strconv"
 
 	"gno.land/p/demo/mux"
 )
