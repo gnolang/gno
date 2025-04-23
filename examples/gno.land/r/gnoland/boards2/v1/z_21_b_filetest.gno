@@ -11,17 +11,18 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func init() {
-	testing.SetOriginCaller(owner)
-
 	// Set an initial message so it can be cleared
-	boards2.SetRealmNotice("This is a test realm message")
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(boards2.SetRealmNotice)("This is a test realm message")
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
-	boards2.SetRealmNotice("")
+	cross(boards2.SetRealmNotice)("")
 
 	// Render content must contain the message
-	content := boards2.Render("")
+	content := cross(boards2.Render)("")
 	println(strings.HasPrefix(content, "> This is a test realm message\n\n"))
 	println(strings.HasPrefix(content, "# Boards"))
 }

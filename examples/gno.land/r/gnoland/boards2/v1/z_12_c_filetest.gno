@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.EditReply(404, 1, 0, "body")
+	cross(boards2.EditReply)(404, 1, 0, "body")
 }
 
 // Error:

@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	bid, found := boards2.GetBoardIDFromName("foobar")
+	bid, found := cross(boards2.GetBoardIDFromName)("foobar")
 	println(found)
 	println(bid == 0)
 }

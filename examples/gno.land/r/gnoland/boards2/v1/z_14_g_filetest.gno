@@ -18,21 +18,22 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "body")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to delete replies
-	boards2.InviteMember(bid, member, boards2.RoleAdmin)
+	cross(boards2.InviteMember)(bid, member, boards2.RoleAdmin)
+
 	testing.SetOriginCaller(member)
 }
 
 func main() {
-	boards2.DeleteReply(bid, tid, rid)
+	cross(boards2.DeleteReply)(bid, tid, rid)
 
 	// Ensure reply doesn't exist
-	println(boards2.Render("test-board/1/2"))
+	println(cross(boards2.Render)("test-board/1/2"))
 }
 
 // Output:

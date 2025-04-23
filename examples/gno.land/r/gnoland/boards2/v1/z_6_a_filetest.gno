@@ -16,10 +16,12 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
 
-	boards2.InviteMember(bid, member, role)
+	cross(boards2.InviteMember)(bid, member, role)
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {

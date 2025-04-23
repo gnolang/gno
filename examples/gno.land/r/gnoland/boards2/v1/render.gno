@@ -21,6 +21,8 @@ const (
 const menuManageBoard = "manageBoard"
 
 func Render(path string) string {
+	crossing()
+
 	router := mux.NewRouter()
 	router.HandleFunc("", renderBoardsList)
 	router.HandleFunc("help", renderHelp)

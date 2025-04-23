@@ -10,13 +10,15 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(boards2.LockRealm)(false)
+
 	testing.SetOriginCaller(owner)
-	boards2.LockRealm(false)
 }
 
 func main() {
 	// Should fail because realm is already locked
-	boards2.LockRealm(false)
+	cross(boards2.LockRealm)(false)
 }
 
 // Error:

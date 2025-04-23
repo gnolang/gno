@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.EditThread(404, 1, "Foo", "bar")
+	cross(boards2.EditThread)(404, 1, "Foo", "bar")
 }
 
 // Error:

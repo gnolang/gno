@@ -19,16 +19,17 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	srcBID = boards2.CreateBoard("src-board")
-	dstBID = boards2.CreateBoard("dst-board")
+	testing.SetRealm(std.NewUserRealm(owner))
+	srcBID = cross(boards2.CreateBoard)("src-board")
+	dstBID = cross(boards2.CreateBoard)("dst-board")
 
-	srcTID = boards2.CreateThread(srcBID, "Foo", "bar")
+	srcTID = cross(boards2.CreateThread)(srcBID, "Foo", "bar")
+
 	testing.SetOriginCaller(user)
 }
 
 func main() {
-	boards2.CreateRepost(srcBID, srcTID, "foo", "bar", dstBID)
+	cross(boards2.CreateRepost)(srcBID, srcTID, "foo", "bar", dstBID)
 }
 
 // Error:

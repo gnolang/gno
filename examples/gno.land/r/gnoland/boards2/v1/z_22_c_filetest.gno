@@ -15,7 +15,7 @@ func init() {
 }
 
 func main() {
-	boards2.LockRealm(false)
+	cross(boards2.LockRealm)(false)
 }
 
 // Error:

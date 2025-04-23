@@ -15,17 +15,19 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
-	tid = boards2.CreateThread(bid, "thread", "thread")
-	rid = boards2.CreateReply(bid, tid, 0, "reply1")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
+	tid = cross(boards2.CreateThread)(bid, "thread", "thread")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "reply1")
 
 	// Hide reply by flagging it so sub reply can't be submitted
-	boards2.FlagReply(bid, tid, rid, "reason")
+	cross(boards2.FlagReply)(bid, tid, rid, "reason")
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
-	boards2.CreateReply(bid, tid, rid, "reply1.1")
+	cross(boards2.CreateReply)(bid, tid, rid, "reply1.1")
 }
 
 // Error:

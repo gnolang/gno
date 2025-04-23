@@ -24,7 +24,7 @@ func init() {
 }
 
 func main() {
-	boards2.SetPermissions(bid, perms)
+	cross(boards2.SetPermissions)(bid, perms)
 }
 
 // Error:

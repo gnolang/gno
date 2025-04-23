@@ -18,18 +18,20 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	srcBID = boards2.CreateBoard("src-board")
-	dstBID = boards2.CreateBoard("dst-board")
+	testing.SetRealm(std.NewUserRealm(owner))
+	srcBID = cross(boards2.CreateBoard)("src-board")
+	dstBID = cross(boards2.CreateBoard)("dst-board")
 
-	srcTID = boards2.CreateThread(srcBID, "original title", "original text")
+	srcTID = cross(boards2.CreateThread)(srcBID, "original title", "original text")
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
 	// Success case
-	tID := boards2.CreateRepost(srcBID, srcTID, "repost title", "repost text", dstBID)
+	tID := cross(boards2.CreateRepost)(srcBID, srcTID, "repost title", "repost text", dstBID)
 	p := ufmt.Sprintf("dst-board/%s", tID)
-	out := boards2.Render(p)
+	out := cross(boards2.Render)(p)
 
 	println(strings.Contains(out, "original text"))
 	println(strings.Contains(out, "repost title"))

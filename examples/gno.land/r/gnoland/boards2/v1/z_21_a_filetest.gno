@@ -15,10 +15,10 @@ func init() {
 }
 
 func main() {
-	boards2.SetRealmNotice("This is a test realm message")
+	cross(boards2.SetRealmNotice)("This is a test realm message")
 
 	// Render content must contain the message
-	content := boards2.Render("")
+	content := cross(boards2.Render)("")
 	println(strings.HasPrefix(content, "> This is a test realm message\n\n"))
 }
 

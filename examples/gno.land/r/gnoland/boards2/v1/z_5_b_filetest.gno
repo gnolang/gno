@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.RemoveMember(0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn") // Operate on realm DAO instead of individual boards
+	cross(boards2.RemoveMember)(0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn") // Operate on realm DAO instead of individual boards
 }
 
 // Error:

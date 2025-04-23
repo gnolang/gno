@@ -18,21 +18,23 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
 
 	// Invite a moderator to the new board
-	boards2.InviteMember(bid, moderator, boards2.RoleModerator)
+	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread as a moderator
-	pid = boards2.CreateThread(bid, "Foo", "bar")
+	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
-	boards2.FlagThread(bid, pid, "")
+	cross(boards2.FlagThread)(bid, pid, "")
 
 	// Ensure that original thread content not visible
-	println(boards2.Render("test-board/1"))
+	println(cross(boards2.Render)("test-board/1"))
 }
 
 // Output:

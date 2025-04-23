@@ -1,6 +1,7 @@
 package boards2
 
 import (
+	"std"
 	"strings"
 	"testing"
 
@@ -110,6 +111,8 @@ func TestPostAddRepostTo(t *testing.T) {
 }
 
 func TestNewThread(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
+
 	creator := testutils.TestAddress("creator")
 	title := "Test Title"
 	body := strings.Repeat("A", 82)
@@ -286,6 +289,8 @@ func TestThreadRenderInner(t *testing.T) {
 }
 
 func TestNewReply(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
+
 	creator := testutils.TestAddress("creator")
 	body := strings.Repeat("A", 82)
 	boardID := BoardID(1)

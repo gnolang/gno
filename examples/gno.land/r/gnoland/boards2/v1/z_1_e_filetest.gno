@@ -16,12 +16,14 @@ const (
 var bid boards2.BoardID
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("foo123") // Operate on board DAO members
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("foo123") // Operate on board DAO members
 }
 
 func main() {
-	boards2.InviteMember(bid, user, role)
+	cross(boards2.InviteMember)(bid, user, role)
 
 	// Check that user is invited
 	println(boards2.HasMemberRole(0, user, role)) // Operate on realm DAO

@@ -15,17 +15,19 @@ var (
 )
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "body")
 }
 
 func main() {
-	boards2.DeleteReply(bid, tid, rid)
+	cross(boards2.DeleteReply)(bid, tid, rid)
 
 	// Ensure reply doesn't exist
-	println(boards2.Render("test-board/1/2"))
+	println(cross(boards2.Render)("test-board/1/2"))
 }
 
 // Output:

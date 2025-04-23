@@ -18,23 +18,24 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-
 	// Created a board with a specific flagging threshold
-	bid = boards2.CreateBoard("test-board")
-	boards2.SetFlaggingThreshold(bid, 2)
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	cross(boards2.SetFlaggingThreshold)(bid, 2)
 
 	// Invite a moderator to the new board
-	boards2.InviteMember(bid, moderator, boards2.RoleModerator)
+	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread and flag it as a moderator
+	testing.SetRealm(std.NewUserRealm(moderator))
+	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	cross(boards2.FlagThread)(bid, pid, "")
+
 	testing.SetOriginCaller(moderator)
-	pid = boards2.CreateThread(bid, "Foo", "bar")
-	boards2.FlagThread(bid, pid, "")
 }
 
 func main() {
-	boards2.FlagThread(bid, pid, "")
+	cross(boards2.FlagThread)(bid, pid, "")
 }
 
 // Error:
