@@ -16,30 +16,32 @@ var (
 )
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
+	tid = cross(boards2.CreateThread)(bid, "foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "reply")
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
-	tid = boards2.CreateThread(bid, "foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "reply")
 }
 
 func main() {
 	// reply frozen
 	println(boards2.IsReplyFrozen(bid, tid, rid))
-	boards2.FreezeReply(bid, tid, rid)
+	cross(boards2.FreezeReply)(bid, tid, rid)
 	println(boards2.IsReplyFrozen(bid, tid, rid))
-	boards2.UnfreezeReply(bid, tid, rid)
+	cross(boards2.UnfreezeReply)(bid, tid, rid)
 	println(boards2.IsReplyFrozen(bid, tid, rid))
 
 	// thread frozen
-	boards2.FreezeThread(bid, tid)
+	cross(boards2.FreezeThread)(bid, tid)
 	println(boards2.IsReplyFrozen(bid, tid, rid))
-	boards2.UnfreezeThread(bid, tid)
+	cross(boards2.UnfreezeThread)(bid, tid)
 	println(boards2.IsReplyFrozen(bid, tid, rid))
 
 	// board frozen
-	boards2.FreezeBoard(bid)
+	cross(boards2.FreezeBoard)(bid)
 	println(boards2.IsReplyFrozen(bid, tid, rid))
-	boards2.UnfreezeBoard(bid)
+	cross(boards2.UnfreezeBoard)(bid)
 	println(boards2.IsReplyFrozen(bid, tid, rid))
 }
 

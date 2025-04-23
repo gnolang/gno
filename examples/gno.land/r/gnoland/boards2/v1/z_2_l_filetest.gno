@@ -15,15 +15,17 @@ var (
 )
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
+	tid = cross(boards2.CreateThread)(bid, "foo", "bar")
+	cross(boards2.FreezeThread)(bid, tid)
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
-	tid = boards2.CreateThread(bid, "foo", "bar")
-	boards2.FreezeThread(bid, tid)
 }
 
 func main() {
 	// cannot reply to a frozen thread
-	boards2.CreateReply(bid, tid, 0, "foobar")
+	cross(boards2.CreateReply)(bid, tid, 0, "foobar")
 }
 
 // Error:

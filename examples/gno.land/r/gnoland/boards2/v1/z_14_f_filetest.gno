@@ -18,17 +18,17 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "body")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
 
 	// Call using a user that has not permission to delete replies
 	testing.SetOriginCaller(user)
 }
 
 func main() {
-	boards2.DeleteReply(bid, tid, rid)
+	cross(boards2.DeleteReply)(bid, tid, rid)
 }
 
 // Error:

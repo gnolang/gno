@@ -16,17 +16,19 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test123")
-	tid = boards2.CreateThread(bid, "foo", "bar")
-	rid = boards2.CreateReply(bid, tid, 0, "reply")
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test123")
+	tid = cross(boards2.CreateThread)(bid, "foo", "bar")
+	rid = cross(boards2.CreateReply)(bid, tid, 0, "reply")
 
-	boards2.FreezeReply(bid, tid, rid)
+	cross(boards2.FreezeReply)(bid, tid, rid)
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
 	// Attempt to freeze already frozen reply
-	boards2.FreezeReply(bid, tid, rid)
+	cross(boards2.FreezeReply)(bid, tid, rid)
 }
 
 // Error:

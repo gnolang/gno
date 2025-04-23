@@ -29,6 +29,8 @@ var (
 
 // SetHelp sets or updates boards realm help content.
 func SetHelp(content string) {
+	crossing()
+
 	content = strings.TrimSpace(content)
 	caller := std.PreviousRealm().Address()
 	args := Args{content}
@@ -39,6 +41,8 @@ func SetHelp(content string) {
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	if p == nil {
@@ -80,21 +84,24 @@ func SetPermissions(bid BoardID, p Permissions) {
 // SetRealmNotice sets a notice to be displayed globally by the realm.
 // An empty message removes the realm notice.
 func SetRealmNotice(message string) {
-	message = strings.TrimSpace(message)
-	caller := std.PreviousRealm().Address()
-	gPerms.WithPermission(caller, PermissionRealmNotice, nil, func(Args) {
-		gNotice = message
+	crossing()
 
-		std.Emit(
-			"RealmNoticeChanged",
-			"caller", caller.String(),
-			"message", message,
-		)
-	})
+	caller := std.PreviousRealm().Address()
+	assertHasPermission(gPerms, caller, PermissionThreadCreate)
+
+	gNotice = strings.TrimSpace(message)
+
+	std.Emit(
+		"RealmNoticeChanged",
+		"caller", caller.String(),
+		"message", gNotice,
+	)
 }
 
 // GetBoardIDFromName searches a board by name and returns it's ID.
 func GetBoardIDFromName(name string) (_ BoardID, found bool) {
+	crossing()
+
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		return 0, false
@@ -104,6 +111,8 @@ func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 
 // CreateBoard creates a new board.
 func CreateBoard(name string) BoardID {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	name = strings.TrimSpace(name)
@@ -137,6 +146,8 @@ func CreateBoard(name string) BoardID {
 // A history of previous board names is kept when boards are renamed.
 // Because of that boards are also accesible using previous name(s).
 func RenameBoard(name, newName string) {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	newName = strings.TrimSpace(newName)
@@ -172,6 +183,8 @@ func RenameBoard(name, newName string) {
 
 // CreateThread creates a new thread within a board.
 func CreateThread(boardID BoardID, title, body string) PostID {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
@@ -184,7 +197,7 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionThreadCreate)
+	assertHasPermission(board.perms, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
 
@@ -203,6 +216,8 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 //
 // The value of `replyID` is only required when creating a reply of another reply.
 func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	body = strings.TrimSpace(body)
@@ -212,7 +227,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionReplyCreate)
+	assertHasPermission(board.perms, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
@@ -245,6 +260,8 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 
 // CreateRepost reposts a thread into another board.
 func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinationBoardID BoardID) PostID {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
@@ -253,7 +270,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinat
 	caller := std.PreviousRealm().Address()
 	dst := mustGetBoard(destinationBoardID)
 	assertBoardIsNotFrozen(dst)
-	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
+	assertHasPermission(dst.perms, caller, PermissionThreadRepost)
 
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
@@ -284,6 +301,8 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinat
 //
 // Threads can be deleted by the users who created them or otherwise by users with special permissions.
 func DeleteThread(boardID BoardID, threadID PostID) {
+	crossing()
+
 	// Council members should always be able to delete
 	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner) // TODO: Add DeleteThread filetest cases for realm owners
@@ -299,7 +318,7 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 		assertThreadIsNotFrozen(thread)
 
 		if caller != thread.GetCreator() {
-			assertHasBoardPermission(board, caller, PermissionThreadDelete)
+			assertHasPermission(board.perms, caller, PermissionThreadDelete)
 		}
 	}
 
@@ -320,6 +339,8 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 // Soft deletion is used when the deleted reply contains sub replies, in which case the reply content
 // is replaced by a text informing that reply has been deleted to avoid deleting sub-replies.
 func DeleteReply(boardID BoardID, threadID, replyID PostID) {
+	crossing()
+
 	// Council members should always be able to delete
 	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner) // TODO: Add DeleteReply filetest cases for realm owners
@@ -338,7 +359,7 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 		assertReplyIsNotFrozen(reply)
 
 		if caller != reply.GetCreator() {
-			assertHasBoardPermission(board, caller, PermissionReplyDelete)
+			assertHasPermission(board.perms, caller, PermissionReplyDelete)
 		}
 	}
 
@@ -363,6 +384,8 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 //
 // Threads can be updated by the users who created them or otherwise by users with special permissions.
 func EditThread(boardID BoardID, threadID PostID, title, body string) {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
@@ -381,7 +404,7 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 
 	caller := std.PreviousRealm().Address()
 	if caller != thread.GetCreator() {
-		assertHasBoardPermission(board, caller, PermissionThreadEdit)
+		assertHasPermission(board.perms, caller, PermissionThreadEdit)
 	}
 
 	thread.Update(title, body)
@@ -399,6 +422,8 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 //
 // Replies can be updated only by the users who created them.
 func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
+	crossing()
+
 	assertRealmIsNotLocked()
 
 	body = strings.TrimSpace(body)
@@ -436,6 +461,8 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 // A role can optionally be specified to be assigned to the new member.
 // Board ID is only required when inviting a member to a board.
 func InviteMember(boardID BoardID, user std.Address, role Role) {
+	crossing()
+
 	assertUserAddressIsValid(user)
 	assertMembersUpdateIsEnabled(boardID)
 
@@ -463,6 +490,8 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 //
 // Board ID is only required when removing a member from board.
 func RemoveMember(boardID BoardID, member std.Address) {
+	crossing()
+
 	assertMembersUpdateIsEnabled(boardID)
 	assertMemberAddressIsValid(member)
 
@@ -518,6 +547,8 @@ func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 //
 // Board ID is only required when changing the role for a member of a board.
 func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
+	crossing()
+
 	assertMemberAddressIsValid(member)
 	assertMembersUpdateIsEnabled(boardID)
 
@@ -569,8 +600,8 @@ func assertUserAddressIsValid(user std.Address) {
 	}
 }
 
-func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
-	if !b.perms.HasPermission(user, p) {
+func assertHasPermission(perms Permissions, user std.Address, p Permission) {
+	if !perms.HasPermission(user, p) {
 		panic("unauthorized")
 	}
 }

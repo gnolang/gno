@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	bid := boards2.CreateBoard("test123")
+	bid := cross(boards2.CreateBoard)("test123")
 	println("ID =", bid)
 }
 

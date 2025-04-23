@@ -15,23 +15,24 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-
 	// Created a board with flagging threshold greater than 1
-	bid = boards2.CreateBoard("test-board")
-	boards2.SetFlaggingThreshold(bid, 2)
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	cross(boards2.SetFlaggingThreshold)(bid, 2)
 
 	// Create a thread so the realm owner can flag and hide it with a single flag
-	pid = boards2.CreateThread(bid, "Foo", "bar")
+	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
 	// Also freeze board to make sure that realm owner can still flag the thread
-	boards2.FreezeBoard(bid)
+	cross(boards2.FreezeBoard)(bid)
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
-	boards2.FlagThread(bid, pid, "")
+	cross(boards2.FlagThread)(bid, pid, "")
 
 	// Ensure that original thread content not visible
-	println(boards2.Render("test-board/1"))
+	println(cross(boards2.Render)("test-board/1"))
 }
 
 // Output:

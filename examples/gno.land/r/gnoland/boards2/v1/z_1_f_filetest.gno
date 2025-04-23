@@ -15,12 +15,14 @@ const (
 )
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(boards2.InviteMember)(bid, user, role)
+
 	testing.SetOriginCaller(owner)
-	boards2.InviteMember(bid, user, role)
 }
 
 func main() {
-	boards2.InviteMember(bid, user, role)
+	cross(boards2.InviteMember)(bid, user, role)
 }
 
 // Error:

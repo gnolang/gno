@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	boards2.DeleteReply(404, 1, 1)
+	cross(boards2.DeleteReply)(404, 1, 1)
 }
 
 // Error:

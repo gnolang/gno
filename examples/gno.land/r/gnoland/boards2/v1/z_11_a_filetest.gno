@@ -21,16 +21,18 @@ var (
 )
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
-	pid = boards2.CreateThread(bid, "Foo", "bar")
 }
 
 func main() {
-	boards2.EditThread(bid, pid, title, body)
+	cross(boards2.EditThread)(bid, pid, title, body)
 
 	// Render content must contains thread's title and body
-	content := boards2.Render(path)
+	content := cross(boards2.Render)(path)
 	println(strings.HasPrefix(content, "## "+title))
 	println(strings.Contains(content, body))
 }

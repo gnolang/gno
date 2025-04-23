@@ -16,17 +16,19 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
-	srcBID = boards2.CreateBoard("src-board")
-	dstBID = boards2.CreateBoard("dst-board")
+	testing.SetRealm(std.NewUserRealm(owner))
+	srcBID = cross(boards2.CreateBoard)("src-board")
+	dstBID = cross(boards2.CreateBoard)("dst-board")
 
-	srcTID = boards2.CreateThread(srcBID, "Foo", "bar")
-	boards2.FlagThread(srcBID, srcTID, "idk")
+	srcTID = cross(boards2.CreateThread)(srcBID, "Foo", "bar")
+	cross(boards2.FlagThread)(srcBID, srcTID, "idk")
+
+	testing.SetOriginCaller(owner)
 }
 
 func main() {
 	// Repost should fail if source thread is flagged
-	boards2.CreateRepost(srcBID, srcTID, "foo", "bar", dstBID)
+	cross(boards2.CreateRepost)(srcBID, srcTID, "foo", "bar", dstBID)
 }
 
 // Error:

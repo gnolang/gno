@@ -7,11 +7,15 @@ import (
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.
 func FreezeBoard(boardID BoardID) {
+	crossing()
+
 	setBoardReadonly(boardID, true)
 }
 
 // UnfreezeBoard removes frozen status from a board.
 func UnfreezeBoard(boardID BoardID) {
+	crossing()
+
 	setBoardReadonly(boardID, false)
 }
 
@@ -25,6 +29,8 @@ func IsBoardFrozen(boardID BoardID) bool {
 //
 // Fails if board is frozen.
 func FreezeThread(boardID BoardID, threadID PostID) {
+	crossing()
+
 	setThreadReadonly(boardID, threadID, true)
 }
 
@@ -32,6 +38,8 @@ func FreezeThread(boardID BoardID, threadID PostID) {
 //
 // Fails if board is frozen.
 func UnfreezeThread(boardID BoardID, threadID PostID) {
+	crossing()
+
 	setThreadReadonly(boardID, threadID, false)
 }
 
@@ -50,6 +58,8 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 //
 // Fails when parent thread or board are frozen.
 func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
+	crossing()
+
 	// XXX: Is there a use case for also freezing replies?
 	setReplyReadonly(boardID, threadID, replyID, false)
 }
@@ -58,6 +68,8 @@ func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
 //
 // Fails when parent thread or board are frozen.
 func FreezeReply(boardID BoardID, threadID, replyID PostID) {
+	crossing()
+
 	setReplyReadonly(boardID, threadID, replyID, true)
 }
 
@@ -82,7 +94,7 @@ func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionReplyFreeze)
+	assertHasPermission(board.perms, caller, PermissionReplyFreeze)
 
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
@@ -114,7 +126,7 @@ func setThreadReadonly(boardID BoardID, threadID PostID, isReadonly bool) {
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionThreadFreeze)
+	assertHasPermission(board.perms, caller, PermissionThreadFreeze)
 
 	thread := mustGetThread(board, threadID)
 	if isReadonly {
@@ -141,7 +153,7 @@ func setBoardReadonly(boardID BoardID, isReadonly bool) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	assertHasBoardPermission(board, caller, PermissionBoardFreeze)
+	assertHasPermission(board.perms, caller, PermissionBoardFreeze)
 
 	board.SetReadonly(isReadonly)
 

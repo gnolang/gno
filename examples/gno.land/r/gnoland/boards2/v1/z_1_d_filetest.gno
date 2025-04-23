@@ -17,7 +17,7 @@ func init() {
 }
 
 func main() {
-	boards2.InviteMember(0, user, boards2.Role("foobar")) // Operate on realm DAO instead of individual boards
+	cross(boards2.InviteMember)(0, user, boards2.Role("foobar")) // Operate on realm DAO instead of individual boards
 }
 
 // Error:

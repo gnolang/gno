@@ -18,12 +18,14 @@ const (
 var bid boards2.BoardID
 
 func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+	bid = cross(boards2.CreateBoard)("test-board")
+
 	testing.SetOriginCaller(owner)
-	bid = boards2.CreateBoard("test-board")
 }
 
 func main() {
-	tid := boards2.CreateThread(bid, title, body)
+	tid := cross(boards2.CreateThread)(bid, title, body)
 
 	// Ensure that returned ID is right
 	println(tid == 1)
@@ -32,7 +34,7 @@ func main() {
 	println(boards2.IsThreadFrozen(bid, tid))
 
 	// Render content must contains thread's title and body
-	content := boards2.Render(path)
+	content := cross(boards2.Render)(path)
 	println(strings.HasPrefix(content, "## "+title))
 	println(strings.Contains(content, body))
 }

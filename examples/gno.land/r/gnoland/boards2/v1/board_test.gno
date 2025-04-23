@@ -74,6 +74,8 @@ func TestBoard_DeleteThread(t *testing.T) {
 var boardUrlPrefix = strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 
 func TestBoard_GetURLFromThreadID(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
+
 	boardName := "test12345"
 	addr := testutils.TestAddress("creator")
 	perms := createDefaultBoardPermissions(addr)
@@ -85,6 +87,8 @@ func TestBoard_GetURLFromThreadID(t *testing.T) {
 }
 
 func TestBoard_GetURLFromReplyID(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
+
 	boardName := "test12345"
 	addr := testutils.TestAddress("creator")
 	perms := createDefaultBoardPermissions(addr)
