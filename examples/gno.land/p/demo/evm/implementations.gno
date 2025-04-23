@@ -34,6 +34,34 @@ func opPush(n int) func(*state) error {
 	}
 }
 
+func opSwap(n int) func(*state) error {
+	return func(s *state) error {
+		if s.stack.Len() <= n {
+			return errors.New("can't SWAP" + strconv.Itoa(n) + ": stack too small")
+		}
+
+		temp := make([]*uint256.Uint, n+1)
+		for i := 0; i <= n; i++ {
+			val, err := s.stack.Pop()
+			if err != nil {
+				for j := i - 1; j >= 0; j-- {
+					s.stack.Push(temp[j])
+				}
+				return errors.New("can't SWAP" + strconv.Itoa(n) + err.Error())
+			}
+			temp[i] = val
+		}
+		temp[0], temp[n] = temp[n], temp[0]
+
+		for i := n; i >= 0; i-- {
+			s.stack.Push(temp[i])
+		}
+
+		s.code.Increment()
+		return nil
+	}
+}
+
 func opPop(s *state) error {
 	_, err := s.stack.Pop()
 	return err

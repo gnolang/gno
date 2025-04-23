@@ -49,3 +49,7 @@ func (s *evmStack) Top() (*uint256.Uint, error) {
 	}
 	return s.data[s.length-1], nil
 }
+
+func (s *evmStack) Len() int {
+	return len(s.data)
+}

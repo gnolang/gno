@@ -140,6 +140,40 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expected_stack: []*uint256.Uint{ uint256.NewFrom64s(42) },
 		},
+		{
+			name: "exchange 1st and 2nd stack items",
+			code: []byte{
+				byte(PUSH1), 0x0A, // PUSH1 10
+				byte(PUSH1), 0x0B, // PUSH1 11
+				byte(SWAP1),       // SWAP1
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{
+				uint256.NewFrom64s(11),
+				uint256.NewFrom64s(10),
+			},
+		},
+		{
+			name: "exchange 1st and 5th stack items",
+			code: []byte{
+				byte(PUSH1), 1,
+				byte(PUSH1), 2,
+				byte(PUSH1), 3,
+				byte(PUSH1), 4,
+				byte(PUSH1), 5,
+				byte(PUSH1), 6,
+				byte(SWAP5),
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{
+				uint256.NewFrom64s(6),
+				uint256.NewFrom64s(2),
+				uint256.NewFrom64s(3),
+				uint256.NewFrom64s(4),
+				uint256.NewFrom64s(5),
+				uint256.NewFrom64s(1),
+			},
+		},
 		// Add more test cases as needed
 	}
 
