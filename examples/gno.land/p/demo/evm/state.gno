@@ -4,7 +4,7 @@ import (
 	"gno.land/p/demo/evm/uint256"
 )
 
-const memSize = 30000
+// const memSize = 30000
 
 type state struct {
 	memory []byte
@@ -16,7 +16,7 @@ type state struct {
 func newState() *state {
 	return &state{
 		stack:  *NewevmStack(),
-		memory: make([]byte, memSize),
+		memory: []byte{},
 		buf:    []byte{},
 		code:   instructions{},
 	}

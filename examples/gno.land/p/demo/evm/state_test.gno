@@ -2,6 +2,7 @@ package evm
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -13,8 +14,10 @@ func TestExecuteEvm(t *testing.T) {
 		name            string
 		code            []byte
 		expected_result []byte
+		expected_memory []byte
 		expected_stack  []*uint256.Uint
 		expected_error  error
+		ignore_mem		bool
 	}{
 		{
 			name:           "simple addition",
@@ -174,17 +177,101 @@ func TestExecuteEvm(t *testing.T) {
 				uint256.NewFrom64s(1),
 			},
 		},
-		// Add more test cases as needed
+		{
+			name: "read raw mem at offset 12",
+			code: []byte{
+				byte(PUSH1), 12,
+				byte(MLOAD),
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{ uint256.New() },
+			ignore_mem: true,
+		},
+		{
+			name: "read raw mem at offset 0",
+			code: []byte{
+				byte(PUSH1), 12,
+				byte(MLOAD),
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{ uint256.New() },
+			ignore_mem: true,
+		},
+		{
+			name: "write mem",
+			code: []byte{
+				byte(PUSH1), 42, // data
+				byte(PUSH1), 0, // offset
+				byte(MSTORE),
+				byte(PUSH1), 0,
+				byte(MLOAD),
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{ uint256.NewFrom64s(42) },
+			ignore_mem: true,
+		},
+		{
+			name: "write mem offsetted",
+			code: []byte{
+				byte(PUSH1), 42, // data
+				byte(PUSH1), 12, // offset
+				byte(MSTORE),
+				byte(PUSH1), 12,
+				byte(MLOAD),
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{ uint256.NewFrom64s(42) },
+			ignore_mem: true,
+		},
+		{
+			name: "mem example https://www.evm.codes/",
+			code: []byte{
+				byte(PUSH1), 0,
+				byte(MLOAD),
+
+				byte(PUSH1), 0xff, // data
+				byte(PUSH1), 0, // offset
+				byte(MSTORE),
+				byte(PUSH1), 0,
+				byte(MLOAD),
+
+				byte(PUSH1), 0xff, // data
+				byte(PUSH1), 1, // offset
+				byte(MSTORE),
+				byte(PUSH1), 0,
+				byte(MLOAD),
+
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{
+				uint256.NewFrom64s(0),
+				uint256.NewFromBytes([]byte{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF }),
+				uint256.NewFromBytes([]byte{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }),
+			},
+			ignore_mem: true,
+		},
+		{
+			name: "mem save byte",
+			code: []byte{
+				byte(PUSH4), 0xaa, 0xbb, 0xcc, 0xdd, // data
+				byte(PUSH1), 0, // offset
+				byte(MSTORE8),
+				byte(STOP),
+			},
+			expected_memory: []byte{ 0xdd },
+		},
 	}
+	
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			errStack, errResult := false, false
+			errStack, errResult, errMem := false, false, false
 
 			st := newState()
 			err := st.executeByteCode(tc.code)
 			stack := st.getStackData()
 			result := st.getResult()
+			mem := st.memory
 
 			if (err != tc.expected_error && (err == nil || tc.expected_error == nil)) || (err != nil && tc.expected_error != nil && err.Error() != tc.expected_error.Error()) {
 				if err == nil {
@@ -216,6 +303,21 @@ func TestExecuteEvm(t *testing.T) {
 						break
 					}
 				}
+			}
+
+			if len(mem) != len(tc.expected_memory) {
+				errMem = true
+			} else {
+				for i := 0; i < len(result); i++ {
+					if result[i] != tc.expected_memory[i] {
+						errMem = true
+						break
+					}
+				}
+			}
+			if tc.ignore_mem {
+				fmt.Println("--- WARN: Memory is ignored for this test")
+				errMem = false
 			}
 
 			if errStack {
@@ -250,6 +352,24 @@ func TestExecuteEvm(t *testing.T) {
 					actual := "empty"
 					if i < len(result) {
 						actual = "'" + strconv.FormatUint(uint64(result[i]), 16) + "'"
+					}
+					t.Errorf("-> %s", actual)
+				}
+			}
+			if errMem {
+				t.Errorf("I expected this memory:")
+				for i := 0; i < len(mem) || i < len(tc.expected_memory); i++ {
+					expected := "empty"
+					if i < len(tc.expected_memory) {
+						expected = "'" + strconv.FormatUint(uint64(tc.expected_memory[i]), 16) + "'"
+					}
+					t.Errorf("-> %s", expected)
+				}
+				t.Error("but I got that one:")
+				for i := 0; i < len(mem) || i < len(tc.expected_memory); i++ {
+					actual := "<empty>"
+					if i < len(mem) {
+						actual = "'" + strconv.FormatUint(uint64(mem[i]), 16) + "'"
 					}
 					t.Errorf("-> %s", actual)
 				}

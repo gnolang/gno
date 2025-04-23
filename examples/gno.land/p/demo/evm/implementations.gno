@@ -121,3 +121,73 @@ func opIszero(s *state) error {
 	s.code.Increment()
 	return nil
 }
+
+func opMload(s *state) error {
+	off, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	off64 := off.To64()
+	if off64 + 32 > uint64(len(s.memory)) {
+		s.stack.Push(uint256.New())
+		s.code.Increment()
+		return nil
+	}
+	read := s.memory[off64:off64+32]
+	if len(read) < 32 {
+		read = append(read, make([]byte, 32-len(read))...)
+	}
+	s.stack.Push(uint256.NewFromBytes(read))
+	s.code.Increment()
+	return nil
+}
+
+func opMstore(s *state) error {
+	off, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	off64 := off.To64()
+	val, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	bytes := val.ToBytes()
+	memLen := uint64(len(s.memory))
+	if memLen == 0 {
+		s.memory = append(make([]byte, off64), bytes[:]...)
+		s.code.Increment()
+		return nil
+	}
+	if off64 + 32 >= memLen {
+		s.memory = append(s.memory, make([]byte, off64 + 32 - memLen)...)
+	}
+	copy(s.memory[off64:off64+32], bytes[:])
+	s.code.Increment()
+	return nil
+}
+
+func opMstore8(s *state) error {
+	off, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	off64 := off.To64()
+	val, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	b := byte(val.To64() & 0xff)
+	memLen := uint64(len(s.memory))
+	if memLen == 0 && off64 != 0 {
+		s.memory = append(make([]byte, off64), b)
+		s.code.Increment()
+		return nil
+	}
+	if off64 >= memLen {
+		s.memory = append(s.memory, make([]byte, off64)...)
+	}
+	s.memory = append(s.memory, b)
+	s.code.Increment()
+	return nil
+}

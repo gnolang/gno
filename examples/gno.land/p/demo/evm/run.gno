@@ -4,13 +4,20 @@ import "fmt"
 
 // for `gno run`
 func main() {
-	code := []byte{0x60, 11, 0x60, 10, 0x01, 0x00} // PUSH0, PUSH1 0x42, STOP
+	code := []byte{
+		byte(PUSH1), 42, // data
+		byte(PUSH1), 0, // offset
+		byte(MSTORE),
+		byte(PUSH1), 0,
+		byte(MLOAD),
+		byte(STOP),
+	}
 	st := newState()
 	err := st.executeByteCode(code)
 	if err != nil {
+		fmt.Println("[ERROR]")
 		fmt.Println(err)
 		return
-
 	}
 	data := st.getStackData()
 	fmt.Println("[")

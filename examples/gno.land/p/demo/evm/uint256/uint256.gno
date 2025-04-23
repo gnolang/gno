@@ -376,3 +376,12 @@ func (x Uint) Equals(y *Uint) bool {
 func (x Uint) To64() uint64 {
 	return x[0]
 }
+
+func (x Uint) ToBytes() [32]byte {
+	var result [32]byte
+	binary.BigEndian.PutUint64(result[0:8], x[3])
+	binary.BigEndian.PutUint64(result[8:16], x[2])
+	binary.BigEndian.PutUint64(result[16:24], x[1])
+	binary.BigEndian.PutUint64(result[24:32], x[0])
+	return result
+}
