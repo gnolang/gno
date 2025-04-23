@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// user not found
+// missing crossing() after cross call in main from gno.land/r/demo/groups_test to gno.land/r/demo/groups_test

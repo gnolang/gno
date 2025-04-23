@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// r/gnoland/users: non-user call
+// missing crossing() after cross call in main from gno.land/r/demo/groups_test to gno.land/r/demo/groups_test

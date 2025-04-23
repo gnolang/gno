@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// can only send coins from realm that created banker "g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk", not "g1dv3435088tlrgggf745kaud0ptrkc9v42k8llz"
+// missing crossing() after cross call in main from gno.land/r/demo/bank1 to gno.land/r/demo/bank1

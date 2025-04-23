@@ -1,5 +1,6 @@
 // PKGPATH: gno.land/r/demo/main
 
+
 // SEND: 300ugnot
 
 package main
@@ -25,4 +26,4 @@ func main() {
 }
 
 // Error:
-// disperse: mismatch between coins sent and params called
+// missing crossing() after cross call in main from gno.land/r/demo/main to gno.land/r/demo/main

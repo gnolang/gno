@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// unauthorized
+// missing crossing() after cross call in main from gno.land/r/demo/nft_test to gno.land/r/demo/nft_test

@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// thread not exist
+// missing cross before external crossing() in Register from gno.land/r/demo/boards_test to gno.land/r/gnoland/users/v1
