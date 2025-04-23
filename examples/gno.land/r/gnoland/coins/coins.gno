@@ -43,7 +43,6 @@ func init() {
 		// banker := std.NewBanker(std.BankerTypeReadonly)
 		// res.Write(renderAddressBalance(banker, denom, denom))
 		res.Write("Total supply feature is coming soon. Please check back later!")
-		return
 	})
 
 	// address balance
