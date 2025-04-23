@@ -163,7 +163,6 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	default:
 		panic("exec kind unspecified")
 	}
-
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {

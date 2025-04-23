@@ -527,7 +527,7 @@ func Echo(str string) string {
 				},
 			},
 		},
-		Deposit: deposit,
+		MaxDeposit: deposit,
 	}
 
 	// Execute AddPackage
@@ -618,7 +618,7 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: nil,
+		MaxDeposit: nil,
 	}
 
 	msg2 := vm.MsgAddPackage{
@@ -637,8 +637,8 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Send:    send,
-		Deposit: deposit,
+		Send:       send,
+		MaxDeposit: deposit,
 	}
 
 	// Execute AddPackage

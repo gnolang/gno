@@ -165,6 +165,8 @@ type ObjectInfo struct {
 
 	// XXX huh?
 	owner Object // mem reference to owner.
+
+	ObjectSize int64
 }
 
 // Copy used for serialization of objects.
@@ -182,6 +184,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		isNewReal:    oi.isNewReal,
 		isNewEscaped: oi.isNewEscaped,
 		isNewDeleted: oi.isNewDeleted,
+		ObjectSize:   oi.ObjectSize,
 	}
 }
 

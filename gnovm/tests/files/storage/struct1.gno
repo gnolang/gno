@@ -18,10 +18,10 @@ func main() {
 // (struct{("h2" string)} gno.land/r/storage_test.foo)
 
 // Storage:
-// gno.land/r/storage_test: 28
+// gno.land/r/storage_test: 31
 
 // Realm:
-// switchrealm["gno.land/r/storage_test"]
+// finalizerealm["gno.land/r/storage_test"]
 // c[334570344df8e77213d2886cb407c37de6da36c1:7](240)={
 //     "Fields": [
 //         {
@@ -38,12 +38,13 @@ func main() {
 //     "ObjectInfo": {
 //         "ID": "334570344df8e77213d2886cb407c37de6da36c1:7",
 //         "ModTime": "0",
+//         "ObjectSize": "240",
 //         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[334570344df8e77213d2886cb407c37de6da36c1:4](29)=
-//     @@ -4,13 +4,17 @@
+// u[334570344df8e77213d2886cb407c37de6da36c1:4](32)=
+//     @@ -4,14 +4,18 @@
 //                  "T": {
 //                      "@type": "/gno.PrimitiveType",
 //                      "value": "16"
@@ -57,23 +58,27 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "334570344df8e77213d2886cb407c37de6da36c1:4",
 //     -        "ModTime": "0",
+//     -        "ObjectSize": "0",
 //     +        "ModTime": "6",
+//     +        "ObjectSize": "214",
 //              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "0"
 //          }
 //      }
-// u[334570344df8e77213d2886cb407c37de6da36c1:3](2)=
-//     @@ -1,7 +1,7 @@
+// u[334570344df8e77213d2886cb407c37de6da36c1:3](5)=
+//     @@ -1,8 +1,8 @@
 //      {
 //          "ObjectInfo": {
 //              "ID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //     -        "ModTime": "0",
+//     -        "ObjectSize": "0",
 //     +        "ModTime": "6",
+//     +        "ObjectSize": "343",
 //              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
 //              "RefCount": "1"
 //          },
-//     @@ -12,8 +12,8 @@
+//     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
@@ -84,4 +89,4 @@ func main() {
 //              }
 //          }
 //      }
-// d[334570344df8e77213d2886cb407c37de6da36c1:4](-243)
+// d[334570344df8e77213d2886cb407c37de6da36c1:4](-246)

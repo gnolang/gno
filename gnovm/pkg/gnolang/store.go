@@ -149,8 +149,8 @@ type defaultStore struct {
 	gasConfig GasConfig
 
 	// realm storage changes on message level.
-	objectSizeCache map[ObjectID]int64 // maps ObjectID to size
-	realmDiffs      map[string]int64   // maps realm path to size diff
+	//	objectSizeCache map[ObjectID]int64 // maps ObjectID to size
+	realmDiffs map[string]int64 // maps realm path to size diff
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -165,8 +165,8 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// reset at the message level
-		objectSizeCache: make(map[ObjectID]int64),
-		realmDiffs:      make(map[string]int64),
+		//	objectSizeCache: make(map[ObjectID]int64),
+		realmDiffs: make(map[string]int64),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -208,8 +208,8 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		current: nil,
 		opslog:  nil,
 		// reset at the message level
-		objectSizeCache: make(map[ObjectID]int64),
-		realmDiffs:      make(map[string]int64),
+		//	objectSizeCache: make(map[ObjectID]int64),
+		realmDiffs: make(map[string]int64),
 	}
 	ds2.SetCachePackage(Uverse())
 
@@ -468,7 +468,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
-		ds.objectSizeCache[oid] = int64(size)
+		oo.GetObjectInfo().ObjectSize = int64(size)
+		// ds.objectSizeCache[oid] = int64(size)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
@@ -503,11 +504,13 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	oo.SetHash(ValueHash{hash})
 	// difference between object size and cached value
-	diff := int64(len(hash)+len(bz)) - ds.objectSizeCache[oid]
+	// diff := int64(len(hash)+len(bz)) - ds.objectSizeCache[oid]
+	diff := int64(len(hash)+len(bz)) - o2.(Object).GetObjectInfo().ObjectSize
 	// make store op log entry
 	if ds.opslog != nil {
 		obj := o2.(Object)
 		if oo.GetIsNewReal() {
+			obj.GetObjectInfo().ObjectSize += diff
 			fmt.Fprintf(ds.opslog, "c[%v](%d)=%s\n",
 				obj.GetObjectID(),
 				diff,
@@ -546,7 +549,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
-		ds.objectSizeCache[oid] = int64(size)
+		//	ds.objectSizeCache[oid] = int64(size)
+		oo.GetObjectInfo().ObjectSize = int64(size)
 	}
 	// save object to cache.
 	if debug {
@@ -598,10 +602,11 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
-	size := ds.objectSizeCache[oid]
+	// size := ds.objectSizeCache[oid]
+	size := oo.GetObjectInfo().ObjectSize
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
-	delete(ds.objectSizeCache, oid)
+	//	delete(ds.objectSizeCache, oid)
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -932,7 +937,7 @@ func (ds *defaultStore) RealmDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.objectSizeCache = make(map[ObjectID]int64)
+	// ds.objectSizeCache = make(map[ObjectID]int64)
 	ds.realmDiffs = make(map[string]int64)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())

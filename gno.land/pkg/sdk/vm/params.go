@@ -15,7 +15,7 @@ const (
 	sysNamesPkgDefault    = "gno.land/r/sys/names"
 	chainDomainDefault    = "gno.land"
 	defaultDepositDefault = "600000000ugnot"
-	storagePriceDefault   = "1000ugnot" // cost per byte (1 gnot per KB)
+	storagePriceDefault   = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)

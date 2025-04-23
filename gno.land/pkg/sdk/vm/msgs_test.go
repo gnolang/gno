@@ -46,7 +46,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 					Path:  pkgPath,
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: 1000,
 				}},
@@ -62,7 +62,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 					Path:  "",
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: 1000,
 				}},
@@ -78,7 +78,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 					Path:  pkgPath,
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: -1000, // invalid amount
 				}},

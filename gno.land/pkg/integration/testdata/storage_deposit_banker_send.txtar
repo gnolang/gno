@@ -1,0 +1,128 @@
+# test the storage deposit
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 682000ugnot -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+
+# Users are not allowed to withdraw deposits from the realm balance via the realm banker.
+## Get realm gno.land/r/foo (g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469) balance
+gnokey maketx call -pkgpath gno.land/r/foo -func PkgAddress -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469'
+stdout OK!
+
+## realm balance before realm send
+gnokey query auth/accounts/g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
+stdout '"coins": "682000ugnot"'
+
+
+## realm deposit before realm send
+gnokey query vm/qstorage --data gno.land/r/foo
+stdout 'storage: 6820, deposit: 682000'
+
+## user balance before realm send
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "9999997318000ugnot"'
+
+## realm send
+! gnokey maketx call -pkgpath gno.land/r/foo -func RealmSend -args $test1_user_addr -args 1  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'Cannot send more tokens than allowed. A deposit of 682000ugnot must be held in the balance'
+
+## realm balance after realm send has not changed
+gnokey query auth/accounts/g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
+stdout '682000'
+
+## realm desposit after realm send,
+gnokey query vm/qstorage --data gno.land/r/foo
+stdout 'storage: 6820, deposit: 682000'
+
+## user balance after realm send has not changed
+gnokey query auth/accounts/$test1_user_addr
+stdout '9999997318000ugnot'
+
+## realm banker send in msg run should bebehave the same.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/run/realm_send.gno
+stderr 'Cannot send more tokens than allowed. A deposit of 682000ugnot must be held in the balance'
+
+
+# The behavior of origin banker send should remain unchanged.
+
+
+## Origin banker send within user's allowed amount
+gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK'
+
+## Origin banker send more than user's allowed amount
+! gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 2 -send 1ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot send "2ugnot", limit "1ugnot" exceeded'
+
+
+## Origin banker send more than user's allowed amount (no send flag specified)
+! gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot send "1ugnot", limit "" exceeded'
+
+
+-- contracts/gno.mod --
+module gno.land/r/foo
+
+-- contracts/storage.gno --
+package foo
+
+import "std"
+
+var record Foo
+
+func init(){
+
+	cross(NewFoo)("hello")
+}
+
+type Foo struct{
+  name string
+}
+
+func NewFoo(name string){
+  crossing()
+  record = Foo{name}
+}
+func SetName(n string){
+  record.name = n
+}
+
+func GetName()string {
+  return record.name
+}
+
+func Clear(){
+  record = Foo{}
+}
+func PkgAddress() string{
+	crossing()
+  return string(std.DerivePkgAddr("gno.land/r/foo"))
+}
+
+func RealmSend(to std.Address,amt int64 ){
+	crossing()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+  banker.SendCoins(std.CurrentRealm().Address(), to, std.Coins{{"ugnot", amt}})
+}
+
+func OriginSend(to std.Address,amt int64){
+	crossing()
+  banker := std.NewBanker(std.BankerTypeOriginSend)
+  banker.SendCoins(std.CurrentRealm().Address(), to, std.Coins{{"ugnot", amt}})
+}
+
+
+-- run/realm_send.gno --
+package main
+
+import (
+ "gno.land/r/foo"
+)
+func main() {
+	crossing()
+	cross(foo.RealmSend)("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
+}

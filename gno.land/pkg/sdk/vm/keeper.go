@@ -329,7 +329,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
 	send := msg.Send
-	deposit := msg.Deposit
+	deposit := msg.MaxDeposit
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
 
@@ -508,7 +508,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processStorageDeposit(ctx, caller, msg.Deposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
 	if err != nil {
 		return "", err
 	}
@@ -670,7 +670,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processStorageDeposit(ctx, caller, msg.Deposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
 	if err != nil {
 		return "", err
 	}
@@ -866,13 +866,6 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 // QueryStorage returns storage and deposit for a realm.
 func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error) {
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	// Ensure pkgPath is realm.
-	if !gno.IsRealmPath(pkgPath) {
-		err := ErrInvalidPkgPath(fmt.Sprintf(
-			"package is not realm: %s", pkgPath))
-		return "", err
-	}
-
 	rlm := store.GetPackageRealm(pkgPath)
 	if rlm == nil {
 		err := ErrInvalidPkgPath(fmt.Sprintf(

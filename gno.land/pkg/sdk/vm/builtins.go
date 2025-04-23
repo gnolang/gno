@@ -73,7 +73,6 @@ func (bnk *SDKBanker) assertEnoughStorageDeposit(from crypto.Address, amt std.Co
 	if remain < rlm.Deposit {
 		panic(fmt.Sprintf("Cannot send more tokens than allowed. A deposit of %d%s must be held in the balance (current balance: %d%s).", rlm.Deposit, ugnot.Denom, balance, ugnot.Denom))
 	}
-
 }
 
 // ----------------------------------------

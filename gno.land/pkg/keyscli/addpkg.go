@@ -18,10 +18,10 @@ import (
 type MakeAddPkgCfg struct {
 	RootCfg *client.MakeTxCfg
 
-	PkgPath string
-	PkgDir  string
-	Send    string
-	Deposit string
+	PkgPath    string
+	PkgDir     string
+	Send       string
+	MaxDeposit string
 }
 
 func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
@@ -63,10 +63,10 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		"send amount",
 	)
 	fs.StringVar(
-		&c.Deposit,
-		"deposit",
+		&c.MaxDeposit,
+		"max-deposit",
 		"",
-		"deposit coins",
+		"max storage deposit",
 	)
 }
 
@@ -106,7 +106,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		return errors.Wrap(err, "parsing send coins")
 	}
 	// parse deposit.
-	deposit, err := std.ParseCoins(cfg.Deposit)
+	deposit, err := std.ParseCoins(cfg.MaxDeposit)
 	if err != nil {
 		panic(err)
 	}
@@ -125,10 +125,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 	// construct msg & tx and marshal.
 	msg := vm.MsgAddPackage{
-		Creator: creator,
-		Package: memPkg,
-		Send:    send,
-		Deposit: deposit,
+		Creator:    creator,
+		Package:    memPkg,
+		Send:       send,
+		MaxDeposit: deposit,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

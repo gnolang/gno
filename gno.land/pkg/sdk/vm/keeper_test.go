@@ -615,7 +615,7 @@ func Echo(msg string) string {
 	}
 	pkgPath := "gno.land/r/test"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
-	msg1.Deposit = std.Coins{std.Coin{Denom: ugnot.Denom, Amount: int64(1375000)}}
+	msg1.MaxDeposit = std.Coins{std.Coin{Denom: ugnot.Denom, Amount: int64(1375000)}}
 	err := env.vmk.AddPackage(ctx, msg1)
 	require.NoError(t, err)
 
