@@ -2321,6 +2321,7 @@ const (
 	underscoreResultNamePrefix = ".res_" // if was underscore
 )
 
+//nolint:unused
 func isUnnamedResult(name Name) bool {
 	return isMissingResult(name) || isUnderscoreResult(name)
 }
@@ -2329,6 +2330,7 @@ func isMissingResult(name Name) bool {
 	return strings.HasPrefix(string(name), missingResultNamePrefix)
 }
 
+//nolint:unused
 func isUnderscoreResult(name Name) bool {
 	return strings.HasPrefix(string(name), underscoreResultNamePrefix)
 }
