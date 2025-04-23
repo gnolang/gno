@@ -281,9 +281,6 @@ func (pv *PackageValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop boo
 func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
-		// alloc TypedValue shallowly
-		alloc.Allocate(allocTypedValue)
-
 		v := b.Values[i].V
 		if v == nil {
 			// alloc primitive value
@@ -313,7 +310,6 @@ func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 }
 
 func (hiv *HeapItemValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
-	alloc.Allocate(allocTypedValue)
 	v := hiv.Value.V
 	if v == nil {
 		alloc.Allocate(allocPrimitiveValue)
