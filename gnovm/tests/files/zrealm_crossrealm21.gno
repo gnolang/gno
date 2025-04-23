@@ -23,7 +23,7 @@ func main() {
 // .
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:7]=
 //     @@ -1,9 +1,27 @@
 //      {
@@ -69,9 +69,9 @@ func main() {
 //          },
 //          "Value": {
 //              "T": {
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
 //     @@ -7,13 +7,13 @@
 //                  },
@@ -89,6 +89,6 @@ func main() {
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //              "RefCount": "1"
 //          }
-// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
+// finalizerealm["gno.land/r/demo/tests/crossrealm"]
+// finalizerealm["gno.land/r/crossrealm_test"]
