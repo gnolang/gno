@@ -42,7 +42,8 @@ func init() {
 		// denom := req.GetVar("denom")
 		// banker := std.NewBanker(std.BankerTypeReadonly)
 		// res.Write(renderAddressBalance(banker, denom, denom))
-		panic("total supply not supported yet. coming soon")
+		res.Write("Total supply feature is coming soon. Please check back later!")
+		return
 	})
 
 	// address balance
