@@ -46,7 +46,7 @@ func (p MembersPropDefinition) Body() string {
 	var b strings.Builder
 
 	if p.toAdd.Size() > 0 {
-		b.WriteString("**Members to Add:**  \n")
+		b.WriteString("**Members to Add:**\n")
 		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
 			b.WriteString("- ")
 			b.WriteString(addr.String())
@@ -56,7 +56,7 @@ func (p MembersPropDefinition) Body() string {
 	}
 
 	if p.toRemove.Size() > 0 {
-		b.WriteString("\n**Members to Remove:**  \n")
+		b.WriteString("\n**Members to Remove:**\n")
 		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
 			b.WriteString("- ")
 			b.WriteString(addr.String())
