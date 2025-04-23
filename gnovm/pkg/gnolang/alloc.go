@@ -45,34 +45,33 @@ const (
 )
 
 const (
-	allocString         = _allocBase + _allocPointer + _allocStringValue
-	allocStringByte     = 1
-	allocBigint         = _allocBase + _allocPointer + _allocBigint
-	allocBigintByte     = 1
-	allocBigdec         = _allocBase + _allocPointer + _allocBigdec
-	allocBigdecByte     = 1
-	allocPointer        = _allocBase
-	allocArray          = _allocBase + _allocPointer + _allocArrayValue
-	allocArrayItem      = _allocTypedValue
-	allocSlice          = _allocBase + _allocPointer + _allocSliceValue
-	allocStruct         = _allocBase + _allocPointer + _allocStructValue
-	allocStructField    = _allocTypedValue
-	allocFunc           = _allocBase + _allocPointer + _allocFuncValue
-	allocMap            = _allocBase + _allocPointer + _allocMapValue
-	allocMapItem        = _allocTypedValue * 3 // XXX
-	allocBoundMethod    = _allocBase + _allocPointer + _allocBoundMethodValue
-	allocBlock          = _allocBase + _allocPointer + _allocBlock
-	allocBlockItem      = _allocTypedValue
-	allocNative         = _allocBase + _allocPointer + _allocNativeValue
-	allocRefValue       = _allocBase + +_allocRefValue
-	allocType           = _allocBase + _allocPointer + _allocType
-	allocDataByte       = 1
-	allocPackage        = _allocBase + _allocPointer + _allocPackageValue
-	allocAmino          = _allocBase + _allocPointer + _allocAny
-	allocAminoByte      = 10 // XXX
-	allocHeapItem       = _allocBase + _allocPointer + _allocTypedValue
-	allocTypedValue     = _allocTypedValue
-	allocPrimitiveValue = 8
+	allocString      = _allocBase + _allocPointer + _allocStringValue
+	allocStringByte  = 1
+	allocBigint      = _allocBase + _allocPointer + _allocBigint
+	allocBigintByte  = 1
+	allocBigdec      = _allocBase + _allocPointer + _allocBigdec
+	allocBigdecByte  = 1
+	allocPointer     = _allocBase
+	allocArray       = _allocBase + _allocPointer + _allocArrayValue
+	allocArrayItem   = _allocTypedValue
+	allocSlice       = _allocBase + _allocPointer + _allocSliceValue
+	allocStruct      = _allocBase + _allocPointer + _allocStructValue
+	allocStructField = _allocTypedValue
+	allocFunc        = _allocBase + _allocPointer + _allocFuncValue
+	allocMap         = _allocBase + _allocPointer + _allocMapValue
+	allocMapItem     = _allocTypedValue * 3 // XXX
+	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
+	allocBlock       = _allocBase + _allocPointer + _allocBlock
+	allocBlockItem   = _allocTypedValue
+	allocNative      = _allocBase + _allocPointer + _allocNativeValue
+	allocRefValue    = _allocBase + +_allocRefValue
+	allocType        = _allocBase + _allocPointer + _allocType
+	allocDataByte    = 1
+	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
+	allocAmino       = _allocBase + _allocPointer + _allocAny
+	allocAminoByte   = 10 // XXX
+	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
+	allocTypedValue  = _allocTypedValue
 )
 
 func NewAllocator(maxBytes int64) *Allocator {

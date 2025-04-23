@@ -284,7 +284,6 @@ func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 		v := b.Values[i].V
 		if v == nil {
 			// alloc primitive value
-			alloc.Allocate(allocPrimitiveValue)
 			continue
 		}
 
@@ -311,9 +310,7 @@ func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 
 func (hiv *HeapItemValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	v := hiv.Value.V
-	if v == nil {
-		alloc.Allocate(allocPrimitiveValue)
-	} else {
+	if v != nil {
 		stop = vis(hiv.Value.V)
 	}
 	return
@@ -361,9 +358,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	if fr.Receiver.IsDefined() {
 		alloc.Allocate(allocTypedValue) // alloc shallowly
 
-		if v := fr.Receiver.V; v == nil { // primitive value
-			alloc.Allocate(allocPrimitiveValue)
-		} else {
+		if v := fr.Receiver.V; v != nil { // primitive value
 			stop = vis(v)
 			if stop {
 				return
@@ -392,9 +387,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 		for _, arg := range dfr.Args {
 			alloc.Allocate(allocTypedValue)
 
-			if arg.V == nil {
-				alloc.Allocate(allocPrimitiveValue)
-			} else {
+			if arg.V != nil {
 				stop = vis(arg.V)
 			}
 			if stop {
@@ -425,9 +418,7 @@ func (ex *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis value
 	alloc.Allocate(allocTypedValue)
 	if ex != nil {
-		if v := ex.Value.V; v == nil {
-			alloc.Allocate(allocPrimitiveValue)
-		} else {
+		if v := ex.Value.V; v != nil {
 			stop = vis(v)
 		}
 		if stop {
