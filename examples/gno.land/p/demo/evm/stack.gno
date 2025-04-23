@@ -20,7 +20,7 @@ func NewevmStack() *evmStack {
 
 func (s evmStack) Print() (res string) {
 	if s.length == 0 {
-		res = "empty stack!\n"
+		res = "stack is empty!\n"
 	}
 	for _, e := range s.data {
 		res += e.HexString() + "\n"
@@ -48,6 +48,16 @@ func (s *evmStack) Top() (*uint256.Uint, error) {
 		return nil, errors.New("stack is empty")
 	}
 	return s.data[s.length-1], nil
+}
+
+func (s *evmStack) Peek(n int) (*uint256.Uint, error) {
+	if s.length == 0 {
+		return nil, errors.New("stack is empty")
+	}
+	if n >= int(s.length) {
+		return nil, errors.New("stack access out of bounds")
+	}
+	return s.data[int(s.length)-1-n], nil
 }
 
 func (s *evmStack) Len() int {
