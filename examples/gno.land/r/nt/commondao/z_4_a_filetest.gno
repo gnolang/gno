@@ -17,18 +17,23 @@ const (
 var daoID uint64
 
 func init() {
+	realm := std.CurrentRealm()
+
 	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 
 	// Create a couple of DAOs
 	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
 	commondao.New("A")
 	daoID = commondao.New(name).ID()
 	commondao.New("C")
 }
 
 func main() {
+	crossing()
+
 	dao := commondao.Get(daoID)
 
 	if dao == nil {

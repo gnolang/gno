@@ -30,15 +30,13 @@ var (
 )
 
 func init() {
-	// Use a realm caller
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-
 	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
 	daoID = dao.ID()
 
@@ -50,7 +48,7 @@ func init() {
 }
 
 func main() {
-	commondao.Vote(daoID, proposal.ID(), "invalid", "")
+	cross(commondao.Vote)(daoID, proposal.ID(), "invalid", "")
 }
 
 // Error:

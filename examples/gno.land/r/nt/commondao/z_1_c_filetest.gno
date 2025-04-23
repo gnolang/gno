@@ -18,7 +18,7 @@ func init() {
 }
 
 func main() {
-	commondao.Invite(invitee)
+	cross(commondao.Invite)(invitee)
 }
 
 // Error:

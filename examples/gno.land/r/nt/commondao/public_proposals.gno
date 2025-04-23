@@ -19,6 +19,8 @@ import (
 // - newMembers: Comma separated list of addresses to add as members
 // - removeMembers: Comma separated list of member addresses to remove
 func CreateMembersUpdateProposal(daoID uint64, subPath, newMembers, removeMembers string) uint64 {
+	crossing()
+
 	var dao *commondao.CommonDAO
 	if subPath != "" {
 		dao = mustGetSubDAO(daoID, subPath)

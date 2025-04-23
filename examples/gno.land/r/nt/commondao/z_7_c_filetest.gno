@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -15,14 +14,13 @@ const (
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
-
-	// The origin must be the invited user
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 }
 
 func main() {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+
 	commondao.NewSubDAO("Foo", "foo", nil)
 }
 

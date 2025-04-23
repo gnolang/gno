@@ -15,27 +15,30 @@ const (
 )
 
 var (
-	realm std.Address
+	realm std.Realm
 	daoID uint64
 )
 
 func init() {
-	// Init `commondao_test` realm address
-	realm = std.CurrentRealm().Address()
+	// Init `commondao_test` realm
+	realm = std.CurrentRealm()
 
 	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
 	daoID = commondao.New("Foo").ID()
 }
 
 func main() {
-	commondao.TransferOwnership(daoID, newRealm)
+	crossing()
 
-	println(commondao.IsOwner(realm, daoID))
+	cross(commondao.TransferOwnership)(daoID, newRealm)
+
+	println(commondao.IsOwner(realm.Address(), daoID))
 	println(commondao.IsOwner(newRealm, daoID))
 }
 

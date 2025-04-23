@@ -16,12 +16,14 @@ var reSlug = regexp.MustCompile("^[a-zA-Z]+[a-zA-Z0-9-]*$")
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(invitee std.Address) {
+	crossing()
+
 	if !invitee.IsValid() {
 		panic("invalid address")
 	}
 
 	dao := mustGetDAO(CommonDAOID)
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	if !dao.Members().Has(caller) {
 		panic("unauthorized")
 	}
@@ -41,7 +43,7 @@ func New(name string) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
 
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	if !checkOwnershipExists(caller) {
 		orig := std.OriginCaller()
 		assertIsInvited(orig)
@@ -57,7 +59,6 @@ func New(name string) *commondao.CommonDAO {
 
 	ownership.Set(caller.String(), ids)
 	daos.Set(id.String(), dao)
-
 	return dao
 }
 
@@ -93,7 +94,6 @@ func NewSubDAO(name, slug string, parent *commondao.CommonDAO) *commondao.Common
 
 	tree.Set(path, dao)
 	parent.Children().Append(dao)
-
 	return dao
 }
 
@@ -104,7 +104,9 @@ func IsOwner(addr std.Address, daoID uint64) bool {
 
 // TransferOwnership transfers DAO access ownership to a different address.
 func TransferOwnership(daoID uint64, newOwner std.Address) {
-	assertCallerIsOwner(daoID)
+	crossing()
+
+	assertIsOwner(std.PreviousRealm().Address(), daoID)
 
 	if !newOwner.IsValid() {
 		panic("invalid owner address")
@@ -127,7 +129,7 @@ func TransferOwnership(daoID uint64, newOwner std.Address) {
 // Only toplevel DAOs are returned, to get SubDAOs use `GetSubDAO()`.
 func Get(daoID uint64) *commondao.CommonDAO {
 	assertCallerIsRealm() // TODO: Allow users to get DAOs using run TX?
-	assertCallerIsOwner(daoID)
+	assertIsOwner(std.CurrentRealm().Address(), daoID)
 
 	return mustGetDAO(daoID)
 }
@@ -136,27 +138,28 @@ func Get(daoID uint64) *commondao.CommonDAO {
 // It panics if caller doesn't have access ownership to the topmost DAO.
 func GetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
 	assertCallerIsRealm() // TODO: Allow users to get SubDAOs using run TX?
-	assertCallerIsOwner(rootID)
+	assertIsOwner(std.CurrentRealm().Address(), rootID)
 
 	return mustGetSubDAO(rootID, path)
 }
 
 // GetSize returns the number of SubDAOs under a specified root DAO.
 func GetSize(rootID uint64) int {
-	assertCallerIsOwner(rootID)
+	assertIsOwner(std.CurrentRealm().Address(), rootID)
 
 	tree := getTree(rootID)
 	if tree == nil {
 		return 0
 	}
-
 	return tree.Size()
 }
 
 // Vote submits a vote for a DAO proposal.
 func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
+	crossing()
+
 	dao := mustGetDAO(daoID)
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 
 	err := dao.Vote(caller, proposalID, vote, reason)
@@ -167,8 +170,10 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 
 // Execute executes a DAO proposal.
 func Execute(daoID, proposalID uint64) {
+	crossing()
+
 	dao := mustGetDAO(daoID)
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 
 	err := dao.Execute(proposalID)
@@ -202,8 +207,8 @@ func assertIsInvited(addr std.Address) {
 	}
 }
 
-func assertCallerIsRealm() {
-	if std.PreviousRealm().PkgPath() == "" {
+func assertCallerIsRealm() { // Assert for non crossing functions
+	if std.CurrentRealm().PkgPath() == "" {
 		panic("caller is not a realm")
 	}
 }
@@ -212,10 +217,6 @@ func assertIsOwner(addr std.Address, daoID uint64) {
 	if !checkIsOwner(addr, daoID) {
 		panic("unauthorized")
 	}
-}
-
-func assertCallerIsOwner(daoID uint64) {
-	assertIsOwner(std.PreviousRealm().Address(), daoID)
 }
 
 func assertNameIsNotEmpty(name string) {
