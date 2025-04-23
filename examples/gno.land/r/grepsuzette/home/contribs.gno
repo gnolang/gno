@@ -7,7 +7,7 @@ My main contributions until the gno.land beta launch are listed below; most aren
 
 ### Port Joeson from coffeescript to golang
 
-Worked on this from june 2022 until january 2023. Bounty [applied for](https://github.com/gnolang/bounties-old/issues/33) on Feb 2, 2023. 
+Worked on this from june 2022 until january 2023. Bounty [applied for](https://github.com/gnolang/bounties-old/issues/33) on Feb 2, 2023.
 
 Here is the port I did in Go: [grepsuzette/joeson](https://github.com/grepsuzette/joeson/).
 
@@ -18,7 +18,7 @@ Here is the port I did in Go: [grepsuzette/joeson](https://github.com/grepsuzett
     1000 ATOMs from @jaekwon
     More GNOTs than from #3.
 
-There have been many examples posted, including a minimal [LISP REPL](https://github.com/grepsuzette/joeson/tree/master/examples/lisp-repl) and a theorical [study on precedence](https://github.com/grepsuzette/joeson/blob/master/examples/precedence/precedence_test.go) (precedence is often problematic with PEG parsers, this allowed to find a solution, used in the next part). 
+There have been many examples posted, including a minimal [LISP REPL](https://github.com/grepsuzette/joeson/tree/master/examples/lisp-repl) and a theorical [study on precedence](https://github.com/grepsuzette/joeson/blob/master/examples/precedence/precedence_test.go) (precedence is often problematic with PEG parsers, this allowed to find a solution, used in the next part).
 
 ### GNO grammar - partial
 
@@ -32,7 +32,7 @@ In summer 2023, started to port the GNO grammar using Joeson (since there was no
 
 ![asteroid](https://raw.githubusercontent.com/grepsuzette/gfx/master/asteroid160.png)
 
-**gnAsteroid** is an asteroid creation-kit, it was started around the time the joeson port was published, but didn't have a name back then. 
+**gnAsteroid** is an asteroid creation-kit, it was started around the time the joeson port was published, but didn't have a name back then.
 
 Asteroids orbit gno.land, it's the same blockchain, but different frontend,
 themable, working with wiki-like markdown files (enabling realms from gno.land
@@ -63,7 +63,7 @@ Check the [other experiments here](/conjects/gnoweb.md).
 
 ### Tendermint vuln retrospective (2023)
 
-Also worked on an anthology of publicly knowned vulnerabilities that affected Tendermint. 
+Also worked on an anthology of publicly knowned vulnerabilities that affected Tendermint.
 
 * [Cosmos-sdk vulnerability retrospective](https://github.com/gnolang/gno/issues/587)
 * found most vulns were not affecting our Tendermint version, however:

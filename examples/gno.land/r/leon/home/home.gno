@@ -38,10 +38,10 @@ func init() {
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
 	abtMe = [2]string{
 		`### About me
-Hi, I'm Leon, a DevRel Engineer at gno.land. I am a tech enthusiast, 
+Hi, I'm Leon, a DevRel Engineer at gno.land. I am a tech enthusiast,
 life-long learner, and sharer of knowledge.`,
 		`### Contributions
-My contributions to gno.land can mainly be found 
+My contributions to gno.land can mainly be found
 [here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
 
 TODO import r/gh`,

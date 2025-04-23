@@ -3,7 +3,7 @@ package source
 // Welcome to the source code of this realm!
 
 func Render(_ string) string {
-	return `# Viewing source code  
+	return `# Viewing source code
 gno.land makes it easy to view the source code of any pure
 package or realm, by using ABCI queries.
 

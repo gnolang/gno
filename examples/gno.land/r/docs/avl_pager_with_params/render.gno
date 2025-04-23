@@ -50,8 +50,8 @@ func renderHome(fullPath string) string {
 
 	// Start building the output (plain text or markdown).
 	out := "# AVL Pager + Render paths\n\n"
-	out += `This realm showcases how to maintain a paginated list while properly parsing render paths. 
-You can see how a single page can include a paginated element (like the example below), and how clicking 
+	out += `This realm showcases how to maintain a paginated list while properly parsing render paths.
+You can see how a single page can include a paginated element (like the example below), and how clicking
 an item can take you to a dedicated page for that specific item.
 
 No matter how you browse through the paginated list, the introductory text (this section) remains the same.

@@ -3,7 +3,7 @@ package demo
 func Render(_ string) string {
 	return `# Gno Demo Packages
 
-Welcome to the "demo" namespace. Here you will find realms that demonstrate 
+Welcome to the "demo" namespace. Here you will find realms that demonstrate
 how the Gno language can be used. Check out some examples below:
 
 - [Art](/r/demo/art)

@@ -21,21 +21,21 @@ const art = `
                     ________[_]________      /\/    \/  \
            /\      /\        ______    \    /   /\/\  /\/\
           /  \    //_\       \    /\    \  /\/\/    \/    \
-   /\    / /\/\  //___\       \__/  \    \/      +     '   
+   /\    / /\/\  //___\       \__/  \    \/      +     '
   /  \  /\/    \//_____\       \ |[]|     \    .    t     .
- /\/\/\/       //_______\       \|__|      \     p    e    
-/      \      /XXXXXXXXXX\                  \      o    l  
+ /\/\/\/       //_______\       \|__|      \     p    e
+/      \      /XXXXXXXXXX\                  \      o    l
         \    /_I_II  I__I_\__________________\  +    r    e
-               I_I|  I__I_____[]_|_[]_____I      .     t   
+               I_I|  I__I_____[]_|_[]_____I      .     t
                I_II  I__I_____[]_|_[]_____I          +    '
-               I II__I  I     XXXXXXX     I    
+               I II__I  I     XXXXXXX     I
             ~~~~~"   "~~~~~~~~~~~~~~~~~~~~~~~~   :*:*:*:*:*
 `
 
 func r1() string {
 	return "# greps' (gn)home" +
 		`
-You've reached the terrestrial realms of Grepsuzette on gno.land. 
+You've reached the terrestrial realms of Grepsuzette on gno.land.
 
 ` + tripleBackquote + art + tripleBackquote + `
 

@@ -61,7 +61,7 @@ Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
 
 </details>
 </main>
-	
+
 		`
 		assertMDEquals(t, got, expected)
 	}

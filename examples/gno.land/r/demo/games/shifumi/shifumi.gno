@@ -89,7 +89,7 @@ Actions:
 * [NewGame](shifumi$help&func=NewGame) opponentAddress
 * [Play](shifumi$help&func=Play) gameIndex move (1=rock, 2=paper, 3=scissors)
 
- game  | player1 |     | player2 |       | win 
+ game  | player1 |     | player2 |       | win
  --- | --- | --- | --- | --- | ---
 `
 	// Output the 100 most recent games.

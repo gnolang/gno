@@ -210,7 +210,7 @@ func StringifyProposal(p *dao.Proposal) string {
 		out += ufmt.Sprintf(`
 This proposal contains the following metadata:
 
-%s	
+%s
 `, p.ExecutorString())
 	}
 

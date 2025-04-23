@@ -50,7 +50,7 @@ func TestPackage(t *testing.T) {
 	d.Log("foobar")
 	got = d.Render("?debug=1")
 	expected = `<details><summary>debug</summary>
-		
+
 ### Logs
 - hello world!
 - foobar
@@ -63,7 +63,7 @@ func TestPackage(t *testing.T) {
 | ±std.PreviousRealm().Address()± | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
 | ±std.ChainHeight()± | 123 |
 | ±time.Now().Format(time.RFC3339)± | 2009-02-13T23:31:30Z |
-		
+
 </details>
 `
 	expected = strings.ReplaceAll(expected, "±", "`")

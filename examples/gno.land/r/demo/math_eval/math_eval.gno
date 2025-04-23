@@ -12,7 +12,7 @@ func Render(p string) string {
 	if len(p) == 0 {
 		return `
 evaluates 32-bit integer expressions. for example:
-		
+
 [(4+12)/2-1+11*15](/r/demo/math_eval:(4+12)/2-1+11*15)
 
 `

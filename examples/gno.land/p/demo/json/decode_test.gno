@@ -325,7 +325,7 @@ func TestUnmarshal(t *testing.T) {
 					"width": 500,
 					"height": 500
 				},
-				"image": { 
+				"image": {
 					"src": "Images/Sun.png",
 					"name": "sun1",
 					"hOffset": 250,
@@ -347,7 +347,7 @@ func TestUnmarshal(t *testing.T) {
 		{
 			name: "web-app",
 			value: `{"web-app": {
-				"servlet": [   
+				"servlet": [
 				  {
 					"servlet-name": "cofaxCDS",
 					"servlet-class": "org.cofax.cds.CDSServlet",
@@ -403,7 +403,7 @@ func TestUnmarshal(t *testing.T) {
 				  {
 					"servlet-name": "cofaxAdmin",
 					"servlet-class": "org.cofax.cds.AdminServlet"},
-			   
+
 				  {
 					"servlet-name": "fileServlet",
 					"servlet-class": "org.cofax.cds.FileServlet"},
@@ -430,7 +430,7 @@ func TestUnmarshal(t *testing.T) {
 				  "cofaxAdmin": "/admin/*",
 				  "fileServlet": "/static/*",
 				  "cofaxTools": "/tools/*"},
-			   
+
 				"taglib": {
 				  "taglib-uri": "cofax.tld",
 				  "taglib-location": "/WEB-INF/tlds/cofax.tld"}}}`,
@@ -478,7 +478,7 @@ func TestUnmarshal(t *testing.T) {
 
 func TestUnmarshalSafe(t *testing.T) {
 	json := []byte(`{ "store": {
-		"book": [ 
+		"book": [
 		  { "category": "reference",
 			"author": "Nigel Rees",
 			"title": "Sayings of the Century",
