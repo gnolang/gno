@@ -1,5 +1,3 @@
-# XXX: NEED DOUBLE CHECK, CURRENTLY FIXED NAIVELY
-
 # This tests ensure the consistency of the std.PreviousRealm function, in the
 # following situations:
 #
@@ -71,29 +69,30 @@ stdout ${test1_user_addr}
 
 ## 9. MsgRun -> r/foo.A -> myrlm.A: r/foo
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooA.gno
-stdout ${RFOO_USER_ADDR}
+stdout ${test1_user_addr}
 
 ## 10. MsgRun -> r/foo.B -> myrlm.B -> r/foo.A: r/foo
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooB.gno
-stdout ${RFOO_USER_ADDR}
+stdout ${test1_user_addr}
 
 ## 11. MsgRun -> p/demo/bar.A -> myrlm.A: user address
-## XXX: crossing call only allowed in realm packages, doesn't work
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
-# stdout ${RFOO_USER_ADDR}
+## crossing call only allowed in realm packages, doesn't work
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
+stderr 'crossing'
 
 ## 12. MsgRun -> p/demo/bar.B -> myrlm.B -> r/foo.A: user address
-## XXX: crossing call only allowed in realm packages, doesn't work
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
-# stdout ${RFOO_USER_ADDR}
+## crossing call only allowed in realm packages, doesn't work
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
+stderr 'crossing'
 
 ## 13. MsgCall -> std.PreviousRealm(): user address
-## gnokey maketx call -pkgpath std -func PreviousRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
-## stdout ${test1_user_addr}
+gnokey maketx call -pkgpath std -func PreviousRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
+stderr 'crossing'
 
 ## 14. MsgRun -> std.PreviousRealm(): user address
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
-stdout ${test1_user_addr}
+## PreviousRealm() not possible in run + main: frame not found
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
+stderr 'crossing' 
 
 -- r/myrlm/myrlm.gno --
 package myrlm

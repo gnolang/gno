@@ -12,3 +12,6 @@ func main() {
 
 // Error:
 // main/files/types/shift_d54.gno:8:7: invalid operation: mismatched types int32 and int
+
+// TypeCheckError:
+// main/files/types/shift_d54.gno:8:7: invalid operation: b + a << 2 (mismatched types int32 and int)

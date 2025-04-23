@@ -36,6 +36,8 @@ func main() {
 // hello D cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
 
+
+
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:29]={
@@ -105,7 +107,6 @@ func main() {
 //     },
 //     "Type": {
 //         "@type": "/gno.FuncType",
-//         "IsClosure": false,
 //         "Params": [],
 //         "Results": [
 //             {
@@ -288,7 +289,6 @@ func main() {
 //     },
 //     "Type": {
 //         "@type": "/gno.FuncType",
-//         "IsClosure": false,
 //         "Params": [],
 //         "Results": [
 //             {
