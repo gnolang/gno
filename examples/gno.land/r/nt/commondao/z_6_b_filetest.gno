@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	commondao.Execute(404, 1)
+	cross(commondao.Execute)(404, 1)
 }
 
 // Error:

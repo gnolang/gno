@@ -7,21 +7,11 @@ import (
 	"gno.land/r/nt/commondao"
 )
 
-const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-)
-
-func init() {
-	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
-
-	// The origin must be the invited user
-	testing.SetOriginCaller(user)
-}
+const caller = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(caller))
+
 	commondao.GetSubDAO(1, "foo/bar")
 }
 

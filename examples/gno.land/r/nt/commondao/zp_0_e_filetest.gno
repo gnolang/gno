@@ -15,22 +15,27 @@ const (
 var daoID uint64
 
 func init() {
-	testing.SetOriginCaller(owner)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
-	commondao.Invite(user)
+	// Invite a user to be able to start creating DAOs
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 
+	// The origin must be the invited user where invitation
+	// is removed after the first user call to create a DAO
 	testing.SetOriginCaller(user)
+
+	// Create root DAO with a subDAO
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
 	subDAO := commondao.NewSubDAO("Bar", "bar", dao)
 	subDAO.Members().Add(user)
 
 	daoID = dao.ID()
-
-	testing.SetRealm(std.NewUserRealm(user))
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "bar", "not-an-address", "")
+	testing.SetRealm(std.NewUserRealm(user))
+
+	cross(commondao.CreateMembersUpdateProposal)(daoID, "bar", "not-an-address", "")
 }
 
 // Error:

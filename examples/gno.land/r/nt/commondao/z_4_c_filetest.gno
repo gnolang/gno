@@ -18,7 +18,7 @@ var daoID uint64
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
+	cross(commondao.Invite)(user)
 
 	// Create a DAO
 	testing.SetOriginCaller(user)

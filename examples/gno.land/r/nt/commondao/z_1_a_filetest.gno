@@ -17,7 +17,7 @@ func init() {
 }
 
 func main() {
-	commondao.Invite(user)
+	cross(commondao.Invite)(user)
 
 	println(commondao.IsInvited(user))
 }
