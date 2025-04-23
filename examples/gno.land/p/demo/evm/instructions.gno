@@ -58,3 +58,10 @@ func (i *instructions) Read(n int) (*uint256.Uint, error) {
 	i.Increment(n)
 	return x, nil
 }
+
+func (i instructions) At(n int) byte {
+	if i.Ill() || n >= i.length || n < 0 {
+		return 0
+	}
+	return i.instructions[n]
+}

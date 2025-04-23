@@ -372,3 +372,7 @@ func (u *Uint) Clear() *Uint {
 func (x Uint) Equals(y *Uint) bool {
 	return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3]
 }
+
+func (x Uint) To64() uint64 {
+	return x[0]
+}
