@@ -25,7 +25,7 @@ func main() {
 // TEST_BODY
 
 // Realm:
-// switchrealm["gno.land/r/example"]
+// finalizerealm["gno.land/r/example"]
 // c[1ffd45e074aa1b8df562907c95ad97526b7ca187:14]={
 //     "Fields": [
 //         {
