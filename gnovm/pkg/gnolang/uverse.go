@@ -789,6 +789,7 @@ func makeUverseNode() {
 					panic("crossing could not find corresponding cross(fn)(...) call")
 				}
 			}
+			//nolint:govet // detected as unreachable
 			panic("should not happen") // defensive
 		},
 	)

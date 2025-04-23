@@ -37,8 +37,10 @@
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/gno-stdlibs",
-          "resources/glossary",
           "resources/gno-testing",
+          "resources/gno-interrealm",
+          "resources/gno-memory-model",
+          "resources/glossary",
           "resources/go-gno-compatibility",
           {
             "type": "link",

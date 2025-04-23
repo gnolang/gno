@@ -42,8 +42,10 @@ Learn about core concepts found in gno.land & Gno.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
-- [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the gno.land ecosystem, from technical concepts to tools and components.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
+- [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
+- [Gno Memory Model](resources/gno-memory-model.md) - A peak under the hood of the Gno Virtual Machine.
+- [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the gno.land ecosystem, from technical concepts to tools and components.
 - [Go - Gno compatibility](resources/go-gno-compatibility.md) - A detailed compatibility list between Go and Gno features, including supported keywords, types, and standard libraries.
 - [Gno Examples](https://github.com/gnolang/gno/tree/master/examples) - A large library of existing pure packages and realms to use and learn from.
 - [Gno Workshops](https://github.com/gnolang/workshops) - Previous workshops and presentations by the gno.land team and the community.

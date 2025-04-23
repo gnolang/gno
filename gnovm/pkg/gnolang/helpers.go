@@ -20,8 +20,10 @@ var (
 
 // ReGnoRunPath is the path used for realms executed in maketx run.
 // These are not considered realms, as an exception to the ReRealmPathPrefix rule.
-var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/(?P<addr>g1[a-z0-9]+)/run$`)
-var ReGnoRunPathAddrIndex = ReGnoRunPath.SubexpIndex("addr")
+var (
+	ReGnoRunPath          = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/(?P<addr>g1[a-z0-9]+)/run$`)
+	ReGnoRunPathAddrIndex = ReGnoRunPath.SubexpIndex("addr")
+)
 
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state. These include temporary run realms.

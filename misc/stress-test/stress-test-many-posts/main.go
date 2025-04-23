@@ -102,7 +102,8 @@ func setup(client _goconnect.GnoNativeServiceClient, test1Address []byte) error 
 				PackagePath: "gno.land/r/demo/boards",
 				Fnc:         "CreateBoard",
 				Args:        []string{"testboard"},
-			}}}),
+			}},
+		}),
 	)
 	if err != nil {
 		return err
@@ -120,7 +121,8 @@ func setup(client _goconnect.GnoNativeServiceClient, test1Address []byte) error 
 				PackagePath: "gno.land/r/demo/boards",
 				Fnc:         "CreateThread",
 				Args:        []string{"1", "Test thread", "Test post"},
-			}}}),
+			}},
+		}),
 	)
 	if err != nil {
 		return err
@@ -166,7 +168,8 @@ func main() {
 				CallerAddress: test1Address,
 				Msgs: []*api_gen.MsgRun{{
 					Package: code,
-				}}}),
+				}},
+			}),
 		)
 		if err != nil {
 			return err

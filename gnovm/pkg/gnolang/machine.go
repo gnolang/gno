@@ -2021,13 +2021,6 @@ func (m *Machine) peekCallFrame(n int) *Frame {
 // Returns the last defer call frame or nil.
 func (m *Machine) LastDeferCallFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
-		if fr.IsDefer {
-			return fr
-		}
-	}
-	return nil
 }
 
 // pops the last non-call (loop) frames
@@ -2109,7 +2102,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
 // and the lx isn't a name (base is a block),
-// and the lx isn't a composit lit expr.
+// and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:

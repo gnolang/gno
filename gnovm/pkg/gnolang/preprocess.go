@@ -231,7 +231,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						idx := pkg.GetNumNames()
 						dname := Name(fmt.Sprintf("._%d", idx))
 						n.Name = dname
-
 					}
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
@@ -2521,6 +2520,8 @@ func parseMultipleAssignFromOneExpr(
 // We may still want this for optimizing heap defines;
 // the current implementation of findHeapDefinesByUse/findHeapUsesDemoteDefines
 // produces false positives.
+//
+//nolint:unused
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)

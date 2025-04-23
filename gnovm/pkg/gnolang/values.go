@@ -926,7 +926,7 @@ func (tv *TypedValue) SetReadonly(ro bool) {
 		tv.N = N_Readonly
 		return
 	} else {
-		return // perserve prior tv.N
+		return // preserve prior tv.N
 	}
 }
 
@@ -2474,8 +2474,8 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"`
 }
 
-func (ref RefValue) GetObjectID() ObjectID {
-	return ref.ObjectID
+func (rv RefValue) GetObjectID() ObjectID {
+	return rv.ObjectID
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
