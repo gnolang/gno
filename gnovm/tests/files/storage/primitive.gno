@@ -83,9 +83,8 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3",
 //     -        "ModTime": "0",
-//     -        "ObjectSize": "0",
 //     +        "ModTime": "8",
-//     +        "ObjectSize": "217",
+//              "ObjectSize": "217",
 //              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
 //              "RefCount": "1"
 //          },
@@ -95,17 +94,15 @@ func main() {
 //                  "@type": "/gno.PrimitiveType",
 //                  "value": "64"
 // u[aea84df38908f9569d0f552575606e6e6e7e22dd:4](137)=
-//     @@ -1,8 +1,8 @@
+//     @@ -1,7 +1,7 @@
 //      {
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:4",
 //     -        "ModTime": "0",
-//     -        "ObjectSize": "0",
 //     +        "ModTime": "8",
-//     +        "ObjectSize": "237",
+//              "ObjectSize": "237",
 //              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
 //              "RefCount": "1"
-//          },
 //     @@ -14,6 +14,17 @@
 //                      "value": "64"
 //                  },
@@ -125,17 +122,15 @@ func main() {
 //          }
 //      }
 // u[aea84df38908f9569d0f552575606e6e6e7e22dd:5](30)=
-//     @@ -1,8 +1,8 @@
+//     @@ -1,7 +1,7 @@
 //      {
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:5",
 //     -        "ModTime": "0",
-//     -        "ObjectSize": "0",
 //     +        "ModTime": "8",
-//     +        "ObjectSize": "216",
+//              "ObjectSize": "216",
 //              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
 //              "RefCount": "1"
-//          },
 //     @@ -10,6 +10,10 @@
 //              "T": {
 //                  "@type": "/gno.PrimitiveType",
@@ -148,17 +143,15 @@ func main() {
 //          }
 //      }
 // u[aea84df38908f9569d0f552575606e6e6e7e22dd:6](138)=
-//     @@ -1,8 +1,8 @@
+//     @@ -1,7 +1,7 @@
 //      {
 //          "ObjectInfo": {
 //              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:6",
 //     -        "ModTime": "0",
-//     -        "ObjectSize": "0",
 //     +        "ModTime": "8",
-//     +        "ObjectSize": "236",
+//              "ObjectSize": "236",
 //              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
 //              "RefCount": "1"
-//          },
 //     @@ -14,6 +14,17 @@
 //                      "value": "16"
 //                  },

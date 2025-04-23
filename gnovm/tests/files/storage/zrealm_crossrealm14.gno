@@ -21,4 +21,4 @@ func main() {
 // gno.land/r/crossrealm_test: 0
 
 // Realm:
-// switchrealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/crossrealm_test"]

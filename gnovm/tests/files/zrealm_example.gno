@@ -200,7 +200,7 @@ func main() {
 //     }
 // }
 // u[1ffd45e074aa1b8df562907c95ad97526b7ca187:9](135)=
-//     @@ -7,13 +7,23 @@
+//     @@ -7,12 +7,22 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/p/demo/avl.Node"
 //                      }
@@ -220,12 +220,10 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9",
 //     -        "ModTime": "0",
-//     -        "ObjectSize": "0",
 //     +        "ModTime": "9",
-//     +        "ObjectSize": "254",
+//              "ObjectSize": "254",
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
 //              "RefCount": "1"
-//          }
 // u[1ffd45e074aa1b8df562907c95ad97526b7ca187:8](5)=
 //     @@ -17,11 +17,12 @@
 //                  },
@@ -241,14 +239,12 @@ func main() {
 //                  "T": {
 //                      "@type": "/gno.PrimitiveType",
 //                      "value": "32"
-//     @@ -30,8 +31,8 @@
+//     @@ -30,7 +31,7 @@
 //          ],
 //          "ObjectInfo": {
 //              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
 //     -        "ModTime": "0",
-//     -        "ObjectSize": "0",
 //     +        "ModTime": "9",
-//     +        "ObjectSize": "448",
+//              "ObjectSize": "448",
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",
 //              "RefCount": "1"
-//          }

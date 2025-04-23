@@ -20,10 +20,10 @@ func main() {
 // (struct{("h2" string)} gno.land/r/storage_test.foo)
 
 // Storage:
-// gno.land/r/storage_test: -5
+// gno.land/r/storage_test: -2
 
 // Realm:
-// switchrealm["gno.land/r/storage_test"]
+// finalizerealm["gno.land/r/storage_test"]
 // c[334570344df8e77213d2886cb407c37de6da36c1:8](240)={
 //     "Fields": [
 //         {
@@ -40,12 +40,13 @@ func main() {
 //     "ObjectInfo": {
 //         "ID": "334570344df8e77213d2886cb407c37de6da36c1:8",
 //         "ModTime": "0",
+//         "ObjectSize": "240",
 //         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[334570344df8e77213d2886cb407c37de6da36c1:3](0)=
-//     @@ -12,8 +12,8 @@
+// u[334570344df8e77213d2886cb407c37de6da36c1:3](3)=
+//     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
