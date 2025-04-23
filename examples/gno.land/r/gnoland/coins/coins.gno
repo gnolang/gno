@@ -64,7 +64,7 @@ func renderHomepage() string {
 
 ## Usage
 
-- /r/gnoland/coins:<denom> - shows the total supply of denom
+- /r/gnoland/coins:<denom> - shows the total supply of denom (coming soon)
 - /r/gnoland/coins:<denom>/<address> - shows the denom balance of a specific address
 
 Examples:
