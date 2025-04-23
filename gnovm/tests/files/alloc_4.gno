@@ -22,5 +22,5 @@ func main() {
 }
 
 // Output:
-// memstats in main after first GC:  Allocator{maxBytes:50000, bytes:14245}
-// memstats in main after second GC:  Allocator{maxBytes:50000, bytes:7165}
+// memstats in main after first GC:  Allocator{maxBytes:50000, bytes:13717}
+// memstats in main after second GC:  Allocator{maxBytes:50000, bytes:6813}

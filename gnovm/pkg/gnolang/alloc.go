@@ -73,9 +73,6 @@ const (
 	allocHeapItem       = _allocBase + _allocPointer + _allocTypedValue
 	allocTypedValue     = _allocTypedValue
 	allocPrimitiveValue = 8
-	allocStackTraceCall = 56
-	allocFrame          = 176
-	allocException      = 80
 )
 
 func NewAllocator(maxBytes int64) *Allocator {

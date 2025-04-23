@@ -42,6 +42,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}
 	}()
 
+	defer func() {
+		m.Store.SweepObjectCache(m.GCCycle)
+	}()
+
 	// We don't need the old value anymore.
 	m.Alloc.Reset()
 
@@ -357,8 +361,6 @@ func (tv TypeValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 // custom visit methods
 
 func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
-	alloc.Allocate(allocFrame) // alloc frame shallowly
-
 	// vis receiver
 	if fr.Receiver.IsDefined() {
 		alloc.Allocate(allocTypedValue) // alloc shallowly
@@ -424,7 +426,6 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 }
 
 func (ex *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
-	alloc.Allocate(allocException) // alloc exception shallowly
 	// vis value
 	alloc.Allocate(allocTypedValue)
 	if ex != nil {
@@ -436,11 +437,6 @@ func (ex *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 		if stop {
 			return
 		}
-	}
-
-	// vis StacktraceCall
-	for range ex.Stacktrace.Calls {
-		alloc.Allocate(allocStackTraceCall)
 	}
 
 	return
