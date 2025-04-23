@@ -25,7 +25,6 @@ const (
 	// gno types
 	_allocSlice            = 24
 	_allocPointerValue     = 40
-	_allocStringValue      = 16
 	_allocStructValue      = 160
 	_allocArrayValue       = 184
 	_allocSliceValue       = 40
@@ -45,7 +44,7 @@ const (
 )
 
 const (
-	allocString      = _allocBase + _allocPointer + _allocStringValue
+	allocString      = _allocBase
 	allocStringByte  = 1
 	allocBigint      = _allocBase + _allocPointer + _allocBigint
 	allocBigintByte  = 1
