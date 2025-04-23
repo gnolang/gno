@@ -47,7 +47,7 @@ func opSub(s *state) error {
 		return errors.New("can't SUB: stack of size 1")
 	}
 
-	s.stack.Push(b.Sub256(*a))
+	s.stack.Push(a.Sub256(*b))
 	s.code.Increment()
 	return nil
 }

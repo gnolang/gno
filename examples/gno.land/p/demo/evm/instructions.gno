@@ -1,6 +1,8 @@
 package evm
 
 import (
+	"errors"
+
 	"gno.land/p/demo/evm/uint256"
 )
 
@@ -9,6 +11,10 @@ type instructions struct {
 	instructions []byte
 	length       int
 }
+
+var (
+	negativeProgramCounter = errors.New("negative program counter")
+)
 
 func (i *instructions) Reset(l []byte) {
 	i.rip = 0
@@ -41,12 +47,14 @@ func (i instructions) Ill() bool {
 }
 
 // read n bytes and jump to rip + n
-// TODO: make it uint256
-func (i *instructions) Read(n int) *uint256.Uint {
+func (i *instructions) Read(n int) (*uint256.Uint, error) {
 	if i.rip < 0 {
-		return uint256.New()
+		return uint256.New(), negativeProgramCounter
 	}
-	x := uint256.NewFromBytes(i.instructions[i.rip:i.rip+n])
+	if i.rip+n > i.length {
+		return uint256.New(), outOfBounds
+	}
+	x := uint256.NewFromBytes(i.instructions[i.rip : i.rip+n])
 	i.Increment(n)
-	return x
+	return x, nil
 }

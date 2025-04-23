@@ -23,9 +23,13 @@ func opPush(n int) func(*state) error {
 	return func(s *state) error {
 		s.code.Increment()
 		if s.code.Ill() {
-			return outOfBounds
+			return errors.New("can't PUSH" + strconv.Itoa(n) + ": " + outOfBounds.Error())
 		}
-		s.stack.Push(s.code.Read(n))
+		stackData, err := s.code.Read(n)
+		if err != nil {
+			return errors.New("can't PUSH" + strconv.Itoa(n) + ": " + err.Error())
+		}
+		s.stack.Push(stackData)
 		return nil
 	}
 }
