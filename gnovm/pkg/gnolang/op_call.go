@@ -48,6 +48,7 @@ func (m *Machine) doOpPrecall() {
 
 var gReturnStmt = &ReturnStmt{}
 
+//nolint:unused
 func getFuncTypeExprFromSource(source Node) *FuncTypeExpr {
 	if fd, ok := source.(*FuncDecl); ok {
 		return fd.GetUnboundTypeExpr()
@@ -432,6 +433,8 @@ func (m *Machine) doOpDefer() {
 }
 
 // XXX DEPRECATED
+//
+//nolint:govet // unreachable code
 func (m *Machine) doOpPanic1() {
 	panic("doOpPanic1 is deprecated")
 	// Pop exception

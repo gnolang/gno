@@ -378,7 +378,7 @@ func (d Directives) FirstDefault(name, defaultValue string) string {
 func (d Directives) FileTest() string {
 	var bld strings.Builder
 	for i, dir := range d {
-		var ll = ""
+		ll := ""
 		if i < len(d)-1 {
 			ll = "\n"
 		}
@@ -454,7 +454,6 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 		if strings.HasPrefix(txt, "//") &&
 			strings.HasPrefix(last.LastLine, "//") &&
 			!last.Complete {
-
 			if last.Name == "" {
 				// Just append text to it.
 				last.Content += txt + "\n"

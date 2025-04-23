@@ -9,8 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const pkgPath = "emit_test"
-const fileName = "emit_test.gno"
+const (
+	pkgPath  = "emit_test"
+	fileName = "emit_test.gno"
+)
 
 var line = 1
 

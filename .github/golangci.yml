@@ -89,3 +89,7 @@ issues:
     - path: _\.gno
       linters:
         - errorlint # Disabled linting of error comparisons, because of lacking std lib support
+    - path: gnovm/pkg/gnolang
+      text: "string `cross` has (\\d+) occurrences, make it a constant"
+    - path: gnovm/pkg/gnolang
+      text: "string `crossing` has (\\d+) occurrences, make it a constant"
