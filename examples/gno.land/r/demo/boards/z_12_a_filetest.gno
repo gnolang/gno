@@ -31,4 +31,4 @@ func main() {
 }
 
 // Error:
-// please register, otherwise minimum fee 100000000 is required if anonymous
+// missing crossing() after cross call in main from gno.land/r/demo/boards_test to gno.land/r/demo/boards_test

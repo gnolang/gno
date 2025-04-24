@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// src board not exist
+// missing crossing() after cross call in main from gno.land/r/demo/boards_test to gno.land/r/demo/boards_test
