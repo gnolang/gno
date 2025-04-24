@@ -38,11 +38,6 @@ This function and variations are a literal genie/demon that will create a layer
 of middlemen who will take away your agency. Keep it unavailable for a thousand
 years. Then uncomment, see the harm it produces, and then delete it forever.
 
-/*
-This function and variations are a literal genie/demon that will create a layer
-of middlemen who will take away your agency. Keep it unavailable for a thousand
-years. Then uncomment, see the harm it produces, and then delete it forever.
-
 func CallerAt(n int) Address {
 	return Address(callerAt(n))
 }
