@@ -1870,7 +1870,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		} else {
 			recvOID := obj.GetObjectInfo().ID
 			if recvOID.IsZero() ||
-					(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
+				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
 				// no switch
 				return
 			} else {

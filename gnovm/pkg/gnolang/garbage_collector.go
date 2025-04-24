@@ -86,17 +86,19 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// Visit exceptions
 	if m.Exception != nil {
 		e := m.Exception
+		// Visit m.Exception and its previous Exceptions
 		for e != nil {
-			stop = m.Exception.Visit(m.Alloc, vis)
+			stop = e.Visit(m.Alloc, vis)
 			if stop {
 				return -1, false
 			}
 			e = e.Previous
 		}
 
+		// Visit next Exceptions
 		e = m.Exception.Next
 		for e != nil {
-			stop = m.Exception.Visit(m.Alloc, vis)
+			stop = e.Visit(m.Alloc, vis)
 			if stop {
 				return -1, false
 			}
@@ -158,14 +160,14 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 }
 
 // ---------------------------------------------------------------
-// visit associated
+// Visit associated
 
 func (sv *SliceValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	// Visit base.
 	if sv.Base != nil {
 		stop = vis(sv.Base)
 	}
-	return stop
+	return
 }
 
 func (av *ArrayValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
@@ -354,7 +356,7 @@ func (tv TypeValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 }
 
 // -------------------------------------------------------------------
-// custom visit methods
+// Custom visit methods
 
 func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis receiver
@@ -420,13 +422,8 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 func (ex *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis value
 	alloc.Allocate(allocTypedValue)
-	if ex != nil {
-		if v := ex.Value.V; v != nil {
-			stop = vis(v)
-		}
-		if stop {
-			return
-		}
+	if v := ex.Value.V; v != nil {
+		stop = vis(v)
 	}
 
 	return
