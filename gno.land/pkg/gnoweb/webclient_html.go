@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	gopath "path"
 	"strings"
 
@@ -187,26 +188,37 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
 func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
-	const qpath = "vm/qrender"
+	var content []byte
+	var err error
 
-	pkgPath := strings.Trim(u.Path, "/")
-	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
-
-	rawres, err := s.query(qpath, []byte(data))
-	if err != nil {
-		return nil, err
+	// Check if the path is a static markdown file
+	if strings.HasSuffix(u.Path, ".md") {
+		// Read the markdown file
+		content, err = os.ReadFile(u.Path)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read markdown file: %w", err)
+		}
+	} else {
+		// Query the realm
+		const qpath = "vm/qrender"
+		pkgPath := strings.Trim(u.Path, "/")
+		data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
+		content, err = s.query(qpath, []byte(data))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	ctxOpts := parser.WithContext(md.NewGnoParserContext(u))
 
 	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), ctxOpts)
-	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
-		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
+	doc := s.Markdown.Parser().Parse(text.NewReader(content), ctxOpts)
+	if err := s.Markdown.Renderer().Render(w, content, doc); err != nil {
+		return nil, fmt.Errorf("unable to render realm %q: %w", u.Path, err)
 	}
 
 	var meta RealmMeta
-	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
+	meta.Toc, err = md.TocInspect(doc, content, md.TocOptions{MaxDepth: 6, MinDepth: 2})
 	if err != nil {
 		s.logger.Warn("unable to inspect for TOC elements", "error", err)
 	}

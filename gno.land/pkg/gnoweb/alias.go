@@ -36,7 +36,7 @@ var Redirects = map[string]string{
 // AliasAndRedirectMiddleware redirects all incoming requests whose path matches
 // any of the [Redirects] to the corresponding URL; and rewrites the URL path
 // for incoming requests which match any of the [Aliases].
-func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler {
+func AliasAndRedirectMiddleware(next http.Handler, analytics bool, homeStatic string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if the request path matches a redirect
 		if newPath, ok := Redirects[r.URL.Path]; ok {
@@ -50,7 +50,11 @@ func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler 
 
 		// Check if the request path matches an alias
 		if newPath, ok := Aliases[r.URL.Path]; ok {
-			r.URL.Path = newPath
+			if IsHomePath(newPath) && homeStatic != "" {
+				r.URL.Path = homeStatic
+			} else {
+				r.URL.Path = newPath
+			}
 		}
 
 		// Call the next handler

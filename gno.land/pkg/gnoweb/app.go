@@ -33,6 +33,8 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+	// HomeStatic, if set, will be used as the home page instead of the default one.
+	HomeStatic string
 }
 
 // NewDefaultAppConfig returns a new default [AppConfig]. The default sets
@@ -46,6 +48,7 @@ func NewDefaultAppConfig() *AppConfig {
 		ChainID:    "dev",
 		AssetsPath: "/public/",
 		Domain:     "gno.land",
+		HomeStatic: "",
 	}
 }
 
@@ -89,7 +92,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// Handle web handler with alias middleware
-	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics))
+	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics, cfg.HomeStatic))
 
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {

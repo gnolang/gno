@@ -53,6 +53,7 @@ type webCfg struct {
 	html       bool
 	noStrict   bool
 	verbose    bool
+	homeStatic string
 }
 
 var defaultWebOptions = webCfg{
@@ -177,6 +178,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultWebOptions.timeout,
 		"set read/write/idle timeout for server connections",
 	)
+
+	fs.StringVar(
+		&c.homeStatic,
+		"home-static",
+		defaultWebOptions.homeStatic,
+		"path to a static markdown file to use as the home page",
+	)
 }
 
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
@@ -207,6 +215,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.AssetsDir = cfg.assetsDir
+	appcfg.HomeStatic = cfg.homeStatic
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)

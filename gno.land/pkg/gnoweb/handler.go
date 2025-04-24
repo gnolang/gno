@@ -175,8 +175,11 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL) (int, *components.Vie
 
 func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View) {
 	var content bytes.Buffer
+	var meta *RealmMeta
+	var err error
 
-	meta, err := h.Client.RenderRealm(&content, gnourl)
+	// Render the realm (which now handles both realms and static markdown files)
+	meta, err = h.Client.RenderRealm(&content, gnourl)
 	if err != nil {
 		if errors.Is(err, ErrRenderNotDeclared) {
 			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
@@ -310,6 +313,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 	})
 }
 
+// GetSourceDownload handles source file downloads.
 func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
 	pkgPath := gnourl.Path
 
