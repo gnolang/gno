@@ -16,7 +16,6 @@ type ExecContext struct {
 	Timestamp       int64 // seconds
 	TimestampNano   int64 // nanoseconds, only used for testing.
 	OriginCaller    crypto.Bech32Address
-	OriginPkgAddr   crypto.Bech32Address
 	OriginSend      std.Coins
 	OriginSendSpent *std.Coins // mutable
 	Banker          BankerInterface

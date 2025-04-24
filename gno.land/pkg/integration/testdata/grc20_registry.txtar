@@ -1,3 +1,5 @@
+# XXX: NEED REVIEW, not sure what to do with one ?
+
 # example for contract-contract interaction with ownership
 # add registry
 loadpkg gno.land/r/registry $WORK/registry
@@ -23,22 +25,35 @@ package registry
 import "std"
 
 type transferCb func(to std.Address, amount uint64) string
+
 type pair struct {
 	name string
 	cb   transferCb
 }
+
 var registry = []pair{}
-func Register(name string, cb transferCb) { registry = append(registry, pair{name: name, cb: cb}) }
+
+func Register(name string, cb transferCb) {
+	crossing()
+
+	registry = append(registry, pair{name: name, cb: cb})
+}
+
 func TransferByName(name string, to string, amount uint64) string {
+	crossing()
+
 	for _, pair := range registry {
 		if pair.name != name {
 			continue
 		}
+
 		if std.CurrentRealm().Address().String() != pair.cb(std.Address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
+
 		return "same address, success!"
 	}
+
 	return "not found"
 }
 
@@ -49,7 +64,7 @@ import "gno.land/r/registry"
 import "gno.land/r/foo20"
 
 func init() {
-	  registry.Register("foo20", foo20.Transfer)
+	  cross(registry.Register)("foo20", foo20.Transfer)
 }
 
 -- foo20/foo20.gno --

@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/sys/users"
 
 	"gno.land/r/stefann/registry"
@@ -50,7 +50,7 @@ var (
 
 func init() {
 	owner = ownable.NewWithAddress(registry.MainAddr())
-	hof.Register("Stefann's Home Realm", "")
+	hor.Register("Stefann's Home Realm", "")
 
 	profile = Profile{
 		aboutMe: []string{
@@ -92,34 +92,34 @@ func init() {
 }
 
 func UpdateCities(newCities []City) {
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 	travel.cities = newCities
 }
 
 func AddCities(newCities ...City) {
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	travel.cities = append(travel.cities, newCities...)
 }
 
 func UpdateJarLink(newLink string) {
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 	travel.jarLink = newLink
 }
 
 func UpdateAboutMe(aboutMeStr string) {
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 	profile.aboutMe = strings.Split(aboutMeStr, "|")
 }
 
 func AddAboutMeRows(newRows ...string) {
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	profile.aboutMe = append(profile.aboutMe, newRows...)
 }
 
 func UpdateMaxSponsors(newMax int) {
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 	if newMax <= 0 {
 		panic("maxSponsors must be greater than zero")
 	}

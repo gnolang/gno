@@ -11,6 +11,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println(Delta())
 }
 
