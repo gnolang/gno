@@ -11,7 +11,7 @@ import (
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
-	onGC     func() (left int64, ok bool) // gc callback
+	collect  func() (left int64, ok bool) // gc callback
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -78,7 +78,7 @@ func NewAllocator(maxBytes int64) *Allocator {
 }
 
 func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
-	alloc.onGC = f
+	alloc.collect = f
 }
 
 func (alloc *Allocator) MemStats() string {
@@ -119,7 +119,7 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		if left, ok := alloc.onGC(); !ok {
+		if left, ok := alloc.collect(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else { // retry
 			if debug {
