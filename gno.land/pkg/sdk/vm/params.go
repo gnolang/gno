@@ -112,19 +112,10 @@ func (vm *VMKeeper) getValsetRealmParam(ctx sdk.Context) string {
 	return valsetRealm
 }
 
-var reValsetUpdates = regexp.MustCompile(fmt.Sprintf("^%s_\\d+$", "valset_updates"))
-
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch {
-	// vm:<valset-realm-path>:valset_updates_<height>
-	case strings.HasPrefix(key, vm.getValsetRealmParam(ctx)+":"+"valset_updates"):
-		// This update is realm-specific, so we trim the realm part
-		parts := strings.Split(key, ":")
-
-		if !reValsetUpdates.Match([]byte(parts[1])) {
-			panic("invalid valset update key: " + key)
-		}
-
+	// vm:<valset-realm-path>:valset_new
+	case strings.HasPrefix(key, vm.getValsetRealmParam(ctx)+":"+"valset_new"):
 		// Validate the proposed valset changes
 		changes, ok := value.([]string)
 		if !ok {
