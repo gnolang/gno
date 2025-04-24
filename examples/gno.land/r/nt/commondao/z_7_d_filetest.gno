@@ -16,13 +16,14 @@ var parentID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 
 	// The origin must be the invited user
 	testing.SetOriginCaller(user)
 
 	// Create the root DAO
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	parentID = commondao.New("Parent DAO").ID()
 
 	// Change options to disallow subDAOs
@@ -31,6 +32,8 @@ func init() {
 }
 
 func main() {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+
 	commondao.NewSubDAO("Foo", parentID)
 }
 

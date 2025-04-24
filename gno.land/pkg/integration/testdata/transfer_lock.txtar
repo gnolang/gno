@@ -42,10 +42,12 @@ stdout 'Hello!'
 
 -- bank.gno --
 package bank
-import (
-"std"
-)
+
+import "std"
+
 func Withdraw(denom string, amt int64) string{
+	crossing()
+
   caller := std.OriginCaller()
   coin := std.Coins{{denom, amt}}
   banker := std.NewBanker(std.BankerTypeOriginSend)

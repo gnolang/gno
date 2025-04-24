@@ -15,11 +15,11 @@ const (
 var daoID uint64
 
 func init() {
-	testing.SetOriginCaller(owner)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
-	commondao.Invite(user)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 
 	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
 	subDAO := commondao.NewSubDAO("Bar", dao.ID())
 	subDAO.Members().Add(user)
@@ -28,12 +28,12 @@ func init() {
 
 	options := commondao.GetOptions(daoID)
 	options.SetAllowMembersUpdate(false) // Disallow udpating members
-
-	testing.SetRealm(std.NewUserRealm(user))
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "", "")
+	testing.SetRealm(std.NewUserRealm(user))
+
+	cross(commondao.CreateMembersUpdateProposal)(daoID, "", "")
 }
 
 // Error:

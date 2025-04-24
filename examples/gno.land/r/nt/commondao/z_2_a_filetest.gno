@@ -17,8 +17,8 @@ var realm std.Address
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
+	testing.SetRealm(std.NewUserRealm(owner))
+	cross(commondao.Invite)(user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
@@ -26,8 +26,9 @@ func init() {
 }
 
 func main() {
-	dao := commondao.New(name)
+	testing.SetRealm(std.NewUserRealm(user))
 
+	dao := commondao.New(name)
 	if dao == nil {
 		panic("expected DAO to be created")
 	}

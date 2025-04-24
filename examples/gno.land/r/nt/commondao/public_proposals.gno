@@ -14,6 +14,8 @@ import (
 // - newMembers: Comma separated list of addresses to add as members
 // - removeMembers: Comma separated list of member addresses to remove
 func CreateMembersUpdateProposal(daoID uint64, newMembers, removeMembers string) uint64 {
+	crossing()
+
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
 	if !o.AllowMembersUpdate {
