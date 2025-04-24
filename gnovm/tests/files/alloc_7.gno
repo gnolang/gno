@@ -3,7 +3,7 @@ package main
 
 import "runtime"
 
-var s = "hello world"
+var s = "hello world" // NOTE, this counts twice for now, should improve.
 
 func main() {
 	s += "!" // underlying array re-allocated
