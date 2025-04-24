@@ -152,7 +152,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		}
 
 		// Invoke the traverser on v.
-		stop := v.VisitAssociated(alloc, vis)
+		stop := v.VisitAssociated(vis)
 
 		return stop
 	}
@@ -162,7 +162,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 // ---------------------------------------------------------------
 // Visit associated
 
-func (sv *SliceValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (sv *SliceValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit base.
 	if sv.Base != nil {
 		stop = vis(sv.Base)
@@ -170,7 +170,7 @@ func (sv *SliceValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool)
 	return
 }
 
-func (av *ArrayValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
 		v := av.List[i].V
@@ -185,7 +185,7 @@ func (av *ArrayValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool)
 	return
 }
 
-func (fv *FuncValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 	// visit captures
 	for _, tv := range fv.Captures {
 		v := tv.V
@@ -203,7 +203,7 @@ func (fv *FuncValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) 
 	return
 }
 
-func (sv *StructValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
 		v := sv.Fields[i].V
@@ -218,7 +218,7 @@ func (sv *StructValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool
 	return
 }
 
-func (bmv *BoundMethodValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
 	// bmv.Func cannot be a closure, it must be a method.
 	// So we do not visit it (for garbage collection).
 
@@ -230,7 +230,7 @@ func (bmv *BoundMethodValue) VisitAssociated(alloc *Allocator, vis Visitor) (sto
 	return
 }
 
-func (mv *MapValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 	// visit mv.List.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		// vis key
@@ -256,7 +256,7 @@ func (mv *MapValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return
 }
 
-func (pv *PackageValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 	// visit pv.Block
 	v := pv.Block
 	if v != nil {
@@ -284,7 +284,7 @@ func (pv *PackageValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop boo
 	return
 }
 
-func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
@@ -313,7 +313,7 @@ func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	return
 }
 
-func (hiv *HeapItemValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
 	v := hiv.Value.V
 	if v != nil {
 		stop = vis(hiv.Value.V)
@@ -321,7 +321,7 @@ func (hiv *HeapItemValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop b
 	return
 }
 
-func (pv PointerValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	// NOTE: *TV and Key will be visited along with base.
 	v := pv.Base
 	if v != nil {
@@ -330,28 +330,28 @@ func (pv PointerValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool
 	return
 }
 
-func (sv StringValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
-func (bv BigintValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (bv BigintValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
-func (bv BigdecValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (bv BigdecValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
-func (dbv DataByteValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (dbv DataByteValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
-func (rv RefValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (rv RefValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
 // Do not count the TypeValue, neither shallowly nor deeply.
-func (tv TypeValue) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
+func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
