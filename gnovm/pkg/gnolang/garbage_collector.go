@@ -103,6 +103,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 			e = e.Next
 		}
 	}
+
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
 	return maxBytes - bytes, true
@@ -286,7 +287,6 @@ func (b *Block) VisitAssociated(alloc *Allocator, vis Visitor) (stop bool) {
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
 		if v == nil {
-			// alloc primitive value
 			continue
 		}
 
@@ -361,7 +361,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	if fr.Receiver.IsDefined() {
 		alloc.Allocate(allocTypedValue) // alloc shallowly
 
-		if v := fr.Receiver.V; v != nil { // primitive value
+		if v := fr.Receiver.V; v != nil {
 			stop = vis(v)
 			if stop {
 				return
