@@ -1185,13 +1185,13 @@ var nativeFuncs = [...]NativeFunc{
 		"testing",
 		"expectEmit",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-			{Name: gno.N("p1"), Type: gno.X("[]string")},
-			{Name: gno.N("p2"), Type: gno.X("int")},
-			{Name: gno.N("p3"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("bool")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
 		},
 		true,
 		func(m *gno.Machine) {

@@ -22,13 +22,14 @@ func X_expectEmit(m *gno.Machine, expectedType string, expectedAttrs []string, e
 	ctx := std.GetContext(m)
 	events := ctx.EventLogger.Events()
 
+	// Create and configure the verifier
 	verifier := std.ExepectEventType(expectedType).(*std.EventVerifierImpl)
 	verifier.WithEventIndex(eventIndex)
 	if partialMatch {
 		verifier.WithPartialMatch()
 	}
 
-	// process expected attributes in pairs (key-value)
+	// Process expected attributes in pairs (key-value)
 	for i := 0; i < len(expectedAttrs); i += 2 {
 		if i+1 >= len(expectedAttrs) {
 			return false
@@ -36,6 +37,7 @@ func X_expectEmit(m *gno.Machine, expectedType string, expectedAttrs []string, e
 		verifier.WithAttribute(expectedAttrs[i], expectedAttrs[i+1])
 	}
 
+	// Convert all events to `GnoEvent type for consistent verification
 	gnoEvents := make([]std.GnoEvent, len(events))
 	for i, event := range events {
 		if e, ok := event.(std.GnoEvent); ok {
