@@ -210,7 +210,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				last2 := skipFile(last)
 				nx := &n.NameExpr
 				nx.Type = NameExprTypeDefine
-				last2.Predefine(false, n.Name)
+				last2.Predefine(true, n.Name)
 			case *FuncDecl:
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
@@ -747,11 +747,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								store, last, cx).(Expr)
 							var ct Type
 							if cxx, ok := cx.(*ConstExpr); ok {
-								if !cxx.IsUndefined() {
-									panic("should not happen")
+								if cxx.IsUndefined() {
+									// TODO: shouldn't cxx.T be TypeType?
+									// Don't change cxx.GetType() for defensiveness.
+									ct = nil
+								} else {
+									ct = cxx.GetType()
 								}
-								// only in type switch cases, nil type allowed.
-								ct = nil
 							} else {
 								ct = evalStaticType(store, last, cx)
 							}
@@ -977,7 +979,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"should not happen: name %q is reserved", n.Name))
 				}
-				// special case if struct composite key.
+				// Special case if struct composite key.
 				if ftype == TRANS_COMPOSITE_KEY {
 					clx := ns[len(ns)-1].(*CompositeLitExpr)
 					clt := evalStaticType(store, last, clx.Type)
@@ -2258,7 +2260,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
 					// if store has this type, use that.
-					tid := DeclaredTypeID(lastpn.PkgPath, n.Name)
+					tid := DeclaredTypeID(lastpn.PkgPath, last.GetLocation(), n.Name)
 					exists := false
 					if dt := store.GetTypeSafe(tid); dt != nil {
 						dst = dt.(*DeclaredType)
@@ -2270,7 +2272,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this is where declared types are
 						// actually instantiated, not in
 						// machine.go:runDeclaration().
-						dt2 := declareWith(lastpn.PkgPath, n.Name, tmp)
+						dt2 := declareWith(lastpn.PkgPath, last, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						dt2.Seal()
 						// }
@@ -2774,6 +2776,13 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 								n.SetAttribute(ATTR_PACKAGE_DECL, true)
 								return n, TRANS_CONTINUE
 							}
+						}
+						// Ignore type declaration names.
+						// Types cannot be passed ergo cannot be captured.
+						// (revisit when types become first class objects)
+						st := dbn.GetStaticTypeOf(nil, n.Name)
+						if st.Kind() == TypeKind {
+							return n, TRANS_CONTINUE
 						}
 
 						// Found a heap item closure capture.
@@ -4904,10 +4913,12 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			} else {
 				// create new declared type.
 				pn := packageOf(last)
-				t = declareWith(pn.PkgPath, d.Name, t)
+				dt := declareWith(pn.PkgPath, last, d.Name, t)
+				t = dt
 			}
 			// fill in later.
-			last2.Define(d.Name, asValue(t))
+			// last2.Define(d.Name, asValue(t))
+			last2.Define2(true, d.Name, t, asValue(t))
 			d.Path = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
