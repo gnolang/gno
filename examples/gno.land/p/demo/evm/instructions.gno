@@ -3,7 +3,7 @@ package evm
 import (
 	"errors"
 
-	"gno.land/p/demo/evm/uint256"
+	"gno.land/p/demo/uint256"
 )
 
 type instructions struct {
@@ -49,12 +49,12 @@ func (i instructions) Ill() bool {
 // read n bytes and jump to rip + n
 func (i *instructions) Read(n int) (*uint256.Uint, error) {
 	if i.rip < 0 {
-		return uint256.New(), negativeProgramCounter
+		return uint256.Zero(), negativeProgramCounter
 	}
 	if i.rip+n > i.length {
-		return uint256.New(), outOfBounds
+		return uint256.Zero(), outOfBounds
 	}
-	x := uint256.NewFromBytes(i.instructions[i.rip : i.rip+n])
+	x := uint256.Zero().SetBytes(i.instructions[i.rip : i.rip+n])
 	i.Increment(n)
 	return x, nil
 }

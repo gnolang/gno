@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/evm/uint256"
+	"gno.land/p/demo/uint256"
 )
 
 func TestExecuteEvm(t *testing.T) {
@@ -17,12 +17,12 @@ func TestExecuteEvm(t *testing.T) {
 		expected_memory []byte
 		expected_stack  []*uint256.Uint
 		expected_error  error
-		ignore_mem		bool
+		ignore_mem      bool
 	}{
 		{
 			name:           "simple addition",
 			code:           []byte{0x60, 1, 0x60, 1, 0x01, 0x00}, // PUSH1 1, PUSH1 1, ADD
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(2)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(2)},
 		},
 		{
 			name:           "error can't add on empty stack",
@@ -37,12 +37,12 @@ func TestExecuteEvm(t *testing.T) {
 		{
 			name:           "exchange 1st and 2nd stack items",
 			code:           []byte{byte(PUSH0), byte(PUSH1), 0x42, byte(SWAP1), byte(STOP)}, // PUSH0, PUSH1 0x42, SWAP1
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(66), uint256.New()},
+			expected_stack: []*uint256.Uint{uint256.NewUint(66), uint256.Zero()},
 		},
 		{
 			name:           "push2",
 			code:           []byte{byte(PUSH2), 0x42, 0x42, byte(STOP)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(16962)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(16962)},
 		},
 		{
 			name:           "error push32 out of bounds",
@@ -52,43 +52,53 @@ func TestExecuteEvm(t *testing.T) {
 		{
 			name:           "simple addition and mul",
 			code:           []byte{byte(PUSH1), 10, byte(PUSH1), 11, byte(ADD), byte(PUSH1), 2, byte(MUL), byte(STOP)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(42)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(42)},
 			expected_error: nil,
 		},
 		{
 			name:           "big mul",
 			code:           []byte{byte(PUSH31), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(PUSH1), 0xff, byte(MUL), byte(STOP)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
-			expected_stack: []*uint256.Uint{uint256.NewFromBytes([]byte{0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01})},
+			expected_stack: []*uint256.Uint{uint256.Zero().SetBytes([]byte{0xfE, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01})},
 		},
 		{
 			name:           "mul random big",
 			code:           []byte{byte(PUSH15), 0xdf, 0x01, 0xe8, 0x5f, 0x91, 0x2e, 0x37, 0xa3, 0x6b, 0x6c, 0x46, 0xde, 0xc5, 0x2f, 0x66, byte(PUSH17), 0x9c, 0x8b, 0xe1, 0xdc, 0x47, 0x25, 0x68, 0xe4, 0xee, 0x20, 0x3b, 0x83, 0xff, 0xff, 0xff, 0xff, 0xf0, byte(MUL), byte(STOP)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
-			expected_stack: []*uint256.Uint{uint256.NewFromBytes([]byte{0x88, 0x5f, 0x04, 0x63, 0xf9, 0x35, 0xcc, 0xd3, 0x78, 0x6d, 0x30, 0x27, 0x7a, 0x17, 0x1a, 0x5f, 0x86, 0x81, 0x3e, 0x91, 0xf3, 0xe8, 0x8d, 0x96, 0x22, 0x3b, 0xd3, 0x92, 0x13, 0xad, 0x09, 0xa0})},
+			expected_stack: []*uint256.Uint{uint256.Zero().SetBytes([]byte{0x88, 0x5f, 0x04, 0x63, 0xf9, 0x35, 0xcc, 0xd3, 0x78, 0x6d, 0x30, 0x27, 0x7a, 0x17, 0x1a, 0x5f, 0x86, 0x81, 0x3e, 0x91, 0xf3, 0xe8, 0x8d, 0x96, 0x22, 0x3b, 0xd3, 0x92, 0x13, 0xad, 0x09, 0xa0})},
 		},
 		{
 			name:           "simple sub",
 			code:           []byte{byte(PUSH1), 5, byte(PUSH1), 10, byte(SUB), byte(STOP)},
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(5)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(5)},
 		},
 		{
 			name:           "big sub",
 			code:           []byte{byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(SUB), byte(STOP)},
-			expected_stack: []*uint256.Uint{uint256.New()},
+			expected_stack: []*uint256.Uint{uint256.Zero()},
 		},
 		{
 			name:           "simple div",
 			code:           []byte{byte(PUSH1), 2, byte(PUSH1), 10, byte(DIV), byte(STOP)},
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(5)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(5)},
 		},
 		{
 			name:           "big div",
 			code:           []byte{byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(SUB), byte(STOP)},
-			expected_stack: []*uint256.Uint{uint256.New()},
+			expected_stack: []*uint256.Uint{uint256.Zero()},
+		},
+		{
+			name:           "simple sdiv",
+			code:           []byte{byte(PUSH1), 2, byte(PUSH1), 10, byte(DIV), byte(STOP)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(5)},
+		},
+		{
+			name:           "big sdiv",
+			code:           []byte{byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, byte(SUB), byte(STOP)},
+			expected_stack: []*uint256.Uint{uint256.Zero()},
 		},
 		{
 			name:           "jump jump !",
 			code:           []byte{byte(PUSH1), 1, byte(PUSH1), 8, byte(JUMP), byte(PUSH1), 1, byte(ADD), byte(JUMPDEST), byte(STOP)},
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(1)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(1)},
 		},
 		{
 			name:           "jumpi yes",
@@ -107,7 +117,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(JUMPDEST),
 				byte(STOP),
 			},
-			expected_stack: []*uint256.Uint{uint256.NewFrom64s(2)},
+			expected_stack: []*uint256.Uint{uint256.NewUint(2)},
 		},
 		{
 			name: "check zero and jump",
@@ -141,7 +151,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(JUMPDEST),
 				byte(STOP),
 			},
-			expected_stack: []*uint256.Uint{ uint256.NewFrom64s(42) },
+			expected_stack: []*uint256.Uint{uint256.NewUint(42)},
 		},
 		{
 			name: "exchange 1st and 5th stack items",
@@ -156,12 +166,12 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			expected_stack: []*uint256.Uint{
-				uint256.NewFrom64s(6),
-				uint256.NewFrom64s(2),
-				uint256.NewFrom64s(3),
-				uint256.NewFrom64s(4),
-				uint256.NewFrom64s(5),
-				uint256.NewFrom64s(1),
+				uint256.NewUint(6),
+				uint256.NewUint(2),
+				uint256.NewUint(3),
+				uint256.NewUint(4),
+				uint256.NewUint(5),
+				uint256.NewUint(1),
 			},
 		},
 		{
@@ -171,8 +181,8 @@ func TestExecuteEvm(t *testing.T) {
 				byte(MLOAD),
 				byte(STOP),
 			},
-			expected_stack: []*uint256.Uint{ uint256.New() },
-			ignore_mem: true,
+			expected_stack: []*uint256.Uint{uint256.Zero()},
+			ignore_mem:     true,
 		},
 		{
 			name: "read raw mem at offset 0",
@@ -181,8 +191,8 @@ func TestExecuteEvm(t *testing.T) {
 				byte(MLOAD),
 				byte(STOP),
 			},
-			expected_stack: []*uint256.Uint{ uint256.New() },
-			ignore_mem: true,
+			expected_stack: []*uint256.Uint{uint256.Zero()},
+			ignore_mem:     true,
 		},
 		{
 			name: "write mem",
@@ -194,8 +204,8 @@ func TestExecuteEvm(t *testing.T) {
 				byte(MLOAD),
 				byte(STOP),
 			},
-			expected_stack: []*uint256.Uint{ uint256.NewFrom64s(42) },
-			ignore_mem: true,
+			expected_stack: []*uint256.Uint{uint256.NewUint(42)},
+			ignore_mem:     true,
 		},
 		{
 			name: "write mem offsetted",
@@ -207,8 +217,8 @@ func TestExecuteEvm(t *testing.T) {
 				byte(MLOAD),
 				byte(STOP),
 			},
-			expected_stack: []*uint256.Uint{ uint256.NewFrom64s(42) },
-			ignore_mem: true,
+			expected_stack: []*uint256.Uint{uint256.NewUint(42)},
+			ignore_mem:     true,
 		},
 		{
 			name: "mem example https://www.evm.codes/",
@@ -231,9 +241,9 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			expected_stack: []*uint256.Uint{
-				uint256.NewFrom64s(0),
-				uint256.NewFromBytes([]byte{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF }),
-				uint256.NewFromBytes([]byte{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }),
+				uint256.NewUint(0),
+				uint256.Zero().SetBytes([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}),
+				uint256.Zero().SetBytes([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}),
 			},
 			ignore_mem: true,
 		},
@@ -245,7 +255,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(MSTORE8),
 				byte(STOP),
 			},
-			expected_memory: []byte{ 0xdd },
+			expected_memory: []byte{0xdd},
 		},
 		{
 			name: "simple dup5",
@@ -261,19 +271,17 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			expected_stack: []*uint256.Uint{
-				uint256.NewFrom64s(1),
-				uint256.NewFrom64s(2),
-				uint256.NewFrom64s(3),
-				uint256.NewFrom64s(4),
-				uint256.NewFrom64s(5),
-				uint256.NewFrom64s(6),
-				uint256.NewFrom64s(7),
-				uint256.NewFrom64s(3),
+				uint256.NewUint(1),
+				uint256.NewUint(2),
+				uint256.NewUint(3),
+				uint256.NewUint(4),
+				uint256.NewUint(5),
+				uint256.NewUint(6),
+				uint256.NewUint(7),
+				uint256.NewUint(3),
 			},
 		},
-		
 	}
-	
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -299,7 +307,7 @@ func TestExecuteEvm(t *testing.T) {
 				errStack = true
 			} else {
 				for i := 0; i < len(stack); i++ {
-					if !stack[i].Equals(tc.expected_stack[i]) {
+					if !stack[i].Eq(tc.expected_stack[i]) {
 						errStack = true
 						break
 					}
@@ -337,7 +345,7 @@ func TestExecuteEvm(t *testing.T) {
 				for i := 0; i < len(stack) || i < len(tc.expected_stack); i++ {
 					expected := "empty"
 					if i < len(tc.expected_stack) {
-						expected = "'" + tc.expected_stack[i].HexString() + "'"
+						expected = "'" + tc.expected_stack[i].Hex() + "'"
 					}
 					t.Errorf("-> %s", expected)
 				}
@@ -345,7 +353,7 @@ func TestExecuteEvm(t *testing.T) {
 				for i := 0; i < len(stack) || i < len(tc.expected_stack); i++ {
 					actual := "empty"
 					if i < len(stack) {
-						actual = "'" + stack[i].HexString() + "'"
+						actual = "'" + stack[i].Hex() + "'"
 					}
 					t.Errorf("-> %s", actual)
 				}

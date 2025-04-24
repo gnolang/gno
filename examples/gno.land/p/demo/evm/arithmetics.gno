@@ -15,7 +15,7 @@ func opAdd(s *state) error {
 		return errors.New("can't ADD: stack of size 1")
 	}
 
-	s.stack.Push(a.Add256(b))
+	s.stack.Push(a.Add(a, b))
 	s.code.Increment()
 	return nil
 }
@@ -31,7 +31,7 @@ func opMul(s *state) error {
 		return errors.New("can't MUL: stack of size 1")
 	}
 
-	s.stack.Push(a.Mul256(b))
+	s.stack.Push(a.Mul(a, b))
 	s.code.Increment()
 	return nil
 }
@@ -47,7 +47,7 @@ func opSub(s *state) error {
 		return errors.New("can't SUB: stack of size 1")
 	}
 
-	s.stack.Push(a.Sub256(*b))
+	s.stack.Push(a.Sub(a, b))
 	s.code.Increment()
 	return nil
 }
@@ -65,7 +65,7 @@ func opDiv(s *state) error {
 	if b.IsZero() {
 		s.stack.Push(b)
 	} else {
-		s.stack.Push(a.Div256(b))
+		s.stack.Push(a.Div(a, b))
 	}
 	s.code.Increment()
 	return nil
@@ -82,7 +82,7 @@ func opSdiv(s *state) error {
 		return errors.New("can't SDIV: stack of size 1")
 	}
 
-	s.stack.Push(a.Add256(b))
+	s.stack.Push(a.Div(a, b))
 	s.code.Increment()
 	return nil
 }
@@ -98,7 +98,7 @@ func opMod(s *state) error {
 		return errors.New("can't MUL: stack of size 1")
 	}
 
-	s.stack.Push(a.Add256(b))
+	s.stack.Push(a.Mod(a, b))
 	s.code.Increment()
 	return nil
 }
@@ -114,7 +114,7 @@ func opSmod(s *state) error {
 		return errors.New("can't MUL: stack of size 1")
 	}
 
-	s.stack.Push(a.Add256(b))
+	s.stack.Push(a.Mod(a, b))
 	s.code.Increment()
 	return nil
 }
@@ -122,15 +122,20 @@ func opSmod(s *state) error {
 func opAddmod(s *state) error {
 	a, err := s.stack.Pop()
 	if err != nil {
-		return errors.New("can't MUL: empty stack")
+		return errors.New("can't ADDMOD: empty stack")
 	}
 
 	b, err := s.stack.Pop()
 	if err != nil {
-		return errors.New("can't MUL: stack of size 1")
+		return errors.New("can't ADDMOD: stack of size 1")
 	}
 
-	s.stack.Push(a.Add256(b))
+	n, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't ADDMOD: stack of size 2")
+	}
+
+	s.stack.Push(a.Add(a, b).Mod(a, n))
 	s.code.Increment()
 	return nil
 }
@@ -138,15 +143,36 @@ func opAddmod(s *state) error {
 func opMulmod(s *state) error {
 	a, err := s.stack.Pop()
 	if err != nil {
-		return errors.New("can't MUL: empty stack")
+		return errors.New("can't MULMOD: empty stack")
 	}
 
 	b, err := s.stack.Pop()
 	if err != nil {
-		return errors.New("can't MUL: stack of size 1")
+		return errors.New("can't MULMOD: stack of size 1")
 	}
 
-	s.stack.Push(a.Add256(b))
+	n, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't MULMOD: stack of size 2")
+	}
+
+	s.stack.Push(a.MulMod(a, b, n))
+	s.code.Increment()
+	return nil
+}
+
+func opExp(s *state) error {
+	a, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't MULMOD: empty stack")
+	}
+
+	b, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't MULMOD: stack of size 1")
+	}
+
+	s.stack.Push(a.Exp(a, b))
 	s.code.Increment()
 	return nil
 }

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strconv"
 
-	"gno.land/p/demo/evm/uint256"
+	"gno.land/p/demo/uint256"
 )
 
 var outOfBounds = errors.New("out of bounds")
@@ -14,7 +14,7 @@ func opNotImplemented(s *state) error {
 }
 
 func opPush0(s *state) error {
-	s.stack.Push(uint256.New())
+	s.stack.Push(uint256.Zero())
 	s.code.Increment()
 	return nil
 }
@@ -85,7 +85,7 @@ func opJump(s *state) error {
 	if err != nil {
 		return err
 	}
-	inc := int(dest.To64())
+	inc := int(dest.Uint64())
 	opDest := OpCode(s.code.At(inc))
 	if opDest != JUMPDEST {
 		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
@@ -112,7 +112,7 @@ func opJumpi(s *state) error {
 		s.code.Increment()
 		return nil
 	}
-	inc := int(dest.To64())
+	inc := int(dest.Uint64())
 	opDest := OpCode(s.code.At(inc))
 	if opDest != JUMPDEST {
 		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
@@ -127,9 +127,9 @@ func opIszero(s *state) error {
 		return err
 	}
 	if num.IsZero() {
-		s.stack.Push(uint256.NewFrom64s(1))
+		s.stack.Push(uint256.NewUint(1))
 	} else {
-		s.stack.Push(uint256.New())
+		s.stack.Push(uint256.Zero())
 	}
 	s.code.Increment()
 	return nil
@@ -140,17 +140,18 @@ func opMload(s *state) error {
 	if err != nil {
 		return err
 	}
-	off64 := off.To64()
-	if off64 + 32 > uint64(len(s.memory)) {
-		s.stack.Push(uint256.New())
+	off64 := off.Uint64()
+	if off64+32 > uint64(len(s.memory)) {
+		s.stack.Push(uint256.Zero())
 		s.code.Increment()
 		return nil
 	}
-	read := s.memory[off64:off64+32]
+
+	read := s.memory[off64 : off64+32]
 	if len(read) < 32 {
 		read = append(read, make([]byte, 32-len(read))...)
 	}
-	s.stack.Push(uint256.NewFromBytes(read))
+	s.stack.Push(uint256.Zero().SetBytes(read))
 	s.code.Increment()
 	return nil
 }
@@ -160,20 +161,20 @@ func opMstore(s *state) error {
 	if err != nil {
 		return err
 	}
-	off64 := off.To64()
+	off64 := off.Uint64()
 	val, err := s.stack.Pop()
 	if err != nil {
 		return err
 	}
-	bytes := val.ToBytes()
+	bytes := val.Bytes32()
 	memLen := uint64(len(s.memory))
 	if memLen == 0 {
 		s.memory = append(make([]byte, off64), bytes[:]...)
 		s.code.Increment()
 		return nil
 	}
-	if off64 + 32 >= memLen {
-		s.memory = append(s.memory, make([]byte, off64 + 32 - memLen)...)
+	if off64+32 >= memLen {
+		s.memory = append(s.memory, make([]byte, off64+32-memLen)...)
 	}
 	copy(s.memory[off64:off64+32], bytes[:])
 	s.code.Increment()
@@ -185,12 +186,12 @@ func opMstore8(s *state) error {
 	if err != nil {
 		return err
 	}
-	off64 := off.To64()
+	off64 := off.Uint64()
 	val, err := s.stack.Pop()
 	if err != nil {
 		return err
 	}
-	b := byte(val.To64() & 0xff)
+	b := byte(val.Uint64() & 0xff)
 	memLen := uint64(len(s.memory))
 	if memLen == 0 && off64 != 0 {
 		s.memory = append(make([]byte, off64), b)

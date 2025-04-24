@@ -1,7 +1,7 @@
 package evm
 
 import (
-	"gno.land/p/demo/evm/uint256"
+	"gno.land/p/demo/uint256"
 )
 
 // const memSize = 30000
@@ -34,7 +34,7 @@ func (s state) getResult() []byte {
 
 func (s *state) executeByteCode(code []byte) error {
 	s.code.Reset(code)
-	for !s.code.Ill() && s.code.Current() != byte(STOP) { // 60 01 60 02 01 00
+	for !s.code.Ill() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
 		if !ok {
 			return opNotImplemented(s)
