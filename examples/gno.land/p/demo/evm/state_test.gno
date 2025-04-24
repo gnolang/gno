@@ -281,6 +281,41 @@ func TestExecuteEvm(t *testing.T) {
 				uint256.NewUint(3),
 			},
 		},
+		{
+            name: "bitwise AND operation",
+            code: []byte{
+                byte(PUSH2), 0x00, 0xFF,
+                byte(NOT),
+                byte(PUSH2), 0x0F, 0x0F,
+                byte(AND),
+                byte(STOP),
+            },
+            expected_stack: []*uint256.Uint{ uint256.NewUint(3840) }, // 0x0F00
+        },
+        {
+            name: "bitwise OR operation",
+            code: []byte{
+                byte(PUSH2), 0x00, 0xFF,
+                byte(NOT),
+                byte(PUSH2), 0x0F, 0x0F,
+                byte(OR),
+                byte(STOP),
+            },
+            expected_stack: []*uint256.Uint{ uint256.Zero().SetBytes([]byte{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
+            }) },
+        },
+        {
+            name: "bitwise XOR operation",
+            code: []byte{
+                byte(PUSH2), 0x00, 0xFF,
+                byte(NOT),
+                byte(PUSH1), 0x0F,
+                byte(XOR),
+                byte(STOP),
+            },
+            expected_stack: []*uint256.Uint{ uint256.Zero().SetBytes([]byte{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
+            }) },
+        },
 	}
 
 	for _, tc := range testCases {
