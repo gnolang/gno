@@ -165,10 +165,12 @@ func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Accou
 func (m *mockAuthKeeper) InitGenesis(ctx sdk.Context, data auth.GenesisState)             {}
 func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                           { return auth.Params{} }
 
-type getStringsDelegate func(sdk.Context, string, *[]string)
-type mockParamsKeeper struct {
-	getStringsFn getStringsDelegate
-}
+type (
+	getStringsDelegate func(sdk.Context, string, *[]string)
+	mockParamsKeeper   struct {
+		getStringsFn getStringsDelegate
+	}
+)
 
 func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {}
 func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)   {}

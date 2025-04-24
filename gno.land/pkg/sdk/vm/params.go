@@ -120,7 +120,7 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	case strings.HasPrefix(key, vm.getValsetRealmParam(ctx)+":"+"valset_updates"):
 		// This update is realm-specific, so we trim the realm part
 		parts := strings.Split(key, ":")
-		
+
 		if !reValsetUpdates.Match([]byte(parts[1])) {
 			panic(
 				fmt.Sprintf(

@@ -409,23 +409,33 @@ type endBlockerApp interface {
 	Logger() *slog.Logger
 }
 
+// Keep in sync with r/sys/validators/v3/poc.gno
 const (
-	vmModulePrefix         = "vm"
-	valsetUpdatesKeyPrefix = "valset_updates"
+	vmModulePrefix = "vm"
+
+	// newUpdatesAvailableKey is a flag indicating the chain valset should be updated.
+	// Set by the contract, but reset by the chain (EndBlocker)
+	newUpdatesAvailableKey = "new_updates_available"
+
+	// valsetNewKey is the param that holds the new proposed valset. Set by the contract,
+	// and read (but never modified) by the chain
+	valsetNewKey = "valset_new"
+
+	// valsetPrevKey is the param that holds the latest valset. Initially set by the contract (init),
+	// but later only written by the chain (EndBlocker).
+	valsetPrevKey = "valset_prev"
 )
 
 // valsetParamPath constructs the valset update
-// params keeper path
+// params path
 //
-// vm:<valset-realm-path>:valset_updates_<height>
-// Keep format in sync with vm/params.go
-func valsetParamPath(valsetRealm string, height int64) string {
+// vm:<valset-realm-path>:<valset-param-key>
+func valsetParamPath(valsetRealm string, key string) string {
 	return fmt.Sprintf(
-		"%s:%s:%s_%d",
+		"%s:%s:%s",
 		vmModulePrefix,
 		valsetRealm,
-		valsetUpdatesKeyPrefix,
-		height,
+		key,
 	)
 }
 
@@ -456,21 +466,29 @@ func EndBlocker(
 		valsetRealm := vm.ValsetRealmDefault
 		prmk.GetString(ctx, vm.ValsetRealmParamPath, &valsetRealm)
 
-		var (
-			changes = make([]string, 0)
-			path    = valsetParamPath(valsetRealm, app.LastBlockHeight())
-		)
-
-		prmk.GetStrings(ctx, path, &changes)
+		// Check if there need to be any changes applied
+		updatesAvailable := false
+		prmk.GetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), &updatesAvailable)
 
 		// Check if there need to be changes applied
-		if len(changes) == 0 {
-			// No valset updates
+		if !updatesAvailable {
+			// No updates to apply
 			return abci.ResponseEndBlock{}
 		}
 
-		// Parse the changes
-		updates, err := extractUpdatesFromParams(changes)
+		var (
+			prevValset     = make([]string, 0)
+			proposedValset = make([]string, 0)
+
+			prevValsetPath     = valsetParamPath(valsetRealm, valsetPrevKey)
+			proposedValsetPath = valsetParamPath(valsetRealm, valsetNewKey)
+		)
+
+		prmk.GetStrings(ctx, prevValsetPath, &prevValset)
+		prmk.GetStrings(ctx, proposedValsetPath, &proposedValset)
+
+		// Parse the previous set
+		prevSet, err := extractUpdatesFromParams(prevValset)
 		if err != nil {
 			app.Logger().Error(
 				"unable to parse valset params updates in EndBlocker",
@@ -480,10 +498,30 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
+		// Parse the proposed set
+		proposedSet, err := extractUpdatesFromParams(proposedValset)
+		if err != nil {
+			app.Logger().Error(
+				"unable to parse valset params updates in EndBlocker",
+				"err", err,
+			)
+
+			return abci.ResponseEndBlock{}
+		}
+
+		// Check for changes
+		updates := prevSet.UpdatesFrom(proposedSet)
+
 		app.Logger().Info(
 			"valset changes to be applied",
 			"count", len(updates),
 		)
+
+		// Update the latest valset in the param
+		prmk.SetStrings(ctx, prevValsetPath, proposedValset)
+
+		// Clear the new updates params flag
+		prmk.SetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), false)
 
 		return abci.ResponseEndBlock{
 			ValidatorUpdates: updates,
@@ -498,7 +536,7 @@ func EndBlocker(
 // <address>:<pub-key>:<voting-power>
 // voting power == 0 => validator removal
 // voting power != 0 => validator power update / validator addition
-func extractUpdatesFromParams(changes []string) ([]abci.ValidatorUpdate, error) {
+func extractUpdatesFromParams(changes []string) (abci.ValidatorUpdates, error) {
 	updates := make([]abci.ValidatorUpdate, 0, len(changes))
 
 	for _, change := range changes {

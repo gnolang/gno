@@ -461,7 +461,7 @@ func TestEndBlocker(t *testing.T) {
 
 			mockParamsKeeper = &mockParamsKeeper{
 				getStringsFn: func(_ sdk.Context, key string, _ *[]string) {
-					require.Equal(t, valsetParamPath(height), key)
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, key), key)
 				},
 			}
 
@@ -490,7 +490,7 @@ func TestEndBlocker(t *testing.T) {
 
 			mockParamsKeeper = &mockParamsKeeper{
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					require.Equal(t, valsetParamPath(height), key)
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, key), key)
 
 					*ptr = []string{
 						"totally valid format",
@@ -537,7 +537,7 @@ func TestEndBlocker(t *testing.T) {
 
 			mockParamsKeeper = &mockParamsKeeper{
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					require.Equal(t, valsetParamPath(height), key)
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, key), key)
 
 					changes := make([]string, 0, len(updates))
 

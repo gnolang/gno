@@ -2,18 +2,28 @@ package validators
 
 import (
 	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/dao"
-	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao/bridge"
 )
 
-// Keep in sync with vm/params.go
-const valsetUpdatesKeyPrefix = "valset_updates"
+// Keep in sync with gno.land/pkg/gnoland/app.go
+const (
+	// newUpdatesAvailableKey is a flag indicating the chain valset should be updated.
+	// Set by the contract, but reset by the chain (EndBlocker)
+	newUpdatesAvailableKey = "new_updates_available"
+
+	// valsetNewKey is the param that holds the new proposed valset. Set by the contract,
+	// and read (but never modified) by the chain
+	valsetNewKey = "valset_new"
+
+	// valsetPrevKey is the param that holds the latest valset. Initially set by the contract (init),
+	// but later only written by the chain (EndBlocker).
+	valsetPrevKey = "valset_prev"
+)
 
 const errNoChangesProposed = "no set changes proposed"
 
@@ -30,18 +40,7 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		}
 
 		// Keep track of params changes
-		var (
-			height     = std.ChainHeight()
-			setChanges = make([]string, 0, len(changes))
-		)
-
 		for _, change := range changes {
-			// Save the change for the VM params
-			setChanges = append(
-				setChanges,
-				serializeValsetChange(height, change),
-			)
-
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator.
 				// Update the on-chain set representation
@@ -55,28 +54,14 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 			addValidator(change)
 		}
 
-		// Save the change in the VM params.
-		// TODO: @moul, I'm not sure if this is the correct
-		// place to dump the valset updates, given our
-		// consensus module does not actually have params
-		// (nor do I think it should, since it's a deterministic
-		// piece of logic). I've used the realm here.
-		// I've also chosen to utilize the existing []string setter,
-		// and not introduce the "any" struct type setter, to
-		// avoid opening the pandora's box on arbitrary structures.
-		//
-		// Params are dropped in the following params path (realm-local):
-		// vm:gno.land/r/sys/validators/v3:valset_updates_height
-		// with "valset_updates:height" being the key.
-		//
-		// @moul, the height is part of the key, because I went with the premise that
-		// we will only modify params from GovDAO proposals. An alternative is to always reuse
-		// the same param (key -> valset_updates) and wipe it in Endlocker, but this breaks the principle
-		// that params should _only_ be updated through the GovDAO (in Gno).
-		std.SetParamStrings(
-			ufmt.Sprintf("%s_%d", valsetUpdatesKeyPrefix, std.ChainHeight()),
-			changes,
-		)
+		// Save the change in the VM params //
+
+		// Set the new updates available flag, indicating
+		// the valset should be read from the valsetNewKey param
+		std.SetParamBool(newUpdatesAvailableKey, true)
+
+		// Set the newest valset after all changes have been applied
+		std.SetParamStrings(valsetNewKey, serializeValsetChanges(vp.GetValidators()))
 
 		return nil
 	}
@@ -84,18 +69,23 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
 
-// serializeValsetChange prepares the valset change serialization,
+// serializeValsetChanges prepares the valset serialization,
 // which will be saved in the VM params, and processed within EndBlocker logic
-func serializeValsetChange(validator validators.Validator) string {
-	// <address>:<pub-key>:<voting-power>
-	// voting power == 0 => validator removal
-	// voting power != 0 => validator power update / validator addition
-	return ufmt.Sprintf(
-		"%s:%s:%d",
-		validator.Address.String(),
-		validator.PubKey,
-		validator.VotingPower,
-	)
+func serializeValsetChanges(set []validators.Validator) []string {
+	serializedSet := make([]string, 0, len(set))
+
+	for _, entry := range set {
+		serializedEntry := ufmt.Sprintf(
+			"%s:%s:%d",
+			entry.Address.String(),
+			entry.PubKey,
+			entry.VotingPower,
+		)
+
+		serializedSet = append(serializedSet, serializedEntry)
+	}
+
+	return serializedSet
 }
 
 // IsValidator returns a flag indicating if the given bech32 address
@@ -118,52 +108,32 @@ func GetValidators() []validators.Validator {
 	return vp.GetValidators()
 }
 
-// Render displays the valset changes saved in the params,
-// depending on the specified height
-func Render(path string) string {
-	router := mux.NewRouter()
+// Render displays the current valset as well as proposed changes
+// for the next height
+func Render(string) string {
+	height := std.ChainHeight()
 
-	router.HandleFunc("", func(res *mux.ResponseWriter, req *mux.Request) {
-		height := std.ChainHeight()
-
-		res.Write(renderHeight(height))
-	})
-
-	router.HandleFunc("{height}", func(res *mux.ResponseWriter, req *mux.Request) {
-		heightStr := req.GetVar("height")
-
-		height, err := strconv.Atoi(heightStr)
-		if err != nil {
-			res.Write("Invalid block height")
-
-			return
-		}
-
-		res.Write(renderHeight(height))
-	})
-
-	return router.Render(path)
-}
-
-// renderHeight returns the render changes for the specific height
-func renderHeight(height int) string {
 	var sb strings.Builder
 
-	// Fetch the changes from the params
-	changes, found := std.GetParamStrings(
-		ufmt.Sprintf("%s_%d", valsetUpdatesKeyPrefix, height),
-	)
-	if !found {
-		sb.WriteString("No changes for height " + height)
-
-		return sb.String()
-	}
-
-	sb.WriteString("## Valset changes at " + height + "\n")
-	for _, change := range changes {
-		sb.WriteString(change)
-		sb.WriteString("\n")
-	}
+	writeSection(&sb, "Valset changes", valsetNewKey, height)
+	writeSection(&sb, "Valset", valsetPrevKey, height)
 
 	return sb.String()
+}
+
+// writeSection renders a specific valset render section
+func writeSection(sb *strings.Builder, title, key string, height int64) {
+	sb.WriteString(ufmt.Sprintf("## %s at %d\n\n", title, height))
+
+	entries, found := std.GetParamStrings(key)
+	if found && len(entries) > 0 {
+		for _, e := range entries {
+			sb.WriteString(e)
+			sb.WriteString("\n")
+		}
+	} else {
+		sb.WriteString(ufmt.Sprintf("No %s available\n", title))
+	}
+
+	sb.WriteString("\n")
 }

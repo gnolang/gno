@@ -58,11 +58,6 @@ func X_setParamStrings(m *gno.Machine, key string, val []string) {
 }
 
 func X_getParamString(m *gno.Machine, key string) (string, bool) {
-	// TODO @moul, note that we allow any key to be used for fetching
-	// in the params keeper. This means that realms can query the
-	// params of other realms (but not modify them).
-	// If we want to preserve a params "scope" to the current realm,
-	// let me know, and we'll guard the queries
 	return GetContext(m).Params.GetString(key)
 }
 
