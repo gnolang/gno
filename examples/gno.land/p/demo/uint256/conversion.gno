@@ -217,7 +217,7 @@ func (z *Uint) UnmarshalText(input []byte) error {
 }
 
 // Bytes32 returns the value of z as a 32-byte big-endian array.
-func (z *Uint) Bytes32() [32]byte {
+func (z Uint) Bytes32() [32]byte {
 	// The PutUint64()s are inlined and we get 4x (load, bswap, store) instructions.
 	var b [32]byte
 	binary.BigEndian.PutUint64(b[0:8], z.arr[3])
@@ -228,7 +228,7 @@ func (z *Uint) Bytes32() [32]byte {
 }
 
 // Bytes returns the value of z as a big-endian byte slice.
-func (z *Uint) Bytes() []byte {
+func (z Uint) Bytes() []byte {
 	b := z.Bytes32()
 	return b[32-z.ByteLen():]
 }
