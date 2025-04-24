@@ -30,7 +30,7 @@ type MemPackageGetter interface {
 //
 // The syntax checking is performed entirely using Go's go/types package.
 //
-// If format is true, the code will be automatically updated with the
+// If format is true, the code in msmpkg will be automatically updated with the
 // formatted source code.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
 	return typeCheckMemPackage(mempkg, getter, false, format)
@@ -108,7 +108,7 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
+func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*types.Package, error) {
 	// This map is used to allow for function re-definitions, which are allowed
 	// in Gno (testing context) but not in Go.
 	// This map links each function identifier with a closure to remove its
@@ -138,17 +138,16 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 			continue
 		}
 
+		//----------------------------------------
+		// Non-logical formatting transforms
+
 		if delFunc != nil {
 			deleteOldIdents(delFunc, f)
 		}
 
-		if err := filterCrossing(f); err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-
-		// enforce formatting
-		if fmt {
+		// Enforce formatting.
+		// This must happen before logical transforms.
+		if fmt_ {
 			var buf bytes.Buffer
 			err = format.Node(&buf, fset, f)
 			if err != nil {
@@ -158,13 +157,23 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 			file.Body = buf.String()
 		}
 
+		//----------------------------------------
+		// Logical transforms
+
+		// filter crossings for type checker
+		if err := filterCrossing(f); err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+
 		files = append(files, f)
 	}
 	if errs != nil {
 		return nil, errs
 	}
 
-	return g.cfg.Check(mpkg.Path, fset, files, nil)
+	pkg, err := g.cfg.Check(mpkg.Path, fset, files, nil)
+	return pkg, err
 }
 
 func deleteOldIdents(idents map[string]func(), f *ast.File) {

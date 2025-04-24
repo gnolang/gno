@@ -10,3 +10,6 @@ func main() {
 
 // Error:
 // main/files/types/runtime_a3.gno:8:2: operator ++ not defined on: InterfaceKind
+
+// TypeCheckError:
+// main/files/types/runtime_a3.gno:8:2: invalid operation: gen()++ (non-numeric type any)

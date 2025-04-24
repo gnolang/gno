@@ -31,7 +31,7 @@ const (
 	DefaultHeight = 123
 	// DefaultTimestamp is the Timestamp value used by default in [Context].
 	DefaultTimestamp = 1234567890
-	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno"),
+	// DefaultCaller is the result of gno.DerivePkgBech32Addr("user1.gno"),
 	// used as the default caller in [Context].
 	DefaultCaller crypto.Bech32Address = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 )
@@ -44,11 +44,11 @@ const (
 // [DefaultTimestamp].
 func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
-	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
+	pkgAddr := gno.DerivePkgBech32Addr(pkgPath) // the addr of the pkgPath called.
 
 	banker := &teststd.TestBanker{
 		CoinTable: map[crypto.Bech32Address]std.Coins{
-			pkgAddr.Bech32(): send,
+			pkgAddr: send,
 		},
 	}
 	ctx := stdlibs.ExecContext{

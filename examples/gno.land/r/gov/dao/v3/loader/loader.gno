@@ -7,7 +7,7 @@ import (
 
 // this is only executed when loaded into genesis
 func init() {
-	dao.UpdateImpl(dao.UpdateRequest{
+	cross(dao.UpdateImpl)(dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
