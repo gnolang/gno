@@ -25,15 +25,14 @@ const (
 	// gno types
 	_allocSlice            = 24
 	_allocPointerValue     = 40
-	_allocStructValue      = 160
-	_allocArrayValue       = 184
+	_allocStructValue      = 152
+	_allocArrayValue       = 176
 	_allocSliceValue       = 40
-	_allocFuncValue        = 196
-	_allocMapValue         = 152
-	_allocBoundMethodValue = 184
-	_allocBlock            = 480
-	_allocPackageValue     = 248
-	_allocNativeValue      = 48
+	_allocFuncValue        = 312
+	_allocMapValue         = 144
+	_allocBoundMethodValue = 176
+	_allocBlock            = 472
+	_allocPackageValue     = 240
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
 	_allocRefValue         = 72
@@ -62,13 +61,10 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocRefValue    = _allocBase + +_allocRefValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	allocDataByte    = 1
 	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
-	allocAmino       = _allocBase + _allocPointer + _allocAny
-	allocAminoByte   = 10 // XXX
 	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
 	allocTypedValue  = _allocTypedValue
 )
@@ -199,11 +195,6 @@ func (alloc *Allocator) AllocateDataByte() {
 
 func (alloc *Allocator) AllocateType() {
 	alloc.Allocate(allocType)
-}
-
-// NOTE: a reasonable max-bounds calculation for simplicity.
-func (alloc *Allocator) AllocateAmino(l int64) {
-	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
 func (alloc *Allocator) AllocateHeapItem() {

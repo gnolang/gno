@@ -106,3 +106,4 @@ be upgraded.
 
 Both `crossing()` and `cross(fn)(...)` statements may become special syntax in
 future Gno versions.
+
