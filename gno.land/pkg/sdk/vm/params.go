@@ -122,12 +122,7 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		parts := strings.Split(key, ":")
 
 		if !reValsetUpdates.Match([]byte(parts[1])) {
-			panic(
-				fmt.Sprintf(
-					"invalid valset update key: %s",
-					key,
-				),
-			)
+			panic("invalid valset update key: " + key)
 		}
 
 		// Validate the proposed valset changes
