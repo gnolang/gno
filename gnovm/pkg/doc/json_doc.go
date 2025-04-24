@@ -57,6 +57,12 @@ type JSONFunc struct {
 const (
 	structKind    = "struct"
 	interfaceKind = "interface"
+	arrayKind     = "array"
+	sliceKind     = "slice"
+	mapKind       = "map"
+	chanKind      = "chan"
+	funcKind      = "func"
+	pointerKind   = "pointer"
 	identKind     = "ident"
 )
 
@@ -155,12 +161,22 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			// We don't expect this
 			continue
 		}
+		typeExpr := typeSpec.Type
+
+		// De-parenthesize
+		for {
+			if t, ok := typeExpr.(*ast.ParenExpr); ok {
+				typeExpr = t.X
+			} else {
+				break
+			}
+		}
 
 		kind := ""
 		var methods []*JSONFunc
 		var fields []*JSONField
 
-		switch t := typeSpec.Type.(type) {
+		switch t := typeExpr.(type) {
 		case *ast.StructType:
 			kind = structKind
 			// TODO: Anonymous fields.
@@ -202,6 +218,20 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 					Results:   d.extractJSONFields(fun.Results),
 				})
 			}
+		case *ast.ArrayType:
+			if t.Len == nil {
+				kind = sliceKind
+			} else {
+				kind = arrayKind
+			}
+		case *ast.MapType:
+			kind = mapKind
+		case *ast.ChanType:
+			kind = chanKind
+		case *ast.FuncType:
+			kind = funcKind
+		case *ast.StarExpr:
+			kind = pointerKind
 		default:
 			// Default to ident
 			kind = identKind
@@ -209,7 +239,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
 			Name:    typ.Name,
-			Type:    mustFormatNode(d.pkgData.fset, typeSpec.Type),
+			Type:    mustFormatNode(d.pkgData.fset, typeExpr),
 			Doc:     string(pkg.Markdown(typ.Doc)),
 			Alias:   typeSpec.Assign != 0,
 			Kind:    kind,
