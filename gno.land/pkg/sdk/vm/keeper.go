@@ -36,9 +36,9 @@ import (
 
 const (
 	// maxAllocTx = 500_000_000
-	maxAllocTx    = 450_000_000
-	maxAllocQuery = 1_500_000_000 // higher limit for queries
-	maxGasQuery   = 3_000_000_000 // same as max block gas
+	maxAllocTx    = 50_000_000
+	maxAllocQuery = 15_000_000 // higher limit for queries
+	maxGasQuery   = 30_000_000 // same as max block gas
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
