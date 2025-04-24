@@ -9,10 +9,9 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes   int64
-	bytes      int64
-	visitCount int64                // times objects are visited for gc
-	gc         func() (int64, bool) // gc callback
+	maxBytes int64
+	bytes    int64
+	onGC     func() (left int64, ok bool) // gc callback
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -78,8 +77,8 @@ func NewAllocator(maxBytes int64) *Allocator {
 	}
 }
 
-func (alloc *Allocator) SetGCCallback(f func() (int64, bool)) {
-	alloc.gc = f
+func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
+	alloc.onGC = f
 }
 
 func (alloc *Allocator) MemStats() string {
@@ -120,7 +119,7 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		if left, ok := alloc.gc(); !ok {
+		if left, ok := alloc.onGC(); !ok {
 			panic("should not happen, allocation limit exceeded while gc.")
 		} else { // retry
 			if debug {

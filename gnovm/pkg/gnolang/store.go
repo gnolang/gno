@@ -65,7 +65,7 @@ type Store interface {
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache() // run before processing a message
-	SweepObjectCache(gcCycle int64)
+	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(dst io.Writer)
@@ -911,19 +911,14 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
-func (ds *defaultStore) SweepObjectCache(gcCycle int64) {
+func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 	for objId, obj := range ds.cacheObjects {
-		var skip bool
-		// skip .uverse package
-		if pv, ok := obj.(*PackageValue); ok {
-			if pv.PkgPath == ".uverse" {
-				skip = true
-			}
+		// Skip .uverse packages.
+		if pv, ok := obj.(*PackageValue); ok && pv.PkgPath == ".uverse" {
+			continue
 		}
-		if !skip {
-			if obj.GetLastGCCycle() < gcCycle {
-				delete(ds.cacheObjects, objId)
-			}
+		if obj.GetLastGCCycle() < gcCycle {
+			delete(ds.cacheObjects, objId)
 		}
 	}
 }

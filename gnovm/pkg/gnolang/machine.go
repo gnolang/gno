@@ -132,7 +132,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Package = pv
 	mm.Alloc = alloc
 	if mm.Alloc != nil {
-		mm.Alloc.SetGCCallback(func() (int64, bool) { return mm.GarbageCollect() })
+		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 	}
 	mm.PreprocessorMode = preprocessorMode
 	mm.Output = output

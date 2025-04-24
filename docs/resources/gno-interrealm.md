@@ -8,19 +8,19 @@ All functions in Gno execute under a realm context as determined by the call
 stack. Objects that reside in a realm can only be modified if the realm context
 matches.
 
-A function declared in p packages when called: 
+A function declared in p packages when called:
 
- * inherits the last realm for package declared functions and closures.
- * inherits the last realm when a method is called on unreal receiver.
- * implicitly crosses to the receiver's resident realm when a method of the
-   receiver is called. The receiver's realm is also called the "borrow realm".
+* inherits the last realm for package declared functions and closures.
+* inherits the last realm when a method is called on unreal receiver.
+* implicitly crosses to the receiver's resident realm when a method of the
+  receiver is called. The receiver's realm is also called the "borrow realm".
 
 A function declared in a realm package when called:
 
- * explicitly crosses to the realm in which the function is declared if the
-   function begins with a `crossing()` statement. The new realm is called the
-   "current realm".
- * otherwise follows the same rules as for p packages.
+* explicitly crosses to the realm in which the function is declared if the
+  function begins with a `crossing()` statement. The new realm is called the
+  "current realm".
+* otherwise follows the same rules as for p packages.
 
 The `crossing()` statement must be the first statement of a function's body.
 It is illegal to use anywhere else, and cannot be used in p packages. Functions
@@ -65,7 +65,7 @@ function to prevent a new unreal object from being taken.
 
 MsgCall can only call (realm) crossing functions.
 
-MsgRun will run a file's `main()` function in the user's realm and may call 
+MsgRun will run a file's `main()` function in the user's realm and may call
 both crossing functions and non-crossing functions.
 
 A realm package's initialization (including init() calls) execute with current
@@ -106,4 +106,3 @@ be upgraded.
 
 Both `crossing()` and `cross(fn)(...)` statements may become special syntax in
 future Gno versions.
-
