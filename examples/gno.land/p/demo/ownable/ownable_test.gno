@@ -15,6 +15,7 @@ var (
 )
 
 func TestNew(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 	testing.SetOriginCaller(alice)
 
 	o := New()
@@ -30,6 +31,7 @@ func TestNewWithAddress(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 	testing.SetOriginCaller(alice)
 
 	o := New()
@@ -68,6 +70,7 @@ func TestDropOwnership(t *testing.T) {
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 	testing.SetOriginCaller(alice)
 
 	o := New()
@@ -79,6 +82,7 @@ func TestErrUnauthorized(t *testing.T) {
 }
 
 func TestErrInvalidAddress(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 	testing.SetOriginCaller(alice)
 
 	o := New()

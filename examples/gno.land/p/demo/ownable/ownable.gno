@@ -13,7 +13,7 @@ type Ownable struct {
 
 func New() *Ownable {
 	return &Ownable{
-		owner: std.CurrentRealm().Address(),
+		owner: std.PreviousRealm().Address(),
 	}
 }
 
