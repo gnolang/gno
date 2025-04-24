@@ -1828,7 +1828,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if withCross {
 		if !fv.IsCrossing() {
 			panic(fmt.Sprintf(
-				"missing crossing() after cross call in %v from %s to %s",
+				"missing crossing() after cross call to %v from %s to %s",
 				fv.String(),
 				m.Realm.GetPath(),
 				pv.Realm.Path,
