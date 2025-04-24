@@ -18,48 +18,33 @@ func X_recoverWithStacktrace() (gno.TypedValue, string) {
 	panic("only available in testing stdlibs")
 }
 
-func X_expectEmit(m *gno.Machine, expectedType string, expectedAttrs []string) bool {
+func X_expectEmit(m *gno.Machine, expectedType string, expectedAttrs []string, eventIndex int, partialMatch bool) bool {
 	ctx := std.GetContext(m)
 	events := ctx.EventLogger.Events()
 
-	ll := len(events)
-	if ll == 0 {
-		return false
+	verifier := std.ExepectEventType(expectedType).(*std.EventVerifierImpl)
+	verifier.WithEventIndex(eventIndex)
+	if partialMatch {
+		verifier.WithPartialMatch()
 	}
 
-	lastEvent, ok := events[ll-1].(std.GnoEvent)
-	if !ok {
-		return false
-	}
-
-	if lastEvent.Type != expectedType {
-		return false
-	}
-
-	if len(expectedAttrs)%2 != 0 {
-		return false
-	}
-
-	attrLen := len(lastEvent.Attributes)
-	expectedAttrCount := len(expectedAttrs) / 2
-	if attrLen != expectedAttrCount {
-		return false
-	}
-
-	attrs := make(map[string]string, attrLen)
-	for _, attr := range lastEvent.Attributes {
-		attrs[attr.Key] = attr.Value
-	}
-
-	// validate expected attributes
+	// process expected attributes in pairs (key-value)
 	for i := 0; i < len(expectedAttrs); i += 2 {
-		expectedKey := expectedAttrs[i]
-		expectedValue := expectedAttrs[i+1]
+		if i+1 >= len(expectedAttrs) {
+			return false
+		}
+		verifier.WithAttribute(expectedAttrs[i], expectedAttrs[i+1])
+	}
 
-		if actualValue, exists := attrs[expectedKey]; !exists || actualValue != expectedValue {
+	gnoEvents := make([]std.GnoEvent, len(events))
+	for i, event := range events {
+		if e, ok := event.(std.GnoEvent); ok {
+			gnoEvents[i] = e
+		} else {
 			return false
 		}
 	}
 
-	return true
+	// actual verification
+	return verifier.Verify(gnoEvents)
 }

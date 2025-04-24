@@ -383,9 +383,24 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	fn(t)
 }
 
-// ExpectEmit checks if the last event matches the expected type and attributes.
-func ExpectEmit(expectedType string, expectedAttrs []string) bool {
-	return expectEmit(expectedType, expectedAttrs)
+// ExpectEmit validates the key and attributes of an emitted event. It returns true if the two values match.
+// To check only a specific event in an event sequence, add the index of that event to `eventIndex`.
+// For example, consider a situation where a function emits 3 events, as follows:
+//
+// func Foo() {
+//    std.Emit("First", "key1", "value1")
+//    std.Emit("Second", "key2", "value2")
+//    std.Emit("Third", "key3", "value3")
+// }
+//
+// The event indices for First, Second, and Third are 0, 1, and 2 respectively.
+// If you want to check the last emitted event, Third, add `2` to eventIndex.
+// In this case, you can also use `-1` to check the last index.
+//
+// It also supports partial matching, so if an event has too many attributes, you can just check if specific attributes are present.
+// expectedAttrs should be provided as key-value pairs in the array.
+func ExpectEmit(expectedType string, expectedAttrs []string, eventIndex int, partialMatch bool) bool {
+	return expectEmit(expectedType, expectedAttrs, eventIndex, partialMatch)
 }
 
-func expectEmit(expectedType string, expectedAttrs []string) bool
+func expectEmit(expectedType string, expectedAttrs []string, eventIndex int, partialMatch bool) bool

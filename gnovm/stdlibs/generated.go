@@ -1209,6 +1209,8 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("[]string")},
+			{Name: gno.N("p2"), Type: gno.X("int")},
+			{Name: gno.N("p3"), Type: gno.X("bool")},
 		},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
@@ -1221,6 +1223,10 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 				p1  []string
 				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  int
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  bool
+				rp3 = reflect.ValueOf(&p3).Elem()
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
@@ -1229,10 +1235,16 @@ var nativeFuncs = [...]NativeFunc{
 			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
 			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
 
 			r0 := libs_testing.X_expectEmit(
 				m,
-				p0, p1)
+				p0, p1, p2, p3)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
