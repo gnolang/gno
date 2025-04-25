@@ -16,7 +16,6 @@ func opAdd(s *state) error {
 	}
 
 	s.stack.Push(a.Add(a, b))
-	s.code.Increment()
 	return nil
 }
 
@@ -32,7 +31,6 @@ func opMul(s *state) error {
 	}
 
 	s.stack.Push(a.Mul(a, b))
-	s.code.Increment()
 	return nil
 }
 
@@ -48,7 +46,6 @@ func opSub(s *state) error {
 	}
 
 	s.stack.Push(a.Sub(a, b))
-	s.code.Increment()
 	return nil
 }
 
@@ -67,7 +64,6 @@ func opDiv(s *state) error {
 	} else {
 		s.stack.Push(a.Div(a, b))
 	}
-	s.code.Increment()
 	return nil
 }
 
@@ -83,7 +79,6 @@ func opSdiv(s *state) error {
 	}
 
 	s.stack.Push(a.SDiv(a, b))
-	s.code.Increment()
 	return nil
 }
 
@@ -98,7 +93,6 @@ func opMod(s *state) error {
 		return errors.New("can't MOD: stack of size 1")
 	}
 	s.stack.Push(a.Mod(a, b))
-	s.code.Increment()
 	return nil
 }
 
@@ -114,7 +108,6 @@ func opSmod(s *state) error {
 	}
 
 	s.stack.Push(a.SMod(a, b))
-	s.code.Increment()
 	return nil
 }
 
@@ -135,7 +128,6 @@ func opAddmod(s *state) error {
 	}
 
 	s.stack.Push(a.Add(a, b).Mod(a, n))
-	s.code.Increment()
 	return nil
 }
 
@@ -156,7 +148,6 @@ func opMulmod(s *state) error {
 	}
 
 	s.stack.Push(a.MulMod(a, b, n))
-	s.code.Increment()
 	return nil
 }
 
@@ -172,6 +163,5 @@ func opExp(s *state) error {
 	}
 
 	s.stack.Push(a.Exp(a, b))
-	s.code.Increment()
 	return nil
 }

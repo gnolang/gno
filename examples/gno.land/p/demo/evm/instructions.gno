@@ -55,7 +55,7 @@ func (i *instructions) Read(n int) (*uint256.Uint, error) {
 		return uint256.Zero(), outOfBounds
 	}
 	x := uint256.Zero().SetBytes(i.instructions[i.rip : i.rip+n])
-	i.Increment(n)
+	i.Increment(n-1)
 	return x, nil
 }
 

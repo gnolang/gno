@@ -16,7 +16,6 @@ func opAnd(s *state) error {
         return errors.New("can't AND: stack of size 1")
     }
     s.stack.Push(a.And(a, b))
-    s.code.Increment()
     return nil
 }
 
@@ -30,7 +29,6 @@ func opOr(s *state) error {
         return errors.New("can't OR: stack of size 1")
     }
     s.stack.Push(a.Or(a, b))
-    s.code.Increment()
     return nil
 }
 
@@ -44,7 +42,6 @@ func opXor(s *state) error {
         return errors.New("can't XOR: stack of size 1")
     }
     s.stack.Push(a.Xor(a, b))
-    s.code.Increment()
     return nil
 }
 
@@ -54,7 +51,6 @@ func opNot(s *state) error {
         return errors.New("can't NOT: empty stack")
     }
     s.stack.Push(a.Not(a))
-    s.code.Increment()
     return nil
 }
 
@@ -80,6 +76,5 @@ func opByte(s *state) error {
 		res = uint256.NewUint(uint64(bytes[off64]))
 	}
 	s.stack.Push(res)
-	s.code.Increment()
 	return nil
 }

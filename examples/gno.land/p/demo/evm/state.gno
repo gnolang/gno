@@ -43,6 +43,7 @@ func (s *state) executeByteCode(code []byte) error {
 		if err != nil {
 			return err
 		}
+		s.code.Increment()
 	}
 	if s.code.Ill() {
 		return outOfBounds

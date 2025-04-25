@@ -16,7 +16,6 @@ func opNotImplemented(s *state) error {
 
 func opPush0(s *state) error {
 	s.stack.Push(uint256.Zero())
-	s.code.Increment()
 	return nil
 }
 
@@ -55,7 +54,6 @@ func opSwap(n int) func(*state) error {
 		for i := n; i >= 0; i-- {
 			s.stack.Push(temp[i])
 		}
-		s.code.Increment()
 		return nil
 	}
 }
@@ -71,7 +69,6 @@ func opDup(n int) func(*state) error {
 		}
 
 		s.stack.Push(val)
-		s.code.Increment()
 		return nil
 	}
 }
@@ -91,12 +88,11 @@ func opJump(s *state) error {
 	if opDest != JUMPDEST {
 		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
 	}
-	s.code.rip = inc + 1
+	s.code.rip = inc// + 1
 	return nil
 }
 
 func opNop(s *state) error {
-	s.code.Increment()
 	return nil
 }
 
@@ -110,7 +106,6 @@ func opJumpi(s *state) error {
 		return err
 	}
 	if doJump.IsZero() {
-		s.code.Increment()
 		return nil
 	}
 	inc := int(dest.Uint64())
@@ -118,7 +113,7 @@ func opJumpi(s *state) error {
 	if opDest != JUMPDEST {
 		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
 	}
-	s.code.rip = inc + 1
+	s.code.rip = inc// + 1
 	return nil
 }
 
@@ -132,7 +127,6 @@ func opIszero(s *state) error {
 	} else {
 		s.stack.Push(uint256.Zero())
 	}
-	s.code.Increment()
 	return nil
 }
 
@@ -148,19 +142,16 @@ func opKeccak256(s *state) error {
 	off64 := off.Uint64()
 	if off64 > uint64(len(s.memory)) {
 		s.stack.Push(uint256.Zero())
-		s.code.Increment()
 		return nil
 	}
 	slice := s.memory[off64:off64+size.Uint64()]
 	resBytes := keccak256.Keccak256(slice)
 	resUint := uint256.Zero().SetBytes(resBytes)
 	s.stack.Push(resUint)
-	s.code.Increment()
 	return nil
 }
 
 func opPc(s *state) error {
 	s.stack.Push(uint256.NewUint(uint64(s.code.rip)))
-	s.code.Increment()
 	return nil
 }

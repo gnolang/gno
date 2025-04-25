@@ -13,7 +13,6 @@ func opMload(s *state) error {
 	off64 := off.Uint64()
 	if off64+32 > uint64(len(s.memory)) {
 		s.stack.Push(uint256.Zero())
-		s.code.Increment()
 		return nil
 	}
 
@@ -22,7 +21,6 @@ func opMload(s *state) error {
 		read = append(read, make([]byte, 32-len(read))...)
 	}
 	s.stack.Push(uint256.Zero().SetBytes(read))
-	s.code.Increment()
 	return nil
 }
 
@@ -42,14 +40,12 @@ func opMstore(s *state) error {
 	memLen := uint64(len(s.memory))
 	if memLen == 0 {
 		s.memory = append(make([]byte, off64), bytes[:]...)
-		s.code.Increment()
 		return nil
 	}
 	if off64+32 >= memLen {
 		s.memory = append(s.memory, make([]byte, off64+32-memLen)...)
 	}
 	copy(s.memory[off64:off64+32], bytes[:])
-	s.code.Increment()
 	return nil
 }
 
@@ -69,14 +65,12 @@ func opMstore8(s *state) error {
 	memLen := uint64(len(s.memory))
 	if memLen == 0 && off64 != 0 {
 		s.memory = append(make([]byte, off64), b)
-		s.code.Increment()
 		return nil
 	}
 	if off64 + 1 > memLen {
 		s.memory = append(s.memory, make([]byte, off64 + 1 - memLen)...)
 	}
 	s.memory[off64] = b
-	s.code.Increment()
 	return nil
 }
 
@@ -84,6 +78,5 @@ func opMstore8(s *state) error {
 // > OUT: `[size]`
 func opMsize(s *state) error {
 	s.stack.Push(uint256.NewUint(uint64(len(s.memory))))
-	s.code.Increment()
 	return nil
 }
