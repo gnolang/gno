@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// missing crossing() after cross call in main from gno.land/r/demo/main to gno.land/r/demo/main
+// missing crossing() after cross call to main from gno.land/r/demo/main to gno.land/r/demo/main

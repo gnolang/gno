@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// missing crossing() after cross call in main from gno.land/r/demo/nft_test to gno.land/r/demo/nft_test
+// missing crossing() after cross call to main from gno.land/r/demo/nft_test to gno.land/r/demo/nft_test
