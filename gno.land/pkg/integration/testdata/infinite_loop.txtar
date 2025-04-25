@@ -1,3 +1,5 @@
+# XXX(FIXME): fix qeval first
+
 # regression test for https://github.com/gnolang/gno/issues/3612
 # infinite loops should panic in all of simulate, query, render, maketx run and addpkg.
 
@@ -47,6 +49,8 @@ stderr 'out of gas.* location: CPUCycles'
 package main
 
 func main() {
+	crossing()
+
 	for {}
 
 	println("hey")
@@ -63,7 +67,9 @@ func init() {
 	for {}
 }
 
-func main() {}
+func main() {
+	crossing()
+}
 
 -- r2/gno.mod --
 module gno.land/r/demo/r2
@@ -73,6 +79,9 @@ module gno.land/r/demo/r2
 package r2
 
 func Render(s string) string {
+	crossing()
+
 	for {}
+
 	return "hello world!"
 }
