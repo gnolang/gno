@@ -26,6 +26,24 @@ func (ms myStruct) Foo() string { return "myStruct.Foo" }
 // Test type aliases
 type myAlias = myStruct
 
+// Test array type
+type myArrayType [5]int
+
+// Test slice type
+type mySliceType []int
+
+// Test map type
+type myMapType map[string]int
+
+// Test chan type
+type myChanType chan int
+
+// Test func type
+type myFuncType func(int) string
+
+// Test pointer type
+type myPointerType *myStruct
+
 // Panic is a func for testing
 func Panic() { panic("foo") }
 

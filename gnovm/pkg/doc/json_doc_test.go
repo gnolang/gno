@@ -192,6 +192,24 @@ func TestJSONDocumentation(t *testing.T) {
 				Kind:  "ident",
 			},
 			{
+				Name: "myArrayType",
+				Type: "[5]int",
+				Doc:  "Test array type\n",
+				Kind: "array",
+			},
+			{
+				Name: "myChanType",
+				Type: "chan int",
+				Doc:  "Test chan type\n",
+				Kind: "chan",
+			},
+			{
+				Name: "myFuncType",
+				Type: "func(int) string",
+				Doc:  "Test func type\n",
+				Kind: "func",
+			},
+			{
 				Name: "myInterface",
 				Type: "interface {\n\t// Bar is for testing\n\tBar(x int) string // Bar line comment\n}",
 				Doc:  "myInterface is an interface for testing\n",
@@ -210,6 +228,24 @@ func TestJSONDocumentation(t *testing.T) {
 						},
 					},
 				},
+			},
+			{
+				Name: "myMapType",
+				Type: "map[string]int",
+				Doc:  "Test map type\n",
+				Kind: "map",
+			},
+			{
+				Name: "myPointerType",
+				Type: "*myStruct",
+				Doc:  "Test pointer type\n",
+				Kind: "pointer",
+			},
+			{
+				Name: "mySliceType",
+				Type: "[]int",
+				Doc:  "Test slice type\n",
+				Kind: "slice",
 			},
 			{
 				Name: "myStruct",
