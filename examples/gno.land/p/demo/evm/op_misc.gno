@@ -235,3 +235,9 @@ func opPc(s *state) error {
 	s.code.Increment()
 	return nil
 }
+
+func opMsize(s *state) error {
+	s.stack.Push(uint256.NewUint(uint64(len(s.memory))))
+	s.code.Increment()
+	return nil
+}

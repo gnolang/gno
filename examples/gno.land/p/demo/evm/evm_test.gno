@@ -343,6 +343,50 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expected_memory: []byte{ 0xff, 0xff, 0xff, 0xff },
 		},
+		{
+			name: "checkin da mem size",
+			code: []byte{
+				byte(PUSH1), 0xff, // store 0xffffff
+				byte(PUSH0),
+				byte(MSTORE8),
+				byte(PUSH1), 0xff,
+				byte(PUSH1), 1,
+				byte(MSTORE8),
+				byte(PUSH1), 0xff,
+				byte(PUSH1), 2,
+				byte(MSTORE8),
+
+				byte(MSIZE),
+
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{
+				uint256.NewUint(3),
+			},
+			expected_memory: []byte{ 0xff, 0xff, 0xff },
+		},
+		{
+			name: "checkin da pc",
+			code: []byte{
+				byte(PUSH1), 0xff, // store 0xffffff
+				byte(PUSH0),
+				byte(MSTORE8),
+				byte(PUSH1), 0xff,
+				byte(PUSH1), 1,
+				byte(MSTORE8),
+				byte(PUSH1), 0xff,
+				byte(PUSH1), 2,
+				byte(MSTORE8),
+
+				byte(PC),
+
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{
+				uint256.NewUint(14),
+			},
+			ignore_mem: true,
+		},
 	}
 
 	for _, tc := range testCases {
