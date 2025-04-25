@@ -1,12 +1,14 @@
 package evm
 
+import "gno.land/p/demo/uint256"
+
 type OpCode byte
 
 type EvmOpData struct {
 	opCode    OpCode
 	name      string
 	operation func(*state) error
-	gas 	  uint16
+	gas       uint16
 }
 
 const (
@@ -161,18 +163,18 @@ const (
 )
 
 var (
-	opCodes map[OpCode]EvmOpData = map[OpCode]EvmOpData {
+	opCodes map[OpCode]EvmOpData = map[OpCode]EvmOpData{
 		STOP:           {STOP, "STOP", opNotImplemented, 0},
-		ADD:            {ADD, "ADD", opAdd, 3},
-		MUL:            {MUL, "MUL", opMul, 5},
-		SUB:            {SUB, "SUB", opSub, 3},
-		DIV:            {DIV, "DIV", opDiv, 5},
-		SDIV:           {SDIV, "SDIV", opSdiv, 5},
-		MOD:            {MOD, "MOD", opMod, 5},
-		SMOD:           {SMOD, "SMOD", opSmod, 5},
+		ADD:            {ADD, "ADD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Add(a, b) }), 3},
+		MUL:            {MUL, "MUL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mul(a, b) }), 5},
+		SUB:            {SUB, "SUB", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Sub(a, b) }), 3},
+		DIV:            {DIV, "DIV", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Div(a, b) }), 5},
+		SDIV:           {SDIV, "SDIV", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.SDiv(a, b) }), 5},
+		MOD:            {MOD, "MOD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mod(a, b) }), 5},
+		SMOD:           {SMOD, "SMOD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.SMod(a, b) }), 5},
 		ADDMOD:         {ADDMOD, "ADDMOD", opAddmod, 8},
 		MULMOD:         {MULMOD, "MULMOD", opMulmod, 8},
-		EXP:            {EXP, "EXP", opExp, 10}, // can change
+		EXP:            {EXP, "EXP", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Exp(a, b) }), 10}, // can change
 		SIGNEXTEND:     {SIGNEXTEND, "SIGNEXTEND", opNotImplemented, 5},
 		LT:             {LT, "LT", opNotImplemented, 3},
 		GT:             {GT, "GT", opNotImplemented, 3},
@@ -180,9 +182,9 @@ var (
 		SGT:            {SGT, "SGT", opNotImplemented, 3},
 		EQ:             {EQ, "EQ", opNotImplemented, 3},
 		ISZERO:         {ISZERO, "ISZERO", opIszero, 3},
-		AND:            {AND, "AND", opAnd, 3},
-		OR:             {OR, "OR", opOr, 3},
-		XOR:            {XOR, "XOR", opXor, 3},
+		AND:            {AND, "AND", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.And(a, b) }), 3},
+		OR:             {OR, "OR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Or(a, b) }), 3},
+		XOR:            {XOR, "XOR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Xor(a, b) }), 3},
 		NOT:            {NOT, "NOT", opNot, 3},
 		BYTE:           {BYTE, "BYTE", opByte, 3},
 		SHL:            {SHL, "SHL", opNotImplemented, 3},
@@ -196,7 +198,7 @@ var (
 		CALLVALUE:      {CALLVALUE, "CALLVALUE", opNotImplemented, 2},
 		CALLDATALOAD:   {CALLDATALOAD, "CALLDATALOAD", opNotImplemented, 3},
 		CALLDATASIZE:   {CALLDATASIZE, "CALLDATASIZE", opNotImplemented, 2},
-		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", opNotImplemented, 3}, // can change	
+		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", opNotImplemented, 3}, // can change
 		CODESIZE:       {CODESIZE, "CODESIZE", opNotImplemented, 2},
 		CODECOPY:       {CODECOPY, "CODECOPY", opNotImplemented, 3}, // can change
 		GASPRICE:       {GASPRICE, "GASPRICE", opNotImplemented, 2},
@@ -204,7 +206,7 @@ var (
 		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", opNotImplemented, 100}, // can change
 		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", opNotImplemented, 2},
 		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", opNotImplemented, 3}, // can change
-		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", opNotImplemented, 100}, // can change
+		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", opNotImplemented, 100},     // can change
 		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", opNotImplemented, 20},
 		COINBASE:       {COINBASE, "COINBASE", opNotImplemented, 2},
 		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", opNotImplemented, 2},
@@ -217,10 +219,10 @@ var (
 		BLOBHASH:       {BLOBHASH, "BLOBHASH", opNotImplemented, 3},
 		BLOBBASEFEE:    {BLOBBASEFEE, "BLOBBASEFEE", opNotImplemented, 2},
 		POP:            {POP, "POP", opPop, 2},
-		MLOAD:          {MLOAD, "MLOAD", opMload, 3}, // can change
-		MSTORE:         {MSTORE, "MSTORE", opMstore, 3}, // can change
-		MSTORE8:        {MSTORE8, "MSTORE8", opMstore8, 3}, // can change
-		SLOAD:          {SLOAD, "SLOAD", opNotImplemented, 100}, // can change
+		MLOAD:          {MLOAD, "MLOAD", opMload, 3},              // can change
+		MSTORE:         {MSTORE, "MSTORE", opMstore, 3},           // can change
+		MSTORE8:        {MSTORE8, "MSTORE8", opMstore8, 3},        // can change
+		SLOAD:          {SLOAD, "SLOAD", opNotImplemented, 100},   // can change
 		SSTORE:         {SSTORE, "SSTORE", opNotImplemented, 100}, // can change
 		JUMP:           {JUMP, "JUMP", opJump, 8},
 		JUMPI:          {JUMPI, "JUMPI", opJumpi, 10},
