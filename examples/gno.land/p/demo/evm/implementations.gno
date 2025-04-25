@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 
+	"gno.land/p/demo/evm/keccak256"
 	"gno.land/p/demo/uint256"
 )
 
@@ -198,10 +199,33 @@ func opMstore8(s *state) error {
 		s.code.Increment()
 		return nil
 	}
-	if off64 >= memLen {
-		s.memory = append(s.memory, make([]byte, off64)...)
+	if off64 + 1 > memLen {
+		s.memory = append(s.memory, make([]byte, off64 + 1 - memLen)...)
 	}
-	s.memory = append(s.memory, b)
+	s.memory[off64] = b
+	s.code.Increment()
+	return nil
+}
+
+func opKeccak256(s *state) error {
+	off, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	size, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	off64 := off.Uint64()
+	if off64 > uint64(len(s.memory)) {
+		s.stack.Push(uint256.Zero())
+		s.code.Increment()
+		return nil
+	}
+	slice := s.memory[off64:off64+size.Uint64()]
+	resBytes := keccak256.Keccak256(slice)
+	resUint := uint256.Zero().SetBytes(resBytes)
+	s.stack.Push(resUint)
 	s.code.Increment()
 	return nil
 }

@@ -188,7 +188,7 @@ var (
 		SHL:            {SHL, "SHL", opNotImplemented /*opShl*/},
 		SHR:            {SHR, "SHR", opNotImplemented /*opShr*/},
 		SAR:            {SAR, "SAR", opNotImplemented /*opSar*/},
-		KECCAK256:      {KECCAK256, "KECCAK256", opNotImplemented /*opKeccak256*/},
+		KECCAK256:      {KECCAK256, "KECCAK256", opKeccak256},
 		ADDRESS:        {ADDRESS, "ADDRESS", opNotImplemented /*opAddress*/},
 		BALANCE:        {BALANCE, "BALANCE", opNotImplemented /*opBalance*/},
 		ORIGIN:         {ORIGIN, "ORIGIN", opNotImplemented /*opOrigin*/},
