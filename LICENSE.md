@@ -31,7 +31,10 @@ must prominently display a reasonable attribution notice for the Covered Work (t
 author(s) or copyright holder of the Covered Work in a manner readily visible to users, 
 and include an active hyperlink to the official website or domain designated by the 
 Licensor for attribution (the “Attribution URL”). The Attribution Notice must be at least 
-as conspicuous as other legal notices or credits in the same interface. 
+as conspicuous as other legal notices or credits in the same interface. The Attribution URL 
+and related attribution terms described herein are determined exclusively by NewTendermint, LLC. 
+In cases of ambiguity, forks, or disputes regarding attribution, the designation made by 
+NewTendermint, LLC shall conclusively govern.  
 
 This attribution requirement remains in force for seven (7) years from the date the Covered 
 Work is first publicly released under this License, or seven (7) years from the date you first 
