@@ -155,3 +155,8 @@ func opPc(s *state) error {
 	s.stack.Push(uint256.NewUint(uint64(s.code.rip)))
 	return nil
 }
+
+func opCodeSize(s *state) error {
+	s.stack.Push(uint256.NewUint(uint64(s.code.length)))
+	return nil
+}

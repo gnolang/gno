@@ -199,7 +199,7 @@ var (
 		CALLDATALOAD:   {CALLDATALOAD, "CALLDATALOAD", opNotImplemented, 3},
 		CALLDATASIZE:   {CALLDATASIZE, "CALLDATASIZE", opNotImplemented, 2},
 		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", opNotImplemented, 3}, // can change
-		CODESIZE:       {CODESIZE, "CODESIZE", opNotImplemented, 2},
+		CODESIZE:       {CODESIZE, "CODESIZE", opCodeSize, 2},
 		CODECOPY:       {CODECOPY, "CODECOPY", opNotImplemented, 3}, // can change
 		GASPRICE:       {GASPRICE, "GASPRICE", opNotImplemented, 2},
 		EXTCODESIZE:    {EXTCODESIZE, "EXTCODESIZE", opNotImplemented, 100}, // can change
@@ -232,7 +232,7 @@ var (
 		JUMPDEST:       {JUMPDEST, "JUMPDEST", opNop, 1},
 		TLOAD:          {TLOAD, "TLOAD", opNotImplemented, 100},
 		TSTORE:         {TSTORE, "TSTORE", opNotImplemented, 100},
-		MCOPY:          {MCOPY, "MCOPY", opNotImplemented, 3}, // can change
+		MCOPY:          {MCOPY, "MCOPY", opMcopy, 3}, // can change
 		PUSH0:          {PUSH0, "PUSH0", opPush0, 3},
 		PUSH1:          {PUSH1, "PUSH1", opPush(1), 3},
 		PUSH2:          {PUSH2, "PUSH2", opPush(2), 3},

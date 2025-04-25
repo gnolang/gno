@@ -80,3 +80,29 @@ func opMsize(s *state) error {
 	s.stack.Push(uint256.NewUint(uint64(len(s.memory))))
 	return nil
 }
+
+func opMcopy(s *state) error {
+	dst, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	src, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	size, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	memlen256 := uint256.NewUint(uint64(len(s.memory)))
+	farest := uint256.Zero().Max(uint256.Zero().Add(src, size), uint256.Zero().Add(dst, size))
+	if farest.Cmp(memlen256) > 0 {
+		extend := uint256.Zero().Sub(farest, memlen256).Uint64()
+		s.memory = append(s.memory, make([]byte, extend)...)
+		// todo: incrmeent gas because extension
+	}
+
+	copy(s.memory[dst.Uint64():], s.memory[src.Uint64():size.Uint64()])
+	return nil
+}
