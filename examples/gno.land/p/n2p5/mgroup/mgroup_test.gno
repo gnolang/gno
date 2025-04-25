@@ -11,6 +11,7 @@ import (
 
 func TestManagedGroup(t *testing.T) {
 	t.Parallel()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
