@@ -47,13 +47,6 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 		return data.SelectedArgs[param.Name], nil
 	}
-	funcs["getSelectedSendValue"] = func(data HelpData) string {
-		if data.SelectedSend == "" {
-			return ""
-		}
-
-		return data.SelectedSend
-	}
 }
 
 func HelpView(data HelpData) *View {
