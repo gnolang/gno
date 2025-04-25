@@ -772,6 +772,15 @@ func makeUverseNode() {
 			for i := 1 + 1; ; i++ {
 				fri := m.PeekCallFrame(i)
 				if fri == nil {
+					// for stage add, meaning init() AND
+					// global var decls inherit a faux
+					// frame of index -1 which crossed from
+					// the package deployer.
+					if m.Stage == StageAdd {
+						fr2 := m.PeekCallFrame(2)
+						fr2.SetDidCross()
+						return
+					}
 					panic("crossing could not find corresponding cross(fn)(...) call")
 				}
 				if fri.WithCross || fri.DidCross {

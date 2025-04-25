@@ -1877,10 +1877,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
 				// DO NOT set DidCross here. Make DidCross only
-				// happen upon explicit cross(fn)(...) calls to
-				// avoid user confusion. Otherwise whether
-				// DidCross happened or not depends on where
-				// the receiver resides, which isn't explicit
+				// happen upon explicit cross(fn)(...) calls
+				// and subsequent calls to crossing functions
+				// from the same realm, to avoid user
+				// confusion. Otherwise whether DidCross
+				// happened or not depends on where the
+				// receiver resides, which isn't explicit
 				// enough to avoid confusion.
 				//   fr.DidCross = true
 				return
