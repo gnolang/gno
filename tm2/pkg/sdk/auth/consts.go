@@ -36,14 +36,3 @@ func AddressStoreKey(addr crypto.Address) []byte {
 func SessionStoreKey(pubkey crypto.PubKey) []byte {
 	return append([]byte(SessionStoreKeyPrefix), pubkey.Bytes()...)
 }
-
-// NOTE: do not modify.
-// XXX: consider parameterization at the keeper level.
-var feeCollector crypto.Address
-
-func FeeCollectorAddress() crypto.Address {
-	if feeCollector.IsZero() {
-		feeCollector = crypto.AddressFromPreimage([]byte(FeeCollectorName))
-	}
-	return feeCollector
-}

@@ -28,12 +28,13 @@ type Session interface {
 
 // BaseSession provides the basic implementation of a Session
 type BaseSession struct {
-	Address    crypto.Address `json:"address"`
-	PubKey     crypto.PubKey  `json:"pubkey"`
-	Sequence   uint64         `json:"sequence"`
-	CreatedAt  time.Time      `json:"created_at"`
-	LastUsedAt time.Time      `json:"last_used_at"`
-	State      SessionState   `json:"state"`
+	Address        crypto.Address `json:"address"`
+	PubKey         crypto.PubKey  `json:"pubkey"`
+	Sequence       uint64         `json:"sequence"`
+	CreatedAt      time.Time      `json:"created_at"`
+	LastUsedAt     time.Time      `json:"last_used_at"`
+	State          SessionState   `json:"state"`
+	ExpirationTime time.Time      `json:"expiration_time"`
 }
 
 // SessionState represents the current state of a session
@@ -79,9 +80,16 @@ func (s *BaseSession) SetSequence(seq uint64) {
 	s.Sequence = seq
 }
 
-// IsExpired checks if the session is in expired state
+// IsExpired checks if the session is in expired state or has passed its expiration time
 func (s *BaseSession) IsExpired() bool {
-	return s.State == SessionStateExpired
+	if s.State == SessionStateExpired {
+		return true
+	}
+	if !s.ExpirationTime.IsZero() && time.Now().After(s.ExpirationTime) {
+		s.State = SessionStateExpired
+		return true
+	}
+	return false
 }
 
 // IsActive checks if the session is in active state
