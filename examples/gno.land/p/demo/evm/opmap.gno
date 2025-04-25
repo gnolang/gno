@@ -164,7 +164,7 @@ const (
 
 var (
 	opCodes map[OpCode]EvmOpData = map[OpCode]EvmOpData{
-		STOP:           {STOP, "STOP", opNotImplemented, 0},
+		STOP:           {STOP, "STOP", opNop, 0},
 		ADD:            {ADD, "ADD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Add(a, b) }), 3},
 		MUL:            {MUL, "MUL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mul(a, b) }), 5},
 		SUB:            {SUB, "SUB", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Sub(a, b) }), 3},
@@ -187,8 +187,8 @@ var (
 		XOR:            {XOR, "XOR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Xor(a, b) }), 3},
 		NOT:            {NOT, "NOT", opNot, 3},
 		BYTE:           {BYTE, "BYTE", opByte, 3},
-		SHL:            {SHL, "SHL", opNotImplemented, 3},
-		SHR:            {SHR, "SHR", opNotImplemented, 3},
+		SHL:            {SHL, "SHL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Lsh(a, uint(b.Uint64())) }), 3},
+		SHR:            {SHR, "SHR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Rsh(a, uint(b.Uint64())) }), 3},
 		SAR:            {SAR, "SAR", opNotImplemented, 3},
 		KECCAK256:      {KECCAK256, "KECCAK256", opKeccak256, 30}, // can change
 		ADDRESS:        {ADDRESS, "ADDRESS", opNotImplemented, 2},
