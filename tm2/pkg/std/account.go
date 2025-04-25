@@ -46,6 +46,12 @@ type Account interface {
 	GetKey(pubKey crypto.PubKey) (AccountKey, error)
 	GetAllKeys() []AccountKey
 
+	GetPubKey() crypto.PubKey
+	SetPubKey(crypto.PubKey) error
+
+	GetSequence() uint64
+	SetSequence(uint64)
+
 	String() string
 }
 
@@ -75,11 +81,14 @@ type BaseAccount struct {
 	Coins          Coins          `json:"coins" yaml:"coins"`
 	AccountNumber  uint64         `json:"account_number" yaml:"account_number"`
 	GlobalSequence uint64         `json:"global_sequence" yaml:"global_sequence"` // sum of all session sequences
+	PubKey         crypto.PubKey  `json:"public_key,omitempty" yaml:"public_key,omitempty"`
+	Sequence       uint64         `json:"sequence" yaml:"sequence"`
 }
 
+var _ Account = (*BaseAccount)(nil)
+
 // NewBaseAccount creates a new BaseAccount object
-func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey, accountNumber uint64,
-) *BaseAccount {
+func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey, accountNumber uint64, sequence uint64) *BaseAccount {
 	key := NewBaseAccountKey(pubKey, 0)
 	return &BaseAccount{
 		Address:        address,
@@ -88,6 +97,8 @@ func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey, a
 		AccountNumber:  accountNumber,
 		Sessions:       []AccountKey{},
 		GlobalSequence: 0,
+		PubKey:         pubKey,
+		Sequence:       sequence,
 	}
 }
 
@@ -98,8 +109,10 @@ func (acc BaseAccount) String() string {
   Coins:          %s
   AccountNumber:  %d
   GlobalSequence: %d
-  Sessions:       %d`,
-		acc.Address, acc.Coins, acc.AccountNumber, acc.GlobalSequence, len(acc.Sessions),
+  Sessions:       %d
+  PubKey:         %s
+  Sequence:       %d`,
+		acc.Address, acc.Coins, acc.AccountNumber, acc.GlobalSequence, len(acc.Sessions), acc.PubKey, acc.Sequence,
 	)
 }
 
@@ -143,6 +156,20 @@ func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 	acc.AccountNumber = accNumber
 	return nil
 }
+
+// GetPubKey implements Account.
+func (acc BaseAccount) GetPubKey() crypto.PubKey {
+	return acc.PubKey
+}
+
+// SetPubKey implements Account.
+func (acc *BaseAccount) SetPubKey(pubKey crypto.PubKey) error {
+	acc.PubKey = pubKey
+	return nil
+}
+
+func (acc *BaseAccount) GetSequence() uint64    { return acc.Sequence }
+func (acc *BaseAccount) SetSequence(seq uint64) { acc.Sequence = seq }
 
 // AddSession implements Account.
 func (acc *BaseAccount) AddSession(pubKey crypto.PubKey) (AccountKey, error) {

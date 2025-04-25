@@ -28,34 +28,24 @@ var (
 // Account flags
 const (
 	// XXX rename these to flagXyz.
-
-	// accountFlagUnrestricted allows flagUnrestricted transfers.
-	accountFlagUnrestricted BitSet = 1 << iota
-
-	// TODO: accountFlagValidator marks an account as validator.
-	accountFlagValidator // XXX: consider flagValidatorSession instead of flagValidatorAccount
-
-	// TODO: accountFlagRealm marks an account as realm.
-	accountFlagRealm
+	flagUnrestrictedAccount BitSet = 1 << iota
+	flagValidatorAccount
+	flagRealmAccount
 )
 
 // validAccountFlags defines the set of all valid flags for accounts
-var validAccountFlags = accountFlagUnrestricted | accountFlagValidator | accountFlagRealm
+var validAccountFlags = flagUnrestrictedAccount | flagValidatorAccount | flagRealmAccount
 
 // Session flags
 const (
-	// sessionFlagMaster is a flag indicating that the session is a master session
-	sessionFlagMaster BitSet = 1 << iota
-
-	// sessionFlagValidationOnly is a flag limiting the session to validator permissions
-	sessionFlagValidationOnly
-
-	// sessionFlagCanManageSessions is a flag that allows the session to manage other sessions
-	sessionFlagCanManageSessions // Can manage sessions
+	flagMasterSession BitSet = 1 << iota
+	flagValidationOnlySession
+	flagSessionManagerSession
+	flagPackageManagerSession
 )
 
 // validSessionFlags defines the set of all valid flags for sessions
-var validSessionFlags = sessionFlagMaster | sessionFlagValidationOnly | sessionFlagCanManageSessions
+var validSessionFlags = flagMasterSession | flagValidationOnlySession | flagSessionManagerSession | flagPackageManagerSession
 
 const (
 	// MaxSessionsPerAccount is the maximum number of sessions allowed per account

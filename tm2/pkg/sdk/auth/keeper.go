@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"log/slog"
 	"math/big"
 
@@ -145,20 +146,21 @@ func (ak AccountKeeper) decodeAccount(bz []byte) (acc std.Account) {
 	return
 }
 
-/*
 // -----------------------------------------------------------------------------
 // Session.
 
-func (ak AccountKeeper) GetSession(ctx sdk.Context, pubkey crypto.PubKey) std.AccountKey {
+// GetSession retrieves a session by its public key
+func (ak AccountKeeper) GetSession(ctx sdk.Context, pubkey crypto.PubKey) std.Session {
 	stor := ctx.GasStore(ak.key)
 	bz := stor.Get(SessionStoreKey(pubkey))
 	if bz == nil {
 		return nil
 	}
-	key := ak.decodeSession(bz)
-	return key
+	sess := ak.decodeSession(bz)
+	return sess
 }
 
+// GetAllSessions returns all sessions in the AccountKeeper
 func (ak AccountKeeper) GetAllSessions(ctx sdk.Context) []std.Session {
 	sessions := []std.Session{}
 	appendSession := func(sess std.Session) (stop bool) {
@@ -169,6 +171,7 @@ func (ak AccountKeeper) GetAllSessions(ctx sdk.Context) []std.Session {
 	return sessions
 }
 
+// SetSession stores a session in the AccountKeeper
 func (ak AccountKeeper) SetSession(ctx sdk.Context, sess std.Session) {
 	pubkey := sess.GetPubKey()
 	stor := ctx.GasStore(ak.key)
@@ -179,13 +182,14 @@ func (ak AccountKeeper) SetSession(ctx sdk.Context, sess std.Session) {
 	stor.Set(SessionStoreKey(pubkey), bz)
 }
 
+// RemoveSession removes a session from the AccountKeeper
 func (ak AccountKeeper) RemoveSession(ctx sdk.Context, sess std.Session) {
 	pubkey := sess.GetPubKey()
 	stor := ctx.GasStore(ak.key)
 	stor.Delete(SessionStoreKey(pubkey))
 }
 
-// IterateSessions implements AccountKeeper.
+// IterateSessions implements AccountKeeper
 func (ak AccountKeeper) IterateSessions(ctx sdk.Context, process func(std.Session) (stop bool)) {
 	stor := ctx.GasStore(ak.key)
 	iter := store.PrefixIterator(stor, []byte(SessionStoreKeyPrefix))
@@ -203,7 +207,7 @@ func (ak AccountKeeper) IterateSessions(ctx sdk.Context, process func(std.Sessio
 	}
 }
 
-// GetSequence Returns the Sequence of the account at address
+// GetSequence returns the sequence number for a given session
 func (ak AccountKeeper) GetSequence(ctx sdk.Context, pubkey crypto.PubKey) (uint64, error) {
 	sess := ak.GetSession(ctx, pubkey)
 	if sess == nil {
@@ -219,7 +223,6 @@ func (ak AccountKeeper) decodeSession(bz []byte) (sess std.Session) {
 	}
 	return
 }
-*/
 
 // -----------------------------------------------------------------------------
 // Gas.

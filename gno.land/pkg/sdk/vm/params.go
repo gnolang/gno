@@ -1,4 +1,4 @@
-git gghpackage vm
+package vm
 
 import (
 	"fmt"

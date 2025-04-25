@@ -14,6 +14,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&BaseAccount{}, "BaseAccount",
 	&BaseAccountKey{}, "BaseAccountKey",
 
+	// Session
+	&BaseSession{}, "BaseSession",
+
 	// Coin
 	&Coin{}, "Coin",
 
