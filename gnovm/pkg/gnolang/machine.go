@@ -1905,8 +1905,6 @@ func (m *Machine) PopFrame() Frame {
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
-	// fmt.Println("---PopFrameAndReset, fr: ", fr, fr.IsCall())
-	// fmt.Println("---fr.Source: ", fr.Source)
 
 	m.NumOps = fr.NumOps
 	m.NumValues = fr.NumValues

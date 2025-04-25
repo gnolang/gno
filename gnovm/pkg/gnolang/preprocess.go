@@ -3430,30 +3430,17 @@ func findContinuableNode(last BlockNode, store Store) {
 	}
 }
 
-// Find first *ForStmt, *RangeStmt, *SwitchClauseStmt
-func findFirstBreakableBlockNode(last BlockNode, label Name) (bn BlockNode, depth uint8) {
-	for last != nil {
+// Find first breakable node:  *ForStmt, *RangeStmt, *SwitchStmt
+func findFirstBreakableBlockNode(last BlockNode, label Name) (bn BlockNode) {
+	for ; last != nil; last = last.GetParentNode(nil) {
 		switch cbn := last.(type) {
 		case *ForStmt, *RangeStmt, *SwitchStmt:
-			// fmt.Println("---cbn.GetLabel: ", cbn.GetLabel())
-			if label == "" {
-				bn = cbn
-				return
+			if label == "" || label == cbn.GetLabel() {
+				return cbn
 			}
-
-			if label == cbn.GetLabel() {
-				bn = cbn
-				return
-			} else {
-				last = cbn.GetParentNode(nil)
-				depth += 1
-			}
-		default:
-			last = cbn.GetParentNode(nil)
-			depth += 1
 		}
 	}
-	panic("did not find outer node to break")
+	panic("no breakable block node found")
 }
 
 func findBranchLabel(last BlockNode, label Name) (
