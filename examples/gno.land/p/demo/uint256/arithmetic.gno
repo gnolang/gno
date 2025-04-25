@@ -109,6 +109,32 @@ func (z *Uint) Div(x, y *Uint) *Uint {
 	return z.Set(&quot)
 }
 
+// SDiv interprets n and d as two's complement signed integers,
+// does a signed division on the two operands and sets z to the result.
+// If d == 0, z is set to 0
+func (z *Uint) SDiv(n, d *Uint) *Uint {
+	if n.Sign() > 0 {
+		if d.Sign() > 0 {
+			// pos / pos
+			z.Div(n, d)
+			return z
+		} else {
+			// pos / neg
+			z.Div(n, new(Uint).Neg(d))
+			return z.Neg(z)
+		}
+	}
+
+	if d.Sign() < 0 {
+		// neg / neg
+		z.Div(new(Uint).Neg(n), new(Uint).Neg(d))
+		return z
+	}
+	// neg / pos
+	z.Div(new(Uint).Neg(n), d)
+	return z.Neg(z)
+}
+
 // MulMod calculates the modulo-m multiplication of x and y and
 // returns z.
 // If m == 0, z is set to 0 (OBS: differs from the big.Int)
@@ -170,6 +196,28 @@ func (z *Uint) Mod(x, y *Uint) *Uint {
 
 	var quot Uint
 	*z = udivrem(quot.arr[:], x.arr[:], y)
+	return z
+}
+
+// SMod interprets x and y as two's complement signed integers,
+// sets z to (sign x) * { abs(x) modulus abs(y) }
+// If y == 0, z is set to 0 (OBS: differs from the big.Int)
+func (z *Uint) SMod(x, y *Uint) *Uint {
+	ys := y.Sign()
+	xs := x.Sign()
+
+	// abs x
+	if xs == -1 {
+		x = new(Uint).Neg(x)
+	}
+	// abs y
+	if ys == -1 {
+		y = new(Uint).Neg(y)
+	}
+	z.Mod(x, y)
+	if xs == -1 {
+		z.Neg(z)
+	}
 	return z
 }
 
