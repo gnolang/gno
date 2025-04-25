@@ -184,7 +184,7 @@ var (
 		OR:             {OR, "OR", opOr, 3},
 		XOR:            {XOR, "XOR", opXor, 3},
 		NOT:            {NOT, "NOT", opNot, 3},
-		BYTE:           {BYTE, "BYTE", opNotImplemented, 3},
+		BYTE:           {BYTE, "BYTE", opByte, 3},
 		SHL:            {SHL, "SHL", opNotImplemented, 3},
 		SHR:            {SHR, "SHR", opNotImplemented, 3},
 		SAR:            {SAR, "SAR", opNotImplemented, 3},

@@ -2,9 +2,9 @@ package evm
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"testing"
+	"fmt"
 
 	"gno.land/p/demo/uint256"
 )
@@ -451,6 +451,29 @@ func TestExecuteEvm(t *testing.T) {
 				uint256.NewUint(14),
 			},
 			ignore_mem: true,
+		},
+		{
+			name: "simple push 2 byte",
+			code: []byte{ byte(PUSH2), 0xff, 0x00, byte(STOP) },
+			expected_stack: []*uint256.Uint{ uint256.NewUint(0xff00) },
+		},
+		{
+			name: "byte instruction from https://www.evm.codes/",
+			code: []byte{
+				byte(PUSH1), 0xff,
+				byte(PUSH1), 31,
+				byte(BYTE),
+
+				byte(PUSH2), 0xff, 0x00,
+				byte(PUSH1), 30,
+				byte(BYTE),
+
+				byte(STOP),
+			},
+			expected_stack: []*uint256.Uint{
+				uint256.NewUint(0xff),
+				uint256.NewUint(0xff),
+			},
 		},
 	}
 
