@@ -229,3 +229,9 @@ func opKeccak256(s *state) error {
 	s.code.Increment()
 	return nil
 }
+
+func opPc(s *state) error {
+	s.stack.Push(uint256.NewUint(uint64(s.code.rip)))
+	s.code.Increment()
+	return nil
+}
