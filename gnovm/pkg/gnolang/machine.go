@@ -1905,6 +1905,23 @@ func (m *Machine) PopFrame() Frame {
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
+	// fmt.Println("---PopFrameAndReset, fr: ", fr, fr.IsCall())
+	// fmt.Println("---fr.Source: ", fr.Source)
+
+	m.NumOps = fr.NumOps
+	m.NumValues = fr.NumValues
+	m.Exprs = m.Exprs[:fr.NumExprs]
+	m.Stmts = m.Stmts[:fr.NumStmts]
+	m.Blocks = m.Blocks[:fr.NumBlocks]
+	m.PopStmt() // may be sticky
+}
+
+func (m *Machine) PopFrameAndReset2(bn BlockNode) {
+	fr := m.PopFrame()
+	for fr.Source != bn {
+		fr = m.PopFrame()
+	}
+
 	m.NumOps = fr.NumOps
 	m.NumValues = fr.NumValues
 	m.Exprs = m.Exprs[:fr.NumExprs]

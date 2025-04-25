@@ -627,7 +627,8 @@ EXEC_SWITCH:
 					if cs.Label != "" && cs.Label != fr.Label {
 						m.PopFrame()
 					} else {
-						m.PopFrameAndReset()
+						bn, _ := findFirstBreakableBlockNode(m.LastBlock().Source, cs.Label)
+						m.PopFrameAndReset2(bn)
 						return
 					}
 				default:
