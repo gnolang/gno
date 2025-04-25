@@ -157,7 +157,6 @@ const (
 	CREATE2        OpCode = 0xF5
 	STATICCALL     OpCode = 0xFA
 	REVERT         OpCode = 0xFD
-	INVALID        OpCode = 0xFE
 	SELFDESTRUCT   OpCode = 0xFF
 )
 
