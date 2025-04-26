@@ -160,7 +160,7 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if !m.OwnedByPrevious() {
+	if !m.OwnedByCurrent() {
 		panic(ownable.ErrUnauthorized)
 	}
 
