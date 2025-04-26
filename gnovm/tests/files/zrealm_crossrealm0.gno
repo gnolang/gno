@@ -9,6 +9,8 @@ import (
 var somevalue tests.TestRealmObject
 
 func main() {
+	crossing()
+
 	somevalue.Field = "test"
 	println(somevalue)
 }
