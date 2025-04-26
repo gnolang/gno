@@ -54,7 +54,7 @@ else's pen it is still your signature; signature:pen :: current:borrowed.
 A crossing method declared in a realm cannot modify the receiver if the object
 resides in a different realm. However not all methods are required to be
 crossing methods, and crossing methods may still read the state of the
-receiver (and in general anything reacheable is readible).
+receiver (and in general anything reachable is readible).
 
 New unreal objects reachable from the borrowed realm (or current realm if there
 was no method call that borrowed) become persisted in the borrowed realm (or
