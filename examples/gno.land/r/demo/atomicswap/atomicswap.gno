@@ -88,6 +88,8 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 
 	// Create the swap
 	sendFn := func(to std.Address) {
+		crossing()
+
 		banker := std.NewBanker(std.BankerTypeRealmSend)
 		pkgAddr := std.CurrentRealm().Address()
 		banker.SendCoins(pkgAddr, to, sent)
@@ -118,6 +120,8 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(to std.Address) {
+		crossing()
+
 		err := userTeller.Transfer(to, allowance)
 		require(err == nil, "cannot transfer tokens")
 	}
