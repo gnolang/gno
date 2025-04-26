@@ -1,7 +1,6 @@
 package strings
 
 func (r *Replacer) PrintTrie() string {
-	r.buildOnce()
 	gen := r.r.(*genericReplacer)
 	return gen.printNode(&gen.root, 0)
 }

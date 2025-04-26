@@ -1,4 +1,4 @@
-# test panic 
+# test panic
 
 loadpkg gno.land/r/demo/panic $WORK
 
@@ -10,8 +10,8 @@ gnoland start
 
 stderr 'p\<VPBlock\(3\,0\)\>\(\)'
 stderr 'gno.land/r/demo/panic/panic.gno:5'
-stderr 'pkg\<VPBlock\(1\,0\)\>\.Trigger\(\)'
-stderr 'gno.land/r/demo/panic/panic.gno:9'
+stderr 'cross\(pkg<VPBlock\(1,0\)>.Trigger\)\(\)'
+stderr 'gno.land/r/demo/panic/panic.gno:11'
 
 -- panic.gno --
 package main
@@ -22,6 +22,7 @@ func p() {
 }
 
 func Trigger() {
+	crossing()
+
 	p()
 }
-

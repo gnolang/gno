@@ -22,8 +22,10 @@ func main() {
 
 // Stacktrace:
 // panic: do something panic
-// doSomething<VPBlock(3,0)>()
+// defer func(){ ... }()
 //     main/files/recover8.gno:7
+// doSomething<VPBlock(3,0)>()
+//     main/files/recover8.gno:4
 // main<VPBlock(1,2)>()
 //     main/files/recover8.gno:20
 

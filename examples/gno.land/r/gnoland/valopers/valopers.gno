@@ -6,7 +6,6 @@ import (
 	"errors"
 	"regexp"
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
@@ -24,13 +23,9 @@ const (
 var (
 	ErrValoperExists      = errors.New("valoper already exists")
 	ErrValoperMissing     = errors.New("valoper does not exist")
-	ErrAddressExists      = errors.New("valoper updated address exists")
-	ErrSameAddress        = errors.New("valoper updated address is the same")
 	ErrInvalidAddress     = errors.New("invalid address")
-	ErrOriginCaller       = errors.New("origin call is not the same")
 	ErrInvalidMoniker     = errors.New("moniker is not valid")
 	ErrInvalidDescription = errors.New("description is not valid")
-	ErrInvalidPubKey      = errors.New("invalid public key")
 )
 
 var (
@@ -38,9 +33,8 @@ var (
 	instructions string                               // markdown instructions for valoper's registration
 	minFee       = std.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
 
-	monikerMaxLengthMiddle     = ufmt.Sprintf("%d", MonikerMaxLength-2)
-	validateMonikerRe          = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
-	validateListeningAddressRe = regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`)                                        // <protocol>://<hostname>:<port> where <protocol> is optional
+	monikerMaxLengthMiddle = ufmt.Sprintf("%d", MonikerMaxLength-2)
+	validateMonikerRe      = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
 )
 
 // Valoper represents a validator operator profile
@@ -77,8 +71,14 @@ func DeleteFromAuthList(address std.Address, member std.Address) {
 
 // Register registers a new valoper
 func Register(moniker string, description string, address std.Address, pubKey string) {
-	if err := validateSentCoins(); err != nil {
-		panic(err)
+	// Check if a fee is enforced
+	if !minFee.IsZero() {
+		sentCoins := std.OriginSend()
+
+		// Coins must be sent and cover the min fee
+		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
+			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
+		}
 	}
 
 	// Check if the valoper is already registered
@@ -251,15 +251,6 @@ func isValoper(address std.Address) bool {
 	_, exists := valopers.Get(address.String())
 
 	return exists
-}
-
-func validateSentCoins() error {
-	sentCoins := std.OriginSend()
-
-	if len(sentCoins) == 1 && sentCoins[0].IsGTE(minFee) {
-		return nil
-	}
-	return errors.New("payment must not be less than " + strconv.Itoa(int(minFee.Amount)))
 }
 
 // validateMoniker checks if the moniker is valid

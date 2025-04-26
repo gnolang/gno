@@ -27,5 +27,10 @@ func main() {
 // main<VPBlock(1,2)>()
 //     main/files/panic1.gno:22
 
+
+
 // Error:
 // here
+
+// TypeCheckError:
+// main/files/panic1.gno:21:2: declared and not used: test

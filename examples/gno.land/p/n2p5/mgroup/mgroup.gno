@@ -44,7 +44,7 @@ func New(ownerAddress std.Address) *ManagedGroup {
 // AddBackupOwner adds a backup owner to the group by std.Address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddBackupOwner(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {
@@ -57,7 +57,7 @@ func (g *ManagedGroup) AddBackupOwner(addr std.Address) error {
 // RemoveBackupOwner removes a backup owner from the group by std.Address.
 // The owner cannot be removed. If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) RemoveBackupOwner(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {
@@ -90,7 +90,7 @@ func (g *ManagedGroup) ClaimOwnership() error {
 // AddMember adds a member to the group by std.Address.
 // If the caller is not the owner, an error is returned.
 func (g *ManagedGroup) AddMember(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {
@@ -104,7 +104,7 @@ func (g *ManagedGroup) AddMember(addr std.Address) error {
 // The owner cannot be removed. If the caller is not the owner,
 // an error is returned.
 func (g *ManagedGroup) RemoveMember(addr std.Address) error {
-	if !g.owner.CallerIsOwner() {
+	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
 	if !addr.IsValid() {

@@ -8,7 +8,7 @@ stdout 'hey'
 stderr '=== RUN   file/x_filetest.gno'
 stderr '--- Expected'
 stderr '\+\+\+ Actual'
-stderr '@@ -1,3 \+1,2 @@'
+stderr '@@ -1,2 \+1 @@'
 stderr 'hey'
 stderr '-hru?'
 

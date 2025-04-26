@@ -7,8 +7,8 @@ func main() {
 		// assert panic is recoverable
 		println(recover())
 	}()
-	std.CallerAt(0)
+	std.PreviousRealm()
 }
 
 // Output:
-// CallerAt requires positive arg
+// frame not found

@@ -3,8 +3,8 @@
 gno test -print-events .
 
 ! stdout .+
-stderr 'EVENTS: \[{\"type\":\"EventA\",\"attrs\":\[\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestA\"}\]'
-stderr 'EVENTS: \[{\"type\":\"EventB\",\"attrs\":\[{\"key\":\"keyA\",\"value\":\"valA\"}\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestB\"},{\"type\":\"EventC\",\"attrs\":\[{\"key\":\"keyD\",\"value\":\"valD\"}\],\"pkg_path\":\"gno.land/r/.*\",\"func\":\"TestB\"}\]'
+stderr 'EVENTS: \[{\"type\":\"EventA\",\"attrs\":\[\],\"pkg_path\":\"gno.land/r/.*\"\}]'
+stderr 'EVENTS: \[{\"type\":\"EventB\",\"attrs\":\[{\"key\":\"keyA\",\"value\":\"valA\"}\],\"pkg_path\":\"gno.land/r/.*\"},{\"type\":\"EventC\",\"attrs\":\[{\"key\":\"keyD\",\"value\":\"valD\"}\],\"pkg_path\":\"gno.land/r/.*\"}\]'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --

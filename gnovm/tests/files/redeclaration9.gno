@@ -12,3 +12,6 @@ func main() {
 
 // Error:
 // main/files/redeclaration9.gno:7:1: redeclaration of method a.method
+
+// TypeCheckError:
+// main/files/redeclaration9.gno:7:12: method a.method already declared at main/files/redeclaration9.gno:5:12

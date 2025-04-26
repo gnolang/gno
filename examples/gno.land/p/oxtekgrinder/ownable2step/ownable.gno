@@ -29,7 +29,7 @@ func NewWithAddress(addr std.Address) *Ownable2Step {
 
 // TransferOwnership initiate the transfer of the ownership to a new address by setting the PendingOwner
 func (o *Ownable2Step) TransferOwnership(newOwner std.Address) error {
-	if !o.CallerIsOwner() {
+	if !o.OwnedByPrevious() {
 		return ErrUnauthorized
 	}
 	if !newOwner.IsValid() {
@@ -59,7 +59,7 @@ func (o *Ownable2Step) AcceptOwnership() error {
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
 func (o *Ownable2Step) DropOwnership() error {
-	if !o.CallerIsOwner() {
+	if !o.OwnedByPrevious() {
 		return ErrUnauthorized
 	}
 
@@ -85,13 +85,13 @@ func (o *Ownable2Step) PendingOwner() std.Address {
 	return o.pendingOwner
 }
 
-// CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o *Ownable2Step) CallerIsOwner() bool {
+// OwnedByPrevious( checks if the caller of the function is the Realm's owner
+func (o *Ownable2Step) OwnedByPrevious() bool {
 	return std.PreviousRealm().Address() == o.owner
 }
 
-// AssertCallerIsOwner panics if the caller is not the owner
-func (o *Ownable2Step) AssertCallerIsOwner() {
+// AssertOwnedByPrevious panics if the caller is not the owner
+func (o *Ownable2Step) AssertOwnedByPrevious() {
 	if std.PreviousRealm().Address() != o.owner {
 		panic(ErrUnauthorized)
 	}

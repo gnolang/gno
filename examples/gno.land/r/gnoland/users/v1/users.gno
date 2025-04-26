@@ -24,6 +24,8 @@ var (
 // All letters must be lowercase, and the only valid special char is `_`.
 // Only calls from EOAs are supported.
 func Register(username string) {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic(ErrNonUserCall)
 	}
@@ -41,7 +43,7 @@ func Register(username string) {
 	}
 
 	registrant := std.PreviousRealm().Address()
-	if err := susers.RegisterUser(username, registrant); err != nil {
+	if err := cross(susers.RegisterUser)(username, registrant); err != nil {
 		panic(err)
 	}
 

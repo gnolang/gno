@@ -10,3 +10,6 @@ func main() {
 
 // Error:
 // main/files/init1.gno:8:2: name init not declared
+
+// TypeCheckError:
+// main/files/init1.gno:8:2: undefined: init

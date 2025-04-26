@@ -2,7 +2,7 @@ loadpkg gno.land/r/demo/wugnot
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 10000000ugnot -gas-wanted 5000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 10000000ugnot -gas-wanted 6000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '# wrapped GNOT \(\$wugnot\)'
 stdout 'Decimals..: 0'
 stdout 'Total supply..: 0'
@@ -12,7 +12,7 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 12345678ugnot -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 5000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 6000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout 'Total supply..: 12345678'
 stdout 'Known accounts..: 1'
 stdout 'OK!'
@@ -21,7 +21,7 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 12345678ugnot -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 5000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 6000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout 'Total supply..: 24691356'
 stdout 'Known accounts..: 1' # should be 2 once we can use test2
 stdout 'OK!'
@@ -30,7 +30,7 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Transfer -gas-fee 1000000ugnot -gas-wanted 100000000 -args 'g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq' -args '10000000' -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 50000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 6000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout 'Total supply..: 24691356'
 stdout 'Known accounts..: 2' # should be 3 once we can use test2
 stdout 'OK!'

@@ -51,9 +51,9 @@ func main() {
 //
 
 // Realm:
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/demo/boards"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/demo/boards"]
 // u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:111]=
 //     @@ -1,8 +1,8 @@
 //      {
@@ -825,15 +825,15 @@ func main() {
 //          },
 //          "Parent": null,
 //          "Source": {
-// switchrealm["gno.land/r/demo/boards"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/sys/users"]
-// switchrealm["gno.land/r/demo/boards"]
-// switchrealm["gno.land/r/demo/boards_test"]
+// finalizerealm["gno.land/r/demo/boards"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/sys/users"]
+// finalizerealm["gno.land/r/demo/boards"]
+// finalizerealm["gno.land/r/demo/boards_test"]

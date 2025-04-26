@@ -18,6 +18,8 @@ package counter
 var counter int
 
 func Incr() int {
+	crossing()
+
 	counter++
 	return counter
 }

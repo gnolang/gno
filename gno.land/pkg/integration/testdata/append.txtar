@@ -22,7 +22,7 @@ gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot
 stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '("1-2-3-" string)'
 stdout OK!
 
@@ -31,7 +31,7 @@ gnokey maketx call -pkgpath gno.land/r/append -func Pop -gas-fee 1000000ugnot -g
 stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '("2-3-" string)'
 stdout OK!
 
@@ -40,7 +40,7 @@ gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot
 stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '("2-3-42-" string)'
 stdout OK!
 
@@ -51,7 +51,7 @@ gnokey maketx call -pkgpath gno.land/r/append -func PopB -gas-fee 1000000ugnot -
 stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '("2-3-42-" string)'
 stdout OK!
 
@@ -61,11 +61,11 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/append -func ReassignC -gas-fee 1000000ugnot -gas-wanted 350000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '("2-3-42-70-100-" string)'
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args 'd' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args 'd' -broadcast -chainid=tendermint_test test1
 stdout '("1-" string)'
 stdout OK!
 
@@ -87,22 +87,32 @@ func init() {
 }
 
 func Pop() {
+	crossing()
+
 	a = append(a[:0], a[1:]...)
 }
 
 func Append(i int) {
+	crossing()
+
 	a = append(a, T{i: i})
 }
 
 func CopyAppend() {
+	crossing()
+
 	b = append(a, T{i: 50}, T{i: 60})
 }
 
 func PopB() {
+	crossing()
+
 	b = append(b[:0], b[1:]...)
 }
 
 func AppendMoreAndC() {
+	crossing()
+
 	// Fill to capacity
 	a = append(a, T{i: 70})
 	// Above capacity; make new array
@@ -110,14 +120,20 @@ func AppendMoreAndC() {
 }
 
 func ReassignC() {
+	crossing()
+
 	c[0] = T{i: 200}
 }
 
 func AppendNil() {
+	crossing()
+
 	d = append(d, a...)
 }
 
 func Render(path string) string {
+	crossing()
+
 	source := a
 	if path == "d" {
 		source = d

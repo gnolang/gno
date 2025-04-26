@@ -8,3 +8,6 @@ func main() {
 
 // Error:
 // main/files/types/shift_d5b.gno:5:7: operator << not defined on: Float32Kind
+
+// TypeCheckError:
+// main/files/types/shift_d5b.gno:5:15: invalid operation: shifted operand 1.0 (type float32) must be integer

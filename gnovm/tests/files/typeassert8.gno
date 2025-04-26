@@ -16,3 +16,6 @@ func main() {
 
 // Error:
 // main/files/typeassert8.gno:13:7: invalid operation: r<VPBlock(1,0)> (variable of type []int) is not an interface
+
+// TypeCheckError:
+// main/files/typeassert8.gno:13:7: invalid operation: r (variable of type []int) is not an interface

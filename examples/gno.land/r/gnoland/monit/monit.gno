@@ -37,7 +37,7 @@ func Incr() int {
 // Reset resets the realm state.
 // This function can only be called by the admin.
 func Reset() {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 
 	counter = 0
 	lastCaller = std.PreviousRealm().Address()

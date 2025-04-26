@@ -8,3 +8,6 @@ func main() {
 
 // Error:
 // main/files/types/shift_a11.gno:5:7: cannot convert (const ("hello" <untyped> string)) to type uint
+
+// TypeCheckError:
+// main/files/types/shift_a11.gno:5:12: cannot convert "hello" (untyped string constant) to type uint

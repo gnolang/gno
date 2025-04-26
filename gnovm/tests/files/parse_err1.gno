@@ -14,3 +14,6 @@ func main() {}
 
 // Error:
 // files/parse_err1.gno:10:6: invalid operation: more than one index
+
+// TypeCheckError:
+// main/files/parse_err1.gno:10:16: invalid operation: more than one index

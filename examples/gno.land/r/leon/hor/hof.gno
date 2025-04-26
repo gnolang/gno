@@ -65,6 +65,8 @@ func init() {
 // Register registers your realm to the Hall of Fame
 // Should be called from within code
 func Register(title, description string) {
+	crossing()
+
 	if Pausable.IsPaused() {
 		return
 	}
@@ -112,6 +114,8 @@ func Register(title, description string) {
 }
 
 func Upvote(pkgpath string) {
+	crossing()
+
 	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
 		panic(ErrNoSuchItem)
@@ -134,6 +138,8 @@ func Upvote(pkgpath string) {
 }
 
 func Downvote(pkgpath string) {
+	crossing()
+
 	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
 		panic(ErrNoSuchItem)
@@ -157,7 +163,9 @@ func Downvote(pkgpath string) {
 }
 
 func Delete(pkgpath string) {
-	if !Ownable.CallerIsOwner() {
+	crossing()
+
+	if !Ownable.OwnedByPrevious() {
 		panic(ownable.ErrUnauthorized)
 	}
 

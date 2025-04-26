@@ -15,3 +15,6 @@ func main() {
 
 // Error:
 // main/files/interface47.gno:13:10: main.Runner does not implement main.Swimmer (missing method Swim)
+
+// TypeCheckError:
+// main/files/interface47.gno:13:18: cannot convert a (variable of interface type Runner) to type Swimmer: Runner does not implement Swimmer (missing method Swim)

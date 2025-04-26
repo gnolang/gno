@@ -68,7 +68,7 @@ type Store interface {
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(dst io.Writer)
-	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
+	LogFinalizeRealm(rlmpath string) // to mark finalization of realm boundaries
 	Print()
 }
 
@@ -930,9 +930,9 @@ func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
 	}
 }
 
-func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
+func (ds *defaultStore) LogFinalizeRealm(rlmpath string) {
 	if ds.opslog != nil {
-		fmt.Fprintf(ds.opslog, "switchrealm[%q]\n", rlmpath)
+		fmt.Fprintf(ds.opslog, "finalizerealm[%q]\n", rlmpath)
 	}
 }
 

@@ -78,3 +78,6 @@ var other1 = func() {
 	print(something1) // a string, but single shared 'st' masks the outer/global reference.
 }
 var something1 = "a string"
+
+// TypeCheckError:
+// main/files/var27.gno:8:2: declared and not used: a

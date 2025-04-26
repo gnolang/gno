@@ -6,7 +6,7 @@ loadpkg $WORK
 gnoland start
 
 ## execute Render
-gnokey maketx call -pkgpath gno.land/r/importtest -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/importtest -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
 stdout '("92054" string)'
 stdout OK!
 
@@ -21,6 +21,7 @@ import (
 )
 
 func Render(_ string) string {
+	crossing()
+
  	return ufmt.Sprintf("%d", 92054)
 }
-

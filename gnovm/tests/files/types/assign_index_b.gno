@@ -12,3 +12,6 @@ func main() {
 
 // Error:
 // main/files/types/assign_index_b.gno:8:2: want bool type got int
+
+// TypeCheckError:
+// main/files/types/assign_index_b.gno:8:10: cannot use m["a"] (untyped bool value) as int value in assignment

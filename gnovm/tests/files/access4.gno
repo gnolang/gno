@@ -11,3 +11,6 @@ func main() {
 
 // Error:
 // main/files/access4.gno:9:10: cannot access gno.land/p/demo/testutils.TestAccessStruct.privateField from main
+
+// TypeCheckError:
+// main/files/access4.gno:9:12: x.privateField undefined (cannot refer to unexported field privateField)

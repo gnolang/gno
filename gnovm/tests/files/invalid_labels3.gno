@@ -10,3 +10,6 @@ func invalidLabelStatement() {
 
 // Error:
 // files/invalid_labels3.gno:7:9: label InvalidLabel undefined
+
+// TypeCheckError:
+// main/files/invalid_labels3.gno:7:9: invalid break label InvalidLabel

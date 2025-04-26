@@ -21,7 +21,7 @@ var (
 
 func TestProxy_Functions(t *testing.T) {
 	// initialize tests
-	UpdateImpl(UpdateRequest{
+	cross(UpdateImpl)(UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{v3},
 	})
@@ -29,7 +29,7 @@ func TestProxy_Functions(t *testing.T) {
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(std.NewCodeRealm(invalid))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
-		UpdateImpl(UpdateRequest{
+		cross(UpdateImpl)(UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -37,7 +37,7 @@ func TestProxy_Functions(t *testing.T) {
 	// dao in charge can add a new dao
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		UpdateImpl(UpdateRequest{
+		cross(UpdateImpl)(UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -45,7 +45,7 @@ func TestProxy_Functions(t *testing.T) {
 	// v3 that is in charge adds v5 in charge
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		UpdateImpl(UpdateRequest{
+		cross(UpdateImpl)(UpdateRequest{
 			DAO:         &dummyDao{},
 			AllowedDAOs: []string{v3, v5},
 		})
@@ -54,7 +54,7 @@ func TestProxy_Functions(t *testing.T) {
 	// v3 can still do updates
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		UpdateImpl(UpdateRequest{
+		cross(UpdateImpl)(UpdateRequest{
 			AllowedDAOs: []string{v4},
 		})
 	})
@@ -62,7 +62,7 @@ func TestProxy_Functions(t *testing.T) {
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
-		UpdateImpl(UpdateRequest{
+		cross(UpdateImpl)(UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
 	})
@@ -76,17 +76,17 @@ func TestProxy_Functions(t *testing.T) {
 			},
 			"",
 		)
-		pid = MustCreateProposal(
+		pid = cross(MustCreateProposal)(
 			NewProposalRequest("Proposal Title", "Description", e),
 		)
 	})
 
-	p := MustGetProposal(1000)
+	p := cross(MustGetProposal)(1000)
 	if p != nil {
 		panic("proposal must be nil")
 	}
 
-	p = MustGetProposal(pid)
+	p = cross(MustGetProposal)(pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
 	urequire.Equal(t, p.Author().String(), "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
 
@@ -98,7 +98,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// reset state
 	testing.SetRealm(std.NewCodeRealm(v4))
-	UpdateImpl(UpdateRequest{
+	cross(UpdateImpl)(UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
 	})

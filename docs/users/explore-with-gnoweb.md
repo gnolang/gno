@@ -6,7 +6,7 @@ to explore the blockchain ecosystem.
 
 ## Networks
 
-The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Portal Loop network.
+The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Staging network.
 
 For a complete list of all available networks (testnets and more), see [Networks](../resources/gnoland-networks.md).
 
@@ -75,7 +75,7 @@ func Render(path string) string {
 Based on the provided path, `gnoweb` queries the gno.land network using the
 `qrender` ABCI query. It then renders the response data as Markdown.
 
-The realm above can be found on the Portal Loop at [`gno.land/r/docs/hello`](https://gno.land/r/docs/hello).
+The realm above can be found on the Staging network at [`gno.land/r/docs/hello`](https://gno.land/r/docs/hello).
 
 While JS/TS clients for Gno exist and developers can create custom websites for their
 gno.land applications as they see fit, the approach `gnoweb` takes with `Render()`

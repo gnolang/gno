@@ -31,6 +31,8 @@ type Child struct {
 var parent Parent
 
 func DefineFamily() {
+	crossing()
+
 	parent = Parent{
 		children: []Child{
 			{age: 10},
@@ -41,6 +43,8 @@ func DefineFamily() {
 }
 
 func GetOutcastChildAge() int {
+	crossing()
+
 	if parent.outcastChild == nil {
 		return -1
 	}

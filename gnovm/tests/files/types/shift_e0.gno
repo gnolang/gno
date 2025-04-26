@@ -6,3 +6,6 @@ func main() {
 
 // Error:
 // main/files/types/shift_e0.gno:4:10: invalid operation: negative shift count: (const (-1 <untyped> bigint))
+
+// TypeCheckError:
+// main/files/types/shift_e0.gno:4:15: invalid operation: negative shift count -1 (untyped int constant)

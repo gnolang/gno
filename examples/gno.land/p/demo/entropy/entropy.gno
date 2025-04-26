@@ -57,10 +57,10 @@ func (i *Instance) addEntropy() {
 
 	// handle callers
 	{
-		caller1 := std.CallerAt(1).String()
-		i.djb2String(caller1)
-		caller2 := std.CallerAt(2).String()
-		i.djb2String(caller2)
+		currentRealm := std.CurrentRealm().Address().String()
+		i.djb2String(currentRealm)
+		originCaller := std.OriginCaller().String()
+		i.djb2String(originCaller)
 	}
 
 	// height

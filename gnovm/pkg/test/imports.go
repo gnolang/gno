@@ -75,7 +75,7 @@ func StoreWithOptions(
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
 				memPkg := gno.MustReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
-				ctx := Context(pkgPath, send)
+				ctx := Context("", pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  output,
@@ -101,7 +101,7 @@ func StoreWithOptions(
 			}
 
 			send := std.Coins{}
-			ctx := Context(pkgPath, send)
+			ctx := Context("", pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  output,

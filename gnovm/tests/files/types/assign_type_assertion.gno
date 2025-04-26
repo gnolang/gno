@@ -20,3 +20,6 @@ func main() {
 
 // Error:
 // main/files/types/assign_type_assertion.gno:13:2: cannot use string as int
+
+// TypeCheckError:
+// main/files/types/assign_type_assertion.gno:13:10: cannot use i.(string) (comma, ok expression of type string) as int value in assignment

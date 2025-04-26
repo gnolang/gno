@@ -20,3 +20,6 @@ func main() {
 
 // Error:
 // main/files/types/assign_range_a.gno:16:2: cannot use string as int
+
+// TypeCheckError:
+// main/files/types/assign_range_a.gno:16:6: cannot use k (value of type string) as int value in assignment
