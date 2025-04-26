@@ -1273,7 +1273,7 @@ func parseIntValue(expr Expr) (int, error) {
 				if f != intPart {
 					return 0, fmt.Errorf("%g (untyped float constant) truncated to int", f)
 				}
-				if f > float64(math.MaxInt) {
+				if f > float64(math.MaxInt) || f < float64(math.MinInt){
 					return 0, errors.New("value out of range for int type")
 				}
 				return int(f), nil
@@ -1282,7 +1282,7 @@ func parseIntValue(expr Expr) (int, error) {
 			if err != nil {
 				return 0, fmt.Errorf("cannot convert %s to int", ble.Value)
 			}
-			if n > int64(math.MaxInt) {
+			if n > int64(math.MaxInt) || n < int64(math.MinInt) {
 				return 0, errors.New("value out of range for int type")
 			}
 			return int(n), nil
