@@ -27,7 +27,7 @@ func TestNewWithOriginPanic(t *testing.T) {
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
 
-	uassert.PanicsWithMessage(t, "NewWithOrigin() should be called from init() where std.PreviousRealm() is origin", func() {
+	uassert.PanicsWithMessage(t, "frame not found: cannot seek beyond origin caller override", func() {
 		NewWithOrigin()
 	})
 }
