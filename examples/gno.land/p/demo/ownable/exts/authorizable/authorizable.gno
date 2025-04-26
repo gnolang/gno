@@ -52,7 +52,7 @@ func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 }
 
 func (a *Authorizable) AddToAuthList(addr std.Address) error {
-	if !a.OwnedByPrevious() {
+	if !a.OwnedByCurrent() {
 		return ErrNotSuperuser
 	}
 
@@ -66,7 +66,7 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 }
 
 func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
-	if !a.OwnedByPrevious() {
+	if !a.OwnedByCurrent() {
 		return ErrNotSuperuser
 	}
 

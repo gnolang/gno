@@ -17,7 +17,6 @@ var (
 func TestNew(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 	current := std.CurrentRealm().Address()
-	testing.SetOriginCaller(alice)
 
 	o := New()
 	got := o.Owner()
@@ -55,7 +54,6 @@ func TestNewWithAddress(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
-	testing.SetOriginCaller(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
@@ -103,14 +101,17 @@ func TestOwnedByCurrentUnauthorized(t *testing.T) {
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
 
+	var o *Ownable
 	func() {
 		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
-
-		o := NewWithOrigin()
-		unauthorizedCaller := bob
-		testing.SetOriginCaller(unauthorizedCaller)
-		uassert.False(t, o.OwnedByCurrent())
+		o = NewWithOrigin()
 	}()
+
+	uassert.True(t, o.OwnedByCurrent())
+
+	unauthorizedCaller := bob
+	testing.SetRealm(std.NewUserRealm(unauthorizedCaller))
+	uassert.False(t, o.OwnedByCurrent())
 }
 
 func TestOwnedByPrevious(t *testing.T) {
@@ -131,7 +132,6 @@ func TestOwnedByPreviousUnauthorized(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(unauthorizedCaller))
 	func() {
 		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
-
 		uassert.False(t, o.OwnedByPrevious())
 	}()
 }
@@ -152,7 +152,6 @@ func TestDropOwnership(t *testing.T) {
 
 func TestErrInvalidAddress(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
-	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -165,7 +164,6 @@ func TestErrInvalidAddress(t *testing.T) {
 
 func TestAssertOwnedByCurrent(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(alice))
-	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -174,7 +172,6 @@ func TestAssertOwnedByCurrent(t *testing.T) {
 
 	// Should panic when caller is not owner
 	testing.SetRealm(std.NewUserRealm(bob))
-	testing.SetOriginCaller(bob)
 	uassert.PanicsWithMessage(t, ErrUnauthorized.Error(), func() {
 		o.AssertOwnedByCurrent()
 	})
@@ -182,7 +179,6 @@ func TestAssertOwnedByCurrent(t *testing.T) {
 
 func TestAssertOwnedByPrevious(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(alice))
-	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -194,7 +190,6 @@ func TestAssertOwnedByPrevious(t *testing.T) {
 
 		// Should panic when previous is not owner
 		testing.SetRealm(std.NewUserRealm(bob))
-		testing.SetOriginCaller(bob)
 		uassert.PanicsWithMessage(t, ErrUnauthorized.Error(), func() {
 			o.AssertOwnedByCurrent()
 		})
