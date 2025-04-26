@@ -16,7 +16,7 @@ performance.
 
 All values in Gno are stored represented as (type, value) tuples.  Vars in
 scope blocks, fields in structs, elements in arrays, keys and values of maps
-are all respresented by the same `TypedValue` struct.
+are all represented by the same `TypedValue` struct.
 
 This tuple representation lets the Gno VM implementation logic be simpler with
 less code.  Reading and writing values are the same whether the static type of
