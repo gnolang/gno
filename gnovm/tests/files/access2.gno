@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	crossing()
+
 	testutils.TestVar1 += 1
 	println(testutils.TestVar1)
 }

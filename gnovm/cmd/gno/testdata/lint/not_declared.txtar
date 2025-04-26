@@ -1,6 +1,6 @@
-# testing gno tool lint command: not declared error
+# testing gno lint command: not declared error
 
-! gno tool lint ./bad_file.gno
+! gno lint ./bad_file.gno
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden

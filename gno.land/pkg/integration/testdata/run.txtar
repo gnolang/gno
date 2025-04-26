@@ -24,5 +24,7 @@ func Render(path string) string {
 package main
 import "gno.land/r/foobar/bar"
 func main() {
+	crossing()
+
 	println("main: ---", bar.Render(""), "---")
 }

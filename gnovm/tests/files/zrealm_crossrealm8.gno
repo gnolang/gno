@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	crossing()
+
 	tests.ModifyTestRealmObject2b()
 	println("done")
 }

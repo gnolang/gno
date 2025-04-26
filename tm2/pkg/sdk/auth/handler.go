@@ -12,13 +12,15 @@ import (
 )
 
 type authHandler struct {
-	acck AccountKeeper
+	acck  AccountKeeper
+	gpKpr GasPriceKeeper
 }
 
 // NewHandler returns a handler for "auth" type messages.
-func NewHandler(acck AccountKeeper) authHandler {
+func NewHandler(acck AccountKeeper, gpKpr GasPriceKeeper) authHandler {
 	return authHandler{
-		acck: acck,
+		acck:  acck,
+		gpKpr: gpKpr,
 	}
 }
 
@@ -31,13 +33,18 @@ func (ah authHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 //----------------------------------------
 // Query
 
-// query account path
-const QueryAccount = "accounts"
+// query path
+const (
+	QueryAccount  = "accounts"
+	QueryGasPrice = "gasprice"
+)
 
 func (ah authHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	switch secondPart(req.Path) {
 	case QueryAccount:
 		return ah.queryAccount(ctx, req)
+	case QueryGasPrice:
+		return ah.queryGasPrice(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown auth query endpoint"))
@@ -61,6 +68,22 @@ func (ah authHandler) queryAccount(ctx sdk.Context, req abci.RequestQuery) (res 
 	// get account from addr.
 	bz, err := amino.MarshalJSONIndent(
 		ah.acck.GetAccount(ctx, addr),
+		"", "  ")
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(
+			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
+		return
+	}
+
+	res.Data = bz
+	return
+}
+
+// queryGasPrice fetch a gas price of the last block.
+func (ah authHandler) queryGasPrice(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// get account from addr.
+	bz, err := amino.MarshalJSONIndent(
+		ah.gpKpr.LastGasPrice(ctx),
 		"", "  ")
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(

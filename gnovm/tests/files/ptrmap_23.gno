@@ -9,6 +9,7 @@ func init() {
 }
 
 func main() {
+	crossing()
 
 	println(m[&arr]) // Output: example
 }

@@ -67,7 +67,7 @@ func NewReportBuilder(srcPath, dstPath, outDir string) (*ReportBuilder, error) {
 		return nil, err
 	}
 
-	//filepath.EvalSymlinks will return the original path if there are no simlinks associated to the given path
+	// filepath.EvalSymlinks will return the original path if there are no simlinks associated to the given path
 	realSrcPath, err := filepath.EvalSymlinks(srcPath)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func NewReportBuilder(srcPath, dstPath, outDir string) (*ReportBuilder, error) {
 			return nil, err
 		}
 		// Create output if not exist
-		err = os.MkdirAll(outDir, 0777)
+		err = os.MkdirAll(outDir, 0o777)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +187,6 @@ type Directory struct {
 // listDirectories retrieves a list of directories in the source path.
 func (builder *ReportBuilder) listDirectories() ([]*Directory, error) {
 	allSubdirectories, srcDirectories, destDirectories, err := builder.findDirectories()
-
 	if err != nil {
 		return nil, err
 	}
@@ -227,12 +226,15 @@ func (builder *ReportBuilder) listDirectories() ([]*Directory, error) {
 
 	return res, err
 }
+
 func isRootFolder(path string) bool {
 	return !strings.Contains(path, "/")
 }
+
 func getRootFolder(path string) string {
 	return strings.Split(path, "/")[0]
 }
+
 func (builder *ReportBuilder) getAllSubdirectories(rootPath string) ([]string, error) {
 	directories := make([]string, 0)
 	err := filepath.WalkDir(rootPath, func(path string, dirEntry fs.DirEntry, err error) error {
@@ -256,7 +258,7 @@ func (builder *ReportBuilder) writeIndexTemplate(data *IndexTemplate) error {
 		return err
 	}
 
-	if err := os.WriteFile(builder.OutDir+"/index.html", resolvedTemplate.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(builder.OutDir+"/index.html", resolvedTemplate.Bytes(), 0o644); err != nil {
 		return err
 	}
 
@@ -271,11 +273,11 @@ func (builder *ReportBuilder) writePackageTemplate(templateData any, packageName
 		return err
 	}
 
-	if err := os.MkdirAll(builder.OutDir+"/"+packageName, 0777); err != nil {
+	if err := os.MkdirAll(builder.OutDir+"/"+packageName, 0o777); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(builder.OutDir+"/"+packageName+"/report.html", resolvedTemplate.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(builder.OutDir+"/"+packageName+"/report.html", resolvedTemplate.Bytes(), 0o644); err != nil {
 		return err
 	}
 

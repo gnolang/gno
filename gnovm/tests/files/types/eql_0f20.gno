@@ -11,3 +11,6 @@ func main() {
 
 // Error:
 // main/files/types/eql_0f20.gno:9:10: [2]main.f is not comparable
+
+// TypeCheckError:
+// main/files/types/eql_0f20.gno:9:15: invalid operation: a == nil (mismatched types [2]f and untyped nil)

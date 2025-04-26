@@ -1,3 +1,5 @@
+# XXX: FIXME unauthorized proposer
+
 loadpkg gno.land/p/moul/authz
 loadpkg gno.land/r/testing/admin $WORK/admin
 loadpkg gno.land/r/testing/resource $WORK/resource
@@ -43,6 +45,8 @@ func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
 }
 
 func ExecuteAction(index int) {
+	crossing()
+
     if std.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
         panic(errors.New("not alice"))
     }
@@ -58,8 +62,8 @@ module gno.land/r/testing/resource
 package resource
 
 import (
-    "gno.land/p/moul/authz"
-    "gno.land/r/testing/admin"
+	"gno.land/p/moul/authz"
+	"gno.land/r/testing/admin"
 )
 
 var a *authz.Authorizer = authz.NewWithAuthority(authz.NewContractAuthority("gno.land/r/testing/admin", admin.HandlePrivilegedAction))
@@ -67,16 +71,19 @@ var a *authz.Authorizer = authz.NewWithAuthority(authz.NewContractAuthority("gno
 var value = "init"
 
 func Value() string {
-    return value
+	crossing()
+
+	return value
 }
 
 func Edit(newValue string) {
-    doEdit := func() error {
-        value = newValue
-        return nil
-    }
-    if err := a.Do("Edit", doEdit); err != nil {
-        panic(err)
-    }
-}
+	crossing()
 
+	doEdit := func() error {
+		value = newValue
+		return nil
+	}
+	if err := a.Do("Edit", doEdit); err != nil {
+		panic(err)
+	}
+}

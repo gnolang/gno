@@ -33,7 +33,7 @@ func SetMainAddr(addr std.Address) error {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	mainAddr = addr
 	return nil
@@ -44,7 +44,7 @@ func SetBackupAddr(addr std.Address) error {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertCallerIsOwner()
+	owner.AssertOwnedByPrevious()
 
 	backupAddr = addr
 	return nil

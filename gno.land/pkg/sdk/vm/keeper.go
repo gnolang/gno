@@ -358,7 +358,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Pay deposit from creator.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
@@ -434,10 +434,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
-	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
+	expr := fmt.Sprintf(`cross(pkg.%s)(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 	caller := msg.Caller
 	send := msg.Send
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
@@ -546,7 +546,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 			*e = errors.Wrapf(
 				errors.New(up.Descriptor),
 				"VM panic: %s\nStacktrace:\n%s\n",
-				up.Descriptor, m.ExceptionsStacktrace(),
+				up.Descriptor, m.ExceptionStacktrace(),
 			)
 			return
 		}

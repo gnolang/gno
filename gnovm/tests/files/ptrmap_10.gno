@@ -12,6 +12,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println(m[arr[0]]) // Output: first key
 	println(m[arr[1]] == "")
 }

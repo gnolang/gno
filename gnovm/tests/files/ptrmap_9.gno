@@ -16,6 +16,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println(m[s[m2[0]]])
 	println(s[m2[0]] == s2[m2[0]])
 	println(m[s[m2[0]]] == m[s2[m2[0]]])

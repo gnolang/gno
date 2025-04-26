@@ -126,6 +126,15 @@ func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		case FALLTHROUGH:
 			return true
 		}
+	case *ExprStmt:
+		x := n.X
+		if cs, ok := x.(*CallExpr); ok {
+			if nx, ok := cs.Func.(*NameExpr); ok {
+				if nx.Name == "panic" {
+					return true
+				}
+			}
+		}
 	case *IfStmt:
 		terminates := s.staticAnalysisBlockStmt(n.Then.Body)
 
@@ -181,8 +190,6 @@ func (s *staticAnalysis) staticAnalysisStmt(stmt Stmt) bool {
 		hasNoBreaks := len(ctx.breakstmts) == 0
 		terminates := hasNoBreaks && hasDefault && casesTerm
 		return terminates
-	case *PanicStmt:
-		return true
 	}
 	return false
 }

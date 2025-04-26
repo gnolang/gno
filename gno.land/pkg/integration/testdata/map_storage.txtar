@@ -31,5 +31,7 @@ func init() {
 }
 
 func FindMapWithKey(k uint64) string {
+	crossing()
+
 	return mapus[k]
 }

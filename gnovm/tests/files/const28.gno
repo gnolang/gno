@@ -10,3 +10,6 @@ func main() {
 
 // Error:
 // main/files/const28.gno:7:8: s<VPBlock(1,0)>[(const (0 int))] (variable of type string) is not constant
+
+// TypeCheckError:
+// main/files/const28.gno:7:11: missing init expr for ok; main/files/const28.gno:7:16: s[0] (variable of type string) is not constant

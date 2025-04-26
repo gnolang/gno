@@ -23,3 +23,6 @@ func main() {
 
 // Error:
 // main/files/types/or_a1.gno:21:10: invalid operation: mismatched types main.Error1 and main.Error2
+
+// TypeCheckError:
+// main/files/types/or_a1.gno:21:10: invalid operation: Error1(0) | Error2(0) (mismatched types Error1 and Error2)

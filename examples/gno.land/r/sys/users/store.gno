@@ -53,6 +53,8 @@ func (u UserData) RenderLink(linkText string) string {
 
 // RegisterUser adds a new user to the system.
 func RegisterUser(name string, address std.Address) error {
+	crossing()
+
 	// Validate caller
 	if !controllers.Has(std.PreviousRealm().Address()) {
 		return ErrNotWhitelisted

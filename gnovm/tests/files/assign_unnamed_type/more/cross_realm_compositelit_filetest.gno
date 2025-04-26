@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	crossing()
+
 	println(tests.GetZeroType())
 }
 

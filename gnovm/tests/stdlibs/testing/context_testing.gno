@@ -87,7 +87,7 @@ func SetHeight(height int64) {
 
 // SetRealm sets the realm for the current frame.
 // After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
-// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+// rlm, while if a realm function is called, using PreviousRealm() will yield rlm.
 func SetRealm(rlm std.Realm) {
 	ctx := GetContext()
 	ctx.CurrentRealm = rlm

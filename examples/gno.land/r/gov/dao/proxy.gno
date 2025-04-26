@@ -24,6 +24,8 @@ func Render(p string) string {
 // MustCreateProposal is an utility method that does the same as CreateProposal,
 // but instead of erroing if something happens, it panics.
 func MustCreateProposal(r ProposalRequest) ProposalID {
+	crossing()
+
 	pid, err := CreateProposal(r)
 	if err != nil {
 		panic(err.Error())
@@ -36,6 +38,8 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 // If the proposal was denied, it will return false. If the proposal is correctly
 // executed, it will return true. If something happens this function will panic.
 func ExecuteProposal(pid ProposalID) bool {
+	crossing()
+
 	execute, err := dao.PreExecuteProposal(context(), pid)
 	if err != nil {
 		panic(err.Error())
@@ -57,6 +61,8 @@ func ExecuteProposal(pid ProposalID) bool {
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
+	crossing()
+
 	author, err := dao.PreCreateProposal(context(), r)
 	if err != nil {
 		return -1, err
@@ -77,6 +83,8 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 }
 
 func MustVoteOnProposal(r VoteRequest) {
+	crossing()
+
 	if err := VoteOnProposal(r); err != nil {
 		panic(err.Error())
 	}
@@ -86,11 +94,15 @@ func MustVoteOnProposal(r VoteRequest) {
 // If the voter cannot vote the specified proposal, this method will return an error
 // with the explanation of why.
 func VoteOnProposal(r VoteRequest) error {
+	crossing()
+
 	return dao.VoteOnProposal(context(), r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
 func MustVoteOnProposalSimple(pid int64, option string) {
+	crossing()
+
 	MustVoteOnProposal(VoteRequest{
 		Option:     VoteOption(option),
 		ProposalID: ProposalID(pid),
@@ -98,6 +110,8 @@ func MustVoteOnProposalSimple(pid int64, option string) {
 }
 
 func MustGetProposal(pid ProposalID) *Proposal {
+	crossing()
+
 	p, err := GetProposal(pid)
 	if err != nil {
 		panic(err.Error())
@@ -108,6 +122,8 @@ func MustGetProposal(pid ProposalID) *Proposal {
 
 // GetProposal gets created proposal by its ID
 func GetProposal(pid ProposalID) (*Proposal, error) {
+	crossing()
+
 	if err := dao.PreGetProposal(context(), pid); err != nil {
 		return nil, err
 	}
@@ -129,6 +145,8 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(r UpdateRequest) {
+	crossing()
+
 	realm := std.PreviousRealm().PkgPath()
 
 	if !InAllowedDAOs(realm) {
@@ -145,6 +163,8 @@ func UpdateImpl(r UpdateRequest) {
 }
 
 func InAllowedDAOs(pkg string) bool {
+	crossing()
+
 	if len(AllowedDAOs) == 0 {
 		return true // corner case for initialization
 	}

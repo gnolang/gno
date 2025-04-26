@@ -14,3 +14,6 @@ func getStruct() S {
 
 // Error:
 // main/files/addressable_3b_err.gno:8:6: cannot take address of getStruct<VPBlock(3,2)>().i
+
+// TypeCheckError:
+// main/files/addressable_3b_err.gno:8:7: invalid operation: cannot take address of getStruct().i (value of type int)

@@ -15,7 +15,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
 type testCfg struct {
@@ -51,8 +50,8 @@ functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
 tests that belong to the same package are supported for now (no "xxx_test").
 
 The package path used to execute the "*_test.gno" file is fetched from the
-module name found in 'gno.mod', or else it is randomly generated like
-"gno.land/r/XXXXXXXX".
+module name found in 'gno.mod', or else it is set to
+"gno.land/r/txtar".
 
 - "*_filetest.gno" files on the other hand are kind of unique. They exist to
 provide a way to interact and assert a gno contract, thanks to a set of
@@ -236,9 +235,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		} else {
 			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
 			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
+				// unable to read pkgPath from gno.mod, use a deterministic path.
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
+				gnoPkgPath = "gno.land/r/txtar" // XXX: gno.land hardcoded for convenience.
 			}
 		}
 

@@ -48,7 +48,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		return
 	}()
 	t.Log("panic trying to redeclare invalid func", result)
-	m.RunStatement(S(Call(X("Redecl"), 11)))
+	m.RunStatement(StageRun, S(Call(X("Redecl"), 11)))
 
 	// Check last value, assuming it is the result of Redecl.
 	v := m.Values[0]
@@ -71,7 +71,7 @@ func TestMachineString(t *testing.T) {
 		{
 			"created with defaults",
 			NewMachineWithOptions(MachineOptions{}),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 		{
 			"created with store and defaults",
@@ -82,7 +82,7 @@ func TestMachineString(t *testing.T) {
 				store := NewStore(nil, baseStore, iavlStore)
 				return NewMachine("std", store)
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 		{
 			"filled in",
@@ -101,7 +101,7 @@ func TestMachineString(t *testing.T) {
 				m.PushStmts(S(Call(X("Redecl"), 11)))
 				return m
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			"Machine:\n    PreprocessorMode: false\n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 	}
 
