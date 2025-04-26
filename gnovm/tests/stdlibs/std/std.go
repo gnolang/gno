@@ -111,6 +111,11 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 		// Skip over (non-realm) non-crosses.
 		override, overridden := getOverride(m, i)
+		if overridden {
+			if override.PkgPath == "" && crosses < height {
+				m.Panic(typedString("frame not found: cannot seek beyond origin caller override"))
+			}
+		}
 		if !overridden {
 			if !fr.IsCall() {
 				continue
