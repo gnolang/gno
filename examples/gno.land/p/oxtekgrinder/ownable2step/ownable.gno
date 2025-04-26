@@ -8,6 +8,7 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable2Step is a two-step ownership transfer package
 // It allows the current owner to set a new owner and the new owner will need to accept the ownership before it is transferred
+// XXX Implement using Ownable instead of replicating it.
 type Ownable2Step struct {
 	owner        std.Address
 	pendingOwner std.Address
