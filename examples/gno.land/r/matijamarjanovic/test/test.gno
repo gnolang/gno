@@ -30,21 +30,21 @@ func init() {
 	MintTestTokens(testAddr)
 	MintTestMultiTokens(testAddr)
 
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a", "NFTA_1")
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b", "NFTB_1")
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c", "NFTC_1")
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftA }, "nft-a", "NFTA_2")
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftB }, "nft-b", "NFTB_2")
-	tokenhub.RegisterNFT(func() grc721.IGRC721 { return nftC }, "nft-c", "NFTC_2")
+	cross(tokenhub.RegisterNFT)(func() grc721.IGRC721 { return nftA }, "nft-a", "NFTA_1")
+	cross(tokenhub.RegisterNFT)(func() grc721.IGRC721 { return nftB }, "nft-b", "NFTB_1")
+	cross(tokenhub.RegisterNFT)(func() grc721.IGRC721 { return nftC }, "nft-c", "NFTC_1")
+	cross(tokenhub.RegisterNFT)(func() grc721.IGRC721 { return nftA }, "nft-a", "NFTA_2")
+	cross(tokenhub.RegisterNFT)(func() grc721.IGRC721 { return nftB }, "nft-b", "NFTB_2")
+	cross(tokenhub.RegisterNFT)(func() grc721.IGRC721 { return nftC }, "nft-c", "NFTC_2")
 
-	tokenhub.RegisterToken(tokenA.Getter(), "token-a")
-	tokenhub.RegisterToken(tokenB.Getter(), "token-b")
-	tokenhub.RegisterToken(tokenC.Getter(), "token-c")
+	cross(tokenhub.RegisterToken)(tokenA.Getter(), "token-a")
+	cross(tokenhub.RegisterToken)(tokenB.Getter(), "token-b")
+	cross(tokenhub.RegisterToken)(tokenC.Getter(), "token-c")
 
-	tokenhub.RegisterMultiToken(mtGameItems.Getter(), "sword")
-	tokenhub.RegisterMultiToken(mtGameItems.Getter(), "potion")
-	tokenhub.RegisterMultiToken(mtArtworks.Getter(), "artwork_1")
-	tokenhub.RegisterMultiToken(mtCollectibles.Getter(), "rare_card")
+	cross(tokenhub.RegisterMultiToken)(mtGameItems.Getter(), "sword")
+	cross(tokenhub.RegisterMultiToken)(mtGameItems.Getter(), "potion")
+	cross(tokenhub.RegisterMultiToken)(mtArtworks.Getter(), "artwork_1")
+	cross(tokenhub.RegisterMultiToken)(mtCollectibles.Getter(), "rare_card")
 }
 
 func MintTestNFTs(to std.Address) error {

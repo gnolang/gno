@@ -16,7 +16,7 @@ func TestTokenRegistration(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	token, _ := grc20.NewToken("Test Token", "TEST", 6)
-	RegisterToken(token.Getter(), "test_token")
+	cross(RegisterToken)(token.Getter(), "test_token")
 
 	retrievedToken := GetToken("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/matijamarjanovic/home.test_token")
 	urequire.True(t, retrievedToken != nil, "Should retrieve registered token")
@@ -30,7 +30,7 @@ func TestNFTRegistration(t *testing.T) {
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	nft.Mint(std.CurrentRealm().Address(), grc721.TokenID("1"))
-	err := RegisterNFT(nft.Getter(), "test_nft", "1")
+	err := cross(RegisterNFT)(nft.Getter(), "test_nft", "1")
 	urequire.NoError(t, err, "Should register NFT without error")
 
 	retrievedNFT := GetNFT("gno.land/r/matijamarjanovic/home.test_nft.1")
@@ -46,7 +46,7 @@ func TestGRC1155Registration(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
-	err := RegisterMultiToken(mt.Getter(), "1")
+	err := cross(RegisterMultiToken)(mt.Getter(), "1")
 	urequire.NoError(t, err, "Should register multi-token without error")
 
 	multiToken := GetMultiToken("gno.land/r/matijamarjanovic/home.1")
@@ -54,7 +54,7 @@ func TestGRC1155Registration(t *testing.T) {
 	_, ok := multiToken.(grc1155.IGRC1155)
 	urequire.True(t, ok, "Retrieved multi-token should implement IGRC1155")
 
-	err = RegisterMultiToken(mt.Getter(), "1")
+	err = cross(RegisterMultiToken)(mt.Getter(), "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
@@ -62,11 +62,11 @@ func TestBalanceRetrieval(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
-	RegisterToken(token.Getter(), "test_tokenn")
+	cross(RegisterToken)(token.Getter(), "test_tokenn")
 	ledger.Mint(std.CurrentRealm().Address(), 1000)
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
-	RegisterMultiToken(mt.Getter(), "11")
+	cross(RegisterMultiToken)(mt.Getter(), "11")
 	mt.SafeMint(std.CurrentRealm().Address(), grc1155.TokenID("11"), 5)
 
 	balances := GetUserTokenBalances(std.CurrentRealm().Address().String())
@@ -86,17 +86,17 @@ func TestErrorCases(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	err := RegisterNFT(nft.Getter(), "test_nft", "1")
+	err := cross(RegisterNFT)(nft.Getter(), "test_nft", "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
-	err = RegisterNFT(nft.Getter(), "test_nft", "1")
+	err = cross(RegisterNFT)(nft.Getter(), "test_nft", "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
-	err = RegisterMultiToken(mt.Getter(), "1")
+	err = cross(RegisterMultiToken)(mt.Getter(), "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 
-	err = RegisterMultiToken(mt.Getter(), "1")
+	err = cross(RegisterMultiToken)(mt.Getter(), "1")
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
@@ -104,14 +104,14 @@ func TestTokenListingFunctions(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
-	RegisterToken(grc20Token.Getter(), "listing_token")
+	cross(RegisterToken)(grc20Token.Getter(), "listing_token")
 
 	nftToken := grc721.NewBasicNFT("Listing NFT", "LNFT")
 	nftToken.Mint(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), grc721.TokenID("1"))
-	RegisterNFT(nftToken.Getter(), "listing_nft", "1")
+	cross(RegisterNFT)(nftToken.Getter(), "listing_nft", "1")
 
 	multiToken := grc1155.NewBasicGRC1155Token("test-uri")
-	RegisterMultiToken(multiToken.Getter(), "listing_mt")
+	cross(RegisterMultiToken)(multiToken.Getter(), "listing_mt")
 
 	nftList := GetAllNFTs()
 	uassert.True(t, strings.Contains(nftList, "NFT:gno.land/r/matijamarjanovic/home.listing_nft.1"),
@@ -138,7 +138,7 @@ func TestMustGetFunctions(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	token, _ := grc20.NewToken("Must Token", "MUST", 6)
-	RegisterToken(token.Getter(), "must_token")
+	cross(RegisterToken)(token.Getter(), "must_token")
 
 	retrievedToken := MustGetToken("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/matijamarjanovic/home.must_token")
 	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
@@ -152,7 +152,7 @@ func TestMustGetFunctions(t *testing.T) {
 
 	nft := grc721.NewBasicNFT("Must NFT", "MNFT")
 	nft.Mint(std.CurrentRealm().Address(), grc721.TokenID("1"))
-	RegisterNFT(nft.Getter(), "must_nft", "1")
+	cross(RegisterNFT)(nft.Getter(), "must_nft", "1")
 
 	retrievedNFT := MustGetNFT("gno.land/r/matijamarjanovic/home.must_nft.1")
 	metadata, ok := retrievedNFT.(grc721.IGRC721CollectionMetadata)
@@ -167,7 +167,7 @@ func TestMustGetFunctions(t *testing.T) {
 	MustGetNFT("non_existent_nft")
 
 	mt := grc1155.NewBasicGRC1155Token("must-uri")
-	RegisterMultiToken(mt.Getter(), "must_mt")
+	cross(RegisterMultiToken)(mt.Getter(), "must_mt")
 
 	retrievedMT := MustGetMultiToken("gno.land/r/matijamarjanovic/home.must_mt")
 	_, ok = retrievedMT.(grc1155.IGRC1155)

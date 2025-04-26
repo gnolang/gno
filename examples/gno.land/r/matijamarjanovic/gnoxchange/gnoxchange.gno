@@ -53,7 +53,7 @@ package gnoxchange
 
 import (
 	"gno.land/p/demo/avl"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -76,5 +76,5 @@ func initHelper() {
 		openNFTTickets: avl.NewTree(),
 	}
 
-	hof.Register("gnoXchange", "Decentralized exchange for gno.land for p2p, amm and nft-to-token swaps")
+	cross(hor.Register)("gnoXchange", "Decentralized exchange for gno.land for p2p, amm and nft-to-token swaps")
 }
