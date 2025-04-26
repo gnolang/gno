@@ -201,7 +201,7 @@ func filterCrossing(f *ast.File) (err error) {
 		switch n := c.Node().(type) {
 		case *ast.ExprStmt:
 			if ce, ok := n.X.(*ast.CallExpr); ok {
-				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
+				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" { //nolint
 					// Validate syntax.
 					if len(ce.Args) != 0 {
 						err = errors.New("crossing called with non empty parameters")
@@ -211,7 +211,7 @@ func filterCrossing(f *ast.File) (err error) {
 				}
 			}
 		case *ast.CallExpr:
-			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {//nolint
 				// Replace expression 'cross(x)' by 'x'.
 				var a ast.Node
 				if len(n.Args) == 1 {
