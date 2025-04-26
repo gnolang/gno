@@ -1456,11 +1456,6 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
-	if pv.PkgPath == "" {
-		// nothing to prepare for throwaway packages.
-		// TODO: double check to see if still relevant.
-		return nil
-	}
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != x {

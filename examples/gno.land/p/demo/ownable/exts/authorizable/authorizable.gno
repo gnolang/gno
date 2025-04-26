@@ -29,6 +29,17 @@ func NewAuthorizable() *Authorizable {
 	return a
 }
 
+func NewAuthorizableWithOrigin() *Authorizable {
+	a := &Authorizable{
+		ownable.NewWithOrigin(),
+		avl.NewTree(),
+	}
+
+	// Add owner to auth list
+	a.authorized.Set(a.Owner().String(), struct{}{})
+	return a
+}
+
 func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 	a := &Authorizable{
 		ownable.NewWithAddress(addr),

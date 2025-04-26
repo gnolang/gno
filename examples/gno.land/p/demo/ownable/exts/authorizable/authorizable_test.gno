@@ -1,6 +1,7 @@
 package authorizable
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -14,7 +15,7 @@ var (
 )
 
 func TestNewAuthorizable(t *testing.T) {
-	testing.SetOriginCaller(alice)
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	a := NewAuthorizable()
 	got := a.Owner()

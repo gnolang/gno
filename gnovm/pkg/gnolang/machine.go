@@ -709,7 +709,7 @@ func (m *Machine) runFunc(st Stage, fn Name, withCross bool) {
 }
 
 func (m *Machine) RunMain() {
-	m.runFunc(StageRun, "main", m.Package.IsRealm())
+	m.runFunc(StageRun, "main", false)
 }
 
 // Evaluate throwaway expression in new block scope.

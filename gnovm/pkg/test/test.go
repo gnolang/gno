@@ -265,8 +265,8 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 			testFileName := testFile.Name
 			testFilePath := filepath.Join(fsDir, testFileName)
 			// XXX consider this
-			// testName := fsDir + "/" + testFileName
-			testName := "file/" + testFileName
+			testName := fsDir + "/" + testFileName
+			// testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
 			}

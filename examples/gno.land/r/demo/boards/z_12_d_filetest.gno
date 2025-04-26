@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// missing crossing() after cross call to main from gno.land/r/demo/boards_test to gno.land/r/demo/boards_test
+// dst board not exist

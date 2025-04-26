@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// missing crossing() after cross call to main from gno.land/r/demo/main to gno.land/r/demo/main
+// disperse: mismatch between coins sent and params called

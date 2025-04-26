@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// missing crossing() after cross call to main from gno.land/r/demo/groups_test to gno.land/r/demo/groups_test
+// group id (20) does not exists

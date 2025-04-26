@@ -31,4 +31,4 @@ func main() {
 }
 
 // Error:
-// missing crossing() after cross call to main from gno.land/r/demo/boards_test to gno.land/r/demo/boards_test
+// please register, otherwise minimum fee 100000000 is required if anonymous

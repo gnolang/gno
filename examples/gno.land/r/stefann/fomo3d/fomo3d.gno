@@ -70,7 +70,7 @@ var (
 )
 
 func init() {
-	Ownable = ownable.New()
+	Ownable = ownable.NewFromOrigin()
 	players = avl.NewTree()
 	gameState.Ended = true
 	hor.Register("FOMO3D Game!", "")

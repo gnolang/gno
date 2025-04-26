@@ -34,4 +34,4 @@ func main() {
 }
 
 // Error:
-// missing cross before external crossing() in Register from gno.land/r/demo/boards_test to gno.land/r/gnoland/users/v1
+// invalid non-user call

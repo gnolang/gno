@@ -30,4 +30,4 @@ func main() {
 }
 
 // Error:
-// runtime error: invalid memory address or nil pointer dereference
+// please register, otherwise minimum fee 100000000 is required if anonymous

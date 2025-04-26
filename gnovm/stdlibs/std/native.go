@@ -122,6 +122,10 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	case gno.StageRun:
 		switch height {
 		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			return string(gno.DerivePkgBech32Addr(path)), path
+		case crosses + 1:
 			return string(ctx.OriginCaller), ""
 		default:
 			m.Panic(typedString("frame not found"))
