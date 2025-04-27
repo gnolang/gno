@@ -1,6 +1,9 @@
 package crossrealm
 
 import (
+	"std"
+
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/p/demo/ufmt"
 )
@@ -108,4 +111,28 @@ func SetObject(x any) {
 
 func GetObject() any {
 	return Object
+}
+
+func EntryPoint() (noCros *ownable.Ownable) {
+	println("crossrealm  EntryPoint: " + std.PreviousRealm().PkgPath())
+	println("crossrealm  EntryPoint: " + std.PreviousRealm().Address())
+	println()
+	return PrevRealmNoCrossing()
+}
+
+func EntryPointWithCrossing() (withCros *ownable.Ownable) {
+	return cross(PrevRealmCrossing)()
+}
+
+func PrevRealmNoCrossing() *ownable.Ownable {
+	println("crossrealm PreviousRealm No Crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm No Crossing: " + std.PreviousRealm().Address())
+	return ownable.New()
+}
+
+func PrevRealmCrossing() *ownable.Ownable {
+	crossing()
+	println("crossrealm PreviousRealm with Crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm with Crossing: " + std.PreviousRealm().Address())
+	return ownable.New()
 }
