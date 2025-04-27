@@ -627,8 +627,7 @@ EXEC_SWITCH:
 					if cs.Label != "" && cs.Label != fr.Label {
 						m.PopFrame()
 					} else {
-						bn := findFirstBreakableBlockNode(m.LastBlock().Source, cs.Label)
-						m.PopFrameAndReset2(bn)
+						m.PopFrameAndReset()
 						return
 					}
 				default:
@@ -659,9 +658,13 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			for i := uint8(0); i < cs.Depth; i++ {
+			for i := uint8(0); i < cs.BlockDepth; i++ {
 				m.PopBlock()
 			}
+			for i := uint8(0); i < cs.FrameDepth; i++ {
+				m.PopFrameAndReset()
+			}
+
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
 			m.NumOps = bs.NumOps

@@ -1914,20 +1914,6 @@ func (m *Machine) PopFrameAndReset() {
 	m.PopStmt() // may be sticky
 }
 
-func (m *Machine) PopFrameAndReset2(bn BlockNode) {
-	fr := m.PopFrame()
-	for fr.Source != bn {
-		fr = m.PopFrame()
-	}
-
-	m.NumOps = fr.NumOps
-	m.NumValues = fr.NumValues
-	m.Exprs = m.Exprs[:fr.NumExprs]
-	m.Stmts = m.Stmts[:fr.NumStmts]
-	m.Blocks = m.Blocks[:fr.NumBlocks]
-	m.PopStmt() // may be sticky
-}
-
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
