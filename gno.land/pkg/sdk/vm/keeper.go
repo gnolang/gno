@@ -625,7 +625,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 				Context:  msgCtx,
 				GasMeter: ctx.GasMeter(),
 			})
-		// XXX MsgRun does not have pkgPath. How do we find it on chain?
 		defer m.Release()
 		defer doRecover(m, &err)
 

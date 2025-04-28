@@ -168,7 +168,14 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		case crosses:
 			fr := m.Frames[0]
 			path := fr.LastPackage.PkgPath
-			return string(gno.DerivePkgBech32Addr(path)), path
+			if path == "" {
+				// Not sure what would cause this.
+				panic("should not happen")
+			} else {
+				// e.g. TestFoo(t *testing.Test) in *_test.gno
+				// or main() in *_filetest.gno
+				return string(gno.DerivePkgBech32Addr(path)), path
+			}
 		case crosses + 1:
 			return string(ctx.OriginCaller), ""
 		default:
