@@ -18,7 +18,8 @@ Compare publishing a blog site in Gno.land to all prior smart contract systems.
 
 ```go
 // Realm: gno.land/r/me/myblog
-package myblog
+
+package gnoblog
 
 import (
 	"std"
@@ -27,12 +28,12 @@ import (
 )
 
 var b = &blog.Blog{
-	Title:  "my blog",
-	Prefix: "/r/me/blog:",
+	Title:  "gno.land's blog",
+	Prefix: "/r/gnoland/blog:",
 }
 
 func AddComment(postSlug, comment string) {
-	crossing()
+    crossing()
 	assertIsCommenter()
 	assertNotInPause()
 
@@ -48,8 +49,8 @@ func Render(path string) string {
 
 Q: Why is everything else so complicated?
 
-A: Because our languages, compilers, interpreters, and programming paradigms
-are continuously in evolution.
+A: Because our languages, compilers, interpreters, and programming paradigm is
+immature.
 
 ## Brief Evolution of Language
 
@@ -88,7 +89,7 @@ Gno, GnoVM, and Gno.land is in contrast:
    are persisted transparently.
  - Self Sustaining - every transaction locks GNOT up for new storage allocated;
    CPU gas fees paid in any language.
- - Timeless - every Gno object that is referenced (not GC’d) remains forever.
+ - Immortal - every Gno object that is referenced (not GC’d) remains forever.
  - Multi User Realm - all objects are stored in realm packages (namespaces). 
 
 ## Gno Language Innovation
@@ -111,7 +112,7 @@ nature of Gno there are extra semantics for inter-realm interoperability.
  - More and refinements to come in Gno2.
 
 These language innovations/extensions allow for safer multi-user application
-development where many users are collaboratively programming a singular
+development where many users are collaboratively programming a single immortal
 communal program.
 
 ## The Logoverse
@@ -130,30 +131,15 @@ With these elements altogether you can derive a new property:
    attempts to arrive at the logoverse.
  - Gno.land is the first complete logoverse.
 
-## Gno.land License
-
-Anyone can make Gno VM powered chains derived from Gno.land according to the
-viral copyleft license terms and strong attribution requirement. The Strong
-Attribution clause of the Gno Network GPL license preserves the spirit of the
-GNU AGPL license for the blockchain world.
-
-GNOT is the storage lock-up token, so Gno.land is to Gno England like GNOT is
-to fungible land rights in Gno England, where total storage is kept finite for
-very-long-term existential purposes, and value is derived from the Gno
-artifacts created by its users, and some new users competing for attention from
-many existing users.
-
-## Tokenomics
-
-XXX include tokenomics
-
-Gno.land may migrate to AtomOne ICS once it is support hard-fork upgrades.
-There Gno.land would be one ICS shard, and many Gno VM shards may also exist,
-each with their own namespace and probably each their own storage token unless
-separate treaties are made between the main Gno.land chain (ICS shard) and
-other Gno VM shards.
-
 ## Adoption Strategy
+
+There are over a million Go developers and growing. Go as a language remains a
+popular language for developers, an order of magnitude more than Rust
+developers, on par with Javascript developers but growing faster than
+Javascript.
+
+![TIOBE 2025](./tiobe_2025.png)
+![GitHut2 2024](./githut2_2024.png)
 
 Gno.land and its associated network of Gno VM chains, and AtomOne if it hosts
 it, will become the nexus of human to human, human to machine, and machine to
@@ -179,6 +165,29 @@ Build tools, connections, and relations with these particular communities and
 especially those influencers who are nuanced in their research and speech.
 Even those that don't promote crypto will see the benefits uniquely offered by
 Gno.land.
+
+## Gno.land License
+
+Anyone can make Gno VM powered chains derived from Gno.land according to the
+viral copyleft license terms and strong attribution requirement. The Strong
+Attribution clause of the Gno Network GPL license preserves the spirit of the
+GNU AGPL license for the blockchain world.
+
+GNOT is the storage lock-up token, so Gno.land is to Gno England like GNOT is
+to fungible land rights in Gno England, where total storage is kept finite for
+very-long-term existential purposes, and value is derived from the Gno
+artifacts created by its users, and some new users competing for attention from
+many existing users.
+
+## Tokenomics
+
+XXX include tokenomics
+
+Gno.land may migrate to AtomOne ICS once it is support hard-fork upgrades.
+There Gno.land would be one ICS shard, and many Gno VM shards may also exist,
+each with their own namespace and probably each their own storage token unless
+separate treaties are made between the main Gno.land chain (ICS shard) and
+other Gno VM shards.
 
 ## Team
 
