@@ -18,8 +18,7 @@ Compare publishing a blog site in Gno.land to all prior smart contract systems.
 
 ```go
 // Realm: gno.land/r/me/myblog
-
-package gnoblog
+package myblog
 
 import (
 	"std"
@@ -28,8 +27,8 @@ import (
 )
 
 var b = &blog.Blog{
-	Title:  "gno.land's blog",
-	Prefix: "/r/gnoland/blog:",
+	Title:  "my blog",
+	Prefix: "/r/me/myblog:",
 }
 
 func AddComment(postSlug, comment string) {
@@ -49,8 +48,8 @@ func Render(path string) string {
 
 Q: Why is everything else so complicated?
 
-A: Because our languages, compilers, interpreters, and programming paradigm is
-immature.
+A: Because our languages, compilers, interpreters, and programming paradigms are
+continuously in evolution.
 
 ## Brief Evolution of Language
 
@@ -76,7 +75,7 @@ Our languages, compilers & interpreters, and programs are today:
    NOT native language
  - Dependent - running programs are owned by an owner; dependent on
    individuals, not self-sustaining
- - Ephemeral -  running programs are expected to fail; no guarantee of
+ - Timeless -  running programs are expected to fail; no guarantee of
    presence.
  - Single User Realm - import of internal libraries are native, but
    interactions with external programs are NOT native; generally no `import
@@ -112,7 +111,7 @@ nature of Gno there are extra semantics for inter-realm interoperability.
  - More and refinements to come in Gno2.
 
 These language innovations/extensions allow for safer multi-user application
-development where many users are collaboratively programming a single immortal
+development where many users are collaboratively programming a singular
 communal program.
 
 ## The Logoverse
