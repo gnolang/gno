@@ -1,0 +1,78 @@
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduserfrom newmember 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+# load specific govDAO implementation and needed users for your integration test
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# call gov/dao render to check everything is working as expected and the loader worked
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args '' -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# add the proposal
+gnokey maketx addpkg -pkgdir $WORK/proposer -pkgpath gno.land/r/gov/dao/v3/proposer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# call gov/dao render to check everything the proposal was created
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args '0' -broadcast -chainid=tendermint_test test1
+stdout 'this is my portfolio'
+stdout OK!
+
+# vote on the proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# call proposal execution
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# check output
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v3/memberstore -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args '' -broadcast -chainid=tendermint_test test1
+stdout 'Tier T2 contains 1 members'
+stdout OK!
+
+-- proposer/create_proposal.gno --
+package create_proposal
+
+import (
+	"std"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func init() {
+	preq := impl.NewAddMemberRequest(std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "this is my portfolio")
+	dao.MustCreateProposal(preq)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"std"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+
+	dao.UpdateImpl(dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
