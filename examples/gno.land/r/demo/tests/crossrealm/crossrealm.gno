@@ -136,3 +136,22 @@ func PrevRealmCrossing() *ownable.Ownable {
 	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().Address())
 	return ownable.New()
 }
+
+func CurRealmNoCrossing() std.Realm {
+	return std.CurrentRealm()
+}
+func CurRealmWithCrossing() std.Realm {
+	crossing()
+	return std.CurrentRealm()
+}
+
+// call the package that returns current realm
+func PkgCurRealmNoCrossing() std.Realm {
+	return p_crossrealm.CurrentRealm()
+}
+
+// call the package that returns current realm
+func PkgCurRealmWithCrossing() std.Realm {
+	crossing()
+	return std.CurrentRealm()
+}

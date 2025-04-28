@@ -1,6 +1,7 @@
 package crossrealm_c
 
 import (
+	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/r/demo/tests/crossrealm"
 	"std"
 )
@@ -25,4 +26,15 @@ func passThrough() {
 	println()
 	owner = cross(crossrealm.PrevRealmCrossing)().Owner()
 	println("Owner from crossrealm PrevRealmCrossing: " + owner)
+}
+
+func CurRealmEntryPoint() {
+
+	println("crossrealm CurRealmWithCrossing: " + cross(crossrealm.CurRealmWithCrossing)().Address())
+	println("crossrealm CurRealmNoCrossing: " + crossrealm.CurRealmNoCrossing().Address())
+
+	println("p_crossrealm CurRealm: " + p_crossrealm.CurrentRealm().Address())
+	println("crossrealm PkgCurRealmWithCrossing: " + cross(crossrealm.PkgCurRealmWithCrossing)().Address())
+	println("crossrealm PkgCurRealmNoCrossing: " + crossrealm.PkgCurRealmNoCrossing().Address())
+
 }
