@@ -22,8 +22,6 @@ func (act *activity) String() string {
 var latest [10]*activity
 
 func addActivity(act *activity) {
-	crossing()
-
 	for i := len(latest) - 2; i >= 0; i-- {
 		latest[i+1] = latest[i] // shift by +1.
 	}
