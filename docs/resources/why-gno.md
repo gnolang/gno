@@ -131,30 +131,15 @@ With these elements altogether you can derive a new property:
    attempts to arrive at the logoverse.
  - Gno.land is the first complete logoverse.
 
-## Gno.land License
-
-Anyone can make Gno VM powered chains derived from Gno.land according to the
-viral copyleft license terms and strong attribution requirement. The Strong
-Attribution clause of the Gno Network GPL license preserves the spirit of the
-GNU AGPL license for the blockchain world.
-
-GNOT is the storage lock-up token, so Gno.land is to Gno England like GNOT is
-to fungible land rights in Gno England, where total storage is kept finite for
-very-long-term existential purposes, and value is derived from the Gno
-artifacts created by its users, and some new users competing for attention from
-many existing users.
-
-## Tokenomics
-
-XXX include tokenomics
-
-Gno.land may migrate to AtomOne ICS once it is support hard-fork upgrades.
-There Gno.land would be one ICS shard, and many Gno VM shards may also exist,
-each with their own namespace and probably each their own storage token unless
-separate treaties are made between the main Gno.land chain (ICS shard) and
-other Gno VM shards.
-
 ## Adoption Strategy
+
+There are over a million Go developers and growing. Go as a language remains a
+popular language for developers, an order of magnitude more than Rust
+developers, on par with Javascript developers but growing faster than
+Javascript.
+
+![TIOBE 2025](./tiobe_2025.png)
+![GitHut2 2024](./githut2_2024.png)
 
 Gno.land and its associated network of Gno VM chains, and AtomOne if it hosts
 it, will become the nexus of human to human, human to machine, and machine to
@@ -180,6 +165,29 @@ Build tools, connections, and relations with these particular communities and
 especially those influencers who are nuanced in their research and speech.
 Even those that don't promote crypto will see the benefits uniquely offered by
 Gno.land.
+
+## Gno.land License
+
+Anyone can make Gno VM powered chains derived from Gno.land according to the
+viral copyleft license terms and strong attribution requirement. The Strong
+Attribution clause of the Gno Network GPL license preserves the spirit of the
+GNU AGPL license for the blockchain world.
+
+GNOT is the storage lock-up token, so Gno.land is to Gno England like GNOT is
+to fungible land rights in Gno England, where total storage is kept finite for
+very-long-term existential purposes, and value is derived from the Gno
+artifacts created by its users, and some new users competing for attention from
+many existing users.
+
+## Tokenomics
+
+XXX include tokenomics
+
+Gno.land may migrate to AtomOne ICS once it is support hard-fork upgrades.
+There Gno.land would be one ICS shard, and many Gno VM shards may also exist,
+each with their own namespace and probably each their own storage token unless
+separate treaties are made between the main Gno.land chain (ICS shard) and
+other Gno VM shards.
 
 ## Team
 
