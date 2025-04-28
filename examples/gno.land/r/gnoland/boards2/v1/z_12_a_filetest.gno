@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	body  = "Test reply"
 	path  = "test-board/1/2"
 )

@@ -7,7 +7,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
@@ -37,10 +37,10 @@ func main() {
 // Output:
 // 1
 // test123
-// g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 owner
+// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq owner
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj admin
 // 2
 // foo123
-// g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 owner
+// g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq owner
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj owner
 // g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5 admin

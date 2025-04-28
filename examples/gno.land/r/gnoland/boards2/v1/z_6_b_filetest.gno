@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	user  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 	bid   = boards2.BoardID(0)                                      // Operate on realm DAO instead of individual boards
 	role  = boards2.RoleGuest
