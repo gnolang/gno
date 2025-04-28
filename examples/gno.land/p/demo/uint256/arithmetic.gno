@@ -5,6 +5,7 @@
 package uint256
 
 import (
+	"math"
 	"math/bits"
 )
 
@@ -276,6 +277,53 @@ func (z *Uint) Exp(base, exponent *Uint) *Uint {
 		word >>= 1
 	}
 	return z.Set(&res)
+}
+
+// ExtendSign extends length of two’s complement signed integer,
+// sets z to
+//   - x if byteNum > 30
+//   - x interpreted as a signed number with sign-bit at (byteNum*8+7), extended to the full 256 bits
+//
+// and returns z.
+func (z *Uint) ExtendSign(x, byteNum *Uint) *Uint {
+	// This implementation is based on evmone. See https://github.com/ethereum/evmone/pull/390
+	if byteNum.GtUint64(30) {
+		return z.Set(x)
+	}
+
+	e := byteNum.Uint64()
+	z.Set(x)
+	signWordIndex := e >> 3 // Index of the word with the sign bit.
+	signByteIndex := e & 7  // Index of the sign byte in the sign word.
+	signWord := z.arr[signWordIndex]
+	signByteOffset := signByteIndex << 3
+	signByte := signWord >> signByteOffset // Move sign byte to position 0.
+
+	// Sign-extend the "sign" byte and move it to the right position. Value bits are zeros.
+	sextByte := uint64(int64(int8(signByte)))
+	sext := sextByte << signByteOffset
+	signMask := uint64(math.MaxUint64 << signByteOffset)
+	value := signWord & ^signMask // Reset extended bytes.
+
+	z.arr[signWordIndex] = sext | value // Combine the result word.
+
+	// Produce bits (all zeros or ones) for extended words. This is done by SAR of
+	// the sign-extended byte. Shift by any value 7-63 would work.
+	signEx := uint64(int64(sextByte) >> 8)
+
+	switch signWordIndex {
+	case 2:
+		z.arr[3] = signEx
+		return z
+	case 1:
+		z.arr[3], z.arr[2] = signEx, signEx
+		return z
+	case 0:
+		z.arr[3], z.arr[2], z.arr[1] = signEx, signEx, signEx
+		return z
+	default:
+		return z
+	}
 }
 
 func (z *Uint) squared() {

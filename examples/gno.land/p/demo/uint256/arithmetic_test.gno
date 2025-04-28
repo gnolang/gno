@@ -409,6 +409,33 @@ func TestExp(t *testing.T) {
 	}
 }
 
+func TestExtendSign(t *testing.T) {
+	tests := []binOp2Test{
+		{"31337", "0", "105"},
+		{"31337", "1", "31337"},
+		{"1", "1", "1"},
+		{"127", "0", "127"},
+		{"247", "0", "115792089237316195423570985008687907853269984665640564039457584007913129639927"},
+		{"255", "0", twoPow256Sub1},
+		{"255", "0", twoPow256Sub1},
+	}
+
+	for _, tt := range tests {
+		x := MustFromDecimal(tt.x)
+		y := MustFromDecimal(tt.y)
+		want := MustFromDecimal(tt.want)
+
+		got := new(Uint).ExtendSign(x, y)
+
+		if got.Neq(want) {
+			t.Errorf(
+				"ExtendSign(%s, %s) = %v, want %v",
+				tt.x, tt.y, got.String(), want.String(),
+			)
+		}
+	}
+}
+
 func TestExp_LargeExponent(t *testing.T) {
 	tests := []struct {
 		name     string
