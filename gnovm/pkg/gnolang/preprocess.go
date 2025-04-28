@@ -2878,7 +2878,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 // returns the depth of first closure, 1 if stop itself is a closure,
 // or 0 if not found.
 func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
-	redundant := 0 // count faux block
+	faux := 0 // count faux block
 	for i := len(stack) - 1; i >= 0; i-- {
 		stbn := stack[i]
 		switch stbn := stbn.(type) {
@@ -2887,16 +2887,14 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 				return
 			}
 			fle = stbn
-			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
+			depth = len(stack) - 1 - faux - i + 1 // +1 since 1 is lowest.
 			found = true
 			// even if found, continue iteration in case
 			// an earlier *FuncLitExpr is found.
-		case *IfCaseStmt, *SwitchClauseStmt:
-			if stbn == stop {
-				return
-			}
-			redundant++
 		default:
+			if fauxChildBlockNode(stbn) {
+				faux++
+			}
 			if stbn == stop {
 				return
 			}
@@ -3444,7 +3442,7 @@ func findBranchLabel(last BlockNode, label Name) (
 ) {
 	for {
 		switch cbn := last.(type) {
-		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt, *SwitchStmt:
+		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
 			lbl := cbn.GetLabel()
 			if label == lbl {
 				bn = cbn
@@ -3452,7 +3450,7 @@ func findBranchLabel(last BlockNode, label Name) (
 			}
 			last = skipFaux(cbn.GetParentNode(nil))
 			depth += 1
-		case *IfStmt:
+		case *IfStmt, *SwitchStmt:
 			// These are faux blocks -- shouldn't happen.
 			panic("unexpected faux blocknode")
 		case *FileNode:
@@ -5036,6 +5034,14 @@ func fauxBlockNode(bn BlockNode) bool {
 	return false
 }
 
+func fauxChildBlockNode(bn BlockNode) bool {
+	switch bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		return true
+	}
+	return false
+}
+
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
@@ -5050,13 +5056,13 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// and declared variables. See tests/files/define1.go for test case.
 			var path ValuePath
 			var i int = 0
-			var faux int = 0
+			var fauxChild int = 0
 			for {
 				i++
-				last = last.GetParentNode(nil)
-				if fauxBlockNode(last) {
-					faux++
+				if fauxChildBlockNode(last) {
+					fauxChild++
 				}
+				last = last.GetParentNode(nil)
 				if last == nil {
 					if isUverseName(nx.Name) {
 						idx, ok := UverseNode().GetLocalIndex(nx.Name)
@@ -5080,7 +5086,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.SetDepth(path.Depth + uint8(i) - uint8(faux))
+			path.SetDepth(path.Depth + uint8(i) - uint8(fauxChild))
 			path.Validate()
 			nx.Path = path
 			return
