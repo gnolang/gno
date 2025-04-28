@@ -164,23 +164,38 @@ const (
 
 var (
 	opCodes map[OpCode]EvmOpData = map[OpCode]EvmOpData{
-		STOP:           {STOP, "STOP", opNop, 0},
-		ADD:            {ADD, "ADD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Add(a, b) }), 3},
-		MUL:            {MUL, "MUL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mul(a, b) }), 5},
-		SUB:            {SUB, "SUB", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Sub(a, b) }), 3},
-		DIV:            {DIV, "DIV", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Div(a, b) }), 5},
-		SDIV:           {SDIV, "SDIV", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.SDiv(a, b) }), 5},
-		MOD:            {MOD, "MOD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mod(a, b) }), 5},
-		SMOD:           {SMOD, "SMOD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.SMod(a, b) }), 5},
-		ADDMOD:         {ADDMOD, "ADDMOD", opAddmod, 8},
-		MULMOD:         {MULMOD, "MULMOD", opMulmod, 8},
-		EXP:            {EXP, "EXP", opExp, 10},
-		SIGNEXTEND:     {SIGNEXTEND, "SIGNEXTEND", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.ExtendSign(b, a) }), 5},
-		LT:             {LT, "LT", opNotImplemented, 3},
-		GT:             {GT, "GT", opNotImplemented, 3},
-		SLT:            {SLT, "SLT", opNotImplemented, 3},
-		SGT:            {SGT, "SGT", opNotImplemented, 3},
-		EQ:             {EQ, "EQ", opNotImplemented, 3},
+		STOP:       {STOP, "STOP", opNop, 0},
+		ADD:        {ADD, "ADD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Add(a, b) }), 3},
+		MUL:        {MUL, "MUL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mul(a, b) }), 5},
+		SUB:        {SUB, "SUB", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Sub(a, b) }), 3},
+		DIV:        {DIV, "DIV", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Div(a, b) }), 5},
+		SDIV:       {SDIV, "SDIV", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.SDiv(a, b) }), 5},
+		MOD:        {MOD, "MOD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mod(a, b) }), 5},
+		SMOD:       {SMOD, "SMOD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.SMod(a, b) }), 5},
+		ADDMOD:     {ADDMOD, "ADDMOD", opAddmod, 8},
+		MULMOD:     {MULMOD, "MULMOD", opMulmod, 8},
+		EXP:        {EXP, "EXP", opExp, 10},
+		SIGNEXTEND: {SIGNEXTEND, "SIGNEXTEND", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.ExtendSign(b, a) }), 5},
+		LT: {LT, "LT", opOperation(func(a, b *uint256.Uint) *uint256.Uint {
+			if a.Lt(b) {
+				return uint256.One()
+			}
+			return uint256.Zero()
+		}), 3},
+		GT: {GT, "GT", opOperation(func(a, b *uint256.Uint) *uint256.Uint {
+			if a.Gt(b) {
+				return uint256.One()
+			}
+			return uint256.Zero()
+		}), 3},
+		SLT: {SLT, "SLT", opNotImplemented, 3},
+		SGT: {SGT, "SGT", opNotImplemented, 3},
+		EQ: {EQ, "EQ", opOperation(func(a, b *uint256.Uint) *uint256.Uint {
+			if a.Eq(b) {
+				return uint256.One()
+			}
+			return uint256.Zero()
+		}), 3},
 		ISZERO:         {ISZERO, "ISZERO", opIszero, 3},
 		AND:            {AND, "AND", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.And(a, b) }), 3},
 		OR:             {OR, "OR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Or(a, b) }), 3},
