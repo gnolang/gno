@@ -192,4 +192,17 @@ Manfred Touron, builder focused on open-source and resilient technologies;
 co-founded scaleway (cloud) and berty (p2p messaging), with contributions to
 900+ open-source projects.
 
-XXX Ask others to fill in.
+Morgan Bazalgette - Senior Go engineer; bringing the joy of developing Go to
+Gno.
+
+Miloš Živković - Sr. distributed systems engineer; passion for solving
+protocol-level problems in the blockchain space.
+
+Marc Vertes - Sr. VM dev and hardware; more than 3 decades of experience,
+Co-founder of 3 companies (1 acquired by IBM), author of 34 patents, author of
+the Yaegi Go interpreter.
+
+Ìlker Öztürk - Sr. software architect; 17 years in building and designing
+products, distributed p2p systems, leadership and strategic vision.
+
+XXX Ask everyone to fill in...
