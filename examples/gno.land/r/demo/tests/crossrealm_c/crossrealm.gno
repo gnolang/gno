@@ -15,10 +15,10 @@ func EntryPoint() {
 
 func passThrough() {
 	owner := crossrealm.EntryPoint().Owner()
-	println("Owner from crossrealm EntryPoint noCrossing: " + owner)
+	println("Owner from crossrealm EntryPoint no crossing: " + owner)
 	println()
 	owner2 := crossrealm.EntryPointWithCrossing().Owner()
-	println("Owner from crossrealm EntryPoint crossing: " + owner2)
+	println("Owner from crossrealm EntryPoint with crossing: " + owner2)
 	println()
 	owner = crossrealm.PrevRealmNoCrossing().Owner()
 	println("Owner from crossrealm PrevRealmNoCrossing: " + owner)

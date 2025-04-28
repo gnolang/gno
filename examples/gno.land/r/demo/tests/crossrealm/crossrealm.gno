@@ -125,14 +125,14 @@ func EntryPointWithCrossing() (withCros *ownable.Ownable) {
 }
 
 func PrevRealmNoCrossing() *ownable.Ownable {
-	println("crossrealm PreviousRealm No Crossing: " + std.PreviousRealm().PkgPath())
-	println("crossrealm PreviousRealm No Crossing: " + std.PreviousRealm().Address())
+	println("crossrealm PreviousRealm no crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm no crossing: " + std.PreviousRealm().Address())
 	return ownable.New()
 }
 
 func PrevRealmCrossing() *ownable.Ownable {
 	crossing()
-	println("crossrealm PreviousRealm with Crossing: " + std.PreviousRealm().PkgPath())
-	println("crossrealm PreviousRealm with Crossing: " + std.PreviousRealm().Address())
+	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().Address())
 	return ownable.New()
 }
