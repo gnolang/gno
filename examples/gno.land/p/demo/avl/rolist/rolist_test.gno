@@ -6,15 +6,15 @@ import (
 	"gno.land/p/demo/avl/list"
 )
 
+type User struct {
+	ID       string
+	Name     string
+	Balance  int
+	Internal string // sensitive internal data
+}
+
 func TestExample(t *testing.T) {
 	// User represents our internal data structure
-	type User struct {
-		ID       string
-		Name     string
-		Balance  int
-		Internal string // sensitive internal data
-	}
-
 	// Create and populate the original list
 	l := &list.List{}
 	l.Append(
