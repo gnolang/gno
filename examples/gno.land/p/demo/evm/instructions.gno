@@ -10,25 +10,31 @@ type instructions struct {
 	rip          int
 	instructions []byte
 	length       int
+	err 		 error
 }
 
 var (
-	negativeProgramCounter = errors.New("negative program counter")
+	outOfBounds = errors.New("out of bounds")
+	invalidInstruction = errors.New("invalid instruction")
 )
 
 func (i *instructions) Reset(l []byte) {
 	i.rip = 0
 	i.instructions = l
 	i.length = len(l)
+	i.err = nil
 }
 
 func (i *instructions) Increment(more ...int) *instructions {
+	if i.Ill() {
+		return i
+	}
 	x := 1
 	if len(more) > 0 {
 		x = more[0]
 	}
-	if (i.rip + x) >= i.length {
-		i.rip = -1 // out of bounds
+	if ((i.rip + x) >= i.length) || ((i.rip + x) < 0) {
+		i.err = outOfBounds
 		return i
 	}
 	i.rip += x
@@ -43,13 +49,17 @@ func (i instructions) Current() byte {
 }
 
 func (i instructions) Ill() bool {
-	return i.rip < 0
+	return i.err != nil
+}
+
+func (i instructions) Error() error {
+	return i.err
 }
 
 // read n bytes and jump to rip + n
 func (i *instructions) Read(n int) (*uint256.Uint, error) {
-	if i.rip < 0 {
-		return uint256.Zero(), negativeProgramCounter
+	if i.Ill() {
+		return uint256.Zero(), i.err
 	}
 	if i.rip+n > i.length {
 		return uint256.Zero(), outOfBounds

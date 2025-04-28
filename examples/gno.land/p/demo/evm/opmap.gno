@@ -7,7 +7,7 @@ type OpCode byte
 type EvmOpData struct {
 	opCode    OpCode
 	name      string
-	operation func(*state) error
+	operation func(*State) error
 	gas       uint16
 }
 

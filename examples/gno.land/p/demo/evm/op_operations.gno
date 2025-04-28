@@ -5,22 +5,22 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-func opOperation(f func (a, b *uint256.Uint) *uint256.Uint) func (s *state) error {
-	return func(s *state) error {
+func opOperation(f func (a, b *uint256.Uint) *uint256.Uint) func (s *State) error {
+	return func(s *State) error {
 		a, err := s.stack.Pop()
 		if err != nil {
-			return errors.New("can't ADD: empty stack")
+			return errors.New("can't do operation: empty stack")
 		}
 		b, err := s.stack.Pop()
 		if err != nil {
-			return errors.New("can't ADD: stack of size 1")
+			return errors.New("can't do operation: stack of size 1")
 		}
 		s.stack.Push(f(a, b))
 		return nil
 	}
 }
 
-func opAddmod(s *state) error {
+func opAddmod(s *State) error {
 	a, err := s.stack.Pop()
 	if err != nil {
 		return errors.New("can't ADDMOD: empty stack")
@@ -40,7 +40,7 @@ func opAddmod(s *state) error {
 	return nil
 }
 
-func opMulmod(s *state) error {
+func opMulmod(s *State) error {
 	a, err := s.stack.Pop()
 	if err != nil {
 		return errors.New("can't MULMOD: empty stack")
@@ -60,7 +60,7 @@ func opMulmod(s *state) error {
 	return nil
 }
 
-func opNot(s *state) error {
+func opNot(s *State) error {
     a, err := s.stack.Pop()
     if err != nil {
         return errors.New("can't NOT: empty stack")
@@ -72,7 +72,7 @@ func opNot(s *state) error {
 // Retrieve a byte from a word.
 // IN: `[offset, number]`
 // OUT: `[byte]`
-func opByte(s *state) error {
+func opByte(s *State) error {
 	off, err := s.stack.Pop()
     if err != nil {
         return errors.New("can't XOR: empty stack")

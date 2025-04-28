@@ -8,19 +8,17 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-var outOfBounds = errors.New("out of bounds")
-
-func opNotImplemented(s *state) error {
-	return errors.New("op code " + strconv.FormatInt(int64(s.code.Current()), 16) + ": not implemented")
+func opNotImplemented(s *State) error {
+	return errors.New("op code 0x" + strconv.FormatInt(int64(s.code.Current()), 16) + " not implemented")
 }
 
-func opPush0(s *state) error {
+func opPush0(s *State) error {
 	s.stack.Push(uint256.Zero())
 	return nil
 }
 
-func opPush(n int) func(*state) error {
-	return func(s *state) error {
+func opPush(n int) func(*State) error {
+	return func(s *State) error {
 		s.code.Increment()
 		if s.code.Ill() {
 			return errors.New("can't PUSH" + strconv.Itoa(n) + ": " + outOfBounds.Error())
@@ -34,8 +32,8 @@ func opPush(n int) func(*state) error {
 	}
 }
 
-func opSwap(n int) func(*state) error {
-	return func(s *state) error {
+func opSwap(n int) func(*State) error {
+	return func(s *State) error {
 		if s.stack.Len() <= n {
 			return errors.New("can't SWAP" + strconv.Itoa(n) + ": stack too small")
 		}
@@ -58,8 +56,8 @@ func opSwap(n int) func(*state) error {
 	}
 }
 
-func opDup(n int) func(*state) error {
-	return func(s *state) error {
+func opDup(n int) func(*State) error {
+	return func(s *State) error {
 		if s.stack.Len() < n {
 			return errors.New("can't DUP" + strconv.Itoa(n) + ": stack too small")
 		}
@@ -73,12 +71,12 @@ func opDup(n int) func(*state) error {
 	}
 }
 
-func opPop(s *state) error {
+func opPop(s *State) error {
 	_, err := s.stack.Pop()
 	return err
 }
 
-func opJump(s *state) error {
+func opJump(s *State) error {
 	dest, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -92,11 +90,11 @@ func opJump(s *state) error {
 	return nil
 }
 
-func opNop(s *state) error {
+func opNop(s *State) error {
 	return nil
 }
 
-func opJumpi(s *state) error {
+func opJumpi(s *State) error {
 	dest, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -117,7 +115,7 @@ func opJumpi(s *state) error {
 	return nil
 }
 
-func opIszero(s *state) error {
+func opIszero(s *State) error {
 	num, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -130,7 +128,7 @@ func opIszero(s *state) error {
 	return nil
 }
 
-func opKeccak256(s *state) error {
+func opKeccak256(s *State) error {
 	off, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -151,12 +149,12 @@ func opKeccak256(s *state) error {
 	return nil
 }
 
-func opPc(s *state) error {
+func opPc(s *State) error {
 	s.stack.Push(uint256.NewUint(uint64(s.code.rip)))
 	return nil
 }
 
-func opCodeSize(s *state) error {
+func opCodeSize(s *State) error {
 	s.stack.Push(uint256.NewUint(uint64(s.code.length)))
 	return nil
 }

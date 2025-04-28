@@ -6,38 +6,54 @@ import (
 
 // const memSize = 30000
 
-type state struct {
-	memory []byte
-	stack  evmStack
-	buf    []byte
-	code   instructions
+type tmpEnv struct {
+	storage []byte
+	logs    []byte
 }
 
-func newState() *state {
-	return &state{
+type State struct {
+	memory      []byte
+	stack       evmStack
+	code        instructions
+	tmp         tmpEnv
+	gasConsumed uint
+	parent      *Env
+}
+
+func newState() *State {
+	return &State{
 		stack:  *NewevmStack(),
 		memory: []byte{},
-		buf:    []byte{},
 		code:   instructions{},
+		tmp: tmpEnv{
+			storage: []byte{},
+			logs:    []byte{},
+		},
+		parent: nil,
+		gasConsumed: 0,
 	}
 }
 
 // TODO: return the s.buf
-func (s state) getStackData() []*uint256.Uint {
+func (s State) getStackData() []*uint256.Uint {
 	// return s.buf
 	return s.stack.data
 }
 
-func (s state) getResult() []byte {
-	return s.buf
+func (s State) getResult() []byte {
+	return []byte{}
 }
 
-func (s *state) executeByteCode(code []byte) error {
+func (s *State) executeByteCode(code []byte) error {
 	s.code.Reset(code)
+	if s.parent != nil {
+		s.tmp.storage = make([]byte, len(s.parent.Storage))
+		copy(s.tmp.storage, s.parent.Storage)
+	}
 	for !s.code.Ill() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
 		if !ok {
-			return opNotImplemented(s)
+			return invalidInstruction
 		}
 		err := opData.operation(s)
 		if err != nil {
@@ -46,7 +62,10 @@ func (s *state) executeByteCode(code []byte) error {
 		s.code.Increment()
 	}
 	if s.code.Ill() {
-		return outOfBounds
+		return s.code.err
+	}
+	if s.parent != nil {
+		copy(s.parent.Storage, s.tmp.storage)
 	}
 	return nil
 }

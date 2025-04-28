@@ -5,7 +5,7 @@ import "gno.land/p/demo/uint256"
 // Retrieve data stored in memory, at offset.
 // > IN: `[offset]`
 // > OUT: `[result]`
-func opMload(s *state) error {
+func opMload(s *State) error {
 	off, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -26,7 +26,7 @@ func opMload(s *state) error {
 
 // Write data in memory at offset.
 // > IN: `[offset, data]`
-func opMstore(s *state) error {
+func opMstore(s *State) error {
 	off, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func opMstore(s *state) error {
 
 // Write first byte of data in memory at offset.
 // > IN: `[offset, data]`
-func opMstore8(s *state) error {
+func opMstore8(s *State) error {
 	off, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -76,12 +76,12 @@ func opMstore8(s *state) error {
 
 // Get the memory size.
 // > OUT: `[size]`
-func opMsize(s *state) error {
+func opMsize(s *State) error {
 	s.stack.Push(uint256.NewUint(uint64(len(s.memory))))
 	return nil
 }
 
-func opMcopy(s *state) error {
+func opMcopy(s *State) error {
 	dst, err := s.stack.Pop()
 	if err != nil {
 		return err

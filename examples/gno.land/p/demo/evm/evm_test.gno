@@ -27,7 +27,7 @@ func TestExecuteEvm(t *testing.T) {
 		{
 			name:           "error can't add on empty stack",
 			code:           []byte{0x01}, // ADD
-			expected_error: errors.New("can't ADD: empty stack"),
+			expected_error: errors.New("can't do operation: empty stack"),
 		},
 		{
 			name:           "error push1 out of bounds",
