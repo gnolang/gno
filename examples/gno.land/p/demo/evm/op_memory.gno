@@ -16,6 +16,7 @@ func opMload(s *State) error {
 		return nil
 	}
 
+	// TODO: add read-memory gas consuption
 	read := s.memory[off64 : off64+32]
 	if len(read) < 32 {
 		read = append(read, make([]byte, 32-len(read))...)
@@ -38,13 +39,21 @@ func opMstore(s *State) error {
 	}
 	bytes := val.Bytes32()
 	memLen := uint64(len(s.memory))
+
+	// if memory is empty, add the bytes, expension is 32 bytes
 	if memLen == 0 {
 		s.memory = append(make([]byte, off64), bytes[:]...)
+		s.gasConsumed += 32
 		return nil
 	}
+	// if offset + 32 is greater than memory len, expend/consume the diff
 	if off64+32 >= memLen {
-		s.memory = append(s.memory, make([]byte, off64+32-memLen)...)
+		add := off64+32-memLen
+		s.memory = append(s.memory, make([]byte, add)...)
+		s.gasConsumed += uint(add)
 	}
+
+	// copy in the right place
 	copy(s.memory[off64:off64+32], bytes[:])
 	return nil
 }
@@ -61,14 +70,21 @@ func opMstore8(s *State) error {
 	if err != nil {
 		return err
 	}
+
+	// get the byte
 	b := byte(val.Uint64() & 0xff)
 	memLen := uint64(len(s.memory))
+
+	// if no mem and offset is greater than zero, just do some zeroes + add the byte
 	if memLen == 0 && off64 != 0 {
 		s.memory = append(make([]byte, off64), b)
+		s.gasConsumed += uint(off64) + 1
 		return nil
 	}
 	if off64 + 1 > memLen {
-		s.memory = append(s.memory, make([]byte, off64 + 1 - memLen)...)
+		add := off64 + 1 - memLen
+		s.memory = append(s.memory, make([]byte, add)...)
+		s.gasConsumed += uint(add)
 	}
 	s.memory[off64] = b
 	return nil
@@ -100,7 +116,7 @@ func opMcopy(s *State) error {
 	if farest.Cmp(memlen256) > 0 {
 		extend := uint256.Zero().Sub(farest, memlen256).Uint64()
 		s.memory = append(s.memory, make([]byte, extend)...)
-		// todo: incrmeent gas because extension
+		s.gasConsumed += uint(extend)
 	}
 
 	copy(s.memory[dst.Uint64():], s.memory[src.Uint64():size.Uint64()])

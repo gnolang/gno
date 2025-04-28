@@ -142,6 +142,10 @@ func opKeccak256(s *State) error {
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
+	
+	minWordSize := uint256.Zero().Div(uint256.Zero().Add(size, uint256.NewUint(31)), uint256.NewUint(32))
+	s.gasConsumed += uint(6 * minWordSize.Uint64()) // TODO: runtime gas with mem extension (idk how to expand)
+
 	slice := s.memory[off64:off64+size.Uint64()]
 	resBytes := keccak256.Keccak256(slice)
 	resUint := uint256.Zero().SetBytes(resBytes)
