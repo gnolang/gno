@@ -55,6 +55,7 @@ func (s *State) executeByteCode(code []byte) error {
 		if !ok {
 			return invalidInstruction
 		}
+		s.gasConsumed += uint(opData.gas)
 		err := opData.operation(s)
 		if err != nil {
 			return err
