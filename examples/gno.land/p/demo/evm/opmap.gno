@@ -174,8 +174,8 @@ var (
 		SMOD:           {SMOD, "SMOD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.SMod(a, b) }), 5},
 		ADDMOD:         {ADDMOD, "ADDMOD", opAddmod, 8},
 		MULMOD:         {MULMOD, "MULMOD", opMulmod, 8},
-		EXP:            {EXP, "EXP", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Exp(a, b) }), 10}, // can change
-		SIGNEXTEND:     {SIGNEXTEND, "SIGNEXTEND", opNotImplemented, 5},
+		EXP:            {EXP, "EXP", opExp, 10},
+		SIGNEXTEND:     {SIGNEXTEND, "SIGNEXTEND", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.ExtendSign(b, a) }), 5},
 		LT:             {LT, "LT", opNotImplemented, 3},
 		GT:             {GT, "GT", opNotImplemented, 3},
 		SLT:            {SLT, "SLT", opNotImplemented, 3},

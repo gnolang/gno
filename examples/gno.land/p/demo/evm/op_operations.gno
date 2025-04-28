@@ -2,10 +2,11 @@ package evm
 
 import (
 	"errors"
+
 	"gno.land/p/demo/uint256"
 )
 
-func opOperation(f func (a, b *uint256.Uint) *uint256.Uint) func (s *State) error {
+func opOperation(f func(a, b *uint256.Uint) *uint256.Uint) func(s *State) error {
 	return func(s *State) error {
 		a, err := s.stack.Pop()
 		if err != nil {
@@ -18,6 +19,20 @@ func opOperation(f func (a, b *uint256.Uint) *uint256.Uint) func (s *State) erro
 		s.stack.Push(f(a, b))
 		return nil
 	}
+}
+
+func opExp(s *State) error {
+	a, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't do operation: empty stack")
+	}
+	b, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't do operation: stack of size 1")
+	}
+	s.stack.Push(a.Exp(a, b))
+	s.gasConsumed += 50 * uint((b.BitLen()+7)/8)
+	return nil
 }
 
 func opAddmod(s *State) error {
@@ -61,12 +76,12 @@ func opMulmod(s *State) error {
 }
 
 func opNot(s *State) error {
-    a, err := s.stack.Pop()
-    if err != nil {
-        return errors.New("can't NOT: empty stack")
-    }
-    s.stack.Push(a.Not(a))
-    return nil
+	a, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't NOT: empty stack")
+	}
+	s.stack.Push(a.Not(a))
+	return nil
 }
 
 // Retrieve a byte from a word.
@@ -74,13 +89,13 @@ func opNot(s *State) error {
 // OUT: `[byte]`
 func opByte(s *State) error {
 	off, err := s.stack.Pop()
-    if err != nil {
-        return errors.New("can't XOR: empty stack")
-    }
-    number, err := s.stack.Pop()
-    if err != nil {
-        return errors.New("can't XOR: stack of size 1")
-    }
+	if err != nil {
+		return errors.New("can't XOR: empty stack")
+	}
+	number, err := s.stack.Pop()
+	if err != nil {
+		return errors.New("can't XOR: stack of size 1")
+	}
 	off64 := off.Uint64()
 	bytes := number.Bytes32()
 
