@@ -109,13 +109,13 @@ func Faucet(symbol string) {
 
 func Mint(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertCallerIsOwner()
+	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
 func Burn(symbol string, from std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertCallerIsOwner()
+	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Burn(from, amount))
 }
 
