@@ -4,10 +4,12 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/moul/txlink"
 )
 
 var (
 	gPerms        Permissions
+	gRealmPath    string
 	gNotice       string
 	gHelp         string
 	gLastBoardID  BoardID
@@ -20,11 +22,14 @@ var (
 )
 
 func init() {
-	// TODO: Define and change the default realm owner (or owners)
-	owner := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	// Save current realm path so it's available during render calls
+	gRealmPath = std.CurrentRealm().PkgPath()
 
 	// Initialize default realm permissions
-	gPerms = createDefaultPermissions(owner)
+	gPerms = createDefaultPermissions(
+		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
+		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
+	)
 }
 
 // incGetBoardID returns a new board ID.
@@ -84,4 +89,9 @@ func mustGetPermissions(bid BoardID) Permissions {
 		return board.perms
 	}
 	return gPerms
+}
+
+func txlinkCall(fn string, args ...string) string {
+	// Use gRealmPath to build TX link to allow links to be built during render calls
+	return txlink.Realm(gRealmPath).Call(fn, args...)
 }

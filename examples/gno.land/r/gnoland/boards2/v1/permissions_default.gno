@@ -247,11 +247,13 @@ func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 	cb(args)
 }
 
-func createDefaultPermissions(owner std.Address) *DefaultPermissions {
+func createDefaultPermissions(owners ...std.Address) *DefaultPermissions {
 	perms := NewDefaultPermissions(commondao.New())
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(RoleAdmin, PermissionBoardCreate)
-	perms.AddUser(owner, RoleOwner)
+	for _, owner := range owners {
+		perms.AddUser(owner, RoleOwner)
+	}
 	return perms
 }
 

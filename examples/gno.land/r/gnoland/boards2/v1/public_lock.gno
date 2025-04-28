@@ -25,7 +25,7 @@ func LockRealm(lockRealmMembers bool) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	gPerms.WithPermission(caller, PermissionRealmLock, nil, func(Args) {
+	gPerms.WithPermission(caller, PermissionRealmLock, Args{}, func(Args) {
 		gLocked.realm = true
 		gLocked.realmMembers = lockRealmMembers
 

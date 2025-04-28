@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	bid   = boards2.BoardID(0)                                      // Operate on realm instead of individual boards
 )
 
