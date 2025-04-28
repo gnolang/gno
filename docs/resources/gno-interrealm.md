@@ -109,6 +109,32 @@ future Gno versions.
 
 ### Usage
 
+P package code cannot containing crossing functions, nor use crossing().  P
+package code also cannot import R realm packages. But code can call named
+crossing functions e.g. those passed in as parameters.
+
+You must declare a public realm function to be crossing() if it is intended to
+be called by end users, because users cannot MsgCall non-crossing functions
+(for safety/consistency) or p package functions (there's no point).
+
+Utility functions that are a common sequence of non-crossing logic can be
+offered in realm packages as non-crossing functions. These can also import and
+use other realm utility non-crossing functions; whereas p packages cannot
+import realm packages at all. And convenience/utility functions that are being
+staged before publishing as permanent p code should also reside in upgreadeable
+realms.
+
+Generally you want your methods to be non-crossing. Because they should work
+for everyone. They are functions that are pre-bound to an object, and that
+object is like a quasi-realm in itself, that could reside and migrate to other
+realms possibly. This is consistent with any p code copied over to r realms;
+none of those methods would be crossing, and behavior would be the same; stored
+in any realm, mostly non-crossing methods that anyone can call. Why is a
+quasi-realm self-encapsulated Object in need to modify the realm in which it is
+declared, by crossing? That's intrusive, but sometimes desired.
+
+You can always cross-call a method from a non-crossing method if you need it.
+
 Implementation for `std.CurrentRealm()` and `std.PreviousRealm()` are defined
 in `stdlibs/std/native.gno/go` and related files in the directory, while
 overrides for testing are defined in `testing/stdlibs/std/std.gno/go`. All
