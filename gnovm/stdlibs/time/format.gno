@@ -509,32 +509,7 @@ func formatNano(b []byte, nanosec uint, std int) []byte {
 // representation, use t.MarshalText, t.MarshalBinary, or t.Format
 // with an explicit format string.
 func (t Time) String() string {
-	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
-
-	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
-	if t.wall&hasMonotonic != 0 {
-		m2 := uint64(t.ext)
-		sign := byte('+')
-		if t.ext < 0 {
-			sign = '-'
-			m2 = -m2
-		}
-		m1, m2 := m2/1e9, m2%1e9
-		m0, m1 := m1/1e9, m1%1e9
-		buf := make([]byte, 0, 24)
-		buf = append(buf, " m="...)
-		buf = append(buf, sign)
-		wid := 0
-		if m0 != 0 {
-			buf = appendInt(buf, int(m0), 0)
-			wid = 9
-		}
-		buf = appendInt(buf, int(m1), wid)
-		buf = append(buf, '.')
-		buf = appendInt(buf, int(m2), 9)
-		s += string(buf)
-	}
-	return s
+	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
 }
 
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
@@ -566,8 +541,8 @@ func (t Time) GoString() string {
 	switch loc := t.Location(); loc {
 	case UTC, nil:
 		buf = append(buf, "time.UTC"...)
-	case Local:
-		buf = append(buf, "time.Local"...)
+	case ChainTZ:
+		buf = append(buf, "time.ChainTZ"...)
 	default:
 		// there are several options for how we could display this, none of
 		// which are great:
@@ -959,7 +934,7 @@ func skip(value, prefix string) (string, error) {
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
-	return parse(layout, value, UTC, Local)
+	return parse(layout, value, UTC, ChainTZ)
 }
 
 // ParseInLocation is like Parse but differs in two important ways.
@@ -971,7 +946,7 @@ func ParseInLocation(layout, value string, loc *Location) (Time, error) {
 	return parse(layout, value, loc, loc)
 }
 
-func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
+func parse(layout, value string, defaultLocation, chainTZ *Location) (Time, error) {
 	alayout, avalue := layout, value
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
@@ -1299,9 +1274,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := local.lookup(t.unixSec())
+		name, offset, _, _, _ := chainTZ.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
-			t.setLoc(local)
+			t.setLoc(chainTZ)
 			return t, nil
 		}
 
@@ -1314,10 +1289,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, ok := local.lookupName(zoneName, t.unixSec())
+		offset, ok := chainTZ.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
-			t.setLoc(local)
+			t.setLoc(chainTZ)
 			return t, nil
 		}
 
