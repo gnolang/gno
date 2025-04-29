@@ -25,7 +25,7 @@ func main() {
 // Balance: .
 // Total transfers:  (in 0 times).
 //
-// Package address: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Package address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
 //
 // Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //
