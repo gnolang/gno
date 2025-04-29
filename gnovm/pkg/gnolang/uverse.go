@@ -772,7 +772,20 @@ func makeUverseNode() {
 			for i := 1 + 1; ; i++ {
 				fri := m.PeekCallFrame(i)
 				if fri == nil {
-					panic("crossing could not find corresponding cross(fn)(...) call")
+					// For stage add, meaning init() AND
+					// global var decls inherit a faux
+					// frame of index -1 which crossed from
+					// the package deployer.
+					// For stage run, main() does the same,
+					// so main() can be crossing or not, it
+					// doesn't matter. This applies for
+					// MsgRun() as well as tests. MsgCall()
+					// runs like cross(fn)(...) which
+					// meains fri.WithCross would have been
+					// found below.
+					fr2 := m.PeekCallFrame(2)
+					fr2.SetDidCross()
+					return
 				}
 				if fri.WithCross || fri.DidCross {
 					// NOTE: fri.DidCross implies

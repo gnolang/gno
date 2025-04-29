@@ -6,7 +6,7 @@ patchpkg "g1abcde" $dev_user_addr
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/dev/admin -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+gnokey query vm/qrender --data 'gno.land/r/dev/admin:'
 ! stdout g1abcde
 stdout $dev_user_addr
 
@@ -16,7 +16,5 @@ package admin
 var admin = "g1abcde"
 
 func Render(path string) string {
-	crossing()
-
 	return "# Hello "+admin
 }

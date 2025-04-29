@@ -174,6 +174,9 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
 }
 
 func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {
+	if pkgPath == "" {
+		panic("pkgpath cannot be empty")
+	}
 	b32addr, ok := IsGnoRunPath(pkgPath)
 	if ok {
 		return crypto.Bech32Address(b32addr)

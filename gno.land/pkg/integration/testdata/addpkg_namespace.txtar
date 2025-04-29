@@ -57,7 +57,7 @@ stderr 'is not authorized to deploy packages to namespace'
 
 # test gui register namespace
 # gui call -> gnoland/users/v1.Register
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 12000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
 stdout 'OK!'
 
 # Test gui publishing on guigui123/one

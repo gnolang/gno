@@ -22,10 +22,10 @@ func main() {
 // # Community Faucet.
 //
 // Status: active.
-// Balance: 200000000ugnot.
+// Balance: .
 // Total transfers:  (in 0 times).
 //
-// Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
+// Package address: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //
@@ -34,5 +34,3 @@ func main() {
 //
 //
 // Per request limit: 350000000ugnot
-//
-//

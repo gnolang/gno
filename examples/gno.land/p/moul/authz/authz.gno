@@ -69,7 +69,7 @@ type PrivilegedActionHandler func(title string, action PrivilegedAction) error
 // New creates a new Authorizer with the current realm's address as authority
 func New() *Authorizer {
 	return &Authorizer{
-		current: NewMemberAuthority(std.PreviousRealm().Address()),
+		current: NewMemberAuthority(std.CurrentRealm().Address()),
 	}
 }
 
@@ -118,7 +118,7 @@ func NewMemberAuthority(members ...std.Address) *MemberAuthority {
 }
 
 func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	if !a.members.Has(caller) {
 		return errors.New("unauthorized")
 	}
@@ -222,7 +222,7 @@ func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, arg
 
 	// Wrap the action to ensure it can only be executed by the contract
 	wrappedAction := func() error {
-		caller := std.PreviousRealm().Address()
+		caller := std.CurrentRealm().Address()
 		if caller != a.contractAddr {
 			return errors.New("action can only be executed by the contract")
 		}

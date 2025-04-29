@@ -29,6 +29,7 @@
 loadpkg gno.land/r/myrlm $WORK/r/myrlm
 loadpkg gno.land/r/foo $WORK/r/foo
 loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
+
 gnoland start
 
 # The PANIC is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
@@ -84,7 +85,7 @@ stdout 'OK!'
 stderr 'invalid non-origin call'
 
 ## 13. MsgRun -> run.main -> foo.A: PANIC
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chainid tendermint_test test1 $WORK/run/fooA.gno
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 15_000_000 -broadcast -chainid tendermint_test test1 $WORK/run/fooA.gno
 stderr 'invalid non-origin call'
 
 ## 14. MsgRun -> run.main -> foo.B: PASS
@@ -92,11 +93,11 @@ gnokey maketx run -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chaini
 stdout 'OK!'
 
 ## 15. MsgRun -> run.main -> foo.C: PANIC
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chainid tendermint_test test1 $WORK/run/fooC.gno
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 15_000_000 -broadcast -chainid tendermint_test test1 $WORK/run/fooC.gno
 stderr 'invalid non-origin call'
 
 ## 16. MsgRun -> run.main -> bar.A: PANIC
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 15_000_000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
 stderr 'invalid non-origin call'
 
 ## 17. MsgRun -> run.main -> bar.B: PASS
@@ -123,16 +124,22 @@ package myrlm
 import "std"
 
 func A() {
+	crossing()
+
 	C()
 }
 
 func B() {
+	crossing()
+
 	if false {
 		C()
 	}
 }
 
 func C() {
+	crossing()
+
 	std.AssertOriginCall()
 }
 -- r/foo/foo.gno --
@@ -141,15 +148,21 @@ package foo
 import "gno.land/r/myrlm"
 
 func A() {
-	myrlm.A()
+	crossing()
+
+	cross(myrlm.A)()
 }
 
 func B() {
-	myrlm.B()
+	crossing()
+
+	cross(myrlm.B)()
 }
 
 func C() {
-	myrlm.C()
+	crossing()
+
+	cross(myrlm.C)()
 }
 -- p/demo/bar/bar.gno --
 package bar
@@ -174,7 +187,9 @@ package main
 import myrlm "gno.land/r/myrlm"
 
 func main() {
-	myrlm.A()
+	crossing()
+
+	cross(myrlm.A)()
 }
 -- run/myrlmB.gno --
 package main
@@ -182,7 +197,9 @@ package main
 import "gno.land/r/myrlm"
 
 func main() {
-	myrlm.B()
+	crossing()
+
+	cross(myrlm.B)()
 }
 -- run/myrlmC.gno --
 package main
@@ -190,7 +207,9 @@ package main
 import "gno.land/r/myrlm"
 
 func main() {
-	myrlm.C()
+	crossing()
+
+	cross(myrlm.C)()
 }
 -- run/fooA.gno --
 package main
@@ -198,7 +217,9 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	foo.A()
+	crossing()
+
+	cross(foo.A)()
 }
 -- run/fooB.gno --
 package main
@@ -206,7 +227,9 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	foo.B()
+	crossing()
+
+	cross(foo.B)()
 }
 -- run/fooC.gno --
 package main
@@ -214,7 +237,9 @@ package main
 import "gno.land/r/foo"
 
 func main() {
-	foo.C()
+	crossing()
+
+	cross(foo.C)()
 }
 -- run/barA.gno --
 package main
@@ -222,6 +247,8 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
+	crossing()
+
 	bar.A()
 }
 -- run/barB.gno --
@@ -230,6 +257,8 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
+	crossing()
+
 	bar.B()
 }
 -- run/barC.gno --
@@ -238,6 +267,8 @@ package main
 import "gno.land/p/demo/bar"
 
 func main() {
+	crossing()
+
 	bar.C()
 }
 -- run/baz.gno --
@@ -246,5 +277,7 @@ package main
 import "std"
 
 func main() {
+	crossing()
+
 	std.AssertOriginCall()
 }

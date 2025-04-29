@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
 // SEND: 1000000ugnot
 
@@ -15,10 +14,10 @@ var board *boards.Board
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	cross(users.Register)("gnouser123")
 
-	_ = boards.CreateBoard("test_board_1")
-	_ = boards.CreateBoard("test_board_2")
+	_ = cross(boards.CreateBoard)("test_board_1")
+	_ = cross(boards.CreateBoard)("test_board_2")
 }
 
 func main() {

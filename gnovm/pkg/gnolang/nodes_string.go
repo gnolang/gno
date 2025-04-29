@@ -542,7 +542,11 @@ func (ds Decls) String() string {
 }
 
 func (x ConstExpr) String() string {
-	return fmt.Sprintf("(const %s)", x.TypedValue.String())
+	if x.TypedValue.HasKind(TypeKind) {
+		return x.TypedValue.V.String()
+	} else {
+		return fmt.Sprintf("(const %s)", x.TypedValue.String())
+	}
 }
 
 func (x constTypeExpr) String() string {

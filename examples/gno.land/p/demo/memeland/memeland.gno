@@ -50,7 +50,7 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 	newPost := &Post{
 		ID:            id,
 		Data:          data,
-		Author:        std.PreviousRealm().Address(),
+		Author:        std.CurrentRealm().Address(),
 		Timestamp:     time.Unix(timestamp, 0),
 		UpvoteTracker: avl.NewTree(),
 	}
@@ -65,7 +65,7 @@ func (m *Memeland) Upvote(id string) string {
 		panic("post with specified ID does not exist")
 	}
 
-	caller := std.PreviousRealm().Address().String()
+	caller := std.CurrentRealm().Address().String()
 
 	if _, exists := post.UpvoteTracker.Get(caller); exists {
 		panic("user has already upvoted this post")
@@ -160,7 +160,7 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if !m.OwnedByPrevious() {
+	if !m.OwnedByCurrent() {
 		panic(ownable.ErrUnauthorized)
 	}
 

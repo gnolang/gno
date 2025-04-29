@@ -1,14 +1,13 @@
 package loci
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 )
 
 func TestLociStore(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+	//testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 
 	t.Run("TestSet", func(t *testing.T) {
 		t.Parallel()

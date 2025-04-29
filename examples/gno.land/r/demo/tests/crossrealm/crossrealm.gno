@@ -1,6 +1,9 @@
 package crossrealm
 
 import (
+	"std"
+
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/p/demo/ufmt"
 )
@@ -108,4 +111,47 @@ func SetObject(x any) {
 
 func GetObject() any {
 	return Object
+}
+
+func EntryPoint() (noCros *ownable.Ownable) {
+	println("crossrealm  EntryPoint: " + std.PreviousRealm().PkgPath())
+	println("crossrealm  EntryPoint: " + std.PreviousRealm().Address())
+	println()
+	return PrevRealmNoCrossing()
+}
+
+func EntryPointWithCrossing() (withCros *ownable.Ownable) {
+	return cross(PrevRealmCrossing)()
+}
+
+func PrevRealmNoCrossing() *ownable.Ownable {
+	println("crossrealm PreviousRealm no crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm no crossing: " + std.PreviousRealm().Address())
+	return ownable.New()
+}
+
+func PrevRealmCrossing() *ownable.Ownable {
+	crossing()
+	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().PkgPath())
+	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().Address())
+	return ownable.New()
+}
+
+func CurRealmNoCrossing() std.Realm {
+	return std.CurrentRealm()
+}
+func CurRealmWithCrossing() std.Realm {
+	crossing()
+	return std.CurrentRealm()
+}
+
+// call the package that returns current realm
+func PkgCurRealmNoCrossing() std.Realm {
+	return p_crossrealm.CurrentRealm()
+}
+
+// call the package that returns current realm
+func PkgCurRealmWithCrossing() std.Realm {
+	crossing()
+	return std.CurrentRealm()
 }

@@ -22,27 +22,23 @@ gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot
 stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("1-2-3-" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/append:'
+stdout '1-2-3-'
 
 # Call Pop
 gnokey maketx call -pkgpath gno.land/r/append -func Pop -gas-fee 1000000ugnot -gas-wanted 300000 -broadcast -chainid=tendermint_test test1
-stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/append:'
+stdout '2-3-'
 
 # Call Append 42
 gnokey maketx call -pkgpath gno.land/r/append -func Append -gas-fee 1000000ugnot -gas-wanted 300000 -args '42' -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-42-" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/append:'
+stdout '2-3-42-'
 
 gnokey maketx call -pkgpath gno.land/r/append -func CopyAppend -gas-fee 1000000ugnot -gas-wanted 300000 -broadcast -chainid=tendermint_test test1
 stdout OK!
@@ -51,9 +47,8 @@ gnokey maketx call -pkgpath gno.land/r/append -func PopB -gas-fee 1000000ugnot -
 stdout OK!
 
 # Call render
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-42-" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/append:'
+stdout '2-3-42-'
 
 gnokey maketx call -pkgpath gno.land/r/append -func AppendMoreAndC -gas-fee 1000000ugnot -gas-wanted 350000 -broadcast -chainid=tendermint_test test1
 stdout OK!
@@ -61,13 +56,11 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/append -func ReassignC -gas-fee 1000000ugnot -gas-wanted 350000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout '("2-3-42-70-100-" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/append:'
+stdout '2-3-42-70-100-'
 
-gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 3000000 -args 'd' -broadcast -chainid=tendermint_test test1
-stdout '("1-" string)'
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/append:d'
+stdout '1-'
 
 -- append.gno --
 package append
@@ -132,8 +125,6 @@ func AppendNil() {
 }
 
 func Render(path string) string {
-	crossing()
-
 	source := a
 	if path == "d" {
 		source = d

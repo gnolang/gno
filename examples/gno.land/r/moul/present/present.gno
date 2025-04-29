@@ -55,7 +55,7 @@ func init() {
 		return v.(*Presentation).Title
 	}, collection.DefaultIndex)
 
-	Ownable = ownable.New()
+	Ownable = ownable.NewWithOrigin()
 }
 
 // Render handles the realm's rendering logic

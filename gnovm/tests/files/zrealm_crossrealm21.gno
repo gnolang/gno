@@ -22,6 +22,8 @@ func main() {
 // hello B cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
 
+
+
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:7]=
@@ -30,7 +32,7 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:7",
 //     -        "ModTime": "0",
-//     +        "ModTime": "27",
+//     +        "ModTime": "35",
 //              "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "RefCount": "1"
 //          },
@@ -62,7 +64,7 @@ func main() {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
-//     +        "ModTime": "27",
+//     +        "ModTime": "35",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"

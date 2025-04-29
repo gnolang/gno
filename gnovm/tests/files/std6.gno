@@ -13,16 +13,6 @@ func main() {
 	inner()
 }
 
-// Stacktrace:
-// panic: frame not found
-// getRealm<VPBlock(3,49)>(1)
-//     gonative:std/std.gno
-// ref(std).PreviousRealm()
-//     std/native.gno:32
-// inner<VPBlock(3,0)>()
-//     main/files/std6.gno:8
-// main<VPBlock(1,1)>()
-//     main/files/std6.gno:13
-
-// Error:
-// frame not found
+// Output:
+// (struct{("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4" std.Address),("main" string)} std.Realm)
+// (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)

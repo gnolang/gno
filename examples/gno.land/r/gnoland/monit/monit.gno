@@ -20,7 +20,7 @@ var (
 	lastUpdate       time.Time
 	lastCaller       std.Address
 	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
-	Ownable          = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
+	Ownable          = ownable.NewWithOrigin()
 	watchdogDuration = 5 * time.Minute
 )
 

@@ -5,7 +5,7 @@
 
 stdout 'hey'
 
-stderr '=== RUN   file/x_filetest.gno'
+stderr '=== RUN   ./x_filetest.gno'
 stderr '--- Expected'
 stderr '\+\+\+ Actual'
 stderr '@@ -1,2 \+1 @@'

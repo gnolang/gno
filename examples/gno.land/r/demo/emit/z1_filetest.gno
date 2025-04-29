@@ -17,8 +17,7 @@ func main() {
 //         "value": "foo"
 //       }
 //     ],
-//     "pkg_path": "gno.land/r/demo/emit",
-//     "func": "Emit"
+//     "pkg_path": "gno.land/r/demo/emit"
 //   },
 //   {
 //     "type": "EventName",
@@ -28,7 +27,6 @@ func main() {
 //         "value": "bar"
 //       }
 //     ],
-//     "pkg_path": "gno.land/r/demo/emit",
-//     "func": "Emit"
+//     "pkg_path": "gno.land/r/demo/emit"
 //   }
 // ]

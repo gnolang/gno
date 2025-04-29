@@ -5,7 +5,7 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
-var owner = ownable.New()
+var owner = ownable.NewWithOrigin()
 
 // AdminDelete removes the guestbook message with the given ID.
 // The user will still be marked as having submitted a message, so they

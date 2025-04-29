@@ -21,11 +21,13 @@ type instance struct {
 }
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
-	caller := std.PreviousRealm().Address()
+	caller := std.OriginCaller()
 	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
 func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64, admin std.Address) {
+	crossing()
+
 	exists := instances.Has(symbol)
 	if exists {
 		panic("token already exists")
@@ -43,7 +45,7 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
-	grc20reg.Register(token.Getter(), symbol)
+	cross(grc20reg.Register)(token.Getter(), symbol)
 }
 
 func (inst instance) Token() *grc20.Token {
@@ -75,6 +77,8 @@ func Allowance(symbol string, owner, spender std.Address) uint64 {
 }
 
 func Transfer(symbol string, to std.Address, amount uint64) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
@@ -82,6 +86,8 @@ func Transfer(symbol string, to std.Address, amount uint64) {
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
@@ -89,6 +95,8 @@ func Approve(symbol string, spender std.Address, amount uint64) {
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
@@ -97,6 +105,8 @@ func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 
 // faucet.
 func Faucet(symbol string) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	if inst.faucet == 0 {
 		panic("faucet disabled for this token")
@@ -108,12 +118,16 @@ func Faucet(symbol string) {
 }
 
 func Mint(symbol string, to std.Address, amount uint64) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
 func Burn(symbol string, from std.Address, amount uint64) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Burn(from, amount))
@@ -121,11 +135,15 @@ func Burn(symbol string, from std.Address, amount uint64) {
 
 // instance admin functionality
 func DropInstanceOwnership(symbol string) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	checkErr(inst.admin.DropOwnership())
 }
 
 func TransferInstanceOwnership(symbol string, newOwner std.Address) {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }

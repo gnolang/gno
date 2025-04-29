@@ -37,7 +37,7 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bank -gas-fee 1000000ugno
 stdout 'OK!'
 
 ## paying gas fees to call a realm function is acceptable.
-gnokey maketx call -pkgpath gno.land/r/demo/echo -func Render -args "Hello!" -gas-fee 1000000ugnot -gas-wanted 12500000 -broadcast -chainid=tendermint_test regular1
+gnokey query vm/qrender --data 'gno.land/r/demo/echo:Hello!'
 stdout 'Hello!'
 
 -- bank.gno --
