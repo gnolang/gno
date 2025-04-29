@@ -17,7 +17,8 @@ type State struct {
 	code        instructions
 	tmp         tmpEnv
 	gasConsumed uint
-	parent      *Env
+	gasBet      int
+	env         *Env
 }
 
 func newState() *State {
@@ -29,8 +30,9 @@ func newState() *State {
 			storage: []byte{},
 			logs:    []byte{},
 		},
-		parent: nil,
+		env:         nil,
 		gasConsumed: 0,
+		gasBet:      -1,
 	}
 }
 
@@ -44,15 +46,19 @@ func (s State) getResult() []byte {
 	return []byte{}
 }
 
-func (s *State) openEnv(env *Env) {
-	s.parent = env
+func (s *State) setEnv(env *Env) {
+	s.env = env
 }
 
-func (s *State) executeByteCodeWithGas(code []byte, gas int) error {
+func (s *State) setGasBet(gas uint) {
+	s.gasBet = int(gas)
+}
+
+func (s *State) executeByteCode(code []byte) error {
 	s.code.Reset(code)
-	if s.parent != nil {
-		s.tmp.storage = make([]byte, len(s.parent.Storage))
-		copy(s.tmp.storage, s.parent.Storage)
+	if s.env != nil {
+		s.tmp.storage = make([]byte, len(s.env.Storage))
+		copy(s.tmp.storage, s.env.Storage)
 	}
 	for !s.code.Ill() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
@@ -64,7 +70,7 @@ func (s *State) executeByteCodeWithGas(code []byte, gas int) error {
 		if err != nil {
 			return err
 		}
-		if gas > 0 && gas < int(s.gasConsumed) {
+		if s.gasBet > 0 && s.gasBet < int(s.gasConsumed) {
 			return outOfGas
 		}
 		s.code.Increment()
@@ -72,8 +78,8 @@ func (s *State) executeByteCodeWithGas(code []byte, gas int) error {
 	if s.code.Ill() {
 		return s.code.err
 	}
-	if s.parent != nil {
-		copy(s.parent.Storage, s.tmp.storage)
+	if s.env != nil {
+		copy(s.env.Storage, s.tmp.storage)
 	}
 	return nil
 }

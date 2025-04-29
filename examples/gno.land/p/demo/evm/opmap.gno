@@ -234,9 +234,9 @@ var (
 		BLOBHASH:       {BLOBHASH, "BLOBHASH", notImplemented, 3},
 		BLOBBASEFEE:    {BLOBBASEFEE, "BLOBBASEFEE", notImplemented, 2},
 		POP:            {POP, "POP", opPop, 2},
-		MLOAD:          {MLOAD, "MLOAD", opMload, 3},              // can change
-		MSTORE:         {MSTORE, "MSTORE", opMstore, 3},           // can change
-		MSTORE8:        {MSTORE8, "MSTORE8", opMstore8, 3},        // can change
+		MLOAD:          {MLOAD, "MLOAD", opMload, 3},            // can change
+		MSTORE:         {MSTORE, "MSTORE", opMstore, 3},         // can change
+		MSTORE8:        {MSTORE8, "MSTORE8", opMstore8, 3},      // can change
 		SLOAD:          {SLOAD, "SLOAD", notImplemented, 100},   // can change
 		SSTORE:         {SSTORE, "SSTORE", notImplemented, 100}, // can change
 		JUMP:           {JUMP, "JUMP", opJump, 8},

@@ -630,7 +630,7 @@ func TestExecuteEvm(t *testing.T) {
 			errStack, errResult, errMem := false, false, false
 
 			st := newState()
-			err := st.executeByteCodeWithGas(tc.code, -1)
+			err := st.executeByteCode(tc.code)
 			stack := st.getStackData()
 			result := st.getResult()
 			mem := st.memory

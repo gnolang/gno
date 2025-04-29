@@ -1,7 +1,6 @@
 package evm
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/demo/uint256"
@@ -13,17 +12,14 @@ type Caller struct {
 	Gas uint
 }
 
-var (
-	notEnoughGas = errors.New("the user does not have that much gas")
-)
-
 func (c *Caller) Call(env *Env, gasAmount uint, code []byte) error {
 	if gasAmount > c.Gas {
 		return notEnoughGas
 	}
 	st := newState()
-	st.openEnv(env)
-	err := st.executeByteCodeWithGas(code, int(gasAmount))
+	st.setEnv(env)
+	st.setGasBet(gasAmount)
+	err := st.executeByteCode(code)
 	if err != nil {
 		return err
 	}

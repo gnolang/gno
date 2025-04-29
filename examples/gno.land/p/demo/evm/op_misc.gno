@@ -158,3 +158,12 @@ func opCodeSize(s *State) error {
 	s.stack.Push(uint256.NewUint(uint64(s.code.length)))
 	return nil
 }
+
+func opGas(s *State) error {
+	if s.gasBet < 0 {
+		s.stack.Push(uint256.Zero())
+	} else {
+		s.stack.Push(uint256.NewUint(uint64(s.gasBet - int(s.gasConsumed))))
+	}
+	return nil
+}

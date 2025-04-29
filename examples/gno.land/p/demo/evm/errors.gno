@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	outOfBounds = errors.New("out of bounds")
+	outOfBounds        = errors.New("out of bounds")
 	invalidInstruction = errors.New("invalid instruction")
-	outOfGas = errors.New("the user is out of gas")
+	outOfGas           = errors.New("the user is out of gas")
+	notEnoughGas       = errors.New("the user does not have that much gas")
 )
 
 func notImplemented(s *State) error {
