@@ -243,7 +243,7 @@ var (
 		JUMPI:          {JUMPI, "JUMPI", opJumpi, 10},
 		PC:             {PC, "PC", opPc, 2},
 		MSIZE:          {MSIZE, "MSIZE", opMsize, 2},
-		GAS:            {GAS, "GAS", notImplemented, 2},
+		GAS:            {GAS, "GAS", opGas, 2},
 		JUMPDEST:       {JUMPDEST, "JUMPDEST", opNop, 1},
 		TLOAD:          {TLOAD, "TLOAD", notImplemented, 100},
 		TSTORE:         {TSTORE, "TSTORE", notImplemented, 100},
