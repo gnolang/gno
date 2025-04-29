@@ -52,7 +52,7 @@ repository offers more resources to dig into. We are eager to see your first PR!
 ## Repository structure
 
 * [examples](./examples) - Smart-contract examples and guides for new Gno developers.
-* [gnovm](./gnovm) - GnoVM and Gnolang.
+* [gnovm](./gnovm) - GnoVM and the Gno Language.
 * [gno.land](./gno.land) - gno.land blockchain and tools.
 * [tm2](./tm2) - Tendermint2.
 * [docs](./docs) - Official documentation, deployed under [docs.gno.land](https://docs.gno.land).

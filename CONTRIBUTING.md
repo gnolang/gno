@@ -41,7 +41,7 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 - **[Discord](https://discord.gg/YFtMjWwUN7)** - we are very active on Discord. Join today and start discussing all
   things gno with fellow engineers and enthusiasts.
-- **[Awesome Gno](https://github.com/gnolang/awesome-gno)** - check out the list of compiled resources for helping you
+- **[Awesome Gno](https://github.com/gnoverse/awesome-gno)** - check out the list of compiled resources for helping you
   understand the gno ecosystem
 - **[Active Staging](https://staging.gno.land/)** - use the currently available staging environment to play around with a
   production network. If you want to interact with a local instance, refer to the [Local Setup](#local-setup) guide.
@@ -462,7 +462,7 @@ Resources for idiomatic Go docs:
 - [godoc](https://go.dev/blog/godoc)
 - [Go Doc Comments](https://tip.golang.org/doc/comment)
 
-## Avoding Unhelpful Contributions
+## Avoiding Unhelpful Contributions
 
 While we welcome all contributions to the Gno project, it's important to ensure that your changes provide meaningful value or improve the quality of the codebase. Contributions that fail to meet these criteria may not be accepted. Examples of unhelpful contributions include (but not limited to):
 
