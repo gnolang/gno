@@ -264,7 +264,9 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
 			testFilePath := filepath.Join(fsDir, testFileName)
-			testName := "file/" + testFileName
+			// XXX consider this
+			testName := fsDir + "/" + testFileName
+			// testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
 			}
@@ -383,6 +385,8 @@ func (opts *TestOptions) runTestFiles(
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{
+					// XXX Consider this.
+					// {Key: gno.X("Name"), Value: gno.Str(memPkg.Path + "/" + tf.Filename + "." + tf.Name)},
 					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
 					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
 				},
@@ -453,8 +457,9 @@ type report struct {
 }
 
 type testFunc struct {
-	Package string
-	Name    string
+	Package  string
+	Name     string
+	Filename string
 }
 
 func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
@@ -464,8 +469,9 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
 					tf := testFunc{
-						Package: pkgName,
-						Name:    fname,
+						Package:  pkgName,
+						Name:     fname,
+						Filename: string(tf.Name),
 					}
 					rt = append(rt, tf)
 				}

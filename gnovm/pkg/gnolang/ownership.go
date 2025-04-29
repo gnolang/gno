@@ -122,6 +122,9 @@ type Object interface {
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
 
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
+
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
@@ -147,6 +150,8 @@ type ObjectInfo struct {
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
 
+	LastObjectSize int64 //
+
 	// MemRefCount int // consider for optimizations.
 	// Object has been modified and needs to be saved
 	isDirty bool
@@ -162,29 +167,27 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-
-	// XXX huh?
-	owner Object // mem reference to owner.
-
-	ObjectSize int64
+	lastGCCycle  int64
+	owner        Object // mem reference to owner.
 }
 
 // Copy used for serialization of objects.
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
-		ObjectSize:   oi.ObjectSize,
+		ID:             oi.ID,
+		Hash:           oi.Hash.Copy(),
+		OwnerID:        oi.OwnerID,
+		ModTime:        oi.ModTime,
+		RefCount:       oi.RefCount,
+		IsEscaped:      oi.IsEscaped,
+		LastObjectSize: oi.LastObjectSize,
+		isDirty:        oi.isDirty,
+		isDeleted:      oi.isDeleted,
+		isNewReal:      oi.isNewReal,
+		isNewEscaped:   oi.isNewEscaped,
+		isNewDeleted:   oi.isNewDeleted,
+		lastGCCycle:    oi.lastGCCycle,
 	}
 }
 
@@ -345,6 +348,14 @@ func (oi *ObjectInfo) GetIsNewDeleted() bool {
 
 func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
+}
+
+func (oi *ObjectInfo) GetLastGCCycle() int64 {
+	return oi.lastGCCycle
+}
+
+func (oi *ObjectInfo) SetLastGCCycle(c int64) {
+	oi.lastGCCycle = c
 }
 
 func (oi *ObjectInfo) GetIsTransient() bool {

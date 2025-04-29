@@ -11,10 +11,16 @@ import (
 func TestPackage(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm("g1user"))
 
+	testPackage(t)
+}
+
+func testPackage(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
+
 	// no debug
 	got := Render("")
 	expected := ``
-	uassert.Equal(t, got, expected)
+	uassert.Equal(t, expected, got)
 
 	// debug without logs
 	got = Render("?debug=1")
@@ -23,10 +29,10 @@ func TestPackage(t *testing.T) {
 ### Metadata
 | Key | Value |
 | --- | --- |
-| ±std.CurrentRealm().PkgPath()± |  |
-| ±std.CurrentRealm().Address()± | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
+| ±std.CurrentRealm().PkgPath()± | gno.land/r/test/test |
+| ±std.CurrentRealm().Address()± | g1z7fga7u94pdmamlvcrtvsfwxgsye0qv3rres7n |
 | ±std.PreviousRealm().PkgPath()± |  |
-| ±std.PreviousRealm().Address()± | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
+| ±std.PreviousRealm().Address()± | g1user |
 | ±std.ChainHeight()± | 123 |
 | ±time.Now().Format(time.RFC3339)± | 2009-02-13T23:31:30Z |
 
@@ -40,9 +46,7 @@ func TestPackage(t *testing.T) {
 	println(expected)
 	println("###################")
 
-	uassert.Equal(t, got, expected)
-
-	return
+	uassert.Equal(t, expected, got)
 
 	// debug with logs
 	var d Debug
@@ -50,20 +54,20 @@ func TestPackage(t *testing.T) {
 	d.Log("foobar")
 	got = d.Render("?debug=1")
 	expected = `<details><summary>debug</summary>
-		
+
 ### Logs
 - hello world!
 - foobar
 ### Metadata
 | Key | Value |
 | --- | --- |
-| ±std.CurrentRealm().PkgPath()± |  |
-| ±std.CurrentRealm().Address()± | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
+| ±std.CurrentRealm().PkgPath()± | gno.land/r/test/test |
+| ±std.CurrentRealm().Address()± | g1z7fga7u94pdmamlvcrtvsfwxgsye0qv3rres7n |
 | ±std.PreviousRealm().PkgPath()± |  |
-| ±std.PreviousRealm().Address()± | g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm |
+| ±std.PreviousRealm().Address()± | g1user |
 | ±std.ChainHeight()± | 123 |
 | ±time.Now().Format(time.RFC3339)± | 2009-02-13T23:31:30Z |
-		
+
 </details>
 `
 	expected = strings.ReplaceAll(expected, "±", "`")

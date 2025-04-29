@@ -129,7 +129,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			if !strings.HasSuffix(result.Output, "\n") {
 				result.Output += "\n"
 			}
-			match(dir, result.Output)
+			match(dir, trimTrailingSpaces(result.Output))
 		case DirectiveRealm:
 			res := opslog.(*bytes.Buffer).String()
 			match(dir, res)
@@ -188,6 +188,15 @@ func realmDiffsString(m map[string]int64) string {
 		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
 	}
 	return sb.String()
+}
+
+func trimTrailingSpaces(in string) string {
+	lines := strings.Split(in, "\n")
+	for i, line := range lines {
+		line = strings.TrimRight(line, " ")
+		lines[i] = line
+	}
+	return strings.Join(lines, "\n")
 }
 
 func unifiedDiff(wanted, actual string) string {
@@ -337,7 +346,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		// Call main() like withrealm(main)().
 		// This will switch the realm to the package.
 		// main() must start with crossing().
-		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main"))))) // switch realm.
+		m.RunMain()
 	}
 
 	return runResult{
@@ -449,7 +458,7 @@ var reDirectiveLine = regexp.MustCompile("^(?:([A-Za-z]*):|([A-Z]+): ?(.*))$")
 func ParseDirectives(source io.Reader) (Directives, error) {
 	sc := bufio.NewScanner(source)
 	parsed := make(Directives, 0, 8)
-	parsed = append(parsed, Directive{Complete: true}) // faux directive.
+	parsed = append(parsed, Directive{LastLine: "// FAUX: faux directive", Complete: true}) // faux directive.
 	for sc.Scan() {
 		last := &parsed[len(parsed)-1]
 		txt := sc.Text()

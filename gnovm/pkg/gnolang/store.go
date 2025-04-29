@@ -65,7 +65,8 @@ type Store interface {
 	GetMemPackage(path string) *gnovm.MemPackage
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
-	ClearObjectCache()                                    // run before processing a message
+	ClearObjectCache() // run before processing a message
+	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(dst io.Writer)
@@ -453,10 +454,10 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
-		ds.alloc.AllocateAmino(int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		ds.alloc.Allocate(oo.GetShallowSize())
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
@@ -465,7 +466,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
-		oo.GetObjectInfo().ObjectSize = int64(size)
+		oo.GetObjectInfo().LastObjectSize = int64(size)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
@@ -500,12 +501,12 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	oo.SetHash(ValueHash{hash})
 	// difference between object size and cached value
-	diff := int64(len(hash)+len(bz)) - o2.(Object).GetObjectInfo().ObjectSize
+	diff := int64(len(hash)+len(bz)) - o2.(Object).GetObjectInfo().LastObjectSize
 	// make store op log entry
 	if ds.opslog != nil {
 		obj := o2.(Object)
 		if oo.GetIsNewReal() {
-			obj.GetObjectInfo().ObjectSize += diff
+			obj.GetObjectInfo().LastObjectSize += diff
 			fmt.Fprintf(ds.opslog, "c[%v](%d)=%s\n",
 				obj.GetObjectID(),
 				diff,
@@ -519,7 +520,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 			// ie. empty slices should be null, not [].
 			var pureNew Object
 			amino.MustUnmarshalAny(amino.MustMarshalAny(obj), &pureNew)
-			pureNew.GetObjectInfo().ObjectSize = obj.GetObjectInfo().ObjectSize
+			pureNew.GetObjectInfo().LastObjectSize = obj.GetObjectInfo().LastObjectSize
 
 			s, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 				A:       difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(old)))),
@@ -545,7 +546,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
-		oo.(Object).GetObjectInfo().ObjectSize = int64(size)
+		oo.(Object).GetObjectInfo().LastObjectSize = int64(size)
 	}
 	// save object to cache.
 	if debug {
@@ -580,7 +581,7 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 	bz := hashbz[HashSize:]
 	var oo Object
 	amino.MustUnmarshal(bz, &oo)
-	oo.GetObjectInfo().ObjectSize = int64(len(hashbz))
+	oo.GetObjectInfo().LastObjectSize = int64(len(hashbz))
 	return oo
 }
 
@@ -598,7 +599,7 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
-	size := oo.GetObjectInfo().ObjectSize
+	size := oo.GetObjectInfo().LastObjectSize
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
 	// delete from backend.
@@ -934,6 +935,18 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.realmDiffs = make(map[string]int64)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
+}
+
+func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
+	for objId, obj := range ds.cacheObjects {
+		// Skip .uverse packages.
+		if pv, ok := obj.(*PackageValue); ok && pv.PkgPath == ".uverse" {
+			continue
+		}
+		if obj.GetLastGCCycle() < gcCycle {
+			delete(ds.cacheObjects, objId)
+		}
+	}
 }
 
 func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {
