@@ -1,8 +1,6 @@
 package evm
 
 import (
-	"errors"
-
 	"gno.land/p/demo/uint256"
 )
 
@@ -12,11 +10,6 @@ type instructions struct {
 	length       int
 	err 		 error
 }
-
-var (
-	outOfBounds = errors.New("out of bounds")
-	invalidInstruction = errors.New("invalid instruction")
-)
 
 func (i *instructions) Reset(l []byte) {
 	i.rip = 0

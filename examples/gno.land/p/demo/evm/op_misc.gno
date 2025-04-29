@@ -8,10 +8,6 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-func opNotImplemented(s *State) error {
-	return errors.New("op code 0x" + strconv.FormatInt(int64(s.code.Current()), 16) + " not implemented")
-}
-
 func opPush0(s *State) error {
 	s.stack.Push(uint256.Zero())
 	return nil

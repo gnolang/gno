@@ -13,7 +13,7 @@ func main() {
 		byte(STOP),
 	}
 	st := newState()
-	err := st.executeByteCode(code)
+	err := st.executeByteCodeWithGas(code, -1)
 	if err != nil {
 		fmt.Println("[ERROR]")
 		fmt.Println(err)

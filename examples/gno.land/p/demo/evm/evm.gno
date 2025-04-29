@@ -2,7 +2,7 @@ package evm
 
 func Execute(code []byte) ([]byte, error) {
 	st := newState()
-	err := st.executeByteCode(code)
+	err := st.executeByteCodeWithGas(code, -1)
 	if err != nil {
 		return []byte{}, err
 	}

@@ -188,8 +188,8 @@ var (
 			}
 			return uint256.Zero()
 		}), 3},
-		SLT: {SLT, "SLT", opNotImplemented, 3},
-		SGT: {SGT, "SGT", opNotImplemented, 3},
+		SLT: {SLT, "SLT", notImplemented, 3},
+		SGT: {SGT, "SGT", notImplemented, 3},
 		EQ: {EQ, "EQ", opOperation(func(a, b *uint256.Uint) *uint256.Uint {
 			if a.Eq(b) {
 				return uint256.One()
@@ -204,49 +204,49 @@ var (
 		BYTE:           {BYTE, "BYTE", opByte, 3},
 		SHL:            {SHL, "SHL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Lsh(a, uint(b.Uint64())) }), 3},
 		SHR:            {SHR, "SHR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Rsh(a, uint(b.Uint64())) }), 3},
-		SAR:            {SAR, "SAR", opNotImplemented, 3},
+		SAR:            {SAR, "SAR", notImplemented, 3},
 		KECCAK256:      {KECCAK256, "KECCAK256", opKeccak256, 30}, // can change
-		ADDRESS:        {ADDRESS, "ADDRESS", opNotImplemented, 2},
-		BALANCE:        {BALANCE, "BALANCE", opNotImplemented, 100}, // can change
-		ORIGIN:         {ORIGIN, "ORIGIN", opNotImplemented, 2},
-		CALLER:         {CALLER, "CALLER", opNotImplemented, 2},
-		CALLVALUE:      {CALLVALUE, "CALLVALUE", opNotImplemented, 2},
-		CALLDATALOAD:   {CALLDATALOAD, "CALLDATALOAD", opNotImplemented, 3},
-		CALLDATASIZE:   {CALLDATASIZE, "CALLDATASIZE", opNotImplemented, 2},
-		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", opNotImplemented, 3}, // can change
+		ADDRESS:        {ADDRESS, "ADDRESS", notImplemented, 2},
+		BALANCE:        {BALANCE, "BALANCE", notImplemented, 100}, // can change
+		ORIGIN:         {ORIGIN, "ORIGIN", notImplemented, 2},
+		CALLER:         {CALLER, "CALLER", notImplemented, 2},
+		CALLVALUE:      {CALLVALUE, "CALLVALUE", notImplemented, 2},
+		CALLDATALOAD:   {CALLDATALOAD, "CALLDATALOAD", notImplemented, 3},
+		CALLDATASIZE:   {CALLDATASIZE, "CALLDATASIZE", notImplemented, 2},
+		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", notImplemented, 3}, // can change
 		CODESIZE:       {CODESIZE, "CODESIZE", opCodeSize, 2},
-		CODECOPY:       {CODECOPY, "CODECOPY", opNotImplemented, 3}, // can change
-		GASPRICE:       {GASPRICE, "GASPRICE", opNotImplemented, 2},
-		EXTCODESIZE:    {EXTCODESIZE, "EXTCODESIZE", opNotImplemented, 100}, // can change
-		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", opNotImplemented, 100}, // can change
-		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", opNotImplemented, 2},
-		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", opNotImplemented, 3}, // can change
-		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", opNotImplemented, 100},     // can change
-		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", opNotImplemented, 20},
-		COINBASE:       {COINBASE, "COINBASE", opNotImplemented, 2},
-		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", opNotImplemented, 2},
-		NUMBER:         {NUMBER, "NUMBER", opNotImplemented, 2},
-		PREVRANDAO:     {PREVRANDAO, "PREVRANDAO", opNotImplemented, 2},
-		GASLIMIT:       {GASLIMIT, "GASLIMIT", opNotImplemented, 2},
-		CHAINID:        {CHAINID, "CHAINID", opNotImplemented, 2},
-		SELFBALANCE:    {SELFBALANCE, "SELFBALANCE", opNotImplemented, 5},
-		BASEFEE:        {BASEFEE, "BASEFEE", opNotImplemented, 2},
-		BLOBHASH:       {BLOBHASH, "BLOBHASH", opNotImplemented, 3},
-		BLOBBASEFEE:    {BLOBBASEFEE, "BLOBBASEFEE", opNotImplemented, 2},
+		CODECOPY:       {CODECOPY, "CODECOPY", notImplemented, 3}, // can change
+		GASPRICE:       {GASPRICE, "GASPRICE", notImplemented, 2},
+		EXTCODESIZE:    {EXTCODESIZE, "EXTCODESIZE", notImplemented, 100}, // can change
+		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", notImplemented, 100}, // can change
+		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", notImplemented, 2},
+		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", notImplemented, 3}, // can change
+		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", notImplemented, 100},     // can change
+		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", notImplemented, 20},
+		COINBASE:       {COINBASE, "COINBASE", notImplemented, 2},
+		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", notImplemented, 2},
+		NUMBER:         {NUMBER, "NUMBER", notImplemented, 2},
+		PREVRANDAO:     {PREVRANDAO, "PREVRANDAO", notImplemented, 2},
+		GASLIMIT:       {GASLIMIT, "GASLIMIT", notImplemented, 2},
+		CHAINID:        {CHAINID, "CHAINID", notImplemented, 2},
+		SELFBALANCE:    {SELFBALANCE, "SELFBALANCE", notImplemented, 5},
+		BASEFEE:        {BASEFEE, "BASEFEE", notImplemented, 2},
+		BLOBHASH:       {BLOBHASH, "BLOBHASH", notImplemented, 3},
+		BLOBBASEFEE:    {BLOBBASEFEE, "BLOBBASEFEE", notImplemented, 2},
 		POP:            {POP, "POP", opPop, 2},
 		MLOAD:          {MLOAD, "MLOAD", opMload, 3},              // can change
 		MSTORE:         {MSTORE, "MSTORE", opMstore, 3},           // can change
 		MSTORE8:        {MSTORE8, "MSTORE8", opMstore8, 3},        // can change
-		SLOAD:          {SLOAD, "SLOAD", opNotImplemented, 100},   // can change
-		SSTORE:         {SSTORE, "SSTORE", opNotImplemented, 100}, // can change
+		SLOAD:          {SLOAD, "SLOAD", notImplemented, 100},   // can change
+		SSTORE:         {SSTORE, "SSTORE", notImplemented, 100}, // can change
 		JUMP:           {JUMP, "JUMP", opJump, 8},
 		JUMPI:          {JUMPI, "JUMPI", opJumpi, 10},
 		PC:             {PC, "PC", opPc, 2},
 		MSIZE:          {MSIZE, "MSIZE", opMsize, 2},
-		GAS:            {GAS, "GAS", opNotImplemented, 2},
+		GAS:            {GAS, "GAS", notImplemented, 2},
 		JUMPDEST:       {JUMPDEST, "JUMPDEST", opNop, 1},
-		TLOAD:          {TLOAD, "TLOAD", opNotImplemented, 100},
-		TSTORE:         {TSTORE, "TSTORE", opNotImplemented, 100},
+		TLOAD:          {TLOAD, "TLOAD", notImplemented, 100},
+		TSTORE:         {TSTORE, "TSTORE", notImplemented, 100},
 		MCOPY:          {MCOPY, "MCOPY", opMcopy, 3}, // can change
 		PUSH0:          {PUSH0, "PUSH0", opPush0, 3},
 		PUSH1:          {PUSH1, "PUSH1", opPush(1), 3},
@@ -313,19 +313,19 @@ var (
 		SWAP14:         {SWAP14, "SWAP14", opSwap(14), 3},
 		SWAP15:         {SWAP15, "SWAP15", opSwap(15), 3},
 		SWAP16:         {SWAP16, "SWAP16", opSwap(16), 3},
-		LOG0:           {LOG0, "LOG0", opNotImplemented /*opLog0*/, 375}, // all bellow this one can change
-		LOG1:           {LOG1, "LOG1", opNotImplemented /*opLog1*/, 750},
-		LOG2:           {LOG2, "LOG2", opNotImplemented /*opLog2*/, 1125},
-		LOG3:           {LOG3, "LOG3", opNotImplemented /*opLog3*/, 1500},
-		LOG4:           {LOG4, "LOG4", opNotImplemented /*opLog4*/, 1875},
-		CREATE:         {CREATE, "CREATE", opNotImplemented /*opCreate*/, 32000},
-		CALL:           {CALL, "CALL", opNotImplemented /*opCall*/, 100},
-		CALLCODE:       {CALLCODE, "CALLCODE", opNotImplemented /*opCallcode*/, 700},
-		RETURN:         {RETURN, "RETURN", opNotImplemented /*opRetour*/, 0},
-		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", opNotImplemented /*opDelegatecall*/, 100},
-		CREATE2:        {CREATE2, "CREATE2", opNotImplemented /*opCreate2*/, 32000},
-		STATICCALL:     {STATICCALL, "STATICCALL", opNotImplemented /*opStaticcall*/, 700},
-		REVERT:         {REVERT, "REVERT", opNotImplemented /*opRevert*/, 0},
-		SELFDESTRUCT:   {SELFDESTRUCT, "SELFDESTRUCT", opNotImplemented /*opSelfdestruct*/, 5000},
+		LOG0:           {LOG0, "LOG0", notImplemented /*opLog0*/, 375}, // all bellow this one can change
+		LOG1:           {LOG1, "LOG1", notImplemented /*opLog1*/, 750},
+		LOG2:           {LOG2, "LOG2", notImplemented /*opLog2*/, 1125},
+		LOG3:           {LOG3, "LOG3", notImplemented /*opLog3*/, 1500},
+		LOG4:           {LOG4, "LOG4", notImplemented /*opLog4*/, 1875},
+		CREATE:         {CREATE, "CREATE", notImplemented /*opCreate*/, 32000},
+		CALL:           {CALL, "CALL", notImplemented /*opCall*/, 100},
+		CALLCODE:       {CALLCODE, "CALLCODE", notImplemented /*opCallcode*/, 700},
+		RETURN:         {RETURN, "RETURN", notImplemented /*opRetour*/, 0},
+		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", notImplemented /*opDelegatecall*/, 100},
+		CREATE2:        {CREATE2, "CREATE2", notImplemented /*opCreate2*/, 32000},
+		STATICCALL:     {STATICCALL, "STATICCALL", notImplemented /*opStaticcall*/, 700},
+		REVERT:         {REVERT, "REVERT", notImplemented /*opRevert*/, 0},
+		SELFDESTRUCT:   {SELFDESTRUCT, "SELFDESTRUCT", notImplemented /*opSelfdestruct*/, 5000},
 	}
 )

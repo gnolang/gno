@@ -44,7 +44,11 @@ func (s State) getResult() []byte {
 	return []byte{}
 }
 
-func (s *State) executeByteCode(code []byte) error {
+func (s *State) openEnv(env *Env) {
+	s.parent = env
+}
+
+func (s *State) executeByteCodeWithGas(code []byte, gas int) error {
 	s.code.Reset(code)
 	if s.parent != nil {
 		s.tmp.storage = make([]byte, len(s.parent.Storage))
@@ -59,6 +63,9 @@ func (s *State) executeByteCode(code []byte) error {
 		err := opData.operation(s)
 		if err != nil {
 			return err
+		}
+		if gas > 0 && gas < int(s.gasConsumed) {
+			return outOfGas
 		}
 		s.code.Increment()
 	}
