@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -114,12 +115,12 @@ func TestCallerTeller(t *testing.T) {
 	checkBalances(1000, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
-	testing.SetOriginCaller(alice)
+	testing.SetRealm(std.NewUserRealm(alice))
 	urequire.NoError(t, teller.Approve(bob, 600))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
-	testing.SetOriginCaller(bob)
+	testing.SetRealm(std.NewUserRealm(bob))
 	urequire.Error(t, teller.TransferFrom(alice, carl, 700))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
