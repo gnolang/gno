@@ -841,6 +841,78 @@ func TestExecuteEvm(t *testing.T) {
 			expectedResult:    []byte{42},
 			ignoreGasComsumed: true,
 		},
+		{
+			name: "push 0 in global storage",
+			code: []byte{
+				byte(PUSH0),
+				byte(PUSH0),
+				byte(SSTORE),
+				byte(PUSH0),
+				byte(SLOAD),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero(),
+			},
+			expectedGasConsumed: 2209,
+		},
+		{
+			name: "push multiple values in global storage",
+			code: []byte{
+				byte(PUSH1), 1,
+				byte(PUSH1), 2,
+				byte(PUSH1), 3,
+				byte(PUSH1), 4,
+				byte(SSTORE),
+				byte(SSTORE),
+				byte(PUSH1), 2,
+				byte(SLOAD),
+				byte(PUSH1), 4,
+				byte(SLOAD),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(1),
+				uint256.NewUint(3),
+			},
+			expectedGasConsumed: 4418,
+		},
+		{
+			name: "reuse global storage cost less",
+			code: []byte{
+				byte(PUSH1), 1,
+				byte(PUSH1), 2,
+				byte(SSTORE),
+				byte(PUSH1), 2,
+				byte(SLOAD),
+				byte(PUSH1), 3,
+				byte(PUSH1), 2,
+				byte(SSTORE),
+				byte(PUSH1), 2,
+				byte(SLOAD),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(1),
+				uint256.NewUint(3),
+			},
+			expectedGasConsumed: 2418,
+		},
+		{
+			name: "push big in global storage",
+			code: []byte{
+				byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				byte(SSTORE),
+				byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				byte(SLOAD),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.MustFromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
+			},
+			expectedGasConsumed: 2209,
+		},
 	}
 
 	for _, tc := range testCases {

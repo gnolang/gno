@@ -1,6 +1,8 @@
 package evm
 
-import "gno.land/p/demo/uint256"
+import (
+	"gno.land/p/demo/uint256"
+)
 
 // Retrieve data stored in memory, at offset.
 // > IN: `[offset]`
@@ -132,7 +134,7 @@ func opTload(s *State) error {
 	if !ok {
 		s.stack.Push(uint256.Zero())
 	}
-	s.stack.Push(&read)
+	s.stack.Push(read)
 	return nil
 }
 
@@ -145,6 +147,58 @@ func opTstore(s *State) error {
 	if err != nil {
 		return err
 	}
-	s.transientStorage[*key] = *value
+	s.transientStorage[*key] = value
+	return nil
+}
+
+func opSload(s *State) error {
+	key, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	warm := false
+	for _, e := range s.tmp.warmStorage {
+		if e.Eq(key) {
+			warm = true
+			break
+		}
+	}
+	if !warm {
+		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
+		s.gasConsumed += 2000
+	}
+
+	read, ok := s.tmp.storage[*key]
+	if !ok {
+		s.stack.Push(uint256.Zero())
+	}
+	s.stack.Push(read)
+	return nil
+}
+
+func opSstore(s *State) error {
+	key, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	value, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	warm := false
+	for _, e := range s.tmp.warmStorage {
+		if e.Eq(key) {
+			warm = true
+			break
+		}
+	}
+	if !warm {
+		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
+		s.gasConsumed += 2000
+	}
+
+	s.tmp.storage[*key] = value
 	return nil
 }

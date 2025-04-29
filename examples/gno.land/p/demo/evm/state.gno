@@ -12,14 +12,15 @@ type LogEntry struct {
 }
 
 type tmpEnv struct {
-	storage []byte
-	logs    []LogEntry
+	storage     map[uint256.Uint]*uint256.Uint
+	warmStorage []uint256.Uint
+	logs        []LogEntry
 }
 
 type State struct {
 	memory           []byte
 	result 			 []byte
-	transientStorage map[uint256.Uint]uint256.Uint
+	transientStorage map[uint256.Uint]*uint256.Uint
 	stack            evmStack
 	code             instructions
 	tmp              tmpEnv
@@ -35,10 +36,11 @@ func newState() *State {
 		result: []byte{}, // make([]byte, 1024)
 		code:   instructions{},
 		tmp: tmpEnv{
-			storage: []byte{},
-			logs:    []LogEntry{},
+			storage:     make(map[uint256.Uint]*uint256.Uint),
+			logs:        []LogEntry{},
+			warmStorage: make([]uint256.Uint, 0),
 		},
-		transientStorage: map[uint256.Uint]uint256.Uint{},
+		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              nil,
 		gasConsumed:      0,
 		gasBet:           -1,
@@ -66,8 +68,10 @@ func (s *State) setGasBet(gas uint) {
 func (s *State) executeByteCode(code []byte) error {
 	s.code.Reset(code)
 	if s.env != nil {
-		s.tmp.storage = make([]byte, len(s.env.Storage))
-		copy(s.tmp.storage, s.env.Storage)
+		s.tmp.storage = make(map[uint256.Uint]*uint256.Uint)
+		for k, v := range s.env.Storage {
+			s.tmp.storage[k] = v
+		}
 	}
 	for !s.code.IsDone() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
@@ -88,7 +92,10 @@ func (s *State) executeByteCode(code []byte) error {
 		return s.code.err
 	}
 	if s.env != nil {
-		copy(s.env.Storage, s.tmp.storage)
+		s.env.Storage = make(map[uint256.Uint]*uint256.Uint)
+		for k, v := range s.tmp.storage {
+			s.env.Storage[k] = v
+		}
 	}
 	// TODO: substract the gas amount
 	return nil
