@@ -3,6 +3,7 @@ package evm
 import (
 	"errors"
 	"strconv"
+	"time"
 
 	"gno.land/p/demo/evm/keccak256"
 	"gno.land/p/demo/uint256"
@@ -73,41 +74,41 @@ func opPop(s *State) error {
 }
 
 func opLog(nTopics int) func(*State) error {
-    return func(s *State) error {
-        topics := make([][]byte, nTopics)
-        for i := 0; i < nTopics; i++ {
-            topicVal, err := s.stack.Pop()
-            if err != nil {
-                return err
-            }
-            arr := topicVal.Bytes32()
-            topics[i] = make([]byte, 32)
-            copy(topics[i], arr[:])
-        }
-        offsetVal, err := s.stack.Pop()
-        if err != nil {
-            return err
-        }
-        sizeVal, err := s.stack.Pop()
-        if err != nil {
-            return err
-        }
-        offset := offsetVal.Uint64()
-        size := sizeVal.Uint64()
-        if offset > uint64(len(s.memory)) {
-            return errors.New("memory out of bounds")
-        }
-        if offset+size > uint64(len(s.memory)) {
-            size = uint64(len(s.memory)) - offset
-        }
-        data := make([]byte, size)
-        copy(data, s.memory[offset:offset+size])
-        s.logs = append(s.logs, LogEntry{
-            Topics: topics,
-            Data:   data,
-        })
-        return nil
-    }
+	return func(s *State) error {
+		topics := make([][]byte, nTopics)
+		for i := 0; i < nTopics; i++ {
+			topicVal, err := s.stack.Pop()
+			if err != nil {
+				return err
+			}
+			arr := topicVal.Bytes32()
+			topics[i] = make([]byte, 32)
+			copy(topics[i], arr[:])
+		}
+		offsetVal, err := s.stack.Pop()
+		if err != nil {
+			return err
+		}
+		sizeVal, err := s.stack.Pop()
+		if err != nil {
+			return err
+		}
+		offset := offsetVal.Uint64()
+		size := sizeVal.Uint64()
+		if offset > uint64(len(s.memory)) {
+			return errors.New("memory out of bounds")
+		}
+		if offset+size > uint64(len(s.memory)) {
+			size = uint64(len(s.memory)) - offset
+		}
+		data := make([]byte, size)
+		copy(data, s.memory[offset:offset+size])
+		s.logs = append(s.logs, LogEntry{
+			Topics: topics,
+			Data:   data,
+		})
+		return nil
+	}
 }
 
 func opJump(s *State) error {
@@ -120,7 +121,7 @@ func opJump(s *State) error {
 	if opDest != JUMPDEST {
 		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
 	}
-	s.code.rip = inc// + 1
+	s.code.rip = inc // + 1
 	return nil
 }
 
@@ -145,7 +146,7 @@ func opJumpi(s *State) error {
 	if opDest != JUMPDEST {
 		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
 	}
-	s.code.rip = inc// + 1
+	s.code.rip = inc // + 1
 	return nil
 }
 
@@ -176,11 +177,11 @@ func opKeccak256(s *State) error {
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
-	
+
 	minWordSize := uint256.Zero().Div(uint256.Zero().Add(size, uint256.NewUint(31)), uint256.NewUint(32))
 	s.gasConsumed += uint(6 * minWordSize.Uint64()) // TODO: runtime gas with mem extension (idk how to expand)
 
-	slice := s.memory[off64:off64+size.Uint64()]
+	slice := s.memory[off64 : off64+size.Uint64()]
 	resBytes := keccak256.Keccak256(slice)
 	resUint := uint256.Zero().SetBytes(resBytes)
 	s.stack.Push(resUint)
@@ -203,5 +204,10 @@ func opGas(s *State) error {
 	} else {
 		s.stack.Push(uint256.NewUint(uint64(s.gasBet - int(s.gasConsumed))))
 	}
+	return nil
+}
+
+func opTimestamp(s *State) error {
+	s.stack.Push(uint256.NewUint(uint64(time.Now().Unix())))
 	return nil
 }

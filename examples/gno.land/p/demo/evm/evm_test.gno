@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"gno.land/p/demo/uint256"
 )
@@ -737,6 +738,17 @@ func TestExecuteEvm(t *testing.T) {
 				uint256.NewUint(0),
 			},
 			expectedGasConsumed: 9,
+		},
+		{
+			name: "timestamp is now",
+			code: []byte{
+				byte(TIMESTAMP),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(uint64(time.Now().Unix())),
+			},
+			expectedGasConsumed: 2,
 		},
 	}
 

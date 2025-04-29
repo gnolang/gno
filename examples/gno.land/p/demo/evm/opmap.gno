@@ -224,7 +224,7 @@ var (
 		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", notImplemented, 100},     // can change
 		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", notImplemented, 20},
 		COINBASE:       {COINBASE, "COINBASE", notImplemented, 2},
-		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", notImplemented, 2},
+		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", opTimestamp, 2},
 		NUMBER:         {NUMBER, "NUMBER", notImplemented, 2},
 		PREVRANDAO:     {PREVRANDAO, "PREVRANDAO", notImplemented, 2},
 		GASLIMIT:       {GASLIMIT, "GASLIMIT", notImplemented, 2},
