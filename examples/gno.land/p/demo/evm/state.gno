@@ -13,7 +13,7 @@ type LogEntry struct {
 
 type tmpEnv struct {
 	storage []byte
-	logs    []byte
+	logs    []LogEntry
 }
 
 type State struct {
@@ -25,7 +25,6 @@ type State struct {
 	gasConsumed       uint
 	gasBet            int
 	env               *Env
-	logs              []LogEntry
 }
 
 func newState() *State {
@@ -35,7 +34,7 @@ func newState() *State {
 		code:   instructions{},
 		tmp: tmpEnv{
 			storage: []byte{},
-			logs:    []byte{},
+			logs:    []LogEntry{},
 		},
 		transient_storage: map[uint256.Uint]uint256.Uint{},
 		env:               nil,

@@ -103,7 +103,7 @@ func opLog(nTopics int) func(*State) error {
 		}
 		data := make([]byte, size)
 		copy(data, s.memory[offset:offset+size])
-		s.logs = append(s.logs, LogEntry{
+		s.tmp.logs = append(s.tmp.logs, LogEntry{
 			Topics: topics,
 			Data:   data,
 		})
