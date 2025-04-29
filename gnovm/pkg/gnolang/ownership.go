@@ -122,6 +122,9 @@ type Object interface {
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
 
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
+
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
@@ -162,9 +165,8 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-
-	// XXX huh?
-	owner Object // mem reference to owner.
+	lastGCCycle  int64
+	owner        Object // mem reference to owner.
 }
 
 // Copy used for serialization of objects.
@@ -182,6 +184,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		isNewReal:    oi.isNewReal,
 		isNewEscaped: oi.isNewEscaped,
 		isNewDeleted: oi.isNewDeleted,
+		lastGCCycle:  oi.lastGCCycle,
 	}
 }
 
@@ -342,6 +345,14 @@ func (oi *ObjectInfo) GetIsNewDeleted() bool {
 
 func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
+}
+
+func (oi *ObjectInfo) GetLastGCCycle() int64 {
+	return oi.lastGCCycle
+}
+
+func (oi *ObjectInfo) SetLastGCCycle(c int64) {
+	oi.lastGCCycle = c
 }
 
 func (oi *ObjectInfo) GetIsTransient() bool {
