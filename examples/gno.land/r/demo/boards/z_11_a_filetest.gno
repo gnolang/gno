@@ -33,4 +33,4 @@ func main() {
 }
 
 // Error:
-// board not exist
+// invalid non-user call

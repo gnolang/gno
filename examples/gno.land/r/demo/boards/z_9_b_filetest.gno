@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// dst board not exist
+// invalid non-user call
