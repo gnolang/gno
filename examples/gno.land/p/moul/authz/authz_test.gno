@@ -10,11 +10,11 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-func TestNew(t *testing.T) {
+func TestNewWithCurrent(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
 	testing.SetRealm(std.NewUserRealm(testAddr))
 
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Check that the current authority is a MemberAuthority
 	memberAuth, ok := auth.Current().(*MemberAuthority)
@@ -41,7 +41,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
 	testing.SetRealm(std.NewUserRealm(testAddr))
 
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Test successful action with args
 	executed := false
@@ -81,7 +81,7 @@ func TestAuthorizerTransfer(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
 	testing.SetRealm(std.NewUserRealm(testAddr))
 
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Test transfer to new member authority
 	newAddr := testutils.TestAddress("bob")
@@ -114,7 +114,7 @@ func TestAuthorizerTransferChain(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(testAddr))
 
 	// Create a chain of transfers
-	auth := New()
+	auth := NewWithCurrent()
 
 	// First transfer to a new member authority
 	newAddr := testutils.TestAddress("bob")
@@ -145,7 +145,7 @@ func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
 	testing.SetRealm(std.NewUserRealm(testAddr))
 
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Transfer to dropped authority
 	err := auth.Transfer(NewDroppedAuthority())
@@ -354,7 +354,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 }
 
 func TestAuthorizerCurrentNeverNil(t *testing.T) {
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Current should never be nil after initialization
 	uassert.True(t, auth.Current() != nil, "current authority should not be nil")
@@ -401,7 +401,7 @@ func TestContractAuthorityValidation(t *testing.T) {
 }
 
 func TestAuthorizerString(t *testing.T) {
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Test initial string representation
 	str := auth.String()
