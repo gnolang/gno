@@ -32,7 +32,7 @@ func main() {
 	cross(boards2.EditReply)(bid, tid, rid, body)
 
 	// Render content must contain the modified reply
-	content := cross(boards2.Render)(path)
+	content := boards2.Render(path)
 	println(strings.Contains(content, "\n> "+body+"\n"))
 }
 

@@ -34,7 +34,7 @@ func main() {
 	cross(boards2.FlagThread)(bid, pid, "")
 
 	// Ensure that original thread content not visible
-	println(cross(boards2.Render)("test-board/1"))
+	println(boards2.Render("test-board/1"))
 }
 
 // Output:

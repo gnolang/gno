@@ -4,12 +4,13 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 )
 
 var (
 	gPerms        Permissions
-	gRealmPath    string
+	gRealmLink    txlink.Realm
 	gNotice       string
 	gHelp         string
 	gLastBoardID  BoardID
@@ -23,7 +24,7 @@ var (
 
 func init() {
 	// Save current realm path so it's available during render calls
-	gRealmPath = std.CurrentRealm().PkgPath()
+	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
 
 	// Initialize default realm permissions
 	gPerms = createDefaultPermissions(
@@ -91,7 +92,9 @@ func mustGetPermissions(bid BoardID) Permissions {
 	return gPerms
 }
 
-func txlinkCall(fn string, args ...string) string {
-	// Use gRealmPath to build TX link to allow links to be built during render calls
-	return txlink.Realm(gRealmPath).Call(fn, args...)
+func parseRealmPath(path string) *realmpath.Request {
+	// Make sure request is using current realm path so paths can be parsed during Render
+	r := realmpath.Parse(path)
+	r.Realm = string(gRealmLink)
+	return r
 }
