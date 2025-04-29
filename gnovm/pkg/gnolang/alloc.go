@@ -343,6 +343,7 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 
 func (pv *PackageValue) GetShallowSize() int64 {
 	return allocPackage
+	// XXX FNames, FBlocks
 }
 
 func (b *Block) GetShallowSize() int64 {
@@ -387,7 +388,8 @@ func (sv *SliceValue) GetShallowSize() int64 {
 
 // Only count for closures.
 func (fv *FuncValue) GetShallowSize() int64 {
-	return allocFunc
+	return allocFunc +
+		int64(len(fv.Captures))*(allocTypedValue+allocHeapItem)
 }
 
 func (sv StringValue) GetShallowSize() int64 {
