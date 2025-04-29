@@ -70,10 +70,24 @@ type PrivilegedAction func() error
 // privileged actions.
 type PrivilegedActionHandler func(title string, action PrivilegedAction) error
 
-// New creates a new Authorizer with the current realm's address as authority
-func New() *Authorizer {
+// NewWithCurrent creates a new Authorizer with the current realm's address as authority
+func NewWithCurrent() *Authorizer {
 	return &Authorizer{
 		current: NewMemberAuthority(std.CurrentRealm().Address()),
+	}
+}
+
+// NewWithPrevious creates a new Authorizer with the previous realm's address as authority
+func NewWithPrevious() *Authorizer {
+	return &Authorizer{
+		current: NewMemberAuthority(std.PreviousRealm().Address()),
+	}
+}
+
+// NewWithCurrent creates a new Authorizer with the current realm's address as authority
+func NewWithMembers(addrs ...std.Address) *Authorizer {
+	return &Authorizer{
+		current: NewMemberAuthority(addrs...),
 	}
 }
 
