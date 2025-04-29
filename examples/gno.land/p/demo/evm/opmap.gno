@@ -188,8 +188,8 @@ var (
 			}
 			return uint256.Zero()
 		}), 3},
-		SLT: {SLT, "SLT", notImplemented, 3},
-		SGT: {SGT, "SGT", notImplemented, 3},
+		SLT: {SLT, "SLT", opSlt, 3},
+		SGT: {SGT, "SGT", opSgt, 3},
 		EQ: {EQ, "EQ", opOperation(func(a, b *uint256.Uint) *uint256.Uint {
 			if a.Eq(b) {
 				return uint256.One()

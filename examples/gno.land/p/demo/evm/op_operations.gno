@@ -108,3 +108,57 @@ func opByte(s *State) error {
 	s.stack.Push(res)
 	return nil
 }
+
+func opSlt(s *State) error {
+	y, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	x, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	xSign := x.Sign()
+	ySign := y.Sign()
+	if xSign != ySign {
+		if xSign < ySign { // if x and y have different signs
+			s.stack.Push(uint256.One())
+		} else {
+			s.stack.Push(uint256.Zero())
+		}
+		return nil
+	}
+	if x.Cmp(y) < 0 { // same sign & compare as unsigned
+		s.stack.Push(uint256.One())
+	} else {
+		s.stack.Push(uint256.Zero())
+	}
+	return nil
+}
+
+func opSgt(s *State) error {
+	y, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	x, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	xSign := x.Sign()
+	ySign := y.Sign()
+	if xSign != ySign {
+		if xSign > ySign {
+			s.stack.Push(uint256.One())
+		} else {
+			s.stack.Push(uint256.Zero())
+		}
+		return nil
+	}
+	if x.Cmp(y) > 0 {
+		s.stack.Push(uint256.One())
+	} else {
+		s.stack.Push(uint256.Zero())
+	}
+	return nil
+}

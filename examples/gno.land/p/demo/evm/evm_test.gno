@@ -700,6 +700,32 @@ func TestExecuteEvm(t *testing.T) {
 			expectedStack: []*uint256.Uint{},
 			expectedGasConsumed: 129,
 		},
+		{
+			name: "simple slt positive",
+			code: []byte{
+				byte(PUSH1), 0x02,
+				byte(PUSH1), 0x03,
+				byte(SLT),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(1), // 2 < 3 -> 1
+			},
+			expectedGasConsumed: 9,
+		},
+		{
+			name: "simple sgt negative",
+			code: []byte{
+				byte(PUSH1), 0x02,
+				byte(PUSH1), 0x03,
+				byte(SGT),         // 2 > 3 -> false
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(0),
+			},
+			expectedGasConsumed: 9,
+		},
 	}
 
 	for _, tc := range testCases {
