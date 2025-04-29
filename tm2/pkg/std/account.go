@@ -81,7 +81,6 @@ type BaseAccount struct {
 	Coins          Coins          `json:"coins" yaml:"coins"`
 	AccountNumber  uint64         `json:"account_number" yaml:"account_number"`
 	GlobalSequence uint64         `json:"global_sequence" yaml:"global_sequence"` // sum of all session sequences
-	PubKey         crypto.PubKey  `json:"public_key,omitempty" yaml:"public_key,omitempty"`
 	Sequence       uint64         `json:"sequence" yaml:"sequence"`
 }
 
@@ -89,15 +88,14 @@ var _ Account = (*BaseAccount)(nil)
 
 // NewBaseAccount creates a new BaseAccount object
 func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey, accountNumber uint64, sequence uint64) *BaseAccount {
-	key := NewBaseAccountKey(pubKey, 0)
+	rootKey := NewBaseAccountKey(pubKey, 0)
 	return &BaseAccount{
 		Address:        address,
-		RootKey:        key,
+		RootKey:        rootKey,
 		Coins:          coins,
 		AccountNumber:  accountNumber,
 		Sessions:       []AccountKey{},
 		GlobalSequence: 0,
-		PubKey:         pubKey,
 		Sequence:       sequence,
 	}
 }
@@ -110,9 +108,9 @@ func (acc BaseAccount) String() string {
   AccountNumber:  %d
   GlobalSequence: %d
   Sessions:       %d
-  PubKey:         %s
+  RootKey:        %s
   Sequence:       %d`,
-		acc.Address, acc.Coins, acc.AccountNumber, acc.GlobalSequence, len(acc.Sessions), acc.PubKey, acc.Sequence,
+		acc.Address, acc.Coins, acc.AccountNumber, acc.GlobalSequence, len(acc.Sessions), acc.RootKey, acc.Sequence,
 	)
 }
 
@@ -159,13 +157,12 @@ func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 
 // GetPubKey implements Account.
 func (acc BaseAccount) GetPubKey() crypto.PubKey {
-	return acc.PubKey
+	return acc.RootKey.GetPubKey()
 }
 
 // SetPubKey implements Account.
 func (acc *BaseAccount) SetPubKey(pubKey crypto.PubKey) error {
-	acc.PubKey = pubKey
-	return nil
+	return acc.RootKey.SetPubKey(pubKey)
 }
 
 func (acc *BaseAccount) GetSequence() uint64    { return acc.Sequence }

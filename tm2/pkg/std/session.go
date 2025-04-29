@@ -145,3 +145,4 @@ func (s *BaseSession) String() string {
 	return fmt.Sprintf("BaseSession{Address: %v, PubKey: %v, Sequence: %d, State: %v, CreatedAt: %v, LastUsedAt: %v}",
 		s.Address, s.PubKey, s.Sequence, s.State, s.CreatedAt, s.LastUsedAt)
 }
+ 
