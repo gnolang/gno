@@ -150,8 +150,25 @@ func (p *printer) doPrintf(format string, args []any) {
 			continue
 		}
 
+		length := -1
 		precision := -1
 		i++ // skip '%'
+
+		if i < end && sTor[i] >= '0' && sTor[i] <= '9' {
+			start := i
+			for i < end && sTor[i] >= '0' && sTor[i] <= '9' {
+				i++
+			}
+			if i > start {
+				lengthStr := string(sTor[start:i])
+				var err error
+				length, err = strconv.Atoi(lengthStr)
+				if err != nil {
+					panic("ufmt: invalid length specification")
+				}
+			}
+		}
+
 		if i < end && sTor[i] == '.' {
 			i++ // skip '.'
 			start := i
@@ -189,7 +206,7 @@ func (p *printer) doPrintf(format string, args []any) {
 		case 'v':
 			writeValue(p, verb, arg)
 		case 's':
-			writeString(p, verb, arg)
+			writeStringWithLength(p, verb, arg, length)
 		case 'c':
 			writeChar(p, verb, arg)
 		case 'd':
@@ -261,18 +278,24 @@ func writeValue(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeString handles %s formatting
-func writeString(p *printer, verb rune, arg any) {
+// writeStringWithLength handles %s formatting with length specification
+func writeStringWithLength(p *printer, verb rune, arg any, length int) {
+	var s string
 	switch v := arg.(type) {
 	case (interface{ String() string }):
-		p.buf.writeString(v.String())
+		s = v.String()
 	case error:
-		p.buf.writeString(v.Error())
+		s = v.Error()
 	case string:
-		p.buf.writeString(v)
+		s = v
 	default:
-		p.buf.writeString(fallback(verb, v))
+		s = fallback(verb, v)
 	}
+
+	if length > 0 && len(s) > length {
+		s = s[:length]
+	}
+	p.buf.writeString(s)
 }
 
 // writeChar handles %c formatting
@@ -330,28 +353,21 @@ func writeInt(p *printer, verb rune, arg any) {
 func writeFloatWithPrecision(p *printer, verb rune, arg any, precision int) {
 	switch v := arg.(type) {
 	case float64:
-		if precision < 0 {
-			precision = 6 // default precision
+		format := byte(verb)
+		if format == 'F' {
+			format = 'f'
 		}
-		p.buf.writeString(strconv.FormatFloat(v, 'f', precision, 64))
+		if precision < 0 {
+			switch format {
+			case 'e', 'E':
+				precision = 2
+			default:
+				precision = 6
+			}
+		}
+		p.buf.writeString(strconv.FormatFloat(v, format, precision, 64))
 	default:
 		p.buf.writeString(fallback(verb, v))
-	}
-}
-
-// writeFloat handles floating-point formatting verbs
-func writeFloat(p *printer, verb rune, arg any) {
-	switch verb {
-	case 'f', 'F':
-		writeFloatWithPrecision(p, verb, arg, -1)
-	case 'e':
-		writeFloatWithPrecision(p, 'e', arg, -1)
-	case 'E':
-		writeFloatWithPrecision(p, 'E', arg, -1)
-	case 'g':
-		writeFloatWithPrecision(p, 'g', arg, -1)
-	case 'G':
-		writeFloatWithPrecision(p, 'G', arg, -1)
 	}
 }
 
