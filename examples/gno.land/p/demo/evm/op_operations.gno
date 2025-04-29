@@ -162,3 +162,27 @@ func opSgt(s *State) error {
 	}
 	return nil
 }
+
+func opSar(s *State) error {
+	shift, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	value, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	if shift.GtUint64(256) {
+		if value.Sign() >= 0 {
+			value.Clear()
+		} else {
+			// Max negative shift: all bits set
+			value.SetAllOne()
+		}
+		s.stack.Push(value)
+		return nil
+	}
+	n := uint(shift.Uint64())
+	s.stack.Push(value.SRsh(value, n))
+	return nil
+}

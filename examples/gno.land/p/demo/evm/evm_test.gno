@@ -247,6 +247,18 @@ func TestExecuteEvm(t *testing.T) {
 			expectedGasConsumed: 9,
 		},
 		{
+			name:                "simple sar",
+			code:                []byte{byte(PUSH1), 2, byte(PUSH1), 1, byte(SAR), byte(STOP)},
+			expectedStack:       []*uint256.Uint{uint256.NewUint(1)},
+			expectedGasConsumed: 9,
+		},
+		{
+			name:                "big sar",
+			code:                []byte{byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf0, byte(PUSH1), 4, byte(SAR), byte(STOP)},
+			expectedStack:       []*uint256.Uint{uint256.MustFromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")},
+			expectedGasConsumed: 9,
+		},
+		{
 			name:                "jump jump !",
 			code:                []byte{byte(PUSH1), 1, byte(PUSH1), 8, byte(JUMP), byte(PUSH1), 1, byte(ADD), byte(JUMPDEST), byte(STOP)},
 			expectedStack:       []*uint256.Uint{uint256.NewUint(1)},
@@ -668,7 +680,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(LOG1),
 				byte(STOP),
 			},
-			expectedStack: []*uint256.Uint{},
+			expectedStack:       []*uint256.Uint{},
 			expectedGasConsumed: 45,
 		},
 		{
@@ -697,7 +709,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(LOG3),
 				byte(STOP),
 			},
-			expectedStack: []*uint256.Uint{},
+			expectedStack:       []*uint256.Uint{},
 			expectedGasConsumed: 129,
 		},
 		{
@@ -718,7 +730,7 @@ func TestExecuteEvm(t *testing.T) {
 			code: []byte{
 				byte(PUSH1), 0x02,
 				byte(PUSH1), 0x03,
-				byte(SGT),         // 2 > 3 -> false
+				byte(SGT), // 2 > 3 -> false
 				byte(STOP),
 			},
 			expectedStack: []*uint256.Uint{

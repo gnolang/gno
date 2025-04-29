@@ -204,7 +204,7 @@ var (
 		BYTE:           {BYTE, "BYTE", opByte, 3},
 		SHL:            {SHL, "SHL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Lsh(a, uint(b.Uint64())) }), 3},
 		SHR:            {SHR, "SHR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Rsh(a, uint(b.Uint64())) }), 3},
-		SAR:            {SAR, "SAR", notImplemented, 3},
+		SAR:            {SAR, "SAR", opSar, 3},
 		KECCAK256:      {KECCAK256, "KECCAK256", opKeccak256, 30}, // can change
 		ADDRESS:        {ADDRESS, "ADDRESS", notImplemented, 2},
 		BALANCE:        {BALANCE, "BALANCE", notImplemented, 100}, // can change
