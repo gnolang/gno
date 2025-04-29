@@ -44,6 +44,12 @@ export default {
         400: "#2D8D72", // Primary dark color
         600: "#226C57", // Primary light color
       },
+      yellow: {
+        50: "#FFFCF1",
+        400: "#FACC32",
+        600: "#FBBF24",
+        900: "#7b4807",
+      },
       transparent: "transparent",
       current: "currentColor",
       inherit: "inherit",
