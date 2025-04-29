@@ -2,9 +2,15 @@ package evm
 
 import (
 	"gno.land/p/demo/uint256"
+	"fmt"
 )
 
 // const memSize = 30000
+
+type LogEntry struct {
+    Topics [][]byte
+    Data   []byte
+}
 
 type tmpEnv struct {
 	storage []byte
@@ -19,12 +25,13 @@ type State struct {
 	gasConsumed uint
 	gasBet      int
 	env         *Env
+	logs   		[]LogEntry
 }
 
 func newState() *State {
 	return &State{
 		stack:  *NewevmStack(),
-		memory: []byte{},
+		memory: []byte{}, // make([]byte, 1024)
 		code:   instructions{},
 		tmp: tmpEnv{
 			storage: []byte{},

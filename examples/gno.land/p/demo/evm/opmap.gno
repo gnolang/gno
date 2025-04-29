@@ -313,11 +313,11 @@ var (
 		SWAP14:         {SWAP14, "SWAP14", opSwap(14), 3},
 		SWAP15:         {SWAP15, "SWAP15", opSwap(15), 3},
 		SWAP16:         {SWAP16, "SWAP16", opSwap(16), 3},
-		LOG0:           {LOG0, "LOG0", notImplemented /*opLog0*/, 375}, // all bellow this one can change
-		LOG1:           {LOG1, "LOG1", notImplemented /*opLog1*/, 750},
-		LOG2:           {LOG2, "LOG2", notImplemented /*opLog2*/, 1125},
-		LOG3:           {LOG3, "LOG3", notImplemented /*opLog3*/, 1500},
-		LOG4:           {LOG4, "LOG4", notImplemented /*opLog4*/, 1875},
+		LOG0:           {LOG0, "LOG0", opLog(0), 375}, // all bellow this one can change
+		LOG1:           {LOG1, "LOG1", opLog(1), 750},
+		LOG2:           {LOG2, "LOG2", opLog(2), 1125},
+		LOG3:           {LOG3, "LOG3", opLog(3), 1500},
+		LOG4:           {LOG4, "LOG4", opLog(4), 1875},
 		CREATE:         {CREATE, "CREATE", notImplemented /*opCreate*/, 32000},
 		CALL:           {CALL, "CALL", notImplemented /*opCall*/, 100},
 		CALLCODE:       {CALLCODE, "CALLCODE", notImplemented /*opCallcode*/, 700},

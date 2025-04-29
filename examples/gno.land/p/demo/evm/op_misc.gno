@@ -72,6 +72,44 @@ func opPop(s *State) error {
 	return err
 }
 
+func opLog(nTopics int) func(*State) error {
+    return func(s *State) error {
+        topics := make([][]byte, nTopics)
+        for i := 0; i < nTopics; i++ {
+            topicVal, err := s.stack.Pop()
+            if err != nil {
+                return err
+            }
+            arr := topicVal.Bytes32()
+            topics[i] = make([]byte, 32)
+            copy(topics[i], arr[:])
+        }
+        offsetVal, err := s.stack.Pop()
+        if err != nil {
+            return err
+        }
+        sizeVal, err := s.stack.Pop()
+        if err != nil {
+            return err
+        }
+        offset := offsetVal.Uint64()
+        size := sizeVal.Uint64()
+        if offset > uint64(len(s.memory)) {
+            return errors.New("memory out of bounds")
+        }
+        if offset+size > uint64(len(s.memory)) {
+            size = uint64(len(s.memory)) - offset
+        }
+        data := make([]byte, size)
+        copy(data, s.memory[offset:offset+size])
+        s.logs = append(s.logs, LogEntry{
+            Topics: topics,
+            Data:   data,
+        })
+        return nil
+    }
+}
+
 func opJump(s *State) error {
 	dest, err := s.stack.Pop()
 	if err != nil {
