@@ -39,6 +39,8 @@ const (
 	_allocBigdec           = 200 // XXX
 	_allocType             = 200 // XXX
 	_allocAny              = 200 // XXX
+	_allocValue            = 16  // interface
+	_allocName             = 16  // string
 )
 
 const (
@@ -342,8 +344,24 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 
 func (pv *PackageValue) GetShallowSize() int64 {
-	return allocPackage
-	// XXX FNames, FBlocks
+	var (
+		allocFNames     int64
+		allocFBlocks    int64
+		allocFBlocksMap int64
+	)
+
+	for _, name := range pv.FNames {
+		allocFNames += int64(len(name)) + _allocName // string is counted as shallow size.
+	}
+
+	allocFBlocks = int64(len(pv.FBlocks)) * _allocValue
+
+	for name := range pv.fBlocksMap {
+		allocFBlocksMap += int64(len(name)) + _allocName // key
+		allocFBlocksMap += _allocPointer                 // *Block
+	}
+
+	return allocPackage + allocFNames + allocFBlocks + allocFBlocksMap
 }
 
 func (b *Block) GetShallowSize() int64 {
