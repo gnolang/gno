@@ -1,14 +1,12 @@
 package patch
 
-
 import (
-    index "gno.land/r/stackdump/home"
+	index "gno.land/r/stackdump/home"
 )
 
 func init() { // XXX able to mutate home data - is this by design?
-    index.Set("foo", "hello world")
+	index.Set("foo", "hello world")
 }
-
 
 /*
 
