@@ -1,4 +1,4 @@
-# test issue 
+# test issue
 
 loadpkg gno.land/r/demo/realm $WORK
 
@@ -28,7 +28,9 @@ var (
 )
 
 func Fill(i int) {
- c := B{
+	crossing()
+
+	c := B{
 		A: a,
 		B: "",
 	}
@@ -36,7 +38,8 @@ func Fill(i int) {
 }
 
 func UnFill() {
+	crossing()
+
 	b[0] = nil
 	b[1] = nil
 }
-

@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
 // SEND: 1000000ugnot
 
@@ -19,17 +18,17 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	cross(users.Register)("gnouser123")
 
-	bid = boards.CreateBoard("test_board")
-	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
-	pid = boards.CreateThread(bid, "Second Post (title)", "Body of the second post. (body)")
-	rid := boards.CreateReply(bid, pid, pid, "Reply of the second post")
+	bid = cross(boards.CreateBoard)("test_board")
+	cross(boards.CreateThread)(bid, "First Post (title)", "Body of the first post. (body)")
+	pid = cross(boards.CreateThread)(bid, "Second Post (title)", "Body of the second post. (body)")
+	rid := cross(boards.CreateReply)(bid, pid, pid, "Reply of the second post")
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
-	rid2 := boards.CreateReply(bid, pid, pid, "Second reply of the second post\n")
+	rid2 := cross(boards.CreateReply)(bid, pid, pid, "Second reply of the second post\n")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
 
@@ -43,6 +42,6 @@ func main() {
 // > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=3&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=3&threadid=2)]
 //
 // > Second reply of the second post
-// >
+// > 
 // > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=4&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=4&threadid=2)]
 //

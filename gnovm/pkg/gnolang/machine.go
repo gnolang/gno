@@ -709,7 +709,7 @@ func (m *Machine) runFunc(st Stage, fn Name, withCross bool) {
 }
 
 func (m *Machine) RunMain() {
-	m.runFunc(StageRun, "main", m.Package.IsRealm())
+	m.runFunc(StageRun, "main", false)
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -1828,7 +1828,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if withCross {
 		if !fv.IsCrossing() {
 			panic(fmt.Sprintf(
-				"missing crossing() after cross call in %v from %s to %s",
+				"missing crossing() after cross call to %v from %s to %s",
 				fv.String(),
 				m.Realm.GetPath(),
 				pv.Realm.Path,
@@ -1877,10 +1877,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
 				// DO NOT set DidCross here. Make DidCross only
-				// happen upon explicit cross(fn)(...) calls to
-				// avoid user confusion. Otherwise whether
-				// DidCross happened or not depends on where
-				// the receiver resides, which isn't explicit
+				// happen upon explicit cross(fn)(...) calls
+				// and subsequent calls to crossing functions
+				// from the same realm, to avoid user
+				// confusion. Otherwise whether DidCross
+				// happened or not depends on where the
+				// receiver resides, which isn't explicit
 				// enough to avoid confusion.
 				//   fr.DidCross = true
 				return
@@ -2021,13 +2023,6 @@ func (m *Machine) peekCallFrame(n int) *Frame {
 // Returns the last defer call frame or nil.
 func (m *Machine) LastDeferCallFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
-		if fr.IsDefer {
-			return fr
-		}
-	}
-	return nil
 }
 
 // pops the last non-call (loop) frames
@@ -2109,7 +2104,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
 // and the lx isn't a name (base is a block),
-// and the lx isn't a composit lit expr.
+// and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:

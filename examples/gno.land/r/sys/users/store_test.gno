@@ -23,6 +23,7 @@ func TestRegister(t *testing.T) {
 	testing.SetOriginCaller(whitelistedCallerAddr)
 
 	t.Run("valid_registration", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
@@ -34,6 +35,7 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("invalid_inputs", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		uassert.ErrorContains(t, RegisterUser("", aliceAddr), ErrEmptyUsername.Error())
@@ -48,6 +50,7 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("addr_already_registered", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -57,6 +60,7 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -66,17 +70,23 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("user_deleted", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-		urequire.NoError(t, data.Delete())
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			urequire.NoError(t, data.Delete())
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+		}
 
 		// Try re-registering after deletion
 		uassert.ErrorContains(t, RegisterUser("newname", aliceAddr), ErrDeletedUser.Error())
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		// Address as username
@@ -90,24 +100,35 @@ func TestRegister(t *testing.T) {
 func TestUpdateName(t *testing.T) {
 	testing.SetOriginCaller(whitelistedCallerAddr)
 	t.Run("valid_direct_alias", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-		uassert.NoError(t, data.UpdateName("alice1"))
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			uassert.NoError(t, data.UpdateName("alice1"))
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+		}
 	})
 
 	t.Run("valid_double_alias", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-		uassert.NoError(t, data.UpdateName("alice2"))
-		uassert.NoError(t, data.UpdateName("alice3"))
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			uassert.NoError(t, data.UpdateName("alice2"))
+			uassert.NoError(t, data.UpdateName("alice3"))
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+		}
 		uassert.Equal(t, ResolveAddress(aliceAddr).username, "alice3")
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -117,6 +138,7 @@ func TestUpdateName(t *testing.T) {
 	})
 
 	t.Run("alias_before_name", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 		data := ResolveAddress(aliceAddr) // not registered
 
@@ -124,41 +146,59 @@ func TestUpdateName(t *testing.T) {
 	})
 
 	t.Run("alias_after_delete", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-		urequire.NoError(t, data.Delete())
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			urequire.NoError(t, data.Delete())
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+		}
 
 		data = ResolveAddress(aliceAddr)
-		uassert.ErrorContains(t, data.UpdateName("newalice"), ErrUserNotExistOrDeleted.Error())
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			uassert.ErrorContains(t, data.UpdateName("newalice"), ErrUserNotExistOrDeleted.Error())
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+		}
 	})
 
 	t.Run("invalid_inputs", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
-
-		uassert.ErrorContains(t, data.UpdateName(""), ErrEmptyUsername.Error())
-		uassert.ErrorContains(t, data.UpdateName("username with a space"), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t,
-			data.UpdateName("verylongusernameverylongusernameverylongusernameverylongusername1"),
-			ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, data.UpdateName("namewith^&()"), ErrInvalidUsername.Error())
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			uassert.ErrorContains(t, data.UpdateName(""), ErrEmptyUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName("username with a space"), ErrInvalidUsername.Error())
+			uassert.ErrorContains(t,
+				data.UpdateName("verylongusernameverylongusernameverylongusernameverylongusername1"),
+				ErrInvalidUsername.Error())
+			uassert.ErrorContains(t, data.UpdateName("namewith^&()"), ErrInvalidUsername.Error())
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+		}
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 
-		// Address as username
-		uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), ErrNameLikeAddress.Error())
-		// Beginning of address as username
-		uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmu"), ErrNameLikeAddress.Error())
-		uassert.NoError(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress"))
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			// Address as username
+			uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), ErrNameLikeAddress.Error())
+			// Beginning of address as username
+			uassert.ErrorContains(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmu"), ErrNameLikeAddress.Error())
+			uassert.NoError(t, data.UpdateName("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress"))
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+		}
 	})
 }
 
@@ -166,6 +206,7 @@ func TestDelete(t *testing.T) {
 	testing.SetOriginCaller(whitelistedCallerAddr)
 
 	t.Run("non_existent_user", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		data := ResolveAddress(testutils.TestAddress("unregistered"))
@@ -173,6 +214,7 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("double_delete", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -183,6 +225,7 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("valid_delete", func(t *testing.T) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 		cleanStore(t)
 
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))

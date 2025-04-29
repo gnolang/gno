@@ -210,7 +210,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				last2 := skipFile(last)
 				nx := &n.NameExpr
 				nx.Type = NameExprTypeDefine
-				last2.Predefine(false, n.Name)
+				last2.Predefine(true, n.Name)
 			case *FuncDecl:
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
@@ -231,7 +231,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						idx := pkg.GetNumNames()
 						dname := Name(fmt.Sprintf("._%d", idx))
 						n.Name = dname
-
 					}
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
@@ -748,11 +747,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								store, last, cx).(Expr)
 							var ct Type
 							if cxx, ok := cx.(*ConstExpr); ok {
-								if !cxx.IsUndefined() {
-									panic("should not happen")
+								if cxx.IsUndefined() {
+									// TODO: shouldn't cxx.T be TypeType?
+									// Don't change cxx.GetType() for defensiveness.
+									ct = nil
+								} else {
+									ct = cxx.GetType()
 								}
-								// only in type switch cases, nil type allowed.
-								ct = nil
 							} else {
 								ct = evalStaticType(store, last, cx)
 							}
@@ -978,7 +979,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"should not happen: name %q is reserved", n.Name))
 				}
-				// special case if struct composite key.
+				// Special case if struct composite key.
 				if ftype == TRANS_COMPOSITE_KEY {
 					clx := ns[len(ns)-1].(*CompositeLitExpr)
 					clt := evalStaticType(store, last, clx.Type)
@@ -2259,7 +2260,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
 					// if store has this type, use that.
-					tid := DeclaredTypeID(lastpn.PkgPath, n.Name)
+					tid := DeclaredTypeID(lastpn.PkgPath, last.GetLocation(), n.Name)
 					exists := false
 					if dt := store.GetTypeSafe(tid); dt != nil {
 						dst = dt.(*DeclaredType)
@@ -2271,7 +2272,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this is where declared types are
 						// actually instantiated, not in
 						// machine.go:runDeclaration().
-						dt2 := declareWith(lastpn.PkgPath, n.Name, tmp)
+						dt2 := declareWith(lastpn.PkgPath, last, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						dt2.Seal()
 						// }
@@ -2521,6 +2522,8 @@ func parseMultipleAssignFromOneExpr(
 // We may still want this for optimizing heap defines;
 // the current implementation of findHeapDefinesByUse/findHeapUsesDemoteDefines
 // produces false positives.
+//
+//nolint:unused
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2774,6 +2777,13 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 								return n, TRANS_CONTINUE
 							}
 						}
+						// Ignore type declaration names.
+						// Types cannot be passed ergo cannot be captured.
+						// (revisit when types become first class objects)
+						st := dbn.GetStaticTypeOf(nil, n.Name)
+						if st.Kind() == TypeKind {
+							return n, TRANS_CONTINUE
+						}
 
 						// Found a heap item closure capture.
 						addAttrHeapUse(dbn, n.Name)
@@ -2868,7 +2878,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 // returns the depth of first closure, 1 if stop itself is a closure,
 // or 0 if not found.
 func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
-	redundant := 0 // count faux block
+	faux := 0 // count faux block
 	for i := len(stack) - 1; i >= 0; i-- {
 		stbn := stack[i]
 		switch stbn := stbn.(type) {
@@ -2877,16 +2887,14 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 				return
 			}
 			fle = stbn
-			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
+			depth = len(stack) - 1 - faux - i + 1 // +1 since 1 is lowest.
 			found = true
 			// even if found, continue iteration in case
 			// an earlier *FuncLitExpr is found.
-		case *IfCaseStmt, *SwitchClauseStmt:
-			if stbn == stop {
-				return
-			}
-			redundant++
 		default:
+			if fauxChildBlockNode(stbn) {
+				faux++
+			}
 			if stbn == stop {
 				return
 			}
@@ -3434,7 +3442,7 @@ func findBranchLabel(last BlockNode, label Name) (
 ) {
 	for {
 		switch cbn := last.(type) {
-		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt, *SwitchStmt:
+		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
 			lbl := cbn.GetLabel()
 			if label == lbl {
 				bn = cbn
@@ -3442,7 +3450,7 @@ func findBranchLabel(last BlockNode, label Name) (
 			}
 			last = skipFaux(cbn.GetParentNode(nil))
 			depth += 1
-		case *IfStmt:
+		case *IfStmt, *SwitchStmt:
 			// These are faux blocks -- shouldn't happen.
 			panic("unexpected faux blocknode")
 		case *FileNode:
@@ -4903,10 +4911,12 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			} else {
 				// create new declared type.
 				pn := packageOf(last)
-				t = declareWith(pn.PkgPath, d.Name, t)
+				dt := declareWith(pn.PkgPath, last, d.Name, t)
+				t = dt
 			}
 			// fill in later.
-			last2.Define(d.Name, asValue(t))
+			// last2.Define(d.Name, asValue(t))
+			last2.Define2(true, d.Name, t, asValue(t))
 			d.Path = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
@@ -5024,6 +5034,14 @@ func fauxBlockNode(bn BlockNode) bool {
 	return false
 }
 
+func fauxChildBlockNode(bn BlockNode) bool {
+	switch bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		return true
+	}
+	return false
+}
+
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
@@ -5038,13 +5056,13 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// and declared variables. See tests/files/define1.go for test case.
 			var path ValuePath
 			var i int = 0
-			var faux int = 0
+			var fauxChild int = 0
 			for {
 				i++
-				last = last.GetParentNode(nil)
-				if fauxBlockNode(last) {
-					faux++
+				if fauxChildBlockNode(last) {
+					fauxChild++
 				}
+				last = last.GetParentNode(nil)
 				if last == nil {
 					if isUverseName(nx.Name) {
 						idx, ok := UverseNode().GetLocalIndex(nx.Name)
@@ -5068,7 +5086,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.SetDepth(path.Depth + uint8(i) - uint8(faux))
+			path.SetDepth(path.Depth + uint8(i) - uint8(fauxChild))
 			path.Validate()
 			nx.Path = path
 			return

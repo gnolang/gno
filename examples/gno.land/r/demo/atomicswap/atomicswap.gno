@@ -59,6 +59,8 @@ var (
 // NewCoinSwap creates a new atomic swap contract for native coins.
 // It uses a default timelock duration.
 func NewCoinSwap(recipient std.Address, hashlock string) (int, *Swap) {
+	crossing()
+
 	timelock := time.Now().Add(defaultTimelockDuration)
 	return NewCustomCoinSwap(recipient, hashlock, timelock)
 }
@@ -66,6 +68,8 @@ func NewCoinSwap(recipient std.Address, hashlock string) (int, *Swap) {
 // NewGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It uses gno.land/r/demo/grc20reg to lookup for a registered token.
 func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
+	crossing()
+
 	timelock := time.Now().Add(defaultTimelockDuration)
 	tokenGetter := grc20reg.MustGet(tokenRegistryKey)
 	token := tokenGetter()
@@ -76,12 +80,16 @@ func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey strin
 // It allows specifying a custom timelock duration.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
 func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Time) (int, *Swap) {
+	crossing()
+
 	sender := std.PreviousRealm().Address()
 	sent := std.OriginSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
 
 	// Create the swap
 	sendFn := func(to std.Address) {
+		crossing()
+
 		banker := std.NewBanker(std.BankerTypeRealmSend)
 		pkgAddr := std.CurrentRealm().Address()
 		banker.SendCoins(pkgAddr, to, sent)
@@ -98,6 +106,8 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
 func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
+	crossing()
+
 	sender := std.PreviousRealm().Address()
 	curAddr := std.CurrentRealm().Address()
 
@@ -110,6 +120,8 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(to std.Address) {
+		crossing()
+
 		err := userTeller.Transfer(to, allowance)
 		require(err == nil, "cannot transfer tokens")
 	}
@@ -125,12 +137,16 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 
 // Claim loads a registered swap and tries to claim it.
 func Claim(id int, secret string) {
+	crossing()
+
 	swap := mustGet(id)
 	swap.Claim(secret)
 }
 
 // Refund loads a registered swap and tries to refund it.
 func Refund(id int) {
+	crossing()
+
 	swap := mustGet(id)
 	swap.Refund()
 }
