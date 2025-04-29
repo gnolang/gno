@@ -1,7 +1,6 @@
 package home
 
 import (
-	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -9,55 +8,34 @@ import (
 )
 
 var (
-	realmAllowPrefix = []string{}
 	registry    = avl.NewTree()
 	render []string
 )
 
 func SetOutput(s ...string) {
-    AssertAdminAccess()
     render = []string{}
-    appendOutput(s...)
+    outputOrder(s...)
 }
 
-func appendOutput(s ...string) {
+func outputOrder(s ...string) {
     for _, v := range s {
         render = append(render, v)
     }
 }
 
 func init() {
-	realmAllowPrefix = append(realmAllowPrefix, std.CurrentRealm().PkgPath()+"/patch")
-	appendOutput("foo", "bar")
+	outputOrder("foo", "bar")
     registry.Set("foo", "testing!")
     registry.Set("bar", "\n123")
 }
 
-/* Auth API */
-func HasAllowedPrefix() bool {
-    prevPath := std.PreviousRealm().PkgPath()
-    if prevPath != "" {
-        return false
-    }
-    currentPath := std.CurrentRealm().PkgPath()
-    for _, callerPath := range realmAllowPrefix {
-        if strings.HasPrefix(currentPath, callerPath) {
-            return true
-        }
-    }
-    return false
-}
-
-func AssertAdminAccess() {
-    if !HasAllowedPrefix() {
-        panic("access denied: " + std.PreviousRealm().PkgPath() +
-            " realm must match an allowed prefix:[" + strings.Join(realmAllowPrefix, ",") + "]" +
-            " got: " + std.CurrentRealm().PkgPath())
-    }
-}
-
+// REVIEW: used in init() without cross()
 func Set(key string, val interface{}) {
-    AssertAdminAccess()
+	  //crossing() 
+    registry.Set(key, val)
+}
+
+func SetString(key string, val string) {
     registry.Set(key, val)
 }
 
