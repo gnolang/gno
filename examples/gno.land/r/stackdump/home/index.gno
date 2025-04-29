@@ -35,9 +35,6 @@ func init() {
 
 /* Auth API */
 func HasAllowedPrefix() bool {
-    if std.IsUser() {
-        return false
-    }
     prevPath := std.PreviousRealm().PkgPath()
     if prevPath != "" {
         return false
