@@ -642,7 +642,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.runFunc(StageAdd, fv.Name, false)
+				m.runFunc(StageAdd, fv.Name)
 				m.PopBlock()
 			}
 		}
@@ -700,16 +700,12 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) runFunc(st Stage, fn Name, withCross bool) {
-	if withCross {
-		m.RunStatement(st, S(Call(Call(Nx("cross"), Nx(fn)))))
-	} else {
-		m.RunStatement(st, S(Call(Nx(fn))))
-	}
+func (m *Machine) runFunc(st Stage, fn Name) {
+	m.RunStatement(st, S(Call(Nx(fn))))
 }
 
 func (m *Machine) RunMain() {
-	m.runFunc(StageRun, "main", false)
+	m.runFunc(StageRun, "main")
 }
 
 // Evaluate throwaway expression in new block scope.
