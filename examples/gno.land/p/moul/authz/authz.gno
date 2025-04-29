@@ -36,6 +36,7 @@ package authz
 import (
 	"errors"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/rotree"
@@ -44,12 +45,15 @@ import (
 	"gno.land/p/moul/once"
 )
 
-// Authorizer is the main wrapper object that handles authority management
+// Authorizer is the main wrapper object that handles authority management.
+// It is configured with a replaceable Authority implementation.
 type Authorizer struct {
 	current Authority
 }
 
-// Authority represents an entity that can authorize privileged actions
+// Authority represents an entity that can authorize privileged actions.
+// It is implemented by MemberAuthority, ContractAuthority, AutoAcceptAuthority,
+// and DroppedAuthority.
 type Authority interface {
 	// Authorize executes a privileged action if the caller is authorized
 	// Additional args can be provided for context (e.g., for proposal creation)
@@ -73,7 +77,8 @@ func New() *Authorizer {
 	}
 }
 
-// NewWithOrigin creates a new Authorizer with the origin caller's address as authority.
+// NewWithOrigin creates a new Authorizer with the origin caller's address as
+// authority.
 // This is typically used in the init() function.
 func NewWithOrigin() *Authorizer {
 	origin := std.OriginCaller()
@@ -114,10 +119,22 @@ func (a *Authorizer) Do(title string, action PrivilegedAction, args ...any) erro
 
 // String returns a string representation of the current authority
 func (a *Authorizer) String() string {
-	return a.current.String()
+	currentStr := a.current.String()
+
+	switch a.current.(type) {
+	case *MemberAuthority:
+	case *ContractAuthority:
+	case *AutoAcceptAuthority:
+	case *droppedAuthority:
+	default:
+		// this way official "dropped" is different from "*custom*: dropped" (autoclaimed).
+		return ufmt.Sprintf("custom_authority[%s]", currentStr)
+	}
+	return currentStr
 }
 
-// MemberAuthority is the default implementation using addrset for member management
+// MemberAuthority is the default implementation using addrset for member
+// management.
 type MemberAuthority struct {
 	members addrset.Set
 }
@@ -143,13 +160,13 @@ func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args 
 }
 
 func (a *MemberAuthority) String() string {
-	out := ""
+	addrs := []string{}
 	a.members.Tree().Iterate("", "", func(key string, _ any) bool {
-		out += "- " + key + "\n"
+		addrs = append(addrs, key)
 		return false
 	})
-
-	return out
+	addrsStr := strings.Join(addrs, ",")
+	return ufmt.Sprintf("member_authority[%s]", addrsStr)
 }
 
 // AddMember adds a new member to the authority
@@ -206,7 +223,8 @@ func NewContractAuthority(path string, handler PrivilegedActionHandler) *Contrac
 	}
 }
 
-// NewRestrictedContractAuthority creates a new contract authority with a proposer restriction
+// NewRestrictedContractAuthority creates a new contract authority with a
+// proposer restriction.
 func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler, proposer Authority) Authority {
 	if path == "" {
 		panic("contract path cannot be empty")
@@ -258,7 +276,8 @@ func (a *ContractAuthority) String() string {
 }
 
 // AutoAcceptAuthority implements an authority that accepts all actions
-// AutoAcceptAuthority is a simple authority that automatically accepts all actions.
+// AutoAcceptAuthority is a simple authority that automatically accepts all
+// actions.
 // It can be used as a proposer authority to allow anyone to create proposals.
 type AutoAcceptAuthority struct{}
 
