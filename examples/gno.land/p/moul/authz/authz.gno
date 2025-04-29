@@ -73,6 +73,19 @@ func New() *Authorizer {
 	}
 }
 
+// NewWithOrigin creates a new Authorizer with the origin caller's address as authority.
+// This is typically used in the init() function.
+func NewWithOrigin() *Authorizer {
+	origin := std.OriginCaller()
+	previous := std.PreviousRealm()
+	if origin != previous.Address() {
+		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
+	}
+	return &Authorizer{
+		current: NewMemberAuthority(origin),
+	}
+}
+
 // NewWithAuthority creates a new Authorizer with a specific authority
 func NewWithAuthority(authority Authority) *Authorizer {
 	return &Authorizer{
