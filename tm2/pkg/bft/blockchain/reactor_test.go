@@ -464,7 +464,7 @@ func TestRestore(t *testing.T) {
 				require.NotNil(t, reactor.reactor.store.LoadBlock(blockHeight-2))
 			}
 
-			require.Equal(t, int64(blockHeight-2), reactor.reactor.store.Height())
+			require.Equal(t, blockHeight-2, reactor.reactor.store.Height())
 		}
 		return nil
 	})
