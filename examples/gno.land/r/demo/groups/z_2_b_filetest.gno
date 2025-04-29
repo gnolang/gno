@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// r/gnoland/users: non-user call
+// missing cross before external crossing() in Register from gno.land/r/demo/groups_test to gno.land/r/gnoland/users/v1
