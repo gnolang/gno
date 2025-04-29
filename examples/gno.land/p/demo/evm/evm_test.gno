@@ -12,17 +12,19 @@ import (
 
 func TestExecuteEvm(t *testing.T) {
 	testCases := []struct {
-		name                string
-		code                []byte
-		expectedResult      []byte
-		expectedMemory      []byte
-		expectedStack       []*uint256.Uint
-		expectedError       error
-		expectedGasConsumed uint
-		gas                 uint
-		ignoreMemory        bool
-		ignoreGasComsumed   bool
-		ignoreStack         bool
+		name                     string
+		code                     []byte
+		expectedResult           []byte
+		expectedMemory           []byte
+		expectedStack            []*uint256.Uint
+		expectedError            error
+		expectedGasConsumed      uint
+		gas                      uint
+		expectedTransientStorage map[uint256.Uint]uint256.Uint
+		ignoreMemory             bool
+		ignoreTransientStorage   bool
+		ignoreGasComsumed        bool
+		ignoreStack              bool
 	}{
 		{
 			name:                "simple addition",
@@ -749,6 +751,57 @@ func TestExecuteEvm(t *testing.T) {
 				uint256.NewUint(uint64(time.Now().Unix())),
 			},
 			expectedGasConsumed: 2,
+		},
+		{
+			name: "push 0 in transient storage",
+			code: []byte{
+				byte(PUSH0),
+				byte(PUSH0),
+				byte(TSTORE),
+				byte(PUSH0),
+				byte(TLOAD),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero(),
+			},
+			expectedGasConsumed: 209,
+		},
+		{
+			name: "push multiple values in transient storage",
+			code: []byte{
+				byte(PUSH1), 1,
+				byte(PUSH1), 2,
+				byte(PUSH1), 3,
+				byte(PUSH1), 4,
+				byte(TSTORE),
+				byte(TSTORE),
+				byte(PUSH1), 2,
+				byte(TLOAD),
+				byte(PUSH1), 4,
+				byte(TLOAD),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(1),
+				uint256.NewUint(3),
+			},
+			expectedGasConsumed: 418,
+		},
+		{
+			name: "push big in transient storage",
+			code: []byte{
+				byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				byte(TSTORE),
+				byte(PUSH32), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				byte(TLOAD),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.MustFromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
+			},
+			expectedGasConsumed: 209,
 		},
 	}
 

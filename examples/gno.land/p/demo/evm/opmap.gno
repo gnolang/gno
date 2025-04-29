@@ -245,8 +245,8 @@ var (
 		MSIZE:          {MSIZE, "MSIZE", opMsize, 2},
 		GAS:            {GAS, "GAS", opGas, 2},
 		JUMPDEST:       {JUMPDEST, "JUMPDEST", opNop, 1},
-		TLOAD:          {TLOAD, "TLOAD", notImplemented, 100},
-		TSTORE:         {TSTORE, "TSTORE", notImplemented, 100},
+		TLOAD:          {TLOAD, "TLOAD", opTload, 100},
+		TSTORE:         {TSTORE, "TSTORE", opTstore, 100},
 		MCOPY:          {MCOPY, "MCOPY", opMcopy, 3}, // can change
 		PUSH0:          {PUSH0, "PUSH0", opPush0, 3},
 		PUSH1:          {PUSH1, "PUSH1", opPush(1), 3},

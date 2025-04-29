@@ -48,7 +48,7 @@ func opMstore(s *State) error {
 	}
 	// if offset + 32 is greater than memory len, expend/consume the diff
 	if off64+32 >= memLen {
-		add := off64+32-memLen
+		add := off64 + 32 - memLen
 		s.memory = append(s.memory, make([]byte, add)...)
 		s.gasConsumed += uint(add)
 	}
@@ -81,7 +81,7 @@ func opMstore8(s *State) error {
 		s.gasConsumed += uint(off64) + 1
 		return nil
 	}
-	if off64 + 1 > memLen {
+	if off64+1 > memLen {
 		add := off64 + 1 - memLen
 		s.memory = append(s.memory, make([]byte, add)...)
 		s.gasConsumed += uint(add)
@@ -120,5 +120,32 @@ func opMcopy(s *State) error {
 	}
 
 	copy(s.memory[dst.Uint64():], s.memory[src.Uint64():size.Uint64()])
+	return nil
+}
+
+func opTload(s *State) error {
+	key, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	read, ok := s.transient_storage[*key]
+	if !ok {
+		s.stack.Push(uint256.Zero())
+	}
+	s.stack.Push(&read)
+	return nil
+}
+
+func opTstore(s *State) error {
+	key, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	value, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	s.transient_storage[*key] = *value
 	return nil
 }
