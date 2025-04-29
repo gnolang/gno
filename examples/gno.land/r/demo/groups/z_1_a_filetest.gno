@@ -19,30 +19,30 @@ const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 func main() {
 	caller := std.OriginCaller() // main
 	testing.SetRealm(std.NewUserRealm(caller))
-	users.Register("main123")
+	cross(users.Register)("main123")
 
 	test1 := testutils.TestAddress("gnouser1")
 	testing.SetOriginCaller(test1)
 	testing.SetRealm(std.NewUserRealm(test1))
-	users.Register("test123")
+	cross(users.Register)("test123")
 
 	test2 := testutils.TestAddress("gnouser2")
 	testing.SetOriginCaller(test2)
 	testing.SetRealm(std.NewUserRealm(test2))
-	users.Register("test223")
+	cross(users.Register)("test223")
 
 	test3 := testutils.TestAddress("gnouser3")
 	testing.SetOriginCaller(test3)
 	testing.SetRealm(std.NewUserRealm(test3))
-	users.Register("test323")
+	cross(users.Register)("test323")
 
 	testing.SetOriginCaller(caller)
 	testing.SetRealm(std.NewUserRealm(caller))
 
-	gid = groups.CreateGroup("test_group")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(gid)
 
-	groups.AddMember(gid, test3.String(), 32, "i am from UAE")
+	cross(groups.AddMember)(gid, test3.String(), 32, "i am from UAE")
 	println(groups.Render("test_group"))
 }
 

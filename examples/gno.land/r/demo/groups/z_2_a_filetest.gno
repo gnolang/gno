@@ -17,34 +17,34 @@ var gid groups.GroupID
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.OriginCaller() // main
+	caller := std.OriginCaller() // main123
 	testing.SetRealm(std.NewUserRealm(caller))
-	users.Register("main123")
+	cross(users.Register)("main123")
 
 	test1 := testutils.TestAddress("gnouser1")
 	testing.SetOriginCaller(test1)
 	testing.SetRealm(std.NewUserRealm(test1))
-	users.Register("test123")
+	cross(users.Register)("test123")
 
 	test2 := testutils.TestAddress("gnouser2")
 	testing.SetOriginCaller(test2)
 	testing.SetRealm(std.NewUserRealm(test2))
-	users.Register("test223")
+	cross(users.Register)("test223")
 
 	test3 := testutils.TestAddress("gnouser3")
 	testing.SetOriginCaller(test3)
 	testing.SetRealm(std.NewUserRealm(test3))
-	users.Register("test323")
+	cross(users.Register)("test323")
 
 	testing.SetOriginCaller(caller)
 	testing.SetRealm(std.NewUserRealm(caller))
 
-	gid = groups.CreateGroup("test_group")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(groups.Render("test_group"))
 
-	groups.AddMember(gid, test2.String(), 42, "metadata3")
+	cross(groups.AddMember)(gid, test2.String(), 42, "metadata3")
 
-	groups.DeleteMember(gid, 0)
+	cross(groups.DeleteMember)(gid, 0)
 	println(groups.RenderGroup(gid))
 }
 
