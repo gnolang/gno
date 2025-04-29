@@ -31,7 +31,7 @@ func main() {
 	// Success case
 	tID := cross(boards2.CreateRepost)(srcBID, srcTID, "repost title", "repost text", dstBID)
 	p := ufmt.Sprintf("dst-board/%s", tID)
-	out := cross(boards2.Render)(p)
+	out := boards2.Render(p)
 
 	println(strings.Contains(out, "original text"))
 	println(strings.Contains(out, "repost title"))

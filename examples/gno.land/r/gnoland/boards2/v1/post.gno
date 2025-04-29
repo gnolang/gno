@@ -9,8 +9,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/jeronimoalbi/pager"
-	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
 )
 
 const dateFormat = "2006-01-02 3:04pm MST"
@@ -225,7 +223,7 @@ func (post *Post) GetURL() string {
 
 func (post *Post) GetReplyFormURL() string {
 	if post.IsThread() {
-		return txlink.Call(
+		return gRealmLink.Call(
 			"CreateReply",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
@@ -233,7 +231,7 @@ func (post *Post) GetReplyFormURL() string {
 			"body", "",
 		)
 	}
-	return txlink.Call(
+	return gRealmLink.Call(
 		"CreateReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
@@ -243,7 +241,7 @@ func (post *Post) GetReplyFormURL() string {
 }
 
 func (post *Post) GetRepostFormURL() string {
-	return txlink.Call(
+	return gRealmLink.Call(
 		"CreateRepost",
 		"boardID", post.board.id.String(),
 		"threadID", post.id.String(),
@@ -255,13 +253,13 @@ func (post *Post) GetRepostFormURL() string {
 
 func (post *Post) GetDeleteFormURL() string {
 	if post.IsThread() {
-		return txlink.Call(
+		return gRealmLink.Call(
 			"DeleteThread",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
 		)
 	}
-	return txlink.Call(
+	return gRealmLink.Call(
 		"DeleteReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
@@ -271,7 +269,7 @@ func (post *Post) GetDeleteFormURL() string {
 
 func (post *Post) GetEditFormURL() string {
 	if post.IsThread() {
-		return txlink.Call(
+		return gRealmLink.Call(
 			"EditThread",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
@@ -280,7 +278,7 @@ func (post *Post) GetEditFormURL() string {
 		)
 	}
 
-	return txlink.Call(
+	return gRealmLink.Call(
 		"EditReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
@@ -291,7 +289,7 @@ func (post *Post) GetEditFormURL() string {
 
 func (post *Post) GetFlagFormURL() string {
 	if post.IsThread() {
-		return txlink.Call(
+		return gRealmLink.Call(
 			"FlagThread",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
@@ -299,7 +297,7 @@ func (post *Post) GetFlagFormURL() string {
 		)
 	}
 
-	return txlink.Call(
+	return gRealmLink.Call(
 		"FlagReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
@@ -500,7 +498,7 @@ func (post *Post) renderTopLevelReplies(path, indent string, levels int) string 
 	}
 
 	b.WriteString("\n\n---\nSort by: ")
-	r := realmpath.Parse(path)
+	r := parseRealmPath(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		b.WriteString(newLink("newest first", r.String()))

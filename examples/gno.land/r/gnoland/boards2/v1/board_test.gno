@@ -33,7 +33,7 @@ func TestBoard_GetID(t *testing.T) {
 }
 
 func TestBoard_GetURL(t *testing.T) {
-	pkgPath := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
+	pkgPath := strings.TrimPrefix(string(gRealmLink), "gno.land")
 	name := "foobar_test_get_url123"
 	want := pkgPath + ":" + name
 
@@ -71,7 +71,7 @@ func TestBoard_DeleteThread(t *testing.T) {
 	uassert.False(t, ok)
 }
 
-var boardUrlPrefix = strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
+var boardUrlPrefix = strings.TrimPrefix(string(gRealmLink), "gno.land")
 
 func TestBoard_GetURLFromThreadID(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
@@ -104,7 +104,7 @@ func TestBoard_GetPostFormURL(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	perms := createDefaultBoardPermissions(addr)
 	b := newBoard(bid, "foo1234", addr, perms)
-	expect := txlink.Call("CreateThread", "boardID", bid.String(), "title", "", "body", "")
+	expect := gRealmLink.Call("CreateThread", "boardID", bid.String(), "title", "", "body", "")
 
 	got := b.GetPostFormURL()
 	uassert.Equal(t, expect, got)

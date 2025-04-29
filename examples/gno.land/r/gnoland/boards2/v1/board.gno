@@ -8,10 +8,8 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/nt/commondao"
 	"gno.land/p/jeronimoalbi/pager"
-	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/commondao"
 )
 
 type BoardID uint64
@@ -60,14 +58,14 @@ func (board *Board) GetName() string {
 
 // GetURL returns the relative URL of the board.
 func (board *Board) GetURL() string {
-	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + url.PathEscape(board.name)
+	return strings.TrimPrefix(string(gRealmLink), "gno.land") + ":" + url.PathEscape(board.name)
 }
 
 // GetURL returns relative board path relative.
 //
 // Note: returned result is not escaped. Use GetURL to get URL-encoded path.
 func (board *Board) GetPath() string {
-	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + board.name
+	return strings.TrimPrefix(string(gRealmLink), "gno.land") + ":" + board.name
 }
 
 func (board *Board) GetPermissions() Permissions {
@@ -157,7 +155,7 @@ func (board *Board) Render(path, menu string) string {
 	}
 
 	sb.WriteString("Sort by: ")
-	r := realmpath.Parse(path)
+	r := parseRealmPath(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		sb.WriteString(newLink("newest first", r.String()))
@@ -192,7 +190,7 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 }
 
 func (board *Board) GetRenameFormURL() string { // TODO: These type of functions shouldn't be part of Board type
-	return txlink.Call(
+	return gRealmLink.Call(
 		"RenameBoard",
 		"name", board.name,
 		"newName", "",
@@ -200,14 +198,14 @@ func (board *Board) GetRenameFormURL() string { // TODO: These type of functions
 }
 
 func (board *Board) GetFreezeFormURL() string {
-	return txlink.Call(
+	return gRealmLink.Call(
 		"FreezeBoard",
 		"boardID", board.id.String(),
 	)
 }
 
 func (board *Board) GetUnfreezeFormURL() string {
-	return txlink.Call(
+	return gRealmLink.Call(
 		"UnfreezeBoard",
 		"boardID", board.id.String(),
 		"threadID", "",
@@ -216,7 +214,7 @@ func (board *Board) GetUnfreezeFormURL() string {
 }
 
 func (board *Board) GetFlaggingThresholdFormURL() string {
-	return txlink.Call(
+	return gRealmLink.Call(
 		"SetFlaggingThreshold",
 		"boardID", board.id.String(),
 		"threshold", "",
@@ -224,7 +222,7 @@ func (board *Board) GetFlaggingThresholdFormURL() string {
 }
 
 func (board *Board) GetInviteMemberFormURL() string {
-	return txlink.Call(
+	return gRealmLink.Call(
 		"InviteMember",
 		"boardID", board.id.String(),
 		"user", "",
@@ -233,7 +231,7 @@ func (board *Board) GetInviteMemberFormURL() string {
 }
 
 func (board *Board) GetPostFormURL() string {
-	return txlink.Call(
+	return gRealmLink.Call(
 		"CreateThread",
 		"boardID", board.id.String(),
 		"title", "",

@@ -27,7 +27,7 @@ func main() {
 	cross(boards2.DeleteReply)(bid, tid, rid)
 
 	// Ensure reply doesn't exist
-	println(cross(boards2.Render)("test-board/1/2"))
+	println(boards2.Render("test-board/1/2"))
 }
 
 // Output:
