@@ -118,8 +118,7 @@ func opMcopy(s *State) error {
 		s.memory = append(s.memory, make([]byte, extend)...)
 		s.gasConsumed += uint(extend)
 	}
-
-	copy(s.memory[dst.Uint64():], s.memory[src.Uint64():size.Uint64()])
+	copy(s.memory[dst.Uint64():], s.memory[src.Uint64():src.Uint64()+size.Uint64()])
 	return nil
 }
 
@@ -129,7 +128,7 @@ func opTload(s *State) error {
 		return err
 	}
 
-	read, ok := s.transient_storage[*key]
+	read, ok := s.transientStorage[*key]
 	if !ok {
 		s.stack.Push(uint256.Zero())
 	}
@@ -146,6 +145,6 @@ func opTstore(s *State) error {
 	if err != nil {
 		return err
 	}
-	s.transient_storage[*key] = *value
+	s.transientStorage[*key] = *value
 	return nil
 }

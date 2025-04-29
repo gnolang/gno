@@ -211,3 +211,36 @@ func opTimestamp(s *State) error {
 	s.stack.Push(uint256.NewUint(uint64(time.Now().Unix())))
 	return nil
 }
+
+func opReturn(s *State) error {
+	if s.stack.Len() < 2 {
+		return tooFewStack
+	}
+	off, _ := s.stack.Pop()
+	size, _ := s.stack.Pop()
+	memLen256 := uint256.NewUint(uint64(len(s.memory)))
+	if !size.IsZero() {
+		// extend memory if needed and consume gas
+		end := uint256.Zero().Add(off, size)
+		if end.Gt(memLen256) {
+			more := end.Sub(end, memLen256).Uint64()
+			s.memory = append(s.memory, make([]byte, more)...)
+			s.gasConsumed += uint(more)
+		}
+		s.result = append(s.result, s.memory[off.Uint64():end.Uint64()]...)
+	}
+	s.code.Stop()
+	return nil
+}
+
+func opRevert(s *State) error {
+	_ = opInvalid(s)
+	return opReturn(s)
+}
+
+func opInvalid(s *State) error {
+	s.tmp.logs = []LogEntry{}
+	s.tmp.storage = []byte{}
+	s.code.Stop()
+	return nil
+}

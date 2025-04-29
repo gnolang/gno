@@ -8,7 +8,8 @@ type instructions struct {
 	rip          int
 	instructions []byte
 	length       int
-	err 		 error
+	err          error
+	stop         bool
 }
 
 func (i *instructions) Reset(l []byte) {
@@ -49,6 +50,14 @@ func (i instructions) Error() error {
 	return i.err
 }
 
+func (i instructions) IsDone() bool {
+	return i.Ill() || i.stop
+}
+
+func (i *instructions) Stop() {
+	i.stop = true
+}
+
 // read n bytes and jump to rip + n
 func (i *instructions) Read(n int) (*uint256.Uint, error) {
 	if i.Ill() {
@@ -58,7 +67,7 @@ func (i *instructions) Read(n int) (*uint256.Uint, error) {
 		return uint256.Zero(), outOfBounds
 	}
 	x := uint256.Zero().SetBytes(i.instructions[i.rip : i.rip+n])
-	i.Increment(n-1)
+	i.Increment(n - 1)
 	return x, nil
 }
 

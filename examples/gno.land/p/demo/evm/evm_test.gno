@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -636,6 +637,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(PUSH1), 32,
 				byte(PUSH0),
 				byte(MCOPY),
+
 				byte(STOP),
 			},
 			expectedMemory:      []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f},
@@ -803,6 +805,42 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 209,
 		},
+		{
+			name: "return 42",
+			code: []byte{
+				byte(PUSH1), 42, // data
+				byte(PUSH0), // offset
+				byte(MSTORE),
+
+				byte(PUSH1), 1, // size
+				byte(PUSH1), 31, // offset
+				byte(RETURN),
+				byte(STOP),
+			},
+			expectedMemory:    append(make([]byte, 31), 42),
+			expectedResult:    []byte{42},
+			ignoreGasComsumed: true,
+		},
+		{
+			name: "2 return 42 (should do only one i think)",
+			code: []byte{
+				byte(PUSH1), 42, // data
+				byte(PUSH0), // offset
+				byte(MSTORE),
+
+				byte(PUSH1), 1, // size
+				byte(PUSH1), 31, // offset
+				byte(RETURN),
+
+				byte(PUSH1), 1, // size
+				byte(PUSH1), 31, // offset
+				byte(RETURN),
+				byte(STOP),
+			},
+			expectedMemory:    append(make([]byte, 31), 42),
+			expectedResult:    []byte{42},
+			ignoreGasComsumed: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -857,8 +895,8 @@ func TestExecuteEvm(t *testing.T) {
 			if len(mem) != len(tc.expectedMemory) {
 				errMem = true
 			} else {
-				for i := 0; i < len(result); i++ {
-					if result[i] != tc.expectedMemory[i] {
+				for i := 0; i < len(mem); i++ {
+					if mem[i] != tc.expectedMemory[i] {
 						errMem = true
 						break
 					}
@@ -912,22 +950,27 @@ func TestExecuteEvm(t *testing.T) {
 					t.Errorf("-> %s", actual)
 				}
 			}
+			max := len(mem)
+			if len(tc.expectedMemory) > max {
+				max = len(tc.expectedMemory)
+			}
 			if errMem {
-				t.Errorf("I expected this memory:")
-				for i := 0; i < len(mem) || i < len(tc.expectedMemory); i++ {
-					expected := "empty"
+				t.Errorf("Memory doesnt match expected")
+				t.Errorf("| EXPECTED |  REALLY  |")
+				t.Errorf("|----------|----------|")
+				for i := 0; i < max; i++ {
+					x := "        "
+					y := "        "
+					tmp := ""
 					if i < len(tc.expectedMemory) {
-						expected = "'" + strconv.FormatUint(uint64(tc.expectedMemory[i]), 16) + "'"
+						tmp = strconv.FormatUint(uint64(tc.expectedMemory[i]), 16)
+						x = strings.Repeat(" ", 8 - len(tmp)) + tmp
 					}
-					t.Errorf("-> %s", expected)
-				}
-				t.Error("but I got that one:")
-				for i := 0; i < len(mem) || i < len(tc.expectedMemory); i++ {
-					actual := "<empty>"
 					if i < len(mem) {
-						actual = "'" + strconv.FormatUint(uint64(mem[i]), 16) + "'"
+						tmp = strconv.FormatUint(uint64(mem[i]), 16)
+						y = strings.Repeat(" ", 8 - len(tmp)) + tmp
 					}
-					t.Errorf("-> %s", actual)
+					t.Errorf("| " + x + " | " + y + " |")
 				}
 			}
 		})

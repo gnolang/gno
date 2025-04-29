@@ -159,6 +159,7 @@ const (
 	CREATE2        OpCode = 0xF5
 	STATICCALL     OpCode = 0xFA
 	REVERT         OpCode = 0xFD
+	INVALID        OpCode = 0xFE
 	SELFDESTRUCT   OpCode = 0xFF
 )
 
@@ -321,11 +322,12 @@ var (
 		CREATE:         {CREATE, "CREATE", notImplemented /*opCreate*/, 32000},
 		CALL:           {CALL, "CALL", notImplemented /*opCall*/, 100},
 		CALLCODE:       {CALLCODE, "CALLCODE", notImplemented /*opCallcode*/, 700},
-		RETURN:         {RETURN, "RETURN", notImplemented /*opRetour*/, 0},
+		RETURN:         {RETURN, "RETURN", opReturn, 0},
 		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", notImplemented /*opDelegatecall*/, 100},
 		CREATE2:        {CREATE2, "CREATE2", notImplemented /*opCreate2*/, 32000},
 		STATICCALL:     {STATICCALL, "STATICCALL", notImplemented /*opStaticcall*/, 700},
-		REVERT:         {REVERT, "REVERT", notImplemented /*opRevert*/, 0},
+		REVERT:         {REVERT, "REVERT", opRevert, 0},
+		INVALID:        {INVALID, "INVALID", opInvalid, 0},
 		SELFDESTRUCT:   {SELFDESTRUCT, "SELFDESTRUCT", notImplemented /*opSelfdestruct*/, 5000},
 	}
 )

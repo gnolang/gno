@@ -10,6 +10,8 @@ var (
 	invalidInstruction = errors.New("invalid instruction")
 	outOfGas           = errors.New("the user is out of gas")
 	notEnoughGas       = errors.New("the user does not have that much gas")
+	tooFewStack        = errors.New("too few values on stack")
+	invalidPanic 	   = errors.New("invalid was called, aborting")
 )
 
 func notImplemented(s *State) error {
