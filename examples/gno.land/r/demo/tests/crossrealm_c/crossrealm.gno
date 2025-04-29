@@ -1,9 +1,10 @@
 package crossrealm_c
 
 import (
+	"std"
+
 	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/r/demo/tests/crossrealm"
-	"std"
 )
 
 func EntryPoint() {
