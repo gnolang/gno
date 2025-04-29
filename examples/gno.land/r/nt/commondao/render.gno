@@ -10,7 +10,6 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/commondao"
 
 	"gno.land/r/sys/users"
@@ -435,7 +434,7 @@ func mustGetProposalFromRequest(req *mux.Request, dao *commondao.CommonDAO) *com
 }
 
 func voteLink(daoID, proposalID uint64) string {
-	return ufmt.Sprintf("[Vote](%s)", txlink.Call(
+	return ufmt.Sprintf("[Vote](%s)", realmLink.Call(
 		"Vote",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"proposalID", strconv.FormatUint(proposalID, 10),
@@ -445,7 +444,7 @@ func voteLink(daoID, proposalID uint64) string {
 }
 
 func executeLink(daoID, proposalID uint64) string {
-	return ufmt.Sprintf("[Execute](%s)", txlink.Call(
+	return ufmt.Sprintf("[Execute](%s)", realmLink.Call(
 		"Execute",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"proposalID", strconv.FormatUint(proposalID, 10),
@@ -453,7 +452,7 @@ func executeLink(daoID, proposalID uint64) string {
 }
 
 func updateMembersLink(daoID uint64) string {
-	return ufmt.Sprintf("[Update Members](%s)", txlink.Call(
+	return ufmt.Sprintf("[Update Members](%s)", realmLink.Call(
 		"CreateMembersUpdateProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"newMembers", "",

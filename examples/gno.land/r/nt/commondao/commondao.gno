@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/commondao"
 )
 
@@ -13,12 +14,18 @@ const CommonDAOID uint64 = 1
 
 var (
 	daoID     seqid.ID
+	realmLink txlink.Realm
 	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
 	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
 	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
 	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(path) -> *commondao.CommonDAO)
 	options   = avl.NewTree() // string(root ID) -> *Options
 )
+
+func init() {
+	// Save current realm path so it's available during render calls
+	realmLink = txlink.Realm(std.CurrentRealm().PkgPath())
+}
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
 	key := makeIDKey(daoID)
