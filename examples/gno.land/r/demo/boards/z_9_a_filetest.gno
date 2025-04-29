@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// src board not exist
+// invalid non-user call

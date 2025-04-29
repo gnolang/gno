@@ -280,7 +280,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		n := gno.MustParseFile(filename, string(content))
 
 		m.RunFiles(n)
-		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.X("main"))))
+		m.RunMain()
 	} else {
 		// Realm case.
 		gno.DisableDebug() // until main call.
@@ -321,9 +321,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
-		// Call main() like withrealm(main)().
-		// This will switch the realm to the package.
-		// main() must start with crossing().
 		m.RunMain()
 	}
 
