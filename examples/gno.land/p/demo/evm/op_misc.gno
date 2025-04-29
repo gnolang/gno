@@ -240,7 +240,7 @@ func opRevert(s *State) error {
 
 func opInvalid(s *State) error {
 	s.tmp.logs = []LogEntry{}
-	s.tmp.storage = []byte{}
+	s.tmp.storage = make(map[uint256.Uint]*uint256.Uint)
 	s.code.Stop()
 	return nil
 }
