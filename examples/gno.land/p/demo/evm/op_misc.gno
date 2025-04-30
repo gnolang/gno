@@ -244,3 +244,13 @@ func opInvalid(s *State) error {
 	s.code.Stop()
 	return nil
 }
+
+func opCaller(s *State) error {
+	s.stack.Push(s.caller.EVMAddress.Clone())
+	return nil
+}
+
+func opCallvalue(s *State) error {
+	s.stack.Push(s.callValue.Clone())
+	return nil
+}

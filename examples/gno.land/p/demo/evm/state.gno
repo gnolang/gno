@@ -18,14 +18,17 @@ type tmpEnv struct {
 }
 
 type State struct {
+	caller           *Caller
+	callValue        *uint256.Uint
+	callData         []byte
 	memory           []byte
-	result 			 []byte
+	result           []byte
 	transientStorage map[uint256.Uint]*uint256.Uint
 	stack            evmStack
 	code             instructions
 	tmp              tmpEnv
-	gasConsumed      uint		// The real amount of gas consumed by the program
-	gasBet           int 		// The amount of gas specified by user
+	gasConsumed      uint // The real amount of gas consumed by the program
+	gasBet           int  // The amount of gas specified by user
 	env              *Env
 }
 
@@ -35,6 +38,7 @@ func newState() *State {
 		memory: []byte{}, // make([]byte, 1024)
 		result: []byte{}, // make([]byte, 1024)
 		code:   instructions{},
+		caller: nil,
 		tmp: tmpEnv{
 			storage:     make(map[uint256.Uint]*uint256.Uint),
 			logs:        []LogEntry{},
@@ -47,9 +51,7 @@ func newState() *State {
 	}
 }
 
-// TODO: return the s.buf
 func (s State) getStackData() []*uint256.Uint {
-	// return s.buf
 	return s.stack.data
 }
 
@@ -63,6 +65,18 @@ func (s *State) setEnv(env *Env) {
 
 func (s *State) setGasBet(gas uint) {
 	s.gasBet = int(gas)
+}
+
+func (s *State) setCaller(caller *Caller) {
+	s.caller = caller
+}
+
+func (s *State) setCallValue(wei *uint256.Uint) {
+	s.callValue = wei.Clone()
+}
+
+func (s *State) setCallData(data []byte) {
+	s.callData = append(s.callData, data...)
 }
 
 func (s *State) executeByteCode(code []byte) error {

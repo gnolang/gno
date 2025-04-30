@@ -1,6 +1,8 @@
 package evm
 
 import (
+	"math"
+
 	"gno.land/p/demo/uint256"
 )
 
@@ -115,7 +117,7 @@ func opMcopy(s *State) error {
 
 	memlen256 := uint256.NewUint(uint64(len(s.memory)))
 	farest := uint256.Zero().Max(uint256.Zero().Add(src, size), uint256.Zero().Add(dst, size))
-	if farest.Cmp(memlen256) > 0 {
+	if farest.Gt(memlen256) {
 		extend := uint256.Zero().Sub(farest, memlen256).Uint64()
 		s.memory = append(s.memory, make([]byte, extend)...)
 		s.gasConsumed += uint(extend)
@@ -200,5 +202,69 @@ func opSstore(s *State) error {
 	}
 
 	s.tmp.storage[*key] = value
+	return nil
+}
+
+func opCalldataload(s *State) error {
+	off, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	off64 := off.Uint64()
+	read := []byte{}
+	if off64+32 > uint64(len(s.callData)) {
+		read = s.callData[off64:]
+	} else {
+		read = s.callData[off64 : off64+32]
+	}
+	if len(read) < 32 {
+		read = append(read, make([]byte, 32-len(read))...)
+	}
+	s.stack.Push(uint256.Zero().SetBytes(read))
+	return nil
+}
+
+func opCalldatasize(s *State) error {
+	s.stack.Push(uint256.NewUint(uint64(len(s.callData))))
+	return nil
+}
+func opCalldatacopy(s *State) error {
+	dest, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	src, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	size, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	memLen := uint64(len(s.memory))
+	farest := dest.Uint64() + size.Uint64()
+	memoryCost := uint64(0)
+	if farest > memLen {
+		extend := farest - memLen
+		s.memory = append(s.memory, make([]byte, extend)...)
+
+		memorySizeWord := (extend + 31) / 32
+		memoryCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
+	}
+
+	callDataLen := uint64(len(s.callData))
+	farest = src.Uint64() + size.Uint64()
+	if farest > callDataLen {
+		copy(s.memory[dest.Uint64():], s.callData[src.Uint64():])
+		sizeCopied := callDataLen - src.Uint64()
+		copy(s.memory[dest.Uint64()+sizeCopied:], make([]byte, size.Uint64()-sizeCopied))
+	} else {
+		copy(s.memory[dest.Uint64():], s.callData[src.Uint64():src.Uint64()+size.Uint64()])
+	}
+
+	minimumWordSize := (size.Uint64() + 31) / 32
+	dynamicGas := 3*minimumWordSize + memoryCost
+	s.gasConsumed += uint(dynamicGas)
 	return nil
 }

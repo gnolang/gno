@@ -210,11 +210,11 @@ var (
 		ADDRESS:        {ADDRESS, "ADDRESS", notImplemented, 2},
 		BALANCE:        {BALANCE, "BALANCE", notImplemented, 100}, // can change
 		ORIGIN:         {ORIGIN, "ORIGIN", notImplemented, 2},
-		CALLER:         {CALLER, "CALLER", notImplemented, 2},
-		CALLVALUE:      {CALLVALUE, "CALLVALUE", notImplemented, 2},
-		CALLDATALOAD:   {CALLDATALOAD, "CALLDATALOAD", notImplemented, 3},
-		CALLDATASIZE:   {CALLDATASIZE, "CALLDATASIZE", notImplemented, 2},
-		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", notImplemented, 3}, // can change
+		CALLER:         {CALLER, "CALLER", opCaller, 2},
+		CALLVALUE:      {CALLVALUE, "CALLVALUE", opCallvalue, 2},
+		CALLDATALOAD:   {CALLDATALOAD, "CALLDATALOAD", opCalldataload, 3},
+		CALLDATASIZE:   {CALLDATASIZE, "CALLDATASIZE", opCalldatasize, 2},
+		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", opCalldatacopy, 3}, // can change
 		CODESIZE:       {CODESIZE, "CODESIZE", opCodeSize, 2},
 		CODECOPY:       {CODECOPY, "CODECOPY", notImplemented, 3}, // can change
 		GASPRICE:       {GASPRICE, "GASPRICE", notImplemented, 2},
