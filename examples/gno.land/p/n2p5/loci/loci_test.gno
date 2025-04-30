@@ -9,7 +9,6 @@ import (
 
 func TestLociStore(t *testing.T) {
 	t.Run("TestSet", func(t *testing.T) {
-		t.Parallel()
 		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 		caller := std.PreviousRealm()
 		store := New()
@@ -27,7 +26,6 @@ func TestLociStore(t *testing.T) {
 		}
 	})
 	t.Run("TestGet", func(t *testing.T) {
-		t.Parallel()
 		testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 		caller := std.PreviousRealm()
 		store := New()
