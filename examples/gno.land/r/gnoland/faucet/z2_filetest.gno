@@ -37,7 +37,7 @@ func main() {
 // # Community Faucet.
 //
 // Status: active.
-// Balance: .
+// Balance: 200000000ugnot.
 // Total transfers:  (in 0 times).
 //
 // Package address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
