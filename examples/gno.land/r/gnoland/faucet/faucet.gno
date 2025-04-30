@@ -54,9 +54,14 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
+func bankerAddr() std.Address {
+	crossing()
+	return std.CurrentRealm().Address()
+}
+
 func Render(_ string) string {
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	balance := banker.GetCoins(std.CurrentRealm().Address())
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	balance := banker.GetCoins(cross(bankerAddr)())
 
 	output := gMessage
 	if gInPause {
