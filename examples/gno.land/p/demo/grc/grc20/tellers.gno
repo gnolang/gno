@@ -14,7 +14,7 @@ func (tok *Token) CallerTeller() Teller {
 
 	return &fnTeller{
 		accountFn: func() std.Address {
-			caller := std.CurrentRealm().Address()
+			caller := std.PreviousRealm().Address()
 			return caller
 		},
 		Token: tok,
