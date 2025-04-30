@@ -81,14 +81,14 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.float64(1337)`), expectedResult: `(1337 float64)`},
 		{input: []byte(`gno.land/r/hello.myStructInst`), expectedResult: `(struct{(1000 int)} gno.land/r/hello.myStruct)`},
 		{input: []byte(`gno.land/r/hello.myStructInst.Foo()`), expectedResult: `("myStruct.Foo" string)`},
-		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct \(0x.*\)} type{}\)`},
+		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct} type{}\)`},
 		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func() int)`},
 		{input: []byte(`gno.land/r/hello.fn()("hi")`), expectedResult: `("echo:hi" string)`},
 		{input: []byte(`gno.land/r/hello.sl`), expectedResultMatch: `(slice[ref(.*)] []int)`},    // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.sl[1]`), expectedResultMatch: `(slice[ref(.*)] []int)`}, // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.println(1234)`), expectedResultMatch: `^$`},             // XXX: compare stdout?
 		{
-			input:          []byte(`gno.land/r/hello.func() string { return "hello123" + pvString }()`),
+			input:          []byte(`gno.land/r/hello.(func() string { return "hello123" + pvString })()`),
 			expectedResult: `("hello123private string" string)`,
 		},
 
@@ -190,7 +190,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 		expectedErrorMatch string
 	}{
 		// valid queries
-		{input: []byte(`gno.land/r/hello`), expectedResult: `[{"FuncName":"Panic","Params":null,"Results":null},{"FuncName":"Echo","Params":[{"Name":"msg","Type":"string","Value":""}],"Results":[{"Name":"_","Type":"string","Value":""}]},{"FuncName":"GetCounter","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]},{"FuncName":"Inc","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]}]`},
+		{input: []byte(`gno.land/r/hello`), expectedResult: `[{"FuncName":"Panic","Params":null,"Results":null},{"FuncName":"Echo","Params":[{"Name":"msg","Type":"string","Value":""}],"Results":[{"Name":".res.0","Type":"string","Value":""}]},{"FuncName":"GetCounter","Params":null,"Results":[{"Name":".res.0","Type":"int","Value":""}]},{"FuncName":"Inc","Params":null,"Results":[{"Name":".res.0","Type":"int","Value":""}]}]`},
 		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `invalid package path`},
 		{input: []byte(`std`), expectedErrorMatch: `invalid package path`},
 		{input: []byte(`strings`), expectedErrorMatch: `invalid package path`},

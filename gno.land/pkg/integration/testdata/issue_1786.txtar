@@ -1,3 +1,5 @@
+# XXX: NEED UPDATE: cannot send transfer to self
+
 # Test for https://github.com/gnolang/gno/issues/1786
 
 loadpkg gno.land/r/demo/wugnot
@@ -49,6 +51,8 @@ import (
 )
 
 func ProxyWrap() {
+	crossing()
+
 	sent := std.OriginSend()
 	ugnotSent := uint64(sent.AmountOf("ugnot"))
 
@@ -60,13 +64,15 @@ func ProxyWrap() {
 	wugnotAddr := std.DerivePkgAddr("gno.land/r/demo/wugnot")
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(std.CurrentRealm().Address(), wugnotAddr, std.Coins{{"ugnot", int64(ugnotSent)}})
-	wugnot.Deposit() // `proxywugnot` has ugnot
+	cross(wugnot.Deposit)() // `proxywugnot` has ugnot
 
 	// SEND WUGNOT: PROXY_WUGNOT -> USER
-	wugnot.Transfer(std.OriginCaller(), ugnotSent)
+	cross(wugnot.Transfer)(std.OriginCaller(), ugnotSent)
 }
 
 func ProxyUnwrap(wugnotAmount uint64) {
+	crossing()
+
 	if wugnotAmount == 0 {
 		return
 	}
@@ -81,4 +87,3 @@ func ProxyUnwrap(wugnotAmount uint64) {
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
 }
-

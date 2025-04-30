@@ -4,11 +4,12 @@ import "std"
 
 func main() {
 	defer func() {
-		// assert panic is recoverable
+		// assert no panic
 		println(recover())
 	}()
-	std.CallerAt(0)
+	println(std.PreviousRealm())
 }
 
 // Output:
-// CallerAt requires positive arg
+// (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
+// undefined

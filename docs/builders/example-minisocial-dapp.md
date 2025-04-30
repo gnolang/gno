@@ -124,7 +124,7 @@ included in, instead of the system time.
 :::info Lint & format
 
 The `gno` binary provides tooling which can help you write correct code.
-You can use `gno tool lint` and `gno tool fmt` to lint and format your code,
+You can use `gno lint` and `gno tool fmt` to lint and format your code,
 respectively.
 :::
 
@@ -295,7 +295,7 @@ func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	std.TestSetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 	err := CreatePost(text1)
@@ -332,7 +332,7 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		std.TestSetRealm(std.NewUserRealm(authorAddr))
+		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
 		err := CreatePost(p.text)
@@ -371,7 +371,7 @@ ok      .       0.87s
 Congratulations on completing your first Gno realm!
 Now you're equipped with the required knowledge to venture into gno.land.
 
-Full code of this app can be found on the Portal Loop network, on
+Full code of this app can be found on the Staging network, on
 [this link](https://gno.land/r/docs/minisocial).
 
 ## Bonus - resolving usernames

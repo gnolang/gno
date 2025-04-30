@@ -18,6 +18,8 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
+var chainDomain = std.ChainDomain()
+
 type Presentation struct {
 	Slug      string
 	Title     string
@@ -53,7 +55,7 @@ func init() {
 		return v.(*Presentation).Title
 	}, collection.DefaultIndex)
 
-	Ownable = ownable.New()
+	Ownable = ownable.NewWithOrigin()
 }
 
 // Render handles the realm's rendering logic
@@ -87,7 +89,7 @@ func Render(path string) string {
 
 // Set adds or updates a presentation
 func Set(slug, title, event, author, date, content string) string {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 
 	parsedDate, err := time.Parse("2006-01-02", date)
 	if err != nil {
@@ -120,7 +122,7 @@ func Set(slug, title, event, author, date, content string) string {
 
 // Delete removes a presentation
 func Delete(slug string) string {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 
 	entry := presentations.GetFirst("slug", slug)
 	if entry == nil {
@@ -193,7 +195,7 @@ func renderList(req *realmpath.Request) string {
 	}
 
 	out.WriteString(table.String())
-	out.WriteString(page.Picker()) // XXX: picker is not preserving the previous flags, should take "req" as argument.
+	out.WriteString(page.Picker(req.String()))
 	return out.String()
 }
 
@@ -210,7 +212,7 @@ func (p *Presentation) LastSlide() string {
 	out.WriteString(md.H1(p.Title))
 	out.WriteString(md.H2("Thank You!"))
 	out.WriteString(md.Paragraph(p.Author))
-	fullPath := "https://" + std.ChainDomain() + localPath(p.Slug, nil)
+	fullPath := "https://" + chainDomain + localPath(p.Slug, nil)
 	out.WriteString(md.Paragraph("🔗 " + md.Link(fullPath, fullPath)))
 	// XXX: QRCode
 	return out.String()

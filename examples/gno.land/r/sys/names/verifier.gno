@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	Ownable = ownable.NewWithAddress("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // dropped in genesis via Enable
+	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // dropped in genesis via Enable. XXX We should switch to something better once the GovDAO situation is stabilized.
 
 	enabled = false
 )
@@ -27,12 +27,16 @@ func IsAuthorizedAddressForNamespace(address std.Address, namespace string) bool
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
 func Enable() {
-	Ownable.AssertCallerIsOwner()
+	crossing()
+
+	Ownable.AssertOwnedByPrevious()
 	enabled = true
 	Ownable.DropOwnership()
 }
 
 func IsEnabled() bool {
+	crossing()
+
 	return enabled
 }
 

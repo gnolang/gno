@@ -1,7 +1,6 @@
 package users
 
 import (
-	"std"
 	"strconv"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func TestResolveName(t *testing.T) {
-	std.TestSetOriginCaller(whitelistedCallerAddr)
+	testing.SetOriginCaller(whitelistedCallerAddr)
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -65,7 +64,7 @@ func TestResolveName(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	std.TestSetOriginCaller(whitelistedCallerAddr)
+	testing.SetOriginCaller(whitelistedCallerAddr)
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -115,7 +114,7 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestROStores(t *testing.T) {
-	std.TestSetOriginCaller(whitelistedCallerAddr)
+	testing.SetOriginCaller(whitelistedCallerAddr)
 	cleanStore(t)
 
 	urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -159,7 +158,7 @@ func TestROStores(t *testing.T) {
 		rawRoData, ok := roNS.Get(alice)
 		// uassert.False(t, ok)
 		// XXX: not sure what to do here, as the tree technically has the data so returns ok
-		// However the data is intercepted and something else (nilin this case) is returned.
+		// However the data is intercepted and something else (nil in this case) is returned.
 		// should we handle this somehow?
 
 		uassert.Equal(t, rawRoData, nil)
@@ -168,9 +167,43 @@ func TestROStores(t *testing.T) {
 	})
 }
 
+func TestResolveAny(t *testing.T) {
+	testing.SetOriginCaller(whitelistedCallerAddr)
+
+	t.Run("name", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+
+		res, _ := ResolveAny(alice)
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("address", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+
+		res, _ := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("not_registered", func(t *testing.T) {
+		cleanStore(t)
+
+		res, _ := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, nil, res)
+	})
+}
+
 // TODO Uncomment after gnoweb /u/ page.
 //func TestUserRenderLink(t *testing.T) {
-//	std.TestSetOriginCaller(whitelistedCallerAddr)
+//	testing.SetOriginCaller(whitelistedCallerAddr)
 //	cleanStore(t)
 //
 //	urequire.NoError(t, RegisterUser(alice, aliceAddr))

@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/sys/users"
 )
 
@@ -70,10 +70,10 @@ var (
 )
 
 func init() {
-	Ownable = ownable.New()
+	Ownable = ownable.NewWithOrigin()
 	players = avl.NewTree()
 	gameState.Ended = true
-	hof.Register()
+	hor.Register("FOMO3D Game!", "")
 }
 
 // StartGame starts a new game round
@@ -221,7 +221,7 @@ func ClaimDividends() {
 
 // ClaimOwnerFee allows the owner to withdraw accumulated fees
 func ClaimOwnerFee() {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 
 	if gameState.OwnerFee == 0 {
 		panic(ErrNoFeesToClaim.Error())

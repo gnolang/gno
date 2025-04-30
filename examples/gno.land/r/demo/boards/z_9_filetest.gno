@@ -1,11 +1,11 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
 // SEND: 1000000ugnot
 
 import (
 	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/r/demo/boards"
 	users "gno.land/r/gnoland/users/v1"
@@ -18,14 +18,14 @@ var (
 )
 
 func init() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	cross(users.Register)("gnouser123")
 
-	firstBoard = boards.CreateBoard("first_board")
-	secondBoard = boards.CreateBoard("second_board")
-	pid = boards.CreateThread(firstBoard, "First Post in (title)", "Body of the first post. (body)")
+	firstBoard = cross(boards.CreateBoard)("first_board")
+	secondBoard = cross(boards.CreateBoard)("second_board")
+	pid = cross(boards.CreateThread)(firstBoard, "First Post in (title)", "Body of the first post. (body)")
 
-	boards.CreateRepost(firstBoard, pid, "First Post in (title)", "Body of the first post. (body)", secondBoard)
+	cross(boards.CreateRepost)(firstBoard, pid, "First Post in (title)", "Body of the first post. (body)", secondBoard)
 }
 
 func main() {

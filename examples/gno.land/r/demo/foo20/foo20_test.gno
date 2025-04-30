@@ -37,8 +37,8 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// bob uses the faucet.
-	std.TestSetOriginCaller(bob)
-	Faucet()
+	testing.SetOriginCaller(bob)
+	cross(Faucet)()
 
 	// check balances #2.
 	{
@@ -80,7 +80,7 @@ func TestErrConditions(t *testing.T) {
 					panic(err)
 				}
 			}},
-			{"Approve(empty, 1))", "invalid address", func() { Approve(empty, 1) }},
+			{"Approve(empty, 1))", "invalid address", func() { cross(Approve)(empty, 1) }},
 		}
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {

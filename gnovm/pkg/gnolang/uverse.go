@@ -1,8 +1,11 @@
 package gnolang
 
+// XXX append and delete need checks too.
+
 import (
+	"bytes"
 	"fmt"
-	"strings"
+	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
@@ -161,7 +164,7 @@ func makeUverseNode() {
 			"res", GenT("X", nil), // res
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			// As a special case, if arg1 is a string type, first convert it into
 			// a data slice type.
 			if arg1.TV.T != nil && arg1.TV.T.Kind() == StringKind {
@@ -230,7 +233,7 @@ func makeUverseNode() {
 						// append(nil, *SliceValue) new list ---------
 						arrayValue := m.Alloc.NewListArray(arg1Length)
 						if arg1Length > 0 {
-							for i := 0; i < arg1Length; i++ {
+							for i := range arg1Length {
 								arrayValue.List[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 							}
 						}
@@ -274,7 +277,7 @@ func makeUverseNode() {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := arg0Base.List
 								if arg1Base.Data == nil {
-									for i := 0; i < arg1Length; i++ {
+									for i := range arg1Length {
 										oldElem := list[arg0Offset+arg0Length+i]
 										// unrefCopy will resolve references and copy their values
 										// to copy by value rather than by reference.
@@ -357,7 +360,7 @@ func makeUverseNode() {
 						arrayValue := m.Alloc.NewListArray(arrayLen)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
-								for i := 0; i < arg0Length; i++ {
+								for i := range arg0Length {
 									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
@@ -367,7 +370,7 @@ func makeUverseNode() {
 
 						if arg1Length > 0 {
 							if arg1Base.Data == nil {
-								for i := 0; i < arg1Length; i++ {
+								for i := range arg1Length {
 									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
@@ -403,7 +406,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -422,7 +425,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
 			switch bdt := baseOf(dst.TV.T).(type) {
 			case *SliceType:
@@ -442,10 +445,7 @@ func makeUverseNode() {
 					// is possible if dstv.Data != nil.
 					dstl := dst.TV.GetLength()
 					srcl := src.TV.GetLength()
-					minl := dstl
-					if srcl < dstl {
-						minl = srcl
-					}
+					minl := min(srcl, dstl)
 					if minl == 0 {
 						// return 0.
 						m.PushValue(defaultTypedValue(m.Alloc, IntType))
@@ -453,7 +453,7 @@ func makeUverseNode() {
 					}
 					dstv := dst.TV.V.(*SliceValue)
 					// TODO: consider an optimization if dstv.Data != nil.
-					for i := 0; i < minl; i++ {
+					for i := range minl {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
 						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
@@ -468,10 +468,7 @@ func makeUverseNode() {
 				case *SliceType:
 					dstl := dst.TV.GetLength()
 					srcl := src.TV.GetLength()
-					minl := dstl
-					if srcl < dstl {
-						minl = srcl
-					}
+					minl := min(srcl, dstl)
 					if minl == 0 {
 						// return 0.
 						m.PushValue(defaultTypedValue(m.Alloc, IntType))
@@ -479,7 +476,7 @@ func makeUverseNode() {
 					}
 					dstv := dst.TV.V.(*SliceValue)
 					srcv := src.TV.V.(*SliceValue)
-					for i := 0; i < minl; i++ {
+					for i := range minl {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
 						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
@@ -506,7 +503,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			itv := arg1.Deref()
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
@@ -545,7 +542,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -564,7 +561,7 @@ func makeUverseNode() {
 			"", GenT("T", nil),
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			vargs := arg1
 			vargsl := vargs.TV.GetLength()
 			tt := arg0.TV.GetType()
@@ -587,7 +584,7 @@ func makeUverseNode() {
 							// leave as is
 						} else {
 							// init zero elements with concrete type.
-							for i := 0; i < li; i++ {
+							for i := range li {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
@@ -632,7 +629,7 @@ func makeUverseNode() {
 							// require a bit more work to handle correctly, requiring that
 							// all new TypedValue slice elements be checked to ensure they have
 							// a value for every slice operation, which is not desirable.
-							for i := 0; i < ci; i++ {
+							for i := range ci {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
@@ -687,14 +684,11 @@ func makeUverseNode() {
 			"", GenT("*T", nil),
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			tt := arg0.TV.GetType()
-			vv := defaultValue(m.Alloc, tt)
+			tv := defaultTypedValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
-			hi := m.Alloc.NewHeapItem(TypedValue{
-				T: tt,
-				V: vv,
-			})
+			hi := m.Alloc.NewHeapItem(tv)
 			m.PushValue(TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
@@ -708,6 +702,7 @@ func makeUverseNode() {
 			return
 		},
 	)
+
 	// NOTE: panic is its own statement type, and is not defined as a function.
 	defNative("print",
 		Flds( // params
@@ -715,19 +710,8 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
-			xv := arg0
-			xvl := xv.TV.GetLength()
-			ss := make([]string, xvl)
-			for i := 0; i < xvl; i++ {
-				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = ev.Sprint(m)
-			}
-			rs := strings.Join(ss, " ")
-			if debug {
-				print(rs)
-			}
-			m.Output.Write([]byte(rs))
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			uversePrint(m, arg0, false)
 		},
 	)
 	defNative("println",
@@ -736,19 +720,19 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
-			xv := arg0
-			xvl := xv.TV.GetLength()
-			ss := make([]string, xvl)
-			for i := 0; i < xvl; i++ {
-				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = ev.Sprint(m)
-			}
-			rs := strings.Join(ss, " ") + "\n"
-			if debug {
-				println("DEBUG/stdout: " + rs)
-			}
-			m.Output.Write([]byte(rs))
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			uversePrint(m, arg0, true)
+		},
+	)
+	defNative("panic",
+		Flds( // params
+			"exception", AnyT(),
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			ex := arg0.TV.Copy(m.Alloc)
+			m.Panic(ex)
 		},
 	)
 	defNative("recover",
@@ -765,24 +749,132 @@ func makeUverseNode() {
 			}
 		},
 	)
+	defNative("crossing",
+		nil, // params
+		nil, // results
+		func(m *Machine) {
+			stmt := m.PeekStmt(1)
+			bs, ok := stmt.(*bodyStmt)
+			if !ok {
+				panic("unexpected origin of crossing call")
+			}
+			if bs.NextBodyIndex != 1 {
+				panic("crossing call must be the first call of a function or method")
+			}
+			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
+			if !fr1.LastPackage.IsRealm() {
+				panic("crossing call only allowed in realm packages") // XXX test
+			}
+			// Verify prior fr.WithCross or fr.DidCross.
+			// NOTE: fr.WithCross may or may not be true,
+			// crossing() (which sets fr.DidCross) can be
+			// stacked.
+			for i := 1 + 1; ; i++ {
+				fri := m.PeekCallFrame(i)
+				if fri == nil {
+					// For stage add, meaning init() AND
+					// global var decls inherit a faux
+					// frame of index -1 which crossed from
+					// the package deployer.
+					// For stage run, main() does the same,
+					// so main() can be crossing or not, it
+					// doesn't matter. This applies for
+					// MsgRun() as well as tests. MsgCall()
+					// runs like cross(fn)(...) which
+					// meains fri.WithCross would have been
+					// found below.
+					fr2 := m.PeekCallFrame(2)
+					fr2.SetDidCross()
+					return
+				}
+				if fri.WithCross || fri.DidCross {
+					// NOTE: fri.DidCross implies
+					// everything under it is also valid.
+					// fri.DidCross && !fri.WithCross
+					// can happen with an implicit switch.
+					fr2 := m.PeekCallFrame(2)
+					fr2.SetDidCross()
+					return
+				}
+				// Neither fri.WithCross nor fri.DidCross, yet
+				// Realm already switched implicitly.
+				if fri.LastRealm != m.Realm {
+					panic("crossing could not find corresponding cross(fn)(...) call")
+				}
+			}
+			//nolint:govet // detected as unreachable
+			panic("should not happen") // defensive
+		},
+	)
+	defNative("cross",
+		Flds( // param
+			"x", GenT("X", nil),
+		),
+		Flds( // results
+			"x", GenT("X", nil),
+		),
+		func(m *Machine) {
+			// This is handled by op_call instead.
+			panic("cross is a virtual function")
+			/*
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				m.PushValue(arg0.Deref())
+			*/
+		},
+	)
 	uverseValue = uverseNode.NewPackage()
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {
-	for i := 0; i < len(data); i++ {
+	for i := range data {
 		dst[i] = TypedValue{T: et}
 		dst[i].SetUint8(data[i])
 	}
 }
 
 func copyListToData(dst []byte, tvs []TypedValue) {
-	for i := 0; i < len(tvs); i++ {
+	for i := range tvs {
 		dst[i] = tvs[i].GetUint8()
 	}
 }
 
 func copyListToRunes(dst []rune, tvs []TypedValue) {
-	for i := 0; i < len(tvs); i++ {
+	for i := range tvs {
 		dst[i] = tvs[i].GetInt32()
 	}
 }
+
+// uversePrint is used for the print and println functions.
+// println passes newline = true.
+// xv contains the variadic argument passed to the function.
+func uversePrint(m *Machine, xv PointerValue, newline bool) {
+	xvl := xv.TV.GetLength()
+	switch xvl {
+	case 0:
+		if newline {
+			m.Output.Write(bNewline)
+		}
+	case 1:
+		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+		res := ev.Sprint(m)
+		io.WriteString(m.Output, res)
+		if newline {
+			m.Output.Write(bNewline)
+		}
+	default:
+		var buf bytes.Buffer
+		for i := range xvl {
+			if i != 0 { // Not the last item.
+				buf.WriteByte(' ')
+			}
+			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+			buf.WriteString(ev.Sprint(m))
+		}
+		if newline {
+			buf.WriteByte('\n')
+		}
+		m.Output.Write(buf.Bytes())
+	}
+}
+
+var bNewline = []byte("\n")

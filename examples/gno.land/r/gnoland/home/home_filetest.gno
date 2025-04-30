@@ -19,7 +19,7 @@ func main() {
 //
 // Intuitive and easy to use, gno.land lowers the barrier to web3 and makes
 // censorship-resistant platforms accessible to everyone. If you want to help lay
-// the foundations of a fairer and freer world, join us today.
+// the foundations of a fairer and freer world, join us today. 
 //
 // ## Learn about gno.land
 //
@@ -45,8 +45,9 @@ func main() {
 //
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
-// - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - [Testnet 4](https://test4.gno.land/)
+// - [Staging chain](https://docs.gno.land/concepts/portal-loop)
+// - [Testnet 6](https://test6.gno.land/)
+// - [Testnet 5](https://test5.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
 //
 // ## [Latest Blogposts](/r/gnoland/blog)
@@ -57,7 +58,7 @@ func main() {
 //
 // No events.
 //
-// ## [Hall of Fame](/r/leon/hof)
+// ## [Hall of Realms](/r/leon/hor)
 //
 //
 //
@@ -79,7 +80,7 @@ func main() {
 // ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
 //
 // - [r/gnoland/blog](/r/gnoland/blog)
-// - [r/gnoland/blog](/r/gnoland/users)
+// - [r/gnoland/users](/r/gnoland/users)
 // - [r/gnoland/home](/r/gnoland/home)
 // - [r/gnoland/pages](/r/gnoland/pages)
 //
@@ -92,30 +93,30 @@ func main() {
 //
 // ### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
 //
-// - [r/demo/boards](r/demo/boards)
-// - [r/demo/banktest](r/demo/banktest)
-// - [r/demo/foo20](r/demo/foo20)
-// - [r/demo/foo721](r/demo/foo721)
-// - [r/demo/microblog](r/demo/microblog)
-// - [r/demo/nft](r/demo/nft)
-// - [r/demo/types](r/demo/types)
-// - [r/demo/art/gnoface](r/demo/art/gnoface)
-// - [r/demo/art/millipede](r/demo/art/millipede)
-// - [r/demo/groups](r/demo/groups)
+// - [r/demo/boards](/r/demo/boards)
+// - [r/demo/banktest](/r/demo/banktest)
+// - [r/demo/foo20](/r/demo/foo20)
+// - [r/demo/foo721](/r/demo/foo721)
+// - [r/demo/microblog](/r/demo/microblog)
+// - [r/demo/nft](/r/demo/nft)
+// - [r/demo/types](/r/demo/types)
+// - [r/demo/art/gnoface](/r/demo/art/gnoface)
+// - [r/demo/art/millipede](/r/demo/art/millipede)
+// - [r/demo/groups](/r/demo/groups)
 // - ...
 //
 // ### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
 //
-// - [p/demo/avl](p/demo/avl)
-// - [p/demo/blog](p/demo/blog)
-// - [p/demo/ui](p/demo/ui)
-// - [p/demo/ufmt](p/demo/ufmt)
-// - [p/demo/merkle](p/demo/merkle)
-// - [p/demo/bf](p/demo/bf)
-// - [p/demo/flow](p/demo/flow)
-// - [p/demo/gnode](p/demo/gnode)
-// - [p/demo/grc/grc20](p/demo/grc/grc20)
-// - [p/demo/grc/grc721](p/demo/grc/grc721)
+// - [p/demo/avl](/p/demo/avl)
+// - [p/demo/blog](/p/demo/blog)
+// - [p/demo/ui](/p/demo/ui)
+// - [p/demo/ufmt](/p/demo/ufmt)
+// - [p/demo/merkle](/p/demo/merkle)
+// - [p/demo/bf](/p/demo/bf)
+// - [p/demo/flow](/p/demo/flow)
+// - [p/demo/gnode](/p/demo/gnode)
+// - [p/demo/grc/grc20](/p/demo/grc/grc20)
+// - [p/demo/grc/grc721](/p/demo/grc/grc721)
 // - ...
 //
 // ---
@@ -136,4 +137,3 @@ func main() {
 //
 // **This is a testnet.**
 // Package names are not guaranteed to be available for production.
-//

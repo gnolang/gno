@@ -25,7 +25,7 @@ func main() {
 		for idx, item := range page.Items {
 			println(ufmt.Sprintf("- idx=%d key=%s value=%d", idx, item.Key, item.Value))
 		}
-		println(page.Picker())
+		println(page.Picker("/"))
 		println()
 	}
 }

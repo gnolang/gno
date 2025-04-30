@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 // PackageGetter specifies how the store may retrieve packages which are not
@@ -62,12 +64,12 @@ type Store interface {
 	GetMemPackage(path string) *gnovm.MemPackage
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
-	ClearObjectCache()                                    // run before processing a message
+	ClearObjectCache() // run before processing a message
+	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
-	SetLogStoreOps(enabled bool)
-	SprintStoreOps() string
-	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
+	SetLogStoreOps(dst io.Writer)
+	LogFinalizeRealm(rlmpath string) // to mark finalization of realm boundaries
 	Print()
 }
 
@@ -139,7 +141,7 @@ type defaultStore struct {
 	nativeResolver NativeResolver // for injecting natives
 
 	// transient
-	opslog  []StoreOp // for debugging and testing.
+	opslog  io.Writer // for logging store operations.
 	current []string  // for detecting import cycles.
 
 	// gas
@@ -348,7 +350,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	if bz == nil {
 		return nil
 	}
-	gas := overflow.Mul64p(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetPackageRealmDesc)
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
@@ -378,7 +380,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
-	gas := overflow.Mul64p(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetPackageRealmDesc)
 	ds.baseStore.Set([]byte(key), bz)
 	size = len(bz)
@@ -443,10 +445,10 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
-		ds.alloc.AllocateAmino(int64(len(bz)))
-		gas := overflow.Mul64p(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		ds.alloc.Allocate(oo.GetShallowSize())
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
@@ -480,7 +482,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
-	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetObjectDesc)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
@@ -488,6 +490,39 @@ func (ds *defaultStore) SetObject(oo Object) {
 		panic("should not happen")
 	}
 	oo.SetHash(ValueHash{hash})
+	// make store op log entry
+	if ds.opslog != nil {
+		obj := o2.(Object)
+		if oo.GetIsNewReal() {
+			fmt.Fprintf(ds.opslog, "c[%v]=%s\n",
+				obj.GetObjectID(),
+				prettyJSON(amino.MustMarshalJSON(obj)))
+		} else {
+			old := ds.loadForLog(oid)
+			old.SetHash(ValueHash{})
+
+			// need to do this marshal+unmarshal dance to ensure we get as close
+			// as possible the output of amino that we'll get of MustMarshalJSON(old),
+			// ie. empty slices should be null, not [].
+			var pureNew Object
+			amino.MustUnmarshalAny(amino.MustMarshalAny(obj), &pureNew)
+
+			s, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+				A:       difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(old)))),
+				B:       difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(pureNew)))),
+				Context: 3,
+			})
+			if err != nil {
+				panic(err)
+			}
+			if s == "" {
+				fmt.Fprintf(ds.opslog, "u[%v]=(noop)\n", obj.GetObjectID())
+			} else {
+				s = "    " + strings.TrimSpace(strings.ReplaceAll(s, "\n", "\n    "))
+				fmt.Fprintf(ds.opslog, "u[%v]=\n%s\n", obj.GetObjectID(), s)
+			}
+		}
+	}
 	// save bytes to backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -511,17 +546,6 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}
 	}
 	ds.cacheObjects[oid] = oo
-	// make store op log entry
-	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
-		var op StoreOpType
-		if oo.GetIsNewReal() {
-			op = StoreOpNew
-		} else {
-			op = StoreOpMod
-		}
-		ds.opslog = append(ds.opslog,
-			StoreOp{Type: op, Object: o2.(Object)})
-	}
 	// if escaped, add hash to iavl.
 	if oo.GetIsEscaped() && ds.iavlStore != nil {
 		var key, value []byte
@@ -529,6 +553,18 @@ func (ds *defaultStore) SetObject(oo Object) {
 		value = hash.Bytes()
 		ds.iavlStore.Set(key, value)
 	}
+}
+
+func (ds *defaultStore) loadForLog(oid ObjectID) Object {
+	key := backendObjectKey(oid)
+	hashbz := ds.baseStore.Get([]byte(key))
+	if hashbz == nil {
+		return nil
+	}
+	bz := hashbz[HashSize:]
+	var oo Object
+	amino.MustUnmarshal(bz, &oo)
+	return oo
 }
 
 func (ds *defaultStore) DelObject(oo Object) {
@@ -553,9 +589,8 @@ func (ds *defaultStore) DelObject(oo Object) {
 		ds.baseStore.Delete([]byte(key))
 	}
 	// make realm op log entry
-	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
-		ds.opslog = append(ds.opslog,
-			StoreOp{Type: StoreOpDel, Object: oo})
+	if ds.opslog != nil {
+		fmt.Fprintf(ds.opslog, "d[%v]\n", oo.GetObjectID())
 	}
 }
 
@@ -585,7 +620,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		key := backendTypeKey(tid)
 		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
-			gas := overflow.Mul64p(ds.gasConfig.GasGetType, store.Gas(len(bz)))
+			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasGetTypeDesc)
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
@@ -645,7 +680,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
-		gas := overflow.Mul64p(ds.gasConfig.GasSetType, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasSetType, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
 		size = len(bz)
@@ -767,7 +802,7 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
-	gas := overflow.Mul64p(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
@@ -810,7 +845,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 		}
 		return nil
 	}
-	gas := overflow.Mul64p(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
 	var memPkg *gnovm.MemPackage
@@ -876,6 +911,18 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
+func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
+	for objId, obj := range ds.cacheObjects {
+		// Skip .uverse packages.
+		if pv, ok := obj.(*PackageValue); ok && pv.PkgPath == ".uverse" {
+			continue
+		}
+		if obj.GetLastGCCycle() < gcCycle {
+			delete(ds.cacheObjects, objId)
+		}
+	}
+}
+
 func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {
 	ds.nativeResolver = ns
 }
@@ -887,72 +934,19 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 	return nil
 }
 
-// ----------------------------------------
-// StoreOp
-
-type StoreOpType uint8
-
-const (
-	StoreOpNew StoreOpType = iota
-	StoreOpMod
-	StoreOpDel
-	StoreOpSwitchRealm
-)
-
-type StoreOp struct {
-	Type    StoreOpType
-	Object  Object // ref'd objects
-	RlmPath string // for StoreOpSwitchRealm
-}
-
-// used by the tests/file_test system to check
-// veracity of realm operations.
-func (sop StoreOp) String() string {
-	switch sop.Type {
-	case StoreOpNew:
-		return fmt.Sprintf("c[%v]=%s",
-			sop.Object.GetObjectID(),
-			prettyJSON(amino.MustMarshalJSON(sop.Object)))
-	case StoreOpMod:
-		return fmt.Sprintf("u[%v]=%s",
-			sop.Object.GetObjectID(),
-			prettyJSON(amino.MustMarshalJSON(sop.Object)))
-	case StoreOpDel:
-		return fmt.Sprintf("d[%v]",
-			sop.Object.GetObjectID())
-	case StoreOpSwitchRealm:
-		return fmt.Sprintf("switchrealm[%q]",
-			sop.RlmPath)
-	default:
-		panic("should not happen")
-	}
-}
-
-func (ds *defaultStore) SetLogStoreOps(enabled bool) {
+// Set to nil to disable.
+func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
 	if enabled {
-		ds.ResetStoreOps()
+		ds.opslog = buf
 	} else {
 		ds.opslog = nil
 	}
 }
 
-// resets .realmops.
-func (ds *defaultStore) ResetStoreOps() {
-	ds.opslog = make([]StoreOp, 0, 1024)
-}
-
-// for test/file_test.go, to test realm changes.
-func (ds *defaultStore) SprintStoreOps() string {
-	ss := make([]string, 0, len(ds.opslog))
-	for _, sop := range ds.opslog {
-		ss = append(ss, sop.String())
+func (ds *defaultStore) LogFinalizeRealm(rlmpath string) {
+	if ds.opslog != nil {
+		fmt.Fprintf(ds.opslog, "finalizerealm[%q]\n", rlmpath)
 	}
-	return strings.Join(ss, "\n")
-}
-
-func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
-	ds.opslog = append(ds.opslog,
-		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
 }
 
 // for debugging

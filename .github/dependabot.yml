@@ -7,7 +7,7 @@ updates:
     schedule:
       interval: "daily"
     labels:
-      - "github_actions"
+      - "dependencies"
     groups:
       actions:
         patterns:

@@ -31,32 +31,32 @@ const (
 	DefaultHeight = 123
 	// DefaultTimestamp is the Timestamp value used by default in [Context].
 	DefaultTimestamp = 1234567890
-	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno"),
+	// DefaultCaller is the result of gno.DerivePkgBech32Addr("user1.gno"),
 	// used as the default caller in [Context].
 	DefaultCaller crypto.Bech32Address = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 )
 
 // Context returns a TestExecContext. Usable for test purpose only.
+// The caller should be empty for package initialization.
 // The returned context has a mock banker, params and event logger. It will give
 // the pkgAddr the coins in `send` by default, and only that.
 // The Height and Timestamp parameters are set to the [DefaultHeight] and
 // [DefaultTimestamp].
-func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
+func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
-	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
+	pkgAddr := gno.DerivePkgBech32Addr(pkgPath) // the addr of the pkgPath called.
 
 	banker := &teststd.TestBanker{
 		CoinTable: map[crypto.Bech32Address]std.Coins{
-			pkgAddr.Bech32(): send,
+			pkgAddr: send,
 		},
 	}
 	ctx := stdlibs.ExecContext{
 		ChainID:         "dev",
-		ChainDomain:     "tests.gno.land",
+		ChainDomain:     "gno.land", // TODO: make this configurable
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
-		OriginCaller:    DefaultCaller,
-		OriginPkgAddr:   pkgAddr.Bech32(),
+		OriginCaller:    caller,
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
 		Banker:          banker,
@@ -65,16 +65,17 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	return &teststd.TestExecContext{
 		ExecContext: ctx,
-		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
+		RealmFrames: make(map[int]teststd.RealmOverride),
 	}
 }
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
+// It is only used for linting/preprocessing.
 func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:   testStore,
 		Output:  output,
-		Context: Context(pkgPath, nil),
+		Context: Context("", pkgPath, nil),
 		Debug:   debug,
 	})
 }
@@ -131,6 +132,8 @@ type TestOptions struct {
 
 	// Flag to filter tests to run.
 	RunFlag string
+	// Flag to stop executing as soon a test fails.
+	FailfastFlag bool
 	// Whether to update filetest directives.
 	Sync bool
 	// Uses Error to print when starting a test, and prints test output directly,
@@ -261,7 +264,9 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
 			testFilePath := filepath.Join(fsDir, testFileName)
-			testName := "file/" + testFileName
+			// XXX consider this
+			testName := fsDir + "/" + testFileName
+			// testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
 			}
@@ -305,7 +310,7 @@ func (opts *TestOptions) runTestFiles(
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
-			if st := m.ExceptionsStacktrace(); st != "" {
+			if st := m.ExceptionStacktrace(); st != "" {
 				errs = multierr.Append(errors.New(st), errs)
 			}
 			errs = multierr.Append(
@@ -323,7 +328,7 @@ func (opts *TestOptions) runTestFiles(
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
-	opts.TestStore.SetLogStoreOps(false)
+	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
@@ -335,6 +340,7 @@ func (opts *TestOptions) runTestFiles(
 	}
 	pv := m.Package
 
+	// Load the test files into package and save.
 	m.RunFiles(files.Files...)
 
 	for _, tf := range tests {
@@ -372,12 +378,15 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest
-			gno.Str(opts.RunFlag),                    // run flag
-			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
+			gno.Sel(testingcx, "RunTest"),                 // Call testing.RunTest
+			gno.Str(opts.RunFlag),                         // run flag
+			gno.Nx(strconv.FormatBool(opts.Verbose)),      // is verbose?
+			gno.Nx(strconv.FormatBool(opts.FailfastFlag)), // stop as soon as a test fails
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{
+					// XXX Consider this.
+					// {Key: gno.X("Name"), Value: gno.Str(memPkg.Path + "/" + tf.Filename + "." + tf.Name)},
 					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
 					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
 				},
@@ -415,6 +424,9 @@ func (opts *TestOptions) runTestFiles(
 		if rep.Failed {
 			err := fmt.Errorf("failed: %q", tf.Name)
 			errs = multierr.Append(errs, err)
+			if opts.FailfastFlag {
+				return errs
+			}
 		}
 
 		if opts.Metrics {
@@ -445,8 +457,9 @@ type report struct {
 }
 
 type testFunc struct {
-	Package string
-	Name    string
+	Package  string
+	Name     string
+	Filename string
 }
 
 func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
@@ -456,8 +469,9 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
 					tf := testFunc{
-						Package: pkgName,
-						Name:    fname,
+						Package:  pkgName,
+						Name:     fname,
+						Filename: string(tf.Name),
 					}
 					rt = append(rt, tf)
 				}
