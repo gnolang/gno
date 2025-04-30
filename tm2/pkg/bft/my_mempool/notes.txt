@@ -1,12 +1,17 @@
-# Mempool Upgrade Ideas
+# Mempool Upgrade Roadmap
 
-- expected nonce
-- size mempoola 
-- Kanal za javljanje dolaska novih transakcija
-- pracenje height-a
-- precheck
-- recheck
-- WAL
-- reactor component
-- da razdvojim na pending i koje su nonce gap
+## Core Functionality
+- Expected nonce tracking
+- Caching of expected nonces for performance
+- Mempool size management and limits
+- Channel for broadcasting new transaction arrivals
+- Block height tracking for state updates
 
+## Transaction Processing
+- Transaction pre-check validation
+- Re-check mechanism after block commits
+- Separate pending transactions from nonce gap transactions
+
+## Infrastructure
+- Write-Ahead Log (WAL) for crash recovery
+- Reactor component for P2P communication
