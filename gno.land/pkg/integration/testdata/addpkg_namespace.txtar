@@ -9,10 +9,9 @@ patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our c
 gnoland start
 
 # Check if sys/names is disabled
-# gui call -> sys/names.IsEnabled
-gnokey maketx call -pkgpath gno.land/r/sys/names -func IsEnabled -gas-fee 100000ugnot -gas-wanted 200000 -broadcast -chainid tendermint_test gui
-stdout 'OK!'
-stdout 'false'
+# qeval -> sys/names.IsEnabled
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
+stdout 'false bool'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
@@ -30,10 +29,10 @@ gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugn
 stdout 'OK!'
 
 # Check that `sys/names` has been enabled
-# gui call -> sys/names.IsEnabled
-gnokey maketx call -pkgpath gno.land/r/sys/names -func IsEnabled -gas-fee 100000ugnot -gas-wanted 200000 -broadcast -chainid tendermint_test gui
-stdout 'OK!'
-stdout 'true'
+# qeval -> sys/names.IsEnabled
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
+stdout 'true bool'
+
 
 # Try to add a pkg an with unregistered user
 # gui addpkg -> gno.land/r/<addr_test1>/one
