@@ -29,9 +29,9 @@ func main() {
 
 	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(std.Coins{{"ugnot", 123_400}})
-	wugnot.Deposit()
+	cross(wugnot.Deposit)()
 	printBalances()
-	wugnot.Withdraw(4242)
+	cross(wugnot.Withdraw)(4242)
 	printBalances()
 }
 

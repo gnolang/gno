@@ -21,7 +21,7 @@ type instance struct {
 }
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
-	caller := std.OriginCaller()
+	caller := std.CurrentRealm().Address()
 	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
