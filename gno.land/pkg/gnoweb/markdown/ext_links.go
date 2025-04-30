@@ -252,8 +252,8 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 // for external, internal, and same-package links.
 type linkExtension struct{}
 
-// Links instance for extending markdown with link functionality
-var Links = &linkExtension{}
+// ExtLinks instance for extending markdown with link functionality
+var ExtLinks = &linkExtension{}
 
 // Extend adds the LinkExtension to the provided Goldmark markdown processor
 func (l *linkExtension) Extend(m goldmark.Markdown) {

@@ -245,7 +245,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 	// Build img-src CSP directive
-	imgSrc := "'self' data:image/svg+xml"
+	imgSrc := "'self' data:"
 
 	for _, host := range cspImgHost {
 		imgSrc += " " + host
