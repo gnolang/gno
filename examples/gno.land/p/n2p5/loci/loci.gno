@@ -25,10 +25,10 @@ func New() *LociStore {
 	}
 }
 
-// Set stores a byte slice in the AVL tree using the `std.CurrentRealm().Address()`
+// Set stores a byte slice in the AVL tree using the `std.PreviousRealm().Address()`
 // string as the key.
 func (s *LociStore) Set(value []byte) {
-	key := string(std.CurrentRealm().Address())
+	key := string(std.PreviousRealm().Address())
 	s.internal.Set(key, value)
 }
 
