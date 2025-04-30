@@ -34,7 +34,7 @@ build:
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test -v ./...
+	go run ../gnovm/cmd/gno test -v ./gno.land/...
 
 .PHONY: test.fast
 test.fast:
