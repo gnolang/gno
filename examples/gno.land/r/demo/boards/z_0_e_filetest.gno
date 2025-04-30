@@ -15,8 +15,8 @@ var bid boards.BoardID
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
-	boards.CreateReply(bid, 0, 0, "Reply of the second post")
+	cross(users.Register)("gnouser123")
+	cross(boards.CreateReply)(bid, 0, 0, "Reply of the second post")
 }
 
 func main() {

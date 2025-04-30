@@ -238,18 +238,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 }
 
 func (tv TypeValue) String() string {
-	ptr := ""
-	if reflect.TypeOf(tv.Type).Kind() == reflect.Ptr {
-		ptr = fmt.Sprintf(" (%p)", tv.Type)
-	}
-	/*
-		mthds := ""
-		if d, ok := tv.Type.(*DeclaredType); ok {
-			mthds = fmt.Sprintf(" %v", d.Methods)
-		}
-	*/
-	return fmt.Sprintf("typeval{%s%s}",
-		tv.Type.String(), ptr)
+	return fmt.Sprintf("typeval{%s}",
+		tv.Type.String())
 }
 
 func (pv *PackageValue) String() string {

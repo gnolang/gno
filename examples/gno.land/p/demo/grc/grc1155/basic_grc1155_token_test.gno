@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 )
 
@@ -88,6 +89,9 @@ func TestIsApprovedForAll(t *testing.T) {
 }
 
 func TestSetApprovalForAll(t *testing.T) {
+	//alice := testutils.TestAddress("alice")
+	//testing.SetOriginCaller(alice)
+
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
@@ -111,6 +115,9 @@ func TestSetApprovalForAll(t *testing.T) {
 }
 
 func TestSafeTransferFrom(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	testing.SetOriginCaller(alice)
+
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
@@ -142,6 +149,9 @@ func TestSafeTransferFrom(t *testing.T) {
 }
 
 func TestSafeBatchTransferFrom(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	testing.SetOriginCaller(alice)
+
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
