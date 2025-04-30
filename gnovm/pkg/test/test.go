@@ -146,6 +146,14 @@ type TestOptions struct {
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
+	tcCache        map[string]gno.TypeCheckResult
+}
+
+func (opts *TestOptions) getTcCache() map[string]gno.TypeCheckResult {
+	if opts.tcCache == nil {
+		opts.tcCache = map[string]gno.TypeCheckResult{}
+	}
+	return opts.tcCache
 }
 
 // WriterForStore is the writer that should be passed to [Store], so that

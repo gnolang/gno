@@ -181,7 +181,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 }
 
 func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+	tcErr := gno.TypeCheckMemPackage(memPkg, testStore, gno.TypeCheckOptions{Redefinitions: true})
 	if tcErr == nil {
 		return false, nil
 	}
