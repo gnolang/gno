@@ -1,6 +1,6 @@
 # Interrealm Specification
 
-Gno extends Go's type system with an interrealm rules. These rules can be
+Gno extends Go's type system with interrealm rules. These rules can be
 checked during the static type-checking phase (but at the moment they are
 partially dependent on runtime checks).
 
