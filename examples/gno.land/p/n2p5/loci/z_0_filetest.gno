@@ -14,8 +14,6 @@ func init() {
 }
 
 func main() {
-	crossing()
-
 	caller := std.PreviousRealm()
 
 	store.Set([]byte("hello, world"))
