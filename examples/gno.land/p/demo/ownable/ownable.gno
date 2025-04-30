@@ -1,6 +1,8 @@
 package ownable
 
-import "std"
+import (
+	"std"
+)
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
@@ -17,6 +19,17 @@ func New() *Ownable {
 	}
 }
 
+func NewWithOrigin() *Ownable {
+	origin := std.OriginCaller()
+	previous := std.PreviousRealm()
+	if origin != previous.Address() {
+		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
+	}
+	return &Ownable{
+		owner: origin,
+	}
+}
+
 func NewWithAddress(addr std.Address) *Ownable {
 	return &Ownable{
 		owner: addr,
@@ -25,7 +38,7 @@ func NewWithAddress(addr std.Address) *Ownable {
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
-	if !o.OwnedByPrevious() {
+	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
 
@@ -48,7 +61,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
 func (o *Ownable) DropOwnership() error {
-	if !o.OwnedByPrevious() {
+	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
 
@@ -72,21 +85,32 @@ func (o *Ownable) Owner() std.Address {
 	return o.owner
 }
 
-// OwnedByPrevious( checks if the caller of the function is the Realm's owner
-func (o *Ownable) OwnedByPrevious() bool {
+// OwnedByCurrent checks if the caller of the function is the Realm's owner
+func (o *Ownable) OwnedByCurrent() bool {
 	if o == nil {
 		return false
 	}
 	return std.CurrentRealm().Address() == o.owner
 }
 
-// AssertOwnedByPrevious panics if the caller is not the owner
-func (o *Ownable) AssertOwnedByPrevious() {
-	if o == nil {
+// AssertOwnedByCurrent panics if the caller is not the owner
+func (o *Ownable) AssertOwnedByCurrent() {
+	if !o.OwnedByCurrent() {
 		panic(ErrUnauthorized)
 	}
-	caller := std.CurrentRealm().Address()
-	if caller != o.owner {
+}
+
+// OwnedByPrevious checks if the caller of the function is the Realm's owner
+func (o *Ownable) OwnedByPrevious() bool {
+	if o == nil {
+		return false
+	}
+	return std.PreviousRealm().Address() == o.owner
+}
+
+// AssertOwnedByPrevious panics if the caller is not the owner
+func (o *Ownable) AssertOwnedByPrevious() {
+	if !o.OwnedByPrevious() {
 		panic(ErrUnauthorized)
 	}
 }

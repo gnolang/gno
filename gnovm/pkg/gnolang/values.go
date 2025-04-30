@@ -33,6 +33,9 @@ type Value interface {
 	// NOTE must use the return value since PointerValue isn't a pointer
 	// receiver, and RefValue returns another type entirely.
 	DeepFill(store Store) Value
+
+	GetShallowSize() int64
+	VisitAssociated(vis Visitor) (stop bool) // for GC
 }
 
 // Fixed size primitive types are represented in TypedValue.N

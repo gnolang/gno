@@ -19,7 +19,7 @@ func main() {
 //
 // Intuitive and easy to use, gno.land lowers the barrier to web3 and makes
 // censorship-resistant platforms accessible to everyone. If you want to help lay
-// the foundations of a fairer and freer world, join us today.
+// the foundations of a fairer and freer world, join us today. 
 //
 // ## Learn about gno.land
 //
@@ -137,4 +137,3 @@ func main() {
 //
 // **This is a testnet.**
 // Package names are not guaranteed to be available for production.
-//

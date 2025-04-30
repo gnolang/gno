@@ -113,7 +113,7 @@ func (u *UserData) UpdateName(newName string) error {
 	}
 
 	// Validate caller
-	if !controllers.Has(std.PreviousRealm().Address()) {
+	if !controllers.Has(std.CurrentRealm().Address()) {
 		return ErrNotWhitelisted
 	}
 
@@ -144,7 +144,7 @@ func (u *UserData) Delete() error {
 	}
 
 	// Validate caller
-	if !controllers.Has(std.PreviousRealm().Address()) {
+	if !controllers.Has(std.CurrentRealm().Address()) {
 		return ErrNotWhitelisted
 	}
 
