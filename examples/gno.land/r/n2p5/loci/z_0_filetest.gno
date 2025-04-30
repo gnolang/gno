@@ -1,7 +1,6 @@
 // PKGPATH: gno.land/r/test/test
 package test
 
-
 import (
 	"std"
 
@@ -12,7 +11,7 @@ func main() {
 	crossing()
 	caller := std.CurrentRealm()
 	println("caller: " + string(caller.Address()))
-	
+
 	// test nothing being set, yet.
 	r0 := cross(loci.Get)(caller.Address())
 	println("expect: " + "")
