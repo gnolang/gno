@@ -49,7 +49,7 @@ func makeAndConnectReactors(t *testing.T, mconfig *memcfg.MempoolConfig, pconfig
 		options  = make(map[int][]p2p.SwitchOption)
 	)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		app := kvstore.NewKVStoreApplication()
 		cc := proxy.NewLocalClientCreator(app)
 		mempool, cleanup := newMempoolWithApp(cc)
@@ -81,7 +81,6 @@ func makeAndConnectReactors(t *testing.T, mconfig *memcfg.MempoolConfig, pconfig
 	return reactors
 }
 
-// Ceka da se sve transakcije proslede na sve mempoolove
 func waitForTxsOnReactors(
 	t *testing.T,
 	txs types.Txs,
@@ -119,7 +118,6 @@ func waitForTxsOnReactors(
 	wg.Wait()
 }
 
-// Ceka da se sve transakcije proslede na jedan mempool
 func waitForTxsOnReactor(
 	t *testing.T,
 	ctx context.Context,
@@ -155,7 +153,6 @@ func ensureNoTxs(t *testing.T, reactor *Reactor, timeout time.Duration) {
 	assert.Zero(t, reactor.mempool.Size())
 }
 
-// Test koji proverava da li se transakcije prosledjuju na sve mempoolove
 func TestReactorBroadcastTxMessage(t *testing.T) {
 	t.Parallel()
 
@@ -182,7 +179,6 @@ func TestReactorBroadcastTxMessage(t *testing.T) {
 	waitForTxsOnReactors(t, txs, reactors)
 }
 
-// Test koji proverava da li se transakcije ne prosledjuju na peer koji je poslao transakcije
 func TestReactorNoBroadcastToSender(t *testing.T) {
 	t.Parallel()
 
@@ -202,7 +198,6 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	ensureNoTxs(t, reactors[1], 100*time.Millisecond)
 }
 
-// Test koji proverava da li se transakcije prosledjuju na sve mempoolove
 func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	t.Parallel()
 
@@ -231,7 +226,6 @@ func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 	leaktest.CheckTimeout(t, 10*time.Second)()
 }
 
-// Test koji proverava da li se sve gorotine zavrsavaju kada se reactor zavrsi zbog leak testa
 func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 	t.Parallel()
 
@@ -256,7 +250,6 @@ func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
 	leaktest.CheckTimeout(t, 10*time.Second)()
 }
 
-// Test koji proverava da li se mempool pravilno dodeljuje ID-jeve
 func TestMempoolIDsBasic(t *testing.T) {
 	t.Parallel()
 
@@ -273,7 +266,6 @@ func TestMempoolIDsBasic(t *testing.T) {
 	ids.Reclaim(id)
 }
 
-// Test koji proverava da li ce panic ako se pokusa dodati Id veci od maxActiveIDs
 func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
 	t.Parallel()
 
@@ -284,7 +276,7 @@ func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
 	// 0 is already reserved for UnknownPeerID
 	ids := newMempoolIDs()
 
-	for i := 0; i < maxActiveIDs-1; i++ {
+	for range maxActiveIDs - 1 {
 		id := p2pTypes.GenerateNodeKey().ID()
 		ids.ReserveForPeer(id)
 	}
