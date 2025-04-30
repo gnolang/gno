@@ -1,11 +1,12 @@
 # Mempool Upgrade Ideas
 
-## Core Improvements
-- Add real transaction validation in CheckTx
-- Implement priority queue for transaction selection
-- Use heap data structure for better performance
-
-## Next Steps
-- Try binary tree or red-black tree for transaction ordering
-- Add real-time sorting when new transactions arrive
+- expected nonce
+- size mempoola 
+- Kanal za javljanje dolaska novih transakcija
+- pracenje height-a
+- precheck
+- recheck
+- WAL
+- reactor component
+- da razdvojim na pending i koje su nonce gap
 
