@@ -1,6 +1,5 @@
 // PKGPATH: gno.land/r/demo/main
 
-
 // SEND: 300ugnot
 
 package main

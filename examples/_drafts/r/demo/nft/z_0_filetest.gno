@@ -19,7 +19,5 @@ func main() {
 // g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
 // g1v9jxgu33ta047h6lta047h6lta047h6l43dqc5
 
-
-
 // Realm:
 // finalizerealm["gno.land/r/demo/nft_test"]
