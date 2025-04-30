@@ -13,7 +13,7 @@ import (
 
 func init() {
 	loadMembers()
-	dao.UpdateImpl(dao.UpdateRequest{
+	cross(dao.UpdateImpl)(dao.UpdateRequest{
 		DAO:         govDAO,
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
@@ -36,22 +36,23 @@ var (
 func loadMembers() {
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
-	memberstore.Get().DeleteAll()
+	mstore := memberstore.Get()
+	mstore.DeleteAll()
 
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+	mstore.SetTier(memberstore.T1)
+	mstore.SetTier(memberstore.T2)
+	mstore.SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, m1, memberByTier(memberstore.T1))
-	memberstore.Get().SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
-	memberstore.Get().SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))
-	memberstore.Get().SetMember(memberstore.T1, m1111, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T1, m1, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))
+	mstore.SetMember(memberstore.T1, m1111, memberByTier(memberstore.T1))
 
-	memberstore.Get().SetMember(memberstore.T2, m2, memberByTier(memberstore.T2))
-	memberstore.Get().SetMember(memberstore.T2, m3, memberByTier(memberstore.T2))
-	memberstore.Get().SetMember(memberstore.T3, m4, memberByTier(memberstore.T3))
-	memberstore.Get().SetMember(memberstore.T3, m5, memberByTier(memberstore.T3))
-	memberstore.Get().SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
+	mstore.SetMember(memberstore.T2, m2, memberByTier(memberstore.T2))
+	mstore.SetMember(memberstore.T2, m3, memberByTier(memberstore.T2))
+	mstore.SetMember(memberstore.T3, m4, memberByTier(memberstore.T3))
+	mstore.SetMember(memberstore.T3, m5, memberByTier(memberstore.T3))
+	mstore.SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
 }
 
 func TestCreateProposalAndVote(t *testing.T) {
@@ -60,6 +61,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(noMember)
+    testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -72,7 +74,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewUserRealm(m1))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	pid := dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 0)
@@ -84,6 +86,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m11)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -91,6 +94,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m2)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -98,6 +102,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m3)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -105,6 +110,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m4)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		dao.MustVoteOnProposal(dao.VoteRequest{
@@ -114,6 +120,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m111)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	// Same effect as:
 	// dao.MustVoteOnProposal(dao.VoteRequest{
@@ -131,6 +138,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1111)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -149,6 +157,7 @@ func TestProposalPagination(t *testing.T) {
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(m1)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -188,6 +197,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	loadMembers()
 
 	testing.SetOriginCaller(noMember)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -197,7 +207,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewUserRealm(m1))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	pid := dao.MustCreateProposal(preq)
@@ -210,6 +220,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m11)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.YesVote,
@@ -217,6 +228,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m2)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.YesVote,
@@ -224,15 +236,15 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m3)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(pid),
 	})
 
-	testing.SetOriginCaller(m4)
-
 	testing.SetOriginCaller(m111)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	// Same effect as:
 	// dao.MustVoteOnProposal(dao.VoteRequest{

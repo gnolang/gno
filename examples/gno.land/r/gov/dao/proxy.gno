@@ -163,8 +163,6 @@ func UpdateImpl(r UpdateRequest) {
 }
 
 func InAllowedDAOs(pkg string) bool {
-	crossing()
-
 	if len(AllowedDAOs) == 0 {
 		return true // corner case for initialization
 	}
