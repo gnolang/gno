@@ -62,6 +62,7 @@ var (
 )
 
 func LobbyJoin(seconds, increment int) {
+	crossing()
 	assertOriginCall()
 
 	var tc tcLobby
@@ -218,6 +219,7 @@ var bracketSize = [...]float64{
 }
 
 func LobbyGameFound() string {
+	crossing()
 	refreshLobby(tcLobby5p0)
 	refreshLobby(tcLobby10p5)
 
@@ -229,6 +231,7 @@ func LobbyGameFound() string {
 }
 
 func LobbyQuit() {
+	crossing()
 	caller := std.PreviousRealm().Address()
 	for tc, sublob := range lobby {
 		for i, pl := range sublob {
