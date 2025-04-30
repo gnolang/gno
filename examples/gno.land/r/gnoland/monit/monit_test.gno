@@ -3,11 +3,25 @@ package monit
 import (
 	"std"
 	"testing"
+	"time"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/watchdog"
 )
 
+func initTest() {
+	counter = 0
+	lastUpdate = time.Time{}
+	lastCaller = std.Address("")
+	wd = watchdog.Watchdog{Duration: watchdogDuration}
+	creator := std.Address("g1creator")
+	Ownable = ownable.NewWithAddress(creator)
+}
+
 func TestPackage(t *testing.T) {
+	initTest()
+
 	testing.SetRealm(std.NewUserRealm("g1user"))
 
 	// initial state, watchdog is KO.
@@ -56,4 +70,32 @@ status=OK`
 			uassert.Equal(t, expected, got)
 		}
 	*/
+}
+
+func TestReset(t *testing.T) {
+	initTest()
+
+	// Initial state check
+	initialCounter := counter
+	initialLastUpdate := lastUpdate
+	initialLastCaller := lastCaller
+	initialStatus := wd.Status()
+
+	// Call Incr to change the state
+	user := std.Address("g1user")
+	testing.SetRealm(std.NewUserRealm(user))
+	cross(Incr)()
+	uassert.True(t, counter > initialCounter, "counter should have increased after Incr")
+	uassert.True(t, lastUpdate.After(initialLastUpdate), "lastUpdate should have been updated after Incr")
+	uassert.Equal(t, user, lastCaller, "lastCaller mismatch")
+	uassert.NotEqual(t, initialStatus, wd.Status(), "watchdog status should have changed after Incr") // Status changes after Alive() is called
+
+	// Call Reset as the owner
+	ownerAddr := Ownable.Owner()
+	testing.SetRealm(std.NewUserRealm(ownerAddr)) // Simulate call from the owner
+	cross(Reset)()
+	uassert.Equal(t, 0, counter, "counter should be 0 after Reset")
+	uassert.Equal(t, ownerAddr, lastCaller, "lastCaller should be the owner address after Reset")
+	uassert.Equal(t, watchdogDuration.String(), wd.Duration.String(), "watchdog duration mismatch after Reset")
+	uassert.Equal(t, "KO", wd.Status(), "watchdog status should be KO after Reset")
 }
