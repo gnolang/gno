@@ -29,6 +29,7 @@ var (
 
 // CreatePost creates a new post
 func CreatePost(text string) error {
+	crossing()
 	if text == "" {
 		return ErrEmptyPost
 	}
@@ -55,6 +56,7 @@ func CreatePost(text string) error {
 // UpdatePost allows the author to update a post
 // The post can only be updated up to 10 minutes after posting
 func UpdatePost(id string, text string) error {
+	crossing()
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -81,6 +83,7 @@ func UpdatePost(id string, text string) error {
 // DeletePost deletes a post with a specific id
 // Only the creator of a post can delete the post
 func DeletePost(id string) error {
+	crossing()
 	// Try to get the post
 	raw, ok := posts.Get(id)
 	if !ok {
@@ -106,6 +109,7 @@ func DeletePost(id string) error {
 
 // Render renders the main page of threads
 func Render(path string) string {
+	crossing()
 	out := md.H1("MiniSocial")
 
 	if posts.Size() == 0 {

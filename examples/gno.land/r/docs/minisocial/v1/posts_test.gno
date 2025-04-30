@@ -15,7 +15,7 @@ func TestCreatePostSingle(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
+	err := cross(CreatePost)(text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -30,6 +30,8 @@ func TestCreatePostSingle(t *testing.T) {
 }
 
 func TestCreatePostMultiple(t *testing.T) {
+	testing.SetRealm(std.NewUserRealm(testutils.TestAddress("alice")))
+
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -47,7 +49,7 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(p.text)
+		err := cross(CreatePost)(p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}

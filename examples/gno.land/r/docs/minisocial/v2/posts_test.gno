@@ -15,7 +15,7 @@ func TestCreatePostSingle(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
+	err := cross(CreatePost)(text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -47,7 +47,7 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(p.text)
+		err := cross(CreatePost)(p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}
@@ -71,7 +71,7 @@ func TestReset(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = CreatePost(text1)
+	_ = cross(CreatePost)(text1)
 
 	got := Render("")
 	if !strings.Contains(got, text1) {
@@ -80,7 +80,7 @@ func TestReset(t *testing.T) {
 
 	// Set admin
 	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
-	ResetPosts()
+	cross(ResetPosts)()
 
 	got = Render("")
 	if strings.Contains(got, text1) {
@@ -88,7 +88,7 @@ func TestReset(t *testing.T) {
 	}
 
 	text2 := "Some other Text!!"
-	_ = CreatePost(text2)
+	_ = cross(CreatePost)(text2)
 
 	got = Render("")
 	if strings.Contains(got, text1) {
