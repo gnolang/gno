@@ -177,7 +177,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir)
 	if err != nil {
-		return nil, fmt.Errorf("listing gno packages: %w", err)
+		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
 
 	// Sort packages by dependencies.
