@@ -73,7 +73,7 @@ func (s *State) executeByteCode(code []byte) error {
 			s.tmp.storage[k] = v
 		}
 	}
-	for !s.code.IsDone() && s.code.Current() != byte(STOP) {
+	for !s.code.Ill() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
 		if !ok {
 			return invalidInstruction
@@ -85,6 +85,9 @@ func (s *State) executeByteCode(code []byte) error {
 		}
 		if s.gasBet > 0 && s.gasBet < int(s.gasConsumed) {
 			return outOfGas
+		}
+		if s.code.IsDone() { // break before increment to avoid out of bounds
+			break
 		}
 		s.code.Increment()
 	}

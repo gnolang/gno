@@ -913,6 +913,15 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 2209,
 		},
+		{
+			name: "revert",
+			code: []byte{
+				byte(PUSH0),
+				byte(PUSH0),
+				byte(REVERT),
+			},
+			ignoreGasComsumed: true,
+		},
 	}
 
 	for _, tc := range testCases {
