@@ -1,12 +1,15 @@
 package monit
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/uassert"
 )
 
 func TestPackage(t *testing.T) {
+	testing.SetRealm(std.NewUserRealm("g1user"))
+
 	// initial state, watchdog is KO.
 	{
 		expected := `counter=0
@@ -18,13 +21,13 @@ status=KO`
 	}
 
 	// call Incr(), watchdog is OK.
-	Incr()
-	Incr()
-	Incr()
+	cross(Incr)()
+	cross(Incr)()
+	cross(Incr)()
 	{
 		expected := `counter=3
 last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
-last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+last caller=g1user
 status=OK`
 		got := Render("")
 		uassert.Equal(t, expected, got)
