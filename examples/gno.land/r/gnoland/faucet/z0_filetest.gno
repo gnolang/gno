@@ -9,8 +9,8 @@ import (
 
 // mints ugnot to current realm
 func init() {
-	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	faucetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 200_000_000}})
 }
 
 // assert render with empty path and no controllers
