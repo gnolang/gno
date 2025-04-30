@@ -70,7 +70,7 @@ var (
 )
 
 func init() {
-	Ownable = ownable.New()
+	Ownable = ownable.NewWithOrigin()
 	players = avl.NewTree()
 	gameState.Ended = true
 	hor.Register("FOMO3D Game!", "")
@@ -221,7 +221,7 @@ func ClaimDividends() {
 
 // ClaimOwnerFee allows the owner to withdraw accumulated fees
 func ClaimOwnerFee() {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 
 	if gameState.OwnerFee == 0 {
 		panic(ErrNoFeesToClaim.Error())

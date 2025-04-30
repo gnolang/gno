@@ -210,7 +210,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				last2 := skipFile(last)
 				nx := &n.NameExpr
 				nx.Type = NameExprTypeDefine
-				last2.Predefine(false, n.Name)
+				last2.Predefine(true, n.Name)
 			case *FuncDecl:
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
@@ -231,7 +231,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						idx := pkg.GetNumNames()
 						dname := Name(fmt.Sprintf("._%d", idx))
 						n.Name = dname
-
 					}
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
@@ -431,12 +430,22 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// First init static blocks if blocknode.
+	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
-	if bn, ok := n.(BlockNode); ok {
-		initStaticBlocks(store, ctx, bn)
-	}
+	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
+	// because say n may be a *CallExpr containing an anonymous function.
+	Transcribe(n,
+		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			if bn, ok := n.(BlockNode); ok {
+				initStaticBlocks(store, ctx, bn)
+				return n, TRANS_SKIP
+			}
+			return n, TRANS_CONTINUE
+		})
 
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
@@ -447,12 +456,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX do any of the following need the attr, or similar attrs?
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
-	if bn, ok := n.(BlockNode); ok {
-		// findGotoLoopDefines(ctx, bn)
-		findHeapDefinesByUse(ctx, bn)
-		findHeapUsesDemoteDefines(ctx, bn)
-		findPackageSelectors(bn)
-	}
+	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
+	// because say n may be a *CallExpr containing an anonymous function.
+	Transcribe(n,
+		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			if bn, ok := n.(BlockNode); ok {
+				// findGotoLoopDefines(ctx, bn)
+				findHeapDefinesByUse(ctx, bn)
+				findHeapUsesDemoteDefines(ctx, bn)
+				findPackageSelectors(bn)
+				return n, TRANS_SKIP
+			}
+			return n, TRANS_CONTINUE
+		})
 	return n
 }
 
@@ -728,11 +747,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								store, last, cx).(Expr)
 							var ct Type
 							if cxx, ok := cx.(*ConstExpr); ok {
-								if !cxx.IsUndefined() {
-									panic("should not happen")
+								if cxx.IsUndefined() {
+									// TODO: shouldn't cxx.T be TypeType?
+									// Don't change cxx.GetType() for defensiveness.
+									ct = nil
+								} else {
+									ct = cxx.GetType()
 								}
-								// only in type switch cases, nil type allowed.
-								ct = nil
 							} else {
 								ct = evalStaticType(store, last, cx)
 							}
@@ -958,7 +979,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"should not happen: name %q is reserved", n.Name))
 				}
-				// special case if struct composite key.
+				// Special case if struct composite key.
 				if ftype == TRANS_COMPOSITE_KEY {
 					clx := ns[len(ns)-1].(*CompositeLitExpr)
 					clt := evalStaticType(store, last, clx.Type)
@@ -1333,8 +1354,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
-						// append returns a slice and slices are always addressable.
-						n.Addressability = addressabilityStatusSatisfied
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1381,10 +1400,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
-						// The pointer value returned is not addressable, but maybe some selector
-						// will make it addressable. For now mark it as not addressable.
-						n.Addressability = addressabilityStatusUnsatisfied
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
 						// Memoize *CallExpr.WithCross.
 						pc, ok := ns[len(ns)-1].(*CallExpr)
@@ -1395,16 +1410,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						// XXX Make sure it's only used in a realm.
 					}
-				}
-
-				// If addressability is not satisfied at this point and the function call returns only one
-				// result, then mark addressability as unsatisfied. Otherwise, this expression has already
-				// been explicitly marked as satisfied, or the function returns multiple results, rendering
-				// addressability NotApplicable for this situation -- it should fallback to the error produced
-				// when trying to take a reference or slice the result of a call expression that returns
-				// multiple values.
-				if n.Addressability != addressabilityStatusSatisfied && len(ft.Results) == 1 {
-					n.Addressability = addressabilityStatusUnsatisfied
 				}
 
 				// Continue with general case.
@@ -1552,23 +1557,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIntegerKind(store, last, n, n.Index)
-
-					// Addressability of this index expression can only be known for slice and
-					// strings, explanations below in the respective blocks. If this is an index
-					// on an array, do nothing. This will defer to the array's addresability when
-					// the `addressability` method is called on this index expression.
-					if dt.Kind() == SliceKind {
-						// A value at a slice index is always addressable because the underlying
-						// array is addressable.
-						n.Addressability = addressabilityStatusSatisfied
-					} else if dt.Kind() == StringKind {
-						// Special case; string indexes are never addressable.
-						n.Addressability = addressabilityStatusUnsatisfied
-					}
 				case MapKind:
 					mt := baseOf(dt).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key, false)
-					n.Addressability = addressabilityStatusUnsatisfied
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -1584,11 +1575,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n, n.Max)
 
 				t := evalStaticTypeOf(store, last, n.X)
-				if t.Kind() == ArrayKind {
-					if n.X.addressability() == addressabilityStatusUnsatisfied {
-						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
-					}
-				}
 
 				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
@@ -1666,10 +1652,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt, false)
 					}
-
-					// Slices are always addressable because the underlying array
-					// is added to the heap during initialization.
-					n.IsAddressable = true
 				case *MapType:
 					for i := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key, false)
@@ -1706,16 +1688,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
-				// If ftype is TRANS_REF_X, then this composite literal being created looks
-				// something like this in the code: `&MyStruct{}`. It is marked as addressable here
-				// because on TRANS_LEAVE for a RefExpr, it defers to the addressability of the
-				// expression it is referencing. When a composite literal is created with a preceding
-				// '&', it means the value is assigned to an address and that address is returned,
-				// so the value is addressable.
-				if ftype == TRANS_REF_X {
-					n.IsAddressable = true
-				}
-
 			// TRANS_LEAVE -----------------------
 			case *KeyValueExpr:
 				// NOTE: For simplicity we just
@@ -1732,9 +1704,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
-				if xt.Kind() == PointerKind {
-					n.IsAddressable = true
-				}
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -2291,7 +2260,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
 					// if store has this type, use that.
-					tid := DeclaredTypeID(lastpn.PkgPath, n.Name)
+					tid := DeclaredTypeID(lastpn.PkgPath, last.GetLocation(), n.Name)
 					exists := false
 					if dt := store.GetTypeSafe(tid); dt != nil {
 						dst = dt.(*DeclaredType)
@@ -2303,7 +2272,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// NOTE: this is where declared types are
 						// actually instantiated, not in
 						// machine.go:runDeclaration().
-						dt2 := declareWith(lastpn.PkgPath, n.Name, tmp)
+						dt2 := declareWith(lastpn.PkgPath, last, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						dt2.Seal()
 						// }
@@ -2325,15 +2294,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 
 			case *RefExpr:
-				// If n.X is a RefExpr, then this expression is something like:
-				// &(&value). The resulting pointer value of the first reference is not
-				// addressable. Otherwise fall back to the target expression's addressability.
-				_, xIsRef := n.X.(*RefExpr)
-				tt := evalStaticTypeOf(store, last, n.X)
-
-				if ft, is_func := tt.(*FuncType); (is_func && !ft.IsClosure) || xIsRef || n.X.addressability() == addressabilityStatusUnsatisfied {
-					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
-				}
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
@@ -2562,6 +2522,8 @@ func parseMultipleAssignFromOneExpr(
 // We may still want this for optimizing heap defines;
 // the current implementation of findHeapDefinesByUse/findHeapUsesDemoteDefines
 // produces false positives.
+//
+//nolint:unused
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2815,6 +2777,13 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 								return n, TRANS_CONTINUE
 							}
 						}
+						// Ignore type declaration names.
+						// Types cannot be passed ergo cannot be captured.
+						// (revisit when types become first class objects)
+						st := dbn.GetStaticTypeOf(nil, n.Name)
+						if st.Kind() == TypeKind {
+							return n, TRANS_CONTINUE
+						}
 
 						// Found a heap item closure capture.
 						addAttrHeapUse(dbn, n.Name)
@@ -2909,7 +2878,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 // returns the depth of first closure, 1 if stop itself is a closure,
 // or 0 if not found.
 func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
-	redundant := 0 // count faux block
+	faux := 0 // count faux block
 	for i := len(stack) - 1; i >= 0; i-- {
 		stbn := stack[i]
 		switch stbn := stbn.(type) {
@@ -2918,22 +2887,23 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 				return
 			}
 			fle = stbn
-			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
+			depth = len(stack) - 1 - faux - i + 1 // +1 since 1 is lowest.
 			found = true
 			// even if found, continue iteration in case
 			// an earlier *FuncLitExpr is found.
-		case *IfCaseStmt, *SwitchClauseStmt:
-			if stbn == stop {
-				return
-			}
-			redundant++
 		default:
+			if fauxChildBlockNode(stbn) {
+				faux++
+			}
 			if stbn == stop {
 				return
 			}
 		}
 	}
-	panic("stop not found in stack")
+	// This can happen e.g. if stop is a package but we are
+	// Preprocess()'ing an expression such as `func(){ ... }()` from
+	// Machine.Eval() on an already preprocessed package.
+	return
 }
 
 // If a name is used as a heap item, Convert all other uses of such names
@@ -3472,7 +3442,7 @@ func findBranchLabel(last BlockNode, label Name) (
 ) {
 	for {
 		switch cbn := last.(type) {
-		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt, *SwitchStmt:
+		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
 			lbl := cbn.GetLabel()
 			if label == lbl {
 				bn = cbn
@@ -3480,7 +3450,7 @@ func findBranchLabel(last BlockNode, label Name) (
 			}
 			last = skipFaux(cbn.GetParentNode(nil))
 			depth += 1
-		case *IfStmt:
+		case *IfStmt, *SwitchStmt:
 			// These are faux blocks -- shouldn't happen.
 			panic("unexpected faux blocknode")
 		case *FileNode:
@@ -4704,16 +4674,16 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			}
 			// The body may get altered during preprocessing later.
 			if !dt.TryDefineMethod(&FuncValue{
-				Type:        ft,
-				IsMethod:    true,
-				Source:      cd,
-				Name:        cd.Name,
-				Parent:      nil, // set lazily
-				FileName:    fileNameOf(last),
-				PkgPath:     pkg.PkgPath,
-				SwitchRealm: cd.Body.isSwitchRealm(),
-				body:        cd.Body,
-				nativeBody:  nil,
+				Type:       ft,
+				IsMethod:   true,
+				Source:     cd,
+				Name:       cd.Name,
+				Parent:     nil, // set lazily
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				Crossing:   cd.Body.isCrossing(),
+				body:       cd.Body,
+				nativeBody: nil,
 			}) {
 				// Revert to old function declarations in the package we're preprocessing.
 				pkg := packageOf(last)
@@ -4941,10 +4911,12 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			} else {
 				// create new declared type.
 				pn := packageOf(last)
-				t = declareWith(pn.PkgPath, d.Name, t)
+				dt := declareWith(pn.PkgPath, last, d.Name, t)
+				t = dt
 			}
 			// fill in later.
-			last2.Define(d.Name, asValue(t))
+			// last2.Define(d.Name, asValue(t))
+			last2.Define2(true, d.Name, t, asValue(t))
 			d.Path = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
@@ -4976,16 +4948,16 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			// fill in later during *FuncDecl:BLOCK.
 			// The body may get altered during preprocessing later.
 			fv := &FuncValue{
-				Type:        ft,
-				IsMethod:    false,
-				Source:      d,
-				Name:        d.Name,
-				Parent:      nil, // set lazily.
-				FileName:    fileNameOf(last),
-				PkgPath:     pkg.PkgPath,
-				SwitchRealm: d.Body.isSwitchRealm(),
-				body:        d.Body,
-				nativeBody:  nil,
+				Type:       ft,
+				IsMethod:   false,
+				Source:     d,
+				Name:       d.Name,
+				Parent:     nil, // set lazily.
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				Crossing:   d.Body.isCrossing(),
+				body:       d.Body,
+				nativeBody: nil,
 			}
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
 			// len(fv.body) == 0 could mean also {} (ie. no statements inside)
@@ -5062,6 +5034,14 @@ func fauxBlockNode(bn BlockNode) bool {
 	return false
 }
 
+func fauxChildBlockNode(bn BlockNode) bool {
+	switch bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		return true
+	}
+	return false
+}
+
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
@@ -5076,13 +5056,13 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// and declared variables. See tests/files/define1.go for test case.
 			var path ValuePath
 			var i int = 0
-			var faux int = 0
+			var fauxChild int = 0
 			for {
 				i++
-				last = last.GetParentNode(nil)
-				if fauxBlockNode(last) {
-					faux++
+				if fauxChildBlockNode(last) {
+					fauxChild++
 				}
+				last = last.GetParentNode(nil)
 				if last == nil {
 					if isUverseName(nx.Name) {
 						idx, ok := UverseNode().GetLocalIndex(nx.Name)
@@ -5106,7 +5086,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.SetDepth(path.Depth + uint8(i) - uint8(faux))
+			path.SetDepth(path.Depth + uint8(i) - uint8(fauxChild))
 			path.Validate()
 			nx.Path = path
 			return

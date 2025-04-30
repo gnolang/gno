@@ -11,3 +11,6 @@ func main() {
 
 // Error:
 // main/files/types/shift_d50.gno:7:7: bigint underflows target kind
+
+// TypeCheckError:
+// main/files/types/shift_d50.gno:7:14: -(1.0 << 2) (untyped int constant -4) overflows uint64

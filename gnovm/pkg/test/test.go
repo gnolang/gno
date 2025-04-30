@@ -31,7 +31,7 @@ const (
 	DefaultHeight = 123
 	// DefaultTimestamp is the Timestamp value used by default in [Context].
 	DefaultTimestamp = 1234567890
-	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno"),
+	// DefaultCaller is the result of gno.DerivePkgBech32Addr("user1.gno"),
 	// used as the default caller in [Context].
 	DefaultCaller crypto.Bech32Address = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 )
@@ -44,11 +44,11 @@ const (
 // [DefaultTimestamp].
 func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
-	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
+	pkgAddr := gno.DerivePkgBech32Addr(pkgPath) // the addr of the pkgPath called.
 
 	banker := &teststd.TestBanker{
 		CoinTable: map[crypto.Bech32Address]std.Coins{
-			pkgAddr.Bech32(): send,
+			pkgAddr: send,
 		},
 		Supplies: make(map[string]int64),
 	}
@@ -271,7 +271,9 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
 			testFilePath := filepath.Join(fsDir, testFileName)
-			testName := "file/" + testFileName
+			// XXX consider this
+			testName := fsDir + "/" + testFileName
+			// testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
 			}
@@ -390,6 +392,8 @@ func (opts *TestOptions) runTestFiles(
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{
+					// XXX Consider this.
+					// {Key: gno.X("Name"), Value: gno.Str(memPkg.Path + "/" + tf.Filename + "." + tf.Name)},
 					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
 					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
 				},
@@ -460,8 +464,9 @@ type report struct {
 }
 
 type testFunc struct {
-	Package string
-	Name    string
+	Package  string
+	Name     string
+	Filename string
 }
 
 func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
@@ -471,8 +476,9 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
 					tf := testFunc{
-						Package: pkgName,
-						Name:    fname,
+						Package:  pkgName,
+						Name:     fname,
+						Filename: string(tf.Name),
 					}
 					rt = append(rt, tf)
 				}

@@ -10,6 +10,7 @@ import (
 	libs_crypto_ed25519 "github.com/gnolang/gno/gnovm/stdlibs/crypto/ed25519"
 	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
+	libs_runtime "github.com/gnolang/gno/gnovm/stdlibs/runtime"
 	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
 	libs_sys_params "github.com/gnolang/gno/gnovm/stdlibs/sys/params"
 	libs_testing "github.com/gnolang/gno/gnovm/stdlibs/testing"
@@ -219,6 +220,38 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_math.Float64frombits(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"runtime",
+		"GC",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			libs_runtime.GC(
+				m,
+			)
+		},
+	},
+	{
+		"runtime",
+		"MemStats",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := libs_runtime.MemStats(
+				m,
+			)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -439,6 +472,36 @@ var nativeFuncs = [...]NativeFunc{
 			libs_std.X_bankerRemoveCoin(
 				m,
 				p0, p1, p2, p3)
+		},
+	},
+	{
+		"std",
+		"derivePkgAddr",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			r0 := libs_std.X_derivePkgAddr(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
 		},
 	},
 	{
@@ -1256,6 +1319,7 @@ var initOrder = [...]string{
 	"net/url",
 	"regexp/syntax",
 	"regexp",
+	"runtime",
 	"std",
 	"sys/params",
 	"time",

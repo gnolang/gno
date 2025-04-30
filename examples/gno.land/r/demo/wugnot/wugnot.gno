@@ -17,10 +17,12 @@ const (
 )
 
 func init() {
-	grc20reg.Register(Token.Getter(), "")
+	cross(grc20reg.Register)(Token.Getter(), "")
 }
 
 func Deposit() {
+	crossing()
+
 	caller := std.PreviousRealm().Address()
 	sent := std.OriginSend()
 	amount := sent.AmountOf("ugnot")
@@ -31,6 +33,8 @@ func Deposit() {
 }
 
 func Withdraw(amount uint64) {
+	crossing()
+
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
 	caller := std.PreviousRealm().Address()
@@ -61,27 +65,41 @@ func Render(path string) string {
 	}
 }
 
-func TotalSupply() uint64 { return Token.TotalSupply() }
+func TotalSupply() uint64 {
+	crossing()
+
+	return Token.TotalSupply()
+}
 
 func BalanceOf(owner std.Address) uint64 {
+	crossing()
+
 	return Token.BalanceOf(owner)
 }
 
 func Allowance(owner, spender std.Address) uint64 {
+	crossing()
+
 	return Token.Allowance(owner, spender)
 }
 
 func Transfer(to std.Address, amount uint64) {
+	crossing()
+
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Transfer(to, amount))
 }
 
 func Approve(spender std.Address, amount uint64) {
+	crossing()
+
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Approve(spender, amount))
 }
 
 func TransferFrom(from, to std.Address, amount uint64) {
+	crossing()
+
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.TransferFrom(from, to, amount))
 }
