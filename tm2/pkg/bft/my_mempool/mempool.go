@@ -1,7 +1,6 @@
 package my_mempool
 
 import (
-	"container/heap"
 	"errors"
 	"sort"
 	"sync"
@@ -14,44 +13,9 @@ type Transaction struct {
 	GasFee uint64
 }
 
-// senderEntry represents the current representative of a sender
-// (i.e., their transaction with the lowest nonce)
-type senderEntry struct {
-	sender string
-	fee    uint64
-	index  int
-}
-
-// senderHeap implements heap.Interface for prioritizing representatives by gas fee
-type senderHeap []*senderEntry
-
-func (h senderHeap) Len() int           { return len(h) }
-func (h senderHeap) Less(i, j int) bool { return h[i].fee > h[j].fee }
-func (h senderHeap) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
-	h[i].index = i
-	h[j].index = j
-}
-func (h *senderHeap) Push(x any) {
-	e := x.(*senderEntry)
-	e.index = len(*h)
-	*h = append(*h, e)
-}
-func (h *senderHeap) Pop() any {
-	old := *h
-	n := len(old)
-	e := old[n-1]
-	e.index = -1
-	*h = old[:n-1]
-	return e
-}
-
 // Mempool structure
 type Mempool struct {
 	txsBySender map[string][]Transaction
-	senderHeap  senderHeap
-	senderMap   map[string]*senderEntry
-	cachedTxs   []Transaction
 	mutex       sync.RWMutex
 }
 
@@ -59,103 +23,87 @@ type Mempool struct {
 func NewMempool() *Mempool {
 	return &Mempool{
 		txsBySender: make(map[string][]Transaction),
-		senderHeap:  make(senderHeap, 0),
-		senderMap:   make(map[string]*senderEntry),
-		cachedTxs:   make([]Transaction, 0),
 	}
 }
 
-// CheckTx validates and adds a transaction to the mempool
-func (mp *Mempool) CheckTx(tx Transaction) error {
-	mp.mutex.Lock()
-	defer mp.mutex.Unlock()
-
+// AddTx validates and adds a transaction to the mempool.
+// Transactions for each sender are kept sorted by nonce (ascending).
+func (mp *Mempool) AddTx(tx Transaction) error {
 	if tx.Sender == "" {
 		return errors.New("sender cannot be empty")
 	}
 
-	list := mp.txsBySender[tx.Sender]
-	idx := sort.Search(len(list), func(i int) bool {
-		return list[i].Nonce > tx.Nonce
-	})
+	mp.mutex.Lock()
+	defer mp.mutex.Unlock()
 
-	// Check for duplicate transaction
-	if idx > 0 && idx <= len(list) && list[idx-1].Nonce == tx.Nonce {
-		return nil // transaction already exists
+	txList := mp.txsBySender[tx.Sender]
+	idx := findInsertIndex(txList, tx.Nonce)
+
+	// Check if transaction with the same nonce exists
+	if idx < len(txList) && txList[idx].Nonce == tx.Nonce {
+		return nil // already exists
 	}
 
-	// Insert at the correct position
-	list = append(list, Transaction{})
-	copy(list[idx+1:], list[idx:])
-	list[idx] = tx
-	mp.txsBySender[tx.Sender] = list
-
-	// Update the heap
-	minTx := list[0]
-	entry, exists := mp.senderMap[tx.Sender]
-	if exists {
-		entry.fee = minTx.GasFee
-		heap.Fix(&mp.senderHeap, entry.index)
-	} else {
-		entry := &senderEntry{sender: tx.Sender, fee: minTx.GasFee}
-		mp.senderMap[tx.Sender] = entry
-		heap.Push(&mp.senderHeap, entry)
-	}
-
+	// Insert transaction at the correct position
+	txList = append(txList, Transaction{}) // increase slice size
+	copy(txList[idx+1:], txList[idx:])     // shift elements
+	txList[idx] = tx                       // insert new tx
+	mp.txsBySender[tx.Sender] = txList     // update map
 	return nil
 }
 
+// findInsertIndex uses binary search to find the insertion index
+func findInsertIndex(txList []Transaction, nonce uint64) int {
+	return sort.Search(len(txList), func(i int) bool {
+		return txList[i].Nonce >= nonce
+	})
+}
+
 // isValid checks if a transaction is valid for inclusion in a block
-// This will include verification of expected nonce values in the future
+// This will be implemented later with more complex validation logic
 func (mp *Mempool) isValid(tx Transaction) bool {
 	return true
 }
 
-// selectOne selects the highest fee transaction from the mempool
+// selectOne selects the best transaction based on gas fee
+// Returns the transaction with the highest gas fee from all valid transactions
 func (mp *Mempool) selectOne() *Transaction {
-	for mp.senderHeap.Len() > 0 {
-		e := heap.Pop(&mp.senderHeap).(*senderEntry)
-		sender := e.sender
-		txs := mp.txsBySender[sender]
+	var bestTx *Transaction
+	var bestSender string
 
+	for sender, txs := range mp.txsBySender {
 		if len(txs) == 0 {
-			delete(mp.txsBySender, sender)
-			delete(mp.senderMap, sender)
 			continue
 		}
-
 		tx := txs[0]
 		if !mp.isValid(tx) {
-			heap.Push(&mp.senderHeap, e)
 			continue
 		}
-
-		mp.cachedTxs = append(mp.cachedTxs, tx)
-
-		// Remove the transaction from the list
-		txs = txs[1:]
-
-		if len(txs) == 0 {
-			delete(mp.txsBySender, sender)
-			delete(mp.senderMap, sender)
-		} else {
-			mp.txsBySender[sender] = txs
-			e.fee = txs[0].GasFee
-			heap.Push(&mp.senderHeap, e)
+		if bestTx == nil || tx.GasFee > bestTx.GasFee {
+			bestTx = &tx
+			bestSender = sender
 		}
-
-		return &tx
 	}
-	return nil
+
+	if bestTx == nil {
+		return nil
+	}
+
+	// Remove the transaction from the sender's list
+	mp.txsBySender[bestSender] = mp.txsBySender[bestSender][1:]
+	if len(mp.txsBySender[bestSender]) == 0 {
+		delete(mp.txsBySender, bestSender)
+	}
+
+	return bestTx
 }
 
 // CollectTxsForBlock selects transactions for inclusion in a block
+// Used primarily for testing purposes
 func (mp *Mempool) CollectTxsForBlock(maxTxs uint) []Transaction {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
-	// Reset the cache
-	mp.cachedTxs = nil
 	selected := make([]Transaction, 0, maxTxs)
 
 	for uint(len(selected)) < maxTxs {
@@ -170,6 +118,7 @@ func (mp *Mempool) CollectTxsForBlock(maxTxs uint) []Transaction {
 }
 
 // Update processes committed transactions and removes them from the mempool
+// This is typically called after transactions have been included in a block
 func (mp *Mempool) Update(committed []Transaction) {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
@@ -182,21 +131,10 @@ func (mp *Mempool) Update(committed []Transaction) {
 				newList = append(newList, existing)
 			}
 		}
-
 		if len(newList) == 0 {
 			delete(mp.txsBySender, tx.Sender)
-			if entry, ok := mp.senderMap[tx.Sender]; ok {
-				if entry.index >= 0 && entry.index < len(mp.senderHeap) {
-					heap.Remove(&mp.senderHeap, entry.index)
-				}
-				delete(mp.senderMap, tx.Sender)
-			}
 		} else {
 			mp.txsBySender[tx.Sender] = newList
-			if entry, ok := mp.senderMap[tx.Sender]; ok {
-				entry.fee = newList[0].GasFee
-				heap.Push(&mp.senderHeap, entry)
-			}
 		}
 	}
 }
@@ -213,6 +151,7 @@ func (mp *Mempool) Size() int {
 }
 
 // GetTransactionsBySender returns all transactions from a specific sender
+// Transactions are sorted by nonce in ascending order
 func (mp *Mempool) GetTransactionsBySender(sender string) []Transaction {
 	mp.mutex.RLock()
 	defer mp.mutex.RUnlock()
@@ -228,16 +167,4 @@ func (mp *Mempool) GetAllTransactions() []Transaction {
 		all = append(all, txs...)
 	}
 	return all
-}
-
-// Rollback returns all cached transactions back to the mempool
-func (mp *Mempool) Rollback() {
-	mp.mutex.Lock()
-	cached := mp.cachedTxs
-	mp.cachedTxs = nil
-	mp.mutex.Unlock()
-
-	for _, tx := range cached {
-		_ = mp.CheckTx(tx)
-	}
 }
