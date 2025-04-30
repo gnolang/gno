@@ -6,6 +6,7 @@ import (
 )
 
 func AdminSetInPause(inPause bool) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -14,6 +15,7 @@ func AdminSetInPause(inPause bool) string {
 }
 
 func AdminSetMessage(message string) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -22,6 +24,7 @@ func AdminSetMessage(message string) string {
 }
 
 func AdminSetTransferLimit(amount int64) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -30,6 +33,7 @@ func AdminSetTransferLimit(amount int64) string {
 }
 
 func AdminSetAdminAddr(addr std.Address) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -38,6 +42,7 @@ func AdminSetAdminAddr(addr std.Address) string {
 }
 
 func AdminAddController(addr std.Address) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -58,6 +63,7 @@ func AdminAddController(addr std.Address) string {
 }
 
 func AdminRemoveController(addr std.Address) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -79,7 +85,7 @@ func AdminRemoveController(addr std.Address) string {
 }
 
 func assertIsAdmin() error {
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	if caller != gAdminAddr {
 		return errors.New("restricted for admin")
 	}

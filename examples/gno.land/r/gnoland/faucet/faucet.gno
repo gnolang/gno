@@ -21,10 +21,12 @@ var (
 	gTotalTransfers   = uint(0)
 
 	// per request limit, 350 gnot
-	gLimit std.Coin = std.NewCoin("ugnot", 350000000)
+	gLimit std.Coin = std.NewCoin("ugnot", 350_000_000)
 )
 
 func Transfer(to std.Address, send int64) string {
+	crossing()
+
 	if err := assertIsController(); err != nil {
 		return err.Error()
 	}
@@ -81,8 +83,7 @@ func Render(_ string) string {
 }
 
 func assertIsController() error {
-	caller := std.OriginCaller()
-
+	caller := std.PreviousRealm().Address()
 	ok := gControllers.Has(caller.String())
 	if !ok {
 		return errors.New(caller.String() + " is not on the controller list")
