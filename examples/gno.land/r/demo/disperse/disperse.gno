@@ -32,7 +32,7 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	}
 
 	// Send coins
-	for i, _ := range addresses {
+	for i := range addresses {
 		banker.SendCoins(realmAddr, addresses[i], std.NewCoins(coins[i]))
 	}
 
@@ -50,6 +50,8 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
 func DisperseGRC20(addresses []std.Address, amounts []uint64, symbols []string) {
+	crossing()
+
 	caller := std.PreviousRealm().Address()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
@@ -57,13 +59,15 @@ func DisperseGRC20(addresses []std.Address, amounts []uint64, symbols []string) 
 	}
 
 	for i := 0; i < len(addresses); i++ {
-		tokens.TransferFrom(symbols[i], caller, addresses[i], amounts[i])
+		cross(tokens.TransferFrom)(symbols[i], caller, addresses[i], amounts[i])
 	}
 }
 
 // DisperseGRC20String receives a string of addresses and a string of tokens
 // and parses them to be used in DisperseGRC20
 func DisperseGRC20String(addresses string, tokens string) {
+	crossing()
+
 	parsedAddresses, err := parseAddresses(addresses)
 	if err != nil {
 		panic(err)
