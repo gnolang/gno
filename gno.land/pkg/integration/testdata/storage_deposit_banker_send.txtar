@@ -3,7 +3,7 @@
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 682000ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 743800ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 
@@ -15,36 +15,45 @@ stdout OK!
 
 ## realm balance before realm send
 gnokey query auth/accounts/g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
-stdout '"coins": "682000ugnot"'
+stdout '"coins": ""'
+
+
+## Get realm gno.land/r/foo storage deposit address  balance (g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9) balance
+gnokey maketx call -pkgpath gno.land/r/foo -func StorageDepositAddress -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9'
+stdout OK!
+
+gnokey query auth/accounts/g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9
+stdout '"coins": "743800ugnot"'
 
 
 ## realm deposit before realm send
 gnokey query vm/qstorage --data gno.land/r/foo
-stdout 'storage: 6820, deposit: 682000'
+stdout 'storage: 7438, deposit: 743800'
 
 ## user balance before realm send
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999997318000ugnot"'
+stdout '"coins": "9999996256200ugnot"'
 
 ## realm send
 ! gnokey maketx call -pkgpath gno.land/r/foo -func RealmSend -args $test1_user_addr -args 1  -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Cannot send more tokens than allowed. A deposit of 682000ugnot must be held in the balance'
+stderr 'insufficient coins error'
 
 ## realm balance after realm send has not changed
 gnokey query auth/accounts/g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469
-stdout '682000'
+stdout '"coins": ""'
 
 ## realm desposit after realm send,
 gnokey query vm/qstorage --data gno.land/r/foo
-stdout 'storage: 6820, deposit: 682000'
+stdout 'storage: 7438, deposit: 743800'
 
 ## user balance after realm send has not changed
 gnokey query auth/accounts/$test1_user_addr
-stdout '9999997318000ugnot'
+stdout '9999996256200ugnot'
 
 ## realm banker send in msg run should bebehave the same.
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1 $WORK/run/realm_send.gno
-stderr 'Cannot send more tokens than allowed. A deposit of 682000ugnot must be held in the balance'
+stderr 'insufficient coins error'
 
 
 # The behavior of origin banker send should remain unchanged.
@@ -102,6 +111,12 @@ func PkgAddress() string{
 	crossing()
   return string(std.DerivePkgAddr("gno.land/r/foo"))
 }
+
+func StorageDepositAddress() string{
+	crossing()
+  return string(std.DeriveStorageDepositAddr("gno.land/r/foo"))
+}
+
 
 func RealmSend(to std.Address,amt int64 ){
 	crossing()

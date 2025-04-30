@@ -46,36 +46,37 @@ func main() {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //                  "Escaped": true,
-//     -            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:36"
-//     +            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:33"
+//     -            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:38"
+//     +            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:35"
 //              }
 //          }
 //      }
-// u[a7f5397443359ea76c50be82c77f1f893a060925:33](7)=
+// u[a7f5397443359ea76c50be82c77f1f893a060925:35](7)=
 //     @@ -8,10 +8,11 @@
 //          "NativePkg": "std",
 //          "ObjectInfo": {
-//              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:33",
-//     -        "ModTime": "0",
+//              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:35",
 //     +        "IsEscaped": true,
+//              "LastObjectSize": "419",
+//     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "ObjectSize": "419",
 //              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
-// u[a7f5397443359ea76c50be82c77f1f893a060925:36](0)=
+// u[a7f5397443359ea76c50be82c77f1f893a060925:38](0)=
 //     @@ -12,7 +12,7 @@
+//              "LastObjectSize": "435",
 //              "ModTime": "6",
-//              "ObjectSize": "435",
 //              "OwnerID": "a7f5397443359ea76c50be82c77f1f893a060925:2",
 //     -        "RefCount": "2"
 //     +        "RefCount": "1"
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
+
 
 
 //     @@ -26,7 +26,7 @@

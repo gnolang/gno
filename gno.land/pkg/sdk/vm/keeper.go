@@ -360,7 +360,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrTypeCheck(err)
 	}
 
-	// Pay deposit from creator.
+	// Used to receive coins sent by the creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 
 	// TODO: ACLs.
@@ -935,10 +935,10 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 }
 
 func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, requiredDeposit int64, diff int64) error {
-	rlmAddr := gno.DerivePkgCryptoAddr(rlm.Path)
+	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
-	err := vm.bank.SendCoinsUnrestricted(ctx, caller, rlmAddr, d)
+	err := vm.bank.SendCoinsUnrestricted(ctx, caller, storageDepositAddr, d)
 	if err != nil {
 		return fmt.Errorf("unable to transfer deposit %s, %w", rlm.Path, err)
 	}
@@ -950,9 +950,9 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 }
 
 func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address, rlm *gno.Realm, depositUnlocked int64, released int64) error {
-	rlmAddr := gno.DerivePkgCryptoAddr(rlm.Path)
+	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
-	err := vm.bank.SendCoinsUnrestricted(ctx, rlmAddr, caller, d)
+	err := vm.bank.SendCoinsUnrestricted(ctx, storageDepositAddr, caller, d)
 	if err != nil {
 		return fmt.Errorf("unable to return deposit %s, %w", rlm.Path, err)
 	}

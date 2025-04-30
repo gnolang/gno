@@ -15,7 +15,7 @@ import (
 // transpiling.
 type BankerInterface interface {
 	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
-	SendCoins(from, to crypto.Bech32Address, amt std.Coins, rlmPath string)
+	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr crypto.Bech32Address, denom string, amount int64)
 	RemoveCoin(addr crypto.Bech32Address, denom string, amount int64)
@@ -41,7 +41,6 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 	// bt != BankerTypeReadonly (checked in gno)
 
 	ctx := GetContext(m)
-	_, rlmPath := currentRealm(m)
 	amt := CompactCoins(denoms, amounts)
 	from, to := crypto.Bech32Address(fromS), crypto.Bech32Address(toS)
 
@@ -57,10 +56,10 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 			))
 			return
 		}
-		ctx.Banker.SendCoins(from, to, amt, rlmPath)
+		ctx.Banker.SendCoins(from, to, amt)
 		*ctx.OriginSendSpent = spent
 	case btRealmSend, btRealmIssue:
-		ctx.Banker.SendCoins(from, to, amt, rlmPath)
+		ctx.Banker.SendCoins(from, to, amt)
 	default:
 		panic(fmt.Sprintf("invalid banker type %d in bankerSendCoins", bt))
 	}

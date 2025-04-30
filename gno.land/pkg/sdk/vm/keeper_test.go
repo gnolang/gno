@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	coinsString = ugnot.ValueString(10_000_000)
+	coinsString = ugnot.ValueString(20_000_000)
 	coinsToSend = ugnot.ValueString(1_000_000)
 )
 
@@ -216,7 +216,7 @@ func GetAdmin() string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins(ugnot.ValueString(11000000))
+	coins := std.MustParseCoins(ugnot.ValueString(21000000))
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -297,7 +297,7 @@ func Echo(msg string) string {
 
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
-	send := std.Coins{{"ugnot", 10000000}}
+	send := std.Coins{{"ugnot", 1000000}}
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg

@@ -21,21 +21,24 @@ func main() {
 // hello ABCD cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
 
+
+
 // Storage:
 // gno.land/r/crossrealm_test: 0
 // gno.land/r/demo/tests/crossrealm: 226
 // gno.land/r/demo/tests/crossrealm_b: 8
 
+
+
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:7](219)=
-//     @@ -1,10 +1,28 @@
-//      {
+//     @@ -2,9 +2,27 @@
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:7",
+//              "LastObjectSize": "190",
 //     -        "ModTime": "0",
-//     +        "ModTime": "27",
-//              "ObjectSize": "190",
+//     +        "ModTime": "35",
 //              "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "RefCount": "1"
 //          },
@@ -65,10 +68,10 @@ func main() {
 //      {
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
-//     -        "ModTime": "0",
 //     +        "IsEscaped": true,
-//     +        "ModTime": "27",
-//              "ObjectSize": "356",
+//              "LastObjectSize": "356",
+//     -        "ModTime": "0",
+//     +        "ModTime": "35",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
@@ -79,7 +82,7 @@ func main() {
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:5](8)=
-//     @@ -7,13 +7,13 @@
+//     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.StringValue",
@@ -90,11 +93,12 @@ func main() {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:5",
+//              "LastObjectSize": "239",
 //     -        "ModTime": "0",
 //     +        "ModTime": "15",
-//              "ObjectSize": "239",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //              "RefCount": "1"
+//          }
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm_test"]

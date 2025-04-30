@@ -543,7 +543,7 @@ func Echo(str string) string {
 	assert.Equal(t, string(query.Response.Data), fileName)
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
+	baseAcc, _, err := client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath))
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 1485000}}, baseAcc.GetCoins())
 
@@ -654,7 +654,7 @@ func Hello(str string) string {
 	assert.Equal(t, string(query.Response.Data), "echo.gno")
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath1))
+	baseAcc, _, err := client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
 	assert.Equal(t, "1485000ugnot", baseAcc.GetCoins().String())
 
@@ -668,7 +668,7 @@ func Hello(str string) string {
 	assert.Contains(t, string(query.Response.Data), "gno.mod")
 
 	// Query balance to validate deposit
-	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
+	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 2496000}}, baseAcc.GetCoins())
 

@@ -42,13 +42,17 @@ func main() {
 // Output:
 // aa:aa:aa
 
+
+
 // Storage:
 // gno.land/r/storage_test: 157
+
+
 
 // Realm:
 // finalizerealm["gno.land/r/storage_test"]
 // u[334570344df8e77213d2886cb407c37de6da36c1:14](6)=
-//     @@ -7,13 +7,13 @@
+//     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.StringValue",
@@ -59,13 +63,14 @@ func main() {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "334570344df8e77213d2886cb407c37de6da36c1:14",
+//              "LastObjectSize": "240",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "ObjectSize": "240",
 //              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
 //              "RefCount": "1"
+//          }
 // u[334570344df8e77213d2886cb407c37de6da36c1:16](6)=
-//     @@ -7,13 +7,13 @@
+//     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.StringValue",
@@ -76,21 +81,22 @@ func main() {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "334570344df8e77213d2886cb407c37de6da36c1:16",
+//              "LastObjectSize": "241",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "ObjectSize": "241",
 //              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:15",
 //              "RefCount": "1"
+//          }
 // u[334570344df8e77213d2886cb407c37de6da36c1:6](138)=
-//     @@ -1,7 +1,7 @@
-//      {
+//     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "334570344df8e77213d2886cb407c37de6da36c1:6",
+//              "LastObjectSize": "259",
 //     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "ObjectSize": "259",
 //              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
 //              "RefCount": "1"
+//          },
 //     @@ -13,6 +13,16 @@
 //                      "@type": "/gno.RefType",
 //                      "ID": "gno.land/r/storage_test.Foo"
@@ -113,10 +119,10 @@ func main() {
 //      {
 //          "ObjectInfo": {
 //              "ID": "334570344df8e77213d2886cb407c37de6da36c1:15",
-//     -        "ModTime": "0",
 //     +        "IsEscaped": true,
+//              "LastObjectSize": "345",
+//     -        "ModTime": "0",
 //     +        "ModTime": "16",
-//              "ObjectSize": "345",
 //              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:5",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
