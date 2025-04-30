@@ -457,3 +457,52 @@ func TestAuthorityString(t *testing.T) {
 	expectedDroppedStr := "dropped_authority"
 	uassert.Equal(t, droppedStr, expectedDroppedStr)
 }
+
+func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
+	contractPath := "gno.land/r/testcontract"
+	contractAddr := std.DerivePkgAddr(contractPath)
+	unauthorizedAddr := testutils.TestAddress("unauthorized")
+
+	// Handler that checks the caller before proceeding
+	handlerExecutedCorrectly := false // Tracks if handler logic ran correctly
+	handlerErrorMsg := "handler: caller is not the contract"
+	contractHandler := func(title string, action PrivilegedAction) error {
+		caller := std.CurrentRealm().Address()
+		if caller != contractAddr {
+			return errors.New(handlerErrorMsg)
+		}
+		// Only execute action and mark success if caller is correct
+		handlerExecutedCorrectly = true
+		return action()
+	}
+
+	contractAuth := NewContractAuthority(contractPath, contractHandler)
+	authorizer := NewWithAuthority(contractAuth) // Start with ContractAuthority
+
+	actionExecuted := false
+	privilegedAction := func() error {
+		actionExecuted = true
+		return nil
+	}
+
+	// 1. Attempt action from unauthorized user
+	testing.SetRealm(std.NewUserRealm(unauthorizedAddr))
+	err := authorizer.Do("test_action_unauthorized", privilegedAction)
+
+	// Assertions for unauthorized call
+	uassert.Error(t, err, "Do should return an error for unauthorized caller")
+	uassert.ErrorContains(t, err, handlerErrorMsg, "Error should originate from the handler check")
+	uassert.False(t, handlerExecutedCorrectly, "Handler should not have executed successfully for unauthorized caller")
+	uassert.False(t, actionExecuted, "Privileged action should not have executed for unauthorized caller")
+
+	// 2. Attempt action from the correct contract
+	handlerExecutedCorrectly = false // Reset flag
+	actionExecuted = false           // Reset flag
+	testing.SetRealm(std.NewCodeRealm(contractPath))
+	err = authorizer.Do("test_action_authorized", privilegedAction)
+
+	// Assertions for authorized call
+	uassert.NoError(t, err, "Do should succeed for authorized contract caller")
+	uassert.True(t, handlerExecutedCorrectly, "Handler should have executed successfully for authorized caller")
+	uassert.True(t, actionExecuted, "Privileged action should have executed for authorized caller")
+}
