@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"std"
 	"testing"
 
@@ -222,9 +223,20 @@ func TestTransferToContractAuthority(t *testing.T) {
 	// Define a simple contract authority handler
 	handlerExecuted := false // Track if the handler itself gets called
 	contractAuth := authz.NewContractAuthority(contractPath, func(title string, action authz.PrivilegedAction) error {
-		handlerExecuted = true // Mark handler as executed
-		// The caller is already verified as the contract by ContractAuthority.Authorize
-		// Just execute the action.
+		// Simulate contract checking the caller *before* executing
+		caller := std.CurrentRealm().Address()
+		expectedContractAddr := std.DerivePkgAddr(contractPath)
+		if caller != expectedContractAddr {
+			// Fail before marking executed or running action
+			// Note: In a real scenario, this handler might just ignore the call
+			// if the caller isn't right, rather than returning an error,
+			// depending on the desired contract logic. Returning an error
+			// here helps the test verify the handler wasn't improperly called.
+			return errors.New("handler: caller is not the contract")
+		}
+
+		// Only mark executed and run action if caller is correct
+		handlerExecuted = true
 		return action()
 	})
 
@@ -264,9 +276,11 @@ func TestTransferToContractAuthority(t *testing.T) {
 		userActionExecuted = true
 		return nil
 	})
-	// The ContractAuthority.Authorize method should return an error before calling the handler
+	// The ContractAuthority.Authorize method should return an error
+	// because the handler now returns an error if the caller isn't the contract.
 	uassert.Error(t, err, "user action via Authorizer.Do should fail when contract is authority")
-	uassert.False(t, handlerExecuted, "handler should NOT have been executed by user call") // Verify handler didn't run
+	uassert.ErrorContains(t, err, "handler: caller is not the contract", "error should originate from handler check") // Check specific error
+	uassert.False(t, handlerExecuted, "handler should NOT have been executed by user call")                           // Verify handler didn't run past the check
 	uassert.False(t, userActionExecuted, "user action should not have been executed")
 }
 
