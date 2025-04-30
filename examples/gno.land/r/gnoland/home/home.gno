@@ -197,6 +197,7 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(content string) {
+	crossing()
 	Admin.AssertOwnedByPrevious()
 	override = content
 }
