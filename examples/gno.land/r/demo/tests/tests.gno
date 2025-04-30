@@ -50,13 +50,13 @@ func CallIsOriginCall() bool {
 func CallSubtestsAssertOriginCall() {
 	crossing()
 
-	rsubtests.CallAssertOriginCall()
+	cross(rsubtests.CallAssertOriginCall)()
 }
 
 func CallSubtestsIsOriginCall() bool {
 	crossing()
 
-	return rsubtests.CallIsOriginCall()
+	return cross(rsubtests.CallIsOriginCall)()
 }
 
 //----------------------------------------
@@ -139,17 +139,17 @@ func ExecSwitch(fn func()) {
 func IsCallerSubPath() bool {
 	crossing()
 
-	return nestedpkg.IsCallerSubPath()
+	return cross(nestedpkg.IsCallerSubPath)()
 }
 
 func IsCallerParentPath() bool {
 	crossing()
 
-	return nestedpkg.IsCallerParentPath()
+	return cross(nestedpkg.IsCallerParentPath)()
 }
 
 func HasCallerSameNamespace() bool {
 	crossing()
 
-	return nestedpkg.IsSameNamespace()
+	return cross(nestedpkg.IsSameNamespace)()
 }
