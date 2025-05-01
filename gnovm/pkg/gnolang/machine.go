@@ -1842,11 +1842,19 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if fv.IsCrossing() {
 		if m.Realm != pv.Realm {
 			// panic; not explicit
+			mrpath := "<no realm>"
+			if m.Realm != nil {
+				mrpath = m.Realm.Path
+			}
+			prpath := "<no realm>"
+			if pv.Realm != nil {
+				prpath = pv.Realm.Path
+			}
 			panic(fmt.Sprintf(
 				"missing cross before external crossing() in %v from %s to %s",
 				fv.String(),
-				m.Realm.Path,
-				pv.Realm.Path,
+				mrpath,
+				prpath,
 			))
 		} else {
 			// ok
