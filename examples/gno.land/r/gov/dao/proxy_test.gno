@@ -85,11 +85,12 @@ func TestProxy_Functions(t *testing.T) {
 	if p != nil {
 		panic("proposal must be nil")
 	}
-
 	p = cross(MustGetProposal)(pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
-	urequire.Equal(t, p.Author().String(), "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
+	urequire.Equal(t, p.Author().String(), alice.String())
 
+	// need to switch the context back to v4
+	testing.SetRealm(std.NewCodeRealm(v4))
 	urequire.Equal(
 		t,
 		"Render: test",
