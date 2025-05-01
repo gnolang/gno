@@ -50,13 +50,11 @@ func TestNewWithAddress(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.NewUserRealm(alice)
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
-	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
-		err := o.TransferOwnership(bob)
-		urequire.NoError(t, err)
-	})
+	err := o.TransferOwnership(bob)
+	urequire.NoError(t, err)
 
 	got := o.Owner()
 	uassert.Equal(t, got, bob)
@@ -66,10 +64,11 @@ func TestTransferOwnershipUnauthorized(t *testing.T) {
 	var o *Ownable
 
 	testing.SetRealm(std.NewUserRealm(alice))
-	o = New() // alice
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
+		o = NewWithOrigin() // owned by alice
+	})
 
-	// Set realm to an unauthorized user realm.
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/unauthorzied"))
+	// Try unauthorized transfer from non-alice realm.
 	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
 		uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
@@ -77,18 +76,14 @@ func TestTransferOwnershipUnauthorized(t *testing.T) {
 
 	// Set realm to an unauthorized user bob.
 	testing.SetRealm(std.NewUserRealm(bob))
-	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
-		// current is gno.land/r/test/test so of course errors.
-		uassert.ErrorContains(t, o.TransferOwnership(bob), ErrUnauthorized.Error())
-		uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
-	})
+	// current is gno.land/r/test/test so of course errors.
+	uassert.ErrorContains(t, o.TransferOwnership(bob), ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
 
 	// Reset realm to alice.
 	testing.SetRealm(std.NewUserRealm(alice))
-	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
-		uassert.NoError(t, o.TransferOwnership(alice))
-		uassert.NoError(t, o.DropOwnership())
-	})
+	uassert.NoError(t, o.TransferOwnership(alice))
+	uassert.NoError(t, o.DropOwnership())
 }
 
 func TestOwnedByCurrent(t *testing.T) {
@@ -138,26 +133,22 @@ func TestDropOwnership(t *testing.T) {
 
 	o := New()
 
-	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
-		err := o.DropOwnership()
-		urequire.NoError(t, err, "DropOwnership failed")
+	err := o.DropOwnership()
+	urequire.NoError(t, err, "DropOwnership failed")
 
-		owner := o.Owner()
-		uassert.Empty(t, owner, "owner should be empty")
-	})
+	owner := o.Owner()
+	uassert.Empty(t, owner, "owner should be empty")
 }
 
 func TestErrInvalidAddress(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/test"))
 
 	o := New()
-	crossThrough(std.NewCodeRealm("gno.land/r/test"), func() {
-		err := o.TransferOwnership("")
-		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
+	err := o.TransferOwnership("")
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
-		err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
-		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
-	})
+	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }
 
 func TestAssertOwnedByCurrent(t *testing.T) {
