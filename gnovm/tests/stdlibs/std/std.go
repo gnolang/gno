@@ -113,7 +113,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		override, overridden := getOverride(m, i)
 		if overridden {
 			if override.PkgPath == "" && crosses < height {
-				return string(ctx.OriginCaller), ""
+				m.Panic(typedString("frame not found: cannot seek beyond origin caller override"))
 			}
 		}
 		if !overridden {
