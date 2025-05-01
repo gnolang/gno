@@ -95,7 +95,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		// Ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
 		if errDirective == nil {
-			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:%s\nstack:\n%v",
+			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
 				result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
 		}
 
