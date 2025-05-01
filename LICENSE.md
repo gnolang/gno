@@ -4,11 +4,11 @@ subdirectory, which uses a [different license](./tm2/LICENSE).
 
 ---
 
-Copyright (C) 2024 NewTendermint, LLC
+Copyright (C) 2025 NewTendermint, LLC
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNO Network General Public License as published by
-NewTendermint, LLC, either version 4 of the License, or (at your option) any
+NewTendermint, LLC, either version 5 of the License, or (at your option) any
 later version published by NewTendermint, LLC.
 
 This program is distributed in the hope that it will be useful, but is provided
@@ -71,7 +71,7 @@ rights granted under this License.
 
 # GNO NETWORK GENERAL PUBLIC LICENSE
 
-Version 4, 7 May 2024
+Version 5, 21 April 2025
 
 Modified from the GNU AFFERO GENERAL PUBLIC LICENSE.
 GNU is not affiliated with GNO or NewTendermint, LLC.
@@ -126,7 +126,7 @@ modification follow.
 
 ### 0. Definitions.
 
-"This License" refers to version 4 of the GNO Network General Public License.
+"This License" refers to version 5 of the GNO Network General Public License.
 
 "Copyright" also means copyright-like laws that apply to other kinds of
 works, such as semiconductor masks.
@@ -692,7 +692,7 @@ the "copyright" line and a pointer to where the full notice is found.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNO Network General Public License as published by
-    NewTendermint LLC, either version 4 of the License, or
+    NewTendermint LLC, either version 5 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
