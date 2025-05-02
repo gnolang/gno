@@ -34,11 +34,12 @@ type State struct {
 
 func newState() *State {
 	return &State{
-		stack:  *NewevmStack(),
-		memory: []byte{}, // make([]byte, 1024)
-		result: []byte{}, // make([]byte, 1024)
-		code:   instructions{},
-		caller: nil,
+		stack:     *NewevmStack(),
+		memory:    []byte{}, // make([]byte, 1024)
+		result:    []byte{}, // make([]byte, 1024)
+		code:      instructions{},
+		caller:    nil,
+		callValue: uint256.Zero(),
 		tmp: tmpEnv{
 			storage:     make(map[uint256.Uint]*uint256.Uint),
 			logs:        []LogEntry{},
@@ -51,6 +52,8 @@ func newState() *State {
 	}
 }
 
+// getters
+
 func (s State) getStackData() []*uint256.Uint {
 	return s.stack.data
 }
@@ -58,6 +61,8 @@ func (s State) getStackData() []*uint256.Uint {
 func (s State) getResult() []byte {
 	return s.result
 }
+
+// setters
 
 func (s *State) setEnv(env *Env) {
 	s.env = env
@@ -114,6 +119,8 @@ func (s *State) executeByteCode(code []byte) error {
 			s.env.Storage[k] = v
 		}
 	}
-	// TODO: substract the gas amount
+	if s.caller != nil {
+		s.caller.Gas -= s.gasConsumed
+	}
 	return nil
 }

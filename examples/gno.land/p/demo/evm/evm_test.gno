@@ -1,7 +1,6 @@
 package evm
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -11,14 +10,6 @@ import (
 
 	"gno.land/p/demo/uint256"
 )
-
-func mustHex(str string) []byte {
-	x, err := hex.DecodeString(str)
-	if err != nil {
-		panic(err)
-	}
-	return x
-}
 
 func TestExecuteEvm(t *testing.T) {
 	testCases := []struct {
@@ -931,6 +922,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(REVERT),
 			},
 			ignoreGasComsumed: true,
+			expectedError: revertError,
 		},
 		{
 			name: "caller",
@@ -1091,6 +1083,7 @@ func TestExecuteEvm(t *testing.T) {
 			code:              mustHex("6080604052348015600f57600080fd5b506004361060285760003560e01c80630dbe671f14602d575b600080fd5b60336047565b604051603e9190606a565b60405180910390f35b60006054905090565b600060ff82169050919050565b6064816050565b82525050565b6000602082019050607d6000830184605d565b9291505056fea2646970667358221220368126a6b73d43aa76aadbfe86261dc0527ac2037fbd80bdcd4bee7210eef92e64736f6c634300081b0033"),
 			ignoreGasComsumed: true,
 			ignoreMemory:      true,
+			expectedError:     revertError,
 		},
 		{
 			name:              "full code with callData (should work)",

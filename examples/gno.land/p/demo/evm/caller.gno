@@ -2,7 +2,9 @@ package evm
 
 import (
 	"std"
+	"encoding/hex"
 
+	"gno.land/p/demo/evm/keccak256"
 	"gno.land/p/demo/uint256"
 )
 
@@ -12,16 +14,31 @@ type Caller struct {
 	Gas uint
 }
 
-func (c *Caller) Call(env *Env, gasAmount uint, code []byte) error {
+func mustHex(str string) []byte {
+	x, err := hex.DecodeString(str)
+	if err != nil {
+		panic(err)
+	}
+	return x
+}
+
+func (c *Caller) Call(env *Env, gasAmount uint, f string, code string, args ...*uint256.Uint) ([]byte, error) {
 	if gasAmount > c.Gas {
-		return notEnoughGas
+		return []byte{}, notEnoughGas
 	}
 	st := newState()
+	buf := keccak256.Keccak256([]byte(f))[0:4]
+	for _, v := range args {
+		b := v.Bytes32()
+		buf = append(buf, b[:]...)
+	}
+	st.setCallData(buf)
 	st.setEnv(env)
 	st.setGasBet(gasAmount)
-	err := st.executeByteCode(code)
+	st.setCaller(c)
+	err := st.executeByteCode(mustHex(code))
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
-	return nil
+	return st.getResult(), nil
 }

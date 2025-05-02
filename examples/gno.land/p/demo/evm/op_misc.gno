@@ -327,14 +327,17 @@ func opReturn(s *State) error {
 
 func opRevert(s *State) error {
 	_ = opInvalid(s)
-	return opReturn(s)
+	err := opReturn(s)
+	if err != nil {
+		return err
+	}
+	return revertError
 }
 
 func opInvalid(s *State) error {
 	s.tmp.logs = []LogEntry{}
 	s.tmp.storage = make(map[uint256.Uint]*uint256.Uint)
-	s.code.Stop()
-	return nil
+	return invalidPanic
 }
 
 func opCaller(s *State) error {
