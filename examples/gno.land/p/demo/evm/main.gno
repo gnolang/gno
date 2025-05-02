@@ -8,7 +8,7 @@ import (
 // for `gno run`
 func main() {
 	caller := Caller{
-		Gas: 2000,
+		Gas: 3000,
 	}
 
 	// function a() public pure returns(uint8) {
