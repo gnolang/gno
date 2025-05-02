@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -62,6 +63,9 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	conf.Out.Write(fmt.Appendf(nil, "gno: loading patterns %s\n", strings.Join(patterns, ", ")))
+	conf.Out.Write(fmt.Appendf(nil, "gno: using %q as root\n", root))
 
 	expanded, err := expandPatterns(root, conf.Out, patterns...)
 	if err != nil {

@@ -141,6 +141,8 @@ func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatc
 }
 
 func expandRecursive(pat string) ([]string, error) {
+	// XXX: ignore sub modules
+
 	root, _ := filepath.Split(pat)
 
 	info, err := os.Stat(root)

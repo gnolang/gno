@@ -16,7 +16,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
 type testCfg struct {
@@ -195,7 +194,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}()
 	}
 
-	pkgs, err := packages.Load(nil, args...)
+	pkgs, err := packages.Load(&packages.LoadConfig{
+		Out: io.Err(),
+	}, args...)
 	if err != nil {
 		return err
 	}
@@ -226,18 +227,13 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
 		}
-		// Determine gnoPkgPath by reading gno.mod
-		var gnoPkgPath string
-		modfile, err := gnomod.ParseAt(pkg.Dir)
-		if err == nil {
-			gnoPkgPath = modfile.Module.Mod.Path
-		} else {
-			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
-			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
-				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
-			}
+
+		gnoPkgPath := pkg.ImportPath
+		modfile, err := gnomod.ParseAt(pkg.ModPath)
+		if err != nil {
+			io.ErrPrintfln("%s: parse gno.mod at %q: %w", gnoPkgPath, pkg.ModPath, err)
+			buildErrCount++
+			break
 		}
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
