@@ -24,15 +24,38 @@ func NewGovDAO() *GovDAO {
 
 	d.render = NewRender(d)
 
+	// There was no realm, from main(), so it succeeded, And
+	// when returning, there was no finalization.  We don't
+	// finalize anyways because there wasn't a realm boundary.
+	// XXX make filetest main package a realm.
+	//
+	// filetest.init() ->
+	//   v3/init.Init() ->
+	//     NewGovDAO() ->
+	//       returns an unsaved DAO NOTE NO REALM!
+	//     dao.UpdateImpl =>
+	//       saves dao under
+	//
+	// r/gov/dao.CrossPropposal() ->
+	//   proposals.SetProposal(),
+	//     that proposal lives in r/gov/dao.
+	// r/gov/dao.ExecuteProposal() ->
+	//   g.PreExecuteProposal() ->
+	//     XXX g.test = 1 fails, owned by gov/dao.
+	//
+	//
 	_govdao = d
 
 	return d
 }
 
-// Setting this to a global variable forces attaching the GovDAO struct to this realm.
+// Setting this to a global variable forces attaching the GovDAO struct to this
+// realm. TODO replace with future `attach()`.
 var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(ctx *dao.Context, r dao.ProposalRequest) (std.Address, error) {
+	crossing()
+
 	if !g.isValidCall(ctx) {
 		return "", errors.New("proposal creation must be done directly by a user")
 	}
@@ -41,6 +64,8 @@ func (g *GovDAO) PreCreateProposal(ctx *dao.Context, r dao.ProposalRequest) (std
 }
 
 func (g *GovDAO) PostCreateProposal(ctx *dao.Context, r dao.ProposalRequest, pid dao.ProposalID) {
+	crossing()
+
 	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
 	switch v := r.Filter().(type) {
@@ -60,6 +85,8 @@ func (g *GovDAO) PostCreateProposal(ctx *dao.Context, r dao.ProposalRequest, pid
 }
 
 func (g *GovDAO) VoteOnProposal(ctx *dao.Context, r dao.VoteRequest) error {
+	crossing()
+
 	if !g.isValidCall(ctx) {
 		return errors.New("proposal voting must be done directly by a user")
 	}
@@ -100,14 +127,20 @@ func (g *GovDAO) VoteOnProposal(ctx *dao.Context, r dao.VoteRequest) error {
 }
 
 func (g *GovDAO) PreGetProposal(ctx *dao.Context, pid dao.ProposalID) error {
+	crossing()
+
 	return nil
 }
 
 func (g *GovDAO) PostGetProposal(ctx *dao.Context, pid dao.ProposalID, p *dao.Proposal) error {
+	crossing()
+
 	return nil
 }
 
 func (g *GovDAO) PreExecuteProposal(ctx *dao.Context, pid dao.ProposalID) (bool, error) {
+	crossing()
+
 	if !g.isValidCall(ctx) {
 		return false, errors.New("proposal execution must be done directly by a user")
 	}

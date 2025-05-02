@@ -40,7 +40,7 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 func ExecuteProposal(pid ProposalID) bool {
 	crossing()
 
-	execute, err := dao.PreExecuteProposal(context(), pid)
+	execute, err := cross(dao.PreExecuteProposal)(context(), pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -63,7 +63,7 @@ func ExecuteProposal(pid ProposalID) bool {
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	crossing()
 
-	author, err := dao.PreCreateProposal(context(), r)
+	author, err := cross(dao.PreCreateProposal)(context(), r)
 	if err != nil {
 		return -1, err
 	}
@@ -77,7 +77,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-	dao.PostCreateProposal(context(), r, pid)
+	cross(dao.PostCreateProposal)(context(), r, pid)
 
 	return pid, nil
 }
@@ -96,7 +96,7 @@ func MustVoteOnProposal(r VoteRequest) {
 func VoteOnProposal(r VoteRequest) error {
 	crossing()
 
-	return dao.VoteOnProposal(context(), r)
+	return cross(dao.VoteOnProposal)(context(), r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
@@ -124,13 +124,13 @@ func MustGetProposal(pid ProposalID) *Proposal {
 func GetProposal(pid ProposalID) (*Proposal, error) {
 	crossing()
 
-	if err := dao.PreGetProposal(context(), pid); err != nil {
+	if err := cross(dao.PreGetProposal)(context(), pid); err != nil {
 		return nil, err
 	}
 
 	prop := proposals.GetProposal(pid)
 
-	if err := dao.PostGetProposal(context(), pid, prop); err != nil {
+	if err := cross(dao.PostGetProposal)(context(), pid, prop); err != nil {
 		return nil, err
 	}
 
