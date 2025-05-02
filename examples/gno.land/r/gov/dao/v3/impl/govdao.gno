@@ -44,7 +44,11 @@ func NewGovDAO() *GovDAO {
 	//     XXX g.test = 1 fails, owned by gov/dao.
 	//
 	//
-	_govdao = d
+	cross(func() {
+		crossing()
+		// TODO: replace with future attach()
+		_govdao = d
+	})()
 
 	return d
 }

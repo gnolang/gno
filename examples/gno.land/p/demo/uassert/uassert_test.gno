@@ -365,3 +365,67 @@ func TestNotEmpty(t *testing.T) {
 		})
 	}
 }
+
+func TestNil(t *testing.T) {
+	mockT := new(mockTestingT)
+	if !Nil(mockT, nil) {
+		t.Error("Nil should return true")
+	}
+	mockT.empty(t)
+	if Nil(mockT, 0) {
+		t.Error("Nil should return false")
+	}
+	mockT.equals(t, "error: should be nil")
+	if Nil(mockT, (*int)(nil)) {
+		t.Error("Nil should return false")
+	}
+	mockT.equals(t, "error: should be nil")
+}
+
+func TestNotNil(t *testing.T) {
+	mockT := new(mockTestingT)
+	if NotNil(mockT, nil) {
+		t.Error("NotNil should return false")
+	}
+	mockT.equals(t, "error: should not be nil")
+	if !NotNil(mockT, 0) {
+		t.Error("NotNil should return true")
+	}
+	mockT.empty(t)
+	if !NotNil(mockT, (*int)(nil)) {
+		t.Error("NotNil should return true")
+	}
+	mockT.empty(t)
+}
+
+func TestTypedNil(t *testing.T) {
+	mockT := new(mockTestingT)
+	if TypedNil(mockT, nil) {
+		t.Error("TypedNil should return false")
+	}
+	mockT.equals(t, "error: should be typed-nil but got nil instead")
+	if TypedNil(mockT, 0) {
+		t.Error("TypedNil should return false")
+	}
+	mockT.equals(t, "error: should be typed-nil")
+	if !TypedNil(mockT, (*int)(nil)) {
+		t.Error("TypedNil should return true")
+	}
+	mockT.empty(t)
+}
+
+func TestNotTypedNil(t *testing.T) {
+	mockT := new(mockTestingT)
+	if !NotTypedNil(mockT, nil) {
+		t.Error("NotTypedNil should return true")
+	}
+	mockT.empty(t)
+	if !NotTypedNil(mockT, 0) {
+		t.Error("NotTypedNil should return true")
+	}
+	mockT.empty(t)
+	if NotTypedNil(mockT, (*int)(nil)) {
+		t.Error("NotTypedNil should return false")
+	}
+	mockT.equals(t, "error: should not be typed-nil")
+}

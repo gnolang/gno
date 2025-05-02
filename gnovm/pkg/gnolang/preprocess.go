@@ -1408,7 +1408,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 						pc.SetWithCross()
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
-						// XXX Make sure it's only used in a realm.
+						pn := packageOf(last)
+						if !IsRealmPath(pn.PkgPath) {
+							panic("crossing() is only allowed in realm packages")
+						}
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
+						// reserve attach() so we can support it later.
+						panic("attach() not yet supported")
 					}
 				}
 
