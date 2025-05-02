@@ -63,7 +63,7 @@ func opDup(n int) func(*State) error {
 			return errors.New("can't DUP" + strconv.Itoa(n) + ": " + err.Error())
 		}
 
-		s.stack.Push(val)
+		s.stack.Push(val.Clone())
 		return nil
 	}
 }

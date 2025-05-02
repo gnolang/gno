@@ -1,6 +1,8 @@
 package evm
 
-import "gno.land/p/demo/uint256"
+import (
+	"gno.land/p/demo/uint256"
+)
 
 type OpCode byte
 
@@ -203,8 +205,8 @@ var (
 		XOR:            {XOR, "XOR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Xor(a, b) }), 3},
 		NOT:            {NOT, "NOT", opNot, 3},
 		BYTE:           {BYTE, "BYTE", opByte, 3},
-		SHL:            {SHL, "SHL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Lsh(a, uint(b.Uint64())) }), 3},
-		SHR:            {SHR, "SHR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Rsh(a, uint(b.Uint64())) }), 3},
+		SHL:            {SHL, "SHL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return b.Lsh(b, uint(a.Uint64())) }), 3},
+		SHR:            {SHR, "SHR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return b.Rsh(b, uint(a.Uint64())) }), 3},
 		SAR:            {SAR, "SAR", opSar, 3},
 		KECCAK256:      {KECCAK256, "KECCAK256", opKeccak256, 30}, // can change
 		ADDRESS:        {ADDRESS, "ADDRESS", notImplemented, 2},

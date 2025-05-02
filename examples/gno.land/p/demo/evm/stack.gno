@@ -63,3 +63,18 @@ func (s *evmStack) Peek(n int) (*uint256.Uint, error) {
 func (s *evmStack) Len() int {
 	return len(s.data)
 }
+
+func (s evmStack) String() string {
+	if s.length == 0 {
+		return "[]"
+	}
+	start := int(s.length - 1)
+	buf := "["
+	for i := start; i >= 0; i-- {
+		if i != start {
+			buf += ", "
+		}
+		buf += s.data[i].Hex()
+	}
+	return buf + "]"
+}
