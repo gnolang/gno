@@ -21,19 +21,19 @@ var (
 func TestRegister_Valid(t *testing.T) {
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
-	testing.SetOriginCaller(aliceAddr)
 
 	uassert.NotPanics(t, func() {
-		Register(alice)
+		cross(Register)(alice)
 	})
 
 	res, latest := susers.ResolveName(alice)
-
-	uassert.NotEqual(t, nil, res)
-	uassert.Equal(t, alice, res.Name())
-	uassert.Equal(t, aliceAddr, res.Addr())
-	uassert.False(t, res.IsDeleted())
 	uassert.True(t, latest)
+	uassert.NotTypedNil(t, res)
+	if !istypednil(res) {
+		uassert.Equal(t, alice, res.Name())
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.False(t, res.IsDeleted())
+	}
 }
 
 func TestRegister_Invalid(t *testing.T) {

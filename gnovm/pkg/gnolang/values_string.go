@@ -379,7 +379,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		}
 	case *PointerType:
 		if tv.V == nil {
-			return "invalid-pointer"
+			return "typed-nil"
 		}
 		roPre, roPost := "", ""
 		if tv.IsReadonly() {
