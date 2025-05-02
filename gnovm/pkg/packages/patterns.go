@@ -22,7 +22,7 @@ type pkgMatch struct {
 	Match []string
 }
 
-func expandPatterns(warn io.Writer, patterns ...string) ([]*pkgMatch, error) {
+func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch(nil)
 
 	addPkgDir := func(dir string, match *string) {
@@ -51,6 +51,20 @@ func expandPatterns(warn io.Writer, patterns ...string) ([]*pkgMatch, error) {
 			return nil, fmt.Errorf("%s: %w", match, err)
 		}
 		kinds = append(kinds, patKind)
+
+		if root == "" {
+			continue
+		}
+		switch patKind {
+		case patternKindDirectory, patternKindSingleFile, patternKindRecursiveLocal:
+			absPat, err := filepath.Abs(match)
+			if err != nil {
+				return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
+			}
+			if !strings.HasPrefix(absPat, root) {
+				return nil, fmt.Errorf("pattern %q is not rooted in current module (%q)", match, root)
+			}
+		}
 	}
 
 	if slices.Contains(kinds, patternKindSingleFile) {

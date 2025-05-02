@@ -37,7 +37,7 @@ func IsInjectedTestingStdlib(pkgPath string) bool {
 	return slices.Contains(injectedTestingLibs, pkgPath)
 }
 
-func (conf *LoadConfig) applyDefaults() {
+func (conf *LoadConfig) applyDefaults() error {
 	if conf.Out == nil {
 		conf.Out = io.Discard
 	}
@@ -47,15 +47,23 @@ func (conf *LoadConfig) applyDefaults() {
 	if conf.Fset == nil {
 		conf.Fset = token.NewFileSet()
 	}
+	return nil
 }
 
 func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 	if conf == nil {
 		conf = &LoadConfig{}
 	}
-	conf.applyDefaults()
+	if err := conf.applyDefaults(); err != nil {
+		return nil, err
+	}
 
-	expanded, err := expandPatterns(conf.Out, patterns...)
+	root, err := findLoaderRootDir()
+	if err != nil {
+		return nil, err
+	}
+
+	expanded, err := expandPatterns(root, conf.Out, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +83,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		return pkgs, nil
 	}
 
-	extra, err := expandPatterns(conf.Out, conf.DepsPatterns...)
+	extra, err := expandPatterns("", conf.Out, conf.DepsPatterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +176,23 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 	}
 
 	return loaded, nil
+}
+
+func findLoaderRootDir() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	root, err := gnomod.FindRootDir(wd)
+	switch {
+	case err == nil:
+		return root, nil
+	case errors.Is(err, gnomod.ErrGnoModNotFound):
+		return wd, err
+	default:
+		return "", err
+	}
 }
 
 func listDeps(target *Package, pkgs PackagesMap) ([]string, []*Error) {

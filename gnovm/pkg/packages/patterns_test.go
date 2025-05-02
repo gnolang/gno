@@ -232,6 +232,16 @@ func TestDataExpandPatterns(t *testing.T) {
 			errShouldContain: "recursive remote patterns are not supported",
 		},
 		{
+			name:             "err-outside-root",
+			patterns:         []string{".."},
+			errShouldContain: `pattern ".." is not rooted in current module`,
+		},
+		{
+			name:             "err-outside-root-abs",
+			patterns:         []string{filepath.Join(cwd, "..")},
+			errShouldContain: `is not rooted in current module`,
+		},
+		{
 			name:             "err-remote-recursive",
 			patterns:         []string{"gno.example.com/test/strings/..."},
 			errShouldContain: "recursive remote patterns are not supported",
@@ -250,7 +260,7 @@ func TestDataExpandPatterns(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			warn := &strings.Builder{}
-			res, err := expandPatterns(warn, tc.patterns...)
+			res, err := expandPatterns(cwd, warn, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {
