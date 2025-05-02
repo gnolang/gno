@@ -1,5 +1,7 @@
 package p_crossrealm
 
+import "std"
+
 type Stringer interface {
 	String() string
 }
@@ -21,4 +23,8 @@ func (c *Container) Print() {
 	} else {
 		println("B:", c.B.String())
 	}
+}
+
+func CurrentRealm() std.Realm {
+	return std.CurrentRealm()
 }

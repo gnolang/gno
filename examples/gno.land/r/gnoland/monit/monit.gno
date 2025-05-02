@@ -20,7 +20,7 @@ var (
 	lastUpdate       time.Time
 	lastCaller       std.Address
 	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
-	Ownable          = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
+	Ownable          = ownable.NewWithOrigin()
 	watchdogDuration = 5 * time.Minute
 )
 
@@ -37,7 +37,7 @@ func Incr() int {
 // Reset resets the realm state.
 // This function can only be called by the admin.
 func Reset() {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 
 	counter = 0
 	lastCaller = std.PreviousRealm().Address()
