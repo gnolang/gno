@@ -21,4 +21,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method)
+// cannot directly modify readonly tainted object (w/o method): somevalue<~VPBlock(3,0)>.Field

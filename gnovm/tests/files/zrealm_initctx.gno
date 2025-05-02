@@ -22,11 +22,13 @@ func main() {
 	// XXX consider panic instead
 	println(addr)
 	println(addrInit)
+	println(".") // trailing newline is needed.
 }
 
 // Output:
 //
 //
+// .
 
 // Realm:
 // finalizerealm["gno.land/r/demo/tests_test"]

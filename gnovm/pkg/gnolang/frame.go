@@ -119,6 +119,10 @@ type Stacktrace struct {
 	LastLine        int
 }
 
+func (s Stacktrace) IsZero() bool {
+	return s.Calls == nil && s.NumFramesElided == 0 && s.LastLine == 0
+}
+
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 

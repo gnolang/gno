@@ -71,7 +71,7 @@ func TestMachineString(t *testing.T) {
 		{
 			"created with defaults",
 			NewMachineWithOptions(MachineOptions{}),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
+			"Machine:\n    Stage: \n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 		{
 			"created with store and defaults",
@@ -82,7 +82,7 @@ func TestMachineString(t *testing.T) {
 				store := NewStore(nil, baseStore, iavlStore)
 				return NewMachine("std", store)
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
+			"Machine:\n    Stage: \n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 		{
 			"filled in",
@@ -101,7 +101,7 @@ func TestMachineString(t *testing.T) {
 				m.PushStmts(S(Call(X("Redecl"), 11)))
 				return m
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n",
+			"Machine:\n    Stage: \n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 	}
 

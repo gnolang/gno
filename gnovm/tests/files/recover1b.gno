@@ -17,8 +17,6 @@ func main() {
 // main<VPBlock(1,0)>()
 //     main/files/recover1b.gno:6
 
-
-
 // Error:
 // other panic
 

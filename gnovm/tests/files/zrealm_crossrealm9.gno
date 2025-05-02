@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method)
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/demo/tests) package{})).SomeValue2.Field

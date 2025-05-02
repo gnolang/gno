@@ -279,7 +279,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	if dfr.Func == nil {
-		m.Panic(typedString("defer called a nil function"))
+		m.pushPanic(typedString("defer called a nil function"))
 		return
 	}
 
@@ -426,22 +426,10 @@ func (m *Machine) doOpDefer() {
 			Func: nil,
 		})
 	default:
-		m.Panic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
+		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
 	m.PopValue() // pop func
-}
-
-// XXX DEPRECATED
-//
-//nolint:govet // unreachable code
-func (m *Machine) doOpPanic1() {
-	panic("doOpPanic1 is deprecated")
-	// Pop exception
-	var ex TypedValue = m.PopValue().Copy(m.Alloc)
-	// Panic
-	m.Panic(ex)
-	return
 }
 
 func (m *Machine) doOpPanic2() {
