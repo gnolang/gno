@@ -922,7 +922,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(REVERT),
 			},
 			ignoreGasComsumed: true,
-			expectedError: revertError,
+			expectedError:     revertError,
 		},
 		{
 			name: "caller",
@@ -1182,6 +1182,71 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedStack:     []*uint256.Uint{},
 			expectedMemory:    []byte{0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+			ignoreGasComsumed: true,
+		},
+		{
+			name: "code copy https://www.evm.codes/ 1",
+			code: []byte{
+				byte(PUSH1), 32, // 2
+				byte(PUSH0),                                    // 3
+				byte(PUSH0),                                    // 4
+				byte(CODECOPY),                                 // 5
+				byte(STOP),                                     // 6
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // +8
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // +8=16
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // +8=24
+				0xff, 0xff, // +8=32 - 6 == 26
+			},
+			expectedMemory: []byte{
+				byte(PUSH1), 32,
+				byte(PUSH0),
+				byte(PUSH0),
+				byte(CODECOPY),
+				byte(STOP),
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+				0xff, 0xff,
+			},
+			ignoreGasComsumed: true,
+		},
+		{
+			name: "code copy https://www.evm.codes/ 2",
+			code: []byte{
+				byte(PUSH1), 8,
+				byte(PUSH1), 31,
+				byte(PUSH0),
+				byte(CODECOPY),
+				byte(STOP),                                     // 7 bytes
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // 8
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // 16
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // 24
+				0x7f, // 32 - 7
+			},
+			expectedMemory:    []byte{0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			ignoreGasComsumed: true,
+		},
+		{
+			name: "code copy too far",
+			code: []byte{
+				byte(PUSH1), 4, // size
+				byte(PUSH1), 100, // offset
+				byte(PUSH0), // destoffset
+				byte(CODECOPY),
+				byte(STOP),
+			},
+			expectedMemory:    []byte{0x00, 0x00, 0x00, 0x00},
+			ignoreGasComsumed: true,
+		},
+		{
+			name: "code copy nothing",
+			code: []byte{
+				byte(PUSH1), 0, // size
+				byte(PUSH1), 0, // offset
+				byte(PUSH0), // destoffset
+				byte(CODECOPY),
+				byte(STOP),
+			},
 			ignoreGasComsumed: true,
 		},
 	}

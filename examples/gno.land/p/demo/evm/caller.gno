@@ -22,7 +22,7 @@ func mustHex(str string) []byte {
 	return x
 }
 
-func (c *Caller) Call(env *Env, gasAmount uint, f string, code string, args ...*uint256.Uint) ([]byte, error) {
+func (c *Caller) executeCallHex(env *Env, gasAmount uint, f string, code []byte, args ...*uint256.Uint) ([]byte, error) {
 	if gasAmount > c.Gas {
 		return []byte{}, notEnoughGas
 	}
@@ -36,9 +36,26 @@ func (c *Caller) Call(env *Env, gasAmount uint, f string, code string, args ...*
 	st.setEnv(env)
 	st.setGasBet(gasAmount)
 	st.setCaller(c)
-	err := st.executeByteCode(mustHex(code))
+	err := st.executeByteCode(code)
 	if err != nil {
 		return []byte{}, err
 	}
 	return st.getResult(), nil
+}
+
+func (c *Caller) RawContractCall(env *Env, gasAmount uint, f string, raw string, args ...*uint256.Uint) ([]byte, error) {
+	st := newState()
+	err := st.executeByteCode(mustHex(raw))
+	if err != nil {
+		return []byte{}, err
+	}
+	return c.executeCallHex(env, gasAmount, f, st.getResult(), args...)
+}
+
+func (c *Caller) Call(env *Env, gasAmount uint, f string, code string, args ...*uint256.Uint) ([]byte, error) {
+	x, err := hex.DecodeString(code)
+	if err != nil {
+		return []byte{}, err
+	}
+	return c.executeCallHex(env, gasAmount, f, x, args...)
 }

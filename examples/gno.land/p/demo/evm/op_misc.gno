@@ -199,46 +199,46 @@ func opCodeSize(s *State) error {
 	return nil
 }
 
-func opCodeCopy(s *State) error {
-	dest, err := s.stack.Pop()
-	if err != nil {
-		return err
-	}
-	src, err := s.stack.Pop()
-	if err != nil {
-		return err
-	}
-	size, err := s.stack.Pop()
-	if err != nil {
-		return err
-	}
+// func opCodeCopy(s *State) error {
+// 	dest, err := s.stack.Pop()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	src, err := s.stack.Pop()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	size, err := s.stack.Pop()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	memLen := uint64(len(s.memory))
-	farest := dest.Uint64() + size.Uint64()
-	memoryCost := uint64(0)
-	if farest > memLen {
-		extend := farest - memLen
-		s.memory = append(s.memory, make([]byte, extend)...)
+// 	memLen := uint64(len(s.memory))
+// 	farest := dest.Uint64() + size.Uint64()
+// 	memoryCost := uint64(0)
+// 	if farest > memLen {
+// 		extend := farest - memLen
+// 		s.memory = append(s.memory, make([]byte, extend)...)
 
-		memorySizeWord := (extend + 31) / 32
-		memoryCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
-	}
+// 		memorySizeWord := (extend + 31) / 32
+// 		memoryCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
+// 	}
 
-	codeLen := uint64(len(s.code.instructions))
-	farest = src.Uint64() + size.Uint64()
-	if farest > codeLen {
-		copy(s.memory[dest.Uint64():], s.code.instructions[src.Uint64():])
-		sizeCopied := codeLen - src.Uint64()
-		copy(s.memory[dest.Uint64()+sizeCopied:], make([]byte, size.Uint64()-sizeCopied))
-	} else {
-		copy(s.memory[dest.Uint64():], s.code.instructions[src.Uint64():src.Uint64()+size.Uint64()])
-	}
+// 	codeLen := uint64(len(s.code.instructions))
+// 	farest = src.Uint64() + size.Uint64()
+// 	if farest > codeLen {
+// 		copy(s.memory[dest.Uint64():], s.code.instructions[src.Uint64():])
+// 		sizeCopied := codeLen - src.Uint64()
+// 		copy(s.memory[dest.Uint64()+sizeCopied:], make([]byte, size.Uint64()-sizeCopied))
+// 	} else {
+// 		copy(s.memory[dest.Uint64():], s.code.instructions[src.Uint64():src.Uint64()+size.Uint64()])
+// 	}
 
-	minimumWordSize := (size.Uint64() + 31) / 32
-	dynamicGas := 3*minimumWordSize + memoryCost
-	s.gasConsumed += uint(dynamicGas)
-	return nil
-}
+// 	minimumWordSize := (size.Uint64() + 31) / 32
+// 	dynamicGas := 3*minimumWordSize + memoryCost
+// 	s.gasConsumed += uint(dynamicGas)
+// 	return nil
+// }
 
 // EXTCODESIZE can't be implemented, it only push 0 on stack
 func opExtCodeSize(s *State) error {
@@ -287,6 +287,35 @@ func opExtCodeCopy(s *State) error {
 
 	gasCost := uint(3*minimumWordSize + memoryCost)
 	s.gasConsumed += gasCost
+	return nil
+}
+
+func opCodeCopy(s *State) error {
+	if s.stack.length < 3 {
+		return tooFewStack
+	}
+	memOff, _ := s.stack.Pop()
+	codeOff, _ := s.stack.Pop()
+	size, _ := s.stack.Pop()
+
+	codeLen := uint256.NewUint(uint64(s.code.length))
+	codeEnd := uint256.Zero().Add(codeOff, size)
+	memLen := uint256.NewUint(uint64(len(s.memory)))
+	memEnd := uint256.Zero().Add(memOff, size)
+	var data []byte
+	if codeOff.Gte(codeLen) { // if too far, the data is just zeroes
+		data = make([]byte, size.Uint64())
+	} else {
+		codeEffectiveEnd := uint256.Zero().Min(codeEnd, codeLen)
+		data = s.code.instructions[codeOff.Uint64():codeEffectiveEnd.Uint64()]
+		if codeEnd.Gt(codeLen) {
+			data = append(data, make([]byte, uint256.Zero().Sub(codeEnd, codeLen).Uint64())...)
+		}
+	}
+	if memEnd.Gt(memLen) { // if too big, just extend the memory of memEnd - memLen
+		s.memory = append(s.memory, make([]byte, uint256.Zero().Sub(memEnd, memLen).Uint64())...)
+	}
+	copy(s.memory[memOff.Uint64():memEnd.Uint64()], data)
 	return nil
 }
 
