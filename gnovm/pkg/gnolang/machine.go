@@ -2080,7 +2080,7 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		panic("cannot modify external-realm or non-realm object")
+		panic("cannot directly modify readonly tainted object (w/o method)")
 	}
 	return pv
 }
