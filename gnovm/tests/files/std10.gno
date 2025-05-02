@@ -11,5 +11,5 @@ func main() {
 }
 
 // Output:
-// (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
+// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
 // undefined

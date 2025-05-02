@@ -10,4 +10,4 @@ func main() {
 }
 
 // Output:
-// (struct{("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4" std.Address),("main" string)} std.Realm)
+// CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }

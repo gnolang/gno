@@ -45,17 +45,17 @@ func PrintRealm() {
 
 // Output:
 // From main:
-// PR() CurrentRealm:         (struct{("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4" std.Address),("main" string)} std.Realm)
-// PR() PreviousRealm:        (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// CurrentRealm:              (struct{("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4" std.Address),("main" string)} std.Realm)
-// PreviousRealm:             (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
+// PR() CurrentRealm:         CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// PR() PreviousRealm:        UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// CurrentRealm:              CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// PreviousRealm:             UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
 //
 // From g1user origin:
-// CurrentRealm:              (struct{("g1user" std.Address),("" string)} std.Realm)
+// CurrentRealm:              UserRealm{ g1user }
 // PreviousRealm:             frame not found: cannot seek beyond origin caller override
 //
 // From gno.land/r/sys/users realm:
-// PR() CurrentRealm:         (struct{("g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4" std.Address),("gno.land/r/sys/users" string)} std.Realm)
-// PR() PreviousRealm:        (struct{("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4" std.Address),("main" string)} std.Realm)
-// CurrentRealm:              (struct{("g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4" std.Address),("gno.land/r/sys/users" string)} std.Realm)
-// PreviousRealm:             (struct{("g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4" std.Address),("main" string)} std.Realm)
+// PR() CurrentRealm:         CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// PR() PreviousRealm:        CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// CurrentRealm:              CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// PreviousRealm:             CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }

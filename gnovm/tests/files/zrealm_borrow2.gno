@@ -73,5 +73,5 @@ func main() {
 
 // Output:
 // 101
-// {g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq gno.land/r/borrow_test}
-// {g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
+// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
