@@ -51,7 +51,7 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.Propos
 
 func deleteFromwhitelist(addr std.Address) error {
 	if !controllers.Has(addr) {
-		return ErrNotWhitelisted
+		return NewErrNotWhitelisted()
 	}
 
 	if ok := controllers.Remove(addr); !ok {

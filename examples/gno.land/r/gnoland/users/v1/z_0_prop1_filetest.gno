@@ -46,10 +46,13 @@ func main() {
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
+
 	println("--")
 	println(dao.Render("0"))
 	println("--")
+
 	cross(dao.ExecuteProposal)(dao.ProposalID(0))
+
 	println("--")
 	println(dao.Render("0"))
 
