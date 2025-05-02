@@ -61,11 +61,19 @@ func decodeAndConvert(bech string) (string, []byte, error) {
 }
 
 func derivePkgAddr(string) string
+func deriveStorageDepositAddr(string) string
 
 // Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
 // in which case the address is extracted from the path.
 func DerivePkgAddr(pkgPath string) Address {
 	addr := derivePkgAddr(pkgPath)
+	return Address(addr)
+}
+
+// Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
+// in which case the address is extracted from the path.
+func DeriveStorageDepositAddr(pkgPath string) Address {
+	addr := deriveStorageDepositAddr(pkgPath)
 	return Address(addr)
 }
 

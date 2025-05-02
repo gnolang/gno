@@ -44,8 +44,8 @@ type Store interface {
 	SetPackageRealm(*Realm)
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
-	SetObject(Object)
-	DelObject(Object)
+	SetObject(Object) int64 // returns size difference of the object
+	DelObject(Object) int64 // returns size difference of the object
 	GetType(tid TypeID) Type
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
@@ -53,6 +53,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
+	RealmDiffs() map[string]int64 // returns storage changes per realm within the message
 
 	// UNSTABLE
 	GetAllocator() *Allocator
@@ -147,6 +148,9 @@ type defaultStore struct {
 	// gas
 	gasMeter  store.GasMeter
 	gasConfig GasConfig
+
+	// realm storage changes on message level.
+	realmDiffs map[string]int64 // maps realm path to size diff
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -159,6 +163,9 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+
+		// reset at the message level
+		realmDiffs: make(map[string]int64),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -199,6 +206,8 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		// transient
 		current: nil,
 		opslog:  nil,
+		// reset at the message level
+		realmDiffs: make(map[string]int64),
 	}
 	ds2.SetCachePackage(Uverse())
 
@@ -457,6 +466,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
+		oo.GetObjectInfo().LastObjectSize = int64(size)
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
@@ -465,7 +475,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
-func (ds *defaultStore) SetObject(oo Object) {
+func (ds *defaultStore) SetObject(oo Object) int64 {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -490,12 +500,16 @@ func (ds *defaultStore) SetObject(oo Object) {
 		panic("should not happen")
 	}
 	oo.SetHash(ValueHash{hash})
+	// difference between object size and cached value
+	diff := int64(len(hash)+len(bz)) - o2.(Object).GetObjectInfo().LastObjectSize
 	// make store op log entry
 	if ds.opslog != nil {
 		obj := o2.(Object)
 		if oo.GetIsNewReal() {
-			fmt.Fprintf(ds.opslog, "c[%v]=%s\n",
+			obj.GetObjectInfo().LastObjectSize += diff
+			fmt.Fprintf(ds.opslog, "c[%v](%d)=%s\n",
 				obj.GetObjectID(),
+				diff,
 				prettyJSON(amino.MustMarshalJSON(obj)))
 		} else {
 			old := ds.loadForLog(oid)
@@ -506,6 +520,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 			// ie. empty slices should be null, not [].
 			var pureNew Object
 			amino.MustUnmarshalAny(amino.MustMarshalAny(obj), &pureNew)
+			pureNew.GetObjectInfo().LastObjectSize = obj.GetObjectInfo().LastObjectSize
 
 			s, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 				A:       difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(old)))),
@@ -519,7 +534,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 				fmt.Fprintf(ds.opslog, "u[%v]=(noop)\n", obj.GetObjectID())
 			} else {
 				s = "    " + strings.TrimSpace(strings.ReplaceAll(s, "\n", "\n    "))
-				fmt.Fprintf(ds.opslog, "u[%v]=\n%s\n", obj.GetObjectID(), s)
+				fmt.Fprintf(ds.opslog, "u[%v](%d)=\n%s\n", obj.GetObjectID(), diff, s)
 			}
 		}
 	}
@@ -531,6 +546,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
+		oo.(Object).GetObjectInfo().LastObjectSize = int64(size)
 	}
 	// save object to cache.
 	if debug {
@@ -553,6 +569,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		value = hash.Bytes()
 		ds.iavlStore.Set(key, value)
 	}
+	return diff
 }
 
 func (ds *defaultStore) loadForLog(oid ObjectID) Object {
@@ -564,10 +581,11 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 	bz := hashbz[HashSize:]
 	var oo Object
 	amino.MustUnmarshal(bz, &oo)
+	oo.GetObjectInfo().LastObjectSize = int64(len(hashbz))
 	return oo
 }
 
-func (ds *defaultStore) DelObject(oo Object) {
+func (ds *defaultStore) DelObject(oo Object) int64 {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -581,6 +599,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 	}
 	ds.consumeGas(ds.gasConfig.GasDeleteObject, GasDeleteObjectDesc)
 	oid := oo.GetObjectID()
+	size := oo.GetObjectInfo().LastObjectSize
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
 	// delete from backend.
@@ -590,8 +609,9 @@ func (ds *defaultStore) DelObject(oo Object) {
 	}
 	// make realm op log entry
 	if ds.opslog != nil {
-		fmt.Fprintf(ds.opslog, "d[%v]\n", oo.GetObjectID())
+		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)
 	}
+	return size
 }
 
 // NOTE: not used quite yet.
@@ -901,13 +921,19 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 	}
 }
 
+// It resturns storage changes per realm within message
+func (ds *defaultStore) RealmDiffs() map[string]int64 {
+	return ds.realmDiffs
+}
+
 // Unstable.
 // This function is used to clear the object cache every transaction.
 // It also sets a new allocator.
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.opslog = nil                             // new ops log.
+	ds.realmDiffs = make(map[string]int64)
+	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }
 

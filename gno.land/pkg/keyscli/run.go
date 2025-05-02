@@ -19,7 +19,8 @@ import (
 )
 
 type MakeRunCfg struct {
-	RootCfg *client.MakeTxCfg
+	RootCfg    *client.MakeTxCfg
+	MaxDeposit string
 }
 
 func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Command {
@@ -40,7 +41,14 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 	)
 }
 
-func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {}
+func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.MaxDeposit,
+		"max-deposit",
+		"",
+		"max storage deposit",
+	)
+}
 
 func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
@@ -66,7 +74,11 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		return err
 	}
 	caller := info.GetAddress()
-
+	// Parase deposit amount
+	deposit, err := std.ParseCoins(cfg.MaxDeposit)
+	if err != nil {
+		return errors.Wrap(err, "parsing storage deposit coins")
+	}
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -117,8 +129,9 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgRun{
-		Caller:  caller,
-		Package: memPkg,
+		Caller:     caller,
+		Package:    memPkg,
+		MaxDeposit: deposit,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

@@ -8,19 +8,25 @@ import (
 
 func main() {
 	crossing()
-
 	f := crossrealm_b.Fooer
 	cross(crossrealm.SetFooer)(f)
 	cross(crossrealm.CallFooerFooSR2)()
-	f.SetS("B")
+	f.SetS("ABCD")
 	cross(crossrealm.CallFooerFooSR2)()
 	print(".")
 }
 
 // Output:
 // hello A cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
-// hello B cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
+// hello ABCD cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
+
+
+
+// Storage:
+// gno.land/r/crossrealm_test: 0
+// gno.land/r/demo/tests/crossrealm: 226
+// gno.land/r/demo/tests/crossrealm_b: 8
 
 
 
@@ -75,13 +81,13 @@ func main() {
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:5](5)=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:5](8)=
 //     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.StringValue",
 //     -                "value": "A"
-//     +                "value": "B"
+//     +                "value": "ABCD"
 //                  }
 //              }
 //          ],
