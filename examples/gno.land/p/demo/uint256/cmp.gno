@@ -144,3 +144,22 @@ copyResult:
 	}
 	return z
 }
+
+func (z *Uint) Min(x *Uint, ys...*Uint) *Uint {
+	lenys := len(ys)
+	
+	var best *Uint = x
+	if lenys == 0 {
+		goto copyResult
+	}
+	for n := 0; n < lenys; n++ {
+		if best == nil || ys[n] != nil && ys[n].Lt(best) {
+			best = ys[n]
+		}
+	}
+copyResult:
+	if best != nil {
+		copy(z.arr[:], best.arr[:])
+	}
+	return z
+}
