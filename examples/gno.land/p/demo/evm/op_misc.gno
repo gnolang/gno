@@ -298,6 +298,7 @@ func opCodeCopy(s *State) error {
 	codeOff, _ := s.stack.Pop()
 	size, _ := s.stack.Pop()
 
+	var memCost uint64
 	codeLen := uint256.NewUint(uint64(s.code.length))
 	codeEnd := uint256.Zero().Add(codeOff, size)
 	memLen := uint256.NewUint(uint64(len(s.memory)))
@@ -313,9 +314,16 @@ func opCodeCopy(s *State) error {
 		}
 	}
 	if memEnd.Gt(memLen) { // if too big, just extend the memory of memEnd - memLen
-		s.memory = append(s.memory, make([]byte, uint256.Zero().Sub(memEnd, memLen).Uint64())...)
+		memExp := uint256.Zero().Sub(memEnd, memLen).Uint64()
+		s.memory = append(s.memory, make([]byte, memExp)...)
+		memorySizeWord := (memExp + 31) / 32
+		memCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
 	}
 	copy(s.memory[memOff.Uint64():memEnd.Uint64()], data)
+
+	// burn dynamic gas
+	minimumWordSize := (size.Uint64() + 31) / 32
+	s.gasConsumed += uint(3*minimumWordSize + memCost)
 	return nil
 }
 
