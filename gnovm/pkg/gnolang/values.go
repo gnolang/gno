@@ -2562,6 +2562,12 @@ func typedInt(i int) TypedValue {
 	return tv
 }
 
+func typedBool(b bool) TypedValue {
+	tv := TypedValue{T: BoolType}
+	tv.SetBool(b)
+	return tv
+}
+
 func untypedBool(b bool) TypedValue {
 	tv := TypedValue{T: UntypedBoolType}
 	tv.SetBool(b)

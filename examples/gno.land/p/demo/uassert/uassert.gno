@@ -411,6 +411,7 @@ func isNumberEmpty(n any) (isNumber, isEmpty bool) {
 	}
 	return false, false
 }
+
 func Empty(t TestingT, obj any, msgs ...string) bool {
 	t.Helper()
 
@@ -458,6 +459,45 @@ func NotEmpty(t TestingT, obj any, msgs ...string) bool {
 		default:
 			return fail(t, msgs, "uassert.NotEmpty: unsupported type")
 		}
+	}
+	return true
+}
+
+// Nil asserts that the value is nil.
+func Nil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if value != nil {
+		return fail(t, msgs, "should be nil")
+	}
+	return true
+}
+
+// NotNil asserts that the value is not nil.
+func NotNil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if value == nil {
+		return fail(t, msgs, "should not be nil")
+	}
+	return true
+}
+
+// TypedNil asserts that the value is a typed-nil (nil pointer) value.
+func TypedNil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if value == nil {
+		return fail(t, msgs, "should be typed-nil but got nil instead")
+	}
+	if !istypednil(value) {
+		return fail(t, msgs, "should be typed-nil")
+	}
+	return true
+}
+
+// NotTypedNil asserts that the value is not a typed-nil (nil pointer) value.
+func NotTypedNil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if istypednil(value) {
+		return fail(t, msgs, "should not be typed-nil")
 	}
 	return true
 }
