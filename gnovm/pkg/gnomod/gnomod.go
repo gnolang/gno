@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnofiles"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -48,7 +47,7 @@ func CreateGnoModFile(rootDir, modPath string) error {
 
 		var pkgName gnolang.Name
 		for _, file := range files {
-			if file.IsDir() || !gnofiles.IsGnoFile(file.Name(), "!*_filetest.gno") {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".gno") || strings.HasSuffix(file.Name(), "_filetest.gno") {
 				continue
 			}
 
