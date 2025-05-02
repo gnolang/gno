@@ -39,48 +39,47 @@ func TestRegister_Valid(t *testing.T) {
 func TestRegister_Invalid(t *testing.T) {
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
 	testing.SetRealm(std.NewUserRealm(bobAddr))
-	testing.SetOriginCaller(bobAddr)
 
 	// Invalid usernames
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("alice") // vanity
+		cross(Register)("alice") // vanity
 	})
 
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("") // empty
+		cross(Register)("") // empty
 	})
 
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("    ") // empty
+		cross(Register)("    ") // empty
 	})
 
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("123") // empty
+		cross(Register)("123") // empty
 	})
 
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("123") // only numbers
+		cross(Register)("123") // only numbers
 	})
 
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("alice&#($)") // non-allowed chars
+		cross(Register)("alice&#($)") // non-allowed chars
 	})
 
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("Alice123") // upper-case
+		cross(Register)("Alice123") // upper-case
 	})
 
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		Register("toolongusernametoolongusernametoolongusername123") // too long
+		cross(Register)("toolongusernametoolongusernametoolongusername123") // too long
 	})
 
 	// Name taken
 	urequire.NotPanics(t, func() {
-		Register(bob)
+		cross(Register)(bob)
 	})
 
 	uassert.PanicsWithMessage(t, susers.ErrNameTaken.Error(), func() {
-		Register(bob) // already registered
+		cross(Register)(bob) // already registered
 	})
 }
 
@@ -91,6 +90,6 @@ func TestRegister_InvalidPayment(t *testing.T) {
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
 
 	uassert.PanicsWithMessage(t, ErrInvalidPayment.Error(), func() {
-		Register(alice)
+		cross(Register)(alice)
 	})
 }
