@@ -2,6 +2,7 @@ package evm
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"time"
 
@@ -195,6 +196,97 @@ func opPc(s *State) error {
 
 func opCodeSize(s *State) error {
 	s.stack.Push(uint256.NewUint(uint64(s.code.length)))
+	return nil
+}
+
+func opCodeCopy(s *State) error {
+	dest, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	src, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	size, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	memLen := uint64(len(s.memory))
+	farest := dest.Uint64() + size.Uint64()
+	memoryCost := uint64(0)
+	if farest > memLen {
+		extend := farest - memLen
+		s.memory = append(s.memory, make([]byte, extend)...)
+
+		memorySizeWord := (extend + 31) / 32
+		memoryCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
+	}
+
+	codeLen := uint64(len(s.code.instructions))
+	farest = src.Uint64() + size.Uint64()
+	if farest > codeLen {
+		copy(s.memory[dest.Uint64():], s.code.instructions[src.Uint64():])
+		sizeCopied := codeLen - src.Uint64()
+		copy(s.memory[dest.Uint64()+sizeCopied:], make([]byte, size.Uint64()-sizeCopied))
+	} else {
+		copy(s.memory[dest.Uint64():], s.code.instructions[src.Uint64():src.Uint64()+size.Uint64()])
+	}
+
+	minimumWordSize := (size.Uint64() + 31) / 32
+	dynamicGas := 3*minimumWordSize + memoryCost
+	s.gasConsumed += uint(dynamicGas)
+	return nil
+}
+
+// EXTCODESIZE can't be implemented, it only push 0 on stack
+func opExtCodeSize(s *State) error {
+	_, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	s.stack.Push(uint256.Zero())
+	return nil
+}
+
+// EXTCODESIZE can't be implemented, it only copy 0's in memory
+func opExtCodeCopy(s *State) error {
+	_, err := s.stack.Pop() // address of contract code to copy
+	if err != nil {
+		return err
+	}
+
+	dest, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	_, err = s.stack.Pop() // offset of contract code to copy
+	if err != nil {
+		return err
+	}
+	size, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	memLen := uint64(len(s.memory))
+	farest := dest.Uint64() + size.Uint64()
+	memoryCost := uint64(0)
+	if farest > memLen {
+		extend := farest - memLen
+		s.memory = append(s.memory, make([]byte, extend)...)
+
+		memorySizeWord := (extend + 31) / 32
+		memoryCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
+	}
+
+	copy(s.memory[dest.Uint64():], make([]byte, size.Uint64()))
+
+	minimumWordSize := (size.Uint64() + 31) / 32
+
+	gasCost := uint(3*minimumWordSize + memoryCost)
+	s.gasConsumed += gasCost
 	return nil
 }
 

@@ -218,10 +218,10 @@ var (
 		CALLDATASIZE:   {CALLDATASIZE, "CALLDATASIZE", opCalldatasize, 2},
 		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", opCalldatacopy, 3}, // can change
 		CODESIZE:       {CODESIZE, "CODESIZE", opCodeSize, 2},
-		CODECOPY:       {CODECOPY, "CODECOPY", notImplemented, 3}, // can change
+		CODECOPY:       {CODECOPY, "CODECOPY", opCodeCopy, 3}, // can change
 		GASPRICE:       {GASPRICE, "GASPRICE", notImplemented, 2},
-		EXTCODESIZE:    {EXTCODESIZE, "EXTCODESIZE", notImplemented, 100}, // can change
-		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", notImplemented, 100}, // can change
+		EXTCODESIZE:    {EXTCODESIZE, "EXTCODESIZE", opExtCodeSize, 100}, // can change
+		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", opExtCodeCopy, 100}, // can change
 		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", notImplemented, 2},
 		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", notImplemented, 3}, // can change
 		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", notImplemented, 100},     // can change
