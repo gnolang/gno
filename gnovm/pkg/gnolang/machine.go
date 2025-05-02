@@ -395,6 +395,17 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	if m.LastFrame().Func != nil && m.LastFrame().Func.IsNative() {
 		stacktrace.LastLine = -1 // special line for native.
 	} else {
+		if len(m.Stmts) > 0 {
+			ls := m.PeekStmt(1)
+			if bs, ok := ls.(*bodyStmt); ok {
+				stacktrace.LastLine = bs.LastStmt().GetLine()
+			} else {
+				goto NOTPANIC // not a panic call
+			}
+		} else {
+			goto NOTPANIC // not a panic call
+		}
+	NOTPANIC:
 		if len(m.Exprs) > 0 {
 			stacktrace.LastLine = m.PeekExpr(1).GetLine()
 		} else if len(m.Stmts) > 0 {
@@ -405,6 +416,8 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 				}
 			}
 			stacktrace.LastLine = stmt.GetLine()
+		} else {
+			stacktrace.LastLine = 0 // dunno
 		}
 	}
 

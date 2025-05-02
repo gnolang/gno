@@ -971,6 +971,10 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	return
 }
 
+func (x *bodyStmt) LastStmt() Stmt {
+	return x.Body[x.NextBodyIndex-1]
+}
+
 func (x *bodyStmt) String() string {
 	next := ""
 	if x.NextBodyIndex < 0 {
