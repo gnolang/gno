@@ -97,7 +97,7 @@ func StoreWithOptions(
 		if osm.DirExists(examplePath) {
 			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
 			if memPkg.IsEmpty() {
-				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+				panic(fmt.Errorf("imports: found an empty package %q", pkgPath))
 			}
 
 			send := std.Coins{}

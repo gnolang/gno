@@ -143,7 +143,7 @@ func TestImports(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	pkg, err := gnolang.ReadMemPackage(tmpDir, "test", nil)
+	pkg, err := gnolang.ReadMemPackageWithFset(tmpDir, "test", nil)
 	require.NoError(t, err)
 
 	imports, err := packages.Imports(pkg, nil)

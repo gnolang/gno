@@ -1223,8 +1223,8 @@ func PackageNameFromFileBody(name, body string, fset *token.FileSet) (Name, erro
 }
 
 // MustPackageNameFromFileBody is a wrapper around [PackageNameFromFileBody] that panics on error.
-func MustPackageNameFromFileBody(name, body string, fset *token.FileSet) Name {
-	pkgName, err := PackageNameFromFileBody(name, body, fset)
+func MustPackageNameFromFileBody(name, body string) Name {
+	pkgName, err := PackageNameFromFileBody(name, body, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -1241,7 +1241,11 @@ func MustPackageNameFromFileBody(name, body string, fset *token.FileSet) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string, fset *token.FileSet) (*gnovm.MemPackage, error) {
+func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+	return ReadMemPackageWithFset(dir, pkgPath, nil)
+}
+
+func ReadMemPackageWithFset(dir string, pkgPath string, fset *token.FileSet) (*gnovm.MemPackage, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -1274,7 +1278,7 @@ func ReadMemPackage(dir string, pkgPath string, fset *token.FileSet) (*gnovm.Mem
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(list, pkgPath, fset)
+	return ReadMemPackageFromListWithFset(list, pkgPath, fset)
 }
 
 func endsWithAny(str string, suffixes []string) bool {
@@ -1284,8 +1288,8 @@ func endsWithAny(str string, suffixes []string) bool {
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
-func MustReadMemPackage(dir string, pkgPath string, fset *token.FileSet) *gnovm.MemPackage {
-	pkg, err := ReadMemPackage(dir, pkgPath, fset)
+func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+	pkg, err := ReadMemPackage(dir, pkgPath)
 	if err != nil {
 		panic(err)
 	}
@@ -1298,7 +1302,11 @@ func MustReadMemPackage(dir string, pkgPath string, fset *token.FileSet) *gnovm.
 //
 // NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string, fset *token.FileSet) (*gnovm.MemPackage, error) {
+func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, error) {
+	return ReadMemPackageFromListWithFset(list, pkgPath, nil)
+}
+
+func ReadMemPackageFromListWithFset(list []string, pkgPath string, fset *token.FileSet) (*gnovm.MemPackage, error) {
 	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
@@ -1337,8 +1345,8 @@ func ReadMemPackageFromList(list []string, pkgPath string, fset *token.FileSet) 
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
-func MustReadMemPackageFromList(list []string, pkgPath string, fset *token.FileSet) *gnovm.MemPackage {
-	pkg, err := ReadMemPackageFromList(list, pkgPath, fset)
+func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
+	pkg, err := ReadMemPackageFromList(list, pkgPath)
 	if err != nil {
 		panic(err)
 	}

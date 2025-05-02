@@ -8,7 +8,6 @@ import (
 	"go/ast"
 	"go/scanner"
 	"go/token"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -410,77 +409,4 @@ func parseGoBuildErrors(out string) error {
 	}
 
 	return errList.Err()
-}
-
-func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
-	var paths []string
-
-	for _, argPath := range args {
-		info, err := os.Stat(argPath)
-		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
-		}
-
-		if !info.IsDir() {
-			if isGnoFile(fs.FileInfoToDirEntry(info)) {
-				paths = append(paths, ensurePathPrefix(argPath))
-			}
-
-			continue
-		}
-
-		// Gather package paths from the directory
-		err = walkDirForGnoFiles(argPath, func(path string) {
-			paths = append(paths, ensurePathPrefix(path))
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to walk dir: %w", err)
-		}
-	}
-
-	return paths, nil
-}
-
-func listNonTestFiles(dir string) ([]string, error) {
-	fs, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	fn := make([]string, 0, len(fs))
-	for _, f := range fs {
-		n := f.Name()
-		if isGnoFile(f) &&
-			!strings.HasSuffix(n, "_test.gno") &&
-			!strings.HasSuffix(n, "_filetest.gno") {
-			fn = append(fn, filepath.Join(dir, n))
-		}
-	}
-	return fn, nil
-}
-
-func walkDirForGnoFiles(root string, addPath func(path string)) error {
-	visited := make(map[string]struct{})
-
-	walkFn := func(currPath string, f fs.DirEntry, err error) error {
-		if err != nil {
-			return fmt.Errorf("%s: walk dir: %w", root, err)
-		}
-
-		if f.IsDir() || !isGnoFile(f) {
-			return nil
-		}
-
-		parentDir := filepath.Dir(currPath)
-		if _, found := visited[parentDir]; found {
-			return nil
-		}
-
-		visited[parentDir] = struct{}{}
-
-		addPath(parentDir)
-
-		return nil
-	}
-
-	return filepath.WalkDir(root, walkFn)
 }

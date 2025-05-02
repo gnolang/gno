@@ -1,11 +1,11 @@
 # Run gno test on an empty dir
 
-! gno test .
+gno test .
 
 ! stdout .+
-stderr 'no Gno files in '
+stderr '[no test files]'
 
-! gno test ./...
+gno test ./...
 
 ! stdout .+
-stderr 'gno: warning: "./..." matched no packages\nno packages'
+stderr 'no packages to test'

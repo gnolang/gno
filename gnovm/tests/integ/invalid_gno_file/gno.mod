@@ -1,1 +1,1 @@
-module invalid_gno_file
+module test

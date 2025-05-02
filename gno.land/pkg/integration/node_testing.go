@@ -142,7 +142,7 @@ func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gno
 	examplesDir := filepath.Join(gnoroot, "examples")
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-	txs, err := gnoland.LoadPackagesFromDir(nil, examplesDir, creator, defaultFee)
+	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 
 	return txs

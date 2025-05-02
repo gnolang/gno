@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -125,8 +125,7 @@ func execTxsAddPackages(
 	parsedTxs := make([]gnoland.TxWithMetadata, 0)
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
-		loadCfg := &packages.LoadConfig{Out: io.Err(), Deps: true}
-		txs, err := gnoland.LoadPackagesFromDir(loadCfg, path, creator, genesisDeployFee)
+		txs, err := gnoland.LoadPackagesFromDir(path, creator, genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
 		}

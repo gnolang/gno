@@ -166,7 +166,7 @@ func expandRecursive(pat string) ([]string, error) {
 		if slices.Contains(dirs, dir) {
 			return nil
 		}
-		if base == "gno.mod" || strings.HasSuffix(base, ".gno") || base == "LICENSE" || base == "README.md" {
+		if strings.HasSuffix(base, ".gno") || base == "LICENSE" || base == "README.md" {
 			dirs = append(dirs, dir)
 		}
 		return nil

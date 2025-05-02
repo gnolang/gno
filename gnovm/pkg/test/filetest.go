@@ -200,7 +200,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		Files: []*gnovm.MemFile{
 			{Name: filename, Body: string(content)},
 		},
-	}, nil); err != nil {
+	}); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
 		if swe, ok := err.(*stackWrappedError); ok {
 			return runResult{Error: err.Error(), GoPanicStack: swe.stack}

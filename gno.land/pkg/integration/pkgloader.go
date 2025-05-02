@@ -7,17 +7,15 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// XXX: fully replace with loader
-
 type PkgsLoader struct {
-	pkgs    []*packages.Package
+	pkgs    []packages.Package
 	visited map[string]struct{}
 
 	// list of occurrences to patchs with the given value
@@ -27,13 +25,13 @@ type PkgsLoader struct {
 
 func NewPkgsLoader() *PkgsLoader {
 	return &PkgsLoader{
-		pkgs:    make([]*packages.Package, 0),
+		pkgs:    make([]packages.Package, 0),
 		visited: make(map[string]struct{}),
 		patchs:  make(map[string]string),
 	}
 }
 
-func (pl *PkgsLoader) List() packages.PkgList {
+func (pl *PkgsLoader) List() packages.PackageList {
 	return pl.pkgs
 }
 
@@ -42,7 +40,7 @@ func (pl *PkgsLoader) SetPatch(replace, with string) {
 }
 
 func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
-	pkgslist, err := pl.List().Sort(true) // sorts packages by their dependencies.
+	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
@@ -51,7 +49,7 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 	for i, pkg := range pkgslist {
 		tx, err := gnoland.LoadPackage(pkg, creatorKey.PubKey().Address(), fee, deposit)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.ImportPath, err)
+			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
 		}
 
 		// If any replace value is specified, apply them
@@ -88,7 +86,7 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	// list all packages from target path
-	pkgslist, err := packages.Load(nil, filepath.Join(path, "..."))
+	pkgslist, err := gnomod.ListPkgs(path)
 	if err != nil {
 		return fmt.Errorf("listing gno packages: %w", err)
 	}
@@ -102,39 +100,74 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	return nil
 }
 
-func (pl *PkgsLoader) LoadPackage(pkgDir string, name string) error {
-	examples := filepath.Join(gnoenv.RootDir(), "examples", "...")
-	cfg := &packages.LoadConfig{Deps: true, DepsPatterns: []string{examples}}
-	pkgs, err := packages.Load(cfg, pkgDir)
-	if err != nil {
-		return fmt.Errorf("%q: loading: %w", pkgDir, err)
-	}
+func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
+	// Initialize a queue with the root package
+	queue := []packages.Package{{Dir: path, Name: name}}
 
-	for _, pkg := range pkgs {
-		if pkg.Dir == pkgDir && name != "" {
-			pkg.ImportPath = name
+	for len(queue) > 0 {
+		// Dequeue the first package
+		currentPkg := queue[0]
+		queue = queue[1:]
+
+		if currentPkg.Dir == "" {
+			return fmt.Errorf("no path specified for package")
 		}
-		if gnolang.IsStdlib(pkg.ImportPath) {
-			continue
+
+		if currentPkg.Name == "" {
+			// Load `gno.mod` information
+			gnoModPath := filepath.Join(currentPkg.Dir, "gno.mod")
+			gm, err := gnomod.ParseGnoMod(gnoModPath)
+			if err != nil {
+				return fmt.Errorf("unable to load %q: %w", gnoModPath, err)
+			}
+			gm.Sanitize()
+
+			// Override package info with mod infos
+			currentPkg.Name = gm.Module.Mod.Path
+			currentPkg.Draft = gm.Draft
+
+			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			if err != nil {
+				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
+			}
+			importsMap, err := packages.Imports(pkg, nil)
+			if err != nil {
+				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
+			}
+			imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+			for _, imp := range imports {
+				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
+					continue
+				}
+				currentPkg.Imports = append(currentPkg.Imports, imp.PkgPath)
+			}
 		}
-		if pkg.Draft {
+
+		if currentPkg.Draft {
 			continue // Skip draft package
 		}
-		if pl.exist(pkg) {
+
+		if pl.exist(currentPkg) {
 			continue
 		}
-		pl.add(pkg)
+		pl.add(currentPkg)
+
+		// Add requirements to the queue
+		for _, pkgPath := range currentPkg.Imports {
+			fullPath := filepath.Join(modroot, pkgPath)
+			queue = append(queue, packages.Package{Dir: fullPath})
+		}
 	}
 
 	return nil
 }
 
-func (pl *PkgsLoader) add(pkg *packages.Package) {
-	pl.visited[pkg.ImportPath] = struct{}{}
+func (pl *PkgsLoader) add(pkg packages.Package) {
+	pl.visited[pkg.Name] = struct{}{}
 	pl.pkgs = append(pl.pkgs, pkg)
 }
 
-func (pl *PkgsLoader) exist(pkg *packages.Package) (ok bool) {
-	_, ok = pl.visited[pkg.ImportPath]
+func (pl *PkgsLoader) exist(pkg packages.Package) (ok bool) {
+	_, ok = pl.visited[pkg.Name]
 	return
 }
