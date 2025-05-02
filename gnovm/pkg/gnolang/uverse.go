@@ -601,7 +601,7 @@ func makeUverseNode() {
 					ci := int(cv.ConvertGetInt())
 
 					if ci < li {
-						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
+						m.Panic(typedString(`makeslice: cap out of range`))
 					}
 
 					if et.Kind() == Uint8Kind {
@@ -732,7 +732,10 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			ex := arg0.TV.Copy(m.Alloc)
-			m.Panic(ex)
+			// m.Panic(ex) also works, but after return will immediately OpPanic2.
+			// This should be the only place .pushPanic() is called
+			// outside of op_*.go doOp*() functions.
+			m.pushPanic(ex)
 		},
 	)
 	defNative("recover",

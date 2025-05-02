@@ -38,16 +38,15 @@ type Machine struct {
 	NumResults int           // number of results returned
 	Cycles     int64         // number of "cpu" cycles
 	GCCycle    int64         // number of "gc" cycles
-	Stage      Stage         // add for package init, run otherwise
+	Stage      Stage         // pre for static eval, add for package init, run otherwise
 
 	Debugger Debugger
 
 	// Configuration
-	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
-	Output           io.Writer
-	Store            Store
-	Context          any
-	GasMeter         store.GasMeter
+	Output   io.Writer
+	Store    Store
+	Context  any
+	GasMeter store.GasMeter
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -70,16 +69,15 @@ func NewMachine(pkgPath string, store Store) *Machine {
 // MachineOptions is used to pass options to [NewMachineWithOptions].
 type MachineOptions struct {
 	// Active package of the given machine; must be set before execution.
-	PkgPath          string
-	PreprocessorMode bool
-	Debug            bool
-	Input            io.Reader // used for default debugger input only
-	Output           io.Writer // default os.Stdout
-	Store            Store     // default NewStore(Alloc, nil, nil)
-	Context          any
-	Alloc            *Allocator // or see MaxAllocBytes.
-	MaxAllocBytes    int64      // or 0 for no limit.
-	GasMeter         store.GasMeter
+	PkgPath       string
+	Debug         bool
+	Input         io.Reader // used for default debugger input only
+	Output        io.Writer // default os.Stdout
+	Store         Store     // default NewStore(Alloc, nil, nil)
+	Context       any
+	Alloc         *Allocator // or see MaxAllocBytes.
+	MaxAllocBytes int64      // or 0 for no limit.
+	GasMeter      store.GasMeter
 }
 
 // the machine constructor gets spammed
@@ -101,7 +99,6 @@ var machinePool = sync.Pool{
 // Machines initialized through this constructor must be finalized with
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
-	preprocessorMode := opts.PreprocessorMode
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -135,7 +132,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	if mm.Alloc != nil {
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 	}
-	mm.PreprocessorMode = preprocessorMode
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
@@ -498,7 +494,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// if there is one.
 	for _, fn := range fns {
 		if fn.PkgName != "" && fn.PkgName != m.Package.PkgName {
-			panic(fmt.Sprintf("expected package name [%s] but got [%s]",
+			panic(fmt.Sprintf("expected package name [%s] but got [%s]!",
 				m.Package.PkgName, fn.PkgName))
 		}
 	}
@@ -781,7 +777,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
-	m.Run(StageRun)
+	m.Run(StagePre)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
 		panic("should not happen")
@@ -810,7 +806,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
 	m.PushOp(OpStaticTypeOf)
-	m.Run(StageRun)
+	m.Run(StagePre)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
 		panic("should not happen")
@@ -1143,9 +1139,7 @@ const (
 // main run loop.
 
 func (m *Machine) Run(st Stage) {
-	if m.Context != nil {
-		m.Stage = st
-	}
+	m.Stage = st
 	if bm.OpsEnabled {
 		defer func() {
 			// output each machine run results to file
@@ -1158,7 +1152,10 @@ func (m *Machine) Run(st Stage) {
 		if r != nil {
 			switch r := r.(type) {
 			case *Exception:
-				m.Panic(r.Value)
+				if r.Stacktrace.IsZero() {
+					r.Stacktrace = m.Stacktrace()
+				}
+				m.pushPanic(r.Value)
 				m.Run(st)
 			default:
 				panic(r)
@@ -1220,8 +1217,7 @@ func (m *Machine) Run(st Stage) {
 			m.incrCPU(OpCPUDefer)
 			m.doOpDefer()
 		case OpPanic1:
-			m.incrCPU(OpCPUPanic1)
-			m.doOpPanic1()
+			panic("deprecated")
 		case OpPanic2:
 			m.incrCPU(OpCPUPanic2)
 			m.doOpPanic2()
@@ -2080,7 +2076,7 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		panic("cannot directly modify readonly tainted object (w/o method)")
+		m.Panic(typedString("cannot directly modify readonly tainted object (w/o method): " + lx.String()))
 	}
 	return pv
 }
@@ -2190,11 +2186,27 @@ func (m *Machine) CheckEmpty() error {
 	}
 }
 
+// This function does go-panic.
+// To stop execution immediately stdlib native code MUST use this rather than
+// pushPanic().
+// Some code in realm.go and values.go will panic(&Exception{...}) directly.
+// Keep this code in sync with those calls.
+// Note that m.Run() will fill in the stacktrace if it isn't present.
+func (m *Machine) Panic(etv TypedValue) {
+	// Construct a new exception.
+	ex := &Exception{
+		Value:      etv,
+		Stacktrace: m.Stacktrace(),
+	}
+	// Panic immediately.
+	panic(ex)
+}
+
 // This function does not go-panic:
 // caller must return manually.
-// NOTE: duplicated in "panic" uverse function.
-// XXX deduplicate
-func (m *Machine) Panic(etv TypedValue) {
+// It should ONLY be called from doOp* Op handlers,
+// and should return immediately from the origin Op.
+func (m *Machine) pushPanic(etv TypedValue) {
 	// Construct a new exception.
 	ex := &Exception{
 		Value:      etv,
@@ -2304,7 +2316,7 @@ func (m *Machine) String() string {
 	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
 
-	fmt.Fprintf(builder, "Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues)
+	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:m.NumOps], m.NumValues)
 
 	for i := m.NumValues - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])

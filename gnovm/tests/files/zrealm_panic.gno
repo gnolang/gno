@@ -17,8 +17,6 @@ func main() {
 // Error:
 // panic
 
-
-
 // Stacktrace:
 // panic: panic
 // ms<VPBlock(1,0)>.Panic()
