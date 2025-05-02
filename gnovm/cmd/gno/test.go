@@ -195,7 +195,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	pkgs, err := packages.Load(&packages.LoadConfig{
-		Out: io.Err(),
+		Out:  io.Err(),
+		Deps: true,
 	}, args...)
 	if err != nil {
 		return err
@@ -223,6 +224,11 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	for _, pkg := range pkgs {
+		if len(pkg.Match) == 0 {
+			// ignore deps
+			continue
+		}
+
 		if len(pkg.Files.Merge(packages.FileKindFiletest, packages.FileKindXTest, packages.FileKindFiletest)) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
