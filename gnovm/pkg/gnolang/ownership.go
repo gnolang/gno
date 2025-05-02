@@ -398,6 +398,7 @@ func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
 		if cv.Base == nil {
 			return ObjectID{}, false
 		}
+		//fmt.Println("---cv.Base: ", cv.Base)
 		return cv.Base.(ObjectIDer).GetObjectID(), true
 	case *ArrayValue:
 		return cv.GetObjectID(), true

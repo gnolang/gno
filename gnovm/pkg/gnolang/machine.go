@@ -2092,6 +2092,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 		return true
 	}
 	tvoid, ok := tv.GetFirstObjectID()
+	//fmt.Println("---tvoid: ", tvoid)
 	if !ok {
 		// e.g. if tv is a string, or free floating pointers.
 		return false

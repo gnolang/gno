@@ -165,6 +165,9 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
+	//fmt.Println("---DidUpdate, rlm: ", rlm)
+	//fmt.Println("---DidUpdate, po: ", po, po.GetObjectID())
+	//fmt.Println("---co: ", co)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -201,6 +204,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	rlm.MarkDirty(po)
 
 	if co != nil {
+		//fmt.Println("---co.GetRefCount(): ", co.GetRefCount())
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
 			if co.GetIsReal() {
@@ -212,8 +216,15 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 				rlm.MarkNewEscaped(co)
 			}
 		} else if co.GetIsReal() {
-			rlm.MarkDirty(co)
+			//fmt.Println("---co is real..., co.GetOwner(): ", co.GetOwner())
+			//fmt.Println("---co.GetObjectID(): ", co.GetObjectID())
+			//fmt.Println("---co.GetOwnerID(): ", co.GetOwnerID())
+			//rlm.MarkDirty(co)
+
+			co.SetOwner(po)
+			//co.SetObjectID(ObjectID{})
 		} else {
+			//fmt.Println("======refCount == 1, set owner, new real...")
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
@@ -513,6 +524,8 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
+	//fmt.Println("---decRefDeletedDescendants, rlm: ", rlm)
+	//fmt.Println("---oo: ", oo, oo.GetRefCount())
 	if debug {
 		if oo.GetObjectID().IsZero() {
 			panic("cannot decrement references of deleted descendants of object with no object ID")
@@ -534,13 +547,16 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	oo.SetIsNewEscaped(false)
 	oo.SetIsDeleted(true, rlm.Time)
 	rlm.deleted = append(rlm.deleted, oo)
+	//oo.SetObjectID(ObjectID{})
 	// RECURSE GUARD END
 
 	// recurse for children
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
+		//fmt.Println("---child: ", child)
 		child.DecRefCount()
 		rc := child.GetRefCount()
+		//fmt.Println("---rc: ", rc)
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
@@ -773,7 +789,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 }
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
+	//fmt.Println("---saveObject, oo: ", oo)
 	oid := oo.GetObjectID()
+	//fmt.Println("---oid: ", oid)
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
@@ -798,6 +816,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 func (rlm *Realm) removeDeletedObjects(store Store) {
 	for _, do := range rlm.deleted {
 		store.DelObject(do)
+		do.SetObjectID(ObjectID{})
 	}
 }
 
@@ -1452,11 +1471,13 @@ func (rlm *Realm) nextObjectID() ObjectID {
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
 func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
+	//fmt.Println("---assignNewObjectID, oo: ", oo)
 	oid := oo.GetObjectID()
 	if !oid.IsZero() {
 		panic("unexpected non-zero object id")
 	}
 	noid := rlm.nextObjectID()
+	//fmt.Println("---noid: ", noid)
 	oo.SetObjectID(noid)
 	return noid
 }
