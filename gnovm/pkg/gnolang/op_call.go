@@ -259,10 +259,19 @@ func (m *Machine) doOpReturnCallDefers() {
 		// If still in panic state pop this frame so doOpPanic2() will
 		// try doOpReturnCallDefers() in the previous frame.
 		if m.Exception != nil {
-			// If crossing a realm boundary
-			// abort the transaction instead.
+			// If crossing a realm boundary find the revive frame
+			// for transaction revival.
 			if m.isRealmBoundary(cfr) {
-				panic(m.makeUnhandledPanicError())
+				cfr := m.PopUntilLastReviveFrame()
+				if cfr == nil {
+					// or abort the transaction.
+					panic(m.makeUnhandledPanicError())
+				}
+				m.PopFrameAndReturn()
+				// assign exception as return of revive().
+				resx := m.PeekValue(1)
+				resx.Assign(m.Alloc, m.Exception.Value, false)
+				return
 			}
 			// Handle panic by calling OpReturnCallDefers on
 			// the next (last) call frame)

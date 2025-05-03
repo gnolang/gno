@@ -855,6 +855,46 @@ func makeUverseNode() {
 			m.PushValue(typedBool(arg0.TV.IsTypedNil()))
 		},
 	)
+	// In the final form, it will do nothing if no abort; but otherwise
+	// will make it as if nothing happened (with full cache wrapping). This
+	// gives programs precognition, or at least hypotheticals.
+	// e.g. "If it **would have** done this, do that instead".
+	//
+	// XXX This is only enabled in testing mode (for now), and test
+	// developers should be aware that behavior will change to be like
+	// above; currently it doesn't cache-wrap the cb function so residual
+	// state mutations remain even after revive(), but they will be
+	// "magically" rolled back upon panic in the future. The cb function
+	// must *always* panic in the end in order to prevent state mutations
+	// after a non-aborting transaction.
+	defNative("revive",
+		Flds( // params
+			"cb", FuncT(nil, nil),
+		),
+		Flds( // results
+			"ex", AnyT(),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			if m.ReviveEnabled {
+				last := m.LastFrame()
+
+				// Push the no-abort result.
+				// last.SetRevive() marks the frame and this
+				// value will get replaced w/ exception.
+				m.PushValue(TypedValue{})
+				last.SetIsRevive()
+
+				// Push function and precall it.
+				m.PushOp(OpPrecall)
+				m.PushValue(*arg0.TV)
+			} else {
+				// If revive isn't enabled just panic.
+				m.pushPanic(typedString("revive() not enabled"))
+				// m.PushValue(TypedValue{})
+			}
+		},
+	)
 	uverseValue = uverseNode.NewPackage()
 }
 
