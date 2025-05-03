@@ -71,6 +71,37 @@ func TestFalse(t *testing.T) {
 	mockT.equals(t, "error: should be false")
 }
 
+func TestPanicsWithMessage(t *testing.T) {
+	mockT := new(mockTestingT)
+	if !uassert.PanicsWithMessage(mockT, "panic", func() {
+		panic(errors.New("panic"))
+	}) {
+		t.Error("PanicsWithMessage should return true")
+	}
+	mockT.empty(t)
+
+	if uassert.PanicsWithMessage(mockT, "Panic!", func() {
+		// noop
+	}) {
+		t.Error("PanicsWithMessage should return false")
+	}
+	mockT.equals(t, "error: func should panic\n\tPanic value:\tnil")
+
+	if uassert.PanicsWithMessage(mockT, "at the disco", func() {
+		panic(errors.New("panic"))
+	}) {
+		t.Error("PanicsWithMessage should return false")
+	}
+	mockT.equals(t, "error: func should panic with message:\t\"at the disco\"\n\tPanic value:\t\"panic\"")
+
+	if uassert.PanicsWithMessage(mockT, "Panic!", func() {
+		panic("panic")
+	}) {
+		t.Error("PanicsWithMessage should return false")
+	}
+	mockT.equals(t, "error: func should panic with message:\t\"Panic!\"\n\tPanic value:\t\"panic\"")
+}
+
 func TestAbortsWithMessage(t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.AbortsWithMessage(mockT, "abort message", func() {
@@ -100,16 +131,14 @@ func TestAbortsWithMessage(t *testing.T) {
 	}
 	mockT.equals(t, "error: func should abort with message:\t\"at the disco\"\n\tActual abort value:\t\"abort message\"")
 
-	/*
-		// Test that non-crossing panics don't count as abort.
-		uassert.PanicsWithMessage(mockT, func() {
-			uassert.AbortsWithMessage(mockT, "dontcare", func() {
-				panic("non-abort panic")
-			})
-			t.Error("AbortsWithMessage should not have caught non-abort panic")
-		}, "non-abort panic")
-		mockT.empty(t)
-	*/
+	// Test that non-crossing panics don't count as abort.
+	uassert.PanicsWithMessage(mockT, "non-abort panic", func() {
+		uassert.AbortsWithMessage(mockT, "dontcare2", func() {
+			panic("non-abort panic")
+		})
+		t.Error("AbortsWithMessage should not have caught non-abort panic")
+	}, "non-abort panic")
+	mockT.empty(t)
 
 	// Test case where abort value is not a string
 	if uassert.AbortsWithMessage(mockT, "doesn't matter", func() {
@@ -121,6 +150,8 @@ func TestAbortsWithMessage(t *testing.T) {
 		t.Error("AbortsWithMessage should return false when abort value is not a string")
 	}
 	mockT.equals(t, "error: abort value was not a string: got type int, value 123")
+
+	// XXX: test with Error
 }
 
 func TestNotAborts(t *testing.T) {
@@ -134,12 +165,32 @@ func TestNotAborts(t *testing.T) {
 	mockT.empty(t)
 
 	if uassert.NotAborts(mockT, func() {
-		panic("Abort!")
+		cross(tests.ExecSwitch)(func() {
+			panic("Abort!")
+		})
+		panic("dontcare")
 	}) {
 		t.Error("NotAborts should return false")
 	}
-	// Check the failure message includes the abort value
 	mockT.equals(t, "error: func should not abort\n\tAbort value:\tAbort!")
+}
+
+func TestNotPanics(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	if !uassert.NotPanics(mockT, func() {
+		// noop
+	}) {
+		t.Error("NotPanics should return true")
+	}
+	mockT.empty(t)
+
+	if uassert.NotPanics(mockT, func() {
+		panic("Panic!")
+	}) {
+		t.Error("NotPanics should return false")
+	}
+	mockT.equals(t, "error: func should not panic\n\tPanic value:\tPanic!")
 }
 
 func TestEqual(t *testing.T) {

@@ -79,9 +79,10 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 	return true
 }
 
-// AbortsWithMessage asserts that the code inside the specified func aborts,
-// and that the revived abort value satisfies the given message.
-// Note: This relies on gno's `abort` and `revive` mechanism.
+// AbortsWithMessage asserts that the code inside the specified func aborts
+// (panics when crossing another realm).
+// Use PanicsWithMessage for asserting local panics within the same realm.
+// Note: This relies on gno's `revive` mechanism to catch aborts.
 func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	t.Helper()
 
@@ -115,16 +116,17 @@ func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	return true
 }
 
-// NotAborts asserts that the code inside the specified func does NOT abort.
-// Note: This relies on Gno's `abort` and `revive` mechanism.
+// NotAborts asserts that the code inside the specified func does NOT abort
+// when crossing an execution boundary (e.g., VM call).
+// Use NotPanics for asserting the absence of local panics within the same realm.
+// Note: This relies on Gno's `revive` mechanism.
 func NotAborts(t TestingT, f func(), msgs ...string) bool {
 	t.Helper()
 
 	var didAbort bool
 	var abortValue any
 
-	//r := revive(f) // revive() captures the value passed to panic()
-	r := revive(func() { println("FOO") })
+	r := revive(f) // revive() captures the value passed to panic()
 	if r != nil {
 		didAbort = true
 		abortValue = r
@@ -137,6 +139,37 @@ func NotAborts(t TestingT, f func(), msgs ...string) bool {
 	}
 
 	// Success: function did not abort
+	return true
+}
+
+// PanicsWithMessage asserts that the code inside the specified func panics
+// locally within the same execution realm.
+// Use AbortsWithMessage for asserting panics that cross execution boundaries (aborts).
+func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
+	t.Helper()
+
+	didPanic, panicValue := checkDidPanic(f)
+	if !didPanic {
+		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
+	}
+
+	if panicValue != msg {
+		return fail(t, msgs, "func should panic with message:\t%q\n\tPanic value:\t%q", msg, panicValue)
+	}
+	return true
+}
+
+// NotPanics asserts that the code inside the specified func does NOT panic
+// locally within the same execution realm.
+// Use NotAborts for asserting the absence of panics that cross execution boundaries (aborts).
+func NotPanics(t TestingT, f func(), msgs ...string) bool {
+	t.Helper()
+
+	didPanic, panicValue := checkDidPanic(f)
+
+	if didPanic {
+		return fail(t, msgs, "func should not panic\n\tPanic value:\t%s", panicValue)
+	}
 	return true
 }
 
