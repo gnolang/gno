@@ -55,13 +55,13 @@ func TestNewCustomCoinSwap_Claim(t *testing.T) {
 
 	// Test claim
 	testing.SetRealm(std.NewUserRealm(recipient))
-	uassert.AbortsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
+	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	// Test refund (should fail because already claimed)
-	uassert.AbortsWithMessage(t, "already claimed", swap.Refund)
-	uassert.AbortsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
+	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
+	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wgc47h6lta047h6lta047h6l56jtjc
@@ -104,7 +104,7 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 
 	// Test Refund
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
-	uassert.AbortsWithMessage(t, "timelock not expired", swap.Refund)
+	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
 	swap.Refund()
 	uassert.True(t, swap.refunded, "expected refunded to be true")
@@ -145,6 +145,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
+
 	uassert.Equal(t, expected, swap.String())
 	uassert.Equal(t, expected, Render("1"))
 
@@ -166,7 +167,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 
 	// Test claim
 	testing.SetRealm(std.NewUserRealm(recipient))
-	uassert.AbortsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
+	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
@@ -178,8 +179,8 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	uassert.Equal(t, bal, uint64(70_000))
 
 	// Test refund (should fail because already claimed)
-	uassert.AbortsWithMessage(t, "already claimed", swap.Refund)
-	uassert.AbortsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
+	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
+	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wge47h6lta047h6lta047h6l5rk38l
@@ -234,7 +235,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 
 	// Test Refund
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
-	uassert.AbortsWithMessage(t, "timelock not expired", swap.Refund)
+	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
 	swap.Refund()
 	uassert.True(t, swap.refunded, "expected refunded to be true")
@@ -304,7 +305,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 
 	// Test claim
 	testing.SetRealm(std.NewUserRealm(recipient))
-	uassert.AbortsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
+	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
@@ -316,8 +317,8 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	uassert.Equal(t, bal, uint64(70_000))
 
 	// Test refund (should fail because already claimed)
-	uassert.AbortsWithMessage(t, "already claimed", swap.Refund)
-	uassert.AbortsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
+	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
+	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wg697h6lta047h6lta047h6ltt3lty
@@ -372,7 +373,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 
 	// Test Refund
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
-	uassert.AbortsWithMessage(t, "timelock not expired", swap.Refund)
+	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
 	swap.Refund()
 	uassert.True(t, swap.refunded, "expected refunded to be true")
@@ -410,7 +411,7 @@ func TestRender(t *testing.T) {
 	test20.PrivateLedger.Mint(alice, 100_000)
 	testing.SetRealm(std.NewUserRealm(alice))
 
-	userTeller := test20.Token.CallerTeller()
+	userTeller := test20.Token.RealmTeller()
 	userTeller.Approve(rlm, 10_000)
 	_, bobSwap := cross(NewCustomGRC20Swap)(bob, hashlockHex, timelock, test20.Token)
 
