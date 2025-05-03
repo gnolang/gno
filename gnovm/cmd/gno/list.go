@@ -15,6 +15,7 @@ import (
 type listCfg struct {
 	json bool
 	deps bool
+	test bool
 }
 
 func newListCmd(io commands.IO) *commands.Command {
@@ -34,16 +35,13 @@ func newListCmd(io commands.IO) *commands.Command {
 }
 
 func (c *listCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(&c.json, "json", false, `The -json flag causes the package data to be printed in JSON format
-instead of using the template format. The JSON flag can optionally be
-provided with a set of comma-separated required field names to be output.
-If so, those required fields will always appear in JSON output, but
-others may be omitted to save work in computing the JSON struct.`)
+	fs.BoolVar(&c.json, "json", false, `The -json flag causes the package data to be printed in JSON format.`)
+	// XXX: support template format
 	fs.BoolVar(&c.deps, "deps", false, `The -deps flag causes list to iterate over not just the named packages
-but also all their dependencies. It visits them in a depth-first post-order
-traversal, so that a package is listed only after all its dependencies.
-Packages not explicitly listed on the command line will have the DepOnly
-field set to true`)
+but also all their dependencies.`)
+	// XXX: add DepOnly field and respect golang traversal order
+	fs.BoolVar(&c.test, "test", false, `The -test flag causes test dependencies to be loaded as well`)
+	// XXX: match golang behavior for test flag, constructing test packages
 }
 
 func execList(cfg *listCfg, args []string, io commands.IO) error {
@@ -51,10 +49,11 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	conf := &packages.LoadConfig{Out: io.Err(), Fetcher: testPackageFetcher}
-
-	if cfg.deps {
-		conf.Deps = true
+	conf := &packages.LoadConfig{
+		Out:     io.Err(),
+		Fetcher: testPackageFetcher,
+		Test:    cfg.test,
+		Deps:    cfg.deps,
 	}
 
 	pkgs, err := packages.Load(conf, args...)
@@ -70,6 +69,7 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 	}
 
 	if !cfg.json {
+		// XXX: support template format
 		pkgPaths := make([]string, len(pkgs))
 		for i, pkg := range pkgs {
 			pkgPaths[i] = pkg.ImportPath

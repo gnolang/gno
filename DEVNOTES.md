@@ -10,3 +10,7 @@ For example `./somepkg` could become `gno.land/r/dev/somepkg` automatically
 
 I think requiring a gno.mod is not that much friction compared to the expliciteness it brings
 Golang devs are already acustomed to do that as a first step
+
+### Use in txtar?
+
+no, it would require too much change and the loader is meant for tools that accept patterns, the txtars do not

@@ -23,7 +23,8 @@ type Package struct {
 	Draft      bool                  `json:",omitempty"`
 	Files      FilesMap              `json:",omitempty"`
 	Imports    map[FileKind][]string `json:",omitempty"` // import paths used by this package
-	Deps       []string              `json:",omitempty"` // all (recursively) imported dependencies
+	// XXX: Deps       []string              `json:",omitempty"` // all (recursively) imported dependencies
+	// XXX: DepOnly    bool                  // package was loaded as dependency and not explicitely requested
 
 	ImportsSpecs ImportsMap `json:"-"`
 }

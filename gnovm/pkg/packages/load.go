@@ -20,18 +20,16 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// FIXME: should not include pkgs imported in test except for matches and only when Test flag is set
-
 type LoadConfig struct {
-	Fetcher      pkgdownload.PackageFetcher
-	Deps         bool
-	Cache        PkgList
-	AllowEmpty   bool
-	DepsPatterns []string
-	Fset         *token.FileSet
-	Out          io.Writer
+	Fetcher    pkgdownload.PackageFetcher // package fetcher used to load dependencies not present in patterns. Could be wrapped to support fetching from examples and/or an in-memory cache.
+	Deps       bool                       // load dependencies
+	AllowEmpty bool                       // don't return error when no packages are loaded
+	Fset       *token.FileSet             // external fset to help with pretty errors
+	Out        io.Writer                  // used to print info
+	Test       bool                       // load test dependencies
 }
 
+// XXX: get from ssot
 var injectedTestingLibs = []string{"encoding/json", "fmt", "internal/os_test", "os"}
 
 func IsInjectedTestingStdlib(pkgPath string) bool {
@@ -64,8 +62,16 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
-	conf.Out.Write(fmt.Appendf(nil, "gno: loading patterns %s\n", strings.Join(patterns, ", ")))
-	conf.Out.Write(fmt.Appendf(nil, "gno: using %q as root\n", root))
+	// try to get root module if it exists, to resolve local packages
+	// XXX: use a fetcher middleware?
+	rootModule, err := gnomod.ParseAt(root)
+	if err != nil {
+		rootModule = nil
+	}
+
+	// this output is not present in go but could be useful since we don't follow the same rules to find root
+	fmt.Fprintf(conf.Out, "gno: loading patterns %s\n", strings.Join(patterns, ", "))
+	fmt.Fprintf(conf.Out, "gno: using %q as root\n", root)
 
 	expanded, err := expandPatterns(root, conf.Out, patterns...)
 	if err != nil {
@@ -77,34 +83,22 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
-	if !conf.AllowEmpty {
-		if len(pkgs) == 0 {
-			return nil, errors.New("no packages")
-		}
+	if !conf.AllowEmpty && len(pkgs) == 0 {
+		return nil, errors.New("no packages")
 	}
 
 	if !conf.Deps {
 		return pkgs, nil
 	}
 
-	extra, err := expandPatterns("", conf.Out, conf.DepsPatterns...)
-	if err != nil {
-		return nil, err
-	}
-	for _, m := range extra {
-		m.Match = []string{}
-	}
+	// resolve deps
 
-	extraPkgs, err := readPackages(conf.Out, conf.Fetcher, extra, pkgs, conf.Fset)
-	if err != nil {
-		return nil, err
-	}
-	extraMap := NewPackagesMap(extraPkgs...)
-
+	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
-	queuedByPkgPath := NewPackagesMap(pkgs...)
-	markForVisit := func(pkg *Package) {
-		queuedByPkgPath.Add(pkg)
+
+	resolvedByPkgPath := NewPackagesMap(pkgs...)
+	markDepForVisit := func(pkg *Package) {
+		resolvedByPkgPath.Add(pkg) // will only add if not already added
 		toVisit = append(toVisit, pkg)
 	}
 
@@ -121,30 +115,31 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 			continue
 		}
 
-		for _, imp := range pkg.ImportsSpecs.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest) {
+		fmt.Fprintf(conf.Out, "gno: visiting deps of %q at %q\n", pkg.ImportPath, pkg.Dir)
+
+		// don't load test deps if test flag is not set
+		importKinds := []FileKind{FileKindPackageSource}
+		if conf.Test {
+			importKinds = append(importKinds, FileKindTest, FileKindXTest, FileKindFiletest)
+		}
+
+		for _, imp := range pkg.ImportsSpecs.Merge(importKinds...) {
 			if IsInjectedTestingStdlib(imp.PkgPath) {
 				continue
 			}
 
-			// check if we already queued this dep
-			if _, ok := queuedByPkgPath[imp.PkgPath]; ok {
+			// check if we already resolved this dep
+			if _, ok := resolvedByPkgPath[imp.PkgPath]; ok {
 				continue
 			}
 
-			// check if we have it in config cache
-			if cached := conf.Cache.Get(imp.PkgPath); cached != nil {
-				markForVisit(cached)
-				continue
-			}
-
-			// check if we have it in extra deps patterns
-			if extra, ok := extraMap[imp.PkgPath]; ok {
-				markForVisit(extra)
-				continue
-			}
+			fmt.Fprintf(conf.Out, "gno: resolving dep %q\n", imp.PkgPath)
 
 			// check if this is a stdlib and load it from gnoroot if available
+			// XXX: use a fetcher middleware?
 			if gnolang.IsStdlib(imp.PkgPath) {
+				fmt.Fprintf(conf.Out, "gno: loading stdlib %q\n", imp.PkgPath)
+
 				dir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs", filepath.FromSlash(imp.PkgPath))
 				dirInfo, err := os.Stat(dir)
 				if err != nil || !dirInfo.IsDir() {
@@ -154,9 +149,25 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 					}
 					pkg.Errors = append(pkg.Errors, err)
 				}
-				markForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
+				markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
 				continue
 			}
+
+			// check if this package is present in local context
+			// XXX: use a fetcher middleware?
+			if rootModule != nil && rootModule.Module != nil && strings.HasPrefix(imp.PkgPath, rootModule.Module.Mod.Path) {
+				pkgSubPath := strings.TrimPrefix(imp.PkgPath, rootModule.Module.Mod.Path)
+				pkgDir := filepath.Join(root, filepath.FromSlash(pkgSubPath))
+				if info, err := os.Stat(pkgDir); err == nil && info.IsDir() {
+					fmt.Fprintf(conf.Out, "gno: loading local package %q at %q\n", imp.PkgPath, pkgDir)
+
+					// XXX: check that this dir has gno pkg files
+					markDepForVisit(readPkgDir(conf.Out, nil, pkgDir, imp.PkgPath, conf.Fset))
+					continue
+				}
+			}
+
+			fmt.Fprintf(conf.Out, "gno: fetching %q\n", imp.PkgPath)
 
 			dir := gnomod.PackageDir("", module.Version{Path: imp.PkgPath})
 			if err := downloadPackage(conf.Out, conf.Fetcher, imp.PkgPath, dir); err != nil {
@@ -166,17 +177,10 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				})
 				continue
 			}
-			markForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
+			markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
 		}
 
 		loaded = append(loaded, pkg)
-	}
-
-	for _, pkg := range loaded {
-		// TODO: this could be optimized
-		var errs []*Error
-		pkg.Deps, errs = listDeps(pkg, queuedByPkgPath)
-		pkg.Errors = append(pkg.Errors, errs...)
 	}
 
 	return loaded, nil
@@ -197,38 +201,6 @@ func findLoaderRootDir() (string, error) {
 	default:
 		return "", err
 	}
-}
-
-func listDeps(target *Package, pkgs PackagesMap) ([]string, []*Error) {
-	deps := []string{}
-	err := listDepsRecursive(target, target, pkgs, &deps, make(map[string]struct{}))
-	return deps, err
-}
-
-func listDepsRecursive(rootTarget *Package, target *Package, pkgs PackagesMap, deps *[]string, visited map[string]struct{}) []*Error {
-	if _, ok := visited[target.ImportPath]; ok {
-		return nil
-	}
-	visited[target.ImportPath] = struct{}{}
-	var outErrs []*Error
-	for _, imp := range target.ImportsSpecs.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest) {
-		if IsInjectedTestingStdlib(imp.PkgPath) {
-			continue
-		}
-		dep := pkgs[imp.PkgPath]
-		if dep == nil {
-			return []*Error{{
-				Pos: rootTarget.Dir,
-				Msg: fmt.Sprintf("package %q not found", imp.PkgPath),
-			}}
-		}
-		errs := listDepsRecursive(rootTarget, dep, pkgs, deps, visited)
-		outErrs = append(outErrs, errs...)
-	}
-	if target != rootTarget {
-		(*deps) = append(*deps, target.ImportPath)
-	}
-	return outErrs
 }
 
 func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
