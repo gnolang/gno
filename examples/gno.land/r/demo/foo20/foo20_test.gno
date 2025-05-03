@@ -84,7 +84,7 @@ func TestErrConditions(t *testing.T) {
 			{"Approve(empty, 1))", "invalid address", true, func() { cross(Approve)(empty, 1) }},
 		}
 		for _, tc := range tests {
-			t.Run(tc.name, func(t *testing.T) {
+			tuassert.PanicsWithMessageting.T) {
 				if tc.isCross {
 					uassert.AbortsWithMessage(t, tc.msg, tc.fn)
 				} else {
@@ -102,7 +102,7 @@ func TestErrConditions(t *testing.T) {
 //			fn  func()
 //		}{
 //			// Test AbortsWithMessage
-//			{"supply cannot be zero", func() { NewFoo20("foo", "f", 0) }},
+//	uassert.PanicsWithMessage", func() { NewFoo20("foo", "f", 0) }},
 //			{"symbol cannot be empty", func() { NewFoo20("foo", "", 1) }},
 //			{"name cannot be empty", func() { NewFoo20("", "f", 1) }},
 //		}

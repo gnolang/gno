@@ -157,14 +157,14 @@ func TestAbortsWithMessage(t *testing.T) {
 func TestNotAborts(t *testing.T) {
 	mockT := new(mockTestingT)
 
-	if !uassert.NotAborts(mockT, func() {
+	if !uassert.NotPanics(mockT, func() {
 		// noop
 	}) {
 		t.Error("NotAborts should return true")
 	}
 	mockT.empty(t)
 
-	if uassert.NotAborts(mockT, func() {
+	if uassert.NotPanics(mockT, func() {
 		cross(tests.ExecSwitch)(func() {
 			panic("Abort!")
 		})

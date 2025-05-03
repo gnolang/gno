@@ -22,7 +22,7 @@ func TestRegister_Valid(t *testing.T) {
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
-	uassert.NotAborts(t, func() {
+	uassert.NotPanics(t, func() {
 		cross(Register)(alice)
 	})
 
@@ -41,44 +41,44 @@ func TestRegister_Invalid(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(bobAddr))
 
 	// Invalid usernames
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("alice") // vanity
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("") // empty
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("    ") // empty
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("123") // empty
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("123") // only numbers
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("alice&#($)") // non-allowed chars
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("Alice123") // upper-case
 	})
 
-	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 		cross(Register)("toolongusernametoolongusernametoolongusername123") // too long
 	})
 
 	// Name taken
-	urequire.NotAborts(t, func() {
+	urequire.NotPanics(t, func() {
 		cross(Register)(bob)
 	})
 
-	uassert.AbortsWithMessage(t, susers.ErrNameTaken.Error(), func() {
+	uassert.PanicsWithMessage(t, susers.ErrNameTaken.Error(), func() {
 		cross(Register)(bob) // already registered
 	})
 }
@@ -89,7 +89,7 @@ func TestRegister_InvalidPayment(t *testing.T) {
 
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
 
-	uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidPayment.Error(), func() {
 		cross(Register)(alice)
 	})
 }
@@ -100,7 +100,7 @@ func TestRegister_InvalidPayment(t *testing.T) {
 
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
 
-	uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrInvalidPayment.Error(), func() {
 		cross(Register)(alice)
 	})
 }
@@ -110,7 +110,7 @@ func TestUsers(t *testing.T) {
 	fee := "1000ugnot"
 
 	// Check initial state
-	uassert.NotAborts(t, func() {
+	uassert.NotPanics(t, func() {
 		MustGetByName(susers.DefaultMinFee)
 	})
 }

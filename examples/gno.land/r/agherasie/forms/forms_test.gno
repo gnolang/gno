@@ -17,7 +17,7 @@ func TestGetFormByID(t *testing.T) {
 	closeAt := "2021-01-02T00:00:00Z"
 	data := `[{"label":"Name","fieldType":"string","required":true},{"label":"Age","fieldType":"number","required":false},{"label":"Is this a test?","fieldType":"boolean","required":false},{"label":"Favorite Food","fieldType":"['Pizza', 'Schnitzel', 'Burger']","required":true},{"label":"Favorite Foods","fieldType":"{'Pizza', 'Schnitzel', 'Burger'}","required":true}]`
 
-	urequire.NotAborts(t, func() {
+	urequire.NotPanics(t, func() {
 		id := CreateForm(title, description, openAt, closeAt, data)
 
 		form := GetFormByID(id)
@@ -33,7 +33,7 @@ func TestGetForms(t *testing.T) {
 	openAt := "2021-01-01T00:00:00Z"
 	closeAt := "2021-01-02T00:00:00Z"
 
-	urequire.NotAborts(t, func() {
+	urequire.NotPanics(t, func() {
 		data1 := `[{"label":"Name","fieldType":"string","required":true}]`
 		CreateForm("NameForm", description, openAt, closeAt, data1)
 		data2 := `[{"label":"Age","fieldType":"number","required":false}]`

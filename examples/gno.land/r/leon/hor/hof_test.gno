@@ -79,7 +79,7 @@ func TestUpvote(t *testing.T) {
 
 	testing.SetRealm(adminRealm)
 
-	urequire.NotAborts(t, func() {
+	urequire.NotPanics(t, func() {
 		cross(Upvote)(rlmPath)
 	})
 
@@ -87,7 +87,7 @@ func TestUpvote(t *testing.T) {
 	uassert.Equal(t, item.upvote.Size(), 1)
 
 	// Check double upvote
-	uassert.AbortsWithMessage(t, ErrDoubleUpvote.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrDoubleUpvote.Error(), func() {
 		cross(Upvote)(rlmPath)
 	})
 }
@@ -102,7 +102,7 @@ func TestDownvote(t *testing.T) {
 	userRealm := std.NewUserRealm(alice)
 	testing.SetRealm(userRealm)
 
-	urequire.NotAborts(t, func() {
+	urequire.NotPanics(t, func() {
 		cross(Downvote)(rlmPath)
 	})
 
@@ -110,7 +110,7 @@ func TestDownvote(t *testing.T) {
 	uassert.Equal(t, item.downvote.Size(), 1)
 
 	// Check double downvote
-	uassert.AbortsWithMessage(t, ErrDoubleDownvote.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrDoubleDownvote.Error(), func() {
 		cross(Downvote)(rlmPath)
 	})
 }
@@ -120,14 +120,14 @@ func TestDelete(t *testing.T) {
 	testing.SetRealm(userRealm)
 	testing.SetOriginCaller(admin)
 
-	uassert.AbortsWithMessage(t, ErrNoSuchItem.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrNoSuchItem.Error(), func() {
 		cross(Delete)("nonexistentpkgpath")
 	})
 
 	i, _ := exhibition.items.Get(rlmPath)
 	id := i.(*Item).id
 
-	uassert.NotAborts(t, func() {
+	uassert.NotPanics(t, func() {
 		cross(Delete)(rlmPath)
 	})
 
@@ -330,7 +330,7 @@ func TestGetScore(t *testing.T) {
 	score, err := h.GetScore(42)
 	uassert.Nil(t, err)
 	uassert.Equal(t, 0, score)
-	uassert.NotAborts(t, func() {
+	uassert.NotPanics(t, func() {
 		uassert.Equal(t, 0, h.MustGetScore(42))
 	})
 }

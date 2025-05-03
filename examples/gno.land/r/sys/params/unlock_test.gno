@@ -25,7 +25,7 @@ func TestProUnlockTransfer(t *testing.T) {
 func TestFailUnlockTransfer(t *testing.T) {
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(pr)
-	urequire.AbortsWithMessage(
+	urequire.PanicsWithMessage(
 		t,
 		"proposal didn't reach supermajority yet: 66",
 		func() {
@@ -41,7 +41,7 @@ func TestExeUnlockTransfer(t *testing.T) {
 	urequire.NoError(t, err)
 	// urequire.True(t, dao.Active == p.Status()) // TODO
 
-	urequire.NotAborts(
+	urequire.NotPanics(
 		t,
 		func() {
 			dao.MustVoteOnProposal(dao.VoteRequest{
@@ -51,7 +51,7 @@ func TestExeUnlockTransfer(t *testing.T) {
 		},
 	)
 
-	urequire.NotAborts(
+	urequire.NotPanics(
 		t,
 		func() {
 			dao.ExecuteProposal(id)
