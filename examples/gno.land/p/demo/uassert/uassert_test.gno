@@ -1,38 +1,41 @@
-package uassert
+package uassert_test
 
 import (
 	"errors"
 	"fmt"
 	"std"
 	"testing"
+
+	"gno.land/p/demo/uassert"
+	"gno.land/r/demo/tests"
 )
 
-var _ TestingT = (*testing.T)(nil)
+var _ uassert.TestingT = (*testing.T)(nil)
 
 func TestMock(t *testing.T) {
 	mockT := new(mockTestingT)
 	mockT.empty(t)
-	NoError(mockT, errors.New("foo"))
+	uassert.NoError(mockT, errors.New("foo"))
 	mockT.equals(t, "error: unexpected error: foo")
-	NoError(mockT, errors.New("foo"), "custom message")
+	uassert.NoError(mockT, errors.New("foo"), "custom message")
 	mockT.equals(t, "error: unexpected error: foo - custom message")
-	NoError(mockT, errors.New("foo"), "custom", "message")
+	uassert.NoError(mockT, errors.New("foo"), "custom", "message")
 	mockT.equals(t, "error: unexpected error: foo - custom message")
 }
 
 func TestNoError(t *testing.T) {
 	mockT := new(mockTestingT)
-	True(t, NoError(mockT, nil))
+	uassert.True(t, uassert.NoError(mockT, nil))
 	mockT.empty(t)
-	False(t, NoError(mockT, errors.New("foo bar")))
+	uassert.False(t, uassert.NoError(mockT, errors.New("foo bar")))
 	mockT.equals(t, "error: unexpected error: foo bar")
 }
 
 func TestError(t *testing.T) {
 	mockT := new(mockTestingT)
-	True(t, Error(mockT, errors.New("foo bar")))
+	uassert.True(t, uassert.Error(mockT, errors.New("foo bar")))
 	mockT.empty(t)
-	False(t, Error(mockT, nil))
+	uassert.False(t, uassert.Error(mockT, nil))
 	mockT.equals(t, "error: an error is expected but got nil")
 }
 
@@ -41,16 +44,16 @@ func TestErrorContains(t *testing.T) {
 
 	// nil error
 	var err error
-	False(t, ErrorContains(mockT, err, ""), "ErrorContains should return false for nil arg")
+	uassert.False(t, uassert.ErrorContains(mockT, err, ""), "ErrorContains should return false for nil arg")
 }
 
 func TestTrue(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !True(mockT, true) {
+	if !uassert.True(mockT, true) {
 		t.Error("True should return true")
 	}
 	mockT.empty(t)
-	if True(mockT, false) {
+	if uassert.True(mockT, false) {
 		t.Error("True should return false")
 	}
 	mockT.equals(t, "error: should be true")
@@ -58,11 +61,11 @@ func TestTrue(t *testing.T) {
 
 func TestFalse(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !False(mockT, false) {
+	if !uassert.False(mockT, false) {
 		t.Error("False should return true")
 	}
 	mockT.empty(t)
-	if False(mockT, true) {
+	if uassert.False(mockT, true) {
 		t.Error("False should return false")
 	}
 	mockT.equals(t, "error: should be false")
@@ -70,37 +73,50 @@ func TestFalse(t *testing.T) {
 
 func TestAbortsWithMessage(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !AbortsWithMessage(mockT, "abort message", func() {
-		panic("abort message")
+	if !uassert.AbortsWithMessage(mockT, "abort message", func() {
+		cross(tests.ExecSwitch)(func() {
+			panic("abort message")
+		})
+		panic("dontcare")
 	}) {
 		t.Error("AbortsWithMessage should return true")
 	}
 	mockT.empty(t)
 
-	if AbortsWithMessage(mockT, "Abort!", func() {
+	if uassert.AbortsWithMessage(mockT, "Abort!", func() {
 		// noop
 	}) {
 		t.Error("AbortsWithMessage should return false")
 	}
 	mockT.equals(t, "error: func should abort")
 
-	if AbortsWithMessage(mockT, "at the disco", func() {
-		panic("abort message")
+	if uassert.AbortsWithMessage(mockT, "at the disco", func() {
+		cross(tests.ExecSwitch)(func() {
+			panic("abort message")
+		})
+		panic("dontcare")
 	}) {
-		t.Error("AbortsWithMessage should return false")
+		t.Error("AbortsWithMessage should return false (wrong message)")
 	}
 	mockT.equals(t, "error: func should abort with message:\t\"at the disco\"\n\tActual abort value:\t\"abort message\"")
 
-	if AbortsWithMessage(mockT, "Abort!", func() {
-		panic("another abort")
-	}) {
-		t.Error("AbortsWithMessage should return false")
-	}
-	mockT.equals(t, "error: func should abort with message:\t\"Abort!\"\n\tActual abort value:\t\"another abort\"")
+	/*
+		// Test that non-crossing panics don't count as abort.
+		uassert.PanicsWithMessage(mockT, func() {
+			uassert.AbortsWithMessage(mockT, "dontcare", func() {
+				panic("non-abort panic")
+			})
+			t.Error("AbortsWithMessage should not have caught non-abort panic")
+		}, "non-abort panic")
+		mockT.empty(t)
+	*/
 
 	// Test case where abort value is not a string
-	if AbortsWithMessage(mockT, "doesn't matter", func() {
-		panic(123) // Abort with an integer
+	if uassert.AbortsWithMessage(mockT, "doesn't matter", func() {
+		cross(tests.ExecSwitch)(func() {
+			panic(123) // abort with an integer
+		})
+		panic("dontcare")
 	}) {
 		t.Error("AbortsWithMessage should return false when abort value is not a string")
 	}
@@ -110,14 +126,14 @@ func TestAbortsWithMessage(t *testing.T) {
 func TestNotAborts(t *testing.T) {
 	mockT := new(mockTestingT)
 
-	if !NotAborts(mockT, func() {
+	if !uassert.NotAborts(mockT, func() {
 		// noop
 	}) {
 		t.Error("NotAborts should return true")
 	}
 	mockT.empty(t)
 
-	if NotAborts(mockT, func() {
+	if uassert.NotAborts(mockT, func() {
 		panic("Abort!")
 	}) {
 		t.Error("NotAborts should return false")
@@ -158,7 +174,7 @@ func TestEqual(t *testing.T) {
 	for _, c := range cases {
 		name := fmt.Sprintf("Equal(%v, %v)", c.expected, c.actual)
 		t.Run(name, func(t *testing.T) {
-			res := Equal(mockT, c.expected, c.actual)
+			res := uassert.Equal(mockT, c.expected, c.actual)
 
 			if res != c.result {
 				t.Errorf("%s should return %v: %s - %s", name, c.result, c.remark, mockT.actualString())
@@ -203,7 +219,7 @@ func TestNotEqual(t *testing.T) {
 	for _, c := range cases {
 		name := fmt.Sprintf("NotEqual(%v, %v)", c.expected, c.actual)
 		t.Run(name, func(t *testing.T) {
-			res := NotEqual(mockT, c.expected, c.actual)
+			res := uassert.NotEqual(mockT, c.expected, c.actual)
 
 			if res != c.result {
 				t.Errorf("%s should return %v: %s - %s", name, c.result, c.remark, mockT.actualString())
@@ -249,7 +265,7 @@ func TestEmpty(t *testing.T) {
 	for _, c := range cases {
 		name := fmt.Sprintf("Empty(%v)", c.obj)
 		t.Run(name, func(t *testing.T) {
-			res := Empty(mockT, c.obj)
+			res := uassert.Empty(mockT, c.obj)
 
 			if res != c.expectedEmpty {
 				t.Errorf("%s should return %v: %s", name, c.expectedEmpty, mockT.actualString())
@@ -320,7 +336,7 @@ func TestEqualWithStringDiff(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockT := &mockTestingT{}
-			result := Equal(mockT, tc.expected, tc.actual)
+			result := uassert.Equal(mockT, tc.expected, tc.actual)
 
 			if result != tc.shouldPass {
 				t.Errorf("Expected Equal to return %v, but got %v", tc.shouldPass, result)
@@ -367,7 +383,7 @@ func TestNotEmpty(t *testing.T) {
 	for _, c := range cases {
 		name := fmt.Sprintf("NotEmpty(%v)", c.obj)
 		t.Run(name, func(t *testing.T) {
-			res := NotEmpty(mockT, c.obj)
+			res := uassert.NotEmpty(mockT, c.obj)
 
 			if res != c.expectedNotEmpty {
 				t.Errorf("%s should return %v: %s", name, c.expectedNotEmpty, mockT.actualString())
@@ -378,15 +394,15 @@ func TestNotEmpty(t *testing.T) {
 
 func TestNil(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !Nil(mockT, nil) {
+	if !uassert.Nil(mockT, nil) {
 		t.Error("Nil should return true")
 	}
 	mockT.empty(t)
-	if Nil(mockT, 0) {
+	if uassert.Nil(mockT, 0) {
 		t.Error("Nil should return false")
 	}
 	mockT.equals(t, "error: should be nil")
-	if Nil(mockT, (*int)(nil)) {
+	if uassert.Nil(mockT, (*int)(nil)) {
 		t.Error("Nil should return false")
 	}
 	mockT.equals(t, "error: should be nil")
@@ -394,15 +410,15 @@ func TestNil(t *testing.T) {
 
 func TestNotNil(t *testing.T) {
 	mockT := new(mockTestingT)
-	if NotNil(mockT, nil) {
+	if uassert.NotNil(mockT, nil) {
 		t.Error("NotNil should return false")
 	}
 	mockT.equals(t, "error: should not be nil")
-	if !NotNil(mockT, 0) {
+	if !uassert.NotNil(mockT, 0) {
 		t.Error("NotNil should return true")
 	}
 	mockT.empty(t)
-	if !NotNil(mockT, (*int)(nil)) {
+	if !uassert.NotNil(mockT, (*int)(nil)) {
 		t.Error("NotNil should return true")
 	}
 	mockT.empty(t)
@@ -410,15 +426,15 @@ func TestNotNil(t *testing.T) {
 
 func TestTypedNil(t *testing.T) {
 	mockT := new(mockTestingT)
-	if TypedNil(mockT, nil) {
+	if uassert.TypedNil(mockT, nil) {
 		t.Error("TypedNil should return false")
 	}
 	mockT.equals(t, "error: should be typed-nil but got nil instead")
-	if TypedNil(mockT, 0) {
+	if uassert.TypedNil(mockT, 0) {
 		t.Error("TypedNil should return false")
 	}
 	mockT.equals(t, "error: should be typed-nil")
-	if !TypedNil(mockT, (*int)(nil)) {
+	if !uassert.TypedNil(mockT, (*int)(nil)) {
 		t.Error("TypedNil should return true")
 	}
 	mockT.empty(t)
@@ -426,15 +442,15 @@ func TestTypedNil(t *testing.T) {
 
 func TestNotTypedNil(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !NotTypedNil(mockT, nil) {
+	if !uassert.NotTypedNil(mockT, nil) {
 		t.Error("NotTypedNil should return true")
 	}
 	mockT.empty(t)
-	if !NotTypedNil(mockT, 0) {
+	if !uassert.NotTypedNil(mockT, 0) {
 		t.Error("NotTypedNil should return true")
 	}
 	mockT.empty(t)
-	if NotTypedNil(mockT, (*int)(nil)) {
+	if uassert.NotTypedNil(mockT, (*int)(nil)) {
 		t.Error("NotTypedNil should return false")
 	}
 	mockT.equals(t, "error: should not be typed-nil")
