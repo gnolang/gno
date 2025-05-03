@@ -144,27 +144,43 @@ func (m *Machine) doOpCallDeferNativeBody() {
 	fv.nativeBody(m)
 }
 
+func (m *Machine) maybeFinalize(cfr *Frame) {
+	crlm := m.Realm
+	if crlm != nil {
+		prlm := cfr.LastRealm
+		finalize := false
+		if m.NumFrames() == 1 {
+			// We are exiting the machine's realm.
+			finalize = true
+		} else if crlm != prlm {
+			// We are changing realms or exiting a
+			// realm. This includes borrow-realm
+			// implicit crossings.
+			finalize = true
+		}
+		if finalize {
+			// Finalize realm updates!
+			// NOTE: resource intensive
+			crlm.FinalizeRealmTransaction(m.Store)
+		}
+	}
+}
+
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
 
-	// See if we are exiting a realm boundary.
-	crlm := m.Realm
-	if crlm != nil {
-		if cfr.DidCross {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
-	}
+	// Finalize if exiting realm boundary.
+	m.maybeFinalize(cfr)
 
-	// Finalize
+	// Reset to before frame.
 	m.PopFrameAndReturn()
 }
 
 // Like doOpReturn but first copies results to block.
 func (m *Machine) doOpReturnAfterCopy() {
+
 	// If there are named results that are heap defined,
 	// need to write to those from stack before returning.
 	cfr := m.MustPeekCallFrame(1)
@@ -182,26 +198,10 @@ func (m *Machine) doOpReturnAfterCopy() {
 	// Unwind stack.
 	cfr = m.PopUntilLastCallFrame()
 
-	// See if we are exiting a realm boundary.
-	crlm := m.Realm
-	if crlm != nil {
-		lrlm := cfr.LastRealm
-		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
-			finalize = true
-		} else if crlm != lrlm {
-			// We are changing realms or exiting a realm.
-			finalize = true
-		}
-		if finalize {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
-	}
+	// Finalize if exiting realm boundary.
+	m.maybeFinalize(cfr)
 
-	// Finalize
+	// Reset to before frame.
 	m.PopFrameAndReturn()
 }
 
@@ -209,6 +209,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 // i.e. named result vars declared in func signatures,
 // because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
+
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	fv := cfr.Func
@@ -220,25 +221,11 @@ func (m *Machine) doOpReturnFromBlock() {
 		rtv := *fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValueFromBlock(rtv)
 	}
-	// See if we are exiting a realm boundary.
-	crlm := m.Realm
-	if crlm != nil {
-		lrlm := cfr.LastRealm
-		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
-			finalize = true
-		} else if crlm != lrlm {
-			// We are changing realms or exiting a realm.
-			finalize = true
-		}
-		if finalize {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
-	}
-	// finalize
+
+	// Finalize if exiting realm boundary.
+	m.maybeFinalize(cfr)
+
+	// Reset to before frame.
 	m.PopFrameAndReturn()
 }
 
