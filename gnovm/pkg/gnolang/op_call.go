@@ -271,6 +271,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				// assign exception as return of revive().
 				resx := m.PeekValue(1)
 				resx.Assign(m.Alloc, m.Exception.Value, false)
+				m.Exception = nil // reset
 				return
 			}
 			// Handle panic by calling OpReturnCallDefers on
