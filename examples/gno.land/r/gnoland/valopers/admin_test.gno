@@ -20,13 +20,13 @@ func TestUpdateInstructions(t *testing.T) {
 
 	newInstructions := "new instructions"
 
-	uassert.PanicsWithMessage(t, "action can only be executed by the contract", func() {
+	uassert.AbortsWithMessage(t, "action can only be executed by the contract", func() {
 		updateInstructions(newInstructions)
 	})
 
 	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao"))
 
-	uassert.NotPanics(t, func() {
+	uassert.NotAborts(t, func() {
 		updateInstructions(newInstructions)
 	})
 
@@ -45,13 +45,13 @@ func TestUpdateMinFee(t *testing.T) {
 
 	newMinFee := int64(100)
 
-	uassert.PanicsWithMessage(t, "action can only be executed by the contract", func() {
+	uassert.AbortsWithMessage(t, "action can only be executed by the contract", func() {
 		updateMinFee(newMinFee)
 	})
 
 	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao"))
 
-	uassert.NotPanics(t, func() {
+	uassert.NotAborts(t, func() {
 		updateMinFee(newMinFee)
 	})
 

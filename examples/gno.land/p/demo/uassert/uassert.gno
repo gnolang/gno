@@ -79,31 +79,77 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 	return true
 }
 
-// PanicsWithMessage asserts that the code inside the specified func panics,
-// and that the recovered panic value satisfies the given message
-func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
+// AbortsWithMessage asserts that the code inside the specified func aborts,
+// and that the revived abort value satisfies the given message.
+// Note: This relies on gno's `abort` and `revive` mechanism.
+func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	t.Helper()
 
-	didPanic, panicValue := checkDidPanic(f)
-	if !didPanic {
-		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
+	var didAbort bool
+	var abortValue any
+
+	// Use a closure with defer to capture potential aborts
+	func() {
+		defer func() {
+			r := revive() // revive() captures the value passed to abort()
+			if r != nil {
+				didAbort = true
+				abortValue = r
+			}
+		}()
+
+		// Execute the function that might abort
+		f()
+	}() // IIFE
+
+	if !didAbort {
+		// If the function didn't abort as expected
+		return fail(t, msgs, "func should abort")
 	}
 
-	if panicValue != msg {
-		return fail(t, msgs, "func should panic with message:\t%s\n\tPanic value:\t%s", msg, panicValue)
+	// Check if the abort value matches the expected message string
+	abortStr, ok := abortValue.(string)
+	if !ok {
+		// Fail if the abort value wasn't a string
+		return fail(t, msgs, "abort value was not a string: got type %T, value %v", abortValue, abortValue)
 	}
+
+	if abortStr != msg {
+		// Fail if the abort message doesn't match
+		return fail(t, msgs, "func should abort with message:\t%q\n\tActual abort value:\t%q", msg, abortStr)
+	}
+
+	// Success: function aborted with the expected message
 	return true
 }
 
-// NotPanics asserts that the code inside the specified func does NOT panic.
-func NotPanics(t TestingT, f func(), msgs ...string) bool {
+// NotAborts asserts that the code inside the specified func does NOT abort.
+// Note: This relies on Gno's `abort` and `revive` mechanism.
+func NotAborts(t TestingT, f func(), msgs ...string) bool {
 	t.Helper()
 
-	didPanic, panicValue := checkDidPanic(f)
+	var didAbort bool
+	var abortValue any
 
-	if didPanic {
-		return fail(t, msgs, "func should not panic\n\tPanic value:\t%s", panicValue)
+	// Use a closure with defer to check for aborts
+	func() {
+		defer func() {
+			r := revive()
+			if r != nil {
+				didAbort = true
+				abortValue = r
+			}
+		}()
+		f()
+	}() // IIFE
+
+	if didAbort {
+		// Fail if the function aborted when it shouldn't have
+		// Attempt to format the abort value in the error message
+		return fail(t, msgs, "func should not abort\n\tAbort value:\t%v", abortValue)
 	}
+
+	// Success: function did not abort
 	return true
 }
 

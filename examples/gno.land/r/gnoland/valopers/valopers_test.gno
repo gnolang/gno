@@ -57,7 +57,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send coins
 		testing.SetOriginSend(std.Coins{minFee})
 
-		uassert.PanicsWithMessage(t, ErrValoperExists.Error(), func() {
+		uassert.AbortsWithMessage(t, ErrValoperExists.Error(), func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
@@ -71,7 +71,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send no coins
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", 0)})
 
-		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
+		uassert.AbortsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
@@ -85,7 +85,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send invalid coins
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", minFee.Amount-1)})
 
-		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
+		uassert.AbortsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
@@ -99,7 +99,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send invalid coins
 		testing.SetOriginSend(std.Coins{std.NewCoin("gnogno", minFee.Amount)})
 
-		uassert.PanicsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
+		uassert.AbortsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
@@ -113,11 +113,11 @@ func TestValopers_Register(t *testing.T) {
 		// Send coins
 		testing.SetOriginSend(std.Coins{minFee})
 
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			valoper := GetByAddr(info.Address)
 
 			uassert.Equal(t, info.Moniker, valoper.Moniker)
@@ -145,14 +145,14 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(test1Address))
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		testing.SetRealm(std.NewUserRealm(info.Address))
 
 		// try to add member without being authorized
-		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
 			cross(AddToAuthList)(info.Address, test2Address)
 		})
 	})
@@ -169,11 +169,11 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(test1Address))
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			// XXX this panics.
 			cross(AddToAuthList)(info.Address, test2Address)
 		})
@@ -181,7 +181,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(info.Address))
 
 		// try to add member without being authorized
-		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
 			cross(DeleteFromAuthList)(info.Address, test2Address)
 		})
 	})
@@ -198,11 +198,11 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(test1Address))
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(AddToAuthList)(info.Address, test2Address)
 		})
 
@@ -210,11 +210,11 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 
 		newMoniker := "new moniker"
 		// Update the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(UpdateMoniker)(info.Address, newMoniker)
 		})
 
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			valoper := GetByAddr(info.Address)
 			uassert.Equal(t, newMoniker, valoper.Moniker)
 		})
@@ -232,7 +232,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrValoperMissing.Error(), func() {
+		uassert.AbortsWithMessage(t, ErrValoperMissing.Error(), func() {
 			cross(UpdateMoniker)(info.Address, "new moniker")
 		})
 	})
@@ -250,7 +250,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
@@ -258,7 +258,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			cross(UpdateMoniker)(info.Address, "new moniker")
 		})
 	})
@@ -286,13 +286,13 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		for _, invalidMoniker := range invalidMonikers {
 			// Update the valoper
-			uassert.PanicsWithMessage(t, ErrInvalidMoniker.Error(), func() {
+			uassert.AbortsWithMessage(t, ErrInvalidMoniker.Error(), func() {
 				cross(UpdateMoniker)(info.Address, invalidMoniker)
 			})
 		}
@@ -311,12 +311,12 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrInvalidMoniker.Error(), func() {
+		uassert.AbortsWithMessage(t, ErrInvalidMoniker.Error(), func() {
 			cross(UpdateMoniker)(info.Address, strings.Repeat("a", MonikerMaxLength+1))
 		})
 	})
@@ -334,18 +334,18 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		newMoniker := "new moniker"
 		// Update the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(UpdateMoniker)(info.Address, newMoniker)
 		})
 
 		// Make sure the valoper is updated
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			valoper := GetByAddr(info.Address)
 
 			uassert.Equal(t, newMoniker, valoper.Moniker)
@@ -362,7 +362,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrValoperMissing.Error(), func() {
+		uassert.AbortsWithMessage(t, ErrValoperMissing.Error(), func() {
 			cross(UpdateDescription)(validValidatorInfo(t).Address, "new description")
 		})
 	})
@@ -380,7 +380,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
@@ -388,7 +388,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			cross(UpdateDescription)(info.Address, "new description")
 		})
 	})
@@ -406,13 +406,13 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		emptyDescription := ""
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
+		uassert.AbortsWithMessage(t, ErrInvalidDescription.Error(), func() {
 			cross(UpdateDescription)(info.Address, emptyDescription)
 		})
 	})
@@ -430,12 +430,12 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
+		uassert.AbortsWithMessage(t, ErrInvalidDescription.Error(), func() {
 			cross(UpdateDescription)(info.Address, strings.Repeat("a", DescriptionMaxLength+1))
 		})
 	})
@@ -453,18 +453,18 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		newDescription := "new description"
 		// Update the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(UpdateDescription)(info.Address, newDescription)
 		})
 
 		// Make sure the valoper is updated
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			valoper := GetByAddr(info.Address)
 
 			uassert.Equal(t, newDescription, valoper.Description)
@@ -481,7 +481,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrValoperMissing.Error(), func() {
+		uassert.AbortsWithMessage(t, ErrValoperMissing.Error(), func() {
 			cross(UpdateKeepRunning)(validValidatorInfo(t).Address, false)
 		})
 	})
@@ -499,7 +499,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
@@ -507,7 +507,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
+		uassert.AbortsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			cross(UpdateKeepRunning)(info.Address, false)
 		})
 	})
@@ -525,17 +525,17 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Update the valoper
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(UpdateKeepRunning)(info.Address, false)
 		})
 
 		// Make sure the valoper is updated
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			valoper := GetByAddr(info.Address)
 
 			uassert.Equal(t, false, valoper.KeepRunning)

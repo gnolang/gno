@@ -37,21 +37,21 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			cross(valopers.Register)(moniker, description, g1user, pubKey)
 			cross(valopers.UpdateKeepRunning)(g1user, false)
 		})
 
 		var valoper valopers.Valoper
 
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			valoper = valopers.GetByAddr(g1user)
 		})
 
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
+		urequire.AbortsWithMessage(t, ErrValidatorMissing.Error(), func() {
 			pr := NewValidatorProposalRequest(g1user)
 
 			cross(dao.MustCreateProposal)(pr)
@@ -62,13 +62,13 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			cross(valopers.UpdateKeepRunning)(g1user, true)
 		})
 
 		var valoper valopers.Valoper
 
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			valoper = valopers.GetByAddr(g1user)
 		})
 
@@ -76,7 +76,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			pr := NewValidatorProposalRequest(g1user)
 
 			pid := cross(dao.MustCreateProposal)(pr)
@@ -101,11 +101,11 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		var valoper valopers.Valoper
 
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			valoper = valopers.GetByAddr(g1user)
 		})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			// Vote the proposal created in the previous test
 			cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 				Option:     dao.YesVote,
@@ -119,7 +119,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.PanicsWithMessage(t, ErrSameValues.Error(), func() {
+		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
 			pr := NewValidatorProposalRequest(g1user)
 
 			cross(dao.MustCreateProposal)(pr)
@@ -140,7 +140,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
-	urequire.NotPanics(t, func() {
+	urequire.NotAborts(t, func() {
 		pr := ProposeNewInstructionsProposalRequest(newInstructions)
 
 		pid = cross(dao.MustCreateProposal)(pr)
@@ -168,7 +168,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
-	urequire.NotPanics(t, func() {
+	urequire.NotAborts(t, func() {
 		pr := ProposeNewMinFeeProposalRequest(newMinFee)
 
 		pid = cross(dao.MustCreateProposal)(pr)
@@ -178,4 +178,64 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	urequire.NoError(t, err, "proposal not found")
 	// Check that the proposal is correct
 	urequire.Equal(t, description, proposal.Description())
+}
+
+func TestValopers_ProposeNewValidator(t *testing.T) {
+	const (
+		registerMinFee int64 = 20 * 1_000_000 // minimum gnot must be paid to register.
+		proposalMinFee int64 = 100 * 1_000_000
+
+		moniker     string = "moniker"
+		description string = "description"
+		pubKey             = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
+	)
+
+	// Set origin caller
+	testing.SetRealm(std.NewUserRealm(g1user))
+
+	t.Run("create valid proposal", func(t *testing.T) {
+		// Validator exists, should not panic
+		urequire.NotAborts(t, func() {
+			_ = valopers.MustGetValoper(g1user)
+		})
+
+		// Create the proposal
+		urequire.NotAborts(t, func() {
+			cross(valopers.Register)(moniker, description, g1user, pubKey)
+		})
+
+		// Verify proposal details
+		urequire.NotAborts(t, func() {
+			valoper := valopers.MustGetValoper(g1user)
+			urequire.Equal(t, moniker, valoper.Moniker)
+			urequire.Equal(t, description, valoper.Description)
+		})
+		// Execute proposal with admin rights
+		urequire.NotAborts(t, func() {
+			std.TestSetOrigCaller(std.Admin)
+			cross(dao.ExecuteProposal)(dao.ProposalID(0))
+		})
+		// Check if valoper was updated
+		urequire.NotAborts(t, func() {
+			valoper := valopers.MustGetValoper(g1user)
+			urequire.Equal(t, moniker, valoper.Moniker)
+			urequire.Equal(t, description, valoper.Description)
+		})
+
+		// Expect ExecuteProposal to pass
+		urequire.NotAborts(t, func() {
+			cross(dao.ExecuteProposal)(dao.ProposalID(0))
+		})
+		// Check if valoper was updated
+		urequire.NotAborts(t, func() {
+			valoper := valopers.MustGetValoper(g1user)
+			urequire.Equal(t, moniker, valoper.Moniker)
+			urequire.Equal(t, description, valoper.Description)
+		})
+		// Execute proposal with admin rights
+		urequire.NotAborts(t, func() {
+			std.TestSetOrigCaller(std.Admin)
+			cross(dao.ExecuteProposal)(dao.ProposalID(0))
+		})
+	})
 }

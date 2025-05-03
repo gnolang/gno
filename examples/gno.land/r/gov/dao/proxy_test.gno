@@ -28,7 +28,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(std.NewCodeRealm(invalid))
-	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
+	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
 		cross(UpdateImpl)(UpdateRequest{
 			DAO: &dummyDao{},
 		})
@@ -36,7 +36,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// dao in charge can add a new dao
 	testing.SetRealm(std.NewCodeRealm(v3))
-	urequire.NotPanics(t, func() {
+	urequire.NotAborts(t, func() {
 		cross(UpdateImpl)(UpdateRequest{
 			DAO: &dummyDao{},
 		})
@@ -44,7 +44,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// v3 that is in charge adds v5 in charge
 	testing.SetRealm(std.NewCodeRealm(v3))
-	urequire.NotPanics(t, func() {
+	urequire.NotAborts(t, func() {
 		cross(UpdateImpl)(UpdateRequest{
 			DAO:         &dummyDao{},
 			AllowedDAOs: []string{v3, v5},
@@ -53,7 +53,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// v3 can still do updates
 	testing.SetRealm(std.NewCodeRealm(v3))
-	urequire.NotPanics(t, func() {
+	urequire.NotAborts(t, func() {
 		cross(UpdateImpl)(UpdateRequest{
 			AllowedDAOs: []string{v4},
 		})
@@ -61,7 +61,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(std.NewCodeRealm(v3))
-	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
+	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
 		cross(UpdateImpl)(UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
@@ -69,7 +69,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	var pid ProposalID
 	testing.SetRealm(std.NewUserRealm(alice))
-	urequire.NotPanics(t, func() {
+	urequire.NotAborts(t, func() {
 		e := NewSimpleExecutor(
 			func() error {
 				return nil
@@ -102,6 +102,33 @@ func TestProxy_Functions(t *testing.T) {
 	cross(UpdateImpl)(UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
+	})
+
+	t.Run("set valid impl realm path by owner", func(t *testing.T) {
+		implRealmPath := "gno.land/r/gov/dao/v3/impl" // Valid realm path
+
+		// Should not panic
+		urequire.NotAborts(t, func() {
+			SetImplRealmPath(implRealmPath)
+		})
+
+		// Check if path was set correctly
+		urequire.NotAborts(t, func() {
+			urequire.Equal(t, implRealmPath, GetImplRealmPath())
+		})
+		// Get should also work
+		urequire.NotAborts(t, func() {
+			urequire.Equal(t, implRealmPath, GetImplRealmPath())
+		})
+	})
+
+	t.Run("set new valid impl realm path by owner", func(t *testing.T) {
+		implRealmPath := "gno.land/r/gov/dao/v2/impl" // Valid realm path
+
+		// Should not panic
+		urequire.NotAborts(t, func() {
+			SetImplRealmPath(implRealmPath)
+		})
 	})
 }
 

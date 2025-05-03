@@ -54,17 +54,20 @@ func ErrorIs(t uassert.TestingT, err, target error, msgs ...string) {
 	t.FailNow()
 }
 
-func PanicsWithMessage(t uassert.TestingT, msg string, f func(), msgs ...string) {
+// AbortsWithMessage requires that the code inside the specified func aborts,
+// and that the revived abort value satisfies the given message.
+func AbortsWithMessage(t uassert.TestingT, msg string, f func(), msgs ...string) {
 	t.Helper()
-	if uassert.PanicsWithMessage(t, msg, f, msgs...) {
+	if uassert.AbortsWithMessage(t, msg, f, msgs...) {
 		return
 	}
 	t.FailNow()
 }
 
-func NotPanics(t uassert.TestingT, f func(), msgs ...string) {
+// NotAborts requires that the code inside the specified func does NOT abort.
+func NotAborts(t uassert.TestingT, f func(), msgs ...string) {
 	t.Helper()
-	if uassert.NotPanics(t, f, msgs...) {
+	if uassert.NotAborts(t, f, msgs...) {
 		return
 	}
 	t.FailNow()

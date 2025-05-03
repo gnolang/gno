@@ -31,15 +31,15 @@ func TestHaystack(t *testing.T) {
 		n3, _ := genNeedleHex(3)
 
 		testing.SetOriginCaller(u1)
-		urequire.NotPanics(t, func() { Add(n1) })
-		urequire.PanicsWithMessage(t,
+		urequire.NotAborts(t, func() { Add(n1) })
+		urequire.AbortsWithMessage(t,
 			haystack.ErrorDuplicateNeedle.Error(),
 			func() {
 				Add(n1)
 			})
 		testing.SetOriginCaller(u2)
-		urequire.NotPanics(t, func() { Add(n2) })
-		urequire.NotPanics(t, func() { Add(n3) })
+		urequire.NotAborts(t, func() { Add(n2) })
+		urequire.NotAborts(t, func() { Add(n3) })
 	})
 
 	t.Run("Get", func(t *testing.T) {
@@ -49,18 +49,18 @@ func TestHaystack(t *testing.T) {
 		_, h2 := genNeedleHex(5)
 
 		testing.SetOriginCaller(u1)
-		urequire.NotPanics(t, func() { Add(n1) })
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() { Add(n1) })
+		urequire.NotAborts(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)
 		})
 
 		testing.SetOriginCaller(u2)
-		urequire.NotPanics(t, func() {
+		urequire.NotAborts(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)
 		})
-		urequire.PanicsWithMessage(t,
+		urequire.AbortsWithMessage(t,
 			haystack.ErrorNeedleNotFound.Error(),
 			func() {
 				Get(h2)
