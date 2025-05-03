@@ -117,9 +117,8 @@ func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 }
 
 // NotAborts asserts that the code inside the specified func does NOT abort
-// when crossing an execution boundary (e.g., VM call).
-// Use NotPanics for asserting the absence of local panics within the same realm.
-// Note: This relies on Gno's `revive` mechanism.
+// when crossing an execution boundary.
+// Note: Consider using NotPanics which checks for both panics and aborts.
 func NotAborts(t TestingT, f func(), msgs ...string) bool {
 	t.Helper()
 
@@ -135,7 +134,7 @@ func NotAborts(t TestingT, f func(), msgs ...string) bool {
 	if didAbort {
 		// Fail if the function aborted when it shouldn't have
 		// Attempt to format the abort value in the error message
-		return fail(t, msgs, "func should not abort\n\tAbort value:\t%v", abortValue)
+		return fail(t, msgs, "func should not abort\\n\\tAbort value:\\t%v", abortValue)
 	}
 
 	// Success: function did not abort
@@ -160,17 +159,50 @@ func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 }
 
 // NotPanics asserts that the code inside the specified func does NOT panic
-// locally within the same execution realm.
-// Use NotAborts for asserting the absence of panics that cross execution boundaries (aborts).
+// (within the same realm) or abort (due to a cross-realm panic).
 func NotPanics(t TestingT, f func(), msgs ...string) bool {
 	t.Helper()
 
-	didPanic, panicValue := checkDidPanic(f)
+	var panicVal any
+	var didPanic bool
+	var abortVal any
 
-	if didPanic {
-		return fail(t, msgs, "func should not panic\n\tPanic value:\t%s", panicValue)
+	// Use revive to catch cross-realm aborts
+	abortVal = revive(func() {
+		// Use defer+recover to catch same-realm panics
+		defer func() {
+			if r := recover(); r != nil {
+				didPanic = true
+				panicVal = r
+			}
+		}()
+		// Execute the function
+		f()
+	})
+
+	// Check if revive caught an abort
+	if abortVal != nil {
+		return fail(t, msgs, "func should not abort\n\tAbort value:\t%+v", abortVal)
 	}
-	return true
+
+	// Check if recover caught a panic
+	if didPanic {
+		// Format panic value for message
+		panicMsg := ""
+		if panicVal == nil {
+			panicMsg = "nil"
+		} else if err, ok := panicVal.(error); ok {
+			panicMsg = err.Error()
+		} else if str, ok := panicVal.(string); ok {
+			panicMsg = str
+		} else {
+			// Fallback for other types
+			panicMsg = "panic: unsupported type"
+		}
+		return fail(t, msgs, "func should not panic\n\tPanic value:\t%s", panicMsg)
+	}
+
+	return true // No panic or abort occurred
 }
 
 // Equal asserts that two objects are equal.
