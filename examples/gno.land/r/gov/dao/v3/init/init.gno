@@ -24,6 +24,9 @@ func InitWithUsers(addrs ...std.Address) {
 	memberstore.Get().DeleteAll()
 	memberstore.Get().SetTier(memberstore.T1)
 	for _, a := range addrs {
+		if !a.IsValid() {
+			panic("invalid address: " + a.String())
+		}
 		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints: 3})
 	}
 
