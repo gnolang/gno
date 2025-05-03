@@ -156,17 +156,15 @@ var fpAbs = filepath.Abs
 // dirs specifies the gno system directories to scan which specify full import paths
 // in their directories, such as @/examples and @/gnovm/stdlibs; modDirs specifies
 // directories which contain a gno.mod file.
-func ResolveDocumentable(dirs, modDirs, args []string, unexported bool) (*Documentable, error) {
-	d := newDirs(dirs, modDirs)
-
+func ResolveDocumentable(args []string, unexported bool) (*Documentable, error) {
 	parsed, ok := parseArgs(args)
 	if !ok {
 		return nil, fmt.Errorf("commands/doc: invalid arguments: %v", args)
 	}
-	return resolveDocumentable(d, parsed, unexported)
+	return resolveDocumentable(parsed, unexported)
 }
 
-func resolveDocumentable(dirs *bfsDirs, parsed docArgs, unexported bool) (*Documentable, error) {
+func resolveDocumentable(parsed docArgs, unexported bool) (*Documentable, error) {
 	var candidates []bfsDir
 
 	// if we have a candidate package name, search dirs for a dir that matches it.
