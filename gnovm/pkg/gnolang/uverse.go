@@ -768,9 +768,9 @@ func makeUverseNode() {
 			if !fr1.LastPackage.IsRealm() {
 				panic("crossing call only allowed in realm packages") // XXX test
 			}
-			// Verify prior fr.WithCross or fr.DidCross.
+			// Verify prior fr.WithCross or fr.DidCrossing.
 			// NOTE: fr.WithCross may or may not be true,
-			// crossing() (which sets fr.DidCross) can be
+			// crossing() (which sets fr.DidCrossing) can be
 			// stacked.
 			for i := 1 + 1; ; i++ {
 				fri := m.PeekCallFrame(i)
@@ -787,19 +787,19 @@ func makeUverseNode() {
 					// meains fri.WithCross would have been
 					// found below.
 					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCross()
+					fr2.SetDidCrossing()
 					return
 				}
-				if fri.WithCross || fri.DidCross {
-					// NOTE: fri.DidCross implies
+				if fri.WithCross || fri.DidCrossing {
+					// NOTE: fri.DidCrossing implies
 					// everything under it is also valid.
-					// fri.DidCross && !fri.WithCross
+					// fri.DidCrossing && !fri.WithCross
 					// can happen with an implicit switch.
 					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCross()
+					fr2.SetDidCrossing()
 					return
 				}
-				// Neither fri.WithCross nor fri.DidCross, yet
+				// Neither fri.WithCross nor fri.DidCrossing, yet
 				// Realm already switched implicitly.
 				if fri.LastRealm != m.Realm {
 					panic("crossing could not find corresponding cross(fn)(...) call")
