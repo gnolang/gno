@@ -68,52 +68,62 @@ func TestFalse(t *testing.T) {
 	mockT.equals(t, "error: should be false")
 }
 
-func TestPanicsWithMessage(t *testing.T) {
+func TestAbortsWithMessage(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !PanicsWithMessage(mockT, "panic", func() {
-		panic(errors.New("panic"))
+	if !AbortsWithMessage(mockT, "abort message", func() {
+		panic("abort message")
 	}) {
-		t.Error("PanicsWithMessage should return true")
+		t.Error("AbortsWithMessage should return true")
 	}
 	mockT.empty(t)
 
-	if PanicsWithMessage(mockT, "Panic!", func() {
+	if AbortsWithMessage(mockT, "Abort!", func() {
 		// noop
 	}) {
-		t.Error("PanicsWithMessage should return false")
+		t.Error("AbortsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic\n\tPanic value:\tnil")
+	mockT.equals(t, "error: func should abort")
 
-	if PanicsWithMessage(mockT, "at the disco", func() {
-		panic(errors.New("panic"))
+	if AbortsWithMessage(mockT, "at the disco", func() {
+		panic("abort message")
 	}) {
-		t.Error("PanicsWithMessage should return false")
+		t.Error("AbortsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with message:\tat the disco\n\tPanic value:\tpanic")
+	mockT.equals(t, "error: func should abort with message:\t\"at the disco\"\n\tActual abort value:\t\"abort message\"")
 
-	if PanicsWithMessage(mockT, "Panic!", func() {
-		panic("panic")
+	if AbortsWithMessage(mockT, "Abort!", func() {
+		panic("another abort")
 	}) {
-		t.Error("PanicsWithMessage should return false")
+		t.Error("AbortsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with message:\tPanic!\n\tPanic value:\tpanic")
+	mockT.equals(t, "error: func should abort with message:\t\"Abort!\"\n\tActual abort value:\t\"another abort\"")
+
+	// Test case where abort value is not a string
+	if AbortsWithMessage(mockT, "doesn't matter", func() {
+		panic(123) // Abort with an integer
+	}) {
+		t.Error("AbortsWithMessage should return false when abort value is not a string")
+	}
+	mockT.equals(t, "error: abort value was not a string: got type int, value 123")
 }
 
-func TestNotPanics(t *testing.T) {
+func TestNotAborts(t *testing.T) {
 	mockT := new(mockTestingT)
 
-	if !NotPanics(mockT, func() {
+	if !NotAborts(mockT, func() {
 		// noop
 	}) {
-		t.Error("NotPanics should return true")
+		t.Error("NotAborts should return true")
 	}
 	mockT.empty(t)
 
-	if NotPanics(mockT, func() {
-		panic("Panic!")
+	if NotAborts(mockT, func() {
+		panic("Abort!")
 	}) {
-		t.Error("NotPanics should return false")
+		t.Error("NotAborts should return false")
 	}
+	// Check the failure message includes the abort value
+	mockT.equals(t, "error: func should not abort\n\tAbort value:\tAbort!")
 }
 
 func TestEqual(t *testing.T) {

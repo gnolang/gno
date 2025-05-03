@@ -40,13 +40,34 @@ func TestDefaultVerifier(t *testing.T) {
 func TestEnable(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 
-	uassert.NotPanics(t, func() {
+	uassert.NotAborts(t, func() {
 		cross(Enable)()
 	})
 
 	// Confirm enable drops ownerships
 	uassert.Equal(t, Ownable.Owner().String(), "")
-	uassert.PanicsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
+	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
 		cross(Enable)()
+	})
+}
+
+func TestVerify(t *testing.T) {
+	t.Run("verify from unauthorized", func(t *testing.T) {
+		std.TestSetOrigCaller(acc2) // acc2 is not the owner
+
+		uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
+			v.Verify(name, "test-verification")
+		})
+	})
+
+	t.Run("verify from owner", func(t *testing.T) {
+		std.TestSetOrigCaller(owner)
+
+		uassert.NotAborts(t, func() {
+			v.Verify(name, "test-verification")
+		})
+
+		verifiedName, err := v.GetVerifiedName(owner)
+		// ... existing code ...
 	})
 }

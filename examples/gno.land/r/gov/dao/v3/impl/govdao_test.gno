@@ -61,15 +61,15 @@ func TestCreateProposalAndVote(t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(noMember)
-    testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	nm1 := testutils.TestAddress("nm1")
 
-	urequire.PanicsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func() {
+	urequire.AbortsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func() {
 		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3, portfolio))
 	})
 
-	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
+	urequire.AbortsWithMessage(t, "proposer is not a member", func() {
 		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	})
 
@@ -112,7 +112,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	testing.SetOriginCaller(m4)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
+	urequire.AbortsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		dao.MustVoteOnProposal(dao.VoteRequest{
 			Option:     dao.NoVote,
 			ProposalID: dao.ProposalID(0),
@@ -133,7 +133,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
 	urequire.Equal(t, true, contains(dao.Render(""), "52.63157894736842%"))
 
-	urequire.PanicsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
+	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
 		dao.ExecuteProposal(dao.ProposalID(0))
 	})
 
@@ -201,7 +201,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 
 	nm1 := testutils.TestAddress("nm1")
 
-	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
+	urequire.AbortsWithMessage(t, "proposer is not a member", func() {
 		preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 		dao.MustCreateProposal(preq)
 	})

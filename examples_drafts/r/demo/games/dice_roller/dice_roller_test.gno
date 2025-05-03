@@ -92,7 +92,7 @@ func TestPlayInvalidPlayer(t *testing.T) {
 
 	// Attempt to play as an invalid player
 	testing.SetOriginCaller(unknownPlayer)
-	urequire.PanicsWithMessage(t, "invalid player", func() {
+	urequire.AbortsWithMessage(t, "invalid player", func() {
 		Play(gameID)
 	})
 }
@@ -108,7 +108,7 @@ func TestPlayAlreadyPlayed(t *testing.T) {
 	Play(gameID)
 
 	// Player 1 tries to roll again
-	urequire.PanicsWithMessage(t, "already played", func() {
+	urequire.AbortsWithMessage(t, "already played", func() {
 		Play(gameID)
 	})
 }
@@ -132,7 +132,7 @@ func TestPlayBeyondGameEnd(t *testing.T) {
 
 	// Attempt to play more should fail
 	testing.SetOriginCaller(player1)
-	urequire.PanicsWithMessage(t, "game over", func() {
+	urequire.AbortsWithMessage(t, "game over", func() {
 		Play(gameID)
 	})
 }

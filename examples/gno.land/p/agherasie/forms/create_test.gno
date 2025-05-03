@@ -46,7 +46,7 @@ func TestCreateForm(t *testing.T) {
 		}
 	]`
 
-	urequire.NotPanics(t, func() {
+	urequire.NotAborts(t, func() {
 		id, err := db.CreateForm(title, description, openAt, closeAt, data)
 		if err != nil {
 			panic(err)

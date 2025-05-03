@@ -84,8 +84,28 @@ func TestErrConditions(t *testing.T) {
 		}
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
-				uassert.PanicsWithMessage(t, tc.msg, tc.fn)
+				uassert.AbortsWithMessage(t, tc.msg, tc.fn)
 			})
 		}
 	}
+}
+
+func TestNewFoo20(t *testing.T) {
+	t.Run("invalid input", func(t *testing.T) {
+		testCases := []struct {
+			msg string
+			fn  func()
+		}{
+			// Test AbortsWithMessage
+			{"supply cannot be zero", func() { NewFoo20("foo", "f", 0) }},
+			{"symbol cannot be empty", func() { NewFoo20("foo", "", 1) }},
+			{"name cannot be empty", func() { NewFoo20("", "f", 1) }},
+		}
+		for _, tc := range testCases {
+			uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+		}
+	})
+	t.Run("transfer", func(t *testing.T) {
+		// ... existing code ...
+	})
 }
