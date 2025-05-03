@@ -852,17 +852,7 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
-			if arg0.TV.V != nil {
-				m.PushValue(typedBool(false))
-				return
-			}
-			if arg0.TV.T != nil && arg0.TV.T.Kind() == PointerKind {
-				m.PushValue(typedBool(true))
-				return
-			} else {
-				m.PushValue(typedBool(false))
-				return
-			}
+			m.PushValue(typedBool(arg0.TV.IsTypedNil()))
 		},
 	)
 	uverseValue = uverseNode.NewPackage()
