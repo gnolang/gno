@@ -90,16 +90,11 @@ func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 
 	// Use a closure with defer to capture potential aborts
 	func() {
-		defer func() {
-			r := revive() // revive() captures the value passed to abort()
-			if r != nil {
-				didAbort = true
-				abortValue = r
-			}
-		}()
-
-		// Execute the function that might abort
-		f()
+		r := revive(f) // revive() captures the value passed to panic()
+		if r != nil {
+			didAbort = true
+			abortValue = r
+		}
 	}() // IIFE
 
 	if !didAbort {
@@ -111,12 +106,12 @@ func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	abortStr, ok := abortValue.(string)
 	if !ok {
 		// Fail if the abort value wasn't a string
-		return fail(t, msgs, "abort value was not a string: got type %T, value %v", abortValue, abortValue)
+		return fail(t, msgs, "panic value was not a string: got type %T, value %v", abortValue, abortValue)
 	}
 
 	if abortStr != msg {
 		// Fail if the abort message doesn't match
-		return fail(t, msgs, "func should abort with message:\t%q\n\tActual abort value:\t%q", msg, abortStr)
+		return fail(t, msgs, "func should panic with message:\t%q\n\tActual panic value:\t%q", msg, abortStr)
 	}
 
 	// Success: function aborted with the expected message
@@ -131,16 +126,13 @@ func NotAborts(t TestingT, f func(), msgs ...string) bool {
 	var didAbort bool
 	var abortValue any
 
-	// Use a closure with defer to check for aborts
+	// Use a closure with defer to capture potential aborts
 	func() {
-		defer func() {
-			r := revive()
-			if r != nil {
-				didAbort = true
-				abortValue = r
-			}
-		}()
-		f()
+		r := revive(f)
+		if r != nil {
+			didAbort = true
+			abortValue = r
+		}
 	}() // IIFE
 
 	if didAbort {
