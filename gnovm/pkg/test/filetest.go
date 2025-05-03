@@ -62,6 +62,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		Debug:         opts.Debug,
+		ReviveEnabled: true,
 	})
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source, opslog)
