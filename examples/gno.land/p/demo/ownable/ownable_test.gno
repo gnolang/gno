@@ -27,7 +27,7 @@ func TestNewWithOriginPanic(t *testing.T) {
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
 
-	uassert.AbortsWithMessage(t, "frame not found: cannot seek beyond origin caller override", func() {
+	uassert.PanicsWithMessage(t, "frame not found: cannot seek beyond origin caller override", func() {
 		NewWithOrigin()
 	})
 }
@@ -161,7 +161,7 @@ func TestAssertOwnedByCurrent(t *testing.T) {
 
 	// Should panic when caller is not owner
 	testing.SetRealm(std.NewUserRealm(bob))
-	uassert.AbortsWithMessage(t, ErrUnauthorized.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrUnauthorized.Error(), func() {
 		o.AssertOwnedByCurrent()
 	})
 }
@@ -176,7 +176,7 @@ func TestAssertOwnedByPrevious(t *testing.T) {
 
 		// Should panic when previous is not owner
 		testing.SetRealm(std.NewUserRealm(bob))
-		uassert.AbortsWithMessage(t, ErrUnauthorized.Error(), func() {
+		uassert.PanicsWithMessage(t, ErrUnauthorized.Error(), func() {
 			o.AssertOwnedByCurrent()
 		})
 	})
