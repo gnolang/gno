@@ -95,6 +95,6 @@ func Render(path string) string {
 
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
