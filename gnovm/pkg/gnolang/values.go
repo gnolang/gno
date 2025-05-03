@@ -961,6 +961,16 @@ func (tv *TypedValue) IsUndefined() bool {
 	return tv.T == nil
 }
 
+func (tv *TypedValue) IsTypedNil() bool {
+	if tv.V != nil {
+		return false
+	}
+	if tv.T != nil && tv.T.Kind() == PointerKind {
+		return true
+	}
+	return false
+}
+
 // (this is used mostly by the preprocessor)
 func (tv *TypedValue) IsNilInterface() bool {
 	if tv.T != nil && tv.T.Kind() == InterfaceKind {
