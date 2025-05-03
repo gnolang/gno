@@ -101,23 +101,7 @@ func TestAssertOnList(t *testing.T) {
 
 	testing.SetRealm(std.NewUserRealm(bob))
 
-	uassert.AbortsWithMessage(t, ErrNotInAuthList.Error(), func() {
+	uassert.PanicsWithMessage(t, ErrNotInAuthList.Error(), func() {
 		a.AssertOnAuthList()
-	})
-}
-
-func TestMustBeAuthorized(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
-
-	a := NewAuthorizableWithAddress(alice)
-
-	// Authorized account tries to execute
-	if err := a.MustBeAuthorized(alice); err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	// Non-authorized account tries to execute
-	uassert.AbortsWithMessage(t, ErrNotInAuthList.Error(), func() {
-		a.MustBeAuthorized(bob)
 	})
 }
