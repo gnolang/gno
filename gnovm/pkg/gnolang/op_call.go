@@ -149,13 +149,18 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 	if crlm != nil {
 		prlm := cfr.LastRealm
 		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
+		if cfr.WithCross {
+			// Even if crlm == prlm, must finalize
+			// to preserve attachment rules.
 			finalize = true
 		} else if crlm != prlm {
-			// We are changing realms or exiting a
-			// realm. This includes borrow-realm
-			// implicit crossings.
+			// .WithCross was already handled;
+			// This is for implicitly crossed
+			// borrow-realms, the storage realm
+			// of a method's receiver.
+			finalize = true
+		} else if m.NumFrames() == 1 {
+			// We are exiting the machine's realm.
 			finalize = true
 		}
 		if finalize {

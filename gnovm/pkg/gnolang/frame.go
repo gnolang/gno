@@ -29,7 +29,7 @@ type Frame struct {
 	LastPackage   *PackageValue // previous frame's package
 	LastRealm     *Realm        // previous frame's realm
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
-	DidCross      bool          // true if crossing() was called.
+	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls
 	IsDefer       bool          // was func defer called
 	LastException *Exception    // previous m.exception
@@ -52,7 +52,7 @@ func (fr Frame) String() string {
 			fr.LastPackage.PkgPath,
 			fr.LastRealm,
 			fr.WithCross,
-			fr.DidCross,
+			fr.DidCrossing,
 			fr.IsDefer,
 			fr.LastException,
 		)
@@ -91,11 +91,11 @@ func (fr *Frame) SetWithCross() {
 	fr.WithCross = true
 }
 
-func (fr *Frame) SetDidCross() {
-	if fr.DidCross {
-		panic("fr.DidCross already set")
+func (fr *Frame) SetDidCrossing() {
+	if fr.DidCrossing {
+		panic("fr.DidCrossing already set")
 	}
-	fr.DidCross = true
+	fr.DidCrossing = true
 }
 
 //----------------------------------------

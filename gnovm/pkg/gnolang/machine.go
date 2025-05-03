@@ -1797,7 +1797,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		LastPackage:   m.Package,
 		LastRealm:     m.Realm,
 		WithCross:     withCross,
-		DidCross:      false,
+		DidCrossing:   false,
 		Defers:        nil,
 		IsDefer:       isDefer,
 		LastException: m.Exception,
@@ -1893,15 +1893,15 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
-				// DO NOT set DidCross here. Make DidCross only
-				// happen upon explicit cross(fn)(...) calls
-				// and subsequent calls to crossing functions
-				// from the same realm, to avoid user
-				// confusion. Otherwise whether DidCross
-				// happened or not depends on where the
-				// receiver resides, which isn't explicit
+				// DO NOT set DidCrossing here. Make
+				// DidCrossing only happen upon explicit
+				// cross(fn)(...) calls and subsequent calls to
+				// crossing functions from the same realm, to
+				// avoid user confusion. Otherwise whether
+				// DidCrossing happened or not depends on where
+				// the receiver resides, which isn't explicit
 				// enough to avoid confusion.
-				//   fr.DidCross = true
+				//   fr.DidCrossing = true
 				return
 			}
 		}
