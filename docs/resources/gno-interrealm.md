@@ -14,7 +14,7 @@ or implictly borrow-crossed into a different receiver's storage realm.
 A realm may cross into itself with an explicit cross-call.
 
 When returning from a realm boundary, all new reachable objects are assigned
-object IDs and stored in the current realm, ref-count zero objects deleted
+object IDs and stored in the current realm, ref-count-zero objects deleted
 (full "disk-persistent cycle GC" will come after launch) and any modified
 ref-count and Merkle hash root computed. This is called realm finalization.
 
@@ -50,7 +50,8 @@ A crossing function declared in a realm different than the last explicitly
 crossed realm *must* be called like `cross(fn)(...)`. That is, functions of
 calls that result in explicit realm crossings must be wrapped with `cross()`.
 
-`std.CurrentRealm()` returns the current realm last explicitly crossed to.
+`std.CurrentRealm()` returns the current realm that was last explicitly crossed
+to.
 
 `std.PreviousRealm()` returns the realm explicitly crossed to before that.
 
@@ -79,7 +80,7 @@ receiver (and in general anything reachable is readable).
 New unreal objects reachable from the borrowed realm (or current realm if there
 was no method call that borrowed) become persisted in the borrowed realm (or
 current realm) upon finalization of the foreign object's method (or function).
-(When you put an unlabeled photo in someone else's scrap book the photo now
+(When you put an unlabeled photo in someone else's scrapbook the photo now
 belongs to the other person). In the future we will introduce an `attach()`
 function to prevent a new unreal object from being taken.
 
@@ -157,7 +158,7 @@ a realm finalization boundary.
 This is only enabled in testing mode (for now), behavior is only partially
 implemented. In the future `revive(fn)` will be available for non-testing code,
 and the behavior will change such that `fn()` is run in transactional
-(cache-wraped) memory context and any mutations discarded if and only if there
+(cache-wrapped) memory context and any mutations discarded if and only if there
 was an abort.
 
 TL;DR: `revive(fn)` is Gno's builtin for STM (software transactional memory).
@@ -181,8 +182,8 @@ realms.
 
 Generally you want your methods to be non-crossing. Because they should work
 for everyone. They are functions that are pre-bound to an object, and that
-object is like a quasi-realm in itself, that could reside and migrate to other
-realms possibly. This is consistent with any p code copied over to r realms;
+object is like a quasi-realm in itself, that could possibly reside and migrate
+to other realms. This is consistent with any p code copied over to r realms;
 none of those methods would be crossing, and behavior would be the same; stored
 in any realm, mostly non-crossing methods that anyone can call. Why is a
 quasi-realm self-encapsulated Object in need to modify the realm in which it is
@@ -201,7 +202,7 @@ is called like `cross(fn)(...)`.
 ### MsgCall
 
 MsgCall may only call crossing functions. This is to prevent potential
-confusion of non-sophisticated users. Non-crossing calls of non-crossing
+confusion for non-sophisticated users. Non-crossing calls of non-crossing
 functions of other realms is still possible with MsgRun.
 
 ```go
@@ -319,7 +320,7 @@ the address is the same.
 During MsgAddPackage `std.PreviousRealm()` refers to the package deployer both
 in global var decls as well as inside `init()` functions. After that the
 package deployer is no longer provided, so packages need to remember the
-deployer in the initialization if needed.
+deployer in the initialization phase if needed.
 
 ```go
 // PKGPATH: gno.land/r/test/test
