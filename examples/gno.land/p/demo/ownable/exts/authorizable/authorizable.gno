@@ -55,7 +55,17 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 	if !a.OwnedByCurrent() {
 		return ErrNotSuperuser
 	}
+	return a.addToAuthList(addr)
+}
 
+func (a *Authorizable) AddToAuthListByPrevious(addr std.Address) error {
+	if !a.OwnedByPrevious() {
+		return ErrNotSuperuser
+	}
+	return a.addToAuthList(addr)
+}
+
+func (a *Authorizable) addToAuthList(addr std.Address) error {
 	if _, exists := a.authorized.Get(addr.String()); exists {
 		return ErrAlreadyInList
 	}
@@ -69,7 +79,17 @@ func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
 	if !a.OwnedByCurrent() {
 		return ErrNotSuperuser
 	}
+	return a.deleteFromAuthList(addr)
+}
 
+func (a *Authorizable) DeleteFromAuthListByPrevious(addr std.Address) error {
+	if !a.OwnedByPrevious() {
+		return ErrNotSuperuser
+	}
+	return a.deleteFromAuthList(addr)
+}
+
+func (a *Authorizable) deleteFromAuthList(addr std.Address) error {
 	if !a.authorized.Has(addr.String()) {
 		return ErrNotInAuthList
 	}
@@ -82,20 +102,33 @@ func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
 	return nil
 }
 
-func (a Authorizable) CallerOnAuthList() error {
-	caller := std.CurrentRealm().Address()
+func (a *Authorizable) OnAuthList() error {
+	current := std.CurrentRealm().Address()
+	return a.onAuthList(current)
+}
 
+func (a *Authorizable) PreviousOnAuthList() error {
+	previous := std.PreviousRealm().Address()
+	return a.onAuthList(previous)
+}
+
+func (a *Authorizable) onAuthList(caller std.Address) error {
 	if !a.authorized.Has(caller.String()) {
 		return ErrNotInAuthList
 	}
-
 	return nil
 }
 
 func (a Authorizable) AssertOnAuthList() {
-	caller := std.CurrentRealm().Address()
+	err := a.OnAuthList()
+	if err != nil {
+		panic(err)
+	}
+}
 
-	if !a.authorized.Has(caller.String()) {
-		panic(ErrNotInAuthList)
+func (a Authorizable) AssertPreviousOnAuthList() {
+	err := a.PreviousOnAuthList()
+	if err != nil {
+		panic(err)
 	}
 }
