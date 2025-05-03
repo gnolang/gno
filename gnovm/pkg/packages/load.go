@@ -70,8 +70,8 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 	}
 
 	// this output is not present in go but could be useful since we don't follow the same rules to find root
-	fmt.Fprintf(conf.Out, "gno: loading patterns %s\n", strings.Join(patterns, ", "))
-	fmt.Fprintf(conf.Out, "gno: using %q as root\n", root)
+	// fmt.Fprintf(conf.Out, "gno: loading patterns %s\n", strings.Join(patterns, ", "))
+	// fmt.Fprintf(conf.Out, "gno: using %q as root\n", root)
 
 	expanded, err := expandPatterns(root, conf.Out, patterns...)
 	if err != nil {
@@ -115,7 +115,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 			continue
 		}
 
-		fmt.Fprintf(conf.Out, "gno: visiting deps of %q at %q\n", pkg.ImportPath, pkg.Dir)
+		// fmt.Fprintf(conf.Out, "gno: visiting deps of %q at %q\n", pkg.ImportPath, pkg.Dir)
 
 		// don't load test deps if test flag is not set
 		importKinds := []FileKind{FileKindPackageSource}
@@ -133,12 +133,12 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				continue
 			}
 
-			fmt.Fprintf(conf.Out, "gno: resolving dep %q\n", imp.PkgPath)
+			// fmt.Fprintf(conf.Out, "gno: resolving dep %q\n", imp.PkgPath)
 
 			// check if this is a stdlib and load it from gnoroot if available
 			// XXX: use a fetcher middleware?
 			if gnolang.IsStdlib(imp.PkgPath) {
-				fmt.Fprintf(conf.Out, "gno: loading stdlib %q\n", imp.PkgPath)
+				// fmt.Fprintf(conf.Out, "gno: loading stdlib %q\n", imp.PkgPath)
 
 				dir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs", filepath.FromSlash(imp.PkgPath))
 				dirInfo, err := os.Stat(dir)
@@ -159,7 +159,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				pkgSubPath := strings.TrimPrefix(imp.PkgPath, rootModule.Module.Mod.Path)
 				pkgDir := filepath.Join(root, filepath.FromSlash(pkgSubPath))
 				if info, err := os.Stat(pkgDir); err == nil && info.IsDir() {
-					fmt.Fprintf(conf.Out, "gno: loading local package %q at %q\n", imp.PkgPath, pkgDir)
+					// fmt.Fprintf(conf.Out, "gno: loading local package %q at %q\n", imp.PkgPath, pkgDir)
 
 					// XXX: check that this dir has gno pkg files
 					markDepForVisit(readPkgDir(conf.Out, nil, pkgDir, imp.PkgPath, conf.Fset))
@@ -167,7 +167,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 				}
 			}
 
-			fmt.Fprintf(conf.Out, "gno: fetching %q\n", imp.PkgPath)
+			// fmt.Fprintf(conf.Out, "gno: fetching %q\n", imp.PkgPath)
 
 			dir := gnomod.PackageDir("", module.Version{Path: imp.PkgPath})
 			if err := downloadPackage(conf.Out, conf.Fetcher, imp.PkgPath, dir); err != nil {

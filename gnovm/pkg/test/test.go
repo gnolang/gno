@@ -17,6 +17,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -161,6 +162,18 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	}
 	opts.BaseStore, opts.TestStore = Store(rootDir, opts.WriterForStore())
 	return opts
+}
+
+// NewTestOptions sets up TestOptions, filling out all "required" parameters.
+func NewPreloadedTestOptions(rootDir string, pkgs packages.PkgList, stdout, stderr io.Writer) (*TestOptions, error) {
+	opts := &TestOptions{
+		RootDir: rootDir,
+		Output:  stdout,
+		Error:   stderr,
+	}
+	var err error
+	opts.BaseStore, opts.TestStore, err = PreloadedStore(rootDir, pkgs, opts.WriterForStore(), StoreOptions{})
+	return opts, err
 }
 
 // proxyWriter is a simple wrapper around a io.Writer, it exists so that the

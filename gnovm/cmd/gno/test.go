@@ -186,7 +186,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// XXX: resolve deps via loader, this requires modifying the test store
 	pkgs, err := packages.Load(&packages.LoadConfig{
-		Out: io.Err(),
+		Out:  io.Err(),
+		Deps: true,
+		Test: true,
 	}, args...)
 	if err != nil {
 		return err
@@ -197,7 +199,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, stdout, io.Err())
+	opts, err := test.NewPreloadedTestOptions(cfg.rootDir, pkgs, stdout, io.Err())
+	if err != nil {
+		return fmt.Errorf("instantiate store: %w", err)
+	}
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose

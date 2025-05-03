@@ -121,6 +121,77 @@ func StoreWithOptions(
 	return
 }
 
+// TODO doc
+func PreloadedStore(
+	rootDir string,
+	pkgs packages.PkgList,
+	output io.Writer,
+	opts StoreOptions,
+) (
+	baseStore storetypes.CommitStore,
+	resStore gno.Store,
+	outErr error,
+) {
+	if opts.WithExtern {
+		return nil, nil, errors.New("preloaded store does not support WithExtern")
+	}
+
+	processMemPackage := func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
+		return m.RunMemPackage(memPkg, save)
+	}
+	if opts.PreprocessOnly {
+		processMemPackage = func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
+			m.Store.AddMemPackage(memPkg)
+			return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), save, false)
+		}
+	}
+	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+		if pkgPath == "" {
+			panic(errors.New("invalid zero package path in testStore().pkgGetter"))
+		}
+
+		if gno.IsStdlib(pkgPath) {
+			// Load normal stdlib.
+			pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly)
+			if pn == nil {
+				return nil, nil
+			}
+			return
+		}
+
+		pkg := pkgs.Get(pkgPath)
+		if pkg == nil {
+			return nil, nil
+		}
+
+		// normal package
+		memPkg, err := pkg.MemPkg()
+		if err != nil {
+			panic(fmt.Errorf("failed to get mempkg for %q at %q: %w", pkg.ImportPath, pkg.Dir, err))
+		}
+		if memPkg.IsEmpty() {
+			panic(fmt.Errorf("imports: found an empty package %q", pkgPath))
+		}
+
+		send := std.Coins{}
+		ctx := Context(pkgPath, send)
+		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+			PkgPath: "test",
+			Output:  output,
+			Store:   store,
+			Context: ctx,
+		})
+		return processMemPackage(m2, memPkg, true)
+	}
+	db := memdb.NewMemDB()
+	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	// Make a new store.
+	resStore = gno.NewStore(nil, baseStore, baseStore)
+	resStore.SetPackageGetter(getPackage)
+	resStore.SetNativeResolver(teststdlibs.NativeResolver)
+	return
+}
+
 func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool) (*gno.PackageNode, *gno.PackageValue) {
 	dirs := [...]string{
 		// Normal stdlib path.

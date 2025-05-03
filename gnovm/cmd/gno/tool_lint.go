@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/multierr"
@@ -90,19 +91,33 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgsRecursively(args)
+	pkgs, err := packages.Load(&packages.LoadConfig{
+		Out:  io.Err(),
+		Deps: true,
+		Test: true,
+	}, args...)
 	if err != nil {
-		return fmt.Errorf("list packages from args: %w", err)
+		return fmt.Errorf("load packages: %w", err)
 	}
 
 	hasError := false
 
-	bs, ts := test.StoreWithOptions(
-		rootDir, goio.Discard,
+	bs, ts, err := test.PreloadedStore(
+		rootDir, pkgs, goio.Discard,
 		test.StoreOptions{PreprocessOnly: true},
 	)
+	if err != nil {
+		return fmt.Errorf("instantiate store: %w", err)
+	}
 
-	for _, pkgPath := range pkgPaths {
+	for _, pkg := range pkgs {
+		if len(pkg.Match) == 0 {
+			// ignore deps
+			continue
+		}
+
+		pkgPath := pkg.ImportPath
+
 		if verbose {
 			io.ErrPrintln(pkgPath)
 		}
@@ -125,7 +140,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			hasError = true
 		}
 
-		memPkg, err := gno.ReadMemPackage(pkgPath, pkgPath)
+		memPkg, err := pkg.MemPkg()
 		if err != nil {
 			io.ErrPrintln(issueFromError(pkgPath, err).String())
 			hasError = true
