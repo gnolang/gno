@@ -1415,6 +1415,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
 						panic("attach() not yet supported")
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "revive" {
+						_, ok := ns[len(ns)-1].(*CallExpr)
+						if !ok {
+							panic("revive() is a builtin name and must be called")
+						}
 					}
 				}
 

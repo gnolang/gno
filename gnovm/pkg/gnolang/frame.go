@@ -32,6 +32,7 @@ type Frame struct {
 	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls
 	IsDefer       bool          // was func defer called
+	IsRevive      bool          // calling revive()
 	LastException *Exception    // previous m.exception
 
 	// test info
@@ -96,6 +97,13 @@ func (fr *Frame) SetDidCrossing() {
 		panic("fr.DidCrossing already set")
 	}
 	fr.DidCrossing = true
+}
+
+func (fr *Frame) SetIsRevive() {
+	if fr.IsRevive {
+		panic("fr.IsRevive already set")
+	}
+	fr.IsRevive = true
 }
 
 //----------------------------------------

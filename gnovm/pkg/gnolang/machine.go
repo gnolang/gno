@@ -23,22 +23,23 @@ import (
 
 type Machine struct {
 	// State
-	Ops        []Op // main operations
-	NumOps     int
-	Values     []TypedValue  // buffer of values to be operated on
-	NumValues  int           // number of values
-	Exprs      []Expr        // pending expressions
-	Stmts      []Stmt        // pending statements
-	Blocks     []*Block      // block (scope) stack
-	Frames     []Frame       // func call stack
-	Package    *PackageValue // active package
-	Realm      *Realm        // active realm
-	Alloc      *Allocator    // memory allocations
-	Exception  *Exception    // last exception
-	NumResults int           // number of results returned
-	Cycles     int64         // number of "cpu" cycles
-	GCCycle    int64         // number of "gc" cycles
-	Stage      Stage         // pre for static eval, add for package init, run otherwise
+	Ops           []Op // main operations
+	NumOps        int
+	Values        []TypedValue  // buffer of values to be operated on
+	NumValues     int           // number of values
+	Exprs         []Expr        // pending expressions
+	Stmts         []Stmt        // pending statements
+	Blocks        []*Block      // block (scope) stack
+	Frames        []Frame       // func call stack
+	Package       *PackageValue // active package
+	Realm         *Realm        // active realm
+	Alloc         *Allocator    // memory allocations
+	Exception     *Exception    // last exception
+	NumResults    int           // number of results returned
+	Cycles        int64         // number of "cpu" cycles
+	GCCycle       int64         // number of "gc" cycles
+	Stage         Stage         // pre for static eval, add for package init, run otherwise
+	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 
 	Debugger Debugger
 
@@ -78,6 +79,7 @@ type MachineOptions struct {
 	Alloc         *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes int64      // or 0 for no limit.
 	GasMeter      store.GasMeter
+	ReviveEnabled bool
 }
 
 // the machine constructor gets spammed
@@ -139,6 +141,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
+	mm.ReviveEnabled = mm.ReviveEnabled
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -2048,6 +2051,18 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() {
+			m.Frames = m.Frames[:i+1]
+			return fr
+		}
+	}
+	return nil
+}
+
+// pops until revive (call) frame.
+func (m *Machine) PopUntilLastReviveFrame() *Frame {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.IsRevive {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
