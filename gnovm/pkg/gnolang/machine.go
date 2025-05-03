@@ -141,7 +141,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
-	mm.ReviveEnabled = mm.ReviveEnabled
+	mm.ReviveEnabled = opts.ReviveEnabled
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
