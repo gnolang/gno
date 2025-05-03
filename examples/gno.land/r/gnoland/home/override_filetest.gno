@@ -11,15 +11,17 @@ import (
 func main() {
 	var admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	testing.SetOriginCaller(admin)
-	home.AdminSetOverride("Hello World!")
+	cross(home.AdminSetOverride)("Hello World!")
 	println("---")
 	println(home.Render(""))
-	home.Admin.TransferOwnership(testutils.TestAddress("newAdmin"))
+
+	newAdmin := testutils.TestAddress("newAdmin")
+	home.Admin.TransferOwnership(newAdmin)
 	defer func() {
 		r := recover()
 		println("r: ", r)
 	}()
-	home.AdminSetOverride("Not admin anymore")
+	cross(home.AdminSetOverride)("Not admin anymore")
 }
 
 // Output:

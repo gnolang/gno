@@ -115,16 +115,21 @@ func TestCallerTeller(t *testing.T) {
 	checkBalances(1000, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
+	tellerThrough := func(action func()) {
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/realm_exposing_the_teller"))
+		action()
+	}
+
 	testing.SetRealm(std.NewUserRealm(alice))
-	urequire.NoError(t, teller.Approve(bob, 600))
+	tellerThrough(func() { urequire.NoError(t, teller.Approve(bob, 600)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
 	testing.SetRealm(std.NewUserRealm(bob))
-	urequire.Error(t, teller.TransferFrom(alice, carl, 700))
+	tellerThrough(func() { urequire.Error(t, teller.TransferFrom(alice, carl, 700)) })
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
-	urequire.NoError(t, teller.TransferFrom(alice, carl, 400))
+	tellerThrough(func() { urequire.NoError(t, teller.TransferFrom(alice, carl, 400)) })
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }

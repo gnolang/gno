@@ -114,7 +114,7 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
 
-	userTeller := token.CallerTeller()
+	userTeller := token.RealmTeller()
 	err := userTeller.TransferFrom(sender, curAddr, allowance)
 	require(err == nil, "cannot retrieve tokens from allowance")
 

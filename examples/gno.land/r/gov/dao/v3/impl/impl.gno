@@ -3,12 +3,12 @@ package impl
 import (
 	"std"
 
-	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
 var govDAO *GovDAO = NewGovDAO()
 var law *Law
+var realm = std.CurrentRealm()
 
 func init() {
 	law = &Law{
@@ -16,15 +16,8 @@ func init() {
 	}
 }
 
-func context() *dao.Context {
-	return &dao.Context{
-		PrevRealm:    std.PreviousRealm(),
-		CurrentRealm: std.CurrentRealm(),
-	}
-}
-
 func Render(in string) string {
-	return govDAO.Render(context(), in)
+	return govDAO.Render(realm.PkgPath(), in)
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.

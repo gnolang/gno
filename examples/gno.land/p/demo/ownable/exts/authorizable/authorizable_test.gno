@@ -35,20 +35,20 @@ func TestNewAuthorizableWithAddress(t *testing.T) {
 	}
 }
 
-func TestCallerOnAuthList(t *testing.T) {
+func TestOnAuthList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
 
-	if err := a.CallerOnAuthList(); err == ErrNotInAuthList {
+	if err := a.OnAuthList(); err == ErrNotInAuthList {
 		t.Fatalf("expected alice to be on the list")
 	}
 }
 
-func TestNotCallerOnAuthList(t *testing.T) {
+func TestNotOnAuthList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
 	testing.SetRealm(std.NewUserRealm(bob))
 
-	if err := a.CallerOnAuthList(); err == nil {
+	if err := a.OnAuthList(); err == nil {
 		t.Fatalf("expected bob to not be on the list")
 	}
 }

@@ -34,9 +34,8 @@ func Enable() {
 	Ownable.DropOwnership()
 }
 
-func IsEnabled() bool {
+func IsEnabled() {
 	crossing()
-
 	return enabled
 }
 

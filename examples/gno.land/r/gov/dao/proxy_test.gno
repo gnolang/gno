@@ -85,11 +85,12 @@ func TestProxy_Functions(t *testing.T) {
 	if p != nil {
 		panic("proposal must be nil")
 	}
-
 	p = cross(MustGetProposal)(pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
-	urequire.Equal(t, p.Author().String(), "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
+	urequire.Equal(t, p.Author().String(), alice.String())
 
+	// need to switch the context back to v4
+	testing.SetRealm(std.NewCodeRealm(v4))
 	urequire.Equal(
 		t,
 		"Render: test",
@@ -101,6 +102,33 @@ func TestProxy_Functions(t *testing.T) {
 	cross(UpdateImpl)(UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
+	})
+
+	t.Run("set valid impl realm path by owner", func(t *testing.T) {
+		implRealmPath := "gno.land/r/gov/dao/v3/impl" // Valid realm path
+
+		// Should not panic
+		urequire.NotPanics(t, func() {
+			SetImplRealmPath(implRealmPath)
+		})
+
+		// Check if path was set correctly
+		urequire.NotPanics(t, func() {
+			urequire.Equal(t, implRealmPath, GetImplRealmPath())
+		})
+		// Get should also work
+		urequire.NotPanics(t, func() {
+			urequire.Equal(t, implRealmPath, GetImplRealmPath())
+		})
+	})
+
+	t.Run("set new valid impl realm path by owner", func(t *testing.T) {
+		implRealmPath := "gno.land/r/gov/dao/v2/impl" // Valid realm path
+
+		// Should not panic
+		urequire.NotPanics(t, func() {
+			SetImplRealmPath(implRealmPath)
+		})
 	})
 }
 

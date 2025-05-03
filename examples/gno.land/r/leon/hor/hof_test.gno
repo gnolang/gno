@@ -325,3 +325,12 @@ func TestSortByCreation(t *testing.T) {
 
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
 }
+
+func TestGetScore(t *testing.T) {
+	score, err := h.GetScore(42)
+	uassert.Nil(t, err)
+	uassert.Equal(t, 0, score)
+	uassert.NotPanics(t, func() {
+		uassert.Equal(t, 0, h.MustGetScore(42))
+	})
+}
