@@ -35,19 +35,16 @@ func TestSign(t *testing.T) {
 func TestSign_FromRealm(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 
-	defer func() {
-		rec := recover()
-		if rec == nil {
-			t.Fatal("expected panic")
-		}
-		recString, ok := rec.(string)
-		if !ok {
-			t.Fatal("not a string", rec)
-		} else if recString != errNotAUser {
-			t.Fatal("invalid error", recString)
-		}
-	}()
-	cross(Sign)("Hey!")
+	rec := revive(func() { cross(Sign)("Hey!") })
+	if rec == nil {
+		t.Fatal("expected panic")
+	}
+	recString, ok := rec.(string)
+	if !ok {
+		t.Fatal("not a string", rec)
+	} else if recString != errNotAUser {
+		t.Fatal("invalid error", recString)
+	}
 }
 
 func TestSign_Double(t *testing.T) {
@@ -58,20 +55,16 @@ func TestSign_Double(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm("g1user"))
 	cross(Sign)("Hello!")
 
-	defer func() {
-		rec := recover()
-		if rec == nil {
-			t.Fatal("expected panic")
-		}
-		recString, ok := rec.(string)
-		if !ok {
-			t.Error("type assertion failed", rec)
-		} else if recString != errAlreadySigned {
-			t.Error("invalid error message", recString)
-		}
-	}()
-
-	cross(Sign)("Hello again!")
+	rec := revive(func() { cross(Sign)("Hello again!") })
+	if rec == nil {
+		t.Fatal("expected panic")
+	}
+	recString, ok := rec.(string)
+	if !ok {
+		t.Error("type assertion failed", rec)
+	} else if recString != errAlreadySigned {
+		t.Error("invalid error message", recString)
+	}
 }
 
 func TestSign_InvalidMessage(t *testing.T) {
@@ -81,19 +74,16 @@ func TestSign_InvalidMessage(t *testing.T) {
 
 	testing.SetRealm(std.NewUserRealm("g1user"))
 
-	defer func() {
-		rec := recover()
-		if rec == nil {
-			t.Fatal("expected panic")
-		}
-		recString, ok := rec.(string)
-		if !ok {
-			t.Error("type assertion failed", rec)
-		} else if recString != errInvalidCharacterInMessage {
-			t.Error("invalid error message", recString)
-		}
-	}()
-	cross(Sign)("\x00Hello!")
+	rec := revive(func() { cross(Sign)("\x00Hello!") })
+	if rec == nil {
+		t.Fatal("expected panic")
+	}
+	recString, ok := rec.(string)
+	if !ok {
+		t.Error("type assertion failed", rec)
+	} else if recString != errInvalidCharacterInMessage {
+		t.Error("invalid error message", recString)
+	}
 }
 
 func TestAdminDelete(t *testing.T) {
