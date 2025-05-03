@@ -862,14 +862,14 @@ func makeUverseNode() {
 	//
 	// XXX This is only enabled in testing mode (for now), and test
 	// developers should be aware that behavior will change to be like
-	// above; currently it doesn't cache-wrap the cb function so residual
+	// above; currently it doesn't cache-wrap the fn function so residual
 	// state mutations remain even after revive(), but they will be
-	// "magically" rolled back upon panic in the future. The cb function
+	// "magically" rolled back upon panic in the future. The fn function
 	// must *always* panic in the end in order to prevent state mutations
 	// after a non-aborting transaction.
 	defNative("revive",
 		Flds( // params
-			"cb", FuncT(nil, nil),
+			"fn", FuncT(nil, nil),
 		),
 		Flds( // results
 			"ex", AnyT(),
@@ -886,6 +886,7 @@ func makeUverseNode() {
 				last.SetIsRevive()
 
 				// Push function and precall it.
+				m.PushExpr(Call(&ConstExpr{Source: X("fn"), TypedValue: *arg0.TV}))
 				m.PushOp(OpPrecall)
 				m.PushValue(*arg0.TV)
 			} else {

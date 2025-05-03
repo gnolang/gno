@@ -183,6 +183,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*
 func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
 func cross[F any](fn F) F { return fn } // shim
+func revive[F any](fn F) any { return nil } // shim
 `, mpkg.Name),
 	}
 	f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)

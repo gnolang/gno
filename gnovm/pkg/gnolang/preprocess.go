@@ -1415,14 +1415,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
 						panic("attach() not yet supported")
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "revive" {
-						println("FIXME preprocess revive")
-						/*
-							_, ok := ns[len(ns)-1].(*CallExpr)
-							if !ok {
-								panic("revive() is a builtin name and must be called")
-							}
-						*/
 					}
 				}
 
@@ -4776,8 +4768,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 		}
 
 		// NOTE: imports from "pure packages" are actually sometimes
-		// allowed, most notably in MsgRun and filetests; IsPurePackagePath
-		// returns false in these cases.
+		// allowed, most notably filetests.
 		if IsPurePackagePath(pkg.PkgPath) && IsRealmPath(d.PkgPath) {
 			panic(fmt.Sprintf("pure package path %q cannot import realm path %q", pkg.PkgPath, d.PkgPath))
 		}
