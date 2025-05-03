@@ -16,7 +16,7 @@ import (
 )
 
 // downloadDeps recursively fetches the imports of a local package while following a given gno.mod replace directives
-func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pkgdownload.PackageFetcher) error {
+func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pkgdownload.PackageFetcher, visited map[string]struct{}) error {
 	if fetcher == nil {
 		return errors.New("fetcher is nil")
 	}
@@ -39,13 +39,20 @@ func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pk
 			continue
 		}
 
+		// Cycle + redundancy check: Have we already started processing this dependency?
+		if _, exists := visited[resolvedPkgPath]; exists {
+			continue // Skip dependencies already being processed or finished in this run.
+		}
+		// Mark this dependency as visited *before* recursive call.
+		visited[resolvedPkgPath] = struct{}{}
+
 		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
 
 		if err := downloadPackage(io, resolvedPkgPath, depDir, fetcher); err != nil {
 			return fmt.Errorf("download import %q of %q: %w", resolvedPkgPath, pkgDir, err)
 		}
 
-		if err := downloadDeps(io, depDir, gnoMod, fetcher); err != nil {
+		if err := downloadDeps(io, depDir, gnoMod, fetcher, visited); err != nil {
 			return err
 		}
 	}
