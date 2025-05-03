@@ -84,13 +84,11 @@ func TestErrConditions(t *testing.T) {
 			{"Approve(empty, 1))", "invalid address", true, func() { cross(Approve)(empty, 1) }},
 		}
 		for _, tc := range tests {
-			tuassert.PanicsWithMessageting.T) {
-				if tc.isCross {
-					uassert.AbortsWithMessage(t, tc.msg, tc.fn)
-				} else {
-					uassert.PanicsWithMessage(t, tc.msg, tc.fn)
-				}
-			})
+			if tc.isCross {
+				uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+			} else {
+				uassert.PanicsWithMessage(t, tc.msg, tc.fn)
+			}
 		}
 	}
 }
