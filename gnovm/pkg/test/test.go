@@ -73,10 +73,11 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *tests
 // It is only used for linting/preprocessing.
 func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
-		Store:   testStore,
-		Output:  output,
-		Context: Context("", pkgPath, nil),
-		Debug:   debug,
+		Store:         testStore,
+		Output:        output,
+		Context:       Context("", pkgPath, nil),
+		Debug:         debug,
+		ReviveEnabled: true,
 	})
 }
 
