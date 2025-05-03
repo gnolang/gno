@@ -1,4 +1,4 @@
-# Gno.land Mempool Redesign
+# Mempool Redesign
 
 ## 1. Motivation
 
@@ -142,4 +142,4 @@ The system aligns with best practices from high-performance blockchain runtimes 
 
 This redesign effort was initiated based on the problems outlined in [Issue #1830](https://github.com/gnolang/gno/issues/1830), which highlighted fundamental flaws in the existing mempool such as unordered transaction execution, lack of prioritization control, and inefficiency in gas handling.
 
-For those interested in detailed progress updates, weekly implementation logs, and future plans, please refer to my [Builder Journey issue](https://github.com/gnolang/hackerspace/issues/108). It serves as the central place for tracking how the mempool redesign evolves over time.
+For those interested in detailed progress updates, weekly implementation logs, and future plans, please refer to my [Builder Journey](https://github.com/gnolang/hackerspace/issues/108). It serves as the central place for tracking how the mempool redesign evolves over time.
