@@ -1,6 +1,7 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
+// This tests for realm finalization upon implicit (borrow) realm switches.
 // This is like zrealm_crossrealm30.gno, but with `return x` for doOpReturn.
 // Assuming there are no defers:
 // `return x` calls doOpReturn or doOpReturnAfterCopy if func results are named, while
