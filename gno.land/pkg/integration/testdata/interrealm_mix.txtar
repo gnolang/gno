@@ -1,0 +1,242 @@
+adduser test2
+
+## start a new node
+gnoland start
+
+## load packages
+gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+
+## execute BorrowedMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute NonCrossingMutation
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute CrossingMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute MutateObject
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute InspectRealmsCrossing
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute InspectRealmsNonCrossing
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute MutateObjectWithBorrowCrossing
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute MutateCrossingRootedAtCaller
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+stderr 'cannot modify external-realm or non-realm object'
+
+-- callerrealm/gno.mod --
+module gno.land/r/test/callerrealm
+
+-- callerrealm/main.gno --
+package callerrealm
+
+import (
+    "std"
+	"gno.land/r/test/borrowrealm"
+)
+
+var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
+
+func BorrowedMutation() {
+    crossing()
+
+    if std.PreviousRealm().PkgPath() != "" {
+        panic("expected PreviousRealm to be empty")
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected CurrentRealm to be callerrealm")
+    }
+
+ 	borrowrealm.Object.Mutate()
+}
+
+func NonCrossingMutation() {
+    crossing()
+
+    if std.PreviousRealm().PkgPath() != "" {
+        panic("expected PreviousRealm to be empty")
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected CurrentRealm to be callerrealm")
+    }
+
+    borrowrealm.Mutate()
+}
+
+func CrossingMutation() {
+    crossing()
+
+    if std.PreviousRealm().PkgPath() != "" {
+        panic("expected PreviousRealm to be empty")
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected CurrentRealm to be callerrealm")
+    }
+
+    cross(borrowrealm.MutateCrossing)()
+}
+
+func MutateObject() {
+    crossing()
+
+    if std.PreviousRealm().PkgPath() != "" {
+        panic("expected PreviousRealm to be empty")
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected CurrentRealm to be callerrealm")
+    }
+
+    borrowrealm.MutateObject()
+}
+
+func InspectRealmsCrossing() {
+    crossing()
+
+    cross(borrowrealm.InspectRealmsCrossing)()
+}
+
+func InspectRealmsNonCrossing() {
+    crossing()
+
+    borrowrealm.InspectRealmsNonCrossing()
+}
+
+func MutateObjectWithBorrowCrossing() {
+    crossing()
+
+    cross(borrowrealm.MutateObjectWithBorrowCrossing)()
+}
+
+func MutateCrossingObject() {
+    crossing()
+
+    cross(borrowrealm.Object.MutateCrossing)()
+}
+
+func MutateCrossingRootedAtCaller() {
+    crossing()
+
+    cross(obj.MutateCrossingRootedAtCaller)()
+}
+
+-- borrowrealm/gno.mod --
+module gno.land/r/test/borrowrealm
+
+-- borrowrealm/main.gno --
+package borrowrealm
+
+import (
+    "std"
+)
+
+var Object ObjectImplem
+var value int
+
+type ObjectImplem struct {
+    value int
+}
+
+func NewObject() *ObjectImplem {
+    return &ObjectImplem{}
+}
+
+func (o *ObjectImplem) MutateWithoutRealmCheck() {
+    o.value++
+}
+
+func (o *ObjectImplem) Mutate() {
+    if std.PreviousRealm().PkgPath() != "" {
+        panic("expected PreviousRealm to be empty")
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected CurrentRealm to be callerrealm")
+    }
+
+    o.value++
+}
+
+func (o *ObjectImplem) MutateCrossing() {
+    crossing()
+
+    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected PreviousRealm to be callerrealm, got " + std.PreviousRealm().PkgPath())
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
+        panic("expected CurrentRealm to be borrowrealm, got " + std.CurrentRealm().PkgPath())
+    }
+
+    o.value++
+}
+
+func (o *ObjectImplem) MutateCrossingRootedAtCaller() {
+    crossing()
+
+    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected PreviousRealm to be callerrealm, got " + std.PreviousRealm().PkgPath())
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
+        panic("expected CurrentRealm to be borrowrealm, got " + std.CurrentRealm().PkgPath())
+    }
+
+    o.value++
+}
+
+func (o *ObjectImplem) MutateWithBorrowCrossing() {
+    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected PreviousRealm to be callerrealm, got " + std.PreviousRealm().PkgPath())
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
+        panic("expected CurrentRealm to be borrowrealm")
+    }
+
+    o.value++
+}
+
+func InspectRealmsNonCrossing() {
+    if std.PreviousRealm().PkgPath() != "" {
+        panic("expected PreviousRealm to be empty")
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected CurrentRealm to be callerrealm")
+    }
+}
+
+func InspectRealmsCrossing() {
+    crossing()
+
+    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
+        panic("expected PreviousRealm to be callerrealm")
+    }
+    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
+        panic("expected CurrentRealm to be borrowrealm")
+    }
+}
+
+func Mutate() {
+    value++
+}
+
+func MutateCrossing() {
+    crossing()
+
+    value++
+}
+
+func MutateObject() {
+    Object.Mutate()
+}
+
+func MutateObjectWithBorrowCrossing() {
+    crossing()
+
+    Object.MutateWithBorrowCrossing()
+}
