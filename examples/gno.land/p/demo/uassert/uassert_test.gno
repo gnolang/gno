@@ -154,43 +154,56 @@ func TestAbortsWithMessage(t *testing.T) {
 	// XXX: test with Error
 }
 
-func TestNotAborts(t *testing.T) {
+func TestNotPanics(t *testing.T) {
 	mockT := new(mockTestingT)
 
+	// Test case 1: No panic, no abort
 	if !uassert.NotPanics(mockT, func() {
 		// noop
 	}) {
-		t.Error("NotAborts should return true")
+		t.Error("NotPanics should return true when no panic/abort occurs")
 	}
 	mockT.empty(t)
 
+	// Test case 2: Same-realm panic occurs
+	if uassert.NotPanics(mockT, func() {
+		panic("Panic!")
+	}) {
+		t.Error("NotPanics should return false when same-realm panic occurs")
+	}
+	// Check the specific error message for same-realm panic
+	mockT.equals(t, "error: func should not panic\n\tPanic value:\tPanic!")
+
+	// Test case 3: Cross-realm abort occurs
 	if uassert.NotPanics(mockT, func() {
 		cross(tests.ExecSwitch)(func() {
 			panic("Abort!")
 		})
 		panic("dontcare")
 	}) {
-		t.Error("NotAborts should return false")
+		t.Error("NotPanics should return false when cross-realm abort occurs")
 	}
+	// Check the specific error message for cross-realm abort
 	mockT.equals(t, "error: func should not abort\n\tAbort value:\tAbort!")
-}
 
-func TestNotPanics(t *testing.T) {
-	mockT := new(mockTestingT)
-
-	if !uassert.NotPanics(mockT, func() {
-		// noop
-	}) {
-		t.Error("NotPanics should return true")
-	}
-	mockT.empty(t)
-
+	// Test case 4: Panic with non-string/error
 	if uassert.NotPanics(mockT, func() {
-		panic("Panic!")
+		panic(123)
 	}) {
-		t.Error("NotPanics should return false")
+		t.Error("NotPanics should return false for non-string/error panic")
 	}
-	mockT.equals(t, "error: func should not panic\n\tPanic value:\tPanic!")
+	mockT.equals(t, "error: func should not panic\n\tPanic value:\tpanic: unsupported type") // Check formatted value
+
+	// Test case 5: Abort with non-string/error
+	if uassert.NotPanics(mockT, func() {
+		cross(tests.ExecSwitch)(func() {
+			panic(true)
+		})
+	}) {
+		t.Error("NotPanics should return false for non-string/error abort")
+	}
+	mockT.equals(t, "error: func should not abort\n\tAbort value:\ttrue") // Check formatted value
+
 }
 
 func TestEqual(t *testing.T) {

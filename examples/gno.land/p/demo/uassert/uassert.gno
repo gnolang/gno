@@ -134,7 +134,7 @@ func NotAborts(t TestingT, f func(), msgs ...string) bool {
 	if didAbort {
 		// Fail if the function aborted when it shouldn't have
 		// Attempt to format the abort value in the error message
-		return fail(t, msgs, "func should not abort\\n\\tAbort value:\\t%v", abortValue)
+		return fail(t, msgs, "func should not abort\n\tAbort value:\t%v", abortValue)
 	}
 
 	// Success: function did not abort
