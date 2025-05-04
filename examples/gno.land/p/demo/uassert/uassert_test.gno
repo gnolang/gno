@@ -149,7 +149,7 @@ func TestAbortsWithMessage(t *testing.T) {
 	}) {
 		t.Error("AbortsWithMessage should return false when abort value is not a string")
 	}
-	mockT.equals(t, "error: abort value was not a string: got type int, value 123")
+	mockT.equals(t, "error: abort value was not a string or error: got type int, value 123")
 
 	// XXX: test with Error
 }
