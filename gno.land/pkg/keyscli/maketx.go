@@ -70,7 +70,7 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.Broadcast,
 		"broadcast",
-		false,
+		true,
 		"sign and broadcast",
 	)
 
