@@ -85,7 +85,7 @@ func TestErrConditions(t *testing.T) {
 		}
 		for _, tc := range tests {
 			if tc.isCross {
-				uassert.RecoverWithMessage(t, tc.msg, tc.fn)
+				uassert.AbortsWithMessage(t, tc.msg, tc.fn)
 			} else {
 				uassert.PanicsWithMessage(t, tc.msg, tc.fn)
 			}
@@ -99,13 +99,13 @@ func TestErrConditions(t *testing.T) {
 //			msg string
 //			fn  func()
 //		}{
-//			// Test RecoverWithMessage
+//			// Test AbortsWithMessage
 //	uassert.PanicsWithMessage", func() { NewFoo20("foo", "f", 0) }},
 //			{"symbol cannot be empty", func() { NewFoo20("foo", "", 1) }},
 //			{"name cannot be empty", func() { NewFoo20("", "f", 1) }},
 //		}
 //		for _, tc := range testCases {
-//			uassert.RecoverWithMessage(t, tc.msg, tc.fn)
+//			uassert.AbortsWithMessage(t, tc.msg, tc.fn)
 //		}
 //	})
 //	t.Run("transfer", func(t *testing.T) {
