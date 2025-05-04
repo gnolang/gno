@@ -115,7 +115,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	testing.SetOriginCaller(m4)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	urequire.RecoverWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
+	urequire.AbortsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 			Option:     dao.NoVote,
 			ProposalID: dao.ProposalID(0),
@@ -136,7 +136,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
 	urequire.Equal(t, true, contains(dao.Render(""), "52.63157894736842%"))
 
-	urequire.RecoverWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
+	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
 		cross(dao.ExecuteProposal)(dao.ProposalID(0))
 	})
 
