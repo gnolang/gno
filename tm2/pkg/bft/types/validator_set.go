@@ -223,7 +223,7 @@ func (vals *ValidatorSet) Copy() *ValidatorSet {
 // otherwise.
 func (vals *ValidatorSet) HasAddress(address crypto.Address) bool {
 	idx := sort.Search(len(vals.Validators), func(i int) bool {
-		return address.Compare(vals.Validators[i].Address) <= 0
+		return address.Compare(&vals.Validators[i].Address) <= 0
 	})
 	return idx < len(vals.Validators) && vals.Validators[idx].Address == address
 }
@@ -232,7 +232,7 @@ func (vals *ValidatorSet) HasAddress(address crypto.Address) bool {
 // itself if found. Otherwise, -1 and nil are returned.
 func (vals *ValidatorSet) GetByAddress(address crypto.Address) (index int, val *Validator) {
 	idx := sort.Search(len(vals.Validators), func(i int) bool {
-		return address.Compare(vals.Validators[i].Address) <= 0
+		return address.Compare(&vals.Validators[i].Address) <= 0
 	})
 	if idx < len(vals.Validators) && vals.Validators[idx].Address == address {
 		return idx, vals.Validators[idx].Copy()
@@ -440,7 +440,7 @@ func (vals *ValidatorSet) applyUpdates(updates []*Validator) {
 	i := 0
 
 	for len(existing) > 0 && len(updates) > 0 {
-		if existing[0].Address.Compare(updates[0].Address) < 0 { // unchanged validator
+		if existing[0].Address.Compare(&updates[0].Address) < 0 { // unchanged validator
 			merged[i] = existing[0]
 			existing = existing[1:]
 		} else {
@@ -813,7 +813,7 @@ func (valz ValidatorsByAddress) Len() int {
 }
 
 func (valz ValidatorsByAddress) Less(i, j int) bool {
-	return valz[i].Address.Compare(valz[j].Address) == -1
+	return valz[i].Address.Compare(&valz[j].Address) == -1
 }
 
 func (valz ValidatorsByAddress) Swap(i, j int) {
