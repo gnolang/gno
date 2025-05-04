@@ -102,52 +102,52 @@ func TestPanicsWithMessage(t *testing.T) {
 	mockT.equals(t, "error: func should panic with message:\t\"Panic!\"\n\tPanic value:\t\"panic\"")
 }
 
-func TestRecoverWithMessage(t *testing.T) {
+func TestAbortsWithMessage(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !uassert.RecoverWithMessage(mockT, "abort message", func() {
+	if !uassert.AbortsWithMessage(mockT, "abort message", func() {
 		cross(tests.ExecSwitch)(func() {
 			panic("abort message")
 		})
 		panic("dontcare")
 	}) {
-		t.Error("RecoverWithMessage should return true")
+		t.Error("AbortsWithMessage should return true")
 	}
 	mockT.empty(t)
 
-	if uassert.RecoverWithMessage(mockT, "Abort!", func() {
+	if uassert.AbortsWithMessage(mockT, "Abort!", func() {
 		// noop
 	}) {
-		t.Error("RecoverWithMessage should return false")
+		t.Error("AbortsWithMessage should return false")
 	}
 	mockT.equals(t, "error: func should abort")
 
-	if uassert.RecoverWithMessage(mockT, "at the disco", func() {
+	if uassert.AbortsWithMessage(mockT, "at the disco", func() {
 		cross(tests.ExecSwitch)(func() {
 			panic("abort message")
 		})
 		panic("dontcare")
 	}) {
-		t.Error("RecoverWithMessage should return false (wrong message)")
+		t.Error("AbortsWithMessage should return false (wrong message)")
 	}
 	mockT.equals(t, "error: func should abort with message:\t\"at the disco\"\n\tActual abort value:\t\"abort message\"")
 
 	// Test that non-crossing panics don't count as abort.
 	uassert.PanicsWithMessage(mockT, "non-abort panic", func() {
-		uassert.RecoverWithMessage(mockT, "dontcare2", func() {
+		uassert.AbortsWithMessage(mockT, "dontcare2", func() {
 			panic("non-abort panic")
 		})
-		t.Error("RecoverWithMessage should not have caught non-abort panic")
+		t.Error("AbortsWithMessage should not have caught non-abort panic")
 	}, "non-abort panic")
 	mockT.empty(t)
 
 	// Test case where abort value is not a string
-	if uassert.RecoverWithMessage(mockT, "doesn't matter", func() {
+	if uassert.AbortsWithMessage(mockT, "doesn't matter", func() {
 		cross(tests.ExecSwitch)(func() {
 			panic(123) // abort with an integer
 		})
 		panic("dontcare")
 	}) {
-		t.Error("RecoverWithMessage should return false when abort value is not a string")
+		t.Error("AbortsWithMessage should return false when abort value is not a string")
 	}
 	mockT.equals(t, "error: abort value was not a string or error: got type int, value 123")
 
