@@ -92,14 +92,14 @@ func TestPanicsWithMessage(t *testing.T) {
 	}) {
 		t.Error("PanicsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with message:\t\"at the disco\"\n\tPanic value:\t\"panic\"")
+	mockT.equals(t, "error: func should panic with message:\t\"at the disco\"\n\tActual panic value:\t\"panic\"")
 
 	if uassert.PanicsWithMessage(mockT, "Panic!", func() {
 		panic("panic")
 	}) {
 		t.Error("PanicsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with message:\t\"Panic!\"\n\tPanic value:\t\"panic\"")
+	mockT.equals(t, "error: func should panic with message:\t\"Panic!\"\n\tActual panic value:\t\"panic\"")
 }
 
 func TestAbortsWithMessage(t *testing.T) {
@@ -149,7 +149,7 @@ func TestAbortsWithMessage(t *testing.T) {
 	}) {
 		t.Error("AbortsWithMessage should return false when abort value is not a string")
 	}
-	mockT.equals(t, "error: abort value was not a string or error: got type int, value 123")
+	mockT.equals(t, "error: func should abort with message:\t\"doesn't matter\"\n\tActual abort value:\t\"123\"")
 
 	// XXX: test with Error
 }

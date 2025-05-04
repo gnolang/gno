@@ -94,13 +94,14 @@ func TestRegister_InvalidPayment(t *testing.T) {
 	})
 }
 
-// TODO: finish this
-//func TestUsers(t *testing.T) {
-//	acc1 := std.Address("g1test1")
-//	fee := "1000ugnot"
-//
-//	// Check initial state
-//	uassert.NotPanics(t, func() {
-//		MustGetByName(susers.DefaultMinFee)
-//	})
-//}
+/* TODO fix this @moul
+func TestUsers(t *testing.T) {
+	acc1 := std.Address("g1test1")
+	fee := "1000ugnot"
+
+	// Check initial state
+	uassert.NotPanics(t, func() {
+		MustGetByName(susers.DefaultMinFee)
+	})
+}
+*/
