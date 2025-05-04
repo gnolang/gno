@@ -103,62 +103,35 @@ func TestProxy_Functions(t *testing.T) {
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
 	})
-
-	t.Run("set valid impl realm path by owner", func(t *testing.T) {
-		implRealmPath := "gno.land/r/gov/dao/v3/impl" // Valid realm path
-
-		// Should not panic
-		urequire.NotPanics(t, func() {
-			SetImplRealmPath(implRealmPath)
-		})
-
-		// Check if path was set correctly
-		urequire.NotPanics(t, func() {
-			urequire.Equal(t, implRealmPath, GetImplRealmPath())
-		})
-		// Get should also work
-		urequire.NotPanics(t, func() {
-			urequire.Equal(t, implRealmPath, GetImplRealmPath())
-		})
-	})
-
-	t.Run("set new valid impl realm path by owner", func(t *testing.T) {
-		implRealmPath := "gno.land/r/gov/dao/v2/impl" // Valid realm path
-
-		// Should not panic
-		urequire.NotPanics(t, func() {
-			SetImplRealmPath(implRealmPath)
-		})
-	})
 }
 
 type dummyDao struct {
 }
 
-func (dd *dummyDao) PreCreateProposal(ctx *Context, r ProposalRequest) (std.Address, error) {
+func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (std.Address, error) {
 	return std.OriginCaller(), nil
 }
 
-func (dd *dummyDao) PostCreateProposal(ctx *Context, r ProposalRequest, pid ProposalID) {
+func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
 
 }
 
-func (dd *dummyDao) VoteOnProposal(ctx *Context, r VoteRequest) error {
+func (dd *dummyDao) VoteOnProposal(r VoteRequest) error {
 	return nil
 }
 
-func (dd *dummyDao) PreGetProposal(ctx *Context, pid ProposalID) error {
+func (dd *dummyDao) PreGetProposal(pid ProposalID) error {
 	return nil
 }
 
-func (dd *dummyDao) PostGetProposal(ctx *Context, pid ProposalID, p *Proposal) error {
+func (dd *dummyDao) PostGetProposal(pid ProposalID, p *Proposal) error {
 	return nil
 }
 
-func (dd *dummyDao) PreExecuteProposal(ctx *Context, pid ProposalID) (bool, error) {
+func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) Render(ctx *Context, i string) string {
-	return "Render: " + i
+func (dd *dummyDao) Render(pkgpath string, path string) string {
+	return "Render: " + pkgpath + "/" + path
 }
