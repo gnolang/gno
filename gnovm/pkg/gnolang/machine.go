@@ -1839,11 +1839,17 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// stored externally by this method; but other methods can.
 	if withCross {
 		if !fv.IsCrossing() {
+			// panic; notcrossing
+			mrpath := "<no realm>"
+			if m.Realm != nil {
+				mrpath = m.Realm.Path
+			}
+			prpath := pv.PkgPath
 			panic(fmt.Sprintf(
-				"missing crossing() after cross call to %v from %s to %s",
+				"cannot cross-call a non-crossing function %s.%v from %s",
+				prpath,
 				fv.String(),
-				m.Realm.GetPath(),
-				pv.Realm.Path,
+				mrpath,
 			))
 		}
 		m.Realm = pv.GetRealm()
@@ -1863,10 +1869,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				prpath = pv.Realm.Path
 			}
 			panic(fmt.Sprintf(
-				"missing cross before external crossing() in %v from %s to %s",
+				"must cross-call like cross(%s.%v)(...) from %s",
+				prpath,
 				fv.String(),
 				mrpath,
-				prpath,
 			))
 		} else {
 			// ok
