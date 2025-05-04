@@ -113,7 +113,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send coins
 		testing.SetOriginSend(std.Coins{minFee})
 
-		uassert.NotPanics(t, func() {
+		uassert.NotAborts(t, func() {
 			cross(Register)(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 

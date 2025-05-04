@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/diff"
+	"gno.land/p/demo/ufmt"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).
@@ -100,18 +101,9 @@ func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 		return fail(t, msgs, "func should abort")
 	}
 
-	var abortStr string
-	switch av := abortValue.(type) {
-	case string:
-		abortStr = av
-	case error:
-		abortStr = av.Error()
-	default:
-		return fail(t, msgs, "abort value was not a string or error: got type %T, value %v", abortValue, abortValue)
-	}
-
+	// Check if the abort value matches the expected message string
+	abortStr := ufmt.Sprintf("%v", abortValue)
 	if abortStr != msg {
-		// Fail if the abort message doesn't match
 		return fail(t, msgs, "func should abort with message:\t%q\n\tActual abort value:\t%q", msg, abortStr)
 	}
 
@@ -155,8 +147,10 @@ func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
 	}
 
-	if panicValue != msg {
-		return fail(t, msgs, "func should panic with message:\t%q\n\tPanic value:\t%q", msg, panicValue)
+	// Check if the abort value matches the expected message string
+	panicStr := ufmt.Sprintf("%v", panicValue)
+	if panicStr != msg {
+		return fail(t, msgs, "func should panic with message:\t%q\n\tActual panic value:\t%q", msg, panicStr)
 	}
 	return true
 }
