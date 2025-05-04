@@ -139,17 +139,17 @@ func ExecSwitch(fn func()) {
 func IsCallerSubPath() bool {
 	crossing()
 
-	return cross(nestedpkg.IsCallerSubPath)()
+	return nestedpkg.IsCallerSubPath()
 }
 
 func IsCallerParentPath() bool {
 	crossing()
 
-	return cross(nestedpkg.IsCallerParentPath)()
+	return nestedpkg.IsCallerParentPath()
 }
 
 func HasCallerSameNamespace() bool {
 	crossing()
 
-	return cross(nestedpkg.IsSameNamespace)()
+	return nestedpkg.IsSameNamespace()
 }
