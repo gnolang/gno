@@ -66,21 +66,24 @@ func TestCreateProposalAndVote(t *testing.T) {
 	nm1 := testutils.TestAddress("nm1")
 
 	urequire.PanicsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func() {
-		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3, portfolio))
+		cross(dao.MustCreateProposal)(NewAddMemberRequest(nm1, memberstore.T3, portfolio))
 	})
 
 	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
-		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+		cross(dao.MustCreateProposal)(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	})
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	pid := dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	proposalRequest := NewAddMemberRequest(nm1, memberstore.T2, portfolio)
+
+	testing.SetOriginCaller(m1)
+	pid := cross(dao.MustCreateProposal)(proposalRequest)
 	urequire.Equal(t, int(pid), 0)
 
 	// m1 votes yes because that member is interested on it
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
@@ -88,7 +91,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	testing.SetOriginCaller(m11)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
@@ -96,7 +99,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	testing.SetOriginCaller(m2)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
@@ -104,7 +107,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	testing.SetOriginCaller(m3)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
@@ -112,8 +115,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 	testing.SetOriginCaller(m4)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
-		dao.MustVoteOnProposal(dao.VoteRequest{
+	urequire.AbortsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
+		cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 			Option:     dao.NoVote,
 			ProposalID: dao.ProposalID(0),
 		})
@@ -127,25 +130,25 @@ func TestCreateProposalAndVote(t *testing.T) {
 	// 	Option:     dao.NoVote,
 	// 	ProposalID: dao.ProposalID(0),
 	// })
-	dao.MustVoteOnProposalSimple(0, "NO")
+	cross(dao.MustVoteOnProposalSimple)(0, "NO")
 
 	urequire.Equal(t, true, contains(dao.Render(""), "Proposal open for votes"))
 	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
 	urequire.Equal(t, true, contains(dao.Render(""), "52.63157894736842%"))
 
-	urequire.PanicsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
-		dao.ExecuteProposal(dao.ProposalID(0))
+	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
+		cross(dao.ExecuteProposal)(dao.ProposalID(0))
 	})
 
 	testing.SetOriginCaller(m1111)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
-	accepted := dao.ExecuteProposal(dao.ProposalID(0))
+	accepted := cross(dao.ExecuteProposal)(dao.ProposalID(0))
 	urequire.Equal(t, false, accepted)
 
 	urequire.Equal(t, true, contains(dao.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
@@ -163,23 +166,27 @@ func TestProposalPagination(t *testing.T) {
 
 	var pid dao.ProposalID
 
-	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	proposalRequest := NewAddMemberRequest(nm1, memberstore.T2, portfolio)
+
+	testing.SetOriginCaller(m1)
+	pid = cross(dao.MustCreateProposal)(proposalRequest)
+
 	// TODO: tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
 	urequire.Equal(t, 1, int(pid))
 
-	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = cross(dao.MustCreateProposal)(proposalRequest)
 	urequire.Equal(t, 2, int(pid))
 
-	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = cross(dao.MustCreateProposal)(proposalRequest)
 	urequire.Equal(t, 3, int(pid))
 
-	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = cross(dao.MustCreateProposal)(proposalRequest)
 	urequire.Equal(t, 4, int(pid))
 
-	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = cross(dao.MustCreateProposal)(proposalRequest)
 	urequire.Equal(t, 5, int(pid))
 
-	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = cross(dao.MustCreateProposal)(proposalRequest)
 	urequire.Equal(t, 6, int(pid))
 
 	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 6"))
@@ -189,7 +196,6 @@ func TestProposalPagination(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 3"))
 	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 2"))
 	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 1"))
-
 	urequire.Equal(t, true, contains(dao.Render("/?page=3"), "## Proposal with id: 0"))
 }
 
@@ -202,19 +208,20 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	nm1 := testutils.TestAddress("nm1")
 
 	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
-		preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
-		dao.MustCreateProposal(preq)
+		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
-	pid := dao.MustCreateProposal(preq)
+
+	testing.SetOriginCaller(m1)
+	pid := cross(dao.MustCreateProposal)(preq)
 	urequire.Equal(t, int(pid), 7)
 
 	// m1 votes yes because that member is interested on it
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(pid),
 	})
@@ -222,7 +229,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(m11)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(pid),
 	})
@@ -230,7 +237,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(m2)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(pid),
 	})
@@ -238,7 +245,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(m3)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(pid),
 	})
@@ -251,14 +258,14 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	// 	Option:     dao.YesVote,
 	// 	ProposalID: dao.ProposalID(pid),
 	// })
-	dao.MustVoteOnProposalSimple(int64(pid), "YES")
+	cross(dao.MustVoteOnProposalSimple)(int64(pid), "YES")
 
 	urequire.Equal(t, true, contains(dao.Render("7"), "Proposal open for votes"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "68.42105263157895%"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "0%"))
 
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/loader")) // check if the proposal will be executed even if the execution was made from another package
-	accepted := dao.ExecuteProposal(dao.ProposalID(pid))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	accepted := cross(dao.ExecuteProposal)(dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "YES PERCENT: 68.42105263157895%"))

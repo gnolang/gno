@@ -165,7 +165,8 @@ func (g *GovDAO) isValidCall() bool {
 	// 2: r/gov/dao/v3/impl methods called directly by an user
 
 	// case 1
-	if std.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" && std.PreviousRealm().IsUser() {
+	//if std.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" && std.PreviousRealm().IsUser() {
+	if std.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
 		return true
 	}
 
