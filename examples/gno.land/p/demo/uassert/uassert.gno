@@ -100,11 +100,14 @@ func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 		return fail(t, msgs, "func should abort")
 	}
 
-	// Check if the abort value matches the expected message string
-	abortStr, ok := abortValue.(string)
-	if !ok {
-		// Fail if the abort value wasn't a string
-		return fail(t, msgs, "abort value was not a string: got type %T, value %v", abortValue, abortValue)
+	var abortStr string
+	switch av := abortValue.(type) {
+	case string:
+		abortStr = av
+	case error:
+		abortStr = av.Error()
+	default:
+		return fail(t, msgs, "abort value was not a string or error: got type %T, value %v", abortValue, abortValue)
 	}
 
 	if abortStr != msg {
