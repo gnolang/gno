@@ -57,24 +57,35 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	return nil
 }
 
-// DropOwnership removes the owner, effectively disabling any owner-related actions
+// DropOwnershipByCurrent removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable) DropOwnership() error {
+func (o *Ownable) DropOwnershipByCurrent() error {
 	if !o.OwnedByCurrent() {
 		return ErrUnauthorized
 	}
+	o.dropOwnership(o.owner)
+	return nil
+}
 
-	prevOwner := o.owner
+// DropOwnershipByPrevious removes the owner, effectively disabling any owner-related actions
+// Top-level usage: disables all only-owner actions/functions,
+// Embedded usage: behaves like a burn functionality, removing the owner from the struct
+func (o *Ownable) DropOwnershipByPrevious() error {
+	if !o.OwnedByPrevious() {
+		return ErrUnauthorized
+	}
+	o.dropOwnership(o.owner)
+	return nil
+}
+
+func (o *Ownable) dropOwnership(prevOwner std.Address) {
 	o.owner = ""
-
 	std.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", "",
 	)
-
-	return nil
 }
 
 // Owner returns the owner address from Ownable

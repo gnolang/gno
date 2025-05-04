@@ -140,7 +140,7 @@ func DropInstanceOwnership(symbol string) {
 	crossing()
 
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.DropOwnership())
+	checkErr(inst.admin.DropOwnershipByCurrent())
 }
 
 func TransferInstanceOwnership(symbol string, newOwner std.Address) {

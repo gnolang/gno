@@ -71,19 +71,18 @@ func TestTransferOwnershipUnauthorized(t *testing.T) {
 	// Try unauthorized transfer from non-alice realm.
 	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
 		uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
-		uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
+		uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
 	})
 
 	// Set realm to an unauthorized user bob.
 	testing.SetRealm(std.NewUserRealm(bob))
 	// current is gno.land/r/test/test so of course errors.
 	uassert.ErrorContains(t, o.TransferOwnership(bob), ErrUnauthorized.Error())
-	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
-
+	uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
 	// Reset realm to alice.
 	testing.SetRealm(std.NewUserRealm(alice))
 	uassert.NoError(t, o.TransferOwnership(alice))
-	uassert.NoError(t, o.DropOwnership())
+	uassert.NoError(t, o.DropOwnershipByCurrent())
 }
 
 func TestOwnedByCurrent(t *testing.T) {
@@ -128,12 +127,12 @@ func TestOwnedByPreviousUnauthorized(t *testing.T) {
 	})
 }
 
-func TestDropOwnership(t *testing.T) {
+func TestDropOwnershipByCurrent(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 
-	err := o.DropOwnership()
+	err := o.DropOwnershipByCurrent()
 	urequire.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
