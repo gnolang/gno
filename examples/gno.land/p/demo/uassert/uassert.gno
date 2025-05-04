@@ -79,11 +79,11 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 	return true
 }
 
-// AbortsWithMessage asserts that the code inside the specified func aborts
+// RecoverWithMessage asserts that the code inside the specified func revives or aborts
 // (panics when crossing another realm).
 // Use PanicsWithMessage for asserting local panics within the same realm.
 // Note: This relies on gno's `revive` mechanism to catch aborts.
-func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
+func RecoverWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	t.Helper()
 
 	var didAbort bool
@@ -146,7 +146,7 @@ func NotAborts(t TestingT, f func(), msgs ...string) bool {
 
 // PanicsWithMessage asserts that the code inside the specified func panics
 // locally within the same execution realm.
-// Use AbortsWithMessage for asserting panics that cross execution boundaries (aborts).
+// Use RecoverWithMessage for asserting panics that cross execution boundaries (aborts).
 func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	t.Helper()
 
