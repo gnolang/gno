@@ -27,24 +27,24 @@ func Register(username string) {
 	crossing()
 
 	if !std.PreviousRealm().IsUser() {
-		panic(ErrNonUserCall.Error())
+		panic(ErrNonUserCall)
 	}
 
 	if paused {
-		panic(ErrPaused.Error())
+		panic(ErrPaused)
 	}
 
 	if std.OriginSend().AmountOf("ugnot") != registerPrice {
-		panic(ErrInvalidPayment.Error())
+		panic(ErrInvalidPayment)
 	}
 
 	if matched := reUsername.MatchString(username); !matched {
-		panic(ErrInvalidUsername.Error())
+		panic(ErrInvalidUsername)
 	}
 
 	registrant := std.PreviousRealm().Address()
 	if err := cross(susers.RegisterUser)(username, registrant); err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
 	latestUsers.Append(username)
