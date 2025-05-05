@@ -36,13 +36,20 @@ func renderHome() string {
 	output += charts.GenerateColumnChart(testData, 100, "Raw Data", "Data Points", "Values")
 	output += "\n\n"
 
+	output += "## Sample Bar Chart\n\n"
+	output += "Here's a horizontal bar chart example:\n\n"
+	values := []float64{85, 60, 40, 75}
+	labels := []string{"Apples", "Bananas", "Cherries", "Dates"}
+	output += charts.GenerateBarChart(values, labels, 20, "Fruit Quantities")
+	output += "\n\n"
+
 	output += "## Test Data\n\n"
 	output += "Raw values: "
 	for i, v := range testData {
 		if i > 0 {
 			output += ", "
 		}
-		output += ufmt.Sprintf("%f", v)
+		output += ufmt.Sprintf("%.2f", v)
 	}
 
 	return output
