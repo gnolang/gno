@@ -197,7 +197,12 @@ func TestNodeReset(t *testing.T) {
 				Name: "foo.gno",
 				Body: `package foo
 var str string = "foo"
-func UpdateStr(newStr string) { str = newStr } // method to update 'str' variable
+
+func UpdateStr(newStr string) { // method to update 'str' variable
+        crossing()
+        str = newStr
+}
+
 func Render(_ string) string { return str }
 `,
 			},
@@ -334,6 +339,7 @@ var times = []time.Time{
 }
 
 func SpanTime() {
+        crossing()
 	times = append(times, time.Now())
 }
 
@@ -429,7 +435,7 @@ func Render(_ string) string {
 	const nevents = 3
 
 	// Span multiple time
-	for i := 0; i < nevents; i++ {
+	for range nevents {
 		t.Logf("waiting for a block greater than height(%d) and unix(%d)", refHeight, refTimestamp)
 		for {
 			var block types.EventNewBlock
