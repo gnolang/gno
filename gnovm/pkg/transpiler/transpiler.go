@@ -195,18 +195,23 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 	node := astutil.Apply(f,
 		// pre
 		func(c *astutil.Cursor) bool {
-			node := c.Node()
-			// is function declaration without body?
-			// -> delete (native binding)
-			if fd, ok := node.(*ast.FuncDecl); ok && fd.Body == nil {
-				c.Delete()
-				return false // don't attempt to traverse children
-			}
-
-			// is function call to a native function?
-			// -> rename if unexported, apply `nil,` for the first arg if necessary
-			if ce, ok := node.(*ast.CallExpr); ok {
-				return ctx.transformCallExpr(c, ce)
+			switch node := c.Node().(type) {
+			case *ast.FuncDecl:
+				// is function declaration without body?
+				// -> delete (native binding)
+				if node.Body == nil {
+					c.Delete()
+					return false // don't attempt to traverse children
+				}
+			case *ast.ExprStmt:
+				if isBuiltinCallExpr(node.X, "crossing") {
+					// crossing() statement - remove.
+					c.Delete()
+				}
+			case *ast.CallExpr:
+				// is function call to a native function?
+				// -> rename if unexported, apply `nil,` for the first arg if necessary
+				return ctx.transformCallExpr(c, node)
 			}
 
 			return true
@@ -214,13 +219,37 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 
 		// post
 		func(c *astutil.Cursor) bool {
+			switch node := c.Node().(type) {
+			case *ast.CallExpr:
+				// perform in post as the first arg in cross may be a closure or
+				// other type which needs earlier processing.
+				if isBuiltinCallExpr(node, "cross") {
+					if len(node.Args) != 1 {
+						panic(fmt.Sprintf("invalid cross() call with %d args", len(node.Args)))
+					}
+					c.Replace(node.Args[0])
+				}
+			}
+
 			return true
 		},
 	)
 	return node.(*ast.File), errs.Err()
 }
 
-func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) bool {
+func isBuiltinCallExpr(x ast.Expr, name string) bool {
+	cx, ok := x.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	fnName, ok := cx.Fun.(*ast.Ident)
+	if ok && fnName.Name == name {
+		return true
+	}
+	return false
+}
+
+func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) bool {
 	switch fe := ce.Fun.(type) {
 	case *ast.SelectorExpr:
 		// XXX: This is not correct in 100% of cases. If I shadow the `std` symbol, and
