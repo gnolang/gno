@@ -14,11 +14,11 @@ func init() {
 	// Set an initial message so it can be cleared
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(boards2.SetRealmNotice)("This is a test realm message")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.SetRealmNotice)("")
 
 	// Render content must contain the message

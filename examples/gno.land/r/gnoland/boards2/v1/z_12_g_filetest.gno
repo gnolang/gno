@@ -25,11 +25,11 @@ func init() {
 
 	// Flag the reply so it's hidden
 	cross(boards2.FlagReply)(bid, tid, rid, "reason")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.EditReply)(bid, tid, rid, "body")
 }
 

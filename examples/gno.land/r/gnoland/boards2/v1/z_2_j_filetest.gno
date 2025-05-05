@@ -24,11 +24,11 @@ func init() {
 	bid = cross(boards2.CreateBoard)("test-board")
 	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
 	rid = cross(boards2.CreateReply)(bid, tid, 0, "First comment")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	rid2 := cross(boards2.CreateReply)(bid, tid, rid, comment)
 
 	// Ensure that returned ID is right

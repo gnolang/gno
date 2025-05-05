@@ -26,11 +26,11 @@ func init() {
 
 	// Invite a member using a role with permission to flag replies
 	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)
-
-	testing.SetOriginCaller(moderator)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(moderator))
+
 	cross(boards2.FlagReply)(bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply

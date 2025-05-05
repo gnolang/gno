@@ -19,11 +19,11 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	srcBID = cross(boards2.CreateBoard)("src-board")
 	dstBID = cross(boards2.CreateBoard)("dst-board")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	// Repost should fail if source thread doesn't exist
 	cross(boards2.CreateRepost)(srcBID, srcTID, "foo", "bar", dstBID)
 }

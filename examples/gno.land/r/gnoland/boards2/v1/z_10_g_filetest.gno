@@ -30,11 +30,11 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(moderator))
 	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
 	cross(boards2.FlagThread)(bid, pid, "")
-
-	testing.SetOriginCaller(moderator)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(moderator))
+
 	cross(boards2.FlagThread)(bid, pid, "")
 }
 

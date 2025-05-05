@@ -19,11 +19,11 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test-board")
 	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.CreateReply)(bid, tid, 0, strings.Repeat("x", boards2.MaxReplyLength+1))
 }
 

@@ -23,11 +23,11 @@ func init() {
 	dstBID = cross(boards2.CreateBoard)("dst-board")
 
 	srcTID = cross(boards2.CreateThread)(srcBID, "original title", "original text")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	// Success case
 	tID := cross(boards2.CreateRepost)(srcBID, srcTID, "repost title", "repost text", dstBID)
 	p := ufmt.Sprintf("dst-board/%s", tID)

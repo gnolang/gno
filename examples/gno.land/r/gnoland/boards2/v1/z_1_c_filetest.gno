@@ -22,12 +22,12 @@ func init() {
 
 	// Add an admin member
 	cross(boards2.InviteMember)(bid, admin, boards2.RoleAdmin)
-
-	// Next call will be done by the admin member
-	testing.SetOriginCaller(admin)
 }
 
 func main() {
+	// Next call will be done by the admin member
+	testing.SetRealm(std.NewUserRealm(admin))
+
 	cross(boards2.InviteMember)(bid, user, role)
 
 	// Check that user is invited

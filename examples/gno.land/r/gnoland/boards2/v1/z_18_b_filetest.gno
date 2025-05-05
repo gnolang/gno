@@ -19,11 +19,11 @@ var perms boards2.Permissions
 func init() {
 	// Create a new permissions instance
 	perms = boards2.NewDefaultPermissions(commondao.New())
-
-	testing.SetOriginCaller(user)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(user))
+
 	cross(boards2.SetPermissions)(bid, perms)
 }
 

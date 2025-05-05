@@ -29,11 +29,11 @@ func init() {
 	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
 	// Also freeze board to make sure that realm owner can still flag the reply
 	cross(boards2.FreezeBoard)(bid)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.FlagReply)(bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply

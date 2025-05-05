@@ -20,11 +20,11 @@ func init() {
 	tid = cross(boards2.CreateThread)(bid, "foo", "bar")
 
 	cross(boards2.FreezeThread)(bid, tid)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	// Attempt to freeze a frozen thread
 	cross(boards2.FreezeThread)(bid, tid)
 }

@@ -5,15 +5,14 @@ import (
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	_ "gno.land/r/gnoland/users/v1" // Import realm to pre-register default users
 )
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
-func init() {
-	testing.SetOriginCaller(owner)
-}
-
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.CreateBoard)("gnoland")
 }
 

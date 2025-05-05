@@ -22,11 +22,11 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("foobar")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.SetPermissions)(bid, perms)
 
 	// Owner that setted new board permissions is not a member of the new permissions

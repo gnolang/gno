@@ -25,11 +25,11 @@ func init() {
 
 	testing.SetRealm(std.NewUserRealm(member))
 	cross(users.Register)(name)
-
-	testing.SetOriginCaller(member)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(member))
+
 	bid := cross(boards2.CreateBoard)(name)
 	println("ID =", bid)
 }

@@ -22,11 +22,11 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test-board")
 	pid = cross(boards2.CreateThread)(bid, title, body)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.DeleteThread)(bid, pid)
 
 	// Ensure thread doesn't exist

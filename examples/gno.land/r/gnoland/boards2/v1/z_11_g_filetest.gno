@@ -28,11 +28,11 @@ func init() {
 
 	// Invite a member using a role with permission to edit threads
 	cross(boards2.InviteMember)(bid, admin, boards2.RoleAdmin)
-
-	testing.SetOriginCaller(admin)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(admin))
+
 	cross(boards2.EditThread)(bid, pid, title, body)
 
 	// Render content must contains thread's title and body

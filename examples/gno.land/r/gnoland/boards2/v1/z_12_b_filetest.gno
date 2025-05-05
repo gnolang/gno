@@ -27,11 +27,11 @@ func init() {
 	// Create a reply and a sub reply
 	parentRID := cross(boards2.CreateReply)(bid, tid, 0, "Parent")
 	rid = cross(boards2.CreateReply)(bid, tid, parentRID, "Child")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.EditReply)(bid, tid, rid, body)
 
 	// Render content must contain the modified reply

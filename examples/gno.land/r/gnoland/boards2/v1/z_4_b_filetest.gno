@@ -19,11 +19,11 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("foo123")
 	cross(boards2.InviteMember)(bid, member, boards2.RoleGuest)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.ChangeMemberRole)(bid, member, newRole)
 
 	// Ensure that new role has been changed

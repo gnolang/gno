@@ -25,11 +25,11 @@ func init() {
 
 	// Flag parent post so it's hidden
 	cross(boards2.FlagReply)(bid, tid, rid, "")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.CreateReply)(bid, tid, rid, "Sub comment")
 }
 

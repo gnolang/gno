@@ -13,12 +13,13 @@ func init() {
 	// Lock the realm without locking realm members
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(boards2.LockRealm)(false)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.LockRealm)(true)
+
 	println(boards2.IsRealmLocked())
 	println(boards2.AreRealmMembersLocked())
 }

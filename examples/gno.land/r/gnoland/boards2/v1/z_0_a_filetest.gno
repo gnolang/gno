@@ -9,11 +9,9 @@ import (
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
-func init() {
-	testing.SetOriginCaller(owner)
-}
-
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	bid := cross(boards2.CreateBoard)("test123")
 	println("ID =", bid)
 }

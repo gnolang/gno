@@ -14,11 +14,9 @@ const (
 	role  = boards2.RoleOwner
 )
 
-func init() {
-	testing.SetOriginCaller(owner)
-}
-
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.InviteMember)(bid, user, role)
 
 	// Check that user is invited

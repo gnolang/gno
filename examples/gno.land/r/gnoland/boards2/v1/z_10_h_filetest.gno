@@ -24,11 +24,11 @@ func init() {
 	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
 	// Also freeze board to make sure that realm owner can still flag the thread
 	cross(boards2.FreezeBoard)(bid)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.FlagThread)(bid, pid, "")
 
 	// Ensure that original thread content not visible

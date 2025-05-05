@@ -19,11 +19,11 @@ func init() {
 	bid = cross(boards2.CreateBoard)("test123")
 
 	cross(boards2.InviteMember)(bid, admin, boards2.RoleGuest)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.ChangeMemberRole)(bid, admin, boards2.Role("foo"))
 }
 

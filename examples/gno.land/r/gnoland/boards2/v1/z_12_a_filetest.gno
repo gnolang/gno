@@ -24,11 +24,11 @@ func init() {
 	bid = cross(boards2.CreateBoard)("test-board")
 	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
 	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.EditReply)(bid, tid, rid, body)
 
 	// Render content must contain the modified reply

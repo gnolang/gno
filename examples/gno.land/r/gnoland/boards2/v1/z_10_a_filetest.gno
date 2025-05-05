@@ -26,11 +26,11 @@ func init() {
 
 	// Create a new thread as a moderator
 	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.FlagThread)(bid, pid, "")
 
 	// Ensure that original thread content not visible

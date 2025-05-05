@@ -20,11 +20,11 @@ func init() {
 	bid = cross(boards2.CreateBoard)("test123")
 	tid = cross(boards2.CreateThread)(bid, "foo", "bar")
 	rid = cross(boards2.CreateReply)(bid, tid, 0, "reply")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	// unfrozen thread - should work
 	r2 := cross(boards2.CreateReply)(bid, tid, rid, "child 1")
 
