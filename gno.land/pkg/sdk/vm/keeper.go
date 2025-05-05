@@ -347,6 +347,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
+	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
+		return ErrInvalidPkgPath("package path must be valid realm or p package path")
+	}
+	if strings.HasSuffix(pkgPath, "_test") || strings.HasSuffix(pkgPath, "_filetest") {
+		return ErrInvalidPkgPath("package path must not end with _test or _filetest")
+	}
 	if gno.ReGnoRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
