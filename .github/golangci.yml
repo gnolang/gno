@@ -92,4 +92,6 @@ issues:
     - path: gnovm/pkg/gnolang
       text: "string `cross` has (\\d+) occurrences, make it a constant"
     - path: gnovm/pkg/gnolang
+      text: "string `.no realm.` has (\\d+) occurrences, make it a constant"
+    - path: gnovm/pkg/gnolang
       text: "string `crossing` has (\\d+) occurrences, make it a constant"
