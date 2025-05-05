@@ -47,7 +47,7 @@ func newSwap(
 func (s *Swap) Claim(preimage string) {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(std.CurrentRealm().Address() == s.recipient, "unauthorized")
+	require(std.PreviousRealm().Address() == s.recipient, "unauthorized")
 
 	hashlock := sha256.Sum256([]byte(preimage))
 	hashlockHex := hex.EncodeToString(hashlock[:])
