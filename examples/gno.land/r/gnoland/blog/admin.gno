@@ -22,6 +22,7 @@ func init() {
 }
 
 func AdminSetAdminAddr(addr std.Address) {
+	crossing()
 	assertIsAdmin()
 	adminAddr = addr
 }
@@ -60,6 +61,7 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
+	crossing()
 	assertIsModerator()
 	caller := std.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
@@ -81,6 +83,7 @@ func addPost(caller std.Address, slug, title, body, publicationDate, authors, ta
 }
 
 func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
+	crossing()
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
@@ -91,22 +94,26 @@ func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 }
 
 func ModRemovePost(slug string) {
+	crossing()
 	assertIsModerator()
 
 	b.RemovePost(slug)
 }
 
 func ModAddCommenter(addr std.Address) {
+	crossing()
 	assertIsModerator()
 	commenterList.Set(addr.String(), true)
 }
 
 func ModDelCommenter(addr std.Address) {
+	crossing()
 	assertIsModerator()
 	commenterList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
 func ModDelComment(slug string, index int) {
+	crossing()
 	assertIsModerator()
 
 	err := b.GetPost(slug).DeleteComment(index)
