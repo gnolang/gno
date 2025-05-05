@@ -259,7 +259,12 @@ func TestTxGasFailure(t *testing.T) {
 import "strconv"
 
 var i int
-func Inc() { i++ } // method to increment i
+
+func Inc() {  // method to increment i
+        crossing()
+        i++
+}
+
 func Render(_ string) string { return strconv.Itoa(i) }
 `,
 			},
