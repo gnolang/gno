@@ -23,7 +23,8 @@ type Type interface {
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types
 	GetPkgPath() string
-	IsNamed() bool // named vs unname type. property as a method
+	IsNamed() bool     // named vs unname type. property as a method
+	IsImmutable() bool // immutable types
 }
 
 type TypeID string
@@ -78,6 +79,25 @@ func (blockType) assertType()      {}
 func (heapItemType) assertType()   {}
 func (*tupleType) assertType()     {}
 func (RefType) assertType()        {}
+
+// IsImmutable
+func (PrimitiveType) IsImmutable() bool    { return true }
+func (*PointerType) IsImmutable() bool     { return false }
+func (FieldType) IsImmutable() bool        { panic("should not happen") }
+func (*ArrayType) IsImmutable() bool       { return false }
+func (*SliceType) IsImmutable() bool       { return false }
+func (*StructType) IsImmutable() bool      { return false }
+func (*FuncType) IsImmutable() bool        { return true }
+func (*MapType) IsImmutable() bool         { return false }
+func (*InterfaceType) IsImmutable() bool   { return false } // preprocessor only
+func (*TypeType) IsImmutable() bool        { return true }
+func (dt *DeclaredType) IsImmutable() bool { return dt.Base.IsImmutable() }
+func (*PackageType) IsImmutable() bool     { return false }
+func (*ChanType) IsImmutable() bool        { return true }
+func (blockType) IsImmutable() bool        { return false }
+func (heapItemType) IsImmutable() bool     { return false }
+func (*tupleType) IsImmutable() bool       { panic("should not happen") }
+func (RefType) IsImmutable() bool          { panic("should not happen") }
 
 // ----------------------------------------
 // Primitive types
@@ -860,10 +880,6 @@ func (pt *PackageType) Kind() Kind {
 
 func (pt *PackageType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		// NOTE Different package types may have the same
-		// TypeID if and only if neither have unexported fields.
-		// pt.Path is only included in field names that are not
-		// uppercase.
 		pt.typeid = typeid("package{}")
 	}
 	return pt.typeid
@@ -1102,8 +1118,6 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
-
-	IsClosure bool
 }
 
 // true for predefined func types that are not filled in yet.
@@ -1128,7 +1142,7 @@ func (ft *FuncType) Kind() Kind {
 	return FuncKind
 }
 
-// bound function type (if ft is a method).
+// bound function type w/o receiver (if ft is a method).
 func (ft *FuncType) BoundType() *FuncType {
 	if ft.bound == nil {
 		ft.bound = &FuncType{
@@ -1394,7 +1408,8 @@ func (tt *TypeType) IsNamed() bool {
 
 type DeclaredType struct {
 	PkgPath string
-	Name    Name
+	Name    Name         // name of declaration
+	Loc     Location     // declaration location for disambiguation
 	Base    Type         // not a DeclaredType
 	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
 
@@ -1402,12 +1417,23 @@ type DeclaredType struct {
 	sealed bool // for ensuring correctness with recursive types.
 }
 
-// returns an unsealed *DeclaredType.
-// do not use for aliases.
-func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
+// Returns an unsealed *DeclaredType.
+// parent is the block node in which it is declared.
+// Do not use for aliases.
+func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredType {
+	loc := Location{}
+	switch parent.(type) {
+	case *PackageNode, *FileNode:
+		// leave aero
+	case *FuncDecl, *FuncLitExpr:
+		loc = parent.GetLocation()
+	default:
+		panic("should not happen")
+	}
 	dt := &DeclaredType{
 		PkgPath: pkgPath,
 		Name:    name,
+		Loc:     loc,
 		Base:    baseOf(b),
 		sealed:  false,
 	}
@@ -1457,17 +1483,25 @@ func (dt *DeclaredType) checkSeal() {
 
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
-		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Name)
+		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Loc, dt.Name)
 	}
 	return dt.typeid
 }
 
-func DeclaredTypeID(pkgPath string, name Name) TypeID {
-	return typeidf("%s.%s", pkgPath, name)
+func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
+	if loc.IsZero() { // package/file decl
+		return typeidf("%s.%s", pkgPath, name)
+	} else {
+		return typeidf("%s[%s].%s", pkgPath, loc.String(), name)
+	}
 }
 
 func (dt *DeclaredType) String() string {
-	return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+	if dt.Loc.IsZero() {
+		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+	} else {
+		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.Loc.String(), dt.Name)
+	}
 }
 
 func (dt *DeclaredType) Elem() Type {
@@ -1657,10 +1691,10 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			mtv := dt.Methods[path.Index]
-			// Fill in *FV.Closure.
+			// Fill in *FV.Parent.
 			ft := mtv.T
 			fv := mtv.V.(*FuncValue).Copy(alloc)
-			fv.Closure = fv.GetClosure(store)
+			fv.Parent = fv.GetParent(store)
 			return TypedValue{T: ft, V: fv}
 		} else {
 			panic("DeclaredType.GetValueAt() expects depth == 0")
@@ -1672,7 +1706,7 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	}
 }
 
-// Like GetValueAt, but doesn't fill *FuncValue closures.
+// Like GetValueAt, but doesn't fill *FuncValue parent blocks.
 func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:

@@ -14,13 +14,6 @@ func fail(t TestingT, customMsgs []string, failureMessage string, args ...any) b
 	return false
 }
 
-func autofail(t TestingT, success bool, customMsgs []string, failureMessage string, args ...any) bool {
-	if success {
-		return true
-	}
-	return fail(t, customMsgs, failureMessage, args...)
-}
-
 func checkDidPanic(f func()) (didPanic bool, message string) {
 	didPanic = true
 	defer func() {
