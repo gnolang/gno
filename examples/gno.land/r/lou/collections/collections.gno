@@ -9,14 +9,18 @@ import (
 	"gno.land/p/lou/curator"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
-	
+
 	"gno.land/r/sys/users"
 )
 
 var (
-	collections  *avl.Tree
-	collectionID seqid.ID
-	gridMode     bool
+	collections        *avl.Tree
+	collectionsByTag   *avl.Tree
+	selectedTag        string
+	selectedCollection *avl.Tree
+	tag                string
+	collectionID       seqid.ID
+	gridMode           bool
 )
 
 func init() {
@@ -41,7 +45,6 @@ func NewCollection(title, description string, tags string) string {
 
 func UpdateCollection(id, title, description string, tags []string) string {
 	caller := std.PreviousRealm().Address()
-
 	val, removed := collections.Remove(id)
 	old := val.(*curator.Collection)
 	if !removed {
@@ -102,6 +105,24 @@ func ToggleGridModeByID(id string) {
 	}
 }
 
+func FilterCollections(tag string) {
+	selectedTag = tag
+	if tag == "" {
+		collectionsByTag = nil
+		return
+	}
+
+	collectionsByTag = collections
+	collectionsByTag.Iterate("", "", func(key string, value interface{}) bool {
+		c := value.(*curator.Collection)
+		if !c.FilterTag(tag) {
+			collectionsByTag.Remove(key)
+		}
+		return true
+	})
+
+}
+
 func renderCollection(id string) string {
 	if collection, exists := collections.Get(id); exists {
 		c := collection.(*curator.Collection)
@@ -130,7 +151,15 @@ func Render(path string) string {
 	out += md.HorizontalRule()
 
 	out += "### " + md.Link("CREATE A COLLECTION ", txlink.Call("NewCollection", "title", "Title", "description", "Description", "tags", "Tags")) + "\n\n"
-	if collections.Size() == 0 {
+	if collectionsByTag != nil {
+		out += "Filtered by tag: " + md.InlineCode(selectedTag) + " | "
+		out += md.Link("Clear filter", txlink.Call("FilterCollections", "tag", "")) + "\n\n"
+		selectedCollection = collectionsByTag
+	} else {
+		out += "### " + md.Link("Filter by tag ", txlink.Call("FilterCollections", "tag", "Tag")) + "\n\n"
+		selectedCollection = collections
+	}
+	if selectedCollection.Size() == 0 {
 		out += "No collections found.\n\n"
 	} else {
 		colCount := 0
@@ -141,7 +170,7 @@ func Render(path string) string {
 			out += md.Link("Toggle to grid", txlink.Call("ToggleGridMode")) + "\n\n"
 		}
 
-		collections.ReverseIterate("", "", func(key string, value interface{}) bool {
+		selectedCollection.ReverseIterate("", "", func(key string, value interface{}) bool {
 			c := value.(*curator.Collection)
 			user := users.ResolveAddress(c.Owner())
 
@@ -161,7 +190,7 @@ func Render(path string) string {
 			colCount++
 			if colCount%3 == 0 {
 				out += "\n</gno-columns>\n\n"
-				if colCount != collections.Size() {
+				if colCount != selectedCollection.Size() {
 					out += "<gno-columns>\n"
 				}
 			} else if gridMode {

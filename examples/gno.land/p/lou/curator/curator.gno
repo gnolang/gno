@@ -156,6 +156,15 @@ func (c Collection) PreviewCollection(gridMode bool) string {
 	return card.Render()
 }
 
+func (c Collection) FilterTag(tag string) bool {
+	for _, t := range c.tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
 func RenderCollection(c *Collection) string {
 	colCount := 0
 	out := ""
