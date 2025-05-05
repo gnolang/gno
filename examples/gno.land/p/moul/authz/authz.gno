@@ -19,18 +19,18 @@
 //
 // Quick Start
 //
-//		// Initialize with contract deployer as authority
-//	   	var member std.Address(...)
-//		var auth = authz.NewWithMembers(member)
+//	// Initialize with contract deployer as authority
+//	var member std.Address(...)
+//	var auth = authz.NewWithMembers(member)
 //
-//		// Create functions that require authorization
-//		func UpdateConfig(newValue string) error {
-//	         crossing()
-//		    return auth.DoByPrevious("update_config", func() error {
-//		        config = newValue
-//		        return nil
-//		    })
-//		}
+//	// Create functions that require authorization
+//	func UpdateConfig(newValue string) error {
+//		crossing()
+//		return auth.DoByPrevious("update_config", func() error {
+//			config = newValue
+//			return nil
+//		})
+//	}
 //
 // See example_test.gno for more usage examples.
 package authz
