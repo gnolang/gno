@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/helplink"
 )
 
 var posts []*Post // inefficient for large amounts of posts; see v2
 
 // CreatePost creates a new post
 func CreatePost(text string) error {
+	crossing()
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")
@@ -28,7 +30,12 @@ func CreatePost(text string) error {
 }
 
 func Render(_ string) string {
+	crossing()
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
+
+	// Create a clickable link to create a post
+	output += helplink.Func("Write a post!", "CreatePost", "text", "")
+	output += "\n\n"
 
 	// Handle the edge case
 	if len(posts) == 0 {

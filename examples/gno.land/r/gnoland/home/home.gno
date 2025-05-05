@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
 	"gno.land/r/gnoland/events"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -26,8 +26,8 @@ func Render(_ string) string {
 		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 		return out
 	})
-	r.RegisterCallback(":latest-hof:", func() string {
-		return hof.RenderExhibWidget(5)
+	r.RegisterCallback(":latest-hor:", func() string {
+		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":chain-height:", func() string {
@@ -72,8 +72,8 @@ the foundations of a fairer and freer world, join us today.
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
-- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- Testnet 6 (upcoming)
+- [Staging chain](https://docs.gno.land/concepts/portal-loop)
+- [Testnet 6](https://test6.gno.land/)
 - [Testnet 5](https://test5.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
@@ -85,9 +85,9 @@ the foundations of a fairer and freer world, join us today.
 
 :upcoming-events:
 
-## [Hall of Fame](/r/leon/hof)
+## [Hall of Realms](/r/leon/hor)
 
-:latest-hof:
+:latest-hor:
 
 ---
 
@@ -174,10 +174,10 @@ Package names are not guaranteed to be available for production.
 }
 
 func latestHOFItems(num int) ui.Element {
-	submissions := hof.RenderExhibWidget(num)
+	submissions := hor.RenderExhibWidget(num)
 
 	return ui.Element{
-		ui.H2("[Hall of Fame](/r/leon/hof)"),
+		ui.H2("[Hall of Realms](/r/leon/hor)"),
 		ui.Text(submissions),
 	}
 }
@@ -197,6 +197,7 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(content string) {
-	Admin.AssertCallerIsOwner()
+	crossing()
+	Admin.AssertOwnedByPrevious()
 	override = content
 }
