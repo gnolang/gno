@@ -14,7 +14,7 @@ import (
 
 var (
 	table [][]string
-	rows  uint64 = 15
+	rows  uint64 = 15 // pour linstant
 	cols  uint64 = 91
 
 	xStr string
@@ -45,7 +45,6 @@ func parseXY(rawQuery string) (x, y uint64, err error) {
 }
 
 func init() {
-	// rows, cols := 15, 91
 
 	table = make([][]string, rows)
 	for y := 0; y < int(rows); y++ {
@@ -100,5 +99,6 @@ func Render(path string) string {
 	svg := GenerateSVG()
 	base64SVG := base64.StdEncoding.EncodeToString([]byte(svg))
 	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", base64SVG)
+
 	return out
 }
