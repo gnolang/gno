@@ -73,7 +73,7 @@ package foo20
 import "std"
 
 func Transfer(to std.Address, amount uint64) string {
-  crossing()
+	crossing()
 
 	println("transfer from=" + std.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
 	return std.PreviousRealm().Address().String()
