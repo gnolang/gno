@@ -359,13 +359,6 @@ a reviewer might lose track in your recent changes and will have to start review
 
 Don't worry about adding too many commits. The commits are squashed into a single commit while merging (if needed).
 
-#### PR template
-
-The [PR template](https://github.com/gnolang/gno/blob/master/.github/pull_request_template.md) is by default a
-simple template meant to illustrate quickly what’s the context of the PR.
-
-If you've run a manual test, please provide the exact steps taken.
-
 ### How do I report a bug?
 
 Found something funky while using gno? You can report it to the team using GitHub issues.
