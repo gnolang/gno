@@ -8,6 +8,8 @@ type myInterface interface {
 var currentImpl myInterface
 
 func SetImpl(impl myInterface) {
+	crossing()
+
 	assertIsAdmin()
 	currentImpl = impl
 }

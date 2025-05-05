@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
 // SEND: 1000000ugnot
 
@@ -19,16 +18,16 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	cross(users.Register)("gnouser123")
 
-	bid = boards.CreateBoard("test_board")
-	pid = boards.CreateThread(bid, "First Post in (title)", "Body of the first post. (body)")
+	bid = cross(boards.CreateBoard)("test_board")
+	pid = cross(boards.CreateThread)(bid, "First Post in (title)", "Body of the first post. (body)")
 }
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
-	boards.EditPost(bid, pid, pid, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
+	cross(boards.EditPost)(bid, pid, pid, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }

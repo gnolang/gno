@@ -112,7 +112,7 @@ func ListPkgs(root string) (PkgList, error) {
 		}
 		gnoMod.Sanitize()
 		if err := gnoMod.Validate(); err != nil {
-			return fmt.Errorf("validate: %w", err)
+			return fmt.Errorf("failed to validate gno.mod in %s: %w", gnoModPath, err)
 		}
 
 		pkg, err := gnolang.ReadMemPackage(path, gnoMod.Module.Mod.Path)

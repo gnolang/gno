@@ -1,12 +1,18 @@
 // PKGPATH: gno.land/r/gnoland/valopers_test
-package valopers_test
-
 // SEND: 20000000ugnot
+
+package valopers_test
 
 import (
 	"std"
+	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/valopers"
+)
+
+var (
+	g1user = testutils.TestAddress("g1user")
 )
 
 const (
@@ -17,8 +23,10 @@ const (
 )
 
 func init() {
+	testing.SetOriginCaller(g1user)
+
 	// Register a validator and add the proposal
-	valopers.Register(validMoniker, validDescription, validAddress, validPubKey)
+	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
 }
 
 func main() {

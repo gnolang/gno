@@ -10,8 +10,8 @@ import (
 
 // mints coints to current realm
 func init() {
-	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	faucetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 200_000_000}})
 }
 
 // assert render with 2 controllers and 2 transfers
@@ -23,22 +23,22 @@ func main() {
 		testaddr1       = testutils.TestAddress("test1")
 		testaddr2       = testutils.TestAddress("test2")
 	)
-	testing.SetOriginCaller(adminaddr)
-	err := faucet.AdminAddController(controlleraddr1)
+	testing.SetRealm(std.NewUserRealm(adminaddr))
+	err := cross(faucet.AdminAddController)(controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = faucet.AdminAddController(controlleraddr2)
+	err = cross(faucet.AdminAddController)(controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
-	testing.SetOriginCaller(controlleraddr1)
-	err = faucet.Transfer(testaddr1, 1000000)
+	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	err = cross(faucet.Transfer)(testaddr1, 1_000_000)
 	if err != "" {
 		panic(err)
 	}
-	testing.SetOriginCaller(controlleraddr2)
-	err = faucet.Transfer(testaddr1, 2000000)
+	testing.SetRealm(std.NewUserRealm(controlleraddr2))
+	err = cross(faucet.Transfer)(testaddr1, 2_000_000)
 	if err != "" {
 		panic(err)
 	}
@@ -52,7 +52,7 @@ func main() {
 // Balance: 197000000ugnot.
 // Total transfers: 3000000ugnot (in 2 times).
 //
-// Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
+// Package address: g1vdhkuarjdakxcetjxf047h6lta047h6lnrev3v
 //
 // Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //
@@ -61,5 +61,3 @@ func main() {
 //  g1vdhkuarjdakxcetjx9047h6lta047h6lsdacav  g1vdhkuarjdakxcetjxf047h6lta047h6lnrev3v
 //
 // Per request limit: 350000000ugnot
-//
-//

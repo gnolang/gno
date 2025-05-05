@@ -2,7 +2,7 @@
 # help page, work as intended.
 
 # load the package from $WORK directory
-loadpkg gno.land/r/demo/echo
+loadpkg gno.land/r/realm $WORK/realm
 
 # add a random user
 adduserfrom user1 'lamp any denial pulse used shoot gap error denial mansion hurry foot solution grab winner congress drastic cat bamboo chicken color digital coffee unknown'
@@ -26,7 +26,7 @@ stdout '}'
 ! stderr '.+' # empty
 
 # Create transaction
-gnokey maketx call -pkgpath "gno.land/r/demo/echo" -func "Render" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -args "HELLO" user1
+gnokey maketx call -pkgpath "gno.land/r/realm" -func "SetName" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -args "foo" user1
 cp stdout call.tx
 
 # Sign
@@ -34,9 +34,27 @@ gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 58
 cmpenv stdout sign.stdout.golden
 
 gnokey broadcast $WORK/call.tx
-stdout '("HELLO" string)'
+stdout '("foo" string)'
 stdout 'GAS WANTED: 2000000'
+
+gnokey query vm/qrender --data '"gno.land/r/realm":'
+stdout '# HELLO foo'
 
 -- sign.stdout.golden --
 
 Tx successfully signed and saved to $WORK/call.tx
+-- realm/realm.gno --
+package name
+
+var name string
+
+func SetName(s string) string {
+	crossing()
+
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO "+name
+}

@@ -8,10 +8,17 @@ import (
 // RenderFn defines the type for the render function of realms.
 type RenderFn func(string) string
 
-var current = struct {
-	realmPath string
-	renderFn  RenderFn
-}{}
+var (
+	proxyRealmPath string
+	current        = struct {
+		realmPath string
+		renderFn  RenderFn
+	}{}
+)
+
+func init() {
+	proxyRealmPath = std.CurrentRealm().PkgPath()
+}
 
 // CurrentRealmPath returns the path of the realm that is currently registered.
 func CurrentRealmPath() string {
@@ -20,14 +27,19 @@ func CurrentRealmPath() string {
 
 // Register registers a render function of a realm.
 func Register(fn RenderFn) {
+	crossing()
+
 	if fn == nil {
 		panic("render function must not be nil")
 	}
 
-	proxyPath := std.CurrentRealm().PkgPath()
+	if std.PreviousRealm().IsUser() {
+		panic("register must be called by a realm")
+	}
+
 	callerPath := std.PreviousRealm().PkgPath()
-	if !strings.HasPrefix(callerPath, proxyPath+"/") {
-		panic("caller realm path must start with " + proxyPath)
+	if !strings.HasPrefix(callerPath, proxyRealmPath+"/") {
+		panic("caller realm path must start with " + proxyRealmPath)
 	}
 
 	current.renderFn = fn
@@ -36,7 +48,7 @@ func Register(fn RenderFn) {
 
 // URL returns a URL that links to the proxy realm.
 func URL(renderPath string) string {
-	url := "http://" + std.CurrentRealm().PkgPath()
+	url := "http://" + proxyRealmPath
 	if renderPath != "" {
 		url += ":" + renderPath
 	}

@@ -16,8 +16,8 @@ func main() {
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	testing.SetOriginCaller(eoa)
-	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm().Address())
-	println("tests.GetRSubtestsPreviousRealm().Address(): ", tests.GetRSubtestsPreviousRealm().Address())
+	println("tests.GetPreviousRealm().Address(): ", cross(tests.GetPreviousRealm)().Address())
+	println("tests.GetRSubtestsPreviousRealm().Address(): ", cross(tests.GetRSubtestsPreviousRealm)().Address())
 }
 
 // Output:

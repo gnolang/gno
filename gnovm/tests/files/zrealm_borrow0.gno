@@ -33,7 +33,7 @@ func (s *Struct) printRealms() {
 	// below is called.
 	// Should this be allowed?
 	// Whether it panics or not is determined by
-	// 'fr.DidCross = true' in PushFrameCall.
+	// 'fr.DidCrossing = true' in PushFrameCall.
 	crossing()
 
 	fmt.Println(std.CurrentRealm())

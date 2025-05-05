@@ -142,8 +142,6 @@ func GetAddressByHandle(handle string) string {
 
 // Render returns a json object string will all verified handle -> address mappings.
 func Render(_ string) string {
-	crossing()
-
 	result := "{"
 	var appendComma bool
 	handleToAddressMap.Iterate("", "", func(handle string, address any) bool {

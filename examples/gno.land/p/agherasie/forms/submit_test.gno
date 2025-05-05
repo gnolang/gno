@@ -51,6 +51,7 @@ func TestAnswerForm(t *testing.T) {
 	urequire.True(t, len(db.Answers) == 1, "Expected 1 answer, got", string(len(db.Answers)))
 	urequire.True(t, db.Answers[0].FormID == formID, "Expected form ID", formID, "got", db.Answers[0].FormID)
 	urequire.True(t, db.Answers[0].Answers == answers, "Expected answers", answers, "got", db.Answers[0].Answers)
+	urequire.True(t, err == nil, "Submit should not return an error")
 }
 
 func TestAnswerFormDates(t *testing.T) {

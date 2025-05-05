@@ -88,7 +88,7 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 	// list all packages from target path
 	pkgslist, err := gnomod.ListPkgs(path)
 	if err != nil {
-		return fmt.Errorf("listing gno packages: %w", err)
+		return fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
 
 	for _, pkg := range pkgslist {

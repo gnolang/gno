@@ -126,6 +126,7 @@ func (g GameState) IsFinished() bool {
 // parallel games OR by introducing a "request" system, so that a game is not
 // immediately considered "open" when calling NewGame.
 func xNewGame(opponentRaw string, seconds, increment int) string {
+	crossing()
 	assertOriginCall()
 
 	if seconds >= 0 && increment < 0 {
@@ -251,6 +252,7 @@ func getGame(id string, wantOpen bool) *Game {
 // must be specified.
 // Castling is specified by indicating the king's movement.
 func MakeMove(gameID, from, to string, promote chess.Piece) string {
+	crossing()
 	assertOriginCall()
 
 	g := getGame(gameID, true)
@@ -379,6 +381,7 @@ func (g *Game) claimTimeout() error {
 // ClaimTimeout should be called when the caller believes the game has resulted
 // in a timeout.
 func ClaimTimeout(gameID string) string {
+	crossing()
 	g := getGame(gameID, true)
 
 	err := g.claimTimeout()
@@ -388,6 +391,7 @@ func ClaimTimeout(gameID string) string {
 }
 
 func Abort(gameID string) string {
+	crossing()
 	assertOriginCall()
 
 	g := getGame(gameID, true)
@@ -416,6 +420,7 @@ func abort(g *Game) error {
 }
 
 func Resign(gameID string) string {
+	crossing()
 	assertOriginCall()
 
 	g := getGame(gameID, true)
@@ -450,6 +455,7 @@ func resign(g *Game) error {
 // DrawOffer creates a draw offer in the current game, if one doesn't already
 // exist.
 func DrawOffer(gameID string) string {
+	crossing()
 	assertOriginCall()
 
 	g := getGame(gameID, true)
@@ -468,6 +474,7 @@ func DrawOffer(gameID string) string {
 
 // DrawRefuse refuse a draw offer in the given game.
 func DrawRefuse(gameID string) string {
+	crossing()
 	assertOriginCall()
 
 	g := getGame(gameID, true)
@@ -492,6 +499,7 @@ func DrawRefuse(gameID string) string {
 // - Insufficient material (§9.4)
 // Note: stalemate happens as a consequence of a Move, and thus is handled in that function.
 func Draw(gameID string) string {
+	crossing()
 	assertOriginCall()
 
 	g := getGame(gameID, true)

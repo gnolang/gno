@@ -16,11 +16,11 @@ func TestFunc(t *testing.T) {
 		want  string
 		realm Realm
 	}{
-		{"Example", "foo", []string{"bar", "1", "baz", "2"}, "[Example]($help&func=foo&bar=1&baz=2)", ""},
+		{"Example", "foo", []string{"bar", "1", "baz", "2"}, "[Example](/p/moul/helplink$help&func=foo&bar=1&baz=2)", ""},
 		{"Realm Example", "foo", []string{"bar", "1", "baz", "2"}, "[Realm Example](/r/lorem/ipsum$help&func=foo&bar=1&baz=2)", Realm(cd + "/r/lorem/ipsum")},
-		{"Single Arg", "testFunc", []string{"key", "value"}, "[Single Arg]($help&func=testFunc&key=value)", ""},
-		{"No Args", "noArgsFunc", []string{}, "[No Args]($help&func=noArgsFunc)", ""},
-		{"Odd Args", "oddArgsFunc", []string{"key"}, "[Odd Args]($help&func=oddArgsFunc&error=odd+number+of+arguments)", ""},
+		{"Single Arg", "testFunc", []string{"key", "value"}, "[Single Arg](/p/moul/helplink$help&func=testFunc&key=value)", ""},
+		{"No Args", "noArgsFunc", []string{}, "[No Args](/p/moul/helplink$help&func=noArgsFunc)", ""},
+		{"Odd Args", "oddArgsFunc", []string{"key"}, "[Odd Args](/p/moul/helplink$help&func=oddArgsFunc&error=odd+number+of+arguments)", ""},
 	}
 
 	for _, tt := range tests {
@@ -50,10 +50,10 @@ func TestFuncURL(t *testing.T) {
 		want  string
 		realm Realm
 	}{
-		{"foo", []string{"bar", "1", "baz", "2"}, "$help&func=foo&bar=1&baz=2", ""},
-		{"testFunc", []string{"key", "value"}, "$help&func=testFunc&key=value", ""},
-		{"noArgsFunc", []string{}, "$help&func=noArgsFunc", ""},
-		{"oddArgsFunc", []string{"key"}, "$help&func=oddArgsFunc&error=odd+number+of+arguments", ""},
+		{"foo", []string{"bar", "1", "baz", "2"}, "/p/moul/helplink$help&func=foo&bar=1&baz=2", ""},
+		{"testFunc", []string{"key", "value"}, "/p/moul/helplink$help&func=testFunc&key=value", ""},
+		{"noArgsFunc", []string{}, "/p/moul/helplink$help&func=noArgsFunc", ""},
+		{"oddArgsFunc", []string{"key"}, "/p/moul/helplink$help&func=oddArgsFunc&error=odd+number+of+arguments", ""},
 		{"foo", []string{"bar", "1", "baz", "2"}, "/r/lorem/ipsum$help&func=foo&bar=1&baz=2", Realm(cd + "/r/lorem/ipsum")},
 		{"testFunc", []string{"key", "value"}, "/r/lorem/ipsum$help&func=testFunc&key=value", Realm(cd + "/r/lorem/ipsum")},
 		{"noArgsFunc", []string{}, "/r/lorem/ipsum$help&func=noArgsFunc", Realm(cd + "/r/lorem/ipsum")},

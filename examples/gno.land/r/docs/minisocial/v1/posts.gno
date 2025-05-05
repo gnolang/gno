@@ -13,6 +13,7 @@ var posts []*Post // inefficient for large amounts of posts; see v2
 
 // CreatePost creates a new post
 func CreatePost(text string) error {
+	crossing()
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")
@@ -29,6 +30,7 @@ func CreatePost(text string) error {
 }
 
 func Render(_ string) string {
+	crossing()
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
 
 	// Create a clickable link to create a post

@@ -1408,7 +1408,8 @@ func (tt *TypeType) IsNamed() bool {
 
 type DeclaredType struct {
 	PkgPath string
-	Name    Name
+	Name    Name         // name of declaration
+	Loc     Location     // declaration location for disambiguation
 	Base    Type         // not a DeclaredType
 	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
 
@@ -1416,12 +1417,23 @@ type DeclaredType struct {
 	sealed bool // for ensuring correctness with recursive types.
 }
 
-// returns an unsealed *DeclaredType.
-// do not use for aliases.
-func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
+// Returns an unsealed *DeclaredType.
+// parent is the block node in which it is declared.
+// Do not use for aliases.
+func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredType {
+	loc := Location{}
+	switch parent.(type) {
+	case *PackageNode, *FileNode:
+		// leave aero
+	case *FuncDecl, *FuncLitExpr:
+		loc = parent.GetLocation()
+	default:
+		panic("should not happen")
+	}
 	dt := &DeclaredType{
 		PkgPath: pkgPath,
 		Name:    name,
+		Loc:     loc,
 		Base:    baseOf(b),
 		sealed:  false,
 	}
@@ -1471,17 +1483,25 @@ func (dt *DeclaredType) checkSeal() {
 
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
-		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Name)
+		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Loc, dt.Name)
 	}
 	return dt.typeid
 }
 
-func DeclaredTypeID(pkgPath string, name Name) TypeID {
-	return typeidf("%s.%s", pkgPath, name)
+func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
+	if loc.IsZero() { // package/file decl
+		return typeidf("%s.%s", pkgPath, name)
+	} else {
+		return typeidf("%s[%s].%s", pkgPath, loc.String(), name)
+	}
 }
 
 func (dt *DeclaredType) String() string {
-	return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+	if dt.Loc.IsZero() {
+		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+	} else {
+		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.Loc.String(), dt.Name)
+	}
 }
 
 func (dt *DeclaredType) Elem() Type {

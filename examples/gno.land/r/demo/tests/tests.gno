@@ -50,13 +50,13 @@ func CallIsOriginCall() bool {
 func CallSubtestsAssertOriginCall() {
 	crossing()
 
-	rsubtests.CallAssertOriginCall()
+	cross(rsubtests.CallAssertOriginCall)()
 }
 
 func CallSubtestsIsOriginCall() bool {
 	crossing()
 
-	return rsubtests.CallIsOriginCall()
+	return cross(rsubtests.CallIsOriginCall)()
 }
 
 //----------------------------------------

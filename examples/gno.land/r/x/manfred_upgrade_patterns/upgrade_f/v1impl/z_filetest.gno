@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	home.SetImpl(v1impl.Instance())
+	cross(home.SetImpl)(v1impl.Instance())
 	println(home.Render(""))
 	println(home.Foo())
 }

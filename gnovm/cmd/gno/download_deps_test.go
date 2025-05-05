@@ -52,7 +52,7 @@ func TestDownloadDeps(t *testing.T) {
 				"gno: downloading gno.land/p/demo/ufmt",
 			},
 		}, {
-			desc:    "fetch_gno.land/p/demo/blog6",
+			desc:    "fetch_gno.land/p/demo/blog",
 			pkgPath: "gno.land/p/demo/blog",
 			modFile: gnomod.File{
 				Module: &modfile.Module{
@@ -61,7 +61,7 @@ func TestDownloadDeps(t *testing.T) {
 					},
 				},
 			},
-			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux"},
+			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux", "nestedpkg", "testutils"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/blog",
 				"gno: downloading gno.land/p/demo/avl",
@@ -101,6 +101,7 @@ func TestDownloadDeps(t *testing.T) {
 				}},
 			},
 		},
+		// XXX: infinite loop (A imports B, B imports C, C imports A)
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			mockErr := bytes.NewBufferString("")
@@ -118,7 +119,7 @@ func TestDownloadDeps(t *testing.T) {
 			fetcher := examplespkgfetcher.New()
 
 			// gno: downloading dependencies
-			err = downloadDeps(io, dirPath, &tc.modFile, fetcher)
+			err = downloadDeps(io, dirPath, &tc.modFile, fetcher, make(map[string]struct{}))
 			if tc.errorShouldContain != "" {
 				require.ErrorContains(t, err, tc.errorShouldContain)
 			} else {
@@ -144,7 +145,7 @@ func TestDownloadDeps(t *testing.T) {
 				mockErr.Reset()
 
 				// Try fetching again. Should be cached
-				downloadDeps(io, dirPath, &tc.modFile, fetcher)
+				err = downloadDeps(io, dirPath, &tc.modFile, fetcher, make(map[string]struct{}))
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
 				}

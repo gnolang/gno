@@ -1,12 +1,18 @@
 // PKGPATH: gno.land/r/gnoland/valopers_test
-package valopers_test
-
 // SEND: 20000000ugnot
+
+package valopers_test
 
 import (
 	"std"
+	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/valopers"
+)
+
+var (
+	g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 )
 
 const (
@@ -17,8 +23,10 @@ const (
 )
 
 func init() {
+	testing.SetOriginCaller(g1user)
+
 	// Register a validator and add the proposal
-	valopers.Register(validMoniker, validDescription, validAddress, validPubKey)
+	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
 }
 
 func main() {
@@ -96,6 +104,6 @@ func main() {
 //
 //
 //
-//  * [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1p9elmfxvctlkypargf7wruch5vchuysqr2xg2q)
+//  * [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h) - [profile](/r/demo/profile:u/g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w)
 //
 //

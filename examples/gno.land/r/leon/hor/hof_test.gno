@@ -87,7 +87,7 @@ func TestUpvote(t *testing.T) {
 	uassert.Equal(t, item.upvote.Size(), 1)
 
 	// Check double upvote
-	uassert.PanicsWithMessage(t, ErrDoubleUpvote.Error(), func() {
+	uassert.AbortsWithMessage(t, ErrDoubleUpvote.Error(), func() {
 		cross(Upvote)(rlmPath)
 	})
 }
@@ -110,7 +110,7 @@ func TestDownvote(t *testing.T) {
 	uassert.Equal(t, item.downvote.Size(), 1)
 
 	// Check double downvote
-	uassert.PanicsWithMessage(t, ErrDoubleDownvote.Error(), func() {
+	uassert.AbortsWithMessage(t, ErrDoubleDownvote.Error(), func() {
 		cross(Downvote)(rlmPath)
 	})
 }
@@ -120,7 +120,7 @@ func TestDelete(t *testing.T) {
 	testing.SetRealm(userRealm)
 	testing.SetOriginCaller(admin)
 
-	uassert.PanicsWithMessage(t, ErrNoSuchItem.Error(), func() {
+	uassert.AbortsWithMessage(t, ErrNoSuchItem.Error(), func() {
 		cross(Delete)("nonexistentpkgpath")
 	})
 
@@ -325,3 +325,14 @@ func TestSortByCreation(t *testing.T) {
 
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
 }
+
+/* XXX fix @moul
+func TestGetScore(t *testing.T) {
+	score, err := h.GetScore(42)
+	uassert.Nil(t, err)
+	uassert.Equal(t, 0, score)
+	uassert.NotPanics(t, func() {
+		uassert.Equal(t, 0, h.MustGetScore(42))
+	})
+}
+*/

@@ -17,6 +17,8 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -44,9 +46,12 @@ func checkAnonFee() bool {
 }
 
 func CreateThread(bid BoardID, title string, body string) PostID {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
+
 	caller := std.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
@@ -62,9 +67,12 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 }
 
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
+
 	caller := std.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
@@ -92,9 +100,12 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
+
 	caller := std.OriginCaller()
 	if usernameOf(caller) == "" {
 		// TODO: allow with gDefaultAnonFee payment.
@@ -122,9 +133,12 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 }
 
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
+
 	caller := std.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {
@@ -154,9 +168,12 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 }
 
 func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
+
 	caller := std.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {

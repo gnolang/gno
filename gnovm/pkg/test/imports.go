@@ -77,10 +77,11 @@ func StoreWithOptions(
 				send := std.Coins{}
 				ctx := Context("", pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: "test",
-					Output:  output,
-					Store:   store,
-					Context: ctx,
+					PkgPath:       "test",
+					Output:        output,
+					Store:         store,
+					Context:       ctx,
+					ReviveEnabled: true,
 				})
 				return processMemPackage(m2, memPkg, true)
 			}
@@ -103,10 +104,11 @@ func StoreWithOptions(
 			send := std.Coins{}
 			ctx := Context("", pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				PkgPath: "test",
-				Output:  output,
-				Store:   store,
-				Context: ctx,
+				PkgPath:       "test",
+				Output:        output,
+				Store:         store,
+				Context:       ctx,
+				ReviveEnabled: true,
 			})
 			return processMemPackage(m2, memPkg, true)
 		}
@@ -155,9 +157,10 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
 		// getter for the store, which calls loadStdlib, so it would be recursively called.
-		PkgPath: "stdlibload",
-		Output:  stdout,
-		Store:   store,
+		PkgPath:       "stdlibload",
+		Output:        stdout,
+		Store:         store,
+		ReviveEnabled: true,
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(memPkg)

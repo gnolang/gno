@@ -45,7 +45,7 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 	if err != nil {
 		return err
 	}
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	if caller != owner {
 		return ErrCallerIsNotOwner
 	}

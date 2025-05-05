@@ -34,7 +34,7 @@ func (m *Machine) doOpValueDecl() {
 
 		if isUntyped(tv.T) {
 			if !s.Const {
-				if !m.PreprocessorMode && rvs[i].T.Kind() != BoolKind {
+				if m.Stage != StagePre && rvs[i].T.Kind() != BoolKind {
 					panic("untyped conversion should not happen at runtime")
 				}
 				ConvertUntypedTo(&tv, nil)

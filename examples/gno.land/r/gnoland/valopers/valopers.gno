@@ -54,23 +54,27 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 }
 
 func AddToAuthList(address std.Address, member std.Address) {
-	v := GetByAddr(address)
+	crossing()
 
-	if err := v.Auth().AddToAuthList(member); err != nil {
+	v := GetByAddr(address)
+	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(address std.Address, member std.Address) {
-	v := GetByAddr(address)
+	crossing()
 
-	if err := v.Auth().DeleteFromAuthList(member); err != nil {
+	v := GetByAddr(address)
+	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
 // Register registers a new valoper
 func Register(moniker string, description string, address std.Address, pubKey string) {
+	crossing()
+
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
 		sentCoins := std.OriginSend()
@@ -92,7 +96,7 @@ func Register(moniker string, description string, address std.Address, pubKey st
 		Address:     address,
 		PubKey:      pubKey,
 		KeepRunning: true,
-		auth:        authorizable.NewAuthorizable(),
+		auth:        authorizable.NewAuthorizableWithOrigin(),
 	}
 
 	if err := v.Validate(); err != nil {
@@ -108,6 +112,8 @@ func Register(moniker string, description string, address std.Address, pubKey st
 
 // UpdateMoniker updates an existing valoper's moniker
 func UpdateMoniker(address std.Address, moniker string) {
+	crossing()
+
 	// Check that the moniker is not empty
 	if err := validateMoniker(moniker); err != nil {
 		panic(err)
@@ -116,7 +122,7 @@ func UpdateMoniker(address std.Address, moniker string) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
+	v.Auth().AssertPreviousOnAuthList()
 
 	// Update the moniker
 	v.Moniker = moniker
@@ -127,6 +133,8 @@ func UpdateMoniker(address std.Address, moniker string) {
 
 // UpdateDescription updates an existing valoper's description
 func UpdateDescription(address std.Address, description string) {
+	crossing()
+
 	// Check that the description is not empty
 	if err := validateDescription(description); err != nil {
 		panic(err)
@@ -135,7 +143,7 @@ func UpdateDescription(address std.Address, description string) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
+	v.Auth().AssertPreviousOnAuthList()
 
 	// Update the description
 	v.Description = description
@@ -146,10 +154,12 @@ func UpdateDescription(address std.Address, description string) {
 
 // UpdateKeepRunning updates an existing valoper's active status
 func UpdateKeepRunning(address std.Address, keepRunning bool) {
+	crossing()
+
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
+	v.Auth().AssertPreviousOnAuthList()
 
 	// Update status
 	v.KeepRunning = keepRunning

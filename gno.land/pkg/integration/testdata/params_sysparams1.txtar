@@ -37,4 +37,7 @@ import (
 )
 
 // This should succeed if it is called from gno.land/r/sys/params
-func SetLockTransfer(denom string) { params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom}) }
+func SetLockTransfer(denom string) {
+	crossing()
+	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom})
+}

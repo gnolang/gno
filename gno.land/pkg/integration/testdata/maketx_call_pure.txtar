@@ -1,26 +1,34 @@
 # load the package
-loadpkg gno.land/p/foo/call_package $WORK/package
+loadpkg gno.land/p/foo/call_pure $WORK/pure
 loadpkg gno.land/r/foo/call_realm $WORK/realm
 
 # start a new node
 gnoland start
 
-# 1. call to package ERROR
-! gnokey maketx call -pkgpath gno.land/p/foo/call_package -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+# 1. eval to pure package SUCCESS
+gnokey query vm/qeval --data 'gno.land/p/foo/call_pure.Hello()'
+stdout 'notok'
+
+# 2. call to pure package ERROR
+! gnokey maketx call -pkgpath gno.land/p/foo/call_pure -func Hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stderr '"gnokey" error: --= Error =--\nData: invalid package path'
 
-# 2. call to stdlibs ERROR
+# 3. call to stdlibs ERROR
 ! gnokey maketx call -pkgpath strconv -func Itoa -args 11 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stderr '"gnokey" error: --= Error =--\nData: invalid package path'
 
-# 3. normal call to realm PASS
-gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+# 4. normal call to realm ERROR (need crossing)
+! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'missing crossing\(\) after cross call in Render from  to gno.land/r/foo/call_realm'
 
--- package/package.gno --
-package call_package
+# 5. normal eval realm SUCCESS
+gnokey query vm/qeval --data 'gno.land/r/foo/call_realm.Render()'
+stdout 'ok'
 
-func Render() string {
+-- pure/package.gno --
+package call_pure
+
+func Hello() string {
  	return "notok"
 }
 

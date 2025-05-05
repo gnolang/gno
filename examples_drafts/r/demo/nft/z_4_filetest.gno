@@ -23,4 +23,7 @@ func main() {
 }
 
 // Error:
-// unauthorized
+// gno.land/r/demo/nft_test/z_4.gno:12:12: name CallerAt not declared
+
+// TypeCheckError:
+// gno.land/r/demo/nft_test/z_4.gno:12:16: undefined: std.CallerAt

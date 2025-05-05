@@ -45,5 +45,5 @@ func main() {
 
 // Output:
 // s.A: 101
-// current realm:  {g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq gno.land/r/borrow_test}
-// previous realm:  {g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// current realm:  CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
+// previous realm:  UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

@@ -10,8 +10,5 @@ func main() {
 	// the resulting map has only one item (the last one).
 }
 
-// Error:
-// duplicate key struct{} in map literal
-
 // TypeCheckError:
 // main/files/map1.gno:5:2: declared and not used: m

@@ -1172,7 +1172,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
 
 	checkOverflow := func(v func() bool) {
-		if m.PreprocessorMode && !v() {
+		if m.Stage == StagePre && !v() {
 			panic(`constant overflows`)
 		}
 	}
@@ -1296,7 +1296,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
 
 	checkOverflow := func(v func() bool) {
-		if m.PreprocessorMode && !v() {
+		if m.Stage == StagePre && !v() {
 			panic(`constant overflows`)
 		}
 	}

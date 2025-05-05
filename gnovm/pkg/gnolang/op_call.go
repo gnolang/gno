@@ -144,22 +144,62 @@ func (m *Machine) doOpCallDeferNativeBody() {
 	fv.nativeBody(m)
 }
 
+// Used by return and panic operation handlers.
+// Must finalize for returns, and must abort for panics.
+func (m *Machine) isRealmBoundary(cfr *Frame) bool {
+	crlm := m.Realm
+	if crlm != nil {
+		prlm := cfr.LastRealm
+		if cfr.WithCross {
+			// Even if crlm == prlm, must finalize
+			// to preserve attachment rules.
+			return true
+		} else if crlm != prlm {
+			// .WithCross was already handled;
+			// This is for implicitly crossed
+			// borrow-realms, the storage realm
+			// of a method's receiver.
+			return true
+		} else if m.NumFrames() == 1 {
+			// We are exiting the machine's realm.
+			if m.Stage == StageAdd {
+				// Unless StageAdd, where functions are called
+				// during var decls. e.g.
+				// // in _test.gno
+				// var (
+				//   x = struct{}{}
+				//   alice = testutils.TestAddress("alice")
+				// )
+				// Since the package is real (created before
+				// RunFiles() w/ _test.gno files), x = 1 will
+				// pv.DidUpdate and mark pv.Block as dirty, and
+				// when returning from frame 1 TestAddress
+				// there will be an unexpected unreal object in
+				// pv.Block. RunFiles() will finalize manually
+				// after.
+				return false
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// Finalize realm updates if realm boundary.
+// NOTE: resource intensive
+func (m *Machine) maybeFinalize(cfr *Frame) {
+	if m.isRealmBoundary(cfr) {
+		m.Realm.FinalizeRealmTransaction(m.Store)
+	}
+}
+
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
-
-	// See if we are exiting a realm boundary.
-	crlm := m.Realm
-	if crlm != nil {
-		if cfr.DidCross {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
-	}
-
-	// Finalize
+	// Finalize if exiting realm boundary.
+	m.maybeFinalize(cfr)
+	// Reset to before frame.
 	m.PopFrameAndReturn()
 }
 
@@ -181,27 +221,9 @@ func (m *Machine) doOpReturnAfterCopy() {
 
 	// Unwind stack.
 	cfr = m.PopUntilLastCallFrame()
-
-	// See if we are exiting a realm boundary.
-	crlm := m.Realm
-	if crlm != nil {
-		lrlm := cfr.LastRealm
-		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
-			finalize = true
-		} else if crlm != lrlm {
-			// We are changing realms or exiting a realm.
-			finalize = true
-		}
-		if finalize {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
-	}
-
-	// Finalize
+	// Finalize if exiting realm boundary.
+	m.maybeFinalize(cfr)
+	// Reset to before frame.
 	m.PopFrameAndReturn()
 }
 
@@ -209,6 +231,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 // i.e. named result vars declared in func signatures,
 // because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
+
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	fv := cfr.Func
@@ -220,25 +243,10 @@ func (m *Machine) doOpReturnFromBlock() {
 		rtv := *fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValueFromBlock(rtv)
 	}
-	// See if we are exiting a realm boundary.
-	crlm := m.Realm
-	if crlm != nil {
-		lrlm := cfr.LastRealm
-		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
-			finalize = true
-		} else if crlm != lrlm {
-			// We are changing realms or exiting a realm.
-			finalize = true
-		}
-		if finalize {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
-	}
-	// finalize
+
+	// Finalize if exiting realm boundary.
+	m.maybeFinalize(cfr)
+	// Reset to before frame.
 	m.PopFrameAndReturn()
 }
 
@@ -268,6 +276,23 @@ func (m *Machine) doOpReturnCallDefers() {
 		// If still in panic state pop this frame so doOpPanic2() will
 		// try doOpReturnCallDefers() in the previous frame.
 		if m.Exception != nil {
+			// If crossing a realm boundary find the revive frame
+			// for transaction revival.
+			if m.isRealmBoundary(cfr) {
+				cfr := m.PopUntilLastReviveFrame()
+				if cfr == nil {
+					// or abort the transaction.
+					panic(m.makeUnhandledPanicError())
+				}
+				m.PopFrameAndReturn()
+				// assign exception as return of revive().
+				resx := m.PeekValue(1)
+				resx.Assign(m.Alloc, m.Exception.Value, false)
+				m.Exception = nil // reset
+				return
+			}
+			// Handle panic by calling OpReturnCallDefers on
+			// the next (last) call frame)
 			m.PopFrame()
 			m.PushOp(OpPanic2)
 		} else {
@@ -279,7 +304,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	if dfr.Func == nil {
-		m.Panic(typedString("defer called a nil function"))
+		m.pushPanic(typedString("defer called a nil function"))
 		return
 	}
 
@@ -426,41 +451,36 @@ func (m *Machine) doOpDefer() {
 			Func: nil,
 		})
 	default:
-		m.Panic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
+		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
 	m.PopValue() // pop func
 }
 
-// XXX DEPRECATED
-//
-//nolint:govet // unreachable code
-func (m *Machine) doOpPanic1() {
-	panic("doOpPanic1 is deprecated")
-	// Pop exception
-	var ex TypedValue = m.PopValue().Copy(m.Alloc)
-	// Panic
-	m.Panic(ex)
-	return
+// Build exception string just as go, separated by \n\t.
+// TODO: deprecate UnhandledPanicError and just use the Exception.
+// (use a field to mark transaction abort)
+func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
+	numExceptions := m.Exception.NumExceptions()
+	exs := make([]string, numExceptions)
+	last := m.Exception
+	for i := 0; i < numExceptions; i++ {
+		exs[numExceptions-1-i] = last.Sprint(m)
+		last = last.Previous
+	}
+	return UnhandledPanicError{
+		Descriptor: strings.Join(exs, "\n\t"),
+	}
 }
 
 func (m *Machine) doOpPanic2() {
 	if m.Exception == nil {
 		panic("should not happen")
 	}
-	last := m.PopUntilLastCallFrame()
-	if last == nil {
-		// Build exception string just as go, separated by \n\t.
-		numExceptions := m.Exception.NumExceptions()
-		exs := make([]string, numExceptions)
-		last := m.Exception
-		for i := 0; i < numExceptions; i++ {
-			exs[numExceptions-1-i] = last.Sprint(m)
-			last = last.Previous
-		}
-		panic(UnhandledPanicError{
-			Descriptor: strings.Join(exs, "\n\t"),
-		})
+	cfr := m.PopUntilLastCallFrame()
+	if cfr == nil {
+		// panic(m.makeUnhandledPanicError())
+		panic("should not happen")
 	}
 	m.PushOp(OpReturnCallDefers)
 }

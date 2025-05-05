@@ -15,8 +15,8 @@ import (
 var gid groups.GroupID
 
 func main() {
-	users.Register("gnouser123")
-	gid = groups.CreateGroup("test_group")
+	cross(users.Register)("gnouser123")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(gid)
 
 	// delete member via anon user
@@ -24,7 +24,7 @@ func main() {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
-	groups.DeleteMember(gid, 0)
+	cross(groups.DeleteMember)(gid, 0)
 	println(groups.Render(""))
 }
 

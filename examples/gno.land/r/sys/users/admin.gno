@@ -7,12 +7,12 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-const gusersv1 = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
+const gUsersV1Path = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
 
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	controllers.Add(std.DerivePkgAddr(gusersv1)) // initially whitelisted
+	controllers.Add(std.DerivePkgAddr(gUsersV1Path)) // initially whitelisted
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
@@ -51,7 +51,7 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.Propos
 
 func deleteFromwhitelist(addr std.Address) error {
 	if !controllers.Has(addr) {
-		return ErrNotWhitelisted
+		return NewErrNotWhitelisted()
 	}
 
 	if ok := controllers.Remove(addr); !ok {

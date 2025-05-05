@@ -137,7 +137,7 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		if xv.V == nil {
-			m.Panic(typedString("nil pointer dereference"))
+			m.pushPanic(typedString("nil pointer dereference"))
 			return
 		}
 
@@ -197,7 +197,7 @@ func (m *Machine) doOpTypeAssert1() {
 		if xt == nil || xv.IsNilInterface() {
 			// TODO: default panic type?
 			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
-			m.Panic(typedString(ex))
+			m.pushPanic(typedString(ex))
 			return
 		}
 
@@ -210,7 +210,7 @@ func (m *Machine) doOpTypeAssert1() {
 					"non-concrete %s doesn't implement %s",
 					xt.String(),
 					it.String())
-				m.Panic(typedString(ex))
+				m.pushPanic(typedString(ex))
 				return
 			}
 
@@ -224,7 +224,7 @@ func (m *Machine) doOpTypeAssert1() {
 					xt.String(),
 					it.String(),
 					err.Error())
-				m.Panic(typedString(ex))
+				m.pushPanic(typedString(ex))
 				return
 			}
 			// NOTE: consider ability to push an
@@ -236,7 +236,7 @@ func (m *Machine) doOpTypeAssert1() {
 	} else { // is concrete assert
 		if xt == nil {
 			ex := fmt.Sprintf("nil is not of type %s", t.String())
-			m.Panic(typedString(ex))
+			m.pushPanic(typedString(ex))
 			return
 		}
 
@@ -250,7 +250,7 @@ func (m *Machine) doOpTypeAssert1() {
 				"%s is not of type %s",
 				xt.String(),
 				t.String())
-			m.Panic(typedString(ex))
+			m.pushPanic(typedString(ex))
 			return
 		}
 		// keep cxt as is.

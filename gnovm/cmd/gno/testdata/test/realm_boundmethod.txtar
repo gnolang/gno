@@ -9,8 +9,8 @@ gno test -v ./examples/gno.land/r/demo/realm2
 stderr '=== RUN   TestDo'
 stderr '--- PASS: TestDo.*'
 
-stderr '=== RUN   file/realm2_filetest.gno'
-stderr '--- PASS: file/realm2_filetest.*'
+stderr '=== RUN   ./examples/gno.land/r/demo/realm2/realm2_filetest.gno'
+stderr '--- PASS: ./examples/gno.land/r/demo/realm2/realm2_filetest.*'
 
 -- examples/gno.land/p/demo/counter/gno.mod --
 module gno.land/p/demo/counter

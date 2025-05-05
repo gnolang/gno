@@ -7,23 +7,23 @@ import (
 
 func main() {
 	println(v1.GetString())
-	v1.Inc(10)
-	v1.Inc(100)
+	cross(v1.Inc)(10)
+	cross(v1.Inc)(100)
 	println(v1.GetString())
 
 	println(v2.GetString())
-	v2.Inc(1000)
-	v2.Inc(10000)
+	cross(v2.Inc)(1000)
+	cross(v2.Inc)(10000)
 	println(v2.GetString())
 
 	println(v1.GetString())
-	v1.Inc(10)
-	v1.Inc(100)
+	cross(v1.Inc)(10)
+	cross(v1.Inc)(100)
 	println(v1.GetString())
 
 	println(v2.GetString())
-	v2.Inc(1000)
-	v2.Inc(10000)
+	cross(v2.Inc)(1000)
+	cross(v2.Inc)(10000)
 	println(v2.GetString())
 
 	println("done")

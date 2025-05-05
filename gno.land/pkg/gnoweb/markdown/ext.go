@@ -31,37 +31,48 @@
 package markdown
 
 import (
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/parser"
 )
 
-var _ goldmark.Extender = (*gnoExtension)(nil)
+var _ goldmark.Extender = (*GnoExtension)(nil)
 
-// NewGnoParserContext creates a new parser context with GnoURL
-func NewGnoParserContext(url *weburl.GnoURL) parser.Context {
-	ctx := parser.NewContext()
-	ctx.Set(gUrlContextKey, *url)
-	return ctx
+type GnoExtension struct {
+	cfg *config
 }
 
-var gUrlContextKey = parser.NewContextKey()
+// Option
 
-// getUrlFromContext retrieves the GnoURL from the parser context
-func getUrlFromContext(ctx parser.Context) (url weburl.GnoURL, ok bool) {
-	url, ok = ctx.Get(gUrlContextKey).(weburl.GnoURL)
-	return
+type config struct {
+	imgValidatorFunc ImageValidatorFunc
 }
 
-type gnoExtension struct{}
+type Option func(cfg *config)
 
-var GnoExtension = &gnoExtension{}
+func WithImageValidator(valFunc ImageValidatorFunc) Option {
+	return func(cfg *config) {
+		cfg.imgValidatorFunc = valFunc
+	}
+}
+
+func NewGnoExtension(opts ...Option) *GnoExtension {
+	var cfg config
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	return &GnoExtension{&cfg}
+}
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
-func (e *gnoExtension) Extend(m goldmark.Markdown) {
+func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add column extension
-	Columns.Extend(m)
+	ExtColumns.Extend(m)
 
 	// Add link extension with context
-	Links.Extend(m)
+	ExtLinks.Extend(m)
+
+	// If set, setup images filter
+	if e.cfg.imgValidatorFunc != nil {
+		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
+	}
 }

@@ -11,5 +11,6 @@ func main() {
 
 // Output:
 // false
-// true
-// done
+
+// Error:
+// cannot directly modify readonly tainted object (w/o method): (const (ref(time) package{})).UTC

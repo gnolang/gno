@@ -29,9 +29,10 @@ type Frame struct {
 	LastPackage   *PackageValue // previous frame's package
 	LastRealm     *Realm        // previous frame's realm
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
-	DidCross      bool          // true if crossing() was called.
+	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls
 	IsDefer       bool          // was func defer called
+	IsRevive      bool          // calling revive()
 	LastException *Exception    // previous m.exception
 
 	// test info
@@ -52,7 +53,7 @@ func (fr Frame) String() string {
 			fr.LastPackage.PkgPath,
 			fr.LastRealm,
 			fr.WithCross,
-			fr.DidCross,
+			fr.DidCrossing,
 			fr.IsDefer,
 			fr.LastException,
 		)
@@ -91,11 +92,18 @@ func (fr *Frame) SetWithCross() {
 	fr.WithCross = true
 }
 
-func (fr *Frame) SetDidCross() {
-	if fr.DidCross {
-		panic("fr.DidCross already set")
+func (fr *Frame) SetDidCrossing() {
+	if fr.DidCrossing {
+		panic("fr.DidCrossing already set")
 	}
-	fr.DidCross = true
+	fr.DidCrossing = true
+}
+
+func (fr *Frame) SetIsRevive() {
+	if fr.IsRevive {
+		panic("fr.IsRevive already set")
+	}
+	fr.IsRevive = true
 }
 
 //----------------------------------------
@@ -117,6 +125,10 @@ type Stacktrace struct {
 	Calls           []StacktraceCall
 	NumFramesElided int
 	LastLine        int
+}
+
+func (s Stacktrace) IsZero() bool {
+	return s.Calls == nil && s.NumFramesElided == 0 && s.LastLine == 0
 }
 
 func (s Stacktrace) String() string {
@@ -223,7 +235,13 @@ func toConstExpTrace(cte *ConstExpr) string {
 		}
 	}
 
-	return tv.V.String()
+	if tv.IsTypedNil() {
+		return "typed-nil"
+	} else if tv.IsUndefined() {
+		return "undefined"
+	} else {
+		return tv.V.String()
+	}
 }
 
 //----------------------------------------

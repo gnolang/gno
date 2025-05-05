@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/diff"
+	"gno.land/p/demo/ufmt"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).
@@ -79,8 +80,65 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 	return true
 }
 
-// PanicsWithMessage asserts that the code inside the specified func panics,
-// and that the recovered panic value satisfies the given message
+// AbortsWithMessage asserts that the code inside the specified func aborts
+// (panics when crossing another realm).
+// Use PanicsWithMessage for asserting local panics within the same realm.
+// Note: This relies on gno's `revive` mechanism to catch aborts.
+func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
+	t.Helper()
+
+	var didAbort bool
+	var abortValue any
+
+	r := revive(f) // revive() captures the value passed to panic()
+	if r != nil {
+		didAbort = true
+		abortValue = r
+	}
+
+	if !didAbort {
+		// If the function didn't abort as expected
+		return fail(t, msgs, "func should abort")
+	}
+
+	// Check if the abort value matches the expected message string
+	abortStr := ufmt.Sprintf("%v", abortValue)
+	if abortStr != msg {
+		return fail(t, msgs, "func should abort with message:\t%q\n\tActual abort value:\t%q", msg, abortStr)
+	}
+
+	// Success: function aborted with the expected message
+	return true
+}
+
+// NotAborts asserts that the code inside the specified func does NOT abort
+// when crossing an execution boundary.
+// Note: Consider using NotPanics which checks for both panics and aborts.
+func NotAborts(t TestingT, f func(), msgs ...string) bool {
+	t.Helper()
+
+	var didAbort bool
+	var abortValue any
+
+	r := revive(f) // revive() captures the value passed to panic()
+	if r != nil {
+		didAbort = true
+		abortValue = r
+	}
+
+	if didAbort {
+		// Fail if the function aborted when it shouldn't have
+		// Attempt to format the abort value in the error message
+		return fail(t, msgs, "func should not abort\\n\\tAbort value:\\t%v", abortValue)
+	}
+
+	// Success: function did not abort
+	return true
+}
+
+// PanicsWithMessage asserts that the code inside the specified func panics
+// locally within the same execution realm.
+// Use AbortsWithMessage for asserting panics that cross execution boundaries (aborts).
 func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	t.Helper()
 
@@ -89,22 +147,59 @@ func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
 	}
 
-	if panicValue != msg {
-		return fail(t, msgs, "func should panic with message:\t%s\n\tPanic value:\t%s", msg, panicValue)
+	// Check if the abort value matches the expected message string
+	panicStr := ufmt.Sprintf("%v", panicValue)
+	if panicStr != msg {
+		return fail(t, msgs, "func should panic with message:\t%q\n\tActual panic value:\t%q", msg, panicStr)
 	}
 	return true
 }
 
-// NotPanics asserts that the code inside the specified func does NOT panic.
+// NotPanics asserts that the code inside the specified func does NOT panic
+// (within the same realm) or abort (due to a cross-realm panic).
 func NotPanics(t TestingT, f func(), msgs ...string) bool {
 	t.Helper()
 
-	didPanic, panicValue := checkDidPanic(f)
+	var panicVal any
+	var didPanic bool
+	var abortVal any
 
-	if didPanic {
-		return fail(t, msgs, "func should not panic\n\tPanic value:\t%s", panicValue)
+	// Use revive to catch cross-realm aborts
+	abortVal = revive(func() {
+		// Use defer+recover to catch same-realm panics
+		defer func() {
+			if r := recover(); r != nil {
+				didPanic = true
+				panicVal = r
+			}
+		}()
+		// Execute the function
+		f()
+	})
+
+	// Check if revive caught an abort
+	if abortVal != nil {
+		return fail(t, msgs, "func should not abort\n\tAbort value:\t%+v", abortVal)
 	}
-	return true
+
+	// Check if recover caught a panic
+	if didPanic {
+		// Format panic value for message
+		panicMsg := ""
+		if panicVal == nil {
+			panicMsg = "nil"
+		} else if err, ok := panicVal.(error); ok {
+			panicMsg = err.Error()
+		} else if str, ok := panicVal.(string); ok {
+			panicMsg = str
+		} else {
+			// Fallback for other types
+			panicMsg = "panic: unsupported type"
+		}
+		return fail(t, msgs, "func should not panic\n\tPanic value:\t%s", panicMsg)
+	}
+
+	return true // No panic or abort occurred
 }
 
 // Equal asserts that two objects are equal.
@@ -411,6 +506,7 @@ func isNumberEmpty(n any) (isNumber, isEmpty bool) {
 	}
 	return false, false
 }
+
 func Empty(t TestingT, obj any, msgs ...string) bool {
 	t.Helper()
 
@@ -458,6 +554,45 @@ func NotEmpty(t TestingT, obj any, msgs ...string) bool {
 		default:
 			return fail(t, msgs, "uassert.NotEmpty: unsupported type")
 		}
+	}
+	return true
+}
+
+// Nil asserts that the value is nil.
+func Nil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if value != nil {
+		return fail(t, msgs, "should be nil")
+	}
+	return true
+}
+
+// NotNil asserts that the value is not nil.
+func NotNil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if value == nil {
+		return fail(t, msgs, "should not be nil")
+	}
+	return true
+}
+
+// TypedNil asserts that the value is a typed-nil (nil pointer) value.
+func TypedNil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if value == nil {
+		return fail(t, msgs, "should be typed-nil but got nil instead")
+	}
+	if !istypednil(value) {
+		return fail(t, msgs, "should be typed-nil")
+	}
+	return true
+}
+
+// NotTypedNil asserts that the value is not a typed-nil (nil pointer) value.
+func NotTypedNil(t TestingT, value any, msgs ...string) bool {
+	t.Helper()
+	if istypednil(value) {
+		return fail(t, msgs, "should not be typed-nil")
 	}
 	return true
 }

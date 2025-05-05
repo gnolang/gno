@@ -18,7 +18,5 @@ func main() {
 }
 
 // Output:
-// (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-
-// Error:
-// frame not found
+// CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

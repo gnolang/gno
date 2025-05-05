@@ -9,4 +9,4 @@ func main() {
 }
 
 // Output:
-// (1 main.myint)
+// (1 main[main/files/fun9.gno:5:1].myint)
