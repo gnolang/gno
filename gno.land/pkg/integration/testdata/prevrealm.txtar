@@ -130,14 +130,10 @@ package bar
 import "std"
 
 func A() string {
-	crossing()
-
 	return std.PreviousRealm().Address().String()
 }
 
 func B() string {
-	crossing()
-
 	return cross(A)()
 }
 -- run/myrlmA.gno --
