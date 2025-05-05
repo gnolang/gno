@@ -15,10 +15,13 @@ var AllowedDAOs []string
 // proposals contains all the proposals in history.
 var proposals *Proposals = NewProposals()
 
+// Remember this realm for rendering.
+var realm = std.CurrentRealm()
+
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(p string) string {
-	return dao.Render(context(), p)
+	return dao.Render(realm.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
@@ -40,7 +43,7 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 func ExecuteProposal(pid ProposalID) bool {
 	crossing()
 
-	execute, err := dao.PreExecuteProposal(context(), pid)
+	execute, err := dao.PreExecuteProposal(pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -63,7 +66,7 @@ func ExecuteProposal(pid ProposalID) bool {
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	crossing()
 
-	author, err := dao.PreCreateProposal(context(), r)
+	author, err := dao.PreCreateProposal(r)
 	if err != nil {
 		return -1, err
 	}
@@ -77,7 +80,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-	dao.PostCreateProposal(context(), r, pid)
+	dao.PostCreateProposal(r, pid)
 
 	return pid, nil
 }
@@ -96,7 +99,7 @@ func MustVoteOnProposal(r VoteRequest) {
 func VoteOnProposal(r VoteRequest) error {
 	crossing()
 
-	return dao.VoteOnProposal(context(), r)
+	return dao.VoteOnProposal(r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
@@ -124,13 +127,13 @@ func MustGetProposal(pid ProposalID) *Proposal {
 func GetProposal(pid ProposalID) (*Proposal, error) {
 	crossing()
 
-	if err := dao.PreGetProposal(context(), pid); err != nil {
+	if err := dao.PreGetProposal(pid); err != nil {
 		return nil, err
 	}
 
 	prop := proposals.GetProposal(pid)
 
-	if err := dao.PostGetProposal(context(), pid, prop); err != nil {
+	if err := dao.PostGetProposal(pid, prop); err != nil {
 		return nil, err
 	}
 
@@ -163,8 +166,6 @@ func UpdateImpl(r UpdateRequest) {
 }
 
 func InAllowedDAOs(pkg string) bool {
-	crossing()
-
 	if len(AllowedDAOs) == 0 {
 		return true // corner case for initialization
 	}
@@ -174,11 +175,4 @@ func InAllowedDAOs(pkg string) bool {
 		}
 	}
 	return false
-}
-
-func context() *Context {
-	return &Context{
-		PrevRealm:    std.PreviousRealm(),
-		CurrentRealm: std.CurrentRealm(),
-	}
 }

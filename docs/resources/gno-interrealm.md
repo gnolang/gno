@@ -1,6 +1,26 @@
 # Interrealm Specification
 
-Gno extends Go's type system with a interrealm rules.  These rules can be
+## Introduction
+
+XXX short intro on realms.
+XXX comparison to kernel syscalls, but cross-user.
+XXX simple code example.
+
+## Realm Finalization
+
+A realm boundary is defined as a change in realm in the call frame stack
+from one realm to another, whether explicitly crossed with `cross(fn)()`
+or implictly borrow-crossed into a different receiver's storage realm.
+A realm may cross into itself with an explicit cross-call.
+
+When returning from a realm boundary, all new reachable objects are assigned
+object IDs and stored in the current realm, ref-count-zero objects deleted
+(full "disk-persistent cycle GC" will come after launch) and any modified
+ref-count and Merkle hash root computed. This is called realm finalization.
+
+## `cross(fn)()` and `crossing()`
+
+Gno extends Go's type system with interrealm rules. These rules can be
 checked during the static type-checking phase (but at the moment they are
 partially dependent on runtime checks).
 
@@ -24,13 +44,14 @@ A function declared in a realm package when called:
 
 The `crossing()` statement must be the first statement of a function's body.
 It is illegal to use anywhere else, and cannot be used in p packages. Functions
-that begin with the `crossing()` statement are called "crossing" functions".
+that begin with the `crossing()` statement are called "crossing functions".
 
 A crossing function declared in a realm different than the last explicitly
 crossed realm *must* be called like `cross(fn)(...)`. That is, functions of
 calls that result in explicit realm crossings must be wrapped with `cross()`.
 
-`std.CurrentRealm()` returns the current realm last explicitly crossed to.
+`std.CurrentRealm()` returns the current realm that was last explicitly crossed
+to.
 
 `std.PreviousRealm()` returns the realm explicitly crossed to before that.
 
@@ -54,12 +75,12 @@ else's pen it is still your signature; signature:pen :: current:borrowed.
 A crossing method declared in a realm cannot modify the receiver if the object
 resides in a different realm. However not all methods are required to be
 crossing methods, and crossing methods may still read the state of the
-receiver (and in general anything reacheable is readible).
+receiver (and in general anything reachable is readable).
 
 New unreal objects reachable from the borrowed realm (or current realm if there
 was no method call that borrowed) become persisted in the borrowed realm (or
 current realm) upon finalization of the foreign object's method (or function).
-(When you put an unlabeled photo in someone else's scrap book the photo now
+(When you put an unlabeled photo in someone else's scrapbook the photo now
 belongs to the other person). In the future we will introduce an `attach()`
 function to prevent a new unreal object from being taken.
 
@@ -68,11 +89,11 @@ MsgCall can only call (realm) crossing functions.
 MsgRun will run a file's `main()` function in the user's realm and may call 
 both crossing functions and non-crossing functions.
 
-A realm package's initialization (including init() calls) execute with current
+A realm package's initialization (including `init()` calls) execute with current
 realm of itself, and it `std.PreviousRealm()` will panic unless the call stack
 includes a crossing function called like `cross(fn)(...)`.
 
-### Justifications
+### `cross` and `crossing` Design Goals
 
 P package code should behave the same even when copied verbatim in a realm
 package.
@@ -100,20 +121,55 @@ implicit and generally not obvious without more language features.
 
 Code declared in p packages (or declared in "immutable" realm packages) can
 help different realms enforce contracts trustlessly, even those that involve
-the caller's current realm. Otherwise two mutable (upgreadeable) realms cannot
+the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
 export trust unto the chain because functions declared in those two realms can
 be upgraded.
 
 Both `crossing()` and `cross(fn)(...)` statements may become special syntax in
 future Gno versions.
 
-### Usage
+## `attach()`
 
-P package code cannot containing crossing functions, nor use crossing().  P
+## `panic()` and `revive(fn)`
+
+`panic()` behaves the same within the same realm boundary, but when a panic
+crosses a realm boundary (as defined in [Realm
+Finalization](#realm-finalization)) the Machine aborts the program. This is
+because in a multi-user environment it isn't safe to let the caller recover
+from realm panics that often leave the state in an invalid state.
+
+This would be sufficient, but we also want to write our tests to be able
+to detect such aborts and make assertions. For this reason Gno provides
+the `revive(fn)` builtin.
+
+```go
+abort := revive(func() {
+    cross(func() {
+        crossing()
+        panic("cross-realm panic")
+    })
+})
+abort == "cross-realm panic"
+```
+
+`revive(fn)` will execute 'fn' and return the exception that crossed
+a realm finalization boundary.
+
+This is only enabled in testing mode (for now), behavior is only partially
+implemented. In the future `revive(fn)` will be available for non-testing code,
+and the behavior will change such that `fn()` is run in transactional
+(cache-wrapped) memory context and any mutations discarded if and only if there
+was an abort.
+
+TL;DR: `revive(fn)` is Gno's builtin for STM (software transactional memory).
+
+## Application
+
+P package code cannot contain crossing functions, nor use `crossing()`. P
 package code also cannot import R realm packages. But code can call named
 crossing functions e.g. those passed in as parameters.
 
-You must declare a public realm function to be crossing() if it is intended to
+You must declare a public realm function to be `crossing()` if it is intended to
 be called by end users, because users cannot MsgCall non-crossing functions
 (for safety/consistency) or p package functions (there's no point).
 
@@ -121,13 +177,13 @@ Utility functions that are a common sequence of non-crossing logic can be
 offered in realm packages as non-crossing functions. These can also import and
 use other realm utility non-crossing functions; whereas p packages cannot
 import realm packages at all. And convenience/utility functions that are being
-staged before publishing as permanent p code should also reside in upgreadeable
+staged before publishing as permanent p code should also reside in upgradeable
 realms.
 
 Generally you want your methods to be non-crossing. Because they should work
 for everyone. They are functions that are pre-bound to an object, and that
-object is like a quasi-realm in itself, that could reside and migrate to other
-realms possibly. This is consistent with any p code copied over to r realms;
+object is like a quasi-realm in itself, that could possibly reside and migrate
+to other realms. This is consistent with any p code copied over to r realms;
 none of those methods would be crossing, and behavior would be the same; stored
 in any realm, mostly non-crossing methods that anyone can call. Why is a
 quasi-realm self-encapsulated Object in need to modify the realm in which it is
@@ -141,12 +197,12 @@ overrides for testing are defined in `testing/stdlibs/std/std.gno/go`. All
 stdlibs functions are available unless overridden by the latter.
 
 `std.CurrentRealm()` shifts to `std.PreviousRealm()` if and only if a function
-is called like cross(fn)(...).
+is called like `cross(fn)(...)`.
 
-#### MsgCall
+### MsgCall
 
 MsgCall may only call crossing functions. This is to prevent potential
-confusion of non-sophisticated users. Non-crossing calls of non-crossing
+confusion for non-sophisticated users. Non-crossing calls of non-crossing
 functions of other realms is still possible with MsgRun.
 
 ```go
@@ -180,7 +236,7 @@ func AnotherPublic() {
 }
 ```
 
-#### MsgRun
+### MsgRun
 
 ```go
 // PKGPATH: gno.land/r/g1user/run
@@ -212,7 +268,7 @@ func main() {
 }
 ```
 
-Notice in gnovm/pkg/gnolang/misc.go, the following:
+Notice in `gnovm/pkg/gnolang/misc.go`, the following:
 
 ```go
 // For keeping record of package & realm coins.
@@ -241,7 +297,7 @@ func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {
 ```
 
 These function names are distinct from what is available in Gno
-from stdlibs/std/crypto.gno:
+from `stdlibs/std/crypto.gno`:
 
 ```go
 // Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
@@ -255,16 +311,16 @@ func DerivePkgAddr(pkgPath string) Address {
 1. `std.DerivePkgAddr("gno.land/r/name123/realm")` - bech32 from hash(path)
 2. `std.DerivePkgAddr("gno.land/r/g1user/run")` - bech32 substring "g1user"
 
-Therefore in the MsgRun file's init() function the previous realm and current
+Therefore in the MsgRun file's `init()` function the previous realm and current
 realm have different pkgpaths (the origin caller always has empty pkgpath) but
 the address is the same.
 
-#### MsgAddPackage
+### MsgAddPackage
 
 During MsgAddPackage `std.PreviousRealm()` refers to the package deployer both
-in gloval var decls as well as inside `init()` functions. After that the
+in global var decls as well as inside `init()` functions. After that the
 package deployer is no longer provided, so packages need to remember the
-deployer in the initialization if needed.
+deployer in the initialization phase if needed.
 
 ```go
 // PKGPATH: gno.land/r/test/test
@@ -314,15 +370,15 @@ only times that `std.CurrentRealm()` will return a p package path that starts
 with "/p/" instead of "/r/". The package is technically still mutable during
 initialization.
 
-#### Testing overrides with stdlibs/testing
+### Testing overrides with stdlibs/testing
 
 The `gnovm/tests/stdlibs/testing/context_testing.gno` file provides functions
 for overriding frame details from Gno test code.
 
 `testing.SetRealm(std.NewUserRealm("g1user"))` is identical to
-`testing.SetOriginCaller("g1user"). Both will override the Gno frame to make it
+`testing.SetOriginCaller("g1user")`. Both will override the Gno frame to make it
 appear as if the current frame is the end user signing with a hardware signer.
-Both will also set ExecContext.OriginCaller to that user. One of these will
+Both will also set `ExecContext.OriginCaller` to that user. One of these will
 become deprecated.
 
 #### Gno test cases with `_test.gno` like `TestFoo(t *testing.T)`
@@ -419,11 +475,11 @@ func main() {
 // XXX
 ```
 
-#### Future Work
+## Future Work
 
-std.SetOriginCaller() should maybe be deprecated in favor of
-std.SetRealm(std.NewUserRealm(user)) renamed to
-std.SetRealm(std.NewOriginRealm(user)).
+`std.SetOriginCaller()` should maybe be deprecated in favor of
+`std.SetRealm(std.NewUserRealm(user))` renamed to
+`std.SetRealm(std.NewOriginRealm(user))`.
 
-std.SetRealm(std.NewCodeRealm(path)) renamed to
-std.SetRealm(std.NewPackageRealm(path)).
+`std.SetRealm(std.NewCodeRealm(path))` renamed to
+`std.SetRealm(std.NewPackageRealm(path))`.
