@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 	"gno.land/r/demo/tests"
 )
 
@@ -20,7 +21,7 @@ func TestAssertOriginCall(t *testing.T) {
 
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 	// CallAssertOriginCall() from a block: abort
-	r := revive(func() {
+	uassert.AbortsWithMessage(t, "invalid non-origin call", func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal block).
 		if cross(tests.CallIsOriginCall)() {
@@ -28,11 +29,8 @@ func TestAssertOriginCall(t *testing.T) {
 		}
 		cross(tests.CallAssertOriginCall)() // <---
 	})
-	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
-		t.Error("expected abort but did not")
-	}
 	// CallSubtestsAssertOriginCall(): abort
-	r = revive(func() {
+	uassert.AbortsWithMessage(t, "invalid non-origin call", func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal block).
 		if cross(tests.CallSubtestsIsOriginCall)() {
@@ -40,10 +38,6 @@ func TestAssertOriginCall(t *testing.T) {
 		}
 		cross(tests.CallSubtestsAssertOriginCall)()
 	})
-	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
-		t.Error("expected abort but did not")
-	}
-
 }
 
 func TestPreviousRealm(t *testing.T) {
