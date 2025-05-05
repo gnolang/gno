@@ -146,7 +146,13 @@ package counter
 import "strconv"
 
 var value int = 0
-func Inc(v int) { value += v } // method to increment value
+
+func Inc(v int) {  // method to increment value
+        crossing()
+
+        value += v
+}
+
 func Render(_ string) string { return strconv.Itoa(value) }
 `
 
@@ -168,7 +174,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	require.Equal(t, render, "0")
 
 	// Increment the counter 10 times
-	for i := 0; i < inc; i++ {
+	for i := range inc {
 		t.Logf("call %d", i)
 		// Craft `Inc` msg
 		msg := vm.MsgCall{
