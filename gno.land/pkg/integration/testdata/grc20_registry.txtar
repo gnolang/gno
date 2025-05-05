@@ -12,7 +12,7 @@ gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo2
 stdout 'not found'
 
 # add foo20, and foo20wrapper
-gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/foo20 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/foo20 -gas-fee 1000000ugnot -gas-wanted 11000000 -broadcast -chainid=tendermint_test test1
 gnokey maketx addpkg -pkgdir $WORK/foo20wrapper -pkgpath gno.land/r/foo20wrapper -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 # we call Transfer with foo20, after it's registered
@@ -47,7 +47,7 @@ func TransferByName(name string, to string, amount uint64) string {
 			continue
 		}
 
-		if std.CurrentRealm().Address().String() != pair.cb(std.Address(to), amount) {
+		if std.CurrentRealm().Address().String() != cross(pair.cb)(std.Address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 
@@ -73,6 +73,8 @@ package foo20
 import "std"
 
 func Transfer(to std.Address, amount uint64) string {
+  crossing()
+
 	println("transfer from=" + std.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
 	return std.PreviousRealm().Address().String()
 }
