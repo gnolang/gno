@@ -30,8 +30,8 @@ func main() {
 
 	// frozen thread - can't reply
 	cross(boards2.FreezeReply)(bid, tid, rid)
-	cross(boards2.CreateReply)(bid, tid, r2, "child 2")
+	cross(boards2.CreateReply)(bid, tid, rid, "child 2")
 }
 
 // Error:
-// reply is frozen
+// replying to a hidden or frozen reply is not allowed
