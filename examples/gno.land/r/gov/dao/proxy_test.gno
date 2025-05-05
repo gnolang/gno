@@ -28,7 +28,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(std.NewCodeRealm(invalid))
-	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
+	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
 		cross(UpdateImpl)(UpdateRequest{
 			DAO: &dummyDao{},
 		})
@@ -61,7 +61,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(std.NewCodeRealm(v3))
-	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
+	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
 		cross(UpdateImpl)(UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
@@ -93,7 +93,7 @@ func TestProxy_Functions(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm(v4))
 	urequire.Equal(
 		t,
-		"Render: test",
+		"Render: gno.land/r/gov/dao/test",
 		Render("test"),
 	)
 
