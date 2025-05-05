@@ -14,7 +14,7 @@ import (
 // Returns a markdown string representing the chart
 func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yAxisTitle string) string {
 	if len(values) == 0 {
-		return "No data to display"
+		return "no data to display"
 	}
 
 	maxVal := values[0]
@@ -37,7 +37,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		output += "## " + title + "\n"
 	}
 	
-	output += "```\n"
+	output += "\n```\n"
 
 	if yAxisTitle != "" {
 		output += yAxisTitle + "\n\n"
@@ -82,7 +82,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		output += "       " + padding + xAxisTitle + "\n"
 	}
 
-	output += "```"
+	output += "```\n"
 	return output
 }
 

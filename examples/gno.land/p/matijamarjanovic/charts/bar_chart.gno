@@ -13,7 +13,7 @@ import (
 // Returns a markdown string representing the chart
 func GenerateBarChart(values []float64, labels []string, maxWidth int, title string) string {
 	if len(values) == 0 || len(labels) == 0 || len(values) != len(labels) {
-		return "Invalid data for display"
+		return "invalid data for display"
 	}
 
 	maxVal := values[0]
@@ -29,7 +29,7 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 
 	scale := float64(maxWidth) / maxVal
 
-	output := ""
+	output := "\n"
 	if title != "" {
 		output += "## " + title + "\n"
 	}
@@ -46,6 +46,6 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 		output += "\n"
 	}
 
-	output += "```"
+	output += "```\n"
 	return output
 } 
