@@ -25,13 +25,11 @@ func Get() int {
 }
 
 func SetNextVersion(addr string) {
+	crossing()
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin.
-	caller := std.CallerAt(2)
-	if caller != std.OriginCaller() {
-		panic("should not happen") // because std.AssertOriginCall().
-	}
+	caller := std.PreviousRealm().Address()
 	if caller != admin {
 		panic("unauthorized")
 	}
