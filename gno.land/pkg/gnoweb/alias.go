@@ -20,6 +20,7 @@ var Aliases = map[string]string{
 	"/license":    "/r/gnoland/pages:p/license",
 	"/contribute": "/r/gnoland/pages:p/contribute",
 	"/events":     "/r/gnoland/events",
+	"/candace":    "/r/gnoland/blog:p/gnoland-the-first-logoverse",
 }
 
 // Redirect are gnoweb paths that are redirected using [AliasAndRedirectMiddleware].
