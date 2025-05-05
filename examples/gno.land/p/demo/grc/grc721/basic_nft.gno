@@ -32,12 +32,12 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 	}
 }
 
-func (s *basicNFT) Name() string       { return s.name }
-func (s *basicNFT) Symbol() string     { return s.symbol }
-func (s *basicNFT) TokenCount() uint64 { return uint64(s.owners.Size()) }
+func (s *basicNFT) Name() string      { return s.name }
+func (s *basicNFT) Symbol() string    { return s.symbol }
+func (s *basicNFT) TokenCount() int64 { return int64(s.owners.Size()) }
 
 // BalanceOf returns balance of input address
-func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
+func (s *basicNFT) BalanceOf(addr std.Address) (int64, error) {
 	if err := isValidAddress(addr); err != nil {
 		return 0, err
 	}
@@ -47,7 +47,7 @@ func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
 		return 0, nil
 	}
 
-	return balance.(uint64), nil
+	return balance.(int64), nil
 }
 
 // OwnerOf returns owner of input token id
@@ -375,11 +375,11 @@ func (s *basicNFT) exists(tid TokenID) bool {
 	return found
 }
 
-func (s *basicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *basicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
-func (s *basicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *basicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
