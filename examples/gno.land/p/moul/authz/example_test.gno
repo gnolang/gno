@@ -7,7 +7,7 @@ import (
 // Example_basic demonstrates initializing and using a basic member authority
 func Example_basic() {
 	// Initialize with contract deployer as authority
-	auth := New()
+	auth := NewWithOrigin()
 
 	// Use the authority to perform a privileged action
 	auth.Do("update_config", func() error {
@@ -19,7 +19,7 @@ func Example_basic() {
 // Example_addingMembers demonstrates how to add new members to a member authority
 func Example_addingMembers() {
 	// Initialize with contract deployer as authority
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Add a new member to the authority
 	memberAuth := auth.Current().(*MemberAuthority)
@@ -72,7 +72,7 @@ func Example_restrictedContractAuthority() {
 // Example_switchingAuthority demonstrates switching from member to contract authority
 func Example_switchingAuthority() {
 	// Start with member authority (deployer)
-	auth := New()
+	auth := NewWithCurrent()
 
 	// Create and switch to contract authority
 	daoAuthority := NewContractAuthority(
