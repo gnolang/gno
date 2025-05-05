@@ -414,11 +414,11 @@ func (sv StringValue) GetShallowSize() int64 {
 	return allocString + allocStringByte*int64(len(sv))
 }
 
-func (bv BigintValue) GetShallowSize() int64 {
+func (biv BigintValue) GetShallowSize() int64 {
 	return allocBigint
 }
 
-func (bv BigdecValue) GetShallowSize() int64 {
+func (bdv BigdecValue) GetShallowSize() int64 {
 	return allocBigdec
 }
 

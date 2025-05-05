@@ -51,15 +51,15 @@ func (m *Machine) doOpUneg() {
 	case Float64Type:
 		xv.SetFloat64(softfloat.Fneg64(xv.GetFloat64()))
 	case UntypedBigintType:
-		bv := xv.V.(BigintValue)
-		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
+		biv := xv.V.(BigintValue)
+		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
 	case UntypedBigdecType:
-		bv := xv.V.(BigdecValue)
-		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bv.V)}
+		bdv := xv.V.(BigdecValue)
+		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bdv.V)}
 	case nil:
 		// NOTE: for now only BigintValue is possible.
-		bv := xv.V.(BigintValue)
-		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
+		biv := xv.V.(BigintValue)
+		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))
