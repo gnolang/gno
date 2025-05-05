@@ -21,7 +21,9 @@ type instance struct {
 }
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
-	caller := std.OriginCaller()
+	crossing()
+
+	caller := std.PreviousRealm().Address()
 	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
@@ -138,7 +140,7 @@ func DropInstanceOwnership(symbol string) {
 	crossing()
 
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.DropOwnership())
+	checkErr(inst.admin.DropOwnershipByCurrent())
 }
 
 func TransferInstanceOwnership(symbol string, newOwner std.Address) {
