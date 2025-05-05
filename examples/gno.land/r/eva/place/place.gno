@@ -27,7 +27,7 @@ type Register struct {
 const (
 	memberRank = 0
 	adminRank  = 1
-	timeRefill = 15
+	timeRefill = 15 // temporary
 )
 
 var (
@@ -78,6 +78,11 @@ func init() {
 }
 
 func RegisterMember() {
+	_, ok := retrieveMember(std.OriginCaller())
+	if ok {
+		panic("User already registered")
+	}
+
 	newMember := User{
 		Address: std.OriginCaller(),
 		Rank:    memberRank,
@@ -140,6 +145,11 @@ func refillTime(address std.Address) {
 }
 
 func Submit(x, y uint64) {
+	_, ok := retrieveMember(std.OriginCaller())
+	if !ok {
+		panic("User must be registered to submit a pixel")
+	}
+
 	table[y][x] = "**O**"
 }
 
@@ -177,7 +187,8 @@ func Render(path string) string {
 	}
 	out += md.HorizontalRule() + "\n\n"
 
-	out += "## " + md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr)) + "\n\n"
+	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr)) + " or " +
+		md.Link("Register", txlink.Call("RegisterMember")) + "\n\n")
 
 	svg := GenerateSVG()
 	base64SVG := base64.StdEncoding.EncodeToString([]byte(svg))
