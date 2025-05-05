@@ -139,6 +139,52 @@ func TestAuthorizerTransferChain(t *testing.T) {
 	uassert.True(t, auth.Authority() == autoAuth, "expected auto-accept authority")
 }
 
+func TestAuthorizerTransferVulnerability(t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	attacker := testutils.TestAddress("attacker")
+
+	// Setup: Authorizer controlled by 'admin'
+	testing.SetRealm(std.NewUserRealm(admin))
+	auth := NewWithCurrent() // 'admin' is the initial authority
+
+	// Check initial state
+	initialAuth, ok := auth.Authority().(*MemberAuthority)
+	uassert.True(t, ok)
+	uassert.True(t, initialAuth.Has(admin))
+	uassert.False(t, initialAuth.Has(attacker))
+
+	// Simulate attacker's context
+	testing.SetRealm(std.NewUserRealm(attacker))
+
+	// Vulnerability: Attacker calls Transfer, providing 'admin' as the 'caller'
+	// argument, even though the actual caller is 'attacker'.
+	attackerAuth := NewMemberAuthority(attacker)
+	err := auth.Transfer(admin, attackerAuth) // Vulnerability point
+
+	// Assertions:
+	// 1. Transfer should succeed if vulnerability exists (checks only provided 'caller').
+	//    NOTE: If this test FAILS, the vulnerability is likely fixed!
+	uassert.NoError(t, err, "transfer should succeed due to vulnerability")
+
+	// 2. Authority should now be the attacker's.
+	finalAuth, ok := auth.Authority().(*MemberAuthority)
+	uassert.True(t, ok)
+	uassert.True(t, finalAuth == attackerAuth)
+
+	// 3. Attacker should be the sole member.
+	uassert.True(t, finalAuth.Has(attacker))
+	uassert.False(t, finalAuth.Has(admin))
+
+	// Verify attacker can now perform actions
+	actionExecuted := false
+	err = auth.DoByCurrent("attacker_action", func() error {
+		actionExecuted = true
+		return nil
+	})
+	uassert.NoError(t, err)
+	uassert.True(t, actionExecuted)
+}
+
 func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	testing.SetRealm(std.NewUserRealm(alice))
