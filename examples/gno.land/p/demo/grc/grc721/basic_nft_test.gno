@@ -113,6 +113,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	caller := std.CurrentRealm().Address()
+	testing.SetOriginCaller(caller)
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	// Test setting approval to true
