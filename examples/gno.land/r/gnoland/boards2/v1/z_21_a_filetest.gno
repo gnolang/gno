@@ -10,11 +10,9 @@ import (
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
-func init() {
-	testing.SetOriginCaller(owner)
-}
-
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.SetRealmNotice)("This is a test realm message")
 
 	// Render content must contain the message

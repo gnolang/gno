@@ -14,12 +14,13 @@ var bid boards2.BoardID
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test123")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.FreezeBoard)(bid)
+
 	println(boards2.IsBoardFrozen(bid))
 }
 

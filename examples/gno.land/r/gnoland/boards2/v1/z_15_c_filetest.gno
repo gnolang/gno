@@ -24,11 +24,11 @@ func init() {
 	dstBID = cross(boards2.CreateBoard)("dst-board")
 
 	srcTID = cross(boards2.CreateThread)(srcBID, "Foo", "bar")
-
-	testing.SetOriginCaller(user)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(user))
+
 	cross(boards2.CreateRepost)(srcBID, srcTID, "foo", "bar", dstBID)
 }
 

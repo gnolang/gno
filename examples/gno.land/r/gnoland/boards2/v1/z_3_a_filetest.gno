@@ -18,11 +18,11 @@ var bid boards2.BoardID // Operate on board DAO
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)(name)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.RenameBoard)(name, newName)
 
 	// Ensure board is renamed by the default board owner

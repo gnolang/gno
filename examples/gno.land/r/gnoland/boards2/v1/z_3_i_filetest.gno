@@ -32,11 +32,11 @@ func init() {
 
 	// Invite a new member that doesn't own the user that matches the new board name
 	cross(boards2.InviteMember)(bid, member2, boards2.RoleOwner)
-
-	testing.SetOriginCaller(member2)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(member2))
+
 	cross(boards2.RenameBoard)(name, newName)
 }
 

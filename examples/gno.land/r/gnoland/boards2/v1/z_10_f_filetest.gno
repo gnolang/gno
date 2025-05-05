@@ -24,11 +24,11 @@ func init() {
 
 	// Invite a member using a role with permission to flag threads
 	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)
-
-	testing.SetOriginCaller(moderator)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(moderator))
+
 	cross(boards2.FlagThread)(bid, pid, "")
 
 	// Ensure that original thread content not visible

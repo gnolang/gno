@@ -28,11 +28,11 @@ func init() {
 
 	// Create a third board to try reposting the repost
 	dstBID = cross(boards2.CreateBoard)("destination-board")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.CreateRepost)(srcBID, srcTID, "repost title", "repost text", dstBID)
 }
 

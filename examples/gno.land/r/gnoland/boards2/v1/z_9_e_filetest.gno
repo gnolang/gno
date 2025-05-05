@@ -24,11 +24,11 @@ func init() {
 
 	// Invite a member using a role with permission to delete threads
 	cross(boards2.InviteMember)(bid, member, boards2.RoleAdmin)
-
-	testing.SetOriginCaller(member)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(member))
+
 	cross(boards2.DeleteThread)(bid, pid)
 
 	// Ensure thread doesn't exist

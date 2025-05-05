@@ -22,12 +22,12 @@ func init() {
 	bid = cross(boards2.CreateBoard)("test-board")
 	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
 	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
-
-	// Call using a user that has not permission to delete replies
-	testing.SetOriginCaller(user)
 }
 
 func main() {
+	// Call using a user that has not permission to delete replies
+	testing.SetRealm(std.NewUserRealm(user))
+
 	cross(boards2.DeleteReply)(bid, tid, rid)
 }
 

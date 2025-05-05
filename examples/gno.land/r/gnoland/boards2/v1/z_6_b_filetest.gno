@@ -14,11 +14,9 @@ const (
 	role  = boards2.RoleGuest
 )
 
-func init() {
-	testing.SetOriginCaller(owner)
-}
-
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	println(boards2.HasMemberRole(bid, user, role))
 	println(boards2.IsMember(bid, user))
 }

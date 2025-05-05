@@ -20,11 +20,11 @@ func init() {
 	bid = cross(boards2.CreateBoard)("test123")
 
 	cross(boards2.InviteMember)(bid, member, role)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	println(boards2.HasMemberRole(bid, member, role))
 	println(boards2.HasMemberRole(bid, member, "invalid"))
 	println(boards2.IsMember(bid, member))

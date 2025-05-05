@@ -22,11 +22,11 @@ func init() {
 	rid = cross(boards2.CreateReply)(bid, tid, 0, "reply")
 
 	cross(boards2.FreezeReply)(bid, tid, rid)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	// Attempt to freeze already frozen reply
 	cross(boards2.FreezeReply)(bid, tid, rid)
 }

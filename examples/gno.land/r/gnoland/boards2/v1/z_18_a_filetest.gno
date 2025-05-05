@@ -19,11 +19,11 @@ var perms boards2.Permissions
 func init() {
 	// Create a new permissions instance without users
 	perms = boards2.NewDefaultPermissions(commondao.New())
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.SetPermissions)(bid, perms)
 
 	// Owner that setted new permissions is not a member of the new permissions

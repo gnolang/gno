@@ -25,11 +25,11 @@ func init() {
 
 	// Invite a member using a role with permission to delete replies
 	cross(boards2.InviteMember)(bid, member, boards2.RoleAdmin)
-
-	testing.SetOriginCaller(member)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(member))
+
 	cross(boards2.DeleteReply)(bid, tid, rid)
 
 	// Ensure reply doesn't exist

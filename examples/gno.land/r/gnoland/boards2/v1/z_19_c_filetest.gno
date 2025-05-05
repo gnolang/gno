@@ -18,12 +18,13 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test123")
 	tid = cross(boards2.CreateThread)(bid, "foo", "bar")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.FreezeThread)(bid, tid)
+
 	println(boards2.IsThreadFrozen(bid, tid))
 }
 

@@ -18,11 +18,11 @@ func init() {
 	bid = cross(boards2.CreateBoard)("foo123")
 	cross(boards2.InviteMember)(bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", boards2.RoleOwner)
 	cross(boards2.InviteMember)(bid, "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", boards2.RoleAdmin)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	boards2.IterateBoards(0, func(b boards2.ReadonlyBoard) bool {
 		println(b.ID().String())
 		println(b.Name())

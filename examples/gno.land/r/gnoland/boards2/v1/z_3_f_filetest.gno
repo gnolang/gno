@@ -29,11 +29,11 @@ func init() {
 	// so a new member must register a user with the new board name.
 	testing.SetRealm(std.NewUserRealm(member))
 	cross(users.Register)(newName)
-
-	testing.SetOriginCaller(member)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(member))
+
 	cross(boards2.RenameBoard)(name, newName)
 
 	// Ensure board is renamed by another board owner

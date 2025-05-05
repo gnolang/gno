@@ -22,11 +22,11 @@ func init() {
 
 	srcTID = cross(boards2.CreateThread)(srcBID, "Foo", "bar")
 	cross(boards2.FlagThread)(srcBID, srcTID, "idk")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	// Repost should fail if source thread is flagged
 	cross(boards2.CreateRepost)(srcBID, srcTID, "foo", "bar", dstBID)
 }

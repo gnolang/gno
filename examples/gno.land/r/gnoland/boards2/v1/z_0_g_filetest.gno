@@ -12,11 +12,9 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 var name = strings.Repeat("X", boards2.MaxBoardNameLength+1)
 
-func init() {
-	testing.SetOriginCaller(owner)
-}
-
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.CreateBoard)(name)
 }
 

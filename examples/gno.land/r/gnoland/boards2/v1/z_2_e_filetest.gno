@@ -21,11 +21,11 @@ func init() {
 
 	// Hide thread by flagging it so reply can't be submitted
 	cross(boards2.FlagThread)(bid, tid, "reason")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.CreateReply)(bid, tid, 0, "Test reply")
 }
 

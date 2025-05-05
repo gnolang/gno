@@ -24,11 +24,11 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test-board")
 	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.EditThread)(bid, pid, title, body)
 
 	// Render content must contains thread's title and body

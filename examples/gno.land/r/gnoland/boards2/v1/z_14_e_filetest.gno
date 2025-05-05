@@ -22,11 +22,11 @@ func init() {
 
 	rid = cross(boards2.CreateReply)(bid, tid, 0, "Parent")
 	cross(boards2.CreateReply)(bid, tid, rid, "Child reply")
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.DeleteReply)(bid, tid, rid)
 
 	// Render content must contain the releted message instead of reply's body

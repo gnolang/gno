@@ -21,12 +21,12 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test-board")
 	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-
-	// Make the next call as an uninvited user
-	testing.SetOriginCaller(user)
 }
 
 func main() {
+	// Make the next call as an uninvited user
+	testing.SetRealm(std.NewUserRealm(user))
+
 	cross(boards2.FlagThread)(bid, pid, "")
 }
 

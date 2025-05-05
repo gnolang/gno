@@ -17,11 +17,11 @@ const (
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(boards2.InviteMember)(bid, member, boards2.RoleAdmin)
-
-	testing.SetOriginCaller(owner)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(boards2.ChangeMemberRole)(bid, member, newRole) // Owner can promote other members to Owner
 
 	// Ensure that new role has been changed to owner

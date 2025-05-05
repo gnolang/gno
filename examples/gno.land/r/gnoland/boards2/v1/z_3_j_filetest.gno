@@ -16,11 +16,11 @@ const (
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(boards2.CreateBoard)(name)
-
-	testing.SetOriginCaller(user)
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(user))
+
 	cross(boards2.RenameBoard)(name, "barbaz")
 }
 
