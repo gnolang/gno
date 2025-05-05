@@ -6,6 +6,7 @@ var Ownable = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
 
 // ResetPosts allows admin deletion of the posts
 func ResetPosts() {
+	crossing()
 	Ownable.AssertOwnedByPrevious()
 	posts = nil
 }

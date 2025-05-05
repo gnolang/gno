@@ -971,6 +971,10 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	return
 }
 
+func (x *bodyStmt) LastStmt() Stmt {
+	return x.Body[x.NextBodyIndex-1]
+}
+
 func (x *bodyStmt) String() string {
 	next := ""
 	if x.NextBodyIndex < 0 {
@@ -1440,7 +1444,7 @@ func (x *PackageNode) NewPackage() *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
-	if IsRealmPath(x.PkgPath) {
+	if IsRealmPath(x.PkgPath) || x.PkgPath == "main" {
 		rlm := NewRealm(x.PkgPath)
 		pv.SetRealm(rlm)
 	}
