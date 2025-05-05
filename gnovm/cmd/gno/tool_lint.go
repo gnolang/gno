@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
@@ -270,6 +271,7 @@ func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (
 		if r == nil {
 			return
 		}
+		debug.PrintStack()
 		hasError = true
 		switch verr := r.(type) {
 		case *gno.PreprocessError:

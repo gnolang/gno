@@ -3520,7 +3520,6 @@ func findGotoLabel(last BlockNode, label Name) (
 		case *IfCaseStmt, *SelectCaseStmt, *BlockStmt:
 			body := cbn.GetBody()
 			_, bodyIdx = body.GetLabeledStmt(label)
-			// fmt.Println("---bodyIdx: ", bodyIdx)
 			if bodyIdx != -1 {
 				bn = cbn
 				return
