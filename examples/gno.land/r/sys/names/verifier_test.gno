@@ -15,7 +15,6 @@ import (
 var alice = testutils.TestAddress("alice")
 
 func TestDefaultVerifier(t *testing.T) {
-	return
 	// Check disabled, any case is true
 	uassert.True(t, verifier(false, alice, alice.String()))
 	uassert.True(t, verifier(false, "", alice.String()))
