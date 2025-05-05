@@ -162,6 +162,23 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 			return true
 		} else if m.NumFrames() == 1 {
 			// We are exiting the machine's realm.
+			if m.Stage == StageAdd {
+				// Unless StageAdd, where functions are called
+				// during var decls. e.g.
+				// // in _test.gno
+				// var (
+				//   x = struct{}{}
+				//   alice = testutils.TestAddress("alice")
+				// )
+				// Since the package is real (created before
+				// RunFiles() w/ _test.gno files), x = 1 will
+				// pv.DidUpdate and mark pv.Block as dirty, and
+				// when returning from frame 1 TestAddress
+				// there will be an unexpected unreal object in
+				// pv.Block. RunFiles() will finalize manually
+				// after.
+				return false
+			}
 			return true
 		}
 	}
