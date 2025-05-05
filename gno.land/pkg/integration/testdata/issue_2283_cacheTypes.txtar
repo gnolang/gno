@@ -194,10 +194,11 @@ var (
 // Top-level functions
 
 func Register(inviter std.Address, name string, profile string) {
+	crossing()
     // assert CallTx call.
     std.AssertOriginCall()
     // assert invited or paid.
-    caller := std.CallerAt(2)
+    caller := std.PreviousRealm().Address()
     if caller != std.OriginCaller() {
        panic("should not happen") // because std.AssertOrigCall().
     }
@@ -278,10 +279,11 @@ func Register(inviter std.Address, name string, profile string) {
 }
 
 func Invite(invitee string) {
+	crossing()
     // assert CallTx call.
     std.AssertOriginCall()
     // get caller/inviter.
-    caller := std.CallerAt(2)
+    caller := std.PreviousRealm().Address()
     if caller != std.OriginCaller() {
        panic("should not happen") // because std.AssertOrigCall().
     }
@@ -317,10 +319,11 @@ func Invite(invitee string) {
 }
 
 func GrantInvites(invites string) {
+	crossing()
     // assert CallTx call.
     std.AssertOriginCall()
     // assert admin.
-    caller := std.CallerAt(2)
+    caller := std.PreviousRealm().Address()
     if caller != std.OriginCaller() {
        panic("should not happen") // because std.AssertOrigCall().
     }
@@ -368,10 +371,11 @@ func GrantInvites(invites string) {
 
 // Any leftover fees go toward invitations.
 func SetMinFee(newMinFee int64) {
+	crossing()
     // assert CallTx call.
     std.AssertOriginCall()
     // assert admin caller.
-    caller := std.CallerAt(2)
+    caller := std.PreviousRealm().Address()
     if caller != admin {
        panic("unauthorized")
     }
@@ -381,10 +385,11 @@ func SetMinFee(newMinFee int64) {
 
 // This helps prevent fat finger accidents.
 func SetMaxFeeMultiple(newMaxFeeMult int64) {
+	crossing()
     // assert CallTx call.
     std.AssertOriginCall()
     // assert admin caller.
-    caller := std.CallerAt(2)
+    caller := std.PreviousRealm().Address()
     if caller != admin {
        panic("unauthorized")
     }
