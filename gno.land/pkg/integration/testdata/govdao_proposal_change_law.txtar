@@ -10,15 +10,14 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args '' -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # add the proposal
 gnokey maketx addpkg -pkgdir $WORK/proposer -pkgpath gno.land/r/gov/dao/v3/proposer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # call gov/dao render to check everything the proposal was created
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args '0' -broadcast -chainid=tendermint_test test1
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout '- Supermajority: 50%'
 stdout OK!
 
@@ -61,7 +60,7 @@ func init() {
 
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
 
-	dao.UpdateImpl(dao.UpdateRequest{
+	cross(dao.UpdateImpl)(dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
