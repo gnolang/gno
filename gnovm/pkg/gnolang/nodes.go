@@ -972,6 +972,10 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	return
 }
 
+func (x *bodyStmt) LastStmt() Stmt {
+	return x.Body[x.NextBodyIndex-1]
+}
+
 func (x *bodyStmt) String() string {
 	next := ""
 	if x.NextBodyIndex < 0 {
@@ -1441,7 +1445,7 @@ func (x *PackageNode) NewPackage() *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
-	if IsRealmPath(x.PkgPath) {
+	if IsRealmPath(x.PkgPath) || x.PkgPath == "main" {
 		rlm := NewRealm(x.PkgPath)
 		pv.SetRealm(rlm)
 	}
@@ -1457,11 +1461,6 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
-	if pv.PkgPath == "" {
-		// nothing to prepare for throwaway packages.
-		// TODO: double check to see if still relevant.
-		return nil
-	}
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != x {
@@ -1749,6 +1748,7 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
+// Slow, for precompile only.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if n == blankIdentifier {
 		return NewValuePathBlock(0, 0, blankIdentifier)
@@ -1769,26 +1769,26 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Check ancestors.
 	gen++
-	faux := 0
-	sn = sn.GetParentNode(store)
-	if fauxBlockNode(sn) {
-		faux++
+	fauxChild := 0
+	if fauxChildBlockNode(sn) {
+		fauxChild++
 	}
+	sn = sn.GetParentNode(store)
 	for sn != nil {
 		if idx, ok := sn.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen-faux), idx, n)
+			if 0xff < (gen - fauxChild) {
+				panic("value path depth overflow")
+			}
+			return NewValuePathBlock(uint8(gen-fauxChild), idx, n)
 		} else {
 			if !isFile(sn) {
 				sn.GetStaticBlock().addExternName(n)
 			}
 			gen++
+			if fauxChildBlockNode(sn) {
+				fauxChild++
+			}
 			sn = sn.GetParentNode(store)
-			if fauxBlockNode(sn) {
-				faux++
-			}
-			if 0xff < gen {
-				panic("value path depth overflow")
-			}
 		}
 	}
 	// Finally, check uverse.
@@ -1800,6 +1800,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 }
 
 // Get the containing block node for node with path relative to this containing block.
+// Slow, for precompile only.
 func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
 	if path.Type != VPBlock {
 		panic("expected block type value path but got " + path.Type.String())
@@ -1808,13 +1809,13 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 	// NOTE: path.Depth == 1 means it's in bn.
 	bn := sb.GetSource(store)
 	for i := 1; i < int(path.Depth); i++ {
-		bn = bn.GetParentNode(store)
-		if fauxBlockNode(bn) {
+		if fauxChildBlockNode(bn) {
 			bn = bn.GetParentNode(store)
 		}
+		bn = bn.GetParentNode(store)
 	}
 
-	// If bn is a faux block node, check also its parent.
+	// If bn is a faux child block node, check also its faux parent.
 	switch bn := bn.(type) {
 	case *IfCaseStmt, *SwitchClauseStmt:
 		pn := bn.GetParentNode(store)

@@ -6,7 +6,7 @@
 gno test -update-golden-tests -v .
 
 ! stdout .+
-stderr '=== RUN   file/x_filetest.gno'
+stderr '=== RUN   ./x_filetest.gno'
 
 cmp x_filetest.gno x_filetest.gno.golden
 

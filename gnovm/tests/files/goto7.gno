@@ -2,25 +2,22 @@ package main
 
 import "fmt"
 
-func theError() {
-	for i := 0; i < 10; i++ {
-		switch {
-		case i%2 == 0:
-			fmt.Println(i, "even")
-		default:
-			goto byebye
+func main() {
+	counter := 0
+	for {
+	LABEL:
+		if true {
+			if counter == 3 {
+				break
+			}
+			counter++
+			fmt.Println("true")
+			goto LABEL
 		}
-		continue
-	byebye:
-		fmt.Println("does break")
-		break
 	}
 }
 
-func main() {
-	theError()
-}
-
 // Output:
-// 0 even
-// does break
+// true
+// true
+// true
