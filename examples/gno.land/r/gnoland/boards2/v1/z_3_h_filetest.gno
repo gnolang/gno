@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"strings"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -12,7 +13,11 @@ const (
 	name  = "foo123"
 )
 
+var newName string
+
 func init() {
+	newName = strings.Repeat("A", boards2.MaxBoardNameLength+1)
+
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(boards2.CreateBoard)(name)
 }
@@ -20,8 +25,8 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.RenameBoard)(name, "short")
+	cross(boards2.RenameBoard)(name, newName)
 }
 
 // Error:
-// the minimum allowed board name length is 6 characters
+// board name is too long, maximum allowed is 50 characters
