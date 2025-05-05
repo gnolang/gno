@@ -1,4 +1,0 @@
-Remote links that need checking:
->>> https://github.com/gnolang/gno/blob/master/tests/files2/zrealm_nft3.gno (found in file: ../../../../examples_drafts/r/demo/nft/README.md)
->>> https://gno.land/r/demo/nft/nft.go (found in file: ../../../../examples_drafts/r/demo/nft/README.md)
-
