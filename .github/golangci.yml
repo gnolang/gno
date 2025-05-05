@@ -90,8 +90,4 @@ issues:
       linters:
         - errorlint # Disabled linting of error comparisons, because of lacking std lib support
     - path: gnovm/pkg/gnolang
-      text: "string `cross` has (\\d+) occurrences, make it a constant"
-    - path: gnovm/pkg/gnolang
-      text: "string `.no realm.` has (\\d+) occurrences, make it a constant"
-    - path: gnovm/pkg/gnolang
-      text: "string `crossing` has (\\d+) occurrences, make it a constant"
+      text: "string `(cross|.no realm.|crossing)` has (\\d+) occurrences, make it a constant"
