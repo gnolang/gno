@@ -3,9 +3,52 @@ package commondao
 import (
 	"std"
 	"strings"
+	"time"
 
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/commondao"
 )
+
+// CreateTextProposal creates a new general text proposal.
+//
+// Parameters:
+// - daoID: ID of the root DAO (required)
+// - title: Title of the proposal (required)
+// - body: Body of the proposal (required)
+// - votingDays: The number of days where proposal accepts votes.
+//
+// The default voting period is 7 days.
+func CreateTextProposal(daoID uint64, title, body string, votingDays uint8) uint64 {
+	crossing()
+
+	dao := mustGetDAO(daoID)
+	o := getOptions(daoID)
+	if !o.AllowTextProposals {
+		panic("forbidden")
+	}
+
+	if votingDays > 30 {
+		panic("maximum proposal voting period is 30 days")
+	}
+
+	caller := std.PreviousRealm().Address()
+	assertCallerIsMember(caller, dao)
+
+	var votingPeriod time.Duration
+	if votingDays == 0 {
+		votingPeriod = time.Hour * 24 * 7
+	} else {
+		votingPeriod = time.Hour * 24 * time.Duration(votingDays)
+	}
+
+	def := NewTextPropDefinition(title, body, commondao.QuorumOneThird, votingPeriod)
+	p, err := dao.Propose(caller, def)
+	if err != nil {
+		panic(err)
+	}
+
+	return p.ID()
+}
 
 // CreateMembersUpdateProposal creates a new proposal to add and/or remove DAO members.
 //

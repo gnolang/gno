@@ -24,6 +24,9 @@ type Options struct {
 
 	// AllowMembersUpdate allows creating a proposal to update DAO members.
 	AllowMembersUpdate bool
+
+	// AllowTextProposals allows creating general text proposals.
+	AllowTextProposals bool
 }
 
 func (o *Options) SetPrivate(private bool) {
@@ -44,4 +47,8 @@ func (o *Options) SetAllowExecution(allow bool) {
 
 func (o *Options) SetAllowMembersUpdate(allow bool) {
 	o.AllowMembersUpdate = allow
+}
+
+func (o *Options) SetAllowTextProposals(allow bool) {
+	o.AllowTextProposals = allow
 }
