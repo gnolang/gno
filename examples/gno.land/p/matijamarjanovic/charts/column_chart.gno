@@ -39,12 +39,20 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 	
 	output += "```\n"
 
+	if yAxisTitle != "" {
+		output += yAxisTitle + "\n\n"
+	}
+
+	maxYValue := ufmt.Sprintf("%.2f", maxVal)
+	yAxisWidth := len(maxYValue)
+
 	for row := height; row > 0; row-- {
 		if row%3 == 0 {
-			yValue := ufmt.Sprintf("%f", float64(row)/scale)
-			output += ufmt.Sprintf("%s |", yValue)
+			yValue := ufmt.Sprintf("%.2f", float64(row)/scale)
+			padding := strings.Repeat(" ", yAxisWidth-len(yValue))
+			output += ufmt.Sprintf("%s%s | ", padding, yValue)
 		} else {
-			output += "      |"
+			output += strings.Repeat(" ", yAxisWidth) + " | "
 		}
 
 		for _, val := range displayValues {
@@ -58,34 +66,20 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		output += "\n"
 	}
 
-	output += "      +"
-	output += strings.Repeat("-----", len(displayValues))
+	output += strings.Repeat(" ", yAxisWidth) + " +"
+	output += strings.Repeat("------", len(displayValues))
 	output += strings.Repeat(" ", len(displayValues))
 	output += "\n"
 
-	output += "       "
+	output += strings.Repeat(" ", yAxisWidth + 2) + " "
 	for _, val := range displayValues {
-		output += ufmt.Sprintf("%f  ", val)
+		output += ufmt.Sprintf("%.2f  ", val)
 	}
 	output += "\n"
 
 	if xAxisTitle != "" {
 		padding := strings.Repeat(" ", (len(displayValues)*6)/2)
 		output += "       " + padding + xAxisTitle + "\n"
-	}
-
-	if yAxisTitle != "" {
-		lines := strings.Split(output, "\n")
-		var newLines []string
-		yAxisPos := (len(lines) - 4) / 2
-		for i, line := range lines {
-			if i == yAxisPos {
-				newLines = append(newLines, yAxisTitle + " " + line)
-			} else {
-				newLines = append(newLines, line)
-			}
-		}
-		output = strings.Join(newLines, "\n")
 	}
 
 	output += "```"
