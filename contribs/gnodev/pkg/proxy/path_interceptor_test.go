@@ -32,7 +32,17 @@ func TestProxy(t *testing.T) {
 		Files: []*gnovm.MemFile{
 			{
 				Name: "foo.gno",
-				Body: `package foo; func Render(_ string) string { return "foo" }`,
+				Body: `package foo
+
+func Render(_ string) string { return "foo" }
+
+var i int
+
+func Incr() {
+        crossing()
+        i++
+}
+`,
 			},
 			{Name: "gno.mod", Body: `module ` + targetPath},
 		},
@@ -104,12 +114,12 @@ func TestProxy(t *testing.T) {
 	t.Run("simulate_tx_paths", func(t *testing.T) {
 		// Build transaction with multiple messages
 		var tx std.Tx
-		send := std.MustParseCoins(ugnot.ValueString(10_000_000))
+		send := std.MustParseCoins(ugnot.ValueString(1_000_000))
 		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
 		tx.Msgs = []std.Msg{
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
 		}
 
 		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
@@ -128,8 +138,12 @@ func TestProxy(t *testing.T) {
 
 		res, err := cli.BroadcastTxCommit(bz)
 		require.NoError(t, err)
-		assert.NoError(t, res.CheckTx.Error)
-		assert.NoError(t, res.DeliverTx.Error)
+		if !assert.NoError(t, res.CheckTx.Error) {
+			t.Logf("log: %v", res.CheckTx.Log)
+		}
+		if !assert.NoError(t, res.DeliverTx.Error) {
+			t.Logf("log: %v", res.DeliverTx.Log)
+		}
 
 		select {
 		case paths := <-pathChan:
