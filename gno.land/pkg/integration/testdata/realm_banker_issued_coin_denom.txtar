@@ -16,7 +16,7 @@ gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_12345
 gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## test2 spend all balance
-gnokey maketx send -send "9990000ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx send -send "999990000ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
 ## check test2 balance
 gnokey query bank/balances/${test2_user_addr}
