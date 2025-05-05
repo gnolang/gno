@@ -42,7 +42,7 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 		barLength := int(value * scale)
 		output += strings.Repeat("█", barLength)
 
-		output += " " + ufmt.Sprintf("%.0f", value)
+		output += " " + ufmt.Sprintf("%.2f", value)
 		output += "\n"
 	}
 
