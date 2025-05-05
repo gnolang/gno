@@ -17,10 +17,6 @@ func main() {
 
 	newAdmin := testutils.TestAddress("newAdmin")
 	home.Admin.TransferOwnership(newAdmin)
-	defer func() {
-		r := recover()
-		println("r: ", r)
-	}()
 	if err := revive(func() {
 		cross(home.AdminSetOverride)("Not admin anymore")
 	}); err == nil {
@@ -31,4 +27,3 @@ func main() {
 // Output:
 // ---
 // Hello World!
-// r:  undefined
