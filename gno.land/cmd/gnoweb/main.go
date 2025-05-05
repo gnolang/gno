@@ -46,6 +46,7 @@ type webCfg struct {
 	remoteHelp string
 	bind       string
 	faucetURL  string
+	homeStatic string
 	assetsDir  string
 	timeout    time.Duration
 	analytics  bool
@@ -99,6 +100,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"help-remote",
 		defaultWebOptions.remoteHelp,
 		"help page's remote address",
+	)
+
+	fs.StringVar(
+		&c.homeStatic,
+		"home-static",
+		defaultWebOptions.homeStatic,
+		"file to render for the home page, if empty, will render 'r/gnoland/home'",
 	)
 
 	fs.StringVar(
@@ -194,6 +202,11 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	defer zapLogger.Sync()
 
 	logger := log.ZapLoggerToSlog(zapLogger)
+
+	// Set home static
+	if cfg.homeStatic != "" {
+		gnoweb.SetHomeAlias(cfg.homeStatic)
+	}
 
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
