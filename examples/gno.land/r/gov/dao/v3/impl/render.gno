@@ -45,12 +45,13 @@ func NewRender(d *GovDAO) *render {
 	return ren
 }
 
-func (ren *render) Render(path string, pkg string) string {
-	relativePath, found := strings.CutPrefix(pkg, std.ChainDomain())
+func (ren *render) Render(pkgPath string, path string) string {
+	relativePath, found := strings.CutPrefix(pkgPath, std.ChainDomain())
 	if !found {
-		panic(ufmt.Sprintf("realm package with unexpected name found: %v in chain domain %v", pkg, std.ChainDomain()))
+		panic(ufmt.Sprintf(
+			"realm package with unexpected name found: %v in chain domain %v",
+			pkgPath, std.ChainDomain()))
 	}
-
 	ren.relativeRealmPath = relativePath
 	return ren.router.Render(path)
 }
@@ -80,7 +81,7 @@ func (ren *render) renderProposal(sPid string, d *GovDAO) string {
 	}
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 
-	p := dao.MustGetProposal(dao.ProposalID(pid))
+	p := cross(dao.MustGetProposal)(dao.ProposalID(pid))
 
 	out := ""
 	out += ufmt.Sprintf("## Proposal with id: %v", sPid)

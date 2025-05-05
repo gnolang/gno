@@ -200,7 +200,7 @@ func BenchmarkGnoPrintln(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
-		m.RunStatement(StageRun, S(Call(Nx("main"))))
+		m.RunMain()
 		pSink = buf.String()
 	}
 
@@ -292,7 +292,7 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 			}, false)
 
 			buf.Reset()
-			m.RunStatement(StageRun, S(Call(Nx("main"))))
+			m.RunMain()
 			got := buf.String()
 			assert.Equal(t, tt.want, got)
 		})

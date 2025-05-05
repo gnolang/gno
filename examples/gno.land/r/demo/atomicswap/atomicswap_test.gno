@@ -145,6 +145,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
+
 	uassert.Equal(t, expected, swap.String())
 	uassert.Equal(t, expected, Render("1"))
 
@@ -410,7 +411,7 @@ func TestRender(t *testing.T) {
 	test20.PrivateLedger.Mint(alice, 100_000)
 	testing.SetRealm(std.NewUserRealm(alice))
 
-	userTeller := test20.Token.CallerTeller()
+	userTeller := test20.Token.RealmTeller()
 	userTeller.Approve(rlm, 10_000)
 	_, bobSwap := cross(NewCustomGRC20Swap)(bob, hashlockHex, timelock, test20.Token)
 
