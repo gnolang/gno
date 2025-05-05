@@ -20,7 +20,7 @@
 // Quick Start
 //
 //		// Initialize with contract deployer as authority
-//	     var member std.Address(...)
+//	   	var member std.Address(...)
 //		var auth = authz.NewWithMembers(member)
 //
 //		// Create functions that require authorization
