@@ -90,7 +90,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgsRecursively(args)
+	dirPaths, err := gnoPackagesFromArgsRecursively(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
@@ -102,45 +102,46 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		test.StoreOptions{PreprocessOnly: true},
 	)
 
-	for _, pkgPath := range pkgPaths {
+	for _, dirPath := range dirPaths {
 		if verbose {
-			io.ErrPrintln(pkgPath)
+			io.ErrPrintln(dirPath)
 		}
 
-		info, err := os.Stat(pkgPath)
+		info, err := os.Stat(dirPath)
 		if err == nil && !info.IsDir() {
-			pkgPath = filepath.Dir(pkgPath)
+			dirPath = filepath.Dir(dirPath)
 		}
 
 		// Check if 'gno.mod' exists
-		gmFile, err := gnomod.ParseAt(pkgPath)
+		gmFile, err := gnomod.ParseAt(dirPath)
 		if err != nil {
 			issue := lintIssue{
 				Code:       lintGnoMod,
 				Confidence: 1,
-				Location:   pkgPath,
+				Location:   dirPath,
 				Msg:        err.Error(),
 			}
 			io.ErrPrintln(issue)
 			hasError = true
 		}
 
-		memPkg, err := gno.ReadMemPackage(pkgPath, pkgPath)
+		pkgPath, _ := determinePkgPath(gmFile, dirPath, cfg.rootDir)
+		memPkg, err := gno.ReadMemPackage(dirPath, pkgPath)
 		if err != nil {
-			io.ErrPrintln(issueFromError(pkgPath, err).String())
+			io.ErrPrintln(issueFromError(dirPath, err).String())
 			hasError = true
 			continue
 		}
 
 		// Perform imports using the parent store.
 		if err := test.LoadImports(ts, memPkg); err != nil {
-			io.ErrPrintln(issueFromError(pkgPath, err).String())
+			io.ErrPrintln(issueFromError(dirPath, err).String())
 			hasError = true
 			continue
 		}
 
 		// Handle runtime errors
-		hasRuntimeErr := catchRuntimeError(pkgPath, io.Err(), func() {
+		hasRuntimeErr := catchRuntimeError(dirPath, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
 			cw := bs.CacheWrap()
@@ -156,7 +157,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 					hasError = true
 				}
 			} else if verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+				io.ErrPrintfln("%s: module is draft, skipping type check", dirPath)
 			}
 
 			tm := test.Machine(gs, goio.Discard, memPkg.Path, false)

@@ -228,17 +228,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			continue
 		}
 		// Determine gnoPkgPath by reading gno.mod
-		var gnoPkgPath string
-		modfile, err := gnomod.ParseAt(pkg.Dir)
-		if err == nil {
-			gnoPkgPath = modfile.Module.Mod.Path
-		} else {
-			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
-			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, use a deterministic path.
-				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/txtar" // XXX: gno.land hardcoded for convenience.
-			}
+		modfile, _ := gnomod.ParseAt(pkg.Dir)
+		gnoPkgPath, ok := determinePkgPath(modfile, pkg.Dir, cfg.rootDir)
+		if !ok {
+			io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
@@ -283,6 +276,18 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	return nil
+}
+
+func determinePkgPath(modfile *gnomod.File, dir, rootDir string) (string, bool) {
+	if modfile != nil {
+		return modfile.Module.Mod.Path, true
+	}
+
+	if path := pkgPathFromRootDir(dir, rootDir); path != "" {
+		return path, true
+	}
+	// unable to read pkgPath from gno.mod, use a deterministic path.
+	return "gno.land/r/txtar", false // XXX: gno.land hardcoded for convenience.
 }
 
 // attempts to determine the full gno pkg path by analyzing the directory.
