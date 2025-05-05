@@ -16,11 +16,11 @@ var gid groups.GroupID
 func main() {
 	caller := std.OriginCaller()
 	testing.SetRealm(std.NewUserRealm(caller))
-	users.Register("gnouser123")
+	cross(users.Register)("gnouser123")
 
-	gid = groups.CreateGroup("test_group")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(gid)
-	groups.AddMember(2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
+	cross(groups.AddMember)(2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
 	println(groups.Render(""))
 }
 
