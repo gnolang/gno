@@ -5,5 +5,6 @@ import (
 )
 
 func X_derivePkgAddr(pkgPath string) string {
-	return string(gno.DerivePkgBech32Addr(pkgPath))
+	addr := string(gno.DerivePkgBech32Addr(pkgPath))
+	return addr
 }

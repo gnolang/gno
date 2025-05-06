@@ -716,7 +716,7 @@ func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, 
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  coins,
+    Amount:  coins,
 	}, nil
 }
 

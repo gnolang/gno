@@ -2,7 +2,7 @@ package gnolang
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	"go.uber.org/multierr"
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 // type checking (using go/types)
@@ -120,6 +119,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*
 
 	fset := token.NewFileSet()
 	files := make([]*ast.File, 0, len(mpkg.Files))
+	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
 	var errs error
 	for _, file := range mpkg.Files {
 		// Ignore non-gno files.
@@ -131,7 +131,6 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*
 			continue
 		}
 
-		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
 		f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
 		if err != nil {
 			errs = multierr.Append(errs, err)
@@ -160,17 +159,38 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*
 		//----------------------------------------
 		// Logical transforms
 
-		// filter crossings for type checker
-		if err := filterCrossing(f); err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
+		// No need to filter because of gnobuiltins.go.
+		// But keep this code block for future transforms.
+		/*
+			// filter crossings for type checker
+			if err := filterCrossing(f); err != nil {
+				errs = multierr.Append(errs, err)
+				continue
+			}
+		*/
 
 		files = append(files, f)
 	}
 	if errs != nil {
 		return nil, errs
 	}
+
+	// Add builtins file.
+	file := &gnovm.MemFile{
+		Name: ".gnobuiltins.go",
+		Body: fmt.Sprintf(`package %s
+
+func istypednil(x any) bool { return false } // shim
+func crossing() { } // shim
+func cross[F any](fn F) F { return fn } // shim
+func revive[F any](fn F) any { return nil } // shim
+`, mpkg.Name),
+	}
+	f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
+	if err != nil {
+		panic("error parsing gotypecheck gnobuiltins.go file")
+	}
+	files = append(files, f)
 
 	pkg, err := g.cfg.Check(mpkg.Path, fset, files, nil)
 	return pkg, err
@@ -196,6 +216,9 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 	}
 }
 
+/*
+// This is how ast filtering would have worked.
+// Keep this comment block around in case we need it.
 func filterCrossing(f *ast.File) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool {
 		switch n := c.Node().(type) {
@@ -226,3 +249,4 @@ func filterCrossing(f *ast.File) (err error) {
 	})
 	return err
 }
+*/

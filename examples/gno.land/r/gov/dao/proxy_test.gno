@@ -28,7 +28,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(std.NewCodeRealm(invalid))
-	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
+	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
 		cross(UpdateImpl)(UpdateRequest{
 			DAO: &dummyDao{},
 		})
@@ -61,7 +61,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(std.NewCodeRealm(v3))
-	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
+	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
 		cross(UpdateImpl)(UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
@@ -85,14 +85,15 @@ func TestProxy_Functions(t *testing.T) {
 	if p != nil {
 		panic("proposal must be nil")
 	}
-
 	p = cross(MustGetProposal)(pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
-	urequire.Equal(t, p.Author().String(), "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
+	urequire.Equal(t, p.Author().String(), alice.String())
 
+	// need to switch the context back to v4
+	testing.SetRealm(std.NewCodeRealm(v4))
 	urequire.Equal(
 		t,
-		"Render: test",
+		"Render: gno.land/r/gov/dao/test",
 		Render("test"),
 	)
 
@@ -107,30 +108,30 @@ func TestProxy_Functions(t *testing.T) {
 type dummyDao struct {
 }
 
-func (dd *dummyDao) PreCreateProposal(ctx *Context, r ProposalRequest) (std.Address, error) {
+func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (std.Address, error) {
 	return std.OriginCaller(), nil
 }
 
-func (dd *dummyDao) PostCreateProposal(ctx *Context, r ProposalRequest, pid ProposalID) {
+func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
 
 }
 
-func (dd *dummyDao) VoteOnProposal(ctx *Context, r VoteRequest) error {
+func (dd *dummyDao) VoteOnProposal(r VoteRequest) error {
 	return nil
 }
 
-func (dd *dummyDao) PreGetProposal(ctx *Context, pid ProposalID) error {
+func (dd *dummyDao) PreGetProposal(pid ProposalID) error {
 	return nil
 }
 
-func (dd *dummyDao) PostGetProposal(ctx *Context, pid ProposalID, p *Proposal) error {
+func (dd *dummyDao) PostGetProposal(pid ProposalID, p *Proposal) error {
 	return nil
 }
 
-func (dd *dummyDao) PreExecuteProposal(ctx *Context, pid ProposalID) (bool, error) {
+func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) Render(ctx *Context, i string) string {
-	return "Render: " + i
+func (dd *dummyDao) Render(pkgpath string, path string) string {
+	return "Render: " + pkgpath + "/" + path
 }

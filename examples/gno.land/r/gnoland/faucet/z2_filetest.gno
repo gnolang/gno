@@ -10,8 +10,8 @@ import (
 
 // mints ugnot to current realm
 func init() {
-	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	faucetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 200_000_000}})
 }
 
 // assert render with empty path and 2 controllers
@@ -21,12 +21,12 @@ func main() {
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
-	testing.SetOriginCaller(adminaddr)
-	err := faucet.AdminAddController(controlleraddr1)
+	testing.SetRealm(std.NewUserRealm(adminaddr))
+	err := cross(faucet.AdminAddController)(controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = faucet.AdminAddController(controlleraddr2)
+	err = cross(faucet.AdminAddController)(controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
@@ -37,7 +37,7 @@ func main() {
 // # Community Faucet.
 //
 // Status: active.
-// Balance: .
+// Balance: 200000000ugnot.
 // Total transfers:  (in 0 times).
 //
 // Package address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5

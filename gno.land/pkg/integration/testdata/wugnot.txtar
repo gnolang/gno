@@ -1,6 +1,14 @@
 loadpkg gno.land/r/demo/wugnot
 
+adduser user1
+adduser user2
+adduser user3
+
 gnoland start
+
+gnokey query auth/accounts/$user1_user_addr
+gnokey query auth/accounts/$user2_user_addr
+gnokey query auth/accounts/$user3_user_addr
 
 gnokey query vm/qrender --data "gno.land/r/demo/wugnot:"
 stdout '# wrapped GNOT \(\$wugnot\)'
@@ -8,33 +16,53 @@ stdout 'Decimals..: 0'
 stdout 'Total supply..: 0'
 stdout 'Known accounts..: 0'
 
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 12345678ugnot -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+# user1 balance should be empty
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user1_user_addr}\")"
+stdout '0 uint64'
+
+# Deposit using user1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 10000ugnot -gas-fee 100000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user1_user_addr}\")"
+stdout '10000 uint64'
+
 gnokey query vm/qrender --data "gno.land/r/demo/wugnot:"
-stdout 'Total supply..: 12345678'
+stdout 'Total supply..: 10000'
 stdout 'Known accounts..: 1'
 
-# XXX: use test2 instead (depends on https://github.com/gnolang/gno/issues/1269#issuecomment-1806386069)
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 12345678ugnot -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+# user2 balance should be empty
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+stdout '0 uint64'
+
+# Deposit using user2
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 10000ugnot -gas-fee 10000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user1_user_addr}\")"
+stdout '10000 uint64'
+
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+stdout '10000 uint64'
+
+## We should have 2 accounts
+gnokey query vm/qrender --data "gno.land/r/demo/wugnot:"
+stdout 'Total supply..: 20000'
+stdout 'Known accounts..: 2'
+
+
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Transfer -gas-fee 10000ugnot -gas-wanted 10_000_000 -args ${user3_user_addr} -args '10000' -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
 gnokey query vm/qrender --data "gno.land/r/demo/wugnot:"
-stdout 'Total supply..: 24691356'
-stdout 'Known accounts..: 1' # should be 2 once we can use test2
-
-# XXX: replace hardcoded address with test3
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Transfer -gas-fee 1000000ugnot -gas-wanted 100000000 -args 'g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq' -args '10000000' -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
-
-gnokey query vm/qrender --data "gno.land/r/demo/wugnot:"
-stdout 'Total supply..: 24691356'
-stdout 'Known accounts..: 2' # should be 3 once we can use test2
+stdout 'Total supply..: 20000'
+stdout 'Known accounts..: 3'
 
 # XXX: use test3 instead (depends on https://github.com/gnolang/gno/issues/1269#issuecomment-1806386069)
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Withdraw -args 10000000 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Withdraw -args 10000 -gas-fee 10000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
 
 gnokey query vm/qrender --data "gno.land/r/demo/wugnot:"
-stdout 'Total supply..: 14691356'
-stdout 'Known accounts..: 2' # should be 3 once we can use test2
+stdout 'Total supply..: 10000'
+stdout 'Known accounts..: 3'
