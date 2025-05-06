@@ -1,12 +1,9 @@
 loadpkg gno.land/r/demo/atomicswap
-# XXX: would be nice to specify an artibrary initial balance as an "adduser" argument. cc @gfanton
-adduser test2
-adduser test3
+
+adduser test2 1010000000ugnot
+adduser test3 1010000000ugnot
 
 gnoland start
-
-gnokey maketx send -send 1000000000ugnot -to $test2_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
-gnokey maketx send -send 1000000000ugnot -to $test3_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
 
 gnokey query auth/accounts/$test2_user_addr
 stdout 'coins.*:.*1010000000ugnot'
