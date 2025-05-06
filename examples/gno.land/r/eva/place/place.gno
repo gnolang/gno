@@ -205,6 +205,10 @@ func LogIn() {
 	addressLoggedIn = std.OriginCaller()
 }
 
+func LogOut() {
+	addressLoggedIn = ""
+}
+
 func Render(path string) string {
 	req := realmpath.Parse(path)
 	query := req.Query
@@ -241,7 +245,8 @@ func Render(path string) string {
 		if !ok {
 			out += md.H2(md.Link("Register", txlink.Call("RegisterMember")) + "\n\n")
 		} else {
-			out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + "\n\n")
+			out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " | " +
+				md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
 		}
 	}
 
@@ -252,7 +257,12 @@ func Render(path string) string {
 	for _, color := range colors {
 		query.Set("color", color.name)
 
-		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) // I would have liked using md.Link here but doing so replaces the svg image with its link
+		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
 	}
+
+	if addressLoggedIn != "" {
+		out += md.H2(md.Link("Log out", txlink.Call("LogOut")))
+	}
+
 	return out
 }
