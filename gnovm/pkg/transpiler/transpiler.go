@@ -221,13 +221,37 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 		func(c *astutil.Cursor) bool {
 			switch node := c.Node().(type) {
 			case *ast.CallExpr:
-				// perform in post as the first arg in cross may be a closure or
+				id, ok := node.Fun.(*ast.Ident)
+				if !ok {
+					break
+				}
+				// perform in post as the first arg in these functions may be a closure or
 				// other type which needs earlier processing.
-				if isBuiltinCallExpr(node, "cross") {
+				switch id.Name {
+				case "cross":
 					if len(node.Args) != 1 {
 						panic(fmt.Sprintf("invalid cross() call with %d args", len(node.Args)))
 					}
 					c.Replace(node.Args[0])
+				case "revive":
+					// Writing this with AST types is much more complex; parse
+					// the resulting expression and replace `X` with the
+					// argument of revive().
+					x, err := parser.ParseExpr(`
+func() (__revive_recover any) {
+	defer func() { __revive_recover = recover() }()
+	X()
+	return
+}()`)
+					if err != nil {
+						panic(err)
+					}
+					es := x.(*ast.CallExpr).
+						Fun.(*ast.FuncLit).
+						Body.List[1].(*ast.ExprStmt).
+						X.(*ast.CallExpr)
+					es.Fun = node.Args[0]
+					c.Replace(x)
 				}
 			}
 
