@@ -1,8 +1,8 @@
 package evm
 
 import (
-	"std"
 	"encoding/hex"
+	"std"
 
 	"gno.land/p/demo/evm/keccak256"
 	"gno.land/p/demo/uint256"
@@ -11,7 +11,8 @@ import (
 type Caller struct {
 	EVMAddress *uint256.Uint
 	GnoAddress std.Address
-	Gas uint
+	Balance    *uint256.Uint
+	Gas        uint
 }
 
 func mustHex(str string) []byte {
