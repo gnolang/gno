@@ -7,6 +7,7 @@ import (
 	"std"
 	"strconv"
 	"strings"
+	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -17,7 +18,7 @@ import (
 type User struct {
 	Address std.Address
 	Rank    int
-	Timer   int
+	Timer   time.Time
 }
 
 type Register struct {
@@ -27,7 +28,7 @@ type Register struct {
 const (
 	memberRank = 0
 	adminRank  = 1
-	timeRefill = 15 // temporary
+	timeRefill = 2
 )
 
 var (
@@ -86,7 +87,7 @@ func RegisterMember() {
 	newMember := User{
 		Address: std.OriginCaller(),
 		Rank:    memberRank,
-		Timer:   0,
+		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
 	}
 
 	Registered.Users.Set(std.OriginCaller().String(), newMember)
@@ -134,23 +135,20 @@ func DeleteUser() {
 	Registered.Users.Remove(address.String())
 }
 
-func refillTime(address std.Address) {
-	user, ok := retrieveMember(address)
-	if !ok {
-		panic("Could not find requested user")
-	}
-
-	user.Timer = timeRefill
-	Registered.Users.Set(address.String(), user)
-}
-
 func Submit(x, y uint64) {
-	_, ok := retrieveMember(std.OriginCaller())
+	user, ok := retrieveMember(std.OriginCaller())
 	if !ok {
 		panic("User must be registered to submit a pixel")
 	}
 
+	if time.Now().Before(user.Timer) {
+		panic("Wait until " + user.Timer.String())
+	}
+
 	table[y][x] = "**O**"
+
+	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
+	Registered.Users.Set(std.OriginCaller().String(), user)
 }
 
 func GenerateSVG() string {
