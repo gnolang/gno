@@ -106,7 +106,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 	}
 
 	output += strings.Repeat(" ", yAxisWidth) + " +"
-	output += strings.Repeat("-", gridWidth)
+	output += strings.Repeat("-", gridWidth + 3)
 	output += "\n"
 
 	output += strings.Repeat(" ", yAxisWidth+2)

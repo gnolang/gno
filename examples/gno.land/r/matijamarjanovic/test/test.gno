@@ -28,17 +28,17 @@ func renderHome() string {
 
 	output += "# ASCII Chart Demo\n\n"
 	output += "## Sample Column Chart\n\n"
-	output += "Here's a chart with 100 values normalized to 4 columns:\n"
-	output += charts.GenerateLineChart(testData, 8, 5,"Normalized Data", "Groups", "Values")
+	output += "Here's the raw data with 100 values:\n"
+	output += charts.GenerateColumnChart(testData, len(testData), "Raw Data", "Data Points", "Values") 
 	output += "\n\n"
 
-	output += "Here's the same data without normalization:\n"
-	output += charts.GenerateLineChart(testData, 100, 5, "Raw Data", "Data Points", "Values")
+	output += "Here's the same data normalized to 12 columns:\n"
+	output += charts.GenerateColumnChart(testData, 12, "Normalized Data", "Groups", "Values")
 	output += "\n\n"
 
 	output += "## Sample Bar Chart\n\n"
 	output += "Here's a horizontal bar chart example:\n\n"
-	values := []float64{1081.25, 1080, 1082.5, 1081.5}
+	values := []float64{1081.25, 580, 182.5, 1081.5}
 	labels := []string{"Apples", "Bananas", "Cherries", "Dates"}
 	output += charts.GenerateBarChart(values, labels, 50, "Fruit Quantities")
 	output += "\n\n"
