@@ -93,6 +93,7 @@ type (
 	// Once proposals are executed they are archived and considered finished.
 	Executable interface {
 		// Execute executes the proposal.
+		// This method must allow crossing.
 		Execute() error
 	}
 
