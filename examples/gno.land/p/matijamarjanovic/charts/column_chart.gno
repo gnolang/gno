@@ -1,8 +1,9 @@
 package charts
 
 import (
-	"gno.land/p/demo/ufmt"
 	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
 // GenerateColumnChart creates an ASCII column chart in markdown format
@@ -29,14 +30,13 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		displayValues = normalizeData(values, maxColumns)
 	}
 
-	const height = 15
 	scale := height / maxVal
 
 	output := ""
 	if title != "" {
 		output += "## " + title + "\n"
 	}
-	
+
 	output += "\n```\n"
 
 	if yAxisTitle != "" {
@@ -71,7 +71,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 	output += strings.Repeat(" ", len(displayValues))
 	output += "\n"
 
-	output += strings.Repeat(" ", yAxisWidth + 2) + " "
+	output += strings.Repeat(" ", yAxisWidth+2) + " "
 	for _, val := range displayValues {
 		output += ufmt.Sprintf("%.2f  ", val)
 	}
@@ -84,28 +84,4 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 
 	output += "```\n"
 	return output
-}
-
-// normalizeData reduces the number of data points to maxColumns by averaging
-func normalizeData(values []float64, maxColumns int) []float64 {
-	result := make([]float64, maxColumns)
-	groupSize := float64(len(values)) / float64(maxColumns)
-	
-	for i := 0; i < maxColumns; i++ {
-		start := int(float64(i) * groupSize)
-		end := int(float64(i+1) * groupSize)
-		if end > len(values) {
-			end = len(values)
-		}
-			
-		sum := 0.0
-		count := 0
-		for j := start; j < end; j++ {
-			sum += values[j]
-			count++
-		}
-		result[i] = sum / float64(count)
-	}
-	
-	return result
 }

@@ -1,18 +1,20 @@
 package charts
 
 import (
-	"gno.land/p/demo/ufmt"
 	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
-// GenerateColumnChart creates an ASCII column chart in markdown format
+// GenerateLineChart creates an ASCII line chart in markdown format
 // values: slice of float values to chart
-// maxColumns: maximum number of columns to display (will normalize if exceeded)
+// maxPoints: maximum number of points to display (will normalize if exceeded)
+// pointSpacing: horizontal spacing between points (in characters)
 // title: chart title
 // xAxisTitle: title for the x-axis
 // yAxisTitle: title for the y-axis
 // Returns a markdown string representing the chart
-func GenerateLineChart(values []float64, maxColumns int, pointSpacing int, title, xAxisTitle, yAxisTitle string) string {
+func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title, xAxisTitle, yAxisTitle string) string {
 	if pointSpacing < 5 || pointSpacing > 25 {
 		return "pointSpacing must be between 5 and 25"
 	}
@@ -29,11 +31,10 @@ func GenerateLineChart(values []float64, maxColumns int, pointSpacing int, title
 	}
 
 	displayValues := values
-	if len(values) > maxColumns {
-		displayValues = normalizeData(values, maxColumns)
+	if len(values) > maxPoints {
+		displayValues = normalizeData(values, maxPoints)
 	}
 
-	const height = 15
 	scale := float64(height) / maxVal
 
 	gridWidth := (len(displayValues)-1)*pointSpacing + len(displayValues)
@@ -54,7 +55,7 @@ func GenerateLineChart(values []float64, maxColumns int, pointSpacing int, title
 		grid[height-y][x] = '*'
 
 		if i < len(displayValues)-1 {
-			nextX := (i+1)*(pointSpacing+1)
+			nextX := (i + 1) * (pointSpacing + 1)
 			nextY := int(displayValues[i+1] * scale)
 			if nextY > height {
 				nextY = height
@@ -119,7 +120,7 @@ func GenerateLineChart(values []float64, maxColumns int, pointSpacing int, title
 		if i == 0 {
 			output += strings.Repeat(" ", labelPos)
 		} else {
-			prevX := (i-1)*(pointSpacing+1)
+			prevX := (i - 1) * (pointSpacing + 1)
 			prevValStr := ufmt.Sprintf("%.2f", displayValues[i-1])
 			prevLabelEnd := prevX - len(prevValStr)/2 + len(prevValStr)
 			output += strings.Repeat(" ", labelPos-prevLabelEnd)

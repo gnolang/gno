@@ -38,7 +38,7 @@ func renderHome() string {
 
 	output += "## Sample Bar Chart\n\n"
 	output += "Here's a horizontal bar chart example:\n\n"
-	values := []float64{61.25, 60, 62.5, 61.5}
+	values := []float64{1081.25, 1080, 1082.5, 1081.5}
 	labels := []string{"Apples", "Bananas", "Cherries", "Dates"}
 	output += charts.GenerateBarChart(values, labels, 50, "Fruit Quantities")
 	output += "\n\n"

@@ -1,8 +1,9 @@
 package charts
 
 import (
-	"gno.land/p/demo/ufmt"
 	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
 // GenerateBarChart creates an ASCII bar chart in markdown format
@@ -48,4 +49,4 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 
 	output += "```\n"
 	return output
-} 
+}
