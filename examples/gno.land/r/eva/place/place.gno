@@ -27,6 +27,11 @@ type Register struct {
 	Users *avl.Tree
 }
 
+type Color struct {
+	name string
+	rgb  string
+}
+
 const (
 	memberRank int = 0
 	adminRank  int = 1
@@ -34,17 +39,12 @@ const (
 	timeRefill int = 2
 
 	rows uint64 = 15
-	cols uint64 = 91
+	cols uint64 = 80
+
+	white string = "rgb(240,240,240)"
 )
 
-type Color struct {
-	name string
-	rgb  string
-}
-
 var (
-	white = "rgb(240,240,240)"
-
 	colors = []Color{
 		{"black", "rgb(40,40,40)"},
 		{"red", "rgb(255,0,0)"},
@@ -58,8 +58,6 @@ var (
 
 	table      [][]string // TODO: use a B tree for storage efficiency
 	tableColor [][]string
-	rows       uint64 = 15 // pour linstant
-	cols       uint64 = 80
 
 	xStr string
 	yStr string
@@ -76,6 +74,7 @@ func generateSquareSvg(color string) string {
 }
 
 func init() {
+	Registered.Users = avl.NewTree()
 
 	table = make([][]string, rows)
 	for y := 0; y < int(rows); y++ {
@@ -85,6 +84,7 @@ func init() {
 			table[y][x] = md.Link("⠀", link)
 		}
 	}
+
 	tableColor = make([][]string, rows)
 	for y := 0; y < int(rows); y++ {
 		tableColor[y] = make([]string, cols)
@@ -113,19 +113,6 @@ func parseXY(rawQuery string) (x, y uint64, err error) {
 		return 0, 0, ErrInvalidCoordQuery
 	}
 	return x, y, nil
-}
-
-func init() {
-	Registered.Users = avl.NewTree()
-
-	table = make([][]string, rows)
-	for y := 0; y < int(rows); y++ {
-		table[y] = make([]string, cols)
-		for x := 0; x < int(cols); x++ {
-			link := ufmt.Sprintf("/r/eva/place?x=%d&y=%d", x, y)
-			table[y][x] = md.Link("⠀", link)
-		}
-	}
 }
 
 func RegisterMember() {
