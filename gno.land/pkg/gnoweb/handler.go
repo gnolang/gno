@@ -131,9 +131,11 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index.
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
-	aliasTarget, exists, staticFile := GetAlias(r.URL.Path)
-	if exists && !staticFile { // If the alias target exists and is not static file, replace the URL path with it.
-		r.URL.Path = aliasTarget
+	aliasTarget, aliasExists := aliases[r.URL.Path]
+
+	// if the alias target exists and is a gnoweb path, replace the URL path with it.
+	if aliasExists && aliasTarget.kind == GnowebPath {
+		r.URL.Path = aliasTarget.value
 	}
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
@@ -152,8 +154,8 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	}
 
 	switch {
-	case staticFile:
-		return h.GetMarkdownView(gnourl, aliasTarget)
+	case aliasExists && aliasTarget.kind == StaticMarkdown:
+		return h.GetMarkdownView(gnourl, aliasTarget.value)
 	case gnourl.IsRealm(), gnourl.IsPure():
 		return h.GetPackageView(gnourl)
 	default:

@@ -11,31 +11,28 @@ func IsHomePath(path string) bool {
 	return path == "/"
 }
 
-// aliases are gnoweb paths that are rewritten by the web handler.
-var aliases = map[string]string{
-	"/":           "/r/gnoland/home",
-	"/about":      "/r/gnoland/pages:p/about",
-	"/gnolang":    "/r/gnoland/pages:p/gnolang",
-	"/ecosystem":  "/r/gnoland/pages:p/ecosystem",
-	"/partners":   "/r/gnoland/pages:p/partners",
-	"/testnets":   "/r/gnoland/pages:p/testnets",
-	"/start":      "/r/gnoland/pages:p/start",
-	"/license":    "/r/gnoland/pages:p/license",
-	"/contribute": "/r/gnoland/pages:p/contribute",
-	"/events":     "/r/gnoland/events",
+type AliasKind int
+
+const (
+	GnowebPath AliasKind = iota
+	StaticMarkdown
+)
+
+type AliasTarget struct {
+	value string
+	kind  AliasKind
 }
 
-// GetAlias retrieves the target and static status of the given path if any.
-func GetAlias(path string) (target string, exists, static bool) {
-	target, exists = aliases[path]
-
-	// If the alias is a static file, set the static flag and trim the prefix.
-	if strings.HasPrefix(target, "static:") {
-		static = true
-		target = strings.TrimPrefix(target, "static:")
-	}
-
-	return
+// aliases are gnoweb paths that are rewritten by the web handler.
+var aliases = map[string]AliasTarget{
+	"/":           {"/r/gnoland/home", GnowebPath},
+	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
+	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
+	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
+	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
+	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
+	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
+	"/events":     {"/r/gnoland/events", GnowebPath},
 }
 
 // SetAliases parses the given aliases string and sets the aliases map.
@@ -64,9 +61,9 @@ func SetAliases(aliasesStr string) error {
 			if err != nil {
 				return fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
 			}
-			aliases[parts[0]] = fmt.Sprintf("static:%s", string(content))
+			aliases[parts[0]] = AliasTarget{value: string(content), kind: StaticMarkdown}
 		} else { // Otherwise, treat it as a normal alias.
-			aliases[parts[0]] = parts[1]
+			aliases[parts[0]] = AliasTarget{value: parts[1], kind: GnowebPath}
 		}
 	}
 
