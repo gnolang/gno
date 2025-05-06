@@ -181,7 +181,7 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("View: ")
-	r := realmpath.Parse(req.RawPath)
+	r := parseRealmPath(req.RawPath)
 	if renderFinished {
 		r.Query.Del("finished")
 		res.Write(ufmt.Sprintf("[active](%s)", r.String()))
@@ -192,7 +192,7 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(" • Sort by: ")
 
-	r = realmpath.Parse(req.RawPath)
+	r = parseRealmPath(req.RawPath)
 	reverseSort := r.Query.Get("order") != "asc"
 	if reverseSort {
 		r.Query.Set("order", "asc")
@@ -204,10 +204,18 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("\n\n")
 
-	proposals.Iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
-		renderProposalsListItem(res, dao, p)
-		return false
-	})
+	if proposals.Size() == 0 {
+		if renderFinished {
+			res.Write("Currently there are no finished proposals\n")
+		} else {
+			res.Write("Currently there are no active proposals\n")
+		}
+	} else {
+		proposals.Iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
+			renderProposalsListItem(res, dao, p)
+			return false
+		})
+	}
 
 	// Render pager
 	if pages.HasPages() {
@@ -231,7 +239,8 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 
 	// Render status
 	status := []string{
-		ufmt.Sprintf("**%d votes**", record.Size()),
+		ufmt.Sprintf("Votes: **%d**", record.Size()),
+		ufmt.Sprintf("Status: **%s**", string(p.Status())),
 	}
 
 	// Render actions
@@ -431,6 +440,12 @@ func mustGetProposalFromRequest(req *mux.Request, dao *commondao.CommonDAO) *com
 	}
 
 	return p
+}
+
+func parseRealmPath(path string) *realmpath.Request {
+	r := realmpath.Parse(path)
+	r.Realm = string(realmLink)
+	return r
 }
 
 func voteLink(daoID, proposalID uint64) string {
