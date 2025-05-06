@@ -66,6 +66,11 @@ func DisperseGRC20(addresses []std.Address, amounts []int64, symbols []string) {
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
 		panic(ErrArgLenAndSentLenMismatch)
 	}
+	for _, amount := range amounts {
+		if amount < 0 {
+			panic(ErrInvalidAmount)
+		}
+	}
 
 	for i := 0; i < len(addresses); i++ {
 		cross(tokens.TransferFrom)(symbols[i], caller, addresses[i], amounts[i])
