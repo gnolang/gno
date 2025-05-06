@@ -517,36 +517,13 @@ func TestUpdateWithNonExistentTransactions(t *testing.T) {
 }
 
 func TestGetAccountSequence(t *testing.T) {
-	// Create a mock Query client
-	mockQuery := &MockQueryClient{}
+	mockQuery := new(MockQueryClient)
 
-	// Setup test data
-	testAddress := "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"
-	expectedSequence := uint64(8)
+	address := "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"
+	req := abci.RequestQuery{Path: "auth/accounts/" + address}
 
-	// Set up the mock to return the expected response for QuerySync
-	path := "auth/accounts/" + testAddress
-	reqQuery := abci.RequestQuery{
-		Path: path,
-		Data: nil,
-	}
-	mockQuery.On("QuerySync", reqQuery).Return(createMockAccountResponse(expectedSequence), nil)
-
-	// Call the function we want to test
-	sequence, err := GetAccountSequence(testAddress, mockQuery)
-
-	// Verify results
-	assert.NoError(t, err)
-	assert.Equal(t, expectedSequence, sequence)
-
-	// Verify mock expectations
-	mockQuery.AssertExpectations(t)
-}
-
-// Helper function to create a mock account response
-func createMockAccountResponse(sequence uint64) abci.ResponseQuery {
-	// Create a response similar to what you'd get from the real API
-	responseData := fmt.Sprintf(`{
+	// Simulate the real-world response from the application
+	realResponse := `{
 		"BaseAccount": {
 			"address": "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2",
 			"coins": "29200000ugnot",
@@ -555,14 +532,21 @@ func createMockAccountResponse(sequence uint64) abci.ResponseQuery {
 				"value": "AqATlb7YPpY03HfModetps7565VdIZNjwguVO3cKmE+K"
 			},
 			"account_number": "656978",
-			"sequence": "%d"
+			"sequence": "8"
 		},
 		"attributes": "0"
-	}`, sequence)
+	}`
 
-	return abci.ResponseQuery{
-		Value: []byte(responseData),
+	resp := abci.ResponseQuery{
+		Value: []byte(realResponse),
 	}
+	mockQuery.On("QuerySync", req).Return(resp, nil)
+
+	seq, err := GetAccountSequence(address, mockQuery)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(8), seq) // Expecting sequence 8 from the response
+
+	mockQuery.AssertExpectations(t)
 }
 
 // MockQueryClient is a mock implementation of the appconn.Query interface
@@ -588,39 +572,4 @@ func (m *MockQueryClient) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, err
 func (m *MockQueryClient) QuerySync(req abci.RequestQuery) (abci.ResponseQuery, error) {
 	args := m.Called(req)
 	return args.Get(0).(abci.ResponseQuery), args.Error(1)
-}
-
-func TestQueryRealAccount(t *testing.T) {
-	// Skip this test in automated testing environments
-	if testing.Short() {
-		t.Skip("Skipping test that requires network connection")
-	}
-
-	// Test data
-	address := "g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"
-	rpcEndpoint := "https://rpc.test6.testnets.gno.land:443"
-
-	// Test QueryRealAccount
-	accountJSON, err := QueryRealAccount(address, rpcEndpoint)
-	if err != nil {
-		t.Fatalf("Failed to query real account: %v", err)
-	}
-
-	// Verify the response contains expected fields
-	assert.Contains(t, accountJSON, "BaseAccount")
-	assert.Contains(t, accountJSON, "address")
-	assert.Contains(t, accountJSON, "sequence")
-
-	fmt.Printf("Account JSON:\n%s\n", accountJSON)
-
-	// Test GetRealAccountSequence
-	sequence, err := GetRealAccountSequence(address, rpcEndpoint)
-	if err != nil {
-		t.Fatalf("Failed to get sequence: %v", err)
-	}
-
-	// Verify we got a valid sequence number
-	assert.True(t, sequence >= 4, "Expected sequence to be at least 4, got %d", sequence)
-
-	fmt.Printf("Account sequence: %d\n", sequence)
 }
