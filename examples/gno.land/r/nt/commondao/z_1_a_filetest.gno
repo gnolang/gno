@@ -12,11 +12,9 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-func init() {
-	testing.SetOriginCaller(owner)
-}
-
 func main() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
 	cross(commondao.Invite)(user)
 
 	println(commondao.IsInvited(user))

@@ -20,8 +20,8 @@ func init() {
 	cross(commondao.Invite)(user)
 
 	// Create a DAO
-	testing.SetOriginCaller(user)
 	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	daoID = commondao.New("Foo").ID()
 }
 

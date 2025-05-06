@@ -20,7 +20,7 @@ func init() {
 	cross(commondao.Invite)(user)
 
 	// The origin must be the invited user
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 
 	// Create the root DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))

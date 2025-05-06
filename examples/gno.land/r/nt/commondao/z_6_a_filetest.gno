@@ -1,4 +1,5 @@
-package main
+// PKGPATH: gno.land/r/demo/commondao_test
+package commondao_test
 
 import (
 	"std"
@@ -13,19 +14,6 @@ import (
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
-type propDef struct{}
-
-func (propDef) Title() string                                                 { return "" }
-func (propDef) Body() string                                                  { return "" }
-func (propDef) VotingPeriod() time.Duration                                   { return 0 }
-func (propDef) Validate() error                                               { return nil }
-func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
-
-func (propDef) Execute() error {
-	executed = true
-	return nil
-}
-
 var (
 	dao      *pdao.CommonDAO
 	proposal *pdao.Proposal
@@ -35,13 +23,28 @@ var (
 	user3    = testutils.TestAddress("user3")
 )
 
+type propDef struct{}
+
+func (propDef) Title() string                                                 { return "" }
+func (propDef) Body() string                                                  { return "" }
+func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) Validate() error                                               { return nil }
+func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
+
+func (propDef) Execute() error {
+	crossing()
+
+	executed = true
+	return nil
+}
+
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user1)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	testing.SetOriginCaller(user1)
+	testing.SetRealm(std.NewUserRealm(user1))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao = commondao.New("Foo")
 
@@ -63,6 +66,10 @@ func init() {
 }
 
 func main() {
+	crossing()
+
+	testing.SetRealm(std.NewUserRealm(user1))
+
 	cross(commondao.Execute)(dao.ID(), proposal.ID())
 
 	p := dao.FinishedProposals().Get(proposal.ID())
