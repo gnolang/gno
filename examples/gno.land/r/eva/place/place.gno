@@ -45,22 +45,9 @@ var (
 )
 
 func generateSquareSvg(color string) string {
-	// var svg strings.Builder
-
 	canvas := svg.Canvas{Width: 30, Height: 30}
 	canvas.DrawRectangle(0, 0, 30, 30, color)
-
-	// svg.WriteString(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">`)
-	// svg.WriteString(`<a href="https://fr.wikipedia.org/wiki/Der_Verschwender">`)
-	// svg.WriteString(`<rect x="0" y="0" width="20" height="20" fill="` + color + `"/>`)
-	// svg.WriteString(`<rect x="30" y="90" width="40" height="10" fill="` + color + `"/>`)
-	// svg.WriteString(`<rect x="80" y="0" width="20" height="20" fill="` + color + `"/>`)
-	// svg.WriteString(`<text x="0" y="0" fill="` + color + `">Cool dude</text>`)
-	// svg.WriteString(`<circle cx="50" cy="50" r="10" fill="` + color + `" />`)
-	// svg.WriteString(`<text x="0" y="50" fill="` + color + `">Cool dude</text>`)
-	// svg.WriteString(`</a></svg>`)
 	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
-	// return svg.String()
 }
 
 func init() {
@@ -71,7 +58,6 @@ func init() {
 		for x := 0; x < int(cols); x++ {
 			link := ufmt.Sprintf("/r/eva/place?x=%d&y=%d", x, y)
 			table[y][x] = md.Link("⠀", link)
-			// table[y][x] = md.Link(generateSquareSvg("rgb(255,255,255)"), link)
 		}
 	}
 	tableColor = make([][]string, rows)
@@ -159,18 +145,6 @@ func Render(path string) string {
 		query.Set("color", color.name)
 
 		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) // I would have liked using md.Link here but doing so replaces the svg image with its link
-		// out += ufmt.Sprintf("!["+color.name+"](data:image/svg+xml;base64,%s)", generateSquareSvg(color.rgb))
 	}
-	// canvas := svg.Canvas{Width: 200, Height: 200}
-	// canvas.DrawRectangle(0, 0, 100, 100, "rgb(0,0,255)")
-	// canvas.DrawRectangle(100, 0, 100, 100, "rgb(255,0,255)")
-	// out += md.Image("name", "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString([]byte(canvas.String())))
-	// canvas = svg.Canvas{Width: 200, Height: 200}
-	// // canvas.DrawRectangle(0, 0, 100, 100, "rgb(0,0,255)")
-	// // canvas.DrawRectangle(100, 0, 100, 100, "rgb(255,0,255)")
-	// canvas.DrawText(0, 0, "Cool dude", "rgb(0,0,255)")
-	// out += md.Image("name", "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString([]byte(canvas.String())))
-
-	// ufmt.Printf("ICI%sICI", canvas.String())
 	return out
 }
