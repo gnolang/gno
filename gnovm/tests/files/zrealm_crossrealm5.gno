@@ -21,4 +21,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): somevalue<~VPBlock(3,0)>.Field

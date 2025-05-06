@@ -50,8 +50,6 @@ func Withdraw(amount uint64) {
 }
 
 func Render(path string) string {
-	crossing()
-
 	parts := strings.Split(path, "/")
 	c := len(parts)
 
@@ -68,20 +66,14 @@ func Render(path string) string {
 }
 
 func TotalSupply() uint64 {
-	crossing()
-
 	return Token.TotalSupply()
 }
 
 func BalanceOf(owner std.Address) uint64 {
-	crossing()
-
 	return Token.BalanceOf(owner)
 }
 
 func Allowance(owner, spender std.Address) uint64 {
-	crossing()
-
 	return Token.Allowance(owner, spender)
 }
 
