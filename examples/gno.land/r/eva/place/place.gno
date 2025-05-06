@@ -172,7 +172,7 @@ func DeleteUser() {
 	Registered.Users.Remove(address.String())
 }
 
-func Submit(x, y uint64) {
+func Submit(x, y uint64, color string) {
 	user, ok := retrieveMember(std.OriginCaller())
 	if !ok {
 		panic("User must be registered to submit a pixel")
@@ -182,7 +182,8 @@ func Submit(x, y uint64) {
 		panic("Wait until " + user.Timer.String())
 	}
 
-	table[y][x] = "**O**"
+	table[y][x] = "O"
+	tableColor[y][x] = color
 
 	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
 	Registered.Users.Set(std.OriginCaller().String(), user)
