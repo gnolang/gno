@@ -9,7 +9,7 @@ import (
 )
 
 func currentRealmPath() string {
-	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.ChainDomain())
+	return strings.TrimPrefix(string(realmLink), std.ChainDomain())
 }
 
 func daoURL(dao *commondao.CommonDAO) string {
