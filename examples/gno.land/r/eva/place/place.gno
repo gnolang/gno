@@ -7,21 +7,67 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 )
 
+type Color struct {
+	name string
+	rgb  string
+}
+
 var (
-	table [][]string
-	rows  uint64 = 15 // pour linstant
-	cols  uint64 = 91
+	white = "rgb(240,240,240)"
+
+	colors = []Color{
+		{"black", "rgb(40,40,40)"},
+		{"red", "rgb(255,0,0)"},
+		{"green", "rgb(0,255,0)"},
+		{"blue", "rgb(0,0,255)"},
+		{"yellow", "rgb(255,255,0)"},
+		{"cyan", "rgb(0,255,255)"},
+		{"pink", "rgb(255,0,255)"},
+		{"white", white},
+	}
+
+	table      [][]string // TODO: use a B tree for storage efficiency
+	tableColor [][]string
+	rows       uint64 = 15 // pour linstant
+	cols       uint64 = 80
 
 	xStr string
 	yStr string
 
 	ErrInvalidCoordQuery = errors.New("Invalid coordinate value, expecting a uint64")
 )
+
+func generateSquareSvg(color string) string {
+	canvas := svg.Canvas{Width: 30, Height: 30}
+	canvas.DrawRectangle(0, 0, 30, 30, color)
+	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
+}
+
+func init() {
+
+	table = make([][]string, rows)
+	for y := 0; y < int(rows); y++ {
+		table[y] = make([]string, cols)
+		for x := 0; x < int(cols); x++ {
+			link := ufmt.Sprintf("/r/eva/place?x=%d&y=%d", x, y)
+			table[y][x] = md.Link("⠀", link)
+		}
+	}
+	tableColor = make([][]string, rows)
+	for y := 0; y < int(rows); y++ {
+		tableColor[y] = make([]string, cols)
+		for x := 0; x < int(cols); x++ {
+			tableColor[y][x] = white
+		}
+	}
+}
 
 // parseXY takes a raw query like "?x=19&y=1" and returns the two ints.
 func parseXY(rawQuery string) (x, y uint64, err error) {
@@ -44,30 +90,16 @@ func parseXY(rawQuery string) (x, y uint64, err error) {
 	return x, y, nil
 }
 
-func init() {
-
-	table = make([][]string, rows)
-	for y := 0; y < int(rows); y++ {
-		table[y] = make([]string, cols)
-		for x := 0; x < int(cols); x++ {
-			link := ufmt.Sprintf("/r/eva/place?x=%d&y=%d", x, y)
-			table[y][x] = md.Link("⠀", link)
-		}
-	}
-}
-
-func Submit(x, y uint64) {
-	table[y][x] = "**O**"
+func Submit(x, y uint64, color string) {
+	table[y][x] = "O"
+	tableColor[y][x] = color
 }
 
 func GenerateSVG() string {
-	out := `<svg width="3600" height="600" xmlns="http://www.w3.org/2000/svg">`
-	out += `<rect x="0" y="0" width="3600" height="600" fill="rgb(20,20,20)"/>`
+	out := ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">`, cols*40, rows*40)
 	for y := 0; y < int(rows); y++ {
 		for x := 0; x < int(cols); x++ {
-			if table[y][x] == "**O**" || table[y][x] == "**X**" {
-				out += ufmt.Sprintf(`<rect x="%d" y="%d" width="40" height="40" fill="rgb(255, 255, 255)"/>`, x*40, y*40)
-			}
+			out += ufmt.Sprintf(`<rect x="%d" y="%d" width="40" height="40" fill="%s"/>`, x*40, y*40, tableColor[y][x])
 		}
 	}
 	out += "</svg>"
@@ -75,12 +107,15 @@ func GenerateSVG() string {
 }
 
 func Render(path string) string {
+	req := realmpath.Parse(path)
+	query := req.Query
+
 	out := md.H1("r/place") + "\n\n"
 	if strings.Contains(path, "?") {
 		if x, y, err := parseXY(path); err != nil {
 			panic(err)
 		} else {
-			table[y][x] = "**X**"
+			table[y][x] = "X"
 		}
 	}
 
@@ -94,11 +129,22 @@ func Render(path string) string {
 	}
 	out += md.HorizontalRule() + "\n\n"
 
-	out += "## " + md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr)) + "\n\n"
+	selectedColor := query.Get("color")
 
-	svg := GenerateSVG()
-	base64SVG := base64.StdEncoding.EncodeToString([]byte(svg))
+	if selectedColor == "" {
+		selectedColor = white
+	}
+
+	out += "## " + md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + "\n\n"
+
+	ssvg := GenerateSVG()
+	base64SVG := base64.StdEncoding.EncodeToString([]byte(ssvg))
 	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", base64SVG)
 
+	for _, color := range colors {
+		query.Set("color", color.name)
+
+		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) // I would have liked using md.Link here but doing so replaces the svg image with its link
+	}
 	return out
 }
