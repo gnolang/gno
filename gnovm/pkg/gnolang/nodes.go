@@ -158,7 +158,6 @@ const (
 	ATTR_HEAP_USES       GnoAttribute = "ATTR_HEAP_USES"    // []Name heap items used.
 	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
 	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
-	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
 	ATTR_PACKAGE_REF     GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL    GnoAttribute = "ATTR_PACKAGE_DECL"
 )
