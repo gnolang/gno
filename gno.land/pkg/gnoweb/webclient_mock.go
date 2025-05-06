@@ -36,7 +36,7 @@ func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 }
 
 // RenderRealm simulates rendering a package by writing its content to the writer.
-func (m *MockWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, _ *MarkdownRenderer) (*RealmMeta, error) {
+func (m *MockWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, _ ContentRenderer) (*RealmMeta, error) {
 	pkg, exists := m.Packages[u.Path]
 	if !exists {
 		return nil, ErrClientPathNotFound

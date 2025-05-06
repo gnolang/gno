@@ -53,6 +53,8 @@ type MarkdownRenderer struct {
 	markdown goldmark.Markdown
 }
 
+var _ ContentRenderer = (*MarkdownRenderer)(nil)
+
 func NewMarkdownRenderer(logger *slog.Logger, cfg *MarkdownRendererConfig) *MarkdownRenderer {
 	return &MarkdownRenderer{
 		logger:   logger,

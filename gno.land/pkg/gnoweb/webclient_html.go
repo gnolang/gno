@@ -164,7 +164,7 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, mr *MarkdownRenderer) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr ContentRenderer) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
 	pkgPath := strings.Trim(u.Path, "/")
@@ -176,7 +176,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, mr *MarkdownR
 	}
 
 	var meta RealmMeta
-	if meta.Toc, err = mr.Render(w, u, rawres); err != nil {
+	if meta.Toc, err = cr.Render(w, u, rawres); err != nil {
 		return nil, fmt.Errorf("unable to render realm: %w", err)
 	}
 
