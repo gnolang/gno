@@ -1258,7 +1258,7 @@ func TestExecuteEvm(t *testing.T) {
 			expectedStack:       []*uint256.Uint{uint256.NewUint(10)},
 			expectedGasConsumed: 2,
 		},
-		{
+		// {
 		// 	name: "get the chain ID",
 		// 	code: []byte{
 		// 		byte(CHAINID),
@@ -1269,7 +1269,7 @@ func TestExecuteEvm(t *testing.T) {
 		// 	},
 		// 	chainId: *uint256.NewUint(2),
 		// 	expectedGasConsumed: 2,
-		},
+		// },
 	}
 
 	for _, tc := range testCases {
