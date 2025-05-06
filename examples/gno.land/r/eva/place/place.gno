@@ -62,7 +62,8 @@ var (
 	xStr string
 	yStr string
 
-	Registered Register
+	Registered      Register
+	addressLoggedIn std.Address
 
 	ErrInvalidCoordQuery = errors.New("Invalid coordinate value, expecting a uint64")
 )
@@ -200,6 +201,10 @@ func GenerateSVG() string {
 	return out
 }
 
+func LogIn() {
+	addressLoggedIn = std.OriginCaller()
+}
+
 func Render(path string) string {
 	req := realmpath.Parse(path)
 	query := req.Query
@@ -229,8 +234,16 @@ func Render(path string) string {
 		selectedColor = white
 	}
 
-	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " or " +
-		md.Link("Register", txlink.Call("RegisterMember")) + "\n\n")
+	if addressLoggedIn == "" {
+		out += md.H2(md.Link("Log In", txlink.Call("LogIn")))
+	} else {
+		_, ok := retrieveMember(addressLoggedIn)
+		if !ok {
+			out += md.H2(md.Link("Register", txlink.Call("RegisterMember")) + "\n\n")
+		} else {
+			out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + "\n\n")
+		}
+	}
 
 	ssvg := GenerateSVG()
 	base64SVG := base64.StdEncoding.EncodeToString([]byte(ssvg))
