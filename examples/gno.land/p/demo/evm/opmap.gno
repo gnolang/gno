@@ -222,7 +222,7 @@ var (
 		GASPRICE:       {GASPRICE, "GASPRICE", opGasprice, 2},
 		EXTCODESIZE:    {EXTCODESIZE, "EXTCODESIZE", opExtCodeSize, 100}, // can change
 		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", opExtCodeCopy, 100}, // can change
-		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", notImplemented, 2},
+		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", opReturnDataSize, 2},
 		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", notImplemented, 3}, // can change
 		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", notImplemented, 100},     // can change
 		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", notImplemented, 20},
