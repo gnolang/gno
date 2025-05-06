@@ -219,7 +219,7 @@ var (
 		CALLDATACOPY:   {CALLDATACOPY, "CALLDATACOPY", opCalldatacopy, 3}, // can change
 		CODESIZE:       {CODESIZE, "CODESIZE", opCodeSize, 2},
 		CODECOPY:       {CODECOPY, "CODECOPY", opCodeCopy, 3}, // can change
-		GASPRICE:       {GASPRICE, "GASPRICE", notImplemented, 2},
+		GASPRICE:       {GASPRICE, "GASPRICE", opGasprice, 2},
 		EXTCODESIZE:    {EXTCODESIZE, "EXTCODESIZE", opExtCodeSize, 100}, // can change
 		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", opExtCodeCopy, 100}, // can change
 		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", notImplemented, 2},

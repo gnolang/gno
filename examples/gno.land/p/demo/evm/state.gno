@@ -5,6 +5,7 @@ import (
 )
 
 // const memSize = 30000
+const gasPrice = 10 // one gas cost 10 wei
 
 type LogEntry struct {
 	Topics [][]byte

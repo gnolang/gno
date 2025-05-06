@@ -386,3 +386,8 @@ func opCallvalue(s *State) error {
 	s.stack.Push(s.callValue.Clone())
 	return nil
 }
+
+func opGasprice(s *State) error {
+	s.stack.Push(uint256.NewUint(gasPrice))
+	return nil
+}

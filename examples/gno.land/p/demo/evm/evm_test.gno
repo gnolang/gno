@@ -716,7 +716,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(LOG3),
 				byte(STOP),
 			},
-			expectedStack:       []*uint256.Uint{},
+			expectedStack:     []*uint256.Uint{},
 			ignoreGasConsumed: true,
 		},
 		{
@@ -1247,6 +1247,15 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			ignoreGasConsumed: true,
+		},
+		{
+			name: "gasPrice is 10 wei",
+			code: []byte{
+				byte(GASPRICE),
+				byte(STOP),
+			},
+			expectedStack:       []*uint256.Uint{uint256.NewUint(10)},
+			expectedGasConsumed: 2,
 		},
 	}
 
