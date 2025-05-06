@@ -39,13 +39,13 @@ func TestTokenCount(t *testing.T) {
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	count := dummy.TokenCount()
-	uassert.Equal(t, uint64(0), count)
+	uassert.Equal(t, int64(0), count)
 
 	dummy.mint("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm", TokenID("1"))
 	dummy.mint("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm", TokenID("2"))
 
 	count = dummy.TokenCount()
-	uassert.Equal(t, uint64(2), count)
+	uassert.Equal(t, int64(2), count)
 }
 
 func TestBalanceOf(t *testing.T) {
@@ -57,7 +57,7 @@ func TestBalanceOf(t *testing.T) {
 
 	balanceAddr1, err := dummy.BalanceOf(addr1)
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, uint64(0), balanceAddr1)
+	uassert.Equal(t, int64(0), balanceAddr1)
 
 	dummy.mint(addr1, TokenID("1"))
 	dummy.mint(addr1, TokenID("2"))
@@ -69,8 +69,8 @@ func TestBalanceOf(t *testing.T) {
 	balanceAddr2, err := dummy.BalanceOf(addr2)
 	uassert.NoError(t, err, "should not result in error")
 
-	uassert.Equal(t, uint64(2), balanceAddr1)
-	uassert.Equal(t, uint64(1), balanceAddr2)
+	uassert.Equal(t, int64(2), balanceAddr1)
+	uassert.Equal(t, int64(1), balanceAddr2)
 }
 
 func TestOwnerOf(t *testing.T) {
@@ -185,12 +185,12 @@ func TestTransferFrom(t *testing.T) {
 	// Check balance of caller after transfer
 	balanceOfCaller, err := dummy.BalanceOf(caller)
 	uassert.NoError(t, err, "should result in error")
-	uassert.Equal(t, uint64(1), balanceOfCaller)
+	uassert.Equal(t, int64(1), balanceOfCaller)
 
 	// Check balance of addr after transfer
 	balanceOfAddr, err := dummy.BalanceOf(addr)
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, uint64(1), balanceOfAddr)
+	uassert.Equal(t, int64(1), balanceOfAddr)
 
 	// Check Owner of transferred Token id
 	owner, err := dummy.OwnerOf(TokenID("1"))
@@ -217,12 +217,12 @@ func TestSafeTransferFrom(t *testing.T) {
 	// Check balance of caller after transfer
 	balanceOfCaller, err := dummy.BalanceOf(caller)
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, uint64(1), balanceOfCaller)
+	uassert.Equal(t, int64(1), balanceOfCaller)
 
 	// Check balance of addr after transfer
 	balanceOfAddr, err := dummy.BalanceOf(addr)
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, uint64(1), balanceOfAddr)
+	uassert.Equal(t, int64(1), balanceOfAddr)
 
 	// Check Owner of transferred Token id
 	owner, err := dummy.OwnerOf(TokenID("1"))

@@ -101,7 +101,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr std.Address) Teller {
 // generic tellers methods.
 //
 
-func (ft *fnTeller) Transfer(to std.Address, amount uint64) error {
+func (ft *fnTeller) Transfer(to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -109,7 +109,7 @@ func (ft *fnTeller) Transfer(to std.Address, amount uint64) error {
 	return ft.Token.ledger.Transfer(caller, to, amount)
 }
 
-func (ft *fnTeller) Approve(spender std.Address, amount uint64) error {
+func (ft *fnTeller) Approve(spender std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -117,7 +117,7 @@ func (ft *fnTeller) Approve(spender std.Address, amount uint64) error {
 	return ft.Token.ledger.Approve(caller, spender, amount)
 }
 
-func (ft *fnTeller) TransferFrom(owner, to std.Address, amount uint64) error {
+func (ft *fnTeller) TransferFrom(owner, to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}

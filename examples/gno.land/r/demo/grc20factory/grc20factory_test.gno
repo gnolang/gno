@@ -15,17 +15,17 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	type test struct {
 		name    string
-		balance uint64
-		fn      func() uint64
+		balance int64
+		fn      func() int64
 	}
 
-	checkBalances := func(step string, totSup, balAdm, balBob, allowAdmBob, balCarl uint64) {
+	checkBalances := func(step string, totSup, balAdm, balBob, allowAdmBob, balCarl int64) {
 		tests := []test{
-			{"TotalSupply", totSup, func() uint64 { return TotalSupply("FOO") }},
-			{"BalanceOf(admin)", balAdm, func() uint64 { return BalanceOf("FOO", admin) }},
-			{"BalanceOf(bob)", balBob, func() uint64 { return BalanceOf("FOO", bob) }},
-			{"Allowance(admin, bob)", allowAdmBob, func() uint64 { return Allowance("FOO", admin, bob) }},
-			{"BalanceOf(carl)", balCarl, func() uint64 { return BalanceOf("FOO", carl) }},
+			{"TotalSupply", totSup, func() int64 { return TotalSupply("FOO") }},
+			{"BalanceOf(admin)", balAdm, func() int64 { return BalanceOf("FOO", admin) }},
+			{"BalanceOf(bob)", balBob, func() int64 { return BalanceOf("FOO", bob) }},
+			{"Allowance(admin, bob)", allowAdmBob, func() int64 { return Allowance("FOO", admin, bob) }},
+			{"BalanceOf(carl)", balCarl, func() int64 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
 			reason := ufmt.Sprintf("%s.%s - %s", step, tc.name, "balances do not match")

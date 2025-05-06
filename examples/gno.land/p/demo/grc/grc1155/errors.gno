@@ -10,4 +10,5 @@ var (
 	ErrCallerIsNotOwnerOrApproved             = errors.New("caller is not token owner or approved")
 	ErrInsufficientBalance                    = errors.New("insufficient balance for transfer")
 	ErrBurnAmountExceedsBalance               = errors.New("burn amount exceeds balance")
+	ErrInvalidAmount                          = errors.New("invalid amount")
 )

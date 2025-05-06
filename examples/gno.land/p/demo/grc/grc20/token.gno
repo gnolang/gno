@@ -1,18 +1,18 @@
 package grc20
 
 import (
+	"math"
+	"math/overflow"
 	"std"
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
 )
 
-const MaxUint64 = uint64(1<<63 - 1)
-
 // NewToken creates a new Token.
 // It returns a pointer to the Token and a pointer to the Ledger.
 // Expected usage: Token, admin := NewToken("Dummy", "DUMMY", 4)
-func NewToken(name, symbol string, decimals uint) (*Token, *PrivateLedger) {
+func NewToken(name, symbol string, decimals int) (*Token, *PrivateLedger) {
 	if name == "" {
 		panic("name should not be empty")
 	}
@@ -39,21 +39,21 @@ func (tok Token) GetName() string { return tok.name }
 func (tok Token) GetSymbol() string { return tok.symbol }
 
 // GetDecimals returns the number of decimals used to get the token's precision.
-func (tok Token) GetDecimals() uint { return tok.decimals }
+func (tok Token) GetDecimals() int { return tok.decimals }
 
 // TotalSupply returns the total supply of the token.
-func (tok Token) TotalSupply() uint64 { return tok.ledger.totalSupply }
+func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // BalanceOf returns the balance of the specified address.
-func (tok Token) BalanceOf(address std.Address) uint64 {
+func (tok Token) BalanceOf(address std.Address) int64 {
 	return tok.ledger.balanceOf(address)
 }
 
 // Allowance returns the allowance of the specified owner and spender.
-func (tok Token) Allowance(owner, spender std.Address) uint64 {
+func (tok Token) Allowance(owner, spender std.Address) int64 {
 	return tok.ledger.allowance(owner, spender)
 }
 
@@ -75,12 +75,15 @@ func (tok *Token) Getter() TokenGetter {
 }
 
 // SpendAllowance decreases the allowance of the specified owner and spender.
-func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount uint64) error {
+func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount int64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
 	if !spender.IsValid() {
 		return ErrInvalidAddress
+	}
+	if amount < 0 {
+		return ErrInvalidAmount
 	}
 
 	currentAllowance := led.allowance(owner, spender)
@@ -89,7 +92,7 @@ func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount uint
 	}
 
 	key := allowanceKey(owner, spender)
-	newAllowance := currentAllowance - amount
+	newAllowance := overflow.Sub64p(currentAllowance, amount)
 
 	if newAllowance == 0 {
 		led.allowances.Remove(key)
@@ -101,7 +104,7 @@ func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount uint
 }
 
 // Transfer transfers tokens from the specified from address to the specified to address.
-func (led *PrivateLedger) Transfer(from, to std.Address, amount uint64) error {
+func (led *PrivateLedger) Transfer(from, to std.Address, amount int64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -110,6 +113,9 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount uint64) error {
 	}
 	if from == to {
 		return ErrCannotTransferToSelf
+	}
+	if amount < 0 {
+		return ErrInvalidAmount
 	}
 
 	var (
@@ -122,8 +128,8 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount uint64) error {
 	}
 
 	var (
-		newToBalance   = toBalance + amount
-		newFromBalance = fromBalance - amount
+		newToBalance   = overflow.Add64p(toBalance, amount)
+		newFromBalance = overflow.Sub64p(fromBalance, amount)
 	)
 
 	led.balances.Set(string(to), newToBalance)
@@ -141,7 +147,10 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount uint64) error {
 
 // TransferFrom transfers tokens from the specified owner to the specified to address.
 // It first checks if the owner has sufficient balance and then decreases the allowance.
-func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount uint64) error {
+func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount int64) error {
+	if amount < 0 {
+		return ErrInvalidAmount
+	}
 	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
@@ -158,7 +167,7 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount ui
 
 	// decrease the allowance only when transfer is successful
 	key := allowanceKey(owner, spender)
-	newAllowance := currentAllowance - amount
+	newAllowance := overflow.Sub64p(currentAllowance, amount)
 
 	if newAllowance == 0 {
 		led.allowances.Remove(key)
@@ -170,9 +179,12 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount ui
 }
 
 // Approve sets the allowance of the specified owner and spender.
-func (led *PrivateLedger) Approve(owner, spender std.Address, amount uint64) error {
+func (led *PrivateLedger) Approve(owner, spender std.Address, amount int64) error {
 	if !owner.IsValid() || !spender.IsValid() {
 		return ErrInvalidAddress
+	}
+	if amount < 0 {
+		return ErrInvalidAmount
 	}
 
 	led.allowances.Set(allowanceKey(owner, spender), amount)
@@ -188,24 +200,22 @@ func (led *PrivateLedger) Approve(owner, spender std.Address, amount uint64) err
 }
 
 // Mint increases the total supply of the token and adds the specified amount to the specified address.
-func (led *PrivateLedger) Mint(address std.Address, amount uint64) error {
+func (led *PrivateLedger) Mint(address std.Address, amount int64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
-
-	// limit totalSupply to MaxUint64
-	if led.totalSupply > MaxUint64 {
-		return ErrOverflow
+	if amount < 0 {
+		return ErrInvalidAmount
 	}
 
-	// limit amount to MaxUint64 - totalSupply
-	if amount > MaxUint64-led.totalSupply {
-		return ErrOverflow
+	// limit amount to MaxInt64 - totalSupply
+	if amount > overflow.Sub64p(math.MaxInt64, led.totalSupply) {
+		return ErrMintOverflow
 	}
 
 	led.totalSupply += amount
 	currentBalance := led.balanceOf(address)
-	newBalance := currentBalance + amount
+	newBalance := overflow.Add64p(currentBalance, amount)
 
 	led.balances.Set(string(address), newBalance)
 
@@ -220,9 +230,12 @@ func (led *PrivateLedger) Mint(address std.Address, amount uint64) error {
 }
 
 // Burn decreases the total supply of the token and subtracts the specified amount from the specified address.
-func (led *PrivateLedger) Burn(address std.Address, amount uint64) error {
+func (led *PrivateLedger) Burn(address std.Address, amount int64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
+	}
+	if amount < 0 {
+		return ErrInvalidAmount
 	}
 
 	currentBalance := led.balanceOf(address)
@@ -230,8 +243,8 @@ func (led *PrivateLedger) Burn(address std.Address, amount uint64) error {
 		return ErrInsufficientBalance
 	}
 
-	led.totalSupply -= amount
-	newBalance := currentBalance - amount
+	led.totalSupply = overflow.Sub64p(led.totalSupply, amount)
+	newBalance := overflow.Sub64p(currentBalance, amount)
 
 	led.balances.Set(string(address), newBalance)
 
@@ -246,21 +259,21 @@ func (led *PrivateLedger) Burn(address std.Address, amount uint64) error {
 }
 
 // balanceOf returns the balance of the specified address.
-func (led PrivateLedger) balanceOf(address std.Address) uint64 {
+func (led PrivateLedger) balanceOf(address std.Address) int64 {
 	balance, found := led.balances.Get(address.String())
 	if !found {
 		return 0
 	}
-	return balance.(uint64)
+	return balance.(int64)
 }
 
 // allowance returns the allowance of the specified owner and spender.
-func (led PrivateLedger) allowance(owner, spender std.Address) uint64 {
+func (led PrivateLedger) allowance(owner, spender std.Address) int64 {
 	allowance, found := led.allowances.Get(allowanceKey(owner, spender))
 	if !found {
 		return 0
 	}
-	return allowance.(uint64)
+	return allowance.(int64)
 }
 
 // allowanceKey returns the key for the allowance of the specified owner and spender.
