@@ -26,15 +26,17 @@ type Register struct {
 }
 
 const (
-	memberRank = 0
-	adminRank  = 1
-	timeRefill = 2
+	memberRank int = 0
+	adminRank  int = 1
+
+	timeRefill int = 2
+
+	rows uint64 = 15
+	cols uint64 = 91
 )
 
 var (
 	table [][]string
-	rows  uint64 = 15 // pour linstant
-	cols  uint64 = 91
 
 	xStr string
 	yStr string
