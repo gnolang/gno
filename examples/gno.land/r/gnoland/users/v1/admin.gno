@@ -9,10 +9,38 @@ import (
 
 var paused = false // XXX: replace with p/moul/authz
 
+//----------------------------------------
+// Privileged mutators.
+
+func setPaused(newPausedValue bool) {
+	crossing()
+	paused = newPausedValue
+}
+
+func updateUsername(userData *susers.UserData, newName string) error {
+	crossing()
+	// UpdateName must be called from this realm.
+	return userData.UpdateName(newName)
+}
+
+func deleteUserdata(userData *susers.UserData) error {
+	crossing()
+	// Delete must be called from this realm.
+	return userData.Delete()
+}
+
+func setRegisterPrice(newPrice int64) {
+	crossing()
+	registerPrice = newPrice
+}
+
+//----------------------------------------
+// Public API
+
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
 func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 	cb := func() error {
-		paused = newPausedValue
+		cross(setPaused)(newPausedValue)
 		return nil
 	}
 
@@ -35,7 +63,8 @@ func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
 	}
 
 	cb := func() error {
-		return userData.UpdateName(newName)
+		err := cross(updateUsername)(userData, newName)
+		return err
 	}
 
 	e := dao.NewSimpleExecutor(cb, "")
@@ -53,7 +82,7 @@ func ProposeDeleteUser(addr std.Address, desc string) dao.ProposalRequest {
 	}
 
 	cb := func() error {
-		return userData.Delete()
+		return cross(deleteUserdata)(userData)
 	}
 
 	e := dao.NewSimpleExecutor(cb, "")
@@ -68,7 +97,7 @@ func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
 	}
 
 	cb := func() error {
-		registerPrice = newPrice
+		cross(setRegisterPrice)(newPrice)
 		return nil
 	}
 

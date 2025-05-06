@@ -47,9 +47,7 @@ type (
 	}
 )
 
-var (
-	rootFlagSet = flag.NewFlagSet("parser", flag.ExitOnError)
-)
+var rootFlagSet = flag.NewFlagSet("parser", flag.ExitOnError)
 
 func parseRootConfig(args []string) (*RootConfig, error) {
 	var cfg RootConfig

@@ -6,8 +6,10 @@ import (
 )
 
 func main() {
+	crossing()
+
 	println(tests.GetZeroType())
 }
 
 // Output:
-// (slice[(0 gno.land/r/demo/tests.Word)] gno.land/r/demo/tests.nat)
+// (readonly(slice[(0 gno.land/r/demo/tests.Word)]) gno.land/r/demo/tests.nat)

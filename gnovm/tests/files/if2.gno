@@ -11,3 +11,6 @@ func main() {
 
 // Error:
 // main/files/if2.gno:7:2: expected typed bool kind, but got IntKind
+
+// TypeCheckError:
+// main/files/if2.gno:7:5: non-boolean condition in if statement
