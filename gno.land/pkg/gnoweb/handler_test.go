@@ -49,7 +49,7 @@ func TestWebHandler_Get(t *testing.T) {
 	webclient := gnoweb.NewMockWebClient(mockPackage)
 
 	// Create a WebHandlerConfig with the mock web client and static metadata
-	config := gnoweb.WebHandlerConfig{
+	config := &gnoweb.WebHandlerConfig{
 		WebClient: webclient,
 	}
 
@@ -133,7 +133,7 @@ func TestWebHandler_NoRender(t *testing.T) {
 	}
 
 	webclient := gnoweb.NewMockWebClient(mockPackage)
-	config := gnoweb.WebHandlerConfig{
+	config := &gnoweb.WebHandlerConfig{
 		WebClient: webclient,
 	}
 
@@ -165,7 +165,7 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 	}
 
 	webclient := gnoweb.NewMockWebClient(mockPackage)
-	config := gnoweb.WebHandlerConfig{
+	config := &gnoweb.WebHandlerConfig{
 		WebClient: webclient,
 	}
 

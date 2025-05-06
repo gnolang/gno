@@ -203,13 +203,6 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// Setup path aliases
-	if cfg.aliases != "" {
-		if err := gnoweb.SetAliases(cfg.aliases); err != nil {
-			return nil, fmt.Errorf("unable to set aliases: %w", err)
-		}
-	}
-
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
@@ -222,6 +215,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.AssetsDir = cfg.assetsDir
+	appcfg.Aliases = cfg.aliases
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)

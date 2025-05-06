@@ -37,7 +37,6 @@ type HTMLWebClientConfig struct {
 }
 
 // NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
-// It sets up goldmark Markdown parsing options and default domain and highlighter.
 func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfig {
 	return &HTMLWebClientConfig{
 		Domain:            "gno.land",
