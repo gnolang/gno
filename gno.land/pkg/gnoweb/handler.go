@@ -7,17 +7,15 @@ import (
 	"go/token"
 	"log/slog"
 	"net/http"
+	"os"
 	"path"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
-	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
 )
 
 // StaticMetadata holds static configuration for a web handler.
@@ -32,8 +30,9 @@ type StaticMetadata struct {
 
 // WebHandlerConfig configures a WebHandler.
 type WebHandlerConfig struct {
-	Meta      StaticMetadata
-	WebClient WebClient
+	Meta             StaticMetadata
+	WebClient        WebClient
+	MarkdownRenderer *MarkdownRenderer
 }
 
 // validate checks if the WebHandlerConfig is valid.
@@ -46,9 +45,10 @@ func (cfg WebHandlerConfig) validate() error {
 
 // WebHandler processes HTTP requests.
 type WebHandler struct {
-	Logger *slog.Logger
-	Static StaticMetadata
-	Client WebClient
+	Logger           *slog.Logger
+	Static           StaticMetadata
+	Client           WebClient
+	MarkdownRenderer *MarkdownRenderer
 }
 
 // NewWebHandler creates a new WebHandler.
@@ -58,9 +58,10 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) (*WebHandler, erro
 	}
 
 	return &WebHandler{
-		Client: cfg.WebClient,
-		Static: cfg.Meta,
-		Logger: logger,
+		Client:           cfg.WebClient,
+		Static:           cfg.Meta,
+		MarkdownRenderer: cfg.MarkdownRenderer,
+		Logger:           logger,
 	}, nil
 }
 
@@ -161,31 +162,19 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL) (int, *components.View) {
 	var content bytes.Buffer
 
+	// Get the raw markdown file
+	raw, err := os.ReadFile(gnourl.Path)
+
 	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(ctx))
-	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
-		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
-	}
-
-	var meta RealmMeta
-	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
+	toc, err := h.MarkdownRenderer.Render(&content, gnourl, raw)
 	if err != nil {
-		s.logger.Warn("unable to inspect for TOC elements", "error", err)
-	}
-
-	meta, err := h.Client.RenderRealm(&content, gnourl)
-	if err != nil {
-		if errors.Is(err, ErrRenderNotDeclared) {
-			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
-		}
-
-		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
+		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
-			Items: meta.Toc.Items,
+			Items: toc.Items,
 		},
 
 		// NOTE: `RenderRealm` should ensure that HTML content is
@@ -218,7 +207,7 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL) (int, *components.Vie
 func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View) {
 	var content bytes.Buffer
 
-	meta, err := h.Client.RenderRealm(&content, gnourl)
+	meta, err := h.Client.RenderRealm(&content, gnourl, h.MarkdownRenderer)
 	if err != nil {
 		if errors.Is(err, ErrRenderNotDeclared) {
 			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)

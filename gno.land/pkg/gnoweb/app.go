@@ -60,11 +60,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Setup web client HTML
 	webcfg := NewDefaultHTMLWebClientConfig(client)
 	webcfg.Domain = cfg.Domain
-	if cfg.UnsafeHTML {
-		webcfg.GoldmarkOptions = append(webcfg.GoldmarkOptions, goldmark.WithRendererOptions(
-			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
-		))
-	}
 	webcli := NewHTMLClient(logger, webcfg)
 
 	// Setup StaticMetadata
@@ -78,8 +73,17 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Analytics:  cfg.Analytics,
 	}
 
+	// Configure Markdown renderer
+	markdownCfg := NewDefaultMarkdownRendererConfig(webcfg.ChromaHTMLOptions)
+	if cfg.UnsafeHTML {
+		markdownCfg.GoldmarkOptions = append(markdownCfg.GoldmarkOptions, goldmark.WithRendererOptions(
+			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
+		))
+	}
+	markdownRenderer := NewMarkdownRenderer(logger, markdownCfg)
+
 	// Configure WebHandler
-	webConfig := WebHandlerConfig{WebClient: webcli, Meta: staticMeta}
+	webConfig := WebHandlerConfig{WebClient: webcli, Meta: staticMeta, MarkdownRenderer: markdownRenderer}
 	webhandler, err := NewWebHandler(logger, webConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)
@@ -89,7 +93,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// Handle web handler with alias middleware
-	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics))
+	mux.Handle("/", AliasAndRedirectMiddleware(logger, webhandler, cfg.Analytics))
 
 	// TODO: Remove this in favor of using the aliases flag?
 	// Register faucet URL to `/faucet` if specified

@@ -1,9 +1,11 @@
 package gnoweb
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
 const DefaultHomeAlias = "/r/gnoland/home"
@@ -36,8 +38,16 @@ var Redirects = map[string]string{
 // AliasAndRedirectMiddleware redirects all incoming requests whose path matches
 // any of the [Redirects] to the corresponding URL; and rewrites the URL path
 // for incoming requests which match any of the [Aliases].
-func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler {
+func AliasAndRedirectMiddleware(logger *slog.Logger, next http.Handler, analytics bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if the user requested a markdown file and empty the path if so,
+		// since opening markdown files is only allowed using aliases.
+		gnourl, _ := weburl.ParseFromURL(r.URL) // Error ignored because already checked in webhandler.Get()
+		if gnourl.IsMarkdownFile() {
+			r.URL.Path = ""
+			return
+		}
+
 		// Check if the request path matches a redirect
 		if newPath, ok := Redirects[r.URL.Path]; ok {
 			http.Redirect(w, r, newPath, http.StatusFound)
