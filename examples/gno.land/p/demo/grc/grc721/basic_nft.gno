@@ -1,6 +1,7 @@
 package grc721
 
 import (
+	"math/overflow"
 	"std"
 	"strconv"
 
@@ -32,12 +33,12 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 	}
 }
 
-func (s *basicNFT) Name() string       { return s.name }
-func (s *basicNFT) Symbol() string     { return s.symbol }
-func (s *basicNFT) TokenCount() uint64 { return uint64(s.owners.Size()) }
+func (s *basicNFT) Name() string      { return s.name }
+func (s *basicNFT) Symbol() string    { return s.symbol }
+func (s *basicNFT) TokenCount() int64 { return int64(s.owners.Size()) }
 
 // BalanceOf returns balance of input address
-func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
+func (s *basicNFT) BalanceOf(addr std.Address) (int64, error) {
 	if err := isValidAddress(addr); err != nil {
 		return 0, err
 	}
@@ -47,7 +48,7 @@ func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
 		return 0, nil
 	}
 
-	return balance.(uint64), nil
+	return balance.(int64), nil
 }
 
 // OwnerOf returns owner of input token id
@@ -220,7 +221,7 @@ func (s *basicNFT) Burn(tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	balance -= 1
+	balance = overflow.Sub64p(balance, 1)
 	s.balances.Set(owner.String(), balance)
 	s.owners.Remove(string(tid))
 
@@ -297,8 +298,8 @@ func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	fromBalance -= 1
-	toBalance += 1
+	fromBalance = overflow.Sub64p(fromBalance, 1)
+	toBalance = overflow.Add64p(toBalance, 1)
 	s.balances.Set(from.String(), fromBalance)
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
@@ -336,7 +337,7 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	toBalance += 1
+	toBalance = overflow.Add64p(toBalance, 1)
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 
@@ -375,11 +376,11 @@ func (s *basicNFT) exists(tid TokenID) bool {
 	return found
 }
 
-func (s *basicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *basicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
-func (s *basicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *basicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
