@@ -6,5 +6,7 @@ func Render(path string) string {
 
 Here’s an example of embedding an image in a Gno realm:
 
-![Example Image](https://i.imgur.com/So4rBPB.jpeg)`
+![Example Image](https://i.imgur.com/So4rBPB.jpeg)
+
+Only a limited set of content providers is supported. Check the list out [here](/r/docs/markdown#images).`
 }
