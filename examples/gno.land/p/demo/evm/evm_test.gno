@@ -29,6 +29,7 @@ func TestExecuteEvm(t *testing.T) {
 		ignoreTransientStorage   bool
 		ignoreGasConsumed        bool
 		ignoreStack              bool
+		chainId 				 uint256.Uint
 	}{
 		{
 			name:                "simple addition",
@@ -1256,6 +1257,18 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedStack:       []*uint256.Uint{uint256.NewUint(10)},
 			expectedGasConsumed: 2,
+		},
+		{
+		// 	name: "get the chain ID",
+		// 	code: []byte{
+		// 		byte(CHAINID),
+		// 		byte(STOP),
+		// 	},
+		// 	expectedStack:[]*uint256.Uint{
+		// 		uint256.NewUint(2),
+		// 	},
+		// 	chainId: *uint256.NewUint(2),
+		// 	expectedGasConsumed: 2,
 		},
 	}
 

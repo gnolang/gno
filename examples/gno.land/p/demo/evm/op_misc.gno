@@ -272,3 +272,36 @@ func opGasprice(s *State) error {
 	s.stack.Push(uint256.NewUint(gasPrice))
 	return nil
 }
+
+// TODO: tests
+func opChainId(s *State) error {
+	s.stack.Push(&s.env.ChainID)
+	return nil
+}
+
+// TODO: tests
+func opSelfBalance(s *State) error {
+    s.stack.Push(s.caller.Balance.Clone())
+    return nil
+}
+
+// TODO: tests
+func opNumber(s *State) error {
+	blockNumber := uint64(time.Now().Unix())
+	s.stack.Push(uint256.NewUint(blockNumber))
+	return nil
+}
+
+// TODO: fix + tests
+func opBaseFee(s *State) error {
+	prevBaseFee := uint64(202700000000) // wei
+	includedGas := uint64(30000000) // in millions
+	targetGas := uint64(15000000)
+
+	delta := float64(int64(includedGas) - int64(targetGas)) / float64(targetGas)
+	adjustment := delta * float64(prevBaseFee) / 8.0
+	newBaseFee := float64(prevBaseFee) + adjustment
+	feeResult := uint64(newBaseFee + 0.5)
+	s.stack.Push(uint256.NewUint(feeResult))
+	return nil
+}
