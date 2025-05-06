@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"testing"
+
+	"github.com/rs/xid"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -18,8 +22,14 @@ func TestRoutes(t *testing.T) {
 		ok         = http.StatusOK
 		found      = http.StatusFound
 		notFound   = http.StatusNotFound
-		BadRequest = http.StatusBadRequest
+		badRequest = http.StatusBadRequest
 	)
+
+	var (
+		uuid1 = xid.New()
+		uuid2 = xid.New()
+	)
+
 	routes := []struct {
 		route     string
 		status    int
@@ -50,7 +60,7 @@ func TestRoutes(t *testing.T) {
 		{"/blog", found, "/r/gnoland/blog"},
 		{"/r/docs/optional_render", http.StatusOK, "No Render"},
 		{"/r/not/found/", notFound, ""},
-		{"/z/bad/request", BadRequest, ""}, // not realm or pure
+		{"/z/bad/request", badRequest, ""}, // not realm or pure
 		{"/아스키문자가아닌경로", notFound, ""},
 		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, ""},
 		{"/グノー", notFound, ""},
@@ -63,6 +73,12 @@ func TestRoutes(t *testing.T) {
 		{"/public/imgs/gnoland.svg", ok, ""},
 		// Test Toc
 		{"/", ok, `href="#learn-about-gnoland"`},
+		// Teast aliased path and static file
+		{"/test1", ok, "registry"},     // Alias "/test1" points to "/r/gnoland/users/v1"
+		{"/test2", ok, uuid1.String()}, // Alias "/test2" points to static file containing an uuid
+		{"/test3", notFound, ""},       // Alias "/test3" points to "/r/not/found" which doesn't exist
+		{"/test4", ok, uuid2.String()}, // Alias "/test2_b" points to another static file containing an uuid
+		{"/test123", badRequest, ""},   // Alias "/test123" doesn't exist, points to "" which is not valid
 	}
 
 	rootdir := gnoenv.RootDir()
@@ -74,6 +90,14 @@ func TestRoutes(t *testing.T) {
 
 	cfg := NewDefaultAppConfig()
 	cfg.NodeRemote = remoteAddr
+
+	// Set up the static files for alias testing
+	staticFilePath1 := path.Join(t.TempDir(), "static1.md")
+	os.WriteFile(staticFilePath1, []byte(uuid1.String()), 0644)
+	staticFilePath2 := path.Join(t.TempDir(), "static2.md")
+	os.WriteFile(staticFilePath2, []byte(uuid2.String()), 0644)
+
+	cfg.Aliases = fmt.Sprintf("/test1 | /r/gnoland/users/v1, /test2 | static:%s, /test3 | /r/not/found, /test4 | static:%s", staticFilePath1, staticFilePath2)
 
 	logger := log.NewTestingLogger(t)
 

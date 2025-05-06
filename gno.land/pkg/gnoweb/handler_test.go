@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -224,6 +226,84 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 				for k, v := range tc.Headers {
 					assert.Equal(t, v, rr.Header().Get(k))
 				}
+			}
+		})
+	}
+}
+
+func TestWebHandler_AliasesConfig(t *testing.T) {
+	t.Parallel()
+
+	var (
+		webHandlerCfg  = gnoweb.NewDefaultWebHandlerConfig()
+		existingStatic = path.Join(t.TempDir(), "existing")
+		missingStatic  = path.Join(t.TempDir(), "missing")
+	)
+
+	_, err := os.Create(existingStatic)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name       string
+		aliasesStr string
+		error      bool
+	}{
+		{
+			name:       "empty",
+			aliasesStr: "",
+			error:      false,
+		},
+		{
+			name:       "only whitespaces",
+			aliasesStr: "    ",
+			error:      false,
+		},
+		{
+			name:       "no separator",
+			aliasesStr: "alias1",
+			error:      true,
+		},
+		{
+			name:       "too many separators",
+			aliasesStr: "alias1 | | target1",
+			error:      true,
+		},
+		{
+			name:       "empty entry",
+			aliasesStr: "alias1 | target1, , alias3 | target3",
+			error:      true,
+		},
+		{
+			name:       "valid entry",
+			aliasesStr: "alias1 | target1, alias2 | target2, alias3 | target3",
+			error:      false,
+		},
+		{
+			name:       "alias existing static file",
+			aliasesStr: "alias1 | static:" + existingStatic,
+			error:      false,
+		},
+		{
+			name:       "alias multiple static files",
+			aliasesStr: "alias1 | static:" + existingStatic + ", alias2 | static:" + existingStatic + ", alias3 | static:" + existingStatic,
+			error:      false,
+		},
+		{
+			name:       "alias missing static file",
+			aliasesStr: "alias1 | static:" + missingStatic,
+			error:      true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := webHandlerCfg.SetAliases(tc.aliasesStr)
+			if tc.error {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
