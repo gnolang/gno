@@ -153,11 +153,11 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(30_000))
+	uassert.Equal(t, bal, int64(30_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(70_000))
+	uassert.Equal(t, bal, int64(70_000))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 
 	// uassert.Equal(t, swap.amountStr, amount.String(), "expected amount to match")
 	uassert.Equal(t, hashlockHex, swap.hashlock, "expected hashlock to match")
@@ -172,11 +172,11 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(30_000))
+	uassert.Equal(t, bal, int64(30_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(70_000))
+	uassert.Equal(t, bal, int64(70_000))
 
 	// Test refund (should fail because already claimed)
 	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
@@ -227,11 +227,11 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(30_000))
+	uassert.Equal(t, bal, int64(30_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(70_000))
+	uassert.Equal(t, bal, int64(70_000))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 
 	// Test Refund
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
@@ -241,11 +241,11 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(100_000))
+	uassert.Equal(t, bal, int64(100_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 
 	expected = `- status: refunded
 - sender: g1wdjkuer9wg647h6lta047h6lta047h6l5p6k3k
@@ -291,11 +291,11 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(30_000))
+	uassert.Equal(t, bal, int64(30_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(70_000))
+	uassert.Equal(t, bal, int64(70_000))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 
 	// uassert.Equal(t, swap.amountStr, amount.String(), "expected amount to match")
 	uassert.Equal(t, hashlockHex, swap.hashlock, "expected hashlock to match")
@@ -310,11 +310,11 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(30_000))
+	uassert.Equal(t, bal, int64(30_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(70_000))
+	uassert.Equal(t, bal, int64(70_000))
 
 	// Test refund (should fail because already claimed)
 	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
@@ -365,11 +365,11 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(30_000))
+	uassert.Equal(t, bal, int64(30_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(70_000))
+	uassert.Equal(t, bal, int64(70_000))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 
 	// Test Refund
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
@@ -379,11 +379,11 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, uint64(100_000))
+	uassert.Equal(t, bal, int64(100_000))
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, uint64(0))
+	uassert.Equal(t, bal, int64(0))
 
 	expected = `- status: refunded
 - sender: g1wdjkuer9wgm97h6lta047h6lta047h6ltj497r
