@@ -44,7 +44,7 @@ func init() {
 	cross(commondao.Invite)(user1)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	testing.SetOriginCaller(user1)
+	testing.SetRealm(std.NewUserRealm(user1))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao = commondao.New("Foo")
 

@@ -14,7 +14,8 @@ func main() {
 	crossing()
 
 	// Calling with a user that was not invited
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	commondao.New("Foo")
 }

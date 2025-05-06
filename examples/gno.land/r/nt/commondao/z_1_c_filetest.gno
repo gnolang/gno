@@ -12,12 +12,10 @@ const (
 	invitee = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 )
 
-func init() {
-	// Call as a users which is not a Common DAO member
-	testing.SetOriginCaller(user)
-}
-
 func main() {
+	// Call as a users which is not a Common DAO member
+	testing.SetRealm(std.NewUserRealm(user))
+
 	cross(commondao.Invite)(invitee)
 }
 

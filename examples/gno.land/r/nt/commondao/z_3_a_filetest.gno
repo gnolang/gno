@@ -28,13 +28,15 @@ func init() {
 	cross(commondao.Invite)(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
 	daoID = commondao.New("Foo").ID()
 }
 
 func main() {
 	crossing()
+
+	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
 
 	cross(commondao.TransferOwnership)(daoID, newRealm)
 

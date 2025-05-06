@@ -16,12 +16,12 @@ func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
-
-	// The origin must be the invited user
-	testing.SetOriginCaller(user)
 }
 
 func main() {
+	// The origin must be the invited user
+	testing.SetRealm(std.NewUserRealm(user))
+
 	commondao.New("Foo")
 }
 

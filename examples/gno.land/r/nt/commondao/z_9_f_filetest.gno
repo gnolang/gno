@@ -22,7 +22,7 @@ func init() {
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 
 	// Create root DAO without subDAOs
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
@@ -31,6 +31,8 @@ func init() {
 
 func main() {
 	crossing()
+
+	testing.SetRealm(std.NewUserRealm("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"))
 
 	commondao.NewIterator(rootID)
 }
