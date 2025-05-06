@@ -268,3 +268,80 @@ func opCalldatacopy(s *State) error {
 	s.gasConsumed += uint(dynamicGas)
 	return nil
 }
+
+// EXTCODESIZE can't be implemented, it only copy 0's in memory
+func opExtCodeCopy(s *State) error {
+	_, err := s.stack.Pop() // address of contract code to copy
+	if err != nil {
+		return err
+	}
+
+	dest, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	_, err = s.stack.Pop() // offset of contract code to copy
+	if err != nil {
+		return err
+	}
+	size, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	memLen := uint64(len(s.memory))
+	farest := dest.Uint64() + size.Uint64()
+	memoryCost := uint64(0)
+	if farest > memLen {
+		extend := farest - memLen
+		s.memory = append(s.memory, make([]byte, extend)...)
+
+		memorySizeWord := (extend + 31) / 32
+		memoryCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
+	}
+
+	copy(s.memory[dest.Uint64():], make([]byte, size.Uint64()))
+
+	minimumWordSize := (size.Uint64() + 31) / 32
+
+	gasCost := uint(3*minimumWordSize + memoryCost)
+	s.gasConsumed += gasCost
+	return nil
+}
+
+func opCodeCopy(s *State) error {
+	if s.stack.length < 3 {
+		return tooFewStack
+	}
+	memOff, _ := s.stack.Pop()
+	codeOff, _ := s.stack.Pop()
+	size, _ := s.stack.Pop()
+
+	var memCost uint64
+	codeLen := uint256.NewUint(uint64(s.code.length))
+	codeEnd := uint256.Zero().Add(codeOff, size)
+	memLen := uint256.NewUint(uint64(len(s.memory)))
+	memEnd := uint256.Zero().Add(memOff, size)
+	var data []byte
+	if codeOff.Gte(codeLen) { // if too far, the data is just zeroes
+		data = make([]byte, size.Uint64())
+	} else {
+		codeEffectiveEnd := uint256.Zero().Min(codeEnd, codeLen)
+		data = s.code.instructions[codeOff.Uint64():codeEffectiveEnd.Uint64()]
+		if codeEnd.Gt(codeLen) {
+			data = append(data, make([]byte, uint256.Zero().Sub(codeEnd, codeLen).Uint64())...)
+		}
+	}
+	if memEnd.Gt(memLen) { // if too big, just extend the memory of memEnd - memLen
+		memExp := uint256.Zero().Sub(memEnd, memLen).Uint64()
+		s.memory = append(s.memory, make([]byte, memExp)...)
+		memorySizeWord := (memExp + 31) / 32
+		memCost = uint64(math.Pow(float64(memorySizeWord), 2))/512 + (3 * memorySizeWord)
+	}
+	copy(s.memory[memOff.Uint64():memEnd.Uint64()], data)
+
+	// burn dynamic gas
+	minimumWordSize := (size.Uint64() + 31) / 32
+	s.gasConsumed += uint(3*minimumWordSize + memCost)
+	return nil
+}
