@@ -1,4 +1,5 @@
-package main
+// PKGPATH: gno.land/r/demo/commondao_test
+package commondao_test
 
 import (
 	"std"
@@ -13,6 +14,15 @@ import (
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
+var (
+	dao      *pdao.CommonDAO
+	proposal *pdao.Proposal
+	executed bool
+	user1    = testutils.TestAddress("user1")
+	user2    = testutils.TestAddress("user2")
+	user3    = testutils.TestAddress("user3")
+)
+
 type propDef struct{}
 
 func (propDef) Title() string                                                 { return "" }
@@ -22,18 +32,11 @@ func (propDef) Validate() error                                               { 
 func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
 
 func (propDef) Execute() error {
+	crossing()
+
 	executed = true
 	return nil
 }
-
-var (
-	dao      *pdao.CommonDAO
-	proposal *pdao.Proposal
-	executed bool
-	user1    = testutils.TestAddress("user1")
-	user2    = testutils.TestAddress("user2")
-	user3    = testutils.TestAddress("user3")
-)
 
 func init() {
 	// Invite a user to be able to start creating DAOs
@@ -63,6 +66,10 @@ func init() {
 }
 
 func main() {
+	crossing()
+
+	testing.SetRealm(std.NewUserRealm(user1))
+
 	cross(commondao.Execute)(dao.ID(), proposal.ID())
 
 	p := dao.FinishedProposals().Get(proposal.ID())
