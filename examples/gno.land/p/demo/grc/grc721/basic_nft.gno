@@ -1,6 +1,7 @@
 package grc721
 
 import (
+	"math/overflow"
 	"std"
 	"strconv"
 
@@ -220,7 +221,7 @@ func (s *basicNFT) Burn(tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	balance -= 1
+	balance = overflow.Sub64p(balance, 1)
 	s.balances.Set(owner.String(), balance)
 	s.owners.Remove(string(tid))
 
@@ -297,8 +298,8 @@ func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	fromBalance -= 1
-	toBalance += 1
+	fromBalance = overflow.Sub64p(fromBalance, 1)
+	toBalance = overflow.Add64p(toBalance, 1)
 	s.balances.Set(from.String(), fromBalance)
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
@@ -336,7 +337,7 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	toBalance += 1
+	toBalance = overflow.Add64p(toBalance, 1)
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 

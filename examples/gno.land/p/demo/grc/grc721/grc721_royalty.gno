@@ -1,6 +1,7 @@
 package grc721
 
 import (
+	"math/overflow"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -73,6 +74,6 @@ func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice int64) (std.Address, int
 }
 
 func (r *royaltyNFT) calculateRoyaltyAmount(salePrice, percentage int64) (int64, error) {
-	royaltyAmount := (salePrice * percentage) / 100
+	royaltyAmount := overflow.Mul64p(salePrice, percentage) / 100
 	return royaltyAmount, nil
 }
