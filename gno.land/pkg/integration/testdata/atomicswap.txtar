@@ -9,10 +9,10 @@ gnokey maketx send -send 1000000000ugnot -to $test2_user_addr -gas-fee 1000000ug
 gnokey maketx send -send 1000000000ugnot -to $test3_user_addr -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test test1
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*2000000000ugnot'
+stdout 'coins.*:.*1010000000ugnot'
 
 gnokey query auth/accounts/$test3_user_addr
-stdout 'coins.*:.*2000000000ugnot'
+stdout 'coins.*:.*1010000000ugnot'
 
 # To generate the hash for "secret", use a hashing tool or library of your choice. For example:
 # In Unix-based systems, you can use:
@@ -27,14 +27,14 @@ stdout 'OK!'
 gnokey query vm/qrender --data 'gno.land/r/demo/atomicswap:'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1998987655ugnot'
+stdout 'coins.*:.*1008987655ugnot'
 gnokey query auth/accounts/$test3_user_addr
-stdout 'coins.*:.*2000000000ugnot'
+stdout 'coins.*:.*1010000000ugnot'
 
 gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func Claim -gas-fee 1000000ugnot -gas-wanted 10000000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test3
 stdout 'OK!'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1998987655ugnot'
+stdout 'coins.*:.*1008987655ugnot'
 gnokey query auth/accounts/$test3_user_addr
-stdout 'coins.*:.*1999012345ugnot'
+stdout 'coins.*:.*1009012345ugnot'
