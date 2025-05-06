@@ -209,6 +209,24 @@ func LogOut() {
 	addressLoggedIn = ""
 }
 
+func RenderAccountManagement(selectedColor string) string {
+	var out string
+
+	if addressLoggedIn == "" {
+		out += md.H2(md.Link("Log In", txlink.Call("LogIn")))
+	} else {
+		_, ok := retrieveMember(addressLoggedIn)
+		if !ok {
+			out += md.H2(md.Link("Register", txlink.Call("RegisterMember")) + "\n\n")
+		} else {
+			out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " | " +
+				md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
+		}
+	}
+
+	return out
+}
+
 func Render(path string) string {
 	req := realmpath.Parse(path)
 	query := req.Query
@@ -238,17 +256,7 @@ func Render(path string) string {
 		selectedColor = white
 	}
 
-	if addressLoggedIn == "" {
-		out += md.H2(md.Link("Log In", txlink.Call("LogIn")))
-	} else {
-		_, ok := retrieveMember(addressLoggedIn)
-		if !ok {
-			out += md.H2(md.Link("Register", txlink.Call("RegisterMember")) + "\n\n")
-		} else {
-			out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " | " +
-				md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
-		}
-	}
+	out += RenderAccountManagement(selectedColor)
 
 	ssvg := GenerateSVG()
 	base64SVG := base64.StdEncoding.EncodeToString([]byte(ssvg))
