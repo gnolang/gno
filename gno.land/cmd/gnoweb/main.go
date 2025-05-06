@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -46,7 +47,7 @@ type webCfg struct {
 	remoteHelp string
 	bind       string
 	faucetURL  string
-	homeStatic string
+	aliases    string
 	assetsDir  string
 	timeout    time.Duration
 	analytics  bool
@@ -103,10 +104,10 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.homeStatic,
-		"home-static",
-		defaultWebOptions.homeStatic,
-		"file to render for the home page, if empty, will render 'r/gnoland/home'",
+		&c.aliases,
+		"aliases",
+		defaultWebOptions.aliases,
+		"comma-separated list of aliases in the form: '<url-path>:<realm-path>' or '<url-path>:<static-markdown-file>'",
 	)
 
 	fs.StringVar(
@@ -203,9 +204,17 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// Set home static
-	if cfg.homeStatic != "" {
-		gnoweb.SetHomeAlias(cfg.homeStatic)
+	// Setup path aliases
+	if cfg.aliases != "" {
+		aliases := strings.Split(cfg.aliases, ",")
+		for _, alias := range aliases {
+			parts := strings.SplitN(alias, ":", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("invalid alias format: %q", alias)
+			}
+
+			gnoweb.Aliases[parts[0]] = parts[1]
+		}
 	}
 
 	// Setup app

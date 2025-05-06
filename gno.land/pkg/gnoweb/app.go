@@ -91,6 +91,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle web handler with alias middleware
 	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics))
 
+	// TODO: Remove this in favor of using the aliases flag?
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

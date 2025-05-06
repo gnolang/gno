@@ -58,11 +58,6 @@ func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler 
 	})
 }
 
-// SetHomeAlias sets the home alias to the given path.
-func SetHomeAlias(path string) {
-	Aliases["/"] = path
-}
-
 // IsHomePath checks if the given path is the home path.
 func IsHomePath(path string) bool {
 	return path == "/"

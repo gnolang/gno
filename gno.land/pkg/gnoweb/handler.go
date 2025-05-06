@@ -13,8 +13,11 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 )
 
 // StaticMetadata holds static configuration for a web handler.
@@ -146,10 +149,49 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	switch {
 	case gnourl.IsRealm(), gnourl.IsPure():
 		return h.GetPackageView(gnourl)
+	case gnourl.IsMarkdownFile():
+		return h.GetMarkdownView(gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
 	}
+}
+
+// GetMarkdownView handles markdown files.
+func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL) (int, *components.View) {
+	var content bytes.Buffer
+
+	// Use Goldmark for Markdown parsing
+	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(ctx))
+	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
+		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
+	}
+
+	var meta RealmMeta
+	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
+	if err != nil {
+		s.logger.Warn("unable to inspect for TOC elements", "error", err)
+	}
+
+	meta, err := h.Client.RenderRealm(&content, gnourl)
+	if err != nil {
+		if errors.Is(err, ErrRenderNotDeclared) {
+			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
+		}
+
+		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	return http.StatusOK, components.RealmView(components.RealmData{
+		TocItems: &components.RealmTOCData{
+			Items: meta.Toc.Items,
+		},
+
+		// NOTE: `RenderRealm` should ensure that HTML content is
+		// sanitized before rendering
+		ComponentContent: components.NewReaderComponent(&content),
+	})
 }
 
 // GetPackageView handles package pages.

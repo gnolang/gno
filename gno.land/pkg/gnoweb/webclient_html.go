@@ -35,16 +35,18 @@ type HTMLWebClientConfig struct {
 	GoldmarkOptions   []goldmark.Option
 }
 
-// NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
-// It sets up goldmark Markdown parsing options and default domain and highlighter.
-func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfig {
-	chromaOptions := []chromahtml.Option{
+// NewDefaultChromaOptions returns the default Chroma options.
+func NewDefaultChromaOptions() []chromahtml.Option {
+	return []chromahtml.Option{
 		chromahtml.WithLineNumbers(true),
 		chromahtml.WithLinkableLineNumbers(true, "L"),
 		chromahtml.WithClasses(true),
 		chromahtml.ClassPrefix("chroma-"),
 	}
+}
 
+// NewDefaultGoldmarkOptions returns the default Goldmark options.
+func NewDefaultGoldmarkOptions(chromaOptions []chromahtml.Option) []goldmark.Option {
 	// Only allow svg data image
 	allowSvgDataImage := func(uri string) bool {
 		const svgdata = "image/svg+xml"
@@ -66,6 +68,15 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			),
 		),
 	}
+
+	return goldmarkOptions
+}
+
+// NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
+// It sets up goldmark Markdown parsing options and default domain and highlighter.
+func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfig {
+	chromaOptions := NewDefaultChromaOptions()
+	goldmarkOptions := NewDefaultGoldmarkOptions(chromaOptions)
 
 	return &HTMLWebClientConfig{
 		Domain:            "gno.land",
