@@ -27,12 +27,15 @@ func IsAuthorizedAddressForNamespace(address std.Address, namespace string) bool
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
 func Enable() {
-	Ownable.AssertCallerIsOwner()
+	crossing()
+	if err := Ownable.DropOwnershipByPrevious(); err != nil {
+		panic(err)
+	}
 	enabled = true
-	Ownable.DropOwnership()
 }
 
 func IsEnabled() bool {
+	crossing()
 	return enabled
 }
 

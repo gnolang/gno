@@ -10,6 +10,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println("premain", amap)
 	amap["c"] = "3"
 	println("postmain", amap)
