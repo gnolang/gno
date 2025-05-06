@@ -212,6 +212,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 		const qpath = "vm/qrender"
 		pkgPath := strings.Trim(u.Path, "/")
 		data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
+
 		content, err = s.query(qpath, []byte(data))
 		if err != nil {
 			return nil, err
@@ -221,9 +222,9 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 	ctx := md.NewGnoParserContext(u)
 
 	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(ctx))
-	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
-		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
+	doc := s.Markdown.Parser().Parse(text.NewReader(content), parser.WithContext(ctx))
+	if err := s.Markdown.Renderer().Render(w, content, doc); err != nil {
+		return nil, fmt.Errorf("unable to render realm %q: %w", u.Path, err)
 	}
 
 	var meta RealmMeta
