@@ -215,6 +215,9 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	if pv.TV.T == nil {
+		return
+	}
 	// Special cases.
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
@@ -236,6 +239,10 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
+	if pv.TV.T == nil || pv.TV.V == nil{
+		return TypedValue{}
+	}
+
 	if pv.TV.T == DataByteType {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
