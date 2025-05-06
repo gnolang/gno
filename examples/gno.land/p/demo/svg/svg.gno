@@ -1,6 +1,10 @@
 package svg
 
-import "gno.land/p/demo/ufmt"
+import (
+	"encoding/base64"
+
+	"gno.land/p/demo/ufmt"
+)
 
 type Canvas struct {
 	Width  int
@@ -18,6 +22,11 @@ func (c Canvas) String() string {
 	}
 	output += "</svg>"
 	return output
+}
+
+func (c Canvas) Base64() string {
+	output := c.String()
+	return base64.StdEncoding.EncodeToString([]byte(output))
 }
 
 func (c *Canvas) Append(elem Elem) {
@@ -44,38 +53,116 @@ func (c *Canvas) DrawCircle(cx, cy, r int, fill string) {
 	})
 }
 
+type Ellipse struct {
+	CX   int // center X
+	CY   int // center Y
+	RX   int // radius X
+	RY   int // radius Y
+	Fill string
+}
+
+func (e Ellipse) String() string {
+	return ufmt.Sprintf(`<ellipse cx="%d" cy="%d" rx="%d" ry="%d" fill="%s" />`, e.CX, e.CY, e.RX, e.RY, e.Fill)
+}
+
+func (c *Canvas) DrawEllipse(cx, cy, rx, ry int, fill string) {
+	c.Append(Ellipse{
+		CX:   cx,
+		CY:   cy,
+		RX:   rx,
+		RY:   ry,
+		Fill: fill,
+	})
+}
+
 type Rectangle struct {
 	X, Y, Width, Height int
+	RX, RY              int // corner radiuses
 	Fill                string
 }
 
-func (c Rectangle) String() string {
-	return ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s" />`, c.X, c.Y, c.Width, c.Height, c.Fill)
+func (r Rectangle) String() string {
+	return ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="%d" ry="%d" fill="%s" />`, r.X, r.Y, r.Width, r.Height, r.RX, r.RY, r.Fill)
 }
 
-func (c *Canvas) DrawRectangle(x, y, width, height int, fill string) {
+func (c *Canvas) DrawRectangle(x, y, width, height, rx, ry int, fill string) {
 	c.Append(Rectangle{
 		X:      x,
 		Y:      y,
 		Width:  width,
 		Height: height,
+		RX: rx,
+		RY: ry,
+		Fill:   fill,
+	})
+}
+
+type Path struct {
+	D    string
+	Fill string
+}
+
+func (p Path) String() string {
+	return ufmt.Sprintf(`<path d="%s" fill="%s" />`, p.D, p.Fill)
+}
+
+func (c *Canvas) DrawPath(d, fill string) {
+	c.Append(Path{
+		D:    d,
+		Fill: fill,
+	})
+}
+
+type Polygon struct { // closed shape
+	Points string
+	Fill   string
+}
+
+func (p Polygon) String() string {
+	return ufmt.Sprintf(`<polygon points="%s" fill="%s" />`, p.Points, p.Fill)
+}
+
+func (c *Canvas) DrawPolygon(points, fill string) {
+	c.Append(Polygon{
+		Points: points,
+		Fill:   fill,
+	})
+}
+
+type Polyline struct { // polygon but not necessarily closed
+	Points string
+	Fill   string
+}
+
+func (p Polyline) String() string {
+	return ufmt.Sprintf(`<polyline points="%s" fill="%s" />`, p.Points, p.Fill)
+}
+
+func (c *Canvas) DrawPolyline(points, fill string) {
+	c.Append(Polyline{
+		Points: points,
 		Fill:   fill,
 	})
 }
 
 type Text struct {
 	X, Y       int
+	DX, DY     int // shift text pos horizontally/ vertically
+	Rotate     string
 	Text, Fill string
 }
 
 func (c Text) String() string {
-	return ufmt.Sprintf(`<text x="%d" y="%d" fill="%s">%s</text>`, c.X, c.Y, c.Fill, c.Text)
+	return ufmt.Sprintf(`<text x="%d" y="%d" dx="%d" dy="%d" rotate="%s" fill="%s">%s</text>`, c.X, c.Y, c.DX, c.DY, c.Rotate, c.Fill, c.Text)
 }
 
-func (c *Canvas) DrawText(x, y int, text, fill string) {
+func (c *Canvas) DrawText(x, y, dx, dy int, rotate, text, fill string) {
 	c.Append(Text{
 		X:    x,
 		Y:    y,
+		DX: dx,
+		DY: dy,
+		Rotate: rotate,
 		Text: text,
 		Fill: fill,
 	})

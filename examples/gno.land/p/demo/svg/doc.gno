@@ -9,7 +9,7 @@ Example:
 
 	func Foo() string {
 	    canvas := svg.Canvas{Width: 200, Height: 200}
-	    canvas.DrawRectangle(50, 50, 100, 100, "red")
+	    canvas.DrawRectangle(50, 50, 100, 100, 0, 0, "red")
 	    canvas.DrawCircle(100, 100, 50, "blue")
 	    return canvas.String()
 	}
