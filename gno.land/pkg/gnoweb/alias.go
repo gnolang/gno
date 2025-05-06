@@ -1,18 +1,19 @@
 package gnoweb
 
 import (
-	"log/slog"
-	"net/http"
-
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"fmt"
+	"os"
+	"strings"
 )
 
-const DefaultHomeAlias = "/r/gnoland/home"
+// IsHomePath checks if the given path is the home path.
+func IsHomePath(path string) bool {
+	return path == "/"
+}
 
-// Aliases are gnoweb paths that are rewritten using [AliasAndRedirectMiddleware].
-var Aliases = map[string]string{
-	"/":           DefaultHomeAlias,
+// aliases are gnoweb paths that are rewritten by the web handler.
+var aliases = map[string]string{
+	"/":           "/r/gnoland/home",
 	"/about":      "/r/gnoland/pages:p/about",
 	"/gnolang":    "/r/gnoland/pages:p/gnolang",
 	"/ecosystem":  "/r/gnoland/pages:p/ecosystem",
@@ -24,51 +25,50 @@ var Aliases = map[string]string{
 	"/events":     "/r/gnoland/events",
 }
 
-// Redirect are gnoweb paths that are redirected using [AliasAndRedirectMiddleware].
-var Redirects = map[string]string{
-	"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
-	"/blog":                    "/r/gnoland/blog",
-	"/gor":                     "/contribute",
-	"/game-of-realms":          "/contribute",
-	"/grants":                  "/partners",
-	"/language":                "/gnolang",
-	"/getting-started":         "/start",
+// GetAlias retrieves the target and static status of the given path if any.
+func GetAlias(path string) (target string, exists, static bool) {
+	target, exists = aliases[path]
+
+	// If the alias is a static file, set the static flag and trim the prefix.
+	if strings.HasPrefix(target, "static:") {
+		static = true
+		target = strings.TrimPrefix(target, "static:")
+	}
+
+	return
 }
 
-// AliasAndRedirectMiddleware redirects all incoming requests whose path matches
-// any of the [Redirects] to the corresponding URL; and rewrites the URL path
-// for incoming requests which match any of the [Aliases].
-func AliasAndRedirectMiddleware(logger *slog.Logger, next http.Handler, analytics bool) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the user requested a markdown file and empty the path if so,
-		// since opening markdown files is only allowed using aliases.
-		gnourl, _ := weburl.ParseFromURL(r.URL) // Error ignored because already checked in webhandler.Get()
-		if gnourl.IsMarkdownFile() {
-			r.URL.Path = ""
-			return
+// SetAliases parses the given aliases string and sets the aliases map.
+// Any value of form 'static:<file>' will be loaded as a static markdown file.
+func SetAliases(aliasesStr string) error {
+	// Split the aliases string by commas.
+	aliasEntries := strings.Split(aliasesStr, ",")
+
+	// Add each alias entry to the aliases map.
+	for _, entry := range aliasEntries {
+		parts := strings.Split(entry, "|")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid alias entry: %s", entry)
 		}
 
-		// Check if the request path matches a redirect
-		if newPath, ok := Redirects[r.URL.Path]; ok {
-			http.Redirect(w, r, newPath, http.StatusFound)
-			components.RedirectView(components.RedirectData{
-				To:            newPath,
-				WithAnalytics: analytics,
-			}).Render(w)
-			return
+		// Trim whitespace from both parts.
+		parts[0] = strings.TrimSpace(parts[0])
+		parts[1] = strings.TrimSpace(parts[1])
+
+		// Check if the value is a path to a static file.
+		if strings.HasPrefix(parts[1], "static:") {
+			// If it is, load the static file content and set it as the alias.
+			staticFilePath := strings.TrimPrefix(parts[1], "static:")
+
+			content, err := os.ReadFile(staticFilePath)
+			if err != nil {
+				return fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
+			}
+			aliases[parts[0]] = fmt.Sprintf("static:%s", string(content))
+		} else { // Otherwise, treat it as a normal alias.
+			aliases[parts[0]] = parts[1]
 		}
+	}
 
-		// Check if the request path matches an alias
-		if newPath, ok := Aliases[r.URL.Path]; ok {
-			r.URL.Path = newPath
-		}
-
-		// Call the next handler
-		next.ServeHTTP(w, r)
-	})
-}
-
-// IsHomePath checks if the given path is the home path.
-func IsHomePath(path string) bool {
-	return path == "/"
+	return nil
 }

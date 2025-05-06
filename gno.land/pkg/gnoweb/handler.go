@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"log/slog"
 	"net/http"
-	"os"
 	"path"
 	"slices"
 	"strings"
@@ -132,6 +131,11 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index.
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+	aliasTarget, exists, staticFile := GetAlias(r.URL.Path)
+	if exists && !staticFile { // If the alias target exists and is not static file, replace the URL path with it.
+		r.URL.Path = aliasTarget
+	}
+
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
@@ -148,10 +152,10 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	}
 
 	switch {
+	case staticFile:
+		return h.GetMarkdownView(gnourl, aliasTarget)
 	case gnourl.IsRealm(), gnourl.IsPure():
 		return h.GetPackageView(gnourl)
-	case gnourl.IsMarkdownFile():
-		return h.GetMarkdownView(gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -159,26 +163,18 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 }
 
 // GetMarkdownView handles markdown files.
-func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
 	var content bytes.Buffer
 
-	// Get the raw markdown file
-	raw, err := os.ReadFile(gnourl.Path)
-
 	// Use Goldmark for Markdown parsing
-	toc, err := h.MarkdownRenderer.Render(&content, gnourl, raw)
+	toc, err := h.MarkdownRenderer.Render(&content, gnourl, []byte(mdContent))
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
-		TocItems: &components.RealmTOCData{
-			Items: toc.Items,
-		},
-
-		// NOTE: `RenderRealm` should ensure that HTML content is
-		// sanitized before rendering
+		TocItems:         &components.RealmTOCData{Items: toc.Items},
 		ComponentContent: components.NewReaderComponent(&content),
 	})
 }

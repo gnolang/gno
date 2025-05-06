@@ -92,8 +92,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Setup HTTP muxer
 	mux := http.NewServeMux()
 
-	// Handle web handler with alias middleware
-	mux.Handle("/", AliasAndRedirectMiddleware(logger, webhandler, cfg.Analytics))
+	// Handle web handler with redirect middleware
+	mux.Handle("/", RedirectMiddleware(webhandler, cfg.Analytics))
 
 	// TODO: Remove this in favor of using the aliases flag?
 	// Register faucet URL to `/faucet` if specified

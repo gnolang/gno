@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -107,7 +106,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.aliases,
 		"aliases",
 		defaultWebOptions.aliases,
-		"comma-separated list of aliases in the form: '<url-path>:<realm-path>' or '<url-path>:<static-markdown-file>'",
+		"comma-separated list of aliases in the form: '<url-path>|<realm-path>' or '<url-path>|static:<markdown-file>'",
 	)
 
 	fs.StringVar(
@@ -206,14 +205,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	// Setup path aliases
 	if cfg.aliases != "" {
-		aliases := strings.Split(cfg.aliases, ",")
-		for _, alias := range aliases {
-			parts := strings.SplitN(alias, ":", 2)
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("invalid alias format: %q", alias)
-			}
-
-			gnoweb.Aliases[parts[0]] = parts[1]
+		if err := gnoweb.SetAliases(cfg.aliases); err != nil {
+			return nil, fmt.Errorf("unable to set aliases: %w", err)
 		}
 	}
 

@@ -147,11 +147,6 @@ func (gnoURL GnoURL) IsFile() bool {
 	return gnoURL.File != ""
 }
 
-// IsFile checks if the URL path represents a Markdown file.
-func (gnoURL GnoURL) IsMarkdownFile() bool {
-	return gopath.Ext(gnoURL.File) == ".md"
-}
-
 // IsDir checks if the URL path represents a directory.
 func (gnoURL GnoURL) IsDir() bool {
 	return !gnoURL.IsFile() &&
