@@ -8,13 +8,14 @@ on:
     paths:
       - "misc/loop/**"
       - ".github/workflows/portal-loop.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  portal-loop:
+  build-portal-loop:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,12 +41,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           target: portalloopd
-          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # push: ${{ github.event_name != 'pull_request' }}
 
-  test-portal-loop-docker-compose:
-    runs-on: ubuntu-latest
+  test-portal-loop-running-in-compose:
+    runs-on: ubuntu-latest 
     timeout-minutes: 10
     steps:
       - name: "Checkout"
@@ -53,6 +54,7 @@ jobs:
 
       - name: "Setup The portal loop docker compose"
         run: |
+          docker pull ghcr.io/gnolang/gno/gnoland:master
           cd misc/loop
           echo "Making docker compose happy"
           touch .env
