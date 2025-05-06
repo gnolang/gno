@@ -45,16 +45,25 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 		chromahtml.ClassPrefix("chroma-"),
 	}
 
+	// Only allow svg data image
+	allowSvgDataImage := func(uri string) bool {
+		const svgdata = "image/svg+xml"
+		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
+	}
+
 	goldmarkOptions := []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
 			),
+
 			extension.Strikethrough,
 			extension.Table,
 
-			md.GnoExtension,
+			md.NewGnoExtension(
+				md.WithImageValidator(allowSvgDataImage),
+			),
 		),
 	}
 
@@ -197,10 +206,10 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 		return nil, err
 	}
 
-	ctxOpts := parser.WithContext(md.NewGnoParserContext(u))
+	ctx := md.NewGnoParserContext(u)
 
 	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), ctxOpts)
+	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(ctx))
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
 	}
