@@ -15,10 +15,6 @@ import (
 // yAxisTitle: title for the y-axis
 // Returns a markdown string representing the chart
 func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title, xAxisTitle, yAxisTitle string) string {
-	if pointSpacing < 5 || pointSpacing > 25 {
-		return "pointSpacing must be between 5 and 25"
-	}
-
 	if len(values) == 0 {
 		return "no data to display"
 	}
@@ -28,6 +24,22 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		if v > maxVal {
 			maxVal = v
 		}
+	}
+
+	maxValStrLen := 0
+	for _, v := range values {
+		valStr := ufmt.Sprintf("%.2f", v)
+		if len(valStr) > maxValStrLen {
+			maxValStrLen = len(valStr)
+		}
+	}
+
+	minSpacing := maxValStrLen + 2
+	if pointSpacing < minSpacing {
+		return ufmt.Sprintf("pointSpacing must be at least %d to fit value labels", minSpacing)
+	}
+	if pointSpacing > 25 {
+		return "pointSpacing must be between " + ufmt.Sprintf("%d", minSpacing) + " and 25"
 	}
 
 	displayValues := values
@@ -106,7 +118,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 	}
 
 	output += strings.Repeat(" ", yAxisWidth) + " +"
-	output += strings.Repeat("-", gridWidth + 3)
+	output += strings.Repeat("-", gridWidth+3)
 	output += "\n"
 
 	output += strings.Repeat(" ", yAxisWidth+2)

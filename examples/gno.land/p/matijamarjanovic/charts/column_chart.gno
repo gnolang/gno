@@ -46,6 +46,18 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 	maxYValue := ufmt.Sprintf("%.2f", maxVal)
 	yAxisWidth := len(maxYValue)
 
+	maxValStrLen := 0
+	for _, v := range displayValues {
+		valStr := ufmt.Sprintf("%.2f", v)
+		if len(valStr) > maxValStrLen {
+			maxValStrLen = len(valStr)
+		}
+	}
+	if maxValStrLen < 2 {
+		maxValStrLen = 2
+	}
+	colWidth := maxValStrLen + 2
+
 	for row := height; row > 0; row-- {
 		if row%3 == 0 {
 			yValue := ufmt.Sprintf("%.2f", float64(row)/scale)
@@ -58,27 +70,41 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		for _, val := range displayValues {
 			scaledHeight := int(val * scale)
 			if scaledHeight >= row {
-				output += "||||| "
+				barCount := colWidth - 1
+				output += strings.Repeat("|", barCount) + " "
 			} else {
-				output += "      "
+				output += strings.Repeat(" ", colWidth)
 			}
 		}
 		output += "\n"
 	}
 
 	output += strings.Repeat(" ", yAxisWidth) + " +"
-	output += strings.Repeat("------", len(displayValues))
-	output += strings.Repeat(" ", len(displayValues))
+	output += strings.Repeat(strings.Repeat("-", colWidth), len(displayValues))
 	output += "\n"
 
-	output += strings.Repeat(" ", yAxisWidth+2) + " "
-	for _, val := range displayValues {
-		output += ufmt.Sprintf("%.2f  ", val)
+	output += strings.Repeat(" ", yAxisWidth+2)
+	for i := 0; i < len(displayValues); i++ {
+		x := i * colWidth
+		valStr := ufmt.Sprintf("%.2f", displayValues[i])
+		labelPos := x + colWidth/2 - len(valStr)/2
+		if labelPos < 0 {
+			labelPos = 0
+		}
+		if i == 0 {
+			output += strings.Repeat(" ", labelPos)
+		} else {
+			prevX := (i - 1) * colWidth
+			prevValStr := ufmt.Sprintf("%.2f", displayValues[i-1])
+			prevLabelEnd := prevX + colWidth/2 - len(prevValStr)/2 + len(prevValStr)
+			output += strings.Repeat(" ", labelPos-prevLabelEnd)
+		}
+		output += valStr
 	}
 	output += "\n"
 
 	if xAxisTitle != "" {
-		padding := strings.Repeat(" ", (len(displayValues)*6)/2)
+		padding := strings.Repeat(" ", (len(displayValues)*colWidth)/2)
 		output += "       " + padding + xAxisTitle + "\n"
 	}
 
