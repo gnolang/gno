@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
@@ -19,15 +20,23 @@ type Color struct {
 }
 
 var (
+	white = "rgb(240,240,240)"
+
 	colors = []Color{
+		{"black", "rgb(40,40,40)"},
 		{"red", "rgb(255,0,0)"},
 		{"green", "rgb(0,255,0)"},
 		{"blue", "rgb(0,0,255)"},
+		{"yellow", "rgb(255,255,0)"},
+		{"cyan", "rgb(0,255,255)"},
+		{"pink", "rgb(255,0,255)"},
+		{"white", white},
 	}
 
-	table [][]string
-	rows  uint64 = 15 // pour linstant
-	cols  uint64 = 91
+	table      [][]string // TODO: use a B tree for storage efficiency
+	tableColor [][]string
+	rows       uint64 = 15 // pour linstant
+	cols       uint64 = 80
 
 	xStr string
 	yStr string
@@ -36,12 +45,22 @@ var (
 )
 
 func generateSquareSvg(color string) string {
-	var svg strings.Builder
+	// var svg strings.Builder
 
-	svg.WriteString(`<span><svg viewBox="0 0 100 100" width="10" height="10" xmlns="http://www.w3.org/2000/svg">`)
-	svg.WriteString(`<rect x="0" y="0" width="10" height="10" fill="` + color + `"/>`)
-	svg.WriteString(`</svg></span>`)
-	return base64.StdEncoding.EncodeToString([]byte(svg.String()))
+	canvas := svg.Canvas{Width: 30, Height: 30}
+	canvas.DrawRectangle(0, 0, 30, 30, color)
+
+	// svg.WriteString(`<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">`)
+	// svg.WriteString(`<a href="https://fr.wikipedia.org/wiki/Der_Verschwender">`)
+	// svg.WriteString(`<rect x="0" y="0" width="20" height="20" fill="` + color + `"/>`)
+	// svg.WriteString(`<rect x="30" y="90" width="40" height="10" fill="` + color + `"/>`)
+	// svg.WriteString(`<rect x="80" y="0" width="20" height="20" fill="` + color + `"/>`)
+	// svg.WriteString(`<text x="0" y="0" fill="` + color + `">Cool dude</text>`)
+	// svg.WriteString(`<circle cx="50" cy="50" r="10" fill="` + color + `" />`)
+	// svg.WriteString(`<text x="0" y="50" fill="` + color + `">Cool dude</text>`)
+	// svg.WriteString(`</a></svg>`)
+	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
+	// return svg.String()
 }
 
 func init() {
@@ -53,6 +72,13 @@ func init() {
 			link := ufmt.Sprintf("/r/eva/place?x=%d&y=%d", x, y)
 			table[y][x] = md.Link("⠀", link)
 			// table[y][x] = md.Link(generateSquareSvg("rgb(255,255,255)"), link)
+		}
+	}
+	tableColor = make([][]string, rows)
+	for y := 0; y < int(rows); y++ {
+		tableColor[y] = make([]string, cols)
+		for x := 0; x < int(cols); x++ {
+			tableColor[y][x] = white
 		}
 	}
 }
@@ -78,18 +104,16 @@ func parseXY(rawQuery string) (x, y uint64, err error) {
 	return x, y, nil
 }
 
-func Submit(x, y uint64) {
-	table[y][x] = "**O**"
+func Submit(x, y uint64, color string) {
+	table[y][x] = "O"
+	tableColor[y][x] = color
 }
 
 func GenerateSVG() string {
-	out := `<svg width="3600" height="600" xmlns="http://www.w3.org/2000/svg">`
-	out += `<rect x="0" y="0" width="3600" height="600" fill="rgb(20,20,20)"/>`
+	out := ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">`, cols*40, rows*40)
 	for y := 0; y < int(rows); y++ {
 		for x := 0; x < int(cols); x++ {
-			if table[y][x] == "**O**" || table[y][x] == "**X**" {
-				out += ufmt.Sprintf(`<rect x="%d" y="%d" width="40" height="40" fill="rgb(255, 255, 255)"/>`, x*40, y*40)
-			}
+			out += ufmt.Sprintf(`<rect x="%d" y="%d" width="40" height="40" fill="%s"/>`, x*40, y*40, tableColor[y][x])
 		}
 	}
 	out += "</svg>"
@@ -97,12 +121,15 @@ func GenerateSVG() string {
 }
 
 func Render(path string) string {
+	req := realmpath.Parse(path)
+	query := req.Query
+
 	out := md.H1("r/place") + "\n\n"
 	if strings.Contains(path, "?") {
 		if x, y, err := parseXY(path); err != nil {
 			panic(err)
 		} else {
-			table[y][x] = "**X**"
+			table[y][x] = "X"
 		}
 	}
 
@@ -116,20 +143,34 @@ func Render(path string) string {
 	}
 	out += md.HorizontalRule() + "\n\n"
 
-	out += "## " + md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr)) + "\n\n"
+	selectedColor := query.Get("color")
 
-	svg := GenerateSVG()
-	base64SVG := base64.StdEncoding.EncodeToString([]byte(svg))
+	if selectedColor == "" {
+		selectedColor = white
+	}
+
+	out += "## " + md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + "\n\n"
+
+	ssvg := GenerateSVG()
+	base64SVG := base64.StdEncoding.EncodeToString([]byte(ssvg))
 	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", base64SVG)
-
-	req := realmpath.Parse(path)
-	query := req.Query
-	out += ""
 
 	for _, color := range colors {
 		query.Set("color", color.name)
-		out += ufmt.Sprintf("[!["+color.name+"](data:image/svg+xml;base64,%s)]("+req.String()+")", generateSquareSvg(color.rgb)) + " help" // I would have liked using md.Link here but doing so replaces the svg image with its link
-	}
 
+		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) // I would have liked using md.Link here but doing so replaces the svg image with its link
+		// out += ufmt.Sprintf("!["+color.name+"](data:image/svg+xml;base64,%s)", generateSquareSvg(color.rgb))
+	}
+	// canvas := svg.Canvas{Width: 200, Height: 200}
+	// canvas.DrawRectangle(0, 0, 100, 100, "rgb(0,0,255)")
+	// canvas.DrawRectangle(100, 0, 100, 100, "rgb(255,0,255)")
+	// out += md.Image("name", "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString([]byte(canvas.String())))
+	// canvas = svg.Canvas{Width: 200, Height: 200}
+	// // canvas.DrawRectangle(0, 0, 100, 100, "rgb(0,0,255)")
+	// // canvas.DrawRectangle(100, 0, 100, 100, "rgb(255,0,255)")
+	// canvas.DrawText(0, 0, "Cool dude", "rgb(0,0,255)")
+	// out += md.Image("name", "data:image/svg+xml;base64,"+base64.StdEncoding.EncodeToString([]byte(canvas.String())))
+
+	// ufmt.Printf("ICI%sICI", canvas.String())
 	return out
 }
