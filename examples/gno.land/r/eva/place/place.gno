@@ -62,8 +62,7 @@ var (
 	xStr string
 	yStr string
 
-	Registered      Register
-	addressLoggedIn std.Address
+	Registered Register
 
 	ErrInvalidCoordQuery = errors.New("Invalid coordinate value, expecting a uint64")
 )
@@ -170,13 +169,18 @@ func SetNewAdmin(address std.Address) {
 func DeleteUser() {
 	address := std.OriginCaller()
 
+	_, ok := retrieveMember(address)
+	if !ok {
+		panic("User not registered")
+	}
+
 	Registered.Users.Remove(address.String())
 }
 
 func Submit(x, y uint64, color string) {
 	user, ok := retrieveMember(std.OriginCaller())
 	if !ok {
-		panic("User must be registered to submit a pixel")
+		RegisterMember()
 	}
 
 	if time.Now().Before(user.Timer) {
@@ -201,28 +205,11 @@ func GenerateSVG() string {
 	return out
 }
 
-func LogIn() {
-	addressLoggedIn = std.OriginCaller()
-}
-
-func LogOut() {
-	addressLoggedIn = ""
-}
-
 func RenderAccountManagement(selectedColor string) string {
 	var out string
 
-	if addressLoggedIn == "" {
-		out += md.H2(md.Link("Log In", txlink.Call("LogIn")))
-	} else {
-		_, ok := retrieveMember(addressLoggedIn)
-		if !ok {
-			out += md.H2(md.Link("Register", txlink.Call("RegisterMember")) + "\n\n")
-		} else {
-			out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " | " +
-				md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
-		}
-	}
+	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " | " +
+		md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
 
 	return out
 }
@@ -266,10 +253,6 @@ func Render(path string) string {
 		query.Set("color", color.name)
 
 		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
-	}
-
-	if addressLoggedIn != "" {
-		out += md.H2(md.Link("Log out", txlink.Call("LogOut")))
 	}
 
 	return out
