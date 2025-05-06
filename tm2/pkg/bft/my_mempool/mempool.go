@@ -15,32 +15,32 @@ import (
 // Transaction represents a basic transaction structure with sender information,
 // nonce for ordering, and gas fee for prioritization.
 type Transaction struct {
-	Sender string
-	Nonce  uint64
-	GasFee uint64
+	Sender string // Account address that initiated the transaction
+	Nonce  uint64 // Sequential number to prevent replay attacks and ensure ordering
+	GasFee uint64 // Fee paid for transaction execution, used for prioritization
 }
 
 // Mempool manages pending transactions before they are included in a block.
-// It organizes transactions by sender and maintains expected nonces to ensure
-// transactions are processed in the correct order.
+// It implements a nonce-based ordering system with gas fee prioritization.
 type Mempool struct {
-	txsBySender    map[string][]Transaction // Transactions organized by sender address
-	expectedNonces map[string]uint64        // Expected next nonce for each sender
-	proxyAppConn   appconn.Mempool          // Connection to the application for queries
-	mutex          sync.RWMutex             // Mutex for thread-safe operations
+	txsBySender    map[string][]Transaction // Future transactions with nonces > expectedNonce
+	pendingTxs     map[string]Transaction   // Transactions ready for immediate processing
+	expectedNonces map[string]uint64        // Next valid nonce for each sender account
+	proxyAppConn   appconn.Mempool          // Interface to query application state
+	mutex          sync.RWMutex             // Protects concurrent access to mempool state
 }
 
 // NewMempool creates a new mempool instance with the provided application connection.
 func NewMempool(proxyAppConn appconn.Mempool) *Mempool {
 	return &Mempool{
 		txsBySender:    make(map[string][]Transaction),
+		pendingTxs:     make(map[string]Transaction),
 		expectedNonces: make(map[string]uint64),
 		proxyAppConn:   proxyAppConn,
 	}
 }
 
 // AddTx validates and adds a transaction to the mempool.
-// Transactions for each sender are kept sorted by nonce (ascending).
 // Returns an error if the transaction is invalid or has a nonce that is too low.
 func (mp *Mempool) AddTx(tx Transaction) error {
 	if tx.Sender == "" {
@@ -50,7 +50,7 @@ func (mp *Mempool) AddTx(tx Transaction) error {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
-	// If we don't have a cached nonce for this sender, fetch it from the application
+	// Fetch account sequence from application state if not cached
 	if _, ok := mp.expectedNonces[tx.Sender]; !ok {
 		seq, err := mp.getAccountSequence(tx.Sender)
 		if err != nil {
@@ -59,12 +59,18 @@ func (mp *Mempool) AddTx(tx Transaction) error {
 		mp.expectedNonces[tx.Sender] = seq
 	}
 
-	// Reject transactions with nonces lower than expected
+	// Reject transactions with nonces lower than expected (already processed)
 	if tx.Nonce < mp.expectedNonces[tx.Sender] {
 		return fmt.Errorf("tx nonce too low (expected %d, got %d)", mp.expectedNonces[tx.Sender], tx.Nonce)
 	}
 
-	// Insert into sorted array by nonce
+	// If nonce matches expected nonce, add to pendingTxs for immediate processing
+	if tx.Nonce == mp.expectedNonces[tx.Sender] {
+		mp.pendingTxs[tx.Sender] = tx
+		return nil
+	}
+
+	// Store future transactions in sorted order by nonce
 	txList := mp.txsBySender[tx.Sender]
 	idx := findInsertIndex(txList, tx.Nonce)
 
@@ -88,33 +94,45 @@ func findInsertIndex(txList []Transaction, nonce uint64) int {
 	})
 }
 
+// promoteReadyTx checks if there's a transaction in txsBySender with the given nonce
+// and moves it to pendingTxs if found. Returns true if a transaction was promoted.
+func (mp *Mempool) promoteReadyTx(sender string, nonce uint64) bool {
+	txList := mp.txsBySender[sender]
+	if len(txList) == 0 {
+		return false
+	}
+
+	idx := findInsertIndex(txList, nonce)
+	if idx < len(txList) && txList[idx].Nonce == nonce {
+		// Found a ready transaction, move it to pendingTxs
+		mp.pendingTxs[sender] = txList[idx]
+
+		// Remove from txsBySender
+		mp.txsBySender[sender] = append(txList[:idx], txList[idx+1:]...)
+		if len(mp.txsBySender[sender]) == 0 {
+			delete(mp.txsBySender, sender)
+		}
+		return true
+	}
+	return false
+}
+
 // selectBestReadyTx selects the transaction with the highest gas fee from all
-// transactions that have the correct nonce (ready to be processed).
+// pending transactions that are ready to be processed.
 // Returns nil if no transactions are ready.
 func (mp *Mempool) selectBestReadyTx() *Transaction {
+	if len(mp.pendingTxs) == 0 {
+		return nil
+	}
+
 	var bestTx *Transaction
 	var bestSender string
 
-	for sender, txs := range mp.txsBySender {
-		if len(txs) == 0 {
-			continue
-		}
-
-		// Get the expected nonce for this sender
-		expectedNonce, exists := mp.expectedNonces[sender]
-		if !exists {
-			// If we don't have the expected nonce in cache, skip this sender
-			continue
-		}
-
-		// Check if the first transaction has the correct nonce
-		tx := txs[0]
-		if tx.Nonce != expectedNonce {
-			continue
-		}
-
+	// Select the pending transaction with the highest gas fee
+	for sender, tx := range mp.pendingTxs {
 		if bestTx == nil || tx.GasFee > bestTx.GasFee {
-			bestTx = &tx
+			txCopy := tx // Make a copy to avoid issues with map iteration
+			bestTx = &txCopy
 			bestSender = sender
 		}
 	}
@@ -123,14 +141,14 @@ func (mp *Mempool) selectBestReadyTx() *Transaction {
 		return nil
 	}
 
-	// Remove the selected transaction from the sender's list
-	mp.txsBySender[bestSender] = mp.txsBySender[bestSender][1:]
-	if len(mp.txsBySender[bestSender]) == 0 {
-		delete(mp.txsBySender, bestSender)
-	}
+	// Remove the selected transaction from pendingTxs
+	delete(mp.pendingTxs, bestSender)
 
 	// Update the expected nonce for this sender
 	mp.expectedNonces[bestSender]++
+
+	// Check if we have another transaction from this sender with the new expected nonce
+	mp.promoteReadyTx(bestSender, mp.expectedNonces[bestSender])
 
 	return bestTx
 }
@@ -156,13 +174,19 @@ func (mp *Mempool) CollectTxsForBlock(maxTxs uint) []Transaction {
 }
 
 // Update processes committed transactions and removes them from the mempool.
-// This is typically called after transactions have been included in a block.
-// It also updates the expected nonces for affected senders.
+// It also updates the expected nonces for affected senders and promotes
+// any transactions that become ready as a result.
 func (mp *Mempool) Update(committed []Transaction) {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
 	for _, tx := range committed {
+		// Check if this transaction is in pendingTxs
+		if pendingTx, ok := mp.pendingTxs[tx.Sender]; ok && pendingTx.Nonce == tx.Nonce {
+			delete(mp.pendingTxs, tx.Sender)
+		}
+
+		// Also remove from txsBySender if it exists there
 		txs := mp.txsBySender[tx.Sender]
 		newList := make([]Transaction, 0, len(txs))
 		for _, existing := range txs {
@@ -177,8 +201,9 @@ func (mp *Mempool) Update(committed []Transaction) {
 		}
 
 		// Update expected nonce if this transaction's nonce matches the current expected nonce
-		if expectedNonce, exists := mp.expectedNonces[tx.Sender]; exists && tx.Nonce == expectedNonce {
-			mp.expectedNonces[tx.Sender] = tx.Nonce + 1
+		if tx.Nonce == mp.expectedNonces[tx.Sender] {
+			mp.expectedNonces[tx.Sender]++
+			mp.promoteReadyTx(tx.Sender, mp.expectedNonces[tx.Sender])
 		}
 	}
 }
@@ -187,7 +212,8 @@ func (mp *Mempool) Update(committed []Transaction) {
 func (mp *Mempool) Size() int {
 	mp.mutex.RLock()
 	defer mp.mutex.RUnlock()
-	count := 0
+
+	count := len(mp.pendingTxs)
 	for _, txs := range mp.txsBySender {
 		count += len(txs)
 	}
@@ -199,22 +225,42 @@ func (mp *Mempool) Size() int {
 func (mp *Mempool) GetTransactionsBySender(sender string) []Transaction {
 	mp.mutex.RLock()
 	defer mp.mutex.RUnlock()
-	return mp.txsBySender[sender]
+
+	result := []Transaction{}
+
+	// Add pending transaction if exists
+	if pendingTx, ok := mp.pendingTxs[sender]; ok {
+		result = append(result, pendingTx)
+	}
+
+	// Add other transactions
+	result = append(result, mp.txsBySender[sender]...)
+
+	return result
 }
 
 // GetAllTransactions returns all transactions currently in the mempool.
 func (mp *Mempool) GetAllTransactions() []Transaction {
 	mp.mutex.RLock()
 	defer mp.mutex.RUnlock()
-	all := []Transaction{}
+
+	all := make([]Transaction, 0, len(mp.pendingTxs))
+
+	// Add all pending transactions
+	for _, tx := range mp.pendingTxs {
+		all = append(all, tx)
+	}
+
+	// Add all other transactions
 	for _, txs := range mp.txsBySender {
 		all = append(all, txs...)
 	}
+
 	return all
 }
 
 // getAccountSequence retrieves the sequence number (nonce) for an account address
-// by querying the application state.
+// by querying the application state through ABCI interface.
 func (mp *Mempool) getAccountSequence(address string) (uint64, error) {
 	path := "auth/accounts/" + address
 	reqQuery := abci.RequestQuery{Path: path}
