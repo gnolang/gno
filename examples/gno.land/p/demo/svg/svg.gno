@@ -8,15 +8,15 @@ import (
 
 type Canvas struct {
 	Width, Height int
-	ViewBox string
-	Elems  []Elem
+	ViewBox       string
+	Elems         []Elem
 }
 
 type Elem interface{ String() string }
 
 func (c Canvas) String() string {
 	output := ""
-	output += ufmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d viewBox="%s">`, c.Width, c.Height, c.ViewBox)
+	output += ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg" viewBox="%s">`, c.Width, c.Height, c.ViewBox)
 	for _, elem := range c.Elems {
 		output += elem.String()
 	}
@@ -186,7 +186,7 @@ func NewText(x, y int, text, fill string) *Text {
 
 type Group struct {
 	Elems []Elem
-	Fill string
+	Fill  string
 	BaseAttrs
 }
 
