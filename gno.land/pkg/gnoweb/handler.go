@@ -47,21 +47,10 @@ type WebHandlerConfig struct {
 	Aliases          map[string]AliasTarget
 }
 
-var defaultAliases = map[string]AliasTarget{
-	"/":           {"/r/gnoland/home", GnowebPath},
-	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
-	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
-	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
-	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
-	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
-	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
-	"/events":     {"/r/gnoland/events", GnowebPath},
-}
-
 // NewDefaultWebHandlerConfig initializes a [WebHandlerConfig] with default settings.
 func NewDefaultWebHandlerConfig() *WebHandlerConfig {
 	return &WebHandlerConfig{
-		Aliases: defaultAliases,
+		Aliases: map[string]AliasTarget{},
 	}
 }
 
@@ -69,6 +58,9 @@ func NewDefaultWebHandlerConfig() *WebHandlerConfig {
 func (cfg *WebHandlerConfig) validate() error {
 	if cfg.WebClient == nil {
 		return errors.New("no `WebClient` configured")
+	}
+	if cfg.MarkdownRenderer == nil {
+		return errors.New("no `MarkdownRenderer ` configured")
 	}
 	return nil
 }

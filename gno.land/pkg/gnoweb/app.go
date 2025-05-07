@@ -13,6 +13,17 @@ import (
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
+var defaultAliases = map[string]AliasTarget{
+	"/":           {"/r/gnoland/home", GnowebPath},
+	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
+	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
+	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
+	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
+	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
+	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
+	"/events":     {"/r/gnoland/events", GnowebPath},
+}
+
 // AppConfig contains configuration for the gnoweb.
 type AppConfig struct {
 	// UnsafeHTML, if enabled, allows to use HTML in the markdown.
@@ -35,8 +46,6 @@ type AppConfig struct {
 	Domain string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
-	// NoDefaultAliases, if set, will discard the default aliases.
-	NoDefaultAliases bool
 }
 
 // NewDefaultAppConfig returns a new default [AppConfig]. The default sets
@@ -50,6 +59,7 @@ func NewDefaultAppConfig() *AppConfig {
 		ChainID:    "dev",
 		AssetsPath: "/public/",
 		Domain:     "gno.land",
+		Aliases:    defaultAliases,
 	}
 }
 
@@ -88,9 +98,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Configure WebHandler
 	webHandlerConfig := NewDefaultWebHandlerConfig()
-	if cfg.NoDefaultAliases {
-		webHandlerConfig.Aliases = map[string]AliasTarget{}
-	}
 	for alias, target := range cfg.Aliases {
 		webHandlerConfig.Aliases[alias] = target
 	}

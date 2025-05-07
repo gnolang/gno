@@ -224,14 +224,21 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.AssetsDir = cfg.assetsDir
+
+	if cfg.noDefaultAliases {
+		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
+	}
+
 	if cfg.aliases != "" {
 		aliases, err := parseAliases(cfg.aliases)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse aliases: %w", err)
 		}
-		appcfg.Aliases = aliases
+		for alias, value := range aliases {
+			appcfg.Aliases[alias] = value
+		}
 	}
-	appcfg.NoDefaultAliases = cfg.noDefaultAliases
+
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
