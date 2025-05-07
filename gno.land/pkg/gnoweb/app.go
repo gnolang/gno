@@ -33,8 +33,10 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
-	// Aliases is a comma-separated list of aliases pointing to another path or a static file.
-	Aliases string
+	// Aliases is a map of aliases pointing to another path or a static file.
+	Aliases map[string]AliasTarget
+	// NoDefaultAliases, if set, will discard the default aliases.
+	NoDefaultAliases bool
 }
 
 // NewDefaultAppConfig returns a new default [AppConfig]. The default sets
@@ -86,10 +88,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Configure WebHandler
 	webHandlerConfig := NewDefaultWebHandlerConfig()
+	if cfg.NoDefaultAliases {
+		webHandlerConfig.Aliases = map[string]AliasTarget{}
+	}
+	for alias, target := range cfg.Aliases {
+		webHandlerConfig.Aliases[alias] = target
+	}
 	webHandlerConfig.WebClient = webcli
 	webHandlerConfig.Meta = staticMeta
 	webHandlerConfig.MarkdownRenderer = markdownRenderer
-	webHandlerConfig.SetAliases(cfg.Aliases)
 	webhandler, err := NewWebHandler(logger, webHandlerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)

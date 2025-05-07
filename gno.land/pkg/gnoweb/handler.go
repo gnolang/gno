@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"log/slog"
 	"net/http"
-	"os"
 	"path"
 	"slices"
 	"strings"
@@ -36,8 +35,8 @@ const (
 )
 
 type AliasTarget struct {
-	value string
-	kind  AliasKind
+	Value string
+	Kind  AliasKind
 }
 
 // WebHandlerConfig configures a WebHandler.
@@ -45,65 +44,25 @@ type WebHandlerConfig struct {
 	Meta             StaticMetadata
 	WebClient        WebClient
 	MarkdownRenderer *MarkdownRenderer
-	aliases          map[string]AliasTarget
+	Aliases          map[string]AliasTarget
+}
+
+var defaultAliases = map[string]AliasTarget{
+	"/":           {"/r/gnoland/home", GnowebPath},
+	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
+	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
+	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
+	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
+	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
+	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
+	"/events":     {"/r/gnoland/events", GnowebPath},
 }
 
 // NewDefaultWebHandlerConfig initializes a [WebHandlerConfig] with default settings.
 func NewDefaultWebHandlerConfig() *WebHandlerConfig {
-	// Default aliases, can be overridden using '--aliases' flag.
-	aliases := map[string]AliasTarget{
-		"/":           {"/r/gnoland/home", GnowebPath},
-		"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
-		"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
-		"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
-		"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
-		"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
-		"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
-		"/events":     {"/r/gnoland/events", GnowebPath},
-	}
-
 	return &WebHandlerConfig{
-		aliases: aliases,
+		Aliases: defaultAliases,
 	}
-}
-
-// SetAliases parses the given aliases string and sets the aliases map.
-// Any value of form 'static:<file>' will be loaded as a static markdown file.
-func (cfg *WebHandlerConfig) SetAliases(aliasesStr string) error {
-	if strings.TrimSpace(aliasesStr) == "" {
-		return nil
-	}
-
-	// Split the aliases string by commas.
-	aliasEntries := strings.Split(aliasesStr, ",")
-
-	// Add each alias entry to the aliases map.
-	for _, entry := range aliasEntries {
-		parts := strings.Split(entry, "|")
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid alias entry: %s", entry)
-		}
-
-		// Trim whitespace from both parts.
-		parts[0] = strings.TrimSpace(parts[0])
-		parts[1] = strings.TrimSpace(parts[1])
-
-		// Check if the value is a path to a static file.
-		if strings.HasPrefix(parts[1], "static:") {
-			// If it is, load the static file content and set it as the alias.
-			staticFilePath := strings.TrimPrefix(parts[1], "static:")
-
-			content, err := os.ReadFile(staticFilePath)
-			if err != nil {
-				return fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
-			}
-			cfg.aliases[parts[0]] = AliasTarget{value: string(content), kind: StaticMarkdown}
-		} else { // Otherwise, treat it as a normal alias.
-			cfg.aliases[parts[0]] = AliasTarget{value: parts[1], kind: GnowebPath}
-		}
-	}
-
-	return nil
 }
 
 // validate checks if the WebHandlerConfig is valid.
@@ -125,7 +84,7 @@ type WebHandler struct {
 	Static           StaticMetadata
 	Client           WebClient
 	MarkdownRenderer *MarkdownRenderer
-	aliases          map[string]AliasTarget
+	Aliases          map[string]AliasTarget
 }
 
 // NewWebHandler creates a new WebHandler.
@@ -138,7 +97,7 @@ func NewWebHandler(logger *slog.Logger, cfg *WebHandlerConfig) (*WebHandler, err
 		Client:           cfg.WebClient,
 		Static:           cfg.Meta,
 		MarkdownRenderer: cfg.MarkdownRenderer,
-		aliases:          cfg.aliases,
+		Aliases:          cfg.Aliases,
 		Logger:           logger,
 	}, nil
 }
@@ -210,11 +169,11 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index.
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
-	aliasTarget, aliasExists := h.aliases[r.URL.Path]
+	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
 	// if the alias target exists and is a gnoweb path, replace the URL path with it.
-	if aliasExists && aliasTarget.kind == GnowebPath {
-		r.URL.Path = aliasTarget.value
+	if aliasExists && aliasTarget.Kind == GnowebPath {
+		r.URL.Path = aliasTarget.Value
 	}
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
@@ -233,8 +192,8 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	}
 
 	switch {
-	case aliasExists && aliasTarget.kind == StaticMarkdown:
-		return h.GetMarkdownView(gnourl, aliasTarget.value)
+	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure():
 		return h.GetPackageView(gnourl)
 	default:
