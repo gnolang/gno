@@ -24,8 +24,14 @@ const (
 
 func TestRoutes(t *testing.T) {
 	var (
-		uuid1  = xid.New()
-		uuid2  = xid.New()
+		uuid1   = xid.New()
+		uuid2   = xid.New()
+		aliases = map[string]AliasTarget{
+			"/test1": {Value: "/r/gnoland/users/v1", Kind: GnowebPath},
+			"/test2": {Value: uuid1.String(), Kind: StaticMarkdown},
+			"/test3": {Value: "/r/not/found", Kind: GnowebPath},
+			"/test4": {Value: uuid2.String(), Kind: StaticMarkdown},
+		}
 		routes = []struct {
 			route     string
 			status    int
@@ -69,7 +75,7 @@ func TestRoutes(t *testing.T) {
 			{"/public/imgs/gnoland.svg", ok, ""},
 			// Test Toc
 			{"/", ok, `href="#learn-about-gnoland"`},
-			// Teast aliased path and static file
+			// Test aliased path and static file
 			{"/test1", ok, "registry"},     // Alias "/test1" points to "/r/gnoland/users/v1"
 			{"/test2", ok, uuid1.String()}, // Alias "/test2" points to static file containing an uuid
 			{"/test3", notFound, ""},       // Alias "/test3" points to "/r/not/found" which doesn't exist
@@ -78,26 +84,18 @@ func TestRoutes(t *testing.T) {
 		}
 	)
 
+	// Setup the logger and node
+	logger := log.NewTestingLogger(t)
 	rootdir := gnoenv.RootDir()
 	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
 	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
+	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
 	defer node.Stop()
 
+	// Initialize the router with the current node's remote address
 	cfg := NewDefaultAppConfig()
 	cfg.NodeRemote = remoteAddr
-
-	// Set up the static files for alias testing
-	cfg.Aliases = map[string]AliasTarget{
-		"/test1": {Value: "/r/gnoland/users/v1", Kind: GnowebPath},
-		"/test2": {Value: uuid1.String(), Kind: StaticMarkdown},
-		"/test3": {Value: "/r/not/found", Kind: GnowebPath},
-		"/test4": {Value: uuid2.String(), Kind: StaticMarkdown},
-	}
-
-	logger := log.NewTestingLogger(t)
-
-	// Initialize the router with the current node's remote address
+	cfg.Aliases = aliases
 	router, err := NewRouter(logger, cfg)
 	require.NoError(t, err)
 

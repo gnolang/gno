@@ -171,7 +171,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
-	// if the alias target exists and is a gnoweb path, replace the URL path with it.
+	// If the alias target exists and is a gnoweb path, replace the URL path with it.
 	if aliasExists && aliasTarget.Kind == GnowebPath {
 		r.URL.Path = aliasTarget.Value
 	}
