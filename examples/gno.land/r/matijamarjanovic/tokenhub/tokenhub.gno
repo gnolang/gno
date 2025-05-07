@@ -3,9 +3,14 @@ package tokenhub
 import (
 	"std"
 
+	"gno.land/p/demo/fqname"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/r/demo/grc20reg"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/grc/grc721"
+
 	"gno.land/r/leon/hor"
 )
 
@@ -32,13 +37,15 @@ func init() {
 // After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
 //
 // Note: register token returns the key path that can be used to retrieve the token
-//func RegisterToken(tokenGetter grc20.TokenGetter, slug string) string {
-//	rlmPath := std.PreviousRealm().PkgPath()
-//	key := fqname.Construct(rlmPath, slug)
-//	grc20reg.Register(tokenGetter, key)
-//
-//	return fqname.Construct(std.CurrentRealm().PkgPath(), key)
-//}
+func RegisterToken(tokenGetter grc20.TokenGetter, slug string) string {
+	crossing()
+	rlmPath := std.PreviousRealm().PkgPath()
+	key := fqname.Construct(rlmPath, slug)
+
+	cross(grc20reg.Register)(tokenGetter, key)
+
+	return fqname.Construct(std.CurrentRealm().PkgPath(), key)
+}
 
 // RegisterNFT is a function that registers an NFT in an avl.Tree
 func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) error {
