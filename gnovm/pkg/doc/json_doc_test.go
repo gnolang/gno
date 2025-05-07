@@ -135,6 +135,7 @@ func TestJSONDocumentation(t *testing.T) {
 			{
 				Type:      "",
 				Name:      "Inc",
+				Crossing:  true,
 				Signature: "func Inc() int",
 				Doc:       "",
 				Params:    []*JSONField{},

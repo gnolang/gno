@@ -67,5 +67,5 @@ const ConstString = "const string"
 
 func Echo(msg string) (res string) { res = "echo:" + msg; return }
 func GetCounter() int              { return counter }
-func Inc() int                     { counter += 1; return counter }
+func Inc() int                     { crossing(); counter += 1; return counter }
 func pvEcho(msg string) string     { return "pvecho:" + msg }
