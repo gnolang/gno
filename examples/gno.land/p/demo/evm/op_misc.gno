@@ -222,6 +222,16 @@ func opTimestamp(s *State) error {
 	return nil
 }
 
+func opPrevRandao(s *State) error {
+	s.stack.Push(s.env.BlockDifficulty.Clone())
+	return nil
+}
+
+func opGaslimit(s *State) error {
+	s.stack.Push(s.env.GasLimit.Clone())
+	return nil
+}
+
 func opReturn(s *State) error {
 	if s.stack.Len() < 2 {
 		return tooFewStack
@@ -281,8 +291,8 @@ func opChainId(s *State) error {
 
 // TODO: tests
 func opSelfBalance(s *State) error {
-    s.stack.Push(s.caller.Balance.Clone())
-    return nil
+	s.stack.Push(s.caller.Balance.Clone())
+	return nil
 }
 
 // TODO: tests
@@ -295,10 +305,10 @@ func opNumber(s *State) error {
 // TODO: fix + tests
 func opBaseFee(s *State) error {
 	prevBaseFee := uint64(202700000000) // wei
-	includedGas := uint64(30000000) // in millions
+	includedGas := uint64(30000000)     // in millions
 	targetGas := uint64(15000000)
 
-	delta := float64(int64(includedGas) - int64(targetGas)) / float64(targetGas)
+	delta := float64(int64(includedGas)-int64(targetGas)) / float64(targetGas)
 	adjustment := delta * float64(prevBaseFee) / 8.0
 	newBaseFee := float64(prevBaseFee) + adjustment
 	feeResult := uint64(newBaseFee + 0.5)

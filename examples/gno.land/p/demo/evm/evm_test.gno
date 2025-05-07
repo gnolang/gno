@@ -29,7 +29,7 @@ func TestExecuteEvm(t *testing.T) {
 		ignoreTransientStorage   bool
 		ignoreGasConsumed        bool
 		ignoreStack              bool
-		chainId 				 uint256.Uint
+		chainId                  uint256.Uint
 	}{
 		{
 			name:                "simple addition",
