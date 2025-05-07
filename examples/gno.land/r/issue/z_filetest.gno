@@ -2,7 +2,7 @@ package main
 
 import "gno.land/r/issue"
 
-func main(){
+func main() {
 	issue.Example(nil)
 }
 
