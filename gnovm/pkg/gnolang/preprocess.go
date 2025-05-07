@@ -1408,7 +1408,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 						pc.SetWithCross()
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
-						// XXX Make sure it's only used in a realm.
+						pn := packageOf(last)
+						if !IsRealmPath(pn.PkgPath) {
+							panic("crossing() is only allowed in realm packages")
+						}
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
+						// reserve attach() so we can support it later.
+						panic("attach() not yet supported")
 					}
 				}
 
@@ -3353,7 +3359,6 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		// is constant?  From the machine?
 		m := NewMachine(".dontcare", store)
 		cv := m.EvalStatic(last, x)
-		m.PreprocessorMode = false
 		m.Release()
 		cx = &ConstExpr{
 			Source:     x,
@@ -4763,8 +4768,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 		}
 
 		// NOTE: imports from "pure packages" are actually sometimes
-		// allowed, most notably in MsgRun and filetests; IsPurePackagePath
-		// returns false in these cases.
+		// allowed, most notably filetests.
 		if IsPurePackagePath(pkg.PkgPath) && IsRealmPath(d.PkgPath) {
 			panic(fmt.Sprintf("pure package path %q cannot import realm path %q", pkg.PkgPath, d.PkgPath))
 		}

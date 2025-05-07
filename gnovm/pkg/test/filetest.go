@@ -8,6 +8,7 @@ import (
 	"io"
 	"regexp"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -61,6 +62,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		Debug:         opts.Debug,
+		ReviveEnabled: true,
 	})
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source, opslog)
@@ -71,7 +73,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	// multiple mismatches occurred.
 	updated := false
 	var returnErr error
-	// match verifies the content against dir.Content; if different,
+	// `match` verifies the content against dir.Content; if different,
 	// either updates dir.Content (for opts.Sync) or appends a new returnErr.
 	match := func(dir *Directive, actual string) {
 		content := dir.Content
@@ -82,30 +84,49 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 				dir.Content = actual
 				updated = true
 			} else {
-				returnErr = multierr.Append(
-					returnErr,
-					fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(content, actual)),
-				)
+				if dir.Name == DirectiveError {
+					returnErr = multierr.Append(
+						returnErr,
+						fmt.Errorf("%s diff:\n%s\nstacktrace:\n%s\nstack:\n%v",
+							dir.Name, unifiedDiff(content, actual),
+							result.GnoStacktrace, string(result.GoPanicStack)),
+					)
+				} else {
+					returnErr = multierr.Append(
+						returnErr,
+						fmt.Errorf("%s diff:\n%s", dir.Name, unifiedDiff(content, actual)),
+					)
+				}
 			}
 		}
 	}
 
-	// Check if we have an error, whether we're supposed to get it.
+	// Ensure needed the directives are present.
 	if result.Error != "" {
 		// Ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
 		if errDirective == nil {
-			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:%s\nstack:\n%v",
-				result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
+			if opts.Sync {
+				dirs = append(dirs, Directive{
+					Name:    DirectiveError,
+					Content: "",
+				})
+			} else {
+				return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
+					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
+			}
 		}
-
-		// The Error directive (and many others) will have one trailing newline,
-		// which is not in the output - so add it there.
-		match(errDirective, result.Error+"\n")
 	} else if result.Output != "" {
 		outputDirective := dirs.First(DirectiveOutput)
 		if outputDirective == nil {
-			return "", fmt.Errorf("unexpected output:\n%s", result.Output)
+			if opts.Sync {
+				dirs = append(dirs, Directive{
+					Name:    DirectiveOutput,
+					Content: "",
+				})
+			} else {
+				return "", fmt.Errorf("unexpected output:\n%s", result.Output)
+			}
 		}
 	} else {
 		err = m.CheckEmpty()
@@ -125,10 +146,9 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		dir := &dirs[idx]
 		switch dir.Name {
 		case DirectiveOutput:
-			if !strings.HasSuffix(result.Output, "\n") {
-				result.Output += "\n"
-			}
 			match(dir, trimTrailingSpaces(result.Output))
+		case DirectiveError:
+			match(dir, result.Error)
 		case DirectiveRealm:
 			res := opslog.(*bytes.Buffer).String()
 			match(dir, res)
@@ -138,11 +158,11 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			if err != nil {
 				panic(err)
 			}
-			evtstr := string(evtjson) + "\n"
+			evtstr := string(evtjson)
 			match(dir, evtstr)
 		case DirectivePreprocessed:
 			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
-			pre := pn.(*gno.PackageNode).FileSet.Files[0].String() + "\n"
+			pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
@@ -280,7 +300,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		n := gno.MustParseFile(filename, string(content))
 
 		m.RunFiles(n)
-		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.X("main"))))
+		m.RunMain()
 	} else {
 		// Realm case.
 		gno.DisableDebug() // until main call.
@@ -321,9 +341,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
-		// Call main() like withrealm(main)().
-		// This will switch the realm to the package.
-		// main() must start with crossing().
 		m.RunMain()
 	}
 
@@ -354,6 +371,19 @@ const (
 	DirectiveStacktrace     = "Stacktrace"
 	DirectiveTypeCheckError = "TypeCheckError"
 )
+
+var allDirectives = []string{
+	DirectivePkgPath,
+	DirectiveMaxAlloc,
+	DirectiveSend,
+	DirectiveOutput,
+	DirectiveError,
+	DirectiveRealm,
+	DirectiveEvents,
+	DirectivePreprocessed,
+	DirectiveStacktrace,
+	DirectiveTypeCheckError,
+}
 
 // Directives contains the directives of a file.
 // It may also contains directives with empty names, to indicate parts of the
@@ -398,6 +428,9 @@ func (d Directives) FileTest() string {
 		case strings.ToUpper(dir.Name) == dir.Name: // ALLCAPS:
 			bld.WriteString("// " + dir.Name + ": " + dir.Content + ll)
 		default:
+			if dir.Content == "" || dir.Content == "\n" {
+				continue
+			}
 			bld.WriteString("// " + dir.Name + ":\n")
 			cnt := strings.TrimRight(dir.Content, "\n ")
 			lines := strings.Split(cnt, "\n")
@@ -478,50 +511,60 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 
 		// Find if there is a colon (indicating a possible directive).
 		subm := reDirectiveLine.FindStringSubmatch(comment)
-		switch {
-		case subm == nil: // comment...
-			// If we're already in an incomplete directive, simply append there.
-			if !last.Complete {
-				if last.Name == "" {
-					last.Content += txt + "\n"
-					last.LastLine = txt
-					continue
-				} else {
-					last.Content += comment + "\n"
-					last.LastLine = txt
-					continue
-				}
-			}
-			// Otherwise make a new directive.
-			parsed = append(parsed,
-				Directive{
-					Content:  txt + "\n",
-					LastLine: txt,
-				})
-		case subm[1] != "": // CamelCase:
-			// output directive, with content on newlines
+		if subm != nil && slices.Contains(allDirectives, subm[1]) {
+			// CamelCase directive.
 			parsed = append(parsed,
 				Directive{
 					Name:     subm[1],
 					LastLine: txt,
 				})
-		default: // subm[2] != "" // ALLCAPS: ...
+			continue
+		}
+		if subm != nil && slices.Contains(allDirectives, subm[2]) {
+			// APPCAPS directive.
 			parsed = append(parsed,
 				Directive{
 					Name:     subm[2],
 					Content:  subm[3],
 					Complete: true,
 				})
+			continue
 		}
+
+		// Not a directive, just a comment.
+		// If we're already in an incomplete directive, simply append there.
+		if !last.Complete {
+			if last.Name == "" {
+				last.Content += txt + "\n"
+				last.LastLine = txt
+				continue
+			} else {
+				last.Content += comment + "\n"
+				last.LastLine = txt
+				continue
+			}
+		}
+		// Otherwise make a new directive.
+		parsed = append(parsed,
+			Directive{
+				Content:  txt + "\n",
+				LastLine: txt,
+			})
 	}
 
-	/*
-		for i, dir := range parsed {
-			fmt.Printf("#%d %s: [[[%s]]]\n", i, dir.Name, dir.Content)
+	// Remove trailing (newline|space)* and filter empty directives.
+	result := make([]Directive, 0, len(parsed))
+	parsed = parsed[1:] // remove faux directive
+	for _, dir := range parsed {
+		content := dir.Content
+		content = strings.TrimRight(content, "\n ")
+		if content == "" {
+			continue
 		}
-	*/
+		dir.Content = content
+		result = append(result, dir)
+		// fmt.Printf("#%d %s: [[[%s]]]\n", i, dir.Name, dir.Content)
+	}
 
-	parsed = parsed[1:]
-
-	return parsed, sc.Err()
+	return result, sc.Err()
 }

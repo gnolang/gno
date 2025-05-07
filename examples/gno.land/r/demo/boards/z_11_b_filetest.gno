@@ -33,4 +33,4 @@ func main() {
 }
 
 // Error:
-// thread not exist
+// invalid non-user call
