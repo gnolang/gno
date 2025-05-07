@@ -411,7 +411,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 	}
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
-		if dt == nil || dt.Kind() == InterfaceKind{
+		if dt == nil || dt.Kind() == InterfaceKind {
 			return nil
 		}
 
