@@ -89,7 +89,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m11)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -97,7 +96,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m2)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -105,7 +103,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m3)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -113,7 +110,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m4)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	urequire.AbortsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		cross(dao.MustVoteOnProposal)(dao.VoteRequest{
@@ -123,7 +119,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m111)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	// Same effect as:
 	// dao.MustVoteOnProposal(dao.VoteRequest{
@@ -141,8 +136,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1111)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-
 	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
