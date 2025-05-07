@@ -14,11 +14,11 @@ stderr 'cannot modify external-realm or non-realm object'
 ## execute CrossingMutation
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
-## execute BorrowedMutation
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+## execute BorrowedObjectMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedObjectMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
-## execute BorrowedMutationRootedAtCaller
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+## execute ObjectMutationRootedAtCaller
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
 ## execute CallMutateObject
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
@@ -69,13 +69,13 @@ func CrossingMutation() {
 }
 
 
-func BorrowedMutation() {
+func BorrowedObjectMutation() {
     crossing()
 
  	borrowrealm.Object.Mutate()
 }
 
-func BorrowedMutationRootedAtCaller() {
+func ObjectMutationRootedAtCaller() {
     crossing()
 
  	obj.Mutate()
