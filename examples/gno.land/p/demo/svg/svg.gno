@@ -7,8 +7,8 @@ import (
 )
 
 type Canvas struct {
-	Width  int
-	Height int
+	Width, Height int
+	ViewBox string
 	Elems  []Elem
 }
 
@@ -16,7 +16,7 @@ type Elem interface{ String() string }
 
 func (c Canvas) String() string {
 	output := ""
-	output += ufmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`, c.Width, c.Height)
+	output += ufmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d viewBox="%s">`, c.Width, c.Height, c.ViewBox)
 	for _, elem := range c.Elems {
 		output += elem.String()
 	}
@@ -29,8 +29,8 @@ func (c Canvas) Base64() string {
 	return base64.StdEncoding.EncodeToString([]byte(output))
 }
 
-func (c *Canvas) Append(elem Elem) {
-	c.Elems = append(c.Elems, elem)
+func (c *Canvas) Append(elem ...Elem) {
+	c.Elems = append(c.Elems, elem...)
 }
 
 type Circle struct {
@@ -44,13 +44,13 @@ func (c Circle) String() string {
 	return ufmt.Sprintf(`<circle cx="%d" cy="%d" r="%d" fill="%s" />`, c.CX, c.CY, c.R, c.Fill)
 }
 
-func (c *Canvas) DrawCircle(cx, cy, r int, fill string) {
-	c.Append(Circle{
+func NewCircle(cx, cy, r int, fill string) *Circle {
+	return &Circle{
 		CX:   cx,
 		CY:   cy,
 		R:    r,
 		Fill: fill,
-	})
+	}
 }
 
 type Ellipse struct {
@@ -65,14 +65,12 @@ func (e Ellipse) String() string {
 	return ufmt.Sprintf(`<ellipse cx="%d" cy="%d" rx="%d" ry="%d" fill="%s" />`, e.CX, e.CY, e.RX, e.RY, e.Fill)
 }
 
-func (c *Canvas) DrawEllipse(cx, cy, rx, ry int, fill string) {
-	c.Append(Ellipse{
+func NewEllipse(cx, cy int, fill string) *Ellipse {
+	return &Ellipse{
 		CX:   cx,
 		CY:   cy,
-		RX:   rx,
-		RY:   ry,
 		Fill: fill,
-	})
+	}
 }
 
 type Rectangle struct {
@@ -85,16 +83,14 @@ func (r Rectangle) String() string {
 	return ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="%d" ry="%d" fill="%s" />`, r.X, r.Y, r.Width, r.Height, r.RX, r.RY, r.Fill)
 }
 
-func (c *Canvas) DrawRectangle(x, y, width, height, rx, ry int, fill string) {
-	c.Append(Rectangle{
+func NewRectangle(x, y, width, height int, fill string) *Rectangle {
+	return &Rectangle{
 		X:      x,
 		Y:      y,
 		Width:  width,
 		Height: height,
-		RX: rx,
-		RY: ry,
 		Fill:   fill,
-	})
+	}
 }
 
 type Path struct {
@@ -106,11 +102,11 @@ func (p Path) String() string {
 	return ufmt.Sprintf(`<path d="%s" fill="%s" />`, p.D, p.Fill)
 }
 
-func (c *Canvas) DrawPath(d, fill string) {
-	c.Append(Path{
+func NewPath(d, fill string) *Path {
+	return &Path{
 		D:    d,
 		Fill: fill,
-	})
+	}
 }
 
 type Polygon struct { // closed shape
@@ -122,11 +118,11 @@ func (p Polygon) String() string {
 	return ufmt.Sprintf(`<polygon points="%s" fill="%s" />`, p.Points, p.Fill)
 }
 
-func (c *Canvas) DrawPolygon(points, fill string) {
-	c.Append(Polygon{
+func NewPolygon(points, fill string) *Polygon {
+	return &Polygon{
 		Points: points,
 		Fill:   fill,
-	})
+	}
 }
 
 type Polyline struct { // polygon but not necessarily closed
@@ -138,11 +134,11 @@ func (p Polyline) String() string {
 	return ufmt.Sprintf(`<polyline points="%s" fill="%s" />`, p.Points, p.Fill)
 }
 
-func (c *Canvas) DrawPolyline(points, fill string) {
-	c.Append(Polyline{
+func NewPolyline(points, fill string) *Polyline {
+	return &Polyline{
 		Points: points,
 		Fill:   fill,
-	})
+	}
 }
 
 type Text struct {
@@ -156,14 +152,24 @@ func (c Text) String() string {
 	return ufmt.Sprintf(`<text x="%d" y="%d" dx="%d" dy="%d" rotate="%s" fill="%s">%s</text>`, c.X, c.Y, c.DX, c.DY, c.Rotate, c.Fill, c.Text)
 }
 
-func (c *Canvas) DrawText(x, y, dx, dy int, rotate, text, fill string) {
-	c.Append(Text{
+func NewText(x, y int, text, fill string) *Text {
+	return &Text{
 		X:    x,
 		Y:    y,
-		DX: dx,
-		DY: dy,
-		Rotate: rotate,
 		Text: text,
 		Fill: fill,
-	})
+	}
+}
+
+type Group struct {
+	Elems []Elem
+	Fill string
+}
+
+func (g Group) String() string {
+	out := ""
+	for _, e := range g.Elems {
+		out += e.String()
+	}
+	return ufmt.Sprintf(`<g fill="%s">%s</g>`, g.Fill, out)
 }
