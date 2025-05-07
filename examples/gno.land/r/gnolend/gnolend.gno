@@ -59,7 +59,6 @@ func RegisterIRM(irm IRM) {
 	emitRegisterIRM(std.PreviousRealm().PkgPath(), name)
 }
 
-// Owner functions
 
 func EnableIRM(irm string) {
 	Ownable.AssertCallerIsOwner()
@@ -530,7 +529,7 @@ func WithdrawCollateral(marketId string, amount uint64) {
 	}
 
 	println("position collateral before:", position.Collateral.ToString())
-	
+
 	// Update position
 	position.Collateral = new(u256.Uint).Sub(position.Collateral, amountU256)
 
