@@ -1281,7 +1281,7 @@ func TestExecuteEvm(t *testing.T) {
 			st.setCallValue(&tc.callValue)
 			st.setCaller(&tc.caller)
 			if tc.gas > 0 {
-				st.setGasBet(tc.gas)
+				st.setGasLimit(tc.gas)
 			}
 			err := st.executeByteCode(tc.code)
 			stack := st.getStackData()

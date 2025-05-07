@@ -35,7 +35,7 @@ func (c *Caller) executeCallHex(env *Env, gasAmount uint, f string, code []byte,
 	}
 	st.setCallData(buf)
 	st.setEnv(env)
-	st.setGasBet(gasAmount)
+	st.setGasLimit(gasAmount)
 	st.setCaller(c)
 	err := st.executeByteCode(code)
 	if err != nil {

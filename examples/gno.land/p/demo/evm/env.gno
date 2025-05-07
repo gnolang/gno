@@ -13,5 +13,4 @@ type Env struct {
 	Transaction     Transactions
 	ChainID         uint256.Uint
 	BlockDifficulty uint256.Uint
-	GasLimit        uint256.Uint
 }

@@ -209,10 +209,10 @@ func opExtCodeSize(s *State) error {
 }
 
 func opGas(s *State) error {
-	if s.gasBet < 0 {
+	if s.gasLimit < 0 {
 		s.stack.Push(uint256.Zero())
 	} else {
-		s.stack.Push(uint256.NewUint(uint64(s.gasBet - int(s.gasConsumed))))
+		s.stack.Push(uint256.NewUint(uint64(s.gasLimit - int(s.gasConsumed))))
 	}
 	return nil
 }
@@ -228,7 +228,7 @@ func opPrevRandao(s *State) error {
 }
 
 func opGaslimit(s *State) error {
-	s.stack.Push(s.env.GasLimit.Clone())
+	s.stack.Push(uint256.NewUint(uint64(s.gasLimit)))
 	return nil
 }
 

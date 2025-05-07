@@ -29,7 +29,7 @@ type State struct {
 	code             instructions
 	tmp              tmpEnv
 	gasConsumed      uint // The real amount of gas consumed by the program
-	gasBet           int  // The amount of gas specified by user
+	gasLimit         int  // The amount of gas specified by user
 	env              *Env
 }
 
@@ -49,7 +49,7 @@ func newState() *State {
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              nil,
 		gasConsumed:      0,
-		gasBet:           -1,
+		gasLimit:         -1,
 	}
 }
 
@@ -69,8 +69,8 @@ func (s *State) setEnv(env *Env) {
 	s.env = env
 }
 
-func (s *State) setGasBet(gas uint) {
-	s.gasBet = int(gas)
+func (s *State) setGasLimit(gas uint) {
+	s.gasLimit = int(gas)
 }
 
 func (s *State) setCaller(caller *Caller) {
@@ -103,7 +103,7 @@ func (s *State) executeByteCode(code []byte) error {
 		if err != nil {
 			return err
 		}
-		if s.gasBet > 0 && s.gasBet < int(s.gasConsumed) {
+		if s.gasLimit > 0 && s.gasLimit < int(s.gasConsumed) {
 			return outOfGas
 		}
 		if s.code.IsDone() { // break before increment to avoid out of bounds
