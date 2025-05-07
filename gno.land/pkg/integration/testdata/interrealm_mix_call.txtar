@@ -4,6 +4,7 @@ adduser test2
 gnoland start
 
 ## load packages
+gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 
@@ -43,7 +44,7 @@ module gno.land/r/test/callerrealm
 package callerrealm
 
 import (
-    "std"
+    "gno.land/p/test/utils"
 	"gno.land/r/test/borrowrealm"
 )
 
@@ -52,12 +53,8 @@ var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrea
 func NonCrossingMutation() {
     crossing()
 
-    if std.PreviousRealm().PkgPath() != "" {
-        panic("expected PreviousRealm to be empty")
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected CurrentRealm to be callerrealm")
-    }
+    utils.AssertPreviousRealmPkgPath("")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 
     borrowrealm.Mutate()
 }
@@ -67,7 +64,6 @@ func CrossingMutation() {
 
     cross(borrowrealm.MutateCrossing)()
 }
-
 
 func BorrowedObjectMutation() {
     crossing()
@@ -124,7 +120,7 @@ module gno.land/r/test/borrowrealm
 package borrowrealm
 
 import (
-    "std"
+    "gno.land/p/test/utils"
 )
 
 var Object ObjectImplem
@@ -143,12 +139,8 @@ func (o *ObjectImplem) MutateWithoutRealmCheck() {
 }
 
 func (o *ObjectImplem) Mutate() {
-    if std.PreviousRealm().PkgPath() != "" {
-        panic("expected PreviousRealm to be empty")
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected CurrentRealm to be callerrealm")
-    }
+    utils.AssertPreviousRealmPkgPath("")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 
     o.value++
 }
@@ -156,12 +148,8 @@ func (o *ObjectImplem) Mutate() {
 func (o *ObjectImplem) MutateCrossing() {
     crossing()
 
-    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected PreviousRealm to be callerrealm, got " + std.PreviousRealm().PkgPath())
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
-        panic("expected CurrentRealm to be borrowrealm, got " + std.CurrentRealm().PkgPath())
-    }
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
     o.value++
 }
@@ -169,45 +157,29 @@ func (o *ObjectImplem) MutateCrossing() {
 func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller() {
     crossing()
 
-    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected PreviousRealm to be callerrealm, got " + std.PreviousRealm().PkgPath())
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
-        panic("expected CurrentRealm to be borrowrealm, got " + std.CurrentRealm().PkgPath())
-    }
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
     o.value++
 }
 
 func (o *ObjectImplem) MutateWithBorrowCrossing() {
-    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected PreviousRealm to be callerrealm, got " + std.PreviousRealm().PkgPath())
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
-        panic("expected CurrentRealm to be borrowrealm")
-    }
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
     o.value++
 }
 
 func InspectRealmsNonCrossing() {
-    if std.PreviousRealm().PkgPath() != "" {
-        panic("expected PreviousRealm to be empty")
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected CurrentRealm to be callerrealm")
-    }
+    utils.AssertPreviousRealmPkgPath("")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 }
 
 func InspectRealmsCrossing() {
     crossing()
 
-    if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected PreviousRealm to be callerrealm")
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/borrowrealm" {
-        panic("expected CurrentRealm to be borrowrealm")
-    }
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 }
 
 func Mutate() {
@@ -228,4 +200,31 @@ func MutateObjectWithBorrowCrossing() {
     crossing()
 
     Object.MutateWithBorrowCrossing()
+}
+
+-- utils/utils.gno --
+package utils
+
+import (
+    "std"
+)
+
+func AssertCurrentRealmPkgPath(expected string) {
+    currentRealm := std.CurrentRealm().PkgPath()
+    if currentRealm != expected {
+        if expected == "" {
+            expected = "empty"
+        }
+        panic("expected std.CurrentRealm().PkgPath() to return " + expected + ", got " + currentRealm)
+    }
+}
+
+func AssertPreviousRealmPkgPath(expected string) {
+    previousRealm := std.PreviousRealm().PkgPath()
+    if previousRealm != expected {
+        if expected == "" {
+            expected = "empty"
+        }
+        panic("expected std.PreviousRealm().PkgPath() to return " + expected + ", got " + previousRealm)
+    }
 }
