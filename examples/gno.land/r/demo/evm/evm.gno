@@ -3,7 +3,6 @@ package evm
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"std"
 	"strconv"
 
 	// "std"
@@ -19,12 +18,11 @@ var env = &evm.Env{
 	Storage:     map[uint256.Uint]*uint256.Uint{},
 	Accounts:    []*evm.Caller{},
 	Contracts:   []*evm.SmartContract{},
-	Transaction: []*evm.Transaction{},
-	GasLimit: 1000,
+	Transaction: []evm.Transaction{},
+	GasLimit: uint256.NewUint(1000),
 }
 
 func Publish(code string) {
-	std.ChainID()
 	crossing()
 	x, err := hex.DecodeString(code)
 	if err != nil {
@@ -35,10 +33,6 @@ func Publish(code string) {
 		Code: x,
 		Creator: &evm.Caller{},
 	})
-}
-
-func prout() {
-	
 }
 
 func Call(funcName string, contractIndex int, list ...*uint256.Uint) string{

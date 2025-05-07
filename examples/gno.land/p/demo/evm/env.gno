@@ -11,6 +11,6 @@ type Env struct {
 	Accounts        []*Caller
 	Contracts       SmartContracts
 	Transaction     Transactions
-	ChainID         uint256.Uint
-	BlockDifficulty uint256.Uint
+	ChainID         *uint256.Uint
+	BlockDifficulty *uint256.Uint
 }

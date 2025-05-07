@@ -285,7 +285,7 @@ func opGasprice(s *State) error {
 
 // TODO: tests
 func opChainId(s *State) error {
-	s.stack.Push(&s.env.ChainID)
+	s.stack.Push(s.env.ChainID)
 	return nil
 }
 
