@@ -239,9 +239,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		var hasError bool
 
 		startedAt := time.Now()
-		runtimeError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		runtimeError := catchRuntimeError(pkg.Dir, gnoPkgPath, io.Err(), func() {
 			if modfile == nil || !modfile.Draft {
-				foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
+				foundErr, lintErr := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
 				if lintErr != nil {
 					io.ErrPrintln(lintErr)
 					hasError = true
