@@ -4,9 +4,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/url"
+	"std"
 	"strconv"
 	"strings"
+	"time"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
@@ -14,14 +17,34 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
+type User struct {
+	Address std.Address
+	Rank    int
+	Timer   time.Time
+}
+
+type Register struct {
+	Users *avl.Tree
+}
+
 type Color struct {
 	name string
 	rgb  string
 }
 
-var (
-	white = "rgb(240,240,240)"
+const (
+	memberRank int = 0
+	adminRank  int = 1
 
+	timeRefill int = 2
+
+	rows uint64 = 15
+	cols uint64 = 80
+
+	white string = "rgb(240,240,240)"
+)
+
+var (
 	colors = []Color{
 		{"black", "rgb(40,40,40)"},
 		{"red", "rgb(255,0,0)"},
@@ -35,11 +58,11 @@ var (
 
 	table      [][]string // TODO: use a B tree for storage efficiency
 	tableColor [][]string
-	rows       uint64 = 15 // pour linstant
-	cols       uint64 = 80
 
 	xStr string
 	yStr string
+
+	Registered Register
 
 	ErrInvalidCoordQuery = errors.New("Invalid coordinate value, expecting a uint64")
 )
@@ -51,6 +74,7 @@ func generateSquareSvg(color string) string {
 }
 
 func init() {
+	Registered.Users = avl.NewTree()
 
 	table = make([][]string, rows)
 	for y := 0; y < int(rows); y++ {
@@ -60,6 +84,7 @@ func init() {
 			table[y][x] = md.Link("⠀", link)
 		}
 	}
+
 	tableColor = make([][]string, rows)
 	for y := 0; y < int(rows); y++ {
 		tableColor[y] = make([]string, cols)
@@ -90,9 +115,83 @@ func parseXY(rawQuery string) (x, y uint64, err error) {
 	return x, y, nil
 }
 
+func RegisterMember() {
+	_, ok := retrieveMember(std.OriginCaller())
+	if ok {
+		panic("User already registered")
+	}
+
+	newMember := User{
+		Address: std.OriginCaller(),
+		Rank:    memberRank,
+		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
+	}
+
+	Registered.Users.Set(std.OriginCaller().String(), newMember)
+}
+
+func retrieveMember(address std.Address) (User, bool) {
+	raw, ok := Registered.Users.Get(address.String())
+	if !ok {
+		return User{}, false
+	}
+
+	return raw.(User), true
+}
+
+func isAdmin(address std.Address) bool {
+	user, ok := retrieveMember(address)
+	if !ok {
+		panic("User not registered")
+	}
+
+	if user.Rank != adminRank {
+		return false
+	}
+
+	return true
+}
+
+func SetNewAdmin(address std.Address) {
+	if !isAdmin(std.OriginCaller()) {
+		panic("Must be an admin")
+	}
+
+	user, ok := retrieveMember(address)
+	if !ok || user.Rank == adminRank {
+		panic("User does not meet the requirement")
+	}
+
+	user.Rank = adminRank
+	Registered.Users.Set(address.String(), user)
+}
+
+func DeleteUser() {
+	address := std.OriginCaller()
+
+	_, ok := retrieveMember(address)
+	if !ok {
+		panic("User not registered")
+	}
+
+	Registered.Users.Remove(address.String())
+}
+
 func Submit(x, y uint64, color string) {
+	user, ok := retrieveMember(std.OriginCaller())
+	if !ok {
+		RegisterMember()
+	}
+
+	if time.Now().Before(user.Timer) {
+		panic("Wait until " + user.Timer.String())
+	}
+
 	table[y][x] = "O"
 	tableColor[y][x] = color
+
+	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
+	Registered.Users.Set(std.OriginCaller().String(), user)
 }
 
 func GenerateSVG() string {
@@ -103,6 +202,15 @@ func GenerateSVG() string {
 		}
 	}
 	out += "</svg>"
+	return out
+}
+
+func RenderAccountManagement(selectedColor string) string {
+	var out string
+
+	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " | " +
+		md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
+
 	return out
 }
 
@@ -135,7 +243,7 @@ func Render(path string) string {
 		selectedColor = white
 	}
 
-	out += "## " + md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + "\n\n"
+	out += RenderAccountManagement(selectedColor)
 
 	ssvg := GenerateSVG()
 	base64SVG := base64.StdEncoding.EncodeToString([]byte(ssvg))
@@ -144,7 +252,8 @@ func Render(path string) string {
 	for _, color := range colors {
 		query.Set("color", color.name)
 
-		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) // I would have liked using md.Link here but doing so replaces the svg image with its link
+		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
 	}
+
 	return out
 }
