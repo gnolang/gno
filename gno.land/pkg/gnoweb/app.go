@@ -13,7 +13,7 @@ import (
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
-var defaultAliases = map[string]AliasTarget{
+var DefaultAliases = map[string]AliasTarget{
 	"/":           {"/r/gnoland/home", GnowebPath},
 	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
 	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
@@ -59,7 +59,7 @@ func NewDefaultAppConfig() *AppConfig {
 		ChainID:    "dev",
 		AssetsPath: "/public/",
 		Domain:     "gno.land",
-		Aliases:    defaultAliases,
+		Aliases:    DefaultAliases,
 	}
 }
 

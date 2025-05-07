@@ -7,7 +7,7 @@ import (
 )
 
 // redirects are gnoweb paths that are redirected using [AliasAndRedirectMiddleware].
-var redirects = map[string]string{
+var Redirects = map[string]string{
 	"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
 	"/blog":                    "/r/gnoland/blog",
 	"/gor":                     "/contribute",
@@ -22,7 +22,7 @@ var redirects = map[string]string{
 func RedirectMiddleware(next http.Handler, analytics bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if the request path matches a redirect
-		if newPath, ok := redirects[r.URL.Path]; ok {
+		if newPath, ok := Redirects[r.URL.Path]; ok {
 			http.Redirect(w, r, newPath, http.StatusFound)
 			components.RedirectView(components.RedirectData{
 				To:            newPath,

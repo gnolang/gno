@@ -108,7 +108,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.aliases,
 		"aliases",
 		defaultWebOptions.aliases,
-		"comma-separated list of aliases in the form: '<path>|<realm-path>' or '<path>|static:<markdown-file>'",
+		"comma-separated list of aliases in the form: '<path>=<realm-path>' or '<path>=static:<markdown-file>'",
 	)
 
 	fs.BoolVar(
@@ -285,7 +285,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 
 	// Add each alias entry to the aliases map.
 	for _, entry := range aliasEntries {
-		parts := strings.Split(entry, "|")
+		parts := strings.Split(entry, "=")
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid alias entry: %s", entry)
 		}
