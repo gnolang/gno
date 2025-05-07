@@ -97,14 +97,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	markdownRenderer := NewMarkdownRenderer(logger, markdownCfg)
 
 	// Configure WebHandler
-	webHandlerConfig := NewDefaultWebHandlerConfig()
-	for alias, target := range cfg.Aliases {
-		webHandlerConfig.Aliases[alias] = target
+	if cfg.Aliases == nil {
+		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
 	}
-	webHandlerConfig.WebClient = webcli
-	webHandlerConfig.Meta = staticMeta
-	webHandlerConfig.MarkdownRenderer = markdownRenderer
-	webhandler, err := NewWebHandler(logger, webHandlerConfig)
+	webhandler, err := NewWebHandler(logger, &WebHandlerConfig{
+		WebClient:        webcli,
+		Meta:             staticMeta,
+		MarkdownRenderer: markdownRenderer,
+		Aliases:          cfg.Aliases,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)
 	}

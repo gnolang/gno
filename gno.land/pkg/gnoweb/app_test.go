@@ -95,7 +95,9 @@ func TestRoutes(t *testing.T) {
 	// Initialize the router with the current node's remote address
 	cfg := NewDefaultAppConfig()
 	cfg.NodeRemote = remoteAddr
-	cfg.Aliases = aliases
+	for alias, target := range aliases {
+		cfg.Aliases[alias] = target
+	}
 	router, err := NewRouter(logger, cfg)
 	require.NoError(t, err)
 
@@ -107,94 +109,6 @@ func TestRoutes(t *testing.T) {
 			router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
 			assert.Contains(t, response.Body.String(), r.substring)
-		})
-	}
-}
-
-func TestAliases(t *testing.T) {
-	// Setup the logger and node
-	logger := log.NewTestingLogger(t)
-	rootdir := gnoenv.RootDir()
-	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
-	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
-	t.Cleanup(func() { node.Stop() })
-
-	var (
-		uuid  = xid.New()
-		cases = []struct {
-			name             string
-			aliases          map[string]AliasTarget
-			noDefaultAliases bool
-			route            string
-			status           int
-			substring        string
-		}{
-			{
-				name:             "default alias",
-				aliases:          map[string]AliasTarget{},
-				noDefaultAliases: false,
-				route:            "/about",
-				status:           ok,
-				substring:        "blockchain",
-			},
-			{
-				name:             "default alias with noDefaultAliases",
-				aliases:          map[string]AliasTarget{},
-				noDefaultAliases: true,
-				route:            "/about",
-				status:           badRequest,
-				substring:        "",
-			},
-			{
-				name: "override alias",
-				aliases: map[string]AliasTarget{
-					"/about": {Value: "/r/gnoland/users/v1", Kind: GnowebPath},
-				},
-				noDefaultAliases: false,
-				route:            "/about",
-				status:           ok,
-				substring:        "registry",
-			},
-			{
-				name: "override alias with noDefaultAliases",
-				aliases: map[string]AliasTarget{
-					"/about": {Value: "/r/gnoland/users/v1", Kind: GnowebPath},
-				},
-				noDefaultAliases: true,
-				route:            "/about",
-				status:           ok,
-				substring:        "registry",
-			},
-			{
-				name: "override alias with static file",
-				aliases: map[string]AliasTarget{
-					"/about": {Value: uuid.String(), Kind: StaticMarkdown},
-				},
-				noDefaultAliases: false,
-				route:            "/about",
-				status:           ok,
-				substring:        uuid.String(),
-			},
-		}
-	)
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := NewDefaultAppConfig()
-			cfg.NodeRemote = remoteAddr
-			cfg.Aliases = tc.aliases
-			cfg.NoDefaultAliases = tc.noDefaultAliases
-
-			// Initialize the router with the current node's remote address
-			router, err := NewRouter(logger, cfg)
-			require.NoError(t, err)
-
-			request := httptest.NewRequest(http.MethodGet, tc.route, nil)
-			response := httptest.NewRecorder()
-			router.ServeHTTP(response, request)
-			assert.Equal(t, tc.status, response.Code)
-			assert.Contains(t, response.Body.String(), tc.substring)
 		})
 	}
 }

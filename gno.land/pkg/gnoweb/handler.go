@@ -47,20 +47,16 @@ type WebHandlerConfig struct {
 	Aliases          map[string]AliasTarget
 }
 
-// NewDefaultWebHandlerConfig initializes a [WebHandlerConfig] with default settings.
-func NewDefaultWebHandlerConfig() *WebHandlerConfig {
-	return &WebHandlerConfig{
-		Aliases: map[string]AliasTarget{},
-	}
-}
-
 // validate checks if the WebHandlerConfig is valid.
 func (cfg *WebHandlerConfig) validate() error {
 	if cfg.WebClient == nil {
 		return errors.New("no `WebClient` configured")
 	}
 	if cfg.MarkdownRenderer == nil {
-		return errors.New("no `MarkdownRenderer ` configured")
+		return errors.New("no `MarkdownRenderer` configured")
+	}
+	if cfg.Aliases == nil {
+		return errors.New("no `Aliases` configured")
 	}
 	return nil
 }
