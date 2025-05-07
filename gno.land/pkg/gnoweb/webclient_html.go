@@ -12,80 +12,50 @@ import (
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
-	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/yuin/goldmark"
-	markdown "github.com/yuin/goldmark-highlighting/v2"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
 )
 
-var chromaDefaultStyle = styles.Get("friendly")
+var (
+	chromaDefaultStyle   = styles.Get("friendly")
+	chromaDefaultOptions = []chromahtml.Option{
+		chromahtml.WithLineNumbers(true),
+		chromahtml.WithLinkableLineNumbers(true, "L"),
+		chromahtml.WithClasses(true),
+		chromahtml.ClassPrefix("chroma-"),
+	}
+)
 
 type HTMLWebClientConfig struct {
 	Domain            string
 	RPCClient         *client.RPCClient
 	ChromaStyle       *chroma.Style
 	ChromaHTMLOptions []chromahtml.Option
-	GoldmarkOptions   []goldmark.Option
 }
 
 // NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
-// It sets up goldmark Markdown parsing options and default domain and highlighter.
 func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfig {
-	chromaOptions := []chromahtml.Option{
-		chromahtml.WithLineNumbers(true),
-		chromahtml.WithLinkableLineNumbers(true, "L"),
-		chromahtml.WithClasses(true),
-		chromahtml.ClassPrefix("chroma-"),
-	}
-
-	// Only allow svg data image
-	allowSvgDataImage := func(uri string) bool {
-		const svgdata = "image/svg+xml"
-		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
-	}
-
-	goldmarkOptions := []goldmark.Option{
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-		goldmark.WithExtensions(
-			markdown.NewHighlighting(
-				markdown.WithFormatOptions(chromaOptions...),
-			),
-
-			extension.Strikethrough,
-			extension.Table,
-
-			md.NewGnoExtension(
-				md.WithImageValidator(allowSvgDataImage),
-			),
-		),
-	}
-
 	return &HTMLWebClientConfig{
 		Domain:            "gno.land",
-		GoldmarkOptions:   goldmarkOptions,
-		ChromaHTMLOptions: chromaOptions,
+		ChromaHTMLOptions: chromaDefaultOptions,
 		ChromaStyle:       chromaDefaultStyle,
 		RPCClient:         client,
 	}
 }
 
 type HTMLWebClient struct {
-	Markdown  goldmark.Markdown
 	Formatter *chromahtml.Formatter
 
-	domain        string
-	logger        *slog.Logger
-	client        *client.RPCClient
-	chromaStyle   *chroma.Style
-	commonOptions []goldmark.Option
+	domain      string
+	logger      *slog.Logger
+	client      *client.RPCClient
+	chromaStyle *chroma.Style
 }
+
+var _ WebClient = (*HTMLWebClient)(nil)
 
 // NewHTMLClient creates a new instance of WebClient.
 // It requires a configured logger and WebClientConfig.
@@ -93,14 +63,12 @@ func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 	return &HTMLWebClient{
 		// XXX: Possibly consider exporting this in a single interface logic.
 		// For now it's easier to manager all this in one place
-		Markdown:  goldmark.New(cfg.GoldmarkOptions...),
 		Formatter: chromahtml.New(cfg.ChromaHTMLOptions...),
 
-		logger:        log,
-		domain:        cfg.Domain,
-		client:        cfg.RPCClient,
-		chromaStyle:   cfg.ChromaStyle,
-		commonOptions: cfg.GoldmarkOptions,
+		logger:      log,
+		domain:      cfg.Domain,
+		client:      cfg.RPCClient,
+		chromaStyle: cfg.ChromaStyle,
 	}
 }
 
@@ -195,7 +163,7 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr ContentRenderer) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
 	pkgPath := strings.Trim(u.Path, "/")
@@ -206,18 +174,9 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 		return nil, err
 	}
 
-	ctx := md.NewGnoParserContext(u)
-
-	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(ctx))
-	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
-		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
-	}
-
 	var meta RealmMeta
-	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
-	if err != nil {
-		s.logger.Warn("unable to inspect for TOC elements", "error", err)
+	if meta.Toc, err = cr.Render(w, u, rawres); err != nil {
+		return nil, fmt.Errorf("unable to render realm: %w", err)
 	}
 
 	return &meta, nil

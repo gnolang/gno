@@ -24,6 +24,8 @@ type MockWebClient struct {
 	Packages map[string]*MockPackage // path -> package
 }
 
+var _ WebClient = (*MockWebClient)(nil)
+
 func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 	mpkgs := make(map[string]*MockPackage)
 	for _, pkg := range pkgs {
@@ -34,7 +36,7 @@ func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 }
 
 // RenderRealm simulates rendering a package by writing its content to the writer.
-func (m *MockWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
+func (m *MockWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, _ ContentRenderer) (*RealmMeta, error) {
 	pkg, exists := m.Packages[u.Path]
 	if !exists {
 		return nil, ErrClientPathNotFound
