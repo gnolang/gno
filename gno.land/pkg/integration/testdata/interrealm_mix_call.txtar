@@ -7,9 +7,6 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
 
-## execute BorrowedMutation
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
-
 ## execute NonCrossingMutation
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 stderr 'cannot modify external-realm or non-realm object'
@@ -17,8 +14,14 @@ stderr 'cannot modify external-realm or non-realm object'
 ## execute CrossingMutation
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
-## execute MutateObject
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+## execute BorrowedMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute BorrowedMutationRootedAtCaller
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute CallMutateObject
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
 ## execute InspectRealmsCrossing
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
@@ -29,9 +32,9 @@ gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCr
 ## execute MutateObjectWithBorrowCrossing
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
-## execute MutateCrossingRootedAtCaller
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
-stderr 'cannot modify external-realm or non-realm object'
+## execute MutateCrossingObjectRootedAtCaller
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+stderr 'cannot directly modify readonly tainted object'
 
 -- callerrealm/gno.mod --
 module gno.land/r/test/callerrealm
@@ -45,19 +48,6 @@ import (
 )
 
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
-
-func BorrowedMutation() {
-    crossing()
-
-    if std.PreviousRealm().PkgPath() != "" {
-        panic("expected PreviousRealm to be empty")
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected CurrentRealm to be callerrealm")
-    }
-
- 	borrowrealm.Object.Mutate()
-}
 
 func NonCrossingMutation() {
     crossing()
@@ -75,25 +65,24 @@ func NonCrossingMutation() {
 func CrossingMutation() {
     crossing()
 
-    if std.PreviousRealm().PkgPath() != "" {
-        panic("expected PreviousRealm to be empty")
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected CurrentRealm to be callerrealm")
-    }
-
     cross(borrowrealm.MutateCrossing)()
 }
 
-func MutateObject() {
+
+func BorrowedMutation() {
     crossing()
 
-    if std.PreviousRealm().PkgPath() != "" {
-        panic("expected PreviousRealm to be empty")
-    }
-    if std.CurrentRealm().PkgPath() != "gno.land/r/test/callerrealm" {
-        panic("expected CurrentRealm to be callerrealm")
-    }
+ 	borrowrealm.Object.Mutate()
+}
+
+func BorrowedMutationRootedAtCaller() {
+    crossing()
+
+ 	obj.Mutate()
+}
+
+func CallMutateObject() {
+    crossing()
 
     borrowrealm.MutateObject()
 }
@@ -122,10 +111,10 @@ func MutateCrossingObject() {
     cross(borrowrealm.Object.MutateCrossing)()
 }
 
-func MutateCrossingRootedAtCaller() {
+func MutateCrossingObjectRootedAtCaller() {
     crossing()
 
-    cross(obj.MutateCrossingRootedAtCaller)()
+    cross(obj.MutateCrossingObjectRootedAtCaller)()
 }
 
 -- borrowrealm/gno.mod --
@@ -177,7 +166,7 @@ func (o *ObjectImplem) MutateCrossing() {
     o.value++
 }
 
-func (o *ObjectImplem) MutateCrossingRootedAtCaller() {
+func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller() {
     crossing()
 
     if std.PreviousRealm().PkgPath() != "gno.land/r/test/callerrealm" {
