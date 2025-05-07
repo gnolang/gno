@@ -198,8 +198,6 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	nm1 := testutils.TestAddress("nm1")
-
 	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
 		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
@@ -220,7 +218,6 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m11)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
@@ -228,7 +225,6 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m2)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
@@ -236,7 +232,6 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m3)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
@@ -244,7 +239,6 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m111)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	// Same effect as:
 	// dao.MustVoteOnProposal(dao.VoteRequest{
@@ -257,11 +251,11 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("7"), "68.42105263157895%"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "0%"))
 
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	accepted := cross(dao.ExecuteProposal)(dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "YES PERCENT: 68.42105263157895%"))
+
 }
 
 func contains(s, substr string) bool {
