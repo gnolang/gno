@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -176,3 +177,147 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
 	require.Equal(t, int64(100), newGasPrice.Price.Amount)
 }
+
+/*
+TestSessionManagement tests the basic CRUD operations and lifecycle of a session.
+
+Flow:
+
+ 1. Session Creation and Initial State
+    [Create Session] -> [Verify Not In Store]
+
+ 2. Session Storage and Retrieval
+    [Store Session] -> [Retrieve Session] -> [Verify Fields]
+
+ 3. Session Update
+    [Update Sequence] -> [Store Updated] -> [Verify Update]
+
+ 4. Session Querying
+    [Get All Sessions] -> [Verify Count & Content]
+
+ 5. Session Deletion
+    [Remove Session] -> [Verify Removal]
+
+ 6. Error Handling
+    [Query Non-existent] -> [Verify Error]
+
+This test ensures:
+- Proper session initialization
+- Accurate storage and retrieval of session data
+- Correct sequence number management
+- Successful session removal
+- Appropriate error handling for missing sessions
+*/
+func TestSessionManagement(t *testing.T) {
+	env := setupTestEnv()
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	addr := pubKey.Address()
+
+	// Create a new session
+	session := std.NewBaseSession(addr, pubKey, 0)
+	require.NotNil(t, session)
+
+	// Test initial state
+	storedSession := env.acck.GetSession(env.ctx, pubKey)
+	require.Nil(t, storedSession, "Session should not exist before being set")
+
+	// Test setting session
+	env.acck.SetSession(env.ctx, session)
+	storedSession = env.acck.GetSession(env.ctx, pubKey)
+	require.NotNil(t, storedSession)
+	require.Equal(t, pubKey, storedSession.GetPubKey())
+	require.Equal(t, addr, storedSession.GetAddress())
+	require.Equal(t, uint64(0), storedSession.GetSequence())
+
+	// Test updating sequence
+	session.SetSequence(1)
+	env.acck.SetSession(env.ctx, session)
+	storedSession = env.acck.GetSession(env.ctx, pubKey)
+	require.Equal(t, uint64(1), storedSession.GetSequence())
+
+	// Test GetSequence
+	seq, err := env.acck.GetSequence(env.ctx, pubKey)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), seq)
+
+	// Test GetAllSessions
+	sessions := env.acck.GetAllSessions(env.ctx)
+	require.Len(t, sessions, 1)
+	require.Equal(t, pubKey, sessions[0].GetPubKey())
+
+	// Test removing session
+	env.acck.RemoveSession(env.ctx, session)
+	storedSession = env.acck.GetSession(env.ctx, pubKey)
+	require.Nil(t, storedSession)
+
+	// Test GetSequence for non-existent session
+	_, err = env.acck.GetSequence(env.ctx, pubKey)
+	require.Error(t, err)
+}
+
+/*
+TestSessionIteration tests the iteration functionality over multiple sessions.
+
+Flow:
+
+ 1. Setup Multiple Sessions
+    [Create Session 1] -> [Create Session 2] -> ... -> [Create Session 5]
+    |
+    v
+    [Store Each Session]
+
+ 2. Complete Iteration
+    [Start Iterator] -> [Process All Sessions] -> [Verify Total Count]
+
+ 3. Early Termination
+    [Start Iterator] -> [Process 3 Sessions] -> [Stop] -> [Verify Partial Count]
+
+This test ensures:
+- Correct handling of multiple sessions
+- Proper iteration over all stored sessions
+- Working early termination mechanism
+- Accurate session counting
+- Proper cleanup after iteration
+
+Key aspects tested:
+- Iterator initialization
+- Session enumeration
+- Early exit conditions
+- Resource cleanup
+*/
+func TestSessionIteration(t *testing.T) {
+	env := setupTestEnv()
+
+	// Create multiple sessions
+	numSessions := 5
+	sessions := make([]std.Session, numSessions)
+	for i := range numSessions {
+		privKey := secp256k1.GenPrivKey()
+		pubKey := privKey.PubKey()
+		addr := pubKey.Address()
+		session := std.NewBaseSession(addr, pubKey, uint64(i))
+		sessions[i] = session
+		env.acck.SetSession(env.ctx, session)
+	}
+
+	var count int
+	env.acck.IterateSessions(env.ctx, func(sess std.Session) bool {
+		require.NotNil(t, sess)
+		count++
+		return false
+	})
+	require.Equal(t, numSessions, count)
+
+	// early termination
+	count = 0
+	env.acck.IterateSessions(env.ctx, func(sess std.Session) bool {
+		count++
+		return count >= 3 // Stop after processing 3 sessions
+	})
+	require.Equal(t, 3, count)
+}
+
+// XXX: test sessions
+// XXX: test account creation flows (especially multistep)
+// XXX: test session validity
