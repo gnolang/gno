@@ -411,10 +411,11 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 	}
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
-		if dt == nil || dt.Kind() == InterfaceKind {
+		if dt == nil || dt.Kind() == InterfaceKind{
 			return nil
 		}
-		if !maybeNil(dt) {
+
+		if !maybeNil(dt) && dt.Kind() != BoolKind {
 			switch n := n.(type) {
 			case *ValueDecl:
 				panic(fmt.Sprintf("cannot use nil as %v value in variable declaration", dt))
