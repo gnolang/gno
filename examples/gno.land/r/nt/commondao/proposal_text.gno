@@ -25,6 +25,10 @@ func NewTextPropDefinition(title, body string, quorum float64, votingPeriod time
 	}
 
 	body = strings.TrimSpace(body)
+	if body == "" {
+		panic("proposal body is empty")
+	}
+
 	if len(body) > maxTextBody {
 		panic("proposal body is too long, max length is 15000 chars")
 	}
