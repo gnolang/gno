@@ -491,7 +491,7 @@ func EndBlocker(
 		prevSet, err := extractUpdatesFromParams(prevValset)
 		if err != nil {
 			app.Logger().Error(
-				"unable to parse valset params updates in EndBlocker",
+				"unable to parse prev valset updates in EndBlocker",
 				"err", err,
 			)
 
@@ -502,7 +502,7 @@ func EndBlocker(
 		proposedSet, err := extractUpdatesFromParams(proposedValset)
 		if err != nil {
 			app.Logger().Error(
-				"unable to parse valset params updates in EndBlocker",
+				"unable to parse proposed valset updates in EndBlocker",
 				"err", err,
 			)
 

@@ -3,6 +3,7 @@ package gnoland
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -463,6 +464,9 @@ func TestEndBlocker(t *testing.T) {
 				getStringsFn: func(_ sdk.Context, key string, _ *[]string) {
 					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, key), key)
 				},
+				getBoolFn: func(_ sdk.Context, key string, _ *bool) {
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey), key)
+				},
 			}
 
 			mockApp = &mockEndBlockerApp{
@@ -488,13 +492,36 @@ func TestEndBlocker(t *testing.T) {
 		var (
 			height = int64(10)
 
+			updateFlag   = true
+			paramUpdates []string
+
 			mockParamsKeeper = &mockParamsKeeper{
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, key), key)
-
-					*ptr = []string{
-						"totally valid format",
+					switch key {
+					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
+						// invalid changes
+						*ptr = []string{
+							"totally valid format",
+						}
+					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
+					default:
+						t.Fatal("invalid key")
 					}
+				},
+				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey), key)
+
+					*ptr = updateFlag // notify that updates are available
+				},
+				setBoolFn: func(_ sdk.Context, key string, value bool) {
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey), key)
+
+					updateFlag = value
+				},
+				setStringsFn: func(_ sdk.Context, key string, value []string) {
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey), key)
+
+					paramUpdates = value
 				},
 			}
 
@@ -513,6 +540,12 @@ func TestEndBlocker(t *testing.T) {
 
 		// Verify the response was empty (invalid changes)
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
+
+		// Make sure the updates are not cleared
+		assert.True(t, updateFlag)
+
+		// Make sure the updates are not saved
+		assert.Empty(t, paramUpdates)
 	})
 
 	t.Run("valid valset changes", func(t *testing.T) {
@@ -520,6 +553,9 @@ func TestEndBlocker(t *testing.T) {
 
 		var (
 			updates = generateValidatorUpdates(t, 10)
+
+			updateFlag   = true
+			paramUpdates []string
 
 			serializeUpdate = func(validator abci.ValidatorUpdate) string {
 				// <address>:<pub-key>:<voting-power>
@@ -537,15 +573,35 @@ func TestEndBlocker(t *testing.T) {
 
 			mockParamsKeeper = &mockParamsKeeper{
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, key), key)
+					switch key {
+					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
+						*ptr = []string{} // prev valset is empty
+					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
+						serializedUpdates := make([]string, 0, len(updates))
 
-					changes := make([]string, 0, len(updates))
+						for _, update := range updates {
+							serializedUpdates = append(serializedUpdates, serializeUpdate(update))
+						}
 
-					for _, update := range updates {
-						changes = append(changes, serializeUpdate(update))
+						*ptr = serializedUpdates
+					default:
+						t.Fatal("invalid key")
 					}
+				},
+				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey), key)
 
-					*ptr = changes
+					*ptr = updateFlag // notify that updates are available
+				},
+				setBoolFn: func(_ sdk.Context, key string, value bool) {
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey), key)
+
+					updateFlag = value
+				},
+				setStringsFn: func(_ sdk.Context, key string, value []string) {
+					require.Equal(t, valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey), key)
+
+					paramUpdates = value
 				},
 			}
 
@@ -565,10 +621,38 @@ func TestEndBlocker(t *testing.T) {
 		// Verify the response was filled out
 		require.Len(t, res.ValidatorUpdates, len(updates))
 
+		// Sort the updates
+		sort.Slice(updates, func(i, j int) bool {
+			return updates[i].Address.Compare(updates[j].Address) < 0
+		})
+
+		sort.Slice(res.ValidatorUpdates, func(i, j int) bool {
+			return res.ValidatorUpdates[i].Address.Compare(res.ValidatorUpdates[j].Address) < 0
+		})
+
 		for index, update := range updates {
 			valUpdate := res.ValidatorUpdates[index]
 
-			assert.Equal(t, update.Address, valUpdate.Address)
+			assert.Equal(t, update.Address.String(), valUpdate.Address.String())
+			assert.True(t, update.PubKey.Equals(valUpdate.PubKey))
+			assert.Equal(t, update.Power, valUpdate.Power)
+		}
+
+		// Make sure the updates are cleared
+		assert.False(t, updateFlag)
+
+		// Make sure the updates are saved
+		savedUpdates, err := extractUpdatesFromParams(paramUpdates)
+		require.NoError(t, err)
+
+		sort.Slice(savedUpdates, func(i, j int) bool {
+			return savedUpdates[i].Address.Compare(savedUpdates[j].Address) < 0
+		})
+
+		for index, update := range updates {
+			valUpdate := savedUpdates[index]
+
+			assert.Equal(t, update.Address.String(), valUpdate.Address.String())
 			assert.True(t, update.PubKey.Equals(valUpdate.PubKey))
 			assert.Equal(t, update.Power, valUpdate.Power)
 		}
