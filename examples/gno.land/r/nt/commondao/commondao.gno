@@ -69,3 +69,42 @@ func getOptions(daoID uint64) *Options {
 func makeIDKey(daoID uint64) string {
 	return seqid.ID(daoID).String()
 }
+
+func createDAO(name string, owner std.Address) *commondao.CommonDAO {
+	id := daoID.Next()
+	dao := commondao.New(
+		commondao.WithID(uint64(id)),
+		commondao.WithName(name),
+	)
+	ids := append(getOwnership(owner), uint64(id))
+	daoOptions := defaultOptions
+
+	ownership.Set(owner.String(), ids)
+	daos.Set(id.String(), dao)
+	options.Set(id.String(), &daoOptions)
+	return dao
+}
+
+func createSubDAO(parent *commondao.CommonDAO, name string) *commondao.CommonDAO {
+	id := daoID.Next()
+	dao := commondao.New(
+		commondao.WithID(uint64(id)),
+		commondao.WithParent(parent),
+		commondao.WithName(name),
+	)
+
+	daoOptions := defaultOptions
+	options.Set(id.String(), &daoOptions)
+
+	daos.Set(id.String(), dao)
+
+	rootID := parent.TopParent().ID()
+	tree := getTree(rootID)
+	if tree == nil {
+		tree = avl.NewTree()
+		trees.Set(makeIDKey(rootID), tree)
+	}
+
+	tree.Set(id.String(), dao)
+	return dao
+}

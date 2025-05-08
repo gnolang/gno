@@ -68,15 +68,8 @@ func (p MembersPropDefinition) Body() string {
 	return b.String()
 }
 
-func (p MembersPropDefinition) Validate() error {
-	if p.dao == nil {
-		return ErrInvalidProposal
-	}
-
-	var (
-		err     error
-		members = p.dao.Members()
-	)
+func (p MembersPropDefinition) Validate() (err error) {
+	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
 		if members.Has(addr) {
@@ -120,7 +113,7 @@ func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members com
 }
 
 func (p MembersPropDefinition) Execute() error {
-	assertIsValidProposalDefinition(p)
+	crossing()
 
 	members := p.dao.Members()
 

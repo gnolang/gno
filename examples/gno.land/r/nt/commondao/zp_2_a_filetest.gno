@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	owner         = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user          = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	newMembers    = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq\ng147ah9520z0r6jh9mjr6c75rv6l8aypzvcd3f7d"
-	removeMembers = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	owner   = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user    = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	name    = "Foo SubDAO"
+	members = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq\ng1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 )
 
 var dao *pcommondao.CommonDAO
@@ -22,19 +22,20 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
 
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetOriginCaller(user)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao = commondao.New("Foo")
 	dao.Members().Add(user)
 
 	options := commondao.GetOptions(dao.ID())
-	options.SetAllowMembersUpdate(true)
+	options.SetAllowChildren(true)
+	options.SetAllowSubDAOPorposals(true)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	pID := cross(commondao.CreateMembersUpdateProposal)(dao.ID(), newMembers, removeMembers)
+	pID := cross(commondao.CreateSubDAOProposal)(dao.ID(), name, members)
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {
@@ -43,8 +44,8 @@ func main() {
 
 	println(p.Status() == pcommondao.StatusActive)
 	println(p.Creator() == user)
-	println(p.Definition().Title() == "Members Update")
-	println("")
+	println(p.Definition().Title() == ("New SubDAO: " + name))
+	println(p.VotingDeadline())
 	println(p.Definition().Body())
 }
 
@@ -52,11 +53,9 @@ func main() {
 // true
 // true
 // true
-//
-// **Members to Add:**
-// - g147ah9520z0r6jh9mjr6c75rv6l8aypzvcd3f7d
+// 2009-02-20 23:31:30 +0000 UTC m=+1235172690.000000001
+// **Parent DAO:** [Foo](/r/nt/commondao:2)
+// **SubDAO Name:** Foo SubDAO
+// **Members:**
 // - g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
-//
-// **Members to Remove:**
 // - g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-//
