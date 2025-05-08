@@ -140,23 +140,3 @@ func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, fee std.Fee,
 	tx := std.NewTx(msgs, fee, sigs, memo)
 	return tx
 }
-
-func TestAddress(t *testing.T, name string) crypto.Address {
-	t.Helper()
-
-	if len(name) > crypto.AddressSize {
-		t.Fatal("address name cannot be greater than crypto.AddressSize bytes")
-	}
-
-	var addr crypto.Address
-
-	// Copy name into the start of the address
-	copy(addr[:], name)
-
-	// Pad the remainder with underscores
-	for i := len(name); i < len(addr); i++ {
-		addr[i] = '_'
-	}
-
-	return addr
-}
