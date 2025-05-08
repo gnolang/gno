@@ -8,6 +8,7 @@ import (
 	"go/scanner"
 	"go/types"
 	goio "io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -102,6 +103,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		test.StoreOptions{PreprocessOnly: true},
 	)
 
+	pns := map[string]*gno.PackageNode{}
+
 	for _, dirPath := range dirPaths {
 		if verbose {
 			io.ErrPrintln(dirPath)
@@ -168,10 +171,84 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			packageFiles := sourceAndTestFileset(memPkg)
 
 			pn, _ := tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
+			pns[memPkg.Path] = pn
+		})
+		if hasRuntimeErr {
+			hasError = true
+		}
+	}
+
+	for _, dirPath := range dirPaths {
+		if verbose {
+			io.ErrPrintln(dirPath)
+		}
+
+		info, err := os.Stat(dirPath)
+		if err == nil && !info.IsDir() {
+			dirPath = filepath.Dir(dirPath)
+		}
+
+		// Check if 'gno.mod' exists
+		gmFile, err := gnomod.ParseAt(dirPath)
+		if err != nil {
+			issue := lintIssue{
+				Code:       lintGnoMod,
+				Confidence: 1,
+				Location:   dirPath,
+				Msg:        err.Error(),
+			}
+			io.ErrPrintln(issue)
+			hasError = true
+		}
+
+		pkgPath, _ := determinePkgPath(gmFile, dirPath, cfg.rootDir)
+		memPkg, err := gno.ReadMemPackage(dirPath, pkgPath)
+		if err != nil {
+			io.ErrPrintln(issueFromError(dirPath, err).String())
+			hasError = true
+			continue
+		}
+
+		// Perform imports using the parent store.
+		if err := test.LoadImports(ts, memPkg); err != nil {
+			io.ErrPrintln(issueFromError(dirPath, err).String())
+			hasError = true
+			continue
+		}
+
+		// Handle runtime errors
+		hasRuntimeErr := catchRuntimeError(dirPath, io.Err(), func() {
+			// Wrap in cache wrap so execution of the linter doesn't impact
+			// other packages.
+			cw := bs.CacheWrap()
+			gs := ts.BeginTransaction(cw, cw, nil)
+
+			// Run type checking
+			if gmFile == nil || !gmFile.Draft {
+				foundErr, err := lintTypeCheck(io, memPkg, gs)
+				if err != nil {
+					io.ErrPrintln(err)
+					hasError = true
+				} else if foundErr {
+					hasError = true
+				}
+			} else if verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", dirPath)
+			}
+
+			tm := test.Machine(gs, goio.Discard, memPkg.Path, false)
+
+			defer tm.Release()
+
+			// Check test files
+			packageFiles := sourceAndTestFileset(memPkg)
+
+			pn := pns[memPkg.Path]
 
 			// Use the preprocessor to collect the transformations needed to be done.
 			// They are collected in pn.GetAttribute("XREALMITEM")
 			for _, fn := range packageFiles.Files {
+				fmt.Println("PROCESS", fn.Name)
 				gno.FindXRealmItems(gs, pn, fn)
 			}
 
@@ -180,11 +257,21 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				if tcErr != nil {
 					//panic(fmt.Sprintf("oops %v", tcErr))
 					for _, file := range memPkg.Files {
-						fmt.Println("FORMATTED:", file.Name, file.Body)
+						fmt.Println("FORMATTED:", file.Name) // , file.Body)
+						fpath := filepath.Join(dirPath, file.Name)
+						err = ioutil.WriteFile(fpath, []byte(file.Body), 0644)
+						if err != nil {
+							panic(err)
+						}
 					}
 				} else {
 					for _, file := range memPkg.Files {
 						fmt.Println("FORMATTED:", file.Name, file.Body)
+						fpath := filepath.Join(dirPath, file.Name)
+						err = ioutil.WriteFile(fpath, []byte(file.Body), 0644)
+						if err != nil {
+							panic(err)
+						}
 					}
 					// fmt.Println("NO tcErr")
 				}
