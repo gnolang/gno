@@ -27,37 +27,66 @@ type StaticMetadata struct {
 	Analytics  bool
 }
 
+type AliasKind int
+
+const (
+	GnowebPath AliasKind = iota
+	StaticMarkdown
+)
+
+type AliasTarget struct {
+	Value string
+	Kind  AliasKind
+}
+
 // WebHandlerConfig configures a WebHandler.
 type WebHandlerConfig struct {
-	Meta      StaticMetadata
-	WebClient WebClient
+	Meta             StaticMetadata
+	WebClient        WebClient
+	MarkdownRenderer *MarkdownRenderer
+	Aliases          map[string]AliasTarget
 }
 
 // validate checks if the WebHandlerConfig is valid.
-func (cfg WebHandlerConfig) validate() error {
+func (cfg *WebHandlerConfig) validate() error {
 	if cfg.WebClient == nil {
 		return errors.New("no `WebClient` configured")
+	}
+	if cfg.MarkdownRenderer == nil {
+		return errors.New("no `MarkdownRenderer` configured")
+	}
+	if cfg.Aliases == nil {
+		return errors.New("no `Aliases` configured")
 	}
 	return nil
 }
 
+// IsHomePath checks if the given path is the home path.
+func IsHomePath(path string) bool {
+	return path == "/"
+}
+
 // WebHandler processes HTTP requests.
 type WebHandler struct {
-	Logger *slog.Logger
-	Static StaticMetadata
-	Client WebClient
+	Logger           *slog.Logger
+	Static           StaticMetadata
+	Client           WebClient
+	MarkdownRenderer *MarkdownRenderer
+	Aliases          map[string]AliasTarget
 }
 
 // NewWebHandler creates a new WebHandler.
-func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) (*WebHandler, error) {
+func NewWebHandler(logger *slog.Logger, cfg *WebHandlerConfig) (*WebHandler, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
 	}
 
 	return &WebHandler{
-		Client: cfg.WebClient,
-		Static: cfg.Meta,
-		Logger: logger,
+		Client:           cfg.WebClient,
+		Static:           cfg.Meta,
+		MarkdownRenderer: cfg.MarkdownRenderer,
+		Aliases:          cfg.Aliases,
+		Logger:           logger,
 	}, nil
 }
 
@@ -128,6 +157,13 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index.
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
+
+	// If the alias target exists and is a gnoweb path, replace the URL path with it.
+	if aliasExists && aliasTarget.Kind == GnowebPath {
+		r.URL.Path = aliasTarget.Value
+	}
+
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
@@ -144,12 +180,31 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	}
 
 	switch {
+	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure():
 		return h.GetPackageView(gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
 	}
+}
+
+// GetMarkdownView handles markdown files.
+func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+	var content bytes.Buffer
+
+	// Use Goldmark for Markdown parsing
+	toc, err := h.MarkdownRenderer.Render(&content, gnourl, []byte(mdContent))
+	if err != nil {
+		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	return http.StatusOK, components.RealmView(components.RealmData{
+		TocItems:         &components.RealmTOCData{Items: toc.Items},
+		ComponentContent: components.NewReaderComponent(&content),
+	})
 }
 
 // GetPackageView handles package pages.
@@ -176,7 +231,7 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL) (int, *components.Vie
 func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View) {
 	var content bytes.Buffer
 
-	meta, err := h.Client.RenderRealm(&content, gnourl)
+	meta, err := h.Client.RenderRealm(&content, gnourl, h.MarkdownRenderer)
 	if err != nil {
 		if errors.Is(err, ErrRenderNotDeclared) {
 			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
