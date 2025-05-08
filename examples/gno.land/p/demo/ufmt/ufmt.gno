@@ -160,12 +160,13 @@ func (p *printer) doPrintf(format string, args []any) {
 				i++
 			}
 			if i > start {
-				lengthStr := string(sTor[start:i])
+				var n int64
 				var err error
-				length, err = strconv.Atoi(lengthStr)
+				n, err = strconv.ParseInt(string(sTor[start:i]), 10, 0)
 				if err != nil {
 					panic("ufmt: invalid length specification")
 				}
+				length = int(n)
 			}
 		}
 
@@ -365,7 +366,7 @@ func writeFloatWithPrecision(p *printer, verb rune, arg any, precision int) {
 				precision = 6
 			}
 		}
-		p.buf.writeString(strconv.FormatFloat(v, format, precision, 64))
+		p.buf = strconv.AppendFloat(p.buf, v, format, precision, 64)
 	default:
 		p.buf.writeString(fallback(verb, v))
 	}
