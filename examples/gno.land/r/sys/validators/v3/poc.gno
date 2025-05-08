@@ -111,29 +111,27 @@ func GetValidators() []validators.Validator {
 // Render displays the current valset as well as proposed changes
 // for the next height
 func Render(string) string {
-	height := std.ChainHeight()
+	var (
+		sb strings.Builder
 
-	var sb strings.Builder
+		height = std.ChainHeight()
+		valset = GetValidators()
+	)
 
-	writeSection(&sb, "Valset changes", valsetNewKey, height)
-	writeSection(&sb, "Valset", valsetPrevKey, height)
+	sb.WriteString(ufmt.Sprintf("## Valset at %d\n\n", height))
 
-	return sb.String()
-}
-
-// writeSection renders a specific valset render section
-func writeSection(sb *strings.Builder, title, key string, height int64) {
-	sb.WriteString(ufmt.Sprintf("## %s at %d\n\n", title, height))
-
-	entries, found := std.GetParamStrings(key)
-	if found && len(entries) > 0 {
-		for _, e := range entries {
-			sb.WriteString(e)
-			sb.WriteString("\n")
-		}
-	} else {
-		sb.WriteString(ufmt.Sprintf("No %s available\n", title))
+	if len(valset) == 0 {
+		sb.WriteString("Valset is empty")
 	}
 
-	sb.WriteString("\n")
+	for indx, val := range valset {
+		sb.WriteString(ufmt.Sprintf(
+			"- #%d: %s (%d)\n",
+			indx,
+			val.Address.String(),
+			val.VotingPower,
+		))
+	}
+
+	return sb.String()
 }
