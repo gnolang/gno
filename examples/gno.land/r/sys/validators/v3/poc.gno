@@ -4,10 +4,9 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/validators"
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/r/gov/dao"
 )
 
 // Keep in sync with gno.land/pkg/gnoland/app.go
@@ -66,7 +65,7 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		return nil
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(callback)
+	return dao.NewSimpleExecutor(callback)
 }
 
 // serializeValsetChanges prepares the valset serialization,
