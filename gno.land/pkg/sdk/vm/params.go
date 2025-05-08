@@ -81,15 +81,9 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 const (
 	moduleParamPrefix = "vm"
 
-	// Param declarations
-	sysUsersPkgParam = "p:sysnames_pkgpath"
-	chainDomainParam = "p:chain_domain"
-	valsetRealmParam = "p:valset_realmpath"
-
-	// Full param paths (for sys lookups)
-	sysUsersPkgParamPath = moduleParamPrefix + ":" + sysUsersPkgParam
-	chainDomainParamPath = moduleParamPrefix + ":" + chainDomainParam
-	ValsetRealmParamPath = moduleParamPrefix + ":" + valsetRealmParam
+	sysUsersPkgParamPath = moduleParamPrefix + ":p:sysnames_pkgpath"
+	chainDomainParamPath = moduleParamPrefix + ":p:chain_domain"
+	ValsetRealmParamPath = moduleParamPrefix + ":p:valset_realmpath"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
