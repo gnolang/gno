@@ -13,13 +13,12 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # add the proposal
-gnokey maketx addpkg -pkgdir $WORK/proposer -pkgpath gno.land/r/gov/dao/v3/proposer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check everything the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout '- Supermajority: 50%'
-stdout OK!
 
 # vote on the proposal
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
@@ -30,16 +29,16 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 10
 stdout OK!
 
 -- proposer/create_proposal.gno --
-package create_proposal
+package main
 
 import (
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func init() {
-	preq := impl.NewChangeLawRequest(&impl.Law{Supermajority:50})
-	dao.MustCreateProposal(preq)
+func main() {
+	preq := cross(impl.NewChangeLawRequest)(&impl.Law{Supermajority:50})
+	cross(dao.MustCreateProposal)(preq)
 }
 
 -- loader/load_govdao.gno --
