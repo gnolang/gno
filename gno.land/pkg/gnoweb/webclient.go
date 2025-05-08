@@ -25,12 +25,19 @@ type RealmMeta struct {
 	Toc md.Toc
 }
 
+// Renderer is an interface for rendering content from source.
+type ContentRenderer interface {
+	// Render renders the content of a source file and write it on the given writer.
+	// It returns a Table of Contents (Toc) and an error if any occurs.
+	Render(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error)
+}
+
 // WebClient is an interface for interacting with package and node resources.
 type WebClient interface {
 	// RenderRealm renders the content of a realm from a given path and
 	// arguments into the giver `writer`. The method should ensures the rendered
 	// content is safely handled and formatted.
-	RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error)
+	RenderRealm(w io.Writer, u *weburl.GnoURL, cr ContentRenderer) (*RealmMeta, error)
 
 	// SourceFile fetches and writes the source file from a given
 	// package path, file name and if raw. The method should ensures the source
