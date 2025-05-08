@@ -36,21 +36,141 @@
 package authz
 
 import (
-	"errors"
 	"std"
-	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/rotree"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
-	"gno.land/p/moul/once"
 )
 
+func NewWithCurrentAdmin() (*Authority, PrivateConfig) {
+	auth, config := New()
+	config.Add(Anything, std.CurrentRealm().Address())
+	return auth, config
+}
+
+func New() (*Authority, PrivateConfig) {
+	auth := &Authority{}
+	return auth, auth.config
+}
+
+type Authority struct {
+	config PrivateConfig
+}
+
+const Anything = "_anything_"
+
+func (a Authority) Can(addr std.Address, action string) bool {
+	for _, lookup := range []string{action, Anything} {
+		value, ok := a.config.policies.Get(lookup)
+		if !ok {
+			continue
+		}
+		addrs := value.(*addrset.Set)
+		if addrs.Has(addr) || addrs.Has(Anyone) {
+			return true
+		}
+	}
+	return false
+}
+func (a Authority) CanByCurrent(action string) bool {
+	return a.Can(std.CurrentRealm().Address(), action)
+}
+func (a Authority) CanByPrevious(action string) bool {
+	return a.Can(std.PreviousRealm().Address(), action)
+}
+
+type PrivateConfig struct {
+	policies avl.Tree // action -> addrset.Set
+}
+
+func (c *PrivateConfig) Add(action string, members ...std.Address) {
+	var policy *addrset.Set
+	value, ok := c.policies.Get(action)
+	if ok {
+		policy = value.(*addrset.Set)
+	} else {
+		policy = &addrset.Set{}
+	}
+	for _, member := range members {
+		policy.Add(member)
+	}
+	c.policies.Set(action, policy)
+}
+func (c *PrivateConfig) Remove(action string, members ...std.Address) {
+	value, ok := c.policies.Get(action)
+	if !ok {
+		return
+	}
+	policy := value.(*addrset.Set)
+	for _, member := range members {
+		policy.Remove(member)
+	}
+	// c.policies.Set(action, policy)
+	if policy.Size() == 0 {
+		c.policies.Remove(action)
+	}
+}
+func (c *PrivateConfig) RemoveAll(action string) { c.policies.Remove(action) }
+
+/*
+func (c *PrivateConfig) GetActionsForAddr(addr std.Address) []string {
+	actions := []string{}
+	c.policies.Iterate("", "", func(key string, value any) bool {
+		if value.(*addrset.Set).Has(addr) {
+			actions = append(actions, key)
+		}
+		return false
+	})
+	return actions
+}
+func (c *PrivateConfig) GetAddrsForAction(action string) *addrset.Set {
+	value, ok := c.policies.Get(action)
+	if !ok {
+		return nil
+	}
+	return value.(*addrset.Set)
+}
+*/
+
+const Anyone = std.Address("g1anyone")
+
+/*
+// the simple case
+func Add(...) {
+    crossing()
+    if authz.CanByPrevious(...) { queue.Add(...) }
+}
+
+// auto setup case
+func makeDAO(...) {
+   ...
+   dao.SetAuthorizer(authz)
+}
+
+// auto setup async thing with private setup
+func makeSuggestionsBox(...) box {
+  box, privauth := makeBox(...)
+  box.Authorizer() // returns the public part
+  privauth.
+      Add(Anyone(), "propose").
+      Add(std.CurrentRealm().Address(), "admin").
+      Add(authz, "admin")
+  return box
+}
+box := makeSuggestionsBox(...)
+box.Suggest(suggestion)
+
+*/
+
+/*
 // Authorizer is the main wrapper object that handles authority management.
 // It is configured with a replaceable Authority implementation.
 type Authorizer struct {
 	auth Authority
+	Can(caller std.Address, actionName string, args ...any) bool
+	CanByCurrent(actionName string, args ...any) bool
+	CanByPrevious(actionName string, args ...any) bool
+	GetPolicyForAction(actionName string) string
 }
 
 // Authority represents an entity that can authorize privileged actions.
@@ -59,7 +179,11 @@ type Authorizer struct {
 type Authority interface {
 	// Authorize executes a privileged action if the caller is authorized
 	// Additional args can be provided for context (e.g., for proposal creation)
-	Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error
+	// Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error
+
+	// Can checks if the caller is authorized to perform an action.
+	// Additional args can be provided for context (e.g., for proposal creation).
+	Can(caller std.Address, actionName string, args ...any) bool
 
 	// String returns a human-readable description of the authority
 	String() string
@@ -331,3 +455,5 @@ func (a *droppedAuthority) Authorize(caller std.Address, title string, action Pr
 func (a *droppedAuthority) String() string {
 	return "dropped_authority"
 }
+
+*/

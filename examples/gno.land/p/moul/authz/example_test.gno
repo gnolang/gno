@@ -1,5 +1,6 @@
 package authz
 
+/*
 import (
 	"std"
 )
@@ -88,3 +89,5 @@ func Example_switchingAuthority() {
 func mockDAOHandler(title string, action PrivilegedAction) error {
 	return action()
 }
+
+*/
