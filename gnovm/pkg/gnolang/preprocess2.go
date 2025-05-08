@@ -24,9 +24,6 @@ func addXRealmItem(n Node, t string, p string, f string, l int, c int) {
 // Finds XRealmItems for interream spec 2 transpiling tool.
 // Sets to bn attribute XREALMITEM.
 func FindXRealmItems(store Store, pn *PackageNode, bn BlockNode) {
-	if pn != packageOf(bn) {
-		panic("package mismatch")
-	}
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = pn
@@ -47,7 +44,6 @@ func FindXRealmItems(store Store, pn *PackageNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
-
 			// Pop block from stack.
 			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
 			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
@@ -63,8 +59,10 @@ func FindXRealmItems(store Store, pn *PackageNode, bn BlockNode) {
 			switch n := n.(type) {
 			case *CallExpr:
 				if _, ok := n.Func.(*constTypeExpr); ok {
+					fmt.Println("CONOST1", n)
 					return n, TRANS_CONTINUE
 				} else if cx, ok := n.Func.(*ConstExpr); ok {
+					fmt.Println("CONOST2", n)
 					if cx.TypedValue.T.Kind() != FuncKind {
 						return n, TRANS_CONTINUE
 					}
@@ -80,7 +78,7 @@ func FindXRealmItems(store Store, pn *PackageNode, bn BlockNode) {
 							panic("cross(fn) must be followed by a call")
 						}
 						loc := last.GetLocation()
-						// fmt.Printf("add nilrealm: %s/%s:%d:%d\n", loc.PkgPath, loc.File, pc.GetLine(), pc.GetColumn())
+						fmt.Printf("add nilrealm: %s/%s:%d:%d\n", loc.PkgPath, loc.File, pc.GetLine(), pc.GetColumn())
 						addXRealmItem(pn, "add nilrealm", loc.PkgPath, loc.File, pc.GetLine(), pc.GetColumn())
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						if !IsRealmPath(pn.PkgPath) {
@@ -88,16 +86,18 @@ func FindXRealmItems(store Store, pn *PackageNode, bn BlockNode) {
 						}
 						// XXX Add `cur realm` as first argument to func decl.
 						loc := last.GetLocation()
-						// fmt.Printf("add curfunc: %s/%s:%d:%d\n", loc.PkgPath, loc.File, loc.Line, loc.Column)
+						fmt.Printf("add curfunc: %s/%s:%d:%d\n", loc.PkgPath, loc.File, loc.Line, loc.Column)
 						addXRealmItem(pn, "add curfunc", loc.PkgPath, loc.File, loc.Line, loc.Column)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
 						panic("attach() not yet supported")
 					}
 				} else {
+					fmt.Println("CONOST3", n)
 					// Already handled, added "add nilrealm"
 					// from the "cross" case above.
 					if n.WithCross {
+						fmt.Println("CONOST4", n)
 						// Is a cross(fn)(...) call.
 						// Leave it alone.
 						return n, TRANS_CONTINUE
@@ -112,7 +112,7 @@ func FindXRealmItems(store Store, pn *PackageNode, bn BlockNode) {
 						// cannot be resolved statically
 						defer func() {
 							recover()
-							// fmt.Println("FAILED TO EVALSTATIC", n.Func)
+							//fmt.Println("FAILED TO EVALSTATIC", n.Func, r)
 						}()
 						// try to evaluate n.Func.
 						tv = m.EvalStatic(last, n.Func)
@@ -126,14 +126,14 @@ func FindXRealmItems(store Store, pn *PackageNode, bn BlockNode) {
 						if cv.IsCrossing() {
 							// XXX Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
-							// fmt.Printf("add curcall: %s/%s:%d:%d\n", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
+							fmt.Printf("add curcall: %s/%s:%d:%d\n", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
 							addXRealmItem(pn, "add curcall", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
 						}
 					case *BoundMethodValue:
 						if cv.IsCrossing() {
 							// XXX Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
-							// fmt.Printf("add curcall: %s/%s:%d:%d\n", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
+							fmt.Printf("add curcall: %s/%s:%d:%d\n", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
 							addXRealmItem(pn, "add curcall", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
 						}
 					}
