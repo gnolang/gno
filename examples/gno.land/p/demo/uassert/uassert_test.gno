@@ -474,35 +474,3 @@ func TestNotNil(t *testing.T) {
 	}
 	mockT.empty(t)
 }
-
-func TestTypedNil(t *testing.T) {
-	mockT := new(mockTestingT)
-	if uassert.TypedNil(mockT, nil) {
-		t.Error("TypedNil should return false")
-	}
-	mockT.equals(t, "error: should be typed-nil but got nil instead")
-	if uassert.TypedNil(mockT, 0) {
-		t.Error("TypedNil should return false")
-	}
-	mockT.equals(t, "error: should be typed-nil")
-	if !uassert.TypedNil(mockT, (*int)(nil)) {
-		t.Error("TypedNil should return true")
-	}
-	mockT.empty(t)
-}
-
-func TestNotTypedNil(t *testing.T) {
-	mockT := new(mockTestingT)
-	if !uassert.NotTypedNil(mockT, nil) {
-		t.Error("NotTypedNil should return true")
-	}
-	mockT.empty(t)
-	if !uassert.NotTypedNil(mockT, 0) {
-		t.Error("NotTypedNil should return true")
-	}
-	mockT.empty(t)
-	if uassert.NotTypedNil(mockT, (*int)(nil)) {
-		t.Error("NotTypedNil should return false")
-	}
-	mockT.equals(t, "error: should not be typed-nil")
-}

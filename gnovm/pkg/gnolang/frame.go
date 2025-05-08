@@ -235,9 +235,7 @@ func toConstExpTrace(cte *ConstExpr) string {
 		}
 	}
 
-	if tv.IsTypedNil() {
-		return "typed-nil"
-	} else if tv.IsUndefined() {
+	if tv.IsUndefined() {
 		return "undefined"
 	} else {
 		return tv.V.String()

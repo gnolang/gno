@@ -28,8 +28,7 @@ func TestRegister_Valid(t *testing.T) {
 
 	res, latest := susers.ResolveName(alice)
 	uassert.True(t, latest)
-	uassert.NotTypedNil(t, res)
-	if !istypednil(res) {
+	if uassert.True(t, res != nil, "res should not be nil") {
 		uassert.Equal(t, alice, res.Name())
 		uassert.Equal(t, aliceAddr, res.Addr())
 		uassert.False(t, res.IsDeleted())

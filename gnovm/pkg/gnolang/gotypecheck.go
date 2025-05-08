@@ -180,7 +180,6 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*
 		Name: ".gnobuiltins.go",
 		Body: fmt.Sprintf(`package %s
 
-func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
 func cross[F any](fn F) F { return fn } // shim
 func revive[F any](fn F) any { return nil } // shim
