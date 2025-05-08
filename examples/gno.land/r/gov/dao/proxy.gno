@@ -16,12 +16,12 @@ var AllowedDAOs []string
 var proposals *Proposals = NewProposals()
 
 // Remember this realm for rendering.
-var realm = std.CurrentRealm()
+var gRealm = std.CurrentRealm()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(p string) string {
-	return dao.Render(realm.PkgPath(), p)
+	return dao.Render(gRealm.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
@@ -150,10 +150,10 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 func UpdateImpl(r UpdateRequest) {
 	crossing()
 
-	realm := std.PreviousRealm().PkgPath()
+	gRealm := std.PreviousRealm().PkgPath()
 
-	if !InAllowedDAOs(realm) {
-		panic("permission denied for prev realm: " + realm)
+	if !InAllowedDAOs(gRealm) {
+		panic("permission denied for prev realm: " + gRealm)
 	}
 
 	if r.AllowedDAOs != nil {
