@@ -12,10 +12,10 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
-stdout OK!
+stdout 'data: # Active Proposals:'
 
 # add the proposal
-gnokey maketx addpkg -pkgdir $WORK/proposer -pkgpath gno.land/r/gov/dao/v3/proposer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check everything the proposal was created
@@ -24,14 +24,14 @@ stdout '- Post Title: title'
 stdout '- Post Publication Date: 1987-06-24T18:25:43.511Z'
 stdout '- Authors: author'
 stdout '- Tags: tag1, tag2'
-stdout OK!
+
 
 # vote on the proposal
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # call proposal execution
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # check output
@@ -39,16 +39,16 @@ gnokey query vm/qrender --data 'gno.land/r/gnoland/blog:p/slug'
 stdout 'Written by author on 24 Jun 1987'
 
 -- proposer/create_proposal.gno --
-package create_proposal
+package main
 
 import (
 	"gno.land/r/gov/dao"
 	gnoblog "gno.land/r/gnoland/blog"
 )
 
-func init() {
+func main() {
 	preq := gnoblog.NewPostProposalRequest("slug", "title", "body", "1987-06-24T18:25:43.511Z", "author", "tag1, tag2")
-	dao.MustCreateProposal(preq)
+	cross(dao.MustCreateProposal)(preq)
 }
 
 -- loader/load_govdao.gno --
