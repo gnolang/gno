@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // type checking (using go/types)
@@ -32,7 +34,7 @@ type MemPackageGetter interface {
 // If format is true, the code in msmpkg will be automatically updated with the
 // formatted source code.
 func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, format bool) error {
-	return typeCheckMemPackage(mempkg, getter, false, format)
+	return typeCheckMemPackage(mempkg, getter, false, format, nil)
 }
 
 // TypeCheckMemPackageTest performs the same type checks as [TypeCheckMemPackage],
@@ -57,7 +59,7 @@ func typeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, testin
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mempkg, format)
+	_, err := imp.parseCheckMemPackage(mempkg, format, xform)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {
@@ -102,7 +104,7 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		return nil, err
 	}
 	fmt_ := false
-	result, err := g.parseCheckMemPackage(mpkg, fmt_)
+	result, err := g.parseCheckMemPackage(mpkg, fmt_, nil)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
@@ -146,7 +148,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, fmt_ bool) (*ty
 
 		// Enforce formatting.
 		// This must happen before logical transforms.
-		if fmt_ {
+		if fmt_ && xform == nil {
 			var buf bytes.Buffer
 			err = format.Node(&buf, fset, f)
 			if err != nil {
@@ -169,6 +171,22 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, fmt_ bool) (*ty
 			}
 		*/
 
+		if xform != nil {
+			// transform for interrealm spec 2
+			if err := transformCrossing(mpkg.Path, fset, file.Name, f, xform); err != nil {
+				errs = multierr.Append(errs, err)
+				continue
+			}
+			var buf bytes.Buffer
+			err = format.Node(&buf, fset, f)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				continue
+			}
+			file.Body = buf.String()
+			// fmt.Println("FORMATTED") XXX
+		}
+
 		files = append(files, f)
 	}
 	if errs != nil {
@@ -184,6 +202,8 @@ func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
 func cross[F any](fn F) F { return fn } // shim
 func revive[F any](fn F) any { return nil } // shim
+type realm struct{} // shim
+// var nilrealm realm // shim
 `, mpkg.Name),
 	}
 	f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
@@ -250,3 +270,52 @@ func filterCrossing(f *ast.File) (err error) {
 	return err
 }
 */
+
+func transformCrossing(pkgPath string, fs *token.FileSet, fileName string, f *ast.File, xform map[string]string) (err error) {
+	astutil.Apply(f, nil, func(c *astutil.Cursor) bool {
+		switch n := c.Node().(type) {
+		case *ast.ExprStmt:
+			if ce, ok := n.X.(*ast.CallExpr); ok {
+				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
+					// Validate syntax.
+					if len(ce.Args) != 0 {
+						err = errors.New("crossing called with non empty parameters")
+					}
+					// Delete statement 'crossing()'.
+					c.Delete()
+					// XXX how do you remove the newline after crossing()?
+				}
+			}
+		case *ast.FuncDecl:
+			pos := n.Pos()
+			posn := fs.Position(pos)
+			l, c := posn.Line, posn.Column
+			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fileName, l, c)
+			if xform[key] == "add curfunc" {
+				n.Type.Params.List = append([]*ast.Field{&ast.Field{
+					Names: []*ast.Ident{ast.NewIdent("cur")},
+					Type:  ast.NewIdent("realm"),
+				}}, n.Type.Params.List...)
+			}
+		case *ast.CallExpr:
+			pos := n.Pos()
+			posn := fs.Position(pos)
+			l, c := posn.Line, posn.Column
+			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fileName, l, c)
+			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+				// Skip these.
+				// Gno AST doesn't store the end location, only the start.
+				// cross(x)(...) and cross(x) have the same start.
+				return true
+			}
+			//fmt.Println("AST APPLY CALLEXPR", key, n)
+			if xform[key] == "add curcall" {
+				n.Args = append([]ast.Expr{ast.NewIdent("cur")}, n.Args...)
+			} else if xform[key] == "add nilrealm" {
+				// n.Args = append([]ast.Expr{ast.NewIdent("nilrealm")}, n.Args...)
+			}
+		}
+		return true
+	})
+	return err
+}

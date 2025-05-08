@@ -167,7 +167,28 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			// Check test files
 			packageFiles := sourceAndTestFileset(memPkg)
 
-			tm.PreprocessFiles(memPkg.Name, pkgPath, packageFiles, false, false)
+			pn, _ := tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
+
+			// Use the preprocessor to collect the transformations needed to be done.
+			// They are collected in pn.GetAttribute("XREALMITEM")
+			for _, fn := range packageFiles.Files {
+				gno.FindXRealmItems(gs, pn, fn)
+			}
+
+			if xform, ok := pn.GetAttribute("XREALMITEM").(map[string]string); ok {
+				tcErr := gno.TypeCheckMemPackage2(memPkg, gs, true, true, xform)
+				if tcErr != nil {
+					//panic(fmt.Sprintf("oops %v", tcErr))
+					for _, file := range memPkg.Files {
+						fmt.Println("FORMATTED:", file.Name, file.Body)
+					}
+				} else {
+					for _, file := range memPkg.Files {
+						fmt.Println("FORMATTED:", file.Name, file.Body)
+					}
+					// fmt.Println("NO tcErr")
+				}
+			}
 		})
 		if hasRuntimeErr {
 			hasError = true
