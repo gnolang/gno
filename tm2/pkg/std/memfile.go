@@ -2,6 +2,8 @@ package std
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -24,19 +26,6 @@ type MemPackage struct {
 	Files []*MemFile `json:"files" yaml:"files"`
 }
 
-func (mempkg *MemPackage) GetFile(name string) *MemFile {
-	for _, memFile := range mempkg.Files {
-		if memFile.Name == name {
-			return memFile
-		}
-	}
-	return nil
-}
-
-func (mempkg *MemPackage) IsEmpty() bool {
-	return mempkg.Name == "" || len(mempkg.Files) == 0
-}
-
 const pathLengthLimit = 256
 
 var (
@@ -48,36 +37,36 @@ var (
 // path must not contain any dots after the first domain component.
 // file names must contain dots.
 // NOTE: this is to prevent conflicts with nested paths.
-func (mempkg *MemPackage) Validate() error {
+func (mpkg *MemPackage) Validate() error {
 	// add assertion that MemPkg contains at least 1 file
-	if len(mempkg.Files) <= 0 {
-		return fmt.Errorf("no files found within package %q", mempkg.Name)
+	if len(mpkg.Files) <= 0 {
+		return fmt.Errorf("no files found within package %q", mpkg.Name)
 	}
 
-	if len(mempkg.Path) > pathLengthLimit {
-		return fmt.Errorf("path length %d exceeds limit %d", len(mempkg.Path), pathLengthLimit)
+	if len(mpkg.Path) > pathLengthLimit {
+		return fmt.Errorf("path length %d exceeds limit %d", len(mpkg.Path), pathLengthLimit)
 	}
 
-	if !rePkgName.MatchString(mempkg.Name) {
-		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
+	if !rePkgName.MatchString(mpkg.Name) {
+		return fmt.Errorf("invalid package name %q, failed to match %q", mpkg.Name, rePkgName)
 	}
 
-	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
-		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
+	if !rePkgOrRlmPath.MatchString(mpkg.Path) {
+		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mpkg.Path, rePkgOrRlmPath)
 	}
 	// enforce sorting files based on Go conventions for predictability
 	sorted := sort.SliceIsSorted(
-		mempkg.Files,
+		mpkg.Files,
 		func(i, j int) bool {
-			return mempkg.Files[i].Name < mempkg.Files[j].Name
+			return mpkg.Files[i].Name < mpkg.Files[j].Name
 		},
 	)
 	if !sorted {
-		return fmt.Errorf("mempackage %q has unsorted files", mempkg.Path)
+		return fmt.Errorf("mempackage %q has unsorted files", mpkg.Path)
 	}
 
 	var prev string
-	for i, file := range mempkg.Files {
+	for i, file := range mpkg.Files {
 		if !reFileName.MatchString(file.Name) {
 			return fmt.Errorf("invalid file name %q, failed to match %q", file.Name, reFileName)
 		}
@@ -87,6 +76,31 @@ func (mempkg *MemPackage) Validate() error {
 		prev = file.Name
 	}
 
+	return nil
+}
+
+func (mpkg *MemPackage) GetFile(name string) *MemFile {
+	for _, memFile := range mpkg.Files {
+		if memFile.Name == name {
+			return memFile
+		}
+	}
+	return nil
+}
+
+func (mpkg *MemPackage) IsEmpty() bool {
+	return mpkg.Name == "" || len(mpkg.Files) == 0
+}
+
+func (mpkg *MemPackage) WriteTo(dirPath string) error {
+	for _, file := range mpkg.Files {
+		fmt.Println("FORMATTED:", file.Name, file.Body)
+		fpath := filepath.Join(dirPath, file.Name)
+		err := ioutil.WriteFile(fpath, []byte(file.Body), 0644)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

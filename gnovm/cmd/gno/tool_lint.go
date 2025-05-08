@@ -8,7 +8,6 @@ import (
 	"go/scanner"
 	"go/types"
 	goio "io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -24,8 +23,9 @@ import (
 )
 
 type processedPackage struct {
-	pn   *gno.PackageNode
+	mpkg *std.MemPackage
 	fset *gno.FileSet
+	pn   *gno.PackageNode
 }
 
 type lintCfg struct {
@@ -96,7 +96,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	dirPaths, err := gnoPackagesFromArgsRecursively(args)
+	dirs, err := gnoPackagesFromArgsRecursively(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
@@ -108,48 +108,50 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		test.StoreOptions{PreprocessOnly: true},
 	)
 
-	pns := map[string]processedPackage{}
+	ppkgs := map[string]processedPackage{}
 
-	for _, dirPath := range dirPaths {
+	//----------------------------------------
+	// STEP 1: PREPROCESS ALL FILES
+	for _, dir := range dirs {
 		if verbose {
-			io.ErrPrintln(dirPath)
+			io.ErrPrintln(dir)
 		}
 
-		info, err := os.Stat(dirPath)
+		info, err := os.Stat(dir)
 		if err == nil && !info.IsDir() {
-			dirPath = filepath.Dir(dirPath)
+			dir = filepath.Dir(dir)
 		}
 
 		// Check if 'gno.mod' exists
-		gmFile, err := gnomod.ParseAt(dirPath)
+		gmFile, err := gnomod.ParseAt(dir)
 		if err != nil {
 			issue := lintIssue{
 				Code:       lintGnoMod,
 				Confidence: 1,
-				Location:   dirPath,
+				Location:   dir,
 				Msg:        err.Error(),
 			}
 			io.ErrPrintln(issue)
 			hasError = true
 		}
 
-		pkgPath, _ := determinePkgPath(gmFile, dirPath, cfg.rootDir)
-		memPkg, err := gno.ReadMemPackage(dirPath, pkgPath)
+		pkgPath, _ := determinePkgPath(gmFile, dir, cfg.rootDir)
+		mpkg, err := gno.ReadMemPackage(dir, pkgPath)
 		if err != nil {
-			io.ErrPrintln(issueFromError(dirPath, pkgPath, err).String())
+			io.ErrPrintln(issueFromError(dir, pkgPath, err).String())
 			hasError = true
 			continue
 		}
 
 		// Perform imports using the parent store.
-		if err := test.LoadImports(ts, memPkg); err != nil {
-			io.ErrPrintln(issueFromError(dirPath, pkgPath, err).String())
+		if err := test.LoadImports(ts, mpkg); err != nil {
+			io.ErrPrintln(issueFromError(dir, pkgPath, err).String())
 			hasError = true
 			continue
 		}
 
 		// Handle runtime errors
-		hasRuntimeErr := catchRuntimeError(dirPath, pkgPath, io.Err(), func() {
+		hasRuntimeErr := catchRuntimeError(dir, pkgPath, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
 			cw := bs.CacheWrap()
@@ -157,7 +159,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			// Run type checking
 			if gmFile == nil || !gmFile.Draft {
-				foundErr, err := lintTypeCheck(io, dirPath, memPkg, gs)
+				foundErr, err := lintTypeCheck(io, dir, mpkg, gs)
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true
@@ -165,7 +167,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 					hasError = true
 				}
 			} else if verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", dirPath)
+				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
 			}
 
 			tm := test.Machine(gs, goio.Discard, pkgPath, false)
@@ -173,135 +175,34 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			defer tm.Release()
 
 			// Check test files
-			packageFiles := sourceAndTestFileset(memPkg)
+			packageFiles := sourceAndTestFileset(mpkg)
 
-			pn, _ := tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
-			pns[memPkg.Path] = processedPackage{pn, packageFiles}
+			pn, _ := tm.PreprocessFiles(mpkg.Name, mpkg.Path, packageFiles, false, false)
+			ppkgs[mpkg.Path] = processedPackage{mpkg, packageFiles, pn}
+
+			// Use the preprocessor to collect the transformations needed to be done.
+			// They are collected in pn.GetAttribute("XREALMITEM")
+			for _, fn := range packageFiles.Files {
+				gno.FindGno0p9XItems(gs, pn, fn)
+			}
 		})
 		if hasRuntimeErr {
 			hasError = true
 		}
 	}
 
-	for _, dirPath := range dirPaths {
-		if verbose {
-			io.ErrPrintln(dirPath)
-		}
-
-		info, err := os.Stat(dirPath)
-		if err == nil && !info.IsDir() {
-			dirPath = filepath.Dir(dirPath)
-		}
-
-		// Check if 'gno.mod' exists
-		gmFile, err := gnomod.ParseAt(dirPath)
-		if err != nil {
-			issue := lintIssue{
-				Code:       lintGnoMod,
-				Confidence: 1,
-				Location:   dirPath,
-				Msg:        err.Error(),
-			}
-			io.ErrPrintln(issue)
-			hasError = true
-		}
-
-		pkgPath, _ := determinePkgPath(gmFile, dirPath, cfg.rootDir)
-		memPkg, err := gno.ReadMemPackage(dirPath, pkgPath)
-		if err != nil {
-			io.ErrPrintln(issueFromError(dirPath, err).String())
-			hasError = true
-			continue
-		}
-
-		// Wrap in cache wrap so execution of the linter doesn't impact
-		// other packages.
-		cw := bs.CacheWrap()
-		gs := ts.BeginTransaction(cw, cw, nil)
-
-		// Check test files
-		ppkg, ok := pns[memPkg.Path]
+	//----------------------------------------
+	// STEP 2: TRANSFORM FOR Gno 0.9
+	for _, dir := range dirs {
+		ppkg, ok := ppkgs[dir]
 		if !ok {
 			panic("where did it go")
 		}
-		pn, packageFiles := ppkg.pn, ppkg.fset
-		fmt.Println("PN", memPkg.Path, pn)
-
-		// Use the preprocessor to collect the transformations needed to be done.
-		// They are collected in pn.GetAttribute("XREALMITEM")
-		for _, fn := range packageFiles.Files {
-			fmt.Println("PROCESS", fn.Name)
-			gno.FindXRealmItems(gs, pn, fn)
-		}
-	}
-
-	for _, dirPath := range dirPaths {
-		if verbose {
-			io.ErrPrintln(dirPath)
-		}
-
-		info, err := os.Stat(dirPath)
-		if err == nil && !info.IsDir() {
-			dirPath = filepath.Dir(dirPath)
-		}
-
-		// Check if 'gno.mod' exists
-		gmFile, err := gnomod.ParseAt(dirPath)
+		mpkg, pn := ppkg.mpkg, ppkg.pn
+		xform := pn.GetAttribute(gno.ATTR_GNO0P9_XITEMS).(map[string]string)
+		err := gno.TranspileToGno0p9(mpkg, dir, true, true, xform)
 		if err != nil {
-			issue := lintIssue{
-				Code:       lintGnoMod,
-				Confidence: 1,
-				Location:   dirPath,
-				Msg:        err.Error(),
-			}
-			io.ErrPrintln(issue)
-			hasError = true
-		}
-
-		pkgPath, _ := determinePkgPath(gmFile, dirPath, cfg.rootDir)
-		memPkg, err := gno.ReadMemPackage(dirPath, pkgPath)
-		if err != nil {
-			io.ErrPrintln(issueFromError(dirPath, err).String())
-			hasError = true
-			continue
-		}
-
-		// Wrap in cache wrap so execution of the linter doesn't impact
-		// other packages.
-		cw := bs.CacheWrap()
-		gs := ts.BeginTransaction(cw, cw, nil)
-
-		// Check test files
-		ppkg, ok := pns[memPkg.Path]
-		if !ok {
-			panic("where did it go")
-		}
-		pn, _ := ppkg.pn, ppkg.fset
-		fmt.Println("PN", memPkg.Path, pn)
-		if xform, ok := pn.GetAttribute("XREALMITEM").(map[string]string); ok {
-			fmt.Println("UM")
-			tcErr := gno.TypeCheckMemPackage2(memPkg, gs, true, true, xform)
-			if tcErr != nil {
-				//panic(fmt.Sprintf("oops %v", tcErr))
-				for _, file := range memPkg.Files {
-					fmt.Println("FORMATTED:", file.Name) // , file.Body)
-					fpath := filepath.Join(dirPath, file.Name)
-					err = ioutil.WriteFile(fpath, []byte(file.Body), 0644)
-					if err != nil {
-						panic(err)
-					}
-				}
-			} else {
-				for _, file := range memPkg.Files {
-					fmt.Println("FORMATTED:", file.Name, file.Body)
-					fpath := filepath.Join(dirPath, file.Name)
-					err = ioutil.WriteFile(fpath, []byte(file.Body), 0644)
-					if err != nil {
-						panic(err)
-					}
-				}
-				// fmt.Println("NO tcErr")
-			}
+			panic(err)
 		}
 	}
 
@@ -312,8 +213,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+func lintTypeCheck(io commands.IO, dir string, mpkg *std.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
+	tcErr := gno.TypeCheckMemPackageTest(mpkg, testStore)
 	if tcErr == nil {
 		return false, nil
 	}
@@ -323,7 +224,7 @@ func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, testS
 		switch err := err.(type) {
 		case types.Error:
 			loc := err.Fset.Position(err.Pos).String()
-			loc = replaceWithDirPath(loc, memPkg.Path, dirPath)
+			loc = replaceWithDirPath(loc, mpkg.Path, dir)
 			io.ErrPrintln(lintIssue{
 				Code:       lintTypeCheckError,
 				Msg:        err.Msg,
@@ -333,7 +234,7 @@ func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, testS
 		case scanner.ErrorList:
 			for _, scErr := range err {
 				loc := scErr.Pos.String()
-				loc = replaceWithDirPath(loc, memPkg.Path, dirPath)
+				loc = replaceWithDirPath(loc, mpkg.Path, dir)
 				io.ErrPrintln(lintIssue{
 					Code:       lintParserError,
 					Msg:        scErr.Msg,
@@ -343,7 +244,7 @@ func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, testS
 			}
 		case scanner.Error:
 			loc := err.Pos.String()
-			loc = replaceWithDirPath(loc, memPkg.Path, dirPath)
+			loc = replaceWithDirPath(loc, mpkg.Path, dir)
 			io.ErrPrintln(lintIssue{
 				Code:       lintParserError,
 				Msg:        err.Msg,
@@ -357,9 +258,9 @@ func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, testS
 	return true, nil
 }
 
-func sourceAndTestFileset(memPkg *std.MemPackage) *gno.FileSet {
+func sourceAndTestFileset(mpkg *std.MemPackage) *gno.FileSet {
 	testfiles := &gno.FileSet{}
-	for _, mfile := range memPkg.Files {
+	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // Skip non-GNO files
 		}
@@ -401,7 +302,7 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
-func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
+func catchRuntimeError(dir, pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
@@ -412,21 +313,21 @@ func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action 
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
-			fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, err).String())
+			fmt.Fprintln(stderr, issueFromError(dir, pkgPath, err).String())
 		case error:
 			errors := multierr.Errors(verr)
 			for _, err := range errors {
 				errList, ok := err.(scanner.ErrorList)
 				if ok {
 					for _, errorInList := range errList {
-						fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, errorInList).String())
+						fmt.Fprintln(stderr, issueFromError(dir, pkgPath, errorInList).String())
 					}
 				} else {
-					fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, err).String())
+					fmt.Fprintln(stderr, issueFromError(dir, pkgPath, err).String())
 				}
 			}
 		case string:
-			fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, errors.New(verr)).String())
+			fmt.Fprintln(stderr, issueFromError(dir, pkgPath, errors.New(verr)).String())
 		default:
 			panic(r)
 		}
@@ -436,13 +337,13 @@ func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action 
 	return
 }
 
-func issueFromError(dirPath, pkgPath string, err error) lintIssue {
+func issueFromError(dir, pkgPath string, err error) lintIssue {
 	var issue lintIssue
 	issue.Confidence = 1
 	issue.Code = lintGnoError
 
 	parsedError := strings.TrimSpace(err.Error())
-	parsedError = replaceWithDirPath(parsedError, pkgPath, dirPath)
+	parsedError = replaceWithDirPath(parsedError, pkgPath, dir)
 	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
 
 	matches := reParseRecover.FindStringSubmatch(parsedError)
@@ -457,9 +358,9 @@ func issueFromError(dirPath, pkgPath string, err error) lintIssue {
 	return issue
 }
 
-func replaceWithDirPath(s, pkgPath, dirPath string) string {
+func replaceWithDirPath(s, pkgPath, dir string) string {
 	if strings.HasPrefix(s, pkgPath) {
-		return filepath.Clean(dirPath + s[len(pkgPath):])
+		return filepath.Clean(dir + s[len(pkgPath):])
 	}
 	return s
 }
