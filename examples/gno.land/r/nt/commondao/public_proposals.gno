@@ -76,11 +76,51 @@ func CreateMembersUpdateProposal(daoID uint64, newMembers, removeMembers string)
 		panic(err)
 	}
 
+	if err = p.Validate(); err != nil {
+		panic(err)
+	}
+
+	return p.ID()
+}
+
+// CreateSubDAOProposal creates a new proposal to create a new SubDAO.
+//
+// Parameters:
+// - daoID: ID of the parent DAO (required)
+// - name: A name for the SubDAO (required)
+// - members: Comma separated list of addresses to add as members
+func CreateSubDAOProposal(daoID uint64, name, members string) uint64 {
+	crossing()
+
+	dao := mustGetDAO(daoID)
+	o := getOptions(daoID)
+	if !(o.AllowSubDAOProposals && o.AllowChildren) {
+		panic("forbidden")
+	}
+
+	caller := std.PreviousRealm().Address()
+	assertCallerIsMember(caller, dao)
+
+	daoMembers := mustParseStringToAddrset(members)
+	def := newSubDAOPropDefinition(dao, name, &daoMembers)
+	p, err := dao.Propose(caller, def)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = p.Validate(); err != nil {
+		panic(err)
+	}
+
 	return p.ID()
 }
 
 func mustParseStringToAddrset(s string) (set addrset.Set) {
-	for _, raw := range strings.Split(s, ",") {
+	if s == "" {
+		return
+	}
+
+	for _, raw := range strings.Split(s, "\n") {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
 			continue
