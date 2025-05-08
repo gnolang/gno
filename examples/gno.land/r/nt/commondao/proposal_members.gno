@@ -10,10 +10,8 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-// TODO: Support optional parent DAO mechanics to add/remove direct SubDAO members
-
-// NewMembersPropDefinition creates a new proposal definition for adding/removing DAO members.
-func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) MembersPropDefinition {
+// newMembersPropDefinition creates a new proposal definition for adding/removing DAO members.
+func newMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) membersPropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
@@ -26,23 +24,23 @@ func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set)
 		panic("no members were specified to be added or removed")
 	}
 
-	return MembersPropDefinition{
+	return membersPropDefinition{
 		dao:      dao,
 		toAdd:    add,
 		toRemove: remove,
 	}
 }
 
-// MembersUpdateProposal defines a proposal type for adding/removing DAO members.
-type MembersPropDefinition struct {
+// nembersUpdateProposal defines a proposal type for adding/removing DAO members.
+type membersPropDefinition struct {
 	dao             *commondao.CommonDAO
 	toAdd, toRemove addrset.Set
 }
 
-func (MembersPropDefinition) Title() string               { return "Members Update" }
-func (MembersPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+func (membersPropDefinition) Title() string               { return "Members Update" }
+func (membersPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
 
-func (p MembersPropDefinition) Body() string {
+func (p membersPropDefinition) Body() string {
 	var b strings.Builder
 
 	if p.toAdd.Size() > 0 {
@@ -68,7 +66,7 @@ func (p MembersPropDefinition) Body() string {
 	return b.String()
 }
 
-func (p MembersPropDefinition) Validate() (err error) {
+func (p membersPropDefinition) Validate() (err error) {
 	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
@@ -94,7 +92,7 @@ func (p MembersPropDefinition) Validate() (err error) {
 	return err
 }
 
-func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
+func (membersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
 	// When DAO has one or two members succeed when there is a YES vote, otherwise
 	// tally requires at least three votes to be able to tally by 2/3s super majority
 	if members.Size() < 3 {
@@ -112,7 +110,7 @@ func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members com
 	return false, nil
 }
 
-func (p MembersPropDefinition) Execute() error {
+func (p membersPropDefinition) Execute() error {
 	crossing()
 
 	members := p.dao.Members()

@@ -70,7 +70,7 @@ func CreateMembersUpdateProposal(daoID uint64, newMembers, removeMembers string)
 
 	toAdd := mustParseStringToAddrset(newMembers)
 	toRemove := mustParseStringToAddrset(removeMembers)
-	def := NewMembersPropDefinition(dao, toAdd, toRemove)
+	def := newMembersPropDefinition(dao, toAdd, toRemove)
 	p, err := dao.Propose(caller, def)
 	if err != nil {
 		panic(err)

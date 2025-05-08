@@ -103,3 +103,5 @@ func (p subDAOPropDefinition) Execute() error {
 	p.parent.Children().Append(subDAO)
 	return nil
 }
+
+// TODO: Support optional parent DAO mechanics to remove direct SubDAO members
