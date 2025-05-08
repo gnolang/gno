@@ -164,7 +164,7 @@ func eachTOMLField(value reflect.Value, iterationCallback func(val reflect.Value
 
 	currentType := value.Type()
 	nf := currentType.NumField()
-	for i := 0; i < nf; i++ {
+	for i := range nf {
 		fld := currentType.Field(i)
 		tomlName := fld.Tag.Get("toml")
 

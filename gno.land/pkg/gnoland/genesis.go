@@ -86,7 +86,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 	// The vm module uses the submodule for realm package paths.
 	// If only the module is specified, the submodule is assumed to be "p"
 	// for keeper param structs.
-	m := map[string] /* <module>(:<submodule>)? */ map[string] /* <name> */ interface{} /* <value> */ {}
+	m := map[string] /* <module>(:<submodule>)? */ map[string] /* <name> */ any /* <value> */ {}
 	err = toml.Unmarshal(content, &m)
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 			for name, value := range values {
 				name, type_ := splitTypedName(name)
 				if type_ == "strings" {
-					vz := value.([]interface{})
+					vz := value.([]any)
 					sz := make([]string, len(vz))
 					for i, v := range vz {
 						sz[i] = v.(string)
@@ -177,7 +177,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir)
 	if err != nil {
-		return nil, fmt.Errorf("listing gno packages: %w", err)
+		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
 
 	// Sort packages by dependencies.
@@ -244,4 +244,20 @@ func DefaultGenState() GnoGenesisState {
 		VM:       vmm.DefaultGenesisState(),
 	}
 	return gs
+}
+
+func ValidateGenState(state GnoGenesisState) error {
+	if err := auth.ValidateGenesis(state.Auth); err != nil {
+		return fmt.Errorf("unable to validate auth state: %w", err)
+	}
+
+	if err := bank.ValidateGenesis(state.Bank); err != nil {
+		return fmt.Errorf("unable to validate bank state: %w", err)
+	}
+
+	if err := vmm.ValidateGenesis(state.VM); err != nil {
+		return fmt.Errorf("unable to validate vm state: %w", err)
+	}
+
+	return nil
 }

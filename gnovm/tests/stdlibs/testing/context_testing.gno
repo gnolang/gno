@@ -7,7 +7,6 @@ import (
 
 func getContext() (
 	originCaller string,
-	originPkgAddress string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
 	chainID string,
@@ -17,7 +16,6 @@ func getContext() (
 
 func setContext(
 	originCaller string,
-	originPkgAddress string,
 	currRealmAddr string, currRealmPkgPath string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
@@ -27,15 +25,14 @@ func setContext(
 )
 
 func GetContext() Context {
-	originCaller, originPkgAddress, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
+	originCaller, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
 	return Context{
-		OriginCaller:     std.Address(originCaller),
-		OriginPkgAddress: std.Address(originPkgAddress),
-		OriginSend:       compactNative(origSendDenoms, origSendAmounts),
-		OriginSpend:      compactNative(origSpendDenoms, origSpendAmounts),
-		ChainID:          chainID,
-		Height:           height,
-		Time:             time.Unix(timeUnix, timeNano),
+		OriginCaller: std.Address(originCaller),
+		OriginSend:   compactNative(origSendDenoms, origSendAmounts),
+		OriginSpend:  compactNative(origSpendDenoms, origSpendAmounts),
+		ChainID:      chainID,
+		Height:       height,
+		Time:         time.Unix(timeUnix, timeNano),
 	}
 }
 
@@ -53,7 +50,6 @@ func SetContext(ctx Context) {
 
 	setContext(
 		ctx.OriginCaller.String(),
-		ctx.OriginPkgAddress.String(),
 		ctx.CurrentRealm.Address().String(), ctx.CurrentRealm.PkgPath(),
 		originSendDenom, originSendAmount,
 		originSpendDenom, originSpendAmount,
@@ -68,6 +64,7 @@ func testIssueCoins(addr string, denom []string, amt []int64)
 func SetOriginCaller(origCaller std.Address) {
 	ctx := GetContext()
 	ctx.OriginCaller = origCaller
+	ctx.CurrentRealm = std.NewUserRealm(origCaller)
 	SetContext(ctx)
 }
 
@@ -83,12 +80,6 @@ func SetOriginSpend(spend std.Coins) {
 	SetContext(ctx)
 }
 
-func SetOriginPkgAddress(addr std.Address) {
-	ctx := GetContext()
-	ctx.OriginPkgAddress = addr
-	SetContext(ctx)
-}
-
 func SetHeight(height int64) {
 	ctx := GetContext()
 	ctx.Height = height
@@ -97,10 +88,16 @@ func SetHeight(height int64) {
 
 // SetRealm sets the realm for the current frame.
 // After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
-// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+// rlm, while if a realm function is called, using PreviousRealm() will yield rlm.
+// If rlm.PkgPath() is "", implies rlm.Address() is the user address.
+// OriginCaller will also be set. This is identical to calling
+// ctx.SetOriginCaller(userAddress)
 func SetRealm(rlm std.Realm) {
 	ctx := GetContext()
 	ctx.CurrentRealm = rlm
+	if rlm.PkgPath() == "" {
+		ctx.OriginCaller = rlm.Address()
+	}
 	SetContext(ctx)
 }
 

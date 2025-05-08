@@ -64,11 +64,12 @@ type Store interface {
 	GetMemPackage(path string) *gnovm.MemPackage
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
-	ClearObjectCache()                                    // run before processing a message
+	ClearObjectCache() // run before processing a message
+	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(dst io.Writer)
-	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
+	LogFinalizeRealm(rlmpath string) // to mark finalization of realm boundaries
 	Print()
 }
 
@@ -349,7 +350,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	if bz == nil {
 		return nil
 	}
-	gas := overflow.Mul64p(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetPackageRealmDesc)
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
@@ -379,7 +380,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
-	gas := overflow.Mul64p(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetPackageRealmDesc)
 	ds.baseStore.Set([]byte(key), bz)
 	size = len(bz)
@@ -444,10 +445,10 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
-		ds.alloc.AllocateAmino(int64(len(bz)))
-		gas := overflow.Mul64p(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		ds.alloc.Allocate(oo.GetShallowSize())
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
@@ -481,7 +482,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
-	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetObjectDesc)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
@@ -619,7 +620,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		key := backendTypeKey(tid)
 		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
-			gas := overflow.Mul64p(ds.gasConfig.GasGetType, store.Gas(len(bz)))
+			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasGetTypeDesc)
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
@@ -679,7 +680,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
-		gas := overflow.Mul64p(ds.gasConfig.GasSetType, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasSetType, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
 		size = len(bz)
@@ -801,7 +802,7 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
-	gas := overflow.Mul64p(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
@@ -844,7 +845,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 		}
 		return nil
 	}
-	gas := overflow.Mul64p(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
 	var memPkg *gnovm.MemPackage
@@ -910,6 +911,18 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
+func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
+	for objId, obj := range ds.cacheObjects {
+		// Skip .uverse packages.
+		if pv, ok := obj.(*PackageValue); ok && pv.PkgPath == ".uverse" {
+			continue
+		}
+		if obj.GetLastGCCycle() < gcCycle {
+			delete(ds.cacheObjects, objId)
+		}
+	}
+}
+
 func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {
 	ds.nativeResolver = ns
 }
@@ -930,9 +943,9 @@ func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
 	}
 }
 
-func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
+func (ds *defaultStore) LogFinalizeRealm(rlmpath string) {
 	if ds.opslog != nil {
-		fmt.Fprintf(ds.opslog, "switchrealm[%q]\n", rlmpath)
+		fmt.Fprintf(ds.opslog, "finalizerealm[%q]\n", rlmpath)
 	}
 }
 

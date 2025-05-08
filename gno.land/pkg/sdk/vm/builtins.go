@@ -158,7 +158,7 @@ func (prm *SDKParams) GetStrings(key string) ([]string, bool) {
 	return val, val != nil
 }
 
-func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value interface{}) {
+func (prm *SDKParams) willSetKeeperParams(_ sdk.Context, key string, value any) {
 	parts := strings.Split(key, ":")
 	if len(parts) == 0 {
 		panic(fmt.Sprintf("SDKParams encountered invalid param key format: %s", key))

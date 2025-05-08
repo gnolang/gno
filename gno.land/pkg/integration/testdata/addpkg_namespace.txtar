@@ -4,15 +4,14 @@ loadpkg gno.land/r/gnoland/users/v1
 adduser admin
 adduser gui
 
-patchpkg "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" $admin_user_addr # use our custom admin
+patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our custom admin
 
 gnoland start
 
 # Check if sys/names is disabled
-# gui call -> sys/names.IsEnabled
-gnokey maketx call -pkgpath gno.land/r/sys/names -func IsEnabled -gas-fee 100000ugnot -gas-wanted 200000 -broadcast -chainid tendermint_test gui
-stdout 'OK!'
-stdout 'false'
+# qeval -> sys/names.IsEnabled
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
+stdout 'false bool'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
@@ -26,14 +25,14 @@ stdout 'OK!'
 
 # Enable `sys/names`
 # admin call -> sys/names.Enable
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1000000 -broadcast -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1400000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
 # Check that `sys/names` has been enabled
-# gui call -> sys/names.IsEnabled
-gnokey maketx call -pkgpath gno.land/r/sys/names -func IsEnabled -gas-fee 100000ugnot -gas-wanted 200000 -broadcast -chainid tendermint_test gui
-stdout 'OK!'
-stdout 'true'
+# qeval -> sys/names.IsEnabled
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
+stdout 'true bool'
+
 
 # Try to add a pkg an with unregistered user
 # gui addpkg -> gno.land/r/<addr_test1>/one
@@ -57,12 +56,12 @@ stderr 'is not authorized to deploy packages to namespace'
 
 # test gui register namespace
 # gui call -> gnoland/users/v1.Register
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 12000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
+gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func Register -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 13000000 -broadcast -chainid=tendermint_test -args 'guigui123' gui
 stdout 'OK!'
 
 # Test gui publishing on guigui123/one
 # gui addpkg -> gno.land/r/guigui123/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 2700000 -broadcast -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/one -gas-fee 1000000ugnot -gas-wanted 3500000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Test admin publishing on guigui123/two

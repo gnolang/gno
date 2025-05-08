@@ -1,7 +1,0 @@
--- input.md --
-<gno-columns>
-</gno-columns>
-
--- output.html --
-<div class="gno-columns">
-</div> <!-- </gno-columns> -->

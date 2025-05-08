@@ -34,13 +34,45 @@ import (
 	"github.com/yuin/goldmark"
 )
 
-var _ goldmark.Extender = (*gnoExtension)(nil)
+var _ goldmark.Extender = (*GnoExtension)(nil)
 
-type gnoExtension struct{}
+type GnoExtension struct {
+	cfg *config
+}
 
-var GnoExtension = &gnoExtension{}
+// Option
+
+type config struct {
+	imgValidatorFunc ImageValidatorFunc
+}
+
+type Option func(cfg *config)
+
+func WithImageValidator(valFunc ImageValidatorFunc) Option {
+	return func(cfg *config) {
+		cfg.imgValidatorFunc = valFunc
+	}
+}
+
+func NewGnoExtension(opts ...Option) *GnoExtension {
+	var cfg config
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	return &GnoExtension{&cfg}
+}
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
-func (e *gnoExtension) Extend(m goldmark.Markdown) {
-	Columns.Extend(m)
+func (e *GnoExtension) Extend(m goldmark.Markdown) {
+	// Add column extension
+	ExtColumns.Extend(m)
+
+	// Add link extension with context
+	ExtLinks.Extend(m)
+
+	// If set, setup images filter
+	if e.cfg.imgValidatorFunc != nil {
+		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
+	}
 }

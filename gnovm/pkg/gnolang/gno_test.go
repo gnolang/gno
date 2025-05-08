@@ -21,15 +21,15 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 	b.Helper()
 
 	m := &Machine{
-		Ops:        make([]Op, 100),
-		NumOps:     100,
-		Values:     make([]TypedValue, numValues),
-		NumValues:  numValues,
-		Exprs:      make([]Expr, numExprs),
-		Stmts:      make([]Stmt, numStmts),
-		Blocks:     make([]*Block, numBlocks),
-		Frames:     make([]*Frame, numFrames),
-		Exceptions: make([]Exception, numExceptions),
+		Ops:       make([]Op, 100),
+		NumOps:    100,
+		Values:    make([]TypedValue, numValues),
+		NumValues: numValues,
+		Exprs:     make([]Expr, numExprs),
+		Stmts:     make([]Stmt, numStmts),
+		Blocks:    make([]*Block, numBlocks),
+		Frames:    make([]Frame, numFrames),
+		Exception: nil,
 	}
 	return m
 }
@@ -466,6 +466,27 @@ func main() {
 	}
 }
 
+func TestOptimizeConversion(t *testing.T) {
+	t.Parallel()
+
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {}
+
+func foo(a int) {
+    b := int(a)
+    println(b)
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	fn := n.Decls[1].(*FuncDecl)
+	as := fn.Body[0].(*AssignStmt)
+	ne := as.Rhs[0].(*NameExpr)
+	if ne.Name != "a" {
+		t.Fatalf("expecting optimized 'a', got %v", ne.String())
+	}
+}
+
 func BenchmarkIfStatement(b *testing.B) {
 	m := NewMachine("test", nil)
 	c := `package test
@@ -683,7 +704,7 @@ func TestModifyTypeAsserted(t *testing.T) {
 	t.Parallel()
 
 	x := Struct1{1, 1}
-	var v interface{} = x
+	var v any = x
 	x2 := v.(Struct1)
 	x2.A = 2
 
@@ -701,7 +722,7 @@ func TestTypeConversion(t *testing.T) {
 	t.Parallel()
 
 	x := 1
-	var v interface{} = x
+	var v any = x
 	if _, ok := v.(Interface1); ok {
 		panic("should not happen")
 	}
@@ -720,11 +741,11 @@ func TestSomething(t *testing.T) {
 	t.Parallel()
 
 	type Foo struct {
-		X interface{}
+		X any
 	}
 
 	type Bar struct {
-		X interface{}
+		X any
 		Y bool
 	}
 
@@ -815,7 +836,7 @@ func TestBinaryShortCircuit(t *testing.T) {
 func TestSwitchDefine(t *testing.T) {
 	t.Parallel()
 
-	var x interface{} = 1
+	var x any = 1
 	switch y := x.(type) {
 	case int:
 		fmt.Println("int", y) // XXX

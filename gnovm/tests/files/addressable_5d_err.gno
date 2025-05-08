@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_5d_err.gno:6:6: cannot take address of (const (1 int))
+// illegal assignment X expression type *gnolang.ConstExpr
+
+// TypeCheckError:
+// main/files/addressable_5d_err.gno:6:7: invalid operation: cannot take address of a (constant 1 of type int)

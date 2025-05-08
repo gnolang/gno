@@ -10,3 +10,6 @@ func main() {
 
 // Error:
 // main/files/type31.gno:8:10: invalid operation: mismatched types string and main.String
+
+// TypeCheckError:
+// main/files/type31.gno:8:10: invalid operation: x + y (mismatched types string and String)
