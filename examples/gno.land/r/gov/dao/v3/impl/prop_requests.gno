@@ -9,6 +9,8 @@ import (
 )
 
 func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
+	crossing()
+
 	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
@@ -52,6 +54,8 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 }
 
 func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+	crossing()
+
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -91,6 +95,8 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 }
 
 func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
+	crossing()
+
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")

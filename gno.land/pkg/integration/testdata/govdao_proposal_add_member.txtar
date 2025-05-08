@@ -16,7 +16,7 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # add the proposal
-gnokey maketx addpkg -pkgdir $WORK/proposer -pkgpath gno.land/r/gov/dao/v3/proposer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check everything the proposal was created
@@ -36,7 +36,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao/memberstore:'
 stdout 'Tier T2 contains 1 members'
 
 -- proposer/create_proposal.gno --
-package create_proposal
+package main
 
 import (
 	"std"
@@ -45,9 +45,9 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func init() {
-	preq := impl.NewAddMemberRequest(std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "this is my portfolio")
-	dao.MustCreateProposal(preq)
+func main() {
+	preq := cross(impl.NewAddMemberRequest)(std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "this is my portfolio")
+	cross(dao.MustCreateProposal)(preq)
 }
 
 -- loader/load_govdao.gno --
