@@ -28,8 +28,8 @@ type Register struct {
 }
 
 type Color struct {
-	name string
-	rgb  string
+	rgb     string
+	initial string
 }
 
 const (
@@ -38,26 +38,25 @@ const (
 
 	timeRefill int = 2
 
-	rows uint64 = 15
-	cols uint64 = 80
+	rows uint64 = 45
+	cols uint64 = 45
 
-	white string = "rgb(240,240,240)"
+	white string = "rgb(250,250,250)"
 )
 
 var (
 	colors = []Color{
-		{"black", "rgb(40,40,40)"},
-		{"red", "rgb(255,0,0)"},
-		{"green", "rgb(0,255,0)"},
-		{"blue", "rgb(0,0,255)"},
-		{"yellow", "rgb(255,255,0)"},
-		{"cyan", "rgb(0,255,255)"},
-		{"pink", "rgb(255,0,255)"},
-		{"white", white},
+		{"rgb(0,0,0)", "K"},     // black
+		{"rgb(255,0,0)", "R"},   // red
+		{"rgb(0,255,0)", "G"},   // green
+		{"rgb(0,0,255)", "B"},   // blue
+		{"rgb(255,255,0)", "Y"}, // yellow
+		{"rgb(0,255,255)", "C"}, // cyan
+		{"rgb(255,0,255)", "P"}, // pink
+		{white, "W"},            // white
 	}
 
-	table      [][]string // TODO: use a B tree for storage efficiency
-	tableColor [][]string
+	tableColor [][]Color // TODO: use a B tree for storage efficiency
 
 	xStr string
 	yStr string
@@ -76,20 +75,12 @@ func generateSquareSvg(color string) string {
 func init() {
 	Registered.Users = avl.NewTree()
 
-	table = make([][]string, rows)
+	tableColor = make([][]Color, rows)
 	for y := 0; y < int(rows); y++ {
-		table[y] = make([]string, cols)
+		tableColor[y] = make([]Color, cols)
 		for x := 0; x < int(cols); x++ {
-			link := ufmt.Sprintf("/r/eva/place?x=%d&y=%d", x, y)
-			table[y][x] = md.Link("⠀", link)
-		}
-	}
-
-	tableColor = make([][]string, rows)
-	for y := 0; y < int(rows); y++ {
-		tableColor[y] = make([]string, cols)
-		for x := 0; x < int(cols); x++ {
-			tableColor[y][x] = white
+			tableColor[y][x].rgb = white
+			tableColor[y][x].initial = "⠀"
 		}
 	}
 }
@@ -177,7 +168,16 @@ func DeleteUser() {
 	Registered.Users.Remove(address.String())
 }
 
-func Submit(x, y uint64, color string) {
+func findColor(colorName string) (bool, Color) {
+	for _, color := range colors {
+		if color.initial == colorName {
+			return true, color
+		}
+	}
+	return false, Color{}
+}
+
+func Submit(x, y uint64, colorName string) {
 	user, ok := retrieveMember(std.OriginCaller())
 	if !ok {
 		RegisterMember()
@@ -187,8 +187,14 @@ func Submit(x, y uint64, color string) {
 		panic("Wait until " + user.Timer.String())
 	}
 
-	table[y][x] = "O"
-	tableColor[y][x] = color
+	foundColor, color := findColor(colorName)
+
+	if !foundColor {
+		panic("Invalid color")
+	}
+
+	tableColor[y][x].rgb = color.rgb
+	tableColor[y][x].initial = color.initial
 
 	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
 	Registered.Users.Set(std.OriginCaller().String(), user)
@@ -198,7 +204,7 @@ func GenerateSVG() string {
 	out := ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">`, cols*40, rows*40)
 	for y := 0; y < int(rows); y++ {
 		for x := 0; x < int(cols); x++ {
-			out += ufmt.Sprintf(`<rect x="%d" y="%d" width="40" height="40" fill="%s"/>`, x*40, y*40, tableColor[y][x])
+			out += ufmt.Sprintf(`<rect x="%d" y="%d" width="40" height="40" fill="%s"/>`, x*40, y*40, tableColor[y][x].rgb)
 		}
 	}
 	out += "</svg>"
@@ -208,7 +214,7 @@ func GenerateSVG() string {
 func RenderAccountManagement(selectedColor string) string {
 	var out string
 
-	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "color", selectedColor)) + " | " +
+	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
 		md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
 
 	return out
@@ -223,25 +229,26 @@ func Render(path string) string {
 		if x, y, err := parseXY(path); err != nil {
 			panic(err)
 		} else {
-			table[y][x] = "X"
+			tableColor[y][x].initial = "X"
 		}
 	}
-
-	out += md.HorizontalRule() + "\n\n"
-	for _, row := range table {
-		out += "|"
-		for _, cell := range row {
-			out += cell
-		}
-		out += "|\n\n"
-	}
-	out += md.HorizontalRule() + "\n\n"
 
 	selectedColor := query.Get("color")
 
 	if selectedColor == "" {
-		selectedColor = white
+		selectedColor = "W"
 	}
+
+	out += md.HorizontalRule() + "\n\n"
+	for y, row := range tableColor {
+		out += "|"
+		for x, cell := range row {
+			link := ufmt.Sprintf("/r/eva/place?color=%s&x=%d&y=%d", selectedColor, x, y)
+			out += md.Link(cell.initial, link)
+		}
+		out += "|\n\n"
+	}
+	out += md.HorizontalRule() + "\n\n"
 
 	out += RenderAccountManagement(selectedColor)
 
@@ -250,9 +257,9 @@ func Render(path string) string {
 	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", base64SVG)
 
 	for _, color := range colors {
-		query.Set("color", color.name)
+		query.Set("color", color.initial)
 
-		out += ufmt.Sprintf("[!["+color.name+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
+		out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
 	}
 
 	return out
