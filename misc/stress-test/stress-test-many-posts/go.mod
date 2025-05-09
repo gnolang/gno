@@ -6,7 +6,7 @@ toolchain go1.23.8
 
 require (
 	connectrpc.com/connect v1.16.2
-	github.com/gnolang/gnonative v1.8.2-0.20250407145431-4a9b0eea1a2c
+	github.com/gnolang/gnonative v1.8.1
 )
 
 require (
@@ -20,6 +20,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/gnolang/gno v0.1.2-0.20240826090356-651f5aac3706 // indirect
+	github.com/gnolang/gnokey-mobile v0.0.0-20240903152400-9942eff89ef6 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect

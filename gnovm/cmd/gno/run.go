@@ -157,7 +157,7 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 			return nil, err
 		}
 
-		hasError = catchRuntimeError(fname, stderr, func() {
+		hasError = catchRuntimeError(fname, fname, stderr, func() {
 			files = append(files, gno.MustReadFile(fname))
 		})
 	}
