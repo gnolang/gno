@@ -1,0 +1,86 @@
+package boards2
+
+import "std"
+
+const (
+	PermissionRealmHelp           Permission = "realm:help"
+	PermissionRealmLock                      = "realm:lock"
+	PermissionRealmNotice                    = "realm:notice"
+	PermissionBoardCreate                    = "board:create"
+	PermissionBoardFlaggingUpdate            = "board:flagging-update"
+	PermissionBoardFreeze                    = "board:freeze"
+	PermissionBoardRename                    = "board:rename"
+	PermissionThreadCreate                   = "thread:create"
+	PermissionThreadDelete                   = "thread:delete"
+	PermissionThreadEdit                     = "thread:edit"
+	PermissionThreadFlag                     = "thread:flag"
+	PermissionThreadFreeze                   = "thread:freeze"
+	PermissionThreadRepost                   = "thread:repost"
+	PermissionReplyCreate                    = "reply:create"
+	PermissionReplyDelete                    = "reply:delete"
+	PermissionReplyFlag                      = "reply:flag"
+	PermissionReplyFreeze                    = "reply:freeze"
+	PermissionMemberInvite                   = "member:invite"
+	PermissionMemberRemove                   = "member:remove"
+	PermissionRoleChange                     = "role:change"
+	PermissionPermissionsUpdate              = "permissions:update"
+)
+
+const (
+	RoleGuest     Role = ""
+	RoleOwner          = "owner"
+	RoleAdmin          = "admin"
+	RoleModerator      = "moderator"
+)
+
+type (
+	// Permission defines the type for permissions.
+	Permission string
+
+	// Role defines the type for user roles.
+	Role string
+
+	// Args is a list of generic arguments.
+	Args []interface{}
+
+	// User contains user info.
+	User struct {
+		Address std.Address
+		Roles   []Role
+	}
+
+	// UsersIterFn defines a function type to iterate users.
+	UsersIterFn func(User) bool
+
+	// Permissions define an interface to for permissioned execution.
+	// TODO: Add crossing support to Permissions
+	Permissions interface {
+		// HasRole checks if a user has a specific role assigned.
+		HasRole(std.Address, Role) bool
+
+		// HasPermission checks if a user has a specific permission.
+		HasPermission(std.Address, Permission) bool
+
+		// WithPermission calls a callback when a user has a specific permission.
+		// It panics on error.
+		WithPermission(std.Address, Permission, Args, func(Args))
+
+		// AddUser adds a new user to the permissioner.
+		AddUser(std.Address, ...Role) error
+
+		// SetUserRoles sets the roles of a user.
+		SetUserRoles(std.Address, ...Role) error
+
+		// RemoveUser removes a user from the permissioner.
+		RemoveUser(std.Address) (removed bool)
+
+		// HasUser checks if a user exists.
+		HasUser(std.Address) bool
+
+		// UsersCount returns the total number of users the permissioner contains.
+		UsersCount() int
+
+		// IterateUsers iterates permissions' users.
+		IterateUsers(start, count int, fn UsersIterFn) bool
+	}
+)
