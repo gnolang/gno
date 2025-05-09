@@ -104,4 +104,54 @@ func (p subDAOPropDefinition) Execute() error {
 	return nil
 }
 
-// TODO: Support optional parent DAO mechanics to remove direct SubDAO members
+// newDismissPropDefinition creates a new proposal definition for dismissing a SubDAO.
+func newDismissPropDefinition(dao *commondao.CommonDAO) dismissPropDefinition {
+	if dao == nil {
+		panic("SubDAO is required")
+	}
+
+	return dismissPropDefinition{dao}
+}
+
+// dismissPropDefinition defines a proposal type for dismissing a SubDAO.
+type dismissPropDefinition struct {
+	dao *commondao.CommonDAO
+}
+
+func (p dismissPropDefinition) Title() string             { return "Dismiss DAO: " + p.dao.Name() }
+func (dismissPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
+
+func (p dismissPropDefinition) Body() string {
+	var b strings.Builder
+
+	b.WriteString("**DAO:** ")
+	b.WriteString("[" + p.dao.Name() + "](" + daoURL(p.dao) + ")\n")
+
+	return b.String()
+}
+
+func (p dismissPropDefinition) Validate() (err error) {
+	if p.dao.IsDeleted() {
+		return errors.New("DAO has been already dismissed")
+	}
+	return nil
+}
+
+func (dismissPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
+	if !commondao.IsQuorumReached(commondao.QuorumFull, r, members) {
+		return false, commondao.ErrNoQuorum
+	}
+
+	c, success := commondao.SelectChoiceBySuperMajority(r, members.Size())
+	if success {
+		return c == commondao.ChoiceYes, nil
+	}
+	return false, nil
+}
+
+func (p dismissPropDefinition) Execute() error {
+	crossing()
+
+	p.dao.SetDeleted(true)
+	return nil
+}

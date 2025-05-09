@@ -115,6 +115,43 @@ func CreateSubDAOProposal(daoID uint64, name, members string) uint64 {
 	return p.ID()
 }
 
+// CreateDismissalProposal creates a new proposal to dismiss a DAO or SubDAO.
+//
+// SubDAOs can only be dismissed by the the parent DAO.
+//
+// Parameters:
+// - daoID: ID of the DAO to dismiss (required)
+func CreateDismissalProposal(daoID uint64) uint64 {
+	crossing()
+
+	// When DAO to dismiss is a SubDAO make sure that proposal is created in the parent DAO
+	dao := mustGetDAO(daoID)
+	dismissDAO := dao
+	if parent := dao.Parent(); parent != nil {
+		dao = parent
+	}
+
+	o := getOptions(dao.ID())
+	if !o.AllowDismissalProposals {
+		panic("forbidden")
+	}
+
+	caller := std.PreviousRealm().Address()
+	assertCallerIsMember(caller, dao)
+
+	def := newDismissPropDefinition(dismissDAO)
+	p, err := dao.Propose(caller, def)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = p.Validate(); err != nil {
+		panic(err)
+	}
+
+	return p.ID()
+}
+
 func mustParseStringToAddrset(s string) (set addrset.Set) {
 	if s == "" {
 		return

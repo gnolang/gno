@@ -158,3 +158,123 @@ func TestSubDAOPropDefinitionExecute(t *testing.T) {
 		return false
 	})
 }
+
+func TestDismissPropDefinitionTally(t *testing.T) {
+	cases := []struct {
+		name    string
+		members []std.Address
+		votes   []commondao.Vote
+		err     error
+		success bool
+	}{
+		{
+			name: "succeed",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			},
+			votes: []commondao.Vote{
+				{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceYes,
+				},
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceYes,
+				},
+				{
+					Address: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+					Choice:  commondao.ChoiceYes,
+				},
+			},
+			success: true,
+		},
+		{
+			name: "fail",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			},
+			votes: []commondao.Vote{
+				{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				},
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceNo,
+				},
+				{
+					Address: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+					Choice:  commondao.ChoiceNo,
+				},
+			},
+		},
+		{
+			name: "fail with no votes",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			},
+			err: commondao.ErrNoQuorum,
+		},
+		{
+			name: "no quorum",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			},
+			votes: []commondao.Vote{
+				{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceYes,
+				},
+			},
+			err: commondao.ErrNoQuorum,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				p       dismissPropDefinition
+				record  commondao.VotingRecord
+				members addrset.Set
+			)
+
+			for _, m := range tc.members {
+				members.Add(m)
+			}
+
+			for _, v := range tc.votes {
+				record.AddVote(v)
+			}
+
+			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(&members))
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err, "expect an error")
+				uassert.False(t, success, "expect tally to fail")
+				return
+			}
+
+			urequire.NoError(t, err, "expect no error")
+			uassert.Equal(t, tc.success, success, "expect tally success to match")
+		})
+	}
+}
+
+func TestDismissPropDefinitionExecute(t *testing.T) {
+	dao := commondao.New()
+	urequire.False(t, dao.IsDeleted(), "expected DAO not to be soft deleted by default")
+
+	p := newDismissPropDefinition(dao)
+	err := cross(p.Execute)()
+	urequire.NoError(t, err, "expected no execution error")
+
+	uassert.True(t, dao.IsDeleted(), "expected DAO to be soft deleted")
+}

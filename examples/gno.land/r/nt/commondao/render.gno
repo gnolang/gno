@@ -147,7 +147,10 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(ufmt.Sprintf("| Allow SubDAOs | %s |\n", strconv.FormatBool(o.AllowChildren)))
 	res.Write(ufmt.Sprintf("| Enable Voting | %s |\n", strconv.FormatBool(o.AllowVoting)))
 	res.Write(ufmt.Sprintf("| Enable Proposal Execution | %s |\n", strconv.FormatBool(o.AllowExecution)))
-	res.Write(ufmt.Sprintf("| Allow Updating Members of this DAO | %s |\n", strconv.FormatBool(o.AllowMembersUpdate)))
+	res.Write(ufmt.Sprintf("| Text Porposals | %s |\n", strconv.FormatBool(o.AllowTextProposals)))
+	res.Write(ufmt.Sprintf("| Members Update proposals | %s |\n", strconv.FormatBool(o.AllowMembersUpdate)))
+	res.Write(ufmt.Sprintf("| SubDAO creation proposals | %s |\n", strconv.FormatBool(o.AllowSubDAOProposals)))
+	res.Write(ufmt.Sprintf("| DAO dismissal proposals | %s |\n", strconv.FormatBool(o.AllowDismissalProposals)))
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
