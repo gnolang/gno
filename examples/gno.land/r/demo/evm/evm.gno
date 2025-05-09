@@ -19,7 +19,6 @@ var env = &evm.Env{
 	Accounts:    []*evm.Caller{},
 	Contracts:   []*evm.SmartContract{},
 	Transaction: []evm.Transaction{},
-	GasLimit: uint256.NewUint(1000),
 }
 
 func Publish(code string) {
