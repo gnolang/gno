@@ -38,6 +38,11 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	dao := mustGetDAOFromRequest(req)
 	o := getOptions(dao.ID())
 
+	// Render header messages
+	if dao.IsDeleted() {
+		res.Write("> ⚠ This DAO has been dismissed\n")
+	}
+
 	// Render header
 	res.Write("# ")
 	res.Write(dao.Name())
@@ -58,6 +63,8 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		menu = append(menu, updateMembersLink(dao.ID()))
 	}
 
+	// TODO: Add submenu with proposal links when proposals support is enabled
+
 	if parentDAO := dao.Parent(); parentDAO != nil {
 		menu = append(menu, ufmt.Sprintf("[Go to Parent DAO](%s)", daoURL(parentDAO)))
 	}
@@ -75,8 +82,29 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render organization tree
 	if dao.Children().Len() > 0 {
-		res.Write("## Tree\n")
-		renderTree(res, dao, "")
+		r := parseRealmPath(req.RawPath)
+		dismissedVisible := r.Query.Has("dismissed") || dao.IsDeleted()
+		if dismissedVisible || !dao.IsDeleted() {
+			res.Write("## Tree\n")
+
+			// Render toggle only when DAO is not dismissed,
+			// otherwise render the whole tree when DAO is dismissed
+			if !dao.IsDeleted() {
+				res.Write("Dismissed: ")
+
+				if dismissedVisible {
+					r.Query.Del("dismissed")
+					res.Write(ufmt.Sprintf("[hide](%s)", r.String()))
+				} else {
+					r.Query.Add("dismissed", "")
+
+					res.Write(ufmt.Sprintf("[show](%s)", r.String()))
+				}
+				res.Write("\n\n")
+			}
+
+			renderTree(res, dao, "", dismissedVisible)
+		}
 	}
 
 	// Render latest proposals
@@ -116,13 +144,23 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 	res.Write("\n")
 }
 
-func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string) {
-	res.Write(ufmt.Sprintf("%s- [%s](%s)\n", indent, dao.Name(), daoURL(dao)))
+func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string, showDismissed bool) {
+	if dao.IsDeleted() {
+		// Strikethough dismissed DAO names and add a help tooltip
+		res.Write(ufmt.Sprintf("%s- [~~%s~~](%s 'Dismissed DAO')\n", indent, dao.Name(), daoURL(dao)))
+	} else {
+		res.Write(ufmt.Sprintf("%s- [%s](%s)\n", indent, dao.Name(), daoURL(dao)))
+	}
 
 	indent += "  "
 	dao.Children().ForEach(func(_ int, v any) bool {
-		if subDAO, ok := v.(*commondao.CommonDAO); ok {
-			renderTree(res, subDAO, indent)
+		subDAO, ok := v.(*commondao.CommonDAO)
+		if !ok {
+			return false
+		}
+
+		if showDismissed || !subDAO.IsDeleted() {
+			renderTree(res, subDAO, indent, showDismissed)
 		}
 		return false
 	})
