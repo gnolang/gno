@@ -17,8 +17,10 @@ func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
 	}
 
 	cb := func() error {
-		law = newLaw
-
+		cross(func() {
+			crossing()
+			law = newLaw
+		})()
 		return nil
 	}
 
