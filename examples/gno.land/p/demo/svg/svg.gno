@@ -3,6 +3,7 @@ package svg
 import (
 	"encoding/base64"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -10,13 +11,43 @@ type Canvas struct {
 	Width, Height int
 	ViewBox       string
 	Elems         []Elem
+	Style         *avl.Tree
 }
 
 type Elem interface{ String() string }
 
+func NewCanvas(width, height int) *Canvas {
+	return &Canvas{
+		Width:  width,
+		Height: height,
+		Style:  nil,
+	}
+}
+
+func (c *Canvas) AddStyle(key, value string) {
+	if c.Style == nil {
+		c.Style = avl.NewTree()
+	}
+	c.Style.Set(key, value)
+}
+
+func (c *Canvas) WithViewBox(x, y, width, height int) *Canvas {
+	c.ViewBox = ufmt.Sprintf("%d %d %d %d", x, y, width, height)
+	return c
+}
+
 func (c Canvas) String() string {
 	output := ""
 	output += ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg" viewBox="%s">`, c.Width, c.Height, c.ViewBox)
+	if c.Style != nil {
+		output += "<style>"
+		c.Style.Iterate("", "", func(k string, val interface{}) bool {
+			v := val.(string)
+			output += ufmt.Sprintf("%s: %s;", k, v)
+			return false
+		})
+		output += "</style>"
+	}
 	for _, elem := range c.Elems {
 		output += elem.String()
 	}
@@ -37,7 +68,6 @@ type BaseAttrs struct {
 	ID          string
 	Class       string
 	Style       string
-	Fill        string
 	Stroke      string
 	StrokeWidth string
 	Opacity     string
@@ -46,7 +76,7 @@ type BaseAttrs struct {
 }
 
 func (b BaseAttrs) String() string {
-	return ufmt.Sprintf(` id="%s" class="%s" style="%s" fill="%s" stroke="%s" stroke-width="%s" opacity="%s" transform="%s" visibility="%s"`, b.ID, b.Class, b.Style, b.Fill, b.Stroke, b.StrokeWidth, b.Opacity, b.Transform, b.Visibility)
+	return ufmt.Sprintf(` id="%s" class="%s" style="%s" stroke="%s" stroke-width="%s" opacity="%s" transform="%s" visibility="%s"`, b.ID, b.Class, b.Style, b.Stroke, b.StrokeWidth, b.Opacity, b.Transform, b.Visibility)
 }
 
 type Circle struct {
@@ -70,6 +100,11 @@ func NewCircle(cx, cy, r int, fill string) *Circle {
 	}
 }
 
+func (c *Circle) WithClass(class string) *Circle {
+	c.BaseAttrs.Class = class
+	return c
+}
+
 type Ellipse struct {
 	CX   int // center X
 	CY   int // center Y
@@ -91,6 +126,11 @@ func NewEllipse(cx, cy int, fill string) *Ellipse {
 	}
 }
 
+func (e *Ellipse) WithClass(class string) *Ellipse {
+	e.BaseAttrs.Class = class
+	return e
+}
+
 type Rectangle struct {
 	X, Y, Width, Height int
 	RX, RY              int // corner radiuses
@@ -99,7 +139,7 @@ type Rectangle struct {
 }
 
 func (r Rectangle) String() string {
-	return ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="%d" ry="%d" fill="%s" />`, r.X, r.Y, r.Width, r.Height, r.RX, r.RY, r.Fill)
+	return ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="%d" ry="%d" fill="%s" %s />`, r.X, r.Y, r.Width, r.Height, r.RX, r.RY, r.Fill, r.BaseAttrs.String())
 }
 
 func NewRectangle(x, y, width, height int, fill string) *Rectangle {
@@ -110,6 +150,11 @@ func NewRectangle(x, y, width, height int, fill string) *Rectangle {
 		Height: height,
 		Fill:   fill,
 	}
+}
+
+func (r *Rectangle) WithClass(class string) *Rectangle {
+	r.BaseAttrs.Class = class
+	return r
 }
 
 type Path struct {
@@ -129,6 +174,11 @@ func NewPath(d, fill string) *Path {
 	}
 }
 
+func (p *Path) WithClass(class string) *Path {
+	p.BaseAttrs.Class = class
+	return p
+}
+
 type Polygon struct { // closed shape
 	Points string
 	Fill   string
@@ -146,6 +196,11 @@ func NewPolygon(points, fill string) *Polygon {
 	}
 }
 
+func (p *Polygon) WithClass(class string) *Polygon {
+	p.BaseAttrs.Class = class
+	return p
+}
+
 type Polyline struct { // polygon but not necessarily closed
 	Points string
 	Fill   string
@@ -161,6 +216,11 @@ func NewPolyline(points, fill string) *Polyline {
 		Points: points,
 		Fill:   fill,
 	}
+}
+
+func (p *Polyline) WithClass(class string) *Polyline {
+	p.BaseAttrs.Class = class
+	return p
 }
 
 type Text struct {
@@ -184,6 +244,11 @@ func NewText(x, y int, text, fill string) *Text {
 	}
 }
 
+func (c *Text) WithClass(class string) *Text {
+	c.BaseAttrs.Class = class
+	return c
+}
+
 type Group struct {
 	Elems []Elem
 	Fill  string
@@ -196,4 +261,19 @@ func (g Group) String() string {
 		out += e.String()
 	}
 	return ufmt.Sprintf(`<g fill="%s">%s</g>`, g.Fill, out)
+}
+
+func NewGroup(fill string) *Group {
+	return &Group{
+		Fill: fill,
+	}
+}
+
+func (g *Group) Append(elem ...Elem) {
+	g.Elems = append(g.Elems, elem...)
+}
+
+func (g *Group) WithClass(class string) *Group {
+	g.BaseAttrs.Class = class
+	return g
 }
