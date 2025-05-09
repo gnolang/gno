@@ -30,6 +30,9 @@ type Options struct {
 
 	// AllowSubDAOProposals allows creating SubDAOs though proposals.
 	AllowSubDAOProposals bool
+
+	// AllowDismissalProposals allows dismissing DAOs though proposals.
+	AllowDismissalProposals bool
 }
 
 func (o *Options) SetPrivate(private bool) {
@@ -58,4 +61,8 @@ func (o *Options) SetAllowTextProposals(allow bool) {
 
 func (o *Options) SetAllowSubDAOPorposals(allow bool) {
 	o.AllowSubDAOProposals = allow
+}
+
+func (o *Options) SetAllowDismissalProposals(allow bool) {
+	o.AllowDismissalProposals = allow
 }
