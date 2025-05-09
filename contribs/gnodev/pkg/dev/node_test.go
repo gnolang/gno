@@ -20,7 +20,6 @@ import (
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -310,7 +309,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 
 	res, err = testingCallRealmWithConfig(t, node, callCfg, msg)
 	require.Error(t, err)
-	require.ErrorAs(t, err, &tm2std.OutOfGasError{})
+	require.ErrorAs(t, err, &std.OutOfGasError{})
 
 	// Transaction should be committed regardless the error
 	require.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult,
