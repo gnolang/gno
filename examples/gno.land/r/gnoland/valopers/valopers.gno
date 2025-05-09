@@ -182,6 +182,7 @@ func GetByAddr(address std.Address) Valoper {
 // "/r/gnoland/valopers" lists all valopers, paginated.
 // "/r/gnoland/valopers:addr" shows the detail for the valoper with the addr.
 func Render(fullPath string) string {
+	crossing()
 	req := realmpath.Parse(fullPath)
 	if req.Path == "" {
 		return renderHome(fullPath)

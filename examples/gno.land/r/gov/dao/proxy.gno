@@ -21,6 +21,7 @@ var gRealm = std.CurrentRealm()
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(p string) string {
+	crossing()
 	return dao.Render(gRealm.PkgPath(), p)
 }
 
