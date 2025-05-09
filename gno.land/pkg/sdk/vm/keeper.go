@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -662,6 +663,75 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	)
 
 	return res, nil
+}
+
+var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
+
+// QueryPaths returns public facing function signatures.
+// XXX: Implement pagination
+func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
+	const maxLimit = 10_000
+
+	// Determine effective limit to return
+	var effectiveLimit int
+	if limit == 0 {
+		effectiveLimit = maxLimit
+	} else {
+		effectiveLimit = min(limit, maxLimit)
+	}
+
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	var paths []string
+	var count int
+
+	// Yield function to collect paths until limit is reached
+	yield := func(path string) bool {
+		if count >= effectiveLimit {
+			return false
+		}
+
+		paths = append(paths, path)
+		count++
+		return true
+	}
+
+	// Handle case where no name is specified (general prefix lookup)
+	if !strings.HasPrefix(target, "@") {
+		store.FindPathsByPrefix(target)(yield)
+		return paths, nil
+	}
+
+	// Extract name and sub-subPrefix from target
+	name, subPrefix, hasSubPrefix := strings.Cut(target[1:], "/")
+	if !reUserNamespace.MatchString(name) {
+		return nil, errors.New("invalid username format")
+	}
+
+	// Handle reserved names
+	// XXX: Keep it simple here for now. If we have more reserved names at
+	// some point, we should consider centralizing it somewhere.
+	if name == "stdlibs" || name == "std" {
+		path := path.Join("_", subPrefix)
+		store.FindPathsByPrefix(path)(yield)
+		return paths, nil
+	}
+
+	// Lookup for both `/r` & `/p` paths of the namespace
+	ctxDomain := vm.getChainDomainParam(ctx)
+	rpath := path.Join(ctxDomain, "r", name, subPrefix)
+	ppath := path.Join(ctxDomain, "p", name, subPrefix)
+
+	// Add trailing slash if no subname is specified
+	if !hasSubPrefix {
+		rpath += "/"
+		ppath += "/"
+	}
+
+	// Query both paths
+	store.FindPathsByPrefix(rpath)(yield)
+	store.FindPathsByPrefix(ppath)(yield)
+	return paths, nil
 }
 
 // QueryFuncs returns public facing function signatures.

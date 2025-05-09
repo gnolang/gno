@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
@@ -63,6 +64,7 @@ type Store interface {
 	AddMemPackage(memPkg *gnovm.MemPackage)
 	GetMemPackage(path string) *gnovm.MemPackage
 	GetMemFile(path string, name string) *gnovm.MemFile
+	FindPathsByPrefix(prefix string) iter.Seq[string]
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
@@ -866,6 +868,31 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 	return memFile
 }
 
+// FindPathsByPrefix retrieves all paths starting with the given prefix.
+func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
+	// If prefix is empty range every package
+	startKey := []byte(backendPacakgeGlobalPath("\x00"))
+	endKey := []byte(backendPacakgeGlobalPath("\xFF"))
+	if len(prefix) > 0 {
+		startKey = []byte(backendPacakgeGlobalPath(prefix))
+		// Create endkey by incrementing last byte of startkey
+		endKey = slices.Clone(startKey)
+		endKey[len(endKey)-1]++
+	}
+
+	return func(yield func(string) bool) {
+		iter := ds.iavlStore.Iterator(startKey, endKey)
+		defer iter.Close()
+
+		for ; iter.Valid(); iter.Next() {
+			path := decodeBackendPackagePathKey(string(iter.Key()))
+			if !yield(path) {
+				return
+			}
+		}
+	}
+}
+
 func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
@@ -1002,8 +1029,23 @@ func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
 }
 
+// We need to prefix stdlibs path with `_` to matain them lexicographically
+// ordered with domain path
 func backendPackagePathKey(path string) string {
-	return "pkg:" + path
+	if IsStdlib(path) {
+		return backendPacakgeStdlibPath(path)
+	}
+
+	return backendPacakgeGlobalPath(path)
+}
+
+func backendPacakgeStdlibPath(path string) string { return "pkg:_/" + path }
+
+func backendPacakgeGlobalPath(path string) string { return "pkg:" + path }
+
+func decodeBackendPackagePathKey(key string) string {
+	path := strings.TrimPrefix(key, "pkg:")
+	return strings.TrimPrefix(path, "_/")
 }
 
 // ----------------------------------------

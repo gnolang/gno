@@ -928,6 +928,43 @@ gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx
 To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
+## `vm/qpaths`
+
+`vm/qpaths` lists all existing paths prefixed with the specified path using `--data=<prefix>`.
+If no paths are provided, all known paths will be listed, including those from `stdlibs`.
+You can specify an additional *limit* at the end of the path using `<path>?limit=<x>` to restrict the results to `x` elements.
+If `0` is specified as *limit*, then, no limit will be applied, with an hard limit of `10_000`. The default *limit* is `1_000`.
+
+For example:
+```bash
+gnokey query vm/qpaths?limit=3 --data "gno.land/r/foo"
+```
+
+Could output:
+```bash
+height: 0
+data: gno.land/r/foo
+gno.land/r/foo/art/gnoface
+gno.land/r/foo/art/millipede
+```
+
+You can also specify a username prefixed with `@` to list username's sub-packages including `/p` and `/r`.
+
+For example:
+```bash
+gnokey query vm/qpaths --data "@foo"
+```
+
+Could output:
+```bash
+height: 0
+data: gno.land/r/foo
+gno.land/r/foo/art/gnoface
+gno.land/r/foo/art/millipede
+gno.land/p/foo/ui
+gno.land/p/foo/svg
+```
+
 ### Gas parameters
 
 When using `gnokey` to send transactions, you'll need to specify gas parameters:
@@ -952,4 +989,3 @@ That's it! 🎉
 
 In this tutorial, you've learned to use `gnokey` to query a gno.land
 network.
-
