@@ -22,12 +22,12 @@ type Swap struct {
 }
 
 func newSwap(
-		sender std.Address,
-		recipient std.Address,
-		hashlock string,
-		timelock time.Time,
-		amountStr string,
-		sendFn func(std.Address),
+	sender std.Address,
+	recipient std.Address,
+	hashlock string,
+	timelock time.Time,
+	amountStr string,
+	sendFn func(std.Address),
 ) *Swap {
 	require(time.Now().Before(timelock), "timelock must be in the future")
 	require(hashlock != "", "hashlock must not be empty")
