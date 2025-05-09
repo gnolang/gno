@@ -238,6 +238,55 @@ func TestUint_Gte(t *testing.T) {
 	}
 }
 
+func TestUint_Max(t *testing.T) {
+	tests := []struct {
+		vals []string
+		want string
+	}{
+		{ []string{"1", "2"}, "2" },
+		{ []string{"1", "3", "2"}, "3" },
+		{ []string{"0xff000000000000000000000000000", "0xff000000000000000000000000001"}, "0xff000000000000000000000000001" },
+	}
+
+	for _, tt := range tests {
+		l := []*Uint{}
+		for _, v := range tt.vals {
+			l = append(l, parseTestString(t, v))
+		}
+		res := Zero()
+
+		if got := res.Max(l[0], l[1:]...); got.Neq(parseTestString(t, tt.want)) {
+			t.Errorf("Uint.Max(%v) = %v, want %v", tt.vals, got, tt.want)
+		}
+	}
+}
+
+func TestUint_MaxEdge(t *testing.T) {
+	e := Zero()
+
+	_ = e.Max(nil) // shouldnt crash
+
+	_ = e.Max(nil, NewUint(25))
+	if e.Neq(NewUint(25)) {
+		t.Errorf("Uint.Max(nil, 25) = %v, want 25", e)
+	}
+	
+	_ = e.Max(NewUint(42), nil)
+	if e.Neq(NewUint(42)) {
+		t.Errorf("Uint.Max(nil, 42) = %v, want 42", e)
+	}
+
+	_ = e.Max(nil, nil, nil, NewUint(84), nil)
+	if e.Neq(NewUint(84)) {
+		t.Errorf("Uint.Max(nil, 84) = %v, want 84", e)
+	}
+
+	_ = e.Max(nil, nil) // no crash, keep 84
+	if e.Neq(NewUint(84)) {
+		t.Errorf("Uint.Max(nil, 84) = %v, want 84", e)
+	}
+}
+
 func parseTestString(_ *testing.T, s string) *Uint {
 	var x *Uint
 
