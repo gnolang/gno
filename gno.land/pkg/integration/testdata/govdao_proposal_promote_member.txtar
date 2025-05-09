@@ -1,6 +1,9 @@
 adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
 stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
+adduserfrom withdrawmember 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 
@@ -18,26 +21,37 @@ stdout OK!
 
 # call gov/dao render to check everything the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
-stdout '- Supermajority: 50%'
+stdout 'This proposal is looking to promote a member to an upper tier.'
+stdout 'A new member with address g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 will be promoted from tier T2 to tier T3.'
 
-# vote on the proposal
+# vote on the proposal 1
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# vote on the proposal 2
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test withdrawmember
 stdout OK!
 
 # call proposal execution
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
 
+# check output
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
+stdout 'Tier T2 contains 0 members'
+
 -- proposer/create_proposal.gno --
 package main
 
 import (
+	"std"
+
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
 )
 
 func main() {
-	preq := cross(impl.NewChangeLawRequest)(&impl.Law{Supermajority:50})
+	preq := impl.NewPromoteMemberRequest(std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "T3")
 	cross(dao.MustCreateProposal)(preq)
 }
 
@@ -58,6 +72,7 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T3)
 
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get().SetMember(memberstore.T2, std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), &memberstore.Member{InvitationPoints: 2}) // member to promote
 
 	cross(dao.UpdateImpl)(dao.UpdateRequest{
 		DAO:         impl.GetInstance(),

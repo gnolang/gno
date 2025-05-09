@@ -68,7 +68,7 @@ func ExecuteProposal(pid dao.ProposalID) bool {
 }
 
 func Render() {
-	println(dao.Render(""))
+	println(cross(dao.Render)(""))
 }
 
 // Output:
