@@ -15,22 +15,20 @@ const (
 var daoID uint64
 
 func init() {
-	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
 
-	// Create a DAO
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetOriginCaller(user)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	daoID = commondao.New("Foo").ID()
+
+	options := commondao.GetOptions(daoID)
+	options.SetAllowDismissalProposals(false)
 }
 
 func main() {
-	// Use a caller that is not the owner of the DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
-
-	commondao.Get(daoID)
+	cross(commondao.CreateDismissalProposal)(daoID)
 }
 
 // Error:
-// unauthorized
+// forbidden

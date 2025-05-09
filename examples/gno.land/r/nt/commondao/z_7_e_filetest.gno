@@ -1,11 +1,8 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
 	"testing"
-
-	pcommondao "gno.land/p/nt/commondao"
 
 	"gno.land/r/nt/commondao"
 )
@@ -15,7 +12,7 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var rootDAO *pcommondao.CommonDAO
+var parentID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
@@ -28,17 +25,15 @@ func init() {
 
 	// Create the root DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	rootDAO = commondao.New("Parent DAO")
+	parentID = commondao.New("Parent DAO").ID()
 }
 
 func main() {
-	crossing()
+	// Call with a realm that is not the owner of the parent DAO
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 
-	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-
-	commondao.NewSubDAO("Foo", "", rootDAO)
+	commondao.NewSubDAO("Foo", parentID)
 }
 
 // Error:
-// invalid DAO slug
+// unauthorized

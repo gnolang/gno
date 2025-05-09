@@ -10,123 +10,7 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-var _ commondao.ProposalDefinition = (*MembersPropDefinition)(nil)
-
-func TestMembersPropDefinitionNew(t *testing.T) {
-	cases := []struct {
-		name     string
-		dao      *commondao.CommonDAO
-		member   std.Address
-		panicMsg string
-	}{
-		{
-			name: "ok",
-			dao: commondao.New(
-				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
-			),
-			member: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-		},
-		{
-			name:     "DAO is nil",
-			member:   "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			panicMsg: "DAO is required",
-		},
-		{
-			name:     "DAO without members",
-			dao:      commondao.New(),
-			member:   "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			panicMsg: "a DAO with at least one member is required to create member update proposals",
-		},
-		{
-			name: "no new or removed members",
-			dao: commondao.New(
-				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
-			),
-			panicMsg: "no members were specified to be added or removed",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var add, remove addrset.Set
-
-			if tc.member != "" {
-				add.Add(tc.member)
-			}
-
-			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, tc.panicMsg, func() {
-					NewMembersPropDefinition(tc.dao, add, remove)
-				}, "expected definition to panic with message")
-
-				return
-			}
-
-			urequire.NotPanics(t, func() {
-				NewMembersPropDefinition(tc.dao, add, remove)
-			}, "expected definition to be created")
-		})
-	}
-}
-
-func TestMembersPropDefinitionValidate(t *testing.T) {
-	cases := []struct {
-		name        string
-		dao         *commondao.CommonDAO
-		add, remove std.Address
-		errMsg      string
-	}{
-		{
-			name: "ok",
-			dao: commondao.New(
-				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
-			),
-			add:    "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			remove: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-		},
-		{
-			name: "add existign member",
-			dao: commondao.New(
-				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
-			),
-			add:    "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-			errMsg: "address is already a DAO member: g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-		},
-		{
-			name: "remove non existign member",
-			dao: commondao.New(
-				commondao.WithMember("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"),
-			),
-			remove: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			errMsg: "address is not a DAO member: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var add, remove addrset.Set
-
-			if tc.add != "" {
-				add.Add(tc.add)
-			}
-
-			if tc.remove != "" {
-				remove.Add(tc.remove)
-			}
-
-			p := NewMembersPropDefinition(tc.dao, add, remove)
-
-			err := p.Validate()
-
-			if tc.errMsg != "" {
-				uassert.ErrorContains(t, err, tc.errMsg, "expect error")
-				return
-			}
-
-			urequire.NoError(t, err, "expect no error")
-		})
-	}
-}
+var _ commondao.ProposalDefinition = (*membersPropDefinition)(nil)
 
 func TestMembersPropDefinitionTally(t *testing.T) {
 	cases := []struct {
@@ -214,7 +98,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				p       MembersPropDefinition
+				p       membersPropDefinition
 				record  commondao.VotingRecord
 				members addrset.Set
 			)
@@ -325,7 +209,7 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 				remove.Add(addr)
 			}
 
-			p := NewMembersPropDefinition(tc.dao, add, remove)
+			p := newMembersPropDefinition(tc.dao, add, remove)
 
 			err := p.Execute()
 

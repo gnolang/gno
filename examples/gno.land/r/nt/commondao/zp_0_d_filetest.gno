@@ -27,12 +27,15 @@ func init() {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
 	daoID = dao.ID()
+
+	options := commondao.GetOptions(daoID)
+	options.SetAllowMembersUpdate(true)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"))
 
-	cross(commondao.CreateMembersUpdateProposal)(daoID, "", "", "")
+	cross(commondao.CreateMembersUpdateProposal)(daoID, "", "")
 }
 
 // Error:

@@ -15,22 +15,25 @@ const (
 var daoID uint64
 
 func init() {
-	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
 
-	// Create a DAO
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetOriginCaller(user)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	daoID = commondao.New("Foo").ID()
+	dao := commondao.New("Foo")
+	dao.Members().Add(user)
+
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowMembersUpdate(true)
+
+	daoID = dao.ID()
 }
 
 func main() {
-	// Use a caller that is not the owner of the DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetRealm(std.NewUserRealm(user))
 
-	commondao.Get(daoID)
+	cross(commondao.CreateMembersUpdateProposal)(daoID, user.String(), "")
 }
 
 // Error:
-// unauthorized
+// address is already a DAO member: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5

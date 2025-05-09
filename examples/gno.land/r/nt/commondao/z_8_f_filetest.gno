@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -30,12 +29,11 @@ func init() {
 }
 
 func main() {
-	crossing()
-
-	testing.SetRealm(std.NewUserRealm("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"))
+	// Use a caller that is not the owner of the DAO
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 
 	commondao.NewIterator(rootID)
 }
 
 // Error:
-// caller is not a realm
+// unauthorized

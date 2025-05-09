@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -13,33 +12,30 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var rootID uint64
+var daoID uint64
 
 func init() {
+	// Use a realm caller
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
 
-	// The origin must be the invited user where invitation
-	// is removed after the first user call to create a DAO
+	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetRealm(std.NewUserRealm(user))
-
-	// Create root DAO without subDAOs
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	rootID = commondao.New("Root DAO").ID()
+	dao := commondao.New("Foo")
+	daoID = dao.ID()
+
+	// Change options to disallow execution
+	options := commondao.GetOptions(daoID)
+	options.SetAllowExecution(false)
 }
 
 func main() {
-	crossing()
-
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-
-	iter := commondao.NewIterator(rootID)
-
-	println("Count =", iter.Count())
-	println(iter.Next())
+	cross(commondao.Execute)(daoID, 0)
 }
 
-// Output:
-// Count = 0
-// false
+// Error:
+// proposal execution is not enabled

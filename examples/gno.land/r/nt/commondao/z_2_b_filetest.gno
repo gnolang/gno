@@ -22,8 +22,8 @@ func main() {
 	// The origin must be the invited user
 	testing.SetRealm(std.NewUserRealm(user))
 
-	commondao.New("Foo")
+	commondao.New("")
 }
 
 // Error:
-// caller is not a realm
+// DAO name is empty

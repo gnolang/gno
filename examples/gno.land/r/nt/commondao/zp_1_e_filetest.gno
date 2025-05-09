@@ -4,6 +4,8 @@ import (
 	"std"
 	"testing"
 
+	pcommondao "gno.land/p/nt/commondao"
+
 	"gno.land/r/nt/commondao"
 )
 
@@ -12,25 +14,25 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var daoID uint64
+var dao *pcommondao.CommonDAO
 
 func init() {
-	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
 
-	// Create a DAO
-	testing.SetRealm(std.NewUserRealm(user))
+	testing.SetOriginCaller(user)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	daoID = commondao.New("Foo").ID()
+	dao = commondao.New("Foo")
+
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowTextProposals(true)
 }
 
 func main() {
-	// Use a caller that is not the owner of the DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetRealm(std.NewUserRealm(user))
 
-	commondao.Get(daoID)
+	cross(commondao.CreateTextProposal)(dao.ID(), "", "", 1)
 }
 
 // Error:
-// unauthorized
+// caller is not a DAO member

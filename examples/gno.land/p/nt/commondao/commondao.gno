@@ -33,6 +33,7 @@ type CommonDAO struct {
 	genID             seqid.ID
 	activeProposals   ProposalStorage
 	finishedProposals ProposalStorage
+	deleted           bool // Soft delete
 }
 
 // New creates a new common DAO.
@@ -119,6 +120,16 @@ func (dao CommonDAO) ActiveProposals() ProposalStorage {
 // FinishedProposalsi returns finished DAO proposals.
 func (dao CommonDAO) FinishedProposals() ProposalStorage {
 	return dao.finishedProposals
+}
+
+// IsDeleted returns true when DAO has been soft deleted.
+func (dao CommonDAO) IsDeleted() bool {
+	return dao.deleted
+}
+
+// SetDeleted changes DAO's soft delete flag.
+func (dao *CommonDAO) SetDeleted(deleted bool) {
+	dao.deleted = deleted
 }
 
 // Propose creates a new DAO proposal.
