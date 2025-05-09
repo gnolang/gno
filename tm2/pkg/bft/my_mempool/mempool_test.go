@@ -72,48 +72,53 @@ func newTestMempool(t *testing.T, initialSeq uint64) (*Mempool, *MockAppConn, cr
 }
 
 func TestFullTransactionFlow(t *testing.T) {
-	mp, _, sender := newTestMempool(t, 1)
+	mp, mockApp, sender := newTestMempool(t, 1)
+
+	// Setup mock for CheckTxAsync
+	mockReqRes := abcicli.NewReqRes(types.RequestCheckTx{})
+	mockReqRes.SetResponse(types.ResponseCheckTx{})
+	mockApp.On("CheckTxAsync", mock.Anything).Return(mockReqRes)
 
 	tx1 := &MockTx{hash: []byte("tx1"), sender: sender, sequence: 1, price: 300, size: 10}
 	tx2 := &MockTx{hash: []byte("tx2"), sender: sender, sequence: 2, price: 200, size: 10}
 	tx3 := &MockTx{hash: []byte("tx3"), sender: sender, sequence: 3, price: 150, size: 10}
 	tx4 := &MockTx{hash: []byte("tx4"), sender: sender, sequence: 4, price: 100, size: 10}
 
-	// Dodajemo tx2 i tx4 bez prethodnih nonce-ova → očekuje se da idu u queued
+	// Add tx2 and tx4 without previous nonces -> expect them to go to queued
 	_ = mp.AddTx(tx2)
 	_ = mp.AddTx(tx4)
 	assert.Len(t, mp.GetPendingBySender(sender), 0)
 	assert.Len(t, mp.GetQueuedTxs(sender), 2)
 
-	// Dodajemo tx1 → on se ubacuje u pending, i odmah se promoviše tx2
+	// Add tx1 -> it goes to pending, and tx2 is automatically promoted
 	_ = mp.AddTx(tx1)
 	pending := mp.GetPendingBySender(sender)
 	assert.Len(t, pending, 2)
 	assert.Equal(t, tx1.Hash(), pending[0].Hash())
 	assert.Equal(t, tx2.Hash(), pending[1].Hash())
-	assert.Len(t, mp.GetQueuedTxs(sender), 1) // tx4 ostaje
+	assert.Len(t, mp.GetQueuedTxs(sender), 1) // tx4 remains queued
 
-	// Dodajemo tx3 → sada se automatski promoviše tx3 i odmah zatim tx4
+	// Add tx3 -> now tx3 is automatically promoted and then tx4 as well
 	_ = mp.AddTx(tx3)
 	pending = mp.GetPendingBySender(sender)
 	assert.Len(t, pending, 4)
 	assert.Len(t, mp.GetQueuedTxs(sender), 0)
 
-	// Provera redosleda u pending
+	// Check order in pending
 	expected := [][]byte{tx1.Hash(), tx2.Hash(), tx3.Hash(), tx4.Hash()}
 	for i, tx := range pending {
 		assert.Equal(t, expected[i], tx.Hash())
 	}
 
-	// Proveri Content
+	// Check Content
 	content := mp.Content()
 	assert.Len(t, content, 4)
 
-	// Uklanjamo tx2 ručno
+	// Manually remove tx2
 	mp.RemoveTx(sender, tx2.Hash())
 	assert.Len(t, mp.GetTxsBySender(sender), 3)
 
-	// Pozivamo Update sa tx1 i tx3 kao commit-ovanima → nonce se pomera, tx4 ostaje
+	// Call Update with tx1 and tx3 as committed -> nonce moves forward, tx4 remains
 	mp.Update([]Tx{tx1, tx3})
 	expectedNonce, _ := mp.GetExpectedNonce(sender)
 	assert.Equal(t, uint64(5), expectedNonce)
@@ -124,7 +129,13 @@ func TestFullTransactionFlow(t *testing.T) {
 }
 
 func TestFlushAndSize(t *testing.T) {
-	mp, _, sender := newTestMempool(t, 1)
+	mp, mockApp, sender := newTestMempool(t, 1)
+
+	// Setup mock for CheckTxAsync
+	mockReqRes := abcicli.NewReqRes(types.RequestCheckTx{})
+	mockReqRes.SetResponse(types.ResponseCheckTx{})
+	mockApp.On("CheckTxAsync", mock.Anything).Return(mockReqRes)
+
 	tx := &MockTx{hash: []byte("flush"), sender: sender, sequence: 1, price: 100, size: 10}
 	_ = mp.AddTx(tx)
 	assert.Equal(t, 1, mp.Size())
@@ -133,7 +144,13 @@ func TestFlushAndSize(t *testing.T) {
 }
 
 func TestNonceReject(t *testing.T) {
-	mp, _, sender := newTestMempool(t, 5)
+	mp, mockApp, sender := newTestMempool(t, 5)
+
+	// Setup mock for CheckTxAsync
+	mockReqRes := abcicli.NewReqRes(types.RequestCheckTx{})
+	mockReqRes.SetResponse(types.ResponseCheckTx{})
+	mockApp.On("CheckTxAsync", mock.Anything).Return(mockReqRes)
+
 	tx := &MockTx{hash: []byte("old"), sender: sender, sequence: 3, price: 100, size: 10}
 	err := mp.AddTx(tx)
 	assert.Error(t, err)

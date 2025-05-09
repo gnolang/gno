@@ -49,8 +49,30 @@ func NewMempool(proxyAppConn appconn.Mempool) *Mempool {
 // It validates the transaction's nonce and places it in either the pending
 // or queued list depending on its sequence number.
 func (mp *Mempool) AddTx(tx Tx) error {
-	//TODO: Add CheckTx
+	// First check transaction with application
+	req := abci.RequestCheckTx{
+		Tx: tx.Hash(),
+	}
 
+	// Send the transaction to the application for validation
+	// We use the asynchronous version to avoid blocking
+	reqRes := mp.proxyAppConn.CheckTxAsync(req)
+
+	// Wait for validation response
+	reqRes.Wait()
+
+	// Check if validation was successful
+	res, ok := reqRes.Response.(abci.ResponseCheckTx)
+	if !ok {
+		return fmt.Errorf("invalid ABCI response type")
+	}
+
+	// If application rejected the transaction, return error
+	if res.Error != nil {
+		return fmt.Errorf("transaction rejected by application: %s", res.Error)
+	}
+
+	// Now proceed with mempool logic
 	sender := tx.Sender()
 	seq := tx.Sequence()
 
@@ -59,6 +81,7 @@ func (mp *Mempool) AddTx(tx Tx) error {
 	var acc *account
 
 	if !exists {
+		// If this is a new sender, get their sequence from the application
 		nonce, err := mp.getAccountSequence(sender.String())
 		if err != nil {
 			return fmt.Errorf("failed to get account sequence: %w", err)
