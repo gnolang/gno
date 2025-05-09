@@ -53,6 +53,7 @@ type (
 	UsersIterFn func(User) bool
 
 	// Permissions define an interface to for permissioned execution.
+	// TODO: Add crossing support to Permissions
 	Permissions interface {
 		// HasRole checks if a user has a specific role assigned.
 		HasRole(std.Address, Role) bool
