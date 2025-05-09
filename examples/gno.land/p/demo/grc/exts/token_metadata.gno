@@ -9,5 +9,5 @@ type TokenMetadata interface {
 	GetSymbol() string
 
 	// Returns the decimals places of the token.
-	GetDecimals() uint
+	GetDecimals() int
 }

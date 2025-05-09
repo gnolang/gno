@@ -2,15 +2,70 @@
 
 ## Introduction
 
-XXX short intro on realms.
-XXX comparison to kernel syscalls, but cross-user.
-XXX simple code example.
+All modern popular programming languages are designed for a single programmer
+user.  Programming languages support the importing of program libraries
+natively for components of the single user's program, but this does not hold
+true for interacting with components of another user's (other) program. Gno is
+an extension of the Go language for multi-user programming. Gno allows a
+massive number of programmers to iteratively and interactively develop a single
+shared program such as Gno.land.
 
-## Realm Finalization
+The added dimension of the program domain means the language should be extended
+to best express the complexities of programming in the inter-realm (inter-user)
+domain. In other words, Go is a restricted subset of the Gno language in the
+single-user context. (In this analogy client requests for Go web servers don't
+count as they run outside of the server program).
+
+### Realm Write Access
+
+Objects that are directly or indirectly reachable (referenced) from the realm
+package's global variables (and are not already associated with another realm)
+are said to reside in the realm (memory space).
+
+**An object can only be mutated if the object resides in the same realm as the
+current realm in the Gno Machine's execution context.**
+
+Go's language rules for value access through selector/index expressions are the
+same within the same realm, but exposed values through selector/index
+expressions are read-only when performed by an external realm; a realm cannot
+directly modify another realm's objects. Thus, a Gno package's global variables
+even when exposed (e.g. `package realm1; var MyGlobal int = 1`) is safe from external
+manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For users to
+manipulate them a function or method must be provided.
+
+Realm crossing occurs when a function is called with the Gno `cross(fn)(...)`
+syntax.
+
+```go
+package main
+import "gno.land/r/alice/realm1"
+
+func main() {
+    bread := cross(realm1.MakeBread)("flour", "water")
+```
+
+(In Linux/Unix operating systems user processes can cross-call into the kernel
+by calling special syscall functions, but user processes cannot directly
+cross-call into other users' processes. This makes the GnoVM a more complete
+multi-user operating system than traditional operating systems)
+
+Besides explicit realm crossing via the `cross(fn)(...)` Gno syntax, implicit
+realm crossing occurs when calling a method of a receiver object stored in an
+external realm. Implicitly crossing into (borrowing) a receiver object's
+storage realm allows the method to directly modify the receiver as well as all
+other objects directly reachable from the receiver stored in the same realm as
+the receiver. Unlike explicit crosses, implicit crosses do not shift or
+otherwise effect the current realm context; `std.CurrentRealm()` does not
+change unless a method is called like `cross(receiver.Method)(args...)`.
+
+Realms hold objects in residence and they also have a Gno address to send and
+receive coins from. Coins can only be spent from the current realm context.
+
+### Realm Boundaries
 
 A realm boundary is defined as a change in realm in the call frame stack
 from one realm to another, whether explicitly crossed with `cross(fn)()`
-or implictly borrow-crossed into a different receiver's storage realm.
+or implicitly borrow-crossed into a different receiver's storage realm.
 A realm may cross into itself with an explicit cross-call.
 
 When returning from a realm boundary, all new reachable objects are assigned
@@ -18,7 +73,34 @@ object IDs and stored in the current realm, ref-count-zero objects deleted
 (full "disk-persistent cycle GC" will come after launch) and any modified
 ref-count and Merkle hash root computed. This is called realm finalization.
 
-## `cross(fn)()` and `crossing()`
+## Readonly Taint Specification
+
+`otherrealm.Foo` is a direct selector expression so the value is tainted
+with the `N_Readonly` attribute.
+
+Same for `externalobject.FieldA` where `externalobject` resides in an external
+realm (as compared to the current realm context).
+
+Same for `externalobject[0]`, direct index expressions also taint the resulting
+value with the `N_Readonly` attribute. 
+
+The readonly taint follows any subsequently derived values and cannot be
+overcome.
+
+The readonly taint also prohibits mutations even if the base object resides in
+the current realm. This protects realms against mutating objects it doesn't
+intend to (e.g. by an exploit where a realm's own object is passed to the same
+realm's mutator function by a malicious third party, where the first object was
+not intended to be passed in that way).
+
+Objects returned from functions or methods are not readonly tainted. So if
+`func (eo object) GetA() any { return eo.FieldA }` then `externalobject.GetA()`
+returns an object that is not tainted. The return object's fields would still
+be protected from external realm direct modification, but the return object
+could be passed back to the realm for mutation; or the object may be mutated
+through its own methods.
+
+## `cross(fn)()` and `crossing()` Specification
 
 Gno extends Go's type system with interrealm rules. These rules can be
 checked during the static type-checking phase (but at the moment they are
@@ -46,7 +128,7 @@ The `crossing()` statement must be the first statement of a function's body.
 It is illegal to use anywhere else, and cannot be used in p packages. Functions
 that begin with the `crossing()` statement are called "crossing functions".
 
-A crossing function declared in a realm different than the last explicitly
+A crossing function declared in a realm different from the last explicitly
 crossed realm *must* be called like `cross(fn)(...)`. That is, functions of
 calls that result in explicit realm crossings must be wrapped with `cross()`.
 
@@ -63,14 +145,14 @@ realm crossing and the current realm and previous realm returned are the same.
 The current realm and previous realm do not depend on any implicit crossing to
 the receiver's borrowed/storage realm even if the borrowed realm is the last
 realm of the call stack equal to `m.Realm`. In other words `std.CurrentRealm()`
-may be different than `m.Realm` (the borrow realm) when a receiver is called on
+may be different from `m.Realm` (the borrow realm) when a receiver is called on
 a foreign object.
 
-Calls of methods on receivers residing in realms different than the current
-realm must not be called like `cross(fn)(...)` if the method is not a
+Calls of methods on receivers residing in realms different from the current
+realm must *not* be called like `cross(fn)(...)` if the method is not a
 crossing function itself, and vice versa. Or it could be said that implicit
 crossing is not real realm crossing. (When you sign a document with someone
-else's pen it is still your signature; signature:pen :: current:borrowed.
+else's pen it is still your signature; signature:pen :: current:borrowed)
 
 A crossing method declared in a realm cannot modify the receiver if the object
 resides in a different realm. However not all methods are required to be
@@ -186,7 +268,7 @@ object is like a quasi-realm in itself, that could possibly reside and migrate
 to other realms. This is consistent with any p code copied over to r realms;
 none of those methods would be crossing, and behavior would be the same; stored
 in any realm, mostly non-crossing methods that anyone can call. Why is a
-quasi-realm self-encapsulated Object in need to modify the realm in which it is
+quasi-realm self-encapsulated object in need to modify the realm in which it is
 declared, by crossing? That's intrusive, but sometimes desired.
 
 You can always cross-call a method from a non-crossing method if you need it.
@@ -318,7 +400,7 @@ the address is the same.
 ### MsgAddPackage
 
 During MsgAddPackage `std.PreviousRealm()` refers to the package deployer both
-in global var decls as well as inside `init()` functions. After that the
+in global var decls and inside `init()` functions. After that the
 package deployer is no longer provided, so packages need to remember the
 deployer in the initialization phase if needed.
 

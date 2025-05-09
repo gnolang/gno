@@ -4,14 +4,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -339,11 +337,11 @@ func main() {
 	// Make Msg configs
 	msg := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "main",
 			// Path will be automatically set by handler.
 			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody,
@@ -432,11 +430,11 @@ func main() {
 	// Make Msg configs
 	msg1 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "main",
 			// Path will be automatically set by handler.
 			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody1,
@@ -447,11 +445,11 @@ func main() {
 	}
 	msg2 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "main",
 			// Path will be automatically set by handler.
 			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody2,
@@ -517,10 +515,10 @@ func Echo(str string) string {
 	// Make Msg config
 	msg := vm.MsgAddPackage{
 		Creator: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: fileName,
 					Body: body,
@@ -607,10 +605,10 @@ func Hello(str string) string {
 
 	msg1 := vm.MsgAddPackage{
 		Creator: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath1,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: "echo.gno",
 					Body: body1,
@@ -622,10 +620,10 @@ func Hello(str string) string {
 
 	msg2 := vm.MsgAddPackage{
 		Creator: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "hello",
 			Path: deploymentPath2,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: "gno.mod",
 					Body: "module gno.land/p/demo/integration/test/hello",
