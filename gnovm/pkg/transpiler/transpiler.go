@@ -233,17 +233,6 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 						panic(fmt.Sprintf("invalid cross() call with %d args", len(node.Args)))
 					}
 					c.Replace(node.Args[0])
-				case "istypednil":
-					if len(node.Args) != 1 {
-						panic(fmt.Sprintf("invalid istypednil() call with %d args", len(node.Args)))
-					}
-					c.Replace(&ast.BinaryExpr{
-						X:  node.Args[0],
-						Op: token.NEQ,
-						Y:  ast.NewIdent("nil"),
-						// It's not exactly this, but it's close enough
-						// and it might be better prefer if we removed the global anyway: https://github.com/gnolang/gno/pull/4259
-					})
 				case "revive":
 					if len(node.Args) != 1 {
 						panic(fmt.Sprintf("invalid istypednil() call with %d args", len(node.Args)))
