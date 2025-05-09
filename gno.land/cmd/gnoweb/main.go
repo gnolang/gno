@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -41,18 +42,20 @@ var cspImgHost = []string{
 }
 
 type webCfg struct {
-	chainid    string
-	remote     string
-	remoteHelp string
-	bind       string
-	faucetURL  string
-	assetsDir  string
-	timeout    time.Duration
-	analytics  bool
-	json       bool
-	html       bool
-	noStrict   bool
-	verbose    bool
+	chainid          string
+	remote           string
+	remoteHelp       string
+	bind             string
+	faucetURL        string
+	aliases          string
+	noDefaultAliases bool
+	assetsDir        string
+	timeout          time.Duration
+	analytics        bool
+	json             bool
+	html             bool
+	noStrict         bool
+	verbose          bool
 }
 
 var defaultWebOptions = webCfg{
@@ -99,6 +102,20 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"help-remote",
 		defaultWebOptions.remoteHelp,
 		"help page's remote address",
+	)
+
+	fs.StringVar(
+		&c.aliases,
+		"aliases",
+		defaultWebOptions.aliases,
+		"comma-separated list of aliases in the form: '<path>=<realm-path>' or '<path>=static:<markdown-file>'",
+	)
+
+	fs.BoolVar(
+		&c.noDefaultAliases,
+		"no-default-aliases",
+		defaultWebOptions.noDefaultAliases,
+		"discard default aliases",
 	)
 
 	fs.StringVar(
@@ -207,6 +224,21 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.AssetsDir = cfg.assetsDir
+
+	if cfg.noDefaultAliases {
+		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
+	}
+
+	if cfg.aliases != "" {
+		aliases, err := parseAliases(cfg.aliases)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse aliases: %w", err)
+		}
+		for alias, value := range aliases {
+			appcfg.Aliases[alias] = value
+		}
+	}
+
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
@@ -241,6 +273,44 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 		return nil
 	}, nil
+}
+
+// parseAliases parses the given aliases string and return an aliases map.
+// Used by the web handler to resolve path and static file aliases.
+func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
+	var (
+		aliases      = make(map[string]gnoweb.AliasTarget)
+		aliasEntries = strings.Split(aliasesStr, ",")
+	)
+
+	// Add each alias entry to the aliases map.
+	for _, entry := range aliasEntries {
+		parts := strings.Split(entry, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid alias entry: %s", entry)
+		}
+
+		// Trim whitespace from both parts.
+		parts[0] = strings.TrimSpace(parts[0])
+		parts[1] = strings.TrimSpace(parts[1])
+
+		// Check if the value is a path to a static file.
+		if strings.HasPrefix(parts[1], "static:") {
+			// If it is, load the static file content and set it as the alias.
+			staticFilePath := strings.TrimPrefix(parts[1], "static:")
+
+			content, err := os.ReadFile(staticFilePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
+			}
+
+			aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}
+		} else { // Otherwise, treat it as a normal alias.
+			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
+		}
+	}
+
+	return aliases, nil
 }
 
 func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
