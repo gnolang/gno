@@ -51,3 +51,8 @@ var FlagVar Flag = 9999
 var ExportedVar = true
 
 var unexp = 1
+
+func SetUnexp(val int) {
+	crossing()
+	unexp = val
+}
