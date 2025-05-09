@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
@@ -1245,7 +1244,7 @@ func endsWithAny(str string, suffixes []string) bool {
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
-func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	pkg, err := ReadMemPackage(dir, pkgPath)
 	if err != nil {
 		panic(err)
