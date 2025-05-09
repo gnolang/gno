@@ -1,15 +1,13 @@
-# test issue 
+# test issue
 
 loadpkg gno.land/r/demo/realm $WORK
 
 # start a new node
 gnoland start
 
-
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func UnFill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func Fill --args 0 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
-
 
 -- realm.gno --
 package main
@@ -28,7 +26,9 @@ var (
 )
 
 func Fill(i int) {
- c := B{
+	crossing()
+
+	c := B{
 		A: a,
 		B: "",
 	}
@@ -36,6 +36,7 @@ func Fill(i int) {
 }
 
 func UnFill(i int) {
+	crossing()
+
 	b[i] = nil
 }
-
