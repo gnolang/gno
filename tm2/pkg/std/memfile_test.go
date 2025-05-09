@@ -1,4 +1,4 @@
-package gnovm
+package std
 
 import (
 	"testing"

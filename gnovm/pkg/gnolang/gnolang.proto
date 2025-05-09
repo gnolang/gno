@@ -56,11 +56,10 @@ message FuncValue {
 	google.protobuf.Any source = 3 [json_name = "Source"];
 	string name = 4 [json_name = "Name"];
 	google.protobuf.Any closure = 5 [json_name = "Closure"];
-	repeated TypedValue captures = 6 [json_name = "Captures"];
-	string file_name = 7 [json_name = "FileName"];
-	string pkg_path = 8 [json_name = "PkgPath"];
-	string native_pkg = 9 [json_name = "NativePkg"];
-	string native_name = 10 [json_name = "NativeName"];
+	string file_name = 6 [json_name = "FileName"];
+	string pkg_path = 7 [json_name = "PkgPath"];
+	string native_pkg = 8 [json_name = "NativePkg"];
+	string native_name = 9 [json_name = "NativeName"];
 }
 
 message MapValue {
@@ -111,11 +110,6 @@ message RefValue {
 	string hash = 4 [json_name = "Hash"];
 }
 
-message HeapItemValue {
-	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
-	TypedValue value = 2 [json_name = "Value"];
-}
-
 message ObjectID {
 	string value = 1;
 }
@@ -153,15 +147,13 @@ message Location {
 
 message Attributes {
 	sint64 line = 1 [json_name = "Line"];
-	sint64 column = 2 [json_name = "Column"];
-	string label = 3 [json_name = "Label"];
+	string label = 2 [json_name = "Label"];
 }
 
 message NameExpr {
 	Attributes attributes = 1 [json_name = "Attributes"];
 	ValuePath path = 2 [json_name = "Path"];
 	string name = 3 [json_name = "Name"];
-	sint64 type = 4 [json_name = "Type"];
 }
 
 message BasicLitExpr {
@@ -247,7 +239,6 @@ message FuncLitExpr {
 	StaticBlock static_block = 2 [json_name = "StaticBlock"];
 	FuncTypeExpr type = 3 [json_name = "Type"];
 	repeated google.protobuf.Any body = 4 [json_name = "Body"];
-	repeated NameExpr heap_captures = 5 [json_name = "HeapCaptures"];
 }
 
 message ConstExpr {

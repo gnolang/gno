@@ -4,8 +4,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
@@ -23,10 +23,10 @@ func TestTransactionStore(t *testing.T) {
 		Store:   txSt,
 		Output:  io.Discard,
 	})
-	_, pv := m.RunMemPackage(&gnovm.MemPackage{
+	_, pv := m.RunMemPackage(&std.MemPackage{
 		Name: "hello",
 		Path: "hello",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "hello.gno", Body: "package hello; func main() { println(A(11)); }; type A int"},
 		},
 	}, true)
@@ -73,10 +73,10 @@ func TestCopyFromCachedStore(t *testing.T) {
 		Name:    "Reader",
 		Base:    BoolType,
 	})
-	cachedStore.AddMemPackage(&gnovm.MemPackage{
+	cachedStore.AddMemPackage(&std.MemPackage{
 		Name: "math",
 		Path: "math",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "math.gno", Body: "package math"},
 		},
 	})

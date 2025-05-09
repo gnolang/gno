@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -27,10 +27,10 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store := NewStore(nil, baseStore, iavlStore)
 	m := NewMachine("std", store)
-	m.RunMemPackageWithOverrides(&gnovm.MemPackage{
+	m.RunMemPackageWithOverrides(&std.MemPackage{
 		Name: "std",
 		Path: "std",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "a.gno", Body: `package std; func Redecl(x int) string { return "1" }`},
 		},
 	}, true)
@@ -38,10 +38,10 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		defer func() {
 			p = fmt.Sprint(recover())
 		}()
-		m.RunMemPackageWithOverrides(&gnovm.MemPackage{
+		m.RunMemPackageWithOverrides(&std.MemPackage{
 			Name: "std",
 			Path: "std",
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: "b.gno", Body: `package std; func Redecl(x int) string { var y string; _, _ = y; return "2" }`},
 			},
 		}, true)
