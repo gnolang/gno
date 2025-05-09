@@ -35,7 +35,7 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the valoper in gov/dao Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "" -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 15000000 -args "" -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'Add valoper berty'
 
@@ -44,7 +44,7 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "1" -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 15000000 -args "1" -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'new instructions'
 
@@ -53,7 +53,7 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "2" -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 15000000 -args "2" -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'Update the minimum register fee to: 1000000 ugnot'
 
@@ -79,8 +79,8 @@ import (
 )
 
 func main() {
-  pr := valopers_proposal.NewValidatorProposalRequest(std.Address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
-  pid := dao.MustCreateProposal(pr)
+  pr := cross(valopers_proposal.NewValidatorProposalRequest)(std.Address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
+  pid := cross(dao.MustCreateProposal)(pr)
   println(pid.String())
 }
 
@@ -94,8 +94,8 @@ import (
 )
 
 func main() {
-  pr := valopers_proposal.NewValidatorProposalRequest(std.Address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
-  pid := dao.MustCreateProposal(pr)
+  pr := cross(valopers_proposal.NewValidatorProposalRequest)(std.Address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
+  pid := cross(dao.MustCreateProposal)(pr)
   println(pid.String())
 }
 
@@ -108,8 +108,8 @@ import (
 )
 
 func main() {
-  pr := valopers_proposal.ProposeNewInstructionsProposalRequest("new instructions")
-  pid := dao.MustCreateProposal(pr)
+  pr := cross(valopers_proposal.ProposeNewInstructionsProposalRequest)("new instructions")
+  pid := cross(dao.MustCreateProposal)(pr)
   println(pid.String())
 }
 
@@ -122,7 +122,7 @@ import (
 )
 
 func main() {
-  pr := valopers_proposal.ProposeNewMinFeeProposalRequest(1000000)
-  pid := dao.MustCreateProposal(pr)
+  pr := cross(valopers_proposal.ProposeNewMinFeeProposalRequest)(1000000)
+  pid := cross(dao.MustCreateProposal)(pr)
   println(pid.String())
 }
