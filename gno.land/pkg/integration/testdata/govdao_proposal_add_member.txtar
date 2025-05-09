@@ -32,7 +32,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 10
 stdout OK!
 
 # check output
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/memberstore:'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/memberstore:'
 stdout 'Tier T2 contains 1 members'
 
 -- proposer/create_proposal.gno --
