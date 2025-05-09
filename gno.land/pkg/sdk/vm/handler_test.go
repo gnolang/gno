@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -118,7 +117,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "hello.gno", Body: `
 package hello
 
@@ -211,7 +210,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "hello.gno", Body: `
 package hello
 
@@ -289,7 +288,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "README.md", Body: "# Hello"},
 				{Name: "hello.gno", Body: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 			}
@@ -406,7 +405,7 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "hello.gno", Body: `
 // hello is a package for testing
 package hello

@@ -124,8 +124,14 @@ func TestEmit(t *testing.T) {
 			m.Context = ExecContext{EventLogger: elgs}
 
 			if tt.expectPanic {
-				X_emit(m, tt.eventType, tt.attrs)
-				assert.NotNil(t, m.Exception)
+				assert.Panics(t, func() {
+					X_emit(m, tt.eventType, tt.attrs)
+				})
+				// X_emit() should m.Panic(), but it should not
+				// set m.Exception. That happens after m.Run()
+				// recovers and then calls m.pushPanic().
+				// But stdlib should NOT call m.pushPanic().
+				assert.Nil(t, m.Exception)
 			} else {
 				X_emit(m, tt.eventType, tt.attrs)
 				assert.Equal(t, len(tt.expectedEvents), len(elgs.Events()))

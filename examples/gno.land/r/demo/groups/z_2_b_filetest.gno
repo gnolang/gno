@@ -11,10 +11,10 @@ import (
 var gid groups.GroupID
 
 func main() {
-	users.Register("gnouser123")
-	gid = groups.CreateGroup("test_group")
+	cross(users.Register)("gnouser123")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(gid)
-	groups.DeleteMember(2, 0)
+	cross(groups.DeleteMember)(2, 0)
 	println(groups.Render(""))
 }
 
