@@ -149,7 +149,7 @@ type TestOptions struct {
 	tcCache        map[string]gno.TypeCheckResult
 }
 
-func (opts *TestOptions) getTcCache() map[string]gno.TypeCheckResult {
+func (opts *TestOptions) TypeCheckCache() map[string]gno.TypeCheckResult {
 	if opts.tcCache == nil {
 		opts.tcCache = map[string]gno.TypeCheckResult{}
 	}

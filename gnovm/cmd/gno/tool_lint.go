@@ -96,7 +96,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	}
 
 	hasError := false
-
+	resultCache := map[string]gno.TypeCheckResult{}
 	bs, ts := test.StoreWithOptions(
 		rootDir, goio.Discard,
 		test.StoreOptions{PreprocessOnly: true},
@@ -149,7 +149,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			// Run type checking
 			if gmFile == nil || !gmFile.Draft {
-				foundErr, err := lintTypeCheck(io, dirPath, memPkg, gs)
+				foundErr, err := lintTypeCheck(io, dirPath, memPkg, resultCache, gs)
 				if err != nil {
 					io.ErrPrintln(err)
 					hasError = true
@@ -181,8 +181,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackage(memPkg, testStore, gno.TypeCheckOptions{Redefinitions: true})
+func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, cache map[string]gno.TypeCheckResult, testStore gno.Store) (errorsFound bool, err error) {
+	tcErr := gno.TypeCheckMemPackage(memPkg, testStore, gno.TypeCheckOptions{
+		Redefinitions: true,
+		Cache:         cache,
+	})
 	if tcErr == nil {
 		return false, nil
 	}

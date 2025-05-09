@@ -274,7 +274,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 	typecheck := func(memPkg *std.MemPackage) {
 		if err := gno.TypeCheckMemPackage(memPkg, m.Store, gno.TypeCheckOptions{
 			Redefinitions: true,
-			Cache:         opts.getTcCache(),
+			Cache:         opts.TypeCheckCache(),
 		}); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}

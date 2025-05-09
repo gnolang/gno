@@ -241,7 +241,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		runtimeError := catchRuntimeError(pkg.Dir, gnoPkgPath, io.Err(), func() {
 			if modfile == nil || !modfile.Draft {
-				foundErr, lintErr := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
+				foundErr, lintErr := lintTypeCheck(io, pkg.Dir, memPkg, opts.TypeCheckCache(), opts.TestStore)
 				if lintErr != nil {
 					io.ErrPrintln(lintErr)
 					hasError = true
