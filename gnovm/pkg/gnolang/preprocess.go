@@ -1243,16 +1243,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ift := evalStaticTypeOf(store, last, n.Func)
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
-					fn := extractFunctionName(n)
-					if fn == "len" { //nolint
+					fn := getCallFuncName(n)
+					switch fn {
+					case "len":
 						at := evalStaticTypeOf(store, last, n.Args[0])
 						validateLenArg(at)
-					}
-					if fn == "cap" { //nolint
+					case "cap":
 						at := evalStaticTypeOf(store, last, n.Args[0])
 						validateCapArg(at)
-					}
-					if fn == "make" {
+					case "make":
 						validateMakeArg(store, last, n)
 					}
 					ft = cft

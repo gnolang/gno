@@ -1207,6 +1207,7 @@ func assertValidMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 	validateMakeType(baseOf(at))
 
 	var length int
+	var capacity int
 
 	// Validate length argument (second argument for make)
 	if len(currExpr.Args) > 1 {
@@ -1214,19 +1215,43 @@ func assertValidMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 		if at1 == nil {
 			panic("invalid argument 2: nil for built-in make")
 		}
-
 		if at1 == Float64Type {
 			panic(fmt.Sprintf("invalid argument: index length (variable of type float64) must be integer"))
 		}
 
-		l, err := parseIntValue(currExpr.Args[1])
-		if err != nil {
-			panic(fmt.Sprintf("invalid length argument for built-in make: %s", err.Error()))
+		if ce, ok := currExpr.Args[1].(*ConstExpr); ok {
+			if ble, ok := ce.Source.(*BasicLitExpr); ok {
+				switch ble.Kind {
+				case FLOAT:
+					f, err := strconv.ParseFloat(ble.Value, 64)
+					if err != nil {
+						panic(fmt.Sprintf("invalid length argument for built-in make: cannot convert %s to float", ble.Value))
+					}
+					intPart := math.Trunc(f)
+					if f != intPart {
+						panic(fmt.Sprintf("invalid length argument for built-in make: %g (untyped float constant) truncated to int", f))
+					}
+					if f > float64(math.MaxInt) || f < float64(math.MinInt) {
+						panic(fmt.Sprintf("invalid length argument for built-in make: value out of range for int type"))
+					}
+					length = int(f)
+				case INT:
+					l, err := strconv.ParseInt(ble.Value, 0, 64)
+					if err != nil {
+						panic(fmt.Sprintf("invalid length argument for built-in make: cannot convert %s to int", ble.Value))
+					}
+					if l > math.MaxInt || l < math.MinInt {
+						panic(fmt.Sprintf("invalid length argument for built-in make: value out of range for int type"))
+					}
+					length = int(l)
+				default:
+					panic(fmt.Sprintf("invalid length argument for built-in make: cannot convert %s to int", ble.Value))
+				}
+			}
 		}
-		if l < 0 {
-			panic(fmt.Sprintf("invalid length argument for built-in make: cannot be negative, got %d", length))
+		if length < 0 {
+			panic("invalid argument: negative length")
 		}
-		length = l
 	}
 
 	// Validate capacity argument (third argument for make)
@@ -1235,16 +1260,52 @@ func assertValidMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 		if at2 == nil {
 			panic("invalid argument 3: nil for built-in make")
 		}
-		capacity, err := parseIntValue(currExpr.Args[2])
-		if err != nil {
-			panic(fmt.Sprintf("invalid capacity argument for built-in make: %s", err.Error()))
+
+		if at2 == Float64Type {
+			panic(fmt.Sprintf("invalid argument: index length (variable of type float64) must be integer"))
 		}
-		if capacity < 0 {
-			panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot be negative, got %d", capacity))
+
+		if ne, ok := currExpr.Args[2].(*NameExpr); ok {
+			if at2 != IntType {
+				panic(fmt.Sprintf("invalid argument: index length (variable of type %s) must be integer", ne.Name))
+			}
 		}
-		if _, ok := currExpr.Args[2].(*BasicLitExpr); ok {
-			if capacity < length {
-				panic(fmt.Sprintf("invalid argument: length and capacity swapped"))
+
+		if ce, ok := currExpr.Args[2].(*ConstExpr); ok {
+			if ble, ok := ce.Source.(*BasicLitExpr); ok {
+				switch ble.Kind {
+				case FLOAT:
+					f, err := strconv.ParseFloat(ble.Value, 64)
+					if err != nil {
+						panic(err.Error())
+					}
+					intPart := math.Trunc(f)
+					if f != intPart {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: %g (untyped float constant) truncated to int", f))
+					}
+					if f > float64(math.MaxInt) || f < float64(math.MinInt) {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: value out of range for int type"))
+					}
+					capacity = int(f)
+				case INT:
+					c, err := strconv.ParseInt(ble.Value, 0, 64)
+					if err != nil {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot convert %s to int", ble.Value))
+					}
+					if c > math.MaxInt || c < math.MinInt {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: value out of range for int type"))
+					}
+					capacity = int(c)
+					if capacity < 0 {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot be negative, got %d", capacity))
+					}
+
+					if capacity < length {
+						panic(fmt.Sprintf("invalid argument: length and capacity swapped"))
+					}
+				default:
+					panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot convert %s to int", ble.Value))
+				}
 			}
 		}
 	}
@@ -1260,38 +1321,7 @@ func validateMakeType(tp Type) {
 	}
 }
 
-func parseIntValue(expr Expr) (int, error) {
-	switch e := expr.(type) {
-	case *ConstExpr:
-		if ble, ok := e.Source.(*BasicLitExpr); ok {
-			if ble.Kind == FLOAT {
-				f, err := strconv.ParseFloat(ble.Value, 64)
-				if err != nil {
-					return 0, err
-				}
-				intPart := math.Trunc(f)
-				if f != intPart {
-					return 0, fmt.Errorf("%g (untyped float constant) truncated to int", f)
-				}
-				if f > float64(math.MaxInt) || f < float64(math.MinInt) {
-					return 0, errors.New("value out of range for int type")
-				}
-				return int(f), nil
-			}
-			n, err := strconv.ParseInt(ble.Value, 0, 64)
-			if err != nil {
-				return 0, fmt.Errorf("cannot convert %s to int", ble.Value)
-			}
-			if n > int64(math.MaxInt) || n < int64(math.MinInt) {
-				return 0, errors.New("value out of range for int type")
-			}
-			return int(n), nil
-		}
-	}
-	return 0, nil
-}
-
-func extractFunctionName(n *CallExpr) string {
+func getCallFuncName(n *CallExpr) string {
 	ce, ok := n.Func.(*ConstExpr)
 	if !ok {
 		return ""
