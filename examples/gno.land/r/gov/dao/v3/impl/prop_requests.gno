@@ -125,16 +125,22 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalReque
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func() error {
-		prevTier := memberstore.Get().RemoveMember(addr)
-		if prevTier == "" {
-			panic("member not found, so cannot be promoted")
-		}
+		var err error
+		cross(func() {
+			crossing()
+			prevTier := memberstore.Get().RemoveMember(addr)
+			if prevTier == "" {
+				panic("member not found, so cannot be promoted")
+			}
 
-		if prevTier != fromTier {
-			panic("previous tier changed from the one indicated in the proposal")
-		}
+			if prevTier != fromTier {
+				panic("previous tier changed from the one indicated in the proposal")
+			}
 
-		return memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+			err = memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+		})()
+
+		return err
 	}
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
