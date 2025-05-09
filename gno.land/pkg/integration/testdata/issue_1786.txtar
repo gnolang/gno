@@ -21,7 +21,7 @@ stdout OK!
 # check user's wugnot balance
 gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '10000 uint64'
+stdout '10000 int64'
 
 # unwrap 500 wugnot
 gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot -func ProxyUnwrap -args 500 -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
@@ -33,9 +33,14 @@ gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot -func ProxyUnwrap -args 
 
 
 # check user's wugnot balance
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1100000ugnot -gas-wanted 2200000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout '9500 uint64'
+stdout '9500 int64'
+
+# render
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -args "invalid" -gas-fee 1100000ugnot -gas-wanted 2300000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '("404" string)'
 
 -- gno.mod --
 module gno.land/r/demo/proxywugnot
@@ -54,7 +59,7 @@ func ProxyWrap() {
 	crossing()
 
 	sent := std.OriginSend()
-	ugnotSent := uint64(sent.AmountOf("ugnot"))
+	ugnotSent := int64(sent.AmountOf("ugnot"))
 
 	if ugnotSent == 0 {
 		return
@@ -70,7 +75,7 @@ func ProxyWrap() {
 	cross(wugnot.Transfer)(std.OriginCaller(), ugnotSent)
 }
 
-func ProxyUnwrap(wugnotAmount uint64) {
+func ProxyUnwrap(wugnotAmount int64) {
 	crossing()
 
 	if wugnotAmount == 0 {
@@ -78,10 +83,10 @@ func ProxyUnwrap(wugnotAmount uint64) {
 	}
 
 	// SEND WUGNOT: USER -> PROXY_WUGNOT
-	wugnot.TransferFrom(std.OriginCaller(), std.CurrentRealm().Address(), wugnotAmount)
+	cross(wugnot.TransferFrom)(std.OriginCaller(), std.CurrentRealm().Address(), wugnotAmount)
 
 	// UNWRAP IT
-	wugnot.Withdraw(wugnotAmount)
+	cross(wugnot.Withdraw)(wugnotAmount)
 
 	// SEND GNOT: PROXY_WUGNOT -> USER
 	banker := std.NewBanker(std.BankerTypeRealmSend)
