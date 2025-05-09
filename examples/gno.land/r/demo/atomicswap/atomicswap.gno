@@ -153,6 +153,7 @@ func Refund(id int) {
 
 // Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.
 func Render(path string) string {
+	crossing()
 	if path == "" { // home
 		output := ""
 		size := swaps.Size()
