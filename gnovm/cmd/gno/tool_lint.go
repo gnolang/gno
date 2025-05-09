@@ -13,12 +13,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -181,7 +181,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, dirPath string, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
+func lintTypeCheck(io commands.IO, dirPath string, memPkg *std.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
 	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
 	if tcErr == nil {
 		return false, nil
@@ -226,7 +226,7 @@ func lintTypeCheck(io commands.IO, dirPath string, memPkg *gnovm.MemPackage, tes
 	return true, nil
 }
 
-func sourceAndTestFileset(memPkg *gnovm.MemPackage) *gno.FileSet {
+func sourceAndTestFileset(memPkg *std.MemPackage) *gno.FileSet {
 	testfiles := &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {

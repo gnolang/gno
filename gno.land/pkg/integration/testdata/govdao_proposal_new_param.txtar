@@ -14,7 +14,7 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
 # add the proposal
-gnokey maketx addpkg -pkgdir $WORK/proposer -pkgpath gno.land/r/gov/dao/v3/proposer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call gov/dao render to check everything the proposal was created
@@ -33,16 +33,16 @@ stdout OK!
 # no way to check output
 
 -- proposer/create_proposal.gno --
-package create_proposal
+package main
 
 import (
 	"gno.land/r/gov/dao"
 	"gno.land/r/sys/params"
 )
 
-func init() {
+func main() {
 	preq := params.NewSysParamStringPropRequest("vm", "bar", "baz", "qux")
-	dao.MustCreateProposal(preq)
+	cross(dao.MustCreateProposal)(preq)
 }
 
 -- loader/load_govdao.gno --

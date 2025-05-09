@@ -127,9 +127,9 @@ func TestCreateProposalAndVote(t *testing.T) {
 	// })
 	cross(dao.MustVoteOnProposalSimple)(0, "NO")
 
-	urequire.Equal(t, true, contains(dao.Render(""), "Proposal open for votes"))
-	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
-	urequire.Equal(t, true, contains(dao.Render(""), "52.63157894736842%"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "Proposal open for votes"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "15.789473684210526%"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "52.63157894736842%"))
 
 	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
 		cross(dao.ExecuteProposal)(dao.ProposalID(0))
@@ -144,8 +144,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 	accepted := cross(dao.ExecuteProposal)(dao.ProposalID(0))
 	urequire.Equal(t, false, accepted)
 
-	urequire.Equal(t, true, contains(dao.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
-	urequire.Equal(t, true, contains(dao.Render(""), "NO PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "**PROPOSAL HAS BEEN DENIED**"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "NO PERCENT: 68.42105263157895%"))
 }
 
 func TestProposalPagination(t *testing.T) {
@@ -182,14 +182,14 @@ func TestProposalPagination(t *testing.T) {
 	pid = cross(dao.MustCreateProposal)(proposalRequest)
 	urequire.Equal(t, 6, int(pid))
 
-	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 6"))
-	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 5"))
-	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 4"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "## Proposal with id: 6"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "## Proposal with id: 5"))
+	urequire.Equal(t, true, contains(cross(dao.Render)(""), "## Proposal with id: 4"))
 
-	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 3"))
-	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 2"))
-	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 1"))
-	urequire.Equal(t, true, contains(dao.Render("/?page=3"), "## Proposal with id: 0"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("/?page=2"), "## Proposal with id: 3"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("/?page=2"), "## Proposal with id: 2"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("/?page=2"), "## Proposal with id: 1"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("/?page=3"), "## Proposal with id: 0"))
 }
 
 func TestUpgradeDaoImplementation(t *testing.T) {
@@ -247,14 +247,14 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	// })
 	cross(dao.MustVoteOnProposalSimple)(int64(pid), "YES")
 
-	urequire.Equal(t, true, contains(dao.Render("7"), "Proposal open for votes"))
-	urequire.Equal(t, true, contains(dao.Render("7"), "68.42105263157895%"))
-	urequire.Equal(t, true, contains(dao.Render("7"), "0%"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("7"), "Proposal open for votes"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("7"), "68.42105263157895%"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("7"), "0%"))
 
 	accepted := cross(dao.ExecuteProposal)(dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
-	urequire.Equal(t, true, contains(dao.Render("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
-	urequire.Equal(t, true, contains(dao.Render("7"), "YES PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
+	urequire.Equal(t, true, contains(cross(dao.Render)("7"), "YES PERCENT: 68.42105263157895%"))
 
 }
 
