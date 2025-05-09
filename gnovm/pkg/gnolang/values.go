@@ -33,6 +33,9 @@ type Value interface {
 	// NOTE must use the return value since PointerValue isn't a pointer
 	// receiver, and RefValue returns another type entirely.
 	DeepFill(store Store) Value
+
+	GetShallowSize() int64
+	VisitAssociated(vis Visitor) (stop bool) // for GC
 }
 
 // Fixed size primitive types are represented in TypedValue.N
@@ -475,18 +478,18 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // faster.
 type FuncValue struct {
 	ObjectInfo
-	Type        Type         // includes unbound receiver(s)
-	IsMethod    bool         // is an (unbound) method
-	IsClosure   bool         // is a func lit expr closure (not decl)
-	Source      BlockNode    // for block mem allocation
-	Name        Name         // name of function/method
-	Parent      Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	Captures    []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
-	FileName    Name         // file name where declared
-	PkgPath     string       // package path in which func declared
-	NativePkg   string       // for native bindings through NativeResolver
-	NativeName  Name         // not redundant with Name; this cannot be changed in userspace
-	SwitchRealm bool         // true if .body's first statement is crossing().
+	Type       Type         // includes unbound receiver(s)
+	IsMethod   bool         // is an (unbound) method
+	IsClosure  bool         // is a func lit expr closure (not decl)
+	Source     BlockNode    // for block mem allocation
+	Name       Name         // name of function/method
+	Parent     Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
+	FileName   Name         // file name where declared
+	PkgPath    string       // package path in which func declared
+	NativePkg  string       // for native bindings through NativeResolver
+	NativeName Name         // not redundant with Name; this cannot be changed in userspace
+	Crossing   bool         // true if .body's first statement is crossing().
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
@@ -507,18 +510,18 @@ func (fv *FuncValue) IsNative() bool {
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	alloc.AllocateFunc()
 	return &FuncValue{
-		Type:        fv.Type,
-		IsMethod:    fv.IsMethod,
-		Source:      fv.Source,
-		Name:        fv.Name,
-		Parent:      fv.Parent,
-		FileName:    fv.FileName,
-		PkgPath:     fv.PkgPath,
-		NativePkg:   fv.NativePkg,
-		NativeName:  fv.NativeName,
-		SwitchRealm: fv.SwitchRealm,
-		body:        fv.body,
-		nativeBody:  fv.nativeBody,
+		Type:       fv.Type,
+		IsMethod:   fv.IsMethod,
+		Source:     fv.Source,
+		Name:       fv.Name,
+		Parent:     fv.Parent,
+		FileName:   fv.FileName,
+		PkgPath:    fv.PkgPath,
+		NativePkg:  fv.NativePkg,
+		NativeName: fv.NativeName,
+		Crossing:   fv.Crossing,
+		body:       fv.body,
+		nativeBody: fv.nativeBody,
 	}
 }
 
@@ -596,8 +599,8 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 	}
 }
 
-func (fv *FuncValue) IsSwitchRealm() bool {
-	return fv.SwitchRealm
+func (fv *FuncValue) IsCrossing() bool {
+	return fv.Crossing
 }
 
 // ----------------------------------------
@@ -616,8 +619,8 @@ type BoundMethodValue struct {
 	Receiver TypedValue
 }
 
-func (bmv *BoundMethodValue) IsSwitchRealm() bool {
-	return bmv.Func.IsSwitchRealm()
+func (bmv *BoundMethodValue) IsCrossing() bool {
+	return bmv.Func.IsCrossing()
 }
 
 // ----------------------------------------
@@ -805,12 +808,18 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 	}
 }
 
+// Retrieves the block from store if necessary, and if so fills all the values
+// of the block.
 func (pv *PackageValue) GetBlock(store Store) *Block {
 	bv := pv.Block
 	switch bv := bv.(type) {
 	case RefValue:
 		bb := store.GetObject(bv.ObjectID).(*Block)
 		pv.Block = bb
+		for i := range bb.Values {
+			tv := &bb.Values[i]
+			fillValueTV(store, tv)
+		}
 		return bb
 	case *Block:
 		return bv
@@ -881,7 +890,7 @@ func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 
 // Convenience
 func (pv *PackageValue) GetPkgAddr() crypto.Address {
-	return DerivePkgAddr(pv.PkgPath)
+	return DerivePkgCryptoAddr(pv.PkgPath)
 }
 
 // ----------------------------------------
@@ -920,7 +929,7 @@ func (tv *TypedValue) SetReadonly(ro bool) {
 		tv.N = N_Readonly
 		return
 	} else {
-		return // perserve prior tv.N
+		return // preserve prior tv.N
 	}
 }
 
@@ -950,6 +959,16 @@ func (tv *TypedValue) IsUndefined() bool {
 		}
 	}
 	return tv.T == nil
+}
+
+func (tv *TypedValue) IsTypedNil() bool {
+	if tv.V != nil {
+		return false
+	}
+	if tv.T != nil && tv.T.Kind() == PointerKind {
+		return true
+	}
+	return false
 }
 
 // (this is used mostly by the preprocessor)
@@ -2395,23 +2414,23 @@ func (b *Block) GetBlankRef() *TypedValue {
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams1() (pv1 PointerValue) {
-	pv1 = b.GetPointerTo(nil, NewValuePathBlock(1, 0, ""))
+func (b *Block) GetParams1(store Store) (pv1 PointerValue) {
+	pv1 = b.GetPointerTo(store, NewValuePathBlock(1, 0, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams2() (pv1, pv2 PointerValue) {
-	pv1 = b.GetPointerTo(nil, NewValuePathBlock(1, 0, ""))
-	pv2 = b.GetPointerTo(nil, NewValuePathBlock(1, 1, ""))
+func (b *Block) GetParams2(store Store) (pv1, pv2 PointerValue) {
+	pv1 = b.GetPointerTo(store, NewValuePathBlock(1, 0, ""))
+	pv2 = b.GetPointerTo(store, NewValuePathBlock(1, 1, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams3() (pv1, pv2, pv3 PointerValue) {
-	pv1 = b.GetPointerTo(nil, NewValuePathBlock(1, 0, ""))
-	pv2 = b.GetPointerTo(nil, NewValuePathBlock(1, 1, ""))
-	pv3 = b.GetPointerTo(nil, NewValuePathBlock(1, 2, ""))
+func (b *Block) GetParams3(store Store) (pv1, pv2, pv3 PointerValue) {
+	pv1 = b.GetPointerTo(store, NewValuePathBlock(1, 0, ""))
+	pv2 = b.GetPointerTo(store, NewValuePathBlock(1, 1, ""))
+	pv3 = b.GetPointerTo(store, NewValuePathBlock(1, 2, ""))
 	return
 }
 
@@ -2468,8 +2487,8 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"`
 }
 
-func (ref RefValue) GetObjectID() ObjectID {
-	return ref.ObjectID
+func (rv RefValue) GetObjectID() ObjectID {
+	return rv.ObjectID
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
@@ -2550,6 +2569,12 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 func typedInt(i int) TypedValue {
 	tv := TypedValue{T: IntType}
 	tv.SetInt(int64(i))
+	return tv
+}
+
+func typedBool(b bool) TypedValue {
+	tv := TypedValue{T: BoolType}
+	tv.SetBool(b)
 	return tv
 }
 

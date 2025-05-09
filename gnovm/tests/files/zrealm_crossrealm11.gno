@@ -81,7 +81,7 @@ func main() {
 	printColumns("-----", "------------------")
 
 	baseCallStack := "user1.gno !> r/crossrealm_test.main2"
-	for i, tt := range tests {
+	for _, tt := range tests {
 		{ // with no Exec
 			var r std.Realm
 			if tt.isSwitch {

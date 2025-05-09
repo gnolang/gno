@@ -66,11 +66,12 @@ type Store interface {
 	GetMemFile(path string, name string) *gnovm.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
 	IterMemPackage() <-chan *gnovm.MemPackage
-	ClearObjectCache()                                    // run before processing a message
+	ClearObjectCache() // run before processing a message
+	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(dst io.Writer)
-	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
+	LogFinalizeRealm(rlmpath string) // to mark finalization of realm boundaries
 	Print()
 }
 
@@ -446,10 +447,10 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
-		ds.alloc.AllocateAmino(int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		ds.alloc.Allocate(oo.GetShallowSize())
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
@@ -937,6 +938,18 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
+func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
+	for objId, obj := range ds.cacheObjects {
+		// Skip .uverse packages.
+		if pv, ok := obj.(*PackageValue); ok && pv.PkgPath == ".uverse" {
+			continue
+		}
+		if obj.GetLastGCCycle() < gcCycle {
+			delete(ds.cacheObjects, objId)
+		}
+	}
+}
+
 func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {
 	ds.nativeResolver = ns
 }
@@ -957,9 +970,9 @@ func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
 	}
 }
 
-func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
+func (ds *defaultStore) LogFinalizeRealm(rlmpath string) {
 	if ds.opslog != nil {
-		fmt.Fprintf(ds.opslog, "switchrealm[%q]\n", rlmpath)
+		fmt.Fprintf(ds.opslog, "finalizerealm[%q]\n", rlmpath)
 	}
 }
 
