@@ -16,8 +16,8 @@ func TestFoo721(t *testing.T) {
 		expected any
 		fn       func() any
 	}{
-		{"BalanceOf(admin)", uint64(10), func() interface{} { return BalanceOf(admin) }},
-		{"BalanceOf(hariom)", uint64(5), func() interface{} { return BalanceOf(hariom) }},
+		{"BalanceOf(admin)", int64(10), func() interface{} { return BalanceOf(admin) }},
+		{"BalanceOf(hariom)", int64(5), func() interface{} { return BalanceOf(hariom) }},
 		{"OwnerOf(0)", admin, func() interface{} { return OwnerOf(grc721.TokenID("0")) }},
 		{"IsApprovedForAll(admin, hariom)", false, func() interface{} { return IsApprovedForAll(admin, hariom) }},
 	} {

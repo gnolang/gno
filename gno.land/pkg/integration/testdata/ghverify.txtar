@@ -35,5 +35,5 @@ stdout "deelawn"
 gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GetAddressByHandle -args 'deelawn' -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
 stdout "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func Render -args '' -gas-fee 1000000ugnot -gas-wanted 800000 -broadcast -chainid=tendermint_test test1
-stdout '\("\{\\"deelawn\\": \\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\"\}" string\)'
+gnokey query vm/qrender --data 'gno.land/r/gnoland/ghverify:'
+stdout '{"deelawn": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}'

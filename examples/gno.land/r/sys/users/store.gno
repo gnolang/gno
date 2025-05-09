@@ -57,7 +57,7 @@ func RegisterUser(name string, address std.Address) error {
 
 	// Validate caller
 	if !controllers.Has(std.PreviousRealm().Address()) {
-		return ErrNotWhitelisted
+		return NewErrNotWhitelisted()
 	}
 
 	// Validate name
@@ -113,8 +113,9 @@ func (u *UserData) UpdateName(newName string) error {
 	}
 
 	// Validate caller
-	if !controllers.Has(std.PreviousRealm().Address()) {
-		return ErrNotWhitelisted
+	if !controllers.Has(std.CurrentRealm().Address()) {
+		panic(NewErrNotWhitelisted())
+		return NewErrNotWhitelisted()
 	}
 
 	// Validate name
@@ -144,8 +145,8 @@ func (u *UserData) Delete() error {
 	}
 
 	// Validate caller
-	if !controllers.Has(std.PreviousRealm().Address()) {
-		return ErrNotWhitelisted
+	if !controllers.Has(std.CurrentRealm().Address()) {
+		return NewErrNotWhitelisted()
 	}
 
 	u.deleted = true

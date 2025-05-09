@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
@@ -60,11 +60,12 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg *gnovm.MemPackage)
-	GetMemPackage(path string) *gnovm.MemPackage
-	GetMemFile(path string, name string) *gnovm.MemFile
-	IterMemPackage() <-chan *gnovm.MemPackage
-	ClearObjectCache()                                    // run before processing a message
+	AddMemPackage(memPkg *std.MemPackage)
+	GetMemPackage(path string) *std.MemPackage
+	GetMemFile(path string, name string) *std.MemFile
+	IterMemPackage() <-chan *std.MemPackage
+	ClearObjectCache() // run before processing a message
+	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(dst io.Writer)
@@ -444,10 +445,10 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
-		ds.alloc.AllocateAmino(int64(len(bz)))
 		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
+		ds.alloc.Allocate(oo.GetShallowSize())
 		if debug {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
@@ -784,7 +785,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
+func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -811,11 +812,11 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 
 // GetMemPackage retrieves the MemPackage at the given path.
 // It returns nil if the package could not be found.
-func (ds *defaultStore) GetMemPackage(path string) *gnovm.MemPackage {
+func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 	return ds.getMemPackage(path, false)
 }
 
-func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPackage {
+func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -847,7 +848,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
-	var memPkg *gnovm.MemPackage
+	var memPkg *std.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
 	size = len(bz)
 	return memPkg
@@ -856,7 +857,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
 // do not exist.
-func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
+func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	memPkg := ds.GetMemPackage(path)
 	if memPkg == nil {
 		return nil
@@ -865,7 +866,7 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 	return memFile
 }
 
-func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
+func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -875,7 +876,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *gnovm.MemPackage, 0)
+		ch := make(chan *std.MemPackage, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -908,6 +909,18 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	ds.opslog = nil                             // new ops log.
 	ds.SetCachePackage(Uverse())
+}
+
+func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
+	for objId, obj := range ds.cacheObjects {
+		// Skip .uverse packages.
+		if pv, ok := obj.(*PackageValue); ok && pv.PkgPath == ".uverse" {
+			continue
+		}
+		if obj.GetLastGCCycle() < gcCycle {
+			delete(ds.cacheObjects, objId)
+		}
+	}
 }
 
 func (ds *defaultStore) SetNativeResolver(ns NativeResolver) {

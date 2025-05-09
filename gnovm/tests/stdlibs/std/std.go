@@ -87,6 +87,16 @@ func X_callerAt(m *gno.Machine, n int) string {
 }
 */
 
+func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
+	fr := &m.Frames[i]
+	ctx := m.Context.(*TestExecContext)
+	override, overridden := ctx.RealmFrames[i]
+	if overridden && !fr.TestOverridden {
+		return RealmOverride{}, false // override was replaced
+	}
+	return override, overridden
+}
+
 func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
@@ -100,10 +110,11 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		fr := &m.Frames[i]
 
 		// Skip over (non-realm) non-crosses.
-		// Override implies cross.
-		override, overridden := ctx.RealmFrames[i]
-		if overridden && !fr.TestOverridden {
-			overridden = false // overridden frame was replaced.
+		override, overridden := getOverride(m, i)
+		if overridden {
+			if override.PkgPath == "" && crosses < height {
+				m.Panic(typedString("frame not found: cannot seek beyond origin caller override"))
+			}
 		}
 		if !overridden {
 			if !fr.IsCall() {
@@ -117,7 +128,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 		// Sanity check XXX move check elsewhere
 		if !overridden {
-			if !fr.DidCross {
+			if !fr.DidCrossing {
 				panic(fmt.Sprintf(
 					"cross(fn) but fn didn't call crossing(): %s.%s",
 					fr.Func.PkgPath,
@@ -155,6 +166,17 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	case gno.StageRun:
 		switch height {
 		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			if path == "" {
+				// Not sure what would cause this.
+				panic("should not happen")
+			} else {
+				// e.g. TestFoo(t *testing.Test) in *_test.gno
+				// or main() in *_filetest.gno
+				return string(gno.DerivePkgBech32Addr(path)), path
+			}
+		case crosses + 1:
 			return string(ctx.OriginCaller), ""
 		default:
 			m.Panic(typedString("frame not found"))
@@ -199,7 +221,7 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 	tb.CoinTable[from] = frest
 	// Second, add to 'to'.
 	// NOTE: even works when from==to, due to 2-step isolation.
-	tcoins, _ := tb.CoinTable[to]
+	tcoins := tb.CoinTable[to]
 	tsum := tcoins.Add(amt)
 	tb.CoinTable[to] = tsum
 }
@@ -211,14 +233,14 @@ func (tb *TestBanker) TotalCoin(denom string) int64 {
 
 // IssueCoin implements the Banker interface.
 func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.CoinTable[addr]
+	coins := tb.CoinTable[addr]
 	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = sum
 }
 
 // RemoveCoin implements the Banker interface.
 func (tb *TestBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.CoinTable[addr]
+	coins := tb.CoinTable[addr]
 	rest := coins.Sub(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = rest
 }
