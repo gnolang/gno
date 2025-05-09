@@ -36,7 +36,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -130,7 +130,7 @@ func TestVMKeeperOriginSend1(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -177,7 +177,7 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -234,7 +234,7 @@ func TestVMKeeperOriginSend3(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -280,7 +280,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -326,7 +326,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -373,7 +373,7 @@ func TestVMKeeperParams(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package params
 
@@ -428,7 +428,7 @@ func TestVMKeeperOriginCallerInit(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
@@ -483,7 +483,7 @@ func TestVMKeeperRunSimple(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "script.gno", Body: `
 package main
 
@@ -524,7 +524,7 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "script.gno", Body: `
 package main
 
@@ -559,7 +559,7 @@ func TestNumberOfArgsError(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -600,7 +600,7 @@ func TestVMKeeperReinitialize(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: "init.gno", Body: `
 package test
 
