@@ -52,7 +52,7 @@ func TestNewAppWithOptions(t *testing.T) {
 	appState.Txs = []TxWithMetadata{
 		{
 			Tx: std.Tx{
-				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
+				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
 					{
 						Name: "demo.gno",
 						Body: "package demo; func Hello() string { crossing(); return `hello`; }",
@@ -383,10 +383,10 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			// Prepare the deploy transaction
 			msg := vm.MsgAddPackage{
 				Creator: key.PubKey().Address(),
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name: "metadatatx",
 					Path: path,
-					Files: []*gnovm.MemFile{
+					Files: []*std.MemFile{
 						{
 							Name: "file.gno",
 							Body: body,

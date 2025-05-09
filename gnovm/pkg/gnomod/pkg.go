@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type Pkg struct {
@@ -118,7 +118,7 @@ func ListPkgs(root string) (PkgList, error) {
 		pkg, err := gnolang.ReadMemPackage(path, gnoMod.Module.Mod.Path)
 		if err != nil {
 			// ignore package files on error
-			pkg = &gnovm.MemPackage{}
+			pkg = &std.MemPackage{}
 		}
 
 		importsMap, err := packages.Imports(pkg, nil)

@@ -10,7 +10,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -156,10 +156,10 @@ func Inc(v int) {  // method to increment value
 func Render(_ string) string { return strconv.Itoa(value) }
 `
 
-	counterPkg := gnovm.MemPackage{
+	counterPkg := std.MemPackage{
 		Name: "counter",
 		Path: "gno.land/r/dev/counter",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "file.gno", Body: counterFile},
 		},
 	}

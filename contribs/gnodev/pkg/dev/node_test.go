@@ -13,13 +13,13 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,10 +48,10 @@ func TestNewNode_WithLoader(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pkg := gnovm.MemPackage{
+	pkg := std.MemPackage{
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foobar.gno",
 				Body: `package foobar
@@ -81,10 +81,10 @@ func Render(_ string) string { return "foo" }
 
 func TestNodeAddPackage(t *testing.T) {
 	// Setup a Node instance
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo
@@ -94,10 +94,10 @@ func Render(_ string) string { return "foo" }
 		},
 	}
 
-	barPkg := gnovm.MemPackage{
+	barPkg := std.MemPackage{
 		Name: "bar",
 		Path: "gno.land/r/dev/bar",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "bar.gno",
 				Body: `package bar
@@ -137,12 +137,12 @@ func Render(_ string) string { return "bar" }
 }
 
 func TestNodeUpdatePackage(t *testing.T) {
-	foorbarPkg := gnovm.MemPackage{
+	foorbarPkg := std.MemPackage{
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
 	}
 
-	fooFiles := []*gnovm.MemFile{
+	fooFiles := []*std.MemFile{
 		{
 			Name: "foo.gno",
 			Body: `package foobar
@@ -151,7 +151,7 @@ func Render(_ string) string { return "foo" }
 		},
 	}
 
-	barFiles := []*gnovm.MemFile{
+	barFiles := []*std.MemFile{
 		{
 			Name: "bar.gno",
 			Body: `package foobar
@@ -189,10 +189,10 @@ func Render(_ string) string { return "bar" }
 }
 
 func TestNodeReset(t *testing.T) {
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo
@@ -249,10 +249,10 @@ func Render(_ string) string { return str }
 }
 
 func TestTxGasFailure(t *testing.T) {
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo
@@ -363,10 +363,10 @@ func Render(_ string) string {
 	return strs.String()
 }
 `
-	fooPkg := gnovm.MemPackage{
+	fooPkg := std.MemPackage{
 		Name: "foo",
 		Path: "gno.land/r/dev/foo",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: fooFile,
@@ -570,7 +570,7 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 	return cli.Call(bcfg, vmMsgs...)
 }
 
-func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
+func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
 
@@ -583,7 +583,7 @@ func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
 	return cfg
 }
 
-func newTestingDevNode(t *testing.T, pkgs ...*gnovm.MemPackage) (*Node, *mock.ServerEmitter) {
+func newTestingDevNode(t *testing.T, pkgs ...*std.MemPackage) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
 	cfg := newTestingNodeConfig(pkgs...)

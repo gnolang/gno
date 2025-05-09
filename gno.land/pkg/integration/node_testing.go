@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -192,7 +191,7 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	return tmconfig
 }
 
-func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackage) gnoland.GnoGenesisState {
+func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...std.MemPackage) gnoland.GnoGenesisState {
 	txs := make([]gnoland.TxWithMetadata, len(pkgs))
 	for i, pkg := range pkgs {
 		// Create transaction

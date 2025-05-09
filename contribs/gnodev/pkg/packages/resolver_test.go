@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,10 +21,10 @@ import (
 func TestLogMiddleware(t *testing.T) {
 	t.Parallel()
 
-	mockResolver := NewMockResolver(&gnovm.MemPackage{
+	mockResolver := NewMockResolver(&std.MemPackage{
 		Path: "abc.xy/test/pkg",
 		Name: "pkg",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "file.gno", Body: "package pkg"},
 		},
 	})
@@ -64,7 +64,7 @@ func TestLogMiddleware(t *testing.T) {
 func TestCacheMiddleware(t *testing.T) {
 	t.Parallel()
 
-	pkg := &gnovm.MemPackage{Path: "abc.xy/cached/pkg", Name: "pkg"}
+	pkg := &std.MemPackage{Path: "abc.xy/cached/pkg", Name: "pkg"}
 	t.Run("caches resolved packages", func(t *testing.T) {
 		t.Parallel()
 
@@ -104,10 +104,10 @@ func TestFilterStdlibsMiddleware(t *testing.T) {
 	t.Parallel()
 
 	middleware := FilterStdlibs
-	mockResolver := NewMockResolver(&gnovm.MemPackage{
+	mockResolver := NewMockResolver(&std.MemPackage{
 		Path: "abc.xy/pkg",
 		Name: "pkg",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "file.gno", Body: "package pkg"},
 		},
 	})
@@ -139,10 +139,10 @@ func TestPackageCheckerMiddleware(t *testing.T) {
 	t.Run("valid package syntax", func(t *testing.T) {
 		t.Parallel()
 
-		validPkg := &gnovm.MemPackage{
+		validPkg := &std.MemPackage{
 			Path: "abc.xy/r/valid/pkg",
 			Name: "valid",
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: "valid.gno", Body: "package valid; func Foo() {}"},
 			},
 		}
@@ -158,10 +158,10 @@ func TestPackageCheckerMiddleware(t *testing.T) {
 	t.Run("invalid package syntax", func(t *testing.T) {
 		t.Parallel()
 
-		invalidPkg := &gnovm.MemPackage{
+		invalidPkg := &std.MemPackage{
 			Path: "abc.xy/r/invalid/pkg",
 			Name: "invalid",
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: "invalid.gno", Body: "package invalid\nfunc Foo() {"},
 			},
 		}
@@ -177,10 +177,10 @@ func TestPackageCheckerMiddleware(t *testing.T) {
 	t.Run("ignores non-gno files", func(t *testing.T) {
 		t.Parallel()
 
-		nonGnoPkg := &gnovm.MemPackage{
+		nonGnoPkg := &std.MemPackage{
 			Path: "abc.xy/r/non/gno/pkg",
 			Name: "pkg",
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: "README.md", Body: "# Documentation"},
 			},
 		}
@@ -221,10 +221,10 @@ func TestResolverLocal_Resolve(t *testing.T) {
 func TestResolver_ResolveRemote(t *testing.T) {
 	const targetPath = "gno.land/r/target/path"
 
-	mempkg := gnovm.MemPackage{
+	mempkg := std.MemPackage{
 		Name: "foo",
 		Path: targetPath,
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo; func Render(_ string) string { return "bar" }`,

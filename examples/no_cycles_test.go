@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
 
@@ -181,12 +181,12 @@ func listPkgs(rootMod gnomod.Pkg) ([]testPkg, error) {
 }
 
 // readPkg reads the sources of a package. It includes all .gno files but ignores the package name
-func readPkg(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+func readPkg(dir string, pkgPath string) (*std.MemPackage, error) {
 	list, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
-	memPkg := &gnovm.MemPackage{Path: pkgPath}
+	memPkg := &std.MemPackage{Path: pkgPath}
 	for _, entry := range list {
 		fpath := filepath.Join(dir, entry.Name())
 		if !strings.HasSuffix(fpath, ".gno") {
@@ -198,7 +198,7 @@ func readPkg(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 			return nil, err
 		}
 		memPkg.Files = append(memPkg.Files,
-			&gnovm.MemFile{
+			&std.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})

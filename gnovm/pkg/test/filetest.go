@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -233,10 +232,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
-	if err := LoadImports(opts.TestStore, &gnovm.MemPackage{
+	if err := LoadImports(opts.TestStore, &std.MemPackage{
 		Name: string(pkgName),
 		Path: pkgPath,
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: filename, Body: string(content)},
 		},
 	}); err != nil {
@@ -275,10 +274,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) {
 		// Type check.
-		memPkg := &gnovm.MemPackage{
+		memPkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: filename,
 					Body: string(content),
@@ -310,10 +309,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		filename = strings.ReplaceAll(filename, "_filetest", "")
 
 		// save package using realm crawl procedure.
-		memPkg := &gnovm.MemPackage{
+		memPkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: filename,
 					Body: string(content),

@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -88,7 +87,7 @@ func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test

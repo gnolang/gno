@@ -12,7 +12,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -26,10 +25,10 @@ import (
 func TestProxy(t *testing.T) {
 	const targetPath = "gno.land/r/target/foo"
 
-	pkg := gnovm.MemPackage{
+	pkg := std.MemPackage{
 		Name: "foo",
 		Path: targetPath,
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
 				Body: `package foo
@@ -156,7 +155,7 @@ func Incr() {
 
 	t.Run("add_pkg", func(t *testing.T) {
 		const barPath = "gno.land/r/target/bar"
-		files := []*gnovm.MemFile{
+		files := []*std.MemFile{
 			{
 				Name: "bar.gno",
 				Body: `package bar

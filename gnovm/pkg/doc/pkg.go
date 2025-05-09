@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type pkgData struct {
@@ -45,7 +45,7 @@ func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
 	return newPkgDataFromMemPkg(memPkg, unexported)
 }
 
-func newPkgDataFromMemPkg(memPkg *gnovm.MemPackage, unexported bool) (*pkgData, error) {
+func newPkgDataFromMemPkg(memPkg *std.MemPackage, unexported bool) (*pkgData, error) {
 	pkg := &pkgData{
 		dir: bfsDir{
 			importPath: memPkg.Name,
