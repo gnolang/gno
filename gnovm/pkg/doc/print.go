@@ -170,6 +170,29 @@ func (pkg *pkgPrinter) oneLineNodeDepth(node any, depth int) string {
 		}
 		return ""
 
+	case *JSONType:
+		sep := " "
+		if n.Alias {
+			sep = " = "
+		}
+
+		typ := n.Type
+		if n.Kind == structKind {
+			if len(n.Fields) == 0 {
+				typ = "struct{}"
+			} else {
+				typ = "struct{ ... }"
+			}
+		} else if n.Kind == interfaceKind {
+			if len(n.Methods) == 0 {
+				typ = "interface{}"
+			} else {
+				typ = "interface{ ... }"
+			}
+		}
+
+		return fmt.Sprintf("type %s%s%s", n.Name, sep, typ)
+
 	default:
 		return ""
 	}
@@ -363,8 +386,7 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 // typeSummary prints a one-line summary for each type, followed by its constructors.
 func (pkg *pkgPrinter) typeSummary() {
 	for _, typ := range pkg.doc.Types {
-		// pkg.Printf("%s\n", pkg.oneLineNode(typ))
-		pkg.Printf("type %s struct{ ... }\n", typ.Name)
+		pkg.Printf("%s\n", pkg.oneLineNode(typ))
 		// Now print the consts, vars, and constructors.
 		for _, value := range pkg.doc.Values {
 			for _, v := range value.Values {
@@ -483,46 +505,6 @@ func (pkg *pkgPrinter) valueDoc(value *JSONValueDecl, printed map[*JSONValueDecl
 	if printed[value] {
 		return
 	}
-	/*
-		// Print each spec only if there is at least one exported symbol in it.
-		// (See issue 11008.)
-		// TODO: Should we elide unexported symbols from a single spec?
-		// It's an unlikely scenario, probably not worth the trouble.
-		// TODO: Would be nice if go/doc did this for us.
-		specs := make([]ast.Spec, 0, len(value.Decl.Specs))
-		var typ ast.Expr
-		for _, spec := range value.Decl.Specs {
-			vspec := spec.(*ast.ValueSpec)
-
-			// The type name may carry over from a previous specification in the
-			// case of constants and iota.
-			if vspec.Type != nil {
-				typ = vspec.Type
-			}
-
-			for _, ident := range vspec.Names {
-				if pkg.opt.Source || pkg.isExported(ident.Name) {
-					if vspec.Type == nil && vspec.Values == nil && typ != nil {
-						// This a standalone identifier, as in the case of iota usage.
-						// Thus, assume the type comes from the previous type.
-						vspec.Type = &ast.Ident{
-							Name:    pkg.oneLineNode(typ),
-							NamePos: vspec.End() - 1,
-						}
-					}
-
-					specs = append(specs, vspec)
-					typ = nil // Only inject type on first exported identifier
-					break
-				}
-			}
-		}
-		if len(specs) == 0 {
-			return
-		}
-		value.Decl.Specs = specs
-		pkg.emit(value.Doc, value.Signature)
-	*/
 	pkg.emit(value.Doc, value.Signature)
 	printed[value] = true
 }
@@ -717,42 +699,6 @@ func (pkg *pkgPrinter) printMethodDoc(symbol, method string) bool {
 		if symbol == "" {
 			continue
 		}
-		/*
-			// Type may be an interface. The go/doc package does not attach
-			// an interface's methods to the doc.Type. We need to dig around.
-			spec := pkg.findTypeSpec(typ.Decl, typ.Name)
-			inter, ok := spec.Type.(*ast.InterfaceType)
-			if !ok {
-				// Not an interface type.
-				continue
-			}
-
-			// Collect and print only the methods that match.
-			var methods []*ast.Field
-			for _, iMethod := range inter.Methods.List {
-				// This is an interface, so there can be only one name.
-				// TODO: Anonymous methods (embedding)
-				if len(iMethod.Names) == 0 {
-					continue
-				}
-				name := iMethod.Names[0].Name
-				if pkg.match(method, name) {
-					methods = append(methods, iMethod)
-					found = true
-				}
-			}
-			if found {
-				pkg.Printf("type %s ", spec.Name)
-				inter.Methods.List, methods = methods, inter.Methods.List
-				err := format.Node(&pkg.buf, pkg.fs, inter)
-				if err != nil {
-					pkg.Fatalf("%v", err)
-				}
-				pkg.newlines(1)
-				// Restore the original methods.
-				inter.Methods.List = methods
-			}
-		*/
 	}
 	return found
 }
