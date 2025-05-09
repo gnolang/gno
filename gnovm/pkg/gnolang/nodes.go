@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -13,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -971,6 +972,10 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	return
 }
 
+func (x *bodyStmt) LastStmt() Stmt {
+	return x.Body[x.NextBodyIndex-1]
+}
+
 func (x *bodyStmt) String() string {
 	next := ""
 	if x.NextBodyIndex < 0 {
@@ -1196,7 +1201,7 @@ func MustPackageNameFromFileBody(name, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -1239,7 +1244,7 @@ func endsWithAny(str string, suffixes []string) bool {
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
-func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	pkg, err := ReadMemPackage(dir, pkgPath)
 	if err != nil {
 		panic(err)
@@ -1247,14 +1252,14 @@ func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 	return pkg
 }
 
-// ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
+// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
 // containing the contents of all the files provided in the list slice.
 // No parsing or validation is done on the filenames.
 //
 // NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, error) {
-	memPkg := &gnovm.MemPackage{Path: pkgPath}
+func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
+	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
@@ -1264,7 +1269,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName, err = PackageNameFromFileBody(fname, string(bz))
+			pkgName, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
 			if err != nil {
 				return nil, err
 			}
@@ -1273,7 +1278,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 			}
 		}
 		memPkg.Files = append(memPkg.Files,
-			&gnovm.MemFile{
+			&std.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})
@@ -1292,7 +1297,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
-func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
+func MustReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 	pkg, err := ReadMemPackageFromList(list, pkgPath)
 	if err != nil {
 		panic(err)
@@ -1305,7 +1310,7 @@ func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage
 //
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	var errs error
 	for _, mfile := range memPkg.Files {
@@ -1440,7 +1445,7 @@ func (x *PackageNode) NewPackage() *PackageValue {
 		FBlocks:    nil,
 		fBlocksMap: make(map[Name]*Block),
 	}
-	if IsRealmPath(x.PkgPath) {
+	if IsRealmPath(x.PkgPath) || x.PkgPath == "main" {
 		rlm := NewRealm(x.PkgPath)
 		pv.SetRealm(rlm)
 	}
@@ -1456,11 +1461,6 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
-	if pv.PkgPath == "" {
-		// nothing to prepare for throwaway packages.
-		// TODO: double check to see if still relevant.
-		return nil
-	}
 	// should already exist.
 	block := pv.Block.(*Block)
 	if block.Source != x {
@@ -1748,6 +1748,7 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
+// Slow, for precompile only.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if n == blankIdentifier {
 		return NewValuePathBlock(0, 0, blankIdentifier)
@@ -1768,26 +1769,26 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Check ancestors.
 	gen++
-	faux := 0
-	sn = sn.GetParentNode(store)
-	if fauxBlockNode(sn) {
-		faux++
+	fauxChild := 0
+	if fauxChildBlockNode(sn) {
+		fauxChild++
 	}
+	sn = sn.GetParentNode(store)
 	for sn != nil {
 		if idx, ok := sn.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen-faux), idx, n)
+			if 0xff < (gen - fauxChild) {
+				panic("value path depth overflow")
+			}
+			return NewValuePathBlock(uint8(gen-fauxChild), idx, n)
 		} else {
 			if !isFile(sn) {
 				sn.GetStaticBlock().addExternName(n)
 			}
 			gen++
+			if fauxChildBlockNode(sn) {
+				fauxChild++
+			}
 			sn = sn.GetParentNode(store)
-			if fauxBlockNode(sn) {
-				faux++
-			}
-			if 0xff < gen {
-				panic("value path depth overflow")
-			}
 		}
 	}
 	// Finally, check uverse.
@@ -1799,6 +1800,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 }
 
 // Get the containing block node for node with path relative to this containing block.
+// Slow, for precompile only.
 func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
 	if path.Type != VPBlock {
 		panic("expected block type value path but got " + path.Type.String())
@@ -1807,13 +1809,13 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 	// NOTE: path.Depth == 1 means it's in bn.
 	bn := sb.GetSource(store)
 	for i := 1; i < int(path.Depth); i++ {
-		bn = bn.GetParentNode(store)
-		if fauxBlockNode(bn) {
+		if fauxChildBlockNode(bn) {
 			bn = bn.GetParentNode(store)
 		}
+		bn = bn.GetParentNode(store)
 	}
 
-	// If bn is a faux block node, check also its parent.
+	// If bn is a faux child block node, check also its faux parent.
 	switch bn := bn.(type) {
 	case *IfCaseStmt, *SwitchClauseStmt:
 		pn := bn.GetParentNode(store)

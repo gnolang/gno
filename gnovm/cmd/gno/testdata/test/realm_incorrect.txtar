@@ -3,7 +3,7 @@
 ! gno test -v .
 
 ! stdout .+ # stdout should be empty
-stderr '=== RUN   file/x_filetest.gno'
+stderr '=== RUN   ./x_filetest.gno'
 stderr 'Realm diff:'
 stderr '--- Expected'
 stderr '-xxxx'
