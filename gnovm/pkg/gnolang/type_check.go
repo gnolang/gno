@@ -2,7 +2,9 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"reflect"
+	"strconv"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -1141,4 +1143,193 @@ func isBlankIdentifier(x Expr) bool {
 		return nx.Name == blankIdentifier
 	}
 	return false
+}
+
+// Check for invalid arguments in builtin functions
+// len, cap, make
+func validateMakeArg(store Store, last BlockNode, currExpr Expr) {
+	switch currExpr := currExpr.(type) {
+	case *CallExpr:
+		ift := evalStaticTypeOf(store, last, currExpr.Func)
+		switch baseOf(ift).(type) {
+		case *FuncType:
+			assertValidMakeArg(store, last, currExpr)
+		}
+	}
+}
+
+// Validate argument for len() function
+func validateLenArg(at Type) {
+	if at == nil {
+		panic("invalid argument: nil for built-in len")
+	}
+
+	if pt, ok := at.(*PointerType); ok {
+		if pt.Elt == IntType {
+			panic(fmt.Sprintf("unexpected type for len(): %v", pt))
+		}
+	}
+
+	switch at := unwrapPointerType(baseOf(at)).(type) {
+	case PrimitiveType:
+		if at.Kind() != StringKind {
+			panic(fmt.Sprintf("unexpected type for len(): %v", baseOf(at).String()))
+		}
+	case *ArrayType, *SliceType, *MapType, *ChanType:
+	// Valid types for len()
+	default:
+		panic(fmt.Sprintf("unexpected type for len(): %v", baseOf(at).String()))
+	}
+}
+
+// Validate argument for cap() function
+func validateCapArg(at Type) {
+	if at == nil {
+		panic("invalid argument: nil for built-in cap")
+	}
+
+	switch unwrapPointerType(baseOf(at)).(type) {
+	case *ArrayType, *SliceType, *ChanType:
+		// Valid types for cap()
+	default:
+		panic(fmt.Sprintf("unexpected type for cap(): %v", at.String()))
+	}
+}
+
+// Validate arguments for make() function
+func assertValidMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
+	if len(currExpr.Args) < 1 || len(currExpr.Args) > 3 {
+		panic(fmt.Sprintf("invalid number of arguments for built-in make: expected 1 to 3, got %d", len(currExpr.Args)))
+	}
+
+	// Validate first argument: must be a slice, map, or channel type
+	at := evalStaticType(store, last, currExpr.Args[0])
+	validateMakeType(baseOf(at))
+
+	var length int
+	var capacity int
+
+	// Validate length argument (second argument for make)
+	if len(currExpr.Args) > 1 {
+		at1 := evalStaticTypeOf(store, last, currExpr.Args[1])
+		if at1 == nil {
+			panic("invalid argument 2: nil for built-in make")
+		}
+		if at1 == Float64Type {
+			panic(fmt.Sprintf("invalid argument: index length (variable of type float64) must be integer"))
+		}
+
+		if ce, ok := currExpr.Args[1].(*ConstExpr); ok {
+			if ble, ok := ce.Source.(*BasicLitExpr); ok {
+				switch ble.Kind {
+				case FLOAT:
+					f, err := strconv.ParseFloat(ble.Value, 64)
+					if err != nil {
+						panic(fmt.Sprintf("invalid length argument for built-in make: cannot convert %s to float", ble.Value))
+					}
+					intPart := math.Trunc(f)
+					if f != intPart {
+						panic(fmt.Sprintf("invalid length argument for built-in make: %g (untyped float constant) truncated to int", f))
+					}
+					if f > float64(math.MaxInt) || f < float64(math.MinInt) {
+						panic(fmt.Sprintf("invalid length argument for built-in make: value out of range for int type"))
+					}
+					length = int(f)
+				case INT:
+					l, err := strconv.ParseInt(ble.Value, 0, 64)
+					if err != nil {
+						panic(fmt.Sprintf("invalid length argument for built-in make: cannot convert %s to int", ble.Value))
+					}
+					if l > math.MaxInt || l < math.MinInt {
+						panic(fmt.Sprintf("invalid length argument for built-in make: value out of range for int type"))
+					}
+					length = int(l)
+				default:
+					panic(fmt.Sprintf("invalid length argument for built-in make: cannot convert %s to int", ble.Value))
+				}
+			}
+		}
+		if length < 0 {
+			panic("invalid argument: negative length")
+		}
+	}
+
+	// Validate capacity argument (third argument for make)
+	if len(currExpr.Args) > 2 {
+		at2 := evalStaticTypeOf(store, last, currExpr.Args[2])
+		if at2 == nil {
+			panic("invalid argument 3: nil for built-in make")
+		}
+
+		if at2 == Float64Type {
+			panic(fmt.Sprintf("invalid argument: index length (variable of type float64) must be integer"))
+		}
+
+		if ne, ok := currExpr.Args[2].(*NameExpr); ok {
+			if at2 != IntType {
+				panic(fmt.Sprintf("invalid argument: index length (variable of type %s) must be integer", ne.Name))
+			}
+		}
+
+		if ce, ok := currExpr.Args[2].(*ConstExpr); ok {
+			if ble, ok := ce.Source.(*BasicLitExpr); ok {
+				switch ble.Kind {
+				case FLOAT:
+					f, err := strconv.ParseFloat(ble.Value, 64)
+					if err != nil {
+						panic(err.Error())
+					}
+					intPart := math.Trunc(f)
+					if f != intPart {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: %g (untyped float constant) truncated to int", f))
+					}
+					if f > float64(math.MaxInt) || f < float64(math.MinInt) {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: value out of range for int type"))
+					}
+					capacity = int(f)
+				case INT:
+					c, err := strconv.ParseInt(ble.Value, 0, 64)
+					if err != nil {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot convert %s to int", ble.Value))
+					}
+					if c > math.MaxInt || c < math.MinInt {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: value out of range for int type"))
+					}
+					capacity = int(c)
+					if capacity < 0 {
+						panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot be negative, got %d", capacity))
+					}
+
+					if capacity < length {
+						panic(fmt.Sprintf("invalid argument: length and capacity swapped"))
+					}
+				default:
+					panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot convert %s to int", ble.Value))
+				}
+			}
+		}
+	}
+}
+
+// Ensures that the first argument to make() is a valid type
+func validateMakeType(tp Type) {
+	switch tp.(type) {
+	case *SliceType, *MapType, *ChanType:
+		// Valid types for make()
+	default:
+		panic(fmt.Sprintf("invalid type for built-in make: %s (must be slice, map, or channel)", tp.String()))
+	}
+}
+
+func getCallFuncName(n *CallExpr) string {
+	ce, ok := n.Func.(*ConstExpr)
+	if !ok {
+		return ""
+	}
+
+	ne, ok := ce.Source.(*NameExpr)
+	if !ok {
+		return ""
+	}
+	return string(ne.Name)
 }

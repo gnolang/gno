@@ -8,3 +8,4 @@ func main() {
 
 // Output:
 // 1
+
