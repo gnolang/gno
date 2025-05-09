@@ -19,6 +19,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	r := GetFromMap()
 	println(r == 5)
 }

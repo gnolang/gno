@@ -44,7 +44,7 @@ func (tok *Token) RealmTeller() Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 
 	return &fnTeller{
 		accountFn: func() std.Address {
@@ -61,7 +61,7 @@ func (tok *Token) RealmSubTeller(slug string) Teller {
 		panic("Token cannot be nil")
 	}
 
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	account := accountSlugAddr(caller, slug)
 
 	return &fnTeller{
@@ -101,7 +101,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr std.Address) Teller {
 // generic tellers methods.
 //
 
-func (ft *fnTeller) Transfer(to std.Address, amount uint64) error {
+func (ft *fnTeller) Transfer(to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -109,7 +109,7 @@ func (ft *fnTeller) Transfer(to std.Address, amount uint64) error {
 	return ft.Token.ledger.Transfer(caller, to, amount)
 }
 
-func (ft *fnTeller) Approve(spender std.Address, amount uint64) error {
+func (ft *fnTeller) Approve(spender std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
@@ -117,7 +117,7 @@ func (ft *fnTeller) Approve(spender std.Address, amount uint64) error {
 	return ft.Token.ledger.Approve(caller, spender, amount)
 }
 
-func (ft *fnTeller) TransferFrom(owner, to std.Address, amount uint64) error {
+func (ft *fnTeller) TransferFrom(owner, to std.Address, amount int64) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
