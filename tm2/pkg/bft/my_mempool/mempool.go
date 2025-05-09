@@ -1,8 +1,8 @@
 package my_mempool
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -10,261 +10,218 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
-// Transaction represents a basic transaction structure with sender information,
-// nonce for ordering, and gas fee for prioritization.
-type Transaction struct {
-	Sender string // Account address that initiated the transaction
-	Nonce  uint64 // Sequential number to prevent replay attacks and ensure ordering
-	GasFee uint64 // Fee paid for transaction execution, used for prioritization
+// Tx defines the interface for transactions that can be stored in the mempool.
+// Each transaction must provide methods to access its key properties.
+type Tx interface {
+	Hash() []byte           // Unique identifier of the transaction
+	Sender() crypto.Address // Address of the transaction sender
+	Sequence() uint64       // Nonce/sequence number for ordering transactions from the same sender
+	Price() uint64          // Gas price offered by the transaction
+	Size() uint64           // Size of the transaction in bytes
 }
 
-// Mempool manages pending transactions before they are included in a block.
-// It implements a nonce-based ordering system with gas fee prioritization.
+// Mempool manages pending transactions organized by sender accounts.
+// It ensures transactions are executed in the correct sequence order.
 type Mempool struct {
-	txsBySender    map[string][]Transaction // Future transactions with nonces > expectedNonce
-	pendingTxs     map[string]Transaction   // Transactions ready for immediate processing
-	expectedNonces map[string]uint64        // Next valid nonce for each sender account
-	proxyAppConn   appconn.Mempool          // Interface to query application state
-	mutex          sync.RWMutex             // Protects concurrent access to mempool state
+	accounts     sync.Map        // map[crypto.Address]*account - Thread-safe map of sender accounts
+	proxyAppConn appconn.Mempool // Connection to the underlying application
+}
+
+// account tracks the state of a single sender's transactions in the mempool.
+type account struct {
+	pending []Tx         // Transactions ready for immediate execution (contiguous nonces)
+	queued  []Tx         // Future transactions waiting for their nonce to become current
+	nonce   uint64       // Next expected nonce for this account
+	mux     sync.RWMutex // Protects concurrent access to account data
 }
 
 // NewMempool creates a new mempool instance with the provided application connection.
 func NewMempool(proxyAppConn appconn.Mempool) *Mempool {
 	return &Mempool{
-		txsBySender:    make(map[string][]Transaction),
-		pendingTxs:     make(map[string]Transaction),
-		expectedNonces: make(map[string]uint64),
-		proxyAppConn:   proxyAppConn,
+		proxyAppConn: proxyAppConn,
 	}
 }
 
-// AddTx validates and adds a transaction to the mempool.
-// Returns an error if the transaction is invalid or has a nonce that is too low.
-func (mp *Mempool) AddTx(tx Transaction) error {
-	if tx.Sender == "" {
-		return errors.New("sender cannot be empty")
-	}
+// AddTx adds a new transaction to the mempool.
+// It validates the transaction's nonce and places it in either the pending
+// or queued list depending on its sequence number.
+func (mp *Mempool) AddTx(tx Tx) error {
+	//TODO: Add CheckTx
 
-	mp.mutex.Lock()
-	defer mp.mutex.Unlock()
+	sender := tx.Sender()
+	seq := tx.Sequence()
 
-	// Fetch account sequence from application state if not cached
-	if _, ok := mp.expectedNonces[tx.Sender]; !ok {
-		seq, err := mp.getAccountSequence(tx.Sender)
+	// Load or initialize account
+	accAny, exists := mp.accounts.Load(sender)
+	var acc *account
+
+	if !exists {
+		nonce, err := mp.getAccountSequence(sender.String())
 		if err != nil {
-			return fmt.Errorf("failed to get expected nonce: %w", err)
+			return fmt.Errorf("failed to get account sequence: %w", err)
 		}
-		mp.expectedNonces[tx.Sender] = seq
-	}
-
-	// Reject transactions with nonces lower than expected (already processed)
-	if tx.Nonce < mp.expectedNonces[tx.Sender] {
-		return fmt.Errorf("tx nonce too low (expected %d, got %d)", mp.expectedNonces[tx.Sender], tx.Nonce)
-	}
-
-	// If nonce matches expected nonce, add to pendingTxs for immediate processing
-	if tx.Nonce == mp.expectedNonces[tx.Sender] {
-		mp.pendingTxs[tx.Sender] = tx
-		return nil
-	}
-
-	// Store future transactions in sorted order by nonce
-	txList := mp.txsBySender[tx.Sender]
-	idx := findInsertIndex(txList, tx.Nonce)
-
-	if idx < len(txList) {
-		// Insert in the middle
-		txList = append(txList[:idx+1], txList[idx:]...)
-		txList[idx] = tx
+		acc = &account{nonce: nonce}
+		mp.accounts.Store(sender, acc)
 	} else {
-		// Append at the end
-		txList = append(txList, tx)
+		acc = accAny.(*account)
 	}
-	mp.txsBySender[tx.Sender] = txList
+
+	acc.mux.Lock()
+	defer acc.mux.Unlock()
+
+	switch {
+	case seq < acc.nonce:
+		return fmt.Errorf("tx nonce too low (expected %d, got %d)", acc.nonce, seq)
+
+	case seq == acc.nonce:
+		acc.pending = append(acc.pending, tx)
+		acc.nonce++
+		mp.promoteReadyTxs(acc)
+
+	default:
+		// Insert into queued in nonce-sorted order
+		index := sort.Search(len(acc.queued), func(i int) bool {
+			return acc.queued[i].Sequence() >= seq
+		})
+		acc.queued = append(acc.queued, nil)
+		copy(acc.queued[index+1:], acc.queued[index:])
+		acc.queued[index] = tx
+	}
+
 	return nil
 }
 
-// findInsertIndex uses binary search to find the correct insertion index
-// for a transaction with the given nonce in a sorted transaction list.
-func findInsertIndex(txList []Transaction, nonce uint64) int {
-	return sort.Search(len(txList), func(i int) bool {
-		return txList[i].Nonce >= nonce
-	})
-}
-
-// promoteReadyTx checks if there's a transaction in txsBySender with the given nonce
-// and moves it to pendingTxs if found. Returns true if a transaction was promoted.
-func (mp *Mempool) promoteReadyTx(sender string, nonce uint64) bool {
-	txList := mp.txsBySender[sender]
-	if len(txList) == 0 {
-		return false
-	}
-
-	idx := findInsertIndex(txList, nonce)
-	if idx < len(txList) && txList[idx].Nonce == nonce {
-		// Found a ready transaction, move it to pendingTxs
-		mp.pendingTxs[sender] = txList[idx]
-
-		// Remove from txsBySender
-		mp.txsBySender[sender] = append(txList[:idx], txList[idx+1:]...)
-		if len(mp.txsBySender[sender]) == 0 {
-			delete(mp.txsBySender, sender)
-		}
-		return true
-	}
-	return false
-}
-
-// selectBestReadyTx selects the transaction with the highest gas fee from all
-// pending transactions that are ready to be processed.
-// Returns nil if no transactions are ready.
-func (mp *Mempool) selectBestReadyTx() *Transaction {
-	if len(mp.pendingTxs) == 0 {
-		return nil
-	}
-
-	var bestTx *Transaction
-	var bestSender string
-
-	// Select the pending transaction with the highest gas fee
-	for sender, tx := range mp.pendingTxs {
-		if bestTx == nil || tx.GasFee > bestTx.GasFee {
-			txCopy := tx // Make a copy to avoid issues with map iteration
-			bestTx = &txCopy
-			bestSender = sender
-		}
-	}
-
-	if bestTx == nil {
-		return nil
-	}
-
-	// Remove the selected transaction from pendingTxs
-	delete(mp.pendingTxs, bestSender)
-
-	// Update the expected nonce for this sender
-	mp.expectedNonces[bestSender]++
-
-	// Check if we have another transaction from this sender with the new expected nonce
-	mp.promoteReadyTx(bestSender, mp.expectedNonces[bestSender])
-
-	return bestTx
-}
-
-// CollectTxsForBlock selects transactions for inclusion in a block based on
-// correct nonce ordering and gas fee prioritization.
-// Returns at most maxTxs transactions.
-func (mp *Mempool) CollectTxsForBlock(maxTxs uint) []Transaction {
-	mp.mutex.Lock()
-	defer mp.mutex.Unlock()
-
-	selected := make([]Transaction, 0, maxTxs)
-
-	for uint(len(selected)) < maxTxs {
-		tx := mp.selectBestReadyTx()
-		if tx == nil {
+// promoteReadyTxs checks the queued transactions and moves contiguous ones to pending.
+// This ensures that all transactions with sequential nonces become available
+// for execution as soon as their prerequisites are met.
+func (mp *Mempool) promoteReadyTxs(acc *account) {
+	for len(acc.queued) > 0 {
+		next := acc.queued[0]
+		if next.Sequence() != acc.nonce {
 			break
 		}
-		selected = append(selected, *tx)
+		acc.pending = append(acc.pending, next)
+		acc.queued = acc.queued[1:]
+		acc.nonce++
 	}
-
-	return selected
 }
 
-// Update processes committed transactions and removes them from the mempool.
-// It also updates the expected nonces for affected senders and promotes
-// any transactions that become ready as a result.
-func (mp *Mempool) Update(committed []Transaction) {
-	mp.mutex.Lock()
-	defer mp.mutex.Unlock()
+// Pending returns a map of sender address to their pending transaction list.
+// These transactions are ready for inclusion in the next block.
+func (mp *Mempool) Pending() map[crypto.Address][]Tx {
+	pendingMap := make(map[crypto.Address][]Tx)
 
-	for _, tx := range committed {
-		// Check if this transaction is in pendingTxs
-		if pendingTx, ok := mp.pendingTxs[tx.Sender]; ok && pendingTx.Nonce == tx.Nonce {
-			delete(mp.pendingTxs, tx.Sender)
+	mp.accounts.Range(func(key, value any) bool {
+		addr := key.(crypto.Address)
+		acc := value.(*account)
+
+		acc.mux.RLock()
+		if len(acc.pending) > 0 {
+			pendingMap[addr] = append([]Tx(nil), acc.pending...)
 		}
+		acc.mux.RUnlock()
+		return true
+	})
 
-		// Also remove from txsBySender if it exists there
-		txs := mp.txsBySender[tx.Sender]
-		newList := make([]Transaction, 0, len(txs))
-		for _, existing := range txs {
-			if existing.Nonce != tx.Nonce {
-				newList = append(newList, existing)
+	return pendingMap
+}
+
+// RemoveTx removes a transaction from the sender's pending or queued lists by hash.
+// Used when transactions are included in a block or become invalid.
+func (mp *Mempool) RemoveTx(sender crypto.Address, hash []byte) {
+	accAny, ok := mp.accounts.Load(sender)
+	if !ok {
+		return
+	}
+
+	acc := accAny.(*account)
+	acc.mux.Lock()
+	defer acc.mux.Unlock()
+
+	// Helper for removing a tx by hash from slice
+	removeByHash := func(txs []Tx) []Tx {
+		for i, tx := range txs {
+			if bytes.Equal(tx.Hash(), hash) {
+				return append(txs[:i], txs[i+1:]...)
 			}
 		}
-		if len(newList) == 0 {
-			delete(mp.txsBySender, tx.Sender)
-		} else {
-			mp.txsBySender[tx.Sender] = newList
-		}
+		return txs
+	}
 
-		// Update expected nonce if this transaction's nonce matches the current expected nonce
-		if tx.Nonce == mp.expectedNonces[tx.Sender] {
-			mp.expectedNonces[tx.Sender]++
-			mp.promoteReadyTx(tx.Sender, mp.expectedNonces[tx.Sender])
-		}
+	acc.pending = removeByHash(acc.pending)
+	acc.queued = removeByHash(acc.queued)
+
+	if len(acc.pending) == 0 && len(acc.queued) == 0 {
+		mp.accounts.Delete(sender)
 	}
 }
 
-// Size returns the total number of transactions in the mempool.
-func (mp *Mempool) Size() int {
-	mp.mutex.RLock()
-	defer mp.mutex.RUnlock()
+// Update removes committed transactions and promotes ready ones from queued.
+// Called after a block is committed to keep the mempool state in sync.
+func (mp *Mempool) Update(committed []Tx) {
+	for _, tx := range committed {
+		sender := tx.Sender()
+		hash := tx.Hash()
 
-	count := len(mp.pendingTxs)
-	for _, txs := range mp.txsBySender {
-		count += len(txs)
+		mp.RemoveTx(sender, hash)
 	}
-	return count
 }
 
-// GetTransactionsBySender returns all transactions from a specific sender.
-// Transactions are sorted by nonce in ascending order.
-func (mp *Mempool) GetTransactionsBySender(sender string) []Transaction {
-	mp.mutex.RLock()
-	defer mp.mutex.RUnlock()
+// Tx returns the transaction with the given hash, if present in the mempool.
+func (mp *Mempool) Tx(hash []byte) Tx {
+	var result Tx
 
-	result := []Transaction{}
+	mp.accounts.Range(func(_, value any) bool {
+		acc := value.(*account)
 
-	// Add pending transaction if exists
-	if pendingTx, ok := mp.pendingTxs[sender]; ok {
-		result = append(result, pendingTx)
-	}
+		acc.mux.RLock()
+		defer acc.mux.RUnlock()
 
-	// Add other transactions
-	result = append(result, mp.txsBySender[sender]...)
+		for _, list := range [][]Tx{acc.pending, acc.queued} {
+			for _, tx := range list {
+				if bytes.Equal(tx.Hash(), hash) {
+					result = tx
+					return false
+				}
+			}
+		}
+		return true
+	})
 
 	return result
 }
 
-// GetAllTransactions returns all transactions currently in the mempool.
-func (mp *Mempool) GetAllTransactions() []Transaction {
-	mp.mutex.RLock()
-	defer mp.mutex.RUnlock()
-
-	all := make([]Transaction, 0, len(mp.pendingTxs))
-
-	// Add all pending transactions
-	for _, tx := range mp.pendingTxs {
-		all = append(all, tx)
-	}
-
-	// Add all other transactions
-	for _, txs := range mp.txsBySender {
-		all = append(all, txs...)
-	}
-
+// Content returns all transactions in the mempool (pending + queued).
+func (mp *Mempool) Content() []Tx {
+	var all []Tx
+	mp.accounts.Range(func(_, value any) bool {
+		acc := value.(*account)
+		acc.mux.RLock()
+		all = append(all, acc.pending...)
+		all = append(all, acc.queued...)
+		acc.mux.RUnlock()
+		return true
+	})
 	return all
 }
 
-// getAccountSequence retrieves the sequence number (nonce) for an account address
-// by querying the application state through ABCI interface.
+// Flush removes all transactions from the mempool.
+// Typically used during blockchain resets or major state changes.
+func (mp *Mempool) Flush() {
+	mp.accounts.Range(func(key, value any) bool {
+		mp.accounts.Delete(key)
+		return true
+	})
+}
+
+// getAccountSequence queries the app for the current sequence of the account.
+// This establishes the baseline nonce for new accounts in the mempool.
 func (mp *Mempool) getAccountSequence(address string) (uint64, error) {
 	path := "auth/accounts/" + address
 	reqQuery := abci.RequestQuery{Path: path}
-
 	resp, err := mp.proxyAppConn.QuerySync(reqQuery)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query account: %w", err)
@@ -286,4 +243,82 @@ func (mp *Mempool) getAccountSequence(address string) (uint64, error) {
 	}
 
 	return sequence, nil
+}
+
+// GetQueuedTxs returns all queued transactions for a given address.
+// Used primarily for testing and debugging.
+func (mp *Mempool) GetQueuedTxs(address crypto.Address) []Tx {
+	accAny, exists := mp.accounts.Load(address)
+	if !exists {
+		return nil
+	}
+
+	acc := accAny.(*account)
+	acc.mux.RLock()
+	defer acc.mux.RUnlock()
+
+	// Return a copy to avoid race conditions
+	result := make([]Tx, len(acc.queued))
+	copy(result, acc.queued)
+	return result
+}
+
+// Size returns the total number of transactions in the mempool.
+func (mp *Mempool) Size() int {
+	total := 0
+	mp.accounts.Range(func(_, value any) bool {
+		acc := value.(*account)
+		acc.mux.RLock()
+		total += len(acc.pending) + len(acc.queued)
+		acc.mux.RUnlock()
+		return true
+	})
+	return total
+}
+
+// GetTxsBySender returns all transactions (pending + queued) for a given sender.
+func (mp *Mempool) GetTxsBySender(sender crypto.Address) []Tx {
+	accAny, ok := mp.accounts.Load(sender)
+	if !ok {
+		return nil
+	}
+
+	acc := accAny.(*account)
+	acc.mux.RLock()
+	defer acc.mux.RUnlock()
+
+	txs := make([]Tx, 0, len(acc.pending)+len(acc.queued))
+	txs = append(txs, acc.pending...)
+	txs = append(txs, acc.queued...)
+	return txs
+}
+
+// GetPendingBySender returns only the pending transactions for a given sender.
+// These are transactions ready for immediate execution.
+func (mp *Mempool) GetPendingBySender(sender crypto.Address) []Tx {
+	accAny, ok := mp.accounts.Load(sender)
+	if !ok {
+		return nil
+	}
+
+	acc := accAny.(*account)
+	acc.mux.RLock()
+	defer acc.mux.RUnlock()
+
+	copied := make([]Tx, len(acc.pending))
+	copy(copied, acc.pending)
+	return copied
+}
+
+// GetExpectedNonce returns the current expected nonce for the given sender.
+// This is the sequence number that the next transaction should have.
+func (mp *Mempool) GetExpectedNonce(sender crypto.Address) (uint64, bool) {
+	accAny, ok := mp.accounts.Load(sender)
+	if !ok {
+		return 0, false
+	}
+	acc := accAny.(*account)
+	acc.mux.RLock()
+	defer acc.mux.RUnlock()
+	return acc.nonce, true
 }
