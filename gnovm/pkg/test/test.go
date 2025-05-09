@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -31,23 +30,24 @@ const (
 	DefaultHeight = 123
 	// DefaultTimestamp is the Timestamp value used by default in [Context].
 	DefaultTimestamp = 1234567890
-	// DefaultCaller is the result of gno.DerivePkgAddr("user1.gno"),
+	// DefaultCaller is the result of gno.DerivePkgBech32Addr("user1.gno"),
 	// used as the default caller in [Context].
 	DefaultCaller crypto.Bech32Address = "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
 )
 
 // Context returns a TestExecContext. Usable for test purpose only.
+// The caller should be empty for package initialization.
 // The returned context has a mock banker, params and event logger. It will give
 // the pkgAddr the coins in `send` by default, and only that.
 // The Height and Timestamp parameters are set to the [DefaultHeight] and
 // [DefaultTimestamp].
-func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
+func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
-	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
+	pkgAddr := gno.DerivePkgBech32Addr(pkgPath) // the addr of the pkgPath called.
 
 	banker := &teststd.TestBanker{
 		CoinTable: map[crypto.Bech32Address]std.Coins{
-			pkgAddr.Bech32(): send,
+			pkgAddr: send,
 		},
 	}
 	ctx := stdlibs.ExecContext{
@@ -55,7 +55,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		ChainDomain:     "gno.land", // TODO: make this configurable
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
-		OriginCaller:    DefaultCaller,
+		OriginCaller:    caller,
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
 		Banker:          banker,
@@ -64,17 +64,19 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	return &teststd.TestExecContext{
 		ExecContext: ctx,
-		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
+		RealmFrames: make(map[int]teststd.RealmOverride),
 	}
 }
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
+// It is only used for linting/preprocessing.
 func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
-		Store:   testStore,
-		Output:  output,
-		Context: Context(pkgPath, nil),
-		Debug:   debug,
+		Store:         testStore,
+		Output:        output,
+		Context:       Context("", pkgPath, nil),
+		Debug:         debug,
+		ReviveEnabled: true,
 	})
 }
 
@@ -209,7 +211,7 @@ func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
 // are to be updated.
 // opts is a required set of options, which is often shared among different
 // tests; you can use [NewTestOptions] for a common base configuration.
-func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
+func Test(memPkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
@@ -243,7 +245,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
-			itPkg := &gnovm.MemPackage{
+			itPkg := &std.MemPackage{
 				Name:  memPkg.Name + "_test",
 				Path:  memPkg.Path + "_test",
 				Files: itfiles,
@@ -262,7 +264,9 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
 			testFilePath := filepath.Join(fsDir, testFileName)
-			testName := "file/" + testFileName
+			// XXX consider this
+			testName := fsDir + "/" + testFileName
+			// testName := "file/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
 			}
@@ -299,14 +303,14 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 }
 
 func (opts *TestOptions) runTestFiles(
-	memPkg *gnovm.MemPackage,
+	memPkg *std.MemPackage,
 	files *gno.FileSet,
 	gs gno.TransactionStore,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
-			if st := m.ExceptionsStacktrace(); st != "" {
+			if st := m.ExceptionStacktrace(); st != "" {
 				errs = multierr.Append(errors.New(st), errs)
 			}
 			errs = multierr.Append(
@@ -336,6 +340,7 @@ func (opts *TestOptions) runTestFiles(
 	}
 	pv := m.Package
 
+	// Load the test files into package and save.
 	m.RunFiles(files.Files...)
 
 	for _, tf := range tests {
@@ -380,6 +385,8 @@ func (opts *TestOptions) runTestFiles(
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{
+					// XXX Consider this.
+					// {Key: gno.X("Name"), Value: gno.Str(memPkg.Path + "/" + tf.Filename + "." + tf.Name)},
 					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
 					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
 				},
@@ -450,8 +457,9 @@ type report struct {
 }
 
 type testFunc struct {
-	Package string
-	Name    string
+	Package  string
+	Name     string
+	Filename string
 }
 
 func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
@@ -461,8 +469,9 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
 					tf := testFunc{
-						Package: pkgName,
-						Name:    fname,
+						Package:  pkgName,
+						Name:     fname,
+						Filename: string(tf.Name),
 					}
 					rt = append(rt, tf)
 				}
@@ -473,7 +482,7 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the memPkg.
-func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
+func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*std.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error
