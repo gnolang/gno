@@ -2,7 +2,6 @@ package commondao
 
 import (
 	"std"
-	"strings"
 	"testing"
 
 	"gno.land/p/demo/uassert"
