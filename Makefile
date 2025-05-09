@@ -1,5 +1,5 @@
 .PHONY: help
-help:
+help: # Print this help message
 	@echo "Available make commands:"
 	@cat Makefile | \
 	    grep '^[a-z][^:]*:' | \
@@ -63,10 +63,10 @@ install_gnokey: install.gnokey # @LEGACY
 install_gno: install.gno       # @LEGACY
 
 .PHONY: test
-test: test.components
+test: test.components # Test everything (for now, same as test.components)
 
 .PHONY: test.components
-test.components:
+test.components: # Test components Tendermint2, GnoVM, Gno.land, examples and misc
 	$(MAKE) --no-print-directory -C tm2      test
 	$(MAKE) --no-print-directory -C gnovm    test
 	$(MAKE) --no-print-directory -C gno.land test
@@ -74,16 +74,16 @@ test.components:
 	$(MAKE) --no-print-directory -C misc     test
 
 .PHONY: fmt
-fmt:
+fmt: # Format components Tendermint2, GnoVM, Gno.land and examples
 	$(MAKE) --no-print-directory -C tm2      fmt imports
 	$(MAKE) --no-print-directory -C gnovm    fmt imports
 	$(MAKE) --no-print-directory -C gno.land fmt imports
 	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint
-lint:
+lint:  # Lint code (Please detail what modules are being linted)
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
 
 .PHONY: tidy
-tidy:
+tidy:  # Tidy code (Please detail what modules are being tidied)
 	$(MAKE) --no-print-directory -C misc     tidy
