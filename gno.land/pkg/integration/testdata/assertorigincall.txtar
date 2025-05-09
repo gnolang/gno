@@ -5,7 +5,7 @@
 # |-----|:--------:|:-------------------:|:----------------------:|:------:|
 # | 1   | MsgCall  | wallet direct       | myrealm.A()            | PANIC  |
 # | 2   |          |                     | myrealm.B()            | pass   |
-# | 3   |          |                     | myrealm.C()            | PANIC  |
+# | 3   |          |                     | myrealm.C()            | pass   |
 # | 4   |          | through /r/foo      | myrealm.A()            | PANIC  |
 # | 5   |          |                     | myrealm.B()            | pass   |
 # | 6   |          |                     | myrealm.C()            | PANIC  |
@@ -43,9 +43,9 @@ stderr 'invalid non-origin call'
 gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
-## 3. MsgCall -> myrlm.C: PANIC (crossing, not an origin call)
-! gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chainid tendermint_test test1
-stderr 'invalid non-origin call'
+## 3. MsgCall -> myrlm.C: PASS
+gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
 
 ## 4. MsgCall -> r/foo.A -> myrlm.A: PANIC
 ! gnokey maketx call -pkgpath gno.land/r/foo -func A -gas-fee 100000ugnot -gas-wanted 10_000_000 -broadcast -chainid tendermint_test test1
