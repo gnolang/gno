@@ -1,6 +1,8 @@
 package evm
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"strconv"
 )
 
@@ -32,11 +34,12 @@ func (s *Transactions) PushCreation(gasCost uint, caller *Caller, newContractAdr
 	*s = append(*s, &createContract)
 }
 
-func (s *Transactions) PushExecution(gasCost uint, caller *Caller, newContractAdress uint) {
+func (s *Transactions) PushExecution(gasCost uint, caller *Caller, result []byte, address uint) {
 	createContract := ExecuteContractTransaction{
 		gasPrice:        gasCost,
 		caller:          caller,
-		contractAddress: newContractAdress,
+		result:          result,
+		contractAddress: address,
 	}
 	*s = append(*s, &createContract)
 }
@@ -68,12 +71,13 @@ func (t *CreateContractTransaction) getCaller() *Caller {
 }
 
 func (t *CreateContractTransaction) String() string {
-	return t.caller.GnoAddress.String() + " created " + strconv.FormatUint(uint64(t.contractAddress), 10) + " costing " + strconv.FormatUint(gasPrice, 10)
+	return t.caller.EVMAddress.Hex() + " created a contract, costing " + strconv.FormatUint(gasPrice, 10) + " gas"
 }
 
 type ExecuteContractTransaction struct {
 	gasPrice        uint
 	caller          *Caller
+	result          []byte
 	contractAddress uint
 }
 
@@ -85,6 +89,7 @@ func (t *ExecuteContractTransaction) clone() Transaction {
 	return &ExecuteContractTransaction{
 		gasPrice:        t.gasPrice,
 		caller:          t.caller,
+		result:          t.result,
 		contractAddress: t.contractAddress,
 	}
 }
@@ -97,6 +102,19 @@ func (t *ExecuteContractTransaction) getCaller() *Caller {
 	return t.caller
 }
 
+func trimLeadingZeros(data []byte) []byte {
+	for k, v := range data {
+		if v != 0 {
+			return data[k:]
+		}
+	}
+	return []byte{0} // all of them are 0
+}
+
 func (t *ExecuteContractTransaction) String() string {
-	return t.caller.GnoAddress.String() + " executed " + strconv.FormatUint(uint64(t.contractAddress), 10) + " costing " + strconv.FormatUint(gasPrice, 10)
+	x := t.caller.EVMAddress.Hex() + " executed " + strconv.FormatUint(uint64(t.contractAddress), 10)
+	x += " costing " + strconv.FormatUint(gasPrice, 10)
+	x += ", resulting with " + hex.EncodeToString(trimLeadingZeros(t.result))
+	x += " (decimal: " + strconv.FormatUint(binary.BigEndian.Uint64(t.result[len(t.result)-8:len(t.result)]), 10) + ")"
+	return x
 }
