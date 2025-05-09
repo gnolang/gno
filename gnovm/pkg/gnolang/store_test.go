@@ -122,6 +122,9 @@ func TestFindByPrefix(t *testing.T) {
 		{"gno", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
 		{"_", 100, stdlibs},
 		{"_/a", 100, []string{"abricot"}},
+		// special case
+		{string([]byte{255}), 100, []string{}}, // using 255 as prefix, should not panic
+		{string([]byte{0}), 100, []string{}}, // using 0 as prefix, should not panic
 		// testing iter seq
 		{"_", 0, []string{}},
 		{"_", 2, stdlibs[:2]},
