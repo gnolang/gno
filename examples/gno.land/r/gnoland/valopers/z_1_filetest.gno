@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	println(valopers.Render(""))
+	println(cross(valopers.Render)(""))
 }
 
 // Output:
