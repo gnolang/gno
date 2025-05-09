@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // Module represents a Gno module, typically defined by a gno.toml file in its root directory.
@@ -99,7 +99,7 @@ func ListModules(root string) (ModuleList, error) {
 		// Determine imports (this part remains the same)
 		pkgInfo, err := gnolang.ReadMemPackage(modulePath, mf.PkgPath)
 		if err != nil {
-			pkgInfo = &gnovm.MemPackage{Name: filepath.Base(mf.PkgPath)}
+			pkgInfo = &std.MemPackage{Name: filepath.Base(mf.PkgPath)}
 		}
 		importsMap, err := packages.Imports(pkgInfo, nil)
 		if err != nil {
