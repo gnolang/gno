@@ -386,33 +386,35 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 // typeSummary prints a one-line summary for each type, followed by its constructors.
 func (pkg *pkgPrinter) typeSummary() {
 	for _, typ := range pkg.doc.Types {
-		pkg.Printf("%s\n", pkg.oneLineNode(typ))
-		// Now print the consts, vars, and constructors.
-		for _, value := range pkg.doc.Values {
-			for _, v := range value.Values {
-				if pkg.isExported(v.Name) && pkg.typedValue[v.Name] == typ.Name {
-					// Make a singleton for oneLineNode
-					oneValue := &JSONValueDecl{
-						Const:  value.Const,
-						Values: []*JSONValue{v},
-					}
-					if decl := pkg.oneLineNode(oneValue); decl != "" {
-						pkg.Printf(indent+"%s\n", decl)
-						break
+		if pkg.isExported(typ.Name) {
+			pkg.Printf("%s\n", pkg.oneLineNode(typ))
+			// Now print the consts, vars, and constructors.
+			for _, value := range pkg.doc.Values {
+				for _, v := range value.Values {
+					if pkg.isExported(v.Name) && pkg.typedValue[v.Name] == typ.Name {
+						// Make a singleton for oneLineNode
+						oneValue := &JSONValueDecl{
+							Const:  value.Const,
+							Values: []*JSONValue{v},
+						}
+						if decl := pkg.oneLineNode(oneValue); decl != "" {
+							pkg.Printf(indent+"%s\n", decl)
+							break
+						}
 					}
 				}
 			}
-		}
-		for _, constructor := range pkg.doc.Funcs {
-			if constructor.Type != "" {
-				// Constructors are not methods
-				continue
-			}
-			if pkg.constructor[constructor.Name] != typ.Name {
-				continue
-			}
-			if pkg.isExported(constructor.Name) {
-				ToText(&pkg.buf, pkg.crossingSignature(constructor), indent, "")
+			for _, constructor := range pkg.doc.Funcs {
+				if constructor.Type != "" {
+					// Constructors are not methods
+					continue
+				}
+				if pkg.constructor[constructor.Name] != typ.Name {
+					continue
+				}
+				if pkg.isExported(constructor.Name) {
+					ToText(&pkg.buf, pkg.crossingSignature(constructor), indent, "")
+				}
 			}
 		}
 	}
