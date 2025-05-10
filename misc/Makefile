@@ -1,7 +1,21 @@
+BLANK :=
+SPACE := $(BLANK) $(BLANK)
+HASH := \#
+
+BASH_GET_TARGET_LINES = cat Makefile | grep '^[a-z][^:]*:' | grep -v '$(HASH).*@LEGACY'
+MAX_TARGET_CHARS      = $(lastword $(sort $(shell $(BASH_GET_TARGET_LINES) | sed -e 's/:.*$$//' -e 's/././g')))
+
 .PHONY: help
-help:
+help: # Print this help message
 	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
+	@$(BASH_GET_TARGET_LINES) | \
+	    sort | \
+	    sed \
+	        -e 's/:[^$(HASH)]*$(HASH) */$(HASH) /' \
+	        -e 's/:[^$(HASH)]*$$//' \
+	        -e 's/$(HASH)/$(subst .,$(SPACE),$(MAX_TARGET_CHARS))   $(HASH)/' \
+	        -e 's/^\($(MAX_TARGET_CHARS)...\) *$(HASH)/\1<--/' \
+	        -e 's/^/  /'
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
