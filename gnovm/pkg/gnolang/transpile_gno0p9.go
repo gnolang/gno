@@ -86,9 +86,9 @@ func ParseGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, outdated bool) {
 // []ast.File with `go/parser`.
 //
 // Args:
-//   - withTests: if true also parses and includes all *_test.gno
+//   - wtests: if true also parses and includes all *_test.gno
 //     and *_filetest.gno files.
-func GoParseMemPackage(mpkg *std.MemPackage, withTests bool) (
+func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 	fset *token.FileSet, astfs []*ast.File, errs error) {
 	fset = token.NewFileSet()
 
@@ -104,8 +104,8 @@ func GoParseMemPackage(mpkg *std.MemPackage, withTests bool) (
 		if !strings.HasSuffix(file.Name, ".gno") {
 			continue
 		}
-		// Ignore _test/_filetest.gno files unless withTests.
-		if !withTests &&
+		// Ignore _test/_filetest.gno files unless wtests.
+		if !wtests &&
 			(false ||
 				strings.HasSuffix(file.Name, "_test.gno") ||
 				strings.HasSuffix(file.Name, "_filetest.gno")) {
@@ -115,6 +115,7 @@ func GoParseMemPackage(mpkg *std.MemPackage, withTests bool) (
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
 			parser.SkipObjectResolution
+		// fmt.Println("GO/PARSER", mpkg.Path, file.Name)
 		var astf, err = parser.ParseFile(
 			fset, path.Join(mpkg.Path, file.Name),
 			file.Body,

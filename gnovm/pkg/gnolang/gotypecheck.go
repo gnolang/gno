@@ -35,7 +35,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 func typeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
 
-	imp := &gnoImporter{
+	gimp := &gnoImporter{
 		getter: getter,
 		cache:  map[string]gnoImporterResult{},
 		cfg: &types.Config{
@@ -43,11 +43,11 @@ func typeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 				errs = multierr.Append(errs, err)
 			},
 		},
-		withTests: true,
 	}
-	imp.cfg.Importer = imp
+	gimp.cfg.Importer = gimp
 
-	pkg, fset, astfs, errs = imp.typeCheckMemPackage(mpkg)
+	wtests := true // type check all .gno files.
+	pkg, fset, astfs, errs = gimp.typeCheckMemPackage(mpkg, wtests)
 	return
 }
 
@@ -56,16 +56,19 @@ type gnoImporterResult struct {
 	err error
 }
 
+// gimp.
+// gimp type checks.
+// gimp remembers.
+// gimp.
 type gnoImporter struct {
-	getter    MemPackageGetter
-	cache     map[string]gnoImporterResult
-	cfg       *types.Config
-	withTests bool
+	getter MemPackageGetter
+	cache  map[string]gnoImporterResult
+	cfg    *types.Config
 }
 
 // Unused, but satisfies the Importer interface.
-func (g *gnoImporter) Import(path string) (*types.Package, error) {
-	return g.ImportFrom(path, "", 0)
+func (gimp *gnoImporter) Import(path string) (*types.Package, error) {
+	return gimp.ImportFrom(path, "", 0)
 }
 
 type importNotFoundError string
@@ -78,13 +81,15 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 	if pkg, ok := g.cache[path]; ok {
 		return pkg.pkg, pkg.err
 	}
+	// fmt.Println("GNOIMPORTER IMPORTFROM > GETMEMPACKAGE", path)
 	mpkg := g.getter.GetMemPackage(path)
 	if mpkg == nil {
 		err := importNotFoundError(path)
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	pkg, _, _, errs := g.typeCheckMemPackage(mpkg)
+	wtests := false // don't parse test files for imports.
+	pkg, _, _, errs := g.typeCheckMemPackage(mpkg, wtests)
 	g.cache[path] = gnoImporterResult{pkg: pkg, err: errs}
 	return pkg, errs
 }
@@ -92,7 +97,10 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 // Assumes that the code is Gno 0.9.
 // If not, first use `gno lint` to transpile the code.
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
-func (g *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
+//
+// Args:
+//   - wtests: if true, with all *_test.gno and *_testfile.gno files.
+func (g *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests bool) (
 	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
 
 	// STEP 1: Check gno.mod version.
@@ -102,7 +110,7 @@ func (g *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
 	}
 
 	// STEP 2: Parse the mem package to Go AST.
-	fset, astfs, errs = GoParseMemPackage(mpkg, g.withTests)
+	fset, astfs, errs = GoParseMemPackage(mpkg, wtests)
 	if errs != nil {
 		return nil, nil, nil, fmt.Errorf("go parsing mem package: %v", errs)
 	}
