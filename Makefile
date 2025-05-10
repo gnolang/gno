@@ -86,9 +86,9 @@ fmt: # Format components Tendermint2, GnoVM, Gno.land and examples
 	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint
-lint:  # Lint code (Please detail what modules are being linted)
+lint:  # Lint code (**FIXME** Please detail what modules are being linted)
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
 
 .PHONY: tidy
-tidy:  # Tidy code (Please detail what modules are being tidied)
+tidy:  # Tidy code (**FIXME** Please detail what modules are being tidied)
 	$(MAKE) --no-print-directory -C misc     tidy

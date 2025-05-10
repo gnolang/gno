@@ -1,3 +1,5 @@
+# `gnomigrate`: CLI Gno legacy data migration tool.
+
 ## Overview
 
 `gnomigrate` is a CLI tool designed to migrate Gno legacy data formats to the new standard formats used in Gno

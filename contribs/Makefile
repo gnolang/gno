@@ -20,6 +20,14 @@ help: # Print this help message
 	            -e 's/^\($(MAX_TARGET_CHARS)...\) *$(HASH)/\1<--/' \
 	            -e 's/^/  /' ; \
 	    for d in $(patsubst %/,%,$(programs)) ; do \
+	        desc="$$( \
+	            head -1 $$d/README.md | \
+	                sed -E \
+	                    -e 's/^ *$(HASH)$(HASH)* *//' \
+	                    -e 's/^ *('"$$d"'|`'"$$d"'`) *(--*|:) *//' \
+	                    -e 's/^(..*)$$/ (\1)/' || \
+	            echo > /dev/null \
+	        )" ; \
 	        $(BASH_GET_TARGET_LINES) | \
 	            grep '\%' | \
 	            sed \
@@ -28,7 +36,8 @@ help: # Print this help message
 	                -e 's/:[^$(HASH)]*$$//' \
 	                -e 's/$(HASH)/$(subst .,$(SPACE),$(MAX_TARGET_CHARS))   $(HASH)/' \
 	                -e 's/^\($(MAX_TARGET_CHARS)...\) *$(HASH)/\1<--/' \
-	                -e 's/^/  /' ; \
+	                -e 's/^/  /' \
+	                -e "s/$$/$$desc/" ; \
 	    done \
 	) | \
 	sort
@@ -88,9 +97,9 @@ lint.%:  # Lint subpackage %
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: fmt
-fmt: # Format contribs (Please clarify if this operates recursively)
+fmt: # Format contribs (**FIXME** Please clarify if this operates recursively)
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
 .PHONY: tidy
-tidy: # Tidy contribs (Please clarify if this operates recursively)
+tidy: # Tidy contribs (**FIXME** Please clarify if this operates recursively)
 	find . -name go.mod -execdir go mod tidy -v \;
