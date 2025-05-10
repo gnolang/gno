@@ -5391,18 +5391,21 @@ func isLocallyDefined2(bn BlockNode, n Name) bool {
 
 func setNodeLines(n Node) {
 	lastLine := 0
+	lastColumn := 0
 	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
 		}
-		line := n.GetLine()
-		if line == lastLine {
-		} else if line == 0 {
-			line = lastLine
-		} else {
-			lastLine = line
+		line, column := n.GetLine(), n.GetColumn()
+		if line == 0 {
+			line, column = lastLine, lastColumn
+		} else if line != lastLine {
+			lastLine, lastColumn = line, column
+		} else if column != lastColumn {
+			/*lastLine,*/ lastColumn = /*line,*/ column
 		}
 		n.SetLine(line)
+		n.SetColumn(column)
 		return n, TRANS_CONTINUE
 	})
 }

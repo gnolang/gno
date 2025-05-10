@@ -458,7 +458,9 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
-// compile-time errors in the package.
+// compile-time errors in the package. It is also usde to preprocess files from
+// the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
+// "examples/*".
 func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {

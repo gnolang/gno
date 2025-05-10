@@ -236,6 +236,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		Name: string(pkgName),
 		Path: pkgPath,
 		Files: []*std.MemFile{
+			{Name: "gno.mod", Body: "gno 0.9"},
 			{Name: filename, Body: string(content)},
 		},
 	}); err != nil {
@@ -278,14 +279,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
-				{
-					Name: filename,
-					Body: string(content),
-				},
+				{Name: "gno.mod", Body: "gno 0.9"},
+				{Name: filename, Body: string(content)},
 			},
 		}
 		// Validate Gno syntax and type check.
-		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+		if _, _, _, err := gno.TypeCheckMemPackage(memPkg, m.Store); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
@@ -313,17 +312,15 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
-				{
-					Name: filename,
-					Body: string(content),
-				},
+				{Name: "gno.mod", Body: "gno 0.9"},
+				{Name: filename, Body: string(content)},
 			},
 		}
 		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = tx
 
 		// Validate Gno syntax and type check.
-		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+		if _, _, _, err := gno.TypeCheckMemPackage(memPkg, m.Store); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 

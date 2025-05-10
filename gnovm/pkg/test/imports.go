@@ -59,6 +59,12 @@ func StoreWithOptions(
 	if opts.PreprocessOnly {
 		processMemPackage = func(m *gno.Machine, memPkg *std.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
 			m.Store.AddMemPackage(memPkg)
+			/* NOTE: Don't pre-transpile here, just gno lint the test files and fix them.
+			_, _, err := gno.PretranspileToGno0p9(memPkg, false) // no need for _test.gno or _filetest.gno files.
+			if err != nil {
+				panic("error pretranspiling to Gno 0.9: " + err.Error())
+			}
+			*/
 			return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), save, false)
 		}
 	}

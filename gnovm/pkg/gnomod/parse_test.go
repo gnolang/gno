@@ -113,7 +113,7 @@ func TestModuleDeprecated(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			f, err := Parse("in", []byte(tc.in))
+			f, err := ParseBytes("in", []byte(tc.in))
 			assert.Nil(t, err)
 			assert.Equal(t, tc.expected, f.Module.Deprecated)
 		})
@@ -164,14 +164,14 @@ func TestParseDraft(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			f, err := Parse("in", []byte(tc.in))
+			f, err := ParseBytes("in", []byte(tc.in))
 			assert.Nil(t, err)
 			assert.Equal(t, tc.expected, f.Draft)
 		})
 	}
 }
 
-func TestParseGnoMod(t *testing.T) {
+func TestParseFilepath(t *testing.T) {
 	pkgDir := "bar"
 	for _, tc := range []struct {
 		desc, modData, modPath, errShouldContain string
@@ -228,7 +228,7 @@ func TestParseGnoMod(t *testing.T) {
 			// Create gno package
 			createGnoModPkg(t, tempDir, pkgDir, tc.modData)
 
-			_, err := ParseGnoMod(filepath.Join(tempDir, tc.modPath))
+			_, err := ParseFilepath(filepath.Join(tempDir, tc.modPath))
 			if tc.errShouldContain != "" {
 				assert.ErrorContains(t, err, tc.errShouldContain)
 			} else {
@@ -270,7 +270,7 @@ func TestParseWithInvalidModulePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Parse("gno.mod", []byte(tt.modData))
+			_, err := ParseBytes("gno.mod", []byte(tt.modData))
 			if tt.errMsg != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
