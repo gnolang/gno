@@ -9,7 +9,6 @@ import (
 	"go/parser"
 	"go/token"
 	"path"
-	"reflect"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -19,42 +18,57 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-/*
-The stages of Gno 0.0 --> Gno 0.9 transpiling.
-
-  - ParseGnoMod: parse gno.mod (if any) and compare versions.
-  - GoParse: parse Gno to Go AST with go/parser.
-  - Prepare: minimal Go AST mutations for Gno VM compat.
-  - Find xitems: Gno AST static analaysis to produce xitems.
-  - Rekey xitems: re-key xitems by Go Node before line changes.
-  - Transpile: main Go AST mutations for Gno upgrade.
-*/
-
 // ========================================
-// Parses the appropriate gno.mod file from mpkg or
-// generates a default one.
-//
-// Args:
-//   - testing: if running tests
-//   - linting: if running `gno lint` transpiling.
+/*
+
+The steps of Gno 0.0 --> Gno 0.9 transpiling.
+  1. GetMemPackage, ReadMemPackage, ....
+  2. ParseGnoMod(): parse gno.mod (if any) and compare versions.
+  3. GoParse*(): parse Gno to Go AST with go/parser.
+  4. Prepare*(): minimal Go AST mutations for Gno VM compat.
+  5. m.PreprocessFiles(): normal Gno AST preprocessing.
+  6. FindXItems*(): Gno AST static analaysis to produce xitems.
+  7. Transpile*() Part 1: re-key xitems by Go Node before step 2 line changes.
+  8. Transpile*() Part 2: main Go AST mutations for Gno upgrade.
+  9. mpkg.WriteTo(): write mem package to disk.
+
+In cmd/gno/tool_lint.go each step is grouped into stages for all dirs:
+  * Stage 1: (for all dirs)
+    1. gno.ReadMemPackage()
+    2. gno.TypeCheckMemPackage() > ParseGnoMod()
+    3. gno.TypeCheckMemPackage() > GoParseMemPackage()
+       gno.TypeCheckMemPackage() > g.cfg.Check()
+    4. PrepareGno0p9()
+    5. tm.PreprocessFiles()
+    6. gno.FindXItemsGno0p9()
+  * Stage 2:
+    7. gno.TranspileGno0p9() Part 1
+    8. gno.TranspileGno0p9() Part 2
+  * Stage 3:
+    9. mpkg.WriteTo()
+
+In gotypecheck.go, TypeCheck*() diverges at step 4 and terminates:
+  1. mpkg provided as argument
+  2. ParseGnoMod()
+  3. GoParseMemPackage()
+  4. g.cfg.Check(): Go type-checker
+
+*/
+// ========================================
+// Parses the gno.mod file from mpkg.
+// To generate default ones, use:
+// `mod, _ = gnomod.ParseBytes(gnomodDefault)`
 //
 // Results:
-//   - mod: the gno.mod file.
+//   - mod: the gno.mod file, or nil if not found.
 //   - outdated: true if it should be transpiled to the current version.
-func ParseGnoMod(mpkg *MemPackage, testing, linting bool) (
-	mod *gnomod.File, outdated bool) {
-
-	if testing {
-		// If we are testing we assume files already conform to the
-		// latest version. If they don't, run `gno lint` first before
-		// running tests.
-		mod, _ = gnomod.ParseBytes(gnomodTesting)
-	} else if IsStdlib(mpkg.Path) {
+func ParseGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, outdated bool) {
+	if IsStdlib(mpkg.Path) {
 		// stdlib/extern packages are assumed up to date.
-		mod, _ = gnomod.ParseBytes(gnomodTesting)
+		mod, _ = gnomod.ParseBytes("<stdlibs>/gno.mod", []byte(gnomodLatest))
 	} else if mod, _ = gnomod.ParseMemPackage(mpkg); mod == nil {
 		// gno.mod doesn't exist.
-		mod, _ = gnomod.ParseBytes(gnomodDefault)
+		mod, _ = gnomod.ParseBytes(mpkg.Path+"/gno.mod", []byte(gnomodDefault))
 		outdated = true
 	} else if mod.Gno == nil {
 		// 'gno 0.9' was never specified, continue
@@ -75,7 +89,7 @@ func ParseGnoMod(mpkg *MemPackage, testing, linting bool) (
 //   - withTests: if true also parses and includes all *_test.gno
 //     and *_filetest.gno files.
 func GoParseMemPackage(mpkg *std.MemPackage, withTests bool) (
-	fset *token.FileSet, astfs []*ast.File, err error) {
+	fset *token.FileSet, astfs []*ast.File, errs error) {
 	fset = token.NewFileSet()
 
 	// This map is used to allow for function re-definitions, which are
@@ -113,48 +127,42 @@ func GoParseMemPackage(mpkg *std.MemPackage, withTests bool) (
 		// The *ast.File passed all filters.
 		astfs = append(astfs, astf)
 	}
+	if errs != nil {
+		return fset, astfs, errs
+	}
 	// END processing all files.
-	return fset, astfs, nil
+	return
 }
 
 // ========================================
 // Prepare Gno 0.0 for Gno 0.9.
 //
 // When Gno syntax breaks in higher versions, existing code must first be
-// pre-transcribed such that the Gno preprocessor won't panic.  This allows
-// old Gno code to be preprocessed and used by the Gno VM for static analysis.
-// More transpiling will happen later after the preprocessed Gno AST is
-// scanned for mutations on the Go AST which follows.
+// pre-transcribed such that the Gno preprocessor won't panic.  This allows old
+// Gno code to be preprocessed and used by the Gno VM for static analysis.
+// More transpiling will happen later after the preprocessed Gno AST is scanned
+// for mutations on the Go AST which follows.  Any changes are applied directly
+// on the mem package.
 //
-// - renames 'realm' to 'realm_' to avoid conflict with new uverse type.
+// * Renames 'realm' to 'realm_' to avoid conflict with new uverse type.
 //
-// Any changes are applied directly on the mem package.
-// Errors are returned in aggregate as a multierr type.
-func PrepareGno0p9(mpkg *std.MemPackage) (errs error) {
-	for _, file := range mpkg.Files {
+// Results:
+// - errs: returned in aggregate as a multierr type.
+func PrepareGno0p9(fset *token.FileSet, astfs []*ast.File) (errs error) {
+	for _, astf := range astfs {
 		// AST transform for Gno 0.9.
-		err := pretranspileToGno0p9(
-			mpkg.Path, fset, file.Name, astf)
+		err := prepareGno0p9(astf)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		// Write formatted AST to mem file.
-		var buf bytes.Buffer
-		err = gofmt.Node(&buf, fset, astf)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		file.Body = buf.String()
 	}
 	return
 }
 
-// Pre-transpile AST mutation(s) for Gno 0.9.
-func pretranspileGno0p9(f *ast.File) (err error) {
-
-	// Rename name to _realm to avoid conflict with new builtin "realm".
+// Minimal AST mutation(s) for Gno 0.9.
+//   - Renames 'realm' to '_realm' to avoid conflict with new builtin "realm".
+func prepareGno0p9(f *ast.File) (err error) {
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		switch n := c.Node().(type) {
 		case *ast.Ident:
@@ -188,10 +196,6 @@ func FindXItemsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
-
-		if debug {
-			debug.Printf("FindXItems %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-		}
 
 		switch stage {
 		// ----------------------------------------
@@ -306,8 +310,7 @@ func addXItem(n Node, t string, p string, f string, l int, c int) {
 }
 
 // ========================================
-// Transpiles existing Gno code to Gno 0.9, the one with @cross decorators,
-// not cross(fn)(...).
+// Transpiles existing Gno code to Gno 0.9.
 //
 // Writes in place if dir is provided. Transpiled packages will have their
 // gno.mod Gno version to 0.9.
@@ -315,12 +318,12 @@ func addXItem(n Node, t string, p string, f string, l int, c int) {
 // Args:
 //   - dir: where to write to.
 //   - xform: result of FindGno0p9XItems().
-func TranspileToGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) error {
+func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) error {
 
 	// Return if gno.mod is current.
 	var mod *gnomod.File
 	var outdated bool = false
-	mod, outdated = parseGnoModFile(mpkg, false, true)
+	mod, outdated = ParseGnoMod(mpkg)
 	if !outdated {
 		return nil // already up-to-date.
 	}
@@ -355,19 +358,18 @@ func TranspileToGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		deleteOldIdents(delFunc, astf)
-		// AST transform for Gno 0.9 (step 1)
-		xform2, err := transpileToGno0p9_step1(mpkg.Path, fset, file.Name, astf, xform)
+		// Transpile Part 1: re-key xform by ast.Node.
+		xform2, err := transpileGno0p9_part1(mpkg.Path, fset, file.Name, astf, xform)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		// AST transform for Gno 0.9 (step 2)
-		if err := transpileToGno0p9_step2(mpkg.Path, fset, file.Name, astf, xform2); err != nil {
+		// Transpile Part 2: main Go AST transform for Gno 0.9.
+		if err := transpileGno0p9_part2(mpkg.Path, fset, file.Name, astf, xform2); err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		// Write transformed AST to Go to file.
+		// Write transformed AST to Go to mem file.
 		var buf bytes.Buffer
 		err = gofmt.Node(&buf, fset, astf)
 		if err != nil {
@@ -381,20 +383,22 @@ func TranspileToGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string
 	}
 	// END processing all files.
 
-	// Write version to mod and to mpkg/gno.mod.
+	// Write version to mod and to mem file named "gno.mod".
 	mod.SetGno(GnoVersion)
 	mf := mpkg.GetFile("gno.mod")
 	mf.Body = mod.WriteString()
 
-	// Write mpkg/* to dir.
+	// Write mem package to dir.
 	err := mpkg.WriteTo(dir)
 	return err
 }
 
+// Transpile Step 1: re-key xform by ast.Node.
+//
 // We can't just apply as we encounter matches in xform unfortunately because
 // it causes the lines to shift.  So we first convert xform into a map keyed
 // by node and then do the actual transpiling in step 2.
-func transpileToGno0p9_step1(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[string]string) (xform2 map[ast.Node]string, err error) {
+func transpileGno0p9_part1(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[string]string) (xform2 map[ast.Node]string, err error) {
 	xform2 = make(map[ast.Node]string, len(xform))
 
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
@@ -436,7 +440,8 @@ func transpileToGno0p9_step1(pkgPath string, fs *token.FileSet, fname string, f 
 	return xform2, err
 }
 
-func transpileToGno0p9_step2(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[ast.Node]string) (err error) {
+// The main Go AST transpiling logic to make Gno code Gno 0.9.
+func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[ast.Node]string) (err error) {
 
 	var lastLine = 0
 	var didRemoveCrossing = false

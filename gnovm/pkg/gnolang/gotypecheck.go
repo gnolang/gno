@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/token"
 	"go/types"
 	"path"
 	"slices"
@@ -12,7 +13,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-// type checking (using go/types)
+// Type-checking (using go/types)
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
@@ -24,24 +25,16 @@ type MemPackageGetter interface {
 // mpkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mpkg, getter, false)
+// TODO: rename these to GoTypeCheck*, goTypeCheck*...
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
+	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
+
+	return typeCheckMemPackage(mpkg, getter)
 }
 
-// TypeCheckMemPackageTest performs the same type checks as
-// [TypeCheckMemPackage], but allows re-declarations.
-//
-// NOTE: like TypeCheckMemPackage, this function ignores tests and filetests.
-func TypeCheckMemPackageTest(mpkg *std.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mpkg, getter, true)
-}
+func typeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
+	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
 
-func typeCheckMemPackage(
-	mpkg *std.MemPackage,
-	getter MemPackageGetter,
-	testing bool) error {
-
-	var errs error
 	imp := &gnoImporter{
 		getter: getter,
 		cache:  map[string]gnoImporterResult{},
@@ -50,17 +43,12 @@ func typeCheckMemPackage(
 				errs = multierr.Append(errs, err)
 			},
 		},
-		allowRedefinitions: testing,
+		withTests: true,
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mpkg)
-	// prefer to return errs instead of err:
-	// err will generally contain only the first error encountered.
-	if errs != nil {
-		return errs
-	}
-	return err
+	pkg, fset, astfs, errs = imp.typeCheckMemPackage(mpkg)
+	return
 }
 
 type gnoImporterResult struct {
@@ -69,12 +57,10 @@ type gnoImporterResult struct {
 }
 
 type gnoImporter struct {
-	getter MemPackageGetter
-	cache  map[string]gnoImporterResult
-	cfg    *types.Config
-
-	// allow symbol redefinitions? (test standard libraries)
-	allowRedefinitions bool
+	getter    MemPackageGetter
+	cache     map[string]gnoImporterResult
+	cfg       *types.Config
+	withTests bool
 }
 
 // Unused, but satisfies the Importer interface.
@@ -98,21 +84,30 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	result, err := g.parseCheckMemPackage(mpkg)
-	g.cache[path] = gnoImporterResult{pkg: result, err: err}
-	return result, err
+	pkg, _, _, errs := g.typeCheckMemPackage(mpkg)
+	g.cache[path] = gnoImporterResult{pkg: pkg, err: errs}
+	return pkg, errs
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
+// Assumes that the code is Gno 0.9.
+// If not, first use `gno lint` to transpile the code.
+// Returns parsed *types.Package, *token.FileSet, []*ast.File.
+func (g *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
+	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
 
-	/* NOTE: Don't pre-transpile here; `gno lint` and fix the source first.
-	fset, astfs, err := PretranspileToGno0p9(mpkg, false)
-	if err != nil {
-		return nil, err
+	// STEP 1: Check gno.mod version.
+	_, outdated := ParseGnoMod(mpkg)
+	if outdated {
+		return nil, nil, nil, fmt.Errorf("outdated gno version for package %s", mpkg.Path)
 	}
-	*/
 
-	// Add builtins file.
+	// STEP 2: Parse the mem package to Go AST.
+	fset, astfs, errs = GoParseMemPackage(mpkg, g.withTests)
+	if errs != nil {
+		return nil, nil, nil, fmt.Errorf("go parsing mem package: %v", errs)
+	}
+
+	// STEP 2: Add .gnobuiltins.go file.
 	file := &std.MemFile{
 		Name: ".gnobuiltins.go",
 		Body: fmt.Sprintf(`package %s
@@ -124,25 +119,28 @@ func revive[F any](fn F) any { return nil } // shim
 type realm interface{} // shim
 `, mpkg.Name),
 	}
-	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-	astf, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
+
+	// STEP 2: Parse .gnobuiltins.go file.
+	const parseOpts = parser.ParseComments |
+		parser.DeclarationErrors |
+		parser.SkipObjectResolution
+	var astf, err = parser.ParseFile(
+		fset,
+		path.Join(mpkg.Path, file.Name),
+		file.Body,
+		parseOpts)
 	if err != nil {
 		panic("error parsing gotypecheck gnobuiltins.go file")
 	}
 	astfs = append(astfs, astf)
 
-	// Type-check pre-transpiled Gno0.9 AST in Go.
-	// We don't (post)-transpile because the linter
-	// is supposed to be used to write to the files.
-	// (No need to support JIT transpiling for imports)
-	//
-	// XXX The pre pre thing for @cross.
-	pkg, err := g.cfg.Check(mpkg.Path, fset, astfs, nil)
-	return pkg, err
+	// STEP 3: Type-check Gno0.9 AST in Go.
+	pkg, errs = g.cfg.Check(mpkg.Path, fset, astfs, nil)
+	return pkg, fset, astfs, errs
 }
 
-func deleteOldIdents(idents map[string]func(), f *ast.File) {
-	for _, decl := range f.Decls {
+func deleteOldIdents(idents map[string]func(), astf *ast.File) {
+	for _, decl := range astf.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods and init functions
 		//nolint:goconst
@@ -159,7 +157,7 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 			// NOTE: cannot use the index as a file may contain
 			// multiple decls to be removed, so removing one would
 			// make all "later" indexes wrong.
-			f.Decls = slices.DeleteFunc(f.Decls,
+			astf.Decls = slices.DeleteFunc(astf.Decls,
 				func(d ast.Decl) bool { return decl == d })
 		}
 	}

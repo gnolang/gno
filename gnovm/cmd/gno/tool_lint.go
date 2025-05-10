@@ -5,7 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
 	"go/scanner"
+	"go/token"
 	"go/types"
 	goio "io"
 	"os"
@@ -111,11 +113,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir, goio.Discard,
 		test.StoreOptions{PreprocessOnly: true},
 	)
-
 	ppkgs := map[string]processedPackage{}
 
 	//----------------------------------------
-	// STEP 1: PREPROCESS ALL FILES
+	// STAGE 1:
 	for _, dir := range dirs {
 		if verbose {
 			io.ErrPrintln(dir)
@@ -127,13 +128,13 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// TODO: This should be handled by ReadMemPackage.
-		fname := path.Join(dir, "gno.mod")
-		gmf, err := gnomod.ParseFilepath(fname)
+		fpath := path.Join(dir, "gno.mod")
+		mod, err := gnomod.ParseFilepath(fpath)
 		if err != nil {
 			issue := lintIssue{
 				Code:       lintGnoMod,
 				Confidence: 1, // ??
-				Location:   fname,
+				Location:   fpath,
 				Msg:        err.Error(),
 			}
 			io.ErrPrintln(issue)
@@ -141,8 +142,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			continue
 		}
 
+		// STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
-		pkgPath, _ := determinePkgPath(gmf, dir, cfg.rootDir)
+		pkgPath, _ := determinePkgPath(mod, dir, cfg.rootDir)
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath)
 		if err != nil {
 			io.ErrPrintln(issueFromError(
@@ -166,18 +168,28 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
+			// These are Go types.
+			var pkg *token.Package
+			var fset *token.FileSet
+			var astfs []*ast.File
+			var errs error
+
 			// Run type checking
-			if gmf == nil || !gmf.Draft {
-				// NOTE:
-				// lintTypeCheck() -->
-				//   TypeCheckMemPackageTest() -->
-				//     imp.parseCheckMemPackage() -->
-				//       PretranspileToGno0p9()
-				// That is, it will pre-transpile if needed.
-				foundErr, err := lintTypeCheck(
-					io, dir, mpkg, gs)
-				if err != nil {
-					io.ErrPrintln(err)
+			if mod == nil || !mod.Draft {
+				// STEP 2: ParseGnoMod()
+				// STEP 3: GoParse*()
+				//
+				// typeCheckAndPrintErrors(mpkg) -->
+				//   TypeCheckMemPackage(mpkg) -->
+				//     imp.typeCheckMemPackage(mpkg)
+				//       ParseGnoMod(mpkg);
+				//       GoParseMemPackage(mpkg);
+				//       g.cfg.Check();
+				//
+				// NOTE: Prepare*() is not called.
+				pkg, fset, astfs, errs = typeCheckAndPrintErrors(io, dir, mpkg, gs)
+				if errs != nil {
+					io.ErrPrintln(errs)
 					hasError = true
 				} else if foundErr {
 					hasError = true
@@ -186,43 +198,50 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
 			}
 
-			// Construct machine for testing.
-			tm := test.Machine(gs, goio.Discard, pkgPath, false)
-			defer tm.Release()
+			// STEP 4 & 5: Prepare*() and Preprocess*().
+			{
+				// Construct machine for testing.
+				tm := test.Machine(gs, goio.Discard, pkgPath, false)
+				defer tm.Release()
 
-			// Check test files
-			all, fset, _tests, ftests := sourceAndTestFileset(mpkg)
+				// Gno parse source fileset and test filesets.
+				all, fset2, _tests, ftests := sourceAndTestFileset(mpkg)
 
-			// Preprocess fset files (w/ some _test.gno).
-			pn, _ := tm.PreprocessFiles(
-				mpkg.Name, mpkg.Path, fset, false, false)
-			// Preprocess _test files (all _test.gno).
-			for _, fset := range _tests {
-				tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false)
+				// Prepare Go AST for preprocessing.
+				errs := PrepareGno0p9(fset, astfs)
+				if errs != nil {
+					io.ErrPrintln(errs)
+					hasError = true
+				}
+
+				// Preprocess fset files (w/ some _test.gno).
+				pn, _ := tm.PreprocessFiles(
+					mpkg.Name, mpkg.Path, fset2, false, false)
+				// Preprocess _test files (all _test.gno).
+				for _, fset3 := range _tests {
+					tm.PreprocessFiles(
+						mpkg.Name, mpkg.Path, fset3, false, false)
+				}
+				// Preprocess _filetest.gno files.
+				for _, fset3 := range ftests {
+					tm.PreprocessFiles(
+						mpkg.Name, mpkg.Path, fset3, false, false)
+				}
 			}
-			// Preprocess _filetest.gno files.
-			for _, fset := range ftests {
-				tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false)
-			}
+
 			// Record results.
 			ppkgs[dir] = processedPackage{
 				mpkg, fset, pn, _tests, ftests}
-			// Get the gno.mod file.
-			gmf, err := gnomod.ParseMemPackage(mpkg)
-			if err != nil {
-				io.ErrPrintln(err)
-				hasError = true
-			}
-			// Before Gno 0.9 is Gno 0.0 (no "gno 0.9" in gno.mod)
-			if gmf.Gno.Version == "0.0" {
+
+			// STEP 6: FindXItems():
+			// FindXItems for all files if outdated.
+			if mod.Gno.Version == "0.0" {
 				// Use the preprocessor to collect the
 				// transformations needed to be done.
 				// They are collected in
 				// pn.GetAttribute("XREALMITEM")
 				for _, fn := range all.Files {
-					gno.FindGno0p9XItems(gs, pn, fn)
+					gno.FindXItemsGno0p9(gs, pn, fn)
 				}
 			}
 		})
@@ -232,7 +251,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	}
 
 	//----------------------------------------
-	// STEP 2: TRANSFORM FOR Gno 0.9
+	// STAGE 2: Transpile to Gno 0.9
+	// Must be a separate stage because dirs depend on each other.
 	for _, dir := range dirs {
 		ppkg, ok := ppkgs[dir]
 		if !ok {
@@ -240,27 +260,55 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 		mpkg, pn := ppkg.mpkg, ppkg.pn
 		xform, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XITEMS).(map[string]string)
-		err := gno.TranspileToGno0p9(mpkg, dir, xform)
+
+		// STEP 7 & 8: gno.TranspileGno0p9() Part 1 & 2
+		err := gno.TranspileGno0p9(mpkg, dir, xform)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
-
 	if hasError {
 		return commands.ExitCodeError(1)
+	}
+
+	//----------------------------------------
+	// STAGE 3: Write.
+	// Must be a separate stage to prevent partial writes.
+	for _, dir := range dirs {
+		ppkg, ok := ppkgs[dir]
+		if !ok {
+			panic("where did it go")
+		}
+
+		// STEP 9: mpkg.WriteTo():
+		err := ppkg.mpkg.WriteTo(dir)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, dir string, mpkg *std.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(mpkg, testStore)
-	if tcErr == nil {
-		return false, nil
+// Wrapper around TypeCheckMemPackage() to io.ErrPrintln(lintIssue{}).
+func typeCheckAndPrintErrors(
+	io commands.IO,
+	dir string,
+	mpkg *std.MemPackage,
+	testStore gno.Store,
+) (
+	pkg *token.Package,
+	fset *token.FileSet,
+	astfs []*ast.File,
+	errs error) {
+
+	pkg, fset, astfs, errs = gno.TypeCheckMemPackage(mpkg, testStore)
+	if errs != nil {
+		return
 	}
 
-	errs := multierr.Errors(tcErr)
-	for _, err := range errs {
+	errors := multierr.Errors(errs)
+	for _, err := range errors {
 		switch err := err.(type) {
 		case types.Error:
 			loc := err.Fset.Position(err.Pos).String()
@@ -292,13 +340,14 @@ func lintTypeCheck(io commands.IO, dir string, mpkg *std.MemPackage, testStore g
 				Location:   loc,
 			})
 		default:
-			return false, fmt.Errorf("unexpected error type: %T", err)
+			errs = fmt.Errorf("unexpected error type; %T", err)
+			return
 		}
 	}
-	return true, nil
+	return
 }
 
-// Sorts mpkg files into the following filesets:
+// Gno parses and sorts mpkg files into the following filesets:
 //   - all: all files
 //   - fset: all normal and _test.go files in package excluding `package xxx_test`
 //     integration *_test.gno files.
