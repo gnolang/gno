@@ -1,7 +1,21 @@
+BLANK :=
+SPACE := $(BLANK) $(BLANK)
+HASH := \#
+
+BASH_GET_TARGET_LINES = cat Makefile | grep '^[a-z][^:]*:' | grep -v '$(HASH).*@LEGACY'
+MAX_TARGET_CHARS      = $(lastword $(sort $(shell $(BASH_GET_TARGET_LINES) | sed -e 's/:.*$$//' -e 's/././g')))
+
 .PHONY: help
-help:
+help: # Print this help message
 	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z][^:]*:' | grep -v 'install_' | cut -d: -f1 | sort | sed 's/^/  /'
+	@$(BASH_GET_TARGET_LINES) | \
+	    sort | \
+	    sed \
+	        -e 's/:[^$(HASH)]*$(HASH) */$(HASH) /' \
+	        -e 's/:[^$(HASH)]*$$//' \
+	        -e 's/$(HASH)/$(subst .,$(SPACE),$(MAX_TARGET_CHARS))   $(HASH)/' \
+	        -e 's/^\($(MAX_TARGET_CHARS)...\) *$(HASH)/\1<--/' \
+	        -e 's/^/  /'
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile misc/devdeps/go.mod
@@ -29,35 +43,35 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnokey install.gno install.gnodev
+install: install.gnokey install.gno install.gnodev  # Install GnoKey, Gno and GnoDev
 
 # shortcuts to frequently used commands from sub-components.
 .PHONY: install.gnokey
-install.gnokey:
+install.gnokey:  # Install GnoKey
 	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
 	@# \033[0;32m ... \033[0m is ansi for green text.
 	@printf "\033[0;32m[+] 'gnokey' has been installed. Read more in ./gno.land/\033[0m\n"
 .PHONY: install.gno
-install.gno:
+install.gno:  # Install Gno
 	$(MAKE) --no-print-directory -C ./gnovm	install
 	@printf "\033[0;32m[+] 'gno' has been installed. Read more in ./gnovm/\033[0m\n"
 .PHONY: install.gnodev
-install.gnodev:
+install.gnodev:  # Install GnoDev
 	$(MAKE) --no-print-directory -C ./contribs/gnodev install
 	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
 
 
 # old aliases
 .PHONY: install_gnokey
-install_gnokey: install.gnokey
+install_gnokey: install.gnokey # @LEGACY
 .PHONY: install_gno
-install_gno: install.gno
+install_gno: install.gno       # @LEGACY
 
 .PHONY: test
-test: test.components
+test: test.components # Test everything (for now, same as test.components)
 
 .PHONY: test.components
-test.components:
+test.components: # Test components Tendermint2, GnoVM, Gno.land, examples and misc
 	$(MAKE) --no-print-directory -C tm2      test
 	$(MAKE) --no-print-directory -C gnovm    test
 	$(MAKE) --no-print-directory -C gno.land test
@@ -65,16 +79,16 @@ test.components:
 	$(MAKE) --no-print-directory -C misc     test
 
 .PHONY: fmt
-fmt:
+fmt: # Format components Tendermint2, GnoVM, Gno.land and examples
 	$(MAKE) --no-print-directory -C tm2      fmt imports
 	$(MAKE) --no-print-directory -C gnovm    fmt imports
 	$(MAKE) --no-print-directory -C gno.land fmt imports
 	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint
-lint:
+lint:  # Lint code (**FIXME** Please detail what modules are being linted)
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
 
 .PHONY: tidy
-tidy:
+tidy:  # Tidy code (**FIXME** Please detail what modules are being tidied)
 	$(MAKE) --no-print-directory -C misc     tidy
