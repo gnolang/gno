@@ -12,180 +12,155 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// Transpiles existing Gno code to Gno 0.9, the one with @cross decorators, not
-// cross(fn)(...). (duh).
-//
-// Writes in place if dirPath is provided.
-// Files without `// Gno 0.9` as the first line are considered to be for Gno
-// 0.x < 0.9.
-//
-// xform: result of FindGno0p9XItems().
-func TranspileToGno0p9(mpkg *std.MemPackage, dirPath string, testing, format bool, xform map[string]string) error {
-	// This map is used to allow for function re-definitions, which are allowed
-	// in Gno (testing context) but not in Go.
-	// This map links each function identifier with a closure to remove its
-	// associated declaration.
-	var delFunc map[string]func()
-	if testing {
-		delFunc = make(map[string]func())
-	}
+/*
+The stages of Gno 0.0 --> Gno 0.9 transpiling.
 
-	fset := token.NewFileSet()
-	files := make([]*ast.File, 0, len(mpkg.Files))
-	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-	var errs error
+  - ParseGnoMod: parse gno.mod (if any) and compare versions.
+  - GoParse: parse Gno to Go AST with go/parser.
+  - Prepare: minimal Go AST mutations for Gno VM compat.
+  - Find xitems: Gno AST static analaysis to produce xitems.
+  - Rekey xitems: re-key xitems by Go Node before line changes.
+  - Transpile: main Go AST mutations for Gno upgrade.
+*/
+
+// ========================================
+// Parses the appropriate gno.mod file from mpkg or
+// generates a default one.
+//
+// Args:
+//   - testing: if running tests
+//   - linting: if running `gno lint` transpiling.
+//
+// Results:
+//   - mod: the gno.mod file.
+//   - outdated: true if it should be transpiled to the current version.
+func ParseGnoMod(mpkg *MemPackage, testing, linting bool) (
+	mod *gnomod.File, outdated bool) {
+
+	if testing {
+		// If we are testing we assume files already conform to the
+		// latest version. If they don't, run `gno lint` first before
+		// running tests.
+		mod, _ = gnomod.ParseBytes(gnomodTesting)
+	} else if IsStdlib(mpkg.Path) {
+		// stdlib/extern packages are assumed up to date.
+		mod, _ = gnomod.ParseBytes(gnomodTesting)
+	} else if mod, _ = gnomod.ParseMemPackage(mpkg); mod == nil {
+		// gno.mod doesn't exist.
+		mod, _ = gnomod.ParseBytes(gnomodDefault)
+		outdated = true
+	} else if mod.Gno == nil {
+		// 'gno 0.9' was never specified, continue
+		outdated = true
+	} else if mod.Gno.Version == GnoVersion {
+		// current version, nothing to do.
+	} else {
+		panic("unsupported gno version " + mod.Gno.Version)
+	}
+	return
+}
+
+// ========================================
+// Go parse the Gno source in mpkg to Go's *token.FileSet and
+// []ast.File with `go/parser`.
+//
+// Args:
+//   - withTests: if true also parses and includes all *_test.gno
+//     and *_filetest.gno files.
+func GoParseMemPackage(mpkg *std.MemPackage, withTests bool) (
+	fset *token.FileSet, astfs []*ast.File, err error) {
+	fset = token.NewFileSet()
+
+	// This map is used to allow for function re-definitions, which are
+	// allowed in Gno (testing context) but not in Go.  This map links
+	// each function identifier with a closure to remove its associated
+	// declaration.
+	var delFunc = make(map[string]func())
+
+	// Go parse and collect files from mpkg.
 	for _, file := range mpkg.Files {
 		// Ignore non-gno files.
-		// TODO: support filetest type checking. (should probably handle as each its
-		// own separate pkg, which should also be typechecked)
-		if !strings.HasSuffix(file.Name, ".gno") ||
-			strings.HasSuffix(file.Name, "_test.gno") ||
-			strings.HasSuffix(file.Name, "_filetest.gno") {
+		if !strings.HasSuffix(file.Name, ".gno") {
 			continue
 		}
-
-		f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
+		// Ignore _test/_filetest.gno files unless withTests.
+		if !withTests &&
+			(false ||
+				strings.HasSuffix(file.Name, "_test.gno") ||
+				strings.HasSuffix(file.Name, "_filetest.gno")) {
+			continue
+		}
+		// Go parse file.
+		const parseOpts = parser.ParseComments |
+			parser.DeclarationErrors |
+			parser.SkipObjectResolution
+		var astf, err = parser.ParseFile(
+			fset, path.Join(mpkg.Path, file.Name),
+			file.Body,
+			parseOpts)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-
-		//----------------------------------------
-		// Non-logical formatting transforms
-
-		if delFunc != nil {
-			deleteOldIdents(delFunc, f)
-		}
-
-		// Enforce formatting.
-		// This must happen before logical transforms.
-		if format && xform == nil {
-			var buf bytes.Buffer
-			err = gofmt.Node(&buf, fset, f)
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
-			file.Body = buf.String()
-		}
-
-		//----------------------------------------
-		// Logical transforms
-
-		if xform != nil {
-			// AST transform for Gno 0.9.
-			if err := transpileToGno0p9(mpkg.Path, fset, file.Name, f, xform); err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
-			// Write transformed AST to Go to file.
-			var buf bytes.Buffer
-			err = gofmt.Node(&buf, fset, f)
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
-			file.Body = buf.String()
-		}
-		files = append(files, f)
-	}
-	if errs != nil {
-		return errs
+		deleteOldIdents(delFunc, astf)
+		// The *ast.File passed all filters.
+		astfs = append(astfs, astf)
 	}
 	// END processing all files.
-
-	// Write to dirPath.
-	err := mpkg.WriteTo(dirPath)
-	return err
+	return fset, astfs, nil
 }
 
-func transpileToGno0p9(pkgPath string, fs *token.FileSet, fileName string, f *ast.File, xform map[string]string) (err error) {
-
-	var lastLine = 0
-	var didRemoveCrossing = false
-	var setLast = func(end token.Pos) {
-		posn := fs.Position(end)
-		lastLine = posn.Line
-	}
-	var getLine = func(pos token.Pos) int {
-		return fs.Position(pos).Line
-	}
-
-	astutil.Apply(f, func(c *astutil.Cursor) bool {
-
-		// Handle newlines after crossing
-		if didRemoveCrossing {
-			n := c.Node()
-			line := getLine(n.Pos())
-			tf := fs.File(n.Pos())
-			if lastLine < line {
-				// lastLine - 1 is the deleted crossing().
-				tf.MergeLine(lastLine - 1)
-				// and the next empty line too.
-				tf.MergeLine(lastLine)
-			}
-			didRemoveCrossing = false
+// ========================================
+// Prepare Gno 0.0 for Gno 0.9.
+//
+// When Gno syntax breaks in higher versions, existing code must first be
+// pre-transcribed such that the Gno preprocessor won't panic.  This allows
+// old Gno code to be preprocessed and used by the Gno VM for static analysis.
+// More transpiling will happen later after the preprocessed Gno AST is
+// scanned for mutations on the Go AST which follows.
+//
+// - renames 'realm' to 'realm_' to avoid conflict with new uverse type.
+//
+// Any changes are applied directly on the mem package.
+// Errors are returned in aggregate as a multierr type.
+func PrepareGno0p9(mpkg *std.MemPackage) (errs error) {
+	for _, file := range mpkg.Files {
+		// AST transform for Gno 0.9.
+		err := pretranspileToGno0p9(
+			mpkg.Path, fset, file.Name, astf)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
 		}
+		// Write formatted AST to mem file.
+		var buf bytes.Buffer
+		err = gofmt.Node(&buf, fset, astf)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		file.Body = buf.String()
+	}
+	return
+}
 
-		// Main switch on c.Node() type.
+// Pre-transpile AST mutation(s) for Gno 0.9.
+func pretranspileGno0p9(f *ast.File) (err error) {
+
+	// Rename name to _realm to avoid conflict with new builtin "realm".
+	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		switch n := c.Node().(type) {
 		case *ast.Ident:
 			if n.Name == "realm" {
-				// Rename name to _realm to avoid conflict with new builtin "realm".
 				// XXX: optimistic.
 				n.Name = "_realm"
-			}
-		case *ast.ExprStmt:
-			if ce, ok := n.X.(*ast.CallExpr); ok {
-				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
-					// Validate syntax.
-					if len(ce.Args) != 0 {
-						err = errors.New("crossing called with non empty parameters")
-					}
-					// Delete statement 'crossing()'.
-					c.Delete()
-					didRemoveCrossing = true
-					setLast(n.End())
-					return false
-				}
-			}
-		case *ast.FuncDecl:
-			pos := n.Pos()
-			posn := fs.Position(pos)
-			line, col := posn.Line, posn.Column
-			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fileName, line, col)
-			if xform[key] == "add curfunc" {
-				n.Type.Params.List = append([]*ast.Field{&ast.Field{
-					Names: []*ast.Ident{ast.NewIdent("cur")},
-					Type:  ast.NewIdent("realm"),
-				}}, n.Type.Params.List...)
-			}
-		case *ast.CallExpr:
-			pos := n.Pos()
-			posn := fs.Position(pos)
-			line, col := posn.Line, posn.Column
-			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fileName, line, col)
-			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
-				// Replace expression 'cross(x)' by 'x'.
-				// In Gno 0.9 @cross decorator is used instead.
-				var a ast.Node
-				if len(n.Args) == 1 {
-					a = n.Args[0]
-				} else {
-					err = errors.New("cross called with invalid parameters")
-				}
-				c.Replace(a)
-				return true
-			}
-			if xform[key] == "add curcall" {
-				n.Args = append([]ast.Expr{ast.NewIdent("cur")}, n.Args...)
-			} else if xform[key] == "add nilrealm" {
-				n.Args = append([]ast.Expr{ast.NewIdent("nil")}, n.Args...)
 			}
 		}
 		return true
@@ -194,18 +169,17 @@ func transpileToGno0p9(pkgPath string, fs *token.FileSet, fileName string, f *as
 }
 
 //========================================
-// Find Gno0.9 XItems
+// Find XItems for Gno 0.0 --> Gno 0.9.
 
-// Represents a needed transform.
+// XItem represents a single needed transform.
 type XItem struct {
 	Type string
 	Location
 }
 
-// Finds XItems for Gno 0.9 from the Gno AST and
-// stores them pn ATTR_GNO0P9_XITEMS
-// Then TranspileToGno0p9() applies them to Go AST and writes them.
-func FindGno0p9XItems(store Store, pn *PackageNode, bn BlockNode) {
+// Finds XItems for Gno 0.9 from the Gno AST and stores them pn
+// ATTR_GNO0P9_XITEMS.
+func FindXItemsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = pn
@@ -328,5 +302,228 @@ func addXItem(n Node, t string, p string, f string, l int, c int) {
 	}
 	key := fmt.Sprintf("%s/%s:%d:%d", p, f, l, c)
 	x[key] = t
-	fmt.Printf("%s:%s\n", t, key)
+	fmt.Printf("Gno 0.9 xpile +%s:%s\n", t, key)
+}
+
+// ========================================
+// Transpiles existing Gno code to Gno 0.9, the one with @cross decorators,
+// not cross(fn)(...).
+//
+// Writes in place if dir is provided. Transpiled packages will have their
+// gno.mod Gno version to 0.9.
+//
+// Args:
+//   - dir: where to write to.
+//   - xform: result of FindGno0p9XItems().
+func TranspileToGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) error {
+
+	// Return if gno.mod is current.
+	var mod *gnomod.File
+	var outdated bool = false
+	mod, outdated = parseGnoModFile(mpkg, false, true)
+	if !outdated {
+		return nil // already up-to-date.
+	}
+
+	// Go parse and collect files from mpkg.
+	fset := token.NewFileSet()
+	var errs error
+	for _, file := range mpkg.Files {
+		// Ignore non-gno files.
+		if !strings.HasSuffix(file.Name, ".gno") {
+			continue
+		}
+		/*
+			// Ignore _test/_filetest.gno files unless testing.
+			if !testing {
+				if strings.HasSuffix(file.Name, "_test.gno") ||
+					strings.HasSuffix(file.Name, "_filetest.gno") {
+					continue
+				}
+			}
+		*/
+		// Go parse file.
+		const parseOpts = parser.ParseComments |
+			parser.DeclarationErrors |
+			parser.SkipObjectResolution
+		var astf, err = parser.ParseFile(
+			fset,
+			path.Join(mpkg.Path, file.Name),
+			file.Body,
+			parseOpts)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		deleteOldIdents(delFunc, astf)
+		// AST transform for Gno 0.9 (step 1)
+		xform2, err := transpileToGno0p9_step1(mpkg.Path, fset, file.Name, astf, xform)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		// AST transform for Gno 0.9 (step 2)
+		if err := transpileToGno0p9_step2(mpkg.Path, fset, file.Name, astf, xform2); err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		// Write transformed AST to Go to file.
+		var buf bytes.Buffer
+		err = gofmt.Node(&buf, fset, astf)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		file.Body = buf.String()
+	}
+	if errs != nil {
+		return errs
+	}
+	// END processing all files.
+
+	// Write version to mod and to mpkg/gno.mod.
+	mod.SetGno(GnoVersion)
+	mf := mpkg.GetFile("gno.mod")
+	mf.Body = mod.WriteString()
+
+	// Write mpkg/* to dir.
+	err := mpkg.WriteTo(dir)
+	return err
+}
+
+// We can't just apply as we encounter matches in xform unfortunately because
+// it causes the lines to shift.  So we first convert xform into a map keyed
+// by node and then do the actual transpiling in step 2.
+func transpileToGno0p9_step1(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[string]string) (xform2 map[ast.Node]string, err error) {
+	xform2 = make(map[ast.Node]string, len(xform))
+
+	astutil.Apply(f, func(c *astutil.Cursor) bool {
+
+		// Main switch on c.Node() type.
+		switch n := c.Node().(type) {
+		case *ast.FuncLit:
+			pos := n.Pos()
+			posn := fs.Position(pos)
+			line, col := posn.Line, posn.Column
+			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fname, line, col)
+			if xform != nil && xform[key] == "add curfunc" {
+				xform2[n] = "add curfunc"
+			}
+		case *ast.FuncDecl:
+			pos := n.Pos()
+			posn := fs.Position(pos)
+			line, col := posn.Line, posn.Column
+			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fname, line, col)
+			if xform != nil && xform[key] == "add curfunc" {
+				xform2[n] = "add curfunc"
+			}
+		case *ast.CallExpr:
+			pos := n.Pos()
+			posn := fs.Position(pos)
+			line, col := posn.Line, posn.Column
+			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fname, line, col)
+			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+				return true // can be superimposed with parent call.
+			}
+			if xform != nil && xform[key] == "add curcall" {
+				xform2[n] = "add curcall"
+			} else if xform != nil && xform[key] == "add nilrealm" {
+				xform2[n] = "add nilrealm"
+			}
+		}
+		return true
+	}, nil)
+	return xform2, err
+}
+
+func transpileToGno0p9_step2(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[ast.Node]string) (err error) {
+
+	var lastLine = 0
+	var didRemoveCrossing = false
+	var setLast = func(end token.Pos) {
+		posn := fs.Position(end)
+		lastLine = posn.Line
+	}
+	var getLine = func(pos token.Pos) int {
+		return fs.Position(pos).Line
+	}
+
+	astutil.Apply(f, func(c *astutil.Cursor) bool {
+
+		// Handle newlines after crossing
+		if didRemoveCrossing {
+			n := c.Node()
+			line := getLine(n.Pos())
+			tf := fs.File(n.Pos())
+			if lastLine < line {
+				// lastLine - 1 is the deleted crossing().
+				tf.MergeLine(lastLine - 1)
+				// and the next empty line too.
+				tf.MergeLine(lastLine)
+			}
+			didRemoveCrossing = false
+		}
+
+		// Main switch on c.Node() type.
+		switch n := c.Node().(type) {
+		case *ast.Ident:
+			if n.Name == "realm_XXX_TRANSPILE" {
+				// Impostor varname 'realm' will become
+				// renamed, so reclaim 'realm'.
+				n.Name = "realm"
+			} else if n.Name == "realm" {
+				// Rename name to _realm to avoid conflict with new builtin "realm".
+				// XXX: optimistic.
+				n.Name = "_realm"
+			}
+		case *ast.ExprStmt:
+			if ce, ok := n.X.(*ast.CallExpr); ok {
+				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
+					// Validate syntax.
+					if len(ce.Args) != 0 {
+						err = errors.New("crossing called with non empty parameters")
+					}
+					// Delete statement 'crossing()'.
+					c.Delete()
+					didRemoveCrossing = true
+					setLast(n.End())
+					return false
+				}
+			}
+		case *ast.FuncLit:
+			if xform != nil && xform[n] == "add curfunc" {
+				n.Type.Params.List = append([]*ast.Field{&ast.Field{
+					Names: []*ast.Ident{ast.NewIdent("cur")},
+					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
+				}}, n.Type.Params.List...)
+			}
+		case *ast.FuncDecl:
+			if xform != nil && xform[n] == "add curfunc" {
+				n.Type.Params.List = append([]*ast.Field{&ast.Field{
+					Names: []*ast.Ident{ast.NewIdent("cur")},
+					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
+				}}, n.Type.Params.List...)
+			}
+		case *ast.CallExpr:
+			if xform != nil && xform[n] == "add curcall" {
+				n.Args = append([]ast.Expr{ast.NewIdent("cur")}, n.Args...)
+			} else if xform != nil && xform[n] == "add nilrealm" {
+				n.Args = append([]ast.Expr{ast.NewIdent("nil")}, n.Args...)
+			}
+			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+				// Replace expression 'cross(x)' by 'x'.
+				// In Gno 0.9 @cross decorator is used instead.
+				var a ast.Node
+				if len(n.Args) == 1 {
+					a = n.Args[0]
+				} else {
+					err = errors.New("cross called with invalid parameters")
+				}
+				c.Replace(a)
+				return true
+			}
+		}
+		return true
+	}, nil)
+	return err
 }

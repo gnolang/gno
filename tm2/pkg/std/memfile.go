@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// A MemFile is the simplest representation of a "file".
+//
+// Notice it doesn't have owners or timestamps. Keep this as is for
+// portability.  Not even date created, ownership, or other attributes.  Just a
+// name, and a body.  This keeps things portable, easy to hash (otherwise need
+// to manage e.g. the encoding and portability of timestamps).
 type MemFile struct {
 	Name string `json:"name" yaml:"name"`
 	Body string `json:"body" yaml:"body"`
@@ -21,9 +27,9 @@ type MemFile struct {
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
-	Name  string     `json:"name" yaml:"name"` // package name as declared by `package`
-	Path  string     `json:"path" yaml:"path"` // import path
-	Files []*MemFile `json:"files" yaml:"files"`
+	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
+	Path  string     `json:"path" yaml:"path"`   // import path
+	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
 }
 
 const pathLengthLimit = 256
@@ -94,7 +100,7 @@ func (mpkg *MemPackage) IsEmpty() bool {
 
 func (mpkg *MemPackage) WriteTo(dirPath string) error {
 	for _, file := range mpkg.Files {
-		fmt.Println("FORMATTED:", file.Name, file.Body)
+		fmt.Printf("MemPackage.WriteTo(%s) (%d) bytes written\n", file.Name, len(file.Body))
 		fpath := filepath.Join(dirPath, file.Name)
 		err := ioutil.WriteFile(fpath, []byte(file.Body), 0644)
 		if err != nil {

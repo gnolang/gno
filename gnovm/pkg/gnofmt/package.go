@@ -106,7 +106,7 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 		}
 
 	case err == nil:
-		gnoMod, err := gnomod.Parse(gnoModPath, data)
+		gnoMod, err := gnomod.ParseBytes(gnoModPath, data)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse gnomod %q: %w", gnoModPath, err)
 		}

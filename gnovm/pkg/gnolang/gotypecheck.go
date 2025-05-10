@@ -1,16 +1,12 @@
 package gnolang
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	gofmt "go/format"
 	"go/parser"
-	"go/token"
 	"go/types"
 	"path"
 	"slices"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
@@ -28,22 +24,23 @@ type MemPackageGetter interface {
 // mpkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
-//
-// If format is true, the code in msmpkg will be automatically updated with the
-// formatted source code.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, format bool) error {
-	return typeCheckMemPackage(mpkg, getter, false, format)
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) error {
+	return typeCheckMemPackage(mpkg, getter, false)
 }
 
-// TypeCheckMemPackageTest performs the same type checks as [TypeCheckMemPackage],
-// but allows re-declarations.
+// TypeCheckMemPackageTest performs the same type checks as
+// [TypeCheckMemPackage], but allows re-declarations.
 //
-// Note: like TypeCheckMemPackage, this function ignores tests and filetests.
+// NOTE: like TypeCheckMemPackage, this function ignores tests and filetests.
 func TypeCheckMemPackageTest(mpkg *std.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mpkg, getter, true, false)
+	return typeCheckMemPackage(mpkg, getter, true)
 }
 
-func typeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, testing, format bool) error {
+func typeCheckMemPackage(
+	mpkg *std.MemPackage,
+	getter MemPackageGetter,
+	testing bool) error {
+
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -57,7 +54,7 @@ func typeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, testing,
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mpkg, format)
+	_, err := imp.parseCheckMemPackage(mpkg)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {
@@ -101,78 +98,19 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	format := false
-	result, err := g.parseCheckMemPackage(mpkg, format)
+	result, err := g.parseCheckMemPackage(mpkg)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, format bool) (*types.Package, error) {
-	// This map is used to allow for function re-definitions, which are allowed
-	// in Gno (testing context) but not in Go.
-	// This map links each function identifier with a closure to remove its
-	// associated declaration.
-	var delFunc map[string]func()
-	if g.allowRedefinitions {
-		delFunc = make(map[string]func())
+func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
+
+	/* NOTE: Don't pre-transpile here; `gno lint` and fix the source first.
+	fset, astfs, err := PretranspileToGno0p9(mpkg, false)
+	if err != nil {
+		return nil, err
 	}
-
-	fset := token.NewFileSet()
-	files := make([]*ast.File, 0, len(mpkg.Files))
-	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-	var errs error
-	for _, file := range mpkg.Files {
-		// Ignore non-gno files.
-		// TODO: support filetest type checking. (should probably handle as each its
-		// own separate pkg, which should also be typechecked)
-		if !strings.HasSuffix(file.Name, ".gno") ||
-			strings.HasSuffix(file.Name, "_test.gno") ||
-			strings.HasSuffix(file.Name, "_filetest.gno") {
-			continue
-		}
-
-		f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-
-		//----------------------------------------
-		// Non-logical formatting transforms
-
-		if delFunc != nil {
-			deleteOldIdents(delFunc, f)
-		}
-
-		// Enforce formatting.
-		// This must happen before logical transforms.
-		if format {
-			var buf bytes.Buffer
-			err = gofmt.Node(&buf, fset, f)
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
-			file.Body = buf.String()
-		}
-
-		//----------------------------------------
-		// Logical transforms
-
-		// No need to filter because of gnobuiltins.go.
-		// But keep this code block for future transforms.
-		/*
-			// transpile for Gno 0.9
-			if err := transpileToGno0p9(f); err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
-		*/
-		files = append(files, f)
-	}
-	if errs != nil {
-		return nil, errs
-	}
+	*/
 
 	// Add builtins file.
 	file := &std.MemFile{
@@ -186,13 +124,20 @@ func revive[F any](fn F) any { return nil } // shim
 type realm interface{} // shim
 `, mpkg.Name),
 	}
-	f, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
+	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
+	astf, err := parser.ParseFile(fset, path.Join(mpkg.Path, file.Name), file.Body, parseOpts)
 	if err != nil {
 		panic("error parsing gotypecheck gnobuiltins.go file")
 	}
-	files = append(files, f)
+	astfs = append(astfs, astf)
 
-	pkg, err := g.cfg.Check(mpkg.Path, fset, files, nil)
+	// Type-check pre-transpiled Gno0.9 AST in Go.
+	// We don't (post)-transpile because the linter
+	// is supposed to be used to write to the files.
+	// (No need to support JIT transpiling for imports)
+	//
+	// XXX The pre pre thing for @cross.
+	pkg, err := g.cfg.Check(mpkg.Path, fset, astfs, nil)
 	return pkg, err
 }
 
@@ -201,7 +146,9 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods and init functions
 		//nolint:goconst
-		if !ok || fd.Recv != nil || fd.Name.Name == "init" {
+		if !ok ||
+			fd.Recv != nil ||
+			fd.Name.Name == "init" {
 			continue
 		}
 		if del := idents[fd.Name.Name]; del != nil {
@@ -209,9 +156,11 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 		}
 		decl := decl
 		idents[fd.Name.Name] = func() {
-			// NOTE: cannot use the index as a file may contain multiple decls to be removed,
-			// so removing one would make all "later" indexes wrong.
-			f.Decls = slices.DeleteFunc(f.Decls, func(d ast.Decl) bool { return decl == d })
+			// NOTE: cannot use the index as a file may contain
+			// multiple decls to be removed, so removing one would
+			// make all "later" indexes wrong.
+			f.Decls = slices.DeleteFunc(f.Decls,
+				func(d ast.Decl) bool { return decl == d })
 		}
 	}
 }

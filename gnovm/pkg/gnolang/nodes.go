@@ -1209,6 +1209,7 @@ func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 	allowedFiles := []string{ // make case insensitive?
 		"LICENSE",
 		"README.md",
+		"gno.mod",
 	}
 	allowedFileExtensions := []string{
 		".gno",
@@ -1258,6 +1259,9 @@ func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 //
 // NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
+//
+// XXX TODO pkgPath should instead be derived by inspecting the contents, among them
+// the gno.mod fule.
 func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
 	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
@@ -1315,8 +1319,9 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
-			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
-			continue // skip spurious or test file.
+			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) ||
+			mfile.Name == "gno.mod" {
+			continue // skip spurious or test or gno.mod file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {

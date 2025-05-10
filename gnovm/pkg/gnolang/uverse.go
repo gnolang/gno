@@ -794,8 +794,7 @@ func makeUverseNode() {
 
 	//----------------------------------------
 	// Gno2 types
-	// XXX UNCOMMENT
-	// def("realm", asValue(gRealmType))
+	def("realm", asValue(gRealmType))
 	defNative("crossing",
 		nil, // params
 		nil, // results
