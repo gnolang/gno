@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/doc"
 	"go/format"
+	"go/printer"
 	"go/token"
 	"strings"
 
@@ -100,10 +101,11 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	if opt == nil {
 		opt = &WriteDocumentationOptions{}
 	}
-	_, pkg, err := d.pkgData.docPackage()
+	astpkg, pkg, err := d.pkgData.docPackage()
 	if err != nil {
 		return nil, err
 	}
+	file := ast.MergePackageFiles(astpkg, 0)
 
 	jsonDoc := &JSONDocumentation{
 		PackagePath: d.pkgData.dir.dir,
@@ -122,7 +124,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 
 	for _, value := range pkg.Consts {
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
-			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source),
+			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     true,
 			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
@@ -131,7 +133,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 
 	for _, value := range pkg.Vars {
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
-			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source),
+			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     false,
 			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
@@ -142,7 +144,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 			Name:      fun.Name,
 			Crossing:  isCrossing(fun),
-			Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source),
+			Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source, file),
 			Doc:       string(pkg.Markdown(fun.Doc)),
 			Params:    d.extractJSONFields(fun.Decl.Type.Params),
 			Results:   d.extractJSONFields(fun.Decl.Type.Results),
@@ -214,7 +216,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				methods = append(methods, &JSONFunc{
 					Type:      typ.Name,
 					Name:      name,
-					Signature: name + strings.TrimPrefix(mustFormatNode(d.pkgData.fset, fun, false), "func"),
+					Signature: name + strings.TrimPrefix(mustFormatNode(d.pkgData.fset, fun, false, file), "func"),
 					Doc:       string(pkg.Markdown(docBuf.String())),
 					Params:    d.extractJSONFields(fun.Params),
 					Results:   d.extractJSONFields(fun.Results),
@@ -241,7 +243,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
 			Name:    typ.Name,
-			Type:    mustFormatNode(d.pkgData.fset, typeExpr, false),
+			Type:    mustFormatNode(d.pkgData.fset, typeExpr, false, file),
 			Doc:     string(pkg.Markdown(typ.Doc)),
 			Alias:   typeSpec.Assign != 0,
 			Kind:    kind,
@@ -252,7 +254,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		// values of this type
 		for _, c := range typ.Consts {
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
-				Signature: mustFormatNode(d.pkgData.fset, c.Decl, opt.Source),
+				Signature: mustFormatNode(d.pkgData.fset, c.Decl, opt.Source, file),
 				Const:     true,
 				Values:    d.extractValueSpecs(pkg, c.Decl.Specs),
 				Doc:       string(pkg.Markdown(c.Doc)),
@@ -260,7 +262,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		}
 		for _, v := range typ.Vars {
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
-				Signature: mustFormatNode(d.pkgData.fset, v.Decl, opt.Source),
+				Signature: mustFormatNode(d.pkgData.fset, v.Decl, opt.Source, file),
 				Const:     false,
 				Values:    d.extractValueSpecs(pkg, v.Decl.Specs),
 				Doc:       string(pkg.Markdown(v.Doc)),
@@ -272,7 +274,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Name:      fun.Name,
 				Crossing:  isCrossing(fun),
-				Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source),
+				Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source, file),
 				Doc:       string(pkg.Markdown(fun.Doc)),
 				Params:    d.extractJSONFields(fun.Decl.Type.Params),
 				Results:   d.extractJSONFields(fun.Decl.Type.Results),
@@ -284,7 +286,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				Type:      typ.Name,
 				Name:      meth.Name,
 				Crossing:  isCrossing(meth),
-				Signature: mustFormatNode(d.pkgData.fset, meth.Decl, opt.Source),
+				Signature: mustFormatNode(d.pkgData.fset, meth.Decl, opt.Source, file),
 				Doc:       string(pkg.Markdown(meth.Doc)),
 				Params:    d.extractJSONFields(meth.Decl.Type.Params),
 				Results:   d.extractJSONFields(meth.Decl.Type.Results),
@@ -317,7 +319,7 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 				// if there are no names, then the field is unnamed, but still has a type
 				f := &JSONField{
 					Name: "",
-					Type: mustFormatNode(d.pkgData.fset, field.Type, false),
+					Type: mustFormatNode(d.pkgData.fset, field.Type, false, nil),
 					Doc:  commentBuf.String(),
 				}
 				results = append(results, f)
@@ -327,7 +329,7 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 				for _, name := range field.Names {
 					f := &JSONField{
 						Name: name.Name,
-						Type: mustFormatNode(d.pkgData.fset, field.Type, false),
+						Type: mustFormatNode(d.pkgData.fset, field.Type, false, nil),
 						Doc:  commentBuf.String(),
 					}
 					results = append(results, f)
@@ -346,7 +348,7 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*
 
 		typeString := ""
 		if constSpec.Type != nil {
-			typeString = mustFormatNode(d.pkgData.fset, constSpec.Type, false)
+			typeString = mustFormatNode(d.pkgData.fset, constSpec.Type, false, nil)
 		}
 
 		commentBuf := new(strings.Builder)
@@ -372,7 +374,8 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*
 
 // mustFormatNode calls format.Node and returns the result as a string.
 // Panic on error, which shouldn't happen since the node is a valid AST from pkgData.parseFile.
-func mustFormatNode(fset *token.FileSet, node any, source bool) string {
+// If source is true and the optional ast.File is given, then use it to get internal comments.
+func mustFormatNode(fset *token.FileSet, node any, source bool, file *ast.File) string {
 	if !source {
 		// Temporarily remove the Doc and Body so that it's not in the signature
 		switch n := node.(type) {
@@ -391,6 +394,14 @@ func mustFormatNode(fset *token.FileSet, node any, source bool) string {
 				n.Doc = saveDoc
 			}()
 			n.Doc = nil
+		}
+	}
+
+	if file != nil && source {
+		// Need an extra little dance to get internal comments to appear.
+		node = &printer.CommentedNode{
+			Node:     node,
+			Comments: file.Comments,
 		}
 	}
 
