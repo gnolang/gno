@@ -13,7 +13,10 @@ import (
 	"go.uber.org/multierr"
 )
 
-// Type-checking (using go/types)
+/*
+	Type-checking (using go/types).
+	Refer to the [Lint and Transpile ADR](./adr/lint_transpile.md).
+*/
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
@@ -27,7 +30,7 @@ type MemPackageGetter interface {
 // The syntax checking is performed entirely using Go's go/types package.
 // TODO: rename these to GoTypeCheck*, goTypeCheck*...
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
-	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
+	pkg *types.Package, gofset *token.FileSet, gofs []*ast.File, errs error) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		getter: getter,
@@ -43,7 +46,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 
 	all := true    // type check all .gno files for mpkg (not for imports).
 	strict := true // check gno.mod exists
-	pkg, fset, astfs, errs = gimp.typeCheckMemPackage(mpkg, all, strict)
+	pkg, gofset, gofs, errs = gimp.typeCheckMemPackage(mpkg, all, strict)
 	return
 }
 
@@ -107,7 +110,7 @@ func (gimp *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.
 //     tests cannot be imported and used anyways.
 //   - strict: If true errors on gno.mod version mismatch.
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, all bool, strict bool) (
-	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
+	pkg *types.Package, gofset *token.FileSet, gofs []*ast.File, errs error) {
 
 	// STEP 1: Check gno.mod version.
 	if strict {
@@ -118,7 +121,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, all bool, str
 	}
 
 	// STEP 2: Parse the mem package to Go AST.
-	fset, astfs, errs = GoParseMemPackage(mpkg, all)
+	gofset, gofs, errs = GoParseMemPackage(mpkg, all)
 	if errs != nil {
 		return nil, nil, nil, fmt.Errorf("go parsing mem package: %v", errs)
 	}
@@ -140,23 +143,23 @@ type realm interface{} // shim
 	const parseOpts = parser.ParseComments |
 		parser.DeclarationErrors |
 		parser.SkipObjectResolution
-	var astf, err = parser.ParseFile(
-		fset,
+	var gof, err = parser.ParseFile(
+		gofset,
 		path.Join(mpkg.Path, file.Name),
 		file.Body,
 		parseOpts)
 	if err != nil {
 		panic("error parsing gotypecheck gnobuiltins.go file")
 	}
-	astfs = append(astfs, astf)
+	gofs = append(gofs, gof)
 
 	// STEP 3: Type-check Gno0.9 AST in Go.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, fset, astfs, nil)
-	return pkg, fset, astfs, gimp.errors
+	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+	return pkg, gofset, gofs, gimp.errors
 }
 
-func deleteOldIdents(idents map[string]func(), astf *ast.File) {
-	for _, decl := range astf.Decls {
+func deleteOldIdents(idents map[string]func(), gof *ast.File) {
+	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods and init functions
 		//nolint:goconst
@@ -173,7 +176,7 @@ func deleteOldIdents(idents map[string]func(), astf *ast.File) {
 			// NOTE: cannot use the index as a file may contain
 			// multiple decls to be removed, so removing one would
 			// make all "later" indexes wrong.
-			astf.Decls = slices.DeleteFunc(astf.Decls,
+			gof.Decls = slices.DeleteFunc(gof.Decls,
 				func(d ast.Decl) bool { return decl == d })
 		}
 	}

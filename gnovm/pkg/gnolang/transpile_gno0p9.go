@@ -18,42 +18,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// ========================================
 /*
-
-The steps of Gno 0.0 --> Gno 0.9 transpiling.
-  1. GetMemPackage, ReadMemPackage, ....
-  2. ParseGnoMod(): parse gno.mod (if any) and compare versions.
-  3. GoParse*(): parse Gno to Go AST with go/parser.
-  4. Prepare*(): minimal Go AST mutations for Gno VM compat.
-  5. m.PreprocessFiles(): normal Gno AST preprocessing.
-  6. FindXItems*(): Gno AST static analaysis to produce xitems.
-  7. Transpile*() Part 1: re-key xitems by Go Node before step 2 line changes.
-  8. Transpile*() Part 2: main Go AST mutations for Gno upgrade.
-  9. mpkg.WriteTo(): write mem package to disk.
-
-In cmd/gno/tool_lint.go each step is grouped into stages for all dirs:
-  * Stage 1: (for all dirs)
-    1. gno.ReadMemPackage()
-    2. gno.TypeCheckMemPackage() > ParseGnoMod()
-    3. gno.TypeCheckMemPackage() > GoParseMemPackage()
-       gno.TypeCheckMemPackage() > g.cfg.Check()
-    4. PrepareGno0p9()
-    5. tm.PreprocessFiles()
-    6. gno.FindXItemsGno0p9()
-  * Stage 2:
-    7. gno.TranspileGno0p9() Part 1
-    8. gno.TranspileGno0p9() Part 2
-  * Stage 3:
-    9. mpkg.WriteTo()
-
-In gotypecheck.go, TypeCheck*() diverges at step 4 and terminates:
-  1. mpkg provided as argument
-  2. ParseGnoMod()
-  3. GoParseMemPackage()
-  4. g.cfg.Check(): Go type-checker
-
+	Transpiling old Gno code to Gno 0.9.
+	Refer to the [Lint and Transpile ADR](./adr/lint_transpile.md).
 */
+
 // ========================================
 // Parses the gno.mod file from mpkg.
 // To generate default ones, use:
@@ -89,8 +58,8 @@ func ParseGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, outdated bool) {
 //   - wtests: if true also parses and includes all *_test.gno
 //     and *_filetest.gno files.
 func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
-	fset *token.FileSet, astfs []*ast.File, errs error) {
-	fset = token.NewFileSet()
+	gofset *token.FileSet, gofs []*ast.File, errs error) {
+	gofset = token.NewFileSet()
 
 	// This map is used to allow for function re-definitions, which are
 	// allowed in Gno (testing context) but not in Go.  This map links
@@ -116,20 +85,20 @@ func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 			parser.DeclarationErrors |
 			parser.SkipObjectResolution
 		// fmt.Println("GO/PARSER", mpkg.Path, file.Name)
-		var astf, err = parser.ParseFile(
-			fset, path.Join(mpkg.Path, file.Name),
+		var gof, err = parser.ParseFile(
+			gofset, path.Join(mpkg.Path, file.Name),
 			file.Body,
 			parseOpts)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		deleteOldIdents(delFunc, astf)
+		deleteOldIdents(delFunc, gof)
 		// The *ast.File passed all filters.
-		astfs = append(astfs, astf)
+		gofs = append(gofs, gof)
 	}
 	if errs != nil {
-		return fset, astfs, errs
+		return gofset, gofs, errs
 	}
 	// END processing all files.
 	return
@@ -149,10 +118,10 @@ func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 //
 // Results:
 // - errs: returned in aggregate as a multierr type.
-func PrepareGno0p9(fset *token.FileSet, astfs []*ast.File) (errs error) {
-	for _, astf := range astfs {
+func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File) (errs error) {
+	for _, gof := range gofs {
 		// AST transform for Gno 0.9.
-		err := prepareGno0p9(astf)
+		err := prepareGno0p9(gof)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -330,7 +299,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 	}
 
 	// Go parse and collect files from mpkg.
-	fset := token.NewFileSet()
+	gofset := token.NewFileSet()
 	var errs error
 	for _, file := range mpkg.Files {
 		// Ignore non-gno files.
@@ -350,8 +319,8 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
 			parser.SkipObjectResolution
-		var astf, err = parser.ParseFile(
-			fset,
+		var gof, err = parser.ParseFile(
+			gofset,
 			path.Join(mpkg.Path, file.Name),
 			file.Body,
 			parseOpts)
@@ -360,19 +329,19 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 			continue
 		}
 		// Transpile Part 1: re-key xform by ast.Node.
-		xform2, err := transpileGno0p9_part1(mpkg.Path, fset, file.Name, astf, xform)
+		xform2, err := transpileGno0p9_part1(mpkg.Path, gofset, file.Name, gof, xform)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
 		// Transpile Part 2: main Go AST transform for Gno 0.9.
-		if err := transpileGno0p9_part2(mpkg.Path, fset, file.Name, astf, xform2); err != nil {
+		if err := transpileGno0p9_part2(mpkg.Path, gofset, file.Name, gof, xform2); err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
 		// Write transformed AST to Go to mem file.
 		var buf bytes.Buffer
-		err = gofmt.Node(&buf, fset, astf)
+		err = gofmt.Node(&buf, gofset, gof)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -442,7 +411,7 @@ func transpileGno0p9_part1(pkgPath string, fs *token.FileSet, fname string, f *a
 }
 
 // The main Go AST transpiling logic to make Gno code Gno 0.9.
-func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[ast.Node]string) (err error) {
+func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof *ast.File, xform map[ast.Node]string) (err error) {
 
 	var lastLine = 0
 	var didRemoveCrossing = false
@@ -454,7 +423,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, f *a
 		return fs.Position(pos).Line
 	}
 
-	astutil.Apply(f, func(c *astutil.Cursor) bool {
+	astutil.Apply(gof, func(c *astutil.Cursor) bool {
 
 		// Handle newlines after crossing
 		if didRemoveCrossing {
@@ -519,13 +488,13 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, f *a
 			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
 				// Replace expression 'cross(x)' by 'x'.
 				// In Gno 0.9 @cross decorator is used instead.
-				var a ast.Node
+				var gon ast.Node
 				if len(n.Args) == 1 {
-					a = n.Args[0]
+					gon = n.Args[0]
 				} else {
 					err = errors.New("cross called with invalid parameters")
 				}
-				c.Replace(a)
+				c.Replace(gon)
 				return true
 			}
 		}

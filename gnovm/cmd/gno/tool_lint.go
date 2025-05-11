@@ -26,6 +26,11 @@ import (
 	"go.uber.org/multierr"
 )
 
+/*
+	Linting.
+	Refer to the [Lint and Transpile ADR](./adr/lint_transpile.md).
+*/
+
 type processedPackage struct {
 	mpkg   *std.MemPackage
 	fset   *gno.FileSet
@@ -34,7 +39,7 @@ type processedPackage struct {
 	ftests []*gno.FileSet
 }
 
-type lintCfg struct {
+type lintCmd struct {
 	verbose bool
 	rootDir string
 	// min_confidence: minimum confidence of a problem to print it
@@ -42,7 +47,7 @@ type lintCfg struct {
 }
 
 func newLintCmd(io commands.IO) *commands.Command {
-	cfg := &lintCfg{}
+	cmd := &lintCmd{}
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -50,14 +55,14 @@ func newLintCmd(io commands.IO) *commands.Command {
 			ShortUsage: "lint [flags] <package> [<package>...]",
 			ShortHelp:  "runs the linter for the specified packages",
 		},
-		cfg,
+		cmd,
 		func(_ context.Context, args []string) error {
-			return execLint(cfg, args, io)
+			return execLint(cmd, args, io)
 		},
 	)
 }
 
-func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	rootdir := gnoenv.RootDir()
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
@@ -89,17 +94,15 @@ func (i lintIssue) String() string {
 	return fmt.Sprintf("%s: %s (code=%s)", i.Location, i.Msg, i.Code)
 }
 
-func execLint(cfg *lintCfg, args []string, io commands.IO) error {
-	if len(args) < 1 {
+func execLint(cmd *lintCmd, args []string, io commands.IO) error {
+	// Show a help message by default.
+	if len(args) == 0 {
 		return flag.ErrHelp
 	}
 
-	var (
-		verbose = cfg.verbose
-		rootDir = cfg.rootDir
-	)
-	if rootDir == "" {
-		rootDir = gnoenv.RootDir()
+	// Guess opts.RootDir.
+	if cmd.rootDir == "" {
+		cmd.rootDir = gnoenv.RootDir()
 	}
 
 	dirs, err := gnoPackagesFromArgsRecursively(args)
@@ -110,7 +113,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	hasError := false
 
 	bs, ts := test.StoreWithOptions(
-		rootDir, goio.Discard,
+		cmd.rootDir, goio.Discard,
 		test.StoreOptions{PreprocessOnly: true},
 	)
 	ppkgs := map[string]processedPackage{}
@@ -118,7 +121,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	//----------------------------------------
 	// STAGE 1:
 	for _, dir := range dirs {
-		if verbose {
+		if cmd.verbose {
 			io.ErrPrintln(dir)
 		}
 
@@ -144,7 +147,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 		// STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
-		pkgPath, _ := determinePkgPath(mod, dir, cfg.rootDir)
+		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath)
 		if err != nil {
 			io.ErrPrintln(issueFromError(
@@ -162,71 +165,71 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Handle runtime errors
-		hasRuntimeErr := catchRuntimeError(dir, pkgPath, io.Err(), func() {
+		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter
 			// doesn't impact other packages.
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// These are Go types.
-			var pkg *token.Package
-			var fset *token.FileSet
-			var astfs []*ast.File
+			var pn *gno.PackageNode
+			var gopkg *types.Package
+			var gofset *token.FileSet
+			var gofs []*ast.File
 			var errs error
+			if false {
+				println(gopkg, "is not used")
+			}
 
 			// Run type checking
 			if mod == nil || !mod.Draft {
 				// STEP 2: ParseGnoMod()
 				// STEP 3: GoParse*()
 				//
-				// typeCheckAndPrintErrors(mpkg) -->
+				// lintTypeCheck(mpkg) -->
 				//   TypeCheckMemPackage(mpkg) -->
 				//     imp.typeCheckMemPackage(mpkg)
 				//       ParseGnoMod(mpkg);
 				//       GoParseMemPackage(mpkg);
-				//       g.cfg.Check();
+				//       g.cmd.Check();
 				//
 				// NOTE: Prepare*() is not called.
-				pkg, fset, astfs, errs = typeCheckAndPrintErrors(io, dir, mpkg, gs)
+				gopkg, gofset, gofs, errs = lintTypeCheck(io, dir, mpkg, gs)
 				if errs != nil {
 					io.ErrPrintln(errs)
 					hasError = true
-				} else if foundErr {
-					hasError = true
 				}
-			} else if verbose {
+			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
 			}
 
 			// STEP 4 & 5: Prepare*() and Preprocess*().
-			{
-				// Construct machine for testing.
-				tm := test.Machine(gs, goio.Discard, pkgPath, false)
-				defer tm.Release()
+			// Construct machine for testing.
+			tm := test.Machine(gs, goio.Discard, pkgPath, false)
+			defer tm.Release()
 
-				// Gno parse source fileset and test filesets.
-				all, fset2, _tests, ftests := sourceAndTestFileset(mpkg)
+			// Gno parse source fileset and test filesets.
+			all, fset, _tests, ftests := sourceAndTestFileset(mpkg)
 
-				// Prepare Go AST for preprocessing.
-				errs := PrepareGno0p9(fset, astfs)
-				if errs != nil {
-					io.ErrPrintln(errs)
-					hasError = true
-				}
+			// Prepare Go AST for preprocessing.
+			errs = gno.PrepareGno0p9(gofset, gofs)
+			if errs != nil {
+				io.ErrPrintln(errs)
+				hasError = true
+			}
 
-				// Preprocess fset files (w/ some _test.gno).
-				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset2, false, false)
-				// Preprocess _test files (all _test.gno).
-				for _, fset3 := range _tests {
-					tm.PreprocessFiles(
-						mpkg.Name, mpkg.Path, fset3, false, false)
-				}
-				// Preprocess _filetest.gno files.
-				for _, fset3 := range ftests {
-					tm.PreprocessFiles(
-						mpkg.Name, mpkg.Path, fset3, false, false)
-				}
+			// Preprocess fset files (w/ some _test.gno).
+			pn, _ = tm.PreprocessFiles(
+				mpkg.Name, mpkg.Path, fset, false, false)
+			// Preprocess _test files (all _test.gno).
+			for _, fset := range _tests {
+				tm.PreprocessFiles(
+					mpkg.Name, mpkg.Path, fset, false, false)
+			}
+			// Preprocess _filetest.gno files.
+			for _, fset := range ftests {
+				tm.PreprocessFiles(
+					mpkg.Name, mpkg.Path, fset, false, false)
 			}
 
 			// Record results.
@@ -245,9 +248,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				}
 			}
 		})
-		if hasRuntimeErr {
+		if didPanic {
 			hasError = true
 		}
+	}
+	if hasError {
+		return commands.ExitCodeError(1)
 	}
 
 	//----------------------------------------
@@ -291,18 +297,18 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 }
 
 // Wrapper around TypeCheckMemPackage() to io.ErrPrintln(lintIssue{}).
-func typeCheckAndPrintErrors(
+func lintTypeCheck(
 	io commands.IO,
 	dir string,
 	mpkg *std.MemPackage,
 	testStore gno.Store,
 ) (
-	pkg *token.Package,
-	fset *token.FileSet,
-	astfs []*ast.File,
+	gopkg *types.Package,
+	gofset *token.FileSet,
+	gofs []*ast.File,
 	errs error) {
 
-	pkg, fset, astfs, errs = gno.TypeCheckMemPackage(mpkg, testStore)
+	gopkg, gofset, gofs, errs = gno.TypeCheckMemPackage(mpkg, testStore)
 	errors := multierr.Errors(errs)
 	for _, err := range errors {
 		switch err := err.(type) {
@@ -344,7 +350,6 @@ func typeCheckAndPrintErrors(
 }
 
 // Gno parses and sorts mpkg files into the following filesets:
-//   - all: all files
 //   - fset: all normal and _test.go files in package excluding `package xxx_test`
 //     integration *_test.gno files.
 //   - _tests: `package xxx_test` integration *_test.gno files, each in their
@@ -384,21 +389,21 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 	return
 }
 
-func guessSourcePath(pkg, source string) string {
-	if info, err := os.Stat(pkg); !os.IsNotExist(err) && !info.IsDir() {
-		pkg = filepath.Dir(pkg)
+func guessSourcePath(pkgPath, fname string) string {
+	if info, err := os.Stat(pkgPath); !os.IsNotExist(err) && !info.IsDir() {
+		pkgPath = filepath.Dir(pkgPath)
 	}
 
-	sourceJoin := filepath.Join(pkg, source)
-	if _, err := os.Stat(sourceJoin); !os.IsNotExist(err) {
-		return filepath.Clean(sourceJoin)
+	fnameJoin := filepath.Join(pkgPath, fname)
+	if _, err := os.Stat(fnameJoin); !os.IsNotExist(err) {
+		return filepath.Clean(fnameJoin)
 	}
 
-	if _, err := os.Stat(source); !os.IsNotExist(err) {
-		return filepath.Clean(source)
+	if _, err := os.Stat(fname); !os.IsNotExist(err) {
+		return filepath.Clean(fname)
 	}
 
-	return filepath.Clean(pkg)
+	return filepath.Clean(pkgPath)
 }
 
 // reParseRecover is a regex designed to parse error details from a string.
@@ -408,7 +413,7 @@ func guessSourcePath(pkg, source string) string {
 // dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
-func catchRuntimeError(dir, pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
+func catchPanic(dir, pkgPath string, stderr goio.WriteCloser, action func()) (didPanic bool) {
 	defer func() {
 		// Errors catched here mostly come from:
 		// gnovm/pkg/gnolang/preprocess.go
@@ -417,7 +422,7 @@ func catchRuntimeError(dir, pkgPath string, stderr goio.WriteCloser, action func
 			return
 		}
 		rdebug.PrintStack()
-		hasError = true
+		didPanic = true
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()

@@ -17,7 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-type testCfg struct {
+type testCmd struct {
 	verbose             bool
 	failfast            bool
 	rootDir             string
@@ -31,7 +31,7 @@ type testCfg struct {
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
-	cfg := &testCfg{}
+	cmd := &testCmd{}
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -89,14 +89,14 @@ the execution of the tests. This makes testing faster, but means that the
 initialization of imported pure packages cannot be checked in filetests.
 `,
 		},
-		cfg,
+		cmd,
 		func(_ context.Context, args []string) error {
-			return execTest(cfg, args, io)
+			return execTest(cmd, args, io)
 		},
 	)
 }
 
-func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
 		"v",
@@ -168,15 +168,15 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execTest(cfg *testCfg, args []string, io commands.IO) error {
-	// Default to current directory if no args provided
+func execTest(cmd *testCmd, args []string, io commands.IO) error {
+	// Show a help message by default.
 	if len(args) == 0 {
-		args = []string{"."}
+		return flag.ErrHelp
 	}
 
-	// guess opts.RootDir
-	if cfg.rootDir == "" {
-		cfg.rootDir = gnoenv.RootDir()
+	// Guess opts.RootDir.
+	if cmd.rootDir == "" {
+		cmd.rootDir = gnoenv.RootDir()
 	}
 
 	paths, err := targetsFromPatterns(args)
@@ -189,10 +189,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	if cfg.timeout > 0 {
+	if cmd.timeout > 0 {
 		go func() {
-			time.Sleep(cfg.timeout)
-			panic("test timed out after " + cfg.timeout.String())
+			time.Sleep(cmd.timeout)
+			panic("test timed out after " + cmd.timeout.String())
 		}()
 	}
 
@@ -203,17 +203,17 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// Set up options to run tests.
 	stdout := goio.Discard
-	if cfg.verbose {
+	if cmd.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, stdout, io.Err())
-	opts.RunFlag = cfg.run
-	opts.Sync = cfg.updateGoldenTests
-	opts.Verbose = cfg.verbose
-	opts.Metrics = cfg.printRuntimeMetrics
-	opts.Events = cfg.printEvents
-	opts.Debug = cfg.debug
-	opts.FailfastFlag = cfg.failfast
+	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err())
+	opts.RunFlag = cmd.run
+	opts.Sync = cmd.updateGoldenTests
+	opts.Verbose = cmd.verbose
+	opts.Metrics = cmd.printRuntimeMetrics
+	opts.Events = cmd.printEvents
+	opts.Debug = cmd.debug
+	opts.FailfastFlag = cmd.failfast
 
 	buildErrCount := 0
 	testErrCount := 0
@@ -231,42 +231,48 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		// Determine gnoPkgPath by reading gno.mod from disk.
 		// TODO: Have ReadMemPackage handle it.
 		modfile, _ := gnomod.ParseDir(pkg.Dir)
-		gnoPkgPath, ok := determinePkgPath(modfile, pkg.Dir, cfg.rootDir)
+		gnoPkgPath, ok := determinePkgPath(modfile, pkg.Dir, cmd.rootDir)
 		if !ok {
 			io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
 		// Read MemPackage and lint/pretranspile/format.
 		// (gno.mod will be read again).
+		var errsLint, errsTest error
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
-		var hasError bool
 		startedAt := time.Now()
-		runtimeError := catchRuntimeError(pkg.Dir, gnoPkgPath, io.Err(), func() {
+		didPanic := catchPanic(pkg.Dir, gnoPkgPath, io.Err(), func() {
 			if modfile == nil || !modfile.Draft {
-				foundErr, lintErr := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
-				if lintErr != nil {
-					io.ErrPrintln(lintErr)
-					hasError = true
-				} else if foundErr {
-					hasError = true
+				_, _, _, errs := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
+				if errs != nil {
+					errsLint = errs
+					io.ErrPrintln(errs)
 				}
-			} else if cfg.verbose {
+			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
 			}
-			err = test.Test(memPkg, pkg.Dir, opts)
+			errs := test.Test(memPkg, pkg.Dir, opts)
+			if errs != nil {
+				errsTest = errs
+				io.ErrPrintln(errs)
+			}
 		})
-		hasError = hasError || runtimeError
 
 		// Print status with duration.
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
-		if hasError || err != nil {
-			if err != nil {
-				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+		if didPanic || errsLint != nil || errsTest != nil {
+			if errsLint != nil {
+				io.ErrPrintfln(
+					"%s: lint pkg: %v", pkg.Dir, errsLint)
+			}
+			if errsTest != nil {
+				io.ErrPrintfln(
+					"%s: test pkg: %v", pkg.Dir, errsTest)
 			}
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
 			testErrCount++
-			if cfg.failfast {
+			if cmd.failfast {
 				return fail()
 			}
 		} else {
