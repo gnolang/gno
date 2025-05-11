@@ -303,10 +303,6 @@ func typeCheckAndPrintErrors(
 	errs error) {
 
 	pkg, fset, astfs, errs = gno.TypeCheckMemPackage(mpkg, testStore)
-	if errs != nil {
-		return
-	}
-
 	errors := multierr.Errors(errs)
 	for _, err := range errors {
 		switch err := err.(type) {

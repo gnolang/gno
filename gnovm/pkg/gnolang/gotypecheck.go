@@ -28,26 +28,22 @@ type MemPackageGetter interface {
 // TODO: rename these to GoTypeCheck*, goTypeCheck*...
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
-
-	return typeCheckMemPackage(mpkg, getter)
-}
-
-func typeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
-	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
-
-	gimp := &gnoImporter{
+	var gimp *gnoImporter
+	gimp = &gnoImporter{
 		getter: getter,
 		cache:  map[string]gnoImporterResult{},
 		cfg: &types.Config{
 			Error: func(err error) {
-				errs = multierr.Append(errs, err)
+				gimp.Error(err)
 			},
 		},
+		errors: nil,
 	}
 	gimp.cfg.Importer = gimp
 
-	wtests := true // type check all .gno files.
-	pkg, fset, astfs, errs = gimp.typeCheckMemPackage(mpkg, wtests)
+	all := true    // type check all .gno files for mpkg (not for imports).
+	strict := true // check gno.mod exists
+	pkg, fset, astfs, errs = gimp.typeCheckMemPackage(mpkg, all, strict)
 	return
 }
 
@@ -64,11 +60,17 @@ type gnoImporter struct {
 	getter MemPackageGetter
 	cache  map[string]gnoImporterResult
 	cfg    *types.Config
+	errors error // multierr
 }
 
 // Unused, but satisfies the Importer interface.
 func (gimp *gnoImporter) Import(path string) (*types.Package, error) {
 	return gimp.ImportFrom(path, "", 0)
+}
+
+// Pass through to cfg.Error for collecting all type-checking errors.
+func (gimp *gnoImporter) Error(err error) {
+	gimp.errors = multierr.Append(gimp.errors, err)
 }
 
 type importNotFoundError string
@@ -77,20 +79,21 @@ func (e importNotFoundError) Error() string { return "import not found: " + stri
 
 // ImportFrom returns the imported package for the given import
 // path when imported by a package file located in dir.
-func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
-	if pkg, ok := g.cache[path]; ok {
+func (gimp *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
+	if pkg, ok := gimp.cache[path]; ok {
 		return pkg.pkg, pkg.err
 	}
 	// fmt.Println("GNOIMPORTER IMPORTFROM > GETMEMPACKAGE", path)
-	mpkg := g.getter.GetMemPackage(path)
+	mpkg := gimp.getter.GetMemPackage(path)
 	if mpkg == nil {
 		err := importNotFoundError(path)
-		g.cache[path] = gnoImporterResult{err: err}
+		gimp.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	wtests := false // don't parse test files for imports.
-	pkg, _, _, errs := g.typeCheckMemPackage(mpkg, wtests)
-	g.cache[path] = gnoImporterResult{pkg: pkg, err: errs}
+	all := false    // don't parse test files for imports.
+	strict := false // don't check for gno.mod for imports.
+	pkg, _, _, errs := gimp.typeCheckMemPackage(mpkg, all, strict)
+	gimp.cache[path] = gnoImporterResult{pkg: pkg, err: errs}
 	return pkg, errs
 }
 
@@ -99,18 +102,23 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
 //
 // Args:
-//   - wtests: if true, with all *_test.gno and *_testfile.gno files.
-func (g *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests bool) (
+//   - all: If true add all *_test.gno and *_testfile.gno files.
+//     Generally should be set to false when importing because
+//     tests cannot be imported and used anyways.
+//   - strict: If true errors on gno.mod version mismatch.
+func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, all bool, strict bool) (
 	pkg *types.Package, fset *token.FileSet, astfs []*ast.File, errs error) {
 
 	// STEP 1: Check gno.mod version.
-	_, outdated := ParseGnoMod(mpkg)
-	if outdated {
-		return nil, nil, nil, fmt.Errorf("outdated gno version for package %s", mpkg.Path)
+	if strict {
+		_, outdated := ParseGnoMod(mpkg)
+		if outdated {
+			return nil, nil, nil, fmt.Errorf("outdated gno version for package %s", mpkg.Path)
+		}
 	}
 
 	// STEP 2: Parse the mem package to Go AST.
-	fset, astfs, errs = GoParseMemPackage(mpkg, wtests)
+	fset, astfs, errs = GoParseMemPackage(mpkg, all)
 	if errs != nil {
 		return nil, nil, nil, fmt.Errorf("go parsing mem package: %v", errs)
 	}
@@ -143,8 +151,8 @@ type realm interface{} // shim
 	astfs = append(astfs, astf)
 
 	// STEP 3: Type-check Gno0.9 AST in Go.
-	pkg, errs = g.cfg.Check(mpkg.Path, fset, astfs, nil)
-	return pkg, fset, astfs, errs
+	pkg, _ = gimp.cfg.Check(mpkg.Path, fset, astfs, nil)
+	return pkg, fset, astfs, gimp.errors
 }
 
 func deleteOldIdents(idents map[string]func(), astf *ast.File) {
