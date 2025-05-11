@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"go/types"
 	goio "io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,8 +41,9 @@ type processedPackage struct {
 }
 
 type lintCmd struct {
-	verbose bool
-	rootDir string
+	verbose    bool
+	rootDir    string
+	autoGnomod bool
 	// min_confidence: minimum confidence of a problem to print it
 	// (default 0.8) auto-fix: apply suggested fixes automatically.
 }
@@ -67,6 +69,7 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
+	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gno.mod file if not already present.")
 }
 
 type lintCode string
@@ -118,9 +121,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	)
 	ppkgs := map[string]processedPackage{}
 
+	fmt.Println("LINT DIRS:", dirs)
 	//----------------------------------------
 	// STAGE 1:
 	for _, dir := range dirs {
+		fmt.Println("LINT DIR:", dir)
 		if cmd.verbose {
 			io.ErrPrintln(dir)
 		}
@@ -130,9 +135,23 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			dir = filepath.Dir(dir)
 		}
 
-		// TODO: This should be handled by ReadMemPackage.
+		// Read and parse gno.mod directly.
 		fpath := path.Join(dir, "gno.mod")
 		mod, err := gnomod.ParseFilepath(fpath)
+		if errors.Is(err, fs.ErrNotExist) {
+			if cmd.autoGnomod {
+				mod, err = gnomod.ParseBytes("gno.mod", []byte(gno.GnoModDefault))
+				if err != nil {
+					panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
+				}
+				io.ErrPrintfln("auto-generated %q", fpath)
+				err = mod.WriteFile(fpath)
+				if err != nil {
+					panic(fmt.Errorf("unexpected panic writing to %q: %w", fpath, err))
+				}
+				// err == nil.
+			}
+		}
 		if err != nil {
 			issue := lintIssue{
 				Code:       lintGnoMod,
@@ -192,9 +211,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				//       ParseGnoMod(mpkg);
 				//       GoParseMemPackage(mpkg);
 				//       g.cmd.Check();
-				//
-				// NOTE: Prepare*() is not called.
-				gopkg, gofset, gofs, errs = lintTypeCheck(io, dir, mpkg, gs)
+				gopkg, gofset, gofs, errs =
+					lintTypeCheck(io, dir, mpkg, gs)
 				if errs != nil {
 					io.ErrPrintln(errs)
 					hasError = true
@@ -203,21 +221,24 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
 			}
 
-			// STEP 4 & 5: Prepare*() and Preprocess*().
+			// STEP 4: Prepare*()
 			// Construct machine for testing.
 			tm := test.Machine(gs, goio.Discard, pkgPath, false)
 			defer tm.Release()
 
-			// Gno parse source fileset and test filesets.
-			all, fset, _tests, ftests := sourceAndTestFileset(mpkg)
-
 			// Prepare Go AST for preprocessing.
-			errs = gno.PrepareGno0p9(gofset, gofs)
+			errs = gno.PrepareGno0p9(gofset, gofs, mpkg)
 			if errs != nil {
 				io.ErrPrintln(errs)
 				hasError = true
+				return // Prepare must succeed.
 			}
 
+			// STEP 5: re-parse
+			// Gno parse source fileset and test filesets.
+			all, fset, _tests, ftests := sourceAndTestFileset(mpkg)
+
+			// STEP 6: PreprocessFiles()
 			// Preprocess fset files (w/ some _test.gno).
 			pn, _ = tm.PreprocessFiles(
 				mpkg.Name, mpkg.Path, fset, false, false)
@@ -236,9 +257,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			ppkgs[dir] = processedPackage{
 				mpkg, fset, pn, _tests, ftests}
 
-			// STEP 6: FindXItems():
+			// STEP 7: FindXItems():
 			// FindXItems for all files if outdated.
-			if mod.Gno.Version == "0.0" {
+			if mod == nil || mod.Gno == nil || mod.Gno.Version == "0.0" {
 				// Use the preprocessor to collect the
 				// transformations needed to be done.
 				// They are collected in
@@ -267,7 +288,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		mpkg, pn := ppkg.mpkg, ppkg.pn
 		xform, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XITEMS).(map[string]string)
 
-		// STEP 7 & 8: gno.TranspileGno0p9() Part 1 & 2
+		// STEP 8 & 9: gno.TranspileGno0p9() Part 1 & 2
 		err := gno.TranspileGno0p9(mpkg, dir, xform)
 		if err != nil {
 			return err
@@ -286,7 +307,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			panic("where did it go")
 		}
 
-		// STEP 9: mpkg.WriteTo():
+		// STEP 10: mpkg.WriteTo():
 		err := ppkg.mpkg.WriteTo(dir)
 		if err != nil {
 			return err
@@ -342,7 +363,7 @@ func lintTypeCheck(
 				Location:   loc,
 			})
 		default:
-			errs = fmt.Errorf("unexpected error type; %T", err)
+			io.ErrPrintfln("unknown error (%T): %s", err, err.Error())
 			return
 		}
 	}

@@ -5,20 +5,64 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
 
+// XXX rename to mempackage.go
+
+const fileNameLimit = 256
+const pkgNameLimit = 256
+const pkgPathLimit = 256
+
+var (
+	// See also gnovm/pkg/gnolang/validate_mempackage.go.
+	reFileName   = regexp.MustCompile(`^(([a-z0-9_]+|[A-Z0-9_]+)\.[a-z0-9_]{1,7}|LICENSE|README)$`)
+	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
+	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)
+)
+
+//----------------------------------------
+// MemPackage
+
 // A MemFile is the simplest representation of a "file".
 //
-// Notice it doesn't have owners or timestamps. Keep this as is for
-// portability.  Not even date created, ownership, or other attributes.  Just a
-// name, and a body.  This keeps things portable, easy to hash (otherwise need
-// to manage e.g. the encoding and portability of timestamps).
+// File Name must contain a single dot and extension.
+// File Name may be ALLCAPS.xxx or lowercase.xxx; extensions lowercase.
+// e.g. OK:     README.md, readme.md, readme.txt, READ.me
+// e.g. NOT OK: Readme.md, readme.MD, README, .readme
+// File Body can be any string.
+//
+// NOTE: It doesn't have owners or timestamps. Keep this as is for portability.
+// Not even date created, ownership, or other attributes.  Just a name, and a
+// body.  This keeps things portable, easy to hash (otherwise need to manage
+// e.g. the encoding and portability of timestamps).
 type MemFile struct {
 	Name string `json:"name" yaml:"name"`
 	Body string `json:"body" yaml:"body"`
 }
+
+func (mfile *MemFile) ValidateBasic() error {
+	if len(mfile.Name) > fileNameLimit {
+		return fmt.Errorf("name length %d exceeds limit %d", len(mfile.Name), fileNameLimit)
+	}
+	if !reFileName.MatchString(mfile.Name) {
+		return fmt.Errorf("invalid file name %q", mfile.Name)
+	}
+	return nil
+}
+
+// Print file to stdout.
+func (mfile *MemFile) Print() error {
+	fmt.Printf("MemFile[%q]:\n", mfile.Name)
+	fmt.Println(mfile.Body)
+	return nil
+}
+
+//----------------------------------------
+// MemPackage
 
 // MemPackage represents the information and files of a package which will be
 // stored in memory. It will generally be initialized by package gnolang's
@@ -32,34 +76,29 @@ type MemPackage struct {
 	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
 }
 
-const pathLengthLimit = 256
-
-var (
-	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgOrRlmPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
-	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
-)
-
-// path must not contain any dots after the first domain component.
-// file names must contain dots.
-// NOTE: this is to prevent conflicts with nested paths.
-func (mpkg *MemPackage) Validate() error {
+// Package Name must be lower_case, can have digits & underscores.
+// Package Path must be "a.valid.url/path" or a "simple/path".
+// An empty MemPackager is invalid.
+func (mpkg *MemPackage) ValidateBasic() error {
 	// add assertion that MemPkg contains at least 1 file
 	if len(mpkg.Files) <= 0 {
 		return fmt.Errorf("no files found within package %q", mpkg.Name)
 	}
-
-	if len(mpkg.Path) > pathLengthLimit {
-		return fmt.Errorf("path length %d exceeds limit %d", len(mpkg.Path), pathLengthLimit)
+	if len(mpkg.Name) > pkgNameLimit {
+		return fmt.Errorf("name length %d exceeds limit %d", len(mpkg.Name), pkgNameLimit)
 	}
-
+	if len(mpkg.Path) > pkgPathLimit {
+		return fmt.Errorf("path length %d exceeds limit %d", len(mpkg.Path), pkgPathLimit)
+	}
 	if !rePkgName.MatchString(mpkg.Name) {
-		return fmt.Errorf("invalid package name %q, failed to match %q", mpkg.Name, rePkgName)
+		return fmt.Errorf("invalid package name %q", mpkg.Name)
+	}
+	if true && // none of these match...
+		!rePkgPathURL.MatchString(mpkg.Path) &&
+		!rePkgPathStd.MatchString(mpkg.Path) {
+		return fmt.Errorf("invalid package path %q", mpkg.Path)
 	}
 
-	if !rePkgOrRlmPath.MatchString(mpkg.Path) {
-		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mpkg.Path, rePkgOrRlmPath)
-	}
 	// enforce sorting files based on Go conventions for predictability
 	sorted := sort.SliceIsSorted(
 		mpkg.Files,
@@ -68,41 +107,96 @@ func (mpkg *MemPackage) Validate() error {
 		},
 	)
 	if !sorted {
+		for i := 0; i < len(mpkg.Files); i++ {
+			fmt.Println(">>>", i, mpkg.Files[i].Name)
+		}
 		return fmt.Errorf("mempackage %q has unsorted files", mpkg.Path)
 	}
 
-	var prev string
-	for i, file := range mpkg.Files {
-		if !reFileName.MatchString(file.Name) {
-			return fmt.Errorf("invalid file name %q, failed to match %q", file.Name, reFileName)
-		}
-		if i > 0 && prev == file.Name {
-			return fmt.Errorf("duplicate file name %q", file.Name)
-		}
-		prev = file.Name
+	// unique filenames
+	if err := mpkg.Uniq(); err != nil {
+		return err
 	}
 
+	// validate files
+	for _, mfile := range mpkg.Files {
+		if err := mfile.ValidateBasic(); err != nil {
+			return fmt.Errorf("invalid file in package: %w", err)
+		}
+		if !reFileName.MatchString(mfile.Name) {
+			return fmt.Errorf("invalid file name %q, failed to match %q", mfile.Name, reFileName)
+		}
+	}
 	return nil
 }
 
+// Returns an error if lowercase(file.Name) are not unique.
+func (mpkg *MemPackage) Uniq() error {
+	var uniq = make(map[string]struct{}, len(mpkg.Files))
+	for _, mfile := range mpkg.Files {
+		lname := strings.ToLower(mfile.Name)
+		if _, exists := uniq[lname]; exists {
+			return fmt.Errorf("duplicate file name %q", lname)
+		}
+		uniq[lname] = struct{}{}
+	}
+	return nil
+}
+
+// Sort files; a MemPackage with unordered files is in valid.
+func (mpkg *MemPackage) Sort() {
+	slices.SortFunc(mpkg.Files, func(a, b *MemFile) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+}
+
+// Return the named file or none if it doesn't exist.
 func (mpkg *MemPackage) GetFile(name string) *MemFile {
-	for _, memFile := range mpkg.Files {
-		if memFile.Name == name {
-			return memFile
+	for _, mfile := range mpkg.Files {
+		if mfile.Name == name {
+			return mfile
 		}
 	}
 	return nil
 }
 
+func (mpkg *MemPackage) appendFile(mfile *MemFile) {
+	mpkg.Files = append(mpkg.Files, mfile)
+}
+
+// Creates a new MemFile and appends without validation.
+func (mpkg *MemPackage) NewFile(name string, body string) (mfile *MemFile) {
+	mfile = &MemFile{
+		Name: name,
+		Body: body,
+	}
+	mpkg.appendFile(mfile)
+	return
+}
+
+// Writes to existing file or creates a new one.
+func (mpkg *MemPackage) SetFile(name string, body string) *MemFile {
+	for _, mfile := range mpkg.Files {
+		if mfile.Name == name {
+			mfile.Body = body
+			return mfile
+		}
+	}
+	return mpkg.NewFile(name, body)
+}
+
+// Returns true if zero.
+// XXX Reconsider renaming all IsEmpty() to IsZero(), each carefully.
 func (mpkg *MemPackage) IsEmpty() bool {
 	return mpkg.Name == "" || len(mpkg.Files) == 0
 }
 
-func (mpkg *MemPackage) WriteTo(dirPath string) error {
-	for _, file := range mpkg.Files {
-		fmt.Printf("MemPackage.WriteTo(%s) (%d) bytes written\n", file.Name, len(file.Body))
-		fpath := filepath.Join(dirPath, file.Name)
-		err := ioutil.WriteFile(fpath, []byte(file.Body), 0644)
+// Write all files into dir.
+func (mpkg *MemPackage) WriteTo(dir string) error {
+	for _, mfile := range mpkg.Files {
+		fmt.Printf("MemPackage.WriteTo(%s) (%d) bytes written\n", mfile.Name, len(mfile.Body))
+		fpath := filepath.Join(dir, mfile.Name)
+		err := ioutil.WriteFile(fpath, []byte(mfile.Body), 0644)
 		if err != nil {
 			return err
 		}
@@ -110,11 +204,20 @@ func (mpkg *MemPackage) WriteTo(dirPath string) error {
 	return nil
 }
 
+// Print all files to stdout.
+func (mpkg *MemPackage) Print() error {
+	fmt.Printf("MemPackage[%q %s]:\n", mpkg.Path, mpkg.Name)
+	for _, mfile := range mpkg.Files {
+		mfile.Print()
+	}
+	return nil
+}
+
 const licenseName = "LICENSE"
 
-// Splits a path into the dirpath and filename.
-func SplitFilepath(filepath string) (dirpath string, filename string) {
-	parts := strings.Split(filepath, "/")
+// Splits a path into the dir and filename.
+func SplitFilepath(fpath string) (dir string, filename string) {
+	parts := strings.Split(fpath, "/")
 	if len(parts) == 1 {
 		return parts[0], ""
 	}

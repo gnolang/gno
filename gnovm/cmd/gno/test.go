@@ -236,7 +236,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
-		// Read MemPackage and lint/pretranspile/format.
+		// Read MemPackage and lint/typecheck/format.
 		// (gno.mod will be read again).
 		var errsLint, errsTest error
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)

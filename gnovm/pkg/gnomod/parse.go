@@ -44,7 +44,7 @@ func ParseDir(dir string) (*File, error) {
 	return gm, nil
 }
 
-// tries to parse gno mod file given the file path, using ParseBytes and Validate.
+// Tries to parse gno mod file given the file path, using ParseBytes and Validate.
 func ParseFilepath(fpath string) (*File, error) {
 	file, err := os.Stat(fpath)
 	if err != nil {
@@ -130,20 +130,20 @@ func ParseMemPackage(mpkg *std.MemPackage) (*File, error) {
 			mpkg.Path, mpkg.Name,
 		)
 	}
-	gmf, err := ParseBytes(mf.Name, []byte(mf.Body))
+	mod, err := ParseBytes(mf.Name, []byte(mf.Body))
 	if err != nil {
 		return nil, err
 	}
-	return gmf, nil
+	return mod, nil
 }
 
 // Must parse gno.mod from MemPackage.
 func MustParseMemPackage(mpkg *std.MemPackage) *File {
-	gmf, err := ParseMemPackage(mpkg)
+	mod, err := ParseMemPackage(mpkg)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("parsing mempackage %w", err))
 	}
-	return gmf
+	return mod
 }
 
 var reGnoVersion = regexp.MustCompile(`^([0-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)

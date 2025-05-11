@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -21,34 +22,9 @@ import (
 /*
 	Transpiling old Gno code to Gno 0.9.
 	Refer to the [Lint and Transpile ADR](./adr/lint_transpile.md).
-*/
 
-// ========================================
-// Parses the gno.mod file from mpkg.
-// To generate default ones, use:
-// `mod, _ = gnomod.ParseBytes(gnomodDefault)`
-//
-// Results:
-//   - mod: the gno.mod file, or nil if not found.
-//   - outdated: true if it should be transpiled to the current version.
-func ParseGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, outdated bool) {
-	if IsStdlib(mpkg.Path) {
-		// stdlib/extern packages are assumed up to date.
-		mod, _ = gnomod.ParseBytes("<stdlibs>/gno.mod", []byte(gnomodLatest))
-	} else if mod, _ = gnomod.ParseMemPackage(mpkg); mod == nil {
-		// gno.mod doesn't exist.
-		mod, _ = gnomod.ParseBytes(mpkg.Path+"/gno.mod", []byte(gnomodDefault))
-		outdated = true
-	} else if mod.Gno == nil {
-		// 'gno 0.9' was never specified, continue
-		outdated = true
-	} else if mod.Gno.Version == GnoVersion {
-		// current version, nothing to do.
-	} else {
-		panic("unsupported gno version " + mod.Gno.Version)
-	}
-	return
-}
+	ParseCheckGnoMod() defined in pkg/gnolang/gnomod.go.
+*/
 
 // ========================================
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
@@ -108,17 +84,20 @@ func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 // Prepare Gno 0.0 for Gno 0.9.
 //
 // When Gno syntax breaks in higher versions, existing code must first be
-// pre-transcribed such that the Gno preprocessor won't panic.  This allows old
-// Gno code to be preprocessed and used by the Gno VM for static analysis.
-// More transpiling will happen later after the preprocessed Gno AST is scanned
-// for mutations on the Go AST which follows.  Any changes are applied directly
-// on the mem package.
+// pre-transcribed such that the Gno preprocessor won't panic.  This allows
+// old Gno code to be preprocessed and used by the Gno VM for static
+// analysis.  More transpiling will happen later after the preprocessed Gno
+// AST is scanned for mutations on the Go AST which follows.  Any changes are
+// applied directly on the mempackage.
 //
 // * Renames 'realm' to 'realm_' to avoid conflict with new uverse type.
 //
+// Args:
+//   - mpkg: writes (mutated) AST to mempackage if not nil.
+//
 // Results:
-// - errs: returned in aggregate as a multierr type.
-func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File) (errs error) {
+//   - errs: returned in aggregate as a multierr type.
+func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage) (errs error) {
 	for _, gof := range gofs {
 		// AST transform for Gno 0.9.
 		err := prepareGno0p9(gof)
@@ -127,6 +106,7 @@ func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File) (errs error) {
 			continue
 		}
 	}
+	errs = WriteToMemPackage(gofset, gofs, mpkg)
 	return
 }
 
@@ -276,7 +256,7 @@ func addXItem(n Node, t string, p string, f string, l int, c int) {
 	}
 	key := fmt.Sprintf("%s/%s:%d:%d", p, f, l, c)
 	x[key] = t
-	fmt.Printf("Gno 0.9 xpile +%s:%s\n", t, key)
+	fmt.Printf("Gno 0.9 transpile +%s:%s\n", t, key)
 }
 
 // ========================================
@@ -292,25 +272,25 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 
 	// Return if gno.mod is current.
 	var mod *gnomod.File
-	var outdated bool = false
-	mod, outdated = ParseGnoMod(mpkg)
-	if !outdated {
+	var err error
+	mod, err = ParseCheckGnoMod(mpkg)
+	if err == nil {
 		return nil // already up-to-date.
 	}
 
 	// Go parse and collect files from mpkg.
 	gofset := token.NewFileSet()
 	var errs error
-	for _, file := range mpkg.Files {
+	for _, mfile := range mpkg.Files {
 		// Ignore non-gno files.
-		if !strings.HasSuffix(file.Name, ".gno") {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue
 		}
 		/*
 			// Ignore _test/_filetest.gno files unless testing.
 			if !testing {
-				if strings.HasSuffix(file.Name, "_test.gno") ||
-					strings.HasSuffix(file.Name, "_filetest.gno") {
+				if strings.HasSuffix(mfile.Name, "_test.gno") ||
+					strings.HasSuffix(mfile.Name, "_filetest.gno") {
 					continue
 				}
 			}
@@ -321,45 +301,41 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 			parser.SkipObjectResolution
 		var gof, err = parser.ParseFile(
 			gofset,
-			path.Join(mpkg.Path, file.Name),
-			file.Body,
+			path.Join(mpkg.Path, mfile.Name),
+			mfile.Body,
 			parseOpts)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
 		// Transpile Part 1: re-key xform by ast.Node.
-		xform2, err := transpileGno0p9_part1(mpkg.Path, gofset, file.Name, gof, xform)
+		xform2, err := transpileGno0p9_part1(mpkg.Path, gofset, mfile.Name, gof, xform)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
 		// Transpile Part 2: main Go AST transform for Gno 0.9.
-		if err := transpileGno0p9_part2(mpkg.Path, gofset, file.Name, gof, xform2); err != nil {
+		if err := transpileGno0p9_part2(mpkg.Path, gofset, mfile.Name, gof, xform2); err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		// Write transformed AST to Go to mem file.
-		var buf bytes.Buffer
-		err = gofmt.Node(&buf, gofset, gof)
-		if err != nil {
+		// Write transformed Go AST to memfile.
+		if err := WriteToMemFile(gofset, gof, mfile); err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		file.Body = buf.String()
 	}
 	if errs != nil {
 		return errs
 	}
-	// END processing all files.
+	// END processing all memfiles.
 
-	// Write version to mod and to mem file named "gno.mod".
+	// Write version to mod and to memfile named "gno.mod".
 	mod.SetGno(GnoVersion)
-	mf := mpkg.GetFile("gno.mod")
-	mf.Body = mod.WriteString()
+	mpkg.SetFile("gno.mod", mod.WriteString())
 
-	// Write mem package to dir.
-	err := mpkg.WriteTo(dir)
+	// Write mempackage to dir.
+	err = mpkg.WriteTo(dir)
 	return err
 }
 
@@ -501,4 +477,42 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 		return true
 	}, nil)
 	return err
+}
+
+// ========================================
+// WriteToMemPackage writes Go AST to a mempackage
+// This is useful for preparing prior version code for the preprocessor.
+func WriteToMemPackage(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage) error {
+	for _, gof := range gofs {
+		fpath := gofset.File(gof.Pos()).Name()
+		_, fname := filepath.Split(fpath)
+		mfile := mpkg.GetFile(fname)
+		if mfile == nil {
+			if strings.HasPrefix(fname, ".") {
+				// Hidden files like .gnobuiltins.gno that
+				// start with a dot should not get written to
+				// the mempackage.
+				continue
+			} else {
+				return fmt.Errorf("missing memfile %q", mfile)
+			}
+		}
+		err := WriteToMemFile(gofset, gof, mfile)
+		if err != nil {
+			return fmt.Errorf("writing to mempackage %q: %w",
+				mpkg.Path, err)
+		}
+	}
+	return nil
+}
+
+func WriteToMemFile(gofset *token.FileSet, gof *ast.File, mfile *std.MemFile) error {
+	var buf bytes.Buffer
+	err := gofmt.Node(&buf, gofset, gof)
+	if err != nil {
+		return fmt.Errorf("writing to memfile %q: %w",
+			mfile.Name, err)
+	}
+	mfile.Body = buf.String()
+	return nil
 }

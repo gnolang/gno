@@ -114,16 +114,16 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, all bool, str
 
 	// STEP 1: Check gno.mod version.
 	if strict {
-		_, outdated := ParseGnoMod(mpkg)
-		if outdated {
-			return nil, nil, nil, fmt.Errorf("outdated gno version for package %s", mpkg.Path)
+		_, err := ParseCheckGnoMod(mpkg)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("gimp parse check gno.mod:  %w", err)
 		}
 	}
 
 	// STEP 2: Parse the mem package to Go AST.
 	gofset, gofs, errs = GoParseMemPackage(mpkg, all)
 	if errs != nil {
-		return nil, nil, nil, fmt.Errorf("go parsing mem package: %v", errs)
+		return nil, nil, nil, fmt.Errorf("gimp Go mem package: %w", errs)
 	}
 
 	// STEP 2: Add .gnobuiltins.go file.

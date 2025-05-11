@@ -24,8 +24,12 @@ In `cmd/gno/tool_lint.go` each step is grouped into stages for all dirs:
   * Stage 3:
     9. `mpkg.WriteTo()`
 
-In gotypecheck.go, TypeCheck*() diverges at step 4 and terminates:
+In `pkg/gnolang/gotypecheck.go`, `TypeCheck*()` diverges at step 4 and terminates:
   1. `mpkg` provided as argument
   2. `ParseGnoMod()
   3. `GoParseMemPackage()
   4. `gimp.cfg.Check(): Go type-checker
+
+In `pkg/test/imports.go`, `_processMemPackage()` after loading when .PreprocessOnly:
+  3. `GoParseMemPackage()`
+  4. `PrepareGno0p9()`

@@ -1263,7 +1263,7 @@ func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 // XXX TODO pkgPath should instead be derived by inspecting the contents, among them
 // the gno.mod fule.
 func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
-	memPkg := &std.MemPackage{Path: pkgPath}
+	mpkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
@@ -1281,23 +1281,26 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
 		}
-		memPkg.Files = append(memPkg.Files,
+		mpkg.Files = append(mpkg.Files,
 			&std.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})
 	}
 
-	memPkg.Name = string(pkgName)
+	mpkg.Name = string(pkgName)
 
 	// If no .gno files are present, package simply does not exist.
-	if !memPkg.IsEmpty() {
+	if !mpkg.IsEmpty() {
 		if err := validatePkgName(string(pkgName)); err != nil {
 			return nil, err
 		}
 	}
 
-	return memPkg, nil
+	// Sort the files for validation purposes.
+	mpkg.Sort()
+
+	return mpkg, nil
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
@@ -1309,15 +1312,15 @@ func MustReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 	return pkg
 }
 
-// ParseMemPackage executes [ParseFile] on each file of the memPkg, excluding
+// ParseMemPackage executes [ParseFile] on each file of the mpkg, excluding
 // test and spurious (non-gno) files. The resulting *FileSet is returned.
 //
-// If one of the files has a different package name than memPkg.Name,
+// If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	var errs error
-	for _, mfile := range memPkg.Files {
+	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
 			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) ||
 			mfile.Name == "gno.mod" {
@@ -1328,10 +1331,10 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		if memPkg.Name != string(n.PkgName) {
+		if mpkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
 				"expected package name [%s] but got [%s]",
-				memPkg.Name, n.PkgName))
+				mpkg.Name, n.PkgName))
 		}
 		// add package file.
 		fset.AddFiles(n)
