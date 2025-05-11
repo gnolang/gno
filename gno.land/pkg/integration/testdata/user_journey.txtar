@@ -3,6 +3,7 @@
 loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/demo/grc20factory
 loadpkg gno.land/r/demo/disperse
+loadpkg gno.land/r/demo/boards
 
 # Add 3 users with different balances
 adduser user1 1ugnot
@@ -43,3 +44,53 @@ gnokey query bank/balances/${user1_user_addr}
 stdout 'data: "10000000101ugnot"'
 gnokey query bank/balances/${user2_user_addr}
 stdout 'data: "29999000001ugnot"' # Send tx + Gas used
+
+################################
+# Exchange token between users #
+################################
+
+# Set the disperse Realm address in the env
+env DISPERSE_REALM_ADDR=g1yryw6qs8h9anvguu4dfdc0u7zh4gvv8vqf59sj
+
+# user1 creates a new token with 5 decimals and 10 drip ammount for the faucet
+gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func New -args MyAwesomeToken -args MAT -args 5 -args 0 -args 100 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+
+# user1 mints 1000 MAT to himself
+gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Mint -args MAT -args "$user1_user_addr" -args 1000 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+
+# Verify user1's MAT balance
+gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func BalanceOf -args MAT -args "$user1_user_addr" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+# NOTE: Fix this before uncommenting below
+# stdout '1000 int64' 
+
+# # Approve disperse Realm to spend 500 MAT on behalf of user1
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Approve -args MAT -args "$DISPERSE_REALM_ADDR" -args 500 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+#
+# # Check disperse Realm allowance to spend MAT on behalf of user1
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Allowance -args MAT -args "$user1_user_addr" -args "$DISPERSE_REALM_ADDR" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+# stdout '500 int64'
+#
+# # Disperse 490 MAT to user2 and 10 to user3
+# gnokey maketx call -pkgpath gno.land/r/demo/disperse -func DisperseGRC20String -args "$user2_user_addr,$user3_user_addr" -args '490MAT,10MAT' -gas-fee 1000000ugnot -gas-wanted 24000000 -broadcast -chainid=tendermint_test user1
+#
+# # Verify user2's and user3's MAT balances
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func BalanceOf -args MAT -args "$user2_user_addr" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+# stdout '490 int64'
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func BalanceOf -args MAT -args "$user3_user_addr" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+# stdout '10 int64'
+#
+# # user3 requests MAT from the faucet
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Faucet -args MAT -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+#
+# # Verify user3's MAT balance
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func BalanceOf -args MAT -args "$user3_user_addr" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+# stdout '20 int64'
+#
+# # user2 transfers 200 MAT to user3
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func Transfer -args MAT -args "$user3_user_addr" -args 200 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user3
+#
+# # Verify user2's and user3's MAT balances
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func BalanceOf -args MAT -args "$user2_user_addr" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+# stdout '290 int64'
+# gnokey maketx call -pkgpath gno.land/r/demo/grc20factory -func BalanceOf -args MAT -args "$user3_user_addr" -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+# stdout '220 int64'
