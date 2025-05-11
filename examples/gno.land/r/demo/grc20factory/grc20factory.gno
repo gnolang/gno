@@ -59,21 +59,29 @@ func (inst instance) CallerTeller() grc20.Teller {
 }
 
 func Bank(symbol string) *grc20.Token {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	return inst.token
 }
 
 func TotalSupply(symbol string) int64 {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
 func BalanceOf(symbol string, owner std.Address) int64 {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
 func Allowance(symbol string, owner, spender std.Address) int64 {
+	crossing()
+
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }

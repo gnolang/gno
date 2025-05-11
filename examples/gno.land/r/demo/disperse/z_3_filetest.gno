@@ -1,7 +1,5 @@
 // PKGPATH: gno.land/r/demo/main
 
-// SEND: 300ugnot
-
 package main
 
 import (
@@ -22,18 +20,18 @@ func main() {
 
 	cross(tokens.New)("test", "TEST", 4, 0, 0)
 	cross(tokens.Mint)("TEST", mainAddr, 200)
-	println("main balance before:", tokens.BalanceOf("TEST", mainAddr))
+	println("main balance before:", cross(tokens.BalanceOf)("TEST", mainAddr))
 
 	cross(tokens.Approve)("TEST", disperseAddr, 200)
-	println("disperse allowance before:", tokens.Allowance("TEST", mainAddr, disperseAddr))
+	println("disperse allowance before:", cross(tokens.Allowance)("TEST", mainAddr, disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
 	cross(disperse.DisperseGRC20String)(addressesStr, "150TEST,50TEST")
 
-	println("main balance after:", tokens.BalanceOf("TEST", mainAddr))
-	println("disperse allowance after:", tokens.Allowance("TEST", mainAddr, disperseAddr))
-	println("beneficiary1 balance:", tokens.BalanceOf("TEST", beneficiary1))
-	println("beneficiary2 balance:", tokens.BalanceOf("TEST", beneficiary2))
+	println("main balance after:", cross(tokens.BalanceOf)("TEST", mainAddr))
+	println("disperse allowance after:", cross(tokens.Allowance)("TEST", mainAddr, disperseAddr))
+	println("beneficiary1 balance:", cross(tokens.BalanceOf)("TEST", beneficiary1))
+	println("beneficiary2 balance:", cross(tokens.BalanceOf)("TEST", beneficiary2))
 }
 
 // Output:
