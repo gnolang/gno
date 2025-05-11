@@ -1,4 +1,4 @@
-# gnogenesis - CLI tool for managing the Gnoland blockchain's `genesis.json` file
+# `gnogenesis`: CLI tool for managing the Gnoland blockchain's `genesis.json` file
 
 ## Overview
 
