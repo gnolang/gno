@@ -601,7 +601,7 @@ func makeUverseNode() {
 					ci := int(cv.ConvertGetInt())
 
 					if ci < li {
-						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
+						m.Panic(typedString(`makeslice: cap out of range`))
 					}
 
 					if et.Kind() == Uint8Kind {
@@ -732,7 +732,10 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			ex := arg0.TV.Copy(m.Alloc)
-			m.Panic(ex)
+			// m.Panic(ex) also works, but after return will immediately OpPanic2.
+			// This should be the only place .pushPanic() is called
+			// outside of op_*.go doOp*() functions.
+			m.pushPanic(ex)
 		},
 	)
 	defNative("recover",
@@ -765,9 +768,9 @@ func makeUverseNode() {
 			if !fr1.LastPackage.IsRealm() {
 				panic("crossing call only allowed in realm packages") // XXX test
 			}
-			// Verify prior fr.WithCross or fr.DidCross.
+			// Verify prior fr.WithCross or fr.DidCrossing.
 			// NOTE: fr.WithCross may or may not be true,
-			// crossing() (which sets fr.DidCross) can be
+			// crossing() (which sets fr.DidCrossing) can be
 			// stacked.
 			for i := 1 + 1; ; i++ {
 				fri := m.PeekCallFrame(i)
@@ -784,19 +787,19 @@ func makeUverseNode() {
 					// meains fri.WithCross would have been
 					// found below.
 					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCross()
+					fr2.SetDidCrossing()
 					return
 				}
-				if fri.WithCross || fri.DidCross {
-					// NOTE: fri.DidCross implies
+				if fri.WithCross || fri.DidCrossing {
+					// NOTE: fri.DidCrossing implies
 					// everything under it is also valid.
-					// fri.DidCross && !fri.WithCross
+					// fri.DidCrossing && !fri.WithCross
 					// can happen with an implicit switch.
 					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCross()
+					fr2.SetDidCrossing()
 					return
 				}
-				// Neither fri.WithCross nor fri.DidCross, yet
+				// Neither fri.WithCross nor fri.DidCrossing, yet
 				// Realm already switched implicitly.
 				if fri.LastRealm != m.Realm {
 					panic("crossing could not find corresponding cross(fn)(...) call")
@@ -820,6 +823,77 @@ func makeUverseNode() {
 				arg0 := m.LastBlock().GetParams1(m.Store)
 				m.PushValue(arg0.Deref())
 			*/
+		},
+	)
+	defNative("attach",
+		Flds( // params
+			"xs", Vrd(AnyT()), // args[0]
+		),
+		nil, // results
+		func(m *Machine) {
+			panic("attach() is not yet supported")
+		},
+	)
+	// Typed nils in Go1 are problematic.
+	// https://dave.cheney.net/2017/08/09/typed-nils-in-go-2
+	// Dave Cheney suggests typed-nil == nil when the typed-nil is not an
+	// interface type, but arguably it should be the other way around, e.g.
+	// > (*int)(nil) != nil.
+	// Since Gno doesn't yet support reflect, and since even with reflect
+	// implementing istypednil() is annoying, while istypednil() shouldn't
+	// require reflect, Gno should therefore offer istypednil() as a uverse
+	// function.
+	defNative("istypednil",
+		Flds( // params
+			"x", AnyT(),
+		),
+		Flds( // results
+			"", "bool",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			m.PushValue(typedBool(arg0.TV.IsTypedNil()))
+		},
+	)
+	// In the final form, it will do nothing if no abort; but otherwise
+	// will make it as if nothing happened (with full cache wrapping). This
+	// gives programs precognition, or at least hypotheticals.
+	// e.g. "If it **would have** done this, do that instead".
+	//
+	// XXX This is only enabled in testing mode (for now), and test
+	// developers should be aware that behavior will change to be like
+	// above; currently it doesn't cache-wrap the fn function so residual
+	// state mutations remain even after revive(), but they will be
+	// "magically" rolled back upon panic in the future. The fn function
+	// must *always* panic in the end in order to prevent state mutations
+	// after a non-aborting transaction.
+	defNative("revive",
+		Flds( // params
+			"fn", FuncT(nil, nil),
+		),
+		Flds( // results
+			"ex", AnyT(),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			if m.ReviveEnabled {
+				last := m.LastFrame()
+
+				// Push the no-abort result.
+				// last.SetRevive() marks the frame and this
+				// value will get replaced w/ exception.
+				m.PushValue(TypedValue{})
+				last.SetIsRevive()
+
+				// Push function and precall it.
+				m.PushExpr(Call(&ConstExpr{Source: X("fn"), TypedValue: *arg0.TV}))
+				m.PushOp(OpPrecall)
+				m.PushValue(*arg0.TV)
+			} else {
+				// If revive isn't enabled just panic.
+				m.pushPanic(typedString("revive() not enabled"))
+				// m.PushValue(TypedValue{})
+			}
 		},
 	)
 	uverseValue = uverseNode.NewPackage()
