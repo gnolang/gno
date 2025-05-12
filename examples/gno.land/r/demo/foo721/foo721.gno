@@ -17,7 +17,7 @@ func init() {
 	mintNNFT("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm", 5) // @hariom (5)
 }
 
-func mintNNFT(owner std.Address, n uint64) {
+func mintNNFT(owner std.Address, n int64) {
 	count := foo.TokenCount()
 	for i := count; i < count+n; i++ {
 		tid := grc721.TokenID(ufmt.Sprintf("%d", i))
@@ -27,7 +27,7 @@ func mintNNFT(owner std.Address, n uint64) {
 
 // Getters
 
-func BalanceOf(user std.Address) uint64 {
+func BalanceOf(user std.Address) int64 {
 	balance, err := foo.BalanceOf(user)
 	if err != nil {
 		panic(err)
