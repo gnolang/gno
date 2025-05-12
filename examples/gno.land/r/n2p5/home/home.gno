@@ -16,18 +16,20 @@ var (
 )
 
 func init() {
-	cross(hor.Register)("N2p5's Home Realm", "")
+	cross(hor.Register)("n2p5's Home Realm", "")
 
 }
 
 // Add appends a string to the preview Chonk.
 func Add(chunk string) {
+	crossing()
 	assertAdmin()
 	preview.Add(chunk)
 }
 
 // Flush clears the preview Chonk.
 func Flush() {
+	crossing()
 	assertAdmin()
 	preview.Flush()
 }
@@ -35,6 +37,7 @@ func Flush() {
 // Promote promotes the preview Chonk to the active Chonk
 // and creates a new preview Chonk.
 func Promote() {
+	crossing()
 	assertAdmin()
 	active = preview
 	preview = chonk.New()
