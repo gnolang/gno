@@ -3,6 +3,7 @@ package organizer
 import (
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/chaegnal/dao"
 
@@ -17,14 +18,15 @@ import (
 
 const (
 	pageSize = 5
-	VoteYay  = 1
-	VoteNay  = 0
+
+	VoteYay = 1
+	VoteNay = 0
 )
 
 var (
-	ListGroups      AllGroups
-	AddressLoggedIn std.Address
-	NextGroupId     = 1
+	ListGroups AllGroups
+
+	NextGroupId = 1
 )
 
 type AllGroups struct {
@@ -105,36 +107,26 @@ func AskJoinFriendGroup(groupId int) {
 	ListGroups.Groups.Set(strconv.Itoa(groupId), group)
 }
 
-// Set a global var to the caller of the login function
-func Login() {
-	AddressLoggedIn = std.OriginCaller()
-}
-
-// Empties the global variable to disconnect user
-func Logout() {
-	AddressLoggedIn = ""
-}
-
 // Wrapper to leave a group and DAO
 func LeaveGroup(groupId string) {
 	group := GetGroupFromId(groupId)
 
-	if AddressLoggedIn == group.Owner.Owner() {
+	if std.OriginCaller() == group.Owner.Owner() {
 		panic("Owner cannot leave the group.")
 	}
 
-	group.DAO.LeaveDao(AddressLoggedIn)
+	group.DAO.LeaveDao(std.OriginCaller())
 }
 
 // Display the joining status for each group if user is logged in
-func displayJoiningStatus(group FriendGroup) string {
+func displayJoiningStatus(group FriendGroup, address std.Address) string {
 	var out string
 
-	if AddressLoggedIn != "" {
-		_, ok := group.DAO.IsMember(AddressLoggedIn)
+	if address != "" {
+		_, ok := group.DAO.IsMember(address)
 		if ok {
 			out += md.Paragraph("You already are part of this group")
-		} else if group.DAO.IsPending(AddressLoggedIn) {
+		} else if group.DAO.IsPending(address) {
 			out += md.Paragraph("You are awaiting approval for this group")
 		} else {
 			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", "groupId", strconv.Itoa(group.ID))) + "\n\n"
@@ -147,7 +139,7 @@ func displayJoiningStatus(group FriendGroup) string {
 // Display all the existing group in a pager
 // Display primitive informations about them
 // Display joining status if logged in
-func displayAllExistingGroups(pageNumber, pageSize int) string {
+func displayAllExistingGroups(pageNumber, pageSize int, address std.Address) string {
 	var out string
 
 	pager := pager.NewPager(ListGroups.Groups, pageSize, false)
@@ -170,7 +162,7 @@ func displayAllExistingGroups(pageNumber, pageSize int) string {
 		out += md.H3("Group: "+group.Title+" - By: "+author) + "\n"
 		out += md.Paragraph("Number of friends in the group: "+strconv.Itoa(group.DAO.Whitelist.Size())) + "\n"
 
-		out += displayJoiningStatus(group)
+		out += displayJoiningStatus(group, address)
 
 		out += md.HorizontalRule() + "\n"
 	}
@@ -182,14 +174,14 @@ func displayAllExistingGroups(pageNumber, pageSize int) string {
 
 // Display, in a table, the joined group and give the option to see their page or leave the group
 // Does not allow pending member to view the group
-func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool) {
+func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool, address std.Address) {
 	author := ResolveAddressName(group.Owner.Owner())
 	var view string
 
 	if hasJoined {
-		view = md.Link("View", "/r/chaegnal/organizer/group?groupId="+strconv.Itoa(group.ID))
+		view = md.Link("View", "/r/chaegnal/organizer/group?groupId="+strconv.Itoa(group.ID)+"&address="+address.String())
 
-		if AddressLoggedIn != group.Owner.Owner() {
+		if address != group.Owner.Owner() {
 			view += " | " + md.Link("Leave", txlink.Call("LeaveGroup", "groupId", strconv.Itoa(group.ID)))
 		}
 	} else {
@@ -199,7 +191,7 @@ func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool) {
 	table.Append([]string{group.Title, author, strconv.Itoa(group.DAO.Whitelist.Size()), view})
 }
 
-func displayJoinedGroups() string {
+func displayJoinedGroups(address std.Address) string {
 	var out string
 	found := false
 
@@ -210,10 +202,10 @@ func displayJoinedGroups() string {
 
 	ListGroups.Groups.Iterate("", "", func(key string, val any) bool {
 		group := val.(FriendGroup)
-
-		_, ok := group.DAO.IsMember(AddressLoggedIn)
+		//
+		_, ok := group.DAO.IsMember(address)
 		if ok {
-			displayGroupInfo(group, table, true)
+			displayGroupInfo(group, table, true, address)
 			found = true
 		}
 
@@ -230,7 +222,7 @@ func displayJoinedGroups() string {
 }
 
 // Display the group that the user asked to join but is not yet approved
-func displayPendingApproval() string {
+func displayPendingApproval(address std.Address) string {
 	var out string
 	found := false
 
@@ -240,9 +232,9 @@ func displayPendingApproval() string {
 
 	ListGroups.Groups.Iterate("", "", func(key string, val any) bool {
 		group := val.(FriendGroup)
-
-		if group.DAO.IsPending(AddressLoggedIn) {
-			displayGroupInfo(group, table, false)
+		//
+		if group.DAO.IsPending(address) {
+			displayGroupInfo(group, table, false, address)
 			found = true
 		}
 		return false
@@ -257,6 +249,21 @@ func displayPendingApproval() string {
 	return out
 }
 
+func parseQuery(url string) string {
+	parts := strings.SplitAfter(url, "?")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	query := parts[1]
+	keyValue := strings.SplitAfter(query, "=")
+	if len(keyValue) < 2 {
+		return ""
+	}
+
+	return keyValue[1]
+}
+
 func Render(rawURL string) string {
 	var out string
 
@@ -268,23 +275,24 @@ func Render(rawURL string) string {
 	out += md.H1("Welcome to Friendly Organizer")
 	out += md.Paragraph("Here you can join and create FriendGroups to organize your next hangout")
 
-	out += md.Paragraph(md.Link("Create New FriendGroup", txlink.Call("CreateFriendGroup", "title", "default")))
+	out += md.HorizontalRule()
+	out += md.H2(md.Link("Create New FriendGroup", txlink.Call("CreateFriendGroup", "title", "default")) + "\n\n")
+	out += md.HorizontalRule()
 
-	if AddressLoggedIn == "" {
-		out += md.H2(md.Link("Login to see your joined group", txlink.Call("Login")))
+	addressStr := parseQuery(rawURL)
+	address := std.Address(addressStr)
+	out += md.H2("Dashboard")
+	if address == "" {
+		out += md.Paragraph("Please provide your address in the URL (?address=...) to get a personalized dashboard")
 	} else {
-		out += displayJoinedGroups()
+		out += displayJoinedGroups(address)
 		out += md.H2("Your Pending Request")
-		out += displayPendingApproval()
+		out += displayPendingApproval(address)
 	}
 
+	out += md.HorizontalRule()
 	out += md.H2("List of FriendGroups")
-
-	out += displayAllExistingGroups(pageNumber, size)
-
-	if AddressLoggedIn != "" {
-		out += md.Paragraph(md.Link("Logout", txlink.Call("Logout")))
-	}
+	out += displayAllExistingGroups(pageNumber, size, address)
 
 	return out
 }

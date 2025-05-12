@@ -16,16 +16,33 @@ import (
 )
 
 // Parse the URL to retrieve the data behind the "=" sign
-func parseQuery(url string) string {
-	groupId := strings.SplitAfter(url, "?")
-	foundId := strings.SplitAfter(groupId[1], "=")
+func parseQueryGroupId(url string) string {
+	query := strings.SplitAfter(url, "?")[1]
+	params := strings.Split(query, "&")
 
-	return foundId[1]
+	for _, param := range params {
+		if strings.HasPrefix(param, "groupId=") {
+			return strings.SplitAfter(param, "=")[1]
+		}
+	}
+	return ""
+}
+
+func parseQueryAddress(url string) string {
+	query := strings.SplitAfter(url, "?")[1]
+	params := strings.Split(query, "&")
+
+	for _, param := range params {
+		if strings.HasPrefix(param, "address=") {
+			return strings.SplitAfter(param, "=")[1]
+		}
+	}
+	return ""
 }
 
 // Retrieve the group ID from the URL
 func getGroupFromUrl(url string) organizer.FriendGroup {
-	groupId := parseQuery(url)
+	groupId := parseQueryGroupId(url)
 	if groupId == "" {
 		panic("No groupId provided")
 	}
@@ -34,56 +51,56 @@ func getGroupFromUrl(url string) organizer.FriendGroup {
 }
 
 // Wrapper to accept new members into friendgroup and DAO
-func AcceptAwaitingMember(groupId string, adr std.Address) {
+func AcceptAwaitingMember(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
-	group.DAO.WhitelistingAwaitingApproval(organizer.AddressLoggedIn, adr)
+	group.DAO.WhitelistingAwaitingApproval(std.Address(logged), adr)
 }
 
 // Wrapper to refuse new members into friendgroup and DAO
-func RefuseAwaitingMember(groupId string, adr std.Address) {
+func RefuseAwaitingMember(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
-	group.DAO.RefuseAwaitingMember(organizer.AddressLoggedIn, adr)
+	group.DAO.RefuseAwaitingMember(std.Address(logged), adr)
 }
 
 // Wrapper to remove members from group and DAO
-func RemoveMember(groupId string, adr std.Address) {
+func RemoveMember(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
-	group.DAO.RemoveMember(organizer.AddressLoggedIn, adr)
+	group.DAO.RemoveMember(std.Address(logged), adr)
 }
 
 // Wrapper to promote member to admin status
-func MakeAdmin(groupId string, adr std.Address) {
+func MakeAdmin(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
-	group.DAO.SetAdmin(organizer.AddressLoggedIn, adr)
+	group.DAO.SetAdmin(std.Address(logged), adr)
 }
 
 // Wrapper to demote admin to member status
-func RemoveAdminRank(groupId string, adr std.Address) {
+func RemoveAdminRank(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
 	if adr == group.Owner.Owner() {
 		panic("You cannot undo admin rights of the owner")
 	}
-	group.DAO.RemoveAdminRank(organizer.AddressLoggedIn, adr)
+	group.DAO.RemoveAdminRank(std.Address(logged), adr)
 }
 
 // Wrapper to create proposal
 // Sanitizes the arguments given
-func CreateProposals(groupId, title, desc, callback string, callbackArgsStr string) {
+func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
 	callbackArgsStr = strings.Trim(callbackArgsStr, "\"")
 	callbackArgs := strings.Split(callbackArgsStr, ",")
 
-	group.DAO.CreateProposals(title, desc, callback, callbackArgs, organizer.AddressLoggedIn)
+	group.DAO.CreateProposals(title, desc, callback, callbackArgs, std.Address(logged))
 }
 
 // Wrapper for admin to close proposal forcefully
-func AdminCloseProposal(groupId string, voteIdStr string) {
+func AdminCloseProposal(groupId, voteIdStr, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
 	voteId, err := strconv.Atoi(voteIdStr)
@@ -91,24 +108,24 @@ func AdminCloseProposal(groupId string, voteIdStr string) {
 		panic("Invalid vote ID.")
 	}
 
-	group.DAO.AdminCloseProposal(voteId, organizer.AddressLoggedIn)
+	group.DAO.AdminCloseProposal(voteId, std.Address(logged))
 }
 
 // Allows the owner to delete the friendgroup
-func DeleteFriendGroup(groupId string) {
+func DeleteFriendGroup(groupId, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
-	if group.Owner.Owner() != organizer.AddressLoggedIn {
+	if group.Owner.Owner() != std.Address(logged) {
 		panic("Only the owner can delete the group.")
 	}
 
 	organizer.ListGroups.Groups.Remove(strconv.Itoa(group.ID))
 }
 
-func SwitchOwner(groupId string, adr std.Address) {
+func SwitchOwner(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
-	if group.Owner.Owner() != organizer.AddressLoggedIn {
+	if group.Owner.Owner() != std.Address(logged) {
 		panic("Only the owner give ownership away.")
 	}
 
@@ -123,7 +140,7 @@ func SwitchOwner(groupId string, adr std.Address) {
 
 // Wrapper to vote on proposal
 // Verify if the vote ID exist and if the vote's choice exists
-func VoteOnProposal(groupId string, voteIdStr string, voteStr string) {
+func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
 	voteId, err := strconv.Atoi(voteIdStr)
@@ -140,12 +157,12 @@ func VoteOnProposal(groupId string, voteIdStr string, voteStr string) {
 		panic("Vote should be Yay (1) or Nay (0).")
 	}
 
-	group.DAO.VoteProposal(voteId, vote, organizer.AddressLoggedIn)
+	group.DAO.VoteProposal(voteId, vote, std.Address(logged))
 }
 
 // Display in a table the users awaiting approval into the group
 // Let admin directly accept or refuse members
-func displayPendingApproval(group organizer.FriendGroup, awaiting *avl.Tree) string {
+func displayPendingApproval(group organizer.FriendGroup, awaiting *avl.Tree, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Inspect"},
 	}
@@ -154,8 +171,8 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting *avl.Tree) str
 		adr := std.Address(indexStr)
 
 		table.Append([]string{adr.String(),
-			md.Link("Approve", txlink.Call("AcceptAwaitingMember", "groupId", strconv.Itoa(group.ID), "adr", adr.String())) + " | " +
-				md.Link("Reject", txlink.Call("RefuseAwaitingMember", "groupId", strconv.Itoa(group.ID), "adr", adr.String())),
+			md.Link("Approve", txlink.Call("AcceptAwaitingMember", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | " +
+				md.Link("Reject", txlink.Call("RefuseAwaitingMember", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())),
 		})
 		return false
 	})
@@ -165,7 +182,7 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting *avl.Tree) str
 
 // Display the group current members
 // Let the admin promote / demote / remove member
-func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree) string {
+func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Rank", "Action"},
 	}
@@ -174,7 +191,7 @@ func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree) string {
 		var actionAdmin string
 
 		adr := std.Address(indexStr)
-		if adr == organizer.AddressLoggedIn {
+		if adr == std.Address(logged) {
 			return false
 		}
 
@@ -190,15 +207,15 @@ func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree) string {
 
 		if rank != "Owner" {
 			if group.DAO.IsAdmin(adr) {
-				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", strconv.Itoa(group.ID), "adr", adr.String())) + " | "
+				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
 			} else {
-				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", strconv.Itoa(group.ID), "adr", adr.String())) + " | "
+				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
 			}
 		}
 
 		table.Append([]string{adr.String(), rank,
 			actionAdmin +
-				md.Link("Kick out", txlink.Call("RemoveMember", "groupId", strconv.Itoa(group.ID), "adr", adr.String())),
+				md.Link("Kick out", txlink.Call("RemoveMember", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())),
 		})
 
 		return false
@@ -209,19 +226,23 @@ func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree) string {
 
 // Display admin board with Waitlist and Whiteliste
 // Let admins create new proposals
-func displayAdminBoard(group organizer.FriendGroup) string {
+func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 	var out string
 
 	out += md.H2("Admin Board") + "\n"
 
 	out += md.Link("Create Proposal", txlink.Call("CreateProposals",
-		"groupId", strconv.Itoa(group.ID), "title", "desc", "callback", "callbackArgs")) + "\n"
+		"groupId", strconv.Itoa(group.ID), "title", "Default Title",
+		"desc", "Default Desc",
+		"callback", "Default Callback",
+		"callbackArgs", "Default Callback Arguments",
+		"logged", logged)) + "\n"
 
 	out += md.H3("Approval Waitlist") + "\n"
 
 	awaiting := group.DAO.GetAwaiting()
 	if awaiting.Size() > 0 {
-		out += displayPendingApproval(group, awaiting)
+		out += displayPendingApproval(group, awaiting, logged)
 	} else {
 		out += md.Paragraph("No member waiting for approval") + "\n"
 	}
@@ -231,7 +252,7 @@ func displayAdminBoard(group organizer.FriendGroup) string {
 
 	whitelist := group.DAO.GetWhitelisted()
 	if whitelist.Size() > 1 {
-		out += displayMembers(group, whitelist)
+		out += displayMembers(group, whitelist, logged)
 	} else {
 		out += md.Paragraph("You're the only member for now.") + "\n"
 	}
@@ -263,7 +284,7 @@ func displayHangouts(group organizer.FriendGroup) string {
 	return table.String()
 }
 
-func displayProposals(group organizer.FriendGroup, activeOnly bool) string {
+func displayProposals(group organizer.FriendGroup, activeOnly bool, logged string) string {
 	proposals := group.DAO.GetProposals()
 
 	table := mdtable.Table{
@@ -305,15 +326,17 @@ func displayProposals(group organizer.FriendGroup, activeOnly bool) string {
 				md.Link("Yay", txlink.Call("VoteOnProposal",
 					"groupId", strconv.Itoa(group.ID),
 					"index", index,
-					"vote", strconv.Itoa(organizer.VoteYay))) + " | " +
+					"vote", strconv.Itoa(organizer.VoteYay),
+					"logged", logged)) + " | " +
 					md.Link("Nay", txlink.Call("VoteOnProposal",
 						"groupId", strconv.Itoa(group.ID),
 						"index", index,
-						"vote", strconv.Itoa(organizer.VoteNay)))
+						"vote", strconv.Itoa(organizer.VoteNay),
+						"logged", logged))
 
-			if group.DAO.IsAdmin(organizer.AddressLoggedIn) {
+			if group.DAO.IsAdmin(std.Address(logged)) {
 				closeLink := md.Link("Close", txlink.Call("AdminCloseProposal",
-					"groupId", strconv.Itoa(group.ID), "voteId", index))
+					"groupId", strconv.Itoa(group.ID), "voteId", index, "logged", logged))
 				if voteActions == "-" {
 					voteActions = closeLink
 				} else {
@@ -341,14 +364,15 @@ func Render(url string) string {
 	var out string
 
 	group := getGroupFromUrl(url)
+	logged := parseQueryAddress(url)
 
 	out += md.H1("Group: " + group.Title)
 	out += md.H2("Created by: " + organizer.ResolveAddressName(group.Owner.Owner()))
 	out += md.Paragraph("Number of friends: "+strconv.Itoa(group.DAO.Whitelist.Size())) + "\n"
 	out += md.HorizontalRule()
 
-	if group.DAO.IsAdmin(organizer.AddressLoggedIn) {
-		out += displayAdminBoard(group)
+	if group.DAO.IsAdmin(std.Address(logged)) {
+		out += displayAdminBoard(group, logged)
 	}
 
 	out += md.H2("Hangouts")
@@ -356,18 +380,18 @@ func Render(url string) string {
 	out += md.HorizontalRule()
 
 	out += md.H2("Active DAOs")
-	out += displayProposals(group, true)
+	out += displayProposals(group, true, logged)
 	out += md.HorizontalRule()
 
 	out += md.H2("Closed DAOs")
-	out += displayProposals(group, false)
+	out += displayProposals(group, false, logged)
 	out += md.HorizontalRule()
 
 	out += md.Paragraph(md.Link("Go back", "/r/chaegnal/organizer"))
 
-	if group.Owner.Owner() == organizer.AddressLoggedIn {
-		out += md.Paragraph(" | " + md.Link("Delete Group", txlink.Call("DeleteFriendGroup", "groupId", strconv.Itoa(group.ID))))
-		out += md.Paragraph(" | " + md.Link("Give ownership", txlink.Call("SwitchOwner", "groupId", strconv.Itoa(group.ID), "adr", "default")))
+	if group.Owner.Owner() == std.Address(logged) {
+		out += md.Paragraph(" | " + md.Link("Delete Group", txlink.Call("DeleteFriendGroup", "groupId", strconv.Itoa(group.ID), "logged", logged)))
+		out += md.Paragraph(" | " + md.Link("Give ownership", txlink.Call("SwitchOwner", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", "default")))
 	}
 	return out
 }
