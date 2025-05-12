@@ -38,7 +38,7 @@ func (c *Canvas) WithViewBox(x, y, width, height int) *Canvas {
 
 func (c Canvas) String() string {
 	output := ""
-	output += ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg" viewBox="%s">`, c.Width, c.Height, c.ViewBox)
+	output += ufmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="%s">`, c.Width, c.Height, c.ViewBox)
 	if c.Style != nil {
 		output += "<style>"
 		c.Style.Iterate("", "", func(k string, val interface{}) bool {

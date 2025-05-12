@@ -19,7 +19,7 @@ Example:
 			svg.NewCircle(50, 80, 40, "blue"),
 			&svg.Path{D: `M 10,30
 			A 20,20 0,0,1 50,30
-				A 20,20 0,0,1 90,30
+				A 20,20 0,0,1  90,30
 				Q 90,60 50,90
 				Q 10,60 10,30 z`, Fill: "magenta"},
 			svg.NewText(20, 50, "Hello SVG", "black"),
