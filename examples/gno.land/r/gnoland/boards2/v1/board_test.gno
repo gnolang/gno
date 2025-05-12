@@ -7,7 +7,6 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/moul/txlink"
 )
 
 func TestBoardID_String(t *testing.T) {
