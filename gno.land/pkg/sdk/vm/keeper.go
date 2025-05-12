@@ -735,7 +735,7 @@ func joinIters[T any](seqs ...iter.Seq[T]) iter.Seq[T] {
 
 // like slices.Collect, but limits the slice size to the given limit.
 func collectWithLimit[T any](seq iter.Seq[T], limit int) []T {
-	var s []T
+	s := []T{}
 	for v := range seq {
 		s = append(s, v)
 		if len(s) >= limit {

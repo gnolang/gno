@@ -124,7 +124,7 @@ func TestFindByPrefix(t *testing.T) {
 		{"_/a", 100, []string{"abricot"}},
 		// special case
 		{string([]byte{255}), 100, []string{}}, // using 255 as prefix, should not panic
-		{string([]byte{0}), 100, []string{}}, // using 0 as prefix, should not panic
+		{string([]byte{0}), 100, []string{}},   // using 0 as prefix, should not panic
 		// testing iter seq
 		{"_", 0, []string{}},
 		{"_", 2, stdlibs[:2]},
@@ -138,10 +138,10 @@ func TestFindByPrefix(t *testing.T) {
 
 	// Add stdlibs
 	for _, lib := range stdlibs {
-		store.AddMemPackage(&gnovm.MemPackage{
+		store.AddMemPackage(&std.MemPackage{
 			Name: lib,
 			Path: lib,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: lib + ".gno", Body: "package " + lib},
 			},
 		})
@@ -150,10 +150,10 @@ func TestFindByPrefix(t *testing.T) {
 	// Add pkgs
 	for _, pkg := range pkgs {
 		name := path.Base(pkg)
-		store.AddMemPackage(&gnovm.MemPackage{
+		store.AddMemPackage(&std.MemPackage{
 			Name: name,
 			Path: pkg,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: name + ".gno", Body: "package " + name},
 			},
 		})
