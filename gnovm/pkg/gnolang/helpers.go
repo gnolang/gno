@@ -11,11 +11,11 @@ import (
 // ----------------------------------------
 // Functions centralizing definitions
 
-// ReRealmPath and RePPkgPath are the regexes used to identify pkgpaths which are meant to
+// ReRealmPath and RePPackagePath are the regexes used to identify pkgpaths which are meant to
 // be realms with persisted states and pure packages.
 var (
-	ReRealmPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+$`)
-	RePPkgPath  = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+$`)
+	ReRealmPath    = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/[a-z0-9_/]+$`)
+	RePPackagePath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/p/[a-z0-9_/]+$`)
 )
 
 // ReGnoRunPath is the path used for realms executed in maketx run.
@@ -59,11 +59,11 @@ func IsInternalPath(pkgPath string) (base string, isInternal bool) {
 	return
 }
 
-// IsPurePackagePath determines whether the given pkgpath is for a published Gno package.
+// IsPPackagePath determines whether the given pkgpath is for a published Gno package.
 // It only considers "pure" those starting with gno.land/p/, so it returns false for
 // stdlib packages, realm paths, and run paths. It also excludes _test paths.
-func IsPurePackagePath(pkgPath string) bool {
-	if !RePPkgPath.MatchString(pkgPath) {
+func IsPPackagePath(pkgPath string) bool {
+	if !RePPackagePath.MatchString(pkgPath) {
 		return false
 	}
 	if strings.HasSuffix(pkgPath, "_test") {
