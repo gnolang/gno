@@ -23,6 +23,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -60,11 +63,12 @@ type VMKeeper struct {
 	// Needs to be explicitly set, like in the case of gnodev.
 	Output io.Writer
 
-	baseKey store.StoreKey
-	iavlKey store.StoreKey
-	acck    AccountKeeperI
-	bank    BankKeeperI
-	prmk    ParamsKeeperI
+	baseKey   store.StoreKey
+	iavlKey   store.StoreKey
+	supplyKey store.StoreKey
+	acck      auth.AccountKeeper
+	bank      bank.BankKeeper
+	prmk      params.ParamsKeeper
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -76,16 +80,18 @@ type VMKeeper struct {
 func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
-	acck AccountKeeperI,
-	bank BankKeeperI,
-	prmk ParamsKeeperI,
+	supplyKey store.StoreKey,
+	acck auth.AccountKeeper,
+	bank bank.BankKeeper,
+	prmk params.ParamsKeeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey: baseKey,
-		iavlKey: iavlKey,
-		acck:    acck,
-		bank:    bank,
-		prmk:    prmk,
+		baseKey:   baseKey,
+		iavlKey:   iavlKey,
+		supplyKey: supplyKey,
+		acck:      acck,
+		bank:      bank,
+		prmk:      prmk,
 	}
 
 	return vmk
