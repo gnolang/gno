@@ -53,8 +53,9 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	renderBoardListMenu(res, req)
 	res.Write("\n\n---\n")
 
-	if gBoardsByID.Size() == 0 {
-		link := gRealmLink.Call("CreateBoard", "name", "")
+	boards := gPublicBoardsByID
+	if boards.Size() == 0 {
+		link := gRealmLink.Call("CreateBoard", "name", "", "private", "false")
 		res.Write("### Currently there are no boards\n")
 		res.Write("Be the first to ")
 		res.Write(newLink("create a new board", link))
@@ -63,7 +64,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, gBoardsByID.Size(), pager.WithPageSize(pageSizeBoards))
+	p, err := pager.New(req.RawPath, boards.Size(), pager.WithPageSize(pageSizeBoards))
 	if err != nil {
 		panic(err)
 	}
@@ -90,12 +91,12 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		r.Query.Set("order", "asc")
 		res.Write(newLink("newest first", r.String()))
 		res.Write("\n\n")
-		gBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
+		boards.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
 		res.Write(newLink("oldest first", r.String()))
 		res.Write("\n\n")
-		gBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
+		boards.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
 	if p.HasPages() {
@@ -107,7 +108,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 	path := strings.TrimPrefix(string(gRealmLink), "gno.land")
 
-	res.Write(newLink("Create Board", gRealmLink.Call("CreateBoard", "name", "")))
+	res.Write(newLink("Create Board", gRealmLink.Call("CreateBoard", "name", "", "private", "false")))
 	res.Write(" • ")
 	res.Write(newLink("List Admin Users", path+":admin-users"))
 	res.Write(" • ")
@@ -121,7 +122,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
-		link := newLink("create a new board", gRealmLink.Call("CreateBoard", "name", name))
+		link := newLink("create a new board", gRealmLink.Call("CreateBoard", "name", name, "private", "false"))
 		res.Write("### The board you are looking for does not exist\n")
 		res.Write("Do you want to ")
 		res.Write(link)

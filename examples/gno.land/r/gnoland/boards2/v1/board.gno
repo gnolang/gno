@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/nt/commondao"
 )
@@ -19,7 +20,7 @@ func (id BoardID) String() string {
 }
 
 func (id BoardID) Key() string {
-	return padZero(uint64(id), 10)
+	return seqid.ID(id).String()
 }
 
 type Board struct {
@@ -33,6 +34,7 @@ type Board struct {
 	deleted   avl.Tree // TODO reserved for fast-delete.
 	perms     Permissions
 	readonly  bool
+	private   bool
 }
 
 func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Board {
@@ -80,6 +82,16 @@ func (board *Board) SetReadonly(readonly bool) {
 // IsReadonly checks if the board is a read-only board.
 func (board *Board) IsReadonly() bool {
 	return board.readonly
+}
+
+// SetPrivate updates board's private status.
+func (board *Board) SetPrivate(private bool) {
+	board.private = private
+}
+
+// IsPrivate checks if the board is a private board.
+func (board *Board) IsPrivate() bool {
+	return board.private
 }
 
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {

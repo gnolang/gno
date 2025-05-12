@@ -21,7 +21,7 @@ var (
 func init() {
 	// Created a board with flagging threshold greater than 1
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board")
+	bid = cross(boards2.CreateBoard)("test-board", false)
 	cross(boards2.SetFlaggingThreshold)(bid, 2)
 
 	// Create a reply so the realm owner can flag and hide it with a single flag

@@ -13,7 +13,7 @@ var bid boards2.BoardID
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board")
+	bid = cross(boards2.CreateBoard)("test-board", false)
 }
 
 func main() {
