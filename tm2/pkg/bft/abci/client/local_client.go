@@ -92,9 +92,6 @@ func (app *localClient) CheckTxAsync(req abci.RequestCheckTx) *ReqRes {
 }
 
 func (app *localClient) QueryAsync(req abci.RequestQuery) *ReqRes {
-	app.mtx.Lock()
-	defer app.mtx.Unlock()
-
 	res := app.Application.Query(req)
 	return app.completeRequest(req, res)
 }
@@ -142,9 +139,6 @@ func (app *localClient) EchoSync(msg string) (abci.ResponseEcho, error) {
 }
 
 func (app *localClient) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, error) {
-	app.mtx.Lock()
-	defer app.mtx.Unlock()
-
 	res := app.Application.Info(req)
 	return res, nil
 }
@@ -174,9 +168,6 @@ func (app *localClient) CheckTxSync(req abci.RequestCheckTx) (abci.ResponseCheck
 }
 
 func (app *localClient) QuerySync(req abci.RequestQuery) (abci.ResponseQuery, error) {
-	app.mtx.Lock()
-	defer app.mtx.Unlock()
-
 	res := app.Application.Query(req)
 	return res, nil
 }
