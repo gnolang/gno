@@ -134,11 +134,11 @@ func TestFindByPrefix(t *testing.T) {
 	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
 	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
 	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
-	cachedStore := NewStore(nil, d1s, d2s)
+	store := NewStore(nil, d1s, d2s)
 
 	// Add stdlibs
 	for _, lib := range stdlibs {
-		cachedStore.AddMemPackage(&gnovm.MemPackage{
+		store.AddMemPackage(&gnovm.MemPackage{
 			Name: lib,
 			Path: lib,
 			Files: []*gnovm.MemFile{
@@ -150,7 +150,7 @@ func TestFindByPrefix(t *testing.T) {
 	// Add pkgs
 	for _, pkg := range pkgs {
 		name := path.Base(pkg)
-		cachedStore.AddMemPackage(&gnovm.MemPackage{
+		store.AddMemPackage(&gnovm.MemPackage{
 			Name: name,
 			Path: pkg,
 			Files: []*gnovm.MemFile{
@@ -159,7 +159,6 @@ func TestFindByPrefix(t *testing.T) {
 		})
 	}
 
-	store := NewStore(nil, d1s, d2s)
 	for _, tc := range cases {
 		name := fmt.Sprintf("%s:limit(%d)", tc.Prefix, tc.Limit)
 		t.Run(name, func(t *testing.T) {
