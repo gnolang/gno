@@ -2,6 +2,7 @@ package svg
 
 import (
 	"encoding/base64"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -77,7 +78,36 @@ type BaseAttrs struct {
 }
 
 func (b BaseAttrs) String() string {
-	return ufmt.Sprintf(` id="%s" class="%s" style="%s" stroke="%s" stroke-width="%s" opacity="%s" transform="%s" visibility="%s"`, b.ID, b.Class, b.Style, b.Stroke, b.StrokeWidth, b.Opacity, b.Transform, b.Visibility)
+	var elems []string
+
+	if b.ID != "" {
+		elems = append(elems, `id="`+b.ID+`"`)
+	}
+	if b.Class != "" {
+		elems = append(elems, `class="`+b.Class+`"`)
+	}
+	if b.Style != "" {
+		elems = append(elems, `style="`+b.Style+`"`)
+	}
+	if b.Stroke != "" {
+		elems = append(elems, `stroke="`+b.Stroke+`"`)
+	}
+	if b.StrokeWidth != "" {
+		elems = append(elems, `stroke-width="`+b.StrokeWidth+`"`)
+	}
+	if b.Opacity != "" {
+		elems = append(elems, `opacity="`+b.Opacity+`"`)
+	}
+	if b.Transform != "" {
+		elems = append(elems, `transform="`+b.Transform+`"`)
+	}
+	if b.Visibility != "" {
+		elems = append(elems, `visibility="`+b.Visibility+`"`)
+	}
+	if len(elems) == 0 {
+		return ""
+	}
+	return " " + strings.Join(elems, " ")
 }
 
 type Circle struct {
