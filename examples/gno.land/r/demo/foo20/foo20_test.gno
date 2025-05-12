@@ -17,18 +17,18 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	type test struct {
 		name    string
-		balance uint64
-		fn      func() uint64
+		balance int64
+		fn      func() int64
 	}
 
 	// check balances #1.
 	{
 		tests := []test{
-			{"TotalSupply", 10_000_000_000, func() uint64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf(admin) }},
-			{"BalanceOf(alice)", 0, func() uint64 { return BalanceOf(alice) }},
-			{"Allowance(admin, alice)", 0, func() uint64 { return Allowance(admin, alice) }},
-			{"BalanceOf(bob)", 0, func() uint64 { return BalanceOf(bob) }},
+			{"TotalSupply", 10_000_000_000, func() int64 { return TotalSupply() }},
+			{"BalanceOf(admin)", 10_000_000_000, func() int64 { return BalanceOf(admin) }},
+			{"BalanceOf(alice)", 0, func() int64 { return BalanceOf(alice) }},
+			{"Allowance(admin, alice)", 0, func() int64 { return Allowance(admin, alice) }},
+			{"BalanceOf(bob)", 0, func() int64 { return BalanceOf(bob) }},
 		}
 		for _, tc := range tests {
 			got := tc.fn()
@@ -43,11 +43,11 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	// check balances #2.
 	{
 		tests := []test{
-			{"TotalSupply", 10_010_000_000, func() uint64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf(admin) }},
-			{"BalanceOf(alice)", 0, func() uint64 { return BalanceOf(alice) }},
-			{"Allowance(admin, alice)", 0, func() uint64 { return Allowance(admin, alice) }},
-			{"BalanceOf(bob)", 10_000_000, func() uint64 { return BalanceOf(bob) }},
+			{"TotalSupply", 10_010_000_000, func() int64 { return TotalSupply() }},
+			{"BalanceOf(admin)", 10_000_000_000, func() int64 { return BalanceOf(admin) }},
+			{"BalanceOf(alice)", 0, func() int64 { return BalanceOf(alice) }},
+			{"Allowance(admin, alice)", 0, func() int64 { return Allowance(admin, alice) }},
+			{"BalanceOf(bob)", 10_000_000, func() int64 { return BalanceOf(bob) }},
 		}
 		for _, tc := range tests {
 			got := tc.fn()
