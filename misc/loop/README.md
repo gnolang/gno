@@ -17,12 +17,12 @@ docker compose up -d
 make docker.start
 ```
 
-The [`portalloopd`](./cmd/portalloopd) binary is starting inside of the docker container `portalloopd`
+The `portalloopd` binary is starting inside of the docker container `portalloopd`
 
 This script is doing:
 
 - Setup the current portal-loop in read only mode
-- Pull the latest version of [ghcr.io/gnolang/gno](ghcr.io/gnolang/gno)
+- Pull the latest version of [ghcr.io/gnolang/gno](https://ghcr.io/gnolang/gno)
 - Backup the txs using [gnolang/tx-archive](https://github.com/gnolang/tx-archive)
 - Start a new docker container with the backups files
 - Changing the proxy (traefik) to redirect to the new portal loop
