@@ -1,9 +1,8 @@
 package main
 
 var other = func() {
-	if true {
-		something := 2
-		print(something) // 2
+	something := 2
+	if false {
 	} else {
 		anything := something
 		println(anything)

@@ -174,6 +174,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							continue
 						}
 						if !isLocallyDefined2(last, ln) {
+							//fmt.Println("---------predefine fileset, ln: ", ln)
 							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
@@ -4099,26 +4100,6 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 	return ""
 }
 
-func getGlobalValueRef(sb BlockNode, store Store, n Name) *TypedValue {
-	sbb := sb.GetStaticBlock()
-	idx, ok := sb.GetLocalIndex(n)
-	bb := &sb.GetStaticBlock().Block
-	bp := sb.GetParentNode(store)
-
-	for {
-		if ok && sbb.Types[idx] != nil && (bp == nil || bp.GetParentNode(store) == nil) {
-			return bb.GetPointerToInt(store, int(idx)).TV
-		} else if bp != nil {
-			idx, ok = bp.GetLocalIndex(n)
-			sbb = bp.GetStaticBlock()
-			bb = sbb.GetBlock()
-			bp = bp.GetParentNode(store)
-		} else {
-			return nil
-		}
-	}
-}
-
 func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined bool) (un Name) {
 	if x == nil {
 		return
@@ -4231,14 +4212,102 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		// XXX, tanscribe?
-		for _, stmt := range cx.Body {
-			un = findUndefinedStmt(store, cx, stmt, t)
 
-			fmt.Println("---un: ", un)
-			if un != "" {
-				return
-			}
+		pb := cx.GetParentNode(nil)
+		if _, ok := pb.(*FileNode); ok {
+
+			//fmt.Println("---pb: ", pb, reflect.TypeOf(pb))
+
+			var stack []BlockNode = make([]BlockNode, 0, 32)
+			var last BlockNode = cx
+			stack = append(stack, last)
+
+			defer doRecover(stack, cx)
+
+			_ = Transcribe(cx,
+				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+
+					//fmt.Printf("find names in funclit: %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+
+					switch stage {
+					case TRANS_BLOCK:
+						pushInitBlock(n.(BlockNode), &last, &stack)
+
+					case TRANS_LEAVE:
+						// Pop block from stack.
+						// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+						// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+						// POP BLOCK YOURSELF.
+						defer func() {
+							switch n.(type) {
+							case BlockNode:
+								stack = stack[:len(stack)-1]
+								last = stack[len(stack)-1]
+							}
+						}()
+
+						if nx, ok := n.(*NameExpr); ok {
+							if nx.Name == blankIdentifier {
+								return n, TRANS_CONTINUE
+							}
+
+							if as, ok := ns[len(ns)-1].(*AssignStmt); ok && as.Op == DEFINE && ftype == TRANS_ASSIGN_LHS {
+								return n, TRANS_CONTINUE
+							} else {
+								// has a name use here
+								// 0. skip uverse names.
+								// 1. find name with funcLit and child blocks,
+								// if exist(include predefined), do nothing;
+								// else if check package level names, if predefined, ok
+								// else, tryPredefine
+
+								// skip .uverse names
+								if _, ok := UverseNode().GetLocalIndex(nx.Name); ok {
+									return n, TRANS_CONTINUE
+								}
+
+								checkLocalDefine := func(n Name) bool {
+									var bn = last
+									_, ok := bn.GetLocalIndex(n)
+									for {
+										if ok {
+											return true // current block
+										} else if bn == cx { // last bn to check
+											_, ok = bn.GetLocalIndex(n)
+											return ok
+										} else if bn != nil {
+											bn = bn.GetParentNode(store)
+											_, ok = bn.GetLocalIndex(n)
+										} else {
+											return false
+										}
+									}
+								}
+
+								exist := checkLocalDefine(nx.Name)
+								if exist {
+									return n, TRANS_CONTINUE
+								}
+
+								//fmt.Println("---no exist in local...")
+								pkg := packageOf(last)
+								//fmt.Println("---pkg: ", pkg)
+								if slices.Contains(pkg.GetBlockNames(), nx.Name) {
+									//fmt.Println("---pkg.Names: ", pkg.GetBlockNames())
+									//fmt.Println("---exist in package..., nx.Name: ", nx.Name)
+									tv := pkg.GetValueRef(store, nx.Name, false) // include predefined
+									if !tv.IsUndefined() {
+										return n, TRANS_CONTINUE
+									}
+									un = nx.Name
+									return n, TRANS_EXIT
+								}
+							}
+						}
+					}
+					return n, TRANS_CONTINUE
+				})
+			return un
 		}
 
 		return findUndefined2(store, last, &cx.Type, nil, skipPredefined)
@@ -4418,6 +4487,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 	// recursively predefine dependencies.
 	for {
 		un := tryPredefine(store, pkg, last, d)
+		//fmt.Println("=========un: ", un)
 		if un != "" {
 			// check circularity.
 			if slices.Contains(*stack, un) {
@@ -4425,6 +4495,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
+			//fmt.Println("--------decl: ", *decl)
 			// preprocess if not already preprocessed.
 			if !file.IsInitialized() {
 				panic("all types from files in file-set should have already been predefined")
@@ -4438,6 +4509,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			break
 		}
 	}
+	//fmt.Println("---done define, going to preprocess, d: ", d)
 	switch cd := d.(type) {
 	case *FuncDecl:
 		// *FuncValue/*FuncType is mostly empty still; here
@@ -4543,6 +4615,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 // must be called for name declarations within (non-file,
 // non-package) stmt bodies.
 func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Name) {
+	//fmt.Println("---tryPredefine, last: ", last)
+	//fmt.Println("---tryPredefine, d: ", d, d.GetAttribute(ATTR_PREDEFINED))
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
