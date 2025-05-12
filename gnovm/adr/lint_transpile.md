@@ -5,8 +5,8 @@ The steps of Gno 0.0 --> Gno 0.9 transpiling.
   4. `Prepare*()`: minimal Go AST mutations for Gno VM compat.
   5. `gno.MustParseFile()`: re-parse prepared AST
   6. `m.PreprocessFiles()`: normal Gno AST preprocessing.
-  7. `FindXforms*()`: Gno AST static analaysis to produce xitems.
-  8. `Transpile*()` Part 1: re-key xitems by Go Node before step 2 line changes.
+  7. `FindXforms*()`: Gno AST static analaysis to produce line-based xforms.
+  8. `Transpile*()` Part 1: re-key xforms from line-based to Go node-based.
   9. `Transpile*()` Part 2: main Go AST mutations for Gno upgrade.
   10. `mpkg.WriteTo()`: write mem package to disk.
 
