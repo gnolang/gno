@@ -3,7 +3,7 @@ package packages
 import (
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,10 +28,10 @@ func TestLoader_ResolverPriority(t *testing.T) {
 
 	const commonPath = "abc.yz/pkg/a"
 
-	pkgA := gnovm.MemPackage{Name: "pkga", Path: commonPath}
+	pkgA := std.MemPackage{Name: "pkga", Path: commonPath}
 	resolverA := NewMockResolver(&pkgA)
 
-	pkgB := gnovm.MemPackage{Name: "pkgb", Path: commonPath}
+	pkgB := std.MemPackage{Name: "pkgb", Path: commonPath}
 	resolverB := NewMockResolver(&pkgB)
 
 	t.Run("pkgA then pkgB", func(t *testing.T) {
