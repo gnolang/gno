@@ -394,7 +394,7 @@ func doRecover(stack []BlockNode, n Node) {
 		if ok {
 			err = errors.Wrap(rerr, loc.String())
 		} else {
-			err = fmt.Errorf("%s: %v", loc.String(), r)
+			err = fmt.Errorf("%s: %v", loc.StringXXX(), r) // XXX revert to String().
 		}
 
 		// Re-throw the error after wrapping it with the preprocessing stack information.
@@ -1969,7 +1969,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									Op:  DEFINE,
 									Rhs: n.Rhs,
 								}
-								dsx.SetLine(n.Line)
+								// dsx.SetSpan(n.GetSpan())
 								dsx = Preprocess(store, last, dsx).(*AssignStmt)
 
 								// step3:
@@ -1987,7 +1987,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									Op:  ASSIGN,
 									Rhs: copyExprs(tmpExprs),
 								}
-								asx.SetLine(n.Line)
+								// asx.SetSpan(n.GetSpan())
 								asx = Preprocess(store, last, asx).(*AssignStmt)
 
 								// step4:
@@ -3365,7 +3365,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 			TypedValue: cv,
 		}
 	}
-	cx.SetLine(x.GetLine())
+	// cx.SetSpan(x.GetSpan())
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	setConstAttrs(cx)
 	return cx
@@ -3374,7 +3374,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 func constType(source Expr, t Type) *constTypeExpr {
 	cx := &constTypeExpr{Source: source}
 	cx.Type = t
-	cx.SetLine(source.GetLine())
+	// cx.SetSpan(source.GetSpan())
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	return cx
 }
@@ -5389,23 +5389,44 @@ func isLocallyDefined2(bn BlockNode, n Name) bool {
 // ----------------------------------------
 // setNodeLines & setNodeLocations
 
-func setNodeLines(n Node) {
-	lastLine := 0
-	lastColumn := 0
-	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		if stage != TRANS_ENTER {
+func setNodeLines(nn Node) {
+	var all Span // if nn has no span defined, derive one from its contents.
+	Transcribe(nn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch stage {
+		case TRANS_ENTER:
+			var nspan = n.GetSpan()
+			if nspan.IsZero() {
+				if len(ns) == 0 {
+					// Handled by TRANS_LEAVE. Case A.
+					return n, TRANS_CONTINUE
+				}
+				var lastSpan = ns[len(ns)-1].GetSpan()
+				if lastSpan.IsZero() {
+					// Handled by TRANS_LEAVE too. Case B.
+					return n, TRANS_CONTINUE
+				} else {
+					// Derive from parent with .Num++.
+					nspan = lastSpan
+					nspan.Num += 1
+					n.SetSpan(nspan)
+					return n, TRANS_CONTINUE
+				}
+			} else {
+				// Expand all with nspan.
+				all = all.Union(nspan)
+				return n, TRANS_CONTINUE
+			}
+		case TRANS_LEAVE:
+			// TODO: Validate that all spans of elements are
+			// strictly contained.
+			var nspan = n.GetSpan()
+			if nspan.IsZero() {
+				// Case A: len(ns) == 0
+				// Case b: len(ns) > 0.
+				n.SetSpan(all)
+			}
 			return n, TRANS_CONTINUE
 		}
-		line, column := n.GetLine(), n.GetColumn()
-		if line == 0 {
-			line, column = lastLine, lastColumn
-		} else if line != lastLine {
-			lastLine, lastColumn = line, column
-		} else if column != lastColumn {
-			/*lastLine,*/ lastColumn = /*line,*/ column
-		}
-		n.SetLine(line)
-		n.SetColumn(column)
 		return n, TRANS_CONTINUE
 	})
 }
@@ -5426,8 +5447,7 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 			loc := Location{
 				PkgPath: pkgPath,
 				File:    fileName,
-				Line:    bn.GetLine(),
-				Column:  bn.GetColumn(),
+				Span:    bn.GetSpan(),
 			}
 			bn.SetLocation(loc)
 		}

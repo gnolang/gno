@@ -181,14 +181,14 @@ func FindXformsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 							panic("cross(fn) must be followed by a call")
 						}
 						loc := last.GetLocation()
-						addXform1(pn, XTYPE_ADD_NILREALM, loc.PkgPath, loc.File, pc.GetLine(), pc.GetColumn())
+						addXform1(pn, loc.PkgPath, loc.File, pc.GetSpan(), XTYPE_ADD_NILREALM)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						if !IsRealmPath(pn.PkgPath) {
 							panic("crossing() is only allowed in realm packages")
 						}
 						// Add `cur realm` as first argument to func decl.
 						loc := last.GetLocation()
-						addXform1(pn, XTYPE_ADD_CURFUNC, loc.PkgPath, loc.File, loc.Line, loc.Column)
+						addXform1(pn, loc.PkgPath, loc.File, loc.Span, XTYPE_ADD_CURFUNC)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
 						panic("attach() not yet supported")
@@ -225,13 +225,13 @@ func FindXformsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 						if cv.IsCrossing() {
 							// Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
-							addXform1(pn, XTYPE_ADD_CURCALL, loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
+							addXform1(pn, loc.PkgPath, loc.File, n.GetSpan(), XTYPE_ADD_CURCALL)
 						}
 					case *BoundMethodValue:
 						if cv.IsCrossing() {
 							// Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
-							addXform1(pn, XTYPE_ADD_CURCALL, loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
+							addXform1(pn, loc.PkgPath, loc.File, n.GetSpan(), XTYPE_ADD_CURCALL)
 						}
 					}
 				}
@@ -255,14 +255,15 @@ const (
 const ATTR_GNO0P9_XFORMS = "ATTR_GNO0P9_XFORMS"
 
 // Called from FindXformsGno0p9().
-// t: xtype, p: pkgpath, f: filename, l: line, c: column
-func addXform1(n Node, x xtype, p string, f string, l int, c int) {
-	xforms1, _ := n.GetAttribute(ATTR_GNO0P9_XFORMS).(map[string]struct{}) // key = p/f:l:c+t
+// p: pkgpath, f: filename
+func addXform1(n Node, p string, f string, s Span, x xtype) {
+	// key: p/f:s+x
+	xforms1, _ := n.GetAttribute(ATTR_GNO0P9_XFORMS).(map[string]struct{})
 	if xforms1 == nil {
 		xforms1 = make(map[string]struct{})
 		n.SetAttribute(ATTR_GNO0P9_XFORMS, xforms1)
 	}
-	xform1 := fmt.Sprintf("%s/%s:%d:%d+%s", p, f, l, c, x)
+	xform1 := fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
 	if _, exists := xforms1[xform1]; exists {
 		panic("cannot trample existing item")
 	}
@@ -270,19 +271,16 @@ func addXform1(n Node, x xtype, p string, f string, l int, c int) {
 	fmt.Printf("xpiling to Gno 0.9: +%q\n", xform1)
 }
 
-// Called from transpileGno0p9_part1 to translate p/f:l:c+t to n.
+// Called from transpileGno0p9_part1 to translate p/f:l:c+x to n.
 func addXform2IfMatched(
 	xforms1 map[string]struct{},
 	xforms2 map[ast.Node]string,
-	gon ast.Node,
-	pkgPath, fname string, line, col int,
-	x xtype) {
+	gon ast.Node, p string, f string, s Span, x xtype) {
 
-	xform1 := fmt.Sprintf("%s/%s:%d:%d+%s",
-		pkgPath, fname, line, col, x)
+	xform1 := fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
 	if _, exists := xforms1[xform1]; exists {
-		if old, exists := xforms2[gon]; exists {
-			fmt.Println("xform2 already exists. old:", old, "new:", xform1)
+		if prior, exists := xforms2[gon]; exists {
+			fmt.Println("xform2 already exists. prior:", prior, "new:", xform1)
 			panic("oops, need to refactor xforms2 to allow multiple xforms per node?")
 		}
 		xforms2[gon] = xform1
@@ -378,50 +376,43 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xforms1 map[string]struct
 //
 // Results:
 //   - xfound: number of items matched for file with name `fname` (for integrity)
-func transpileGno0p9_part1(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xforms1 map[string]struct{}) (xfound int, xforms2 map[ast.Node]string, err error) {
+func transpileGno0p9_part1(pkgPath string, gofs *token.FileSet, fname string, gof *ast.File, xforms1 map[string]struct{}) (xfound int, xforms2 map[ast.Node]string, err error) {
 	xforms2 = make(map[ast.Node]string, len(xforms1))
 
 	if len(xforms1) == 0 {
 		return 0, nil, nil // nothing to translate.
 	}
 
-	astutil.Apply(f, func(c *astutil.Cursor) bool {
+	astutil.Apply(gof, func(c *astutil.Cursor) bool {
 		// Main switch on c.Node() type.
-		switch n := c.Node().(type) {
+		switch gon := c.Node().(type) {
 		case *ast.FuncLit:
-			pos := n.Pos()
-			posn := fs.Position(pos)
-			line, col := posn.Line, posn.Column
+			span := SpanFromGo(gofs, gon)
 			addXform2IfMatched(
-				xforms1, xforms2, n,
-				pkgPath, fname, line, col,
+				xforms1, xforms2, gon,
+				pkgPath, fname, span,
 				XTYPE_ADD_CURFUNC)
 		case *ast.FuncDecl:
-			pos := n.Pos()
-			posn := fs.Position(pos)
-			line, col := posn.Line, posn.Column
+			span := SpanFromGo(gofs, gon)
 			addXform2IfMatched(
-				xforms1, xforms2, n,
-				pkgPath, fname, line, col,
+				xforms1, xforms2, gon,
+				pkgPath, fname, span,
 				XTYPE_ADD_CURFUNC)
 		case *ast.CallExpr:
-			pos := n.Pos()
-			posn := fs.Position(pos)
-			line, col := posn.Line, posn.Column
-			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
-				return true // can be superimposed with parent call.
-			}
+			span := SpanFromGo(gofs, gon)
 			addXform2IfMatched(
-				xforms1, xforms2, n,
-				pkgPath, fname, line, col,
+				xforms1, xforms2, gon,
+				pkgPath, fname, span,
 				XTYPE_ADD_CURCALL)
 			addXform2IfMatched(
-				xforms1, xforms2, n,
-				pkgPath, fname, line, col,
+				xforms1, xforms2, gon,
+				pkgPath, fname, span,
 				XTYPE_ADD_NILREALM)
 		}
 		return true
 	}, nil)
+
+	fmt.Println("COMPARE", len(xforms1), len(xforms2))
 
 	// Check that all xforms1 items were translated to xforms2.
 	xfound = checkXforms(xforms1, xforms2, fname)

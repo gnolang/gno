@@ -18,9 +18,9 @@ const pkgPathLimit = 256
 
 var (
 	// See also gnovm/pkg/gnolang/validate_mempackage.go.
-	reFileName   = regexp.MustCompile(`^(([a-z0-9_]+|[A-Z0-9_]+)\.[a-z0-9_]{1,7}|LICENSE|README)$`)
+	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)\.[a-z0-9_]{1,7}|LICENSE|README)$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
+	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
 	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)
 )
 

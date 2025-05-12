@@ -224,7 +224,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 //----------------------------------------
 // top level Run* methods.
 
-// Parses files, sets the package if doesn't exist, runs files, saves mempkg
+// Sorts and parses files, sets the package if doesn't exist, runs files, saves mempkg
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
@@ -234,6 +234,7 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 	if bm.StorageEnabled {
 		defer bm.FinishStore()
 	}
+	memPkg.Sort()
 	return m.runMemPackage(memPkg, save, false)
 }
 

@@ -114,33 +114,6 @@ const (
 type Name string
 
 // ----------------------------------------
-// Location
-// Acts as an identifier for nodes.
-
-type Location struct {
-	PkgPath string
-	File    string
-	Line    int
-	Column  int
-}
-
-func (loc Location) String() string {
-	return fmt.Sprintf("%s/%s:%d:%d",
-		loc.PkgPath,
-		loc.File,
-		loc.Line,
-		loc.Column,
-	)
-}
-
-func (loc Location) IsZero() bool {
-	return loc.PkgPath == "" &&
-		loc.File == "" &&
-		loc.Line == 0 &&
-		loc.Column == 0
-}
-
-// ----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
 // Exported Attribute fields like Loc and Label are persisted
@@ -164,27 +137,11 @@ const (
 	ATTR_PACKAGE_DECL    GnoAttribute = "ATTR_PACKAGE_DECL"
 )
 
+// Embedded in each Node.
 type Attributes struct {
-	Line   int
-	Column int
-	Label  Name
-	data   map[GnoAttribute]any // not persisted
-}
-
-func (attr *Attributes) GetLine() int {
-	return attr.Line
-}
-
-func (attr *Attributes) SetLine(line int) {
-	attr.Line = line
-}
-
-func (attr *Attributes) GetColumn() int {
-	return attr.Column
-}
-
-func (attr *Attributes) SetColumn(column int) {
-	attr.Column = column
+	Span  // Node.Line is the start.
+	Label Name
+	data  map[GnoAttribute]any // not persisted
 }
 
 func (attr *Attributes) GetLabel() Name {
@@ -220,6 +177,14 @@ func (attr *Attributes) DelAttribute(key GnoAttribute) {
 	delete(attr.data, key)
 }
 
+func (attr *Attributes) String() string {
+	panic("should not use") // node should override Pos/Span/Location methods.
+}
+
+func (attr *Attributes) IsZero() bool {
+	panic("should not use") // node should override Pos/Span/Location methods.
+}
+
 // ----------------------------------------
 // Node
 
@@ -228,9 +193,9 @@ type Node interface {
 	String() string
 	Copy() Node
 	GetLine() int
-	SetLine(int)
 	GetColumn() int
-	SetColumn(int)
+	GetSpan() Span
+	SetSpan(Span) // once.
 	GetLabel() Name
 	SetLabel(Name)
 	HasAttribute(key GnoAttribute) bool
@@ -1261,7 +1226,7 @@ func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 // lowercase, and must start with a letter).
 //
 // XXX TODO pkgPath should instead be derived by inspecting the contents, among them
-// the gno.mod fule.
+// the gno.mod file.
 func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
 	mpkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
@@ -1426,8 +1391,6 @@ type PackageNode struct {
 func PackageNodeLocation(path string) Location {
 	return Location{
 		PkgPath: path,
-		File:    "",
-		Line:    0,
 	}
 }
 
