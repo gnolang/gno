@@ -22,8 +22,6 @@ const (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	//fmt.Println("---Predefine file set...")
-	//defer println("---done predefine fileset...")
 	// First, initialize all file nodes and connect to package node.
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Predefine().
@@ -43,7 +41,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// This must be done before TypeDecls, as it may recursively
 	// depend on names (even in other files) that depend on imports.
 	for _, fn := range fset.Files {
-		//fmt.Println("----file level decls: ", fn.Decls)
 		for i := range fn.Decls {
 			d := fn.Decls[i]
 			switch d.(type) {
@@ -126,7 +123,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 						base.Values = Exprs{base.Values[j].Copy().(Expr)}
 					}
 
-					fmt.Println("---!!!, predefine fileset..")
 					split[j], _ = predefineNow(store, fn, base)
 				}
 
@@ -147,8 +143,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // TODO: ensure and keep idempotent.
 // PrpedefineFileSet may precede Preprocess.
 func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
-	//fmt.Println("---initStaticBlocks...")
-	//defer println("---done initStaticBlocks...")
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -174,7 +168,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							continue
 						}
 						if !isLocallyDefined2(last, ln) {
-							//fmt.Println("---------predefine fileset, ln: ", ln)
 							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
@@ -436,7 +429,6 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	//fmt.Println("-----------Preprocess...")
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
@@ -483,7 +475,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 }
 
 func preprocess1(store Store, ctx BlockNode, n Node) Node {
-	//fmt.Println("---preprocess1...")
 	// Increment preprocessing counter while preprocessing.
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
@@ -555,24 +546,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.GetAttribute(ATTR_PREDEFINED) == true {
 					// skip declarations already predefined
 					// (e.g. through recursion for a dependent)
-					//fmt.Println("!!!, n ", n)
 				} else {
 					d := n.(Decl)
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
 					}
 
-					//isGlobal := true
-					//
-					//for i := len(ns) - 1; i > 0; i-- {
-					//	if _, ok := ns[i].(*FuncDecl); ok {
-					//		isGlobal = false
-					//	}
-					//}
-					//
-					//d.SetAttribute(ATTR_GLOBAL, isGlobal)
-
-					//fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!, predefine inner d...")
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
 					if ppd {
@@ -1048,8 +1027,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						// built-in functions must be called.
 						if !cx.IsUndefined() &&
-								cx.T.Kind() == FuncKind &&
-								ftype != TRANS_CALL_FUNC {
+							cx.T.Kind() == FuncKind &&
+							ftype != TRANS_CALL_FUNC {
 							panic(fmt.Sprintf(
 								"use of builtin %s not in function call",
 								n.Name))
@@ -1147,7 +1126,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// First, convert untyped as necessary.
 						// If either is interface type no conversion is required.
 						if (lt == nil || lt.Kind() != InterfaceKind) &&
-								(rt == nil || rt.Kind() != InterfaceKind) {
+							(rt == nil || rt.Kind() != InterfaceKind) {
 							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
 								// convert n.Left to right type.
 								checkOrConvertType(store, last, n, &n.Left, rcx.T, false)
@@ -1759,8 +1738,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Case 1: If receiver is pointer type but n.X is
 					// not:
 					if rcvr != nil &&
-							rcvr.Kind() == PointerKind &&
-							nxt2.Kind() != PointerKind {
+						rcvr.Kind() == PointerKind &&
+						nxt2.Kind() != PointerKind {
 						// Go spec: "If x is addressable and &x's
 						// method set contains m, x.m() is shorthand
 						// for (&x).m()"
@@ -1792,8 +1771,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							))
 						}
 					} else if len(tr) > 0 &&
-							tr[len(tr)-1].IsDerefType() &&
-							nxt2.Kind() != PointerKind {
+						tr[len(tr)-1].IsDerefType() &&
+						nxt2.Kind() != PointerKind {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
@@ -2325,13 +2304,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 // defineOrDecl merges the code logic from op define (:=) and declare (var/const).
 func defineOrDecl(
-		store Store,
-		bn BlockNode,
-		n Node,
-		isConst bool,
-		nameExprs []NameExpr,
-		typeExpr Expr,
-		valueExprs []Expr,
+	store Store,
+	bn BlockNode,
+	n Node,
+	isConst bool,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExprs []Expr,
 ) {
 	numNames := len(nameExprs)
 	numVals := len(valueExprs)
@@ -2364,15 +2343,15 @@ func defineOrDecl(
 // parseAssignFromExprList parses assignment to multiple variables from a list of expressions.
 // This function will alter the value of sts, tvs.
 func parseAssignFromExprList(
-		store Store,
-		bn BlockNode,
-		n Node,
-		sts []Type,
-		tvs []TypedValue,
-		isConst bool,
-		nameExprs []NameExpr,
-		typeExpr Expr,
-		valueExprs []Expr,
+	store Store,
+	bn BlockNode,
+	n Node,
+	sts []Type,
+	tvs []TypedValue,
+	isConst bool,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExprs []Expr,
 ) {
 	numNames := len(nameExprs)
 
@@ -2424,7 +2403,7 @@ func parseAssignFromExprList(
 		if len(valueExprs) > 0 {
 			vx := valueExprs[i]
 			if cx, ok := vx.(*ConstExpr); ok &&
-					!cx.TypedValue.IsUndefined() {
+				!cx.TypedValue.IsUndefined() {
 				if isConst {
 					// const _ = <const_expr>: static block should contain value
 					tvs[i] = cx.TypedValue
@@ -2452,14 +2431,14 @@ func parseAssignFromExprList(
 // - a, b := n.(T)
 // - a, b := n[i], where n is a map
 func parseMultipleAssignFromOneExpr(
-		store Store,
-		bn BlockNode,
-		n Node,
-		sts []Type,
-		tvs []TypedValue,
-		nameExprs []NameExpr,
-		typeExpr Expr,
-		valueExpr Expr,
+	store Store,
+	bn BlockNode,
+	n Node,
+	sts []Type,
+	tvs []TypedValue,
+	nameExprs []NameExpr,
+	typeExpr Expr,
+	valueExpr Expr,
 ) {
 	var tuple *tupleType
 	numNames := len(nameExprs)
@@ -3453,7 +3432,7 @@ func findContinuableNode(last BlockNode, store Store) {
 }
 
 func findBranchLabel(last BlockNode, label Name) (
-		bn BlockNode, depth uint8, bodyIdx int,
+	bn BlockNode, depth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3493,7 +3472,7 @@ func findBranchLabel(last BlockNode, label Name) (
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-		bn BlockNode, depth uint8, bodyIdx int,
+	bn BlockNode, depth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3739,7 +3718,7 @@ func isNamedConversion(xt, t Type) bool {
 		// covert right to the type of left if one side is unnamed type and the other side is not
 
 		if t.IsNamed() && !xt.IsNamed() ||
-				!t.IsNamed() && xt.IsNamed() {
+			!t.IsNamed() && xt.IsNamed() {
 			return true
 		}
 	}
@@ -3983,9 +3962,6 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 
 		pb := cx.GetParentNode(nil)
 		if _, ok := pb.(*FileNode); ok {
-
-			//fmt.Println("---pb: ", pb, reflect.TypeOf(pb))
-
 			var stack []BlockNode = make([]BlockNode, 0, 32)
 			var last BlockNode = cx
 			stack = append(stack, last)
@@ -3994,8 +3970,9 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 
 			_ = Transcribe(cx,
 				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-
-					//fmt.Printf("find names in funclit: %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+					if debug {
+						debug.Printf("find names in funclit: %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+					}
 
 					switch stage {
 					case TRANS_BLOCK:
@@ -4022,9 +3999,9 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 							if as, ok := ns[len(ns)-1].(*AssignStmt); ok && as.Op == DEFINE && ftype == TRANS_ASSIGN_LHS {
 								return n, TRANS_CONTINUE
 							} else {
-								// has a name use here
+								// found a name use here.
 								// 0. skip uverse names.
-								// 1. find name with funcLit and child blocks,
+								// 1. find name within funcLit and child blocks,
 								// if exist(include predefined), do nothing;
 								// else if check package level names, if predefined, ok
 								// else, tryPredefine
@@ -4035,7 +4012,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 								}
 
 								checkLocalDefine := func(n Name) bool {
-									var bn = last
+									bn := last
 									_, ok := bn.GetLocalIndex(n)
 									for {
 										if ok {
@@ -4057,12 +4034,8 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 									return n, TRANS_CONTINUE
 								}
 
-								//fmt.Println("---no exist in local...")
 								pkg := packageOf(last)
-								//fmt.Println("---pkg: ", pkg)
 								if slices.Contains(pkg.GetBlockNames(), nx.Name) {
-									//fmt.Println("---pkg.Names: ", pkg.GetBlockNames())
-									//fmt.Println("---exist in package..., nx.Name: ", nx.Name)
 									tv := pkg.GetValueRef(store, nx.Name, false) // include predefined
 									if !tv.IsUndefined() {
 										return n, TRANS_CONTINUE
@@ -4223,7 +4196,6 @@ func checkIntegerKind(xt Type) {
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
-	//fmt.Println("---predefineNow, d: ", d)
 	defer doRecover([]BlockNode{last}, d)
 	stack := &[]Name{}
 	return predefineNow2(store, last, d, stack)
@@ -4255,7 +4227,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 	// recursively predefine dependencies.
 	for {
 		un := tryPredefine(store, pkg, last, d)
-		//fmt.Println("=========un: ", un)
 		if un != "" {
 			// check circularity.
 			if slices.Contains(*stack, un) {
@@ -4263,7 +4234,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
-			//fmt.Println("--------decl: ", *decl)
 			// preprocess if not already preprocessed.
 			if !file.IsInitialized() {
 				panic("all types from files in file-set should have already been predefined")
@@ -4277,7 +4247,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			break
 		}
 	}
-	//fmt.Println("---done define, going to preprocess, d: ", d)
 	switch cd := d.(type) {
 	case *FuncDecl:
 		// *FuncValue/*FuncType is mostly empty still; here
@@ -4383,8 +4352,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 // must be called for name declarations within (non-file,
 // non-package) stmt bodies.
 func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Name) {
-	//fmt.Println("---tryPredefine, last: ", last)
-	//fmt.Println("---tryPredefine, d: ", d, d.GetAttribute(ATTR_PREDEFINED))
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
@@ -4407,8 +4374,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 
 		base, isInternal := IsInternalPath(d.PkgPath)
 		if isInternal &&
-				pkg.PkgPath != base &&
-				!strings.HasPrefix(pkg.PkgPath, base+"/") {
+			pkg.PkgPath != base &&
+			!strings.HasPrefix(pkg.PkgPath, base+"/") {
 			panic("internal/ packages can only be imported by packages rooted at the parent of \"internal\"")
 		}
 
@@ -4433,7 +4400,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			if exp != string(pv.PkgName) {
 				panic(fmt.Sprintf(
 					"package name for %q (%q) doesn't match its expected identifier %q; "+
-							"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
+						"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
 			}
 			d.Name = pv.PkgName
 		} else if d.Name == blankIdentifier { // no definition
