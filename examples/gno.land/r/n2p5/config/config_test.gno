@@ -12,7 +12,7 @@ func TestAddBackupOwner(t *testing.T) {
 	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
-	
+
 	testing.SetOriginCaller(owner)
 	cross(AddBackupOwner)(u1)
 	b := BackupOwners()
@@ -20,7 +20,7 @@ func TestAddBackupOwner(t *testing.T) {
 		t.Error("failed to add u1 to backupowners")
 	}
 	testing.SetOriginCaller(u1)
-	r := revive(func(){
+	r := revive(func() {
 		cross(AddBackupOwner)(u2)
 	})
 	if r != ownable.ErrUnauthorized {
@@ -36,12 +36,12 @@ func TestRemoveBackupOwner(t *testing.T) {
 	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
-	
+
 	testing.SetOriginCaller(owner)
 	cross(AddBackupOwner)(u1)
 
 	testing.SetOriginCaller(u2)
-	r := revive(func(){
+	r := revive(func() {
 		cross(RemoveBackupOwner)(u1)
 	})
 	if r != ownable.ErrUnauthorized {
@@ -60,14 +60,14 @@ func TestClaimOwnership(t *testing.T) {
 	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
-	
+
 	if owner != Owner() {
 		t.Errorf("expected: %v, got: %v", owner, Owner())
 	}
 
 	testing.SetOriginCaller(owner)
 	cross(AddBackupOwner)(u1)
-	
+
 	testing.SetOriginCaller(u1)
 	cross(ClaimOwnership)()
 
@@ -83,7 +83,7 @@ func TestAddAdmin(t *testing.T) {
 	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
-	
+
 	testing.SetOriginCaller(owner)
 	cross(AddAdmin)(u1)
 	admins := Admins()
@@ -91,7 +91,7 @@ func TestAddAdmin(t *testing.T) {
 		t.Error("failed to add u1 to admins group")
 	}
 	testing.SetOriginCaller(u1)
-	r := revive(func(){
+	r := revive(func() {
 		cross(AddAdmin)(u2)
 	})
 	if r != ownable.ErrUnauthorized {
@@ -107,12 +107,12 @@ func TestRemoveAdmin(t *testing.T) {
 	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
-	
+
 	testing.SetOriginCaller(owner)
 	cross(AddAdmin)(u1)
 
 	testing.SetOriginCaller(u2)
-	r := revive(func(){
+	r := revive(func() {
 		cross(RemoveAdmin)(u1)
 	})
 	if r != ownable.ErrUnauthorized {
@@ -131,7 +131,7 @@ func TestIsAdmin(t *testing.T) {
 	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
-	
+
 	testing.SetOriginCaller(owner)
 	cross(AddAdmin)(u1)
 
@@ -143,5 +143,5 @@ func TestIsAdmin(t *testing.T) {
 	}
 	if IsAdmin(u2) {
 		t.Error("u2 should not be admin")
-	}	
+	}
 }
