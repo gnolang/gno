@@ -1,34 +1,11 @@
-BLANK :=
-SPACE := $(BLANK) $(BLANK)
-HASH := \#
-
-DIR_OFFSET_OPT        = $(if $(filter $(PWD),$(CURDIR)),,-C $(patsubst $(patsubst %/,%,$(PWD))/%,%,$(CURDIR)))
-MAKE_SUBDIRS          = $(patsubst %/Makefile,%,$(wildcard */Makefile))
-BASH_GET_TARGET_LINES = cat Makefile | grep '^[a-z][^:]*:' | grep -v '$(HASH).*@LEGACY'
-MAX_TARGET_CHARS      = $(lastword $(sort $(shell $(BASH_GET_TARGET_LINES) | sed -e 's/:.*$$//' -e 's/././g')))
+include misc/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
 	@echo "Available make commands:"
-	@$(BASH_GET_TARGET_LINES) | \
-	    sort | \
-	    sed \
-	        -e 's/:[^$(HASH)]*$(HASH) */$(HASH) /' \
-	        -e 's/:[^$(HASH)]*$$//' \
-	        -e 's/$(HASH)/$(subst .,$(SPACE),$(MAX_TARGET_CHARS))   $(HASH)/' \
-	        -e 's/^\($(MAX_TARGET_CHARS)...\) *$(HASH)/\1<--/' \
-	        -e 's/^/  /'
-	@$(if \
-		$(MAKE_SUBDIRS),$\
-		echo ; echo "Sub-directories with make targets:" ; \
-		for d in $(sort $(MAKE_SUBDIRS)); do \
-			echo '    '"$$(grep -q '^help *:' $$d/Makefile && echo '*  ' || echo '   ') $\
-			    $(if $(filter $(MAKE),$(shell which make)),make,$(MAKE)) $(if $(DIR_OFFSET_OPT),$(DIR_OFFSET_OPT)/,-C$(SPACE))$$d" ; $\
-	    done ; \
-	    grep -q '^help *:' $(patsubst %,%/Makefile,$(MAKE_SUBDIRS)) && \
-	        echo && echo '       * Is documented with a `help` target.' || echo > /dev/null,$\
-		$(HASH) do nothing $\
-	)
+	@$(call BASH_DISPLAY_TARGETS_AND_COMMENTS)
+	@$(BASH_DISPLAY_SUB_MAKES)
+
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile misc/devdeps/go.mod
