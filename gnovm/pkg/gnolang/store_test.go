@@ -99,7 +99,7 @@ func TestCopyFromCachedStore(t *testing.T) {
 }
 
 func TestFindByPrefix(t *testing.T) {
-	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocci"}
+	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{
 		"gnolang.org/abricot",
 		"gnolang.org/abricot/fraise",
