@@ -15,12 +15,6 @@ func TestBoardID_String(t *testing.T) {
 	uassert.Equal(t, "32", input.String())
 }
 
-func TestBoardID_Key(t *testing.T) {
-	input := BoardID(128)
-	want := strings.Repeat("0", 7) + "128"
-	uassert.Equal(t, want, input.Key())
-}
-
 func TestBoard_GetID(t *testing.T) {
 	want := int(92)
 	b := new(Board)

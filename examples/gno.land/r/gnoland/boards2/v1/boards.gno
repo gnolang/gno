@@ -9,14 +9,15 @@ import (
 )
 
 var (
-	gPerms        Permissions
-	gRealmLink    txlink.Realm
-	gNotice       string
-	gHelp         string
-	gLastBoardID  BoardID
-	gBoardsByID   avl.Tree // string(id) -> *Board
-	gBoardsByName avl.Tree // string(name) -> *Board
-	gLocked       struct {
+	gPerms            Permissions
+	gRealmLink        txlink.Realm
+	gNotice           string
+	gHelp             string
+	gLastReservedID   BoardID
+	gBoardsByID       avl.Tree // string(id) -> *Board
+	gPublicBoardsByID avl.Tree // string(id) -> *Board
+	gBoardsByName     avl.Tree // string(name) -> *Board
+	gLocked           struct {
 		realm        bool
 		realmMembers bool
 	}
@@ -33,10 +34,11 @@ func init() {
 	)
 }
 
-// incGetBoardID returns a new board ID.
-func incGetBoardID() BoardID {
-	gLastBoardID++
-	return gLastBoardID
+// reserveBoardID returns a new board ID which won't be used by another board.
+// Reserving IDs is necessary because boards can be created asynchronically.
+func reserveBoardID() BoardID {
+	gLastReservedID++
+	return gLastReservedID
 }
 
 // getBoard returns a board for a specific ID.

@@ -19,7 +19,7 @@ func init() {
 	newName = strings.Repeat("A", boards2.MaxBoardNameLength+1)
 
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(boards2.CreateBoard)(name)
+	cross(boards2.CreateBoard)(name, false)
 }
 
 func main() {

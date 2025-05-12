@@ -30,7 +30,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(member))
 
-	bid := cross(boards2.CreateBoard)(name)
+	bid := cross(boards2.CreateBoard)(name, false)
 	println("ID =", bid)
 }
 
