@@ -60,7 +60,6 @@ func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
 			parser.SkipObjectResolution
-		// fmt.Println("GO/PARSER", mpkg.Path, file.Name)
 		var gof, err = parser.ParseFile(
 			gofset, path.Join(mpkg.Path, file.Name),
 			file.Body,
@@ -114,11 +113,11 @@ func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage
 //   - Renames 'realm' to '_realm' to avoid conflict with new builtin "realm".
 func prepareGno0p9(f *ast.File) (err error) {
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
-		switch n := c.Node().(type) {
+		switch gon := c.Node().(type) {
 		case *ast.Ident:
-			if n.Name == "realm" {
+			if gon.Name == "realm" {
 				// XXX: optimistic.
-				n.Name = "_realm"
+				gon.Name = "_realm"
 			}
 		}
 		return true
@@ -127,17 +126,17 @@ func prepareGno0p9(f *ast.File) (err error) {
 }
 
 //========================================
-// Find XItems for Gno 0.0 --> Gno 0.9.
+// Find Xforms for Gno 0.0 --> Gno 0.9.
 
-// XItem represents a single needed transform.
-type XItem struct {
+// Xform represents a single needed transform.
+type Xform struct {
 	Type string
 	Location
 }
 
-// Finds XItems for Gno 0.9 from the Gno AST and stores them pn
-// ATTR_GNO0P9_XITEMS.
-func FindXItemsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
+// Finds Xforms for Gno 0.9 from the Gno AST and stores them pn
+// ATTR_GNO0P9_XFORMS.
+func FindXformsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = pn
@@ -182,20 +181,20 @@ func FindXItemsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 							panic("cross(fn) must be followed by a call")
 						}
 						loc := last.GetLocation()
-						addXItem(pn, "add nilrealm", loc.PkgPath, loc.File, pc.GetLine(), pc.GetColumn())
+						addXform1(pn, XTYPE_ADD_NILREALM, loc.PkgPath, loc.File, pc.GetLine(), pc.GetColumn())
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						if !IsRealmPath(pn.PkgPath) {
 							panic("crossing() is only allowed in realm packages")
 						}
 						// Add `cur realm` as first argument to func decl.
 						loc := last.GetLocation()
-						addXItem(pn, "add curfunc", loc.PkgPath, loc.File, loc.Line, loc.Column)
+						addXform1(pn, XTYPE_ADD_CURFUNC, loc.PkgPath, loc.File, loc.Line, loc.Column)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
 						panic("attach() not yet supported")
 					}
 				} else {
-					// Already handled, added "add nilrealm"
+					// Already handled, added XTYPE_ADD_NILREALM
 					// from the "cross" case above.
 					if n.WithCross {
 						// Is a cross(fn)(...) call.
@@ -212,7 +211,7 @@ func FindXItemsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 						// cannot be resolved statically
 						defer func() {
 							recover()
-							//fmt.Println("FAILED TO EVALSTATIC", n.Func, r)
+							// fmt.Println("FAILED TO EVALSTATIC", n.Func, r)
 						}()
 						// try to evaluate n.Func.
 						tv = m.EvalStatic(last, n.Func)
@@ -226,13 +225,13 @@ func FindXItemsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 						if cv.IsCrossing() {
 							// Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
-							addXItem(pn, "add curcall", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
+							addXform1(pn, XTYPE_ADD_CURCALL, loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
 						}
 					case *BoundMethodValue:
 						if cv.IsCrossing() {
 							// Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
-							addXItem(pn, "add curcall", loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
+							addXform1(pn, XTYPE_ADD_CURCALL, loc.PkgPath, loc.File, n.GetLine(), n.GetColumn())
 						}
 					}
 				}
@@ -245,18 +244,49 @@ func FindXItemsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 	})
 }
 
-const ATTR_GNO0P9_XITEMS = "ATTR_GNO0P9_XITEMS"
+type xtype string
 
-// t: type, p: pkgpath, f: filename, l: line, c: column
-func addXItem(n Node, t string, p string, f string, l int, c int) {
-	x, _ := n.GetAttribute(ATTR_GNO0P9_XITEMS).(map[string]string) // p/f:l:c -> t
-	if x == nil {
-		x = make(map[string]string)
-		n.SetAttribute(ATTR_GNO0P9_XITEMS, x)
+const (
+	XTYPE_ADD_CURCALL  xtype = "ADD_CURCALL"
+	XTYPE_ADD_CURFUNC        = "ADD_CURFUNC"
+	XTYPE_ADD_NILREALM       = "ADD_NILREALM"
+)
+
+const ATTR_GNO0P9_XFORMS = "ATTR_GNO0P9_XFORMS"
+
+// Called from FindXformsGno0p9().
+// t: xtype, p: pkgpath, f: filename, l: line, c: column
+func addXform1(n Node, x xtype, p string, f string, l int, c int) {
+	xforms1, _ := n.GetAttribute(ATTR_GNO0P9_XFORMS).(map[string]struct{}) // key = p/f:l:c+t
+	if xforms1 == nil {
+		xforms1 = make(map[string]struct{})
+		n.SetAttribute(ATTR_GNO0P9_XFORMS, xforms1)
 	}
-	key := fmt.Sprintf("%s/%s:%d:%d", p, f, l, c)
-	x[key] = t
-	fmt.Printf("Gno 0.9 transpile +%s:%s\n", t, key)
+	xform1 := fmt.Sprintf("%s/%s:%d:%d+%s", p, f, l, c, x)
+	if _, exists := xforms1[xform1]; exists {
+		panic("cannot trample existing item")
+	}
+	xforms1[xform1] = struct{}{}
+	fmt.Printf("xpiling to Gno 0.9: +%q\n", xform1)
+}
+
+// Called from transpileGno0p9_part1 to translate p/f:l:c+t to n.
+func addXform2IfMatched(
+	xforms1 map[string]struct{},
+	xforms2 map[ast.Node]string,
+	gon ast.Node,
+	pkgPath, fname string, line, col int,
+	x xtype) {
+
+	xform1 := fmt.Sprintf("%s/%s:%d:%d+%s",
+		pkgPath, fname, line, col, x)
+	if _, exists := xforms1[xform1]; exists {
+		if old, exists := xforms2[gon]; exists {
+			fmt.Println("xform2 already exists. old:", old, "new:", xform1)
+			panic("oops, need to refactor xforms2 to allow multiple xforms per node?")
+		}
+		xforms2[gon] = xform1
+	}
 }
 
 // ========================================
@@ -267,34 +297,28 @@ func addXItem(n Node, t string, p string, f string, l int, c int) {
 //
 // Args:
 //   - dir: where to write to.
-//   - xform: result of FindGno0p9XItems().
-func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) error {
+//   - xforms1: result of FindGno0p9Xforms().
+func TranspileGno0p9(mpkg *std.MemPackage, dir string, xforms1 map[string]struct{}) error {
 
 	// Return if gno.mod is current.
 	var mod *gnomod.File
 	var err error
 	mod, err = ParseCheckGnoMod(mpkg)
 	if err == nil {
-		return nil // already up-to-date.
+		if mod.Gno.Version != "0.0" {
+			return fmt.Errorf("cannot transpile to gno 0.9: not gno 0.0")
+		}
 	}
 
 	// Go parse and collect files from mpkg.
 	gofset := token.NewFileSet()
 	var errs error
+	var xall int = 0 // number translated from part 1
 	for _, mfile := range mpkg.Files {
 		// Ignore non-gno files.
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue
 		}
-		/*
-			// Ignore _test/_filetest.gno files unless testing.
-			if !testing {
-				if strings.HasSuffix(mfile.Name, "_test.gno") ||
-					strings.HasSuffix(mfile.Name, "_filetest.gno") {
-					continue
-				}
-			}
-		*/
 		// Go parse file.
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
@@ -308,14 +332,15 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		// Transpile Part 1: re-key xform by ast.Node.
-		xform2, err := transpileGno0p9_part1(mpkg.Path, gofset, mfile.Name, gof, xform)
+		// Transpile Part 1: re-key xforms1 by ast.Node.
+		xnum, xforms2, err := transpileGno0p9_part1(mpkg.Path, gofset, mfile.Name, gof, xforms1)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
+		xall += xnum
 		// Transpile Part 2: main Go AST transform for Gno 0.9.
-		if err := transpileGno0p9_part2(mpkg.Path, gofset, mfile.Name, gof, xform2); err != nil {
+		if err := transpileGno0p9_part2(mpkg.Path, gofset, mfile.Name, gof, xforms2); err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
@@ -330,6 +355,12 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 	}
 	// END processing all memfiles.
 
+	// Ensure that all xforms were translated.
+	if xall != len(xforms1) {
+		// this is likely some bug in find* or part 1.
+		panic("some xform items were not translated")
+	}
+
 	// Write version to mod and to memfile named "gno.mod".
 	mod.SetGno(GnoVersion)
 	mpkg.SetFile("gno.mod", mod.WriteString())
@@ -339,55 +370,99 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xform map[string]string) 
 	return err
 }
 
-// Transpile Step 1: re-key xform by ast.Node.
+// Transpile Step 1: re-key xforms1 by ast.Node.
 //
-// We can't just apply as we encounter matches in xform unfortunately because
-// it causes the lines to shift.  So we first convert xform into a map keyed
+// We can't just apply as we encounter matches in xforms1 unfortunately because
+// it causes the lines to shift.  So we first convert xforms1 into a map keyed
 // by node and then do the actual transpiling in step 2.
-func transpileGno0p9_part1(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xform map[string]string) (xform2 map[ast.Node]string, err error) {
-	xform2 = make(map[ast.Node]string, len(xform))
+//
+// Results:
+//   - xfound: number of items matched for file with name `fname` (for integrity)
+func transpileGno0p9_part1(pkgPath string, fs *token.FileSet, fname string, f *ast.File, xforms1 map[string]struct{}) (xfound int, xforms2 map[ast.Node]string, err error) {
+	xforms2 = make(map[ast.Node]string, len(xforms1))
+
+	if len(xforms1) == 0 {
+		return 0, nil, nil // nothing to translate.
+	}
 
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
-
 		// Main switch on c.Node() type.
 		switch n := c.Node().(type) {
 		case *ast.FuncLit:
 			pos := n.Pos()
 			posn := fs.Position(pos)
 			line, col := posn.Line, posn.Column
-			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fname, line, col)
-			if xform != nil && xform[key] == "add curfunc" {
-				xform2[n] = "add curfunc"
-			}
+			addXform2IfMatched(
+				xforms1, xforms2, n,
+				pkgPath, fname, line, col,
+				XTYPE_ADD_CURFUNC)
 		case *ast.FuncDecl:
 			pos := n.Pos()
 			posn := fs.Position(pos)
 			line, col := posn.Line, posn.Column
-			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fname, line, col)
-			if xform != nil && xform[key] == "add curfunc" {
-				xform2[n] = "add curfunc"
-			}
+			addXform2IfMatched(
+				xforms1, xforms2, n,
+				pkgPath, fname, line, col,
+				XTYPE_ADD_CURFUNC)
 		case *ast.CallExpr:
 			pos := n.Pos()
 			posn := fs.Position(pos)
 			line, col := posn.Line, posn.Column
-			key := fmt.Sprintf("%s/%s:%d:%d", pkgPath, fname, line, col)
 			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
 				return true // can be superimposed with parent call.
 			}
-			if xform != nil && xform[key] == "add curcall" {
-				xform2[n] = "add curcall"
-			} else if xform != nil && xform[key] == "add nilrealm" {
-				xform2[n] = "add nilrealm"
-			}
+			addXform2IfMatched(
+				xforms1, xforms2, n,
+				pkgPath, fname, line, col,
+				XTYPE_ADD_CURCALL)
+			addXform2IfMatched(
+				xforms1, xforms2, n,
+				pkgPath, fname, line, col,
+				XTYPE_ADD_NILREALM)
 		}
 		return true
 	}, nil)
-	return xform2, err
+
+	// Check that all xforms1 items were translated to xforms2.
+	xfound = checkXforms(xforms1, xforms2, fname)
+	return xfound, xforms2, err
+}
+
+// Check that xforms1 items were translated to xforms2 items for file named fname.
+// Returns the number of items matched for file.
+func checkXforms(xforms1 map[string]struct{}, xforms2 map[ast.Node]string, fname string) int {
+	mismatch := false
+	found := 0
+XFORMS1_LOOP:
+	for xform1, _ := range xforms1 {
+		if !strings.Contains(xform1, "/"+fname) {
+			continue
+		}
+		for _, xform2 := range xforms2 {
+			if xform1 == xform2 {
+				// good.
+				found += 1
+				continue XFORMS1_LOOP
+			}
+		}
+		fmt.Println("xform2 item not found for xform1:", xform1)
+		mismatch = true
+	}
+	if !mismatch {
+		return found // good
+	}
+	// Failed check.
+	for xform1, _ := range xforms1 {
+		fmt.Println("xform1:", xform1)
+	}
+	for n2, xform2 := range xforms2 {
+		fmt.Println("xform2:", xform2, n2)
+	}
+	panic("xforms1 and xforms2 don't match")
 }
 
 // The main Go AST transpiling logic to make Gno code Gno 0.9.
-func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof *ast.File, xform map[ast.Node]string) (err error) {
+func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof *ast.File, xforms2 map[ast.Node]string) (err error) {
 
 	var lastLine = 0
 	var didRemoveCrossing = false
@@ -398,14 +473,24 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 	var getLine = func(pos token.Pos) int {
 		return fs.Position(pos).Line
 	}
+	var inXforms2 = func(gon ast.Node, x xtype) bool {
+		if xforms2 == nil {
+			return false
+		}
+		value := xforms2[gon]
+		if strings.HasSuffix(value, "+"+string(x)) {
+			return true
+		}
+		return false
+	}
 
 	astutil.Apply(gof, func(c *astutil.Cursor) bool {
 
 		// Handle newlines after crossing
 		if didRemoveCrossing {
-			n := c.Node()
-			line := getLine(n.Pos())
-			tf := fs.File(n.Pos())
+			gon := c.Node()
+			line := getLine(gon.Pos())
+			tf := fs.File(gon.Pos())
 			if lastLine < line {
 				// lastLine - 1 is the deleted crossing().
 				tf.MergeLine(lastLine - 1)
@@ -416,19 +501,19 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 		}
 
 		// Main switch on c.Node() type.
-		switch n := c.Node().(type) {
+		switch gon := c.Node().(type) {
 		case *ast.Ident:
-			if n.Name == "realm_XXX_TRANSPILE" {
+			if gon.Name == "realm_XXX_TRANSPILE" {
 				// Impostor varname 'realm' will become
 				// renamed, so reclaim 'realm'.
-				n.Name = "realm"
-			} else if n.Name == "realm" {
+				gon.Name = "realm"
+			} else if gon.Name == "realm" {
 				// Rename name to _realm to avoid conflict with new builtin "realm".
 				// XXX: optimistic.
-				n.Name = "_realm"
+				gon.Name = "_realm"
 			}
 		case *ast.ExprStmt:
-			if ce, ok := n.X.(*ast.CallExpr); ok {
+			if ce, ok := gon.X.(*ast.CallExpr); ok {
 				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
 					// Validate syntax.
 					if len(ce.Args) != 0 {
@@ -437,45 +522,56 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 					// Delete statement 'crossing()'.
 					c.Delete()
 					didRemoveCrossing = true
-					setLast(n.End())
+					setLast(gon.End())
 					return false
 				}
 			}
 		case *ast.FuncLit:
-			if xform != nil && xform[n] == "add curfunc" {
-				n.Type.Params.List = append([]*ast.Field{&ast.Field{
+			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
+				gon.Type.Params.List = append([]*ast.Field{&ast.Field{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
 					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
-				}}, n.Type.Params.List...)
+				}}, gon.Type.Params.List...)
+				delete(xforms2, gon)
 			}
 		case *ast.FuncDecl:
-			if xform != nil && xform[n] == "add curfunc" {
-				n.Type.Params.List = append([]*ast.Field{&ast.Field{
+			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
+				gon.Type.Params.List = append([]*ast.Field{&ast.Field{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
 					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
-				}}, n.Type.Params.List...)
+				}}, gon.Type.Params.List...)
+				delete(xforms2, gon)
 			}
 		case *ast.CallExpr:
-			if xform != nil && xform[n] == "add curcall" {
-				n.Args = append([]ast.Expr{ast.NewIdent("cur")}, n.Args...)
-			} else if xform != nil && xform[n] == "add nilrealm" {
-				n.Args = append([]ast.Expr{ast.NewIdent("nil")}, n.Args...)
+			if inXforms2(gon, XTYPE_ADD_CURCALL) {
+				gon.Args = append([]ast.Expr{ast.NewIdent("cur")}, gon.Args...)
+				delete(xforms2, gon)
+			} else if inXforms2(gon, XTYPE_ADD_NILREALM) {
+				gon.Args = append([]ast.Expr{ast.NewIdent("nil")}, gon.Args...)
+				delete(xforms2, gon)
 			}
-			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+			if id, ok := gon.Fun.(*ast.Ident); ok && id.Name == "cross" {
 				// Replace expression 'cross(x)' by 'x'.
 				// In Gno 0.9 @cross decorator is used instead.
-				var gon ast.Node
-				if len(n.Args) == 1 {
-					gon = n.Args[0]
+				if len(gon.Args) == 1 {
+					c.Replace(gon.Args[0])
 				} else {
 					err = errors.New("cross called with invalid parameters")
 				}
-				c.Replace(gon)
 				return true
 			}
 		}
 		return true
 	}, nil)
+
+	// Verify that all xforms2 items were consumed.
+	if len(xforms2) > 0 {
+		for gon, xform2 := range xforms2 {
+			fmt.Println("left over:", xform2, gon)
+		}
+		panic("Xform items left over")
+	}
+
 	return err
 }
 

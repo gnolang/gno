@@ -193,8 +193,9 @@ func (mpkg *MemPackage) IsEmpty() bool {
 
 // Write all files into dir.
 func (mpkg *MemPackage) WriteTo(dir string) error {
+	fmt.Printf("writing mempackage to %q:\n", dir)
 	for _, mfile := range mpkg.Files {
-		fmt.Printf("MemPackage.WriteTo(%s) (%d) bytes written\n", mfile.Name, len(mfile.Body))
+		fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))
 		fpath := filepath.Join(dir, mfile.Name)
 		err := ioutil.WriteFile(fpath, []byte(mfile.Body), 0644)
 		if err != nil {
@@ -211,6 +212,14 @@ func (mpkg *MemPackage) Print() error {
 		mfile.Print()
 	}
 	return nil
+}
+
+// Return a list of all file names.
+func (mpkg *MemPackage) FileNames() (fnames []string) {
+	for _, mfile := range mpkg.Files {
+		fnames = append(fnames, mfile.Name)
+	}
+	return
 }
 
 const licenseName = "LICENSE"

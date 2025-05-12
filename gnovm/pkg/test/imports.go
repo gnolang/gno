@@ -62,7 +62,6 @@ func StoreWithOptions(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
 		pn *gno.PackageNode, pv *gno.PackageValue) {
 		if opts.PreprocessOnly {
-			fmt.Println("WILL PROCESS", mpkg.Path)
 			// In order to translate into a newer Gno version with
 			// the preprocessor make a slight modifications to the
 			// AST. This needs to happen even for imports, because

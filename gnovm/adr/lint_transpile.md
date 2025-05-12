@@ -3,11 +3,12 @@ The steps of Gno 0.0 --> Gno 0.9 transpiling.
   2. `ParseGnoMod()`: parse gno.mod (if any) and compare versions.
   3. `GoParse*()`: parse Gno to Go AST with go/parser.
   4. `Prepare*()`: minimal Go AST mutations for Gno VM compat.
-  5. `m.PreprocessFiles()`: normal Gno AST preprocessing.
-  6. `FindXItems*()`: Gno AST static analaysis to produce xitems.
-  7. `Transpile*()` Part 1: re-key xitems by Go Node before step 2 line changes.
-  8. `Transpile*()` Part 2: main Go AST mutations for Gno upgrade.
-  9. `mpkg.WriteTo()`: write mem package to disk.
+  5. `gno.MustParseFile()`: re-parse prepared AST
+  6. `m.PreprocessFiles()`: normal Gno AST preprocessing.
+  7. `FindXforms*()`: Gno AST static analaysis to produce xitems.
+  8. `Transpile*()` Part 1: re-key xitems by Go Node before step 2 line changes.
+  9. `Transpile*()` Part 2: main Go AST mutations for Gno upgrade.
+  10. `mpkg.WriteTo()`: write mem package to disk.
 
 In `cmd/gno/tool_lint.go` each step is grouped into stages for all dirs:
   * Stage 1: (for all dirs)
@@ -16,13 +17,14 @@ In `cmd/gno/tool_lint.go` each step is grouped into stages for all dirs:
     3. `gno.TypeCheckMemPackage()`  > `GoParseMemPackage()
        `gno.TypeCheckMemPackage()`  > `g.cfg.Check()
     4. `PrepareGno0p9()`
-    5. `tm.PreprocessFiles()`
-    6. `gno.FindXItemsGno0p9()`
+    5. `sourceAndTestFileset()` > `gno.MustParseFile()`
+    6. `tm.PreprocessFiles()`
+    7. `gno.FindXformsGno0p9()`
   * Stage 2:
-    7. `gno.TranspileGno0p9()` Part 1
-    8. `gno.TranspileGno0p9()` Part 2
+    8. `gno.TranspileGno0p9()` Part 1
+    9. `gno.TranspileGno0p9()` Part 2
   * Stage 3:
-    9. `mpkg.WriteTo()`
+    10. `mpkg.WriteTo()`
 
 In `pkg/gnolang/gotypecheck.go`, `TypeCheck*()` diverges at step 4 and terminates:
   1. `mpkg` provided as argument

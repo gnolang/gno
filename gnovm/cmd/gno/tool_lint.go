@@ -121,11 +121,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	)
 	ppkgs := map[string]processedPackage{}
 
-	fmt.Println("LINT DIRS:", dirs)
+	fmt.Println("linting directories...", dirs)
 	//----------------------------------------
 	// STAGE 1:
 	for _, dir := range dirs {
-		fmt.Println("LINT DIR:", dir)
+		fmt.Printf("linting %q\n", dir)
 		if cmd.verbose {
 			io.ErrPrintln(dir)
 		}
@@ -161,7 +161,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 			io.ErrPrintln(issue)
 			hasError = true
-			continue
+			return commands.ExitCodeError(1)
 		}
 
 		// STEP 1: ReadMemPackage()
@@ -201,7 +201,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 
 			// Run type checking
-			if mod == nil || !mod.Draft {
+			if !mod.Draft {
 				// STEP 2: ParseGnoMod()
 				// STEP 3: GoParse*()
 				//
@@ -219,6 +219,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				}
 			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
+			}
+
+			// If gno version is already 0.9, skip.
+			if mod.GetGno() == "0.9" { // XXX
+				return
 			}
 
 			// STEP 4: Prepare*()
@@ -257,15 +262,15 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			ppkgs[dir] = processedPackage{
 				mpkg, fset, pn, _tests, ftests}
 
-			// STEP 7: FindXItems():
-			// FindXItems for all files if outdated.
-			if mod == nil || mod.Gno == nil || mod.Gno.Version == "0.0" {
+			// STEP 7: FindXforms():
+			// FindXforms for all files if outdated.
+			if mod.GetGno() == "0.0" {
 				// Use the preprocessor to collect the
 				// transformations needed to be done.
 				// They are collected in
-				// pn.GetAttribute("XREALMITEM")
+				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range all.Files {
-					gno.FindXItemsGno0p9(gs, pn, fn)
+					gno.FindXformsGno0p9(gs, pn, fn)
 				}
 			}
 		})
@@ -286,10 +291,16 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			panic("where did it go")
 		}
 		mpkg, pn := ppkg.mpkg, ppkg.pn
-		xform, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XITEMS).(map[string]string)
+
+		// If gno version is already 0.9, skip.
+		mod, err := gno.ParseCheckGnoMod(mpkg)
+		if mod.GetGno() == "0.9" { // XXX
+			continue
+		}
 
 		// STEP 8 & 9: gno.TranspileGno0p9() Part 1 & 2
-		err := gno.TranspileGno0p9(mpkg, dir, xform)
+		xforms1, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XFORMS).(map[string]struct{})
+		err = gno.TranspileGno0p9(mpkg, dir, xforms1)
 		if err != nil {
 			return err
 		}

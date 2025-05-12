@@ -28,6 +28,14 @@ type File struct {
 	Syntax *modfile.FileSyntax
 }
 
+func (f *File) GetGno() (version string) {
+	if f.Gno == nil {
+		return "0.0"
+	} else {
+		return f.Gno.Version
+	}
+}
+
 func (f *File) SetGno(version string) {
 	if f.Syntax == nil {
 		f.Syntax = new(modfile.FileSyntax)
