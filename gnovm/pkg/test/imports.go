@@ -62,18 +62,25 @@ func StoreWithOptions(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
 		pn *gno.PackageNode, pv *gno.PackageValue) {
 		if opts.PreprocessOnly {
-			// In order to translate into a newer Gno version with
-			// the preprocessor make a slight modifications to the
-			// AST. This needs to happen even for imports, because
-			// the preprocessor requries imports also preprocessed.
-			const wtests = false // Tests don't matter for imports.
-			gofset, gofs, errs := gno.GoParseMemPackage(mpkg, wtests)
-			if errs != nil {
-				panic(fmt.Errorf("test store parsing: %w", errs))
+			// Check the gno.mod gno version.
+			mod, err := gno.ParseCheckGnoMod(mpkg)
+			if err != nil {
+				panic(fmt.Errorf("test store parsing gno.mod: %w", err))
 			}
-			errs = gno.PrepareGno0p9(gofset, gofs, mpkg)
-			if errs != nil {
-				panic(fmt.Errorf("test store preparing AST: %w", errs))
+			if mod.GetGno() == "0.0" {
+				// In order to translate into a newer Gno version with
+				// the preprocessor make a slight modifications to the
+				// AST. This needs to happen even for imports, because
+				// the preprocessor requries imports also preprocessed.
+				const wtests = false // Tests don't matter for imports.
+				gofset, gofs, errs := gno.GoParseMemPackage(mpkg, wtests)
+				if errs != nil {
+					panic(fmt.Errorf("test store parsing: %w", errs))
+				}
+				errs = gno.PrepareGno0p9(gofset, gofs, mpkg)
+				if errs != nil {
+					panic(fmt.Errorf("test store preparing AST: %w", errs))
+				}
 			}
 			m.Store.AddMemPackage(mpkg)
 			return m.PreprocessFiles(
