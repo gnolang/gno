@@ -27,33 +27,29 @@ type defaultDAO struct {
 
 func (dao *defaultDAO) GetSubDAO(name string) DAO {
 	// ...
+	return nil
 }
 
 //----------------------------------------
 
 type Proposal struct {
-	status    Status
-	text      string
-	approvals []approval // XXX
-	comments  []comment  // XXX tree?
+	// status    Status
+	text string
+	// approvals []approval // XXX
+	// comments  []comment  // XXX tree?
 }
 
 //----------------------------------------
-/*
-
-
-
- */
 
 type TopDAO struct {
 	defaultDAO
-	params *Params
+	// params *Params
 
-	gov      // gov XXX
-	steering // steering
+	// gov      // gov XXX
+	// steering // steering
 
-	oversight  // oversight
-	validators // validators XXX
+	// oversight  // oversight
+	// validators // validators XXX
 }
 
 type ProposalActivator func(*Proposal) error
