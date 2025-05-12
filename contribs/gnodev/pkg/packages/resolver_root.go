@@ -1,10 +1,13 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"go/token"
 	"os"
 	"path/filepath"
+
+	cachepath "github.com/gnolang/gno/contribs/gnodev/pkg/cachepath"
 )
 
 type rootResolver struct {
@@ -25,6 +28,11 @@ func (r *rootResolver) Name() string {
 }
 
 func (r *rootResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+
+	if cachepath.Get(path) {
+		return nil, errors.New("Package conflict root in " + path)
+	}
+
 	dir := filepath.Join(r.root, path)
 	_, err := os.Stat(dir)
 	if err != nil {

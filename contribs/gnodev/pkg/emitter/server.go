@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	cachepath "github.com/gnolang/gno/contribs/gnodev/pkg/cachepath"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gorilla/websocket"
 )
@@ -102,6 +103,32 @@ func (s *Server) logEvent(evt events.Event) {
 	var logEvt string
 	if rawEvt, err := json.Marshal(evt); err == nil {
 		logEvt = string(rawEvt)
+
+		if evt.Type() == events.EvtTxResult {
+			type TxMsg struct {
+				Package struct {
+					Path string `json:"path"`
+					Name string `json:"name"`
+				} `json:"package"`
+			}
+			type Tx struct {
+				Msg []TxMsg `json:"msg"`
+			}
+			type TxResultJSON struct {
+				Tx Tx `json:"tx"`
+			}
+
+			var txResult TxResultJSON
+			if err := json.Unmarshal(rawEvt, &txResult); err == nil && len(txResult.Tx.Msg) > 0 {
+				packagePath := txResult.Tx.Msg[0].Package.Path
+				packageName := txResult.Tx.Msg[0].Package.Name
+				s.logger.Info("User addPkg ", "name", packageName,
+					"path", packagePath)
+				cachepath.Set(packagePath)
+			} else {
+				s.logger.Warn("Failed to parse package path or no messages found", "error", err)
+			}
+		}
 	}
 
 	s.logger.Info("sending event to clients",
