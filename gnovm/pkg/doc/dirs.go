@@ -13,10 +13,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/module"
 )
 
@@ -102,7 +102,7 @@ func packageImportsRecursive(root string, pkgPath string) []string {
 	pkg, err := gnolang.ReadMemPackage(root, pkgPath)
 	if err != nil {
 		// ignore invalid packages
-		pkg = &gnovm.MemPackage{}
+		pkg = &std.MemPackage{}
 	}
 
 	importsMap, err := packages.Imports(pkg, nil)
