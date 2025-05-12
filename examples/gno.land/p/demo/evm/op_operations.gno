@@ -186,8 +186,3 @@ func opSar(s *State) error {
 	s.stack.Push(value.SRsh(value, n))
 	return nil
 }
-
-func opReturnDataSize(s *State) error {
-	s.stack.Push(uint256.NewUint(uint64(len(s.result))))
-	return nil
-}

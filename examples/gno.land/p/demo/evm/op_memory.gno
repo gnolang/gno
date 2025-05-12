@@ -160,14 +160,14 @@ func opSload(s *State) error {
 	}
 
 	warm := false
-	for _, e := range s.tmp.warmStorage {
+	for _, e := range *s.tmp.warmStorage {
 		if e.Eq(key) {
 			warm = true
 			break
 		}
 	}
 	if !warm {
-		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
+		*s.tmp.warmStorage = append(*s.tmp.warmStorage, *key)
 		s.gasConsumed += 2000
 	}
 
@@ -190,14 +190,14 @@ func opSstore(s *State) error {
 	}
 
 	warm := false
-	for _, e := range s.tmp.warmStorage {
+	for _, e := range *s.tmp.warmStorage {
 		if e.Eq(key) {
 			warm = true
 			break
 		}
 	}
 	if !warm {
-		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
+		*s.tmp.warmStorage = append(*s.tmp.warmStorage, *key)
 		s.gasConsumed += 2000
 	}
 
@@ -228,6 +228,7 @@ func opCalldatasize(s *State) error {
 	s.stack.Push(uint256.NewUint(uint64(len(s.callData))))
 	return nil
 }
+
 func opCalldatacopy(s *State) error {
 	dest, err := s.stack.Pop()
 	if err != nil {

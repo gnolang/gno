@@ -14,8 +14,10 @@ type LogEntry struct {
 
 type tmpEnv struct {
 	storage     map[uint256.Uint]*uint256.Uint
-	warmStorage []uint256.Uint
+	warmStorage *[]uint256.Uint
 	logs        []LogEntry
+	accounts    []*Caller
+	contracts   SmartContracts
 }
 
 type State struct {
@@ -30,6 +32,7 @@ type State struct {
 	tmp              tmpEnv
 	gasConsumed      uint // The real amount of gas consumed by the program
 	gasLimit         int  // The amount of gas specified by user
+	nextCallState    *State
 	env              *Env
 }
 
@@ -42,9 +45,11 @@ func newState() *State {
 		caller:    nil,
 		callValue: uint256.Zero(),
 		tmp: tmpEnv{
-			storage:     make(map[uint256.Uint]*uint256.Uint),
+			storage:     map[uint256.Uint]*uint256.Uint{},
 			logs:        []LogEntry{},
-			warmStorage: make([]uint256.Uint, 0),
+			warmStorage: &[]uint256.Uint{},
+			accounts:    []*Caller{},
+			contracts:   SmartContracts{},
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              nil,
@@ -53,8 +58,35 @@ func newState() *State {
 	}
 }
 
-// getters
+func (s *State) clone() *State {
+	a := []*Caller{}
+	c := SmartContracts{}
 
+	copy(a, s.tmp.accounts)
+	copy(c, s.tmp.contracts)
+
+	return &State{
+		stack:     *NewevmStack(),
+		memory:    []byte{},
+		result:    []byte{},
+		code:      instructions{},
+		caller:    s.caller,
+		callValue: uint256.Zero(),
+		tmp: tmpEnv{
+			storage:     map[uint256.Uint]*uint256.Uint{},
+			logs:        []LogEntry{},
+			warmStorage: s.tmp.warmStorage,
+			accounts:    a,
+			contracts:   c,
+		},
+		transientStorage: map[uint256.Uint]*uint256.Uint{},
+		env:              s.env,
+		gasConsumed:      0,
+		gasLimit:         -1,
+	}
+}
+
+// getters
 func (s State) getStackData() []*uint256.Uint {
 	return s.stack.data
 }
