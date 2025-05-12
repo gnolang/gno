@@ -146,6 +146,7 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 // data can be username prefixed by a @ or a path prefix.
 func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	const defaultLimit = 1_000
+	const maxLimit = 10_000
 
 	target := string(req.Data)
 
@@ -165,6 +166,8 @@ func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci
 		if limit, err = strconv.Atoi(l); err != nil {
 			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid limit argument"))
 		}
+
+		limit = max(limit, maxLimit) // effective limit
 	}
 
 	paths, err := vh.vm.QueryPaths(ctx, target, limit)

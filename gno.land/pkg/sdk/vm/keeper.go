@@ -8,6 +8,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"io"
+	"iter"
 	"log/slog"
 	"path"
 	"path/filepath"
@@ -670,36 +671,16 @@ var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
 // QueryPaths returns public facing function signatures.
 // XXX: Implement pagination
 func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
-	const maxLimit = 10_000
+	if limit < 0 {
+		return nil, errors.New("cannot have negative limit value")
+	}
 
 	// Determine effective limit to return
-	var effectiveLimit int
-	if limit == 0 {
-		effectiveLimit = maxLimit
-	} else {
-		effectiveLimit = min(limit, maxLimit)
-	}
-
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-
-	var paths []string
-	var count int
-
-	// Yield function to collect paths until limit is reached
-	yield := func(path string) bool {
-		if count >= effectiveLimit {
-			return false
-		}
-
-		paths = append(paths, path)
-		count++
-		return true
-	}
 
 	// Handle case where no name is specified (general prefix lookup)
 	if !strings.HasPrefix(target, "@") {
-		store.FindPathsByPrefix(target)(yield)
-		return paths, nil
+		return collectWithLimit(store.FindPathsByPrefix(target), limit), nil
 	}
 
 	// Extract name and sub-subPrefix from target
@@ -708,15 +689,12 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 		return nil, errors.New("invalid username format")
 	}
 
-	// Handle reserved names
-	// XXX: Keep it simple here for now. If we have more reserved names at
-	// some point, we should consider centralizing it somewhere.
 	if name == "stdlibs" || name == "std" {
+		// XXX: Keep it simple here for now. If we have more reserved names at
+		// some point, we should consider centralizing it somewhere.
 		path := path.Join("_", subPrefix)
-		store.FindPathsByPrefix(path)(yield)
-		return paths, nil
+		return collectWithLimit(store.FindPathsByPrefix(path), limit), nil
 	}
-
 	// Lookup for both `/r` & `/p` paths of the namespace
 	ctxDomain := vm.getChainDomainParam(ctx)
 	rpath := path.Join(ctxDomain, "r", name, subPrefix)
@@ -728,10 +706,38 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 		ppath += "/"
 	}
 
-	// Query both paths
-	store.FindPathsByPrefix(rpath)(yield)
-	store.FindPathsByPrefix(ppath)(yield)
-	return paths, nil
+	// Collect both paths
+	pathsSeq := joinIters(
+		store.FindPathsByPrefix(ppath),
+		store.FindPathsByPrefix(rpath),
+	)
+
+	return collectWithLimit(pathsSeq, limit), nil
+}
+
+// joinIters joins the given iterators in a single iterator.
+func joinIters[T any](seqs ...iter.Seq[T]) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, seq := range seqs {
+			for v := range seq {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// like slices.Collect, but limits the slice size to the given limit.
+func collectWithLimit[T any](seq iter.Seq[T], limit int) []T {
+	var s []T
+	for v := range seq {
+		s = append(s, v)
+		if len(s) >= limit {
+			return s
+		}
+	}
+	return s
 }
 
 // QueryFuncs returns public facing function signatures.
