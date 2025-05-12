@@ -82,6 +82,7 @@ func StoreWithOptions(
 					panic(fmt.Errorf("test store preparing AST: %w", errs))
 				}
 			}
+
 			m.Store.AddMemPackage(mpkg)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,

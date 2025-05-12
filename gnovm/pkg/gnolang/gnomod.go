@@ -26,15 +26,17 @@ const (
 //
 // Results:
 //   - mod: the gno.mod file, or nil if not found.
-//   - err: wrapped error
+//   - err: wrapped error, or nil if file not found.
 func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 	if IsStdlib(mpkg.Path) {
 		// stdlib/extern packages are assumed up to date.
 		mod, _ = gnomod.ParseBytes("<stdlibs>/gno.mod", []byte(GnoModLatest))
-	} else if mod, _ = gnomod.ParseMemPackage(mpkg); mod == nil {
+	} else if mpkg.GetFile("gno.mod") == nil {
 		// gno.mod doesn't exist.
-		mod, _ = gnomod.ParseBytes(mpkg.Path+"/gno.mod", []byte(GnoModDefault))
-		err = fmt.Errorf("%s/gno.mod: not found", mpkg.Path)
+		return nil, nil
+	} else if mod, err = gnomod.ParseMemPackage(mpkg); err != nil {
+		// error parsing gno.mod.
+		err = fmt.Errorf("%s/gno.mod: parse error %q", mpkg.Path, err)
 	} else if mod.Gno == nil {
 		// 'gno 0.9' was never specified; just write 0.0.
 		mod.SetGno(GnoVerDefault)
