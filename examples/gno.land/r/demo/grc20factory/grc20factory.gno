@@ -46,8 +46,15 @@ func NewWithAdmin(name, symbol string, decimals int, initialMint, faucet int64, 
 		admin:  ownable.NewWithAddress(admin),
 		faucet: faucet,
 	}
-	instances.Set(symbol, &inst)
-	cross(grc20reg.Register)(token.Getter(), symbol)
+
+  // Workaround to keep ownership of the token in the current Realm
+  // before passing a pointer to the grc20reg.Register function.
+	cross(func() {
+		crossing()
+		instances.Set(symbol, &inst)
+	})()
+
+	cross(grc20reg.Register)(token, symbol)
 }
 
 func (inst instance) Token() *grc20.Token {
@@ -59,29 +66,21 @@ func (inst instance) CallerTeller() grc20.Teller {
 }
 
 func Bank(symbol string) *grc20.Token {
-	crossing()
-
 	inst := mustGetInstance(symbol)
 	return inst.token
 }
 
 func TotalSupply(symbol string) int64 {
-	crossing()
-
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
 func BalanceOf(symbol string, owner std.Address) int64 {
-	crossing()
-
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
 func Allowance(symbol string, owner, spender std.Address) int64 {
-	crossing()
-
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
