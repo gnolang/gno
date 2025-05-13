@@ -24,7 +24,7 @@ make install.gnoland
 ### Run gnoland
 
 ```bash
-gnoland start
+gnoland start -lazy
 ```
 
 Once running, you can interact with it using:
