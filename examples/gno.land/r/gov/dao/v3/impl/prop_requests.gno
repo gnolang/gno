@@ -9,14 +9,17 @@ import (
 )
 
 func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
+	crossing()
 	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
 	cb := func() error {
-		law = newLaw
-
+		cross(func() {
+			crossing()
+			law = newLaw
+		})()
 		return nil
 	}
 
@@ -32,11 +35,17 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	}
 
 	cb := func() error {
-		dao.UpdateImpl(dao.UpdateRequest{
-			DAO:         newDao,
-			AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
-		})
-
+		// dao.UpdateImpl() must be cross-called from v3/impl but
+		// what calls this cb function is r/gov/dao.
+		// therefore we must cross back into v3/impl and then
+		// cross call dao.UpdateRequest().
+		cross(func() {
+			crossing()
+			cross(dao.UpdateImpl)(dao.UpdateRequest{
+				DAO:         newDao,
+				AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
+			})
+		})()
 		return nil
 	}
 
@@ -46,6 +55,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 }
 
 func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+	crossing()
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -69,9 +79,14 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 	}
 
 	cb := func() error {
-		member.RemoveInvitationPoint()
+		err := error(nil)
+		cross(func() {
+			crossing()
+			member.RemoveInvitationPoint()
+			err = memberstore.Get().SetMember(tier, addr, memberByTier(tier))
+		})()
 
-		return memberstore.Get().SetMember(tier, addr, memberByTier(tier))
+		return err
 	}
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
@@ -85,6 +100,7 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 }
 
 func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
+	crossing()
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -95,8 +111,10 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalReque
 	}
 
 	cb := func() error {
-		memberstore.Get().RemoveMember(addr)
-
+		cross(func() {
+			crossing()
+			memberstore.Get().RemoveMember(addr)
+		})()
 		return nil
 	}
 
@@ -107,16 +125,22 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalReque
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func() error {
-		prevTier := memberstore.Get().RemoveMember(addr)
-		if prevTier == "" {
-			panic("member not found, so cannot be promoted")
-		}
+		var err error
+		cross(func() {
+			crossing()
+			prevTier := memberstore.Get().RemoveMember(addr)
+			if prevTier == "" {
+				panic("member not found, so cannot be promoted")
+			}
 
-		if prevTier != fromTier {
-			panic("previous tier changed from the one indicated in the proposal")
-		}
+			if prevTier != fromTier {
+				panic("previous tier changed from the one indicated in the proposal")
+			}
 
-		return memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+			err = memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+		})()
+
+		return err
 	}
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))

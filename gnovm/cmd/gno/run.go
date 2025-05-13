@@ -112,7 +112,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	var send std.Coins
 	pkgPath := string(files[0].PkgName)
-	ctx := test.Context(pkgPath, send)
+	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: pkgPath,
 		Output:  output,
@@ -157,7 +157,7 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 			return nil, err
 		}
 
-		hasError = catchRuntimeError(fname, stderr, func() {
+		hasError = catchRuntimeError(fname, fname, stderr, func() {
 			files = append(files, gno.MustReadFile(fname))
 		})
 	}
@@ -195,7 +195,7 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 			switch r := r.(type) {
 			case gno.UnhandledPanicError:
 				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
-					expr, r.Error(), m.ExceptionsStacktrace())
+					expr, r.Error(), m.ExceptionStacktrace())
 			default:
 				err = fmt.Errorf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s",
 					expr, r, m.String(), m.Stacktrace().String())

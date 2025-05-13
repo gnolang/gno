@@ -22,6 +22,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	Delta()
 	println(Values())
 }

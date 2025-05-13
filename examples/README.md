@@ -23,7 +23,7 @@ These examples serve as a foundation and reference for all users.
 **Personal Realms & Pure Packages:** We welcome personal realms that
 exemplify best practices and inspire others. To maintain the organization
 of the monorepo, some submissions may be declined. If so, consider uploading
-[permissionlessly](../docs/gno-tooling/cli/gnokey/state-changing-calls.md#addpackage)
+[permissionlessly](../docs/users/interact-with-gnokey.md#addpackage)
 and storing the source code in a separate repo. For higher
 acceptance odds, offer useful and original examples.
 

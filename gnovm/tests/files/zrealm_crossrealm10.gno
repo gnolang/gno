@@ -6,9 +6,11 @@ import (
 )
 
 func main() {
+	crossing()
+
 	tests.ModifyTestRealmObject2c()
 	println("done")
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): SomeValue3<~VPBlock(3,5)>.Field
