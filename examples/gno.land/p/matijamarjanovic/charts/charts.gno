@@ -57,8 +57,8 @@ func normalizeData(values []float64, maxColumns int) []float64 {
 	return result
 }
 
-// FindMaxValue returns the maximum value in a slice of float64
-func FindMaxValue(values []float64) float64 {
+// findMaxValue returns the maximum value in a slice of float64
+func findMaxValue(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}

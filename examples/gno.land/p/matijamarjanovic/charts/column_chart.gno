@@ -22,7 +22,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		return "maxColumns must be greater than 0"
 	}
 
-	maxVal := FindMaxValue(values)
+	maxVal := findMaxValue(values)
 
 	displayValues := values
 	if len(values) > maxColumns {
@@ -31,14 +31,14 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 
 	scale := height / maxVal
 
-	output := FormatChartHeader(title)
+	output := formatChartHeader(title)
 	output += "\n```\n"
-	output += FormatYAxisTitle(yAxisTitle)
+	output += formatYAxisTitle(yAxisTitle)
 
 	maxYValue := ufmt.Sprintf("%.2f", maxVal)
 	yAxisWidth := len(maxYValue)
 
-	maxValStrLen := CalculateMaxValueStringLength(displayValues)
+	maxValStrLen := calculateMaxValueStringLength(displayValues)
 	if maxValStrLen < 2 {
 		maxValStrLen = 2
 	}
@@ -46,9 +46,9 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 
 	for row := height; row > 0; row-- {
 		if row%3 == 0 {
-			output += FormatYAxisLabel(float64(row), scale, yAxisWidth)
+			output += formatYAxisLabel(float64(row), scale, yAxisWidth)
 		} else {
-			output += FormatYAxisSpace(yAxisWidth)
+			output += formatYAxisSpace(yAxisWidth)
 		}
 
 		for _, val := range displayValues {
@@ -71,7 +71,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 
 	if xAxisTitle != "" {
 		totalWidth := len(displayValues) * colWidth
-		output += FormatXAxisTitle(xAxisTitle, totalWidth)
+		output += formatXAxisTitle(xAxisTitle, totalWidth)
 	}
 
 	output += "```\n"

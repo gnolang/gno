@@ -21,7 +21,7 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 		return "maxWidth must be greater than 0"
 	}
 
-	maxVal := FindMaxValue(values)
+	maxVal := findMaxValue(values)
 
 	maxLabelLength := 0
 	for _, label := range labels {
@@ -32,7 +32,7 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 
 	scale := float64(maxWidth) / maxVal
 
-	output := FormatChartHeader(title)
+	output := formatChartHeader(title)
 	output += "\n```\n"
 
 	for i, value := range values {
