@@ -2,6 +2,7 @@ package charts
 
 import (
 	"strings"
+	"testing"
 
 	"gno.land/p/demo/uassert"
 )

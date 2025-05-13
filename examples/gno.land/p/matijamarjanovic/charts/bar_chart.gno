@@ -22,7 +22,7 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 	}
 
 	maxVal := FindMaxValue(values)
-	
+
 	maxLabelLength := 0
 	for _, label := range labels {
 		if len(label) > maxLabelLength {

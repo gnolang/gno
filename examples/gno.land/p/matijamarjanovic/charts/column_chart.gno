@@ -81,7 +81,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 // formatValueLabelsColumnChart formats the value labels for the x-axis for column charts
 func formatValueLabelsColumnChart(values []float64, colWidth int, yAxisWidth int) string {
 	output := strings.Repeat(" ", yAxisWidth+2)
-	
+
 	for i := 0; i < len(values); i++ {
 		x := i * colWidth
 		valStr := ufmt.Sprintf("%.2f", values[i])
@@ -89,7 +89,7 @@ func formatValueLabelsColumnChart(values []float64, colWidth int, yAxisWidth int
 		if labelPos < 0 {
 			labelPos = 0
 		}
-		
+
 		if i == 0 {
 			output += strings.Repeat(" ", labelPos)
 		} else {
@@ -100,6 +100,6 @@ func formatValueLabelsColumnChart(values []float64, colWidth int, yAxisWidth int
 		}
 		output += valStr
 	}
-	
+
 	return output + "\n"
 }

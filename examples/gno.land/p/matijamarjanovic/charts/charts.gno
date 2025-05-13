@@ -27,13 +27,13 @@ func normalizeData(values []float64, maxColumns int) []float64 {
 	if len(values) == 0 || maxColumns <= 0 {
 		return nil
 	}
-	
+
 	if maxColumns >= len(values) {
 		result := make([]float64, len(values))
 		copy(result, values)
 		return result
 	}
-	
+
 	result := make([]float64, maxColumns)
 	groupSize := float64(len(values)) / float64(maxColumns)
 
@@ -62,7 +62,7 @@ func FindMaxValue(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	
+
 	maxVal := values[0]
 	for _, v := range values[1:] {
 		if v > maxVal {
