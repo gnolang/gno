@@ -21,18 +21,6 @@ type Options struct {
 
 	// AllowExecution enables proposal execution support.
 	AllowExecution bool
-
-	// AllowMembersUpdate allows creating a proposal to update DAO members.
-	AllowMembersUpdate bool
-
-	// AllowTextProposals allows creating general text proposals.
-	AllowTextProposals bool
-
-	// AllowSubDAOProposals allows creating SubDAOs though proposals.
-	AllowSubDAOProposals bool
-
-	// AllowDismissalProposals allows dismissing DAOs though proposals.
-	AllowDismissalProposals bool
 }
 
 func (o *Options) SetPrivate(private bool) {
@@ -49,20 +37,4 @@ func (o *Options) SetAllowVoting(allow bool) {
 
 func (o *Options) SetAllowExecution(allow bool) {
 	o.AllowExecution = allow
-}
-
-func (o *Options) SetAllowMembersUpdate(allow bool) {
-	o.AllowMembersUpdate = allow
-}
-
-func (o *Options) SetAllowTextProposals(allow bool) {
-	o.AllowTextProposals = allow
-}
-
-func (o *Options) SetAllowSubDAOPorposals(allow bool) {
-	o.AllowSubDAOProposals = allow
-}
-
-func (o *Options) SetAllowDismissalProposals(allow bool) {
-	o.AllowDismissalProposals = allow
 }

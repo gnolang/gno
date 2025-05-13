@@ -36,7 +36,6 @@ func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	dao := mustGetDAOFromRequest(req)
-	o := getOptions(dao.ID())
 
 	// Render header messages
 	if dao.IsDeleted() {
@@ -57,10 +56,6 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	menu := []string{
 		ufmt.Sprintf("[List Proposals](%s)", daoProposalsURL(dao)),
 		ufmt.Sprintf("[View Settings](%s)", settingsURL(dao)),
-	}
-
-	if o.AllowMembersUpdate {
-		menu = append(menu, updateMembersLink(dao.ID()))
 	}
 
 	// TODO: Add submenu with proposal links when proposals support is enabled
@@ -185,10 +180,6 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(ufmt.Sprintf("| Allow SubDAOs | %s |\n", strconv.FormatBool(o.AllowChildren)))
 	res.Write(ufmt.Sprintf("| Enable Voting | %s |\n", strconv.FormatBool(o.AllowVoting)))
 	res.Write(ufmt.Sprintf("| Enable Proposal Execution | %s |\n", strconv.FormatBool(o.AllowExecution)))
-	res.Write(ufmt.Sprintf("| Text Porposals | %s |\n", strconv.FormatBool(o.AllowTextProposals)))
-	res.Write(ufmt.Sprintf("| Members Update proposals | %s |\n", strconv.FormatBool(o.AllowMembersUpdate)))
-	res.Write(ufmt.Sprintf("| SubDAO creation proposals | %s |\n", strconv.FormatBool(o.AllowSubDAOProposals)))
-	res.Write(ufmt.Sprintf("| DAO dismissal proposals | %s |\n", strconv.FormatBool(o.AllowDismissalProposals)))
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
