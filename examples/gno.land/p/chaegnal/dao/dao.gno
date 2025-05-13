@@ -84,18 +84,9 @@ func (dao *DAO) IsMember(adr std.Address) (WhitelistedUser, bool) {
 
 // Verify that a user is in the whitelist and possesses the admin rank
 func (dao *DAO) IsAdmin(adr std.Address) bool {
-	isAdmin := false
-
 	member, isMember := dao.IsMember(adr)
-	if !isMember {
-		return false
-	}
 
-	if member.Rank == adminRank {
-		isAdmin = true
-	}
-
-	return isAdmin
+	return isMember && member.Rank == adminRank
 }
 
 // Verify if a user is in the waitlist
