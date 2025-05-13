@@ -4,13 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func TestCoverageInstrumenter_EmptyFile(t *testing.T) {
 	tracker := NewCoverageTracker()
 	instrumenter := NewCoverageInstrumenter(tracker, "empty.go")
-
 
 	// empty file
 	code := `package main`
@@ -111,9 +110,9 @@ func testFunc(x int) int {
 
 	// check if markLine call is added before the return statement
 	expected := []string{
-		"testing.MarkLine(\"test.go\", 4)",  // if x > 0
-		"testing.MarkLine(\"test.go\", 5)",  // return 1
-		"testing.MarkLine(\"test.go\", 8)",  // return 0
+		"testing.MarkLine(\"test.go\", 4)", // if x > 0
+		"testing.MarkLine(\"test.go\", 5)", // return 1
+		"testing.MarkLine(\"test.go\", 8)", // return 0
 	}
 
 	t.Log("instrumented\n", string(instrumented))
@@ -125,8 +124,8 @@ func testFunc(x int) int {
 }
 
 func TestInstrumentPackage(t *testing.T) {
-	pkg := &gnovm.MemPackage{
-		Files: []*gnovm.MemFile{
+	pkg := &std.MemPackage{
+		Files: []*std.MemFile{
 			{
 				Name: "main.gno",
 				Body: `package main
@@ -195,8 +194,8 @@ func TestHelper(t *testing.T) {
 }
 
 func TestInstrumentPackage_Error(t *testing.T) {
-	pkg := &gnovm.MemPackage{
-		Files: []*gnovm.MemFile{
+	pkg := &std.MemPackage{
+		Files: []*std.MemFile{
 			{
 				Name: "invalid.gno",
 				Body: `package main

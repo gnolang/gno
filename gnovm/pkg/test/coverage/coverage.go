@@ -8,7 +8,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var globalTracker = NewCoverageTracker()
@@ -136,10 +136,10 @@ func (ci *CoverageInstrumenter) instrumentBlockStmt(block *ast.BlockStmt, line i
 	if block == nil {
 		return
 	}
-	
+
 	markStmt := ci.createMarkLineStmt(ci.filename, line)
 	block.List = append([]ast.Stmt{markStmt}, block.List...)
-	
+
 	// handle return statements
 	for i := 0; i < len(block.List); i++ {
 		if ret, ok := block.List[i].(*ast.ReturnStmt); ok {
@@ -209,7 +209,7 @@ func (ci *CoverageInstrumenter) Visit(node ast.Node) ast.Visitor {
 }
 
 // InstrumentPackage instrument the package
-func InstrumentPackage(pkg *gnovm.MemPackage) error {
+func InstrumentPackage(pkg *std.MemPackage) error {
 	for _, file := range pkg.Files {
 		// skip test files
 		if strings.HasSuffix(file.Name, "_test.gno") {

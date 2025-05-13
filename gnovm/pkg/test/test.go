@@ -15,9 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"

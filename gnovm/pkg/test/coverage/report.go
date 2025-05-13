@@ -16,10 +16,10 @@ type CoverageReport struct {
 
 // FileCoverage define the structure of the file coverage
 type FileCoverage struct {
-	Lines     map[int]int `json:"lines"`
-	Total     int         `json:"total"`
-	Covered   int         `json:"covered"`
-	Coverage  float64     `json:"coverage"`
+	Lines    map[int]int `json:"lines"`
+	Total    int         `json:"total"`
+	Covered  int         `json:"covered"`
+	Coverage float64     `json:"coverage"`
 }
 
 // GenerateReport generate the coverage report
@@ -62,7 +62,7 @@ func GenerateReport(tracker *CoverageTracker, outputFile string) error {
 
 	// if the output file is specified, save it to a file
 	if outputFile != "" {
-		if err := os.WriteFile(outputFile, jsonData, 0644); err != nil {
+		if err := os.WriteFile(outputFile, jsonData, 0o644); err != nil {
 			return fmt.Errorf("failed to save file: %w", err)
 		}
 	} else {
@@ -103,4 +103,4 @@ func PrintReport(tracker *CoverageTracker, w io.Writer) error {
 	}
 
 	return nil
-} 
+}
