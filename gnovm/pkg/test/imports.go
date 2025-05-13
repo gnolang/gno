@@ -10,7 +10,6 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
@@ -54,11 +53,11 @@ func StoreWithOptions(
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
-	processMemPackage := func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
+	processMemPackage := func(m *gno.Machine, memPkg *std.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
 		return m.RunMemPackage(memPkg, save)
 	}
 	if opts.PreprocessOnly {
-		processMemPackage = func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
+		processMemPackage = func(m *gno.Machine, memPkg *std.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
 			m.Store.AddMemPackage(memPkg)
 			return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), save, false)
 		}
@@ -185,7 +184,7 @@ func (e *stackWrappedError) String() string {
 // from the store. This is mostly useful for "eager import loading", whereby all
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
-func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
+func LoadImports(store gno.Store, memPkg *std.MemPackage) (err error) {
 	defer func() {
 		// This is slightly different from other similar error handling; we do not have a
 		// machine to work with, as this comes from an import; so we need
