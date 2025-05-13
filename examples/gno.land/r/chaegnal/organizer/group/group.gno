@@ -44,7 +44,7 @@ func parseQueryAddress(url string) string {
 func getGroupFromUrl(url string) organizer.FriendGroup {
 	groupId := parseQueryGroupId(url)
 	if groupId == "" {
-		panic("No groupId provided")
+		panic("no groupid provided")
 	}
 
 	return organizer.GetGroupFromId(groupId)
@@ -83,7 +83,7 @@ func RemoveAdminRank(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
 	if adr == group.Owner.Owner() {
-		panic("You cannot undo admin rights of the owner")
+		panic("you cannot undo admin rights of the owner")
 	}
 	group.DAO.RemoveAdminRank(std.Address(logged), adr)
 }
@@ -105,7 +105,7 @@ func AdminCloseProposal(groupId, voteIdStr, logged string) {
 
 	voteId, err := strconv.Atoi(voteIdStr)
 	if err != nil {
-		panic("Invalid vote ID.")
+		panic("invalid vote id")
 	}
 
 	group.DAO.AdminCloseProposal(voteId, std.Address(logged))
@@ -116,7 +116,7 @@ func DeleteFriendGroup(groupId, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != std.Address(logged) {
-		panic("Only the owner can delete the group.")
+		panic("only the owner can delete the group")
 	}
 
 	organizer.ListGroups.Groups.Remove(strconv.Itoa(group.ID))
@@ -126,12 +126,12 @@ func SwitchOwner(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != std.Address(logged) {
-		panic("Only the owner give ownership away.")
+		panic("only the owner give ownership away")
 	}
 
 	ok := group.DAO.IsAdmin(adr)
 	if !ok {
-		panic("The new owner must be an admin.")
+		panic("the new owner must be an admin")
 	}
 
 	group.Owner = ownable.NewWithAddress(adr)
@@ -145,16 +145,16 @@ func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 
 	voteId, err := strconv.Atoi(voteIdStr)
 	if err != nil {
-		panic("Invalid vote ID.")
+		panic("invalid vote id")
 	}
 
 	vote, err := strconv.Atoi(voteStr)
 	if err != nil {
-		panic("Invalid vote choice.")
+		panic("invalid vote choice")
 	}
 
 	if vote != organizer.VoteNay && vote != organizer.VoteYay {
-		panic("Vote should be Yay (1) or Nay (0).")
+		panic("vote should be yay (1) or nay (0)")
 	}
 
 	group.DAO.VoteProposal(voteId, vote, std.Address(logged))

@@ -57,12 +57,12 @@ func ResolveAddressName(addr std.Address) string {
 func GetGroupFromId(groupId string) FriendGroup {
 	convertedId, err := strconv.Atoi(groupId)
 	if err != nil {
-		panic("Invalid ID")
+		panic("invalid id")
 	}
 
 	raw, found := ListGroups.Groups.Get(strconv.Itoa(convertedId))
 	if !found {
-		panic("Could not find group")
+		panic("could not find group")
 	}
 
 	return raw.(FriendGroup)
@@ -93,14 +93,14 @@ func AskJoinFriendGroup(groupId int) {
 
 	raw, exists := ListGroups.Groups.Get(strconv.Itoa(groupId))
 	if !exists {
-		panic("Group does not exist")
+		panic("group does not exist")
 	}
 
 	group := raw.(FriendGroup)
 
 	_, ok := group.DAO.IsMember(txSender)
 	if ok {
-		panic("You are already part of this FriendGroup")
+		panic("you are already part of this friend group")
 	}
 
 	group.DAO.PendingApproval(txSender)
@@ -112,7 +112,7 @@ func LeaveGroup(groupId string) {
 	group := GetGroupFromId(groupId)
 
 	if std.OriginCaller() == group.Owner.Owner() {
-		panic("Owner cannot leave the group.")
+		panic("owner cannot leave the group")
 	}
 
 	group.DAO.LeaveDao(std.OriginCaller())

@@ -119,12 +119,12 @@ func (dao *DAO) GetHangouts() rotree.IReadOnlyTree {
 func (dao *DAO) PendingApproval(adr std.Address) {
 	_, err := dao.AwaitingApproval.Get(adr.String())
 	if err {
-		panic("Already awaiting approval.")
+		panic("already awaiting approval")
 	}
 
 	_, err = dao.IsMember(adr)
 	if err {
-		panic("Already whitelisted.")
+		panic("already whitelisted")
 	}
 
 	dao.AwaitingApproval.Set(adr.String(), true)
@@ -135,17 +135,17 @@ func (dao *DAO) PendingApproval(adr std.Address) {
 // Verify that the user is in the waitlist and not already in the whitelist
 func (dao *DAO) WhitelistingAwaitingApproval(caller, adr std.Address) {
 	if !dao.IsAdmin(caller) {
-		panic("Only admins can whitelist members.")
+		panic("only admins can whitelist members")
 	}
 
 	_, ok := dao.AwaitingApproval.Get(adr.String())
 	if !ok {
-		panic("This address is not awaiting approval.")
+		panic("this address is not awaiting approval")
 	}
 
 	_, isMember := dao.IsMember(adr)
 	if isMember {
-		panic("Already whitelisted.")
+		panic("already whitelisted")
 	}
 
 	dao.WhitelistMember(adr)
@@ -156,7 +156,7 @@ func (dao *DAO) WhitelistingAwaitingApproval(caller, adr std.Address) {
 // Verify that the action is done by an admin
 func (dao *DAO) RefuseAwaitingMember(caller, adr std.Address) {
 	if !dao.IsAdmin(caller) {
-		panic("Only admins can refuse members.")
+		panic("only admins can refuse members")
 	}
 
 	dao.AwaitingApproval.Remove(adr.String())
@@ -175,7 +175,7 @@ func (dao *DAO) WhitelistMember(adr std.Address) {
 // Allow admin to set a user as an admin
 func (dao *DAO) SetAdmin(caller, adr std.Address) {
 	if !dao.IsAdmin(caller) {
-		panic("Only admins can promote members.")
+		panic("only admins can promote members")
 	}
 
 	dao.defaultAdmin(adr)
@@ -186,11 +186,11 @@ func (dao *DAO) SetAdmin(caller, adr std.Address) {
 func (dao *DAO) defaultAdmin(adr std.Address) {
 	member, ok := dao.IsMember(adr)
 	if dao.IsAdmin(adr) {
-		panic("Member is already an admin.")
+		panic("member is already an admin")
 	}
 
 	if !ok {
-		panic("Not a member.")
+		panic("not a member")
 	}
 
 	member.Rank = adminRank
@@ -202,16 +202,16 @@ func (dao *DAO) defaultAdmin(adr std.Address) {
 // Bans auto-demotion
 func (dao *DAO) RemoveAdminRank(caller, adr std.Address) {
 	if !dao.IsAdmin(caller) {
-		panic("Only admins can demote members.")
+		panic("only admins can demote members")
 	}
 
 	member, _ := dao.IsMember(adr)
 	if !dao.IsAdmin(adr) {
-		panic("Member is not an admin.")
+		panic("member is not an admin")
 	}
 
 	if caller == adr {
-		panic("Cannot demote yourself.")
+		panic("cannot demote yourself")
 	}
 
 	member.Rank = memberRank
@@ -223,16 +223,16 @@ func (dao *DAO) RemoveAdminRank(caller, adr std.Address) {
 // Bans auto-removal
 func (dao *DAO) RemoveMember(caller, adr std.Address) {
 	if !dao.IsAdmin(caller) {
-		panic("Must be an admin to remove a member.")
+		panic("must be an admin to remove a member")
 	}
 
 	member, ok := dao.IsMember(adr)
 	if !ok {
-		panic("Not a member.")
+		panic("not a member")
 	}
 
 	if member.Address == caller {
-		panic("You cannot remove yourself.")
+		panic("you cannot remove yourself")
 	}
 
 	dao.Whitelist.Remove(adr.String())
@@ -242,7 +242,7 @@ func (dao *DAO) RemoveMember(caller, adr std.Address) {
 // Can only be done by an admin
 func (dao *DAO) CreateProposals(title, desc, callback string, callbackArgs []string, caller std.Address) {
 	if !dao.IsAdmin(caller) {
-		panic("You cannot create proposals")
+		panic("you cannot create proposals")
 	}
 
 	newProposal := Proposal{
@@ -263,7 +263,7 @@ func (dao *DAO) CreateProposals(title, desc, callback string, callbackArgs []str
 // Set Hangout in a avl.tree
 func (dao *DAO) SetHangoutTimeAndPlace(date, time, place, desc string, caller std.Address) {
 	if !dao.IsAdmin(caller) {
-		panic("You cannot create proposals")
+		panic("you cannot create proposals")
 	}
 
 	hangout := HangoutInfo{
@@ -286,7 +286,7 @@ func (dao *DAO) ExecuteCallback(proposal Proposal) {
 	}
 
 	if len(proposal.CallbackArgs) < 2 {
-		panic("Not enough arguments.")
+		panic("not enough arguments")
 	}
 
 	switch proposal.Callback {
@@ -307,13 +307,13 @@ func (dao *DAO) ExecuteCallback(proposal Proposal) {
 
 	case setHangoutFunc:
 		if len(proposal.CallbackArgs) < 5 {
-			panic("Not enough arguments for SetHangoutTimeAndPlace.")
+			panic("not enough arguments for SetHangoutTimeAndPlace")
 		}
 		dao.SetHangoutTimeAndPlace(proposal.CallbackArgs[0], proposal.CallbackArgs[1],
 			proposal.CallbackArgs[2], proposal.CallbackArgs[3], std.Address(proposal.CallbackArgs[4]))
 
 	default:
-		panic("Unknown callback: " + proposal.Callback)
+		panic("unknown callback: " + proposal.Callback)
 	}
 }
 
@@ -331,27 +331,27 @@ func (dao *DAO) hasEveryoneVoted(vote Proposal) bool {
 func (dao *DAO) VoteProposal(voteId, choiceIdx int, caller std.Address) {
 	_, ok := dao.IsMember(caller)
 	if !ok {
-		panic("You are not whitelisted.")
+		panic("you are not whitelisted")
 	}
 
 	raw, ok := dao.Proposals.Get(strconv.Itoa(voteId))
 	if !ok {
-		panic("Proposal does not exist.")
+		panic("proposal does not exist")
 	}
 
 	vote := raw.(Proposal)
 
 	if !vote.Active {
-		panic("Proposal already closed.")
+		panic("proposal already closed")
 	}
 
 	_, voted := vote.Voters.Get(caller.String())
 	if voted {
-		panic("Already voted.")
+		panic("already voted")
 	}
 
 	if choiceIdx != VoteYay && choiceIdx != VoteNay {
-		panic("Invalid vote. Must be 0 (Nay) or 1 (Yay).")
+		panic("invalid vote: must be 0 (nay) or 1 (yay)")
 	}
 
 	rawVote, _ := vote.Votes.Get(strconv.Itoa(choiceIdx))
@@ -376,12 +376,12 @@ func (dao *DAO) VoteProposal(voteId, choiceIdx int, caller std.Address) {
 func (dao *DAO) closeProposal(id int, caller std.Address) {
 	raw, ok := dao.Proposals.Get(strconv.Itoa(id))
 	if !ok {
-		panic("Proposal does not exist.")
+		panic("proposal does not exist")
 	}
 
 	closingProp := raw.(Proposal)
 	if !closingProp.Active {
-		panic("Proposal already closed.")
+		panic("proposal already closed")
 	}
 
 	yayVotesRaw, _ := closingProp.Votes.Get(strconv.Itoa(VoteYay))
@@ -411,7 +411,7 @@ func (dao *DAO) closeProposal(id int, caller std.Address) {
 func (dao *DAO) AdminCloseProposal(id int, caller std.Address) {
 	ok := dao.IsAdmin(caller)
 	if !ok {
-		panic("You cannot close a proposal.")
+		panic("you cannot close a proposal")
 	}
 
 	dao.closeProposal(id, caller)
@@ -424,13 +424,13 @@ func (dao *DAO) LeaveDao(caller std.Address) {
 
 	_, ok := dao.IsMember(caller)
 	if !ok {
-		panic("Not a member.")
+		panic("not a member")
 	}
 
 	if dao.IsAdmin(caller) {
 		adminCounter = dao.countAdmins()
 		if adminCounter <= 1 {
-			panic("You are the last admin. Assign another admin before leaving.")
+			panic("you are the last admin: assign another admin before leaving")
 		}
 	}
 
