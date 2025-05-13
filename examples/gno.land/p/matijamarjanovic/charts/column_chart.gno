@@ -18,6 +18,10 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		return "no data to display"
 	}
 
+	if maxColumns <= 0 {
+		return "maxColumns must be greater than 0"
+	}
+
 	maxVal := FindMaxValue(values)
 
 	displayValues := values

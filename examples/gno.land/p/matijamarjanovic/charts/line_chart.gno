@@ -19,6 +19,10 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		return "no data to display"
 	}
 
+	if maxPoints <= 0 {
+		return "maxPoints must be greater than 0"
+	}
+
 	maxVal := FindMaxValue(values)
 	maxValStrLen := CalculateMaxValueStringLength(values)
 

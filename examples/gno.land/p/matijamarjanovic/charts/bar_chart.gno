@@ -17,6 +17,10 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 		return "invalid data for display"
 	}
 
+	if maxWidth <= 0 {
+		return "maxWidth must be greater than 0"
+	}
+
 	maxVal := FindMaxValue(values)
 	
 	maxLabelLength := 0
