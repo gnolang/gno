@@ -68,7 +68,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 			dy := nextY - y
 			prevInterpY := y
 			for step := 1; step < dx; step++ {
-				interpY := y + int(float64(dy)*float64(step)/float64(dx))
+				interpY := y + (dy * step) / dx
 				startY := prevInterpY
 				endY := interpY
 				if startY > endY {
