@@ -160,12 +160,14 @@ func getNFTBalances(input string) string {
 
 // getTokenBalances returns a string of all the tokens the user owns
 func getTokenBalances(input string, nonZero bool) string {
+
 	addr := getAddressForUsername(input)
 	if !addr.IsValid() {
 		panic("invalid address or username: " + input)
 	}
 	var out string
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
+
 		tokenGetter := value.(grc20.TokenGetter)
 		token := tokenGetter()
 		balance := token.BalanceOf(addr)
