@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
@@ -162,7 +162,7 @@ func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 
 // Display in a table the users awaiting approval into the group
 // Let admin directly accept or refuse members
-func displayPendingApproval(group organizer.FriendGroup, awaiting *avl.Tree, logged string) string {
+func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOnlyTree, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Inspect"},
 	}
@@ -182,7 +182,7 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting *avl.Tree, log
 
 // Display the group current members
 // Let the admin promote / demote / remove member
-func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree, logged string) string {
+func displayMembers(group organizer.FriendGroup, whitelist rotree.IReadOnlyTree, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Rank", "Action"},
 	}

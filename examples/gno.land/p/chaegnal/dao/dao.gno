@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 )
 
 const (
@@ -113,20 +114,20 @@ func (dao *DAO) countAdmins() int {
 }
 
 // Getters
-func (dao *DAO) GetWhitelisted() *avl.Tree {
-	return dao.Whitelist
+func (dao *DAO) GetWhitelisted() rotree.IReadOnlyTree {
+	return rotree.Wrap(dao.Whitelist, nil)
 }
 
-func (dao *DAO) GetAwaiting() *avl.Tree {
-	return dao.AwaitingApproval
+func (dao *DAO) GetAwaiting() rotree.IReadOnlyTree {
+	return rotree.Wrap(dao.AwaitingApproval, nil)
 }
 
 func (dao *DAO) GetProposals() *avl.Tree {
 	return dao.Proposals
 }
 
-func (dao *DAO) GetHangouts() *avl.Tree {
-	return dao.Hangouts
+func (dao *DAO) GetHangouts() rotree.IReadOnlyTree {
+	return rotree.Wrap(dao.Hangouts, nil)
 }
 
 // Set user into the waitlist
