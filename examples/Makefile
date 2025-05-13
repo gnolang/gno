@@ -2,7 +2,7 @@ include ../misc/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
-	@echo "Available make commands:"
+	@echo "Available make targets:"
 	@$(call BASH_DISPLAY_TARGETS_AND_COMMENTS)
 	@$(BASH_DISPLAY_SUB_MAKES)
 
@@ -28,43 +28,43 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: transpile
-transpile:
+transpile: # Transpile .gno files to Go code using gno's transpiler (without building)
 	go run ../gnovm/cmd/gno tool transpile -v .
 
 .PHONY: build
-build:
+build: # Transpile .gno files and immediately compile the generated Go code
 	go run ../gnovm/cmd/gno tool transpile -v --gobuild .
 
 .PHONY: test
-test:
+test: # Run Gno tests in the gno.land/... package path using the gno test runner
 	go run ../gnovm/cmd/gno test -v ./gno.land/...
 
 .PHONY: test.fast
-test.fast:
+test.fast: # Run all Gno tests but stop immediately on the first failure
 	go run ../gnovm/cmd/gno test -failfast -v  ./... 
 
 .PHONY: lint
-lint:
+lint: # Run gno's built-in linter over the current directory
 	go run ../gnovm/cmd/gno lint -v .
 
 .PHONY: test.sync
-test.sync:
+test.sync: # Run tests and update golden test outputs to match current results
 	go run ../gnovm/cmd/gno test -v --update-golden-tests ./...
 
 .PHONY: clean
-clean:
+clean: # Delete all generated Go files from transpiled Gno source
 	find . \( -name "*.gno.gen.go" -or -name ".*.gno.gen_test.go" \) -delete
 
 .PHONY: fmt
 GNOFMT_FLAGS ?= -w
-fmt:
+fmt: # Format all .gno source files recursively using gno fmt
 	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
 
 .PHONY: tidy
-tidy:
+tidy: # Recursively tidy Gno module dependencies using gno mod tidy
 	go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy -v --recursive
 
 .PHONY: generate
-generate:
+generate: # Run Go's code generation (`go generate`) and then reformat all output with gno fmt
 	go generate ./...
 	$(MAKE) fmt

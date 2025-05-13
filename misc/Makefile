@@ -2,7 +2,7 @@ include ../misc/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
-	@echo "Available make commands:"
+	@echo "Available make targets:"
 	@$(call BASH_DISPLAY_TARGETS_AND_COMMENTS)
 	@$(BASH_DISPLAY_SUB_MAKES)
 
@@ -30,24 +30,24 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: lint
-lint:
+lint: # Run golangci-lint using the shared configuration on all code under ./misc
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
-fmt:
+fmt: # Format all Go files in the current directory using gofumpt
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
 ########################################
 # Test suite
 .PHONY: test
-test: _test.genstd
+test: _test.genstd # Run the genstd test suite (delegates to _test.genstd)
 
 .PHONY: _test.genstd
 _test.genstd:
 	go test ./genstd/... $(GOTEST_FLAGS)
 
 .PHONY: tidy
-tidy:
+tidy: # Run mod_tidy.sh to clean up and optionally verify go.mod files
 	# Give execute permissions
 	chmod +x ./mod_tidy.sh
 	# Tidy go mods

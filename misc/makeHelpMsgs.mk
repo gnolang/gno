@@ -14,6 +14,13 @@ SED_EXTRACT_TARGET_AND_COMMENT    = $\
     -e 's/$(HASH)/$(subst .,$(SPACE),$(call MAX_TARGET_CHARS,$(1)))   $(HASH)/' $\
     -e 's/^\($(call MAX_TARGET_CHARS,$(1))...\) *$(HASH)/\1<--/' $\
     -e 's/^/  /'
+BASH_GET_DIR_README_BANNER = $\
+    head -1 $(1)/README.md 2> /dev/null | $\
+        sed -E $\
+            -e 's/^ *$(HASH)$(HASH)* *//' $\
+            -e 's/^ *('"$(1)"'|`'"$(1)"'`) *((--*|:) *|$$)//I' $\
+            -e 's/^(..*)$$/ (\1)/' || $\
+    echo > /dev/null
 BASH_DISPLAY_TARGETS_AND_COMMENTS = $\
     ( $\
         $(BASH_GET_TARGET_LINES) | $\
@@ -21,14 +28,7 @@ BASH_DISPLAY_TARGETS_AND_COMMENTS = $\
             sed $\
                 $(call SED_EXTRACT_TARGET_AND_COMMENT,$(1)) $(if $(1),; $\
         for d in $(patsubst %/,%,$(1)) ; do $\
-            desc="$$( $\
-                head -1 $$d/README.md | $\
-                    sed -E $\
-                        -e 's/^ *$(HASH)$(HASH)* *//' $\
-                        -e 's/^ *('"$$d"'|`'"$$d"'`) *(--*|:) *//' $\
-                        -e 's/^(..*)$$/ (\1)/' || $\
-                echo > /dev/null $\
-            )" ; $\
+            desc="$$( $(call BASH_GET_DIR_README_BANNER,$$d) )" ; $\
             $(BASH_GET_TARGET_LINES) | $\
                 grep '\%' | $\
                 sed $\
@@ -44,7 +44,15 @@ BASH_DISPLAY_SUB_MAKES            = $\
         echo ; echo "Sub-directories with make targets:" ; $\
         for d in $(sort $(MAKE_SUBDIRS)); do $\
             echo '    '"$$(grep -q '^help *:' $$d/Makefile && echo '*  ' || echo '   ') $\
-                $(if $(filter $(MAKE),$(shell which make)),make,$(MAKE)) $(if $(DIR_OFFSET_OPT),$(DIR_OFFSET_OPT)/,-C$(SPACE))$$d" ; $\
+                $(if \
+                    $(filter $(MAKE),$(shell which make)),$\
+                    make,$\
+                    $(MAKE)$\
+                ) $(if \
+                    $(DIR_OFFSET_OPT),$\
+                    $(DIR_OFFSET_OPT)/,$\
+                    -C$(SPACE)$\
+                )$$d""$$( $(call BASH_GET_DIR_README_BANNER,$$d) )" ; $\
         done ; $\
         grep -q '^help *:' $(patsubst %,%/Makefile,$(MAKE_SUBDIRS)) && $\
             echo && echo '       * Is documented with a `help` target.' || echo > /dev/null,$\
