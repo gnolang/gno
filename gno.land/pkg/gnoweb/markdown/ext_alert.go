@@ -379,8 +379,8 @@ func (r *AlertHeaderHTMLRenderer) renderAlertHeader(w util.BufWriter, source []b
 // alertExtension implements the Goldmark extension for alerts
 type alertExtension struct{}
 
-// Alerts is the global instance of the alert extension
-var Alerts = &alertExtension{}
+// ExtAlerts is the global instance of the alert extension
+var ExtAlerts = &alertExtension{}
 
 // Extend adds the alert parsers and renderers to the Goldmark instance
 func (e *alertExtension) Extend(m goldmark.Markdown) {
