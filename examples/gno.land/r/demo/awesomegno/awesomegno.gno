@@ -34,13 +34,15 @@ func init() {
 }
 
 func AddItem(title, description, url, authorAddress string) {
+	crossing()
+	
 	if title == "" {
 		panic("item title cannot be empty")
 	}
 
+	addr := std.Address(authorAddress)
 	if err := Auth.DoByPrevious("add_item", func() error {
-		crossing()
-		addItem(title, description, url, std.Address(authorAddress))
+		addItem(title, description, url, addr)
 		return nil
 	}); err != nil {
 		panic(err)
@@ -48,9 +50,11 @@ func AddItem(title, description, url, authorAddress string) {
 }
 
 func UpdateItem(itemID seqid.ID, title, description, url string, categories ...seqid.ID) {
+	crossing()
+
+	emptyAddrs := []std.Address{}
 	if err := Auth.DoByPrevious("update_item", func() error {
-		crossing()
-		updateItem(itemID, title, description, url, []std.Address{}, categories...)
+		updateItem(itemID, title, description, url, emptyAddrs, categories...)
 		return nil
 	}); err != nil {
 		panic(err)
@@ -58,9 +62,10 @@ func UpdateItem(itemID seqid.ID, title, description, url string, categories ...s
 }
 
 func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
+	crossing()
+
 	if err := Auth.DoByPrevious("update_items_authors", func() error {
-		crossing()
-		updateItem(itemID, "", "", "", authors, []seqid.ID{}...)
+		updateItem(itemID, "", "", "", authors)
 		return nil
 	}); err != nil {
 		panic(err)
@@ -68,8 +73,9 @@ func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
 }
 
 func DeleteItem(itemID seqid.ID) {
+	crossing()
+
 	if err := Auth.DoByPrevious("delete_item", func() error {
-		crossing()
 		deleteItem(itemID)
 		return nil
 	}); err != nil {
@@ -78,12 +84,13 @@ func DeleteItem(itemID seqid.ID) {
 }
 
 func AddCategory(name, description string) {
+	crossing()
+
 	if name == "" {
 		panic("category name cannot be empty")
 	}
 
 	if err := Auth.DoByPrevious("add_category", func() error {
-		crossing()
 		addCategory(name, description)
 		return nil
 	}); err != nil {
@@ -92,8 +99,9 @@ func AddCategory(name, description string) {
 }
 
 func UpdateCategory(categoryID seqid.ID, name, description string) {
+	crossing()
+
 	if err := Auth.DoByPrevious("update_category", func() error {
-		crossing()
 		updateCategory(categoryID, name, description)
 		return nil
 	}); err != nil {
@@ -102,8 +110,9 @@ func UpdateCategory(categoryID seqid.ID, name, description string) {
 }
 
 func DeleteCategory(categoryID seqid.ID) {
+	crossing()
+
 	if err := Auth.DoByPrevious("delete_category", func() error {
-		crossing()
 		deleteCategory(categoryID)
 		return nil
 	}); err != nil {
