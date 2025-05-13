@@ -1,3 +1,30 @@
+/*
+ DISCLAIMER:
+ All exported functions in this realm when called, panic wih the same error message.
+ Output returned by using MsgCall tx:
+
+ gnokey maketx call
+ / -pkgpath "gno.land/r/demo/awesomegno"
+ /-func "AddItem"
+ /-args "title"
+ /-args "desc"
+ /-args "url"
+ /-args "g1kjsl2ungmc95mgluq96w8dqlep8d4n8cxdfthk"
+ /-gas-fee 1000000ugnot
+ /-gas-wanted 500000000
+ /-broadcast
+ /-chainid "dev"
+ /-remote "tcp://127.0.0.1:26657"
+ mainwallet
+
+ Enter password.
+ TX HASH:    
+ INFO:       vm.version=develop
+ --= Error =--
+ Data: should not happen, should be heapItemType: title<()~VPBlock(1,0)>      
+ Msg Traces:
+...
+*/
 package awesomegno
 
 import (
