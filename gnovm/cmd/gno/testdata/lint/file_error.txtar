@@ -20,4 +20,5 @@ module gno.land/p/test
 
 -- stdout.golden --
 -- stderr.golden --
-i_have_error_test.gno:6:7: name undefined_variable not declared (code=lintPreprocessError)
+i_have_error_test.gno:6:7: undefined: undefined_variable (code=lintTypeCheckError)
+i_have_error_test.gno:6:2: declared and not used: i (code=lintTypeCheckError)

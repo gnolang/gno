@@ -39,9 +39,9 @@ func genGnoMod(pkgPath string, gnoVersion string) string {
 }
 
 const (
-	GnoVerLatest  = `1.0` // current version
-	GnoVerTesting = `1.0` // version of our tests
-	GnoVerDefault = `0.0` // version undefined
+	GnoVerLatest  = `0.9` // current version
+	GnoVerTesting = `0.9` // version of our tests
+	GnoVerDefault = `0.9` // no gno.mod
 )
 
 // ========================================

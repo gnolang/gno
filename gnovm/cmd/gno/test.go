@@ -169,9 +169,10 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
-	// Show a help message by default.
+
+	// Default to current directory if no args provided
 	if len(args) == 0 {
-		return flag.ErrHelp
+		args = []string{"."}
 	}
 
 	// Guess opts.RootDir.
@@ -233,43 +234,38 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		modfile, _ := gnomod.ParseDir(pkg.Dir)
 		gnoPkgPath, ok := determinePkgPath(modfile, pkg.Dir, cmd.rootDir)
 		if !ok {
-			io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
+			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
 		// Read MemPackage and lint/typecheck/format.
 		// (gno.mod will be read again).
-		var errsLint, errsTest error
+		var didPanic, didError bool
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 		startedAt := time.Now()
-		didPanic := catchPanic(pkg.Dir, gnoPkgPath, io.Err(), func() {
-			if modfile == nil || !modfile.Draft {
-				_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
-				if errs != nil {
-					errsLint = errs
-					io.ErrPrintln(errs)
-				}
-			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
-			}
-			errs := test.Test(memPkg, pkg.Dir, opts)
+		didPanic = catchPanic(pkg.Dir, gnoPkgPath, io.Err(), func() {
+			//XXX why would we skip type-checking for drafts?
+			//if modfile == nil || !modfile.Draft {
+			_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
 			if errs != nil {
-				errsTest = errs
+				didError = true
 				io.ErrPrintln(errs)
+				return
+			}
+			//} else if cmd.verbose {
+			//	io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
+			//}
+			errs = test.Test(memPkg, pkg.Dir, opts)
+			if errs != nil {
+				didError = true
+				io.ErrPrintln(errs)
+				return
 			}
 		})
 
 		// Print status with duration.
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
-		if didPanic || errsLint != nil || errsTest != nil {
-			if errsLint != nil {
-				io.ErrPrintfln(
-					"%s: lint pkg: %v", pkg.Dir, errsLint)
-			}
-			if errsTest != nil {
-				io.ErrPrintfln(
-					"%s: test pkg: %v", pkg.Dir, errsTest)
-			}
+		if didPanic || didError {
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
 			testErrCount++
 			if cmd.failfast {

@@ -95,6 +95,12 @@ func (gimp *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.
 	all := false    // don't parse test files for imports.
 	strict := false // don't check for gno.mod for imports.
 	pkg, _, _, _, _, errs := gimp.typeCheckMemPackage(mpkg, all, strict)
+	if errs != nil {
+		// NOTE:
+		// Returning an error doesn't abort the type-checker.
+		// Panic instead to quit quickly.
+		panic(errs)
+	}
 	gimp.cache[path] = gnoImporterResult{pkg: pkg, err: errs}
 	return pkg, errs
 }
@@ -158,6 +164,10 @@ type realm interface{} // shim
 	// STEP 4: Type-check Gno0.9 AST in Go (normal and _test.gno if all).
 	gofs = append(gofs, gmgof)
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+	if gimp.errors != nil {
+		errs = gimp.errors
+		return
+	}
 
 	// STEP 4: Type-check Gno0.9 AST in Go (xxx_test package if all).
 	// Each integration test is its own package.
@@ -165,6 +175,10 @@ type realm interface{} // shim
 		gmgof.Name = _gof.Name // copy _test package name to gno.mod
 		gofs2 := []*ast.File{gmgof, _gof}
 		_, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs2, nil)
+		if gimp.errors != nil {
+			errs = gimp.errors
+			return
+		}
 	}
 
 	// STEP 4: Type-check Gno0.9 AST in Go (_filetest.gno if all).
@@ -173,6 +187,10 @@ type realm interface{} // shim
 		gmgof.Name = tgof.Name // copy _filetest.gno package name to gno.mod
 		gofs2 := []*ast.File{gmgof, tgof}
 		_, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs2, nil)
+		if gimp.errors != nil {
+			errs = gimp.errors
+			return
+		}
 	}
 	return pkg, gofset, gofs, _gofs, tgofs, gimp.errors
 }

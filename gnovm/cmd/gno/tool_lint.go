@@ -29,6 +29,13 @@ import (
 /*
 	Linting.
 	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
+
+	XXX Currently the linter only supports linting directories.  In order to
+	support linting individual files, we need to refactor this code to work
+	with mempackages, not dirs, and cmd/gno/util.go needs to be refactored
+	to return mempackages rather than dirs. Commands like `gno lint a.gno
+	b.gno` should create a temporary package from just those files. We
+	could also load mempackages lazily for memory efficiency.
 */
 
 type processedPackage struct {
@@ -208,25 +215,27 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 
 			// Run type checking
-			if !mod.Draft {
-				// STEP 2: ParseGnoMod()
-				// STEP 3: GoParse*()
-				//
-				// lintTypeCheck(mpkg) -->
-				//   TypeCheckMemPackage(mpkg) -->
-				//     imp.typeCheckMemPackage(mpkg)
-				//       ParseGnoMod(mpkg);
-				//       GoParseMemPackage(mpkg);
-				//       g.cmd.Check();
-				gopkg, gofset, gofs, _gofs, tgofs, errs =
-					lintTypeCheck(io, dir, mpkg, gs)
-				if errs != nil {
-					io.ErrPrintln(errs)
-					hasError = true
-				}
-			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
+			// STEP 2: ParseGnoMod()
+			// STEP 3: GoParse*()
+			//
+			// lintTypeCheck(mpkg) -->
+			//   TypeCheckMemPackage(mpkg) -->
+			//     imp.typeCheckMemPackage(mpkg)
+			//       ParseGnoMod(mpkg);
+			//       GoParseMemPackage(mpkg);
+			//       g.cmd.Check();
+			//XXX why would we skip type-checking for drafts?
+			//if !mod.Draft {
+			gopkg, gofset, gofs, _gofs, tgofs, errs =
+				lintTypeCheck(io, dir, mpkg, gs)
+			if errs != nil {
+				// io.ErrPrintln(errs) already printed.
+				hasError = true
+				return
 			}
+			//} else if cmd.verbose {
+			//	io.ErrPrintfln("%s: module is draft, skipping type check", dir)
+			//}
 
 			// STEP 4: Prepare*()
 			// Construct machine for testing.
@@ -294,7 +303,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	for _, dir := range dirs {
 		ppkg, ok := ppkgs[dir]
 		if !ok {
-			panic("where did it go")
+			// XXX fix this; happens when linting a file.
+			// XXX see comment on top of this file.
+			panic("missing package; gno lint currently only supports directories.")
 		}
 		mpkg, pn := ppkg.mpkg, ppkg.pn
 
@@ -335,7 +346,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 }
 
 // Wrapper around TypeCheckMemPackage() to io.ErrPrintln(lintIssue{}).
-// Prints expected errors, and returns nil unless an unexpected error arises.
+// Prints and returns errors. Panics upon an unexpected error.
 func lintTypeCheck(
 	io commands.IO,
 	dir string,
@@ -347,9 +358,12 @@ func lintTypeCheck(
 	gofs, _gofs, tgofs []*ast.File,
 	lerr error) {
 
+	// gno.TypeCheckMemPackage(mpkg, testStore)
 	var tcErrs error
 	gopkg, gofset, gofs, _gofs, tgofs, tcErrs =
 		gno.TypeCheckMemPackage(mpkg, testStore)
+
+	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
 	for _, err := range errors {
 		switch err := err.(type) {
@@ -383,10 +397,11 @@ func lintTypeCheck(
 				Location:   loc,
 			})
 		default:
-			lerr = err
-			return
+			panic(err) // unexpected.
 		}
 	}
+
+	lerr = tcErrs
 	return
 }
 
