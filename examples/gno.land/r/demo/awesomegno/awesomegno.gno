@@ -35,7 +35,7 @@ func init() {
 
 func AddItem(title, description, url, authorAddress string) {
 	crossing()
-	
+
 	if title == "" {
 		panic("item title cannot be empty")
 	}
