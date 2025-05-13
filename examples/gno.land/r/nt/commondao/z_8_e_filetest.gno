@@ -29,8 +29,6 @@ func init() {
 }
 
 func main() {
-	crossing()
-
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	iter := commondao.NewIterator(rootID)

@@ -50,7 +50,7 @@ func New(name string) *commondao.CommonDAO {
 
 // NewSubDAO creates a new SubDAO.
 func NewSubDAO(name string, parentID uint64) *commondao.CommonDAO {
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 	assertIsOwner(caller, parentID)
 
 	parentOptions := getOptions(parentID)
