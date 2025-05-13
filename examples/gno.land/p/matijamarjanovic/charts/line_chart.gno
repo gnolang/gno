@@ -102,7 +102,19 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 	output += strings.Repeat("-", gridWidth+3)
 	output += "\n"
 
-	output += strings.Repeat(" ", yAxisWidth+2)
+	output += formatValueLabelsLineChart(displayValues, pointSpacing, yAxisWidth)
+
+	if xAxisTitle != "" {
+		output += FormatXAxisTitle(xAxisTitle, gridWidth)
+	}
+
+	output += "```"
+	return output
+}
+
+// formatValueLabelsLineChart formats the value labels for the x-axis for line charts
+func formatValueLabelsLineChart(displayValues []float64, pointSpacing int, yAxisWidth int) string {
+	output := strings.Repeat(" ", yAxisWidth+2)
 	for i := 0; i < len(displayValues); i++ {
 		x := i * (pointSpacing + 1)
 		valStr := ufmt.Sprintf("%.2f", displayValues[i])
@@ -120,12 +132,5 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		}
 		output += valStr
 	}
-	output += "\n"
-
-	if xAxisTitle != "" {
-		output += FormatXAxisTitle(xAxisTitle, gridWidth)
-	}
-
-	output += "```"
-	return output
+	return output + "\n"
 }

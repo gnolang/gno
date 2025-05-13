@@ -121,29 +121,3 @@ func FormatYAxisLabel(value float64, scale float64, yAxisWidth int) string {
 func FormatYAxisSpace(yAxisWidth int) string {
 	return strings.Repeat(" ", yAxisWidth) + " | "
 }
-
-// FormatValueLabels formats the value labels for the x-axis
-func FormatValueLabels(values []float64, colWidth int, yAxisWidth int) string {
-	output := strings.Repeat(" ", yAxisWidth+2)
-	
-	for i := 0; i < len(values); i++ {
-		x := i * colWidth
-		valStr := ufmt.Sprintf("%.2f", values[i])
-		labelPos := x + colWidth/2 - len(valStr)/2
-		if labelPos < 0 {
-			labelPos = 0
-		}
-		
-		if i == 0 {
-			output += strings.Repeat(" ", labelPos)
-		} else {
-			prevX := (i - 1) * colWidth
-			prevValStr := ufmt.Sprintf("%.2f", values[i-1])
-			prevLabelEnd := prevX + colWidth/2 - len(prevValStr)/2 + len(prevValStr)
-			output += strings.Repeat(" ", labelPos-prevLabelEnd)
-		}
-		output += valStr
-	}
-	
-	return output + "\n"
-}
