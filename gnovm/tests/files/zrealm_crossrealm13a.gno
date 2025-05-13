@@ -52,21 +52,21 @@ func PrintRealm() {
 
 // Output:
 // From main:
-// PrintRealm: CurrentRealm:  (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" std.Address),("gno.land/r/demo/groups" string)} std.Realm)
-// PrintRealm: PreviousRealm: (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// PrintRealm: CurrentRealm:  (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" std.Address),("gno.land/r/demo/groups" string)} std.Realm)
-// PrintRealm: PreviousRealm: (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" std.Address),("gno.land/r/demo/groups" string)} std.Realm)
-// CurrentRealm:              (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" std.Address),("gno.land/r/demo/groups" string)} std.Realm)
-// PreviousRealm:             (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// CurrentRealm:              CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PreviousRealm:             UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
 //
 // From g1user origin:
-// PrintRealm: CurrentRealm:  (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" std.Address),("gno.land/r/demo/groups" string)} std.Realm)
-// PrintRealm: PreviousRealm: (struct{("g1user" std.Address),("" string)} std.Realm)
-// CurrentRealm:              (struct{("g1user" std.Address),("" string)} std.Realm)
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: UserRealm{ g1user }
+// CurrentRealm:              UserRealm{ g1user }
 // PreviousRealm:             frame not found: cannot seek beyond origin caller override
 //
 // From gno.land/r/sys/users realm:
-// PrintRealm: CurrentRealm:  (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" std.Address),("gno.land/r/demo/groups" string)} std.Realm)
-// PrintRealm: PreviousRealm: (struct{("g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4" std.Address),("gno.land/r/sys/users" string)} std.Realm)
-// CurrentRealm:              (struct{("g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4" std.Address),("gno.land/r/sys/users" string)} std.Realm)
-// PreviousRealm:             (struct{("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02" std.Address),("gno.land/r/demo/groups" string)} std.Realm)
+// PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
+// PrintRealm: PreviousRealm: CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// CurrentRealm:              CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// PreviousRealm:             CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }

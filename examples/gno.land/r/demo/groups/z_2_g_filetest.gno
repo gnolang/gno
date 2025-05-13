@@ -17,9 +17,9 @@ var gid groups.GroupID
 func main() {
 	caller := std.OriginCaller()
 	testing.SetRealm(std.NewUserRealm(caller))
-	users.Register("gnouser123")
+	cross(users.Register)("gnouser123")
 
-	gid = groups.CreateGroup("test_group")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(gid)
 
 	// delete group via anon user
@@ -27,7 +27,7 @@ func main() {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
-	groups.DeleteGroup(gid)
+	cross(groups.DeleteGroup)(gid)
 	println(groups.Render(""))
 }
 

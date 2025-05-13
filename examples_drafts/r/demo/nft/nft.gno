@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/grc/grc721"
 )
 
+// i say we trash this whole package, we have foo721 as an example of an NFT
 type token struct {
 	grc721.IGRC721 // implements the GRC721 interface
 

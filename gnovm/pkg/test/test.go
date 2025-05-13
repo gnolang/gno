@@ -74,10 +74,11 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *tests
 // It is only used for linting/preprocessing.
 func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
-		Store:   testStore,
-		Output:  output,
-		Context: Context("", pkgPath, nil),
-		Debug:   debug,
+		Store:         testStore,
+		Output:        output,
+		Context:       Context("", pkgPath, nil),
+		Debug:         debug,
+		ReviveEnabled: true,
 	})
 }
 
@@ -217,7 +218,7 @@ func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
 // are to be updated.
 // opts is a required set of options, which is often shared among different
 // tests; you can use [NewTestOptions] for a common base configuration.
-func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
+func Test(memPkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
@@ -257,7 +258,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
-			itPkg := &gnovm.MemPackage{
+			itPkg := &std.MemPackage{
 				Name:  memPkg.Name + "_test",
 				Path:  memPkg.Path + "_test",
 				Files: itfiles,
@@ -320,7 +321,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 }
 
 func (opts *TestOptions) runTestFiles(
-	memPkg *gnovm.MemPackage,
+	memPkg *std.MemPackage,
 	files *gno.FileSet,
 	gs gno.TransactionStore,
 	tracker *coverage.CoverageTracker,
@@ -503,7 +504,7 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the memPkg.
-func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
+func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*std.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error
