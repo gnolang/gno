@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -336,7 +335,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 	creatorAcc := vm.acck.GetAccount(ctx, creator)
 	if creatorAcc == nil {
-		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
+		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
 	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
@@ -346,6 +345,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
+	}
+	if !gno.IsRealmPath(pkgPath) && !gno.IsPPackagePath(pkgPath) {
+		return ErrInvalidPkgPath("package path must be valid realm or p package path")
+	}
+	if strings.HasSuffix(pkgPath, "_test") || strings.HasSuffix(pkgPath, "_filetest") {
+		return ErrInvalidPkgPath("package path must not end with _test or _filetest")
 	}
 	if gno.ReGnoRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
@@ -575,7 +580,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
 	if callerAcc == nil {
-		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
+		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
 	if err := msg.Package.Validate(); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
@@ -802,7 +807,7 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	dirpath, filename := gnovm.SplitFilepath(filepath)
+	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
