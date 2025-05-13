@@ -50,8 +50,8 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		for _, val := range displayValues {
 			scaledHeight := int(val * scale)
 			if scaledHeight >= row {
-				barCount := colWidth - 1
-				output += strings.Repeat("|", barCount) + " "
+				barWidth := colWidth - 1
+				output += strings.Repeat("|", barWidth) + " "
 			} else {
 				output += strings.Repeat(" ", colWidth)
 			}
