@@ -92,7 +92,6 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 					res.Write(ufmt.Sprintf("[hide](%s)", r.String()))
 				} else {
 					r.Query.Add("dismissed", "")
-
 					res.Write(ufmt.Sprintf("[show](%s)", r.String()))
 				}
 				res.Write("\n\n")
