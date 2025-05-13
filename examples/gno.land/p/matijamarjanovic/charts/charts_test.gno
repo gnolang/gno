@@ -29,7 +29,8 @@ func TestGenerateLineChart_BadSpacing(t *testing.T) {
 
 func TestGenerateLineChart_Normalization(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	result := GenerateLineChart(values, 5, 6, "Norm", "X", "Y")
+	result := GenerateLineChart(values, 5, 25, "Norm", "X", "Y")
+	println(result)
 	uassert.True(t, strings.Contains(result, "Norm"))
 	uassert.True(t, len(result) > 0)
 }
