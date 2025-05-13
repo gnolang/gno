@@ -1,38 +1,5 @@
-// Package authz provides flexible authorization control for privileged actions.
-//
-// # Authorization Strategies
-//
-// The package supports multiple authorization strategies:
-//   - Member-based: Single user or team of users
-//   - Contract-based: Async authorization (e.g., via DAO)
-//   - Auto-accept: Allow all actions
-//   - Drop: Deny all actions
-//
-// Core Components
-//
-//   - Authority interface: Base interface implemented by all authorities
-//   - Authorizer: Main wrapper object for authority management
-//   - MemberAuthority: Manages authorized addresses
-//   - ContractAuthority: Delegates to another contract
-//   - AutoAcceptAuthority: Accepts all actions
-//   - DroppedAuthority: Denies all actions
-//
-// Quick Start
-//
-//	// Initialize with contract deployer as authority
-//	var member std.Address(...)
-//	var auth = authz.NewWithMembers(member)
-//
-//	// Create functions that require authorization
-//	func UpdateConfig(newValue string) error {
-//		crossing()
-//		return auth.DoByPrevious("update_config", func() error {
-//			config = newValue
-//			return nil
-//		})
-//	}
-//
-// See example_test.gno for more usage examples.
+// Package authz provides simple and flexible authorization control for
+// privileged actions.
 package authz
 
 import (
@@ -42,26 +9,102 @@ import (
 	"gno.land/p/moul/addrset"
 )
 
+// Authority is a simple authorization system that allows to authorize
+// access control to privileged actions.
+// It's a safe object that can be exported and used by other packages.
+// It only provides synchronous authorization checks.
+type Authority struct {
+	config PrivateConfig
+}
+
+// PrivateConfig is the private configuration of the Authority.
+// It isn't a safe object and is intended to be kept unexported.
+type PrivateConfig struct {
+	policies avl.Tree // action -> addrset.Set
+}
+
+// SafeConfig is a wrapper for PrivateConfig that provides a safe-object that
+// can be exported safely.
+// It will allow any admin to add/remove policies.
+//
+// Expected usage:
+//
+//	var Auth, privcfg = authz.NewWithCurrent()
+//	var Config = privcfg.SafeConfig()
+type SafeConfig struct {
+	pc PrivateConfig
+}
+
+const (
+	// Anyone is a special address that can be used to approve any caller
+	// address.
+	Anyone = std.Address("g1anyone")
+
+	// Anything is a special action that can be used to approve any action.
+	Anything = "_anything_"
+)
+
+// New creates a new empty Authority.
+func New() (*Authority, PrivateConfig) {
+	auth := &Authority{}
+	return auth, auth.config
+}
+
+// NewWithCurrentAdmin creates a new Authority with the current realm as
+// an admin.
 func NewWithCurrentAdmin() (*Authority, PrivateConfig) {
 	auth, config := New()
 	config.Add(Anything, std.CurrentRealm().Address())
 	return auth, config
 }
 
-func New() (*Authority, PrivateConfig) {
-	auth := &Authority{}
-	return auth, auth.config
+// NewWithPreviousAdmin creates a new Authority with the previous realm as
+// an admin.
+func NewWithPreviousAdmin() (*Authority, PrivateConfig) {
+	auth, config := New()
+	config.Add(Anything, std.PreviousRealm().Address())
+	return auth, config
 }
 
-type Authority struct {
-	config PrivateConfig
-}
-
-const Anything = "_anything_"
-
+// Can checks if the caller is authorized to perform an action.
 func (a Authority) Can(addr std.Address, action string) bool {
+	return a.config.can(addr, action)
+}
+
+// CanByCurrent checks if the current realm is authorized to perform an action.
+func (a Authority) CanByCurrent(action string) bool {
+	return a.Can(std.CurrentRealm().Address(), action)
+}
+
+// CanByPrevious checks if the previous realm is authorized to perform an
+// action.
+func (a Authority) CanByPrevious(action string) bool {
+	return a.Can(std.PreviousRealm().Address(), action)
+}
+
+// AssertCan doesn't panic if the caller is authorized to perform an action.
+func (a Authority) AssertCan(addr std.Address, action string) {
+	if !a.Can(addr, action) {
+		panic("unauthorized")
+	}
+}
+
+// AssertCanByCurrent doesn't panic if the current realm is authorized to
+// perform an action.
+func (a Authority) AssertCanByCurrent(action string) {
+	a.AssertCan(std.CurrentRealm().Address(), action)
+}
+
+// AssertCanByPrevious doesn't panic if the previous realm is authorized to
+// perform an action.
+func (a Authority) AssertCanByPrevious(action string) {
+	a.AssertCan(std.PreviousRealm().Address(), action)
+}
+
+// can checks if the caller is authorized to perform an action.
+func (c PrivateConfig) can(addr std.Address, action string) bool {
 	for _, lookup := range []string{action, Anything} {
-		value, ok := a.config.policies.Get(lookup)
+		value, ok := c.policies.Get(lookup)
 		if !ok {
 			continue
 		}
@@ -72,17 +115,8 @@ func (a Authority) Can(addr std.Address, action string) bool {
 	}
 	return false
 }
-func (a Authority) CanByCurrent(action string) bool {
-	return a.Can(std.CurrentRealm().Address(), action)
-}
-func (a Authority) CanByPrevious(action string) bool {
-	return a.Can(std.PreviousRealm().Address(), action)
-}
 
-type PrivateConfig struct {
-	policies avl.Tree // action -> addrset.Set
-}
-
+// Add adds a new policy to the authority.
 func (c *PrivateConfig) Add(action string, members ...std.Address) {
 	var policy *addrset.Set
 	value, ok := c.policies.Get(action)
@@ -96,6 +130,8 @@ func (c *PrivateConfig) Add(action string, members ...std.Address) {
 	}
 	c.policies.Set(action, policy)
 }
+
+// Remove removes a policy from the authority.
 func (c *PrivateConfig) Remove(action string, members ...std.Address) {
 	value, ok := c.policies.Get(action)
 	if !ok {
@@ -110,7 +146,42 @@ func (c *PrivateConfig) Remove(action string, members ...std.Address) {
 		c.policies.Remove(action)
 	}
 }
-func (c *PrivateConfig) RemoveAll(action string) { c.policies.Remove(action) }
+
+// RemoveAll removes all policies for a given action.
+func (c *PrivateConfig) RemoveAll(action string) {
+	c.policies.Remove(action)
+}
+
+// SafeConfig returns a safe-object that can be exported safely.
+// It will allow any admin to add/remove policies.
+func (c *PrivateConfig) SafeConfig() *SafeConfig {
+	return &SafeConfig{pc: *c}
+}
+
+// Add lets an admin add a new policy to the Authority's PrivateConfig.
+func (c *SafeConfig) Add(action string, members ...std.Address) {
+	isCallerAdmin := c.pc.can(std.CurrentRealm().Address(), Anything)
+	if isCallerAdmin {
+		c.pc.Add(action, members...)
+	}
+}
+
+// Remove lets an admin remove a policy from the Authority's PrivateConfig.
+func (c *SafeConfig) Remove(action string, members ...std.Address) {
+	isCallerAdmin := c.pc.can(std.CurrentRealm().Address(), Anything)
+	if isCallerAdmin {
+		c.pc.Remove(action, members...)
+	}
+}
+
+// RemoveAll lets an admin remove all policies for a given action from the
+// Authority's PrivateConfig.
+func (c *SafeConfig) RemoveAll(action string) {
+	isCallerAdmin := c.pc.can(std.CurrentRealm().Address(), Anything)
+	if isCallerAdmin {
+		c.pc.RemoveAll(action)
+	}
+}
 
 /*
 func (c *PrivateConfig) GetActionsForAddr(addr std.Address) []string {
@@ -131,8 +202,6 @@ func (c *PrivateConfig) GetAddrsForAction(action string) *addrset.Set {
 	return value.(*addrset.Set)
 }
 */
-
-const Anyone = std.Address("g1anyone")
 
 /*
 // the simple case
