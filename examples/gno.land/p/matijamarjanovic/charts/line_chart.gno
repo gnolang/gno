@@ -50,8 +50,9 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		}
 	}
 
+	spacing := pointSpacing + 1
 	for i := 0; i < len(displayValues); i++ {
-		x := i * (pointSpacing + 1)
+		x := i * spacing
 		y := int(displayValues[i] * scale)
 		if y > height {
 			y = height
@@ -59,7 +60,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		grid[height-y][x] = '*'
 
 		if i < len(displayValues)-1 {
-			nextX := (i + 1) * (pointSpacing + 1)
+			nextX := (i + 1) * spacing
 			nextY := int(displayValues[i+1] * scale)
 			if nextY > height {
 				nextY = height
@@ -68,7 +69,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 			dy := nextY - y
 			prevInterpY := y
 			for step := 1; step < dx; step++ {
-				interpY := y + (dy * step) / dx
+				interpY := y + (dy*step)/dx
 				startY := prevInterpY
 				endY := interpY
 				if startY > endY {
@@ -119,8 +120,9 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 // formatValueLabelsLineChart formats the value labels for the x-axis for line charts
 func formatValueLabelsLineChart(displayValues []float64, pointSpacing int, yAxisWidth int) string {
 	output := strings.Repeat(" ", yAxisWidth+2)
+	spacing := pointSpacing + 1
 	for i := 0; i < len(displayValues); i++ {
-		x := i * (pointSpacing + 1)
+		x := i * spacing
 		valStr := ufmt.Sprintf("%.2f", displayValues[i])
 		labelPos := x - len(valStr)/2
 		if labelPos < 0 {
@@ -129,7 +131,7 @@ func formatValueLabelsLineChart(displayValues []float64, pointSpacing int, yAxis
 		if i == 0 {
 			output += strings.Repeat(" ", labelPos)
 		} else {
-			prevX := (i - 1) * (pointSpacing + 1)
+			prevX := (i - 1) * spacing
 			prevValStr := ufmt.Sprintf("%.2f", displayValues[i-1])
 			prevLabelEnd := prevX - len(prevValStr)/2 + len(prevValStr)
 			output += strings.Repeat(" ", labelPos-prevLabelEnd)
