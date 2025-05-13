@@ -101,10 +101,8 @@ func (dao *DAO) IsAdmin(adr std.Address) bool {
 // Verify if a user is in the waitlist
 func (dao *DAO) IsPending(adr std.Address) bool {
 	_, ok := dao.AwaitingApproval.Get(adr.String())
-	if !ok {
-		return false
-	}
-	return true
+
+	return ok
 }
 
 func (dao *DAO) countAdmins() int {
