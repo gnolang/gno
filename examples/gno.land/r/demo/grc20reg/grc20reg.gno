@@ -13,6 +13,8 @@ import (
 var registry = avl.NewTree() // rlmPath[.slug] -> TokenGetter (slug is optional)
 
 func Register(tokenGetter grc20.TokenGetter, slug string) {
+	crossing()
+
 	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, tokenGetter)

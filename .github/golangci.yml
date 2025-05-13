@@ -89,3 +89,5 @@ issues:
     - path: _\.gno
       linters:
         - errorlint # Disabled linting of error comparisons, because of lacking std lib support
+    - path: gnovm/pkg/gnolang
+      text: "string `(cross|.no realm.|crossing)` has (\\d+) occurrences, make it a constant"
