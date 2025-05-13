@@ -9,6 +9,11 @@ import (
 	"gno.land/p/moul/addrset"
 )
 
+// XXX: try to make the api looking like english phrases:
+//          if auth.CurrentCan("propose") {}
+//          auth.AssertCurrentCan("propose")
+//          xxx.Do("propose", func() {})
+
 // Authority is a simple authorization system that allows to authorize
 // access control to privileged actions.
 // It's a safe object that can be exported and used by other packages.
