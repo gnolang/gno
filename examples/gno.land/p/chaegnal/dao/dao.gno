@@ -67,7 +67,7 @@ func NewDAO(caller std.Address) *DAO {
 		Hangouts:         avl.NewTree(),
 	}
 
-	newDao.whitelistMember(caller)
+	newDao.whitelistMemberNoApproval(caller)
 	newDao.defaultAdmin(caller)
 
 	return newDao
@@ -148,7 +148,7 @@ func (dao *DAO) WhitelistUser(caller, adr std.Address) {
 		panic("already whitelisted")
 	}
 
-	dao.whitelistMember(adr)
+	dao.whitelistMemberNoApproval(adr)
 	dao.AwaitingApproval.Remove(adr.String())
 }
 
@@ -162,16 +162,6 @@ func (dao *DAO) RefuseAwaitingMember(caller, adr std.Address) {
 	dao.AwaitingApproval.Remove(adr.String())
 }
 
-// Set a user into the whitelist with a default member rank
-func (dao *DAO) whitelistMember(adr std.Address) {
-	newWhitelisted := WhitelistedUser{
-		Address: adr,
-		Rank:    memberRank,
-	}
-
-	dao.Whitelist.Set(adr.String(), newWhitelisted)
-}
-
 // Allow admin to set a user as an admin
 func (dao *DAO) SetAdmin(caller, adr std.Address) {
 	if !dao.IsAdmin(caller) {
@@ -179,22 +169,6 @@ func (dao *DAO) SetAdmin(caller, adr std.Address) {
 	}
 
 	dao.defaultAdmin(adr)
-}
-
-// Set a default admin at the creation of the DAO
-// Private function to maximize security
-func (dao *DAO) defaultAdmin(adr std.Address) {
-	member, ok := dao.IsMember(adr)
-	if dao.IsAdmin(adr) {
-		panic("member is already an admin")
-	}
-
-	if !ok {
-		panic("not a member")
-	}
-
-	member.Rank = adminRank
-	dao.Whitelist.Set(adr.String(), member)
 }
 
 // Demote admin to member
@@ -435,6 +409,34 @@ func (dao *DAO) LeaveDao(caller std.Address) {
 	}
 
 	dao.Whitelist.Remove(caller.String())
+}
+
+// Helper functions
+
+// Set a default admin at the creation of the DAO
+// Private function to maximize security
+func (dao *DAO) defaultAdmin(adr std.Address) {
+	member, ok := dao.IsMember(adr)
+	if dao.IsAdmin(adr) {
+		panic("member is already an admin")
+	}
+
+	if !ok {
+		panic("not a member")
+	}
+
+	member.Rank = adminRank
+	dao.Whitelist.Set(adr.String(), member)
+}
+
+// Set a user into the whitelist with a default member rank
+func (dao *DAO) whitelistMemberNoApproval(adr std.Address) {
+	newWhitelisted := WhitelistedUser{
+		Address: adr,
+		Rank:    memberRank,
+	}
+
+	dao.Whitelist.Set(adr.String(), newWhitelisted)
 }
 
 func (dao *DAO) countAdmins() int {
