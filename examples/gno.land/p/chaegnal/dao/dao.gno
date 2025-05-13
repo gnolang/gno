@@ -67,7 +67,7 @@ func NewDAO(caller std.Address) *DAO {
 		Hangouts:         avl.NewTree(),
 	}
 
-	newDao.WhitelistMember(caller)
+	newDao.whitelistMember(caller)
 	newDao.defaultAdmin(caller)
 
 	return newDao
@@ -148,7 +148,7 @@ func (dao *DAO) WhitelistUser(caller, adr std.Address) {
 		panic("already whitelisted")
 	}
 
-	dao.WhitelistMember(adr)
+	dao.whitelistMember(adr)
 	dao.AwaitingApproval.Remove(adr.String())
 }
 
@@ -163,7 +163,7 @@ func (dao *DAO) RefuseAwaitingMember(caller, adr std.Address) {
 }
 
 // Set a user into the whitelist with a default member rank
-func (dao *DAO) WhitelistMember(adr std.Address) {
+func (dao *DAO) whitelistMember(adr std.Address) {
 	newWhitelisted := WhitelistedUser{
 		Address: adr,
 		Rank:    memberRank,
