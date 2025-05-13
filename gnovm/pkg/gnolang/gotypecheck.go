@@ -15,7 +15,7 @@ import (
 
 /*
 	Type-checking (using go/types).
-	Refer to the [Lint and Transpile ADR](./adr/lint_transpile.md).
+	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
@@ -30,7 +30,7 @@ type MemPackageGetter interface {
 // The syntax checking is performed entirely using Go's go/types package.
 // TODO: rename these to GoTypeCheck*, goTypeCheck*...
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
-	pkg *types.Package, gofset *token.FileSet, gofs []*ast.File, errs error) {
+	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		getter: getter,
@@ -46,7 +46,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 
 	all := true    // type check all .gno files for mpkg (not for imports).
 	strict := true // check gno.mod exists
-	pkg, gofset, gofs, errs = gimp.typeCheckMemPackage(mpkg, all, strict)
+	pkg, gofset, gofs, _gofs, tgofs, errs = gimp.typeCheckMemPackage(mpkg, all, strict)
 	return
 }
 
@@ -95,7 +95,7 @@ func (gimp *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.
 	}
 	all := false    // don't parse test files for imports.
 	strict := false // don't check for gno.mod for imports.
-	pkg, _, _, errs := gimp.typeCheckMemPackage(mpkg, all, strict)
+	pkg, _, _, _, _, errs := gimp.typeCheckMemPackage(mpkg, all, strict)
 	gimp.cache[path] = gnoImporterResult{pkg: pkg, err: errs}
 	return pkg, errs
 }
@@ -110,23 +110,27 @@ func (gimp *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.
 //     tests cannot be imported and used anyways.
 //   - strict: If true errors on gno.mod version mismatch.
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, all bool, strict bool) (
-	pkg *types.Package, gofset *token.FileSet, gofs []*ast.File, errs error) {
+	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error) {
 
-	// STEP 1: Check gno.mod version.
+	// See adr/pr4264_lint_transpile.md
+	// STEP 2: Check gno.mod version.
 	if strict {
 		_, err := ParseCheckGnoMod(mpkg)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("gimp parse check gno.mod:  %w", err)
+			return nil, nil, nil, nil, nil, fmt.Errorf("gimp parse check gno.mod:  %w", err)
 		}
 	}
 
-	// STEP 2: Parse the mem package to Go AST.
-	gofset, gofs, errs = GoParseMemPackage(mpkg, all)
+	// STEP 3: Parse the mem package to Go AST.
+	gofset, gofs, _gofs, tgofs, errs = GoParseMemPackage(mpkg, all)
 	if errs != nil {
-		return nil, nil, nil, fmt.Errorf("gimp Go mem package: %w", errs)
+		return nil, nil, nil, nil, nil, fmt.Errorf("gimp Go mem package: %w", errs)
+	}
+	if !all && (len(_gofs) > 0 || len(tgofs) > 0) {
+		panic("unexpected test files from GoParseMemPackage()")
 	}
 
-	// STEP 2: Add .gnobuiltins.go file.
+	// STEP 3: Add .gnobuiltins.go file.
 	file := &std.MemFile{
 		Name: ".gnobuiltins.go",
 		Body: fmt.Sprintf(`package %s
@@ -139,11 +143,11 @@ type realm interface{} // shim
 `, mpkg.Name),
 	}
 
-	// STEP 2: Parse .gnobuiltins.go file.
+	// STEP 3: Parse .gnobuiltins.go file.
 	const parseOpts = parser.ParseComments |
 		parser.DeclarationErrors |
 		parser.SkipObjectResolution
-	var gof, err = parser.ParseFile(
+	var gmgof, err = parser.ParseFile(
 		gofset,
 		path.Join(mpkg.Path, file.Name),
 		file.Body,
@@ -151,11 +155,27 @@ type realm interface{} // shim
 	if err != nil {
 		panic("error parsing gotypecheck gnobuiltins.go file")
 	}
-	gofs = append(gofs, gof)
 
-	// STEP 3: Type-check Gno0.9 AST in Go.
+	// STEP 4: Type-check Gno0.9 AST in Go (normal and _test.gno if all).
+	gofs = append(gofs, gmgof)
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
-	return pkg, gofset, gofs, gimp.errors
+
+	// STEP 4: Type-check Gno0.9 AST in Go (xxx_test package if all).
+	// Each integration test is its own package.
+	for _, _gof := range _gofs {
+		gmgof.Name = _gof.Name // copy _test package name to gno.mod
+		gofs2 := []*ast.File{gmgof, _gof}
+		_, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs2, nil)
+	}
+
+	// STEP 4: Type-check Gno0.9 AST in Go (_filetest.gno if all).
+	// Each filetest is its own package.
+	for _, tgof := range tgofs {
+		gmgof.Name = tgof.Name // copy _filetest.gno package name to gno.mod
+		gofs2 := []*ast.File{gmgof, tgof}
+		_, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs2, nil)
+	}
+	return pkg, gofset, gofs, _gofs, tgofs, gimp.errors
 }
 
 func deleteOldIdents(idents map[string]func(), gof *ast.File) {

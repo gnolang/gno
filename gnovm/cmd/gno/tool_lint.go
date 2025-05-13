@@ -29,7 +29,7 @@ import (
 
 /*
 	Linting.
-	Refer to the [Lint and Transpile ADR](./adr/lint_transpile.md).
+	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
 type processedPackage struct {
@@ -164,6 +164,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			return commands.ExitCodeError(1)
 		}
 
+		// See adr/pr4264_lint_transpile.md
 		// STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
@@ -194,7 +195,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			var pn *gno.PackageNode
 			var gopkg *types.Package
 			var gofset *token.FileSet
-			var gofs []*ast.File
+			var gofs, _gofs, tgofs []*ast.File
 			var errs error
 			if false {
 				println(gopkg, "is not used")
@@ -211,7 +212,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				//       ParseGnoMod(mpkg);
 				//       GoParseMemPackage(mpkg);
 				//       g.cmd.Check();
-				gopkg, gofset, gofs, errs =
+				gopkg, gofset, gofs, _gofs, tgofs, errs =
 					lintTypeCheck(io, dir, mpkg, gs)
 				if errs != nil {
 					io.ErrPrintln(errs)
@@ -232,7 +233,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			defer tm.Release()
 
 			// Prepare Go AST for preprocessing.
-			errs = gno.PrepareGno0p9(gofset, gofs, mpkg)
+			allgofs := append(gofs, _gofs...)
+			allgofs = append(allgofs, tgofs...)
+			errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
 			if errs != nil {
 				io.ErrPrintln(errs)
 				hasError = true
@@ -337,10 +340,10 @@ func lintTypeCheck(
 ) (
 	gopkg *types.Package,
 	gofset *token.FileSet,
-	gofs []*ast.File,
+	gofs, _gofs, tgofs []*ast.File,
 	errs error) {
 
-	gopkg, gofset, gofs, errs = gno.TypeCheckMemPackage(mpkg, testStore)
+	gopkg, gofset, gofs, _gofs, tgofs, errs = gno.TypeCheckMemPackage(mpkg, testStore)
 	errors := multierr.Errors(errs)
 	for _, err := range errors {
 		switch err := err.(type) {

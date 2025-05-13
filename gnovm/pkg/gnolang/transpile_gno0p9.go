@@ -21,7 +21,7 @@ import (
 
 /*
 	Transpiling old Gno code to Gno 0.9.
-	Refer to the [Lint and Transpile ADR](./adr/lint_transpile.md).
+	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 
 	ParseCheckGnoMod() defined in pkg/gnolang/gnomod.go.
 */
@@ -33,8 +33,15 @@ import (
 // Args:
 //   - wtests: if true also parses and includes all *_test.gno
 //     and *_filetest.gno files.
+//
+// Results:
+//   - gofs: all normal .gno files (and _test.gno files if wtests).
+//   - _gofs: all xxx_test package _test.gno files if wtests.
+//   - tgofs: all _testfile.gno test files.
+//
+// XXX move to pkg/gnolang/gotypecheck.go?
 func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
-	gofset *token.FileSet, gofs []*ast.File, errs error) {
+	gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error) {
 	gofset = token.NewFileSet()
 
 	// This map is used to allow for function re-definitions, which are
@@ -70,10 +77,16 @@ func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 		}
 		deleteOldIdents(delFunc, gof)
 		// The *ast.File passed all filters.
-		gofs = append(gofs, gof)
+		if strings.HasSuffix(file.Name, "_filetest.gno") {
+			tgofs = append(tgofs, gof)
+		} else if strings.HasSuffix(gof.Name.String(), "_test") {
+			_gofs = append(_gofs, gof)
+		} else {
+			gofs = append(gofs, gof)
+		}
 	}
 	if errs != nil {
-		return gofset, gofs, errs
+		return gofset, gofs, _gofs, tgofs, errs
 	}
 	// END processing all files.
 	return

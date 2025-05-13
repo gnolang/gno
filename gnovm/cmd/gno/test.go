@@ -243,7 +243,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		didPanic := catchPanic(pkg.Dir, gnoPkgPath, io.Err(), func() {
 			if modfile == nil || !modfile.Draft {
-				_, _, _, errs := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
+				_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
 				if errs != nil {
 					errsLint = errs
 					io.ErrPrintln(errs)

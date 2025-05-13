@@ -72,12 +72,15 @@ func StoreWithOptions(
 				// the preprocessor make a slight modifications to the
 				// AST. This needs to happen even for imports, because
 				// the preprocessor requries imports also preprocessed.
+				// This is because the linter uses pkg/test/imports.go.
 				const wtests = false // Tests don't matter for imports.
-				gofset, gofs, errs := gno.GoParseMemPackage(mpkg, wtests)
+				gofset, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(mpkg, wtests)
 				if errs != nil {
 					panic(fmt.Errorf("test store parsing: %w", errs))
 				}
-				errs = gno.PrepareGno0p9(gofset, gofs, mpkg)
+				allgofs := append(gofs, _gofs...)
+				allgofs = append(allgofs, tgofs...)
+				errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
 				if errs != nil {
 					panic(fmt.Errorf("test store preparing AST: %w", errs))
 				}
