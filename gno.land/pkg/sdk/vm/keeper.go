@@ -694,6 +694,7 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 		return nil, errors.New("invalid username format")
 	}
 
+	// Handle reserved name
 	if name == "stdlibs" || name == "std" {
 		// XXX: Keep it simple here for now. If we have more reserved names at
 		// some point, we should consider centralizing it somewhere.
@@ -712,12 +713,10 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 	}
 
 	// Collect both paths
-	pathsSeq := joinIters(
+	return collectWithLimit(joinIters(
 		store.FindPathsByPrefix(ppath),
 		store.FindPathsByPrefix(rpath),
-	)
-
-	return collectWithLimit(pathsSeq, limit), nil
+	), limit), nil
 }
 
 // joinIters joins the given iterators in a single iterator.
