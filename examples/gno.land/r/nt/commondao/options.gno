@@ -24,17 +24,25 @@ type Options struct {
 }
 
 func (o *Options) SetPrivate(private bool) {
+	crossing()
+
 	o.Private = private
 }
 
 func (o *Options) SetAllowChildren(allow bool) {
+	crossing()
+
 	o.AllowChildren = allow
 }
 
 func (o *Options) SetAllowVoting(allow bool) {
+	crossing()
+
 	o.AllowVoting = allow
 }
 
 func (o *Options) SetAllowExecution(allow bool) {
+	crossing()
+
 	o.AllowExecution = allow
 }

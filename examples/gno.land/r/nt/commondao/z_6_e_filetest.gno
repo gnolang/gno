@@ -27,7 +27,7 @@ func init() {
 
 	// Change options to disallow execution
 	options := commondao.GetOptions(daoID)
-	options.SetAllowExecution(false)
+	cross(options.SetAllowExecution)(false)
 }
 
 func main() {

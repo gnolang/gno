@@ -32,7 +32,7 @@ func init() {
 
 	// Change options to allow SubDAOs
 	options := commondao.GetOptions(parentID)
-	options.SetAllowChildren(true)
+	cross(options.SetAllowChildren)(true)
 }
 
 func main() {
