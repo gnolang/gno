@@ -39,12 +39,13 @@ func normalizeData(values []float64, maxColumns int) []float64 {
 		}
 
 		sum := 0.0
-		count := 0
+		count := end - start
 		for j := start; j < end; j++ {
 			sum += values[j]
-			count++
 		}
-		result[i] = sum / float64(count)
+		if count > 0 {
+			result[i] = sum / float64(count)
+		}
 	}
 
 	return result
