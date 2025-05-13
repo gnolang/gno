@@ -54,7 +54,7 @@ func getGroupFromUrl(url string) organizer.FriendGroup {
 func AcceptAwaitingMember(groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
-	group.DAO.WhitelistingAwaitingApproval(std.Address(logged), adr)
+	group.DAO.WhitelistUser(std.Address(logged), adr)
 }
 
 // Wrapper to refuse new members into friendgroup and DAO

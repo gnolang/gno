@@ -163,7 +163,7 @@ func Test_LeaveGroup_Success(t *testing.T) {
 	AskJoinFriendGroup(4)
 
 	group := GetGroupFromId("4")
-	group.DAO.WhitelistingAwaitingApproval("Chaegnal", "Ghhv")
+	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
 
 	Login()
 	LeaveGroup("4")

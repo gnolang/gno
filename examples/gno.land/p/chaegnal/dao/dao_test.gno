@@ -56,8 +56,8 @@ func Test_PendingApproval_Failure_AlreadyIn(t *testing.T) {
 	dao.PendingApproval("admin")
 }
 
-// Test WhitelistingAwaitingApproval
-func Test_WhitelistingAwaitingApproval_Success(t *testing.T) {
+// Test WhitelistUser
+func Test_WhitelistUser_Success(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != nil {
@@ -68,7 +68,7 @@ func Test_WhitelistingAwaitingApproval_Success(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	member, ok := dao.IsMember("user")
 	if !ok || member.Rank != memberRank {
@@ -76,7 +76,7 @@ func Test_WhitelistingAwaitingApproval_Success(t *testing.T) {
 	}
 }
 
-func Test_WhitelistingAwaitingApproval_Failure_NotAdmin(t *testing.T) {
+func Test_WhitelistUser_Failure_NotAdmin(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != "Only admins can whitelist members." {
@@ -86,10 +86,10 @@ func Test_WhitelistingAwaitingApproval_Failure_NotAdmin(t *testing.T) {
 
 	dao := NewDAO("admin")
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("user", "user")
+	dao.WhitelistUser("user", "user")
 }
 
-func Test_WhitelistingAwaitingApproval_Failure_NotAwaiting(t *testing.T) {
+func Test_WhitelistUser_Failure_NotAwaiting(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != "This address is not awaiting approval." {
@@ -98,10 +98,10 @@ func Test_WhitelistingAwaitingApproval_Failure_NotAwaiting(t *testing.T) {
 	}()
 
 	dao := NewDAO("admin")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 }
 
-func Test_WhitelistingAwaitingApproval_Failure_AlreadyIn(t *testing.T) {
+func Test_WhitelistUser_Failure_AlreadyIn(t *testing.T) {
 	defer func() {
 		r := recover()
 		if r != "Already whitelisted." {
@@ -111,7 +111,7 @@ func Test_WhitelistingAwaitingApproval_Failure_AlreadyIn(t *testing.T) {
 
 	dao := NewDAO("admin")
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 	dao.PendingApproval("user")
 }
 
@@ -156,7 +156,7 @@ func Test_SetAdmin_Success(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.SetAdmin("admin", "user")
 }
@@ -172,7 +172,7 @@ func Test_SetAdmin_Failure_NotAdmin(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.SetAdmin("user", "user")
 }
@@ -202,7 +202,7 @@ func Test_SetAdmin_Failure_AlreadyAdmin(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.defaultAdmin("user")
 	dao.defaultAdmin("user")
@@ -220,7 +220,7 @@ func Test_RemoveAdminRank_Success(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 	dao.SetAdmin("admin", "user")
 
 	dao.RemoveAdminRank("admin", "user")
@@ -237,7 +237,7 @@ func Test_RemoveAdminRank_Failure_CallerNotAdmin(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.RemoveAdminRank("user", "user")
 }
@@ -253,7 +253,7 @@ func Test_RemoveAdminRank_Failure_NotAdmin(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.RemoveAdminRank("admin", "user")
 }
@@ -283,7 +283,7 @@ func Test_RemoveMember_Success(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.RemoveMember("admin", "user")
 }
@@ -299,7 +299,7 @@ func Test_RemoveMember_Failure_NotAdmin(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.RemoveMember("user", "user")
 }
@@ -368,7 +368,7 @@ func Test_VoteProposal_Success(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
@@ -401,7 +401,7 @@ func Test_VoteProposal_Failure_InvalidProposal(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.VoteProposal(1, 1, "user")
 }
@@ -417,7 +417,7 @@ func Test_VoteProposal_Failure_AlreadyVoted(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
@@ -436,7 +436,7 @@ func Test_VoteProposal_Failure_InvalidVote(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
@@ -530,7 +530,7 @@ func Test_LeaveDao_Success(t *testing.T) {
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
-	dao.WhitelistingAwaitingApproval("admin", "user")
+	dao.WhitelistUser("admin", "user")
 
 	dao.LeaveDao("user")
 }

@@ -12,7 +12,7 @@ const (
 	adminRank  = "admin"
 	memberRank = "member"
 
-	whitelistFunc    = "WhitelistingAwaitingApproval"
+	whitelistFunc    = "WhitelistUser"
 	refuseMemberFunc = "RefuseAwaitingMember"
 	setAdminFunc     = "SetAdmin"
 	removeAdminFunc  = "RemoveAdminRank"
@@ -133,7 +133,7 @@ func (dao *DAO) PendingApproval(adr std.Address) {
 // Move user from the waitlist to the whitelist
 // Verify that the action is done by an admin
 // Verify that the user is in the waitlist and not already in the whitelist
-func (dao *DAO) WhitelistingAwaitingApproval(caller, adr std.Address) {
+func (dao *DAO) WhitelistUser(caller, adr std.Address) {
 	if !dao.IsAdmin(caller) {
 		panic("only admins can whitelist members")
 	}
@@ -291,7 +291,7 @@ func (dao *DAO) ExecuteCallback(proposal Proposal) {
 
 	switch proposal.Callback {
 	case whitelistFunc:
-		dao.WhitelistingAwaitingApproval(std.Address(proposal.CallbackArgs[0]), std.Address(proposal.CallbackArgs[1]))
+		dao.WhitelistUser(std.Address(proposal.CallbackArgs[0]), std.Address(proposal.CallbackArgs[1]))
 
 	case refuseMemberFunc:
 		dao.RefuseAwaitingMember(std.Address(proposal.CallbackArgs[0]), std.Address(proposal.CallbackArgs[1]))

@@ -79,7 +79,7 @@ func Test_SwitchOwner_Success(t *testing.T) {
 	organizer.AskJoinFriendGroup(4)
 
 	group := organizer.GetGroupFromId("4")
-	group.DAO.WhitelistingAwaitingApproval("Chaegnal", "Ghhv")
+	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
 
 	testing.SetOriginCaller("Chaegnal")
 	organizer.Login()
@@ -122,7 +122,7 @@ func Test_SwitchOwner_NotAdmin(t *testing.T) {
 	organizer.AskJoinFriendGroup(6)
 
 	group := organizer.GetGroupFromId("6")
-	group.DAO.WhitelistingAwaitingApproval("Chaegnal", "Ghhv")
+	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
 
 	testing.SetOriginCaller("Chaegnal")
 	organizer.Login()
