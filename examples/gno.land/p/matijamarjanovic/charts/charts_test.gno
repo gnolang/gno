@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-func TestGenerateLineChart_Basic(t uassert.TestingT) {
+func TestGenerateLineChart_Basic(t *testing.T) {
 	values := []float64{1, 2, 3, 2, 1}
 	result := GenerateLineChart(values, 5, 6, "Test Line", "X", "Y")
 	uassert.True(t, strings.Contains(result, "Test Line"))
