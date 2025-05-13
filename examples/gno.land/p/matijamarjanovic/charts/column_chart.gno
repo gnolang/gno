@@ -28,6 +28,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 	scale := height / maxVal
 
 	output := FormatChartHeader(title)
+	output += "\n```\n"
 	output += FormatYAxisTitle(yAxisTitle)
 
 	maxYValue := ufmt.Sprintf("%.2f", maxVal)

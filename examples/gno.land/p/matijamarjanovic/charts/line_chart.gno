@@ -80,6 +80,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 
 	output := "\n"
 	output += FormatChartHeader(title)
+	output += "\n```\n"
 	output += FormatYAxisTitle(yAxisTitle)
 
 	maxYValue := ufmt.Sprintf("%.2f", maxVal)

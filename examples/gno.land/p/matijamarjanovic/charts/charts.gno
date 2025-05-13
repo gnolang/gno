@@ -90,7 +90,6 @@ func FormatChartHeader(title string) string {
 	if title != "" {
 		output += "## " + title + "\n"
 	}
-	output += "\n```\n"
 	return output
 }
 

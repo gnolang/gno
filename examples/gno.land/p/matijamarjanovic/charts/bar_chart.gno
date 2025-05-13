@@ -29,6 +29,7 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 	scale := float64(maxWidth) / maxVal
 
 	output := FormatChartHeader(title)
+	output += "\n```\n"
 
 	for i, value := range values {
 		padding := strings.Repeat(" ", maxLabelLength-len(labels[i]))
