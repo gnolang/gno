@@ -86,7 +86,6 @@ func (gimp *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.
 	if pkg, ok := gimp.cache[path]; ok {
 		return pkg.pkg, pkg.err
 	}
-	// fmt.Println("GNOIMPORTER IMPORTFROM > GETMEMPACKAGE", path)
 	mpkg := gimp.getter.GetMemPackage(path)
 	if mpkg == nil {
 		err := importNotFoundError(path)
@@ -117,14 +116,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, all bool, str
 	if strict {
 		_, err := ParseCheckGnoMod(mpkg)
 		if err != nil {
-			return nil, nil, nil, nil, nil, fmt.Errorf("gimp parse check gno.mod:  %w", err)
+			return nil, nil, nil, nil, nil, err
 		}
 	}
 
 	// STEP 3: Parse the mem package to Go AST.
 	gofset, gofs, _gofs, tgofs, errs = GoParseMemPackage(mpkg, all)
 	if errs != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("gimp Go mem package: %w", errs)
+		return nil, nil, nil, nil, nil, errs
 	}
 	if !all && (len(_gofs) > 0 || len(tgofs) > 0) {
 		panic("unexpected test files from GoParseMemPackage()")

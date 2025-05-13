@@ -230,7 +230,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	fname = filepath.Base(fname)
 
 	// Eagerly load imports.
-	// This is executed using opts.Store, rather than the transaction store;
+	// LoadImports is run using opts.Store, rather than the transaction store;
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
@@ -238,7 +238,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		Name: string(pkgName),
 		Path: pkgPath,
 		Files: []*std.MemFile{
-			{Name: "gno.mod", Body: "gno 0.9"},
+			{Name: "gno.mod", Body: gno.GenGnoModLatest(pkgPath)},
 			{Name: fname, Body: string(content)},
 		},
 	}); err != nil {

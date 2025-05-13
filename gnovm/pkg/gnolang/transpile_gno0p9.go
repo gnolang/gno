@@ -425,8 +425,6 @@ func transpileGno0p9_part1(pkgPath string, gofs *token.FileSet, fname string, go
 		return true
 	}, nil)
 
-	fmt.Println("COMPARE", len(xforms1), len(xforms2))
-
 	// Check that all xforms1 items were translated to xforms2.
 	xfound = checkXforms(xforms1, xforms2, fname)
 	return xfound, xforms2, err
@@ -452,17 +450,19 @@ XFORMS1_LOOP:
 		fmt.Println("xform2 item not found for xform1:", xform1)
 		mismatch = true
 	}
-	if !mismatch {
-		return found // good
+	if mismatch {
+		for xform1, _ := range xforms1 {
+			fmt.Println("xform1:", xform1)
+		}
+		for n2, xform2 := range xforms2 {
+			fmt.Println("xform2:", xform2, n2)
+		}
+		panic("xforms1 and xforms2 don't match")
 	}
-	// Failed check.
-	for xform1, _ := range xforms1 {
-		fmt.Println("xform1:", xform1)
+	if len(xforms1) != len(xforms2) {
+		panic("xforms1 and xforms2 length don't match")
 	}
-	for n2, xform2 := range xforms2 {
-		fmt.Println("xform2:", xform2, n2)
-	}
-	panic("xforms1 and xforms2 don't match")
+	return found // good
 }
 
 // The main Go AST transpiling logic to make Gno code Gno 0.9.

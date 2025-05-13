@@ -27,7 +27,7 @@ func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 	for _, argPath := range args {
 		info, err := os.Stat(argPath)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", argPath, err)
 		}
 
 		if !info.IsDir() {
@@ -56,7 +56,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 	for _, argPath := range args {
 		info, err := os.Stat(argPath)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", argPath, err)
 		}
 
 		if !info.IsDir() {
@@ -125,7 +125,7 @@ func gnoPackagesFromArgsRecursively(args []string) ([]string, error) {
 	for _, argPath := range args {
 		info, err := os.Stat(argPath)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", argPath, err)
 		}
 
 		if !info.IsDir() {
@@ -169,7 +169,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 
 		info, err := os.Stat(dirToSearch)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", dirToSearch, err)
 		}
 
 		// If the pattern is a file or a directory
