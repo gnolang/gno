@@ -16,7 +16,18 @@ package charts
 const height = 15
 
 // normalizeData reduces the number of data points to maxColumns by averaging
+// Returns nil if values is empty or maxColumns is zero or negative
 func normalizeData(values []float64, maxColumns int) []float64 {
+	if len(values) == 0 || maxColumns <= 0 {
+		return nil
+	}
+	
+	if maxColumns >= len(values) {
+		result := make([]float64, len(values))
+		copy(result, values)
+		return result
+	}
+	
 	result := make([]float64, maxColumns)
 	groupSize := float64(len(values)) / float64(maxColumns)
 
