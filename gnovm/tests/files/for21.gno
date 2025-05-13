@@ -15,3 +15,6 @@ func main() {
 
 // Error:
 // main/files/for21.gno:7:17: continue statement out of place
+
+// TypeCheckError:
+// main/files/for21.gno:7:17: continue not in for statement

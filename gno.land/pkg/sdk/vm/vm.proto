@@ -5,7 +5,6 @@ option go_package = "github.com/gnolang/gno/gno.land/pkg/sdk/vm/pb";
 
 // imports
 import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
-import "github.com/gnolang/gno/gnovm/gnovm.proto";
 
 // messages
 message m_call {
@@ -19,12 +18,12 @@ message m_call {
 message m_run {
 	string caller = 1;
 	string send = 2;
-	gnovm.MemPackage package = 3;
+	std.MemPackage package = 3;
 }
 
 message m_addpkg {
 	string creator = 1;
-	gnovm.MemPackage package = 2;
+	std.MemPackage package = 2;
 	string deposit = 3;
 }
 
@@ -41,8 +40,5 @@ message InvalidExprError {
 }
 
 message TypeCheckError {
-	repeated string errors = 1;
-}
-
-message UnauthorizedUserError {
+	repeated string errors = 1 [json_name = "Errors"];
 }
