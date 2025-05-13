@@ -136,6 +136,29 @@ func TestDropOwnership(t *testing.T) {
 	uassert.Empty(t, owner, "owner should be empty")
 }
 
+func TestDropOwnershipVulnerability(t *testing.T) {
+	testing.SetOriginCaller(alice)
+	o := New()
+
+	// alice initiates ownership transfer to bob
+	err := o.TransferOwnership(bob)
+	urequire.NoError(t, err)
+
+	// alice drops ownership while ownership transfer is pending
+	err = o.DropOwnership()
+	urequire.NoError(t, err)
+
+	owner := o.Owner()
+	pendingOwner := o.PendingOwner()
+	uassert.Empty(t, owner, "owner should be empty")
+	uassert.Empty(t, pendingOwner.String(), "pending owner should be empty")
+
+	// verify bob can no longer claim ownership
+	testing.SetOriginCaller(bob)
+	err = o.AcceptOwnership()
+	uassert.ErrorContains(t, err, ErrNoPendingOwner.Error())
+}
+
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
