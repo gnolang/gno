@@ -8,8 +8,10 @@ import (
 )
 
 func redirectWebPath(path string) string {
-	if alias, ok := gnoweb.Aliases[path]; ok {
-		return alias
+	if alias, ok := gnoweb.DefaultAliases[path]; ok {
+		if alias.Kind == gnoweb.GnowebPath { // Ignore static files
+			return alias.Value
+		}
 	}
 
 	if redirect, ok := gnoweb.Redirects[path]; ok {

@@ -20,7 +20,7 @@ func isOriginCall(m *gno.Machine) bool {
 		return false
 	}
 	firstPkg := m.Frames[0].LastPackage
-	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == ""
 	return n <= 2 && isMsgCall
 }
 
@@ -74,8 +74,8 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 	var (
 		ctx     = GetContext(m)
-		crosses int                        // track realm crosses
-		lfr     *gno.Frame = m.LastFrame() // last call frame
+		lfr     = m.LastFrame() // last call frame
+		crosses int             // track realm crosses
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
@@ -91,7 +91,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		}
 
 		// Sanity check
-		if !fr.DidCross {
+		if !fr.DidCrossing {
 			panic(fmt.Sprintf(
 				"call to cross(fn) did not call crossing : %s",
 				fr.Func.String()))
@@ -100,27 +100,52 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		crosses++
 		if crosses > height {
 			currlm := lfr.LastRealm
-			caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+			caller, rlmPath := gno.DerivePkgBech32Addr(currlm.Path), currlm.Path
 			return string(caller), rlmPath
 		}
 		lfr = fr
 	}
 
-	if crosses != height {
-		m.Panic(typedString("frame not found"))
-		return
+	switch m.Stage {
+	case gno.StageAdd:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			return string(gno.DerivePkgBech32Addr(path)), path
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	case gno.StageRun:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			if path == "" {
+				// e.g. MsgCall, cross-call a public realm function
+				return string(ctx.OriginCaller), ""
+			} else {
+				// e.g. MsgRun, non-cross-call main()
+				return string(gno.DerivePkgBech32Addr(path)), path
+			}
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	default:
+		panic("exec kind unspecified")
 	}
+}
 
-	// Special case if package initialization.
-	if ctx.OriginCaller == "" {
-		fr := &m.Frames[0]
-		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
-		pkgPath := fr.LastPackage.PkgPath
-		return string(caller), pkgPath
-	}
-
-	// Base case: return OriginCaller.
-	return string(ctx.OriginCaller), ""
+// currentPkgPath retrieves the current package's pkgPath.
+// It's not a native binding; but is used within this package to clarify usage.
+func currentPkgPath(m *gno.Machine) (pkgPath string) {
+	return m.MustPeekCallFrame(2).LastPackage.PkgPath
 }
 
 // currentRealm retrieves the current realm's address and pkgPath.

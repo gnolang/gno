@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"math"
 	"std"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestToken(t *testing.T) {
 
 	bank, adm := NewToken("Dummy", "DUMMY", 6)
 
-	checkBalances := func(aliceEB, bobEB, carlEB uint64) {
+	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
 		exp := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceEB, bobEB, carlEB)
 		aliceGB := bank.BalanceOf(alice)
@@ -33,7 +34,7 @@ func TestToken(t *testing.T) {
 		got := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceGB, bobGB, carlGB)
 		uassert.Equal(t, got, exp, "invalid balances")
 	}
-	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB uint64) {
+	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB int64) {
 		t.Helper()
 		exp := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abEB, acEB, baEB, bcEB, caEB, cbEB)
 		abGB := bank.Allowance(alice, bob)
@@ -79,17 +80,17 @@ func TestToken(t *testing.T) {
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
 
-func TestOverflow(t *testing.T) {
+func TestMintOverflow(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 	tok, adm := NewToken("Dummy", "DUMMY", 6)
 
-	safeValue := uint64(1 << 62)
+	safeValue := int64(1 << 62)
 	urequire.NoError(t, adm.Mint(alice, safeValue))
 	urequire.Equal(t, tok.BalanceOf(alice), safeValue)
 
 	err := adm.Mint(bob, safeValue)
-	uassert.Error(t, err, "expected ErrOverflow")
+	uassert.Error(t, err, "expected ErrMintOverflow")
 }
 
 func TestTransferFromAtomicity(t *testing.T) {
@@ -104,14 +105,14 @@ func TestTransferFromAtomicity(t *testing.T) {
 	token, admin := NewToken("Test", "TEST", 6)
 
 	// owner has 100 tokens, spender has 50 allowance
-	initialBalance := uint64(100)
-	initialAllowance := uint64(50)
+	initialBalance := int64(100)
+	initialAllowance := int64(50)
 
 	urequire.NoError(t, admin.Mint(owner, initialBalance))
 	urequire.NoError(t, admin.Approve(owner, spender, initialAllowance))
 
 	// transfer to an invalid address to force a transfer failure
-	transferAmount := uint64(30)
+	transferAmount := int64(30)
 	err := admin.TransferFrom(owner, spender, invalidRecipient, transferAmount)
 	uassert.Error(t, err, "transfer should fail due to invalid address")
 
@@ -124,7 +125,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 		"allowance should not be reduced when transfer fails")
 }
 
-func TestMintOverflow(t *testing.T) {
+func TestMintUntilOverflow(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 	tok, adm := NewToken("Dummy", "DUMMY", 6)
@@ -132,42 +133,42 @@ func TestMintOverflow(t *testing.T) {
 	tests := []struct {
 		name           string
 		address        std.Address
-		amount         uint64
+		amount         int64
 		expectedError  error
-		expectedSupply uint64
+		expectedSupply int64
 		description    string
 	}{
 		{
-			name:           "mint value larger than MaxUint64",
+			name:           "mint negative value",
 			address:        alice,
-			amount:         MaxUint64 + 1000,
-			expectedError:  ErrOverflow,
+			amount:         -1,
+			expectedError:  ErrInvalidAmount,
 			expectedSupply: 0,
-			description:    "minting a value larger than MaxUint64 should fail with ErrOverflow",
+			description:    "minting a negative number should fail with ErrInvalidAmount",
 		},
 		{
-			name:           "mint safe value close to MaxUint64",
+			name:           "mint MaxInt64",
 			address:        alice,
-			amount:         MaxUint64 - 1000,
+			amount:         math.MaxInt64 - 1000,
 			expectedError:  nil,
-			expectedSupply: MaxUint64 - 1000,
-			description:    "minting a value close to MaxUint64 should succeed",
+			expectedSupply: math.MaxInt64 - 1000,
+			description:    "minting almost MaxInt64 should succeed",
 		},
 		{
 			name:           "mint small value",
 			address:        bob,
 			amount:         1000,
 			expectedError:  nil,
-			expectedSupply: MaxUint64,
-			description:    "minting a small value when close to MaxUint64 should succeed",
+			expectedSupply: math.MaxInt64,
+			description:    "minting a small value when close to MaxInt64 should succeed",
 		},
 		{
-			name:           "mint value that would exceed MaxUint64",
+			name:           "mint value that would exceed MaxInt64",
 			address:        bob,
 			amount:         1,
-			expectedError:  ErrOverflow,
-			expectedSupply: MaxUint64,
-			description:    "minting any value when at MaxUint64 should fail with ErrOverflow",
+			expectedError:  ErrMintOverflow,
+			expectedSupply: math.MaxInt64,
+			description:    "minting any value when at MaxInt64 should fail with ErrMintOverflow",
 		},
 	}
 
@@ -177,7 +178,7 @@ func TestMintOverflow(t *testing.T) {
 
 			if tt.expectedError != nil {
 				uassert.Error(t, err, tt.description)
-				if err.Error() != tt.expectedError.Error() {
+				if err == nil || err.Error() != tt.expectedError.Error() {
 					t.Errorf("expected error %v, got %v", tt.expectedError, err)
 				}
 			} else {

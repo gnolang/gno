@@ -19,3 +19,6 @@ func main() {
 
 // Error:
 // other panic
+
+// TypeCheckError:
+// main/files/recover1b.gno:3:8: "fmt" imported and not used

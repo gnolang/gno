@@ -1,5 +1,5 @@
+// PKGPATH: math
 // https://github.com/gnolang/gno/issues/3751
-
 package math
 
 import "testing"
