@@ -97,22 +97,6 @@ func (dao *DAO) IsPending(adr std.Address) bool {
 	return ok
 }
 
-func (dao *DAO) countAdmins() int {
-	var adminCounter int
-
-	dao.Whitelist.Iterate("", "", func(_ string, val any) bool {
-		user := val.(WhitelistedUser)
-
-		if user.Rank == adminRank {
-			adminCounter++
-		}
-
-		return false
-	})
-
-	return adminCounter
-}
-
 // Getters
 func (dao *DAO) GetWhitelisted() rotree.IReadOnlyTree {
 	return rotree.Wrap(dao.Whitelist, nil)
@@ -451,4 +435,20 @@ func (dao *DAO) LeaveDao(caller std.Address) {
 	}
 
 	dao.Whitelist.Remove(caller.String())
+}
+
+func (dao *DAO) countAdmins() int {
+	var adminCounter int
+
+	dao.Whitelist.Iterate("", "", func(_ string, val any) bool {
+		user := val.(WhitelistedUser)
+
+		if user.Rank == adminRank {
+			adminCounter++
+		}
+
+		return false
+	})
+
+	return adminCounter
 }
