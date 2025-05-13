@@ -18,12 +18,7 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 		return "no data to display"
 	}
 
-	maxVal := values[0]
-	for _, v := range values[1:] {
-		if v > maxVal {
-			maxVal = v
-		}
-	}
+	maxVal := FindMaxValue(values)
 
 	displayValues := values
 	if len(values) > maxColumns {
@@ -32,27 +27,13 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 
 	scale := height / maxVal
 
-	output := ""
-	if title != "" {
-		output += "## " + title + "\n"
-	}
-
-	output += "\n```\n"
-
-	if yAxisTitle != "" {
-		output += yAxisTitle + "\n\n"
-	}
+	output := FormatChartHeader(title)
+	output += FormatYAxisTitle(yAxisTitle)
 
 	maxYValue := ufmt.Sprintf("%.2f", maxVal)
 	yAxisWidth := len(maxYValue)
 
-	maxValStrLen := 0
-	for _, v := range displayValues {
-		valStr := ufmt.Sprintf("%.2f", v)
-		if len(valStr) > maxValStrLen {
-			maxValStrLen = len(valStr)
-		}
-	}
+	maxValStrLen := CalculateMaxValueStringLength(displayValues)
 	if maxValStrLen < 2 {
 		maxValStrLen = 2
 	}
@@ -60,11 +41,9 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 
 	for row := height; row > 0; row-- {
 		if row%3 == 0 {
-			yValue := ufmt.Sprintf("%.2f", float64(row)/scale)
-			padding := strings.Repeat(" ", yAxisWidth-len(yValue))
-			output += ufmt.Sprintf("%s%s | ", padding, yValue)
+			output += FormatYAxisLabel(float64(row), scale, yAxisWidth)
 		} else {
-			output += strings.Repeat(" ", yAxisWidth) + " | "
+			output += FormatYAxisSpace(yAxisWidth)
 		}
 
 		for _, val := range displayValues {
@@ -83,29 +62,11 @@ func GenerateColumnChart(values []float64, maxColumns int, title, xAxisTitle, yA
 	output += strings.Repeat(strings.Repeat("-", colWidth), len(displayValues))
 	output += "\n"
 
-	output += strings.Repeat(" ", yAxisWidth+2)
-	for i := 0; i < len(displayValues); i++ {
-		x := i * colWidth
-		valStr := ufmt.Sprintf("%.2f", displayValues[i])
-		labelPos := x + colWidth/2 - len(valStr)/2
-		if labelPos < 0 {
-			labelPos = 0
-		}
-		if i == 0 {
-			output += strings.Repeat(" ", labelPos)
-		} else {
-			prevX := (i - 1) * colWidth
-			prevValStr := ufmt.Sprintf("%.2f", displayValues[i-1])
-			prevLabelEnd := prevX + colWidth/2 - len(prevValStr)/2 + len(prevValStr)
-			output += strings.Repeat(" ", labelPos-prevLabelEnd)
-		}
-		output += valStr
-	}
-	output += "\n"
+	output += FormatValueLabels(displayValues, colWidth, yAxisWidth)
 
 	if xAxisTitle != "" {
-		padding := strings.Repeat(" ", (len(displayValues)*colWidth)/2)
-		output += "       " + padding + xAxisTitle + "\n"
+		totalWidth := len(displayValues) * colWidth
+		output += FormatXAxisTitle(xAxisTitle, totalWidth)
 	}
 
 	output += "```\n"

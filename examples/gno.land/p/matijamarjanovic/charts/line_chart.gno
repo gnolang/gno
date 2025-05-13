@@ -19,20 +19,8 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		return "no data to display"
 	}
 
-	maxVal := values[0]
-	for _, v := range values[1:] {
-		if v > maxVal {
-			maxVal = v
-		}
-	}
-
-	maxValStrLen := 0
-	for _, v := range values {
-		valStr := ufmt.Sprintf("%.2f", v)
-		if len(valStr) > maxValStrLen {
-			maxValStrLen = len(valStr)
-		}
-	}
+	maxVal := FindMaxValue(values)
+	maxValStrLen := CalculateMaxValueStringLength(values)
 
 	minSpacing := maxValStrLen + 2
 	if pointSpacing < minSpacing {
@@ -91,14 +79,8 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 	}
 
 	output := "\n"
-	if title != "" {
-		output += "## " + title + "\n"
-	}
-	output += "```\n"
-
-	if yAxisTitle != "" {
-		output += yAxisTitle + "\n\n"
-	}
+	output += FormatChartHeader(title)
+	output += FormatYAxisTitle(yAxisTitle)
 
 	maxYValue := ufmt.Sprintf("%.2f", maxVal)
 	yAxisWidth := len(maxYValue)
@@ -107,11 +89,9 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		gridRow := grid[row]
 		gridY := height - row
 		if gridY%3 == 0 {
-			yValue := ufmt.Sprintf("%.2f", float64(gridY)/scale)
-			padding := strings.Repeat(" ", yAxisWidth-len(yValue))
-			output += ufmt.Sprintf("%s%s | ", padding, yValue)
+			output += FormatYAxisLabel(float64(gridY), scale, yAxisWidth)
 		} else {
-			output += strings.Repeat(" ", yAxisWidth) + " | "
+			output += FormatYAxisSpace(yAxisWidth)
 		}
 		output += string(gridRow)
 		output += "\n"
@@ -142,8 +122,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 	output += "\n"
 
 	if xAxisTitle != "" {
-		padding := strings.Repeat(" ", gridWidth/2-len(xAxisTitle)/2)
-		output += "       " + padding + xAxisTitle + "\n"
+		output += FormatXAxisTitle(xAxisTitle, gridWidth)
 	}
 
 	output += "```"

@@ -17,24 +17,18 @@ func GenerateBarChart(values []float64, labels []string, maxWidth int, title str
 		return "invalid data for display"
 	}
 
-	maxVal := values[0]
-	maxLabelLength := len(labels[0])
-	for i, v := range values {
-		if v > maxVal {
-			maxVal = v
-		}
-		if len(labels[i]) > maxLabelLength {
-			maxLabelLength = len(labels[i])
+	maxVal := FindMaxValue(values)
+	
+	maxLabelLength := 0
+	for _, label := range labels {
+		if len(label) > maxLabelLength {
+			maxLabelLength = len(label)
 		}
 	}
 
 	scale := float64(maxWidth) / maxVal
 
-	output := "\n"
-	if title != "" {
-		output += "## " + title + "\n"
-	}
-	output += "```\n"
+	output := FormatChartHeader(title)
 
 	for i, value := range values {
 		padding := strings.Repeat(" ", maxLabelLength-len(labels[i]))

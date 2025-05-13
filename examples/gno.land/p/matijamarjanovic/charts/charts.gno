@@ -13,6 +13,12 @@
 
 package charts
 
+import (
+	"strings"
+
+	"gno.land/p/demo/ufmt"
+)
+
 const height = 15
 
 // normalizeData reduces the number of data points to maxColumns by averaging
@@ -49,4 +55,96 @@ func normalizeData(values []float64, maxColumns int) []float64 {
 	}
 
 	return result
+}
+
+// FindMaxValue returns the maximum value in a slice of float64
+func FindMaxValue(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	
+	maxVal := values[0]
+	for _, v := range values[1:] {
+		if v > maxVal {
+			maxVal = v
+		}
+	}
+	return maxVal
+}
+
+// CalculateMaxValueStringLength returns the maximum string length when formatting values
+func CalculateMaxValueStringLength(values []float64) int {
+	maxValStrLen := 0
+	for _, v := range values {
+		valStr := ufmt.Sprintf("%.2f", v)
+		if len(valStr) > maxValStrLen {
+			maxValStrLen = len(valStr)
+		}
+	}
+	return maxValStrLen
+}
+
+// FormatChartHeader formats the chart header with title and markdown code block
+func FormatChartHeader(title string) string {
+	output := ""
+	if title != "" {
+		output += "## " + title + "\n"
+	}
+	output += "\n```\n"
+	return output
+}
+
+// FormatYAxisTitle adds the y-axis title to the chart
+func FormatYAxisTitle(yAxisTitle string) string {
+	if yAxisTitle != "" {
+		return yAxisTitle + "\n\n"
+	}
+	return ""
+}
+
+// FormatXAxisTitle adds the x-axis title to the chart
+func FormatXAxisTitle(xAxisTitle string, width int) string {
+	if xAxisTitle != "" {
+		padding := strings.Repeat(" ", width/2-len(xAxisTitle)/2)
+		return "       " + padding + xAxisTitle + "\n"
+	}
+	return ""
+}
+
+// FormatYAxisLabel formats a y-axis label with proper padding
+func FormatYAxisLabel(value float64, scale float64, yAxisWidth int) string {
+	yValue := ufmt.Sprintf("%.2f", value/scale)
+	padding := strings.Repeat(" ", yAxisWidth-len(yValue))
+	return ufmt.Sprintf("%s%s | ", padding, yValue)
+}
+
+// FormatYAxisSpace returns spacing for y-axis when no label is needed
+func FormatYAxisSpace(yAxisWidth int) string {
+	return strings.Repeat(" ", yAxisWidth) + " | "
+}
+
+// FormatValueLabels formats the value labels for the x-axis
+func FormatValueLabels(values []float64, colWidth int, yAxisWidth int) string {
+	output := strings.Repeat(" ", yAxisWidth+2)
+	
+	for i := 0; i < len(values); i++ {
+		x := i * colWidth
+		valStr := ufmt.Sprintf("%.2f", values[i])
+		labelPos := x + colWidth/2 - len(valStr)/2
+		if labelPos < 0 {
+			labelPos = 0
+		}
+		
+		if i == 0 {
+			output += strings.Repeat(" ", labelPos)
+		} else {
+			prevX := (i - 1) * colWidth
+			prevValStr := ufmt.Sprintf("%.2f", values[i-1])
+			prevLabelEnd := prevX + colWidth/2 - len(prevValStr)/2 + len(prevValStr)
+			output += strings.Repeat(" ", labelPos-prevLabelEnd)
+		}
+		output += valStr
+	}
+	
+	return output + "\n"
 }
