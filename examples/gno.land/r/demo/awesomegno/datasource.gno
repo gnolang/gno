@@ -12,6 +12,7 @@ import (
 // Items
 
 func NewItemDatasource() ItemDatasource {
+	crossing()
 	return ItemDatasource{items}
 }
 
@@ -90,6 +91,7 @@ func (it *itemIterator) Next() bool {
 // Categories
 
 func NewCategoryDatasource() CategoryDatasource {
+	crossing()
 	return CategoryDatasource{categories}
 }
 
