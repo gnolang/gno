@@ -31,7 +31,7 @@ func GenerateLineChart(values []float64, maxPoints int, pointSpacing int, title,
 		return ufmt.Sprintf("pointSpacing must be at least %d to fit value labels", minSpacing)
 	}
 	if pointSpacing > 25 {
-		return "pointSpacing must be between " + ufmt.Sprintf("%d", minSpacing) + " and 25"
+		return ufmt.Sprintf("pointSpacing must be between %d and 25", minSpacing)
 	}
 
 	displayValues := values
