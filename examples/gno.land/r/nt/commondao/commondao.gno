@@ -18,7 +18,7 @@ var (
 	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
 	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
 	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
-	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(path) -> *commondao.CommonDAO)
+	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(DAO ID) -> *commondao.CommonDAO)
 	options   = avl.NewTree() // string(root ID) -> *Options
 )
 
