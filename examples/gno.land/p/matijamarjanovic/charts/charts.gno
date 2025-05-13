@@ -72,8 +72,8 @@ func findMaxValue(values []float64) float64 {
 	return maxVal
 }
 
-// CalculateMaxValueStringLength returns the maximum string length when formatting values
-func CalculateMaxValueStringLength(values []float64) int {
+// calculateMaxValueStringLength returns the maximum string length when formatting values
+func calculateMaxValueStringLength(values []float64) int {
 	maxValStrLen := 0
 	for _, v := range values {
 		valStr := ufmt.Sprintf("%.2f", v)
@@ -84,8 +84,8 @@ func CalculateMaxValueStringLength(values []float64) int {
 	return maxValStrLen
 }
 
-// FormatChartHeader formats the chart header with title and markdown code block
-func FormatChartHeader(title string) string {
+// formatChartHeader formats the chart header with title and markdown code block
+func formatChartHeader(title string) string {
 	output := ""
 	if title != "" {
 		output += "## " + title + "\n"
@@ -93,16 +93,16 @@ func FormatChartHeader(title string) string {
 	return output
 }
 
-// FormatYAxisTitle adds the y-axis title to the chart
-func FormatYAxisTitle(yAxisTitle string) string {
+// formatYAxisTitle adds the y-axis title to the chart
+func formatYAxisTitle(yAxisTitle string) string {
 	if yAxisTitle != "" {
 		return yAxisTitle + "\n\n"
 	}
 	return ""
 }
 
-// FormatXAxisTitle adds the x-axis title to the chart
-func FormatXAxisTitle(xAxisTitle string, width int) string {
+// formatXAxisTitle adds the x-axis title to the chart
+func formatXAxisTitle(xAxisTitle string, width int) string {
 	if xAxisTitle != "" {
 		padding := strings.Repeat(" ", width/2-len(xAxisTitle)/2)
 		return "       " + padding + xAxisTitle + "\n"
@@ -110,14 +110,14 @@ func FormatXAxisTitle(xAxisTitle string, width int) string {
 	return ""
 }
 
-// FormatYAxisLabel formats a y-axis label with proper padding
-func FormatYAxisLabel(value float64, scale float64, yAxisWidth int) string {
+// formatYAxisLabel formats a y-axis label with proper padding
+func formatYAxisLabel(value float64, scale float64, yAxisWidth int) string {
 	yValue := ufmt.Sprintf("%.2f", value/scale)
 	padding := strings.Repeat(" ", yAxisWidth-len(yValue))
 	return ufmt.Sprintf("%s%s | ", padding, yValue)
 }
 
-// FormatYAxisSpace returns spacing for y-axis when no label is needed
-func FormatYAxisSpace(yAxisWidth int) string {
+// formatYAxisSpace returns spacing for y-axis when no label is needed
+func formatYAxisSpace(yAxisWidth int) string {
 	return strings.Repeat(" ", yAxisWidth) + " | "
 }
