@@ -37,3 +37,8 @@ coverage.out
 
 .tmp/
 wal/
+
+# GnoSwap and GnoLend specific
+gnoswap-tests/_info.mk
+gnolend-tests/_info.mk
+examples/gno.land/p/gnoswap/consts
