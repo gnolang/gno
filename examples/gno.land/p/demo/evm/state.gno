@@ -1,6 +1,8 @@
 package evm
 
 import (
+	"fmt"
+
 	"gno.land/p/demo/uint256"
 )
 
@@ -14,14 +16,13 @@ type LogEntry struct {
 
 type tmpEnv struct {
 	storage     map[uint256.Uint]*uint256.Uint
-	warmStorage *[]uint256.Uint
+	warmStorage []uint256.Uint
 	logs        []LogEntry
-	accounts    []*Caller
-	contracts   SmartContracts
+	accounts    Accounts
 }
 
 type State struct {
-	caller           *Caller
+	callerAddress    *uint256.Uint
 	callValue        *uint256.Uint
 	callData         []byte
 	memory           []byte
@@ -36,20 +37,19 @@ type State struct {
 	env              *Env
 }
 
-func newState() *State {
+func newEmptyState() *State {
 	return &State{
-		stack:     *NewevmStack(),
-		memory:    []byte{}, // make([]byte, 1024)
-		result:    []byte{}, // make([]byte, 1024)
-		code:      instructions{},
-		caller:    nil,
-		callValue: uint256.Zero(),
+		stack:         *NewevmStack(),
+		memory:        []byte{}, // make([]byte, 1024)
+		result:        []byte{}, // make([]byte, 1024)
+		code:          instructions{},
+		callerAddress: nil,
+		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
 			storage:     map[uint256.Uint]*uint256.Uint{},
 			logs:        []LogEntry{},
-			warmStorage: &[]uint256.Uint{},
-			accounts:    []*Caller{},
-			contracts:   SmartContracts{},
+			warmStorage: []uint256.Uint{},
+			accounts:    Accounts{},
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              nil,
@@ -57,27 +57,73 @@ func newState() *State {
 		gasLimit:         -1,
 	}
 }
+func newStateFromEnv(env *Env) *State {
+	storageCopy := make(map[uint256.Uint]*uint256.Uint)
+	if len(env.Storage) > 0 {
+		for k, v := range env.Storage {
+			fmt.Println("hey")
+			storageCopy[k] = v
+		}
+	}
+
+	logsCopy := make([]LogEntry, len(env.Logs))
+	copy(logsCopy, env.Logs)
+
+	accountsCopy := make(Accounts, 0)
+	if len(env.Accounts) > 0 {
+		for k, v := range env.Accounts {
+			accountsCopy[k] = v
+		}
+	}
+	return &State{
+		stack:         *NewevmStack(),
+		memory:        []byte{}, // make([]byte, 1024)
+		result:        []byte{}, // make([]byte, 1024)
+		code:          instructions{},
+		callerAddress: nil,
+		callValue:     uint256.Zero(),
+		tmp: tmpEnv{
+			storage:     storageCopy,
+			logs:        logsCopy,
+			warmStorage: []uint256.Uint{},
+			accounts:    accountsCopy,
+		},
+		transientStorage: map[uint256.Uint]*uint256.Uint{},
+		env:              env,
+		gasConsumed:      0,
+		gasLimit:         -1,
+	}
+}
 
 func (s *State) clone() *State {
-	a := []*Caller{}
-	c := SmartContracts{}
+	storageCopy := make(map[uint256.Uint]*uint256.Uint)
+	for k, v := range s.tmp.storage {
+		storageCopy[k] = v
+	}
 
-	copy(a, s.tmp.accounts)
-	copy(c, s.tmp.contracts)
+	logsCopy := make([]LogEntry, len(s.tmp.logs))
+	copy(logsCopy, s.tmp.logs)
+
+	warmStorageCopy := make([]uint256.Uint, len(s.tmp.warmStorage))
+	copy(warmStorageCopy, s.tmp.warmStorage)
+
+	accountsCopy := make(Accounts)
+	for k, v := range s.tmp.accounts {
+		accountsCopy[k] = v
+	}
 
 	return &State{
-		stack:     *NewevmStack(),
-		memory:    []byte{},
-		result:    []byte{},
-		code:      instructions{},
-		caller:    s.caller,
-		callValue: uint256.Zero(),
+		stack:         *NewevmStack(),
+		memory:        []byte{},
+		result:        []byte{},
+		code:          instructions{},
+		callerAddress: s.callerAddress,
+		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
-			storage:     map[uint256.Uint]*uint256.Uint{},
-			logs:        []LogEntry{},
-			warmStorage: s.tmp.warmStorage,
-			accounts:    a,
-			contracts:   c,
+			storage:     storageCopy,
+			logs:        logsCopy,
+			warmStorage: warmStorageCopy,
+			accounts:    accountsCopy,
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              s.env,
@@ -96,6 +142,9 @@ func (s State) getResult() []byte {
 }
 
 // setters
+func (s *State) setCode(code []byte) {
+	s.code.Reset(code)
+}
 
 func (s *State) setEnv(env *Env) {
 	s.env = env
@@ -105,8 +154,8 @@ func (s *State) setGasLimit(gas uint) {
 	s.gasLimit = int(gas)
 }
 
-func (s *State) setCaller(caller *Caller) {
-	s.caller = caller
+func (s *State) setCallerAddress(callerAddress *uint256.Uint) {
+	s.callerAddress = callerAddress
 }
 
 func (s *State) setCallValue(wei *uint256.Uint) {
@@ -117,14 +166,23 @@ func (s *State) setCallData(data []byte) {
 	s.callData = append(s.callData, data...)
 }
 
-func (s *State) executeByteCode(code []byte) error {
-	s.code.Reset(code)
-	if s.env != nil {
-		s.tmp.storage = make(map[uint256.Uint]*uint256.Uint)
-		for k, v := range s.env.Storage {
-			s.tmp.storage[k] = v
-		}
+// usefull
+func (s *State) loadStagedChangesIntoEnv(env *Env) {
+	env.Storage = make(map[uint256.Uint]*uint256.Uint)
+	for k, v := range s.tmp.storage {
+		env.Storage[k] = v
 	}
+
+	env.Logs = make([]LogEntry, len(s.tmp.logs))
+	copy(env.Logs, s.tmp.logs)
+
+	env.Accounts = make(Accounts)
+	for k, v := range s.tmp.accounts {
+		env.Accounts[k] = v
+	}
+}
+
+func (s *State) executeByteCode() error {
 	for !s.code.Ill() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
 		if !ok {
@@ -145,15 +203,6 @@ func (s *State) executeByteCode(code []byte) error {
 	}
 	if s.code.Ill() {
 		return s.code.err
-	}
-	if s.env != nil {
-		s.env.Storage = make(map[uint256.Uint]*uint256.Uint)
-		for k, v := range s.tmp.storage {
-			s.env.Storage[k] = v
-		}
-	}
-	if s.caller != nil {
-		s.caller.Gas -= s.gasConsumed
 	}
 	return nil
 }

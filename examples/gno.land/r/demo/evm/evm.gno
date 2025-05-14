@@ -20,20 +20,21 @@ import (
 
 const br = "\n\n"
 
-var env = &evm.Env{
-	Logs:        []byte{},
-	Storage:     map[uint256.Uint]*uint256.Uint{},
-	Accounts:    []*evm.Caller{},
-	Contracts:   []*evm.SmartContract{},
-	Transaction: []evm.Transaction{},
-}
+var (
+	env = &evm.Env{
+		Logs:        []byte{},
+		Storage:     map[uint256.Uint]*uint256.Uint{},
+		Accounts:    []*evm.Account{},
+		Transaction: []evm.Transaction{},
+	}
 
-var gnoUserToAccountHelper = map[std.Address]*evm.Caller{}
-var addressToAccountHelper = map[string]*evm.Caller{}
+	gnoUserToAccountHelper = map[std.Address]*evm.Account{}
+	addressToAccountHelper = map[string]*evm.Account{}
+)
 
 // helpers
 
-func assertGetConnectedUserFromRealm() *evm.Caller {
+func assertGetConnectedUserFromRealm() *evm.Account {
 	addr := std.PreviousRealm().Address()
 	if addr == "" {
 		panic("invalid realm: realm must be user realm")
@@ -60,11 +61,8 @@ func Publish(code string) {
 	}
 
 	// push the contract
-	addr := env.Contracts.Push(&evm.SmartContract{
-		Code:    x,
-		Creator: caller,
-	})
-	env.Transaction.PushCreation(0, caller, uint(addr))
+	addr := env.Accounts.
+		env.Transaction.PushCreation(0, caller, uint(addr))
 }
 
 func Faucet(n int) {
@@ -85,7 +83,7 @@ func Register(addrStr string) {
 	if err != nil {
 		panic("invalid address: address cant be converted into uint256, " + err.Error())
 	}
-	evmAddr.And(evmAddr, uint256.MustFromHex("0xffffffffffffffffffffffffffffffffffffffff")) // xor to have 20 byte addr
+	evmAddr.And(evmAddr, uint256.MustFromHex("0xffffffffffffffffffffffffffffffffffffffff")) // and to have 20 byte addr
 
 	// check if user exists already
 	addrStr = evmAddr.Hex() // to make it the same for everyone
@@ -96,11 +94,11 @@ func Register(addrStr string) {
 
 	// create the user
 	gnoAddr := std.PreviousRealm().Address()
-	caller := &evm.Caller{
+	caller := &evm.Account{
 		EVMAddress: evmAddr,
 		GnoAddress: gnoAddr,
-		Balance: uint256.Zero(),
-		Gas: 0,
+		Balance:    uint256.Zero(),
+		Gas:        0,
 	}
 	env.Accounts = append(env.Accounts, caller)
 	gnoUserToAccountHelper[gnoAddr] = caller
@@ -123,7 +121,7 @@ func Call(path string, gasLimit uint) {
 
 	// get contract index
 	contractIndex := uint64(0)
-	if contractIndex, err = strconv.ParseUint(callexpr[1], 16, 64); err != nil || contractIndex >= uint64(len(env.Contracts)) {
+	if contractIndex, err = strconv.ParseUint(callexpr[1], 16, 64); err != nil || contractIndex >= uint64(len(env.Accounts)) {
 		panic("call: bad address (bad number, or invalid address)")
 	}
 
@@ -139,7 +137,7 @@ func Call(path string, gasLimit uint) {
 
 	// make the call
 	funcName := callexpr[2]
-	res, err := caller.RawContractCall(env, gasLimit, funcName, hex.EncodeToString(env.Contracts[contractIndex].Code), list...)
+	res, err := caller.RawContractCall(env, gasLimit, funcName, hex.EncodeToString(env.Accounts[contractIndex].Code), list...)
 	if err != nil {
 		panic("call runtime: " + err.Error())
 	}

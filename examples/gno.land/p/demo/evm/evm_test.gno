@@ -17,19 +17,19 @@ func TestExecuteEvm(t *testing.T) {
 		code                     []byte
 		callValue                uint256.Uint
 		callData                 []byte
-		caller                   Caller
+		caller                   Account
+		env                      Env
+		gas                      uint
 		expectedResult           []byte
 		expectedMemory           []byte
 		expectedStack            []*uint256.Uint
 		expectedError            error
 		expectedGasConsumed      uint
 		expectedTransientStorage map[uint256.Uint]uint256.Uint
-		gas                      uint
 		ignoreMemory             bool
 		ignoreTransientStorage   bool
 		ignoreGasConsumed        bool
 		ignoreStack              bool
-		chainId                  uint256.Uint
 	}{
 		{
 			name:                "simple addition",
@@ -930,8 +930,8 @@ func TestExecuteEvm(t *testing.T) {
 				byte(CALLER),
 				byte(STOP),
 			},
-			caller: Caller{
-				EVMAddress: uint256.NewUint(0xcacabebe),
+			caller: Account{
+				EvmAddress: uint256.NewUint(0xcacabebe),
 			},
 			expectedStack: []*uint256.Uint{
 				uint256.NewUint(0xcacabebe),
@@ -1258,32 +1258,38 @@ func TestExecuteEvm(t *testing.T) {
 			expectedStack:       []*uint256.Uint{uint256.NewUint(10)},
 			expectedGasConsumed: 2,
 		},
-		// {
-		// 	name: "get the chain ID",
-		// 	code: []byte{
-		// 		byte(CHAINID),
-		// 		byte(STOP),
-		// 	},
-		// 	expectedStack:[]*uint256.Uint{
-		// 		uint256.NewUint(2),
-		// 	},
-		// 	chainId: *uint256.NewUint(2),
-		// 	expectedGasConsumed: 2,
-		// },
+		{
+			name: "get the chain ID",
+			code: []byte{
+				byte(CHAINID),
+				byte(STOP),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(2),
+			},
+			env: Env{
+				ChainID: uint256.NewUint(2),
+			},
+			expectedGasConsumed: 2,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			errStack, errResult, errMem := false, false, false
 
-			st := newState()
+			st := newStateFromEnv(&tc.env)
 			st.setCallData(tc.callData)
 			st.setCallValue(&tc.callValue)
-			st.setCaller(&tc.caller)
+			st.setCallerAddress(tc.caller.EvmAddress)
+			if tc.caller.EvmAddress != nil {
+				st.tmp.accounts[*tc.caller.EvmAddress] = &tc.caller
+			}
 			if tc.gas > 0 {
 				st.setGasLimit(tc.gas)
 			}
-			err := st.executeByteCode(tc.code)
+			st.setCode(tc.code)
+			err := st.executeByteCode()
 			stack := st.getStackData()
 			result := st.getResult()
 			mem := st.memory
@@ -1388,7 +1394,7 @@ func TestExecuteEvm(t *testing.T) {
 			}
 			if errMem {
 				t.Errorf("Memory doesnt match expected")
-				t.Errorf("|  ADRESS  | EXPECTED |  REALLY  |")
+				t.Errorf("|  Address  | EXPECTED |  REALLY  |")
 				t.Errorf("|----------|----------|----------|")
 				for i := 0; i < max; i++ {
 					x := "        "

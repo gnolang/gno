@@ -269,7 +269,7 @@ func opInvalid(s *State) error {
 }
 
 func opCaller(s *State) error {
-	s.stack.Push(s.caller.EVMAddress.Clone())
+	s.stack.Push(s.callerAddress.Clone())
 	return nil
 }
 
@@ -285,13 +285,17 @@ func opGasprice(s *State) error {
 
 // TODO: tests
 func opChainId(s *State) error {
-	s.stack.Push(s.env.ChainID)
+	if s.env != nil && s.env.ChainID != nil {
+		s.stack.Push(s.env.ChainID)
+	} else {
+		s.stack.Push(uint256.Zero())
+	}
 	return nil
 }
 
 // TODO: tests
 func opSelfBalance(s *State) error {
-	s.stack.Push(s.caller.Balance.Clone())
+	s.stack.Push(s.tmp.accounts[*s.callerAddress].Balance.Clone())
 	return nil
 }
 

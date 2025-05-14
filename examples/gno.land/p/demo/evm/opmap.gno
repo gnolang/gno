@@ -166,7 +166,11 @@ const (
 )
 
 var (
-	opCodes map[OpCode]EvmOpData = map[OpCode]EvmOpData{
+	opCodes map[OpCode]EvmOpData
+)
+
+func init() {
+	opCodes = map[OpCode]EvmOpData{
 		STOP:       {STOP, "STOP", opNop, 0},
 		ADD:        {ADD, "ADD", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Add(a, b) }), 3},
 		MUL:        {MUL, "MUL", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return a.Mul(a, b) }), 5},
@@ -322,7 +326,7 @@ var (
 		LOG3:           {LOG3, "LOG3", opLog(3), 1500},
 		LOG4:           {LOG4, "LOG4", opLog(4), 1875},
 		CREATE:         {CREATE, "CREATE", notImplemented /*opCreate*/, 32000},
-		CALL:           {CALL, "CALL", notImplemented /*opCall*/, 100},
+		CALL:           {CALL, "CALL", opCall, 100},
 		CALLCODE:       {CALLCODE, "CALLCODE", notImplemented /*opCallcode*/, 700},
 		RETURN:         {RETURN, "RETURN", opReturn, 0},
 		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", notImplemented /*opDelegatecall*/, 100},
@@ -332,4 +336,4 @@ var (
 		INVALID:        {INVALID, "INVALID", opInvalid, 0},
 		SELFDESTRUCT:   {SELFDESTRUCT, "SELFDESTRUCT", notImplemented /*opSelfdestruct*/, 5000},
 	}
-)
+}

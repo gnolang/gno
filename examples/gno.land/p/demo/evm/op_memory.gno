@@ -160,14 +160,14 @@ func opSload(s *State) error {
 	}
 
 	warm := false
-	for _, e := range *s.tmp.warmStorage {
+	for _, e := range s.tmp.warmStorage {
 		if e.Eq(key) {
 			warm = true
 			break
 		}
 	}
 	if !warm {
-		*s.tmp.warmStorage = append(*s.tmp.warmStorage, *key)
+		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
 		s.gasConsumed += 2000
 	}
 
@@ -190,14 +190,14 @@ func opSstore(s *State) error {
 	}
 
 	warm := false
-	for _, e := range *s.tmp.warmStorage {
+	for _, e := range s.tmp.warmStorage {
 		if e.Eq(key) {
 			warm = true
 			break
 		}
 	}
 	if !warm {
-		*s.tmp.warmStorage = append(*s.tmp.warmStorage, *key)
+		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
 		s.gasConsumed += 2000
 	}
 

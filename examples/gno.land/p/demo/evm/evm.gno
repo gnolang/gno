@@ -1,8 +1,9 @@
 package evm
 
 func Execute(code []byte) ([]byte, error) {
-	st := newState()
-	err := st.executeByteCode(code)
+	st := newEmptyState()
+	st.setCode(code)
+	err := st.executeByteCode()
 	if err != nil {
 		return []byte{}, err
 	}
