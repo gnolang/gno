@@ -11,8 +11,7 @@
 Gno is an interpreted and fully-deterministic implementation of the Go
 programming language, designed to build succinct and composable smart contracts.
 The first blockchain to use it is gno.land, a
-[Proof of Contribution](./docs/concepts/proof-of-contribution.md)-based chain, backed by
-a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)
+contribution-based chain, backed by a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)
 consensus engine.
 
 ## Getting started
@@ -34,7 +33,7 @@ If you have already played around with the website, use our
 to write and deploy your first smart contract. No local set-up required!
 
 Once you're done, learn how to set up your local environment with the
-[quickstart guide](./examples/gno.land/r/demo/boards/README.md) and the
+[quickstart guide](./docs/builders/what-is-gnolang.md) and the
 [contributing guide](./CONTRIBUTING.md).
 
 You can discover additional details about current tools and Gno documentation on
@@ -52,7 +51,7 @@ repository offers more resources to dig into. We are eager to see your first PR!
 ## Repository structure
 
 * [examples](./examples) - Smart-contract examples and guides for new Gno developers.
-* [gnovm](./gnovm) - GnoVM and Gnolang.
+* [gnovm](./gnovm) - GnoVM and the Gno Language.
 * [gno.land](./gno.land) - gno.land blockchain and tools.
 * [tm2](./tm2) - Tendermint2.
 * [docs](./docs) - Official documentation, deployed under [docs.gno.land](https://docs.gno.land).

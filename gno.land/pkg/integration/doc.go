@@ -24,7 +24,7 @@
 //
 // 3. `adduser`:
 //   - Must be run before `gnoland start`.
-//   - Creates a new user in the default keybase directory.
+//   - Creates a new user in the default keybase directory. ( Optionally, an std.Coins string can be provided, e.g. `1337ugnot,42foo,24bar` )
 //
 // 4. `adduserfrom`:
 //   - Must be run before `gnoland start`.
