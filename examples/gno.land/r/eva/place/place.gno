@@ -1,7 +1,6 @@
 package place
 
 import (
-	"encoding/base64"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
@@ -59,7 +58,7 @@ func init() {
 	}
 }
 
-func RenderAccountManagement(selectedColor string) string {
+func renderAccountManagement(selectedColor string) string {
 	var out string
 
 	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
@@ -98,11 +97,9 @@ func Render(path string) string {
 	}
 	out += md.HorizontalRule() + "\n\n"
 
-	out += RenderAccountManagement(selectedColor)
+	out += renderAccountManagement(selectedColor)
 
-	ssvg := GenerateSVG()
-	base64SVG := base64.StdEncoding.EncodeToString([]byte(ssvg))
-	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", base64SVG)
+	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", GenerateSVG())
 
 	for _, color := range colors {
 		query.Set("color", color.initial)
