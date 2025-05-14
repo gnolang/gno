@@ -125,3 +125,13 @@ func UnbanMember(adr std.Address) {
 
 	Banned.Remove(adr.String())
 }
+
+func setDefaultAdmin(adr std.Address) {
+	newMember := User{
+		Address: adr,
+		Rank:    adminRank,
+		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
+	}
+
+	Users.Set(adr.String(), newMember)
+}

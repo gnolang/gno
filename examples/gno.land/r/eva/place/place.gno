@@ -45,9 +45,9 @@ var (
 )
 
 func init() {
-	SetNewAdmin(chaeWallet)
-	SetNewAdmin(ghhvWallet)
-	SetNewAdmin(louWallet)
+	setDefaultAdmin(chaeWallet)
+	setDefaultAdmin(ghhvWallet)
+	setDefaultAdmin(louWallet)
 
 	tableColor = make([][]Color, rows)
 	for y := 0; y < int(rows); y++ {
