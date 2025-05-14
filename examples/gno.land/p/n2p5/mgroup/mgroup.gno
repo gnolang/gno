@@ -36,8 +36,14 @@ func New(ownerAddress std.Address) *ManagedGroup {
 		backupOwners: avl.NewTree(),
 		members:      avl.NewTree(),
 	}
-	g.AddBackupOwner(ownerAddress)
-	g.AddMember(ownerAddress)
+	err := g.addBackupOwner(ownerAddress)
+	if err != nil {
+		panic(err)
+	}
+	err = g.addMember(ownerAddress)
+	if err != nil {
+		panic(err)
+	}
 	return g
 }
 
@@ -47,6 +53,10 @@ func (g *ManagedGroup) AddBackupOwner(addr std.Address) error {
 	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
+	return g.addBackupOwner(addr)
+}
+
+func (g *ManagedGroup) addBackupOwner(addr std.Address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -83,8 +93,8 @@ func (g *ManagedGroup) ClaimOwnership() error {
 		return ErrNotMember
 	}
 	g.owner = ownable.NewWithAddress(caller)
-	g.AddMember(caller)
-	return nil
+	err := g.addMember(caller)
+	return err
 }
 
 // AddMember adds a member to the group by std.Address.
@@ -93,6 +103,10 @@ func (g *ManagedGroup) AddMember(addr std.Address) error {
 	if !g.owner.OwnedByPrevious() {
 		return ownable.ErrUnauthorized
 	}
+	return g.addMember(addr)
+}
+
+func (g *ManagedGroup) addMember(addr std.Address) error {
 	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
