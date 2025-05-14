@@ -6,12 +6,12 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -25,13 +25,23 @@ import (
 func TestProxy(t *testing.T) {
 	const targetPath = "gno.land/r/target/foo"
 
-	pkg := gnovm.MemPackage{
+	pkg := std.MemPackage{
 		Name: "foo",
 		Path: targetPath,
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{
 				Name: "foo.gno",
-				Body: `package foo; func Render(_ string) string { return "foo" }`,
+				Body: `package foo
+
+func Render(_ string) string { return "foo" }
+
+var i int
+
+func Incr() {
+        crossing()
+        i++
+}
+`,
 			},
 			{Name: "gno.mod", Body: `module ` + targetPath},
 		},
@@ -64,7 +74,7 @@ func TestProxy(t *testing.T) {
 		pathChan <- paths
 	})
 
-	// ---- Test Cases ----
+	var seq uint64
 
 	t.Run("valid_vm_query", func(t *testing.T) {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
@@ -103,15 +113,17 @@ func TestProxy(t *testing.T) {
 	t.Run("simulate_tx_paths", func(t *testing.T) {
 		// Build transaction with multiple messages
 		var tx std.Tx
-		send := std.MustParseCoins(ugnot.ValueString(10_000_000))
+		send := std.MustParseCoins(ugnot.ValueString(1_000_000))
 		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
 		tx.Msgs = []std.Msg{
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
-			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
+			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
 		}
 
-		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, 0)
+		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
+		seq++
+
 		require.NoError(t, err)
 		signature, err := privKey.Sign(bytes)
 		require.NoError(t, err)
@@ -125,14 +137,71 @@ func TestProxy(t *testing.T) {
 
 		res, err := cli.BroadcastTxCommit(bz)
 		require.NoError(t, err)
-		assert.NoError(t, res.CheckTx.Error)
-		assert.NoError(t, res.DeliverTx.Error)
+		if !assert.NoError(t, res.CheckTx.Error) {
+			t.Logf("log: %v", res.CheckTx.Log)
+		}
+		if !assert.NoError(t, res.DeliverTx.Error) {
+			t.Logf("log: %v", res.DeliverTx.Log)
+		}
 
 		select {
 		case paths := <-pathChan:
 			require.Len(t, paths, 1)
 			assert.Equal(t, []string{targetPath}, paths)
 		default:
+			t.Fatal("paths not captured")
+		}
+	})
+
+	t.Run("add_pkg", func(t *testing.T) {
+		const barPath = "gno.land/r/target/bar"
+		files := []*std.MemFile{
+			{
+				Name: "bar.gno",
+				Body: `package bar
+import foo "` + targetPath + `"
+
+func Render(_ string) string { return foo.Render("bar") }`,
+			},
+			{Name: "gno.mod", Body: `module ` + barPath},
+		}
+
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+		require.NoError(t, err)
+		defer cli.Close()
+
+		// Build transaction
+		var tx std.Tx
+		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Msgs = []std.Msg{
+			vm.NewMsgAddPackage(creator, barPath, files),
+		}
+
+		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
+		seq++
+
+		require.NoError(t, err)
+		signature, err := privKey.Sign(bytes)
+		require.NoError(t, err)
+		tx.Signatures = []std.Signature{{PubKey: privKey.PubKey(), Signature: signature}}
+
+		bz, err := amino.Marshal(tx)
+		require.NoError(t, err)
+
+		res, err := cli.BroadcastTxCommit(bz)
+		require.NoError(t, err)
+		if !assert.NoError(t, res.CheckTx.Error) {
+			t.Logf("logs: %s", res.CheckTx.Log)
+		}
+		if !assert.NoError(t, res.DeliverTx.Error) {
+			t.Logf("logs: %s", res.DeliverTx.Log)
+		}
+
+		select {
+		case paths := <-pathChan:
+			require.Len(t, paths, 1)
+			assert.Equal(t, []string{targetPath}, paths)
+		case <-time.After(time.Second):
 			t.Fatal("paths not captured")
 		}
 	})
