@@ -294,6 +294,10 @@
     @apply hidden;
   }
 
+  .realm-view .gno-alert .gno-alert {
+    @apply mt-5;
+  }
+
   /* Alert variants */
   .realm-view .gno-alert-info {
     @apply border-l-gray-600 bg-gray-600/10 text-gray-900;

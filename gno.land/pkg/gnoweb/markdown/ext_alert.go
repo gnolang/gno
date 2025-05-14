@@ -94,20 +94,20 @@ func (b *alertParser) process(reader text.Reader) (bool, int) {
 		return false, 0
 	}
 
-	advance_by := 1
+	advanceBy := 1
 
-	if pos+advance_by >= len(line) || line[pos+advance_by] == '\n' {
-		return true, advance_by
+	if pos+advanceBy >= len(line) || line[pos+advanceBy] == '\n' {
+		return true, advanceBy
 	}
-	if line[pos+advance_by] == ' ' || line[pos+advance_by] == '\t' {
-		advance_by++
+	if line[pos+advanceBy] == ' ' || line[pos+advanceBy] == '\t' {
+		advanceBy++
 	}
 
-	if line[pos+advance_by-1] == '\t' {
+	if line[pos+advanceBy-1] == '\t' {
 		reader.SetPadding(2)
 	}
 
-	return true, advance_by
+	return true, advanceBy
 }
 
 const (
@@ -140,17 +140,17 @@ func parseAlertType(kind string) (AlertType, string) {
 
 // Open creates a new Alert node when alert syntax is detected
 func (b *alertParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	ok, advance_by := b.process(reader)
+	ok, advanceBy := b.process(reader)
 	if !ok {
 		return nil, parser.NoChildren
 	}
 
 	line, _ := reader.PeekLine()
-	if len(line) <= advance_by {
+	if len(line) <= advanceBy {
 		return nil, parser.NoChildren
 	}
 
-	subline := line[advance_by:]
+	subline := line[advanceBy:]
 	if !regex.Match(subline) {
 		return nil, parser.NoChildren
 	}
@@ -175,12 +175,12 @@ func (b *alertParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 
 // Continue processes subsequent lines of an alert block
 func (b *alertParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	ok, advance_by := b.process(reader)
+	ok, advanceBy := b.process(reader)
 	if !ok {
 		return parser.Close
 	}
 
-	reader.Advance(advance_by)
+	reader.Advance(advanceBy)
 	return parser.Continue | parser.HasChildren
 }
 

@@ -448,11 +448,13 @@ By default, the alert boxes are opened. The title is optional and if not provide
 
 ±±±markdown
 > [!NOTE]
+> This is a note
 > > [!NOTE]
 > > This is a scoped note
 ±±±
 
 > [!NOTE]
+> This is a note
 > > [!NOTE]
 > > This is a scoped note
 
