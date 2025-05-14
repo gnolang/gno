@@ -41,7 +41,7 @@ const (
 )
 
 var (
-	Users *avl.Tree
+	Users *avl.Tree = avl.NewTree()
 
 	colors = []Color{
 		{"rgb(0,0,0)", "K"},     // black
@@ -63,8 +63,6 @@ var (
 )
 
 func init() {
-	Users = avl.NewTree()
-
 	tableColor = make([][]Color, rows)
 	for y := 0; y < int(rows); y++ {
 		tableColor[y] = make([]Color, cols)
