@@ -6,7 +6,6 @@ import (
 	"std"
 	"strconv"
 
-	// "std"
 	"strings"
 
 	"gno.land/p/demo/evm"
