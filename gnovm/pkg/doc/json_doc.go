@@ -368,23 +368,22 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*
 // If source is true and the optional ast.File is given, then use it to get internal comments.
 func mustFormatNode(fset *token.FileSet, node any, source bool, file *ast.File) string {
 	if !source {
-		// Temporarily remove the Doc and Body so that it's not in the signature
+		// Omit the Doc and Body so that it's not in the signature
 		switch n := node.(type) {
 		case *ast.FuncDecl:
-			saveDoc := n.Doc
-			saveBody := n.Body
-			defer func() {
-				n.Doc = saveDoc
-				n.Body = saveBody
-			}()
-			n.Doc = nil
-			n.Body = nil
+			node = &ast.FuncDecl{
+				Recv: n.Recv,
+				Name: n.Name,
+				Type: n.Type,
+			}
 		case *ast.GenDecl:
-			saveDoc := n.Doc
-			defer func() {
-				n.Doc = saveDoc
-			}()
-			n.Doc = nil
+			node = &ast.GenDecl{
+				TokPos: n.TokPos,
+				Tok:    n.Tok,
+				Lparen: n.Lparen,
+				Specs:  n.Specs,
+				Rparen: n.Rparen,
+			}
 		}
 	}
 
