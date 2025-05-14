@@ -97,7 +97,7 @@ func parseXY(rawQuery string) (x, y uint64, err error) {
 func RegisterMember() {
 	_, ok := retrieveMember(std.PreviousRealm().Address())
 	if ok {
-		panic("User already registered")
+		panic("user already registered")
 	}
 
 	newMember := User{
@@ -121,7 +121,7 @@ func retrieveMember(address std.Address) (User, bool) {
 func isAdmin(address std.Address) bool {
 	user, ok := retrieveMember(address)
 	if !ok {
-		panic("User not registered")
+		panic("user not registered")
 	}
 
 	if user.Rank != adminRank {
@@ -154,7 +154,7 @@ func DeleteYourself() {
 
 	_, ok := retrieveMember(address)
 	if !ok {
-		panic("User not registered")
+		panic("user not registered")
 	}
 
 	ok = isAdmin(std.PreviousRealm().Address())
@@ -181,13 +181,13 @@ func Submit(x, y uint64, colorName string) {
 	}
 
 	if time.Now().Before(user.Timer) {
-		panic("Wait until " + user.Timer.String())
+		panic("wait until " + user.Timer.String())
 	}
 
 	foundColor, color := findColor(colorName)
 
 	if !foundColor {
-		panic("Invalid color")
+		panic("invalid color")
 	}
 
 	tableColor[y][x].rgb = color.rgb
