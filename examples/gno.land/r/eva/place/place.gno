@@ -20,6 +20,10 @@ const (
 	cols uint64 = 45
 
 	white string = "rgb(250,250,250)"
+
+	chaeWallet = "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g"
+	ghhvWallet = "g1d2hvkqhqckhzpaum09c002fesdw89qrcg9zqws"
+	louWallet  = "g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n"
 )
 
 var (
@@ -41,6 +45,10 @@ var (
 )
 
 func init() {
+	setDefaultAdmin(chaeWallet)
+	setDefaultAdmin(ghhvWallet)
+	setDefaultAdmin(louWallet)
+
 	tableColor = make([][]Color, rows)
 	for y := 0; y < int(rows); y++ {
 		tableColor[y] = make([]Color, cols)
