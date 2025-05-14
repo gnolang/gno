@@ -62,12 +62,6 @@ var (
 	ErrInvalidCoordQuery = errors.New("Invalid coordinate value, expecting a uint64")
 )
 
-func generateSquareSvg(color string) string {
-	canvas := svg.Canvas{Width: 30, Height: 30}
-	canvas.DrawRectangle(0, 0, 30, 30, color)
-	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
-}
-
 func init() {
 	Users = avl.NewTree()
 
@@ -79,6 +73,12 @@ func init() {
 			tableColor[y][x].initial = "⠀"
 		}
 	}
+}
+
+func generateSquareSvg(color string) string {
+	canvas := svg.Canvas{Width: 30, Height: 30}
+	canvas.DrawRectangle(0, 0, 30, 30, color)
+	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
 }
 
 // parseXY takes a raw query like "?x=19&y=1" and returns the two ints.
