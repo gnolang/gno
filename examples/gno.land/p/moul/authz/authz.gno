@@ -6,6 +6,9 @@ import (
 	"std"
 )
 
+// TODO: add an example of CombinedAuthority; should manage potential
+// mapping/filtering.
+
 // Authority is the core interface for authorization checks.
 // It provides a single method to check if an address is authorized for an
 // action.
