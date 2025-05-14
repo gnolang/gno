@@ -3,25 +3,15 @@ package place
 import (
 	"encoding/base64"
 	"errors"
-	"net/url"
 	"std"
-	"strconv"
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 )
-
-type User struct {
-	Address std.Address
-	Rank    int
-	Timer   time.Time
-}
 
 type Color struct {
 	rgb     string
@@ -29,11 +19,6 @@ type Color struct {
 }
 
 const (
-	memberRank int = 0
-	adminRank  int = 1
-
-	timeRefill int = 2
-
 	rows uint64 = 45
 	cols uint64 = 45
 
@@ -41,8 +26,6 @@ const (
 )
 
 var (
-	Users *avl.Tree = avl.NewTree()
-
 	colors = []Color{
 		{"rgb(0,0,0)", "K"},     // black
 		{"rgb(255,0,0)", "R"},   // red
@@ -71,107 +54,6 @@ func init() {
 			tableColor[y][x].initial = "⠀"
 		}
 	}
-}
-
-// parseXY takes a raw query like "?x=19&y=1" and returns the two ints.
-func parseXY(rawQuery string) (x, y uint64, err error) {
-	vals, err := url.ParseQuery(strings.TrimPrefix(rawQuery, "?"))
-	if err != nil {
-		return 0, 0, err
-	}
-
-	xStr = vals.Get("x")
-	yStr = vals.Get("y")
-
-	x, err = strconv.ParseUint(xStr, 10, 64)
-	if err != nil {
-		return 0, 0, ErrInvalidCoordQuery
-	}
-	y, err = strconv.ParseUint(yStr, 10, 64)
-	if err != nil {
-		return 0, 0, ErrInvalidCoordQuery
-	}
-	return x, y, nil
-}
-
-func RegisterMember() {
-	_, ok := retrieveMember(std.PreviousRealm().Address())
-	if ok {
-		panic("user already registered")
-	}
-
-	newMember := User{
-		Address: std.PreviousRealm().Address(),
-		Rank:    memberRank,
-		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
-	}
-
-	Users.Set(std.PreviousRealm().Address().String(), newMember)
-}
-
-func retrieveMember(address std.Address) (User, bool) {
-	raw, ok := Users.Get(address.String())
-	if !ok {
-		return User{}, false
-	}
-
-	return raw.(User), true
-}
-
-func isAdmin(address std.Address) bool {
-	user, ok := retrieveMember(address)
-	if !ok {
-		panic("user not registered")
-	}
-
-	if user.Rank != adminRank {
-		return false
-	}
-
-	return true
-}
-
-func SetNewAdmin(address std.Address) {
-	if !isAdmin(std.PreviousRealm().Address()) {
-		panic("must be an admin")
-	}
-
-	user, ok := retrieveMember(address)
-	if !ok || user.Rank == adminRank {
-		panic("user does not exist")
-	}
-
-	if user.Rank == adminRank {
-		panic("user is already an admin")
-	}
-
-	user.Rank = adminRank
-	Users.Set(address.String(), user)
-}
-
-func DeleteYourself() {
-	address := std.PreviousRealm().Address()
-
-	_, ok := retrieveMember(address)
-	if !ok {
-		panic("user not registered")
-	}
-
-	ok = isAdmin(std.PreviousRealm().Address())
-	if ok && countAdmins() <= 1 {
-		panic("you are the last admin. you cannot delete yourself until more admin are nominated")
-	}
-
-	Users.Remove(address.String())
-}
-
-func findColor(colorName string) (bool, Color) {
-	for _, color := range colors {
-		if color.initial == colorName {
-			return true, color
-		}
-	}
-	return false, Color{}
 }
 
 func Submit(x, y uint64, colorName string) {
@@ -260,28 +142,4 @@ func Render(path string) string {
 	}
 
 	return out
-}
-
-// Helper
-
-func generateSquareSvg(color string) string {
-	canvas := svg.Canvas{Width: 30, Height: 30}
-	canvas.DrawRectangle(0, 0, 30, 30, color)
-	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
-}
-
-func countAdmins() int {
-	var adminCounter int
-
-	Users.Iterate("", "", func(_ string, val any) bool {
-		user := val.(User)
-
-		if user.Rank == adminRank {
-			adminCounter++
-		}
-
-		return false
-	})
-
-	return adminCounter
 }
