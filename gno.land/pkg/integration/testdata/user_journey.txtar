@@ -3,7 +3,12 @@
 loadpkg gno.land/r/gnoland/users/v1
 loadpkg gno.land/r/demo/grc20factory
 loadpkg gno.land/r/demo/disperse
+loadpkg gno.land/r/demo/wugnot
 loadpkg gno.land/r/demo/boards
+loadpkg gno.land/r/sys/names
+
+# Override admin address in r/sys/names with test1 address
+patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $test1_user_addr
 
 # Add 3 users with different balances
 adduser user1 1ugnot
@@ -46,6 +51,36 @@ gnokey query bank/balances/${user1_user_addr}
 stdout 'data: "10000000101ugnot"'
 gnokey query bank/balances/${user2_user_addr}
 stdout 'data: "29999000001ugnot"' # Send tx + Gas used
+
+###########j#####################
+# Exchange wugnot between users #
+#################################
+
+# user1 & user2 balances should be empty
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user1_user_addr}\")"
+stdout '0 int64'
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+stdout '0 int64'
+
+# user2 make a deposit of 1e7ugnot
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Deposit -send 10000000ugnot -gas-fee 100000ugnot -gas-wanted 14000000  -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+stdout '10000000 int64'
+
+# user2 transfers 1e7ugnot to user1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Transfer -args ${user1_user_addr} -args 10000000 -gas-fee 100000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
+
+# Verify users' new balances
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user1_user_addr}\")"
+stdout '10000000 int64'
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"${user2_user_addr}\")"
+stdout '0 int64'
+
+# user1 withdraw 1e7ugnot
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Withdraw -args 10000000 -gas-fee 100000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+stdout 'OK!'
 
 ################################
 # Exchange token between users #
@@ -133,5 +168,53 @@ gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateThread -args 1 -a
 stdout 'OK!' 
 
 # user1 replies to user3's thread anonymously
-gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register'. -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/demo/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register' -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user1
 stdout 'OK!' 
+
+######################
+# Add package / home #
+######################
+
+# Enable `sys/names` to deploy packages to user namespace
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 100000ugnot -gas-wanted 1400000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+# user2 publishes a custom home package to its namespace
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/user222/home -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
+
+# Render user2's home package
+gnokey query vm/qrender --data "gno.land/r/user222/home:"
+stdout 'My awesome home package with admin: '${user2_user_addr}
+
+# user2's transfer ownership to user1
+gnokey maketx call -pkgpath gno.land/r/user222/home -func TransferOwnership -args "$user1_user_addr" -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
+stdout 'OK!'
+
+# # Render user2's home package again, the output should reflect admin change
+# gnokey query vm/qrender --data "gno.land/r/user222/home:"
+# stdout 'My awesome home package with admin: '${user1_user_addr}
+
+
+-- home.gno --
+package home
+
+import (
+	"std"
+
+	"gno.land/p/demo/ownable"
+)
+
+var admin = ownable.NewWithOrigin()
+
+func TransferOwnership(newOwner std.Address) {
+	crossing()
+
+//	if err := admin.TransferOwnershipByPrevious(newOwner); err != nil {
+//		panic(err)
+//	}
+}
+
+func Render(path string) string {
+    return "# My awesome home package with admin: " + admin.Owner().String()
+}
