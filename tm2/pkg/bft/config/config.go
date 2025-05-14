@@ -52,7 +52,7 @@ type Config struct {
 	// Options for services
 	RPC          *rpc.RPCConfig       `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
 	P2P          *p2p.P2PConfig       `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
-	Mempool      *mem.MempoolConfig   `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
+	Mempool      *mem.Config          `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
 	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
 	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
 	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
@@ -65,7 +65,7 @@ func DefaultConfig() *Config {
 		BaseConfig:   DefaultBaseConfig(),
 		RPC:          rpc.DefaultRPCConfig(),
 		P2P:          p2p.DefaultP2PConfig(),
-		Mempool:      mem.DefaultMempoolConfig(),
+		Mempool:      mem.DefaultConfig(),
 		Consensus:    cns.DefaultConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
 		Telemetry:    telemetry.DefaultTelemetryConfig(),

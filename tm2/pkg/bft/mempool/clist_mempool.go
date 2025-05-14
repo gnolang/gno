@@ -32,7 +32,7 @@ import (
 // mempool uses a concurrent list structure for storing transactions that can
 // be efficiently accessed by multiple concurrent readers.
 type CListMempool struct {
-	config *cfg.MempoolConfig
+	config *cfg.Config
 
 	mtx          sync.Mutex
 	proxyAppConn appconn.Mempool
@@ -76,7 +76,7 @@ type CListMempoolOption func(*CListMempool)
 
 // NewCListMempool returns a new mempool with the given configuration and connection to an application.
 func NewCListMempool(
-	config *cfg.MempoolConfig,
+	config *cfg.Config,
 	proxyAppConn appconn.Mempool,
 	height int64,
 	maxTxBytes int64,
@@ -227,10 +227,10 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 
 	// Check max pending txs bytes
 	if memSize >= mem.config.Size ||
-		int64(txSize)+txsBytes > mem.config.MaxPendingTxsBytes {
+		int64(txSize)+txsBytes > mem.config.MaxTxSize {
 		return MempoolIsFullError{
 			memSize, mem.config.Size,
-			txsBytes, mem.config.MaxPendingTxsBytes,
+			txsBytes, mem.config.MaxTxSize,
 		}
 	}
 

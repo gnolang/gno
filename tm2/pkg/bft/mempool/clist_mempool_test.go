@@ -33,7 +33,7 @@ func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, cleanupFunc) {
 	return newMempoolWithAppAndConfig(cc, cfg.TestMempoolConfig())
 }
 
-func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.MempoolConfig) (*CListMempool, cleanupFunc) {
+func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.Config) (*CListMempool, cleanupFunc) {
 	appConnMem, _ := cc.NewABCIClient()
 	appConnMem.SetLogger(log.NewNoopLogger().With("module", "abci-client", "connection", "mempool"))
 	err := appConnMem.Start()
@@ -463,7 +463,7 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
 	config := cfg.TestMempoolConfig()
-	config.MaxPendingTxsBytes = 10
+	config.MaxTxSize = 10
 	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
 	defer cleanup()
 
@@ -487,7 +487,7 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	mempool.Flush()
 	assert.EqualValues(t, 0, mempool.TxsBytes())
 
-	// 5. MempoolIsFullError is returned when/if MaxPendingTxsBytes limit is reached.
+	// 5. MempoolIsFullError is returned when/if MaxTxSize limit is reached.
 	err = mempool.CheckTx([]byte{0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}, nil)
 	require.NoError(t, err)
 	err = mempool.CheckTx([]byte{0x05}, nil)
