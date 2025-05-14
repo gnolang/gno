@@ -258,11 +258,93 @@
   }
 
   /* MD components */
+  /* Columns */
   .realm-view .gno-columns {
     @apply flex flex-wrap gap-x-10 xxl:gap-x-12;
   }
   .realm-view .gno-columns > * {
     @apply grow shrink basis-52 lg:basis-44;
+  }
+
+  /* Alert */
+  .realm-view .gno-alert {
+    @apply border-l-4 border-l-gray-300 px-4 py-3 text-gray-600 rounded my-10;
+  }
+  .realm-view .gno-alert > div > *:first-child {
+    @apply mt-2;
+  }
+  .realm-view .gno-alert > div > *:last-child {
+    @apply mb-0;
+  }
+  .realm-view .gno-alert > summary {
+    @apply flex items-center gap-x-2 my-2 font-bold list-none;
+  }
+  .realm-view .gno-alert > summary svg {
+    @apply h-6 w-6;
+  }
+  .realm-view .gno-alert > summary svg:last-of-type {
+    @apply h-4 w-4 ml-auto -rotate-90;
+  }
+  .realm-view .gno-alert[open] > summary svg:last-of-type {
+    @apply rotate-0;
+  }
+
+  .realm-view .gno-alert > summary::marker,
+  .realm-view .gno-alert > summary::-webkit-details-marker {
+    @apply hidden;
+  }
+
+  .realm-view .gno-alert .gno-alert {
+    @apply mt-5;
+  }
+
+  /* Alert variants */
+  .realm-view .gno-alert-info {
+    @apply border-l-gray-600 bg-gray-600/10 text-gray-900;
+  }
+  .realm-view .gno-alert-info summary svg,
+  .realm-view .gno-alert-info a {
+    @apply text-gray-600;
+  }
+
+  .realm-view .gno-alert-note {
+    @apply border-l-blue-600 bg-blue-600/10 text-blue-900;
+  }
+  .realm-view .gno-alert-note summary svg,
+  .realm-view .gno-alert-note a {
+    @apply text-blue-600;
+  }
+
+  .realm-view .gno-alert-success {
+    @apply border-l-green-600 bg-green-600/10 text-green-900;
+  }
+  .realm-view .gno-alert-success summary svg,
+  .realm-view .gno-alert-success a {
+    @apply text-green-600;
+  }
+
+  .realm-view .gno-alert-warning {
+    @apply border-l-yellow-600 bg-yellow-600/10 text-yellow-900;
+  }
+  .realm-view .gno-alert-warning summary svg,
+  .realm-view .gno-alert-warning a {
+    @apply text-yellow-600;
+  }
+
+  .realm-view .gno-alert-caution {
+    @apply border-l-red-600 bg-red-600/10 text-red-900;
+  }
+  .realm-view .gno-alert-caution summary svg,
+  .realm-view .gno-alert-caution a {
+    @apply text-red-600;
+  }
+
+  .realm-view .gno-alert-tip {
+    @apply border-l-purple-600 bg-purple-600/10 text-purple-900;
+  }
+  .realm-view .gno-alert-tip summary svg,
+  .realm-view .gno-alert-tip a {
+    @apply text-purple-600;
   }
 }
 

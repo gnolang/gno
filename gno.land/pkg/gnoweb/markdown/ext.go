@@ -68,7 +68,10 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add column extension
 	ExtColumns.Extend(m)
 
-	// Add link extension with context
+	// Add alert extension
+	ExtAlerts.Extend(m)
+
+	// Add link extension
 	ExtLinks.Extend(m)
 
 	// If set, setup images filter
