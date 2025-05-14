@@ -95,18 +95,18 @@ func parseXY(rawQuery string) (x, y uint64, err error) {
 }
 
 func RegisterMember() {
-	_, ok := retrieveMember(std.OriginCaller())
+	_, ok := retrieveMember(std.PreviousRealm().Address())
 	if ok {
 		panic("User already registered")
 	}
 
 	newMember := User{
-		Address: std.OriginCaller(),
+		Address: std.PreviousRealm().Address(),
 		Rank:    memberRank,
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
 	}
 
-	Users.Set(std.OriginCaller().String(), newMember)
+	Users.Set(std.PreviousRealm().Address().String(), newMember)
 }
 
 func retrieveMember(address std.Address) (User, bool) {
@@ -132,7 +132,7 @@ func isAdmin(address std.Address) bool {
 }
 
 func SetNewAdmin(address std.Address) {
-	if !isAdmin(std.OriginCaller()) {
+	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("Must be an admin")
 	}
 
@@ -146,7 +146,7 @@ func SetNewAdmin(address std.Address) {
 }
 
 func DeleteUser() {
-	address := std.OriginCaller()
+	address := std.PreviousRealm().Address()
 
 	_, ok := retrieveMember(address)
 	if !ok {
@@ -166,7 +166,7 @@ func findColor(colorName string) (bool, Color) {
 }
 
 func Submit(x, y uint64, colorName string) {
-	user, ok := retrieveMember(std.OriginCaller())
+	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {
 		RegisterMember()
 	}
@@ -185,7 +185,7 @@ func Submit(x, y uint64, colorName string) {
 	tableColor[y][x].initial = color.initial
 
 	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
-	Users.Set(std.OriginCaller().String(), user)
+	Users.Set(std.PreviousRealm().Address().String(), user)
 }
 
 func GenerateSVG() string {
