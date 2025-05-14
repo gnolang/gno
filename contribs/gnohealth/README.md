@@ -12,17 +12,17 @@
 
 ### Run the default health check (timestamp):
 
-===
+````
 gnohealth timestamp
-===
+```
 
 This verifies basic system behavior and prints the current timestamp as reported by the Gno runtime environment.
 
 ## Installation
 
-===
+```
 go install github.com/gnolang/gno/contribs/gnohealth@latest
-===
+```
 
 ## Subcommands
 
