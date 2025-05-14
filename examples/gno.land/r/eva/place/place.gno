@@ -23,10 +23,6 @@ type User struct {
 	Timer   time.Time
 }
 
-type Register struct {
-	Users *avl.Tree
-}
-
 type Color struct {
 	rgb     string
 	initial string
@@ -45,6 +41,8 @@ const (
 )
 
 var (
+	Users *avl.Tree
+
 	colors = []Color{
 		{"rgb(0,0,0)", "K"},     // black
 		{"rgb(255,0,0)", "R"},   // red
@@ -61,8 +59,6 @@ var (
 	xStr string
 	yStr string
 
-	Registered Register
-
 	ErrInvalidCoordQuery = errors.New("Invalid coordinate value, expecting a uint64")
 )
 
@@ -73,7 +69,7 @@ func generateSquareSvg(color string) string {
 }
 
 func init() {
-	Registered.Users = avl.NewTree()
+	Users = avl.NewTree()
 
 	tableColor = make([][]Color, rows)
 	for y := 0; y < int(rows); y++ {
@@ -118,11 +114,11 @@ func RegisterMember() {
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
 	}
 
-	Registered.Users.Set(std.OriginCaller().String(), newMember)
+	Users.Set(std.OriginCaller().String(), newMember)
 }
 
 func retrieveMember(address std.Address) (User, bool) {
-	raw, ok := Registered.Users.Get(address.String())
+	raw, ok := Users.Get(address.String())
 	if !ok {
 		return User{}, false
 	}
@@ -154,7 +150,7 @@ func SetNewAdmin(address std.Address) {
 	}
 
 	user.Rank = adminRank
-	Registered.Users.Set(address.String(), user)
+	Users.Set(address.String(), user)
 }
 
 func DeleteUser() {
@@ -165,7 +161,7 @@ func DeleteUser() {
 		panic("User not registered")
 	}
 
-	Registered.Users.Remove(address.String())
+	Users.Remove(address.String())
 }
 
 func findColor(colorName string) (bool, Color) {
@@ -197,7 +193,7 @@ func Submit(x, y uint64, colorName string) {
 	tableColor[y][x].initial = color.initial
 
 	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
-	Registered.Users.Set(std.OriginCaller().String(), user)
+	Users.Set(std.OriginCaller().String(), user)
 }
 
 func GenerateSVG() string {
