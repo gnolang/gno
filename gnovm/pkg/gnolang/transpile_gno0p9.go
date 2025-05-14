@@ -26,13 +26,23 @@ import (
 	ParseCheckGnoMod() defined in pkg/gnolang/gnomod.go.
 */
 
+type ParseMode int
+
+const (
+	// no test files.
+	ParseModeProduction ParseMode = iota
+	// production and test files when xxx_test tests import xxx package.
+	ParseModeIntegration
+	// all files even including *_filetest.gno; for linting and testing.
+	ParseModeAll
+)
+
 // ========================================
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
 // []ast.File with `go/parser`.
 //
 // Args:
-//   - wtests: if true also parses and includes all *_test.gno
-//     and *_filetest.gno files.
+//   - pmode: see documentation for ParseMode.
 //
 // Results:
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
@@ -40,7 +50,7 @@ import (
 //   - tgofs: all _testfile.gno test files.
 //
 // XXX move to pkg/gnolang/gotypecheck.go?
-func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
+func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 	gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error) {
 	gofset = token.NewFileSet()
 
@@ -56,12 +66,22 @@ func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 		if !strings.HasSuffix(file.Name, ".gno") {
 			continue
 		}
-		// Ignore _test/_filetest.gno files unless wtests.
-		if !wtests &&
-			(false ||
-				strings.HasSuffix(file.Name, "_test.gno") ||
-				strings.HasSuffix(file.Name, "_filetest.gno")) {
-			continue
+		// Ignore _test/_filetest.gno files depending.
+		switch pmode {
+		case ParseModeProduction:
+			if strings.HasSuffix(file.Name, "_test.gno") ||
+				strings.HasSuffix(file.Name, "_filetest.gno") {
+				continue
+			}
+		case ParseModeIntegration:
+			if strings.HasSuffix(file.Name, "_filetest.gno") {
+				continue
+			}
+		case ParseModeAll:
+			// include all
+		default:
+			panic("should not happen")
+
 		}
 		// Go parse file.
 		const parseOpts = parser.ParseComments |
@@ -80,8 +100,13 @@ func GoParseMemPackage(mpkg *std.MemPackage, wtests bool) (
 		if strings.HasSuffix(file.Name, "_filetest.gno") {
 			tgofs = append(tgofs, gof)
 		} else if strings.HasSuffix(gof.Name.String(), "_test") {
-			_gofs = append(_gofs, gof)
-		} else {
+			if pmode == ParseModeIntegration {
+				// never wanted these gofs.
+				// (we do want other *_test.gno in gofs)
+			} else {
+				_gofs = append(_gofs, gof)
+			}
+		} else { // normal *_test.gno here for integration testing.
 			gofs = append(gofs, gof)
 		}
 	}

@@ -40,7 +40,11 @@ func Store(
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
-	return StoreWithOptions(rootDir, output, StoreOptions{})
+	return StoreWithOptions(
+		rootDir,
+		output,
+		StoreOptions{},
+	)
 }
 
 // ========================================
@@ -74,7 +78,8 @@ func StoreWithOptions(
 				// the preprocessor requries imports also preprocessed.
 				// This is because the linter uses pkg/test/imports.go.
 				const wtests = false // Tests don't matter for imports.
-				gofset, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(mpkg, wtests)
+				gofset, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(
+					mpkg, gno.ParseModeAll)
 				if errs != nil {
 					panic(fmt.Errorf("test store parsing: %w", errs))
 				}
@@ -85,7 +90,6 @@ func StoreWithOptions(
 					panic(fmt.Errorf("test store preparing AST: %w", errs))
 				}
 			}
-
 			m.Store.AddMemPackage(mpkg)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,

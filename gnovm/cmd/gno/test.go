@@ -229,32 +229,34 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Determine gnoPkgPath by reading gno.mod from disk.
+		// Determine pkgPath by reading gno.mod from disk.
 		// TODO: Have ReadMemPackage handle it.
 		modfile, _ := gnomod.ParseDir(pkg.Dir)
-		gnoPkgPath, ok := determinePkgPath(modfile, pkg.Dir, cmd.rootDir)
+		pkgPath, ok := determinePkgPath(modfile, pkg.Dir, cmd.rootDir)
 		if !ok {
 			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
-		// Read MemPackage and lint/typecheck/format.
+		// Read MemPackage.
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
+
+		// Lint/typecheck/format.
 		// (gno.mod will be read again).
 		var didPanic, didError bool
-		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 		startedAt := time.Now()
-		didPanic = catchPanic(pkg.Dir, gnoPkgPath, io.Err(), func() {
+		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			//XXX why would we skip type-checking for drafts?
 			//if modfile == nil || !modfile.Draft {
-			_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
+			_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore)
 			if errs != nil {
 				didError = true
 				io.ErrPrintln(errs)
 				return
 			}
 			//} else if cmd.verbose {
-			//	io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
+			//	io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			//}
-			errs = test.Test(memPkg, pkg.Dir, opts)
+			errs = test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {
 				didError = true
 				io.ErrPrintln(errs)
@@ -286,8 +288,8 @@ func determinePkgPath(modfile *gnomod.File, dir, rootDir string) (string, bool) 
 	if modfile != nil {
 		return modfile.Module.Mod.Path, true
 	}
-	if path := pkgPathFromRootDir(dir, rootDir); path != "" {
-		return path, true
+	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
+		return pkgPath, true
 	}
 	// unable to read pkgPath from gno.mod, use a deterministic path.
 	return "gno.land/r/test", false // XXX: gno.land hardcoded for convenience.
