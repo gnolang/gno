@@ -7,3 +7,6 @@ func main() {
 
 // Error:
 // main/files/assign31.gno:4:2: use of untyped nil in assignment
+
+// TypeCheckError:
+// main/files/assign31.gno:4:7: use of untyped nil in assignment

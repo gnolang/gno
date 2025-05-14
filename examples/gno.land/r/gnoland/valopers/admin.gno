@@ -13,7 +13,7 @@ func Auth() *authz.Authorizer {
 }
 
 func updateInstructions(newInstructions string) {
-	err := auth.Do("update-instructions", func() error {
+	err := auth.DoByCurrent("update-instructions", func() error {
 		instructions = newInstructions
 		return nil
 	})
@@ -24,7 +24,7 @@ func updateInstructions(newInstructions string) {
 }
 
 func updateMinFee(newMinFee int64) {
-	err := auth.Do("update-min-fee", func() error {
+	err := auth.DoByCurrent("update-min-fee", func() error {
 		minFee = std.NewCoin("ugnot", newMinFee)
 		return nil
 	})
