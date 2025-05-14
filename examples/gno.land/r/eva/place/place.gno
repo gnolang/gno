@@ -73,12 +73,6 @@ func init() {
 	}
 }
 
-func generateSquareSvg(color string) string {
-	canvas := svg.Canvas{Width: 30, Height: 30}
-	canvas.DrawRectangle(0, 0, 30, 30, color)
-	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
-}
-
 // parseXY takes a raw query like "?x=19&y=1" and returns the two ints.
 func parseXY(rawQuery string) (x, y uint64, err error) {
 	vals, err := url.ParseQuery(strings.TrimPrefix(rawQuery, "?"))
@@ -257,4 +251,12 @@ func Render(path string) string {
 	}
 
 	return out
+}
+
+// Helper
+
+func generateSquareSvg(color string) string {
+	canvas := svg.Canvas{Width: 30, Height: 30}
+	canvas.DrawRectangle(0, 0, 30, 30, color)
+	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
 }
