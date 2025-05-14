@@ -47,8 +47,8 @@ func NewWithAdmin(name, symbol string, decimals int, initialMint, faucet int64, 
 		faucet: faucet,
 	}
 
-  // Workaround to keep ownership of the token in the current Realm
-  // before passing a pointer to the grc20reg.Register function.
+	// Workaround to keep ownership of the token in the current Realm
+	// before passing a pointer to the grc20reg.Register function.
 	cross(func() {
 		crossing()
 		instances.Set(symbol, &inst)
