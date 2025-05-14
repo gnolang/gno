@@ -99,7 +99,7 @@
                   </svg>Warning
                 </h3>
                 <div class="flex md:flex-row flex-col gap-4 md:justify-between md:items-center">   
-                  <p class="text-yellow-900 text-100">A -send flag with <strong>{{ . }}</strong> was detected in the URL. For your safety, you must confirm to add it.</p>
+                  <p class="text-yellow-900 text-100">This transaction link is requesting <strong>{{ . }}</strong> from your balance. For your safety, you must manually confirm the addition of coins to the transaction.</p>
                   <div class="bg-yellow-600 text-yellow-900 text-center text-50 min-w-32 hover:bg-yellow-400 rounded-sm font-semibold">
                     <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-send="{{ . }}" data-role="help-send-input" class="peer hidden" />
                     <label for="func-{{ $funcName }}-send-flag" class="peer-checked:hidden block px-4 py-2 cursor-pointer">
