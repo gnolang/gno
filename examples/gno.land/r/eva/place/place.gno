@@ -149,12 +149,17 @@ func SetNewAdmin(address std.Address) {
 	Users.Set(address.String(), user)
 }
 
-func DeleteUser() {
+func DeleteYourself() {
 	address := std.PreviousRealm().Address()
 
 	_, ok := retrieveMember(address)
 	if !ok {
 		panic("User not registered")
+	}
+
+	ok = isAdmin(std.PreviousRealm().Address())
+	if ok && countAdmins() <= 1 {
+		panic("you are the last admin. you cannot delete yourself until more admin are nominated")
 	}
 
 	Users.Remove(address.String())
@@ -263,4 +268,20 @@ func generateSquareSvg(color string) string {
 	canvas := svg.Canvas{Width: 30, Height: 30}
 	canvas.DrawRectangle(0, 0, 30, 30, color)
 	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
+}
+
+func countAdmins() int {
+	var adminCounter int
+
+	Users.Iterate("", "", func(_ string, val any) bool {
+		user := val.(User)
+
+		if user.Rank == adminRank {
+			adminCounter++
+		}
+
+		return false
+	})
+
+	return adminCounter
 }
