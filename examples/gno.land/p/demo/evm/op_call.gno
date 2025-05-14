@@ -95,7 +95,7 @@ func opCall(s *State) error {
 
 	s.gasConsumed += uint(memoryCost) + tmpState.gasConsumed
 
-	s.nextCallState = tmpState
+	s.lastCallState = tmpState
 	s.tmp.storage = tmpState.tmp.storage
 	s.tmp.logs = tmpState.tmp.logs
 	s.tmp.accounts = tmpState.tmp.accounts
@@ -116,6 +116,10 @@ func extendMemory(s *State, retOffset *uint256.Uint, retSize *uint256.Uint, memo
 }
 
 func opReturnDataSize(s *State) error {
-	s.stack.Push(uint256.NewUint(uint64(len(s.result))))
+	if s.lastCallState != nil {
+		s.stack.Push(uint256.NewUint(uint64(len(s.lastCallState.result))))
+	} else {
+		s.stack.Push(uint256.Zero())
+	}
 	return nil
 }

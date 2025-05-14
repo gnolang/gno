@@ -33,7 +33,7 @@ type State struct {
 	tmp              tmpEnv
 	gasConsumed      uint // The real amount of gas consumed by the program
 	gasLimit         int  // The amount of gas specified by user
-	nextCallState    *State
+	lastCallState    *State
 	env              *Env
 }
 
