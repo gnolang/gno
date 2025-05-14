@@ -37,6 +37,26 @@ market-create-gns-wugnot:
 		gnoswap_admin
 	@echo
 
+# Test market creation with GNS and WUGNOT
+market-create-bar-wugnot:
+	$(info ************ Test creating market with BAR (supply/borrow) and WUGNOT (collateral) ************)
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func CreateMarket \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args false \
+		-args "linear" \
+		-args 75 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
 # Test getting pool price for GNS-WUGNOT market
 market-get-price-gns-wugnot:
 	$(info ************ Test getting pool price for GNS-WUGNOT market ************)
