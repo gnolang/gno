@@ -165,16 +165,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			// We don't expect this
 			continue
 		}
-		typeExpr := typeSpec.Type
-
-		// De-parenthesize
-		for {
-			if t, ok := typeExpr.(*ast.ParenExpr); ok {
-				typeExpr = t.X
-			} else {
-				break
-			}
-		}
+		typeExpr := deparenthesize(typeSpec.Type)
 
 		kind := ""
 		var methods []*JSONFunc
@@ -434,6 +425,19 @@ func isCrossing(fun *doc.Func) bool {
 		return false
 	}
 	return name.Name == "crossing"
+}
+
+// Return the expression inside the parentheses
+func deparenthesize(expr ast.Expr) ast.Expr {
+	x := expr
+	for {
+		if t, ok := x.(*ast.ParenExpr); ok {
+			x = t.X
+		} else {
+			break
+		}
+	}
+	return x
 }
 
 func (jsonDoc *JSONDocumentation) JSON() string {
