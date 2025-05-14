@@ -278,7 +278,7 @@ func (_ Z) manip2(xs ...X) {
 // 0
 // 0
 // false
-// ----- x direct 
+// ----- x direct
 // 888
 // 0
 // false
