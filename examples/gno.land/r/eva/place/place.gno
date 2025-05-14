@@ -133,12 +133,16 @@ func isAdmin(address std.Address) bool {
 
 func SetNewAdmin(address std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
-		panic("Must be an admin")
+		panic("must be an admin")
 	}
 
 	user, ok := retrieveMember(address)
 	if !ok || user.Rank == adminRank {
-		panic("User does not meet the requirement")
+		panic("user does not exist")
+	}
+
+	if user.Rank == adminRank {
+		panic("user is already an admin")
 	}
 
 	user.Rank = adminRank
