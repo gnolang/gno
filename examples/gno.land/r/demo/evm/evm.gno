@@ -22,9 +22,9 @@ const br = "\n\n"
 
 var (
 	env = &evm.Env{
-		Logs:        []byte{},
+		Logs:        []evm.LogEntry{},
 		Storage:     map[uint256.Uint]*uint256.Uint{},
-		Accounts:    []*evm.Account{},
+		Accounts:    evm.Accounts{},
 		Transaction: []evm.Transaction{},
 	}
 
@@ -48,21 +48,24 @@ func assertGetConnectedUserFromRealm() *evm.Account {
 
 // public functions
 
-func Publish(code string) {
+func Publish(codeStr string) {
 	crossing()
 
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
 
 	// check for bytecode is ok
-	x, err := hex.DecodeString(code)
+	code, err := hex.DecodeString(codeStr)
 	if err != nil {
 		panic("invalid contract: " + err.Error())
 	}
 
 	// push the contract
-	addr := env.Accounts.
-		env.Transaction.PushCreation(0, caller, uint(addr))
+	addr, err := env.Accounts.PushSmartContract(env, code)
+	if err != nil {
+		panic("invalid contract: " + err.Error())
+	}
+	env.Transaction.PushCreation(0, caller, *addr)
 }
 
 func Faucet(n int) {
@@ -70,39 +73,18 @@ func Faucet(n int) {
 	assertGetConnectedUserFromRealm().Gas += uint(n)
 }
 
-func Register(addrStr string) {
+func Register() {
 	crossing()
-
-	// check for desired address length
-	if !strings.HasPrefix(strings.ToLower(addrStr), "0x") {
-		addrStr = "0x" + addrStr
-	}
-
-	// check for desired address number
-	evmAddr, err := uint256.FromHex(addrStr)
-	if err != nil {
-		panic("invalid address: address cant be converted into uint256, " + err.Error())
-	}
-	evmAddr.And(evmAddr, uint256.MustFromHex("0xffffffffffffffffffffffffffffffffffffffff")) // and to have 20 byte addr
-
-	// check if user exists already
-	addrStr = evmAddr.Hex() // to make it the same for everyone
-	_, ok := addressToAccountHelper[addrStr]
-	if ok {
-		panic("invalid address: this address is already in user")
-	}
 
 	// create the user
 	gnoAddr := std.PreviousRealm().Address()
-	caller := &evm.Account{
-		EVMAddress: evmAddr,
-		GnoAddress: gnoAddr,
-		Balance:    uint256.Zero(),
-		Gas:        0,
+	addr, err := env.Accounts.PushCaller(env, gnoAddr)
+
+	if err != nil {
+		panic("invalid contract: " + err.Error())
 	}
-	env.Accounts = append(env.Accounts, caller)
-	gnoUserToAccountHelper[gnoAddr] = caller
-	addressToAccountHelper[addrStr] = caller
+	gnoUserToAccountHelper[gnoAddr] = env.Accounts[*addr]
+	env.Transaction.PushCreation(0, env.Accounts[*addr], *addr)
 }
 
 func Call(path string, gasLimit uint) {
@@ -120,8 +102,8 @@ func Call(path string, gasLimit uint) {
 	}
 
 	// get contract index
-	contractIndex := uint64(0)
-	if contractIndex, err = strconv.ParseUint(callexpr[1], 16, 64); err != nil || contractIndex >= uint64(len(env.Accounts)) {
+	contractIndex := uint256.Zero()
+	if contractIndex, err = uint256.FromHex(callexpr[0]); err != nil || env.Accounts[*contractIndex] == nil {
 		panic("call: bad address (bad number, or invalid address)")
 	}
 
@@ -137,11 +119,11 @@ func Call(path string, gasLimit uint) {
 
 	// make the call
 	funcName := callexpr[2]
-	res, err := caller.RawContractCall(env, gasLimit, funcName, hex.EncodeToString(env.Accounts[contractIndex].Code), list...)
+	res, err := caller.RawContractCall(env, gasLimit, funcName, hex.EncodeToString(env.Accounts[*contractIndex].Code), list...)
 	if err != nil {
 		panic("call runtime: " + err.Error())
 	}
-	env.Transaction.PushExecution(0, caller, res, uint(contractIndex)) // TODO: get the execution price
+	env.Transaction.PushExecution(0, caller, res, *contractIndex) // TODO: get the execution price
 }
 
 func Render(path string) string {
@@ -150,6 +132,7 @@ func Render(path string) string {
 
 	// create the login part
 	loginPart := md.H2("Login") + br
+	println(len(env.Accounts))
 	loginPart += "There are " + strconv.Itoa(len(env.Accounts)) + " callers." + br
 	registerLnk := txlink.Call("Register", "addrStr", "0")
 	loginPart += "Click " + md.Link("here", registerLnk) + " to register yourself as a caller."

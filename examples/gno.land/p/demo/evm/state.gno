@@ -1,8 +1,6 @@
 package evm
 
 import (
-	"fmt"
-
 	"gno.land/p/demo/uint256"
 )
 
@@ -61,7 +59,6 @@ func newStateFromEnv(env *Env) *State {
 	storageCopy := make(map[uint256.Uint]*uint256.Uint)
 	if len(env.Storage) > 0 {
 		for k, v := range env.Storage {
-			fmt.Println("hey")
 			storageCopy[k] = v
 		}
 	}

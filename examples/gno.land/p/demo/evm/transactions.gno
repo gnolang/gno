@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"strconv"
+
+	"gno.land/p/demo/uint256"
 )
 
 type TransactionType uint
@@ -25,7 +27,7 @@ type Transaction interface {
 	String() string // string representing the transaction
 }
 
-func (s *Transactions) PushCreation(gasCost uint, caller *Account, newContractAddress uint) {
+func (s *Transactions) PushCreation(gasCost uint, caller *Account, newContractAddress uint256.Uint) {
 	createContract := CreateContractTransaction{
 		gasPrice:        gasCost,
 		caller:          caller,
@@ -34,7 +36,7 @@ func (s *Transactions) PushCreation(gasCost uint, caller *Account, newContractAd
 	*s = append(*s, &createContract)
 }
 
-func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byte, address uint) {
+func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byte, address uint256.Uint) {
 	createContract := ExecuteContractTransaction{
 		gasPrice:        gasCost,
 		caller:          caller,
@@ -47,7 +49,7 @@ func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byt
 type CreateContractTransaction struct {
 	gasPrice        uint
 	caller          *Account
-	contractAddress uint
+	contractAddress uint256.Uint
 }
 
 func (t *CreateContractTransaction) getType() TransactionType {
@@ -78,7 +80,7 @@ type ExecuteContractTransaction struct {
 	gasPrice        uint
 	caller          *Account
 	result          []byte
-	contractAddress uint
+	contractAddress uint256.Uint
 }
 
 func (t *ExecuteContractTransaction) getType() TransactionType {
@@ -112,7 +114,7 @@ func trimLeadingZeros(data []byte) []byte {
 }
 
 func (t *ExecuteContractTransaction) String() string {
-	x := t.caller.EvmAddress.Hex() + " executed " + strconv.FormatUint(uint64(t.contractAddress), 10)
+	x := t.caller.EvmAddress.Hex() + " executed " + t.contractAddress.String()
 	x += " costing " + strconv.FormatUint(gasPrice, 10)
 	x += ", resulting with " + hex.EncodeToString(trimLeadingZeros(t.result))
 	x += " (decimal: " + strconv.FormatUint(binary.BigEndian.Uint64(t.result[len(t.result)-8:len(t.result)]), 10) + ")"
