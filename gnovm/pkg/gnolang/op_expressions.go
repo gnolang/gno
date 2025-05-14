@@ -745,7 +745,7 @@ func (m *Machine) doOpConvert() {
 // Helper function to format map values in a readable way
 func formatMapValue(mv *MapValue) string {
 	if mv == nil {
-		return "nil"
+		return nilStr
 	}
 
 	var pairs []string
