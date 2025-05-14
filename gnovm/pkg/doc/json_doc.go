@@ -433,10 +433,7 @@ func isCrossing(fun *doc.Func) bool {
 	if !ok {
 		return false
 	}
-	if name.Name == "crossing" {
-		return true
-	}
-	return false
+	return name.Name == "crossing"
 }
 
 func (jsonDoc *JSONDocumentation) JSON() string {
