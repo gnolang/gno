@@ -32,12 +32,6 @@ type Mempool interface {
 	// transactions (~ all available transactions).
 	ReapMaxTxs(maxVal int) types.Txs
 
-	// Lock locks the mempool. The consensus must be able to hold lock to safely update.
-	Lock()
-
-	// Unlock unlocks the mempool.
-	Unlock()
-
 	// Update informs the mempool that the given txs were committed and can be discarded.
 	// NOTE: this should be called *after* block is committed by consensus.
 	// NOTE: unsafe; Lock/Unlock must be managed by caller

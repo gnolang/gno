@@ -122,14 +122,6 @@ func WithPreCheck(f PreCheckFunc) CListMempoolOption {
 	return func(mem *CListMempool) { mem.preCheck = f }
 }
 
-func (mem *CListMempool) Lock() {
-	mem.mtx.Lock()
-}
-
-func (mem *CListMempool) Unlock() {
-	mem.mtx.Unlock()
-}
-
 func (mem *CListMempool) Size() int {
 	return mem.txs.Len()
 }
