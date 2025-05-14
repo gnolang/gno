@@ -27,7 +27,7 @@ func (m Market) ToRpc() RpcMarket {
 }
 
 func (r RpcMarket) JSON() *json.Node {
-    return json.ObjectNode("", map[string]*json.Node{
+    return json.ObjectNode("market", map[string]*json.Node{
         "totalSupplyAssets": json.StringNode("totalSupplyAssets", r.TotalSupplyAssets),
         "totalSupplyShares": json.StringNode("totalSupplyShares", r.TotalSupplyShares),
         "totalBorrowAssets": json.StringNode("totalBorrowAssets", r.TotalBorrowAssets),
@@ -54,7 +54,7 @@ func (p Position) ToRpc() RpcPosition {
 }
 
 func (r RpcPosition) JSON() *json.Node {
-    return json.ObjectNode("", map[string]*json.Node{
+    return json.ObjectNode("position", map[string]*json.Node{
         "supplyShares": json.StringNode("supplyShares", r.SupplyShares),
         "borrowShares": json.StringNode("borrowShares", r.BorrowShares),
         "collateral":   json.StringNode("collateral", r.Collateral),
@@ -80,7 +80,7 @@ func (mp MarketParams) ToRpc() RpcMarketParams {
 }
 
 func (r RpcMarketParams) JSON() *json.Node {
-    return json.ObjectNode("", map[string]*json.Node{
+    return json.ObjectNode("market_params", map[string]*json.Node{
         "poolPath":     json.StringNode("poolPath", r.PoolPath),
         "irm":          json.StringNode("irm", r.IRM),
         "lltv":         json.StringNode("lltv", r.LLTV),
@@ -105,7 +105,7 @@ func IRMToRpc(irm IRM) RpcIRM {
 }
 
 func (r RpcIRM) JSON() *json.Node {
-    return json.ObjectNode("", map[string]*json.Node{
+    return json.ObjectNode("irm", map[string]*json.Node{
         "name":       json.StringNode("name", r.Name),
         "type":       json.StringNode("type", r.Type),
         "parameters": json.StringNode("parameters", r.Parameters),

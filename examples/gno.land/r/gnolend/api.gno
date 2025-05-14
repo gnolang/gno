@@ -6,68 +6,48 @@ import (
 
 func ApiGetMarket(marketId string) string {
     market, _ := GetMarket(marketId)
-    builder := json.Builder()
-    builder.WriteObject("market", func(b *json.NodeBuilder) {
-        rpcMarket := market.ToRpc()
-        b.WriteString("totalSupplyAssets", rpcMarket.TotalSupplyAssets)
-        b.WriteString("totalSupplyShares", rpcMarket.TotalSupplyShares)
-        b.WriteString("totalBorrowAssets", rpcMarket.TotalBorrowAssets)
-        b.WriteString("totalBorrowShares", rpcMarket.TotalBorrowShares)
-        b.WriteNumber("lastUpdate", float64(rpcMarket.LastUpdate))
-        b.WriteString("fee", rpcMarket.Fee)
+    node := json.ObjectNode("", map[string]*json.Node{
+        "market": market.ToRpc().JSON(),
     })
     
-    return marshal(builder.Node())
+    return marshal(node)
 }
 
 func ApiGetMarketParams(marketId string) string {
     _, params := GetMarket(marketId)
-	builder := json.Builder()
-	builder.WriteObject("params", func(b *json.NodeBuilder) {
-		rpcParams := params.ToRpc()
-		b.WriteString("poolPath", rpcParams.PoolPath)
-		b.WriteString("irm", rpcParams.IRM)
-		b.WriteString("lltv", rpcParams.LLTV)
-		b.WriteBool("isToken0Loan", rpcParams.IsToken0Loan)
-	})
-	
-	return marshal(builder.Node())
+    node := json.ObjectNode("", map[string]*json.Node{
+        "params": params.ToRpc().JSON(),
+    })
+    
+    return marshal(node)
 }
 
 func ApiGetPosition(marketId, userAddr string) string {
     position := GetPosition(marketId, userAddr)
-    
-    builder := json.Builder()
-    builder.WriteObject("position", func(b *json.NodeBuilder) {
-        rpcPos := position.ToRpc()
-        b.WriteString("supplyShares", rpcPos.SupplyShares)
-        b.WriteString("borrowShares", rpcPos.BorrowShares)
-        b.WriteString("collateral", rpcPos.Collateral)
+    node := json.ObjectNode("", map[string]*json.Node{
+        "position": position.ToRpc().JSON(),
     })
     
-    return marshal(builder.Node())
+    return marshal(node)
 }
 
 func ApiListMarkets() string {
     marketList := GetMarketList()
+    markets := json.ArrayNode("", []*json.Node{})
     
-    builder := json.Builder()
-    builder.WriteArray("markets", func(ab *json.ArrayBuilder) {
-        for _, marketId := range marketList {
-            market, _ := GetMarket(marketId)
-            ab.WriteObject(func(b *json.NodeBuilder) {
-                rpcMarket := market.ToRpc()
-                b.WriteString("totalSupplyAssets", rpcMarket.TotalSupplyAssets)
-                b.WriteString("totalSupplyShares", rpcMarket.TotalSupplyShares)
-                b.WriteString("totalBorrowAssets", rpcMarket.TotalBorrowAssets)
-                b.WriteString("totalBorrowShares", rpcMarket.TotalBorrowShares)
-                b.WriteNumber("lastUpdate", float64(rpcMarket.LastUpdate))
-                b.WriteString("fee", rpcMarket.Fee)
-            })
-        }
+    for _, marketId := range marketList {
+        market, _ := GetMarket(marketId)
+        marketWrapper := json.ObjectNode("", map[string]*json.Node{
+            marketId : market.ToRpc().JSON(),
+        })
+        markets.AppendArray(marketWrapper)
+    }
+    
+    node := json.ObjectNode("", map[string]*json.Node{
+        "markets": markets,
     })
     
-    return marshal(builder.Node())
+    return marshal(node)
 }
 
 // Helper function to marshal JSON
