@@ -17,9 +17,7 @@ import (
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
@@ -122,31 +120,6 @@ func (mem *CListMempool) SetLogger(l *slog.Logger) {
 // false. This is ran before CheckTx.
 func WithPreCheck(f PreCheckFunc) CListMempoolOption {
 	return func(mem *CListMempool) { mem.preCheck = f }
-}
-
-// *panics* if can't create directory or open file.
-// *not thread safe*
-func (mem *CListMempool) InitWAL() {
-	walDir := mem.config.WalDir()
-	err := osm.EnsureDir(walDir, 0o700)
-	if err != nil {
-		panic(errors.Wrap(err, "Error ensuring WAL dir"))
-	}
-	af, err := auto.OpenAutoFile(walDir + "/wal")
-	if err != nil {
-		panic(errors.Wrap(err, "Error opening WAL file"))
-	}
-	mem.wal = af
-}
-
-func (mem *CListMempool) CloseWAL() {
-	mem.mtx.Lock()
-	defer mem.mtx.Unlock()
-
-	if err := mem.wal.Close(); err != nil {
-		mem.logger.Error("Error closing WAL", "err", err)
-	}
-	mem.wal = nil
 }
 
 func (mem *CListMempool) Lock() {
