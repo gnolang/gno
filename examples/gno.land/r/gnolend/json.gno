@@ -4,7 +4,8 @@ import (
     "gno.land/p/demo/json"
 )
 
-// RpcMarket matches the pool example's Rpc-prefixed pattern
+// RpcMarket
+
 type RpcMarket struct {
     TotalSupplyAssets string `json:"totalSupplyAssets"`
     TotalSupplyShares string `json:"totalSupplyShares"`
@@ -36,7 +37,8 @@ func (r RpcMarket) JSON() *json.Node {
     })
 }
 
-// RpcPosition with proper JSON tags
+// RpcPosition
+
 type RpcPosition struct {
     SupplyShares string `json:"supplyShares"`
     BorrowShares string `json:"borrowShares"`
@@ -59,7 +61,8 @@ func (r RpcPosition) JSON() *json.Node {
     })
 }
 
-// RpcMarketParams with JSON tags
+// RpcMarketParams 
+
 type RpcMarketParams struct {
     PoolPath     string `json:"poolPath"`
     IRM          string `json:"irm"`
@@ -85,7 +88,8 @@ func (r RpcMarketParams) JSON() *json.Node {
     })
 }
 
-// RpcIRM implementation
+// RpcIRM 
+
 type RpcIRM struct {
     Name       string `json:"name"`
     Type       string `json:"type"`
@@ -96,7 +100,7 @@ func IRMToRpc(irm IRM) RpcIRM {
     return RpcIRM{
         Name:       irm.Name(),
         Type:       "IRM",
-        Parameters: "{}", // Implement parameter serialization if needed
+        Parameters: "{}",
     }
 }
 

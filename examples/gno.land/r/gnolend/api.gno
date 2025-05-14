@@ -4,7 +4,6 @@ import (
     "gno.land/p/demo/json"
 )
 
-// Market API Response
 func ApiGetMarket(marketId string) string {
     market, _ := GetMarket(marketId)
     builder := json.Builder()
@@ -35,7 +34,6 @@ func ApiGetMarketParams(marketId string) string {
 	return marshal(builder.Node())
 }
 
-// Position API Response
 func ApiGetPosition(marketId, userAddr string) string {
     position := GetPosition(marketId, userAddr)
     
@@ -50,7 +48,6 @@ func ApiGetPosition(marketId, userAddr string) string {
     return marshal(builder.Node())
 }
 
-// List Markets
 func ApiListMarkets() string {
     marketList := GetMarketList()
     

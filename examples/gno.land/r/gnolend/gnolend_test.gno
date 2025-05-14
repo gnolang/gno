@@ -361,71 +361,59 @@ func TestInterestAccrual(t *testing.T) {
 func TestMarketAPI(t *testing.T) {
 	setupTest(t)
 	
-	// Create test market
 	loanToken := testutils.TestAddress("loanToken")
 	collateralToken := testutils.TestAddress("collateralToken")
 	oracle := "r/gnoswap/v1/pool/" + loanToken.String() + "/" + collateralToken.String() + "/0"
 	user := testutils.TestAddress("user")
 	
-	// Setup admin
 	admin := testutils.TestAddress("admin")
 	testing.SetOriginCaller(admin)
 	
-	// Register and enable IRM/LLTV
 	irm.RegisterIRM(irm.NewLinearIRM("TestIRM", uint256.NewUint(100000000000000000)))
 	EnableIRM("r/gnolend/irm/linear")
 	EnableLLTV(uint256.NewUint(75))
 	
-	// Create market
 	CreateMarket(loanToken.String(), collateralToken.String(), oracle, "r/gnolend/irm/linear", 75)
 	
-	// Fund user and supply assets
 	testing.SetOriginCaller(user)
 	testing.IssueCoins(user, std.Coins{{"ugnot", 1000000000}})
-	Supply(loanToken.String()+"/"+collateralToken.String(), 500000000, 0) // Supply 500 GNOT
+	Supply(loanToken.String()+"/"+collateralToken.String(), 500000000, 0)
 	
-	// Test GetMarketJSON
 	t.Run("GetMarketJSON", func(t *testing.T) {
 		marketID := loanToken.String() + "/" + collateralToken.String()
 		jsonResponse := GetMarketJSON(marketID)
 		
-		// Parse JSON
 		var result map[string]interface{}
 		err := json.Unmarshal([]byte(jsonResponse), &result)
 		urequire.NoError(t, err)
 		
-		// Verify market data
 		market := result["market"].(map[string]interface{})
 		urequire.Equal(t, "500000000", market["totalSupplyAssets"])
-		urequire.Equal(t, "500000000", market["totalSupplyShares"]) // 1:1 initial ratio
+		urequire.Equal(t, "500000000", market["totalSupplyShares"])
 		urequire.Equal(t, "0", market["totalBorrowAssets"])
 		urequire.Equal(t, "0", market["totalBorrowShares"])
 		
-		// Verify params
 		params := result["params"].(map[string]interface{})
 		urequire.Equal(t, oracle, params["poolPath"])
 		urequire.Equal(t, "r/gnolend/irm/linear", params["irm"])
-		urequire.Equal(t, "750000000000000000000000", params["lltv"]) // 75% in WAD
+		urequire.Equal(t, "750000000000000000000000", params["lltv"])
 	})
 }
 
 func TestPositionAPI(t *testing.T) {
 	setupTest(t)
 	
-	// Create test environment
 	loanToken := testutils.TestAddress("loanToken")
 	collateralToken := testutils.TestAddress("collateralToken")
 	oracle := "r/gnoswap/v1/pool/" + loanToken.String() + "/" + collateralToken.String() + "/0"
 	user := testutils.TestAddress("user")
 	
-	// Setup market
 	testing.SetOriginCaller(testutils.TestAddress("admin"))
 	irm.RegisterIRM(irm.NewLinearIRM("TestIRM", uint256.NewUint(100000000000000000)))
 	EnableIRM("r/gnolend/irm/linear")
 	EnableLLTV(uint256.NewUint(75))
 	CreateMarket(loanToken.String(), collateralToken.String(), oracle, "r/gnolend/irm/linear", 75)
 	
-	// Fund user and create position
 	testing.SetOriginCaller(user)
 	testing.IssueCoins(user, std.Coins{{"ugnot", 1000000000}})
 	Supply(loanToken.String()+"/"+collateralToken.String(), 500000000, 0)
@@ -451,7 +439,6 @@ func TestPositionAPI(t *testing.T) {
 func TestListMarketsAPI(t *testing.T) {
 	setupTest(t)
 	
-	// Create 3 test markets
 	testing.SetOriginCaller(testutils.TestAddress("admin"))
 	irm.RegisterIRM(irm.NewLinearIRM("TestIRM", uint256.NewUint(100000000000000000)))
 	EnableIRM("r/gnolend/irm/linear")
@@ -480,7 +467,6 @@ func TestListMarketsAPI(t *testing.T) {
 		
 		urequire.Equal(t, 3, len(markets))
 		
-		// Verify first market structure
 		firstMarket := markets[0].(map[string]interface{})
 		urequire.Contains(t, firstMarket, "totalSupplyAssets")
 		urequire.Contains(t, firstMarket, "totalBorrowAssets")
@@ -498,7 +484,6 @@ func TestAPIErrorHandling(t *testing.T) {
 	})
 	
 	t.Run("InvalidPositionRequest", func(t *testing.T) {
-		// Should return empty position instead of panicking
 		positionJSON := GetPositionJSON("invalid-market", "invalid-user")
 		var position map[string]interface{}
 		err := json.Unmarshal([]byte(positionJSON), &position)
@@ -513,7 +498,6 @@ func TestAPIErrorHandling(t *testing.T) {
 func TestHTTPHandlers(t *testing.T) {
 	setupTest(t)
 	
-	// Create test market
 	loanToken := testutils.TestAddress("loanToken")
 	collateralToken := testutils.TestAddress("collateralToken")
 	oracle := "r/gnoswap/v1/pool/" + loanToken.String() + "/" + collateralToken.String() + "/0"
