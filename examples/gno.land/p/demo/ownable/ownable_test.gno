@@ -92,53 +92,51 @@ func TestTransferOwnershipByCurrent(t *testing.T) {
 	crossThrough(aliceCodeRealm, func() {
 		o := NewWithCurrent()
 
+		uassert.NoError(t, o.TransferOwnershipByCurrent(bob))
 	})
 }
 
-//func TestTransferOwnershipByCurrentUnauthorized(t *testing.T) {
-//	var o *Ownable
-//
-//	testing.SetRealm(aliceUserRealm)
-//	o = NewWithCurrent()
-//
-//	// Try unauthorized transfer from non-alice realm.
-//	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
-//		uassert.ErrorContains(t, o.TransferOwnershipByCurrent(alice), ErrUnauthorized.Error())
-//		uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
-//	})
-//
-//	// Set realm to an unauthorized user bob.
-//	testing.SetRealm(std.NewUserRealm(bob))
-//	// current is gno.land/r/test/test so of course errors.
-//	uassert.ErrorContains(t, o.TransferOwnership(bob), ErrUnauthorized.Error())
-//	uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
-//	// Reset realm to alice.
-//	testing.SetRealm(aliceUserRealm)
-//	uassert.NoError(t, o.TransferOwnership(alice))
-//	uassert.NoError(t, o.DropOwnershipByCurrent())
-//}
+func TestTransferOwnershipByCurrentUnauthorized(t *testing.T) {
+	var o *Ownable
 
-//	func TestOwnedByCurrent(t *testing.T) {
-//		testing.SetRealm(aliceUserRealm)
-//		o := New()
-//		uassert.True(t, o.OwnedByCurrent())
-//	}
-//
-//	func TestOwnedByCurrentUnauthorized(t *testing.T) {
-//		testing.SetOriginCaller(alice)
-//		testing.SetRealm(aliceUserRealm)
-//
-//		var o *Ownable
-//		crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
-//			o = NewWithOrigin()
-//		})
-//
-//		uassert.True(t, o.OwnedByCurrent())
-//
-//		unauthorizedCaller := bob
-//		testing.SetRealm(std.NewUserRealm(unauthorizedCaller))
-//		uassert.False(t, o.OwnedByCurrent())
-//	}
+	testing.SetRealm(aliceUserRealm)
+	crossThrough(aliceCodeRealm, func() {
+		o = NewWithCurrent()
+	})
+
+	// Set realm to an unauthorized user bob.
+	testing.SetRealm(bobUserRealm)
+
+	uassert.ErrorContains(t, o.TransferOwnershipByCurrent(bob), ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.DropOwnershipByCurrent(), ErrUnauthorized.Error())
+
+	// Reset realm to alice.
+	crossThrough(aliceCodeRealm, func() {
+		uassert.NoError(t, o.TransferOwnershipByCurrent(alice))
+	})
+}
+
+func TestOwnedByCurrent(t *testing.T) {
+	testing.SetRealm(aliceUserRealm)
+	o := NewWithCurrent()
+	uassert.True(t, o.OwnedByCurrent())
+}
+
+func TestOwnedByCurrentUnauthorized(t *testing.T) {
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(aliceUserRealm)
+
+	var o *Ownable
+	crossThrough(aliceCodeRealm, func() {
+		o = NewWithCurrent()
+		uassert.True(t, o.OwnedByCurrent())
+	})
+
+	crossThrough(bobCodeRealm, func() {
+		uassert.False(t, o.OwnedByCurrent())
+	})
+
+}
 func TestOwnedByPrevious(t *testing.T) {
 	testing.SetRealm(aliceUserRealm)
 
