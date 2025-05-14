@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
-	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -40,7 +40,19 @@ func TestApplyBlock(t *testing.T) {
 
 	state, stateDB, _ := makeState(1, 1)
 
-	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	var (
+		appliedTxs   types.Txs
+		appliedLimit int64
+
+		pool = &mock.Mempool{
+			UpdateFn: func(txs types.Txs, limit int64) {
+				appliedTxs = txs
+				appliedLimit = limit
+			},
+		}
+	)
+
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), pool)
 	evsw := events.NewEventSwitch()
 	blockExec.SetEventSwitch(evsw)
 
@@ -51,7 +63,8 @@ func TestApplyBlock(t *testing.T) {
 	state, err = blockExec.ApplyBlock(state, blockID, block)
 	require.Nil(t, err)
 
-	// TODO check state and mempool
+	assert.Equal(t, block.Txs, appliedTxs)
+	assert.Equal(t, state.ConsensusParams.Block.MaxTxBytes, appliedLimit)
 }
 
 // TestBeginBlockValidators ensures we send absent validators list.
@@ -274,7 +287,7 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 
 	state, stateDB, _ := makeState(1, 1)
 
-	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), &mock.Mempool{})
 
 	evsw := events.NewEventSwitch()
 	err = evsw.Start()
@@ -341,7 +354,7 @@ func TestEndBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
 	defer proxyApp.Stop()
 
 	state, stateDB, _ := makeState(1, 1)
-	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), &mock.Mempool{})
 
 	block := makeBlock(state, 1)
 	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}
