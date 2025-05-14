@@ -9,7 +9,7 @@ gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func WorkingNew -gas-
 stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Get -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey query vm/qeval --data "gno.land/r/testing/bug_caller.Get()"
 stdout '42 int' # Works as expected
 
 # 2. (Also working)
@@ -17,7 +17,7 @@ gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func BuggedNew -gas-f
 stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/testing/bug_caller -func Get -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey query vm/qeval --data "gno.land/r/testing/bug_caller.Get()"
 stdout '42 int' # Works as expected
 
 
@@ -88,7 +88,5 @@ func Set(value int) {
 }
 
 func Get() int {
-	crossing()
-
 	return callerPtr.Get()
 }
