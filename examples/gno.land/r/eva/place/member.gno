@@ -101,6 +101,11 @@ func BanMember(adr std.Address) {
 		panic("only admin can ban members")
 	}
 
+	ok = isAdmin(adr)
+	if ok {
+		panic("you cannot ban an admin")
+	}
+
 	Users.Remove(adr.String())
 	Banned.Set(adr.String(), true)
 }
