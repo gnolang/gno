@@ -27,7 +27,7 @@ func init() {
 
 	// Change options to disallow voting
 	options := commondao.GetOptions(dao.ID())
-	cross(options.SetAllowVoting)(false)
+	options.SetAllowVoting(false)
 }
 
 func main() {
