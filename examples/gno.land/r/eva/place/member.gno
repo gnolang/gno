@@ -20,21 +20,30 @@ const (
 	timeRefill int = 2
 )
 
-var Users *avl.Tree = avl.NewTree()
+var (
+	Users  *avl.Tree = avl.NewTree()
+	Banned *avl.Tree = avl.NewTree()
+)
 
 func RegisterMember() {
-	_, ok := retrieveMember(std.PreviousRealm().Address())
+	address := std.PreviousRealm().Address()
+
+	if _, banned := Banned.Get(address.String()); banned {
+		panic("you are banned")
+	}
+
+	_, ok := retrieveMember(address)
 	if ok {
 		panic("user already registered")
 	}
 
 	newMember := User{
-		Address: std.PreviousRealm().Address(),
+		Address: address,
 		Rank:    memberRank,
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
 	}
 
-	Users.Set(std.PreviousRealm().Address().String(), newMember)
+	Users.Set(address.String(), newMember)
 }
 
 func isAdmin(address std.Address) bool {
@@ -76,10 +85,38 @@ func DeleteYourself() {
 		panic("user not registered")
 	}
 
-	ok = isAdmin(std.PreviousRealm().Address())
+	ok = isAdmin(address)
 	if ok && countAdmins() <= 1 {
 		panic("you are the last admin. you cannot delete yourself until more admin are nominated")
 	}
 
 	Users.Remove(address.String())
+}
+
+func BanMember(adr std.Address) {
+	address := std.PreviousRealm().Address()
+
+	ok := isAdmin(address)
+	if !ok {
+		panic("only admin can ban members")
+	}
+
+	Users.Remove(adr.String())
+	Banned.Set(adr.String(), true)
+}
+
+func UnbanMember(adr std.Address) {
+	address := std.PreviousRealm().Address()
+
+	ok := isAdmin(address)
+	if !ok {
+		panic("only admin can ban members")
+	}
+
+	_, ok = Banned.Get(adr.String())
+	if !ok {
+		panic("user is not banned")
+	}
+
+	Banned.Remove(adr.String())
 }
