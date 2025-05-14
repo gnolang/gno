@@ -78,8 +78,6 @@ func Set(value int) {
 }
 
 func Get() int {
-	crossing()
-
 	return callerPtr.Get()
 }
 
@@ -96,11 +94,11 @@ import (
 func main() {
 	cross(caller.WorkingNew)()
 	cross(caller.Set)(42)
-	println("With WorkingNew:", cross(caller.Get)())
+	println("With WorkingNew:", caller.Get())
 
 	cross(caller.BuggedNew)()
 	cross(caller.Set)(42)
-	println("With BuggedNew:", cross(caller.Get)())
+	println("With BuggedNew:", caller.Get())
 }
 
 // Output:
