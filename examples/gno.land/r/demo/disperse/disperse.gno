@@ -6,13 +6,17 @@ import (
 	tokens "gno.land/r/demo/grc20factory"
 )
 
+var realmAddr = std.CurrentRealm().Address()
+
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
 func DisperseUgnot(addresses []std.Address, coins std.Coins) {
-	// CurrentRealm is the one that is calling this function since we didn't crossed
-	currentAddr := std.CurrentRealm().Address()
-	banker := std.NewBanker(std.BankerTypeOriginSend)
+	crossing()
+
+	coinSent := std.OriginSend()
+	caller := std.PreviousRealm().Address()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)
@@ -23,20 +27,31 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 			panic(ErrNegativeCoinAmount)
 		}
 
-		if banker.GetCoins(currentAddr).AmountOf(coin.Denom) < coin.Amount {
+		if banker.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount {
 			panic(ErrMismatchBetweenSentAndParams)
 		}
 	}
 
 	// Send coins
 	for i := range addresses {
-		banker.SendCoins(currentAddr, addresses[i], std.NewCoins(coins[i]))
+		banker.SendCoins(realmAddr, addresses[i], std.NewCoins(coins[i]))
+	}
+
+	// Return possible leftover coins
+	for _, coin := range coinSent {
+		leftoverAmt := banker.GetCoins(realmAddr).AmountOf(coin.Denom)
+		if leftoverAmt > 0 {
+			send := std.Coins{std.NewCoin(coin.Denom, leftoverAmt)}
+			banker.SendCoins(realmAddr, caller, send)
+		}
 	}
 }
 
 // DisperseUgnotString receives a string of addresses and a string of amounts
 // and parses them to be used in DisperseUgnot
 func DisperseUgnotString(addresses string, amounts string) {
+	crossing()
+
 	parsedAddresses, err := parseAddresses(addresses)
 	if err != nil {
 		panic(err)
