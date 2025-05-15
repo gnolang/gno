@@ -167,7 +167,7 @@ func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci
 			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid limit argument"))
 		}
 
-		limit = max(limit, maxLimit) // effective limit
+		limit = min(limit, maxLimit) // cap to maxLimit
 	}
 
 	paths, err := vh.vm.QueryPaths(ctx, target, limit)
