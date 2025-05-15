@@ -33,8 +33,8 @@ func NewGnokeyCmd(io commands.IO) *commands.Command {
 			LongHelp:   "Runs a gnokms remote signer server using gnokey as backend.",
 		},
 		gnFlags,
-		func(_ context.Context, args []string) error {
-			return execGnokey(args, gnFlags, io)
+		func(ctx context.Context, args []string) error {
+			return execGnokey(ctx, args, gnFlags, io)
 		},
 	)
 }
@@ -57,7 +57,7 @@ func (f *gnokeyFlags) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execGnokey(args []string, gnFlags *gnokeyFlags, io commands.IO) error {
+func execGnokey(ctx context.Context, args []string, gnFlags *gnokeyFlags, io commands.IO) error {
 	// Key name must be provided.
 	if len(args) != 1 {
 		io.ErrPrintln("error: a key name must be provided\n")
@@ -72,5 +72,5 @@ func execGnokey(args []string, gnFlags *gnokeyFlags, io commands.IO) error {
 	}
 
 	// Run the remote signer server with the gnokey signer.
-	return common.RunSignerServer(&gnFlags.ServerFlags, gnokeySigner, io)
+	return common.RunSignerServer(ctx, &gnFlags.ServerFlags, gnokeySigner, io)
 }

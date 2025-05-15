@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -152,11 +153,13 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("invalid logger level", func(t *testing.T) {
 		t.Parallel()
 
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		serverFlags := &ServerFlags{
 			LogLevel: "invalid",
 		}
 
 		assert.Error(t, RunSignerServer(
+			ctx,
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewTestIO(),
@@ -166,9 +169,11 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("nil signer", func(t *testing.T) {
 		t.Parallel()
 
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		serverFlags := &ServerFlags{}
 
 		assert.Error(t, RunSignerServer(
+			ctx,
 			serverFlags,
 			nil,
 			commands.NewTestIO(),
@@ -177,6 +182,8 @@ func TestRunSignerServer(t *testing.T) {
 
 	t.Run("invalid auth keys file", func(t *testing.T) {
 		t.Parallel()
+
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		filePath := filepath.Join(t.TempDir(), "invalid")
 		os.WriteFile(filePath, []byte("invalid"), 0o600)
@@ -190,6 +197,7 @@ func TestRunSignerServer(t *testing.T) {
 		}
 
 		assert.Error(t, RunSignerServer(
+			ctx,
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewDefaultIO(),
@@ -198,6 +206,8 @@ func TestRunSignerServer(t *testing.T) {
 
 	t.Run("listener not free", func(t *testing.T) {
 		t.Parallel()
+
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		// Listen on the address to make it unavailable.
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -210,6 +220,7 @@ func TestRunSignerServer(t *testing.T) {
 		}
 
 		assert.Error(t, RunSignerServer(
+			ctx,
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewDefaultIO(),
@@ -219,12 +230,15 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("signer fail on close", func(t *testing.T) {
 		t.Parallel()
 
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+
 		serverFlags := &ServerFlags{
 			ListenAddresses: "tcp://127.0.0.1:0",
 			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 
 		assert.ErrorIs(t, RunSignerServer(
+			ctx,
 			serverFlags,
 			&mockSignerCloseFail{privKey: ed25519.GenPrivKey()},
 			commands.NewDefaultIO(),
@@ -235,6 +249,8 @@ func TestRunSignerServer(t *testing.T) {
 
 	t.Run("valid server params", func(t *testing.T) {
 		t.Parallel()
+
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		serverFlags := &ServerFlags{
 			ListenAddresses: "tcp://127.0.0.1:0",
@@ -248,6 +264,7 @@ func TestRunSignerServer(t *testing.T) {
 		}()
 
 		assert.NoError(t, RunSignerServer(
+			ctx,
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewDefaultIO(),

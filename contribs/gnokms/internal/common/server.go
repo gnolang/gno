@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -114,7 +115,7 @@ func printValidatorInfo(signer types.Signer, logger *slog.Logger) error {
 
 // RunSignerServer initializes and start a remote signer server with the given gnokms signer.
 // It then waits for the server to finish.
-func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.IO) error {
+func RunSignerServer(ctx context.Context, commonFlags *ServerFlags, signer types.Signer, io commands.IO) error {
 	// Initialize the logger.
 	logger, flusher, err := LoggerFromServerFlags(commonFlags, io)
 	if err != nil {
@@ -138,9 +139,17 @@ func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.
 	// Catch SIGINT/SIGTERM/SIGQUIT signals to stop the server gracefully.
 	catch := make(chan os.Signal, 1)
 	signal.Notify(catch, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	go func() {
-		<-catch
-		logger.Info("Caught interrupt signal, stopping signer server...")
+		// Block until a signal is received or the context is done.
+		select {
+		case <-catch:
+			logger.Info("Caught interrupt signal, stopping signer server...")
+		case <-ctx.Done():
+			logger.Info("Context done, stopping signer server...")
+		}
+
+		// Stop the server gracefully.
 		if err := server.Stop(); err != nil {
 			logger.Error("Failed to stop signer server", "error", err)
 		}
