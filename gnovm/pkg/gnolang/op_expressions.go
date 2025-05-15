@@ -706,9 +706,7 @@ func (m *Machine) doOpConvert() {
 				"illegal conversion of readonly or externally stored value\n"+
 					"  value: %s\n"+
 					"  type: %s\n"+
-					"  realm: %s\n"+
-					"  hint: This error occurs when trying to convert a value that is marked as readonly or stored in an external realm.\n"+
-					"        To fix this, ensure the value is mutable and belongs to the current realm.",
+					"  realm: %s\n",
 				valueStr,
 				xv.T,
 				m.Realm.Path))
@@ -728,9 +726,7 @@ func (m *Machine) doOpConvert() {
 				"illegal conversion to external realm type\n"+
 					"  from: %s\n"+
 					"  to: %s\n"+
-					"  current realm: %s\n"+
-					"  hint: This error occurs when trying to convert a value to a type from a different realm.\n"+
-					"        To fix this, ensure the target type belongs to the current realm.",
+					"  current realm: %s\n",
 				xv.T,
 				t,
 				m.Realm.Path))
