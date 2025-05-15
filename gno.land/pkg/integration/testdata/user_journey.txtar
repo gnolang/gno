@@ -191,6 +191,7 @@ stdout 'My awesome home package with admin: '${user2_user_addr}
 gnokey maketx call -pkgpath gno.land/r/user222/home -func TransferOwnership -args "$user1_user_addr" -send 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
+# Wait for https://github.com/gnolang/gno/pull/4278 to be merged
 # # Render user2's home package again, the output should reflect admin change
 # gnokey query vm/qrender --data "gno.land/r/user222/home:"
 # stdout 'My awesome home package with admin: '${user1_user_addr}
@@ -210,6 +211,7 @@ var admin = ownable.NewWithOrigin()
 func TransferOwnership(newOwner std.Address) {
 	crossing()
 
+// Wait for https://github.com/gnolang/gno/pull/4278 to be merged
 //	if err := admin.TransferOwnershipByPrevious(newOwner); err != nil {
 //		panic(err)
 //	}
