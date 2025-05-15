@@ -2,7 +2,9 @@ package authz_test
 
 import (
 	"std"
+	"testing"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/p/moul/authz"
 )
 
@@ -27,4 +29,84 @@ func Example_basic() {
 		println("!")
 		// Output: hello world!
 	*/
+}
+
+func TestAddrsetAuthority_Basic(t *testing.T) {
+	admin := std.Address("g1admin")
+	user1 := std.Address("g1user1")
+	user2 := std.Address("g1user2")
+	user3 := std.Address("g1user3")
+	user4 := std.Address("g1user4")
+	// Create a new authority with an admin
+	auth, privcfg := authz.New(admin)
+
+	// Add some test users and permissions
+	privcfg.Add("propose", user1, user2)
+	privcfg.Add("vote", user3)
+	privcfg.Add("public_action", authz.Anyone)
+
+	// Test admin permissions
+	if !auth.Can(admin, authz.Admin) {
+		t.Error("admin should be able to perform admin actions")
+	}
+	if !auth.Can(admin, "propose") {
+		t.Error("admin should be able to perform propose action")
+	}
+	if !auth.Can(admin, "arbitrary_action") {
+		t.Error("admin should be able to perform arbitrary action")
+	}
+	if !auth.Can(admin, "public_action") {
+		t.Error("admin should be able to perform public action")
+	}
+
+	// Test user permissions
+	if !auth.Can(user1, "propose") {
+		t.Error("user1 should be able to propose")
+	}
+	if auth.Can(user1, "vote") {
+		t.Error("user1 should not be able to vote")
+	}
+	if auth.Can(user1, "arbitrary_action") {
+		t.Error("user1 should not be able to perform arbitrary action")
+	}
+	if !auth.Can(user1, "public_action") {
+		t.Error("user1 should be able to perform public action")
+	}
+	if auth.Can(user1, authz.Admin) {
+		t.Error("user1 should not be able to perform admin action")
+	}
+
+	// Test Anyone special address
+	if !auth.Can(user4, "public_action") {
+		t.Error("anyone should be able to perform public actions")
+	}
+	if auth.Can(user4, "arbitrary_action") {
+		t.Error("anyone should not be able to perform arbitrary action")
+	}
+	if auth.Can(user4, "vote") {
+		t.Error("anyone should not be able to vote")
+	}
+}
+
+func TestAddrsetAuthority_String(t *testing.T) {
+	// Create a new authority with multiple users and actions
+	admin := std.Address("g1admin")
+	auth, privcfg := authz.New(admin)
+
+	// Add multiple users to different actions
+	user1 := std.Address("g1user1")
+	user2 := std.Address("g1user2")
+	user3 := std.Address("g1user3")
+	user4 := std.Address("g1user4")
+	privcfg.Add("action1", user1)
+	privcfg.Add("action2", user1, user2)
+	privcfg.Add("action3", user1, user2, user3, user4)
+	privcfg.Add("action4", authz.Anyone)
+
+	expected := `_admin_: g1admin
+action1: g1user1
+action2: g1user1, g1user2
+action3: g1user1, g1user2, g1user3, g1user4
+action4: g1anyone`
+	uassert.Equal(t, expected, auth.String())
 }

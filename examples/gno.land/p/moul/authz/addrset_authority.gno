@@ -25,16 +25,11 @@ type AddrsetPrivateConfig struct {
 
 // New creates a new empty AddrsetAuthority and its AddrsetPrivateConfig.
 func New(admins ...std.Address) (*AddrsetAuthority, *AddrsetPrivateConfig) {
-	config := &AddrsetPrivateConfig{
-		policies: avl.Tree{},
-	}
-	auth := &AddrsetAuthority{
-		config: *config,
-	}
+	auth := &AddrsetAuthority{}
 	for _, addr := range admins {
-		auth.Add(Admin, addr)
+		auth.config.Add(Admin, addr)
 	}
-	return auth, config
+	return auth, &auth.config
 }
 
 // NewWithCurrent creates a new Authority with the current realm as an admin.
@@ -167,10 +162,18 @@ func (c *AddrsetPrivateConfig) String() string {
 			result += "\n"
 		}
 		addrSize := addrs.Size()
-		if addrSize == 0 {
+		switch {
+		case addrSize == 0:
 			result += action + ": (empty)"
-		} else {
-			result += action + ": + ufmt.Sprintf("%d addresses", addrSize)
+		case addrSize < 10:
+			result += action + ": "
+			addrs.IterateByOffset(0, addrSize, func(addr std.Address) bool {
+				result += addr.String() + ", "
+				return false
+			})
+			result = result[:len(result)-2]
+		default:
+			result += action + ufmt.Sprintf(": %d addresses", addrSize)
 		}
 		count++
 		return false
