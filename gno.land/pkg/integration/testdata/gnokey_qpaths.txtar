@@ -31,7 +31,7 @@ cmp stderr empty_file
 
 # query path for namespace
 gnokey query vm/qpaths --data "@bbb/ccc"
-cmp stdout bbb-name-qpaths.stdout.golden
+cmp stdout bbb-name-subpath-qpaths.stdout.golden
 cmp stderr empty_file
 
 ! gnokey query vm/qpaths --data "@invalid\\name"
@@ -76,6 +76,11 @@ gno.land/r/bbb/ccc
 -- bbb-name-qpaths.stdout.golden --
 height: 0
 data: gno.land/p/bbb/ccc/ppp
+gno.land/r/bbb/aaa
+gno.land/r/bbb/ccc
+-- bbb-name-subpath-qpaths.stdout.golden --
+height: 0
+data: gno.land/p/bbb/ccc/ppp
 gno.land/r/bbb/ccc
 -- invalid-name-qpaths.stdout.golden --
 Log: --= Error =--
@@ -83,7 +88,11 @@ Data: errors.FmtError{format:"invalid username format", args:[]interface {}(nil)
 Msg Traces:
 --= /Error =--
 -- invalid-name-qpaths.stderr.golden --
-"gnokey" error: invalid username format
+Log: --= Error =--
+Data: errors.FmtError{format:"invalid username format", args:[]interface {}(nil)}
+Msg Traces:
+--= /Error =--
+
 -- ccc-qpaths.stdout.golden --
 height: 0
 data: 
@@ -94,47 +103,6 @@ bytes
 crypto/bech32
 crypto/chacha20
 crypto/chacha20/chacha
-crypto/chacha20/rand
-crypto/cipher
-crypto/ed25519
-crypto/sha256
-encoding
-encoding/base32
-encoding/base64
-encoding/binary
-encoding/csv
-encoding/hex
-errors
-hash
-hash/adler32
-html
-internal/bytealg
-io
-math
-math/bits
-math/overflow
-math/rand
-net/url
-path
-regexp
-regexp/syntax
-runtime
-sort
-std
-strconv
-strings
-sys/params
-time
-unicode
-unicode/utf16
-unicode/utf8
-gno.land/p/bbb/ccc/ppp
-gno.land/r/aaa
-gno.land/r/aaa/bbb/ccc
-gno.land/r/aaa/ccc/ddd
-gno.land/r/bbb/aaa
-gno.land/r/bbb/ccc
-gno.land/r/bbb0
 -- stdlibs-qpaths.stdout.golden --
 height: 0
 data: bufio
@@ -142,40 +110,6 @@ bytes
 crypto/bech32
 crypto/chacha20
 crypto/chacha20/chacha
-crypto/chacha20/rand
-crypto/cipher
-crypto/ed25519
-crypto/sha256
-encoding
-encoding/base32
-encoding/base64
-encoding/binary
-encoding/csv
-encoding/hex
-errors
-hash
-hash/adler32
-html
-internal/bytealg
-io
-math
-math/bits
-math/overflow
-math/rand
-net/url
-path
-regexp
-regexp/syntax
-runtime
-sort
-std
-strconv
-strings
-sys/params
-time
-unicode
-unicode/utf16
-unicode/utf8
 -- stdlibs-encoding-qpaths.stdout.golden --
 height: 0
 data: encoding
