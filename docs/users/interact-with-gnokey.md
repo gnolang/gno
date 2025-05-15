@@ -977,7 +977,7 @@ gno.land/p/foo/ui
 gno.land/p/foo/svg
 ```
 
-In practice, this is a shorthand for listing packages under `gno.land/p/foo` & 
+In practice, this is shorthand for listing packages under `gno.land/p/foo` & 
 `gno.land/r/foo`.
 
 ### Gas parameters
