@@ -334,11 +334,11 @@ func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
-func (bv BigintValue) VisitAssociated(vis Visitor) (stop bool) {
+func (biv BigintValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
-func (bv BigdecValue) VisitAssociated(vis Visitor) (stop bool) {
+func (bdv BigdecValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
@@ -419,10 +419,10 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	return
 }
 
-func (ex *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
+func (e *Exception) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 	// vis value
 	alloc.Allocate(allocTypedValue)
-	if v := ex.Value.V; v != nil {
+	if v := e.Value.V; v != nil {
 		stop = vis(v)
 	}
 

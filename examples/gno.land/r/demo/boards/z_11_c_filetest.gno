@@ -33,4 +33,4 @@ func main() {
 }
 
 // Error:
-// post not exist
+// invalid non-user call

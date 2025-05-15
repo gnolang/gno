@@ -20,7 +20,7 @@ func isOriginCall(m *gno.Machine) bool {
 		return false
 	}
 	firstPkg := m.Frames[0].LastPackage
-	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == ""
 	return n <= 2 && isMsgCall
 }
 
@@ -91,7 +91,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		}
 
 		// Sanity check
-		if !fr.DidCross {
+		if !fr.DidCrossing {
 			panic(fmt.Sprintf(
 				"call to cross(fn) did not call crossing : %s",
 				fr.Func.String()))

@@ -71,8 +71,7 @@ func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey strin
 	crossing()
 
 	timelock := time.Now().Add(defaultTimelockDuration)
-	tokenGetter := grc20reg.MustGet(tokenRegistryKey)
-	token := tokenGetter()
+	token := grc20reg.MustGet(tokenRegistryKey)
 	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
 }
 
@@ -114,7 +113,7 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
 
-	userTeller := token.CallerTeller()
+	userTeller := token.RealmTeller()
 	err := userTeller.TransferFrom(sender, curAddr, allowance)
 	require(err == nil, "cannot retrieve tokens from allowance")
 
@@ -153,6 +152,7 @@ func Refund(id int) {
 
 // Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.
 func Render(path string) string {
+	crossing()
 	if path == "" { // home
 		output := ""
 		size := swaps.Size()

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,23 @@ type testingLogger struct {
 func (t *testingLogger) Write(b []byte) (n int, err error) {
 	t.T.Log(strings.TrimSpace(string(b)))
 	return len(b), nil
+}
+
+func newTestHandlerConfig(t *testing.T, mockPackage *gnoweb.MockPackage) *gnoweb.WebHandlerConfig {
+	t.Helper()
+
+	webclient := gnoweb.NewMockWebClient(mockPackage)
+
+	markdownRenderer := gnoweb.NewMarkdownRenderer(
+		log.NewTestingLogger(t),
+		gnoweb.NewDefaultMarkdownRendererConfig(nil),
+	)
+
+	return &gnoweb.WebHandlerConfig{
+		WebClient:        webclient,
+		MarkdownRenderer: markdownRenderer,
+		Aliases:          map[string]gnoweb.AliasTarget{},
+	}
 }
 
 // TestWebHandler_Get tests the Get method of WebHandler using table-driven tests.
@@ -45,13 +63,8 @@ func TestWebHandler_Get(t *testing.T) {
 		},
 	}
 
-	// Create a mock web client with the mock package
-	webclient := gnoweb.NewMockWebClient(mockPackage)
-
-	// Create a WebHandlerConfig with the mock web client and static metadata
-	config := gnoweb.WebHandlerConfig{
-		WebClient: webclient,
-	}
+	// Create a WebHandlerConfig with the mock web client and markdown renderer
+	config := newTestHandlerConfig(t, mockPackage)
 
 	// Define test cases
 	cases := []struct {
@@ -132,10 +145,8 @@ func TestWebHandler_NoRender(t *testing.T) {
 		},
 	}
 
-	webclient := gnoweb.NewMockWebClient(mockPackage)
-	config := gnoweb.WebHandlerConfig{
-		WebClient: webclient,
-	}
+	// Create a WebHandlerConfig with the mock web client and markdown renderer
+	config := newTestHandlerConfig(t, mockPackage)
 
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 	handler, err := gnoweb.NewWebHandler(logger, config)
@@ -164,10 +175,8 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 		},
 	}
 
-	webclient := gnoweb.NewMockWebClient(mockPackage)
-	config := gnoweb.WebHandlerConfig{
-		WebClient: webclient,
-	}
+	// Create a WebHandlerConfig with the mock web client and markdown renderer
+	config := newTestHandlerConfig(t, mockPackage)
 
 	cases := []struct {
 		Path    string
