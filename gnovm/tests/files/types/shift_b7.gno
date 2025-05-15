@@ -11,3 +11,6 @@ func main() {
 
 // Error:
 // main/files/types/shift_b7.gno:7:7: operator << not defined on: Float32Kind
+
+// TypeCheckError:
+// main/files/types/shift_b7.gno:7:15: invalid operation: shifted operand 1 (type float32) must be integer

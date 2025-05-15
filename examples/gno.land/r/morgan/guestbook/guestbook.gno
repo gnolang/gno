@@ -43,6 +43,7 @@ const (
 
 // Sign signs the guestbook, with the specified message.
 func Sign(message string) {
+	crossing()
 	prev := std.PreviousRealm()
 	switch {
 	case !prev.IsUser():
