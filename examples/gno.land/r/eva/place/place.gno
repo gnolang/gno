@@ -67,11 +67,7 @@ func renderAccountManagement(selectedColor string) string {
 	return out
 }
 
-func Render(path string) string {
-	req := realmpath.Parse(path)
-	query := req.Query
-
-	out := md.H1("r/place") + "\n\n"
+func displayCurrentPosition(path string) {
 	if strings.Contains(path, "?") {
 		x, y, err := parseXY(path)
 		if err != nil {
@@ -79,6 +75,14 @@ func Render(path string) string {
 		}
 		tableColor[y][x].initial = "X"
 	}
+}
+
+func Render(path string) string {
+	req := realmpath.Parse(path)
+	query := req.Query
+
+	out := md.H1("r/place")
+	displayCurrentPosition(path)
 
 	selectedColor := query.Get("color")
 
