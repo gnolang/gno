@@ -871,10 +871,10 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
 func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	// If prefix is empty range every package
-	startKey := []byte(backendPacakgeGlobalPath("\x00"))
-	endKey := []byte(backendPacakgeGlobalPath("\xFF"))
+	startKey := []byte(backendPackageGlobalPath("\x00"))
+	endKey := []byte(backendPackageGlobalPath("\xFF"))
 	if len(prefix) > 0 {
-		startKey = []byte(backendPacakgeGlobalPath(prefix))
+		startKey = []byte(backendPackageGlobalPath(prefix))
 		// Create endkey by incrementing last byte of startkey
 		endKey = slices.Clone(startKey)
 		endKey[len(endKey)-1]++
@@ -1033,15 +1033,15 @@ func backendPackageIndexKey(index uint64) string {
 // ordered with domain path
 func backendPackagePathKey(path string) string {
 	if IsStdlib(path) {
-		return backendPacakgeStdlibPath(path)
+		return backendPackageStdlibPath(path)
 	}
 
-	return backendPacakgeGlobalPath(path)
+	return backendPackageGlobalPath(path)
 }
 
-func backendPacakgeStdlibPath(path string) string { return "pkg:_/" + path }
+func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
 
-func backendPacakgeGlobalPath(path string) string { return "pkg:" + path }
+func backendPackageGlobalPath(path string) string { return "pkg:" + path }
 
 func decodeBackendPackagePathKey(key string) string {
 	path := strings.TrimPrefix(key, "pkg:")
