@@ -101,9 +101,9 @@ func TestCopyFromCachedStore(t *testing.T) {
 func TestFindByPrefix(t *testing.T) {
 	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{
-		"gnolang.org/abricot",
-		"gnolang.org/abricot/fraise",
-		"gnolang.org/fraise",
+		"fruits.org/abricot",
+		"fruits.org/abricot/fraise",
+		"fruits.org/fraise",
 	}
 
 	cases := []struct {
@@ -112,12 +112,12 @@ func TestFindByPrefix(t *testing.T) {
 		Expected []string
 	}{
 		{"", 100, append(stdlibs, pkgs...)}, // no prefix == everything
-		{"gnolang.org", 100, pkgs},
-		{"gnolang.org/abricot", 100, []string{
-			"gnolang.org/abricot", "gnolang.org/abricot/fraise",
+		{"fruits.org", 100, pkgs},
+		{"fruits.org/abricot", 100, []string{
+			"fruits.org/abricot", "fruits.org/abricot/fraise",
 		}},
-		{"gnolang.org/abricot/", 100, []string{
-			"gnolang.org/abricot/fraise",
+		{"fruits.org/abricot/", 100, []string{
+			"fruits.org/abricot/fraise",
 		}},
 		{"gno", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
 		{"_", 100, stdlibs},
