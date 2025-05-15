@@ -218,7 +218,7 @@ func Render(url string) string {
 	var out string
 
 	group := getGroupFromUrl(url)
-	logged := parseQueryAddress(url)
+	logged := parseQueryKeyword(url, "address")
 
 	out += md.H1("Group: " + group.Title)
 	out += md.H2("Created by: " + organizer.ResolveAddressName(group.Owner.Owner()))
@@ -252,25 +252,13 @@ func Render(url string) string {
 
 // Helpers
 
-// Parse the URL to retrieve the data behind the "=" sign
-func parseQueryGroupId(url string) string {
+// Parse the URL to retrieve the data behind the "=" sign according to the keyword given
+func parseQueryKeyword(url, keyword string) string {
 	query := strings.SplitAfter(url, "?")[1]
 	params := strings.Split(query, "&")
 
 	for _, param := range params {
-		if strings.HasPrefix(param, "groupId=") {
-			return strings.SplitAfter(param, "=")[1]
-		}
-	}
-	return ""
-}
-
-func parseQueryAddress(url string) string {
-	query := strings.SplitAfter(url, "?")[1]
-	params := strings.Split(query, "&")
-
-	for _, param := range params {
-		if strings.HasPrefix(param, "address=") {
+		if strings.HasPrefix(param, keyword+"=") {
 			return strings.SplitAfter(param, "=")[1]
 		}
 	}
@@ -279,9 +267,9 @@ func parseQueryAddress(url string) string {
 
 // Retrieve the group ID from the URL
 func getGroupFromUrl(url string) organizer.FriendGroup {
-	groupId := parseQueryGroupId(url)
+	groupId := parseQueryKeyword(url, "groupId")
 	if groupId == "" {
-		panic("no groupid provided")
+		panic("no group id provided")
 	}
 
 	return organizer.GetGroupFromId(groupId)
