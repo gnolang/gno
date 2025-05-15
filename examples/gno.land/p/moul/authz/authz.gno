@@ -27,6 +27,8 @@ func CanByCurrent(auth Authority, action string) bool {
 
 // CanByPrevious checks if the previous realm is authorized to perform an
 // action.
+//
+// Example: if authz.CanByPrevious(auth, "propose") {}
 func CanByPrevious(auth Authority, action string) bool {
 	return auth.Can(std.PreviousRealm().Address(), action)
 }
@@ -43,12 +45,16 @@ func AssertCan(auth Authority, addr std.Address, action string) bool {
 
 // AssertCanByCurrent panics if the current realm is not authorized to perform
 // an action.
+//
+// Example: authz.AssertCanByCurrent(auth, "propose")
 func AssertCanByCurrent(auth Authority, action string) bool {
 	return AssertCan(auth, std.CurrentRealm().Address(), action)
 }
 
 // AssertCanByPrevious panics if the previous realm is not authorized to perform
 // an action.
+//
+// Example: authz.AssertCanByPrevious(auth, "propose")
 func AssertCanByPrevious(auth Authority, action string) bool {
 	return AssertCan(auth, std.PreviousRealm().Address(), action)
 }
