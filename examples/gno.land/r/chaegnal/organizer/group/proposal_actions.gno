@@ -19,18 +19,6 @@ func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged str
 	group.DAO.CreateProposals(title, desc, callback, callbackArgs, std.Address(logged))
 }
 
-// Wrapper for admin to close proposal forcefully
-func AdminCloseProposal(groupId, voteIdStr, logged string) {
-	group := organizer.GetGroupFromId(groupId)
-
-	voteId, err := strconv.Atoi(voteIdStr)
-	if err != nil {
-		panic("invalid vote id")
-	}
-
-	group.DAO.AdminCloseProposal(voteId, std.Address(logged))
-}
-
 // Wrapper to vote on proposal
 // Verify if the vote ID exist and if the vote's choice exists
 func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
@@ -51,4 +39,16 @@ func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 	}
 
 	group.DAO.VoteProposal(voteId, vote, std.Address(logged))
+}
+
+// Wrapper for admin to close proposal forcefully
+func AdminCloseProposal(groupId, voteIdStr, logged string) {
+	group := organizer.GetGroupFromId(groupId)
+
+	voteId, err := strconv.Atoi(voteIdStr)
+	if err != nil {
+		panic("invalid vote id")
+	}
+
+	group.DAO.AdminCloseProposal(voteId, std.Address(logged))
 }
