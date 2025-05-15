@@ -151,7 +151,7 @@ func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci
 	target := string(req.Data)
 
 	var query string
-	if i := strings.IndexByte(req.Path, '?'); i > 0 {
+	if i := strings.IndexByte(req.Path, '?'); i >= 0 {
 		query = req.Path[i+1:]
 	}
 
