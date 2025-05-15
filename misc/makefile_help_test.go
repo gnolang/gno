@@ -11,7 +11,7 @@ import (
 )
 
 func TestParseArgs(t *testing.T) {
-	cfg, err := parseArgs([]string{"-relative-to", "foo/bar", "-dir", "dir1", "-dir", "dir2", "-wildcard", "val1", "-wildcard", "val2", "Makefile"})
+	cfg, _, err := parseArgs([]string{"-relative-to", "foo/bar", "-dir", "dir1", "-dir", "dir2", "-wildcard", "val1", "-wildcard", "val2", "Makefile"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestExtractTargets(t *testing.T) {
 foo: #desc1
 bar:desc2
 baz: #desc3 with spaces
-legacy: value @LEGACY
+legacy: value # some stuff@LEGACY
 NotA: #valid
 ` +
 		"1no: #skip" + "\n"
@@ -77,11 +77,11 @@ NotA: #valid
 
 func TestMaxKeyLength(t *testing.T) {
 	keys := []string{"a", "abcd", "xyz"}
-	if got := maxKeyLength(keys); got != 4 {
+	if got := maxKeyLength(keys, []string{}); got != 4 {
 		t.Errorf("maxKeyLength = %d; want %d", got, 4)
 	}
 	// empty slice
-	if got := maxKeyLength([]string{}); got != 0 {
+	if got := maxKeyLength([]string{}, []string{}); got != 0 {
 		t.Errorf("maxKeyLength(empty) = %d; want %d", got, 0)
 	}
 }
@@ -132,20 +132,20 @@ func TestDisplayTargets(t *testing.T) {
 	}
 	wilds := []string{"X"}
 	out := captureOutput(func() {
-		displayTargets(targets, wilds)
+		displayTargets(targets, wilds,map[string]string{})
 	})
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	// expect line for "a", "long", and expanded "bX"
 	if len(lines) != 3 {
 		t.Fatalf("got %d lines; want %d", len(lines), 3)
 	}
-	if !strings.Contains(lines[0], "# one") {
+	if !strings.Contains(lines[0], "<-- one") {
 		t.Errorf("missing one: %q", lines[0])
 	}
-	if !strings.Contains(lines[1], "# three") {
+	if !strings.Contains(lines[2], "<-- three") {
 		t.Errorf("missing three: %q", lines[1])
 	}
-	if !strings.Contains(lines[2], "bX") || !strings.Contains(lines[2], "# two") {
+	if !strings.Contains(lines[1], "bX") || !strings.Contains(lines[1], "<-- two") {
 		t.Errorf("missing expanded bX two: %q", lines[2])
 	}
 }
@@ -163,8 +163,10 @@ func TestDisplayDirs(t *testing.T) {
 	// write README in d1
 	ioutil.WriteFile(filepath.Join(d1, "README.md"), []byte("Title1"), 0644)
 
+	scraped := scrapeReadmeBanners([]string{d1},[]string{d1, d2})
+
 	out := captureOutput(func() {
-		displayDirs([]string{d1, d2})
+		displayDirs("", []string{d1, d2},scraped)
 	})
 	if !strings.Contains(out, "*") {
 		t.Error("expected '*' for help in output:", out)
