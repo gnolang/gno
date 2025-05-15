@@ -21,7 +21,7 @@ const (
 	ValidatorKeyPrefix    string = "/val/"
 )
 
-const dbBackend = db.GoLevelDBBackend
+const dbBackend = db.PebbleDBBackend
 
 // -----------------------------------------
 
