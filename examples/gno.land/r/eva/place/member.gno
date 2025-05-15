@@ -94,9 +94,7 @@ func DeleteYourself() {
 }
 
 func BanMember(adr std.Address) {
-	address := std.PreviousRealm().Address()
-
-	ok := isAdmin(address)
+	ok := isAdmin(std.PreviousRealm().Address())
 	if !ok {
 		panic("only admin can ban members")
 	}
@@ -111,9 +109,7 @@ func BanMember(adr std.Address) {
 }
 
 func UnbanMember(adr std.Address) {
-	address := std.PreviousRealm().Address()
-
-	ok := isAdmin(address)
+	ok := isAdmin(std.PreviousRealm().Address())
 	if !ok {
 		panic("only admin can ban members")
 	}

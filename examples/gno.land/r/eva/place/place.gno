@@ -60,9 +60,7 @@ func init() {
 }
 
 func renderAccountManagement(selectedColor string) string {
-	var out string
-
-	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
+	out := md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
 		md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
 
 	return out
@@ -93,7 +91,8 @@ func displayColorTable(selectedColor string) string {
 }
 
 func displayColorList(query url.Values, req *realmpath.Request) string {
-	out := ""
+	var out string
+
 	for _, color := range colors {
 		query.Set("color", color.initial)
 
