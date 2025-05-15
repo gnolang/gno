@@ -1,6 +1,7 @@
 package place
 
 import (
+	"net/url"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
@@ -77,6 +78,30 @@ func displayCurrentPosition(path string) {
 	}
 }
 
+func displayColorTable(selectedColor string) string {
+	out := md.HorizontalRule()
+	for y, row := range tableColor {
+		out += "|"
+		for x, cell := range row {
+			link := ufmt.Sprintf("/r/eva/place?color=%s&x=%d&y=%d", selectedColor, x, y)
+			out += md.Link(cell.initial, link)
+		}
+		out += "|\n\n"
+	}
+	out += md.HorizontalRule()
+	return out
+}
+
+func displayColorList(query url.Values, req *realmpath.Request) string {
+	out := ""
+	for _, color := range colors {
+		query.Set("color", color.initial)
+
+		out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
+	}
+	return out
+}
+
 func Render(path string) string {
 	req := realmpath.Parse(path)
 	query := req.Query
@@ -90,26 +115,13 @@ func Render(path string) string {
 		selectedColor = "W"
 	}
 
-	out += md.HorizontalRule()
-	for y, row := range tableColor {
-		out += "|"
-		for x, cell := range row {
-			link := ufmt.Sprintf("/r/eva/place?color=%s&x=%d&y=%d", selectedColor, x, y)
-			out += md.Link(cell.initial, link)
-		}
-		out += "|\n\n"
-	}
-	out += md.HorizontalRule()
+	out += displayColorTable(selectedColor)
 
 	out += renderAccountManagement(selectedColor)
 
 	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", generateSVG())
 
-	for _, color := range colors {
-		query.Set("color", color.initial)
-
-		out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
-	}
+	out += displayColorList(query, req)
 
 	return out
 }
