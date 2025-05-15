@@ -17,6 +17,3 @@ func main() {
 
 // Output:
 // memstats in main after GC:  Allocator{maxBytes:100000000, bytes:6036}
-
-// TypeCheckError:
-// main/alloc_6.gno:7:6: declared and not used: a

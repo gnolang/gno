@@ -453,6 +453,7 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+	var clearSkip = false
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
@@ -463,12 +464,31 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			if stage != TRANS_ENTER {
 				return n, TRANS_CONTINUE
 			}
+			if _, ok := n.(*FuncLitExpr); ok {
+				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == "FuncLitExpr" {
+					clearSkip = true // clear what preprocess1 will do.
+					return n, TRANS_SKIP
+				}
+			}
 			if bn, ok := n.(BlockNode); ok {
 				initStaticBlocks(store, ctx, bn)
 				return n, TRANS_SKIP
 			}
 			return n, TRANS_CONTINUE
 		})
+	if clearSkip {
+		defer func() {
+			Transcribe(n,
+				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+					if stage != TRANS_ENTER {
+						return n, TRANS_CONTINUE
+					}
+					n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
+					n.DelAttribute(ATTR_PREPROCESS_INCOMPLETE)
+					return n, TRANS_CONTINUE
+				})
+		}()
+	}
 
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
@@ -485,6 +505,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 			if stage != TRANS_ENTER {
 				return n, TRANS_CONTINUE
+			}
+			if _, ok := n.(*FuncLitExpr); ok {
+				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == "FuncLitExpr" {
+					return n, TRANS_SKIP
+				}
 			}
 			if bn, ok := n.(BlockNode); ok {
 				// findGotoLoopDefines(ctx, bn)
@@ -702,6 +727,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == "FuncLitExpr" {
+					// Machine still needs it. Clear it @ initStaticBlocks.
+					// n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
 					for _, p := range ns {
 						p.SetAttribute(ATTR_PREPROCESS_INCOMPLETE, true)
 					}
@@ -2841,6 +2868,7 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 	})
 }
 
+// TODO consider adding to Names type.
 func addName(names []Name, name Name) []Name {
 	if !slices.Contains(names, name) {
 		names = append(names, name)
@@ -3829,12 +3857,19 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		if direct {
 			if astype {
 				if _, ok := defining[cx.Name]; ok {
-					panic("RECURSIVE" + string(cx.Name)) // XXX
+					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
+						Names(stack).Join(" -> "), cx.Name))
 				}
 				if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
 					return
 				}
 			} else {
+				/*
+					if _, ok := defining[cx.Name]; !ok {
+						fmt.Println("AAAA")
+						return cx.Name
+					}
+				*/
 				if tv := last.GetValueRef(store, cx.Name, true); tv == nil {
 					return cx.Name
 					panic("RECURSIVE")
@@ -3844,9 +3879,9 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				return
 			}
 		} else {
-		}
-		if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
-			return
+			if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+				return
+			}
 		}
 		return cx.Name
 	case *BasicLitExpr:
@@ -3885,7 +3920,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				return
 			}
 		}
-	case *StarExpr:
+	case *StarExpr: // POINTER & DEREF
 		// NOTE: *StarExpr can either mean dereference, or a pointer type.
 		// It's not only confusing for new developers, it causes complexity
 		// in type checking. A *StarExpr is indirect as a type.
@@ -4113,14 +4148,15 @@ func predefineRecursively(store Store, last BlockNode, d Decl) bool {
 	defer doRecover([]BlockNode{last}, d)
 	stack := []Name{}
 	defining := make(map[Name]struct{})
-	return predefineRecursively2(store, last, d, stack, defining)
+	direct := true
+	return predefineRecursively2(store, last, d, stack, defining, direct)
 }
 
 // `stack` and `defining` are used for cycle detection. They hold the same data.
 // NOTE: `stack` never truncates; a slice is used instead of a map to show a
 // helpful message when a circular declaration is found. `defining` is also used as
 // a map to ensure best time performance of circular definition detection.
-func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}) bool {
+func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) bool {
 	pkg := packageOf(last)
 
 	// NOTE: predefine fileset breaks up circular definitions like
@@ -4145,8 +4181,11 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	}()
 
 	// recursively predefine any dependencies.
+	var un Name // unnamed name
+	// var direct = true // invalid cycle detection
 	for {
-		un := tryPredefine(store, pkg, last, d, stack, defining)
+		//un, direct = tryPredefine(store, pkg, last, d, stack, defining)
+		un = tryPredefine(store, pkg, last, d, stack, defining, direct)
 		if un != "" {
 			// check circularity.
 			if _, exists := defining[un]; exists {
@@ -4160,7 +4199,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 				panic("all types from files in file-set should have already been predefined")
 			}
 			// predefine dependency recursively.
-			predefineRecursively2(store, file, *unDecl, stack, defining)
+			predefineRecursively2(store, file, *unDecl, stack, defining, direct)
 		} else {
 			break // predefine successfully performed.
 		}
@@ -4193,7 +4232,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // If all dependencies are met, constructs and empty definition value (for a
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
-func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}) (un Name) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
@@ -4274,7 +4313,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// `var a, b, c = 1, a, b` was already split up before reaching
 		// here, whereas they are illegal inside a function.
 		for _, vx := range d.Values {
-			un = findUndefinedV(store, last, vx, stack, defining, true, nil)
+			un = findUndefinedV(store, last, vx, stack, defining, direct, nil)
 			if un != "" {
 				return
 			}
@@ -4380,7 +4419,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			d.Path = last.GetPathForName(store, d.Name)
 		} // END *TypeDecl
 		// after predefinitions, return any undefined dependencies.
-		un = findUndefinedT(store, last, d.Type, stack, defining, true)
+		un = findUndefinedT(store, last, d.Type, stack, defining, direct)
 		if un != "" {
 			return
 		}

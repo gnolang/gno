@@ -113,6 +113,16 @@ const (
 
 type Name string
 
+type Names []Name
+
+func (ns Names) Join(j string) string {
+	ss := make([]string, 0, len(ns))
+	for _, n := range ns {
+		ss = append(ss, string(n))
+	}
+	return strings.Join(ss, j)
+}
+
 // ----------------------------------------
 // Attributes
 // All nodes have attributes for general analysis purposes.
@@ -202,6 +212,7 @@ type Node interface {
 	assertNode()
 	String() string
 	Copy() Node
+	GetPos() Pos
 	GetLine() int
 	GetColumn() int
 	GetSpan() Span

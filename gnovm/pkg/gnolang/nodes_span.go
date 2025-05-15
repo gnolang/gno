@@ -41,6 +41,10 @@ type Pos struct {
 	Column int
 }
 
+func (p Pos) GetPos() Pos {
+	return p
+}
+
 func (p Pos) GetLine() int {
 	return p.Line
 }

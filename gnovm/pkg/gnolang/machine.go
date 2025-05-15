@@ -432,6 +432,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // Production must not use this, because realm package init
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
+// m.Package must match fns's package path.
 func (m *Machine) RunFiles(fns ...*FileNode) {
 	pv := m.Package
 	if pv == nil {
@@ -508,6 +509,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
+// m.Package must match fns's package path.
 func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
@@ -559,6 +561,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
+		// fmt.Println("PREPROCESSED", fn)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)
 		// Make block for fn.
@@ -600,8 +603,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 					continue
 				} else { // is an undefined dependency.
 					panic(fmt.Sprintf(
-						"dependency %s not defined in fileset with files %v",
-						dep, fs.FileNames()))
+						"%s/%s:%s: dependency %s not defined in fileset with files %v",
+						pv.PkgPath, fn.Name, decl.GetPos().String(), dep, fs.FileNames()))
 				}
 			}
 			// if dep already in loopfindr, abort.
@@ -612,7 +615,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 					continue
 				} else {
 					panic(fmt.Sprintf(
-						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
+						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
+						pv.PkgPath, fn.Name, decl.GetPos().String(), loopfindr, dep))
 				}
 			}
 			// run dependency declaration
