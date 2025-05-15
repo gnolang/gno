@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
 )
 
@@ -101,6 +102,11 @@ func (a *AddrsetAuthority) RemoveAll(action string) {
 	a.config.RemoveAll(action)
 }
 
+// String returns a string representation of the AddrsetAuthority.
+func (a *AddrsetAuthority) String() string {
+	return a.config.String()
+}
+
 // AddrsetPrivateConfig implementation
 //
 
@@ -135,4 +141,39 @@ func (c *AddrsetPrivateConfig) Remove(action string, members ...std.Address) {
 // RemoveAll removes all policies for a given action.
 func (c *AddrsetPrivateConfig) RemoveAll(action string) {
 	c.policies.Remove(action)
+}
+
+// String returns a string representation of the AddrsetPrivateConfig.
+// It limits the number of entries to 5 and shows the remaining entries if there
+// are more.
+// It also shows the first two addresses for each policy and the remaining
+// addresses if there are more.
+func (c *AddrsetPrivateConfig) String() string {
+	var result string
+	count := 0
+	total := c.policies.Size()
+	c.policies.Iterate("", "", func(key string, value any) bool {
+		action := key
+		if count >= 5 {
+			remaining := total - count
+			if result != "" {
+				result += "\n"
+			}
+			result += ufmt.Sprintf("(%d more entries...)", remaining)
+			return true // stop iteration
+		}
+		addrs := value.(*addrset.Set)
+		if result != "" {
+			result += "\n"
+		}
+		addrSize := addrs.Size()
+		if addrSize == 0 {
+			result += action + ": (empty)"
+		} else {
+			result += action + ": + ufmt.Sprintf("%d addresses", addrSize)
+		}
+		count++
+		return false
+	})
+	return result
 }

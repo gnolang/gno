@@ -1,3 +1,6 @@
+package authz
+
+/*
 package TBD
 
 import (
@@ -32,3 +35,4 @@ func ExampleDoer() {
 		return nil
 	})
 }
+*/
