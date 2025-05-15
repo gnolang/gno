@@ -20,7 +20,7 @@ func TestTokenRegistration(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	token, _ := grc20.NewToken("Test Token", "TEST", 6)
-	cross(RegisterToken)(token.Getter(), "test_token")
+	cross(RegisterToken)(token, "test_token")
 
 	retrievedToken := GetToken("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/matijamarjanovic/testrealm.test_token")
 
@@ -71,7 +71,7 @@ func TestBalanceRetrieval(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
-	cross(RegisterToken)(token.Getter(), "test_token")
+	cross(RegisterToken)(token, "test_token")
 	ledger.Mint(std.CurrentRealm().Address(), 1000)
 
 	balances := GetUserTokenBalances(std.CurrentRealm().Address().String())
@@ -119,7 +119,7 @@ func TestTokenListingFunctions(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
-	cross(RegisterToken)(grc20Token.Getter(), "listing_token")
+	cross(RegisterToken)(grc20Token, "listing_token")
 
 	grc20List := GetAllTokens()
 	uassert.True(t, strings.Contains(grc20List, "Token:gno.land/r/matijamarjanovic/tokenhub."+testRealmPkgPath+".listing_token"),
@@ -153,7 +153,7 @@ func TestMustGetFunctions(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm(testRealmPkgPath))
 
 	token, _ := grc20.NewToken("Must Token", "MUST", 6)
-	cross(RegisterToken)(token.Getter(), "must_token")
+	cross(RegisterToken)(token, "must_token")
 
 	retrievedToken := MustGetToken("gno.land/r/matijamarjanovic/tokenhub." + testRealmPkgPath + ".must_token")
 	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
