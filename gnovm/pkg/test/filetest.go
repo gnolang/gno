@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -165,6 +166,9 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
+		case DirectiveStorage:
+			rlmDiff := realmDiffsString(m.Store.RealmDiffs())
+			match(dir, rlmDiff)
 		case DirectiveTypeCheckError:
 			hasTypeCheckErrorDirective = true
 			match(dir, result.TypeCheckError)
@@ -185,6 +189,21 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	}
 
 	return "", returnErr
+}
+
+// returns a deterministically sorted string representation of realm diffs map
+func realmDiffsString(m map[string]int64) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var sb strings.Builder
+	for _, k := range keys {
+		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
+	}
+	return sb.String()
 }
 
 func trimTrailingSpaces(in string) string {
@@ -368,6 +387,7 @@ const (
 	DirectiveEvents         = "Events"
 	DirectivePreprocessed   = "Preprocessed"
 	DirectiveStacktrace     = "Stacktrace"
+	DirectiveStorage        = "Storage"
 	DirectiveTypeCheckError = "TypeCheckError"
 )
 
