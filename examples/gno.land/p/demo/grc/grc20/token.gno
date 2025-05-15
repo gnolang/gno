@@ -66,14 +66,6 @@ func (tok *Token) RenderHome() string {
 	return str
 }
 
-// Getter returns a TokenGetter function that returns this token. This allows
-// storing indirect pointers to a token in a remote realm.
-func (tok *Token) Getter() TokenGetter {
-	return func() *Token {
-		return tok
-	}
-}
-
 // SpendAllowance decreases the allowance of the specified owner and spender.
 func (led *PrivateLedger) SpendAllowance(owner, spender std.Address, amount int64) error {
 	if !owner.IsValid() {

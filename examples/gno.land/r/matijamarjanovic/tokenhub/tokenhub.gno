@@ -20,7 +20,7 @@ type GRC1155TokenInfo struct {
 }
 
 var (
-	registeredTokens = avl.NewTree() // rlmPath[.slug] -> grc20.TokenGetter
+	registeredTokens = avl.NewTree() // rlmPath[.slug] -> *grc20.Token
 	registeredNFTs   = avl.NewTree() // rlmPath[.slug] -> grc721.NFTGetter
 	registeredMTs    = avl.NewTree() // rlmPath[.slug] -> GRC1155TokenInfo
 )
@@ -37,12 +37,12 @@ func init() {
 // After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
 //
 // Note: register token returns the key path that can be used to retrieve the token
-func RegisterToken(tokenGetter grc20.TokenGetter, slug string) string {
+func RegisterToken(token *grc20.Token, slug string) string {
 	crossing()
 	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 
-	cross(grc20reg.Register)(tokenGetter, key)
+	cross(grc20reg.Register)(token, key)
 
 	return fqname.Construct(std.CurrentRealm().PkgPath(), key)
 }

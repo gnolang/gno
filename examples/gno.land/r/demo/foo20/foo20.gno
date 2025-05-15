@@ -20,7 +20,7 @@ var (
 
 func init() {
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	cross(grc20reg.Register)(Token.Getter(), "")
+	cross(grc20reg.Register)(Token, "")
 }
 
 func TotalSupply() int64 {
