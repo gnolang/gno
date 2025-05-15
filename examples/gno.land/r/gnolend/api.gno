@@ -6,38 +6,22 @@ import (
 
 func ApiGetMarketInfo(marketId string) string {
     marketInfo := GetMarketInfo(marketId)
-    node := json.ObjectNode("", map[string]*json.Node{
-        "marketInfo": marketInfo.JSON(),
-    })
-    
-    return marshal(node)
+    return marshal(marketInfo.JSON())
 }
 
 func ApiGetMarket(marketId string) string {
     market, _ := GetMarket(marketId)
-    node := json.ObjectNode("", map[string]*json.Node{
-        "market": market.ToRpc().JSON(),
-    })
-    
-    return marshal(node)
+    return marshal(market.ToRpc().JSON())
 }
 
 func ApiGetMarketParams(marketId string) string {
     _, params := GetMarket(marketId)
-    node := json.ObjectNode("", map[string]*json.Node{
-        "params": params.ToRpc().JSON(),
-    })
-    
-    return marshal(node)
+    return marshal(params.ToRpc().JSON())
 }
 
 func ApiGetPosition(marketId, userAddr string) string {
     position := GetPosition(marketId, userAddr)
-    node := json.ObjectNode("", map[string]*json.Node{
-        "position": position.ToRpc().JSON(),
-    })
-    
-    return marshal(node)
+    return marshal(position.ToRpc().JSON())
 }
 
 func ApiListMarketsInfo() string {
@@ -52,11 +36,7 @@ func ApiListMarketsInfo() string {
         markets.AppendArray(marketWrapper)
     }
     
-    node := json.ObjectNode("", map[string]*json.Node{
-        "markets": markets,
-    })
-    
-    return marshal(node)
+    return marshal(markets)
 }
 
 // Helper function to marshal JSON
