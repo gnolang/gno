@@ -8,11 +8,33 @@ import (
 	"gno.land/p/moul/addrset"
 )
 
-// TODO: file-level comment explaining the expected usage.
-// TODO: implement Stringer.
-
-// AddrsetAuthority implements Authority using an address set for each action.
-// It provides safe methods for policy management that check for admin permissions.
+// AddrsetAuthority is an opinionated implementation of the Authority interface
+// that uses address sets to manage permissions for different actions.
+//
+// It uses a two-layer design:
+//   - AddrsetAuthority: A safe, public interface that enforces admin-only
+//     policy modifications. It implements the Authority interface and provides
+//     methods for checking permissions (Can) and managing policies (Add, Remove,
+//     RemoveAll) that can only be called by administrators.
+//   - AddrsetPrivateConfig: An internal, unrestricted configuration object that
+//     allows direct policy modifications. It's returned by New() to enable the
+//     realm to set up initial policies, but should not be exposed to external
+//     callers.
+//
+// Usage example:
+//
+//	auth, privcfg := authz.New(adminAddr)
+//	privcfg.Add("propose", user1, user2)  // Set up initial policies
+//	if auth.Can(user1, "propose") {       // Check permissions
+//	    // user1 can propose
+//	}
+//
+// Special addresses:
+//   - Anyone: A special address that grants permission to any caller
+//   - Admin: A special action that grants full administrative privileges
+//
+// This implementation is designed to be simple to use while providing enough
+// flexibility for most authorization needs in Gno realms.
 type AddrsetAuthority struct {
 	config AddrsetPrivateConfig
 }
