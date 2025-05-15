@@ -110,3 +110,141 @@ action3: g1user1, g1user2, g1user3, g1user4
 action4: g1anyone`
 	uassert.Equal(t, expected, auth.String())
 }
+
+func TestAddrsetAuthority_NewWithCurrent(t *testing.T) {
+	auth, _ := authz.NewWithCurrent()
+	if !auth.Can(std.CurrentRealm().Address(), authz.Admin) {
+		t.Error("current realm should be admin")
+	}
+}
+
+func TestAddrsetAuthority_NewWithPrevious(t *testing.T) {
+	auth, _ := authz.NewWithPrevious()
+	if !auth.Can(std.PreviousRealm().Address(), authz.Admin) {
+		t.Error("previous realm should be admin")
+	}
+}
+
+func TestAddrsetAuthority_AddRemove(t *testing.T) {
+	admin := std.Address("g1admin")
+	user := std.Address("g1user")
+	auth, privcfg := authz.New(admin)
+
+	// Test adding and removing a single user
+	privcfg.Add("test_action", user)
+	if !auth.Can(user, "test_action") {
+		t.Error("user should be able to perform test_action after adding")
+	}
+
+	privcfg.Remove("test_action", user)
+	if auth.Can(user, "test_action") {
+		t.Error("user should not be able to perform test_action after removing")
+	}
+
+	// Test adding and removing multiple users
+	user2 := std.Address("g1user2")
+	privcfg.Add("test_action", user, user2)
+	if !auth.Can(user, "test_action") || !auth.Can(user2, "test_action") {
+		t.Error("both users should be able to perform test_action")
+	}
+
+	privcfg.Remove("test_action", user)
+	if auth.Can(user, "test_action") || !auth.Can(user2, "test_action") {
+		t.Error("only user2 should be able to perform test_action after removing user1")
+	}
+}
+
+func TestAddrsetAuthority_RemoveAll(t *testing.T) {
+	admin := std.Address("g1admin")
+	user1 := std.Address("g1user1")
+	user2 := std.Address("g1user2")
+	auth, privcfg := authz.New(admin)
+
+	// Test removing all from non-existent action
+	privcfg.RemoveAll("non_existent") // Should not panic
+
+	// Test removing all from action with multiple users
+	privcfg.Add("test_action", user1, user2)
+	if !auth.Can(user1, "test_action") || !auth.Can(user2, "test_action") {
+		t.Error("both users should be able to perform test_action")
+	}
+
+	privcfg.RemoveAll("test_action")
+	if auth.Can(user1, "test_action") || auth.Can(user2, "test_action") {
+		t.Error("no users should be able to perform test_action after RemoveAll")
+	}
+}
+
+func TestAddrsetAuthority_AdminOperations(t *testing.T) {
+	admin := std.Address("g1admin")
+	nonAdmin := std.Address("g1nonadmin")
+	user := std.Address("g1user")
+	auth, _ := authz.New(admin)
+
+	// Test that non-admin can't add
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic when non-admin tries to add")
+			}
+		}()
+		auth.Add("test_action", user)
+	}()
+
+	// Test that non-admin can't remove
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic when non-admin tries to remove")
+			}
+		}()
+		auth.Remove("test_action", user)
+	}()
+
+	// Test that non-admin can't remove all
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic when non-admin tries to remove all")
+			}
+		}()
+		auth.RemoveAll("test_action")
+	}()
+}
+
+func TestAddrsetAuthority_EmptyAuthority(t *testing.T) {
+	auth, _ := authz.New()
+	user := std.Address("g1user")
+
+	// Test that no one can perform any action in empty authority
+	if auth.Can(user, "any_action") {
+		t.Error("no one should be able to perform any action in empty authority")
+	}
+	if auth.Can(user, authz.Admin) {
+		t.Error("no one should be able to perform admin action in empty authority")
+	}
+}
+
+func TestAddrsetAuthority_MultipleAdmins(t *testing.T) {
+	admin1 := std.Address("g1admin1")
+	admin2 := std.Address("g1admin2")
+	user := std.Address("g1user")
+	auth, _ := authz.New(admin1, admin2)
+
+	// Test that both admins can perform admin actions
+	if !auth.Can(admin1, authz.Admin) || !auth.Can(admin2, authz.Admin) {
+		t.Error("both admins should be able to perform admin actions")
+	}
+
+	testing.SetRealm(std.NewUserRealm(admin1))
+	// Test that both admins can add/remove
+	auth.Add("test_action", user)
+	if !auth.Can(user, "test_action") {
+		t.Error("user should be able to perform test_action after admin1 adds")
+	}
+
+	auth.Remove("test_action", user)
+	if auth.Can(user, "test_action") {
+		t.Error("user should not be able to perform test_action after admin2 removes")
+	}
+}
