@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"dario.cat/mergo"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
@@ -348,7 +349,7 @@ func DefaultBaseConfig() BaseConfig {
 		ABCI:               SocketABCI,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
-		DBBackend:          db.GoLevelDBBackend.String(),
+		DBBackend:          db.PebbleDBBackend.String(),
 		DBPath:             DefaultDBDir,
 	}
 }
