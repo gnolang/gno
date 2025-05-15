@@ -3,7 +3,7 @@ package gnolend
 import (
     "gno.land/p/demo/json"
     u256 "gno.land/p/gnoswap/uint256"
-    "gno.land/r/demo/grc20"
+    "gno.land/r/demo/grc20reg"
 )
 
 // RpcMarket
@@ -185,18 +185,17 @@ func GetMarketInfo(marketId string) RpcMarketInfo {
 	var collateralTokenName, collateralTokenSymbol string
 	var collateralTokenDecimals uint
 	
-	// Import the GRC20 registry
-	grc20reg := grc20reg.Get(loanToken)
-	if grc20reg != nil {
-		token := grc20reg()
+	loanTokenGetter := grc20reg.Get(loanToken)
+	if loanTokenGetter != nil {
+		token := loanTokenGetter()
 		loanTokenName = token.GetName()
 		loanTokenSymbol = token.GetSymbol()
 		loanTokenDecimals = token.GetDecimals()
 	}
 	
-	grc20reg = grc20reg.Get(collateralToken)
-	if grc20reg != nil {
-		token := grc20reg()
+	collateralTokenGetter := grc20reg.Get(collateralToken)
+	if collateralTokenGetter != nil {
+		token := collateralTokenGetter()
 		collateralTokenName = token.GetName()
 		collateralTokenSymbol = token.GetSymbol()
 		collateralTokenDecimals = token.GetDecimals()
