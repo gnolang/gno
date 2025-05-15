@@ -58,11 +58,11 @@ func opCall(s *State) error {
 		return err
 	}
 
-	if s.tmp.accounts[*s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
+	if s.tmp.accounts[s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
 		s.stack.Push(uint256.Zero())
 		return errors.New("not enough money to send " + moneyToGive.String() + " wei to call adress " + address.String())
 	}
-	if uint(gas.Uint64()) > s.tmp.accounts[*s.callerAddress].Gas {
+	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
 		return notEnoughGas
 	}
 
@@ -73,7 +73,7 @@ func opCall(s *State) error {
 	tmpState.setCallData(callData)
 	tmpState.setGasLimit(uint(gas.Uint64()))
 
-	contract := tmpState.tmp.accounts[*address]
+	contract := tmpState.tmp.accounts[address.Uint64()]
 	if contract == nil || contract.AccountType != ContractAccount {
 		s.stack.Push(uint256.Zero())
 		return nil

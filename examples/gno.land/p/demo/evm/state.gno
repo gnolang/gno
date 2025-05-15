@@ -20,7 +20,7 @@ type tmpEnv struct {
 }
 
 type State struct {
-	callerAddress    *uint256.Uint
+	callerAddress    uint64
 	callValue        *uint256.Uint
 	callData         []byte
 	memory           []byte
@@ -41,7 +41,7 @@ func newEmptyState() *State {
 		memory:        []byte{}, // make([]byte, 1024)
 		result:        []byte{}, // make([]byte, 1024)
 		code:          instructions{},
-		callerAddress: nil,
+		callerAddress: 0,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
 			storage:     map[uint256.Uint]*uint256.Uint{},
@@ -77,7 +77,7 @@ func newStateFromEnv(env *Env) *State {
 		memory:        []byte{}, // make([]byte, 1024)
 		result:        []byte{}, // make([]byte, 1024)
 		code:          instructions{},
-		callerAddress: nil,
+		callerAddress: 0,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
 			storage:     storageCopy,
@@ -151,7 +151,7 @@ func (s *State) setGasLimit(gas uint) {
 	s.gasLimit = int(gas)
 }
 
-func (s *State) setCallerAddress(callerAddress *uint256.Uint) {
+func (s *State) setCallerAddress(callerAddress uint64) {
 	s.callerAddress = callerAddress
 }
 

@@ -931,7 +931,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			caller: Account{
-				EvmAddress: uint256.NewUint(0xcacabebe),
+				EvmAddress: 0xcacabebe,
 			},
 			expectedStack: []*uint256.Uint{
 				uint256.NewUint(0xcacabebe),
@@ -1282,9 +1282,7 @@ func TestExecuteEvm(t *testing.T) {
 			st.setCallData(tc.callData)
 			st.setCallValue(&tc.callValue)
 			st.setCallerAddress(tc.caller.EvmAddress)
-			if tc.caller.EvmAddress != nil {
-				st.tmp.accounts[*tc.caller.EvmAddress] = &tc.caller
-			}
+			st.tmp.accounts[tc.caller.EvmAddress] = &tc.caller
 			if tc.gas > 0 {
 				st.setGasLimit(tc.gas)
 			}

@@ -64,7 +64,7 @@ func Publish(codeStr string) {
 	if err != nil {
 		panic("invalid contract: " + err.Error())
 	}
-	env.Transaction.PushCreation(0, caller, *addr)
+	env.Transaction.PushCreation(0, caller, addr)
 }
 
 func Faucet(n int) {
@@ -82,8 +82,8 @@ func Register() {
 	if err != nil {
 		panic("invalid contract: " + err.Error())
 	}
-	gnoUserToAccountHelper[gnoAddr] = env.Accounts[*addr]
-	env.Transaction.PushCreation(0, env.Accounts[*addr], *addr)
+	gnoUserToAccountHelper[gnoAddr] = env.Accounts[addr]
+	env.Transaction.PushCreation(0, env.Accounts[addr], addr)
 }
 
 func Call(path string, gasLimit uint) {
@@ -101,8 +101,8 @@ func Call(path string, gasLimit uint) {
 	}
 
 	// get contract index
-	contractIndex := uint256.Zero()
-	if contractIndex, err = uint256.FromHex(callexpr[0]); err != nil || env.Accounts[*contractIndex] == nil {
+	contractIndex := uint64(0)
+	if contractIndex, err = strconv.ParseUint(callexpr[0], 16, len(callexpr[0])); err != nil || env.Accounts[contractIndex] == nil {
 		panic("call: bad address (bad number, or invalid address)")
 	}
 
@@ -118,11 +118,11 @@ func Call(path string, gasLimit uint) {
 
 	// make the call
 	funcName := callexpr[2]
-	res, err := caller.RawContractCall(env, gasLimit, funcName, hex.EncodeToString(env.Accounts[*contractIndex].Code), list...)
+	res, err := caller.RawContractCall(env, gasLimit, funcName, hex.EncodeToString(env.Accounts[contractIndex].Code), list...)
 	if err != nil {
 		panic("call runtime: " + err.Error())
 	}
-	env.Transaction.PushExecution(0, caller, res, *contractIndex) // TODO: get the execution price
+	env.Transaction.PushExecution(0, caller, res, contractIndex) // TODO: get the execution price
 }
 
 func Render(path string) string {
@@ -131,7 +131,6 @@ func Render(path string) string {
 
 	// create the login part
 	loginPart := md.H2("Login") + br
-	println(len(env.Accounts))
 	loginPart += "There are " + strconv.Itoa(len(env.Accounts)) + " callers." + br
 	registerLnk := txlink.Call("Register", "addrStr", "0")
 	loginPart += "Click " + md.Link("here", registerLnk) + " to register yourself as a caller."

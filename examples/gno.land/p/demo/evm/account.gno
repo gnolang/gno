@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-type Accounts map[uint256.Uint]*Account
+type Accounts map[uint64]*Account
 type accountType int
 
 const (
@@ -19,7 +19,7 @@ const (
 
 type Account struct {
 	AccountType accountType
-	EvmAddress  *uint256.Uint
+	EvmAddress  uint64
 	GnoAddress  std.Address
 	Balance     *uint256.Uint
 	Gas         uint
@@ -53,8 +53,8 @@ func (c *Account) executeCallHex(env *Env, gasAmount uint, f string, code []byte
 		return []byte{}, err
 	}
 
-	if st.callerAddress != nil && st.tmp.accounts[*st.callerAddress] != nil {
-		st.tmp.accounts[*st.callerAddress].Gas -= st.gasConsumed
+	if st.tmp.accounts[st.callerAddress] != nil && st.tmp.accounts[st.callerAddress].AccountType == CallerAccount {
+		st.tmp.accounts[st.callerAddress].Gas -= st.gasConsumed
 	}
 	st.loadStagedChangesIntoEnv(env)
 	return st.getResult(), nil
@@ -79,38 +79,38 @@ func (c *Account) Call(env *Env, gasAmount uint, f string, code string, args ...
 	return c.executeCallHex(env, gasAmount, f, x, args...)
 }
 
-func (c *Accounts) PushSmartContract(env *Env, code []byte) (*uint256.Uint, error) {
+func (c *Accounts) PushSmartContract(env *Env, code []byte) (uint64, error) {
 	if c == nil {
-		return nil, errors.New("Accounts are nil")
+		return 0, errors.New("Accounts are nil")
 	}
-	for (*c)[*env.NextAccountId.Add(&env.NextAccountId, uint256.One())] != nil {
+	for env.NextAccountId = env.NextAccountId + 1; (*c)[env.NextAccountId] != nil; env.NextAccountId = env.NextAccountId + 1 {
 	}
 
 	(*c)[env.NextAccountId] = &Account{
 		AccountType: ContractAccount,
-		EvmAddress:  env.NextAccountId.Clone(),
+		EvmAddress:  env.NextAccountId,
 		GnoAddress:  "",
 		Balance:     uint256.Zero(),
 		Gas:         0,
 		Code:        code,
 	}
-	return env.NextAccountId.Clone(), nil
+	return env.NextAccountId, nil
 }
 
-func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (*uint256.Uint, error) {
+func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) {
 	if c == nil {
-		return nil, errors.New("Accounts are nil")
+		return 0, errors.New("Accounts are nil")
 	}
-	for (*c)[*env.NextAccountId.Add(&env.NextAccountId, uint256.One())] != nil {
+	for env.NextAccountId = env.NextAccountId + 1; (*c)[env.NextAccountId] != nil; env.NextAccountId = env.NextAccountId + 1 {
 	}
 
 	(*c)[env.NextAccountId] = &Account{
 		AccountType: CallerAccount,
-		EvmAddress:  env.NextAccountId.Clone(),
+		EvmAddress:  env.NextAccountId,
 		GnoAddress:  gnoAddress,
 		Balance:     uint256.Zero(),
 		Gas:         0,
 		Code:        []byte{},
 	}
-	return env.NextAccountId.Clone(), nil
+	return env.NextAccountId, nil
 }

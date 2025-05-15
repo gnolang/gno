@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"strconv"
-
-	"gno.land/p/demo/uint256"
 )
 
 type TransactionType uint
@@ -27,7 +25,7 @@ type Transaction interface {
 	String() string // string representing the transaction
 }
 
-func (s *Transactions) PushCreation(gasCost uint, caller *Account, newContractAddress uint256.Uint) {
+func (s *Transactions) PushCreation(gasCost uint, caller *Account, newContractAddress uint64) {
 	createContract := CreateContractTransaction{
 		gasPrice:        gasCost,
 		caller:          caller,
@@ -36,7 +34,7 @@ func (s *Transactions) PushCreation(gasCost uint, caller *Account, newContractAd
 	*s = append(*s, &createContract)
 }
 
-func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byte, address uint256.Uint) {
+func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byte, address uint64) {
 	createContract := ExecuteContractTransaction{
 		gasPrice:        gasCost,
 		caller:          caller,
@@ -49,7 +47,7 @@ func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byt
 type CreateContractTransaction struct {
 	gasPrice        uint
 	caller          *Account
-	contractAddress uint256.Uint
+	contractAddress uint64
 }
 
 func (t *CreateContractTransaction) getType() TransactionType {
@@ -73,14 +71,18 @@ func (t *CreateContractTransaction) getCaller() *Account {
 }
 
 func (t *CreateContractTransaction) String() string {
-	return t.caller.EvmAddress.Hex() + " created a contract, costing " + strconv.FormatUint(gasPrice, 10) + " gas"
+	accountTypeStr := map[accountType]string{
+		CallerAccount:   "caller (EAO)",
+		ContractAccount: "smart contract",
+	}
+	return strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " created an account for a " + accountTypeStr[t.caller.AccountType] + ", costing " + strconv.FormatUint(gasPrice, 10) + " gas"
 }
 
 type ExecuteContractTransaction struct {
 	gasPrice        uint
 	caller          *Account
 	result          []byte
-	contractAddress uint256.Uint
+	contractAddress uint64
 }
 
 func (t *ExecuteContractTransaction) getType() TransactionType {
@@ -114,7 +116,7 @@ func trimLeadingZeros(data []byte) []byte {
 }
 
 func (t *ExecuteContractTransaction) String() string {
-	x := t.caller.EvmAddress.Hex() + " executed " + t.contractAddress.String()
+	x := strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " executed " + strconv.FormatInt(int64(t.contractAddress), 16)
 	x += " costing " + strconv.FormatUint(gasPrice, 10)
 	x += ", resulting with " + hex.EncodeToString(trimLeadingZeros(t.result))
 	x += " (decimal: " + strconv.FormatUint(binary.BigEndian.Uint64(t.result[len(t.result)-8:len(t.result)]), 10) + ")"

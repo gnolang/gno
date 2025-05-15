@@ -269,7 +269,7 @@ func opInvalid(s *State) error {
 }
 
 func opCaller(s *State) error {
-	s.stack.Push(s.callerAddress.Clone())
+	s.stack.Push(uint256.NewUint(s.callerAddress))
 	return nil
 }
 
@@ -295,7 +295,7 @@ func opChainId(s *State) error {
 
 // TODO: tests
 func opSelfBalance(s *State) error {
-	s.stack.Push(s.tmp.accounts[*s.callerAddress].Balance.Clone())
+	s.stack.Push(s.tmp.accounts[s.callerAddress].Balance.Clone())
 	return nil
 }
 
