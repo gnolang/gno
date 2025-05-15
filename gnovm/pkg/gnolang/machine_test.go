@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -27,10 +27,10 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store := NewStore(nil, baseStore, iavlStore)
 	m := NewMachine("std", store)
-	m.RunMemPackageWithOverrides(&gnovm.MemPackage{
+	m.RunMemPackageWithOverrides(&std.MemPackage{
 		Name: "std",
 		Path: "std",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "a.gno", Body: `package std; func Redecl(x int) string { return "1" }`},
 		},
 	}, true)
@@ -38,17 +38,17 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 		defer func() {
 			p = fmt.Sprint(recover())
 		}()
-		m.RunMemPackageWithOverrides(&gnovm.MemPackage{
+		m.RunMemPackageWithOverrides(&std.MemPackage{
 			Name: "std",
 			Path: "std",
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{Name: "b.gno", Body: `package std; func Redecl(x int) string { var y string; _, _ = y; return "2" }`},
 			},
 		}, true)
 		return
 	}()
 	t.Log("panic trying to redeclare invalid func", result)
-	m.RunStatement(S(Call(X("Redecl"), 11)))
+	m.RunStatement(StageRun, S(Call(X("Redecl"), 11)))
 
 	// Check last value, assuming it is the result of Redecl.
 	v := m.Values[0]
@@ -71,7 +71,7 @@ func TestMachineString(t *testing.T) {
 		{
 			"created with defaults",
 			NewMachineWithOptions(MachineOptions{}),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			"Machine:\n    Stage: \n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 		{
 			"created with store and defaults",
@@ -82,7 +82,7 @@ func TestMachineString(t *testing.T) {
 				store := NewStore(nil, baseStore, iavlStore)
 				return NewMachine("std", store)
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			"Machine:\n    Stage: \n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 		{
 			"filled in",
@@ -101,7 +101,7 @@ func TestMachineString(t *testing.T) {
 				m.PushStmts(S(Call(X("Redecl"), 11)))
 				return m
 			}(),
-			"Machine:\n    PreprocessorMode: false\n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n    Exceptions:\n",
+			"Machine:\n    Stage: \n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n",
 		},
 	}
 

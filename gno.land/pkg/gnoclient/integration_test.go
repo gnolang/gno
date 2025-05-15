@@ -4,14 +4,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -61,7 +59,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	msg := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
 	}
@@ -120,7 +118,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	msg1 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{""},
 		Send:    nil,
 	}
@@ -129,7 +127,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	msg2 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
 	}
@@ -324,11 +322,13 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	crossing()
+
+	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter()
+		cross(tests.IncCounter)()
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
 }`
 
 	caller, err := client.Signer.Info()
@@ -337,9 +337,11 @@ func main() {
 	// Make Msg configs
 	msg := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "main",
-			Files: []*gnovm.MemFile{
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody,
@@ -402,11 +404,13 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
-	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	crossing()
+
+	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter()
+		cross(tests.IncCounter)()
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
 }`
 
 	fileBody2 := `package main
@@ -415,6 +419,8 @@ import (
 	"gno.land/r/demo/deep/very/deep"
 )
 func main() {
+	crossing()
+
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
@@ -424,9 +430,11 @@ func main() {
 	// Make Msg configs
 	msg1 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "main",
-			Files: []*gnovm.MemFile{
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody1,
@@ -437,9 +445,11 @@ func main() {
 	}
 	msg2 := vm.MsgRun{
 		Caller: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "main",
-			Files: []*gnovm.MemFile{
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
 					Body: fileBody2,
@@ -505,10 +515,10 @@ func Echo(str string) string {
 	// Make Msg config
 	msg := vm.MsgAddPackage{
 		Creator: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: fileName,
 					Body: body,
@@ -531,7 +541,7 @@ func Echo(str string) string {
 	assert.Equal(t, string(query.Response.Data), fileName)
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins(), deposit)
 
@@ -595,10 +605,10 @@ func Hello(str string) string {
 
 	msg1 := vm.MsgAddPackage{
 		Creator: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath1,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: "echo.gno",
 					Body: body1,
@@ -610,10 +620,10 @@ func Hello(str string) string {
 
 	msg2 := vm.MsgAddPackage{
 		Creator: caller.GetAddress(),
-		Package: &gnovm.MemPackage{
+		Package: &std.MemPackage{
 			Name: "hello",
 			Path: deploymentPath2,
-			Files: []*gnovm.MemFile{
+			Files: []*std.MemFile{
 				{
 					Name: "gno.mod",
 					Body: "module gno.land/p/demo/integration/test/hello",
@@ -640,7 +650,7 @@ func Hello(str string) string {
 	assert.Equal(t, string(query.Response.Data), "echo.gno")
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins().String(), "")
 
@@ -654,7 +664,7 @@ func Hello(str string) string {
 	assert.Contains(t, string(query.Response.Data), "gno.mod")
 
 	// Query balance to validate deposit
-	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
+	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins(), deposit)
 
