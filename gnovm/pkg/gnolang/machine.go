@@ -811,8 +811,9 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if debug {
 		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
-	// X must have been preprocessed.
-	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
+	// X must have been preprocessed or a predefined func lit expr.
+	if x.GetAttribute(ATTR_PREPROCESSED) == nil &&
+		x.GetAttribute(ATTR_PREPROCESS_SKIPPED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
 			x.String()))

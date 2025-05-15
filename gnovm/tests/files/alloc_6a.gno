@@ -8,6 +8,9 @@ func main() {
 		var a = func() int {
 			return 1
 		}
+		if false {
+			a()
+		}
 		runtime.GC()
 	}
 

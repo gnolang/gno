@@ -66,10 +66,17 @@ func TestFiles(t *testing.T) {
 			return nil
 		}
 		subTestName := path
+		isHidden := strings.HasPrefix(path, ".")
+		if isHidden {
+			t.Run(subTestName, func(t *testing.T) {
+				t.Skip("skipping hidden")
+			})
+			return nil
+		}
 		isLong := strings.HasSuffix(path, "_long.gno")
 		if isLong && testing.Short() {
 			t.Run(subTestName, func(t *testing.T) {
-				t.Skip("skipping in -short")
+				t.Skip("skipping long (-short)")
 			})
 			return nil
 		}

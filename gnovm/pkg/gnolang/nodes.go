@@ -122,19 +122,21 @@ type Name string
 
 type GnoAttribute string
 
+// XXX once everything is done, convert to a uint64 bitflag.
 const (
-	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
-	ATTR_HEAP_DEFINES    GnoAttribute = "ATTR_HEAP_DEFINES" // []Name heap items.
-	ATTR_HEAP_USES       GnoAttribute = "ATTR_HEAP_USES"    // []Name heap items used.
-	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
-	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
-	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
-	ATTR_PACKAGE_REF     GnoAttribute = "ATTR_PACKAGE_REF"
-	ATTR_PACKAGE_DECL    GnoAttribute = "ATTR_PACKAGE_DECL"
+	ATTR_PREPROCESSED          GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREPROCESS_SKIPPED    GnoAttribute = "ATTR_PREPROCESS_SKIPPED"
+	ATTR_PREPROCESS_INCOMPLETE GnoAttribute = "ATTR_PREPROCESS_INCOMPLETE"
+	ATTR_PREDEFINED            GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE            GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE          GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA                  GnoAttribute = "ATTR_IOTA"
+	ATTR_HEAP_DEFINES          GnoAttribute = "ATTR_HEAP_DEFINES" // []Name heap items.
+	ATTR_HEAP_USES             GnoAttribute = "ATTR_HEAP_USES"    // []Name heap items used.
+	ATTR_SHIFT_RHS             GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
+	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
+	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 )
 
 // Embedded in each Node.
@@ -175,6 +177,14 @@ func (attr *Attributes) DelAttribute(key GnoAttribute) {
 		panic("should not happen, attribute is expected to be non-empty.")
 	}
 	delete(attr.data, key)
+}
+
+func (attr *Attributes) GetAttributeKeys() []GnoAttribute {
+	res := make([]GnoAttribute, 0, len(attr.data))
+	for key, _ := range attr.data {
+		res = append(res, key)
+	}
+	return res
 }
 
 func (attr *Attributes) String() string {
@@ -1563,7 +1573,7 @@ type BlockNode interface {
 	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
-	Predefine(bool, Name)
+	Reserve(bool, Name)
 	Define(Name, TypedValue)
 	Define2(bool, Name, Type, TypedValue)
 	GetBody() Body
@@ -1903,14 +1913,14 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used
 // during preprocessing to compute types.
-// If skipPredefined, skips over names that are only predefined.
-// Returns nil if not defined.
-func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *TypedValue {
+// If ignoreReserved, skips over names that are only reserved (and neither predefined nor defined).
+// Returns nil if not found.
+func (sb *StaticBlock) GetValueRef(store Store, n Name, ignoreReserved bool) *TypedValue {
 	idx, ok := sb.GetLocalIndex(n)
 	bb := &sb.Block
 	bp := sb.GetParentNode(store)
 	for {
-		if ok && (!skipPredefined || sb.Types[idx] != nil) {
+		if ok && (!ignoreReserved || sb.Types[idx] != nil) {
 			return bb.GetPointerToInt(store, int(idx)).TV
 		} else if bp != nil {
 			idx, ok = bp.GetLocalIndex(n)
@@ -1939,7 +1949,7 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 }
 
 // Set type to nil, only reserving the name.
-func (sb *StaticBlock) Predefine(isConst bool, n Name) {
+func (sb *StaticBlock) Reserve(isConst bool, n Name) {
 	_, exists := sb.GetLocalIndex(n)
 	if !exists {
 		sb.Define2(isConst, n, nil, anyValue(nil))

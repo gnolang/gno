@@ -5,6 +5,9 @@ import "runtime"
 
 func gen() {
 	data := make([]byte, 50*1024*1024)
+	if false {
+		println(data)
+	}
 }
 
 // this is mainly for gas usage check

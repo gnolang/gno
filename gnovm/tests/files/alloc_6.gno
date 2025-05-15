@@ -7,6 +7,9 @@ func main() {
 	var a = func() int {
 		return 1
 	}
+	if false {
+		a()
+	}
 
 	runtime.GC()
 	println("memstats in main after GC: ", runtime.MemStats())
