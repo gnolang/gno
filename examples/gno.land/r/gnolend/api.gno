@@ -4,6 +4,15 @@ import (
     "gno.land/p/demo/json"
 )
 
+func ApiGetMarketInfo(marketId string) string {
+    marketInfo := GetMarketInfo(marketId)
+    node := json.ObjectNode("", map[string]*json.Node{
+        "marketInfo": marketInfo.JSON(),
+    })
+    
+    return marshal(node)
+}
+
 func ApiGetMarket(marketId string) string {
     market, _ := GetMarket(marketId)
     node := json.ObjectNode("", map[string]*json.Node{
@@ -31,14 +40,14 @@ func ApiGetPosition(marketId, userAddr string) string {
     return marshal(node)
 }
 
-func ApiListMarkets() string {
+func ApiListMarketsInfo() string {
     marketList := GetMarketList()
     markets := json.ArrayNode("", []*json.Node{})
     
     for _, marketId := range marketList {
-        market, _ := GetMarket(marketId)
+        marketInfo := GetMarketInfo(marketId)
         marketWrapper := json.ObjectNode("", map[string]*json.Node{
-            marketId : market.ToRpc().JSON(),
+            marketId: marketInfo.JSON(),
         })
         markets.AppendArray(marketWrapper)
     }

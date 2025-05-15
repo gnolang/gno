@@ -110,4 +110,69 @@ func (r RpcIRM) JSON() *json.Node {
         "type":       json.StringNode("type", r.Type),
         "parameters": json.StringNode("parameters", r.Parameters),
     })
+}
+
+// RpcMarketInfo combines all market information into a single structure
+
+type RpcMarketInfo struct {
+    Market           RpcMarket       `json:"market"`
+    Params           RpcMarketParams `json:"params"`
+    LoanToken        string          `json:"loanToken"`
+    CollateralToken  string          `json:"collateralToken"`
+    CurrentPrice     string          `json:"currentPrice"`
+    BorrowRate       string          `json:"borrowRate"`
+    SupplyRate       string          `json:"supplyRate"`
+    Utilization      string          `json:"utilization"`
+}
+
+// GetMarketInfo returns comprehensive information about a market
+func GetMarketInfo(marketId string) RpcMarketInfo {
+	market, params := GetMarket(marketId)
+	
+	price, err := GetPrice(marketId)
+	priceStr := ""
+	if err == nil {
+		priceStr = price.ToString()
+	}
+	
+	irm := GetIRM(params.IRM)
+	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
+	
+	supplyRate := new(u256.Uint).Set(borrowRate)
+	
+	utilization := new(u256.Uint)
+	if !market.TotalSupplyAssets.IsZero() {
+		utilization = new(u256.Uint).Div(
+			new(u256.Uint).Mul(market.TotalBorrowAssets, u256.NewUint(1e18)),
+			market.TotalSupplyAssets,
+		)
+	}
+	
+	feeComplement := new(u256.Uint).Sub(u256.NewUint(1e18), new(u256.Uint).Mul(market.Fee, u256.NewUint(1e16)))
+	supplyRate = new(u256.Uint).Mul(supplyRate, utilization)
+	supplyRate = new(u256.Uint).Div(new(u256.Uint).Mul(supplyRate, feeComplement), u256.NewUint(1e18))
+	
+	return RpcMarketInfo{
+		Market:          market.ToRpc(),
+		Params:          params.ToRpc(),
+		LoanToken:       params.GetLoanToken(),
+		CollateralToken: params.GetCollateralToken(),
+		CurrentPrice:    priceStr,
+		BorrowRate:      borrowRate.ToString(),
+		SupplyRate:      supplyRate.ToString(),
+		Utilization:     utilization.ToString(),
+	}
+}
+
+func (r RpcMarketInfo) JSON() *json.Node {
+    return json.ObjectNode("market_info", map[string]*json.Node{
+        "market":          r.Market.JSON(),
+        "params":          r.Params.JSON(),
+        "loanToken":       json.StringNode("loanToken", r.LoanToken),
+        "collateralToken": json.StringNode("collateralToken", r.CollateralToken),
+        "currentPrice":    json.StringNode("currentPrice", r.CurrentPrice),
+        "borrowRate":      json.StringNode("borrowRate", r.BorrowRate),
+        "supplyRate":      json.StringNode("supplyRate", r.SupplyRate),
+        "utilization":     json.StringNode("utilization", r.Utilization),
+    })
 } 
