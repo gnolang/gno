@@ -46,46 +46,22 @@ func TestAddrsetAuthority_Basic(t *testing.T) {
 	privcfg.Add("public_action", authz.Anyone)
 
 	// Test admin permissions
-	if !auth.Can(admin, authz.Admin) {
-		t.Error("admin should be able to perform admin actions")
-	}
-	if !auth.Can(admin, "propose") {
-		t.Error("admin should be able to perform propose action")
-	}
-	if !auth.Can(admin, "arbitrary_action") {
-		t.Error("admin should be able to perform arbitrary action")
-	}
-	if !auth.Can(admin, "public_action") {
-		t.Error("admin should be able to perform public action")
-	}
+	uassert.True(t, auth.Can(admin, authz.Admin), "admin should be able to perform admin actions")
+	uassert.True(t, auth.Can(admin, "propose"), "admin should be able to perform propose action")
+	uassert.True(t, auth.Can(admin, "arbitrary_action"), "admin should be able to perform arbitrary action")
+	uassert.True(t, auth.Can(admin, "public_action"), "admin should be able to perform public action")
 
 	// Test user permissions
-	if !auth.Can(user1, "propose") {
-		t.Error("user1 should be able to propose")
-	}
-	if auth.Can(user1, "vote") {
-		t.Error("user1 should not be able to vote")
-	}
-	if auth.Can(user1, "arbitrary_action") {
-		t.Error("user1 should not be able to perform arbitrary action")
-	}
-	if !auth.Can(user1, "public_action") {
-		t.Error("user1 should be able to perform public action")
-	}
-	if auth.Can(user1, authz.Admin) {
-		t.Error("user1 should not be able to perform admin action")
-	}
+	uassert.True(t, auth.Can(user1, "propose"), "user1 should be able to propose")
+	uassert.False(t, auth.Can(user1, "vote"), "user1 should not be able to vote")
+	uassert.False(t, auth.Can(user1, "arbitrary_action"), "user1 should not be able to perform arbitrary action")
+	uassert.True(t, auth.Can(user1, "public_action"), "user1 should be able to perform public action")
+	uassert.False(t, auth.Can(user1, authz.Admin), "user1 should not be able to perform admin action")
 
 	// Test Anyone special address
-	if !auth.Can(user4, "public_action") {
-		t.Error("anyone should be able to perform public actions")
-	}
-	if auth.Can(user4, "arbitrary_action") {
-		t.Error("anyone should not be able to perform arbitrary action")
-	}
-	if auth.Can(user4, "vote") {
-		t.Error("anyone should not be able to vote")
-	}
+	uassert.True(t, auth.Can(user4, "public_action"), "anyone should be able to perform public actions")
+	uassert.False(t, auth.Can(user4, "arbitrary_action"), "anyone should not be able to perform arbitrary action")
+	uassert.False(t, auth.Can(user4, "vote"), "anyone should not be able to vote")
 }
 
 func TestAddrsetAuthority_String(t *testing.T) {
@@ -113,16 +89,12 @@ action4: g1anyone`
 
 func TestAddrsetAuthority_NewWithCurrent(t *testing.T) {
 	auth, _ := authz.NewWithCurrent()
-	if !auth.Can(std.CurrentRealm().Address(), authz.Admin) {
-		t.Error("current realm should be admin")
-	}
+	uassert.True(t, auth.Can(std.CurrentRealm().Address(), authz.Admin), "current realm should be admin")
 }
 
 func TestAddrsetAuthority_NewWithPrevious(t *testing.T) {
 	auth, _ := authz.NewWithPrevious()
-	if !auth.Can(std.PreviousRealm().Address(), authz.Admin) {
-		t.Error("previous realm should be admin")
-	}
+	uassert.True(t, auth.Can(std.PreviousRealm().Address(), authz.Admin), "previous realm should be admin")
 }
 
 func TestAddrsetAuthority_AddRemove(t *testing.T) {
@@ -132,26 +104,19 @@ func TestAddrsetAuthority_AddRemove(t *testing.T) {
 
 	// Test adding and removing a single user
 	privcfg.Add("test_action", user)
-	if !auth.Can(user, "test_action") {
-		t.Error("user should be able to perform test_action after adding")
-	}
+	uassert.True(t, auth.Can(user, "test_action"), "user should be able to perform test_action after adding")
 
 	privcfg.Remove("test_action", user)
-	if auth.Can(user, "test_action") {
-		t.Error("user should not be able to perform test_action after removing")
-	}
+	uassert.False(t, auth.Can(user, "test_action"), "user should not be able to perform test_action after removing")
 
 	// Test adding and removing multiple users
 	user2 := std.Address("g1user2")
 	privcfg.Add("test_action", user, user2)
-	if !auth.Can(user, "test_action") || !auth.Can(user2, "test_action") {
-		t.Error("both users should be able to perform test_action")
-	}
+	uassert.True(t, auth.Can(user, "test_action") && auth.Can(user2, "test_action"), "both users should be able to perform test_action")
 
 	privcfg.Remove("test_action", user)
-	if auth.Can(user, "test_action") || !auth.Can(user2, "test_action") {
-		t.Error("only user2 should be able to perform test_action after removing user1")
-	}
+	uassert.False(t, auth.Can(user, "test_action"), "user1 should not be able to perform test_action after removing")
+	uassert.True(t, auth.Can(user2, "test_action"), "user2 should still be able to perform test_action")
 }
 
 func TestAddrsetAuthority_RemoveAll(t *testing.T) {
@@ -165,14 +130,10 @@ func TestAddrsetAuthority_RemoveAll(t *testing.T) {
 
 	// Test removing all from action with multiple users
 	privcfg.Add("test_action", user1, user2)
-	if !auth.Can(user1, "test_action") || !auth.Can(user2, "test_action") {
-		t.Error("both users should be able to perform test_action")
-	}
+	uassert.True(t, auth.Can(user1, "test_action") && auth.Can(user2, "test_action"), "both users should be able to perform test_action")
 
 	privcfg.RemoveAll("test_action")
-	if auth.Can(user1, "test_action") || auth.Can(user2, "test_action") {
-		t.Error("no users should be able to perform test_action after RemoveAll")
-	}
+	uassert.False(t, auth.Can(user1, "test_action") || auth.Can(user2, "test_action"), "no users should be able to perform test_action after RemoveAll")
 }
 
 func TestAddrsetAuthority_AdminOperations(t *testing.T) {
@@ -182,34 +143,19 @@ func TestAddrsetAuthority_AdminOperations(t *testing.T) {
 	auth, _ := authz.New(admin)
 
 	// Test that non-admin can't add
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("expected panic when non-admin tries to add")
-			}
-		}()
+	uassert.PanicsWithMessage(t, "unauthorized: only admin can add members", func() {
 		auth.Add("test_action", user)
-	}()
+	})
 
 	// Test that non-admin can't remove
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("expected panic when non-admin tries to remove")
-			}
-		}()
+	uassert.PanicsWithMessage(t, "unauthorized: only admin can remove members", func() {
 		auth.Remove("test_action", user)
-	}()
+	})
 
 	// Test that non-admin can't remove all
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("expected panic when non-admin tries to remove all")
-			}
-		}()
+	uassert.PanicsWithMessage(t, "unauthorized: only admin can remove all policies", func() {
 		auth.RemoveAll("test_action")
-	}()
+	})
 }
 
 func TestAddrsetAuthority_EmptyAuthority(t *testing.T) {
@@ -217,12 +163,8 @@ func TestAddrsetAuthority_EmptyAuthority(t *testing.T) {
 	user := std.Address("g1user")
 
 	// Test that no one can perform any action in empty authority
-	if auth.Can(user, "any_action") {
-		t.Error("no one should be able to perform any action in empty authority")
-	}
-	if auth.Can(user, authz.Admin) {
-		t.Error("no one should be able to perform admin action in empty authority")
-	}
+	uassert.False(t, auth.Can(user, "any_action"), "no one should be able to perform any action in empty authority")
+	uassert.False(t, auth.Can(user, authz.Admin), "no one should be able to perform admin action in empty authority")
 }
 
 func TestAddrsetAuthority_MultipleAdmins(t *testing.T) {
@@ -232,19 +174,13 @@ func TestAddrsetAuthority_MultipleAdmins(t *testing.T) {
 	auth, _ := authz.New(admin1, admin2)
 
 	// Test that both admins can perform admin actions
-	if !auth.Can(admin1, authz.Admin) || !auth.Can(admin2, authz.Admin) {
-		t.Error("both admins should be able to perform admin actions")
-	}
+	uassert.True(t, auth.Can(admin1, authz.Admin) && auth.Can(admin2, authz.Admin), "both admins should be able to perform admin actions")
 
 	testing.SetRealm(std.NewUserRealm(admin1))
 	// Test that both admins can add/remove
 	auth.Add("test_action", user)
-	if !auth.Can(user, "test_action") {
-		t.Error("user should be able to perform test_action after admin1 adds")
-	}
+	uassert.True(t, auth.Can(user, "test_action"), "user should be able to perform test_action after admin1 adds")
 
 	auth.Remove("test_action", user)
-	if auth.Can(user, "test_action") {
-		t.Error("user should not be able to perform test_action after admin2 removes")
-	}
+	uassert.False(t, auth.Can(user, "test_action"), "user should not be able to perform test_action after admin2 removes")
 }
