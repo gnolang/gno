@@ -21,7 +21,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-var coinsString = ugnot.ValueString(10_000_000)
+var (
+	coinsString = ugnot.ValueString(20_000_000)
+	coinsToSend = ugnot.ValueString(1_000_000)
+)
 
 func TestVMKeeperAddPackage(t *testing.T) {
 	env := setupTestEnv()
@@ -155,7 +158,7 @@ func Echo(msg string) string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins(coinsString)
+	coins := std.MustParseCoins(coinsToSend)
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
@@ -212,7 +215,7 @@ func GetAdmin() string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins(ugnot.ValueString(11000000))
+	coins := std.MustParseCoins(ugnot.ValueString(21000000))
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
@@ -293,7 +296,7 @@ func Echo(msg string) string {
 
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
-	send := std.Coins{{"ugnot", 10000000}}
+	send := std.Coins{{"ugnot", 1000000}}
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
@@ -305,7 +308,7 @@ func Echo(msg string) string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins(coinsString)
+	coins := std.MustParseCoins(coinsToSend)
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
@@ -397,7 +400,7 @@ func Do() string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins(ugnot.ValueString(9_000_000))
+	coins := std.MustParseCoins(ugnot.ValueString(8_000_000))
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Do", []string{})
 
 	res, err := env.vmk.Call(ctx, msg2)

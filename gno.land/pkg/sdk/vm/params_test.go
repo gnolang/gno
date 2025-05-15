@@ -18,7 +18,9 @@ func TestParamsString(t *testing.T) {
 	// Construct the expected string.
 	expected := "Params: \n" +
 		fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath) +
-		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain)
+		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
+		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
+		fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice)
 
 	// Assert: check if the result matches the expected string.
 	if result != expected {

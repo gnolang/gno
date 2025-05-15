@@ -218,9 +218,9 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Fee = fee
 	tx.Msgs = []std.Msg{
 		vmm.MsgAddPackage{
-			Creator: creator,
-			Package: memPkg,
-			Deposit: deposit,
+			Creator:    creator,
+			Package:    memPkg,
+			MaxDeposit: deposit,
 		},
 	}
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
