@@ -15,8 +15,8 @@ type Color struct {
 }
 
 const (
-	rows uint64 = 45
-	cols uint64 = 45
+	rows uint64 = 40
+	cols uint64 = 40
 
 	white string = "rgb(250,250,250)"
 
