@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"gno.land/p/demo/svg"
-	"gno.land/p/demo/ufmt"
 )
 
 func generateSquareSvg(color string) string {
@@ -15,15 +14,14 @@ func generateSquareSvg(color string) string {
 	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
 }
 
-func GenerateSVG() string {
-	out := ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">`, cols*40, rows*40)
+func generateSVG() string {
+	canvas := svg.Canvas{Width: (int)(cols * 40), Height: (int)(rows * 40)}
 	for y := 0; y < int(rows); y++ {
 		for x := 0; x < int(cols); x++ {
-			out += ufmt.Sprintf(`<rect x="%d" y="%d" width="40" height="40" fill="%s"/>`, x*40, y*40, tableColor[y][x].rgb)
+			canvas.DrawRectangle(x*40, y*40, 40, 40, tableColor[y][x].rgb)
 		}
 	}
-	out += "</svg>"
-	return out
+	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
 }
 
 func Submit(x, y uint64, colorName string) {

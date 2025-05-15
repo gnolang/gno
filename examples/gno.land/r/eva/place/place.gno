@@ -1,7 +1,7 @@
 package place
 
 import (
-	"encoding/base64"
+	"net/url"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
@@ -16,8 +16,8 @@ type Color struct {
 }
 
 const (
-	rows uint64 = 45
-	cols uint64 = 45
+	rows uint64 = 40
+	cols uint64 = 40
 
 	white string = "rgb(250,250,250)"
 
@@ -59,35 +59,25 @@ func init() {
 	}
 }
 
-func RenderAccountManagement(selectedColor string) string {
-	var out string
-
-	out += md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
+func renderAccountManagement(selectedColor string) string {
+	out := md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
 		md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
 
 	return out
 }
 
-func Render(path string) string {
-	req := realmpath.Parse(path)
-	query := req.Query
-
-	out := md.H1("r/place") + "\n\n"
+func displayCurrentPosition(path string) {
 	if strings.Contains(path, "?") {
-		if x, y, err := parseXY(path); err != nil {
+		x, y, err := parseXY(path)
+		if err != nil {
 			panic(err)
-		} else {
-			tableColor[y][x].initial = "X"
 		}
+		tableColor[y][x].initial = "X"
 	}
+}
 
-	selectedColor := query.Get("color")
-
-	if selectedColor == "" {
-		selectedColor = "W"
-	}
-
-	out += md.HorizontalRule() + "\n\n"
+func displayColorTable(selectedColor string) string {
+	out := md.HorizontalRule()
 	for y, row := range tableColor {
 		out += "|"
 		for x, cell := range row {
@@ -96,19 +86,41 @@ func Render(path string) string {
 		}
 		out += "|\n\n"
 	}
-	out += md.HorizontalRule() + "\n\n"
+	out += md.HorizontalRule()
+	return out
+}
 
-	out += RenderAccountManagement(selectedColor)
-
-	ssvg := GenerateSVG()
-	base64SVG := base64.StdEncoding.EncodeToString([]byte(ssvg))
-	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", base64SVG)
+func displayColorList(query url.Values, req *realmpath.Request) string {
+	var out string
 
 	for _, color := range colors {
 		query.Set("color", color.initial)
 
 		out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
 	}
+	return out
+}
+
+func Render(path string) string {
+	req := realmpath.Parse(path)
+	query := req.Query
+
+	out := md.H1("r/place")
+	displayCurrentPosition(path)
+
+	selectedColor := query.Get("color")
+
+	if selectedColor == "" {
+		selectedColor = "W"
+	}
+
+	out += displayColorTable(selectedColor)
+
+	out += renderAccountManagement(selectedColor)
+
+	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", generateSVG())
+
+	out += displayColorList(query, req)
 
 	return out
 }
