@@ -3,7 +3,7 @@ package gnolend
 import (
     "gno.land/p/demo/json"
     u256 "gno.land/p/gnoswap/uint256"
-    "gno.land/p/grc20"
+    "gno.land/r/demo/grc20"
 )
 
 // RpcMarket
