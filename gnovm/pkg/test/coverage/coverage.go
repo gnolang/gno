@@ -37,6 +37,75 @@ func (ct *CoverageTracker) GetCoverage(filename string) map[int]int {
 	return ct.data[filename]
 }
 
+// CoverageData represents the coverage data for a file
+type CoverageData struct {
+	TotalLines    int
+	CoveredLines  int
+	CoverageRatio float64
+	LineData      map[int]int // line number -> execution count
+}
+
+// GetCoverageData returns the coverage data for all files
+func (ct *CoverageTracker) GetCoverageData() map[string]*CoverageData {
+	result := make(map[string]*CoverageData)
+
+	for filename, lineData := range ct.data {
+		totalLines := 0
+		coveredLines := 0
+
+		// Count total and covered lines
+		for _, count := range lineData {
+			totalLines++
+			if count > 0 {
+				coveredLines++
+			}
+		}
+
+		coverageRatio := 0.0
+		if totalLines > 0 {
+			coverageRatio = float64(coveredLines) / float64(totalLines) * 100
+		}
+
+		result[filename] = &CoverageData{
+			TotalLines:    totalLines,
+			CoveredLines:  coveredLines,
+			CoverageRatio: coverageRatio,
+			LineData:      lineData,
+		}
+	}
+
+	return result
+}
+
+// PrintCoverage prints the coverage data to stdout
+func (ct *CoverageTracker) PrintCoverage() {
+	coverageData := ct.GetCoverageData()
+
+	var totalLines, totalCovered int
+	for _, data := range coverageData {
+		totalLines += data.TotalLines
+		totalCovered += data.CoveredLines
+	}
+
+	overallCoverage := 0.0
+	if totalLines > 0 {
+		overallCoverage = float64(totalCovered) / float64(totalLines) * 100
+	}
+
+	fmt.Printf("\nCoverage Report:\n")
+	fmt.Printf("Total Lines: %d\n", totalLines)
+	fmt.Printf("Covered Lines: %d\n", totalCovered)
+	fmt.Printf("Overall Coverage: %.2f%%\n\n", overallCoverage)
+
+	for filename, data := range coverageData {
+		fmt.Printf("File: %s\n", filename)
+		fmt.Printf("  Total Lines: %d\n", data.TotalLines)
+		fmt.Printf("  Covered Lines: %d\n", data.CoveredLines)
+		fmt.Printf("  Coverage: %.2f%%\n", data.CoverageRatio)
+		fmt.Println()
+	}
+}
+
 // CoverageInstrumenter instrument the AST to add coverage
 type CoverageInstrumenter struct {
 	fset     *token.FileSet
@@ -228,4 +297,14 @@ func InstrumentPackage(pkg *std.MemPackage) error {
 		file.Body = string(instrumented)
 	}
 	return nil
+}
+
+// GetGlobalTracker returns the global coverage tracker
+func GetGlobalTracker() *CoverageTracker {
+	return globalTracker
+}
+
+// Reset resets the coverage data
+func (ct *CoverageTracker) Reset() {
+	ct.data = make(map[string]map[int]int)
 }

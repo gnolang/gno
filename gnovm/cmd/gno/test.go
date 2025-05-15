@@ -293,6 +293,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return fail()
 	}
 
+	// 커버리지 결과 출력
+	if cfg.coverage {
+		coverageTracker := test.GetCoverageTracker()
+		coverageTracker.PrintCoverage()
+	}
+
 	return nil
 }
 

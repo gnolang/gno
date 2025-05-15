@@ -223,10 +223,11 @@ func Test(memPkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
-	// create coverage tracker
-	var tracker *coverage.CoverageTracker
+	// 커버리지 트래커 초기화
 	if opts.Coverage {
-		tracker = coverage.NewCoverageTracker()
+		coverageTracker := coverage.GetGlobalTracker()
+		// 기존 데이터 초기화
+		coverageTracker.Reset()
 	}
 
 	// Eagerly load imports.
@@ -249,7 +250,7 @@ func Test(memPkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(memPkg, tset, gs, tracker)
+			err := opts.runTestFiles(memPkg, tset, gs, coverage.GetGlobalTracker())
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -263,7 +264,7 @@ func Test(memPkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, gs, tracker)
+			err := opts.runTestFiles(itPkg, itset, gs, coverage.GetGlobalTracker())
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -310,8 +311,9 @@ func Test(memPkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	}
 
 	// generate coverage report
-	if opts.Coverage && tracker != nil {
-		if err := coverage.GenerateReport(tracker, opts.CoverageOutput); err != nil {
+	if opts.Coverage {
+		coverageTracker := coverage.GetGlobalTracker()
+		if err := coverage.GenerateReport(coverageTracker, opts.CoverageOutput); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("failed to generate coverage report: %w", err))
 		}
 	}
@@ -353,7 +355,7 @@ func (opts *TestOptions) runTestFiles(
 	m.Alloc = alloc
 	if gs.GetMemPackage(memPkg.Path) == nil {
 		// if coverage is enabled, instrument the files
-		if opts.Coverage && tracker != nil {
+		if opts.Coverage {
 			for _, file := range memPkg.Files {
 				instrumenter := coverage.NewCoverageInstrumenter(tracker, file.Name)
 				instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
@@ -567,4 +569,9 @@ func prettySize(nb int64) string {
 
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
+}
+
+// GetCoverageTracker returns the global coverage tracker
+func GetCoverageTracker() *coverage.CoverageTracker {
+	return coverage.GetGlobalTracker()
 }

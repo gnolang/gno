@@ -384,7 +384,7 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 }
 
 func MarkLine(filename string, line int) {
-	coverage.MarkLine(filename, line)
+	markLine(filename, line)
 }
 
 // markLine marks a line as executed
