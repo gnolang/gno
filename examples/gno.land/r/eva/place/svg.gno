@@ -14,7 +14,7 @@ func generateSquareSvg(color string) string {
 	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
 }
 
-func GenerateSVG() string {
+func generateSVG() string {
 	canvas := svg.Canvas{Width: (int)(cols * 40), Height: (int)(rows * 40)}
 	// out := ufmt.Sprintf(`<svg width="%d" height="%d" xmlns="http://www.w3.org/2000/svg">`, cols*40, rows*40)
 	for y := 0; y < int(rows); y++ {
