@@ -3,7 +3,7 @@ package test
 
 var root any
 
-func main(cur realm,) {
+func main(cur realm) {
 	println(root)
 	root = 1
 	println(root)
@@ -20,11 +20,11 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
-//     @@ -1,9 +1,15 @@
-//      {
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](31)=
+//     @@ -2,9 +2,15 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "LastObjectSize": "190",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
