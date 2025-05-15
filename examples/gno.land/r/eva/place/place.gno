@@ -73,11 +73,11 @@ func Render(path string) string {
 
 	out := md.H1("r/place") + "\n\n"
 	if strings.Contains(path, "?") {
-		if x, y, err := parseXY(path); err != nil {
+		x, y, err := parseXY(path)
+		if err != nil {
 			panic(err)
-		} else {
-			tableColor[y][x].initial = "X"
 		}
+		tableColor[y][x].initial = "X"
 	}
 
 	selectedColor := query.Get("color")
@@ -86,7 +86,7 @@ func Render(path string) string {
 		selectedColor = "W"
 	}
 
-	out += md.HorizontalRule() + "\n\n"
+	out += md.HorizontalRule()
 	for y, row := range tableColor {
 		out += "|"
 		for x, cell := range row {
@@ -95,11 +95,11 @@ func Render(path string) string {
 		}
 		out += "|\n\n"
 	}
-	out += md.HorizontalRule() + "\n\n"
+	out += md.HorizontalRule()
 
 	out += renderAccountManagement(selectedColor)
 
-	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", GenerateSVG())
+	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", generateSVG())
 
 	for _, color := range colors {
 		query.Set("color", color.initial)
