@@ -322,9 +322,7 @@ func TestCommitToVoteSetWithVotesForAnotherBlockOrNilBlock(t *testing.T) {
 		vi := 0
 		for n := range tc.blockIDs {
 			for i := 0; i < tc.numVotes[n]; i++ {
-				pubKey, err := vals[vi].PubKey()
-				assert.NoError(t, err)
-				addr := pubKey.Address()
+				addr := vals[i].PubKey().Address()
 				vote := &Vote{
 					ValidatorAddress: addr,
 					ValidatorIndex:   vi,
@@ -335,7 +333,7 @@ func TestCommitToVoteSetWithVotesForAnotherBlockOrNilBlock(t *testing.T) {
 					Timestamp:        tmtime.Now(),
 				}
 
-				_, err = signAddVote(vals[vi], vote, voteSet)
+				_, err := signAddVote(vals[vi], vote, voteSet)
 				assert.NoError(t, err)
 				vi++
 			}

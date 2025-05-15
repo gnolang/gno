@@ -83,10 +83,7 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	if len(pcfg.ValidatorKey) > 0 && !isAllZero(pcfg.ValidatorKey) {
 		nodecfg.PrivValidator = bft.NewMockPVWithPrivKey(pcfg.ValidatorKey)
 	}
-	pv, err := nodecfg.PrivValidator.PubKey()
-	if err != nil {
-		return err
-	}
+	pk := nodecfg.PrivValidator.PubKey()
 
 	// Setup node configuration
 	nodecfg.DB = db
@@ -95,8 +92,8 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	nodecfg.Genesis = pcfg.Genesis.ToGenesisDoc()
 	nodecfg.Genesis.Validators = []bft.GenesisValidator{
 		{
-			Address: pv.Address(),
-			PubKey:  pv,
+			Address: pk.Address(),
+			PubKey:  pk,
 			Power:   10,
 			Name:    "self",
 		},
@@ -114,14 +111,11 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	defer node.Stop()
 
 	// Get the validator public key
-	ourPubKey, err := nodecfg.PrivValidator.PubKey()
-	if err != nil {
-		return fmt.Errorf("failed to get the validator public key: %w", err)
-	}
+	ourAddress := nodecfg.PrivValidator.PubKey().Address()
 
 	// Determine if the node is a validator
 	isValidator := slices.ContainsFunc(nodecfg.Genesis.Validators, func(val bft.GenesisValidator) bool {
-		return val.Address == ourPubKey.Address()
+		return val.Address == ourAddress
 	})
 
 	lisnAddress := node.Config().RPC.ListenAddress

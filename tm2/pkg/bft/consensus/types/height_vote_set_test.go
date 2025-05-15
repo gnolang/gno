@@ -58,13 +58,8 @@ func makeVoteHR(t *testing.T, height int64, round int, privVals []types.PrivVali
 	t.Helper()
 
 	privVal := privVals[valIndex]
-	pubKey, err := privVal.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get pubKey: %v", err)
-	}
-	addr := pubKey.Address()
 	vote := &types.Vote{
-		ValidatorAddress: addr,
+		ValidatorAddress: privVal.PubKey().Address(),
 		ValidatorIndex:   valIndex,
 		Height:           height,
 		Round:            round,
@@ -73,8 +68,7 @@ func makeVoteHR(t *testing.T, height int64, round int, privVals []types.PrivVali
 		BlockID:          types.BlockID{Hash: []byte("fakehash"), PartsHeader: types.PartSetHeader{}},
 	}
 	chainID := config.ChainID()
-	err = privVal.SignVote(chainID, vote)
-	if err != nil {
+	if err := privVal.SignVote(chainID, vote); err != nil {
 		panic(fmt.Sprintf("Error signing vote: %v", err))
 	}
 	return vote

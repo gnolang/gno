@@ -112,5 +112,10 @@ func NewRemoteSignerClient(
 		option(rsc)
 	}
 
+	// Fetch the public key from the server and cache it.
+	if err := rsc.cachePubKey(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFetchingPubKeyFailed, err)
+	}
+
 	return rsc, nil
 }

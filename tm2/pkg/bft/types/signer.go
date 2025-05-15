@@ -9,10 +9,8 @@ import (
 )
 
 // Signer is an interface for signing arbitrary byte slices.
-// All methods can return errors because the Signer might be a remote server
-// and the connection to it can fail.
 type Signer interface {
-	PubKey() (crypto.PubKey, error)
+	PubKey() crypto.PubKey
 	Sign([]byte) ([]byte, error)
 	Close() error
 }
@@ -26,8 +24,8 @@ type mockSigner struct {
 var _ Signer = &mockSigner{}
 
 // PubKey implements Signer.
-func (ms *mockSigner) PubKey() (crypto.PubKey, error) {
-	return ms.privKey.PubKey(), nil
+func (ms *mockSigner) PubKey() crypto.PubKey {
+	return ms.privKey.PubKey()
 }
 
 // Sign implements Signer.
@@ -50,8 +48,7 @@ var _ fmt.Stringer = &mockSigner{}
 
 // String implements fmt.Stringer.
 func (ms *mockSigner) String() string {
-	pk, _ := ms.PubKey()
-	return fmt.Sprintf("mockSigner{%v}", pk.Address())
+	return fmt.Sprintf("mockSigner{%v}", ms.PubKey().Address())
 }
 
 // newMockSignerWithPrivKey returns a new mockSigner instance.
@@ -64,8 +61,10 @@ func NewMockSigner() Signer {
 	return &mockSigner{ed25519.GenPrivKey()}
 }
 
-// erroringMockSigner implements Signer that only returns error. Only use it for testing.
-type erroringMockSigner struct{}
+// erroringMockSigner implements Signer that only returns error. Only used for testing.
+type erroringMockSigner struct {
+	privKey crypto.PrivKey
+}
 
 // ErrErroringMockSigner is be systematically returned by any call to erroringMockSigner.
 var ErrErroringMockSigner = errors.New("erroringMockSigner error")
@@ -74,8 +73,8 @@ var ErrErroringMockSigner = errors.New("erroringMockSigner error")
 var _ Signer = &erroringMockSigner{}
 
 // PubKey implements Signer.
-func (ems *erroringMockSigner) PubKey() (crypto.PubKey, error) {
-	return nil, ErrErroringMockSigner
+func (ems *erroringMockSigner) PubKey() crypto.PubKey {
+	return ems.privKey.PubKey()
 }
 
 // Sign implements Signer.
@@ -85,7 +84,7 @@ func (ems *erroringMockSigner) Sign(signBytes []byte) ([]byte, error) {
 
 // Close implements Signer.
 func (ems *erroringMockSigner) Close() error {
-	return nil
+	return ErrErroringMockSigner
 }
 
 // erroringMockSigner type implements fmt.Stringer.
@@ -98,5 +97,5 @@ func (ems *erroringMockSigner) String() string {
 
 // NewErroringMockSigner returns a new erroringMockSigner instance.
 func NewErroringMockSigner() Signer {
-	return &erroringMockSigner{}
+	return &erroringMockSigner{ed25519.GenPrivKey()}
 }

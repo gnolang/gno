@@ -79,7 +79,7 @@ func (nk *NodeKey) validate() error {
 
 	// Verify that the embedded public key matches what we get from PubKey()
 	derivedPubKey := nk.PrivKey.PubKey()
-	if !bytes.Equal(derivedPubKey.Bytes()[:], pubKeyPortion) {
+	if !derivedPubKey.Equals(ed25519.PubKeyEd25519(pubKeyPortion)) {
 		return fmt.Errorf("%w: embedded public key doesn't match derived public key", errInvalidNodeKey)
 	}
 
@@ -154,9 +154,9 @@ func GeneratePersistedNodeKey(filePath string) (*NodeKey, error) {
 	return fk, nil
 }
 
-// NewNodeKey returns a new NodeKey instance from the given file path.
+// LoadOrMakeNodeKey returns a new NodeKey instance from the given file path.
 // If the file does not exist, a new NodeKey is generated and persisted to disk.
-func NewNodeKey(filePath string) (*NodeKey, error) {
+func LoadOrMakeNodeKey(filePath string) (*NodeKey, error) {
 	// If the file exists, load the NodeKey from the file.
 	if osm.FileExists(filePath) {
 		return LoadNodeKey(filePath)

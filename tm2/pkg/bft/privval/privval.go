@@ -28,8 +28,7 @@ var (
 var _ types.PrivValidator = (*PrivValidator)(nil)
 
 // PubKey returns the public key of the private validator signer.
-// An error is returned if the signer is remote and the connection fails.
-func (pv *PrivValidator) PubKey() (crypto.PubKey, error) {
+func (pv *PrivValidator) PubKey() crypto.PubKey {
 	return pv.signer.PubKey()
 }
 
@@ -145,14 +144,8 @@ func NewPrivValidator(signer types.Signer, stateFilePath string) (*PrivValidator
 
 	// Check if validator state was signed by this signer.
 	if state.SignBytes != nil {
-		// Get signer public key.
-		pubKey, err := signer.PubKey()
-		if err != nil {
-			return nil, err
-		}
-
-		// Verify state signature using it.
-		if !pubKey.VerifyBytes(state.SignBytes, state.Signature) {
+		// Verify state signature using the signer public key.
+		if !signer.PubKey().VerifyBytes(state.SignBytes, state.Signature) {
 			return nil, errSignatureMismatch
 		}
 	}

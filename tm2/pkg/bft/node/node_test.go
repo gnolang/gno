@@ -186,13 +186,11 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	require.NotNil(t, n)
 	require.NoError(t, err)
 
-	privValPK, err := n.PrivValidator().PubKey()
+	privValPK := n.PrivValidator().PubKey()
 	require.NotNil(t, privValPK)
-	require.NoError(t, err)
 
-	signerPK, err := signer.PubKey()
+	signerPK := signer.PubKey()
 	require.NotNil(t, signerPK)
-	require.NoError(t, err)
 
 	require.Equal(t, signerPK, privValPK)
 }
@@ -224,13 +222,11 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	require.NotNil(t, n)
 	require.NoError(t, err)
 
-	privValPK, err := n.PrivValidator().PubKey()
+	privValPK := n.PrivValidator().PubKey()
 	require.NotNil(t, privValPK)
-	require.NoError(t, err)
 
-	signerPK, err := signer.PubKey()
+	signerPK := signer.PubKey()
 	require.NotNil(t, signerPK)
-	require.NoError(t, err)
 
 	require.Equal(t, signerPK, privValPK)
 }

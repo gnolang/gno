@@ -182,11 +182,7 @@ func (rss *RemoteSignerServer) handle(request r.RemoteSignerMessage) r.RemoteSig
 	switch request := request.(type) {
 	// PubKey request is proxied to the signer.
 	case *r.PubKeyRequest:
-		if pubKey, err := rss.signer.PubKey(); err != nil {
-			return &r.PubKeyResponse{PubKey: nil, Error: &r.RemoteSignerError{Err: err.Error()}}
-		} else {
-			return &r.PubKeyResponse{PubKey: pubKey, Error: nil}
-		}
+		return &r.PubKeyResponse{PubKey: rss.signer.PubKey()}
 
 		// Sign request is proxied to the signer.
 	case *r.SignRequest:

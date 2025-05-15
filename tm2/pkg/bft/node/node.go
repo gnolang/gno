@@ -268,11 +268,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 		return false
 	}
 	addr, _ := state.Validators.GetByIndex(0)
-	pubKey, err := privVal.PubKey()
-	if err != nil {
-		return false
-	}
-	return pubKey.Address() == addr
+	return privVal.PubKey().Address() == addr
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConns,
@@ -408,12 +404,7 @@ func NewNode(config *cfg.Config,
 	// what happened during block replay).
 	state = sm.LoadState(stateDB)
 
-	pubKey, err := privValidator.PubKey()
-	if err != nil {
-		return nil, errors.New("could not retrieve public key from private validator")
-	}
-
-	logNodeStartupInfo(state, pubKey, logger, consensusLogger)
+	logNodeStartupInfo(state, privValidator.PubKey(), logger, consensusLogger)
 
 	// Decide whether to fast-sync or not
 	// We don't fast-sync when the only validator is us.
@@ -699,11 +690,7 @@ func (n *Node) configureRPC() {
 	rpccore.SetMempool(n.mempool)
 	rpccore.SetP2PPeers(n.sw)
 	rpccore.SetP2PTransport(n)
-	pubKey, err := n.privValidator.PubKey()
-	if err != nil {
-		panic(err)
-	}
-	rpccore.SetPubKey(pubKey)
+	rpccore.SetPubKey(n.privValidator.PubKey())
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetGetFastSync(n.consensusReactor.FastSync)

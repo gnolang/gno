@@ -33,42 +33,45 @@ type RemoteSignerClient struct {
 	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
 
 	// Internal.
-	conn      net.Conn
-	connLock  sync.RWMutex
-	closed    atomic.Bool
-	addrCache string
+	conn         net.Conn
+	connLock     sync.RWMutex
+	closed       atomic.Bool
+	cachedPubKey crypto.PubKey
 }
 
 // RemoteSignerClient type implements types.Signer.
 var _ types.Signer = (*RemoteSignerClient)(nil)
 
 // PubKey implements types.Signer.
-func (rsc *RemoteSignerClient) PubKey() (crypto.PubKey, error) {
+func (rsc *RemoteSignerClient) PubKey() crypto.PubKey {
+	if rsc.isClosed() {
+		return nil
+	}
+
+	return rsc.cachedPubKey
+}
+
+// cachePubKey sends a PubKey request to the server and caches the response.
+// This method is called only once when the client is created.
+func (rsc *RemoteSignerClient) cachePubKey() error {
 	response, err := rsc.send(&r.PubKeyRequest{})
 	if err != nil {
 		err := fmt.Errorf("%w: %w", ErrSendingRequestFailed, err)
 		rsc.logger.Error("PubKey request failed", "error", err)
-		return nil, err
+		return err
 	}
 
 	pubKeyResponse, ok := response.(*r.PubKeyResponse)
 	if !ok {
 		err := fmt.Errorf("%w: %T", ErrInvalidResponseType, response)
 		rsc.logger.Error("PubKey request failed", "error", err)
-		return nil, err
-	}
-
-	if pubKeyResponse.Error != nil {
-		err := fmt.Errorf("%w: %w", ErrResponseContainsError, pubKeyResponse.Error)
-		rsc.logger.Error("PubKey request failed", "error", err)
-		return nil, err
+		return err
 	}
 
 	// Save the address in the cache for the String method.
-	rsc.addrCache = pubKeyResponse.PubKey.Address().String()
-	rsc.logger.Debug("PubKey request succeeded")
+	rsc.cachedPubKey = pubKeyResponse.PubKey
 
-	return pubKeyResponse.PubKey, nil
+	return nil
 }
 
 // Sign implements types.Signer.
@@ -137,21 +140,8 @@ func (rsc *RemoteSignerClient) Ping() error {
 var _ fmt.Stringer = (*RemoteSignerClient)(nil)
 
 // String implements fmt.Stringer.
-// Since this method requires a network request to get the server public key, it may
-// be slow or fail. To mitigate this, the address is cached after the first request.
 func (rsc *RemoteSignerClient) String() string {
-	address := rsc.addrCache
-
-	// If the address is not in the cache, get it from the server.
-	if address == "" {
-		address = "unknown"
-		if _, err := rsc.PubKey(); err == nil {
-			// Get the address from the cache populated by the PubKey method on success.
-			address = rsc.addrCache
-		}
-	}
-
-	return fmt.Sprintf("{Type: RemoteSigner, Addr: %s}", address)
+	return fmt.Sprintf("{Type: RemoteSigner, Addr: %s}", rsc.cachedPubKey.Address())
 }
 
 // isClosed returns true if the client is closed.

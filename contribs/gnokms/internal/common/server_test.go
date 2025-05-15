@@ -133,8 +133,8 @@ var errMockSignerCloseFail = errors.New("close error")
 var _ types.Signer = (*mockSignerCloseFail)(nil)
 
 // PubKey implements the Signer interface.
-func (ms *mockSignerCloseFail) PubKey() (crypto.PubKey, error) {
-	return ms.privKey.PubKey(), nil
+func (ms *mockSignerCloseFail) PubKey() crypto.PubKey {
+	return ms.privKey.PubKey()
 }
 
 // Sign implements the Signer interface.

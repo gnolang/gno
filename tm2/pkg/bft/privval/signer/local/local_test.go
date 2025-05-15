@@ -68,9 +68,8 @@ func TestNewLocalSigner(t *testing.T) {
 		require.NotNil(t, signature)
 		require.NoError(t, err)
 
-		pk, err := ls.PubKey()
+		pk := ls.PubKey()
 		require.NotNil(t, pk)
-		require.NoError(t, err)
 
 		require.True(t, pk.VerifyBytes(signBytes, signature))
 		assert.Nil(t, ls.Close())

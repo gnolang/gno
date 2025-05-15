@@ -1,8 +1,6 @@
 package types
 
 import (
-	"fmt"
-
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 )
 
@@ -11,12 +9,8 @@ func MakeCommit(blockID BlockID, height int64, round int,
 ) (*Commit, error) {
 	// all sign
 	for i := 0; i < len(validators); i++ {
-		pubKey, err := validators[i].PubKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get the validator public key: %w", err)
-		}
 		vote := &Vote{
-			ValidatorAddress: pubKey.Address(),
+			ValidatorAddress: validators[i].PubKey().Address(),
 			ValidatorIndex:   i,
 			Height:           height,
 			Round:            round,
@@ -25,8 +19,7 @@ func MakeCommit(blockID BlockID, height int64, round int,
 			Timestamp:        tmtime.Now(),
 		}
 
-		_, err = signAddVote(validators[i], vote, voteSet)
-		if err != nil {
+		if _, err := signAddVote(validators[i], vote, voteSet); err != nil {
 			return nil, err
 		}
 	}
@@ -43,11 +36,7 @@ func signAddVote(privVal PrivValidator, vote *Vote, voteSet *VoteSet) (signed bo
 }
 
 func MakeVote(height int64, blockID BlockID, valSet *ValidatorSet, privVal PrivValidator, chainID string) (*Vote, error) {
-	pubKey, err := privVal.PubKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get the validator public key: %w", err)
-	}
-	addr := pubKey.Address()
+	addr := privVal.PubKey().Address()
 	idx, _ := valSet.GetByAddress(addr)
 	vote := &Vote{
 		ValidatorAddress: addr,

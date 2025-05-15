@@ -81,10 +81,7 @@ func printValidatorInfo(signer types.Signer, logger *slog.Logger) error {
 	}
 
 	// Get the public key of the signer.
-	pubKey, err := signer.PubKey()
-	if err != nil {
-		return fmt.Errorf("unable to get signer public key: %w", err)
-	}
+	pubKey := signer.PubKey()
 
 	// Create a genesis validator with the signer's public key.
 	genesisValidator := types.GenesisValidator{

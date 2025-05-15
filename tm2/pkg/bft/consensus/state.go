@@ -899,12 +899,7 @@ func (cs *ConsensusState) enterPropose(height int64, round int) {
 	}
 	logger.Debug("This node is a validator")
 
-	pubKey, err := cs.privValidator.PubKey()
-	if err != nil {
-		logger.Error("unable to get validator pub key", "err", err)
-		return
-	}
-	address := pubKey.Address()
+	address := cs.privValidator.PubKey().Address()
 
 	// if not a validator, we're done
 	if !cs.Validators.HasAddress(address) {
@@ -1011,12 +1006,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		}(startTime)
 	}
 
-	proposerPubKey, err := cs.privValidator.PubKey()
-	if err != nil {
-		cs.Logger.Error("unable to get validator pub key", "err", err)
-		return
-	}
-	proposerAddr := proposerPubKey.Address()
+	proposerAddr := cs.privValidator.PubKey().Address()
 	return cs.blockExec.CreateProposalBlock(cs.Height, cs.state, commit, proposerAddr)
 }
 
@@ -1716,11 +1706,7 @@ func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, heade
 	// Flush the WAL. Otherwise, we may not recompute the same vote to sign, and the privValidator will refuse to sign anything.
 	cs.wal.FlushAndSync()
 
-	pubKey, err := cs.privValidator.PubKey()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get validator pub key: %w", err)
-	}
-	address := pubKey.Address()
+	address := cs.privValidator.PubKey().Address()
 	valIndex, _ := cs.Validators.GetByAddress(address)
 
 	vote := &types.Vote{
@@ -1732,7 +1718,7 @@ func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, heade
 		Type:             type_,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
-	err = cs.privValidator.SignVote(cs.state.ChainID, vote)
+	err := cs.privValidator.SignVote(cs.state.ChainID, vote)
 	return vote, err
 }
 
@@ -1757,12 +1743,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
-	pubKey, err := cs.privValidator.PubKey()
-	if err != nil {
-		cs.Logger.Error("unable to get validator pub key", "err", err)
-		return nil
-	}
-	address := pubKey.Address()
+	address := cs.privValidator.PubKey().Address()
 
 	// if we don't have a key or we're not in the validator set, do nothing
 	if cs.privValidator == nil || !cs.Validators.HasAddress(address) {

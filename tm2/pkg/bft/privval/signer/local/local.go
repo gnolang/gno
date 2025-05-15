@@ -16,8 +16,8 @@ type LocalSigner struct {
 var _ types.Signer = (*LocalSigner)(nil)
 
 // PubKey implements types.Signer.
-func (fs *LocalSigner) PubKey() (crypto.PubKey, error) {
-	return fs.key.PubKey, nil
+func (fs *LocalSigner) PubKey() crypto.PubKey {
+	return fs.key.PubKey
 }
 
 // Sign implements types.Signer.

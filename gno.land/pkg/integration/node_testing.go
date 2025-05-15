@@ -35,11 +35,10 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	err = node.Start()
 	require.NoError(t, err)
 
-	ourPubKey, err := config.PrivValidator.PubKey()
-	require.NoError(t, err)
+	ourAddress := config.PrivValidator.PubKey().Address()
 
 	isValidator := slices.ContainsFunc(config.Genesis.Validators, func(val bft.GenesisValidator) bool {
-		return val.Address == ourPubKey.Address()
+		return val.Address == ourAddress
 	})
 
 	// Wait for first block if we are a validator.
@@ -87,7 +86,7 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	pv := bft.NewMockPV()
 
 	// Get identity pubkey
-	pk, _ := pv.PubKey()
+	pk := pv.PubKey()
 
 	// Generate genesis config
 	genesis := DefaultTestingGenesisConfig(gnoroot, pk, tmconfig)

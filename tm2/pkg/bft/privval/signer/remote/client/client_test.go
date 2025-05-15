@@ -23,6 +23,7 @@ import (
 const (
 	unixSocketPath = "/tmp/test_tm2_remote_signer"
 	tcpLocalhost   = "tcp://127.0.0.1"
+	tcpTimeouts    = 3 * time.Millisecond
 )
 
 func testUnixSocket(t *testing.T) string {
@@ -34,10 +35,16 @@ func testUnixSocket(t *testing.T) string {
 func newRemoteSignerClient(t *testing.T, address string) *RemoteSignerClient {
 	t.Helper()
 
-	rsc, _ := NewRemoteSignerClient(
+	rsc, err := NewRemoteSignerClient(
 		address,
 		log.NewNoopLogger(),
+		WithDialMaxRetries(3),
+		WithDialTimeout(tcpTimeouts),
+		WithDialRetryInterval(tcpTimeouts),
+		WithRequestTimeout(tcpTimeouts),
+		WithKeepAlivePeriod(tcpTimeouts),
 	)
+	require.NoError(t, err)
 
 	return rsc
 }
@@ -49,11 +56,14 @@ func newRemoteSignerServer(t *testing.T, address string, signer types.Signer) *s
 		signer = types.NewMockSigner()
 	}
 
-	rss, _ := s.NewRemoteSignerServer(
+	rss, err := s.NewRemoteSignerServer(
 		signer,
 		[]string{address},
 		log.NewNoopLogger(),
+		s.WithKeepAlivePeriod(tcpTimeouts),
+		s.WithResponseTimeout(tcpTimeouts),
 	)
+	require.NoError(t, err)
 
 	return rss
 }
@@ -72,8 +82,15 @@ func TestCloseState(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		t.Parallel()
 
-		// Init a new remote signer client without connection.
-		rsc := newRemoteSignerClient(t, testUnixSocket(t))
+		unixSocket := testUnixSocket(t)
+
+		// Init a remote signer server.
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
+		// Init a new remote signer client.
+		rsc := newRemoteSignerClient(t, unixSocket)
 		require.False(t, rsc.isClosed())
 
 		// Close it.
@@ -92,8 +109,8 @@ func TestCloseState(t *testing.T) {
 
 		// Init a new remote signer server and client.
 		rss := newRemoteSignerServer(t, unixSocket, nil)
-		defer rss.Stop()
 		require.NoError(t, rss.Start())
+		defer rss.Stop()
 		rsc := newRemoteSignerClient(t, unixSocket)
 
 		// Trigger a connection.
@@ -112,6 +129,7 @@ func TestCloseState(t *testing.T) {
 	})
 }
 
+// TODO: Fix tests bellow when change will be made...
 func TestClientRequest(t *testing.T) {
 	t.Parallel()
 
@@ -142,6 +160,9 @@ func TestClientRequest(t *testing.T) {
 		// Create a channel to return the connection Close function.
 		closer := make(chan func())
 
+		// Generate an identity key pair.
+		idPrivKey := ed25519.GenPrivKey()
+
 		wg.Add(1)
 		go func() {
 			// Cleanup before returning.
@@ -167,11 +188,11 @@ func TestClientRequest(t *testing.T) {
 					return // Connection closed.
 				}
 
-				// Always return an error.
+				// Always return an error on signing.
 				if erroring {
 					switch request.(type) {
 					case *r.PubKeyRequest:
-						response = &r.PubKeyResponse{PubKey: nil, Error: &r.RemoteSignerError{Err: errFaultyServer.Error()}}
+						response = &r.PubKeyResponse{PubKey: idPrivKey.PubKey()}
 					case *r.SignRequest:
 						response = &r.SignResponse{Signature: nil, Error: &r.RemoteSignerError{Err: errFaultyServer.Error()}}
 					}
@@ -204,12 +225,10 @@ func TestClientRequest(t *testing.T) {
 		rsc := newRemoteSignerClient(t, unixSocket)
 
 		// Test a valid PubKey request.
-		remotePK, err := rsc.PubKey()
+		remotePK := rsc.PubKey()
 		require.NotNil(t, remotePK)
-		require.NoError(t, err)
-		localPK, err := signer.PubKey()
+		localPK := signer.PubKey()
 		require.NotNil(t, localPK)
-		require.NoError(t, err)
 		require.Equal(t, localPK, remotePK)
 		rss.Stop()
 		rsc.Close()
@@ -221,32 +240,20 @@ func TestClientRequest(t *testing.T) {
 		require.NoError(t, rsc.ensureConnection())
 		closer := <-chanCloser
 
-		// Test an erroring PubKey request.
-		remotePK, err = rsc.PubKey()
-		require.Nil(t, remotePK)
-		require.ErrorIs(t, err, ErrResponseContainsError)
+		// Test an erroring Sign request.
+		signature, err := rsc.Sign([]byte("sign bytes"))
+		require.Nil(t, signature)
 		require.Contains(t, err.Error(), errFaultyServer.Error())
 		closer()
 		rsc.Close()
 
-		// Init a invalid remote signer server and a regular client.
-		unixSocket = testUnixSocket(t)
-		chanCloser = newFaultyRemoteSignerServer(t, unixSocket, false, wg)
-		rsc = newRemoteSignerClient(t, unixSocket)
-		require.NoError(t, rsc.ensureConnection())
-		closer = <-chanCloser
-
-		// Test an invalid PubKey request.
-		remotePK, err = rsc.PubKey()
-		require.Nil(t, remotePK)
-		require.ErrorIs(t, err, ErrInvalidResponseType)
-		closer()
+		// Test a failed Sign request.
+		signature, err = rsc.Sign([]byte("sign bytes"))
+		require.Nil(t, signature)
+		require.ErrorIs(t, err, ErrSendingRequestFailed)
 
 		// Test a failed PubKey request.
-		rsc.Close()
-		remotePK, err = rsc.PubKey()
-		require.Nil(t, remotePK)
-		assert.ErrorIs(t, err, ErrSendingRequestFailed)
+		assert.Nil(t, rsc.PubKey())
 	})
 
 	t.Run("Sign request", func(t *testing.T) {
@@ -358,15 +365,13 @@ func TestClientRequest(t *testing.T) {
 		require.NoError(t, rss.Start())
 		rsc := newRemoteSignerClient(t, unixSocket)
 
-		// Check if the address is not cached
-		require.Empty(t, rsc.addrCache)
+		// Check if the public key is cached.
+		require.NotNil(t, rsc.cachedPubKey)
 
 		// Check if the String method returns the address.
-		pk, err := signer.PubKey()
+		pk := signer.PubKey()
 		require.NotNil(t, pk)
-		require.NoError(t, err)
 		require.Contains(t, rsc.String(), pk.Address().String())
-		assert.Contains(t, rsc.addrCache, pk.Address().String())
 		rss.Stop()
 		rsc.Close()
 	})
@@ -475,11 +480,9 @@ func TestClientConnection(t *testing.T) {
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),
 		)
-		require.NotNil(t, rsc)
-		require.NoError(t, err)
-		require.ErrorIs(t, rsc.ensureConnection(), r.ErrUnauthorizedPubKey)
+		require.Nil(t, rsc)
+		require.ErrorIs(t, err, r.ErrUnauthorizedPubKey)
 		rss.Stop()
-		rsc.Close()
 
 		// Client fails authenticating server.
 		rss, err = s.NewRemoteSignerServer(

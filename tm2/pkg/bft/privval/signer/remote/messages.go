@@ -27,10 +27,9 @@ type RemoteSignerMessage interface{}
 // PubKeyRequest requests the signing public key from the remote signer.
 type PubKeyRequest struct{}
 
-// PubKeyResponse is a response containing the public key or an error.
+// PubKeyResponse is a response containing the public key.
 type PubKeyResponse struct {
 	PubKey crypto.PubKey
-	Error  *RemoteSignerError
 }
 
 // SignRequest is a request to sign arbitrary bytes.

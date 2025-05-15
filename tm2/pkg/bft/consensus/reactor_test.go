@@ -242,11 +242,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	// map of active validators
 	activeVals := make(map[string]struct{})
 	for i := 0; i < nVals; i++ {
-		pk, err := css[i].privValidator.PubKey()
-		if err != nil {
-			t.Fatalf("unable to get validator public key: %v", err)
-		}
-		addr := pk.Address()
+		addr := css[i].privValidator.PubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
 
@@ -258,10 +254,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Debug("---------------------------- Testing changing the voting power of one validator a few times")
 
-	val1PubKey, err := css[0].privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get val1PubKey: %v", err)
-	}
+	val1PubKey := css[0].privValidator.PubKey()
 	updateValTx := kvstore.MakeValSetChangeTx(val1PubKey, 25)
 	previousTotalVotingPower := css[0].GetRoundState().LastValidators.TotalVotingPower()
 
@@ -315,11 +308,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// map of active validators
 	activeVals := make(map[string]struct{})
 	for i := 0; i < nVals; i++ {
-		pk, err := css[i].privValidator.PubKey()
-		if err != nil {
-			t.Fatalf("unable to get validator public key: %v", err)
-		}
-		addr := pk.Address()
+		addr := css[i].privValidator.PubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
 
@@ -331,10 +320,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding one validator")
 
-	newValPubKey1, err := css[nVals].privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get newValPubKey1: %v", err)
-	}
+	newValPubKey1 := css[nVals].privValidator.PubKey()
 	newValTx1 := kvstore.MakeValSetChangeTx(newValPubKey1, testMinPower)
 
 	// wait till everyone makes block 2
@@ -360,10 +346,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing changing the voting power of one validator")
 
-	updateValPubKey1, err := css[nVals].privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get updateValPubKey1: %v", err)
-	}
+	updateValPubKey1 := css[nVals].privValidator.PubKey()
 	updateValTx1 := kvstore.MakeValSetChangeTx(updateValPubKey1, 25)
 	previousTotalVotingPower := css[nVals].GetRoundState().LastValidators.TotalVotingPower()
 
@@ -379,16 +362,10 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding two validators at once")
 
-	newValPubKey2, err := css[nVals+1].privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get newValPubKey2: %v", err)
-	}
+	newValPubKey2 := css[nVals+1].privValidator.PubKey()
 	newValTx2 := kvstore.MakeValSetChangeTx(newValPubKey2, testMinPower)
 
-	newValPubKey3, err := css[nVals+2].privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get newValPubKey3: %v", err)
-	}
+	newValPubKey3 := css[nVals+2].privValidator.PubKey()
 	newValTx3 := kvstore.MakeValSetChangeTx(newValPubKey3, testMinPower)
 
 	waitForAndValidateBlock(t, nPeers, activeVals, blocksSubs, css, newValTx2, newValTx3)

@@ -146,9 +146,8 @@ func TestNewGnokeySigner(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test Signer interface.
-		pubKey, err := signer.PubKey()
+		pubKey := signer.PubKey()
 		require.NotNil(t, pubKey)
-		require.NoError(t, err)
 
 		signature, err := signer.Sign([]byte("test"))
 		require.NotNil(t, signature)

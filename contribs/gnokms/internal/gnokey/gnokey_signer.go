@@ -20,8 +20,8 @@ type gnokeySigner struct {
 var _ types.Signer = (*gnokeySigner)(nil)
 
 // PubKey implements types.Signer.
-func (gk *gnokeySigner) PubKey() (crypto.PubKey, error) {
-	return gk.keyInfo.GetPubKey(), nil
+func (gk *gnokeySigner) PubKey() crypto.PubKey {
+	return gk.keyInfo.GetPubKey()
 }
 
 // Sign implements types.Signer.

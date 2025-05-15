@@ -86,12 +86,8 @@ func TestStateProposerSelection0(t *testing.T) {
 
 	// Commit a block and ensure proposer for the next height is correct.
 	prop := cs1.GetRoundState().Validators.GetProposer()
-	pubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get validator pub key: %v", err)
-	}
-	address := pubKey.Address()
-	if prop.Address != address {
+	addr := cs1.privValidator.PubKey().Address()
+	if prop.Address != addr {
 		t.Fatalf("expected proposer to be validator %d. Got %X", 0, prop.Address)
 	}
 
@@ -102,11 +98,7 @@ func TestStateProposerSelection0(t *testing.T) {
 	ensureNewRound(newRoundCh, height+1, 0)
 
 	prop = cs1.GetRoundState().Validators.GetProposer()
-	vss1, err := vss[1].PubKey()
-	if err != nil {
-		t.Fatalf("unable to get vss1: %v", err)
-	}
-	addr := vss1.Address()
+	addr = vss[1].PubKey().Address()
 	if prop.Address != addr {
 		panic(fmt.Sprintf("expected proposer to be validator %d. Got %X", 1, prop.Address))
 	}
@@ -137,11 +129,7 @@ func TestStateProposerSelection2(t *testing.T) {
 	// everyone just votes nil. we get a new proposer each round
 	for i := 0; i < len(vss); i++ {
 		prop := cs1.GetRoundState().Validators.GetProposer()
-		vssPubKey, err := vss[(i+round)%len(vss)].PubKey()
-		if err != nil {
-			t.Fatalf("unable to get vssPubKey: %v", err)
-		}
-		addr := vssPubKey.Address()
+		addr := vss[(i+round)%len(vss)].PubKey().Address()
 		correctProposer := addr
 		if prop.Address != correctProposer {
 			panic(fmt.Sprintf("expected RoundState.Validators.GetProposer() to be validator %d. Got %X", (i+2)%len(vss), prop.Address))
@@ -579,11 +567,7 @@ func TestStateLockPOLRelock(t *testing.T) {
 
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	newBlockCh := subscribe(cs1.evsw, types.EventNewBlockHeader{})
@@ -684,11 +668,7 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	unlockCh := subscribe(cs1.evsw, cstypes.EventUnlock{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// everything done from perspective of cs1
@@ -791,11 +771,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round and wait for propose and prevote
@@ -918,11 +894,7 @@ func TestStateLockPOLSafety2(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	unlockCh := subscribe(cs1.evsw, cstypes.EventUnlock{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// the block for R0: gets polkad but we miss it
@@ -1021,11 +993,7 @@ func TestProposeValidBlock(t *testing.T) {
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	unlockCh := subscribe(cs1.evsw, cstypes.EventUnlock{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round and wait for propose and prevote
@@ -1123,11 +1091,7 @@ func TestSetValidBlockOnDelayedPrevote(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	validBlockCh := subscribe(cs1.evsw, cstypes.EventNewValidBlock{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round and wait for propose and prevote
@@ -1194,11 +1158,7 @@ func TestSetValidBlockOnDelayedProposal(t *testing.T) {
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	validBlockCh := subscribe(cs1.evsw, cstypes.EventNewValidBlock{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
 
@@ -1283,11 +1243,7 @@ func TestWaitingTimeoutProposeOnNewRound(t *testing.T) {
 
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round
@@ -1328,11 +1284,7 @@ func TestRoundSkipOnNilPolkaFromHigherRound(t *testing.T) {
 
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round
@@ -1373,11 +1325,7 @@ func TestWaitTimeoutProposeOnNilPolkaForTheCurrentRound(t *testing.T) {
 
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round in which PO is not proposer
@@ -1510,11 +1458,7 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	newBlockHeader := subscribe(cs1.evsw, types.EventNewBlockHeader{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round and wait for propose and prevote
@@ -1577,11 +1521,7 @@ func TestFlappyResetTimeoutPrecommitUponNewHeight(t *testing.T) {
 	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	newBlockHeader := subscribe(cs1.evsw, types.EventNewBlockHeader{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round and wait for propose and prevote
@@ -1728,11 +1668,7 @@ func TestFlappyStateHalt1(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	newBlockCh := subscribe(cs1.evsw, types.EventNewBlock{})
-	cs1PubKey, err := cs1.privValidator.PubKey()
-	if err != nil {
-		t.Fatalf("unable to get cs1PubKey: %v", err)
-	}
-	addr := cs1PubKey.Address()
+	addr := cs1.privValidator.PubKey().Address()
 	voteCh := subscribeToVoter(cs1, addr)
 
 	// start round and wait for propose and prevote

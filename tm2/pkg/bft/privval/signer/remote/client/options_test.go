@@ -94,11 +94,11 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		require.Equal(t, defaultDialTimeout, rsc.dialTimeout)
 
 		// Test functional option.
-		option := WithDialTimeout(42)
+		option := WithDialTimeout(time.Microsecond)
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		assert.Equal(t, time.Duration(42), rsc.dialTimeout)
+		assert.Equal(t, time.Microsecond, rsc.dialTimeout)
 	})
 
 	t.Run("option keepAlivePeriod", func(t *testing.T) {

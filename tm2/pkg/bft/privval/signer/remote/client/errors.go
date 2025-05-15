@@ -7,6 +7,7 @@ var (
 	// Init.
 	ErrInvalidAddressProtocol = errors.New("invalid client address protocol")
 	ErrNilLogger              = errors.New("nil logger")
+	ErrFetchingPubKeyFailed   = errors.New("failed to fetch public key")
 
 	// Request.
 	ErrSendingRequestFailed  = errors.New("failed to send request")

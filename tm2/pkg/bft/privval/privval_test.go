@@ -16,28 +16,6 @@ import (
 
 const chainID = "chainID"
 
-func TestPubKey(t *testing.T) {
-	t.Parallel()
-
-	t.Run("signer succeeded", func(t *testing.T) {
-		t.Parallel()
-
-		pv := &PrivValidator{signer: types.NewMockSigner()}
-		pk, err := pv.PubKey()
-		require.NotNil(t, pk)
-		assert.NoError(t, err)
-	})
-
-	t.Run("signer failed", func(t *testing.T) {
-		t.Parallel()
-
-		pv := &PrivValidator{signer: types.NewErroringMockSigner()}
-		pk, err := pv.PubKey()
-		require.Nil(t, pk)
-		assert.Error(t, err)
-	})
-}
-
 func TestSignVote(t *testing.T) {
 	t.Parallel()
 
@@ -413,7 +391,7 @@ func TestNewPrivValidator(t *testing.T) {
 
 		pv, err := NewPrivValidator(types.NewErroringMockSigner(), statePath)
 		require.Nil(t, pv)
-		assert.ErrorIs(t, err, types.ErrErroringMockSigner)
+		assert.ErrorIs(t, err, errSignatureMismatch)
 	})
 
 	t.Run("invalid state signature", func(t *testing.T) {
