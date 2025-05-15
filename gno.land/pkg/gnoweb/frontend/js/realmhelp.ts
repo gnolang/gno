@@ -93,6 +93,8 @@ class HelpFunc {
     args: HTMLElement[];
     modes: HTMLElement[];
     paramInputs: HTMLInputElement[];
+    send: HTMLElement[];
+    sendInput: HTMLInputElement | null;
   };
 
   private funcName: string | null;
@@ -102,6 +104,8 @@ class HelpFunc {
     args: "[data-role='help-code-args']",
     mode: "[data-code-mode]",
     paramInput: "[data-role='help-param-input']",
+    send: "[data-role='help-code-send']",
+    sendInput: "[data-role='help-send-input']",
   };
 
   constructor(el: HTMLElement) {
@@ -111,6 +115,8 @@ class HelpFunc {
       args: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.args)),
       modes: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.mode)),
       paramInputs: Array.from(el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput)),
+      send: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.send)),
+      sendInput: el.querySelector<HTMLInputElement>(HelpFunc.SELECTORS.sendInput),
     };
 
     this.funcName = el.dataset.func || null;
@@ -142,6 +148,13 @@ class HelpFunc {
         debouncedUpdate(paramName, paramValue);
       }
     });
+
+    this.DOM.el.addEventListener("change", (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.dataset.role === "help-send-input") {
+        this.updateSend(target.checked);
+      }
+    });
   }
 
   private initializeArgs(): void {
@@ -158,6 +171,11 @@ class HelpFunc {
       .forEach((arg) => {
         arg.textContent = escapedValue || "";
       });
+  }
+
+  public updateSend(sendValue: boolean): void {
+    const sendAmount = sendValue ? this.DOM.sendInput?.dataset.send ?? "" : "";
+    this.DOM.send.forEach(send => send.textContent = sendAmount);
   }
 
   public updateAddr(addr: string): void {

@@ -13,6 +13,7 @@ type HelpData struct {
 	// Selected function
 	SelectedFunc string
 	SelectedArgs map[string]string
+	SelectedSend string
 
 	RealmName string
 	Functions []*doc.JSONFunc
