@@ -356,6 +356,110 @@ My Image ![Alt](/public/imgs/gnoland.svg)
 
 ---
 
+### Alerts
+
+Alerts are a way to highlight important information in your markdown.
+
+There are five types of alerts:
+
+- INFO
+- NOTE
+- TIP
+- SUCCESS
+- WARNING
+- CAUTION
+
+**NOTE**: The default alert type is INFO (if a wrong alert type is used).
+
+The alert boxes are expandable/collapsible and can have a title. 
+By default, the alert boxes are opened. The title is optional and if not provided, the alert type will be used as the title.
+
+±±±markdown
+> [!NOTE]
+> This is a note
+±±±
+
+> [!NOTE]
+> This is a note
+
+±±±markdown
+> [!NOTE]-
+> This is a closed note
+±±±
+
+> [!NOTE]-
+> This is a closed note
+
+±±±markdown
+> [!NOTE] This is a note with title
+> This is a note with title
+±±±
+
+> [!NOTE] This is a note with title
+> This is a note with title
+
+±±±markdown
+> [!INFO]
+> This is an info
+±±±
+
+> [!INFO]
+> This is an info
+
+±±±markdown
+> [!TIP]
+> This is a tip
+±±±
+
+> [!TIP]
+> This is a tip
+
+±±±
+> [!SUCCESS]
+> This is a success
+±±±
+
+> [!SUCCESS]
+> This is a success
+
+±±±
+> [!WARNING]
+> This is a warning
+±±±
+
+> [!WARNING]
+> This is a warning
+
+±±±
+> [!CAUTION]
+> This is a caution
+±±±
+
+> [!CAUTION]
+> This is a caution
+
+±±±markdown
+> [!FOO]
+> The default alert if a wrong alert type is used
+±±±
+
+> [!FOO]
+> This is the default alert
+
+±±±markdown
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+±±±
+
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+
+---
+
 ### Usernames
 
 XXX: TODO (add again this feature that was removed)
