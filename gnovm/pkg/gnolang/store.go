@@ -1029,7 +1029,7 @@ func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
 }
 
-// We need to prefix stdlibs path with `_` to matain them lexicographically
+// We need to prefix stdlibs path with `_` to maitain them lexicographically
 // ordered with domain path
 func backendPackagePathKey(path string) string {
 	if IsStdlib(path) {
