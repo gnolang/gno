@@ -388,11 +388,7 @@ func MarkLine(filename string, line int) {
 }
 
 // markLine marks a line as executed
-func markLine(line int) {
-	X_markLine(line)
-}
+func markLine(filename string, line int)
 
 // instrumentCode instruments the code for coverage
-func instrumentCode(code string) string {
-	return X_instrumentCode(code)
-}
+func instrumentCode(code string, filename string) string
