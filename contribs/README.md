@@ -7,7 +7,7 @@ They may be Go binaries with their own `go.mod` files, shell scripts.
 We currently only accept Go and shell scripts, but we're open to discussing
 other languages.
 
-Tools here are experimental and may be either sunsetted or promoted to official
+Tools found here are experimental and may be either sunsetted or promoted to official
 tools.
 
 ## Contributing Guidelines
