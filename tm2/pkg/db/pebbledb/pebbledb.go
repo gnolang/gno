@@ -51,8 +51,9 @@ func (db *PebbleDB) Get(key []byte) []byte {
 	}
 
 	defer closer.Close()
-
-	return res
+	out := make([]byte, len(res))
+	copy(res,out)
+	return out
 }
 
 // Implements DB.
