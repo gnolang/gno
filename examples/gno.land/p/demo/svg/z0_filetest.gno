@@ -8,7 +8,7 @@ func main() {
 	canvas.Append(
 		svg.Rectangle{X: 50, Y: 50, Width: 100, Height: 100, Fill: "red"},
 		svg.Circle{CX: 100, CY: 100, R: 50, Fill: "blue"},
-		svg.Text{X: 100, Y: 100, Text: "hello world!", Fill: "magenta"}
+		svg.Text{X: 100, Y: 100, Text: "hello world!", Fill: "magenta"},
 	)
 	println(canvas)
 }
