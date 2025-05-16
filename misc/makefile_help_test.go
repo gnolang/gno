@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -282,5 +283,123 @@ func TestMaxKeyLength_Table(t *testing.T) {
 					tc.keys, tc.wildcards, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestScrapeReadmeBanners(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	// Create README in dir1
+	os.WriteFile(filepath.Join(dir1, "README.md"),
+		[]byte("# "+filepath.Base(dir1)+": Hello\nMore"), 0o644)
+
+	out := scrapeReadmeBanners([]string{}, []string{dir1, dir2})
+	if len(out) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(out))
+	}
+	if banner, ok := out[dir1]; !ok || !strings.Contains(banner, "Hello") {
+		t.Errorf("dir1 banner = %q, want contains Hello", banner)
+	}
+	if banner, ok := out[dir2]; !ok || banner != "" {
+		t.Errorf("dir2 banner = %q, want empty", banner)
+	}
+}
+
+// --- printTargets tests ---
+
+func TestPrintTargets_Simple(t *testing.T) {
+	targets := map[string]string{"a": "", "b": "desc"}
+	var buf bytes.Buffer
+	printTargets(&buf, targets, nil, nil)
+
+	want := "" +
+		"  a\n" +
+		"  b   <-- desc\n"
+	if buf.String() != want {
+		t.Errorf("got:\n%q\nwant:\n%q", buf.String(), want)
+	}
+}
+
+func TestPrintTargets_Wildcards(t *testing.T) {
+	targets := map[string]string{"x%y": "hi%there"}
+	wc := []string{"Z"}
+	banners := map[string]string{"Z": " (ban)"}
+	var buf bytes.Buffer
+
+	printTargets(&buf, targets, wc, banners)
+
+	want := "  xZy   <-- hiZthere (ban)\n"
+	if buf.String() != want {
+		t.Errorf("got %q, want %q", buf.String(), want)
+	}
+}
+
+// --- printSubdirs tests ---
+
+func TestPrintSubdirs(t *testing.T) {
+	tmp := t.TempDir()
+	sub1 := filepath.Join(tmp, "sub1")
+	sub2 := filepath.Join(tmp, "sub2")
+	os.MkdirAll(sub1, 0o755)
+	os.MkdirAll(sub2, 0o755)
+
+	// sub1 has a help target
+	os.WriteFile(filepath.Join(sub1, "Makefile"), []byte("help:\n"), 0o644)
+	// sub2 has a non-help target
+	os.WriteFile(filepath.Join(sub2, "Makefile"), []byte("all:\n"), 0o644)
+
+	// banners empty
+	banners := map[string]string{sub1: "", sub2: ""}
+	var buf bytes.Buffer
+	printSubdirs(&buf, "base", []string{sub2, sub1}, banners)
+
+	out := buf.String()
+	lines := strings.Split(out, "\n")
+	// Basic sanity checks:
+	if !strings.Contains(lines[1], "Sub‑directories") {
+		t.Errorf("missing header, got %q", lines[1])
+	}
+	// sub1: should be marked "*"
+	if !strings.Contains(out, " *  make -C "+filepath.ToSlash(filepath.Join("base", sub1))) {
+		t.Errorf("sub1 line missing star: %q", out)
+	}
+	// sub2: should not be marked "*"
+	if !strings.Contains(out, "    make -C "+filepath.ToSlash(filepath.Join("base", sub2))) {
+		t.Errorf("sub2 line missing invocation: %q", out)
+	}
+	// final note
+	if !strings.Contains(out, "Is documented with a `help` target") {
+		t.Errorf("missing final note: %q", out)
+	}
+}
+
+// --- run() tests (covers main) ---
+
+func TestRun_Success(t *testing.T) {
+	dir := t.TempDir()
+	mf := filepath.Join(dir, "Makefile")
+	os.WriteFile(mf, []byte("a:\n"), 0o644)
+
+	var out, errb bytes.Buffer
+	code := run([]string{mf}, &out, &errb)
+	if code != 0 {
+		t.Fatalf("exit code = %d; want 0", code)
+	}
+	if !strings.Contains(out.String(), "Available make targets:") {
+		t.Errorf("stdout missing header: %q", out.String())
+	}
+	if errb.Len() != 0 {
+		t.Errorf("stderr unexpectedly got %q", errb.String())
+	}
+}
+
+func TestRun_ParseError(t *testing.T) {
+	var out, errb bytes.Buffer
+	code := run([]string{}, &out, &errb)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code on parse error")
+	}
+	if !strings.Contains(errb.String(), "must specify exactly one Makefile") {
+		t.Errorf("stderr = %q", errb.String())
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -188,7 +189,7 @@ func scrapeReadmeBanners(wildcards, dirs []string) map[string]string {
 }
 
 // printTargets lists all targets and descriptions, expanding '%' with wildcards.
-func printTargets(targets map[string]string, wildcards []string, banners map[string]string) {
+func printTargets(w io.Writer, targets map[string]string, wildcards []string, banners map[string]string) {
 	keys := make([]string, 0, len(targets))
 	for k := range targets {
 		keys = append(keys, k)
@@ -200,20 +201,20 @@ func printTargets(targets map[string]string, wildcards []string, banners map[str
 	for _, key := range keys {
 		desc := targets[key]
 		if strings.Contains(key, "%") && len(wildcards) > 0 {
-			for _, w := range wildcards {
-				ek := strings.ReplaceAll(key, "%", w)
+			for _, wild := range wildcards {
+				ek := strings.ReplaceAll(key, "%", wild)
 				if desc == "" {
-					fmt.Printf("  %s\n", ek)
+					fmt.Fprintf(w, "  %s\n", ek)
 				} else {
-					ed := strings.ReplaceAll(desc, "%", w)
-					fmt.Printf("  %-*s   <-- %s%s\n", width, ek, ed, banners[w])
+					ed := strings.ReplaceAll(desc, "%", wild)
+					fmt.Fprintf(w, "  %-*s   <-- %s%s\n", width, ek, ed, banners[wild])
 				}
 			}
 		} else {
 			if desc == "" {
-				fmt.Printf("  %s\n", key)
+				fmt.Fprintf(w, "  %s\n", key)
 			} else {
-				fmt.Printf("  %-*s   <-- %s\n", width, key, desc)
+				fmt.Fprintf(w, "  %-*s   <-- %s\n", width, key, desc)
 			}
 		}
 	}
@@ -221,11 +222,11 @@ func printTargets(targets map[string]string, wildcards []string, banners map[str
 
 // printSubdirs scans each dir for a Makefile, marks '*' if it has a 'help' target,
 // and prints a make -C invocation with any README banner.
-func printSubdirs(relativeTo string, dirs []string, banners map[string]string) {
+func printSubdirs(w io.Writer, relativeTo string, dirs []string, banners map[string]string) {
 	if len(dirs) == 0 {
 		return
 	}
-	fmt.Println("\nSub‑directories with make targets:")
+	fmt.Fprintln(w, "\nSub‑directories with make targets:")
 	sort.Strings(dirs)
 
 	noteHelp := false
@@ -236,7 +237,11 @@ func printSubdirs(relativeTo string, dirs []string, banners map[string]string) {
 			continue
 		}
 		tMap, err := extractMakefileTargets(mf)
-		hasHelp := err == nil && tMap["help"] != ""
+		hasHelp := false
+		if err == nil {
+			_, ok := tMap["help"]
+			hasHelp = ok
+		}
 		star := " "
 		if hasHelp {
 			star = "*"
@@ -246,31 +251,36 @@ func printSubdirs(relativeTo string, dirs []string, banners map[string]string) {
 		if relativeTo != "" {
 			targetDir = filepath.ToSlash(filepath.Join(relativeTo, d))
 		}
-		fmt.Printf("    %s  make -C %s%s\n", star, targetDir, banners[d])
+		fmt.Fprintf(w, "    %s  make -C %s%s\n", star, targetDir, banners[d])
 	}
 	if noteHelp {
-		fmt.Println("\n       * Is documented with a `help` target.")
+		fmt.Fprintln(w, "\n       * Is documented with a `help` target.")
 	}
 }
 
-func main() {
-	cfg, fs, err := parseConfig(os.Args[1:])
+func run(args []string, stdout, stderr io.Writer) int {
+	cfg, fs, err := parseConfig(args)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			os.Exit(0)
+			return 0
 		}
-		fmt.Fprintln(os.Stderr, "Error:", err)
+		fmt.Fprintln(stderr, "Error:", err)
 		fs.PrintDefaults()
-		os.Exit(1)
+		return 1
 	}
 
 	banners := scrapeReadmeBanners(cfg.Wildcards, cfg.Dirs)
-	fmt.Println("Available make targets:")
+	fmt.Fprintln(stdout, "Available make targets:")
 	tMap, err := extractMakefileTargets(cfg.Makefile)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to parse Makefile:", err)
-		os.Exit(2)
+		fmt.Fprintln(stderr, "Failed to parse Makefile:", err)
+		return 2
 	}
-	printTargets(tMap, cfg.Wildcards, banners)
-	printSubdirs(cfg.RelativeTo, cfg.Dirs, banners)
+	printTargets(stdout, tMap, cfg.Wildcards, banners)
+	printSubdirs(stdout, cfg.RelativeTo, cfg.Dirs, banners)
+	return 0
+}
+
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
