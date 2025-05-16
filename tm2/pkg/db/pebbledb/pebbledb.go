@@ -70,11 +70,6 @@ func (db *PebbleDB) Set(key []byte, value []byte) {
 		panic(err)
 	}
 
-	// we need to flush to make some parts of the code happy ¯\_(ツ)_/¯
-	err = db.db.Flush()
-	if err != nil {
-		panic(err)
-	}
 }
 
 // Implements DB.
