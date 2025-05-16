@@ -36,16 +36,16 @@ func TestPebbleDBBackend(t *testing.T) {
 	assert.True(t, ok)
 }
 
-// func BenchmarkPebbleDBRandomReadsWrites(b *testing.B) {
-// 	name := fmt.Sprintf("test_%x", internal.RandStr(12))
-// 	db, err := NewPebbleDB(name, b.TempDir())
-// 	if err != nil {
-// 		b.Fatal(err)
-// 	}
-// 	defer db.Close()
+func BenchmarkPebbleDBRandomReadsWrites(b *testing.B) {
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	db, err := NewPebbleDB(name, b.TempDir())
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer db.Close()
 
-// 	internal.BenchmarkRandomReadsWrites(b, db)
-// }
+	internal.BenchmarkRandomReadsWrites(b, db)
+}
 
 func BenchmarkPebbleDBBatchWrites(b *testing.B) {
 	name := fmt.Sprintf("test_%x", internal.RandStr(12))
