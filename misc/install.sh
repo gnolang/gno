@@ -65,7 +65,12 @@ check_go() {
 install_gno() {
     local GNO_DIR
     GNO_DIR=$(get_gno_dir)
-        
+
+    if ! command_exists git; then
+      error "git is not installed. Please install git first."
+      exit 1
+    fi
+
     log "Installing gno source to $GNO_DIR"
 
     mkdir -p "$GNO_DIR"
@@ -84,13 +89,14 @@ install_gno() {
     # Build and install
     log "Building gno..."
     make install
-    
+
     # Verify installation
     if ! command_exists gno; then
         error "Installation failed. gno command not found."
+        log "Is $GOBIN set in your $PATH? See https://go.dev/doc/install/source#environment"
         exit 1
     fi
-    
+
     log "Installation successful! gno is now available."
     gno version
 }
@@ -110,7 +116,7 @@ uninstall_gno() {
     # Remove source directory
     log "Removing gno source from $GNO_DIR"
     rm -rf "$GNO_DIR"
-    
+
     log "Uninstallation complete."
 }
 
