@@ -1,5 +1,6 @@
 package authz
 
+/*
 import (
 	"std"
 )
@@ -32,9 +33,10 @@ func NewCombinedAuthority(authorities ...Authority) *CombinedAuthority {
 // all underlying authorities. Returns true if ANY authority grants permission.
 func (c *CombinedAuthority) Can(addr std.Address, action string) bool {
 	for _, auth := range c.authorities {
-		if auth.Can(addr, action) {
+		if auth.MembersFor(action).Has(addr) {
 			return true
 		}
 	}
 	return false
 }
+*/
