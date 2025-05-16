@@ -928,6 +928,58 @@ gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx
 To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
+## `vm/qpaths`
+
+`vm/qpaths` lists all existing package paths prefixed with the specified string 
+using `--data=<prefix>`. If no paths are provided, all known paths will be 
+listed, including those from `stdlibs`. You can specify an additional *limit* 
+parameter at the end of the path using `<path>?limit=<x>` to restrict the number 
+of results to `x` elements. If `0` is specified as *limit*, then, no limit will 
+be applied, with a hard limit of `10_000`. The default *limit* is `1_000`.
+  
+A simple example:
+```bash
+gnokey query vm/qpaths --data "gno.land/r/gnoland"
+```
+
+Would output: 
+```bash
+height: 0
+data: gno.land/r/gnoland/blog
+gno.land/r/gnoland/coins
+gno.land/r/gnoland/events
+gno.land/r/gnoland/home
+gno.land/r/gnoland/pages
+gno.land/r/gnoland/users
+gno.land/r/gnoland/users/v1
+```
+
+The result limit can also be specified in the following manner (mind the added 
+quotes):
+```bash
+gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
+```
+
+You can also specify a string prefixed with `@` to list username's sub-packages
+including `/p` and `/r`.
+
+For example:
+```bash
+gnokey query vm/qpaths --data "@foo"
+```
+
+```bash
+height: 0
+data: gno.land/r/foo
+gno.land/r/foo/art/gnoface
+gno.land/r/foo/art/millipede
+gno.land/p/foo/ui
+gno.land/p/foo/svg
+```
+
+In practice, this is shorthand for listing packages under `gno.land/p/foo` & 
+`gno.land/r/foo`.
+
 ### Gas parameters
 
 When using `gnokey` to send transactions, you'll need to specify gas parameters:
@@ -944,12 +996,5 @@ gnokey maketx call \
   YOUR_KEY_NAME
 ```
 
-For detailed information about gas fees, including recommended values and optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
-
-## Conclusion
-
-That's it! 🎉
-
-In this tutorial, you've learned to use `gnokey` to query a gno.land
-network.
-
+For detailed information about gas fees, including recommended values and 
+optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).

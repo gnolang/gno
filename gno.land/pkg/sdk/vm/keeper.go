@@ -8,7 +8,9 @@ import (
 	goerrors "errors"
 	"fmt"
 	"io"
+	"iter"
 	"log/slog"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -667,6 +669,79 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	)
 
 	return res, nil
+}
+
+var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
+
+// QueryPaths returns public facing function signatures.
+// XXX: Implement pagination
+func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
+	if limit < 0 {
+		return nil, errors.New("cannot have negative limit value")
+	}
+
+	// Determine effective limit to return
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	// Handle case where no name is specified (general prefix lookup)
+	if !strings.HasPrefix(target, "@") {
+		return collectWithLimit(store.FindPathsByPrefix(target), limit), nil
+	}
+
+	// Extract name and sub-subPrefix from target
+	name, subPrefix, hasSubPrefix := strings.Cut(target[1:], "/")
+	if !reUserNamespace.MatchString(name) {
+		return nil, errors.New("invalid username format")
+	}
+
+	// Handle reserved name
+	if name == "stdlibs" || name == "std" {
+		// XXX: Keep it simple here for now. If we have more reserved names at
+		// some point, we should consider centralizing it somewhere.
+		path := path.Join("_", subPrefix)
+		return collectWithLimit(store.FindPathsByPrefix(path), limit), nil
+	}
+	// Lookup for both `/r` & `/p` paths of the namespace
+	ctxDomain := vm.getChainDomainParam(ctx)
+	rpath := path.Join(ctxDomain, "r", name, subPrefix)
+	ppath := path.Join(ctxDomain, "p", name, subPrefix)
+
+	// Add trailing slash if no subname is specified
+	if !hasSubPrefix {
+		rpath += "/"
+		ppath += "/"
+	}
+
+	// Collect both paths
+	return collectWithLimit(joinIters(
+		store.FindPathsByPrefix(ppath),
+		store.FindPathsByPrefix(rpath),
+	), limit), nil
+}
+
+// joinIters joins the given iterators in a single iterator.
+func joinIters[T any](seqs ...iter.Seq[T]) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, seq := range seqs {
+			for v := range seq {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// like slices.Collect, but limits the slice size to the given limit.
+func collectWithLimit[T any](seq iter.Seq[T], limit int) []T {
+	s := []T{}
+	for v := range seq {
+		s = append(s, v)
+		if len(s) >= limit {
+			return s
+		}
+	}
+	return s
 }
 
 // QueryFuncs returns public facing function signatures.
