@@ -15,7 +15,7 @@ import (
 
 const (
 	blankIdentifier = "_"
-	debugFind       = false //true // toggle when debugging.
+	debugFind       = false // toggle when debugging.
 )
 
 // Predefine (initStaticBlocks) and partially evaluates all names
@@ -3961,7 +3961,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			ct = elide
 			cx.Type = constType(cx, elide)
 		} else {
-			un, directR = findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)
+			un, directR = findUndefinedT(store, last, cx.Type, stack, defining, isalias, astype && direct)
 			if un != "" {
 				return
 			}
