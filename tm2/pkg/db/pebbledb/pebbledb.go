@@ -52,7 +52,7 @@ func (db *PebbleDB) Get(key []byte) []byte {
 
 	defer closer.Close()
 	out := make([]byte, len(res))
-	copy(res, out)
+	copy(out, res)
 	return out
 }
 
@@ -79,18 +79,7 @@ func (db *PebbleDB) Set(key []byte, value []byte) {
 
 // Implements DB.
 func (db *PebbleDB) SetSync(key []byte, value []byte) {
-	key = internal.NonNilBytes(key)
-	value = internal.NonNilBytes(value)
-	err := db.db.Set(key, value, pebble.Sync)
-	if err != nil {
-		panic(err)
-	}
-
-	// we need to flush to make some parts of the code happy ¯\_(ツ)_/¯
-	err = db.db.Flush()
-	if err != nil {
-		panic(err)
-	}
+	db.Set(key, value)
 }
 
 // Implements DB.
