@@ -1,8 +1,4 @@
-// Empty line between the directives is important for them to be parsed
-// independently. :facepalm:
-
 // PKGPATH: gno.land/r/demo/bank1
-
 // SEND: 100000000ugnot
 
 package bank1
@@ -19,7 +15,6 @@ func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
-	testing.SetOriginPkgAddress(banktestAddr)
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
@@ -30,7 +25,8 @@ func main() {
 	// simulate a Deposit call. use Send + OriginSend to simulate -send.
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100_000_000}})
-	res := banktest.Deposit("ugnot", 50_000_000)
+	testing.SetRealm(std.NewUserRealm(mainaddr))
+	res := cross(banktest.Deposit)("ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
 	println("Deposit():", res)
 
 	// print main balance after.

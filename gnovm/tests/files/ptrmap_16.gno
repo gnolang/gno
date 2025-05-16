@@ -15,6 +15,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println(m[&arr[0]])
 	println(m[&arr[1]] == "")
 }

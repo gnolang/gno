@@ -12,60 +12,41 @@ import (
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
-	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/yuin/goldmark"
-	markdown "github.com/yuin/goldmark-highlighting/v2"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
 )
 
-var chromaDefaultStyle = styles.Get("friendly")
+var (
+	chromaDefaultStyle   = styles.Get("friendly")
+	chromaDefaultOptions = []chromahtml.Option{
+		chromahtml.WithLineNumbers(true),
+		chromahtml.WithLinkableLineNumbers(true, "L"),
+		chromahtml.WithClasses(true),
+		chromahtml.ClassPrefix("chroma-"),
+	}
+)
 
 type HTMLWebClientConfig struct {
 	Domain            string
 	RPCClient         *client.RPCClient
 	ChromaStyle       *chroma.Style
 	ChromaHTMLOptions []chromahtml.Option
-	GoldmarkOptions   []goldmark.Option
 }
 
 // NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
-// It sets up goldmark Markdown parsing options and default domain and highlighter.
 func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfig {
-	chromaOptions := []chromahtml.Option{
-		chromahtml.WithLineNumbers(true),
-		chromahtml.WithLinkableLineNumbers(true, "L"),
-		chromahtml.WithClasses(true),
-		chromahtml.ClassPrefix("chroma-"),
-	}
-
-	goldmarkOptions := []goldmark.Option{
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-		goldmark.WithExtensions(
-			markdown.NewHighlighting(
-				markdown.WithFormatOptions(chromaOptions...),
-			),
-			extension.Strikethrough,
-			extension.Table,
-			md.GnoExtension,
-		),
-	}
-
 	return &HTMLWebClientConfig{
 		Domain:            "gno.land",
-		GoldmarkOptions:   goldmarkOptions,
-		ChromaHTMLOptions: chromaOptions,
+		ChromaHTMLOptions: chromaDefaultOptions,
 		ChromaStyle:       chromaDefaultStyle,
 		RPCClient:         client,
 	}
 }
 
 type HTMLWebClient struct {
-	Markdown  goldmark.Markdown
 	Formatter *chromahtml.Formatter
 
 	domain      string
@@ -74,13 +55,14 @@ type HTMLWebClient struct {
 	chromaStyle *chroma.Style
 }
 
+var _ WebClient = (*HTMLWebClient)(nil)
+
 // NewHTMLClient creates a new instance of WebClient.
 // It requires a configured logger and WebClientConfig.
 func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 	return &HTMLWebClient{
 		// XXX: Possibly consider exporting this in a single interface logic.
 		// For now it's easier to manager all this in one place
-		Markdown:  goldmark.New(cfg.GoldmarkOptions...),
 		Formatter: chromahtml.New(cfg.ChromaHTMLOptions...),
 
 		logger:      log,
@@ -90,30 +72,30 @@ func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 	}
 }
 
-// Functions retrieves a list of function signatures from a
+// Doc retrieves the JSON doc suitable for printing from a
 // specified package path.
-func (s *HTMLWebClient) Functions(pkgPath string) ([]vm.FunctionSignature, error) {
-	const qpath = "vm/qfuncs"
+func (s *HTMLWebClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
+	const qpath = "vm/qdoc"
 
 	args := fmt.Sprintf("%s/%s", s.domain, strings.Trim(pkgPath, "/"))
 	res, err := s.query(qpath, []byte(args))
 	if err != nil {
-		return nil, fmt.Errorf("unable to query func list: %w", err)
+		return nil, fmt.Errorf("unable to query qdoc: %w", err)
 	}
 
-	var fsigs vm.FunctionSignatures
-	if err := amino.UnmarshalJSON(res, &fsigs); err != nil {
-		s.logger.Warn("unable to unmarshal function signatures, client is probably outdated")
-		return nil, fmt.Errorf("unable to unmarshal function signatures: %w", err)
+	jdoc := &doc.JSONDocumentation{}
+	if err := amino.UnmarshalJSON(res, jdoc); err != nil {
+		s.logger.Warn("unable to unmarshal qdoc, client is probably outdated")
+		return nil, fmt.Errorf("unable to unmarshal qdoc: %w", err)
 	}
 
-	return fsigs, nil
+	return jdoc, nil
 }
 
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
-// Chroma for syntax highlighting source.
-func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMeta, error) {
+// Chroma for syntax highlighting or Raw style source.
+func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string, isRaw bool) (*FileMeta, error) {
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
@@ -140,9 +122,16 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 		SizeKb: float64(len(source)) / 1024.0,
 	}
 
-	// Use Chroma for syntax highlighting
-	if err := s.FormatSource(w, fileName, source); err != nil {
-		return nil, err
+	if isRaw {
+		// Use raw syntax for source
+		if _, err := w.Write(source); err != nil {
+			return nil, err
+		}
+	} else {
+		// Use Chroma for syntax highlighting
+		if err := s.FormatSource(w, fileName, source); err != nil {
+			return nil, err
+		}
 	}
 
 	return &fileMeta, nil
@@ -174,27 +163,20 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr ContentRenderer) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
-	pkgPath = strings.Trim(pkgPath, "/")
-	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, args)
+	pkgPath := strings.Trim(u.Path, "/")
+	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
 
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {
 		return nil, err
 	}
 
-	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres))
-	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
-		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
-	}
-
 	var meta RealmMeta
-	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
-	if err != nil {
-		s.logger.Warn("unable to inspect for TOC elements", "error", err)
+	if meta.Toc, err = cr.Render(w, u, rawres); err != nil {
+		return nil, fmt.Errorf("unable to render realm: %w", err)
 	}
 
 	return &meta, nil
