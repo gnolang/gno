@@ -119,7 +119,7 @@ type Circle struct {
 }
 
 func (c Circle) String() string {
-	return ufmt.Sprintf(`<circle cx="%d" cy="%d" r="%d" fill="%s" %s />`, c.CX, c.CY, c.R, c.Fill, c.Attr.String())
+	return ufmt.Sprintf(`<circle cx="%d" cy="%d" r="%d" fill="%s" %s/>`, c.CX, c.CY, c.R, c.Fill, c.Attr.String())
 }
 
 func NewCircle(cx, cy, r int, fill string) *Circle {
@@ -146,7 +146,7 @@ type Ellipse struct {
 }
 
 func (e Ellipse) String() string {
-	return ufmt.Sprintf(`<ellipse cx="%d" cy="%d" rx="%d" ry="%d" fill="%s" %s />`, e.CX, e.CY, e.RX, e.RY, e.Fill, e.Attr.String())
+	return ufmt.Sprintf(`<ellipse cx="%d" cy="%d" rx="%d" ry="%d" fill="%s" %s/>`, e.CX, e.CY, e.RX, e.RY, e.Fill, e.Attr.String())
 }
 
 func NewEllipse(cx, cy int, fill string) *Ellipse {
@@ -170,7 +170,7 @@ type Rectangle struct {
 }
 
 func (r Rectangle) String() string {
-	return ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="%d" ry="%d" fill="%s" %s />`, r.X, r.Y, r.Width, r.Height, r.RX, r.RY, r.Fill, r.Attr.String())
+	return ufmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" rx="%d" ry="%d" fill="%s" %s/>`, r.X, r.Y, r.Width, r.Height, r.RX, r.RY, r.Fill, r.Attr.String())
 }
 
 func NewRectangle(x, y, width, height int, fill string) *Rectangle {
@@ -195,7 +195,7 @@ type Path struct {
 }
 
 func (p Path) String() string {
-	return ufmt.Sprintf(`<path d="%s" fill="%s" %s />`, p.D, p.Fill, p.Attr.String())
+	return ufmt.Sprintf(`<path d="%s" fill="%s" %s/>`, p.D, p.Fill, p.Attr.String())
 }
 
 func NewPath(d, fill string) *Path {
@@ -217,7 +217,7 @@ type Polygon struct { // closed shape
 }
 
 func (p Polygon) String() string {
-	return ufmt.Sprintf(`<polygon points="%s" fill="%s" %s />`, p.Points, p.Fill, p.Attr.String())
+	return ufmt.Sprintf(`<polygon points="%s" fill="%s" %s/>`, p.Points, p.Fill, p.Attr.String())
 }
 
 func NewPolygon(points, fill string) *Polygon {
@@ -239,7 +239,7 @@ type Polyline struct { // polygon but not necessarily closed
 }
 
 func (p Polyline) String() string {
-	return ufmt.Sprintf(`<polyline points="%s" fill="%s" %s />`, p.Points, p.Fill, p.Attr.String())
+	return ufmt.Sprintf(`<polyline points="%s" fill="%s" %s/>`, p.Points, p.Fill, p.Attr.String())
 }
 
 func NewPolyline(points, fill string) *Polyline {

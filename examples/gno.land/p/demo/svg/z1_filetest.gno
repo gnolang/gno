@@ -16,4 +16,4 @@ func main() {
 }
 
 // Output:
-// <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500"><rect x="50" y="50" width="100" height="100" fill="red" /><circle cx="50" cy="50" r="100" fill="red" /><text x="100" y="100" fill="magenta">hello world!</text></svg>
+// <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox=""><rect x="50" y="50" width="100" height="100" rx="0" ry="0" fill="red" /><circle cx="50" cy="50" r="100" fill="red" /><text x="100" y="100" dx="0" dy="0" rotate="" fill="magenta" >hello world!</text></svg>
