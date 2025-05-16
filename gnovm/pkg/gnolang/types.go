@@ -2101,6 +2101,7 @@ func fillEmbeddedName(ft *FieldType) {
 		case *DeclaredType:
 			ft.Name = ct.Name
 		default:
+			// should not happen,
 			panic("should not happen")
 		}
 	case *DeclaredType:
