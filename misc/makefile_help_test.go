@@ -11,17 +11,17 @@ import (
 )
 
 func TestParseArgs(t *testing.T) {
-	cfg, _, err := parseArgs([]string{"-relative-to", "foo/bar", "-dir", "dir1", "-dir", "dir2", "-wildcard", "val1", "-wildcard", "val2", "Makefile"})
+	cfg, _, err := parseConfig([]string{"-relative-to", "foo/bar", "-dir", "dir1", "-dir", "dir2", "-wildcard", "val1", "-wildcard", "val2", "Makefile"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if cfg.RelativeTo != "foo/bar" {
 		t.Errorf("RelativeTo = %q; want %q", cfg.RelativeTo, "foo/bar")
 	}
-	if len(cfg.Dirs.vals) != 2 || cfg.Dirs.vals[0] != "dir1" || cfg.Dirs.vals[1] != "dir2" {
+	if len(cfg.Dirs) != 2 || cfg.Dirs[0] != "dir1" || cfg.Dirs[1] != "dir2" {
 		t.Errorf("Dirs = %v; want [dir1 dir2]", cfg.Dirs)
 	}
-	if len(cfg.Wildcards.vals) != 2 || cfg.Wildcards.vals[0] != "val1" || cfg.Wildcards.vals[1] != "val2" {
+	if len(cfg.Wildcards) != 2 || cfg.Wildcards[0] != "val1" || cfg.Wildcards[1] != "val2" {
 		t.Errorf("Wildcards = %v; want [val1 val2]", cfg.Wildcards)
 	}
 	if cfg.Makefile != "Makefile" {
@@ -47,7 +47,7 @@ NotA: #valid
 		t.Fatal(err)
 	}
 	tmp.Close()
-	targets, err := extractTargets(tmp.Name())
+	targets, err := extractMakefileTargets(tmp.Name())
 	if err != nil {
 		t.Fatalf("extractTargets error: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestDisplayTargets(t *testing.T) {
 	}
 	wilds := []string{"X"}
 	out := captureOutput(func() {
-		displayTargets(targets, wilds,map[string]string{})
+		printTargets(targets, wilds,map[string]string{})
 	})
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	// expect line for "a", "long", and expanded "bX"
@@ -166,7 +166,7 @@ func TestDisplayDirs(t *testing.T) {
 	scraped := scrapeReadmeBanners([]string{d1},[]string{d1, d2})
 
 	out := captureOutput(func() {
-		displayDirs("", []string{d1, d2},scraped)
+		printSubdirs("", []string{d1, d2},scraped)
 	})
 	if !strings.Contains(out, "*") {
 		t.Error("expected '*' for help in output:", out)

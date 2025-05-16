@@ -1,6 +1,6 @@
 // Package main implements a CLI tool to parse Makefile targets and scan directories.
 // It extracts targets (lines beginning with a letter and containing a colon),
-// captures inline comments (only '#' not followed by whitespace), and optionally
+// captures inline comments (starting with one or more '#'), and optionally
 // expands '%' targets with wildcard values. It also scans provided directories
 // for Makefiles, flags those with a "help" target, and reads the first line of
 // any README.md there as a banner.
@@ -13,7 +13,6 @@
 //   -d, --dirs DIR [...]      List of directories to scan for Makefiles
 //   -w, --wildcard WILD [...] List of wildcard substitutions for '%' targets
 //   -h, --help                Show usage and exit
-
 package main
 
 import (
@@ -29,246 +28,247 @@ import (
 	"unicode"
 )
 
-type stringList struct {
-    vals    []string
+// flagList accumulates multiple flag values into a slice.
+type flagList []string
+
+// String returns the comma‑separated flag values.
+func (f *flagList) String() string {
+	return strings.Join(*f, ",")
 }
 
-func (s *stringList) String() string {
-    return strings.Join(s.vals, ",")
+// Set appends a new value to the flag list.
+func (f *flagList) Set(val string) error {
+	*f = append(*f, val)
+	return nil
 }
 
-func (s *stringList) Set(val string) error {
-    s.vals = append(s.vals, val)
-    return nil
-}
-
-// Config holds command-line options.
+// Config holds all command‑line options.
 type Config struct {
-	Makefile    string
-	RelativeTo  string
-	Dirs        stringList
-	Wildcards   stringList
+	Makefile   string   // path to the main Makefile
+	RelativeTo string   // base path for printing sub‑directory commands
+	Dirs       flagList // additional directories to scan
+	Wildcards  flagList // wildcard values to expand '%' targets
 }
 
-// parseArgs parses CLI arguments from os.Args[1:].
-func parseArgs(args []string) (Config, *flag.FlagSet, error) {
-	cfg := Config{}
-	// showHelp := false
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	// fs.BoolVar(&showHelp, "help", false, "show help")
-	fs.StringVar(&cfg.RelativeTo, "relative-to", "", "relative-to path")
+// parseConfig parses flags and the single required Makefile argument.
+// Returns a non‑nil *Config on success, or an error on bad input.
+func parseConfig(args []string) (*Config, *flag.FlagSet, error) {
+	cfg := &Config{}
+	fs := flag.NewFlagSet("makefile-help", flag.ContinueOnError)
+
+	fs.StringVar(&cfg.RelativeTo, "relative-to", "", "base path for sub‑directory commands")
+	fs.StringVar(&cfg.RelativeTo, "r", "", "shorthand for --relative-to")
 	fs.Var(&cfg.Dirs, "dir", "directory to scan for Makefiles (repeatable)")
-	fs.Var(&cfg.Wildcards, "wildcard", "wildcard substitution (repeatable)")
+	fs.Var(&cfg.Dirs, "d", "shorthand for --dir")
+	fs.Var(&cfg.Wildcards, "wildcard", "value to substitute for '%' in targets (repeatable)")
+	fs.Var(&cfg.Wildcards, "w", "shorthand for --wildcard")
 
 	if err := fs.Parse(args); err != nil {
-		return cfg, fs, err
+		return nil, fs, err
 	}
 	rest := fs.Args()
 	if len(rest) != 1 {
-		return cfg, fs, errors.New("Expected exactly one makefile")  
-  }
-  cfg.Makefile = rest[0]
-	if _, err := os.Stat(cfg.Makefile); err != nil {
-		return cfg, fs, fmt.Errorf("cannot read Makefile '%s': %w", cfg.Makefile, err)
+		return nil, fs, errors.New("must specify exactly one Makefile path")
+	}
+	cfg.Makefile = rest[0]
+	info, err := os.Stat(cfg.Makefile)
+	if err != nil || info.IsDir() {
+		return nil, fs, fmt.Errorf("cannot read Makefile %q: %v", cfg.Makefile, err)
 	}
 	return cfg, fs, nil
 }
 
-// extractTargets reads the Makefile and returns a map[target]description.
-func extractTargets(path string) (map[string]string, error) {
-	file, err := os.Open(path)
+// extractMakefileTargets reads filePath and returns a map of target⇒description.
+// It ignores lines not starting with a letter, without ':', or marked @LEGACY.
+// Inline comments after one or more '#'s become descriptions.
+func extractMakefileTargets(filePath string) (map[string]string, error) {
+	legacyRe := regexp.MustCompile(`#.*@LEGACY\b`)
+
+	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
 	targets := make(map[string]string)
-	s := bufio.NewScanner(file)
-	for s.Scan() {
-		line := s.Text()
-		// must start with letter and contain ':'
+
+	for scanner.Scan() {
+		line := scanner.Text()
 		if len(line) == 0 || !unicode.IsLetter(rune(line[0])) {
 			continue
 		}
-		ci := strings.IndexRune(line, ':')
-		if ci < 0 {
+		colon := strings.IndexRune(line, ':')
+		if colon < 0 || legacyRe.MatchString(line) {
 			continue
 		}
-		// exclude LEGACY
-		detectLegacyPat := regexp.MustCompile("#.*@LEGACY\\b")
-		if detectLegacyPat.MatchString(line) {
-			continue
-		}
-		name := line[:ci]
-		// find '#' not followed by another '#'
-		descIdx := -1
-		for i := ci + 1; i < len(line); i++ {
+
+		name := line[:colon]
+		desc := ""
+		for i := colon + 1; i < len(line); i++ {
 			if line[i] == '#' && (i+1 < len(line) && line[i+1] != '#') {
-				descIdx = i
+				desc = strings.TrimSpace(line[i+1:])
 				break
 			}
 		}
-		desc := ""
-		if descIdx >= 0 {
-			d := line[descIdx+1:]
-			desc = strings.TrimSpace(d)
-		}
 		targets[name] = desc
 	}
-	if err := s.Err(); err != nil {
+	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
 	return targets, nil
 }
 
-// maxStringLength returns the max length among str.
-func maxStringLength(str []string) int {
+// maxStringLength returns the length of the longest string in items.
+func maxStringLength(items []string) int {
 	max := 0
-	for _, s := range str {
-		if l := len(s); l > max {
-			max = l
+	for _, s := range items {
+		if len(s) > max {
+			max = len(s)
 		}
 	}
 	return max
 }
 
-// maxKeyLength returns the max length among keys.
-func maxKeyLength(keys, wilds []string) int {
-	maxWildLen := maxStringLength(wilds)
+// maxKeyLength calculates the column width for printing keys,
+// accounting for '%' expansions if wildcards are provided.
+func maxKeyLength(keys, wildcards []string) int {
+	wildMax := maxStringLength(wildcards)
 	max := 0
 	for _, k := range keys {
-		l := len(k)
-		if (len(wilds) > 0) && strings.Contains(k, "%") {
-			l += (maxWildLen - 1)
+		length := len(k)
+		if strings.Contains(k, "%") && len(wildcards) > 0 {
+			length += wildMax - 1
 		}
-		if l > max {
-			max = l
+		if length > max {
+			max = length
 		}
 	}
 	return max
 }
 
-func scrapeReadmeBanners(wild,dirs []string) map[string]string {
-	dirBanners := make(map[string]string)
-	addBanner := func (list []string) {
-		for _,dirName := range list {
-			_, found := dirBanners[dirName]
-			if !found {
-				banner, _ := readReadmeBanner(dirName)
-				dirBanners[dirName] = banner
-			}
-		}
-	}
-	addBanner(wild)
-	addBanner(dirs)
-	return dirBanners
-}
-
-// readReadmeBanner returns the first line of README.md in dir, parenthesized.
+// readReadmeBanner finds and returns a parenthesized summary
+// from the first non‑empty line of README.md in dir, or "" if none.
 func readReadmeBanner(dir string) (string, error) {
-	p := filepath.Join(dir, "README.md")
-	b, err := os.ReadFile(p)
+	// strip leading "#", spaces, and an optional "dir:" prefix
+	prefixRe := regexp.MustCompile(`(?i)^ *(` +
+		regexp.QuoteMeta(dir) +
+		`|` + "`"+regexp.QuoteMeta(dir)+ "`" +
+		`) *((-+|:) *|$)`)
+
+	path := filepath.Join(dir, "README.md")
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", nil // treat missing/unreadable as no banner
+		// missing or unreadable → no banner
+		return "", nil
 	}
-	line := strings.SplitN(string(b), "\n", 2)[0]
-	// strip leading hashes/spaces
-	line = strings.TrimLeft(line, " #")
-	line = strings.TrimSpace(line)
-  removeNamePrefixPat := regexp.MustCompile("(?i)^ *(" + regexp.QuoteMeta(dir) + "|`" + regexp.QuoteMeta(dir) + "`) *((--*|:) *|$)")
-  line = removeNamePrefixPat.ReplaceAllString(line,"")
+	line := strings.SplitN(string(data), "\n", 2)[0]
+	line = strings.TrimSpace(strings.TrimLeft(line, "# "))
+	line = prefixRe.ReplaceAllString(line, "")
 	if line == "" {
 		return "", nil
 	}
 	return fmt.Sprintf(" (%s)", line), nil
 }
 
-// displayTargets prints targets and comments, with wildcard expansion.
-func displayTargets(targetDescs map[string]string, wilds []string, dirBanners map[string]string) {
-	// gather keys
-	keys := make([]string, 0, len(targetDescs))
-	for k := range targetDescs {
+// scrapeReadmeBanners returns a map[dir]banner for each dir in wildcards or dirs.
+func scrapeReadmeBanners(wildcards, dirs []string) map[string]string {
+	banners := make(map[string]string)
+	for _, group := range [][]string{wildcards, dirs} {
+		for _, d := range group {
+			if _, seen := banners[d]; !seen {
+				b, _ := readReadmeBanner(d)
+				banners[d] = b
+			}
+		}
+	}
+	return banners
+}
+
+// printTargets lists all targets and descriptions, expanding '%' with wildcards.
+func printTargets(targets map[string]string, wildcards []string, banners map[string]string) {
+	var keys []string
+	for k := range targets {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	sort.Strings(wilds)
-	width := maxKeyLength(keys, wilds)
-	// non-% targets
-	for _, k := range keys {
-		if !strings.Contains(k, "%") || (len(wilds) < 1) {
-			if targetDescs[k] == "" {
-				fmt.Printf("  %s\n", k)
-			} else {
-				fmt.Printf("  %-*s   <-- %s\n", width, k, targetDescs[k])
+	sort.Strings(wildcards)
+
+	width := maxKeyLength(keys, wildcards)
+	for _, key := range keys {
+		desc := targets[key]
+		if strings.Contains(key, "%") && len(wildcards) > 0 {
+			for _, w := range wildcards {
+				ek := strings.ReplaceAll(key, "%", w)
+				if desc == "" {
+					fmt.Printf("  %s\n", ek)
+				} else {
+					ed := strings.ReplaceAll(desc, "%", w)
+					fmt.Printf("  %-*s   <-- %s%s\n", width, ek, ed, banners[w])
+				}
 			}
 		} else {
-			for _, w := range wilds {
-				kExpanded := strings.ReplaceAll(k,"%",w)
-				if targetDescs[k] == "" {
-					fmt.Printf("  %s\n", kExpanded)
-				} else {
-					descExpanded := strings.ReplaceAll(targetDescs[k],"%",w)
-					fmt.Printf("  %-*s   <-- %s%s\n", width, kExpanded, descExpanded, dirBanners[w])
-				}
+			if desc == "" {
+				fmt.Printf("  %s\n", key)
+			} else {
+				fmt.Printf("  %-*s   <-- %s\n", width, key, desc)
 			}
 		}
 	}
 }
 
-// displayDirs prints provided directories if they contain Makefile.
-func displayDirs(relDir string, dirs []string, dirBanners map[string]string) {
-	if len(dirs) < 1 {
+// printSubdirs scans each dir for a Makefile, marks '*' if it has a 'help' target,
+// and prints a make -C invocation with any README banner.
+func printSubdirs(relativeTo string, dirs []string, banners map[string]string) {
+	if len(dirs) == 0 {
 		return
 	}
-	fmt.Println()
-	fmt.Println("Sub-directories with make targets:")
+	fmt.Println("\nSub‑directories with make targets:")
 	sort.Strings(dirs)
-	helpTargetFound := false
+
+	noteHelp := false
 	for _, d := range dirs {
 		mf := filepath.Join(d, "Makefile")
-		if fi, err := os.Stat(mf); err == nil && !fi.IsDir() {
-			// check help target
-			hasHelpTarget := false
-			if tmap, err := extractTargets(mf); err == nil {
-				if _, ok := tmap["help"]; ok {
-					hasHelpTarget = true
-				}
-			}
-			star := " "
-			if hasHelpTarget {
-				star = "*"
-				helpTargetFound = true
-			}
-			dispDir := d
-			if relDir != "" {
-				dispDir = relDir + "/" + d
-			}
-			banner := dirBanners[d]
-			fmt.Printf("    %s  make -C %s%s\n", star, dispDir, banner)
+		info, err := os.Stat(mf)
+		if err != nil || info.IsDir() {
+			continue
 		}
+		tMap, err := extractMakefileTargets(mf)
+		hasHelp := err == nil && tMap["help"] != ""
+		star := " "
+		if hasHelp {
+			star = "*"
+			noteHelp = true
+		}
+		targetDir := d
+		if relativeTo != "" {
+			targetDir = filepath.ToSlash(filepath.Join(relativeTo, d))
+		}
+		fmt.Printf("    %s  make -C %s%s\n", star, targetDir, banners[d])
 	}
-	if helpTargetFound {
-		fmt.Printf("\n       * Is documented with a `help` target.\n")
+	if noteHelp {
+		fmt.Println("\n       * Is documented with a `help` target.")
 	}
 }
 
 func main() {
-	cfg, flagSet, err := parseArgs(os.Args[1:])
+	cfg, fs, err := parseConfig(os.Args[1:])
 	if err != nil {
 		if err == flag.ErrHelp {
-			// flagSet.PrintDefaults() // already done
 			os.Exit(0)
 		}
 		fmt.Fprintln(os.Stderr, "Error:", err)
-		flagSet.PrintDefaults()
+		fs.PrintDefaults()
 		os.Exit(1)
 	}
-	dirBanners := scrapeReadmeBanners(cfg.Wildcards.vals, cfg.Dirs.vals)
+
+	banners := scrapeReadmeBanners(cfg.Wildcards, cfg.Dirs)
 	fmt.Println("Available make targets:")
-	targetMap, err := extractTargets(cfg.Makefile)
+	tMap, err := extractMakefileTargets(cfg.Makefile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to parse Makefile:", err)
 		os.Exit(2)
 	}
-	displayTargets(targetMap, cfg.Wildcards.vals, dirBanners)
-	displayDirs(cfg.RelativeTo, cfg.Dirs.vals, dirBanners)
+	printTargets(tMap, cfg.Wildcards, banners)
+	printSubdirs(cfg.RelativeTo, cfg.Dirs, banners)
 }
