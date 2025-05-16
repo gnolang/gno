@@ -88,11 +88,7 @@ Data: errors.FmtError{format:"invalid username format", args:[]interface {}(nil)
 Msg Traces:
 --= /Error =--
 -- invalid-name-qpaths.stderr.golden --
-Log: --= Error =--
-Data: errors.FmtError{format:"invalid username format", args:[]interface {}(nil)}
-Msg Traces:
---= /Error =--
-
+"gnokey" error: invalid username format
 -- ccc-qpaths.stdout.golden --
 height: 0
 data: 
