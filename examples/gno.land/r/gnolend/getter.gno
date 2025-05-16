@@ -290,6 +290,7 @@ func GetLLTV(marketId string) string {
 
 func GetFeeRecipient() string {
 	return feeRecipient.String()
+
 }
 
 // GetExpectedMarketBalances returns the expected market balances after interest accrual as strings

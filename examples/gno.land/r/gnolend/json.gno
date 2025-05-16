@@ -2,6 +2,8 @@ package gnolend
 
 import (
     "gno.land/p/demo/json"
+    u256 "gno.land/p/gnoswap/uint256"
+    "gno.land/r/demo/grc20reg"
 )
 
 // RpcMarket
@@ -109,5 +111,156 @@ func (r RpcIRM) JSON() *json.Node {
         "name":       json.StringNode("name", r.Name),
         "type":       json.StringNode("type", r.Type),
         "parameters": json.StringNode("parameters", r.Parameters),
+    })
+}
+
+// RpcMarketInfo combines all market information into a single flattened structure
+type RpcMarketInfo struct {
+    // Market fields
+    TotalSupplyAssets string `json:"totalSupplyAssets"`
+    TotalSupplyShares string `json:"totalSupplyShares"`
+    TotalBorrowAssets string `json:"totalBorrowAssets"`
+    TotalBorrowShares string `json:"totalBorrowShares"`
+    LastUpdate        int64  `json:"lastUpdate"`
+    Fee               string `json:"fee"`
+    
+    // Params fields
+    PoolPath     string `json:"poolPath"`
+    IRM          string `json:"irm"`
+    LLTV         string `json:"lltv"`
+    IsToken0Loan bool   `json:"isToken0Loan"`
+    
+    // Additional fields
+    LoanToken        string `json:"loanToken"`
+    CollateralToken  string `json:"collateralToken"`
+    CurrentPrice     string `json:"currentPrice"`
+    BorrowRate       string `json:"borrowRate"`
+    SupplyRate       string `json:"supplyRate"`
+    Utilization      string `json:"utilization"`
+    
+    // Token information
+    LoanTokenName     string `json:"loanTokenName"`
+    LoanTokenSymbol   string `json:"loanTokenSymbol"`
+    LoanTokenDecimals uint   `json:"loanTokenDecimals"`
+    
+    CollateralTokenName     string `json:"collateralTokenName"`
+    CollateralTokenSymbol   string `json:"collateralTokenSymbol"`
+    CollateralTokenDecimals uint   `json:"collateralTokenDecimals"`
+}
+
+// GetMarketInfo returns comprehensive information about a market
+func GetMarketInfo(marketId string) RpcMarketInfo {
+	market, params := GetMarket(marketId)
+	
+	price, err := GetPrice(marketId)
+	priceStr := ""
+	if err == nil {
+		priceStr = price.ToString()
+	}
+	
+	irm := GetIRM(params.IRM)
+	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
+	
+	supplyRate := new(u256.Uint).Set(borrowRate)
+	
+	utilization := new(u256.Uint)
+	if !market.TotalSupplyAssets.IsZero() {
+		utilization = new(u256.Uint).Div(
+			new(u256.Uint).Mul(market.TotalBorrowAssets, u256.NewUint(1e18)),
+			market.TotalSupplyAssets,
+		)
+	}
+	
+	feeComplement := new(u256.Uint).Sub(u256.NewUint(1e18), new(u256.Uint).Mul(market.Fee, u256.NewUint(1e16)))
+	supplyRate = new(u256.Uint).Mul(supplyRate, utilization)
+	supplyRate = new(u256.Uint).Div(new(u256.Uint).Mul(supplyRate, feeComplement), u256.NewUint(1e18))
+	
+	loanToken := params.GetLoanToken()
+	collateralToken := params.GetCollateralToken()
+	
+	// Get token information from GRC20 registry
+	var loanTokenName, loanTokenSymbol string
+	var loanTokenDecimals uint
+	
+	var collateralTokenName, collateralTokenSymbol string
+	var collateralTokenDecimals uint
+	
+	loanTokenGetter := grc20reg.Get(loanToken)
+	if loanTokenGetter != nil {
+		token := loanTokenGetter()
+		loanTokenName = token.GetName()
+		loanTokenSymbol = token.GetSymbol()
+		loanTokenDecimals = token.GetDecimals()
+	}
+	
+	collateralTokenGetter := grc20reg.Get(collateralToken)
+	if collateralTokenGetter != nil {
+		token := collateralTokenGetter()
+		collateralTokenName = token.GetName()
+		collateralTokenSymbol = token.GetSymbol()
+		collateralTokenDecimals = token.GetDecimals()
+	}
+	
+	return RpcMarketInfo{
+		TotalSupplyAssets: market.TotalSupplyAssets.ToString(),
+		TotalSupplyShares: market.TotalSupplyShares.ToString(),
+		TotalBorrowAssets: market.TotalBorrowAssets.ToString(),
+		TotalBorrowShares: market.TotalBorrowShares.ToString(),
+		LastUpdate:        market.LastUpdate,
+		Fee:               market.Fee.ToString(),
+		PoolPath:          params.PoolPath,
+		IRM:               params.IRM,
+		LLTV:              params.LLTV.ToString(),
+		IsToken0Loan:      params.IsToken0Loan,
+		LoanToken:         loanToken,
+		CollateralToken:   collateralToken,
+		CurrentPrice:      priceStr,
+		BorrowRate:        borrowRate.ToString(),
+		SupplyRate:        supplyRate.ToString(),
+		Utilization:       utilization.ToString(),
+		
+		// Token information
+		LoanTokenName:     loanTokenName,
+		LoanTokenSymbol:   loanTokenSymbol,
+		LoanTokenDecimals: loanTokenDecimals,
+		
+		CollateralTokenName:     collateralTokenName,
+		CollateralTokenSymbol:   collateralTokenSymbol,
+		CollateralTokenDecimals: collateralTokenDecimals,
+	}
+}
+
+func (r RpcMarketInfo) JSON() *json.Node {
+    return json.ObjectNode("market_info", map[string]*json.Node{
+        // Market fields
+        "totalSupplyAssets": json.StringNode("totalSupplyAssets", r.TotalSupplyAssets),
+        "totalSupplyShares": json.StringNode("totalSupplyShares", r.TotalSupplyShares),
+        "totalBorrowAssets": json.StringNode("totalBorrowAssets", r.TotalBorrowAssets),
+        "totalBorrowShares": json.StringNode("totalBorrowShares", r.TotalBorrowShares),
+        "lastUpdate":        json.NumberNode("lastUpdate", float64(r.LastUpdate)),
+        "fee":               json.StringNode("fee", r.Fee),
+        
+        // Params fields
+        "poolPath":          json.StringNode("poolPath", r.PoolPath),
+        "irm":               json.StringNode("irm", r.IRM),
+        "lltv":              json.StringNode("lltv", r.LLTV),
+        "isToken0Loan":      json.BoolNode("isToken0Loan", r.IsToken0Loan),
+        
+        // Additional fields
+        "loanToken":         json.StringNode("loanToken", r.LoanToken),
+        "collateralToken":   json.StringNode("collateralToken", r.CollateralToken),
+        "currentPrice":      json.StringNode("currentPrice", r.CurrentPrice),
+        "borrowRate":        json.StringNode("borrowRate", r.BorrowRate),
+        "supplyRate":        json.StringNode("supplyRate", r.SupplyRate),
+        "utilization":       json.StringNode("utilization", r.Utilization),
+        
+        // Token information
+        "loanTokenName":     json.StringNode("loanTokenName", r.LoanTokenName),
+        "loanTokenSymbol":   json.StringNode("loanTokenSymbol", r.LoanTokenSymbol),
+        "loanTokenDecimals": json.NumberNode("loanTokenDecimals", float64(r.LoanTokenDecimals)),
+        
+        "collateralTokenName":     json.StringNode("collateralTokenName", r.CollateralTokenName),
+        "collateralTokenSymbol":   json.StringNode("collateralTokenSymbol", r.CollateralTokenSymbol),
+        "collateralTokenDecimals": json.NumberNode("collateralTokenDecimals", float64(r.CollateralTokenDecimals)),
     })
 } 

@@ -4,50 +4,39 @@ import (
     "gno.land/p/demo/json"
 )
 
+func ApiGetMarketInfo(marketId string) string {
+    marketInfo := GetMarketInfo(marketId)
+    return marshal(marketInfo.JSON())
+}
+
 func ApiGetMarket(marketId string) string {
     market, _ := GetMarket(marketId)
-    node := json.ObjectNode("", map[string]*json.Node{
-        "market": market.ToRpc().JSON(),
-    })
-    
-    return marshal(node)
+    return marshal(market.ToRpc().JSON())
 }
 
 func ApiGetMarketParams(marketId string) string {
     _, params := GetMarket(marketId)
-    node := json.ObjectNode("", map[string]*json.Node{
-        "params": params.ToRpc().JSON(),
-    })
-    
-    return marshal(node)
+    return marshal(params.ToRpc().JSON())
 }
 
 func ApiGetPosition(marketId, userAddr string) string {
     position := GetPosition(marketId, userAddr)
-    node := json.ObjectNode("", map[string]*json.Node{
-        "position": position.ToRpc().JSON(),
-    })
-    
-    return marshal(node)
+    return marshal(position.ToRpc().JSON())
 }
 
-func ApiListMarkets() string {
+func ApiListMarketsInfo() string {
     marketList := GetMarketList()
     markets := json.ArrayNode("", []*json.Node{})
     
     for _, marketId := range marketList {
-        market, _ := GetMarket(marketId)
+        marketInfo := GetMarketInfo(marketId)
         marketWrapper := json.ObjectNode("", map[string]*json.Node{
-            marketId : market.ToRpc().JSON(),
+            marketId: marketInfo.JSON(),
         })
         markets.AppendArray(marketWrapper)
     }
     
-    node := json.ObjectNode("", map[string]*json.Node{
-        "markets": markets,
-    })
-    
-    return marshal(node)
+    return marshal(markets)
 }
 
 // Helper function to marshal JSON
