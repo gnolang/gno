@@ -28,6 +28,8 @@ type testCfg struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	coverage            bool
+	coverageOutput      string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -166,6 +168,20 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.coverage,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
+
+	fs.StringVar(
+		&c.coverageOutput,
+		"coverprofile",
+		"",
+		"write coverage profile to file",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -214,6 +230,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.Events = cfg.printEvents
 	opts.Debug = cfg.debug
 	opts.FailfastFlag = cfg.failfast
+	opts.Coverage = cfg.coverage
+	opts.CoverageOutput = cfg.coverageOutput
 
 	buildErrCount := 0
 	testErrCount := 0
@@ -273,6 +291,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
+	}
+
+	// 커버리지 결과 출력
+	if cfg.coverage {
+		coverageTracker := test.GetCoverageTracker()
+		coverageTracker.PrintCoverage()
 	}
 
 	return nil
