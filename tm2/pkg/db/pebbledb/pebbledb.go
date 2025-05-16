@@ -69,7 +69,6 @@ func (db *PebbleDB) Set(key []byte, value []byte) {
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 // Implements DB.
