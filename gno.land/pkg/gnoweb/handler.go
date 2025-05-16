@@ -242,7 +242,19 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 		}
 
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+
+		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
+		if qerr != nil {
+			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
+
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+
+		return http.StatusOK, components.DirectoryView(components.DirData{
+			PkgPath:     gnourl.Path,
+			Files:       paths,
+			FileCounter: len(paths),
+		})
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
