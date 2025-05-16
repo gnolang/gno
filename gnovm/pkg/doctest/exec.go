@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -62,7 +61,7 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 	ctx, acck, _, vmk, stdlibCtx := setupEnv()
 
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{Name: fmt.Sprintf("%d.%s", c.index, lang), Body: c.content},
 	}
 
@@ -159,9 +158,12 @@ func setupEnv() (
 		&bft.Header{ChainID: "test-chain-id"},
 		log.NewNoopLogger(),
 	)
-	prmk := paramsm.NewParamsKeeper(iavlKey, "params")
-	acck := authm.NewAccountKeeper(iavlKey, prmk, std.ProtoBaseAccount)
-	bank := bankm.NewBankKeeper(acck)
+	prmk := paramsm.NewParamsKeeper(iavlKey)
+	acck := authm.NewAccountKeeper(iavlKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount)
+	bank := bankm.NewBankKeeper(acck, prmk.ForModule(bankm.ModuleName))
+
+	prmk.Register(authm.ModuleName, acck)
+	prmk.Register(bankm.ModuleName, bank)
 
 	mcw := ms.MultiCacheWrap()
 
