@@ -210,15 +210,35 @@ func (pi *pebbleBaseIter) Domain() (start []byte, end []byte) {
 // }
 
 func (pi *pebbleBaseIter) Value() []byte {
+	pi.assertNoError()
+	pi.assertIsValid()
+
 	return pi.i.Value()
 }
 
 func (pi *pebbleBaseIter) Key() []byte {
+	pi.assertNoError()
+	pi.assertIsValid()
+
 	return pi.i.Key()
 }
 
 func (pi *pebbleBaseIter) Valid() bool {
+	pi.assertNoError()
+
 	return pi.i.Valid()
+}
+
+func (pi *pebbleBaseIter) assertNoError() {
+	if err := pi.i.Error(); err != nil {
+		panic(err)
+	}
+}
+
+func (pi *pebbleBaseIter) assertIsValid() {
+	if !pi.Valid() {
+		panic("pebbleDBIterator is invalid")
+	}
 }
 
 func (pi *pebbleBaseIter) Close() {
@@ -233,6 +253,8 @@ type pebbleIter struct {
 }
 
 func (pi *pebbleIter) Next() {
+	pi.assertNoError()
+	pi.assertIsValid()
 	if !pi.init {
 		pi.init = true
 
@@ -249,6 +271,7 @@ type pebbleReverseIter struct {
 }
 
 func (pi *pebbleReverseIter) Next() {
+	pi.assertNoError()
 	if !pi.init {
 		pi.init = true
 
