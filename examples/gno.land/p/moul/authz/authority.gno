@@ -6,12 +6,30 @@ import (
 	"std"
 )
 
+// XXX: switch to avl.Tree
+
+const Admin = "_admin_"
+
+func New() (*Authority, *PrivateConfig) {
+	auth := &Authority{}
+	priv := &auth.priv
+	return auth, priv
+}
+
 // Authority is the core interface for authorization checks.
 // It provides a single method to retrieve the membership of an action.
-//
-// Example: if auth.MembersFor("propose").Has(caller)
 type Authority struct {
-	memberships map[string]Membership
+	priv PrivateConfig
+}
+
+// PrivateConfig is the private configuration for the authority.
+// It contains the memberships of the actions.
+type PrivateConfig struct {
+	memberships map[string][]Membership // action -> membership
+}
+
+func (p *PrivateConfig) Add(action string, addr std.Address) {
+	p.memberships[action] = append(p.memberships[action], addr)
 }
 
 // Can checks if the given address is authorized to perform the action.
