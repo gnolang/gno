@@ -2,9 +2,7 @@ include ../misc/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
-	@echo "Available make targets:"
-	@$(call BASH_DISPLAY_TARGETS_AND_COMMENTS)
-	@$(BASH_DISPLAY_SUB_MAKES)
+	@$(call RUN_MAKEFILE_HELP,..,)
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
@@ -40,7 +38,12 @@ fmt: # Format all Go files in the current directory using gofumpt
 ########################################
 # Test suite
 .PHONY: test
-test: _test.genstd # Run the genstd test suite (delegates to _test.genstd)
+test: _test.makefile_help _test.genstd # Run the genstd and makefile_help test suites
+
+
+.PHONY: _test.makefile_help
+_test.makefile_help:
+	go test makefile_help.go makefile_help_test.go $(GOTEST_FLAGS)
 
 .PHONY: _test.genstd
 _test.genstd:

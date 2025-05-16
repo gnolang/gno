@@ -2,9 +2,7 @@ include misc/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
-	@echo "Available make targets:"
-	@$(call BASH_DISPLAY_TARGETS_AND_COMMENTS)
-	@$(BASH_DISPLAY_SUB_MAKES)
+	@$(call RUN_MAKEFILE_HELP,.,)
 
 
 # command to run dependency utilities, like goimports.

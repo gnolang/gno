@@ -2,9 +2,7 @@ include ../misc/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
-	@echo "Available make targets:"
-	@$(call BASH_DISPLAY_TARGETS_AND_COMMENTS,$(programs))
-	@$(BASH_DISPLAY_SUB_MAKES)
+	@$(call RUN_MAKEFILE_HELP,..,$(patsubst %/,%,$(programs)))
 
 programs=$(wildcard */)
 
