@@ -6,12 +6,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/os"
-
-	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 )
 
-const dbBackend = db.GoLevelDBBackend
+const dbBackend = db.PebbleDBBackend
 
 var _ Keybase = lazyKeybase{}
 
