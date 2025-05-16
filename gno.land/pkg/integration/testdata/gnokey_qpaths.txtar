@@ -35,7 +35,7 @@ cmp stdout bbb-name-subpath-qpaths.stdout.golden
 cmp stderr empty_file
 
 ! gnokey query vm/qpaths --data "@invalid\\name"
-cmp stdout invalid-name-qpaths.stderr.golden
+cmp stdout invalid-name-qpaths.stdout.golden
 cmp stderr invalid-name-qpaths.stderr.golden
 
 gnokey query vm/qpaths --data "gno.land/r/ccc"
@@ -87,6 +87,7 @@ Log: --= Error =--
 Data: errors.FmtError{format:"invalid username format", args:[]interface {}(nil)}
 Msg Traces:
 --= /Error =--
+
 -- invalid-name-qpaths.stderr.golden --
 "gnokey" error: invalid username format
 -- ccc-qpaths.stdout.golden --
