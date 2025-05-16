@@ -139,6 +139,35 @@ func GetMarketList() []string {
 	return marketList
 }
 
+// GetUserMarkets returns a list of market IDs where a user has any position
+// (supply, borrow, or collateral)
+func GetUserMarkets(userAddr string) []string {
+	var userMarkets []string
+	
+	// Get list of all markets
+	allMarkets := GetMarketList()
+	
+	// Check each market to see if user has a position
+	for _, marketId := range allMarkets {
+		marketPositions, exists := positions.Get(marketId)
+		if !exists {
+			continue
+		}
+		
+		position, exists := marketPositions.(*avl.Tree).Get(userAddr)
+		if !exists {
+			continue
+		}
+		
+		pos := position.(Position)
+		if !pos.SupplyShares.IsZero() || !pos.BorrowShares.IsZero() || !pos.Collateral.IsZero() {
+			userMarkets = append(userMarkets, marketId)
+		}
+	}
+	
+	return userMarkets
+}
+
 func GetPositionList(marketId string) []string {
 	var positionList []string
 	marketPositions, exists := positions.Get(marketId)
@@ -261,4 +290,60 @@ func GetLLTV(marketId string) string {
 
 func GetFeeRecipient() string {
 	return feeRecipient.String()
+}
+
+// GetExpectedMarketBalances returns the expected market balances after interest accrual as strings
+func GetExpectedMarketBalances(marketId string) (string, string, string, string) {
+	totalSupplyAssets, totalSupplyShares, totalBorrowAssets, totalBorrowShares := ExpectedMarketBalances(marketId)
+	return totalSupplyAssets.ToString(), totalSupplyShares.ToString(), 
+	       totalBorrowAssets.ToString(), totalBorrowShares.ToString()
+}
+
+// GetExpectedTotalSupplyAssets returns the expected total supply assets after interest accrual as a string
+func GetExpectedTotalSupplyAssets(marketId string) string {
+	return ExpectedTotalSupplyAssets(marketId).ToString()
+}
+
+// GetExpectedTotalBorrowAssets returns the expected total borrow assets after interest accrual as a string
+func GetExpectedTotalBorrowAssets(marketId string) string {
+	return ExpectedTotalBorrowAssets(marketId).ToString()
+}
+
+// GetExpectedTotalSupplyShares returns the expected total supply shares after interest accrual as a string
+func GetExpectedTotalSupplyShares(marketId string) string {
+	return ExpectedTotalSupplyShares(marketId).ToString()
+}
+
+// GetExpectedSupplyAssets returns the expected supply assets balance of a user after interest accrual as a string
+func GetExpectedSupplyAssets(marketId string, user string) string {
+	return ExpectedSupplyAssets(marketId, user).ToString()
+}
+
+// GetExpectedBorrowAssets returns the expected borrow assets balance of a user after interest accrual as a string
+func GetExpectedBorrowAssets(marketId string, user string) string {
+	return ExpectedBorrowAssets(marketId, user).ToString()
+}
+
+// GetBorrowRate returns the current borrow rate per second as a string (WAD-scaled)
+func GetBorrowRate(marketId string) string {
+	borrowRate := CalculateBorrowRate(marketId)
+	return borrowRate.ToString()
+}
+
+// GetSupplyRate returns the current supply rate per second as a string (WAD-scaled)
+func GetSupplyRate(marketId string) string {
+	supplyRate := CalculateSupplyRate(marketId)
+	return supplyRate.ToString()
+}
+
+// GetBorrowAPR returns the current annualized borrow rate as a string (WAD-scaled)
+func GetBorrowAPR(marketId string) string {
+	borrowAPR := CalculateBorrowAPR(marketId)
+	return borrowAPR.ToString()
+}
+
+// GetSupplyAPR returns the current annualized supply rate as a string (WAD-scaled)
+func GetSupplyAPR(marketId string) string {
+	supplyAPR := CalculateSupplyAPR(marketId)
+	return supplyAPR.ToString()
 }
