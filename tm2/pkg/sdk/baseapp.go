@@ -646,6 +646,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	ctx = ctx.WithEventLogger(NewEventLogger())
 
 	msgLogs := make([]string, 0, len(msgs))
+	msgInfos := make([]string, 0, len(msgs))
 	data := make([]byte, 0, len(msgs))
 
 	var (
@@ -675,6 +676,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		// each result.
 		data = append(data, msgResult.Data...)
 		events = append(events, msgResult.Events...)
+		msgInfos = append(msgInfos, msgResult.Info)
 
 		// stop execution and return on first failed message
 		if !msgResult.IsOK() {
@@ -698,6 +700,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	result.Error = ABCIError(err)
 	result.Data = data
 	result.Events = events
+	result.Info = strings.Join(msgInfos, "\n")
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
 	return result

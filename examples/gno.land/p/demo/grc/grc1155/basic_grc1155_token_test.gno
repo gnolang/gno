@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 )
 
@@ -88,10 +89,13 @@ func TestIsApprovedForAll(t *testing.T) {
 }
 
 func TestSetApprovalForAll(t *testing.T) {
+	//alice := testutils.TestAddress("alice")
+	//testing.SetOriginCaller(alice)
+
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
@@ -111,10 +115,13 @@ func TestSetApprovalForAll(t *testing.T) {
 }
 
 func TestSafeTransferFrom(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	testing.SetOriginCaller(alice)
+
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid := TokenID("1")
@@ -142,10 +149,13 @@ func TestSafeTransferFrom(t *testing.T) {
 }
 
 func TestSafeBatchTransferFrom(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	testing.SetOriginCaller(alice)
+
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")

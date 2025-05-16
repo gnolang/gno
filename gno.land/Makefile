@@ -50,8 +50,12 @@ install.gnokey:;     go install ./cmd/gnokey
 .PHONY: dev.gnoweb generate.gnoweb
 dev.gnoweb:
 	make -C ./pkg/gnoweb dev
-generate.gnoweb:
+
+.PHONY: generate
+generate:
+	go generate -x ./...
 	make -C ./pkg/gnoweb generate
+
 
 .PHONY: fclean
 fclean: clean
@@ -76,8 +80,10 @@ imports:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
+test: _test.help _test.gnoland _test.gnoweb _test.gnokey _test.pkgs
 
+_test.help:
+	@echo "run \`INMEMORY_TS=true make test\` if you encounter 'context deadline exceeded' for non-parallel testing" 
 _test.gnoland:;      go test $(GOTEST_FLAGS) ./cmd/gnoland
 _test.gnoweb:;       go test $(GOTEST_FLAGS) ./cmd/gnoweb
 _test.gnokey:;       go test $(GOTEST_FLAGS) ./cmd/gnokey

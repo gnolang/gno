@@ -26,6 +26,7 @@ export default {
     borderRadius: {
       sm: `${pxToRem(4)}rem`,
       DEFAULT: `${pxToRem(6)}rem`,
+      full: "9999px",
     },
     colors: {
       light: "#FFFFFF",
@@ -48,7 +49,10 @@ export default {
       inherit: "inherit",
     },
     fontFamily: {
-      mono: ["Roboto", 'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace;'],
+      mono: [
+        "Roboto",
+        'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace;',
+      ],
       interVar: [
         '"Inter var"',
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif',
@@ -68,6 +72,13 @@ export default {
       900: `${pxToRem(42)}rem`,
     },
   },
-  safelist: ["realm-view", { pattern: /^realm-view/ }],
+  safelist: [
+    "realm-view",
+    { pattern: /^realm-view/ },
+    "link-external",
+    "link-internal",
+    "link-tx",
+    "tooltip",
+  ],
   plugins: [],
 };

@@ -10,37 +10,53 @@ import (
 var counter int
 
 func IncCounter() {
+	crossing()
+
 	counter++
 }
 
 func Counter() int {
+	crossing()
+
 	return counter
 }
 
 func CurrentRealmPath() string {
+	crossing()
+
 	return std.CurrentRealm().PkgPath()
 }
 
-var initOrigCaller = std.GetOrigCaller()
+var initOriginCaller = std.OriginCaller()
 
-func InitOrigCaller() std.Address {
-	return initOrigCaller
+func InitOriginCaller() std.Address {
+	crossing()
+
+	return initOriginCaller
 }
 
 func CallAssertOriginCall() {
+	crossing()
+
 	std.AssertOriginCall()
 }
 
 func CallIsOriginCall() bool {
-	return std.IsOriginCall()
+	crossing()
+
+	return std.PreviousRealm().IsUser()
 }
 
 func CallSubtestsAssertOriginCall() {
-	rsubtests.CallAssertOriginCall()
+	crossing()
+
+	cross(rsubtests.CallAssertOriginCall)()
 }
 
 func CallSubtestsIsOriginCall() bool {
-	return rsubtests.CallIsOriginCall()
+	crossing()
+
+	return cross(rsubtests.CallIsOriginCall)()
 }
 
 //----------------------------------------
@@ -53,6 +69,8 @@ type TestRealmObject struct {
 var TestRealmObjectValue TestRealmObject
 
 func ModifyTestRealmObject(t *TestRealmObject) {
+	crossing()
+
 	t.Field += "_modified"
 }
 
@@ -75,11 +93,15 @@ var (
 )
 
 func InitTestNodes() {
+	crossing()
+
 	gTestNode1 = &TestNode{Name: "first"}
 	gTestNode2 = &TestNode{Name: "second", Child: &TestNode{Name: "second's child"}}
 }
 
 func ModTestNodes() {
+	crossing()
+
 	tmp := &TestNode{}
 	tmp.Child = gTestNode2.Child
 	gTestNode3 = tmp // set to new-real
@@ -91,26 +113,43 @@ func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
 }
 
-func GetPrevRealm() std.Realm {
-	return std.PrevRealm()
+func GetPreviousRealm() std.Realm {
+	crossing()
+
+	return std.PreviousRealm()
 }
 
-func GetRSubtestsPrevRealm() std.Realm {
-	return rsubtests.GetPrevRealm()
+func GetRSubtestsPreviousRealm() std.Realm {
+	crossing()
+
+	return cross(rsubtests.GetPreviousRealm)()
 }
 
 func Exec(fn func()) {
+	// no realm switching.
+	fn()
+}
+
+func ExecSwitch(fn func()) {
+	crossing()
+
 	fn()
 }
 
 func IsCallerSubPath() bool {
+	crossing()
+
 	return nestedpkg.IsCallerSubPath()
 }
 
 func IsCallerParentPath() bool {
+	crossing()
+
 	return nestedpkg.IsCallerParentPath()
 }
 
 func HasCallerSameNamespace() bool {
+	crossing()
+
 	return nestedpkg.IsSameNamespace()
 }

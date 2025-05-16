@@ -15,6 +15,8 @@ type HeadData struct {
 	ChromaPath  string
 	AssetsPath  string
 	Analytics   bool
+	Remote      string
+	ChainId     string
 }
 
 type IndexData struct {
@@ -35,7 +37,7 @@ type indexLayoutParams struct {
 
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
-	data.HeaderData = EnrichHeaderData(data.HeaderData)
+	data.HeaderData = EnrichHeaderData(data.HeaderData, data.IsHome)
 
 	dataLayout := indexLayoutParams{
 		IndexData: data,

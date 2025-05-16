@@ -23,7 +23,7 @@ If you haven't already, take a moment to check out our [website](https://gno.lan
 > can use it to check out
 > [some](https://gno.land/r/demo/boards)
 > [example](https://gno.land/r/gnoland/blog)
-> [contracts](https://gno.land/r/demo/users).
+> [contracts](https://gno.land/r/gnoland/users/v1).
 >
 > Use the `[source]` button in the header to inspect the program's source; use
 > the `[help]` button to view how you can use [`gnokey`](./gno.land/cmd/gnokey)
@@ -116,3 +116,4 @@ repository offers more resources to dig into. We are eager to see your first PR!
   * [![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html) \
     (pkg.go.dev will not show our repository as it has a license it doesn't recognise)
 </details>
+

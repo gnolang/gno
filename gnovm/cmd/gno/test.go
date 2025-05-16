@@ -15,17 +15,19 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
 type testCfg struct {
 	verbose             bool
+	failfast            bool
 	rootDir             string
 	run                 string
 	timeout             time.Duration
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
+	debug               bool
+	debugAddr           string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -35,7 +37,7 @@ func newTestCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
-			ShortHelp:  "runs the tests for the specified packages",
+			ShortHelp:  "test packages",
 			LongHelp: `Runs the tests for the specified packages.
 
 'gno test' recompiles each package along with any files with names matching the
@@ -48,8 +50,8 @@ functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
 tests that belong to the same package are supported for now (no "xxx_test").
 
 The package path used to execute the "*_test.gno" file is fetched from the
-module name found in 'gno.mod', or else it is randomly generated like
-"gno.land/r/XXXXXXXX".
+module name found in 'gno.mod', or else it is set to
+"gno.land/r/txtar".
 
 - "*_filetest.gno" files on the other hand are kind of unique. They exist to
 provide a way to interact and assert a gno contract, thanks to a set of
@@ -103,6 +105,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.failfast,
+		"failfast",
+		false,
+		"do not start new tests after the first test failure",
+	)
+
+	fs.BoolVar(
 		&c.updateGoldenTests,
 		"update-golden-tests",
 		false,
@@ -142,6 +151,20 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"print-events",
 		false,
 		"print emitted events",
+	)
+
+	fs.BoolVar(
+		&c.debug,
+		"debug",
+		false,
+		"enable interactive debugger using stdin and stdout",
+	)
+
+	fs.StringVar(
+		&c.debugAddr,
+		"debug-addr",
+		"",
+		"enable interactive debugger using tcp address in the form [host]:port",
 	)
 }
 
@@ -183,15 +206,22 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
+	opts := test.NewTestOptions(cfg.rootDir, stdout, io.Err())
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
+	opts.Debug = cfg.debug
+	opts.FailfastFlag = cfg.failfast
 
 	buildErrCount := 0
 	testErrCount := 0
+	fail := func() error {
+		io.ErrPrintfln("FAIL")
+		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+	}
+
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
@@ -205,18 +235,32 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		} else {
 			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
 			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
+				// unable to read pkgPath from gno.mod, use a deterministic path.
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
+				gnoPkgPath = "gno.land/r/txtar" // XXX: gno.land hardcoded for convenience.
 			}
 		}
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 
+		var hasError bool
+
 		startedAt := time.Now()
-		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		runtimeError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+			if modfile == nil || !modfile.Draft {
+				foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
+				if lintErr != nil {
+					io.ErrPrintln(lintErr)
+					hasError = true
+				} else if foundErr {
+					hasError = true
+				}
+			} else if cfg.verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
+			}
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
+		hasError = hasError || runtimeError
 
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
@@ -225,17 +269,17 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if err != nil {
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
 			}
-			io.ErrPrintfln("FAIL")
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
-			io.ErrPrintfln("FAIL")
 			testErrCount++
+			if cfg.failfast {
+				return fail()
+			}
 		} else {
 			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
-		io.ErrPrintfln("FAIL")
-		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+		return fail()
 	}
 
 	return nil

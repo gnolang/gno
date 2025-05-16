@@ -14,9 +14,11 @@ func init() {
 }
 
 func Reset(optionalName string) string {
+	crossing()
+
 	name := optionalName
 	if name == "" {
-		height := std.GetHeight()
+		height := std.ChainHeight()
 		name = ufmt.Sprintf("gnome#%d", height)
 	}
 
@@ -26,16 +28,22 @@ func Reset(optionalName string) string {
 }
 
 func Feed() string {
+	crossing()
+
 	t.Feed()
 	return t.Markdown()
 }
 
 func Play() string {
+	crossing()
+
 	t.Play()
 	return t.Markdown()
 }
 
 func Heal() string {
+	crossing()
+
 	t.Heal()
 	return t.Markdown()
 }

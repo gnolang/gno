@@ -5,11 +5,15 @@ import (
 )
 
 func GetCurrentRealm() std.Realm {
+	crossing()
+
 	return std.CurrentRealm()
 }
 
-func GetPrevRealm() std.Realm {
-	return std.PrevRealm()
+func GetPreviousRealm() std.Realm {
+	crossing()
+
+	return std.PreviousRealm()
 }
 
 func Exec(fn func()) {
@@ -17,9 +21,13 @@ func Exec(fn func()) {
 }
 
 func CallAssertOriginCall() {
+	crossing()
+
 	std.AssertOriginCall()
 }
 
 func CallIsOriginCall() bool {
-	return std.IsOriginCall()
+	crossing()
+
+	return std.PreviousRealm().IsUser()
 }

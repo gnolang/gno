@@ -1,5 +1,7 @@
 package common
 
+import "slices"
+
 // Contract: !bytes.Equal(input, output) && len(input) >= len(output)
 func MutateByteSlice(bytez []byte) []byte {
 	// If bytez is empty, panic
@@ -18,7 +20,7 @@ func MutateByteSlice(bytez []byte) []byte {
 		bytez[RandInt()%len(bytez)] += byte(RandInt()%255 + 1)
 	case 1: // Remove an arbitrary byte
 		pos := RandInt() % len(bytez)
-		bytez = append(bytez[:pos], bytez[pos+1:]...)
+		bytez = slices.Delete(bytez, pos, pos+1)
 	}
 	return bytez
 }

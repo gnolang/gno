@@ -1,7 +1,7 @@
 package browser
 
 import (
-	"path/filepath"
+	gopath "path"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -27,7 +27,7 @@ func cleanupRealmPath(prefix, realm string) string {
 	// trim any slash
 	path = strings.TrimPrefix(path, "/")
 	// clean up path
-	path = filepath.Clean(path)
+	path = gopath.Clean(path)
 
 	return path
 }

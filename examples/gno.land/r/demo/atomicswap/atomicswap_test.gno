@@ -16,21 +16,22 @@ import (
 var testRun bool
 
 func TestNewCustomCoinSwap_Claim(t *testing.T) {
-	t.Skip("skipping due to bad support for unit-test driven banker")
 	defer resetTestState()
 
 	// Setup
+	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	sender := testutils.TestAddress("sender1")
 	recipient := testutils.TestAddress("recipient1")
 	amount := std.Coins{{Denom: "ugnot", Amount: 1}}
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
+	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
 
 	// Create a new swap
-	std.TestSetRealm(std.NewUserRealm(sender))
-	std.TestSetOrigSend(amount, nil)
-	id, swap := NewCustomCoinSwap(recipient, hashlockHex, timelock)
+	testing.SetRealm(std.NewUserRealm(sender))
+	testing.SetOriginSend(amount)
+	id, swap := cross(NewCustomCoinSwap)(recipient, hashlockHex, timelock)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -53,7 +54,7 @@ func TestNewCustomCoinSwap_Claim(t *testing.T) {
 	uassert.False(t, swap.refunded, "expected refunded to be false")
 
 	// Test claim
-	std.TestSetRealm(std.NewUserRealm(recipient))
+	testing.SetRealm(std.NewUserRealm(recipient))
 	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
@@ -77,6 +78,7 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
+	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	sender := testutils.TestAddress("sender2")
 	recipient := testutils.TestAddress("recipient2")
 	amount := std.Coins{{Denom: "ugnot", Amount: 1}}
@@ -85,9 +87,9 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	timelock := time.Now().Add(1 * time.Hour)
 
 	// Create a new swap
-	std.TestSetRealm(std.NewUserRealm(sender))
-	std.TestSetOrigSend(amount, nil)
-	id, swap := NewCustomCoinSwap(recipient, hashlockHex, timelock) // Create a new swap
+	testing.SetRealm(std.NewUserRealm(sender))
+	testing.SetOriginSend(amount)
+	id, swap := cross(NewCustomCoinSwap)(recipient, hashlockHex, timelock) // Create a new swap
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -101,9 +103,7 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 
 	// Test Refund
-	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
-	std.TestSetOrigPkgAddr(pkgAddr)
-	std.TestIssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
 	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
 	swap.Refund()
@@ -134,8 +134,8 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	test20.PrivateLedger.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
-	std.TestSetRealm(std.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Token)
+	testing.SetRealm(std.NewUserRealm(sender))
+	id, swap := cross(NewCustomGRC20Swap)(recipient, hashlockHex, timelock, test20.Token)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -145,6 +145,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
+
 	uassert.Equal(t, expected, swap.String())
 	uassert.Equal(t, expected, Render("1"))
 
@@ -165,7 +166,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	uassert.False(t, swap.refunded, "expected refunded to be false")
 
 	// Test claim
-	std.TestSetRealm(std.NewUserRealm(recipient))
+	testing.SetRealm(std.NewUserRealm(recipient))
 	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
@@ -196,6 +197,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
+	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	sender := testutils.TestAddress("sender5")
 	recipient := testutils.TestAddress("recipient5")
 	rlm := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
@@ -207,8 +209,8 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	test20.PrivateLedger.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
-	std.TestSetRealm(std.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Token)
+	testing.SetRealm(std.NewUserRealm(sender))
+	id, swap := cross(NewCustomGRC20Swap)(recipient, hashlockHex, timelock, test20.Token)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -232,9 +234,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	uassert.Equal(t, bal, uint64(0))
 
 	// Test Refund
-	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
-	std.TestSetOrigPkgAddr(pkgAddr)
-	std.TestIssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
 	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
 	swap.Refund()
@@ -273,8 +273,8 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	test20.PrivateLedger.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
-	std.TestSetRealm(std.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(recipient, hashlockHex, "gno.land/r/demo/tests/test20")
+	testing.SetRealm(std.NewUserRealm(sender))
+	id, swap := cross(NewGRC20Swap)(recipient, hashlockHex, "gno.land/r/demo/tests/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -304,7 +304,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	uassert.False(t, swap.refunded, "expected refunded to be false")
 
 	// Test claim
-	std.TestSetRealm(std.NewUserRealm(recipient))
+	testing.SetRealm(std.NewUserRealm(recipient))
 	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
@@ -335,6 +335,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	defer resetTestState()
 
 	// Setup
+	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	sender := testutils.TestAddress("sender6")
 	recipient := testutils.TestAddress("recipient6")
 	rlm := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
@@ -346,8 +347,8 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	test20.PrivateLedger.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
-	std.TestSetRealm(std.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(recipient, hashlockHex, "gno.land/r/demo/tests/test20")
+	testing.SetRealm(std.NewUserRealm(sender))
+	id, swap := cross(NewGRC20Swap)(recipient, hashlockHex, "gno.land/r/demo/tests/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -371,9 +372,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	uassert.Equal(t, bal, uint64(0))
 
 	// Test Refund
-	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
-	std.TestSetOrigPkgAddr(pkgAddr)
-	std.TestIssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
+	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
 	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
 	swap.Refund()
@@ -410,16 +409,16 @@ func TestRender(t *testing.T) {
 	timelock := time.Now().Add(1 * time.Hour)
 
 	test20.PrivateLedger.Mint(alice, 100_000)
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
-	userTeller := test20.Token.CallerTeller()
+	userTeller := test20.Token.RealmTeller()
 	userTeller.Approve(rlm, 10_000)
-	_, bobSwap := NewCustomGRC20Swap(bob, hashlockHex, timelock, test20.Token)
+	_, bobSwap := cross(NewCustomGRC20Swap)(bob, hashlockHex, timelock, test20.Token)
 
 	userTeller.Approve(rlm, 20_000)
-	_, _ = NewCustomGRC20Swap(charly, hashlockHex, timelock, test20.Token)
+	_, _ = cross(NewCustomGRC20Swap)(charly, hashlockHex, timelock, test20.Token)
 
-	std.TestSetRealm(std.NewUserRealm(bob))
+	testing.SetRealm(std.NewUserRealm(bob))
 	bobSwap.Claim("secret")
 
 	expected := `- 2: g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh -(20000TST)> g1vd5xzunv09047h6lta047h6lta047h6lhsyveh - active

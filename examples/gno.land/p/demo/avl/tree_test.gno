@@ -95,7 +95,7 @@ func TestTreeIterate(t *testing.T) {
 	tree.Set("key3", "value3")
 
 	var keys []string
-	tree.Iterate("", "", func(key string, value interface{}) bool {
+	tree.Iterate("", "", func(key string, value any) bool {
 		keys = append(keys, key)
 		return false
 	})
@@ -113,7 +113,7 @@ func TestTreeReverseIterate(t *testing.T) {
 	tree.Set("key3", "value3")
 
 	var keys []string
-	tree.ReverseIterate("", "", func(key string, value interface{}) bool {
+	tree.ReverseIterate("", "", func(key string, value any) bool {
 		keys = append(keys, key)
 		return false
 	})
@@ -131,7 +131,7 @@ func TestTreeIterateByOffset(t *testing.T) {
 	tree.Set("key3", "value3")
 
 	var keys []string
-	tree.IterateByOffset(1, 2, func(key string, value interface{}) bool {
+	tree.IterateByOffset(1, 2, func(key string, value any) bool {
 		keys = append(keys, key)
 		return false
 	})
@@ -149,7 +149,7 @@ func TestTreeReverseIterateByOffset(t *testing.T) {
 	tree.Set("key3", "value3")
 
 	var keys []string
-	tree.ReverseIterateByOffset(1, 2, func(key string, value interface{}) bool {
+	tree.ReverseIterateByOffset(1, 2, func(key string, value any) bool {
 		keys = append(keys, key)
 		return false
 	})

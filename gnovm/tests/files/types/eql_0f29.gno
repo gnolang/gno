@@ -12,7 +12,7 @@ func (e Error) Error() string {
 
 // both not const, and both interface
 func main() {
-	var l interface{}
+	var l any
 	if l > Error(0) {
 		println("what the firetruck?")
 	} else {
@@ -22,3 +22,6 @@ func main() {
 
 // Error:
 // main/files/types/eql_0f29.gno:16:5: operator > not defined on: InterfaceKind
+
+// TypeCheckError:
+// main/files/types/eql_0f29.gno:16:5: invalid operation: l > Error(0) (operator > not defined on interface)

@@ -2,7 +2,7 @@ package uassert
 
 import "strings"
 
-func fail(t TestingT, customMsgs []string, failureMessage string, args ...interface{}) bool {
+func fail(t TestingT, customMsgs []string, failureMessage string, args ...any) bool {
 	customMsg := ""
 	if len(customMsgs) > 0 {
 		customMsg = strings.Join(customMsgs, " ")
@@ -12,13 +12,6 @@ func fail(t TestingT, customMsgs []string, failureMessage string, args ...interf
 	}
 	t.Errorf(failureMessage, args...)
 	return false
-}
-
-func autofail(t TestingT, success bool, customMsgs []string, failureMessage string, args ...interface{}) bool {
-	if success {
-		return true
-	}
-	return fail(t, customMsgs, failureMessage, args...)
 }
 
 func checkDidPanic(f func()) (didPanic bool, message string) {

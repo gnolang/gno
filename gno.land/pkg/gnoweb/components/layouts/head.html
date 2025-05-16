@@ -40,5 +40,9 @@
 
   <!-- web assets -->
   <link rel="stylesheet" href="{{ .AssetsPath }}styles.css" />
+
+  <!-- wallet integrations -->
+  <meta name="gnoconnect:rpc" content="{{ .Remote }}" />
+  <meta name="gnoconnect:chainid" content="{{ .ChainId }}" />
 </head>
 {{ end }}

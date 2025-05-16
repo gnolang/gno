@@ -1,20 +1,24 @@
 // PKGPATH: gno.land/r/demo/groups_test
 package groups_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
+	"std"
+	"testing"
+
 	"gno.land/r/demo/groups"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var gid groups.GroupID
 
 func main() {
-	users.Register("", "gnouser", "my profile")
-	gid = groups.CreateGroup("test_group")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	cross(users.Register)("gnouser123")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(gid)
-	groups.DeleteGroup(gid)
+	cross(groups.DeleteGroup)(gid)
 	println(groups.Render(""))
 }
 

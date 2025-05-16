@@ -1,4 +1,4 @@
-package faucet
+package faucet_test
 
 import (
 	"std"
@@ -27,64 +27,63 @@ func TestPackage(t *testing.T) {
 		test1addr = testutils.TestAddress("test1")
 	)
 	// deposit 1000gnot to faucet contract
-	std.TestIssueCoins(faucetaddr, std.Coins{{"ugnot", 1000000000}})
-	assertBalance(t, faucetaddr, 1000000000)
+	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 1_000_000_000}})
+	assertBalance(t, faucetaddr, 1_000_000_000)
 
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
-
 	assertBalance(t, test1addr, 0)
-	std.TestSetOrigCaller(test1addr)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	testing.SetRealm(std.NewUserRealm(test1addr))
+	assertErr(t, cross(faucet.Transfer)(test1addr, 1_000_000))
 
-	assertErr(t, faucet.AdminAddController(controlleraddr1))
-	std.TestSetOrigCaller(controlleraddr1)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	assertErr(t, cross(faucet.AdminAddController)(controlleraddr1))
+	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	assertErr(t, cross(faucet.Transfer)(test1addr, 1_000_000))
 
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
-	std.TestSetOrigCaller(adminaddr)
-	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
-	assertBalance(t, faucetaddr, 1000000000)
+	testing.SetRealm(std.NewUserRealm(adminaddr))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr1))
+	assertBalance(t, faucetaddr, 1_000_000_000)
 
 	// now, send some tokens as controller.
-	std.TestSetOrigCaller(controlleraddr1)
-	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
-	assertBalance(t, test1addr, 1000000)
-	assertNoErr(t, faucet.Transfer(test1addr, 1000000))
-	assertBalance(t, test1addr, 2000000)
-	assertBalance(t, faucetaddr, 998000000)
+	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	assertNoErr(t, cross(faucet.Transfer)(test1addr, 1_000_000))
+	assertBalance(t, test1addr, 1_000_000)
+	assertNoErr(t, cross(faucet.Transfer)(test1addr, 1_000_000))
+	assertBalance(t, test1addr, 2_000_000)
+	assertBalance(t, faucetaddr, 998_000_000)
 
 	// remove controller
 	// as an admin, remove controller
-	std.TestSetOrigCaller(adminaddr)
-	assertNoErr(t, faucet.AdminRemoveController(controlleraddr1))
-	std.TestSetOrigCaller(controlleraddr1)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	testing.SetRealm(std.NewUserRealm(adminaddr))
+	assertNoErr(t, cross(faucet.AdminRemoveController)(controlleraddr1))
+	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	assertErr(t, cross(faucet.Transfer)(test1addr, 1_000_000))
 
 	// duplicate controller
-	std.TestSetOrigCaller(adminaddr)
-	assertNoErr(t, faucet.AdminAddController(controlleraddr1))
-	assertErr(t, faucet.AdminAddController(controlleraddr1))
+	testing.SetRealm(std.NewUserRealm(adminaddr))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr1))
+	assertErr(t, cross(faucet.AdminAddController)(controlleraddr1))
 	// add more than more than allowed controllers
-	assertNoErr(t, faucet.AdminAddController(controlleraddr2))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr3))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr4))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr5))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr6))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr7))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr8))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr9))
-	assertNoErr(t, faucet.AdminAddController(controlleraddr10))
-	assertErr(t, faucet.AdminAddController(controlleraddr11))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr2))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr3))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr4))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr5))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr6))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr7))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr8))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr9))
+	assertNoErr(t, cross(faucet.AdminAddController)(controlleraddr10))
+	assertErr(t, cross(faucet.AdminAddController)(controlleraddr11))
 
 	// send more than per transfer limit
-	std.TestSetOrigCaller(adminaddr)
-	faucet.AdminSetTransferLimit(300000000)
-	std.TestSetOrigCaller(controlleraddr1)
-	assertErr(t, faucet.Transfer(test1addr, 301000000))
+	testing.SetRealm(std.NewUserRealm(adminaddr))
+	assertNoErr(t, cross(faucet.AdminSetTransferLimit)(300_000_000))
+	testing.SetRealm(std.NewUserRealm(controlleraddr1))
+	assertErr(t, cross(faucet.Transfer)(test1addr, 301_000_000))
 
 	// block transefer from the address not on the controllers list.
-	std.TestSetOrigCaller(controlleraddr11)
-	assertErr(t, faucet.Transfer(test1addr, 1000000))
+	testing.SetRealm(std.NewUserRealm(controlleraddr11))
+	assertErr(t, cross(faucet.Transfer)(test1addr, 1_000_000))
 }
 
 func assertErr(t *testing.T, err string) {
@@ -105,7 +104,7 @@ func assertNoErr(t *testing.T, err string) {
 
 func assertBalance(t *testing.T, addr std.Address, expectedBal int64) {
 	t.Helper()
-	banker := std.GetBanker(std.BankerTypeReadonly)
+	banker := std.NewBanker(std.BankerTypeReadonly)
 	coins := banker.GetCoins(addr)
 	got := coins.AmountOf("ugnot")
 

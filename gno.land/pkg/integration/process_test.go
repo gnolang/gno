@@ -25,7 +25,6 @@ func TestMain(m *testing.M) {
 
 	// Check if the embedded command should be executed
 	if !*runCommand {
-		fmt.Println("Running tests...")
 		os.Exit(m.Run())
 	}
 

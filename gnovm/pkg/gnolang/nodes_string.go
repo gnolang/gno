@@ -88,8 +88,6 @@ func (vp ValuePath) String() string {
 		return fmt.Sprintf("VPDerefPtrMethod(%d,%s)", vp.Index, vp.Name)
 	case VPDerefInterface:
 		return fmt.Sprintf("VPDerefInterface(%s)", vp.Name)
-	case VPNative:
-		return fmt.Sprintf("VPNative(%s)", vp.Name)
 	default:
 		panic("illegal_value_type")
 	}
@@ -136,8 +134,6 @@ func (x IndexExpr) String() string {
 }
 
 func (x SelectorExpr) String() string {
-	// NOTE: for debugging selector issues:
-	// return fmt.Sprintf("%s.(%v).%s", n.X, n.Path.Type, n.Sel)
 	return fmt.Sprintf("%s.%s", x.X, x.Sel)
 }
 
@@ -200,10 +196,14 @@ func (x KeyValueExpr) String() string {
 }
 
 func (x FieldTypeExpr) String() string {
-	if x.Tag == nil {
-		return fmt.Sprintf("%s %s", x.Name, x.Type)
+	hd := ""
+	if x.NameExpr.Type == NameExprTypeHeapDefine {
+		hd = "~"
 	}
-	return fmt.Sprintf("%s %s %s", x.Name, x.Type, x.Tag)
+	if x.Tag == nil {
+		return fmt.Sprintf("%s%s %s", x.Name, hd, x.Type)
+	}
+	return fmt.Sprintf("%s%s %s %s", x.Name, hd, x.Type, x.Tag)
 }
 
 func (x ArrayTypeExpr) String() string {
@@ -255,10 +255,6 @@ func (x MapTypeExpr) String() string {
 
 func (x StructTypeExpr) String() string {
 	return fmt.Sprintf("struct { %v }", x.Fields)
-}
-
-func (x MaybeNativeTypeExpr) String() string {
-	return fmt.Sprintf("maybenative(%s)", x.Type.String())
 }
 
 func (x AssignStmt) String() string {
@@ -322,14 +318,14 @@ func (x IfStmt) String() string {
 	then := x.Then.String()
 	els_ := x.Else.String()
 	if x.Else.Body == nil {
-		return fmt.Sprintf("if %s%s { %s }", init, cond, then)
+		return fmt.Sprintf("if %s%s %s", init, cond, then)
 	}
-	return fmt.Sprintf("if %s%s { %s } else { %s }",
+	return fmt.Sprintf("if %s%s %s else %s",
 		init, cond, then, els_)
 }
 
 func (x IfCaseStmt) String() string {
-	return x.Body.String()
+	return "{ " + x.Body.String() + " }"
 }
 
 func (x IncDecStmt) String() string {
@@ -366,10 +362,6 @@ func (x ReturnStmt) String() string {
 		return fmt.Sprintf("return")
 	}
 	return fmt.Sprintf("return %v", x.Results)
-}
-
-func (x PanicStmt) String() string {
-	return fmt.Sprintf("panic(%s)", x.Exception.String())
 }
 
 func (x SelectStmt) String() string {
@@ -550,7 +542,11 @@ func (ds Decls) String() string {
 }
 
 func (x ConstExpr) String() string {
-	return fmt.Sprintf("(const %s)", x.TypedValue.String())
+	if x.TypedValue.HasKind(TypeKind) {
+		return x.TypedValue.V.String()
+	} else {
+		return fmt.Sprintf("(const %s)", x.TypedValue.String())
+	}
 }
 
 func (x constTypeExpr) String() string {

@@ -1,11 +1,13 @@
 package p2p
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
-	"math/big"
 	"sync"
 	"time"
 
@@ -72,8 +74,9 @@ type MultiplexSwitch struct {
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
 	transport       Transport
 
-	dialQueue *dial.Queue
-	events    *events.Events
+	dialQueue  *dial.Queue
+	dialNotify chan struct{}
+	events     *events.Events
 }
 
 // NewMultiplexSwitch creates a new MultiplexSwitch with the given config.
@@ -88,6 +91,7 @@ func NewMultiplexSwitch(
 		peers:            newSet(),
 		transport:        transport,
 		dialQueue:        dial.NewQueue(),
+		dialNotify:       make(chan struct{}, 1),
 		events:           events.New(),
 		maxInboundPeers:  defaultCfg.MaxNumInboundPeers,
 		maxOutboundPeers: defaultCfg.MaxNumOutboundPeers,
@@ -262,13 +266,15 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			sw.Logger.Debug("dial context canceled")
-
 			return
+
 		default:
 			// Grab a dial item
 			item := sw.dialQueue.Peek()
 			if item == nil {
-				// Nothing to dial
+				// Nothing to dial, wait until something is
+				// added to the queue
+				sw.waitForPeersToDial(ctx)
 				continue
 			}
 
@@ -352,7 +358,7 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 
 	type backoffItem struct {
 		lastDialTime time.Time
-		attempts     int
+		attempts     uint
 	}
 
 	var (
@@ -401,57 +407,76 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			peersToDial = make([]*types.NetAddress, 0)
 		)
 
+		// Gather addresses of persistent peers that are missing or
+		// not already in the dial queue
 		sw.persistentPeers.Range(func(key, value any) bool {
 			var (
 				id   = key.(types.ID)
 				addr = value.(*types.NetAddress)
 			)
 
-			// Check if the peer is part of the peer set
-			// or is scheduled for dialing
-			if peers.Has(id) || sw.dialQueue.Has(addr) {
-				return true
+			if !peers.Has(id) && !sw.dialQueue.Has(addr) {
+				peersToDial = append(peersToDial, addr)
 			}
-
-			peersToDial = append(peersToDial, addr)
 
 			return true
 		})
 
 		if len(peersToDial) == 0 {
-			// No persistent peers are missing
+			// No persistent peers need dialing
 			return
 		}
 
-		// Calculate the dial items
+		// Prepare dial items with the appropriate backoff
 		dialItems := make([]dial.Item, 0, len(peersToDial))
-		for _, p := range peersToDial {
-			item := getBackoffItem(p.ID)
-			if item == nil {
-				dialItem := dial.Item{
-					Time:    time.Now(),
-					Address: p,
-				}
+		for _, addr := range peersToDial {
+			item := getBackoffItem(addr.ID)
 
-				dialItems = append(dialItems, dialItem)
-				setBackoffItem(p.ID, &backoffItem{dialItem.Time, 0})
+			if item == nil {
+				// First attempt
+				now := time.Now()
+
+				dialItems = append(dialItems,
+					dial.Item{
+						Time:    now,
+						Address: addr,
+					},
+				)
+
+				setBackoffItem(addr.ID, &backoffItem{
+					lastDialTime: now,
+					attempts:     0,
+				})
 
 				continue
 			}
 
-			setBackoffItem(p.ID, &backoffItem{
-				lastDialTime: time.Now().Add(
+			// Subsequent attempt: apply backoff
+			var (
+				attempts = item.attempts + 1
+				dialTime = time.Now().Add(
 					calculateBackoff(
 						item.attempts,
 						time.Second,
 						10*time.Minute,
 					),
-				),
-				attempts: item.attempts + 1,
+				)
+			)
+
+			dialItems = append(dialItems,
+				dial.Item{
+					Time:    dialTime,
+					Address: addr,
+				},
+			)
+
+			setBackoffItem(addr.ID, &backoffItem{
+				lastDialTime: dialTime,
+				attempts:     attempts,
 			})
 		}
 
-		// Add the peers to the dial queue
+		// Add these items to the dial queue
 		sw.dialItems(dialItems...)
 	}
 
@@ -478,65 +503,58 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 	}
 }
 
-// calculateBackoff calculates a backoff time,
-// based on the number of attempts and range limits
+// calculateBackoff calculates the backoff interval by exponentiating the base interval
+// by the number of attempts. The returned interval is capped at maxInterval and has a
+// jitter factor applied to it (+/- 10% of interval, max 10 sec).
 func calculateBackoff(
-	attempts int,
-	minTimeout time.Duration,
-	maxTimeout time.Duration,
+	attempts uint,
+	baseInterval time.Duration,
+	maxInterval time.Duration,
 ) time.Duration {
-	var (
-		minTime    = time.Second * 1
-		maxTime    = time.Second * 60
-		multiplier = float64(2) // exponential
+	const (
+		defaultBaseInterval = time.Second * 1
+		defaultMaxInterval  = time.Second * 60
 	)
 
-	// Check the min limit
-	if minTimeout > 0 {
-		minTime = minTimeout
+	// Sanitize base interval parameter.
+	if baseInterval <= 0 {
+		baseInterval = defaultBaseInterval
 	}
 
-	// Check the max limit
-	if maxTimeout > 0 {
-		maxTime = maxTimeout
+	// Sanitize max interval parameter.
+	if maxInterval <= 0 {
+		maxInterval = defaultMaxInterval
 	}
 
-	// Sanity check the range
-	if minTime >= maxTime {
-		return maxTime
+	// Calculate the interval by exponentiating the base interval by the number of attempts.
+	interval := min(baseInterval<<attempts, maxInterval)
+
+	// Below is the code to add a jitter factor to the interval.
+	// Read random bytes into an 8 bytes buffer (size of an int64).
+	var randBytes [8]byte
+	if _, err := rand.Read(randBytes[:]); err != nil {
+		return interval
 	}
 
-	// Calculate the backoff duration
-	var (
-		base       = float64(minTime)
-		calculated = base * math.Pow(multiplier, float64(attempts))
+	// Convert the random bytes to an int64.
+	var randInt64 int64
+	_ = binary.Read(bytes.NewReader(randBytes[:]), binary.NativeEndian, &randInt64)
+
+	// Calculate the random jitter multiplier (float between -1 and 1).
+	jitterMultiplier := float64(randInt64) / float64(math.MaxInt64)
+
+	const (
+		maxJitterDuration   = 10 * time.Second
+		maxJitterPercentage = 10 // 10%
 	)
 
-	// Attempt to calculate the jitter factor
-	n, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
-	if err == nil {
-		jitterFactor := float64(n.Int64()) / float64(math.MaxInt64) // range [0, 1]
+	// Calculate the maximum jitter based on interval percentage.
+	maxJitter := min(interval*maxJitterPercentage/100, maxJitterDuration)
 
-		calculated = jitterFactor*(calculated-base) + base
-	}
+	// Calculate the jitter.
+	jitter := time.Duration(float64(maxJitter) * jitterMultiplier)
 
-	// Prevent overflow for int64 (duration) cast
-	if calculated > float64(math.MaxInt64) {
-		return maxTime
-	}
-
-	duration := time.Duration(calculated)
-
-	// Clamp the duration within bounds
-	if duration < minTime {
-		return minTime
-	}
-
-	if duration > maxTime {
-		return maxTime
-	}
-
-	return duration
+	return interval + jitter
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
@@ -565,6 +583,7 @@ func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 		}
 
 		sw.dialQueue.Push(item)
+		sw.notifyAddPeerToDial()
 	}
 }
 
@@ -588,6 +607,7 @@ func (sw *MultiplexSwitch) dialItems(dialItems ...dial.Item) {
 		}
 
 		sw.dialQueue.Push(dialItem)
+		sw.notifyAddPeerToDial()
 	}
 }
 
@@ -612,50 +632,50 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 // and persisting them
 func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 	for {
-		select {
-		case <-ctx.Done():
+		p, err := sw.transport.Accept(ctx, sw.peerBehavior)
+
+		switch {
+		case err == nil: // ok
+		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			// Upper context as been canceled/timeout
 			sw.Logger.Debug("switch context close received")
-
-			return
+			return // exit
+		case errors.As(err, &errTransportClosed):
+			// Underlaying transport as been closed
+			sw.Logger.Warn("cannot accept connection on closed transport, exiting")
+			return // exit
 		default:
-			p, err := sw.transport.Accept(ctx, sw.peerBehavior)
-			if err != nil {
-				sw.Logger.Error(
-					"error encountered during peer connection accept",
-					"err", err,
-				)
+			// An error occurred during accept, report and continue
+			sw.Logger.Error("error encountered during peer connection accept", "err", err)
+			continue
+		}
 
-				continue
+		// Ignore connection if we already have enough peers.
+		if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
+			sw.Logger.Info(
+				"Ignoring inbound connection: already have enough inbound peers",
+				"address", p.SocketAddr(),
+				"have", in,
+				"max", sw.maxInboundPeers,
+			)
+
+			sw.transport.Remove(p)
+			continue
+		}
+
+		// There are open peer slots, add peers
+		if err := sw.addPeer(p); err != nil {
+			sw.transport.Remove(p)
+
+			if p.IsRunning() {
+				_ = p.Stop()
 			}
 
-			// Ignore connection if we already have enough peers.
-			if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
-				sw.Logger.Info(
-					"Ignoring inbound connection: already have enough inbound peers",
-					"address", p.SocketAddr(),
-					"have", in,
-					"max", sw.maxInboundPeers,
-				)
-
-				sw.transport.Remove(p)
-
-				continue
-			}
-
-			// There are open peer slots, add peers
-			if err := sw.addPeer(p); err != nil {
-				sw.transport.Remove(p)
-
-				if p.IsRunning() {
-					_ = p.Stop()
-				}
-
-				sw.Logger.Info(
-					"Ignoring inbound connection: error while adding peer",
-					"err", err,
-					"id", p.ID(),
-				)
-			}
+			sw.Logger.Info(
+				"Ignoring inbound connection: error while adding peer",
+				"err", err,
+				"id", p.ID(),
+			)
 		}
 	}
 }
@@ -696,6 +716,20 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	})
 
 	return nil
+}
+
+func (sw *MultiplexSwitch) notifyAddPeerToDial() {
+	select {
+	case sw.dialNotify <- struct{}{}:
+	default:
+	}
+}
+
+func (sw *MultiplexSwitch) waitForPeersToDial(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case <-sw.dialNotify:
+	}
 }
 
 // logTelemetry logs the switch telemetry data

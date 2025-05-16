@@ -4,7 +4,7 @@ type nat []int
 
 func main() {
 	var a nat
-	b := interface{}(nat{1})
+	b := any(nat{1})
 	a = b.(nat)
 
 	println(b)

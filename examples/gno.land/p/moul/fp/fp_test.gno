@@ -8,27 +8,27 @@ import (
 func TestMap(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []interface{}
-		fn       func(interface{}) interface{}
-		expected []interface{}
+		input    []any
+		fn       func(any) any
+		expected []any
 	}{
 		{
 			name:     "multiply numbers by 2",
-			input:    []interface{}{1, 2, 3},
-			fn:       func(v interface{}) interface{} { return v.(int) * 2 },
-			expected: []interface{}{2, 4, 6},
+			input:    []any{1, 2, 3},
+			fn:       func(v any) any { return v.(int) * 2 },
+			expected: []any{2, 4, 6},
 		},
 		{
 			name:     "empty slice",
-			input:    []interface{}{},
-			fn:       func(v interface{}) interface{} { return v.(int) * 2 },
-			expected: []interface{}{},
+			input:    []any{},
+			fn:       func(v any) any { return v.(int) * 2 },
+			expected: []any{},
 		},
 		{
 			name:     "convert numbers to strings",
-			input:    []interface{}{1, 2, 3},
-			fn:       func(v interface{}) interface{} { return fmt.Sprintf("%d", v.(int)) },
-			expected: []interface{}{"1", "2", "3"},
+			input:    []any{1, 2, 3},
+			fn:       func(v any) any { return fmt.Sprintf("%d", v.(int)) },
+			expected: []any{"1", "2", "3"},
 		},
 	}
 
@@ -45,33 +45,33 @@ func TestMap(t *testing.T) {
 func TestFilter(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []interface{}
-		fn       func(interface{}) bool
-		expected []interface{}
+		input    []any
+		fn       func(any) bool
+		expected []any
 	}{
 		{
 			name:     "filter even numbers",
-			input:    []interface{}{1, 2, 3, 4},
-			fn:       func(v interface{}) bool { return v.(int)%2 == 0 },
-			expected: []interface{}{2, 4},
+			input:    []any{1, 2, 3, 4},
+			fn:       func(v any) bool { return v.(int)%2 == 0 },
+			expected: []any{2, 4},
 		},
 		{
 			name:     "empty slice",
-			input:    []interface{}{},
-			fn:       func(v interface{}) bool { return v.(int)%2 == 0 },
-			expected: []interface{}{},
+			input:    []any{},
+			fn:       func(v any) bool { return v.(int)%2 == 0 },
+			expected: []any{},
 		},
 		{
 			name:     "no matches",
-			input:    []interface{}{1, 3, 5},
-			fn:       func(v interface{}) bool { return v.(int)%2 == 0 },
-			expected: []interface{}{},
+			input:    []any{1, 3, 5},
+			fn:       func(v any) bool { return v.(int)%2 == 0 },
+			expected: []any{},
 		},
 		{
 			name:     "all matches",
-			input:    []interface{}{2, 4, 6},
-			fn:       func(v interface{}) bool { return v.(int)%2 == 0 },
-			expected: []interface{}{2, 4, 6},
+			input:    []any{2, 4, 6},
+			fn:       func(v any) bool { return v.(int)%2 == 0 },
+			expected: []any{2, 4, 6},
 		},
 	}
 
@@ -88,29 +88,29 @@ func TestFilter(t *testing.T) {
 func TestReduce(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []interface{}
-		fn       func(interface{}, interface{}) interface{}
-		initial  interface{}
-		expected interface{}
+		input    []any
+		fn       func(any, any) any
+		initial  any
+		expected any
 	}{
 		{
 			name:     "sum numbers",
-			input:    []interface{}{1, 2, 3},
-			fn:       func(a, b interface{}) interface{} { return a.(int) + b.(int) },
+			input:    []any{1, 2, 3},
+			fn:       func(a, b any) any { return a.(int) + b.(int) },
 			initial:  0,
 			expected: 6,
 		},
 		{
 			name:     "empty slice",
-			input:    []interface{}{},
-			fn:       func(a, b interface{}) interface{} { return a.(int) + b.(int) },
+			input:    []any{},
+			fn:       func(a, b any) any { return a.(int) + b.(int) },
 			initial:  0,
 			expected: 0,
 		},
 		{
 			name:     "concatenate strings",
-			input:    []interface{}{"a", "b", "c"},
-			fn:       func(a, b interface{}) interface{} { return a.(string) + b.(string) },
+			input:    []any{"a", "b", "c"},
+			fn:       func(a, b any) any { return a.(string) + b.(string) },
 			initial:  "",
 			expected: "abc",
 		},
@@ -129,60 +129,60 @@ func TestReduce(t *testing.T) {
 func TestFlatMap(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []interface{}
-		fn       func(interface{}) interface{}
-		expected []interface{}
+		input    []any
+		fn       func(any) any
+		expected []any
 	}{
 		{
 			name:  "split words into chars",
-			input: []interface{}{"go", "fn"},
-			fn: func(word interface{}) interface{} {
-				chars := []interface{}{}
+			input: []any{"go", "fn"},
+			fn: func(word any) any {
+				chars := []any{}
 				for _, c := range word.(string) {
 					chars = append(chars, string(c))
 				}
 				return chars
 			},
-			expected: []interface{}{"g", "o", "f", "n"},
+			expected: []any{"g", "o", "f", "n"},
 		},
 		{
 			name:  "empty string handling",
-			input: []interface{}{"", "a", ""},
-			fn: func(word interface{}) interface{} {
-				chars := []interface{}{}
+			input: []any{"", "a", ""},
+			fn: func(word any) any {
+				chars := []any{}
 				for _, c := range word.(string) {
 					chars = append(chars, string(c))
 				}
 				return chars
 			},
-			expected: []interface{}{"a"},
+			expected: []any{"a"},
 		},
 		{
 			name:  "nil handling",
-			input: []interface{}{nil, "a", nil},
-			fn: func(word interface{}) interface{} {
+			input: []any{nil, "a", nil},
+			fn: func(word any) any {
 				if word == nil {
-					return []interface{}{}
+					return []any{}
 				}
-				return []interface{}{word}
+				return []any{word}
 			},
-			expected: []interface{}{"a"},
+			expected: []any{"a"},
 		},
 		{
 			name:  "empty slice result",
-			input: []interface{}{"", "", ""},
-			fn: func(word interface{}) interface{} {
-				return []interface{}{}
+			input: []any{"", "", ""},
+			fn: func(word any) any {
+				return []any{}
 			},
-			expected: []interface{}{},
+			expected: []any{},
 		},
 		{
 			name:  "nested array flattening",
-			input: []interface{}{1, 2, 3},
-			fn: func(n interface{}) interface{} {
-				return []interface{}{n, n}
+			input: []any{1, 2, 3},
+			fn: func(n any) any {
+				return []any{n, n}
 			},
-			expected: []interface{}{1, 1, 2, 2, 3, 3},
+			expected: []any{1, 1, 2, 2, 3, 3},
 		},
 	}
 
@@ -199,48 +199,48 @@ func TestFlatMap(t *testing.T) {
 func TestAllAnyNone(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        []interface{}
-		fn           func(interface{}) bool
+		input        []any
+		fn           func(any) bool
 		expectedAll  bool
 		expectedAny  bool
 		expectedNone bool
 	}{
 		{
 			name:         "all even numbers",
-			input:        []interface{}{2, 4, 6, 8},
-			fn:           func(x interface{}) bool { return x.(int)%2 == 0 },
+			input:        []any{2, 4, 6, 8},
+			fn:           func(x any) bool { return x.(int)%2 == 0 },
 			expectedAll:  true,
 			expectedAny:  true,
 			expectedNone: false,
 		},
 		{
 			name:         "no even numbers",
-			input:        []interface{}{1, 3, 5, 7},
-			fn:           func(x interface{}) bool { return x.(int)%2 == 0 },
+			input:        []any{1, 3, 5, 7},
+			fn:           func(x any) bool { return x.(int)%2 == 0 },
 			expectedAll:  false,
 			expectedAny:  false,
 			expectedNone: true,
 		},
 		{
 			name:         "mixed even/odd numbers",
-			input:        []interface{}{1, 2, 3, 4},
-			fn:           func(x interface{}) bool { return x.(int)%2 == 0 },
+			input:        []any{1, 2, 3, 4},
+			fn:           func(x any) bool { return x.(int)%2 == 0 },
 			expectedAll:  false,
 			expectedAny:  true,
 			expectedNone: false,
 		},
 		{
 			name:         "empty slice",
-			input:        []interface{}{},
-			fn:           func(x interface{}) bool { return x.(int)%2 == 0 },
+			input:        []any{},
+			fn:           func(x any) bool { return x.(int)%2 == 0 },
 			expectedAll:  true,  // vacuously true
 			expectedAny:  false, // vacuously false
 			expectedNone: true,  // vacuously true
 		},
 		{
 			name:         "nil predicate handling",
-			input:        []interface{}{nil, nil, nil},
-			fn:           func(x interface{}) bool { return x == nil },
+			input:        []any{nil, nil, nil},
+			fn:           func(x any) bool { return x == nil },
 			expectedAll:  true,
 			expectedAny:  true,
 			expectedNone: false,
@@ -270,33 +270,33 @@ func TestAllAnyNone(t *testing.T) {
 func TestChunk(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []interface{}
+		input    []any
 		size     int
-		expected [][]interface{}
+		expected [][]any
 	}{
 		{
 			name:     "normal chunks",
-			input:    []interface{}{1, 2, 3, 4, 5},
+			input:    []any{1, 2, 3, 4, 5},
 			size:     2,
-			expected: [][]interface{}{{1, 2}, {3, 4}, {5}},
+			expected: [][]any{{1, 2}, {3, 4}, {5}},
 		},
 		{
 			name:     "empty slice",
-			input:    []interface{}{},
+			input:    []any{},
 			size:     2,
-			expected: [][]interface{}{},
+			expected: [][]any{},
 		},
 		{
 			name:     "chunk size equals length",
-			input:    []interface{}{1, 2, 3},
+			input:    []any{1, 2, 3},
 			size:     3,
-			expected: [][]interface{}{{1, 2, 3}},
+			expected: [][]any{{1, 2, 3}},
 		},
 		{
 			name:     "chunk size larger than length",
-			input:    []interface{}{1, 2},
+			input:    []any{1, 2},
 			size:     3,
-			expected: [][]interface{}{{1, 2}},
+			expected: [][]any{{1, 2}},
 		},
 	}
 
@@ -313,29 +313,29 @@ func TestChunk(t *testing.T) {
 func TestFind(t *testing.T) {
 	tests := []struct {
 		name        string
-		input       []interface{}
-		fn          func(interface{}) bool
-		expected    interface{}
+		input       []any
+		fn          func(any) bool
+		expected    any
 		shouldFound bool
 	}{
 		{
 			name:        "find first number greater than 2",
-			input:       []interface{}{1, 2, 3, 4},
-			fn:          func(v interface{}) bool { return v.(int) > 2 },
+			input:       []any{1, 2, 3, 4},
+			fn:          func(v any) bool { return v.(int) > 2 },
 			expected:    3,
 			shouldFound: true,
 		},
 		{
 			name:        "empty slice",
-			input:       []interface{}{},
-			fn:          func(v interface{}) bool { return v.(int) > 2 },
+			input:       []any{},
+			fn:          func(v any) bool { return v.(int) > 2 },
 			expected:    nil,
 			shouldFound: false,
 		},
 		{
 			name:        "no match",
-			input:       []interface{}{1, 2},
-			fn:          func(v interface{}) bool { return v.(int) > 10 },
+			input:       []any{1, 2},
+			fn:          func(v any) bool { return v.(int) > 10 },
 			expected:    nil,
 			shouldFound: false,
 		},
@@ -357,28 +357,28 @@ func TestFind(t *testing.T) {
 func TestReverse(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []interface{}
-		expected []interface{}
+		input    []any
+		expected []any
 	}{
 		{
 			name:     "normal sequence",
-			input:    []interface{}{1, 2, 3, 4},
-			expected: []interface{}{4, 3, 2, 1},
+			input:    []any{1, 2, 3, 4},
+			expected: []any{4, 3, 2, 1},
 		},
 		{
 			name:     "empty slice",
-			input:    []interface{}{},
-			expected: []interface{}{},
+			input:    []any{},
+			expected: []any{},
 		},
 		{
 			name:     "single element",
-			input:    []interface{}{1},
-			expected: []interface{}{1},
+			input:    []any{1},
+			expected: []any{1},
 		},
 		{
 			name:     "mixed types",
-			input:    []interface{}{1, "a", true, 2.5},
-			expected: []interface{}{2.5, true, "a", 1},
+			input:    []any{1, "a", true, 2.5},
+			expected: []any{2.5, true, "a", 1},
 		},
 	}
 
@@ -395,51 +395,51 @@ func TestReverse(t *testing.T) {
 func TestZipUnzip(t *testing.T) {
 	tests := []struct {
 		name        string
-		a           []interface{}
-		b           []interface{}
-		expectedZip [][2]interface{}
-		expectedA   []interface{}
-		expectedB   []interface{}
+		a           []any
+		b           []any
+		expectedZip [][2]any
+		expectedA   []any
+		expectedB   []any
 	}{
 		{
 			name:        "normal case",
-			a:           []interface{}{1, 2, 3},
-			b:           []interface{}{"a", "b", "c"},
-			expectedZip: [][2]interface{}{{1, "a"}, {2, "b"}, {3, "c"}},
-			expectedA:   []interface{}{1, 2, 3},
-			expectedB:   []interface{}{"a", "b", "c"},
+			a:           []any{1, 2, 3},
+			b:           []any{"a", "b", "c"},
+			expectedZip: [][2]any{{1, "a"}, {2, "b"}, {3, "c"}},
+			expectedA:   []any{1, 2, 3},
+			expectedB:   []any{"a", "b", "c"},
 		},
 		{
 			name:        "empty slices",
-			a:           []interface{}{},
-			b:           []interface{}{},
-			expectedZip: [][2]interface{}{},
-			expectedA:   []interface{}{},
-			expectedB:   []interface{}{},
+			a:           []any{},
+			b:           []any{},
+			expectedZip: [][2]any{},
+			expectedA:   []any{},
+			expectedB:   []any{},
 		},
 		{
 			name:        "different lengths - a shorter",
-			a:           []interface{}{1, 2},
-			b:           []interface{}{"a", "b", "c"},
-			expectedZip: [][2]interface{}{{1, "a"}, {2, "b"}},
-			expectedA:   []interface{}{1, 2},
-			expectedB:   []interface{}{"a", "b"},
+			a:           []any{1, 2},
+			b:           []any{"a", "b", "c"},
+			expectedZip: [][2]any{{1, "a"}, {2, "b"}},
+			expectedA:   []any{1, 2},
+			expectedB:   []any{"a", "b"},
 		},
 		{
 			name:        "different lengths - b shorter",
-			a:           []interface{}{1, 2, 3},
-			b:           []interface{}{"a"},
-			expectedZip: [][2]interface{}{{1, "a"}},
-			expectedA:   []interface{}{1},
-			expectedB:   []interface{}{"a"},
+			a:           []any{1, 2, 3},
+			b:           []any{"a"},
+			expectedZip: [][2]any{{1, "a"}},
+			expectedA:   []any{1},
+			expectedB:   []any{"a"},
 		},
 		{
 			name:        "mixed types",
-			a:           []interface{}{1, true, "x"},
-			b:           []interface{}{2.5, false, "y"},
-			expectedZip: [][2]interface{}{{1, 2.5}, {true, false}, {"x", "y"}},
-			expectedA:   []interface{}{1, true, "x"},
-			expectedB:   []interface{}{2.5, false, "y"},
+			a:           []any{1, true, "x"},
+			b:           []any{2.5, false, "y"},
+			expectedZip: [][2]any{{1, 2.5}, {true, false}, {"x", "y"}},
+			expectedA:   []any{1, true, "x"},
+			expectedB:   []any{2.5, false, "y"},
 		},
 	}
 
@@ -469,37 +469,37 @@ func TestZipUnzip(t *testing.T) {
 func TestGroupBy(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []interface{}
-		fn       func(interface{}) interface{}
-		expected map[interface{}][]interface{}
+		input    []any
+		fn       func(any) any
+		expected map[any][]any
 	}{
 		{
 			name:  "group by even/odd",
-			input: []interface{}{1, 2, 3, 4, 5, 6},
-			fn:    func(v interface{}) interface{} { return v.(int) % 2 },
-			expected: map[interface{}][]interface{}{
+			input: []any{1, 2, 3, 4, 5, 6},
+			fn:    func(v any) any { return v.(int) % 2 },
+			expected: map[any][]any{
 				0: {2, 4, 6},
 				1: {1, 3, 5},
 			},
 		},
 		{
 			name:     "empty slice",
-			input:    []interface{}{},
-			fn:       func(v interface{}) interface{} { return v.(int) % 2 },
-			expected: map[interface{}][]interface{}{},
+			input:    []any{},
+			fn:       func(v any) any { return v.(int) % 2 },
+			expected: map[any][]any{},
 		},
 		{
 			name:  "single group",
-			input: []interface{}{2, 4, 6},
-			fn:    func(v interface{}) interface{} { return v.(int) % 2 },
-			expected: map[interface{}][]interface{}{
+			input: []any{2, 4, 6},
+			fn:    func(v any) any { return v.(int) % 2 },
+			expected: map[any][]any{
 				0: {2, 4, 6},
 			},
 		},
 		{
 			name:  "group by type",
-			input: []interface{}{1, "a", 2, "b", true},
-			fn: func(v interface{}) interface{} {
+			input: []any{1, "a", 2, "b", true},
+			fn: func(v any) any {
 				switch v.(type) {
 				case int:
 					return "int"
@@ -509,7 +509,7 @@ func TestGroupBy(t *testing.T) {
 					return "other"
 				}
 			},
-			expected: map[interface{}][]interface{}{
+			expected: map[any][]any{
 				"int":    {1, 2},
 				"string": {"a", "b"},
 				"other":  {true},
@@ -535,33 +535,33 @@ func TestGroupBy(t *testing.T) {
 func TestFlatten(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    [][]interface{}
-		expected []interface{}
+		input    [][]any
+		expected []any
 	}{
 		{
 			name:     "normal nested slices",
-			input:    [][]interface{}{{1, 2}, {3, 4}, {5}},
-			expected: []interface{}{1, 2, 3, 4, 5},
+			input:    [][]any{{1, 2}, {3, 4}, {5}},
+			expected: []any{1, 2, 3, 4, 5},
 		},
 		{
 			name:     "empty outer slice",
-			input:    [][]interface{}{},
-			expected: []interface{}{},
+			input:    [][]any{},
+			expected: []any{},
 		},
 		{
 			name:     "empty inner slices",
-			input:    [][]interface{}{{}, {}, {}},
-			expected: []interface{}{},
+			input:    [][]any{{}, {}, {}},
+			expected: []any{},
 		},
 		{
 			name:     "mixed types",
-			input:    [][]interface{}{{1, "a"}, {true, 2.5}, {nil}},
-			expected: []interface{}{1, "a", true, 2.5, nil},
+			input:    [][]any{{1, "a"}, {true, 2.5}, {nil}},
+			expected: []any{1, "a", true, 2.5, nil},
 		},
 		{
 			name:     "single element slices",
-			input:    [][]interface{}{{1}, {2}, {3}},
-			expected: []interface{}{1, 2, 3},
+			input:    [][]any{{1}, {2}, {3}},
+			expected: []any{1, 2, 3},
 		},
 	}
 
@@ -578,43 +578,43 @@ func TestFlatten(t *testing.T) {
 func TestContains(t *testing.T) {
 	tests := []struct {
 		name     string
-		slice    []interface{}
-		item     interface{}
+		slice    []any
+		item     any
 		expected bool
 	}{
 		{
 			name:     "contains integer",
-			slice:    []interface{}{1, 2, 3},
+			slice:    []any{1, 2, 3},
 			item:     2,
 			expected: true,
 		},
 		{
 			name:     "does not contain integer",
-			slice:    []interface{}{1, 2, 3},
+			slice:    []any{1, 2, 3},
 			item:     4,
 			expected: false,
 		},
 		{
 			name:     "contains string",
-			slice:    []interface{}{"a", "b", "c"},
+			slice:    []any{"a", "b", "c"},
 			item:     "b",
 			expected: true,
 		},
 		{
 			name:     "empty slice",
-			slice:    []interface{}{},
+			slice:    []any{},
 			item:     1,
 			expected: false,
 		},
 		{
 			name:     "contains nil",
-			slice:    []interface{}{1, nil, 3},
+			slice:    []any{1, nil, 3},
 			item:     nil,
 			expected: true,
 		},
 		{
 			name:     "mixed types",
-			slice:    []interface{}{1, "a", true},
+			slice:    []any{1, "a", true},
 			item:     true,
 			expected: true,
 		},
@@ -631,7 +631,7 @@ func TestContains(t *testing.T) {
 }
 
 // Helper function for testing
-func contains(slice []interface{}, item interface{}) bool {
+func contains(slice []any, item any) bool {
 	for _, v := range slice {
 		if v == item {
 			return true
@@ -641,7 +641,7 @@ func contains(slice []interface{}, item interface{}) bool {
 }
 
 // Helper functions for comparing slices
-func equalSlices(a, b []interface{}) bool {
+func equalSlices(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -653,7 +653,7 @@ func equalSlices(a, b []interface{}) bool {
 	return true
 }
 
-func equalNestedSlices(a, b [][]interface{}) bool {
+func equalNestedSlices(a, b [][]any) bool {
 	if len(a) != len(b) {
 		return false
 	}

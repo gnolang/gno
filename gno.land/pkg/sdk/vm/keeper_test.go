@@ -32,15 +32,19 @@ func TestVMKeeperAddPackage(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
-func Echo() string {return "hello world"}`,
+func Echo() string {
+	crossing()
+
+	return "hello world"
+}`,
 		},
 	}
 	pkgPath := "gno.land/r/test"
@@ -63,7 +67,11 @@ func Echo() string {return "hello world"}`,
 	assert.NotNil(t, memFile)
 	expected := `package test
 
-func Echo() string { return "hello world" }
+func Echo() string {
+	crossing()
+
+	return "hello world"
+}
 `
 	assert.Equal(t, expected, memFile.Body)
 }
@@ -76,15 +84,19 @@ func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
-func Echo() string {return "hello world"}`,
+func Echo() string {
+	crossing()
+
+	return "hello world"
+}`,
 		},
 	}
 	pkgPath := "anotherdomain.land/r/test"
@@ -106,7 +118,7 @@ func Echo() string {return "hello world"}`,
 }
 
 // Sending total send amount succeeds.
-func TestVMKeeperOrigSend1(t *testing.T) {
+func TestVMKeeperOriginSend1(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -114,8 +126,8 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -128,10 +140,12 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	crossing()
+
+	addr := std.OriginCaller()
+	pkgAddr := std.CurrentRealm().Address()
+	send := std.OriginSend()
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -151,7 +165,7 @@ func Echo(msg string) string {
 }
 
 // Sending too much fails
-func TestVMKeeperOrigSend2(t *testing.T) {
+func TestVMKeeperOriginSend2(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -159,8 +173,8 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -172,19 +186,23 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin =	std.GetOrigCaller()
+     admin =	std.OriginCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	crossing()
+
+	addr := std.OriginCaller()
+	pkgAddr := std.CurrentRealm().Address()
+	send := std.OriginSend()
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
 
 func GetAdmin() string {
+	crossing()
+
 	return admin.String()
 }
 `},
@@ -200,12 +218,11 @@ func GetAdmin() string {
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
 	assert.Equal(t, "", res)
-	fmt.Println(err.Error())
 	assert.True(t, strings.Contains(err.Error(), "insufficient coins error"))
 }
 
 // Sending more than tx send fails.
-func TestVMKeeperOrigSend3(t *testing.T) {
+func TestVMKeeperOriginSend3(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -213,8 +230,8 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -227,10 +244,12 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
+	crossing()
+
+	addr := std.OriginCaller()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -257,8 +276,8 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -271,10 +290,12 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
+	crossing()
+
+	addr := std.OriginCaller()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -301,8 +322,8 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -315,10 +336,12 @@ func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
+	crossing()
+
+	addr := std.OriginCaller()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -345,14 +368,14 @@ func TestVMKeeperParams(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	// env.prmk.
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
 		{Name: "init.gno", Body: `
-package test
+package params
 
 import "std"
 
@@ -361,13 +384,15 @@ func init() {
 }
 
 func Do() string {
+	crossing()
+
 	std.SetParamInt64("bar.int64", int64(1337))
 	std.SetParamString("foo.string", "foo2") // override init
 
 	return "XXX" // return std.GetConfig("gno.land/r/test.foo"), if we want to expose std.GetConfig, maybe as a std.TestGetConfig
 }`},
 	}
-	pkgPath := "gno.land/r/test"
+	pkgPath := "gno.land/r/myuser/myrealm"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -384,14 +409,14 @@ func Do() string {
 
 	var foo string
 	var bar int64
-	env.vmk.prmk.GetString(ctx, "gno.land/r/test.foo.string", &foo)
-	env.vmk.prmk.GetInt64(ctx, "gno.land/r/test.bar.int64", &bar)
+	env.vmk.prmk.GetString(ctx, "vm:gno.land/r/myuser/myrealm:foo.string", &foo)
+	env.vmk.prmk.GetInt64(ctx, "vm:gno.land/r/myuser/myrealm:bar.int64", &bar)
 	assert.Equal(t, "foo2", foo)
 	assert.Equal(t, int64(1337), bar)
 }
 
-// Assign admin as OrigCaller on deploying the package.
-func TestVMKeeperOrigCallerInit(t *testing.T) {
+// Assign admin as OriginCaller on deploying the package.
+func TestVMKeeperOriginCallerInit(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -399,8 +424,8 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -412,19 +437,23 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin = std.GetOrigCaller()
+     admin = std.OriginCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
-	send := std.GetOrigSend()
-	banker := std.GetBanker(std.BankerTypeOrigSend)
+	crossing()
+
+	addr := std.OriginCaller()
+	pkgAddr := std.CurrentRealm().Address()
+	send := std.OriginSend()
+	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
 
 func GetAdmin() string {
+	crossing()
+
 	return admin.String()
 }
 
@@ -459,6 +488,8 @@ func TestVMKeeperRunSimple(t *testing.T) {
 package main
 
 func main() {
+	crossing()
+
 	println("hello world!")
 }
 `},
@@ -500,7 +531,9 @@ package main
 import "std"
 
 func main() {
-	addr := std.GetOrigCaller()
+	crossing()
+
+	addr := std.OriginCaller()
 	println("hello world!", addr)
 }
 `},
@@ -522,8 +555,8 @@ func TestNumberOfArgsError(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -532,6 +565,8 @@ func TestNumberOfArgsError(t *testing.T) {
 			Body: `package test
 
 func Echo(msg string) string {
+	crossing()
+
 	return "echo:"+msg
 }`,
 		},
@@ -561,8 +596,8 @@ func TestVMKeeperReinitialize(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*gnovm.MemFile{
@@ -570,6 +605,8 @@ func TestVMKeeperReinitialize(t *testing.T) {
 package test
 
 func Echo(msg string) string {
+	crossing()
+
 	return "echo:"+msg
 }`},
 	}

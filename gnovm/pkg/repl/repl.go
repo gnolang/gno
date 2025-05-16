@@ -125,7 +125,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.stderr = &b
 
 	r.storeFunc = func() gno.Store {
-		_, st := test.Store(gnoenv.RootDir(), false, r.stdin, r.stdout, r.stderr)
+		_, st := test.Store(gnoenv.RootDir(), test.OutputWithError(r.stdout, r.stderr))
 		return st
 	}
 
@@ -133,7 +133,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 		o(r)
 	}
 
-	r.state = newState(r.stdout, r.storeFunc)
+	r.state = newState(test.OutputWithError(r.stdout, r.stderr), r.storeFunc)
 
 	br := bufio.NewReader(r.stdin)
 	bw := bufio.NewWriter(io.MultiWriter(r.stderr, r.stdout))
@@ -156,7 +156,7 @@ func (r *Repl) Process(input string) (out string, err error) {
 	r.state.id++
 
 	if r.debug {
-		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(file string) string {
+		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(ppath, file string) string {
 			return r.state.files[file]
 		})
 		r.debug = false
@@ -183,7 +183,7 @@ func (r *Repl) handleExpression(e *ast.File) (string, error) {
 	n := gno.MustParseFile(fn, src)
 	r.state.files[fn] = src
 	r.state.machine.RunFiles(n)
-	r.state.machine.RunStatement(gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
+	r.state.machine.RunStatement(gno.StageRun, gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
 
 	// Read the result from the output buffer after calling main function.
 	b, err := io.ReadAll(r.rw)

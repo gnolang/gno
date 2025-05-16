@@ -10,7 +10,7 @@ func main() {
 	// Type assertions copy the value being asserted, so only pointers and
 	// slices are addressable. Slices are addressable because a copy of a slice
 	// maintains a reference to the same underlying array.
-	var i interface{}
+	var i any
 	i = []int{1}
 	println(&i.([]int)[0])
 

@@ -1,58 +1,56 @@
-package tests
+package tests_test
 
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/r/demo/tests"
 )
 
 func TestAssertOriginCall(t *testing.T) {
 	// CallAssertOriginCall(): no panic
-	CallAssertOriginCall()
-	if !CallIsOriginCall() {
+	caller := testutils.TestAddress("caller")
+	testing.SetRealm(std.NewUserRealm(caller))
+	cross(tests.CallAssertOriginCall)()
+	if !cross(tests.CallIsOriginCall)() {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	// CallAssertOriginCall() from a block: panic
-	expectedReason := "invalid non-origin call"
-	func() {
-		defer func() {
-			r := recover()
-			if r == nil || r.(string) != expectedReason {
-				t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
-			}
-		}()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	// CallAssertOriginCall() from a block: abort
+	uassert.AbortsWithMessage(t, "invalid non-origin call", func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal block).
-		if CallIsOriginCall() {
+		if cross(tests.CallIsOriginCall)() {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
-		CallAssertOriginCall()
-	}()
-
-	// CallSubtestsAssertOriginCall(): panic
-	defer func() {
-		r := recover()
-		if r == nil || r.(string) != expectedReason {
-			t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
+		cross(tests.CallAssertOriginCall)() // <---
+	})
+	// CallSubtestsAssertOriginCall(): abort
+	uassert.AbortsWithMessage(t, "invalid non-origin call", func() {
+		// if called inside a function literal, this is no longer an origin call
+		// because there's one additional frame (the function literal block).
+		if cross(tests.CallSubtestsIsOriginCall)() {
+			t.Errorf("expected IsOriginCall=false but got true")
 		}
-	}()
-	if CallSubtestsIsOriginCall() {
-		t.Errorf("expected IsOriginCall=false but got true")
-	}
-	CallSubtestsAssertOriginCall()
+		cross(tests.CallSubtestsAssertOriginCall)()
+	})
 }
 
-func TestPrevRealm(t *testing.T) {
+func TestPreviousRealm(t *testing.T) {
 	var (
-		user1Addr  = std.DerivePkgAddr("user1.gno")
+		firstRealm = std.DerivePkgAddr("gno.land/r/demo/tests_test")
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
-	// When a single realm in the frames, PrevRealm returns the user
-	if addr := GetPrevRealm().Addr(); addr != user1Addr {
-		t.Errorf("want GetPrevRealm().Addr==%s, got %s", user1Addr, addr)
+	// When only one realm in the frames, PreviousRealm returns the same realm
+	if addr := cross(tests.GetPreviousRealm)().Address(); addr != firstRealm {
+		println(cross(tests.GetPreviousRealm)())
+		t.Errorf("want GetPreviousRealm().Address==%s, got %s", firstRealm, addr)
 	}
-	// When 2 or more realms in the frames, PrevRealm returns the second to last
-	if addr := GetRSubtestsPrevRealm().Addr(); addr != rTestsAddr {
-		t.Errorf("want GetRSubtestsPrevRealm().Addr==%s, got %s", rTestsAddr, addr)
+	// When 2 or more realms in the frames, PreviousRealm returns the second to last
+	if addr := cross(tests.GetRSubtestsPreviousRealm)().Address(); addr != rTestsAddr {
+		t.Errorf("want GetRSubtestsPreviousRealm().Address==%s, got %s", rTestsAddr, addr)
 	}
 }

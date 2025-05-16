@@ -6,15 +6,13 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	pusers "gno.land/p/demo/users"
-	"gno.land/r/demo/users"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		alice = pusers.AddressOrName(testutils.TestAddress("alice"))
-		bob   = pusers.AddressOrName(testutils.TestAddress("bob"))
+		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		alice = testutils.TestAddress("alice")
+		bob   = testutils.TestAddress("bob")
 	)
 
 	type test struct {
@@ -39,8 +37,8 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// bob uses the faucet.
-	std.TestSetOrigCaller(users.Resolve(bob))
-	Faucet()
+	testing.SetOriginCaller(bob)
+	cross(Faucet)()
 
 	// check balances #2.
 	{
@@ -60,20 +58,21 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = pusers.AddressOrName("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-		empty = pusers.AddressOrName("")
+		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		empty = std.Address("")
 	)
 
 	type test struct {
-		name string
-		msg  string
-		fn   func()
+		name    string
+		msg     string
+		isCross bool
+		fn      func()
 	}
 
 	privateLedger.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
-			{"Transfer(admin, 1)", "cannot send transfer to self", func() {
+			{"Transfer(admin, 1)", "cannot send transfer to self", false, func() {
 				// XXX: should replace with: Transfer(admin, 1)
 				// but there is currently a limitation in manipulating the frame stack and simulate
 				// calling this package from an outside point of view.
@@ -82,12 +81,34 @@ func TestErrConditions(t *testing.T) {
 					panic(err)
 				}
 			}},
-			{"Approve(empty, 1))", "invalid address", func() { Approve(empty, 1) }},
+			{"Approve(empty, 1))", "invalid address", true, func() { cross(Approve)(empty, 1) }},
 		}
 		for _, tc := range tests {
-			t.Run(tc.name, func(t *testing.T) {
+			if tc.isCross {
+				uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+			} else {
 				uassert.PanicsWithMessage(t, tc.msg, tc.fn)
-			})
+			}
 		}
 	}
 }
+
+//func TestNewFoo20(t *testing.T) {
+//	t.Run("invalid input", func(t *testing.T) {
+//		testCases := []struct {
+//			msg string
+//			fn  func()
+//		}{
+//			// Test AbortsWithMessage
+//	uassert.PanicsWithMessage", func() { NewFoo20("foo", "f", 0) }},
+//			{"symbol cannot be empty", func() { NewFoo20("foo", "", 1) }},
+//			{"name cannot be empty", func() { NewFoo20("", "f", 1) }},
+//		}
+//		for _, tc := range testCases {
+//			uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+//		}
+//	})
+//	t.Run("transfer", func(t *testing.T) {
+//		// ... existing code ...
+//	})
+//}

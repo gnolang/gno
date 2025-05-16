@@ -18,3 +18,6 @@ func main() {
 
 // Error:
 // main/files/types/assign_range_b1.gno:14:2: cannot use string as int
+
+// TypeCheckError:
+// main/files/types/assign_range_b1.gno:14:9: cannot use v (value of type string) as int value in assignment

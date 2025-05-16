@@ -149,6 +149,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			}
 		}()
 	}
+
+	panicWithPos := func(fmtStr string, args ...any) {
+		pos := fs.Position(gon.Pos())
+		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
+		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
+	}
+
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
@@ -225,7 +232,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.FuncLit:
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
-		type_.IsClosure = true
 
 		return &FuncLitExpr{
 			Type: *type_,
@@ -234,21 +240,21 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.Field:
 		if len(gon.Names) == 0 {
 			return &FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else if len(gon.Names) == 1 {
 			return &FieldTypeExpr{
-				Name: toName(gon.Names[0]),
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(toName(gon.Names[0])),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else {
-			panic(fmt.Sprintf(
+			panicWithPos(
 				"expected a Go Field with 1 name but got %v.\n"+
 					"maybe call toFields",
-				gon.Names))
+				gon.Names)
 		}
 	case *ast.ArrayType:
 		if _, ok := gon.Len.(*ast.Ellipsis); ok {
@@ -327,16 +333,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Call: *cx,
 		}
 	case *ast.ExprStmt:
-		if cx, ok := gon.X.(*ast.CallExpr); ok {
-			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
-				if len(cx.Args) != 1 {
-					panic("expected panic statement to have single exception value")
-				}
-				return &PanicStmt{
-					Exception: toExpr(fs, cx.Args[0]),
-				}
-			}
-		}
 		return &ExprStmt{
 			X: toExpr(fs, gon.X),
 		}
@@ -412,9 +408,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				VarName:      "",
 			}
 		default:
-			panic(fmt.Sprintf(
-				"unexpected *ast.TypeSwitchStmt.Assign type %s",
-				reflect.TypeOf(gon.Assign).String()))
+			panicWithPos("unexpected *ast.TypeSwitchStmt.Assign type %s",
+				reflect.TypeOf(gon.Assign).String())
 		}
 	case *ast.SwitchStmt:
 		x := toExpr(fs, gon.Tag)
@@ -433,7 +428,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		recv := FieldTypeExpr{}
 		if isMethod {
 			if len(gon.Recv.List) > 1 {
-				panic("*ast.FuncDecl cannot have multiple receivers")
+				panicWithPos("method has multiple receivers")
+			}
+			if len(gon.Recv.List) == 0 {
+				panicWithPos("method has no receiver")
 			}
 			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
@@ -451,7 +449,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body:     body,
 		}
 	case *ast.GenDecl:
-		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
+		panicWithPos("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
@@ -469,12 +467,21 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}
+	case *ast.IndexListExpr:
+		if len(gon.Indices) > 1 {
+			panicWithPos("invalid operation: more than one index")
+		}
+		panicWithPos("invalid operation: indexList is not permitted in Gno")
+	case *ast.GoStmt:
+		panicWithPos("goroutines are not permitted")
 	default:
-		panic(fmt.Sprintf("unknown Go type %v: %s\n",
+		panicWithPos("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
 			spew.Sdump(gon),
-		))
+		)
 	}
+
+	return
 }
 
 //----------------------------------------
@@ -653,12 +660,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				if s.Type == nil {
+
+				// Inherit the last type when
+				// both type and value are nil
+				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
 					tipe = toExpr(fs, s.Type)
 					lastType = tipe
 				}
+
 				if s.Values == nil {
 					values = copyExprs(lastValues)
 				} else {
@@ -742,17 +753,17 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 		if len(f.Names) == 0 {
 			// a single unnamed field w/ type
 			ftxs = append(ftxs, FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, f.Type),
-				Tag:  toExpr(fs, f.Tag),
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, f.Type),
+				Tag:      toExpr(fs, f.Tag),
 			})
 		} else {
 			// one or more named fields
 			for _, n := range f.Names {
 				ftxs = append(ftxs, FieldTypeExpr{
-					Name: toName(n),
-					Type: toExpr(fs, f.Type),
-					Tag:  toExpr(fs, f.Tag),
+					NameExpr: *Nx(toName(n)),
+					Type:     toExpr(fs, f.Type),
+					Tag:      toExpr(fs, f.Tag),
 				})
 			}
 		}

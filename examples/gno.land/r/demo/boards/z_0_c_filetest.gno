@@ -1,18 +1,22 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
+	"std"
+	"testing"
+
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var bid boards.BoardID
 
 func init() {
-	users.Register("", "gnouser", "my profile")
-	boards.CreateThread(1, "First Post (title)", "Body of the first post. (body)")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	cross(users.Register)("gnouser123")
+	cross(boards.CreateThread)(1, "First Post (title)", "Body of the first post. (body)")
 }
 
 func main() {

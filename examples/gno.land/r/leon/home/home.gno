@@ -5,12 +5,13 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
 	"gno.land/r/demo/mirror"
 	"gno.land/r/leon/config"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -19,7 +20,20 @@ var (
 	abtMe      [2]string
 )
 
+func Render(_ string) string {
+	out := "# Leon's Homepage\n\n"
+
+	out += renderAboutMe()
+	out += renderArt()
+	out += config.Banner()
+
+	return out
+}
+
 func init() {
+	hor.Register("Leon's Home Realm", "")
+	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
 	abtMe = [2]string{
@@ -30,16 +44,12 @@ life-long learner, and sharer of knowledge.`,
 My contributions to gno.land can mainly be found 
 [here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
 
-TODO import r/gh
-`,
+TODO import r/gh`,
 	}
-
-	hof.Register()
-	mirror.Register(std.CurrentRealm().PkgPath(), Render)
 }
 
 func UpdatePFP(url, caption string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -48,7 +58,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -56,81 +66,39 @@ func UpdateAboutMe(col1, col2 string) {
 	abtMe[1] = col2
 }
 
-func Render(path string) string {
-	out := "# Leon's Homepage\n\n"
-
-	out += renderAboutMe()
-	out += renderBlogPosts()
-	out += "\n\n"
-	out += renderArt()
-
-	return out
-}
-
-func renderBlogPosts() string {
-	out := ""
-	//out += "## Leon's Blog Posts"
-
-	// todo fetch blog posts authored by @leohhhn
-	// and render them
-	return out
-}
-
 func renderAboutMe() string {
-	out := "<div class='columns-3'>"
-
-	out += "<div>\n\n"
-	out += ufmt.Sprintf("![my profile pic](%s)\n\n%s\n\n", pfp, pfpCaption)
-	out += "</div>\n\n"
-
-	out += "<div>\n\n"
-	out += abtMe[0] + "\n\n"
-	out += "</div>\n\n"
-
-	out += "<div>\n\n"
-	out += abtMe[1] + "\n\n"
-	out += "</div>\n\n"
-
-	out += "</div><!-- /columns-3 -->\n\n"
-
-	return out
+	return md.Columns([]string{
+		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
+		abtMe[0],
+		abtMe[1],
+	})
 }
 
 func renderArt() string {
-	out := `<div class="jumbotron">` + "\n\n"
-	out += "# Gno Art\n\n"
+	out := "# Gno Art\n"
 
-	out += "<div class='columns-3'>"
-
-	out += renderGnoFace()
-	out += renderMillipede()
-	out += "Empty spot :/"
-
-	out += "</div><!-- /columns-3 -->\n\n"
+	out += md.Columns([]string{
+		gnoface.Render(strconv.Itoa(int(std.ChainHeight()))),
+		renderMillipede(),
+		"Empty spot :/",
+	})
 
 	out += "This art is dynamic; it will change with every new block.\n\n"
-	out += `</div><!-- /jumbotron -->` + "\n"
-
-	return out
-}
-
-func renderGnoFace() string {
-	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.GetHeight())))
-	out += "</div>\n\n"
 
 	return out
 }
 
 func renderMillipede() string {
-	out := "<div>\n\n"
-	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.GetHeight())%10+1) + "```\n"
-	out += "</div>\n\n"
-
+	out := "Millipede\n\n"
+	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
 	return out
 }
 
-func isAuthorized(addr std.Address) bool {
-	return addr == config.Address() || addr == config.Backup()
+func renderBlogPosts() string {
+	out := ""
+	// out += "## Leon's Blog Posts"
+
+	// todo fetch blog posts authored by @leohhhn
+	// and render them
+	return out
 }
