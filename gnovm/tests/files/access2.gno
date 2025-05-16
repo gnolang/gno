@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/demo/testutils) package{})).TestVar1
