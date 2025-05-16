@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
 
@@ -90,16 +89,7 @@ func Repeat(char string, n int) string {
 //	| !           |
 //	+-------------+
 func Box(text string) string {
-	width := len(text) + 4
-
-	if strings.Contains(text, "\n") {
-		return FlexFrame(strings.Split(text, "\n"), "left")
-	}
-	top := "+" + Repeat("-", width-2) + ufmt.Sprintf("[%d] = %s", len(text), text) + "+\n"
-	middle := "| " + text + " |\n"
-	bottom := "+" + Repeat("-", width-2) + "+"
-
-	return md.CodeBlock(top+middle+bottom) + "\n"
+	return FlexFrame(strings.Split(text, "\n"), AlignLeft)
 }
 
 // FlexFrame draws a frame with automatic width and alignment.
@@ -118,9 +108,9 @@ func Box(text string) string {
 func FlexFrame(lines []string, align WAlignment) string {
 	maxWidth := 0
 
-	for i := 0; i < len(lines); i++ {
-		if len(lines[i]) > maxWidth {
-			maxWidth = len(lines[i])
+	for _, line := range lines {
+		if len(line) > maxWidth {
+			maxWidth = len(line)
 		}
 	}
 
