@@ -24,7 +24,7 @@ type PebbleDB struct {
 }
 
 func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
-	return NewPebbleDBWithOpts(name, dir, nil)
+	return NewPebbleDBWithOpts(name, dir, &pebble.Options{})
 }
 
 func NewPebbleDBWithOpts(name string, dir string, o *pebble.Options) (*PebbleDB, error) {
@@ -65,7 +65,13 @@ func (db *PebbleDB) Has(key []byte) bool {
 func (db *PebbleDB) Set(key []byte, value []byte) {
 	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
-	err := db.db.Set(key, value, pebble.NoSync)
+	err := db.db.Set(key, value, pebble.Sync)
+	if err != nil {
+		panic(err)
+	}
+
+	// we need to flush to make some parts of the code happy ¯\_(ツ)_/¯
+	err = db.db.Flush()
 	if err != nil {
 		panic(err)
 	}
@@ -79,12 +85,18 @@ func (db *PebbleDB) SetSync(key []byte, value []byte) {
 	if err != nil {
 		panic(err)
 	}
+
+	// we need to flush to make some parts of the code happy ¯\_(ツ)_/¯
+	err = db.db.Flush()
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Implements DB.
 func (db *PebbleDB) Delete(key []byte) {
 	key = internal.NonNilBytes(key)
-	err := db.db.Delete(key, pebble.NoSync)
+	err := db.db.Delete(key, pebble.Sync)
 	if err != nil {
 		panic(err)
 	}
@@ -142,7 +154,7 @@ func (mBatch *pebbleDBBatch) Delete(key []byte) {
 
 // Implements Batch.
 func (mBatch *pebbleDBBatch) Write() {
-	if err := mBatch.batch.Commit(pebble.NoSync); err != nil {
+	if err := mBatch.batch.Commit(pebble.Sync); err != nil {
 		panic(err)
 	}
 }
