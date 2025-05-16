@@ -1,5 +1,6 @@
 package authz
 
+/*
 import (
 	"std"
 )
@@ -56,3 +57,4 @@ func (a *CoinAuthority) Can(addr std.Address, action string) bool {
 	}
 	return true
 }
+*/

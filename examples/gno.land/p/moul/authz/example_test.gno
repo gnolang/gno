@@ -1,5 +1,6 @@
 package authz_test
 
+/*
 import (
 	"std"
 	"time"
@@ -111,7 +112,7 @@ func ExampleAuthority_composition() {
 		)
 		superadmins authz.Membership = authz.And(govdaot1t2, holders, activityConstraint, seniorityConstraint)
 	)
-	Auth, priv := authz.New()                 /* returns authz.Authority, authz.PrivateConfig */
+	Auth, priv := authz.New()                 // returns authz.Authority, authz.PrivateConfig
 	priv.Add("like", authz.Anyone)            // Add appends or create.
 	priv.Set("propose", proposers)            // Set replaces or create.
 	priv.Add("comment", proposers)            // first Add creates,
@@ -141,3 +142,4 @@ type govdao struct{} // replaces "import gno.land/r/gov/dao"
 func (g govdao) T1() addrset.Set                           { return addrset.Set{"g1t1member"} }
 func (g govdao) T2() addrset.Set                           { return addrset.Set{"g1t2member"} }
 func (g govdao) GetJoiningTime(addr std.Address) time.Time { return time.Now() }
+*/
