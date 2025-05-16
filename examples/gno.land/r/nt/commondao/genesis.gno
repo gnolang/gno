@@ -30,7 +30,8 @@ func init() {
 
 	// Save DAO configuration
 	options.Set(id.String(), &Options{
-		AllowVoting:    true,
-		AllowExecution: true,
+		AllowVoting:        true,
+		AllowExecution:     true,
+		AllowMembersUpdate: true,
 	})
 }
