@@ -119,7 +119,7 @@ func TestFindByPrefix(t *testing.T) {
 		{"fruits.org/abricot/", 100, []string{
 			"fruits.org/abricot/fraise",
 		}},
-		{"gno", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
+		{"fruits", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
 		{"_", 100, stdlibs},
 		{"_/a", 100, []string{"abricot"}},
 		// special case
