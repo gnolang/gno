@@ -778,7 +778,7 @@ func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type
 	}
 
 	// display xt as "untyped nil" if nil as Go does.
-	var untypedNil = func(t Type) string {
+	untypedNil := func(t Type) string {
 		if t == nil {
 			return "untyped nil"
 		} else {

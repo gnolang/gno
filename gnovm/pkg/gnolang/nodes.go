@@ -191,7 +191,7 @@ func (attr *Attributes) DelAttribute(key GnoAttribute) {
 
 func (attr *Attributes) GetAttributeKeys() []GnoAttribute {
 	res := make([]GnoAttribute, 0, len(attr.data))
-	for key, _ := range attr.data {
+	for key := range attr.data {
 		res = append(res, key)
 	}
 	return res

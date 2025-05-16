@@ -51,14 +51,15 @@ const (
 //
 // XXX move to pkg/gnolang/gotypecheck.go?
 func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
-	gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error) {
+	gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
+) {
 	gofset = token.NewFileSet()
 
 	// This map is used to allow for function re-definitions, which are
 	// allowed in Gno (testing context) but not in Go.  This map links
 	// each function identifier with a closure to remove its associated
 	// declaration.
-	var delFunc = make(map[string]func())
+	delFunc := make(map[string]func())
 
 	// Go parse and collect files from mpkg.
 	for _, file := range mpkg.Files {
@@ -87,7 +88,7 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
 			parser.SkipObjectResolution
-		var gof, err = parser.ParseFile(
+		gof, err := parser.ParseFile(
 			gofset, path.Join(mpkg.Path, file.Name),
 			file.Body,
 			parseOpts)
@@ -313,8 +314,8 @@ func addXform1(n Node, p string, f string, s Span, x xtype) {
 func addXform2IfMatched(
 	xforms1 map[string]struct{},
 	xforms2 map[ast.Node]string,
-	gon ast.Node, p string, f string, s Span, x xtype) {
-
+	gon ast.Node, p string, f string, s Span, x xtype,
+) {
 	xform1 := fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
 	if _, exists := xforms1[xform1]; exists {
 		if prior, exists := xforms2[gon]; exists {
@@ -335,7 +336,6 @@ func addXform2IfMatched(
 //   - dir: where to write to.
 //   - xforms1: result of FindGno0p9Xforms().
 func TranspileGno0p9(mpkg *std.MemPackage, dir string, xforms1 map[string]struct{}) error {
-
 	// Return if gno.mod is current.
 	var mod *gnomod.File
 	var err error
@@ -359,7 +359,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xforms1 map[string]struct
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
 			parser.SkipObjectResolution
-		var gof, err = parser.ParseFile(
+		gof, err := parser.ParseFile(
 			gofset,
 			path.Join(mpkg.Path, mfile.Name),
 			mfile.Body,
@@ -461,7 +461,7 @@ func checkXforms(xforms1 map[string]struct{}, xforms2 map[ast.Node]string, fname
 	mismatch := false
 	found := 0
 XFORMS1_LOOP:
-	for xform1, _ := range xforms1 {
+	for xform1 := range xforms1 {
 		if !strings.Contains(xform1, "/"+fname) {
 			continue
 		}
@@ -476,7 +476,7 @@ XFORMS1_LOOP:
 		mismatch = true
 	}
 	if mismatch {
-		for xform1, _ := range xforms1 {
+		for xform1 := range xforms1 {
 			fmt.Println("xform1:", xform1)
 		}
 		for n2, xform2 := range xforms2 {
@@ -492,17 +492,16 @@ XFORMS1_LOOP:
 
 // The main Go AST transpiling logic to make Gno code Gno 0.9.
 func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof *ast.File, xforms2 map[ast.Node]string) (err error) {
-
-	var lastLine = 0
-	var didRemoveCrossing = false
-	var setLast = func(end token.Pos) {
+	lastLine := 0
+	didRemoveCrossing := false
+	setLast := func(end token.Pos) {
 		posn := fs.Position(end)
 		lastLine = posn.Line
 	}
-	var getLine = func(pos token.Pos) int {
+	getLine := func(pos token.Pos) int {
 		return fs.Position(pos).Line
 	}
-	var inXforms2 = func(gon ast.Node, x xtype) bool {
+	inXforms2 := func(gon ast.Node, x xtype) bool {
 		if xforms2 == nil {
 			return false
 		}
@@ -514,7 +513,6 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 	}
 
 	astutil.Apply(gof, func(c *astutil.Cursor) bool {
-
 		// Handle newlines after crossing
 		if didRemoveCrossing {
 			gon := c.Node()
@@ -557,7 +555,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 			}
 		case *ast.FuncLit:
 			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
-				gon.Type.Params.List = append([]*ast.Field{&ast.Field{
+				gon.Type.Params.List = append([]*ast.Field{{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
 					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
 				}}, gon.Type.Params.List...)
@@ -565,7 +563,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 			}
 		case *ast.FuncDecl:
 			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
-				gon.Type.Params.List = append([]*ast.Field{&ast.Field{
+				gon.Type.Params.List = append([]*ast.Field{{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
 					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
 				}}, gon.Type.Params.List...)

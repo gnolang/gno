@@ -169,7 +169,6 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
-
 	// Default to current directory if no args provided
 	if len(args) == 0 {
 		args = []string{"."}
@@ -245,17 +244,16 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			//XXX why would we skip type-checking for drafts?
-			//if modfile == nil || !modfile.Draft {
-			_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore)
-			if errs != nil {
-				didError = true
-				io.ErrPrintln(errs)
-				return
+			if modfile == nil || !modfile.Draft {
+				_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore)
+				if errs != nil {
+					didError = true
+					io.ErrPrintln(errs)
+					return
+				}
+			} else if cmd.verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			}
-			//} else if cmd.verbose {
-			//	io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
-			//}
 			errs = test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {
 				didError = true

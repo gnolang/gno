@@ -30,7 +30,8 @@ type MemPackageGetter interface {
 //
 // The syntax checking is performed entirely using Go's go/types package.
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
-	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error) {
+	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
+) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
@@ -95,7 +96,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		gimp.cache[pkgPath] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	var pmode = ParseModeProduction // don't parse test files for imports...
+	pmode := ParseModeProduction // don't parse test files for imports...
 	if gimp.pkgPath == pkgPath {
 		// ...unless importing self from a *_test.gno
 		// file with package name xxx_test.
@@ -122,8 +123,8 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 //     ParseModeProduction when type-checking imports.
 //   - strict: If true errors on gno.mod version mismatch.
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode, strict bool) (
-	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error) {
-
+	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
+) {
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	if strict {
@@ -162,7 +163,7 @@ type realm interface{} // shim
 	const parseOpts = parser.ParseComments |
 		parser.DeclarationErrors |
 		parser.SkipObjectResolution
-	var gmgof, err = parser.ParseFile(
+	gmgof, err := parser.ParseFile(
 		gofset,
 		path.Join(mpkg.Path, file.Name),
 		file.Body,

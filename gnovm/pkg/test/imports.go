@@ -62,9 +62,10 @@ func StoreWithOptions(
 	// process the mempackage after gno.MustReadMemPackage().
 	// * m.PreprocessFiles() if opts.PreprocessOnly.
 	// * m.RunMemPackage() otherwise.
-	var _processMemPackage = func(
+	_processMemPackage := func(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
-		pn *gno.PackageNode, pv *gno.PackageValue) {
+		pn *gno.PackageNode, pv *gno.PackageValue,
+	) {
 		if opts.PreprocessOnly {
 			// Check the gno.mod gno version.
 			mod, err := gno.ParseCheckGnoMod(mpkg)
@@ -102,7 +103,7 @@ func StoreWithOptions(
 
 	//----------------------------------------
 	// Main entrypoint for new test imports.
-	var getPackage = func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}

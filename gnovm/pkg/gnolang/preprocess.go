@@ -454,7 +454,7 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	var clearSkip = false
+	clearSkip := false
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
@@ -4997,13 +4997,13 @@ func setNodeLines(nn Node) {
 	Transcribe(nn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_ENTER:
-			var nspan = n.GetSpan()
+			nspan := n.GetSpan()
 			if nspan.IsZero() {
 				if len(ns) == 0 {
 					// Handled by TRANS_LEAVE. Case A.
 					return n, TRANS_CONTINUE
 				}
-				var lastSpan = ns[len(ns)-1].GetSpan()
+				lastSpan := ns[len(ns)-1].GetSpan()
 				if lastSpan.IsZero() {
 					// Handled by TRANS_LEAVE too. Case B.
 					return n, TRANS_CONTINUE
@@ -5022,7 +5022,7 @@ func setNodeLines(nn Node) {
 		case TRANS_LEAVE:
 			// TODO: Validate that all spans of elements are
 			// strictly contained.
-			var nspan = n.GetSpan()
+			nspan := n.GetSpan()
 			if nspan.IsZero() {
 				// Case A: len(ns) == 0
 				// Case b: len(ns) > 0.

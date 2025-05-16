@@ -561,7 +561,6 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
-		// fmt.Println("PREPROCESSED", fn)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)
 		// Make block for fn.
@@ -2339,7 +2338,6 @@ func (m *Machine) String() string {
 	if m == nil {
 		return "Machine:nil"
 	}
-
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
@@ -2350,43 +2348,31 @@ func (m *Machine) String() string {
 		obsLength        = len(m.Blocks) * 32
 		fsLength         = len(m.Frames) * 32
 		exceptionsLength = m.Exception.NumExceptions() * 32
-
-		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
+		totalLength      = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
-
 	var sb strings.Builder
 	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
-
 	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:m.NumOps], m.NumValues)
-
 	for i := m.NumValues - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
-
 	builder.WriteString("    Exprs:\n")
-
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Exprs[i])
 	}
-
 	builder.WriteString("    Stmts:\n")
-
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Stmts[i])
 	}
-
 	builder.WriteString("    Blocks:\n")
-
 	for i := len(m.Blocks) - 1; i > 0; i-- {
 		b := m.Blocks[i]
 		if b == nil {
 			continue
 		}
-
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
-
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
@@ -2395,7 +2381,6 @@ func (m *Machine) String() string {
 			bsi := b.StringIndented("            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 		}
-
 		// Update b
 		switch bp := b.Parent.(type) {
 		case nil:
@@ -2409,16 +2394,12 @@ func (m *Machine) String() string {
 			panic("should not happen")
 		}
 	}
-
 	builder.WriteString("    Blocks (other):\n")
-
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
-
 		if b == nil || b.Source == nil {
 			continue
 		}
-
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
@@ -2426,22 +2407,17 @@ func (m *Machine) String() string {
 				b.StringIndented("            "))
 		}
 	}
-
 	builder.WriteString("    Frames:\n")
-
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %s\n", i, m.Frames[i])
 	}
-
 	if m.Realm != nil {
 		fmt.Fprintf(builder, "    Realm:\n      %s\n", m.Realm.Path)
 	}
-
 	if m.Exception != nil {
 		builder.WriteString("    Exception:\n")
 		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
 	}
-
 	return builder.String()
 }
 
@@ -2449,16 +2425,13 @@ func (m *Machine) ExceptionStacktrace() string {
 	if m.Exception == nil {
 		return ""
 	}
-
 	var builder strings.Builder
-
 	last := m.Exception
 	first := m.Exception
 	var numPrevious int
 	for ; first.Previous != nil; first = first.Previous {
 		numPrevious++
 	}
-
 	builder.WriteString(first.StringWithStacktrace(m))
 	if numPrevious >= 2 {
 		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", numPrevious-1)
