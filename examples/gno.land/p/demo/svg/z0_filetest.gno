@@ -5,16 +5,11 @@ import "gno.land/p/demo/svg"
 
 func main() {
 	canvas := svg.Canvas{Width: 500, Height: 500}
-	canvas.Append(
-		svg.Rectangle{X: 50, Y: 50, Width: 100, Height: 100, Fill: "red"},
-		svg.Circle{CX: 100, CY: 100, R: 50, Fill: "blue"},
-		svg.Text{X: 100, Y: 100, Text: "hello world!", Fill: "magenta"},
-	)
-	canvas.Append(
-		svg.NewCircle(100, 100, 50, "blue").WithClass("toto"),
-	)
+	canvas.Append(svg.Rectangle{X: 50, Y: 50, Width: 100, Height: 100, Fill: "red"})
+	canvas.Append(svg.Circle{CX: 100, CY: 100, R: 50, Fill: "blue"})
+	canvas.Append(svg.Text{X: 100, Y: 100, Text: "hello world!", Fill: "magenta"})
 	println(canvas)
 }
 
 // Output:
-// <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox=""><rect x="50" y="50" width="100" height="100" rx="0" ry="0" fill="red"  id="" class="" style="" stroke="" stroke-width="" opacity="" transform="" visibility="" /><circle cx="50" cy="50" r="100" fill="red"  id="" class="" style="" stroke="" stroke-width="" opacity="" transform="" visibility="" /><text x="100" y="100" dx="0" dy="0" rotate="" fill="magenta">hello world!</text></svg>
+// <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500"><rect x="50" y="50" width="100" height="100" fill="red" /><circle cx="100" cy="100" r="50" fill="blue" /><text x="100" y="100" fill="magenta">hello world!</text></svg>

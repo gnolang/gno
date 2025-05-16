@@ -107,7 +107,7 @@ func (b BaseAttrs) String() string {
 	if len(elems) == 0 {
 		return ""
 	}
-	return " " + strings.Join(elems, " ")
+	return strings.Join(elems, " ")
 }
 
 type Circle struct {
