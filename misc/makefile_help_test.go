@@ -20,7 +20,7 @@ func TestParseConfig(t *testing.T) {
 	// create a temp Makefile
 	dir := t.TempDir()
 	mf := filepath.Join(dir, "Makefile")
-	if err := ioutil.WriteFile(mf, []byte("all:\n"), 0644); err != nil {
+	if err := ioutil.WriteFile(mf, []byte("all:\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,7 +51,7 @@ baz: # description with % wildcard %
 legacy: # @LEGACY should skip
 `
 	mf := filepath.Join(t.TempDir(), "Makefile")
-	if err := ioutil.WriteFile(mf, []byte(content), 0644); err != nil {
+	if err := ioutil.WriteFile(mf, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -87,7 +87,7 @@ func TestReadReadmeBanner(t *testing.T) {
 
 	// write a README.md
 	markdown := "# " + filepath.Base(dir) + ": Hello World\nSecond line"
-	if err := ioutil.WriteFile(filepath.Join(dir, "README.md"), []byte(markdown), 0644); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "README.md"), []byte(markdown), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	b, err = readReadmeBanner(dir)
@@ -122,7 +122,6 @@ func TestMaxStringLength(t *testing.T) {
 		t.Errorf("maxStringLength = %d; want 3", l)
 	}
 }
-
 
 // Table‑driven tests for extractMakefileTargets, covering legacy skips,
 // double‑hash, non‑letter starts, missing colons, wildcard targets, etc.
@@ -187,7 +186,7 @@ func TestExtractMakefileTargets_Table(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			mf := filepath.Join(dir, "Makefile")
-			if err := os.WriteFile(mf, []byte(tc.content), 0644); err != nil {
+			if err := os.WriteFile(mf, []byte(tc.content), 0o644); err != nil {
 				t.Fatalf("failed to write temp Makefile: %v", err)
 			}
 
@@ -224,7 +223,7 @@ func TestReadReadmeBanner_Table(t *testing.T) {
 			// replace placeholder
 			content := strings.ReplaceAll(tc.content, "<NAME>", dir)
 			if content != "" {
-				if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(content), 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(content), 0o644); err != nil {
 					t.Fatalf("failed to write README.md: %v", err)
 				}
 			}

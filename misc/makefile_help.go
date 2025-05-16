@@ -6,13 +6,15 @@
 // any README.md there as a banner.
 //
 // Usage:
-//   go run main.go [OPTIONS] <Makefile>
+//
+//	go run main.go [OPTIONS] <Makefile>
 //
 // Options:
-//   -r, --relative-to PATH    Treat PATH as the relative invocation path
-//   -d, --dirs DIR [...]      List of directories to scan for Makefiles
-//   -w, --wildcard WILD [...] List of wildcard substitutions for '%' targets
-//   -h, --help                Show usage and exit
+//
+//	-r, --relative-to PATH    Treat PATH as the relative invocation path
+//	-d, --dirs DIR [...]      List of directories to scan for Makefiles
+//	-w, --wildcard WILD [...] List of wildcard substitutions for '%' targets
+//	-h, --help                Show usage and exit
 package main
 
 import (
@@ -73,7 +75,7 @@ func parseConfig(args []string) (*Config, *flag.FlagSet, error) {
 	cfg.Makefile = rest[0]
 	info, err := os.Stat(cfg.Makefile)
 	if err != nil || info.IsDir() {
-		return nil, fs, fmt.Errorf("cannot read Makefile %q: %v", cfg.Makefile, err)
+		return nil, fs, fmt.Errorf("cannot read Makefile %q: %w", cfg.Makefile, err)
 	}
 	return cfg, fs, nil
 }
@@ -121,30 +123,30 @@ func extractMakefileTargets(filePath string) (map[string]string, error) {
 
 // maxStringLength returns the length of the longest string in items.
 func maxStringLength(items []string) int {
-	max := 0
+	maxLen := 0
 	for _, s := range items {
-		if len(s) > max {
-			max = len(s)
+		if len(s) > maxLen {
+			maxLen = len(s)
 		}
 	}
-	return max
+	return maxLen
 }
 
 // maxKeyLength calculates the column width for printing keys,
 // accounting for '%' expansions if wildcards are provided.
 func maxKeyLength(keys, wildcards []string) int {
 	wildMax := maxStringLength(wildcards)
-	max := 0
+	maxLen := 0
 	for _, k := range keys {
 		length := len(k)
 		if strings.Contains(k, "%") && len(wildcards) > 0 {
 			length += wildMax - 1
 		}
-		if length > max {
-			max = length
+		if length > maxLen {
+			maxLen = length
 		}
 	}
-	return max
+	return maxLen
 }
 
 // readReadmeBanner finds and returns a parenthesized summary
@@ -153,7 +155,7 @@ func readReadmeBanner(dir string) (string, error) {
 	// strip leading "#", spaces, and an optional "dir:" prefix
 	prefixRe := regexp.MustCompile(`(?i)^ *(` +
 		regexp.QuoteMeta(dir) +
-		`|` + "`"+regexp.QuoteMeta(dir)+ "`" +
+		`|` + "`" + regexp.QuoteMeta(dir) + "`" +
 		`) *((-+|:) *|$)`)
 
 	path := filepath.Join(dir, "README.md")
@@ -187,7 +189,7 @@ func scrapeReadmeBanners(wildcards, dirs []string) map[string]string {
 
 // printTargets lists all targets and descriptions, expanding '%' with wildcards.
 func printTargets(targets map[string]string, wildcards []string, banners map[string]string) {
-	var keys []string
+	keys := make([]string, 0, len(targets))
 	for k := range targets {
 		keys = append(keys, k)
 	}
@@ -254,7 +256,7 @@ func printSubdirs(relativeTo string, dirs []string, banners map[string]string) {
 func main() {
 	cfg, fs, err := parseConfig(os.Args[1:])
 	if err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			os.Exit(0)
 		}
 		fmt.Fprintln(os.Stderr, "Error:", err)
