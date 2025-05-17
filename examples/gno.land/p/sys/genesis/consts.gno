@@ -22,4 +22,20 @@ var (
 
 	// Height is the height of the genesis block (usually 0).
 	Height = std.ChainHeight()
+
+	// Domain is the domain of the chain.
+	Domain = std.ChainDomain()
+
+	// XXX: TZ
+	// XXX: Supply = std.Coins{{"ugnot", std.NewBanker(std.BankerTypeReadonly).TotalSupply("ugnot")}}
 )
+
+// Uptime returns the uptime of the chain.
+func Uptime() time.Duration {
+	return time.Since(Time)
+}
+
+// Upheight returns the height of the chain.
+func Upheight() int64 {
+	return std.ChainHeight() - Height
+}
