@@ -112,6 +112,12 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
+	// Ignore Chrome DevTools requests
+	if strings.HasPrefix(r.URL.Path, "/.well-known/appspecific/") {
+		http.NotFound(w, r)
+		return
+	}
+
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,
@@ -148,6 +154,10 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	var status int
 	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
 
+	if IsHomePath(r.RequestURI) {
+		indexData.HeaderData.Mode = components.HeaderModeTemplateHome
+	}
+
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -176,14 +186,14 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
-		IsHome:     IsHomePath(r.RequestURI),
+		Mode:       components.HeaderModeTemplateRealm,
 	}
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure():
-		return h.GetPackageView(gnourl)
+		return h.GetPackageView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -208,7 +218,7 @@ func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (i
 }
 
 // GetPackageView handles package pages.
-func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(gnourl)
@@ -221,14 +231,14 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL) (int, *components.Vie
 
 	// Handle Source page
 	if gnourl.IsDir() || gnourl.IsPure() {
-		return h.GetDirectoryView(gnourl)
+		return h.GetDirectoryView(gnourl, indexData)
 	}
 
 	// Ultimately get realm view
-	return h.GetRealmView(gnourl)
+	return h.GetRealmView(gnourl, indexData)
 }
 
-func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	var content bytes.Buffer
 
 	meta, err := h.Client.RenderRealm(&content, gnourl, h.MarkdownRenderer)
@@ -238,14 +248,30 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 		}
 
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+
+		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
+		if qerr != nil {
+			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
+
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+
+		indexData.HeaderData.Mode = components.HeaderModeTemplateExplorer
+
+		return http.StatusOK, components.DirectoryView(components.DirData{
+			PkgPath:     gnourl.Path,
+			Files:       paths,
+			FileCounter: len(paths),
+			LinkType:    components.DirLinkTypeFile,
+		})
 	}
+
+	indexData.HeaderData.Mode = components.HeaderModeTemplateRealm
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
 			Items: meta.Toc.Items,
 		},
-
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
 		ComponentContent: components.NewReaderComponent(&content),
@@ -347,12 +373,28 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	})
 }
 
-func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	files, err := h.Client.Sources(pkgPath)
+	linkType := components.DirLinkTypeSource
+
+	if gnourl.IsPure() {
+		indexData.HeaderData.Mode = components.HeaderModeTemplatePackage
+	}
+
 	if err != nil {
 		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+
+		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
+		if qerr != nil {
+			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
+
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+
+		linkType = components.DirLinkTypeFile
+		indexData.HeaderData.Mode = components.HeaderModeTemplateExplorer
+		files = paths
 	}
 
 	if len(files) == 0 {
@@ -363,6 +405,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 	return http.StatusOK, components.DirectoryView(components.DirData{
 		PkgPath:     gnourl.Path,
 		Files:       files,
+		LinkType:    linkType,
 		FileCounter: len(files),
 	})
 }
