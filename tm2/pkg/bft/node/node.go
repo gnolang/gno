@@ -623,10 +623,6 @@ func (n *Node) OnStart() error {
 
 	n.isListening = true
 
-	if n.config.Mempool.WalEnabled() {
-		n.mempool.InitWAL() // no need to have the mempool wal during tests
-	}
-
 	// Start the switch (the P2P server).
 	err = n.sw.Start()
 	if err != nil {
@@ -663,11 +659,6 @@ func (n *Node) OnStop() {
 	// now stop the reactors
 	if err := n.sw.Stop(); err != nil {
 		n.Logger.Error("unable to gracefully close switch", "err", err)
-	}
-
-	// stop mempool WAL
-	if n.config.Mempool.WalEnabled() {
-		n.mempool.CloseWAL()
 	}
 
 	n.isListening = false
