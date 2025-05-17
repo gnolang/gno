@@ -1,0 +1,48 @@
+package place
+
+import (
+	"encoding/base64"
+	"std"
+	"time"
+
+	"gno.land/p/demo/svg"
+)
+
+func generateSquareSvg(color string) string {
+	canvas := svg.Canvas{Width: 30, Height: 30}
+	canvas.DrawRectangle(0, 0, 30, 30, color)
+	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
+}
+
+func generateSVG() string {
+	canvas := svg.Canvas{Width: (int)(cols * 40), Height: (int)(rows * 40)}
+	for y := 0; y < int(rows); y++ {
+		for x := 0; x < int(cols); x++ {
+			canvas.DrawRectangle(x*40, y*40, 40, 40, tableColor[y][x].rgb)
+		}
+	}
+	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
+}
+
+func Submit(x, y uint64, colorName string) {
+	user, ok := retrieveMember(std.PreviousRealm().Address())
+	if !ok {
+		RegisterMember()
+	}
+
+	if time.Now().Before(user.Timer) {
+		panic("wait until " + user.Timer.String())
+	}
+
+	foundColor, color := findColor(colorName)
+
+	if !foundColor {
+		panic("invalid color")
+	}
+
+	tableColor[y][x].rgb = color.rgb
+	tableColor[y][x].initial = color.initial
+
+	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
+	Users.Set(std.PreviousRealm().Address().String(), user)
+}
