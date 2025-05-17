@@ -1,10 +1,8 @@
 package gnolend
 
 import (
-	"std"
+	"gno.land/p/demo/avl"
 	u256 "gno.land/p/gnoswap/uint256"
-	"gno.land/p/gnolend/avl"
-	"strings"
 )
 
 // ExpectedMarketBalances returns the expected market balances after interest accrual
@@ -17,7 +15,7 @@ func ExpectedMarketBalances(marketId string) (*u256.Uint, *u256.Uint, *u256.Uint
 
 	// Return the current market balances
 	return market.TotalSupplyAssets, market.TotalSupplyShares,
-	       market.TotalBorrowAssets, market.TotalBorrowShares
+		market.TotalBorrowAssets, market.TotalBorrowShares
 }
 
 // ExpectedTotalSupplyAssets returns the expected total supply assets after interest accrual
@@ -176,9 +174,8 @@ func CalculateUserLoans(user string) *avl.Tree {
 	loans := avl.NewTree()
 
 	// Iterate through all markets
-	markets.Iterate(func(key interface{}, value interface{}) bool {
-		marketId := key.(string)
-		market := value.(*Market)
+	markets.Iterate("", "", func(key string, value interface{}) bool {
+		marketId := key
 
 		// Calculate loan amount for this market
 		loanAmount := CalculateLoanAmount(marketId, user)
@@ -187,7 +184,7 @@ func CalculateUserLoans(user string) *avl.Tree {
 		if !loanAmount.IsZero() {
 			// Get the borrow token from market parameters
 			_, params := GetMarket(marketId)
-			borrowToken := params.BorrowToken
+			borrowToken := params.GetLoanToken()
 
 			// Get existing amount for this token if any
 			existingAmount, exists := loans.Get(borrowToken)

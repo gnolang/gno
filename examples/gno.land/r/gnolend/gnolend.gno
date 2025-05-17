@@ -59,7 +59,6 @@ func RegisterIRM(irm IRM) {
 	emitRegisterIRM(std.PreviousRealm().PkgPath(), name)
 }
 
-
 func EnableIRM(irm string) {
 	Ownable.AssertCallerIsOwner()
 
@@ -711,7 +710,7 @@ func accrueInterest(marketId string) {
 
 	// Calculate accrued interest using Taylor series approximation of e^(rate * time) - 1
 	// wTaylorCompounded returns the sum of first 3 terms: x*n + (x*n)^2/2 + (x*n)^3/6
-    // This approximates continuous compound interest more accurately than simple interest
+	// This approximates continuous compound interest more accurately than simple interest
 	elapsedUint := u256.NewUint(uint64(elapsed))
 	wtc := WTaylorCompounded(borrowRate, elapsedUint)
 

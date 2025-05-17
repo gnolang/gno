@@ -296,8 +296,8 @@ func GetFeeRecipient() string {
 // GetExpectedMarketBalances returns the expected market balances after interest accrual as strings
 func GetExpectedMarketBalances(marketId string) (string, string, string, string) {
 	totalSupplyAssets, totalSupplyShares, totalBorrowAssets, totalBorrowShares := ExpectedMarketBalances(marketId)
-	return totalSupplyAssets.ToString(), totalSupplyShares.ToString(), 
-	       totalBorrowAssets.ToString(), totalBorrowShares.ToString()
+	return totalSupplyAssets.ToString(), totalSupplyShares.ToString(),
+		totalBorrowAssets.ToString(), totalBorrowShares.ToString()
 }
 
 // GetExpectedTotalSupplyAssets returns the expected total supply assets after interest accrual as a string
@@ -352,19 +352,19 @@ func GetSupplyAPR(marketId string) string {
 // GetLoanAmount returns the current loan amount for a user in a market as a string
 func GetLoanAmount(marketId string, user string) string {
 	amount := CalculateLoanAmount(marketId, user)
-	return amount.String()
+	return amount.ToString()
 }
 
 // GetUserLoans returns a list of all loans for a user in the format:
 // [token1, amount1, token2, amount2, ...]
 func GetUserLoans(user string) []string {
-	loans := CalculateAllLoans(user)
+	loans := CalculateUserLoans(user)
 	result := make([]string, 0, loans.Size()*2) // pre-allocate for pairs
 
-	loans.Iterate(func(key interface{}, value interface{}) bool {
-		token := key.(string)
+	loans.Iterate("", "", func(key string, value interface{}) bool {
+		token := key
 		amount := value.(*u256.Uint)
-		result = append(result, token, amount.String())
+		result = append(result, token, amount.ToString())
 		return false // continue iteration
 	})
 

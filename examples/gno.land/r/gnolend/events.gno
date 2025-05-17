@@ -9,26 +9,26 @@ import (
 // Event names
 const (
 	// Market events
-	CreateMarketEvent = "CreateMarket"
-	DepositEvent      = "Deposit"
-	WithdrawEvent     = "Withdraw"
-	BorrowEvent       = "Borrow"
-	RepayEvent        = "Repay"
-	LiquidateEvent    = "Liquidate"
-	RegisterIRMEvent  = "RegisterIRM"
-	AccrueInterestEvent = "AccrueInterest"
-	SupplyCollateralEvent = "SupplyCollateral"
+	CreateMarketEvent       = "CreateMarket"
+	DepositEvent            = "Deposit"
+	WithdrawEvent           = "Withdraw"
+	BorrowEvent             = "Borrow"
+	RepayEvent              = "Repay"
+	LiquidateEvent          = "Liquidate"
+	RegisterIRMEvent        = "RegisterIRM"
+	AccrueInterestEvent     = "AccrueInterest"
+	SupplyCollateralEvent   = "SupplyCollateral"
 	WithdrawCollateralEvent = "WithdrawCollateral"
 
 	// Event names
-	EventAccrueInterest    = "accrue_interest"
-	EventCreateMarket      = "create_market"
-	EventSupply           = "supply"
-	EventWithdraw         = "withdraw"
-	EventBorrow           = "borrow"
-	EventRepay            = "repay"
-	EventLiquidate        = "liquidate"
-	EventSupplyCollateral = "supply_collateral"
+	EventAccrueInterest     = "accrue_interest"
+	EventCreateMarket       = "create_market"
+	EventSupply             = "supply"
+	EventWithdraw           = "withdraw"
+	EventBorrow             = "borrow"
+	EventRepay              = "repay"
+	EventLiquidate          = "liquidate"
+	EventSupplyCollateral   = "supply_collateral"
 	EventWithdrawCollateral = "withdraw_collateral"
 )
 
@@ -54,10 +54,10 @@ const (
 	EventInterestKey   = "interest"
 
 	// Event keys
-	EventMarketIdKey  = "market_id"
-	EventSharesKey    = "shares"
-	EventSeizedKey    = "seized"
-	EventFeeKey       = "fee"
+	EventMarketIdKey = "market_id"
+	EventSharesKey   = "shares"
+	EventSeizedKey   = "seized"
+	EventFeeKey      = "fee"
 )
 
 // Event emission helper functions
