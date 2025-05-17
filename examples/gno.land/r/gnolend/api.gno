@@ -42,7 +42,10 @@ func ApiListMarketsInfo() string {
 
 func ApiGetLoanAmount(marketId string, user string) string {
 	amount := GetLoanAmount(marketId, user)
-	return marshal(json.StringNode("", amount))
+    amountNode := json.ObjectNode("", map[string]*json.Node{
+        "amount": json.StringNode("", amount),
+    })
+	return marshal(amountNode)
 }
 
 func ApiGetUserLoans(user string) string {
