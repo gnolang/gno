@@ -54,11 +54,9 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render main menu
 	menu := []string{
-		ufmt.Sprintf("[List Proposals](%s)", daoProposalsURL(dao)),
+		ufmt.Sprintf("[View Proposals](%s)", daoProposalsURL(dao)),
 		ufmt.Sprintf("[View Settings](%s)", settingsURL(dao)),
 	}
-
-	// TODO: Add submenu with proposal links when proposals support is enabled
 
 	if parentDAO := dao.Parent(); parentDAO != nil {
 		menu = append(menu, ufmt.Sprintf("[Go to Parent DAO](%s)", daoURL(parentDAO)))
@@ -92,6 +90,7 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 					res.Write(ufmt.Sprintf("[hide](%s)", r.String()))
 				} else {
 					r.Query.Add("dismissed", "")
+
 					res.Write(ufmt.Sprintf("[show](%s)", r.String()))
 				}
 				res.Write("\n\n")
@@ -103,15 +102,66 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render latest proposals
 	proposals := dao.ActiveProposals()
-	if proposals.Size() == 0 {
-		return
+	if proposals.Size() > 0 {
+		res.Write("## Latest Proposals\n")
+		proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
+			renderProposalsListItem(res, dao, p)
+			return false
+		})
 	}
 
-	res.Write("## Latest Proposals\n")
-	proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
-		renderProposalsListItem(res, dao, p)
-		return false
-	})
+	// Render proposal creation links
+	if !dao.IsDeleted() {
+		renderCreateProposalSection(dao.ID(), res)
+	}
+}
+
+func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
+	var (
+		cols []string
+		o    = getOptions(daoID)
+	)
+
+	if o.AllowTextProposals {
+		cols = append(cols, ufmt.Sprintf(
+			"%s\n\n"+
+				"This type of proposal is also known as text proposal which can be used for example "+
+				"to get consensus on initiatives without actually making any change on-chain.",
+			textProposalLink(daoID)),
+		)
+	}
+
+	if o.AllowSubDAOProposals {
+		cols = append(cols, ufmt.Sprintf(
+			"%s\n\n"+
+				"This type of proposal is used to create SubDAOs.\n"+
+				"SubDAOs are usually used as part of tree based DAOs.",
+			newSubDAOLink(daoID)),
+		)
+	}
+
+	if o.AllowDismissalProposals {
+		cols = append(cols, ufmt.Sprintf(
+			"%s\n\n"+
+				"This type of proposal can be used to dismiss DAOs and SubDAOs.",
+			dismissSubDAOLink(daoID)),
+		)
+	}
+
+	if o.AllowMembersUpdate {
+		cols = append(cols, ufmt.Sprintf(
+			"%s\n\n"+
+				"This type of proposal can be used to add new members to this DAO "+
+				"and also to remove existing ones. A single proposal allows new members "+
+				"to be added and any number of existing ones removed within the same proposal.",
+			updateMembersLink(daoID)),
+		)
+	}
+
+	if len(cols) > 0 {
+		res.Write("## Create Proposal\nThese are the proposal supported by this DAO:\n")
+		res.Write(ufmt.Sprintf("<gno-columns>\n%s\n</gno-columns>\n", strings.Join(cols, "\n|||\n")))
+	}
 }
 
 func renderMembers(res *mux.ResponseWriter, path string, members commondao.MemberStorage) {
@@ -179,6 +229,10 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(ufmt.Sprintf("| Allow SubDAOs | %s |\n", strconv.FormatBool(o.AllowChildren)))
 	res.Write(ufmt.Sprintf("| Enable Voting | %s |\n", strconv.FormatBool(o.AllowVoting)))
 	res.Write(ufmt.Sprintf("| Enable Proposal Execution | %s |\n", strconv.FormatBool(o.AllowExecution)))
+	res.Write(ufmt.Sprintf("| Text Porposals | %s |\n", strconv.FormatBool(o.AllowTextProposals)))
+	res.Write(ufmt.Sprintf("| Members Update proposals | %s |\n", strconv.FormatBool(o.AllowMembersUpdate)))
+	res.Write(ufmt.Sprintf("| SubDAO creation proposals | %s |\n", strconv.FormatBool(o.AllowSubDAOProposals)))
+	res.Write(ufmt.Sprintf("| DAO dismissal proposals | %s |\n", strconv.FormatBool(o.AllowDismissalProposals)))
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -497,12 +551,38 @@ func executeLink(daoID, proposalID uint64) string {
 	))
 }
 
+func textProposalLink(daoID uint64) string {
+	return ufmt.Sprintf("[General Proposal](%s)", realmLink.Call(
+		"CreateTextProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"title", "",
+		"body", "",
+		"votingDays", "7",
+	))
+}
+
 func updateMembersLink(daoID uint64) string {
 	return ufmt.Sprintf("[Update Members](%s)", realmLink.Call(
 		"CreateMembersUpdateProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"newMembers", "",
 		"removeMembers", "",
+	))
+}
+
+func newSubDAOLink(daoID uint64) string {
+	return ufmt.Sprintf("[New SubDAO](%s)", realmLink.Call(
+		"CreateSubDAOProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"name", "",
+		"members", "",
+	))
+}
+
+func dismissSubDAOLink(daoID uint64) string {
+	return ufmt.Sprintf("[Dismiss DAO](%s)", realmLink.Call(
+		"CreateDismissalProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
 	))
 }
 
