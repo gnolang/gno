@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"gno.land/p/demo/json"
-
 	"gno.land/p/demo/ufmt"
 )
 

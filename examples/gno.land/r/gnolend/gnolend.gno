@@ -1,12 +1,12 @@
 package gnolend
 
 import (
-	"time"
-
 	"std"
+	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
+
 	u256 "gno.land/p/gnoswap/uint256"
 	pl "gno.land/r/gnoswap/v1/pool"
 )
