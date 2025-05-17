@@ -8,6 +8,7 @@ import (
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -204,7 +205,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 }
 
 // LoadPackage loads a single package into a `std.Tx`
-func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
+func LoadPackage(pkg packages.Package, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.

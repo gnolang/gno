@@ -1172,8 +1172,10 @@ type FileSet struct {
 
 // PackageNameFromFileBody extracts the package name from the given Gno code body.
 // The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
-func PackageNameFromFileBody(name, body string) (Name, error) {
-	fset := token.NewFileSet()
+func PackageNameFromFileBody(name, body string, fset *token.FileSet) (Name, error) {
+	if fset == nil {
+		fset = token.NewFileSet()
+	}
 	astFile, err := parser.ParseFile(fset, name, body, parser.PackageClauseOnly)
 	if err != nil {
 		return "", err
@@ -1184,7 +1186,7 @@ func PackageNameFromFileBody(name, body string) (Name, error) {
 
 // MustPackageNameFromFileBody is a wrapper around [PackageNameFromFileBody] that panics on error.
 func MustPackageNameFromFileBody(name, body string) Name {
-	pkgName, err := PackageNameFromFileBody(name, body)
+	pkgName, err := PackageNameFromFileBody(name, body, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -1202,6 +1204,10 @@ func MustPackageNameFromFileBody(name, body string) Name {
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
 func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
+	return ReadMemPackageWithFset(dir, pkgPath, nil)
+}
+
+func ReadMemPackageWithFset(dir string, pkgPath string, fset *token.FileSet) (*std.MemPackage, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -1234,7 +1240,7 @@ func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(list, pkgPath)
+	return ReadMemPackageFromListWithFset(list, pkgPath, fset)
 }
 
 func endsWithAny(str string, suffixes []string) bool {
@@ -1259,6 +1265,10 @@ func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 // NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
 func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
+	return ReadMemPackageFromListWithFset(list, pkgPath, nil)
+}
+
+func ReadMemPackageFromListWithFset(list []string, pkgPath string, fset *token.FileSet) (*std.MemPackage, error) {
 	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
@@ -1269,7 +1279,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
+			pkgName, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz), fset)
 			if err != nil {
 				return nil, err
 			}
