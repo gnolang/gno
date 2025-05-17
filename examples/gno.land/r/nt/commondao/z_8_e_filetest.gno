@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -24,18 +23,20 @@ func init() {
 	// is removed after the first user call to create a DAO
 	testing.SetRealm(std.NewUserRealm(user))
 
-	// Create root DAO with a subDAO
+	// Create root DAO without subDAOs
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	rootID = commondao.New("Root DAO").ID()
 }
 
 func main() {
-	crossing()
-
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
-	commondao.GetSubDAO(rootID, "not/found")
+	iter := commondao.NewIterator(rootID)
+
+	println("Count =", iter.Count())
+	println(iter.Next())
 }
 
-// Error:
-// subDAO not found
+// Output:
+// Count = 0
+// false

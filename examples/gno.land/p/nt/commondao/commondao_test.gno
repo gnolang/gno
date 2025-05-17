@@ -55,6 +55,7 @@ func TestNew(t *testing.T) {
 				uassert.NotEqual(t, nil, dao.Parent())
 			}
 
+			uassert.False(t, dao.IsDeleted(), "expect DAO not to be soft deleted by default")
 			urequire.Equal(t, membersCount, dao.Members().Size(), "dao members")
 
 			var i int

@@ -19,24 +19,20 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
 
-	// The origin must be the invited user where invitation
-	// is removed after the first user call to create a DAO
+	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetRealm(std.NewUserRealm(user))
-
-	// Create root DAO with a subDAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
-	subDAO := commondao.NewSubDAO("Bar", "bar", dao)
-	subDAO.Members().Add(user)
-
 	daoID = dao.ID()
+
+	// Change options to disallow voting
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowVoting(false)
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user))
-
-	cross(commondao.CreateMembersUpdateProposal)(daoID, "bar", "not-an-address", "")
+	cross(commondao.Vote)(daoID, 0, "", "")
 }
 
 // Error:
-// invalid address: not-an-address
+// voting is not enabled
