@@ -1,6 +1,5 @@
 package authz_test
 
-/*
 import (
 	"std"
 	"time"
@@ -22,20 +21,21 @@ func ExampleMembership_basic() {
 	if tokenHolders.Has(std.CurrentRealm().Address()) {
 		println("current realm is a token holder")
 	}
+
 }
 
 // Membership supports composition.
 func ExampleMembership_complex() {
 	var (
-		users        authz.Membership = addrset.New("g1user1", "g1user2")
-		tokenHolders authz.Membership = authz.NewTokenHolderMembership(std.Coins{{"ugnot", 100}})
-		timeframe    authz.Membership = authz.NewCustomMembership(func(_ std.Address) bool {
+		users              authz.Membership = addrset.New("g1user1", "g1user2")
+		tokenHolders       authz.Membership = authz.NewTokenHolderMembership(std.Coins{{"ugnot", 100}})
+		evenHourConstraint authz.Membership = authz.NewCustomMembership(func(_ std.Address) bool {
 			return time.Now().Hour()%2 == 0
 		})
 		blacklist authz.Membership = addrset.New("g1user3")
-		composite authz.Membership = authz.And( // (users OR tokenHolders) AND timeframe AND NOT blacklist
+		composite authz.Membership = authz.And( // (users OR tokenHolders) AND evenHour AND NOT blacklist
 			authz.Or(users, tokenHolders),
-			timeframe,
+			evenHourConstraint,
 			authz.Not(blacklist),
 		)
 	)
@@ -90,7 +90,7 @@ func ExampleAuthority_composition() {
 		govdaot1t2         authz.Membership = authz.Or(govdaot1, govdaot2)
 		policedao          authz.Membership = &policedao.Members
 		ugnotHolders       authz.Membership = authz.NewTokenHolderMembership(std.Coins{{"ugnot", 100}})
-		wugnotHolders      authz.Membership = authz.NewGrc20HolderMembership("wugnot", 1_000)
+		wugnotHolders      authz.Membership = authz_grc20.NewGrc20HolderMembership("wugnot", 1_000)
 		// custom memberships
 		seniorityConstraint authz.Membership = authz.NewCustomMembership(func(addr std.Address) bool {
 			joiningTime := govdao.GetJoiningTime(addr)
@@ -130,10 +130,6 @@ func ExampleAuthority_composition() {
 	Auth.AssertCurrentCan("propose")
 	Auth.AssertPreviousCan("vote")
 	Auth.AssertCan("g1user2", "bar")
-
-	// Memberships usage
-	ok = admins.Has("g1admin")
-	ok = holders.Has(std.CurrentRealm().Address())
 }
 
 // mocks
@@ -142,4 +138,3 @@ type govdao struct{} // replaces "import gno.land/r/gov/dao"
 func (g govdao) T1() addrset.Set                           { return addrset.Set{"g1t1member"} }
 func (g govdao) T2() addrset.Set                           { return addrset.Set{"g1t2member"} }
 func (g govdao) GetJoiningTime(addr std.Address) time.Time { return time.Now() }
-*/
