@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option go_package = "./proto";
+
+// Hub is the stats gathering service (hub)
+service Hub {
+  // GetDataStream returns a stream of fresh data from the stats hub
+  rpc GetDataStream(google.protobuf.Empty) returns (stream DataPoint);
+
+  // Register registers the node instance with the stats hub
+  rpc Register(StaticInfo) returns (google.protobuf.Empty);
+
+  // PushData continuously pushes the node data to the stats hub
+  rpc PushData(stream DynamicInfo) returns (google.protobuf.Empty);
+}
+
+// StaticInfo is the single node register request with the hub
+message StaticInfo {
+  string address = 1; // the ID of the node
+  string gno_version = 2; // the gno version of the node
+  string os_version = 3; // the OS info of the node
+}
+
+// DynamicInfo is the single node data push
+message DynamicInfo {
+  string address = 1; // the ID of the node
+  string moniker = 2; // the moniker of the node
+  bool is_validator = 3; // flag indicating valset inclusion
+  NetInfo net_info = 4; // the active p2p information
+  uint64 pending_txs = 5; // the number of currently pending txs
+  BlockInfo block_info = 6; // the latest block information
+}
+
+// BlockInfo is the latest node block information
+message BlockInfo {
+  uint64 number = 1; // the latest block height
+  uint64 timestamp = 2; // the latest block timestamp (unix)
+  uint64 gas_used = 3; // the gas used in the block
+  uint64 gas_wanted = 4; // the gas wanted in the block (limit)
+  string proposer = 5; // the proposer of the block
+}
+
+// NetInfo is the latest node p2p information
+message NetInfo {
+  string p2p_address = 1; // the network p2p address of the node
+  repeated PeerInfo peers = 2; // the peer information
+}
+
+// PeerInfo is information relating to a single peer
+message PeerInfo {
+  string p2p_address = 1; // the p2p address of the peer
+  string moniker = 2; // the moniker of the peer
+}
+
+// DataPoint is the newest data point for a specific node,
+// that wraps the dynamic and static node info
+message DataPoint {
+  DynamicInfo dynamic_info = 1; // the node's dynamic info
+  StaticInfo static_info = 2; // the node's static info
+}
