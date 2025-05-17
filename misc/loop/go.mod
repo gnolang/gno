@@ -9,6 +9,7 @@ require (
 	github.com/gnolang/tx-archive v0.5.0
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.3
+	go.uber.org/zap v1.27.0
 )
 
 replace github.com/gnolang/gno => ../..
