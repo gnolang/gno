@@ -1900,7 +1900,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = objpv.GetRealm()
+				if objpv.IsRealm() && objpv.Realm == nil {
+					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
+				} else {
+					rlm = objpv.Realm
+				}
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit
