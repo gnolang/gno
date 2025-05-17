@@ -160,6 +160,20 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 	return files, nil
 }
 
+// Sources lists all source files available in a specified
+// package path by querying the RPC client.
+func (s *HTMLWebClient) QueryPaths(prefix string, limit int) ([]string, error) {
+	const qpath = "vm/qpaths"
+
+	// XXX: Consider moving this into gnoclient
+	res, err := s.query(qpath, []byte(prefix))
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Split(string(res), "\n"), nil
+}
+
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
@@ -205,6 +219,8 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 		s.logger.Error("response error", "path", qpath, "log", qres.Response.Log)
 		return nil, fmt.Errorf("%w: %s", ErrClientResponse, err.Error())
 	}
+
+	s.logger.Debug("response query", "path", qpath, "data", qres.Response.Data)
 
 	return qres.Response.Data, nil
 }

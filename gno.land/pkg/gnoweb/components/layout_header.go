@@ -25,8 +25,17 @@ type HeaderData struct {
 	Links      HeaderLinks
 	ChainId    string
 	Remote     string
-	IsHome     bool
+	Mode       HeaderModeTemplate
 }
+
+type HeaderModeTemplate int
+
+const (
+	HeaderModeTemplateExplorer HeaderModeTemplate = iota
+	HeaderModeTemplateRealm
+	HeaderModeTemplatePackage
+	HeaderModeTemplateHome
+)
 
 func StaticHeaderGeneralLinks() []HeaderLink {
 	links := []HeaderLink{
@@ -46,7 +55,7 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 	return links
 }
 
-func StaticHeaderDevLinks(u weburl.GnoURL, handle string) []HeaderLink {
+func StaticHeaderDevLinks(u weburl.GnoURL, mode HeaderModeTemplate) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
@@ -67,35 +76,30 @@ func StaticHeaderDevLinks(u weburl.GnoURL, handle string) []HeaderLink {
 		},
 	}
 
-	switch handle {
-	case "p":
-		// Will have docs soon
-
+	switch mode {
+	case HeaderModeTemplateExplorer:
+		// no links - full width breadcrumb
+		return []HeaderLink{}
+	case HeaderModeTemplatePackage:
+		// links
+		return links
 	default:
-		links = append(links, HeaderLink{
+		// links + Actions
+		return append(links, HeaderLink{
 			Label:    "Actions",
 			URL:      helpURL.EncodeWebURL(),
 			Icon:     "ico-helper",
 			IsActive: isActive(u.WebQuery, "Actions"),
 		})
 	}
-
-	return links
 }
 
-func EnrichHeaderData(data HeaderData, hasGeneralMenu bool) HeaderData {
+func EnrichHeaderData(data HeaderData, mode HeaderModeTemplate) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
 
-	var handle string
-	if len(data.Breadcrumb.Parts) > 0 {
-		handle = data.Breadcrumb.Parts[0].Name
-	} else {
-		handle = ""
-	}
+	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode)
 
-	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, handle)
-
-	if hasGeneralMenu {
+	if mode == HeaderModeTemplateHome {
 		data.Links.General = StaticHeaderGeneralLinks()
 	} else {
 		data.Links.General = nil
