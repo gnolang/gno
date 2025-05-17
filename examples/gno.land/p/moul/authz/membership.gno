@@ -11,6 +11,9 @@ type Membership interface {
 	Has(addr std.Address) bool
 }
 
+// Nil membership always returns false.
+func (m *Membership) Has(addr std.Address) bool { return false }
+
 // CustomMembership returns a membership that matches any address that
 // satisfies the given function.
 func CustomMembership(f func(addr std.Address) bool) Membership {
@@ -34,7 +37,7 @@ type anyoneMembership struct{}
 
 func (m *anyoneMembership) Has(addr std.Address) bool {
 	return true
-}
+}q
 
 // Boolean operations
 //

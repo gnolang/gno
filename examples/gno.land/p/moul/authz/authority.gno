@@ -28,16 +28,20 @@ type Authority struct {
 // PrivateConfig is the private configuration for the authority.
 // It contains the memberships of the actions.
 type PrivateConfig struct {
-	memberships map[string][]Membership // action -> membership
+	memberships map[string]Membership // action -> []Membership
 }
 
-func (p *PrivateConfig) Add(action string, addr std.Address) {
-	p.memberships[action] = append(p.memberships[action], addr)
+func (p *PrivateConfig) MembersFor(action string) Membership {
+	return p.memberships[action]
+}
+
+func (p *PrivateConfig) Set(action string, membership Membership) {
+	p.memberships[action] = membership
 }
 
 // Can checks if the given address is authorized to perform the action.
 func (a *Authority) Can(addr std.Address, action string) bool {
-	return a.memberships[action].Has(addr)
+	return a.priv.MemberFor(action).Has(addr)
 }
 
 // CanByCurrent checks if the current realm is authorized to perform an action.
