@@ -177,7 +177,7 @@ func assertComparable2(dt Type) {
 	}
 }
 
-func maybeNil(t Type) bool {
+func mayBeNil(t Type) bool {
 	switch baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
 		return true
@@ -414,7 +414,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 		if dt == nil || dt.Kind() == InterfaceKind {
 			return nil
 		}
-		if !maybeNil(dt) {
+		if !mayBeNil(dt) {
 			switch n := n.(type) {
 			case *ValueDecl:
 				return errors.New("cannot use nil as %v value in variable declaration", dt)

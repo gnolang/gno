@@ -731,8 +731,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Machine still needs it. Clear it @ initStaticBlocks.
 					// n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
 					for _, p := range ns {
+						// Prevent parents from being marked as attr
+						// preprocessed.  Be not concerned about any inner
+						// Preprocess() calls for newly constructed nodes:
+						// either this node will be inside it, in which case it
+						// too will be marked incomplete, or, it won't be
+						// inside it, in which case it will complete.
 						p.SetAttribute(ATTR_PREPROCESS_INCOMPLETE, true)
 					}
+					// n.SetAttribute(ATTR_PREPROCESS_INCOMPLETE, true)
 					return n, TRANS_SKIP
 				}
 				// push func body block.
@@ -977,9 +984,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 		case TRANS_LEAVE:
 			// mark as preprocessed so that it can be used
 			// in evalStaticType(store,).
-			if n.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
-				n.SetAttribute(ATTR_PREPROCESSED, true)
-			}
+			setPreprocessed(n)
 
 			// Defer pop block from stack.
 			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
@@ -1605,7 +1610,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// for (*a)[low : high : max]
 					dt = dt.Elem()
 					n.X = &StarExpr{X: n.X}
-					n.X.SetAttribute(ATTR_PREPROCESSED, true)
+					setPreprocessed(n.X)
 				}
 				switch dt.Kind() {
 				case StringKind, ArrayKind, SliceKind:
@@ -1811,7 +1816,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						//
 						// convert to (&x).m, but leave xt as is.
 						n.X = &RefExpr{X: n.X}
-						n.X.SetAttribute(ATTR_PREPROCESSED, true)
+						setPreprocessed(n.X)
 						switch tr[len(tr)-1].Type {
 						case VPDerefPtrMethod:
 							// When ptr method was called like x.y.z(), where x
@@ -1837,7 +1842,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
 						n.X = &RefExpr{X: n.X}
-						n.X.SetAttribute(ATTR_PREPROCESSED, true)
+						setPreprocessed(n.X)
 					}
 					// bound method or underlying.
 					// TODO check for unexported fields.
@@ -3424,7 +3429,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		}
 	}
 	// cx.SetSpan(x.GetSpan())
-	cx.SetAttribute(ATTR_PREPROCESSED, true)
+	setPreprocessed(cx)
 	setConstAttrs(cx)
 	return cx
 }
@@ -3433,7 +3438,7 @@ func constType(source Expr, t Type) *constTypeExpr {
 	cx := &constTypeExpr{Source: source}
 	cx.Type = t
 	// cx.SetSpan(source.GetSpan())
-	cx.SetAttribute(ATTR_PREPROCESSED, true)
+	setPreprocessed(cx)
 	return cx
 }
 
@@ -3445,6 +3450,12 @@ func setConstAttrs(cx *ConstExpr) {
 			panic("should not happen")
 		}
 		cx.SetAttribute(ATTR_TYPE_VALUE, cv.GetType())
+	}
+}
+
+func setPreprocessed(x Expr) {
+	if x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
+		x.SetAttribute(ATTR_PREPROCESSED, true)
 	}
 }
 
@@ -4000,7 +4011,6 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		// XXX why would astype && be necessary?
 		un, directR = findUndefinedT(store, last, &cx.Type, stack, defining, isalias, astype && isalias)
 		if un != "" {
 			return
@@ -4612,7 +4622,7 @@ func constInt(source Expr, i int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
 	cx.T = IntType
 	cx.SetInt(i)
-	cx.SetAttribute(ATTR_PREPROCESSED, true)
+	setPreprocessed(cx)
 	return cx
 }
 
@@ -4620,7 +4630,7 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
 	cx.T = UntypedBigintType
 	cx.V = BigintValue{big.NewInt(i64)}
-	cx.SetAttribute(ATTR_PREPROCESSED, true)
+	setPreprocessed(cx)
 	return cx
 }
 
