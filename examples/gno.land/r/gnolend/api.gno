@@ -67,7 +67,10 @@ func ApiGetUserLoans(user string) string {
 // ApiGetHealthFactor returns the health factor for a user's position as JSON
 func ApiGetHealthFactor(marketId, userAddr string) string {
 	healthFactor := GetHealthFactor(marketId, userAddr)
-	return marshal(json.StringNode("", healthFactor))
+    healthFactorNode := json.ObjectNode("", map[string]*json.Node{
+        "healthFactor": json.StringNode("", healthFactor),
+    })
+	return marshal(healthFactorNode)
 }
 
 // Helper function to marshal JSON
