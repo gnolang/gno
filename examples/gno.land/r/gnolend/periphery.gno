@@ -212,7 +212,7 @@ func CalculateHealthFactor(marketId string, userAddr string) *u256.Uint {
 
 	// If no borrows, position is maximally healthy (return a very large number)
 	if position.BorrowShares.IsZero() {
-		return u256.NewUint(WAD) // 100 * WAD
+		return new(u256.Uint).Mul(WAD, u256.NewUint(100)) // 100 * WAD
 	}
 
 	market, params := GetMarket(marketId)
@@ -235,14 +235,11 @@ func CalculateHealthFactor(marketId string, userAddr string) *u256.Uint {
 	}
 
 	// Calculate max borrow allowed
-	maxBorrow := WMulDown(
-		MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), 
-		params.LLTV
-	)
+	maxBorrow := WMulDown(MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), params.LLTV)
 
 	// Health factor = maxBorrow / borrowed (WAD scaled)
 	if borrowed.IsZero() {
-		return u256.NewUint(100000000000000000000) // 100 * WAD
+		return new(u256.Uint).Mul(WAD, u256.NewUint(100)) // 100 * WAD
 	}
 	
 	return WDivDown(maxBorrow, borrowed)

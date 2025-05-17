@@ -2,6 +2,7 @@ package gnolend
 
 import (
 	"gno.land/p/demo/json"
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 // RpcMarket
@@ -161,11 +162,12 @@ func GetRpcMarketInfo(marketId string) RpcMarketInfo {
 	borrowAPR := CalculateBorrowAPR(marketId)
 	supplyAPR := CalculateSupplyAPR(marketId)
 
-	// Get utilization rate
-    if totalSupplyAssets.IsZero() {
-		utilization := u256.Zero()
+	// Calculate utilization rate
+	var utilization *u256.Uint
+	if market.TotalSupplyAssets.IsZero() {
+		utilization = u256.Zero()
 	} else {
-        utilization := WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
+		utilization = WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
 	}
 
 	// Get token paths
