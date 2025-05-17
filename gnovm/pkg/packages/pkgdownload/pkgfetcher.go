@@ -3,11 +3,11 @@ package pkgdownload
 import (
 	"errors"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type PackageFetcher interface {
-	FetchPackage(pkgPath string) ([]*gnovm.MemFile, error)
+	FetchPackage(pkgPath string) ([]*std.MemFile, error)
 }
 
 func NewNoopFetcher() PackageFetcher {
@@ -16,6 +16,6 @@ func NewNoopFetcher() PackageFetcher {
 
 type noopFetcher struct{}
 
-func (nf *noopFetcher) FetchPackage(pkgPath string) ([]*gnovm.MemFile, error) {
+func (nf *noopFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
 	return nil, errors.New("noop")
 }

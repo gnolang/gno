@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -179,7 +178,7 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 			continue
 		}
 
-		mempkg.Files = append(mempkg.Files, &gnovm.MemFile{Name: base, Body: body})
+		mempkg.Files = append(mempkg.Files, &std.MemFile{Name: base, Body: body})
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], base)
 	}
 

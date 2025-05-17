@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type ExamplesPackageFetcher struct {
@@ -26,7 +26,7 @@ func New(examplesDir string) pkgdownload.PackageFetcher {
 }
 
 // FetchPackage implements [pkgdownload.PackageFetcher].
-func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*gnovm.MemFile, error) {
+func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
 	pkgDir := filepath.Join(e.examplesDir, filepath.FromSlash(pkgPath))
 
 	entries, err := os.ReadDir(pkgDir)
@@ -36,7 +36,7 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*gnovm.MemFile,
 		return nil, err
 	}
 
-	res := []*gnovm.MemFile{}
+	res := []*std.MemFile{}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -50,7 +50,7 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*gnovm.MemFile,
 			return nil, fmt.Errorf("read file at %q: %w", filePath, err)
 		}
 
-		res = append(res, &gnovm.MemFile{Name: name, Body: string(body)})
+		res = append(res, &std.MemFile{Name: name, Body: string(body)})
 	}
 
 	return res, nil

@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -207,14 +206,14 @@ func findLoaderRootDir() (string, error) {
 func (p *Package) MemPkg() (*std.MemPackage, error) {
 	// XXX: use gnolang.ReadMemPackageFromList
 
-	files := []*gnovm.MemFile{}
+	files := []*std.MemFile{}
 	for _, cat := range p.Files {
 		for _, f := range cat {
 			body, err := os.ReadFile(filepath.Join(p.Dir, f))
 			if err != nil {
 				return nil, err
 			}
-			files = append(files, &gnovm.MemFile{
+			files = append(files, &std.MemFile{
 				Name: f,
 				Body: string(body),
 			})
