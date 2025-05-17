@@ -4,6 +4,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // ErrGnoModNotFound is returned by [FindRootDir] when, even after traversing
@@ -33,4 +36,17 @@ func FindRootDir(absPath string) (string, error) {
 	}
 
 	return "", ErrGnoModNotFound
+}
+
+func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
+	t.Helper()
+
+	// Create package dir
+	pkgDirPath := filepath.Join(dirPath, pkgName)
+	err := os.MkdirAll(pkgDirPath, 0o755)
+	require.NoError(t, err)
+
+	// Create gno.mod
+	err = os.WriteFile(filepath.Join(pkgDirPath, "gno.mod"), []byte(modData), 0o644)
+	require.NoError(t, err)
 }

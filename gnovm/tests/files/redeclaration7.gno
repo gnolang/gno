@@ -9,5 +9,5 @@ func main() {
 }
 
 // Error:
-// files/redeclaration7.gno:5:6: f1 redeclared in this block
-// 	previous declaration at files/redeclaration7.gno:3:6
+// redeclaration7.gno:5:6: f1 redeclared in this block
+// 	previous declaration at redeclaration7.gno:3:6

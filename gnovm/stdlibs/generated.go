@@ -13,7 +13,7 @@ import (
 	libs_runtime "github.com/gnolang/gno/gnovm/stdlibs/runtime"
 	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
 	libs_sys_params "github.com/gnolang/gno/gnovm/stdlibs/sys/params"
-	libs_testing "github.com/gnolang/gno/gnovm/stdlibs/testing"
+	libs_testing_base "github.com/gnolang/gno/gnovm/stdlibs/testing/base"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
 
@@ -1135,7 +1135,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
-		"testing",
+		"testing/base",
 		"unixNano",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
@@ -1143,7 +1143,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		false,
 		func(m *gno.Machine) {
-			r0 := libs_testing.X_unixNano()
+			r0 := libs_testing_base.X_unixNano()
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -1153,7 +1153,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
-		"testing",
+		"testing/base",
 		"recoverWithStacktrace",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
@@ -1162,7 +1162,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		false,
 		func(m *gno.Machine) {
-			r0, r1 := libs_testing.X_recoverWithStacktrace()
+			r0, r1 := libs_testing_base.X_recoverWithStacktrace()
 
 			m.PushValue(r0)
 			m.PushValue(gno.Go2GnoValue(
@@ -1173,7 +1173,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
-		"testing",
+		"testing/base",
 		"matchString",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
@@ -1200,7 +1200,7 @@ var nativeFuncs = [...]NativeFunc{
 			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
 
-			r0, r1 := libs_testing.X_matchString(p0, p1)
+			r0, r1 := libs_testing_base.X_matchString(p0, p1)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -1322,6 +1322,7 @@ var initOrder = [...]string{
 	"runtime",
 	"std",
 	"sys/params",
+	"testing/base",
 	"time",
 	"testing",
 	"unicode/utf16",

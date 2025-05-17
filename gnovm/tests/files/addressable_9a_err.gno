@@ -10,4 +10,4 @@ func main() {
 // &(5 int)
 
 // TypeCheckError:
-// main/files/addressable_9a_err.gno:6:11: invalid operation: cannot take address of m[4] (map index expression of type int)
+// main/addressable_9a_err.gno:6:11: invalid operation: cannot take address of m[4] (map index expression of type int)

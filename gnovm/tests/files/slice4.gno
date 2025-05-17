@@ -9,4 +9,4 @@ func main() {
 // allocation limit exceeded
 
 // TypeCheckError:
-// main/files/slice4.gno:5:2: declared and not used: b
+// main/slice4.gno:5:2: declared and not used: b

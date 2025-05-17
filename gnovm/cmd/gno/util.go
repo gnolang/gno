@@ -27,12 +27,12 @@ func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 	for _, argPath := range args {
 		info, err := os.Stat(argPath)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", argPath, err)
 		}
 
 		if !info.IsDir() {
 			if isGnoFile(fs.FileInfoToDirEntry(info)) {
-				paths = append(paths, ensurePathPrefix(argPath))
+				paths = append(paths, cleanPath(argPath))
 			}
 
 			continue
@@ -40,7 +40,7 @@ func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 
 		// Gather package paths from the directory
 		err = walkDirForGnoFiles(argPath, func(path string) {
-			paths = append(paths, ensurePathPrefix(path))
+			paths = append(paths, cleanPath(path))
 		})
 		if err != nil {
 			return nil, fmt.Errorf("unable to walk dir: %w", err)
@@ -56,12 +56,12 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 	for _, argPath := range args {
 		info, err := os.Stat(argPath)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", argPath, err)
 		}
 
 		if !info.IsDir() {
 			if isGnoFile(fs.FileInfoToDirEntry(info)) {
-				paths = append(paths, ensurePathPrefix(argPath))
+				paths = append(paths, cleanPath(argPath))
 			}
 			continue
 		}
@@ -73,7 +73,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 		for _, f := range files {
 			if isGnoFile(f) {
 				path := filepath.Join(argPath, f.Name())
-				paths = append(paths, ensurePathPrefix(path))
+				paths = append(paths, cleanPath(path))
 			}
 		}
 	}
@@ -81,11 +81,15 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
-func ensurePathPrefix(path string) string {
+// ensures that the path is absolute or starts with a dot.
+// ensures that the path is a dir path.
+func cleanPath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}
-
+	if strings.HasPrefix(path, ".") {
+		return path
+	}
 	// cannot use path.Join or filepath.Join, because we need
 	// to ensure that ./ is the prefix to pass to go build.
 	// if not absolute.
@@ -125,18 +129,18 @@ func gnoPackagesFromArgsRecursively(args []string) ([]string, error) {
 	for _, argPath := range args {
 		info, err := os.Stat(argPath)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", argPath, err)
 		}
 
 		if !info.IsDir() {
-			paths = append(paths, ensurePathPrefix(argPath))
+			paths = append(paths, cleanPath(argPath))
 
 			continue
 		}
 
 		// Gather package paths from the directory
 		err = walkDirForGnoFiles(argPath, func(path string) {
-			paths = append(paths, ensurePathPrefix(path))
+			paths = append(paths, cleanPath(path))
 		})
 		if err != nil {
 			return nil, fmt.Errorf("unable to walk dir: %w", err)
@@ -169,7 +173,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 
 		info, err := os.Stat(dirToSearch)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path: %w", err)
+			return nil, fmt.Errorf("gno: invalid file or package path %q: %w", dirToSearch, err)
 		}
 
 		// If the pattern is a file or a directory

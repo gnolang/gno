@@ -5,4 +5,4 @@ func main() {
 }
 
 // TypeCheckError:
-// main/files/const42.gno:4:8: missing init expr for t
+// main/const42.gno:4:8: missing init expr for t

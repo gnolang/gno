@@ -54,22 +54,29 @@ func TestFiles(t *testing.T) {
 	// sharedOpts is used for all "short" tests.
 	sharedOpts := newOpts()
 
-	dir := "../../tests/"
+	dir := "../../tests/files"
 	fsys := os.DirFS(dir)
-	err = fs.WalkDir(fsys, "files", func(path string, de fs.DirEntry, err error) error {
+	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
 		switch {
 		case err != nil:
 			return err
-		case path == "files/extern":
+		case path == "extern":
 			return fs.SkipDir
 		case de.IsDir():
 			return nil
 		}
-		subTestName := path[len("files/"):]
+		subTestName := path
+		isHidden := strings.HasPrefix(path, ".")
+		if isHidden {
+			t.Run(subTestName, func(t *testing.T) {
+				t.Skip("skipping hidden")
+			})
+			return nil
+		}
 		isLong := strings.HasSuffix(path, "_long.gno")
 		if isLong && testing.Short() {
 			t.Run(subTestName, func(t *testing.T) {
-				t.Skip("skipping in -short")
+				t.Skip("skipping long (-short)")
 			})
 			return nil
 		}

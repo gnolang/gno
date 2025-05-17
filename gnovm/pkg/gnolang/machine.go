@@ -224,7 +224,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 //----------------------------------------
 // top level Run* methods.
 
-// Parses files, sets the package if doesn't exist, runs files, saves mempkg
+// Sorts and parses files, sets the package if doesn't exist, runs files, saves mempkg
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
@@ -234,6 +234,7 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 	if bm.StorageEnabled {
 		defer bm.FinishStore()
 	}
+	memPkg.Sort()
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -431,6 +432,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // Production must not use this, because realm package init
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
+// m.Package must match fns's package path.
 func (m *Machine) RunFiles(fns ...*FileNode) {
 	pv := m.Package
 	if pv == nil {
@@ -458,7 +460,9 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
-// compile-time errors in the package.
+// compile-time errors in the package. It is also usde to preprocess files from
+// the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
+// "examples/*".
 func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
@@ -505,6 +509,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
+// m.Package must match fns's package path.
 func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
@@ -597,8 +602,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 					continue
 				} else { // is an undefined dependency.
 					panic(fmt.Sprintf(
-						"dependency %s not defined in fileset with files %v",
-						dep, fs.FileNames()))
+						"%s/%s:%s: dependency %s not defined in fileset with files %v",
+						pv.PkgPath, fn.Name, decl.GetPos().String(), dep, fs.FileNames()))
 				}
 			}
 			// if dep already in loopfindr, abort.
@@ -609,7 +614,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 					continue
 				} else {
 					panic(fmt.Sprintf(
-						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
+						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
+						pv.PkgPath, fn.Name, decl.GetPos().String(), loopfindr, dep))
 				}
 			}
 			// run dependency declaration
@@ -808,8 +814,10 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if debug {
 		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
-	// X must have been preprocessed.
-	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
+	// X must have been preprocessed or a predefined func lit expr.
+	if x.GetAttribute(ATTR_PREPROCESSED) == nil &&
+		x.GetAttribute(ATTR_PREPROCESS_SKIPPED) == nil &&
+		x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
 			x.String()))
@@ -2331,7 +2339,6 @@ func (m *Machine) String() string {
 	if m == nil {
 		return "Machine:nil"
 	}
-
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
@@ -2342,43 +2349,31 @@ func (m *Machine) String() string {
 		obsLength        = len(m.Blocks) * 32
 		fsLength         = len(m.Frames) * 32
 		exceptionsLength = m.Exception.NumExceptions() * 32
-
-		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
+		totalLength      = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
-
 	var sb strings.Builder
 	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
-
 	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:m.NumOps], m.NumValues)
-
 	for i := m.NumValues - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
-
 	builder.WriteString("    Exprs:\n")
-
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Exprs[i])
 	}
-
 	builder.WriteString("    Stmts:\n")
-
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Stmts[i])
 	}
-
 	builder.WriteString("    Blocks:\n")
-
 	for i := len(m.Blocks) - 1; i > 0; i-- {
 		b := m.Blocks[i]
 		if b == nil {
 			continue
 		}
-
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
-
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
@@ -2387,7 +2382,6 @@ func (m *Machine) String() string {
 			bsi := b.StringIndented("            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 		}
-
 		// Update b
 		switch bp := b.Parent.(type) {
 		case nil:
@@ -2401,16 +2395,12 @@ func (m *Machine) String() string {
 			panic("should not happen")
 		}
 	}
-
 	builder.WriteString("    Blocks (other):\n")
-
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
-
 		if b == nil || b.Source == nil {
 			continue
 		}
-
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
@@ -2418,22 +2408,17 @@ func (m *Machine) String() string {
 				b.StringIndented("            "))
 		}
 	}
-
 	builder.WriteString("    Frames:\n")
-
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %s\n", i, m.Frames[i])
 	}
-
 	if m.Realm != nil {
 		fmt.Fprintf(builder, "    Realm:\n      %s\n", m.Realm.Path)
 	}
-
 	if m.Exception != nil {
 		builder.WriteString("    Exception:\n")
 		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
 	}
-
 	return builder.String()
 }
 
@@ -2441,16 +2426,13 @@ func (m *Machine) ExceptionStacktrace() string {
 	if m.Exception == nil {
 		return ""
 	}
-
 	var builder strings.Builder
-
 	last := m.Exception
 	first := m.Exception
 	var numPrevious int
 	for ; first.Previous != nil; first = first.Previous {
 		numPrevious++
 	}
-
 	builder.WriteString(first.StringWithStacktrace(m))
 	if numPrevious >= 2 {
 		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", numPrevious-1)
