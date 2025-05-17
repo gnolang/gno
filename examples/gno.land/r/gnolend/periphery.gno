@@ -202,3 +202,49 @@ func CalculateUserLoans(user string) *avl.Tree {
 
 	return loans
 }
+
+// CalculateHealthFactor returns the health factor for a user's position in a market
+// - A health factor > 1 means the position is healthy
+// - A health factor < 1 means the position is eligible for liquidation
+// - The lower the health factor, the higher the risk of liquidation
+func CalculateHealthFactor(marketId string, userAddr string) *u256.Uint {
+	position := GetPosition(marketId, userAddr)
+
+	// If no borrows, position is maximally healthy (return a very large number)
+	if position.BorrowShares.IsZero() {
+		return u256.NewUint(WAD) // 100 * WAD
+	}
+
+	market, params := GetMarket(marketId)
+
+	// Calculate current borrowed value
+	borrowed := ToAssetsUp(
+		position.BorrowShares,
+		market.TotalBorrowAssets,
+		market.TotalBorrowShares,
+	)
+
+	// If no collateral, health factor is 0
+	if position.Collateral.IsZero() {
+		return u256.Zero()
+	}
+
+	collateralPrice, err := GetPrice(params.PoolPath)
+	if err != nil {
+		panic(err)
+	}
+
+	// Calculate max borrow allowed
+	maxBorrow := WMulDown(
+		MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), 
+		params.LLTV
+	)
+
+	// Health factor = maxBorrow / borrowed (WAD scaled)
+	if borrowed.IsZero() {
+		return u256.NewUint(100000000000000000000) // 100 * WAD
+	}
+	
+	return WDivDown(maxBorrow, borrowed)
+}
+

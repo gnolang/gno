@@ -162,7 +162,11 @@ func GetRpcMarketInfo(marketId string) RpcMarketInfo {
 	supplyAPR := CalculateSupplyAPR(marketId)
 
 	// Get utilization rate
-	utilization := WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
+    if totalSupplyAssets.IsZero() {
+		utilization := u256.Zero()
+	} else {
+        utilization := WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
+	}
 
 	// Get token paths
 	loanToken := params.GetLoanToken()

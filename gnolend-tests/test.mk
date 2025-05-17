@@ -181,13 +181,11 @@ supply-assets-gns-wugnot:
 		gnoswap_admin
 	@echo
 
-	# THEN SUPPLY
+	# Wrap UGNOT to WUGNOT
 	@echo "" | gnokey maketx call \
-		-pkgpath gno.land/r/gnolend \
-		-func Supply \
-		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
-		-args 1000000 \
-		-args 0 \
+		-pkgpath gno.land/r/demo/wugnot \
+		-func Deposit \
+		-send "1000000000ugnot" \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
 		-broadcast=true \
@@ -198,14 +196,12 @@ supply-assets-gns-wugnot:
 		gnoswap_admin
 	@echo
 
-# Test withdrawing assets from GNS-WUGNOT market
-withdraw-assets-gns-wugnot:
-	$(info ************ Test withdrawing GNS assets from GNS-WUGNOT market ************)
+	# THEN SUPPLY
 	@echo "" | gnokey maketx call \
 		-pkgpath gno.land/r/gnolend \
-		-func Withdraw \
+		-func Supply \
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
-		-args 994940 \
+		-args 1000000 \
 		-args 0 \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
@@ -236,6 +232,21 @@ supply-shares-gns-wugnot:
 		gnoswap_admin
 	@echo
 
+	# Wrap UGNOT to WUGNOT
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/demo/wugnot \
+		-func Deposit \
+		-send "1000000000ugnot" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
 	# THEN SUPPLY
 	@echo "" | gnokey maketx call \
 		-pkgpath gno.land/r/gnolend \
@@ -243,6 +254,25 @@ supply-shares-gns-wugnot:
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
 		-args 0 \
 		-args 1000000 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test withdrawing assets from GNS-WUGNOT market
+withdraw-assets-gns-wugnot:
+	$(info ************ Test withdrawing GNS assets from GNS-WUGNOT market ************)
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func Withdraw \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-args 994940 \
+		-args 0 \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
 		-broadcast=true \

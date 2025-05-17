@@ -370,3 +370,11 @@ func GetUserLoans(user string) []string {
 
 	return result
 }
+
+// GetHealthFactor returns the health factor for a user's position as a string
+// A health factor > 1 means the position is healthy
+// A health factor < 1 means the position is eligible for liquidation
+func GetHealthFactor(marketId string, userAddr string) string {
+	healthFactor := CalculateHealthFactor(marketId, userAddr)
+	return healthFactor.ToString()
+}
