@@ -10,6 +10,8 @@ import (
 // XXX: equivalent of Ownable -> way of Transfering easily
 // XXX: helper to transform an Authority into a Membership so that we can expect people to expose their teams' authority
 // XXX: Actionable? Doer?
+// XXX: make Authority an interface.
+// XXX: rename Authority to something else?
 
 const Admin = "_admin_"
 
