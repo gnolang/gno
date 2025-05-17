@@ -3,6 +3,7 @@ package packages
 import (
 	"testing"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/cachepath"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,4 +81,34 @@ func TestLoader_Glob(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolver_PackageConflict(t *testing.T) {
+	t.Parallel()
+
+	// Create a temporary directory for testing
+	// only conflict testing
+	const pathConflict = "abc.xy/pkg/conflict"
+	cachepath.Set(pathConflict)
+
+	t.Run("root package conflict", func(t *testing.T) {
+		t.Parallel()
+
+		resolver := NewRootResolver("./testdata")
+		loader := NewLoader(resolver)
+
+		_, err := loader.Resolve(pathConflict)
+		require.Error(t, err)
+		require.Equal(t, "Root package conflict in "+pathConflict, err.Error())
+	})
+	t.Run("no root package conflict", func(t *testing.T) {
+		t.Parallel()
+
+		resolver := NewRootResolver("./testdata")
+		loader := NewLoader(resolver)
+
+		_, err := loader.Resolve(TestdataPkgA)
+		require.NoError(t, err)
+	})
+
 }
