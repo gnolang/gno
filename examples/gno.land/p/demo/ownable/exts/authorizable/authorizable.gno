@@ -20,7 +20,7 @@ type Authorizable struct {
 
 func NewAuthorizable() *Authorizable {
 	a := &Authorizable{
-		ownable.New(),
+		ownable.NewWithPrevious(),
 		avl.NewTree(),
 	}
 
