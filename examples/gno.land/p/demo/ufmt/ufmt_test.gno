@@ -20,12 +20,28 @@ func TestSprintf(t *testing.T) {
 		values         []any
 		expectedOutput string
 	}{
+		// normal usage
 		{"hello %s!", []any{"planet"}, "hello planet!"},
 		{"hello %v!", []any{"planet"}, "hello planet!"},
 		{"hi %%%s!", []any{"worl%d"}, "hi %worl%d!"},
 		{"%s %c %d %t", []any{"foo", 'α', 421, true}, "foo α 421 true"},
 		{"string [%s]", []any{"foo"}, "string [foo]"},
+
+		// ints
 		{"int [%d]", []any{int(42)}, "int [42]"},
+		{"int [%03d]", []any{int(42)}, "int [042]"},
+		{"int [%010d]", []any{int(42)}, "int [0000000042]"},
+		{"int [% 10d]", []any{int(42)}, "int [        42]"},
+		{"hex [%x]", []any{int(42)}, "hex [2a]"},
+		{"hex [%X]", []any{int(42)}, "hex [2A]"},
+		{"hex [%02x]", []any{int(42)}, "hex [2a]"},
+		{"hex [%03x]", []any{int(42)}, "hex [02a]"},
+		{"hex [%#03x]", []any{int(42)}, "hex [0x02a]"},
+		{"hex [%#03X]", []any{int(42)}, "hex [0X02A]"},
+		{"hex [%#X]", []any{[]uint8{1, 2, 42}}, "hex [0X01022A]"},
+		{"hex [%x]", []any{[]uint8("hello")}, "hex [68656c6c6f]"},
+		{"hex [%x]", []any{[]uint8{0, 0}}, "hex [0000]"},
+		{"hex [%x]", []any{uint8(0)}, "hex [0]"},
 		{"int [%v]", []any{int(42)}, "int [42]"},
 		{"int8 [%d]", []any{int8(8)}, "int8 [8]"},
 		{"int8 [%v]", []any{int8(8)}, "int8 [8]"},
@@ -45,16 +61,28 @@ func TestSprintf(t *testing.T) {
 		{"uint32 [%v]", []any{uint32(32)}, "uint32 [32]"},
 		{"uint64 [%d]", []any{uint64(64)}, "uint64 [64]"},
 		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
+
+		// floats
 		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.41e+01]"},
 		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.41E+01]"},
 		{"float64 [%f]", []any{float64(64.1)}, "float64 [64.100000]"},
+		{"float64 [%.2f]", []any{float64(64.1)}, "float64 [64.10]"},
+		{"float32 [%.1f]", []any{float32(64.1)}, "float32 [64.1]"},
+		{"float64 [%.f]", []any{float64(64.1)}, "float64 [64]"},
+		{"float64 [%.0f]", []any{float64(64.1)}, "float64 [64]"},
+		{"float64 [%.1f]", []any{float64(64.1)}, "float64 [64.1]"},
 		{"float64 [%F]", []any{float64(64.1)}, "float64 [64.100000]"},
 		{"float64 [%g]", []any{float64(64.1)}, "float64 [64.1]"},
 		{"float64 [%G]", []any{float64(64.1)}, "float64 [64.1]"},
+		{"float64 [%.000001f]", []any{float64(64.1)}, "float64 [64.1]"},
+
+		// bool
 		{"bool [%t]", []any{true}, "bool [true]"},
 		{"bool [%v]", []any{true}, "bool [true]"},
 		{"bool [%t]", []any{false}, "bool [false]"},
 		{"bool [%v]", []any{false}, "bool [false]"},
+
+		// errros/special cases
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
 		{"stringer [%s]", []any{stringer{}}, "stringer [I'm a stringer]"},
@@ -226,7 +254,6 @@ func TestFprintf(t *testing.T) {
 	}
 }
 
-// TODO: replace os.Stdout with a buffer to capture the output and test it.
 func TestPrintf(t *testing.T) {
 	n, err := Printf("The answer is %d", 42)
 	if err != nil {
@@ -339,5 +366,214 @@ func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestParseMeta(t *testing.T) {
+	tests := []struct {
+		name           string
+		format         string
+		expectedFlags  uint8
+		expectedPad    uint
+		expectedPrec   int
+		expectedLength uint8
+		expectedIdx    int // Expected index after parsing
+	}{
+		{
+			name:           "Empty format string",
+			format:         "%",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6, // Default precision
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index is incremented after '%'
+		},
+		{
+			name:           "Simple format with no metadata",
+			format:         "%d",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    0, // Index should point to 'd'
+		},
+		{
+			name:           "Format with hashtag flag",
+			format:         "%#x",
+			expectedFlags:  flagHashtag,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index should point to 'x'
+		},
+		{
+			name:           "Format with multiple flags",
+			format:         "%+-0 d",
+			expectedFlags:  flagPlus | flagMinus | flagZero | flagSpace,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    4, // Index should point to 'd'
+		},
+		{
+			name:           "Format with padding",
+			format:         "%10d",
+			expectedFlags:  0,
+			expectedPad:    10,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    2, // Index should point to 'd'
+		},
+		{
+			name:           "Format with precision",
+			format:         "%.3f",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   3,
+			expectedLength: lenNo,
+			expectedIdx:    2, // Index should point to 'f'
+		},
+		{
+			name:           "Format with empty precision",
+			format:         "%.f",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   0, // Empty precision should be 0
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index should point to 'f'
+		},
+		{
+			name:           "Format with padding and precision",
+			format:         "%10.3f",
+			expectedFlags:  0,
+			expectedPad:    10,
+			expectedPrec:   3,
+			expectedLength: lenNo,
+			expectedIdx:    4, // Index should point to 'f'
+		},
+		{
+			name:           "Format with single 'h' length modifier",
+			format:         "%hd",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenH,
+			expectedIdx:    1, // Index should point to 'd'
+		},
+		{
+			name:           "Format with 'hh' length modifier",
+			format:         "%hhd",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenHH,
+			expectedIdx:    2, // Index should point to 'd'
+		},
+		{
+			name:           "Format with 'll' length modifier",
+			format:         "%lld",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenLL,
+			expectedIdx:    2, // Index should point to 'd'
+		},
+		{
+			name:           "Format with 'z' length modifier",
+			format:         "%zd",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenZ,
+			expectedIdx:    1, // Index should point to 'd'
+		},
+		{
+			name:           "Complex format with all elements",
+			format:         "%#+-0 15.8llx",
+			expectedFlags:  flagHashtag | flagPlus | flagMinus | flagZero | flagSpace,
+			expectedPad:    15,
+			expectedPrec:   8,
+			expectedLength: lenLL,
+			expectedIdx:    11, // Index should point to 'x'
+		},
+		{
+			name:           "Truncated format after percent",
+			format:         "%",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index is incremented after '%'
+		},
+		{
+			name:           "Truncated format after dot",
+			format:         "%.",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6, // No change in precision without digits
+			expectedLength: lenNo,
+			expectedIdx:    2, // Index after '%' and '.'
+		},
+		{
+			name:           "Extremely large padding number",
+			format:         "%999999d",
+			expectedFlags:  0,
+			expectedPad:    999999,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    6, // Index should point to 'd'
+		},
+		{
+			name:           "Non-digit after padding specification",
+			format:         "%123abc",
+			expectedFlags:  0,
+			expectedPad:    123,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    3, // Index should point to 'a'
+		},
+		{
+			name:           "Incomplete length modifier at end",
+			format:         "%l",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenL,
+			expectedIdx:    2, // Index increments past '%' and 'l' then stops
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newPrinter()
+			runes := []rune(tt.format)
+
+			// Skip initial '%'
+			index := 0
+
+			// Call parseMeta which will be testing
+			parseMeta(p, runes, &index, len(runes))
+
+			// Verify the results
+			if p.meta.flags != tt.expectedFlags {
+				t.Errorf("flags = %d, want %d", p.meta.flags, tt.expectedFlags)
+			}
+
+			if p.meta.padding != tt.expectedPad {
+				t.Errorf("padding = %d, want %d", p.meta.padding, tt.expectedPad)
+			}
+
+			if p.meta.precision != tt.expectedPrec {
+				t.Errorf("precision = %d, want %d", p.meta.precision, tt.expectedPrec)
+			}
+
+			if p.meta.length != tt.expectedLength {
+				t.Errorf("length = %d, want %d", p.meta.length, tt.expectedLength)
+			}
+
+			if index != tt.expectedIdx {
+				t.Errorf("index = %d, want %d", index, tt.expectedIdx)
+			}
+		})
 	}
 }
