@@ -51,8 +51,21 @@ import (
 	"gno.land/p/demo/avl"
 )
 
+// XXX: Stringer?
+// XXX: ToSlice(offset, count) []std.Address?
+
+// Set is a specialized set data structure for managing unique Gno addresses.
 type Set struct {
 	tree avl.Tree
+}
+
+// New creates a new Set with the given addresses.
+func New(addrs ...std.Address) *Set {
+	set := Set{}
+	for _, addr := range addrs {
+		set.Add(addr)
+	}
+	return &set
 }
 
 // Add inserts an address into the set.
@@ -69,6 +82,8 @@ func (s *Set) Remove(addr std.Address) bool {
 }
 
 // Has checks if an address exists in the set.
+//
+// Implements the p/moul/authz.Membership interface.
 func (s *Set) Has(addr std.Address) bool {
 	return s.tree.Has(string(addr))
 }
