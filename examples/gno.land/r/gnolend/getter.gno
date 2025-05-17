@@ -143,28 +143,28 @@ func GetMarketList() []string {
 // (supply, borrow, or collateral)
 func GetUserMarkets(userAddr string) []string {
 	var userMarkets []string
-	
+
 	// Get list of all markets
 	allMarkets := GetMarketList()
-	
+
 	// Check each market to see if user has a position
 	for _, marketId := range allMarkets {
 		marketPositions, exists := positions.Get(marketId)
 		if !exists {
 			continue
 		}
-		
+
 		position, exists := marketPositions.(*avl.Tree).Get(userAddr)
 		if !exists {
 			continue
 		}
-		
+
 		pos := position.(Position)
 		if !pos.SupplyShares.IsZero() || !pos.BorrowShares.IsZero() || !pos.Collateral.IsZero() {
 			userMarkets = append(userMarkets, marketId)
 		}
 	}
-	
+
 	return userMarkets
 }
 
@@ -347,4 +347,26 @@ func GetBorrowAPR(marketId string) string {
 func GetSupplyAPR(marketId string) string {
 	supplyAPR := CalculateSupplyAPR(marketId)
 	return supplyAPR.ToString()
+}
+
+// GetLoanAmount returns the current loan amount for a user in a market as a string
+func GetLoanAmount(marketId string, user string) string {
+	amount := CalculateLoanAmount(marketId, user)
+	return amount.String()
+}
+
+// GetUserLoans returns a list of all loans for a user in the format:
+// [token1, amount1, token2, amount2, ...]
+func GetUserLoans(user string) []string {
+	loans := CalculateAllLoans(user)
+	result := make([]string, 0, loans.Size()*2) // pre-allocate for pairs
+
+	loans.Iterate(func(key interface{}, value interface{}) bool {
+		token := key.(string)
+		amount := value.(*u256.Uint)
+		result = append(result, token, amount.String())
+		return false // continue iteration
+	})
+
+	return result
 }

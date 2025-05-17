@@ -8,7 +8,7 @@ import (
 
 // Constants for scaling
 var (
-	MAX_FEE = 10 // 10% max fee
+	MAX_FEE = u256.NewUint(300000000000000000) // 10%
 
 	// Liquidation cursor - used to calculate liquidation incentive factor
 	LIQUIDATION_CURSOR = u256.NewUint(300000000000000000) // 0.3 in WAD

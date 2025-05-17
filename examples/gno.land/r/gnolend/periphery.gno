@@ -3,16 +3,18 @@ package gnolend
 import (
 	"std"
 	u256 "gno.land/p/gnoswap/uint256"
+	"gno.land/p/gnolend/avl"
+	"strings"
 )
 
 // ExpectedMarketBalances returns the expected market balances after interest accrual
 func ExpectedMarketBalances(marketId string) (*u256.Uint, *u256.Uint, *u256.Uint, *u256.Uint) {
 	// Call the existing AccrueInterest function to perform interest accrual
 	AccrueInterest(marketId)
-	
+
 	// Get the updated market state
 	market, _ := GetMarket(marketId)
-	
+
 	// Return the current market balances
 	return market.TotalSupplyAssets, market.TotalSupplyShares,
 	       market.TotalBorrowAssets, market.TotalBorrowShares
@@ -47,11 +49,11 @@ func ExpectedTotalSupplyShares(marketId string) *u256.Uint {
 func ExpectedSupplyAssets(marketId string, user string) *u256.Uint {
 	// Call AccrueInterest first
 	AccrueInterest(marketId)
-	
+
 	// Get updated position and market data
 	position := GetPosition(marketId, user)
 	market, _ := GetMarket(marketId)
-	
+
 	return ToAssetsDown(position.SupplyShares, market.TotalSupplyAssets, market.TotalSupplyShares)
 }
 
@@ -60,11 +62,11 @@ func ExpectedSupplyAssets(marketId string, user string) *u256.Uint {
 func ExpectedBorrowAssets(marketId string, user string) *u256.Uint {
 	// Call AccrueInterest first
 	AccrueInterest(marketId)
-	
+
 	// Get updated position and market data
 	position := GetPosition(marketId, user)
 	market, _ := GetMarket(marketId)
-	
+
 	return ToAssetsUp(position.BorrowShares, market.TotalBorrowAssets, market.TotalBorrowShares)
 }
 
@@ -106,13 +108,13 @@ func CalculateSupplyRate(marketId string) *u256.Uint {
 	// Get borrow rate
 	irm := GetIRM(params.IRM)
 	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
-	
+
 	// Calculate utilization rate: totalBorrow / totalSupply
 	utilizationRate := WDivDown(market.TotalBorrowAssets, market.TotalSupplyAssets)
-	
+
 	// Calculate fee-adjusted borrow rate
 	feeFactor := new(u256.Uint).Sub(WAD, market.Fee) // (1 - fee)
-	
+
 	// Supply rate = borrow rate * utilization rate * (1 - fee)
 	// This formula accounts for:
 	// 1. Interest is only earned on the portion of funds being borrowed (utilization)
@@ -128,7 +130,7 @@ func CalculateBorrowAPR(marketId string) *u256.Uint {
 	if borrowRatePerSecond.IsZero() {
 		return u256.Zero()
 	}
-	
+
 	// Multiply by seconds per year to get APR
 	secondsPerYear := u256.NewUint(365 * 24 * 60 * 60)
 	return new(u256.Uint).Mul(borrowRatePerSecond, secondsPerYear)
@@ -142,8 +144,64 @@ func CalculateSupplyAPR(marketId string) *u256.Uint {
 	if supplyRatePerSecond.IsZero() {
 		return u256.Zero()
 	}
-	
+
 	// Multiply by seconds per year to get APR
 	secondsPerYear := u256.NewUint(365 * 24 * 60 * 60)
 	return new(u256.Uint).Mul(supplyRatePerSecond, secondsPerYear)
-} 
+}
+
+// CalculateLoanAmount returns the current loan amount for a user in a market
+// This is the amount of assets the user has borrowed, including accrued interest
+func CalculateLoanAmount(marketId string, user string) *u256.Uint {
+	// Call AccrueInterest first to ensure we have the latest state
+	AccrueInterest(marketId)
+
+	// Get updated position and market data
+	position := GetPosition(marketId, user)
+	market, _ := GetMarket(marketId)
+
+	// Calculate current borrowed value using ToAssetsUp for safety
+	return ToAssetsUp(
+		position.BorrowShares,
+		market.TotalBorrowAssets,
+		market.TotalBorrowShares,
+	)
+}
+
+// CalculateAllLoans returns a tree of all loans for a user
+// The tree maps token addresses to total borrowed amounts
+// Loans in different markets but with the same token are summed up
+func CalculateUserLoans(user string) *avl.Tree {
+	// Create a new tree to store token -> amount mapping
+	loans := avl.NewTree()
+
+	// Iterate through all markets
+	markets.Iterate(func(key interface{}, value interface{}) bool {
+		marketId := key.(string)
+		market := value.(*Market)
+
+		// Calculate loan amount for this market
+		loanAmount := CalculateLoanAmount(marketId, user)
+
+		// If user has a loan in this market
+		if !loanAmount.IsZero() {
+			// Get the borrow token from market parameters
+			_, params := GetMarket(marketId)
+			borrowToken := params.BorrowToken
+
+			// Get existing amount for this token if any
+			existingAmount, exists := loans.Get(borrowToken)
+			if exists {
+				// Add to existing amount
+				totalAmount := new(u256.Uint).Add(existingAmount.(*u256.Uint), loanAmount)
+				loans.Set(borrowToken, totalAmount)
+			} else {
+				// Set new amount
+				loans.Set(borrowToken, loanAmount)
+			}
+		}
+		return false // continue iteration
+	})
+
+	return loans
+}
