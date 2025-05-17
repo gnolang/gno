@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type (
@@ -128,7 +128,7 @@ func (pl PkgList) Matches() PkgList {
 	return res
 }
 
-func (pl PkgList) GetMemPackage(pkgPath string) *gnovm.MemPackage {
+func (pl PkgList) GetMemPackage(pkgPath string) *std.MemPackage {
 	pkg := pl.Get(pkgPath)
 	if pkg == nil {
 		return nil

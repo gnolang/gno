@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func readPackages(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*pkgMatch, known PkgList, fset *token.FileSet) (PkgList, error) {
@@ -157,7 +158,7 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		fset = token.NewFileSet()
 	}
 
-	mempkg := gnovm.MemPackage{}
+	mempkg := std.MemPackage{}
 
 	for _, base := range files {
 		fpath := filepath.Join(pkg.Dir, base)

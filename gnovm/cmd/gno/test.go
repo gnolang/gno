@@ -48,8 +48,8 @@ functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
 tests that belong to the same package are supported for now (no "xxx_test").
 
 The package path used to execute the "*_test.gno" file is fetched from the
-module name found in 'gno.mod', or else it is randomly generated like
-"gno.land/r/XXXXXXXX".
+module name found in 'gno.mod', or else it is set to
+"gno.land/r/txtar".
 
 - "*_filetest.gno" files on the other hand are kind of unique. They exist to
 provide a way to interact and assert a gno contract, thanks to a set of
@@ -242,9 +242,9 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		var hasError bool
 
 		startedAt := time.Now()
-		runtimeError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		runtimeError := catchRuntimeError(pkg.Dir, gnoPkgPath, io.Err(), func() {
 			if modfile == nil || !modfile.Draft {
-				foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
+				foundErr, lintErr := lintTypeCheck(io, pkg.Dir, memPkg, opts.TestStore)
 				if lintErr != nil {
 					io.ErrPrintln(lintErr)
 					hasError = true

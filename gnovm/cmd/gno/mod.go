@@ -79,7 +79,7 @@ func newModInitCmd() *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "init",
-			ShortUsage: "init [module-path]",
+			ShortUsage: "init <module-path>",
 			ShortHelp:  "initialize gno.mod file in current directory",
 		},
 		commands.NewEmptyConfig(),
@@ -234,7 +234,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := downloadDeps(io, path, gnoMod, fetcher); err != nil {
+	if err := downloadDeps(io, path, gnoMod, fetcher, make(map[string]struct{})); err != nil {
 		return err
 	}
 

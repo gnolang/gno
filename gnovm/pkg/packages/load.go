@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/module"
 )
 
@@ -203,7 +204,7 @@ func findLoaderRootDir() (string, error) {
 	}
 }
 
-func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
+func (p *Package) MemPkg() (*std.MemPackage, error) {
 	// XXX: use gnolang.ReadMemPackageFromList
 
 	files := []*gnovm.MemFile{}
@@ -222,7 +223,7 @@ func (p *Package) MemPkg() (*gnovm.MemPackage, error) {
 	sort.Slice(files, func(i int, j int) bool {
 		return files[i].Name < files[j].Name
 	})
-	return &gnovm.MemPackage{
+	return &std.MemPackage{
 		Name:  p.Name,
 		Path:  p.ImportPath,
 		Files: files,
