@@ -11,7 +11,8 @@ import (
 	pl "gno.land/r/gnoswap/v1/pool"
 )
 
-// State variables
+/* STATE VARIABLES */
+
 var (
 	markets *avl.Tree // marketId -> Market
 	// First level: marketId -> *avl.Tree
@@ -24,6 +25,8 @@ var (
 	feeRecipient std.Address
 	irmRegistry  *avl.Tree // irmName -> IRM
 )
+
+/* INITIALIZATION */
 
 func init() {
 	// Initialize market state
@@ -41,6 +44,8 @@ func init() {
 	// Set initial owner
 	Ownable = ownable.New()
 }
+
+/* ADMIN FUNCTIONS */
 
 // RegisterIRM registers a new interest rate model
 func RegisterIRM(irm IRM) {
@@ -103,6 +108,8 @@ func SetFeeRecipient(newFeeRecipient std.Address) {
 	feeRecipient = newFeeRecipient
 }
 
+/* MARKET CREATION */
+
 // CreateMarket initializes a new lending market with basic parameters
 func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
 	if poolPath == "" {
@@ -161,6 +168,8 @@ func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
 
 	emitCreateMarket(marketId, params.GetLoanToken(), params.GetCollateralToken())
 }
+
+/* SUPPLY MANAGEMENT */
 
 // Supply tokens to a market
 // Either assets or shares must be non-zero (XOR)
@@ -309,6 +318,8 @@ func Withdraw(marketId string, assets, shares uint64) {
 
 	emitWithdraw(marketId, caller, assetsU256)
 }
+
+/* BORROW MANAGEMENT */
 
 // Borrow assets from a market using collateral
 // Either assets or shares must be non-zero (not both)
@@ -469,6 +480,8 @@ func Repay(marketId string, assets, shares uint64) {
 	emitRepay(marketId, caller, assetsU256, sharesToBurn)
 }
 
+/* COLLATERAL MANAGEMENT */
+
 // SupplyCollateral supplies collateral to a market
 // The collateral can be used to borrow assets from the market
 func SupplyCollateral(marketId string, amount uint64) {
@@ -555,6 +568,8 @@ func WithdrawCollateral(marketId string, amount uint64) {
 
 	emitWithdrawCollateral(marketId, caller, amount)
 }
+
+/* LIQUIDATION */
 
 // Liquidate liquidates a position that is below the liquidation threshold.
 // It takes either seizedAssets (collateral to seize) or repaidShares (debt to repay), but not both.
@@ -673,6 +688,8 @@ func Liquidate(marketId string, borrower std.Address, seizedAssets, repaidShares
 	return seizedAssetsU256.Uint64(), repaidAssets.Uint64()
 }
 
+/* INTEREST ACCRUAL */
+
 func AccrueInterest(marketId string) {
 	// Check if market exists
 	if _, exists := markets.Get(marketId); !exists {
@@ -754,6 +771,8 @@ func accrueInterest(marketId string) {
 
 	emitAccrueInterest(marketId, borrowRate, interest)
 }
+
+/* HEALTH CALCULATIONS */
 
 // isHealthy checks if a position's health factor is above 1
 // Returns true if:
