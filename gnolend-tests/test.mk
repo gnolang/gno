@@ -3,14 +3,10 @@ include ../gnoswap-tests/_info.mk
 include ../gnoswap-tests/test.mk
 
 # Complete flow that includes both GNS-WUGNOT and BAR-WUGNOT operations
-workflow: pool-create-gns-wugnot-default mint-gns-gnot market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
+full-workflow: pool-create-gns-wugnot-default mint-gns-gnot market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
 	pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot supply-assets-bar-wugnot supply-collateral-bar-wugnot borrow-bar \
 	check-position-gns-wugnot check-position-bar-wugnot
 	@echo "************ WORKFLOW FINISHED ************"
-
-# Additional complete flow for BAR-WUGNOT
-complete-flow-bar: enable-irm pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot supply-assets-bar-wugnot supply-collateral-bar-wugnot borrow-bar check-position-bar-wugnot
-	@echo "************ COMPLETE BAR-WUGNOT FLOW FINISHED ************"
 
 # Enable the linear IRM
 enable-irm:
