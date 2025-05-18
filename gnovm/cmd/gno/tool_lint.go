@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
-	"go/scanner"
 	"go/token"
 	"go/types"
 	goio "io"
@@ -151,16 +150,16 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath)
 		if err != nil {
-			io.ErrPrintln(issueFromError(
-				dir, pkgPath, err, gnoReadError).String())
+			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
 			continue
 		}
 
 		// Perform imports using the parent store.
 		if err := test.LoadImports(ts, mpkg); err != nil {
-			io.ErrPrintln(issueFromError(
-				dir, pkgPath, err, gnoImportError).String())
+			// io.ErrPrintln(guessIssueFromError(
+			//	dir, pkgPath, err, gnoImportError).String())
+			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
 			continue
 		}
@@ -278,39 +277,7 @@ func lintTypeCheck(
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
 	for _, err := range errors {
-		switch err := err.(type) {
-		case types.Error:
-			loc := err.Fset.Position(err.Pos).String()
-			loc = replaceWithDirPath(loc, mpkg.Path, dir)
-			io.ErrPrintln(gnoIssue{
-				Code:       gnoTypeCheckError,
-				Msg:        err.Msg,
-				Confidence: 1,
-				Location:   loc,
-			})
-		case scanner.ErrorList:
-			for _, scErr := range err {
-				loc := scErr.Pos.String()
-				loc = replaceWithDirPath(loc, mpkg.Path, dir)
-				io.ErrPrintln(gnoIssue{
-					Code:       gnoParserError,
-					Msg:        scErr.Msg,
-					Confidence: 1,
-					Location:   loc,
-				})
-			}
-		case scanner.Error:
-			loc := err.Pos.String()
-			loc = replaceWithDirPath(loc, mpkg.Path, dir)
-			io.ErrPrintln(gnoIssue{
-				Code:       gnoParserError,
-				Msg:        err.Msg,
-				Confidence: 1,
-				Location:   loc,
-			})
-		default:
-			panic(err) // unexpected.
-		}
+		printError(io.Err(), dir, mpkg.Path, err)
 	}
 
 	lerr = tcErrs

@@ -174,7 +174,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 				},
 			},
 			mockPackageGetter{},
-			errContains("import not found: std"),
+			errContains("unknown import path \"std\""),
 		},
 		{
 			"ImportSucceeded",

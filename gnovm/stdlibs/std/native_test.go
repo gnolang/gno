@@ -2,7 +2,7 @@ package std
 
 import (
 	"fmt"
-	testing "testing/base"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 

@@ -54,7 +54,7 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/invalid_gno_file/"},
-			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=gnoReadError)",
+			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=gnoParserError)",
 			errShouldBe:         "exit code: 1",
 		},
 		{

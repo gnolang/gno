@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/scanner"
+	"go/types"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,12 +19,12 @@ type gnoCode string
 
 const (
 	gnoUnknownError    gnoCode = "gnoUnknownError"
-	gnoReadError               = "gnoReadError"
-	gnoImportError             = "gnoImportError"
-	gnoGnoModError             = "gnoGnoModError"
-	gnoPreprocessError         = "gnoPreprocessError"
-	gnoParserError             = "gnoParserError"
-	gnoTypeCheckError          = "gnoTypeCheckError"
+	gnoReadError       gnoCode = "gnoReadError"
+	gnoImportError     gnoCode = "gnoImportError"
+	gnoGnoModError     gnoCode = "gnoGnoModError"
+	gnoPreprocessError gnoCode = "gnoPreprocessError"
+	gnoParserError     gnoCode = "gnoParserError"
+	gnoTypeCheckError  gnoCode = "gnoTypeCheckError"
 
 	// TODO: add new gno codes here.
 )
@@ -109,24 +110,63 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	switch err := err.(type) {
 	case *gno.PreprocessError:
 		err2 := err.Unwrap()
-		fmt.Fprintln(w, issueFromError(
+		// XXX probably no need for guessing, replace with exact issue.
+		fmt.Fprintln(w, guessIssueFromError(
 			dir, pkgPath, err2, gnoPreprocessError).String())
 	case gno.ImportError:
-		fmt.Fprintln(w, issueFromError(
-			dir, pkgPath, err, gnoImportError).String())
+		// NOTE: gnovm/pkg/test.LoadImport will return a
+		// ImportNotFoundError with format "<loc>: unknown import path:
+		// <path>", while gimp.ImportFrom() doesn't know <loc> so
+		// returns a ImportNotFoundError with format "unknown import
+		// path: <path>"; but Go .Check ends up returning a types.Error
+		// instead, as seen in the hack in the next clause.  So
+		// test.LoadImport needs this and guessing isn't needed.
+		fmt.Fprintln(w, gnoIssue{
+			Code:       gnoImportError,
+			Msg:        err.GetMsg(),
+			Confidence: 1,
+			Location:   err.GetLocation(),
+		})
+	case types.Error:
+		loc := err.Fset.Position(err.Pos).String()
+		loc = replaceWithDirPath(loc, pkgPath, dir)
+		code := gnoTypeCheckError
+		if strings.Contains(err.Msg, "(unknown import path \"") {
+			// NOTE: This is a bit of a hack.
+			// See gimp.ImportFrom() comment on ImportNotFoundError
+			// on why this is necessary, and how to make it less hacky.
+			code = gnoImportError
+		}
+		fmt.Fprintln(w, gnoIssue{
+			Code:       code,
+			Msg:        err.Msg,
+			Confidence: 1,
+			Location:   loc,
+		})
 	case scanner.ErrorList:
 		for _, err := range err {
-			fmt.Fprintln(w, issueFromError(
-				dir,
-				pkgPath,
-				err,
-				gnoParserError,
-			).String())
+			loc := err.Pos.String()
+			loc = replaceWithDirPath(loc, pkgPath, dir)
+			fmt.Fprintln(w, gnoIssue{
+				Code:       gnoParserError,
+				Msg:        err.Msg,
+				Confidence: 1,
+				Location:   loc,
+			})
 		}
+	case scanner.Error:
+		loc := err.Pos.String()
+		loc = replaceWithDirPath(loc, pkgPath, dir)
+		fmt.Fprintln(w, gnoIssue{
+			Code:       gnoParserError,
+			Msg:        err.Msg,
+			Confidence: 1,
+			Location:   loc,
+		})
 	default: // error type
 		errors := multierr.Errors(err)
 		if len(errors) == 1 {
-			fmt.Fprintln(w, issueFromError(
+			fmt.Fprintln(w, guessIssueFromError(
 				dir,
 				pkgPath,
 				err,
@@ -160,7 +200,7 @@ func catchPanic(dir, pkgPath string, stderr io.WriteCloser, action func()) (didP
 	return
 }
 
-func issueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue {
+func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue {
 	var issue gnoIssue
 	issue.Confidence = 1
 	issue.Code = code

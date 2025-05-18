@@ -68,7 +68,7 @@ type gnoImporter struct {
 	getter  MemPackageGetter
 	cache   map[string]*gnoImporterResult
 	cfg     *types.Config
-	errors  error    // multierr
+	errors  []error  // there may be many for a single import
 	stack   []string // stack of pkgpaths for cyclic import detection
 }
 
@@ -79,39 +79,45 @@ func (gimp *gnoImporter) Import(path string) (*types.Package, error) {
 
 // Pass through to cfg.Error for collecting all type-checking errors.
 func (gimp *gnoImporter) Error(err error) {
-	gimp.errors = multierr.Append(gimp.errors, err)
+	gimp.errors = append(gimp.errors, err)
 }
 
 // ImportFrom returns the imported package for the given import
 // pkgPath when imported by a package file located in dir.
 func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*types.Package, error) {
 	if result, ok := gimp.cache[pkgPath]; ok {
-		if gimp.pkgPath == pkgPath {
-			// continue: xxx_test importing self.
-		} else if result.pending {
+		if result.pending {
 			idx := slices.Index(gimp.stack, pkgPath)
-			loop := gimp.stack[idx:]
-			err := ImportCycleError(loop)
+			cycle := gimp.stack[idx:]
+			err := ImportCycleError{Cycle: cycle}
+			// NOTE: see comment below for ImportNotFoundError.
+			// gimp.importErrors = append(gimp.importErrors, err)
 			result.err = err
-			// NOTE: returning an error loses type info?
-			// return nil, ImportCycleError(loop)
-			panic(err)
-		} else if gimp.pkgPath == pkgPath {
-			// continue: xxx_test importing self.
+			return nil, err
 		} else {
 			return result.pkg, result.err
 		}
 	}
-	gimp.cache[pkgPath] = &gnoImporterResult{pending: true}
+	result := &gnoImporterResult{pending: true}
+	gimp.cache[pkgPath] = result
 	gimp.stack = append(gimp.stack, pkgPath)
-	defer func() { gimp.stack = gimp.stack[:len(gimp.stack)-1] }()
+	defer func() {
+		gimp.stack = gimp.stack[:len(gimp.stack)-1]
+	}()
 	mpkg := gimp.getter.GetMemPackage(pkgPath)
 	if mpkg == nil {
-		err := ImportNotFoundError(pkgPath)
-		gimp.cache[pkgPath] = &gnoImporterResult{err: err}
-		// NOTE: returning an error loses type info?
-		// return nil, err
-		panic(err)
+		err := ImportNotFoundError{PkgPath: pkgPath}
+		// NOTE: When returning an err, Go will strip type information.
+		// When panic'd, the type information will be preserved, but
+		// the file location information will be lost.  Therefore,
+		// return the error but later in printError() parse the message
+		// and recast to a gnoImportError.
+		// TODO: For completeness we could append to a separate slice
+		// and check presence in gimp.importErrors before converting.
+		// gimp.importErrors = append(gimp.importErrors, err)
+		result.err = err
+		result.pending = false
+		return nil, err
 	}
 	pmode := ParseModeProduction // don't parse test files for imports...
 	if gimp.pkgPath == pkgPath {
@@ -122,12 +128,13 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 	strict := false // don't check for gno.mod for imports.
 	pkg, _, _, _, _, errs := gimp.typeCheckMemPackage(mpkg, pmode, strict)
 	if errs != nil {
-		// NOTE:
-		// Returning an error doesn't abort the type-checker.
-		// Panic instead to quit quickly.
-		panic(errs)
+		result.err = errs
+		result.pending = false
+		return nil, errs
 	}
-	gimp.cache[pkgPath] = &gnoImporterResult{pkg: pkg, err: errs, pending: false}
+	result.pkg = pkg
+	result.err = nil
+	result.pending = false
 	return pkg, errs
 }
 
@@ -189,13 +196,22 @@ type realm interface{} // shim
 		panic("error parsing gotypecheck gnobuiltins.go file")
 	}
 
+	// NOTE: When returning errs from this function,
+
 	// STEP 4: Type-check Gno0.9 AST in Go (normal, and _test.gno if ParseModeIntegration).
 	gofs = append(gofs, gmgof)
+	// NOTE: .Check doesn't return an err, it appends to .errors.  also,
+	// gimp.errors may already be populated. For example, even after an
+	// import failure the Go type checker will continue to try to import
+	// more imports, to collect more errors for the user to see.
+	numErrs := len(gimp.errors)
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
-	if gimp.errors != nil {
-		errs = gimp.errors
+	/* NOTE: Uncomment to fail earlier.
+	if len(gimp.errors) != numErrs {
+		errs = multierr.Combine(gimp.errors...)
 		return
 	}
+	*/
 
 	// STEP 4: Type-check Gno0.9 AST in Go (xxx_test package if ParseModeAll).
 	if strings.HasSuffix(mpkg.Name, "_test") {
@@ -206,10 +222,12 @@ type realm interface{} // shim
 	}
 	_gofs2 := append(_gofs, gmgof)
 	_, _ = gimp.cfg.Check(mpkg.Path, gofset, _gofs2, nil)
-	if gimp.errors != nil {
-		errs = gimp.errors
+	/* NOTE: Uncomment to fail earlier.
+	if len(gimp.errors) != numErrs {
+		errs = multierr.Combine(gimp.errors...)
 		return
 	}
+	*/
 
 	// STEP 4: Type-check Gno0.9 AST in Go (_filetest.gno if ParseModeAll).
 	// Each filetest is its own package.
@@ -218,12 +236,14 @@ type realm interface{} // shim
 		gmgof.Name = tgof.Name // may be anything.
 		tgof2 := []*ast.File{gmgof, tgof}
 		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgof2, nil)
-		if gimp.errors != nil {
-			errs = gimp.errors
+		/* NOTE: Uncomment to fail earlier.
+		if len(gimp.errors) != numErrs {
+			errs = multierr.Combine(gimp.errors...)
 			return
 		}
+		*/
 	}
-	return pkg, gofset, gofs, _gofs, tgofs, gimp.errors
+	return pkg, gofset, gofs, _gofs, tgofs, multierr.Combine(gimp.errors[numErrs:]...)
 }
 
 func deleteOldIdents(idents map[string]func(), gof *ast.File) {
@@ -253,27 +273,55 @@ func deleteOldIdents(idents map[string]func(), gof *ast.File) {
 //----------------------------------------
 // Errors
 
-type ImportNotFoundError string
-
-func (e ImportNotFoundError) Error() string {
-	return "import not found: " + string(e)
-}
-
-type ImportCycleError []string
-
-func (e ImportCycleError) Error() string {
-	return fmt.Sprintf("cyclic import detected: %s -> %s", strings.Join(e, " -> "), e[0])
-}
-
+// ImportError is an interface type.
 type ImportError interface {
 	assertImportError()
 	error
+	GetLocation() string
+	GetMsg() string
 }
 
 func (e ImportNotFoundError) assertImportError() {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
-	_ ImportError = ImportNotFoundError("")
-	_ ImportError = ImportCycleError(nil)
+	_ ImportError = ImportNotFoundError{}
+	_ ImportError = ImportCycleError{}
 )
+
+// ImportNotFoundError implements ImportError
+type ImportNotFoundError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportNotFoundError) GetLocation() string { return e.Location }
+
+func (e ImportNotFoundError) GetMsg() string { return fmt.Sprintf("unknown import path %q", e.PkgPath) }
+
+func (e ImportNotFoundError) Error() string { return importErrorString(e) }
+
+// ImportCycleError implements ImportError
+type ImportCycleError struct {
+	Location string
+	Cycle    []string
+}
+
+func (e ImportCycleError) GetLocation() string { return e.Location }
+
+func (e ImportCycleError) GetMsg() string {
+	return fmt.Sprintf("cyclic import detected: %s -> %s", strings.Join(e.Cycle, " -> "), e.Cycle[0])
+}
+
+func (e ImportCycleError) Error() string { return importErrorString(e) }
+
+// helper
+func importErrorString(err ImportError) string {
+	loc := err.GetLocation()
+	msg := err.GetMsg()
+	if loc != "" {
+		return loc + ": " + msg
+	} else {
+		return msg
+	}
+}

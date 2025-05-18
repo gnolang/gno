@@ -264,7 +264,7 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage) (err error) {
 		}
 		pkg := store.GetPackage(imp.PkgPath, true)
 		if pkg == nil {
-			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Spec.Pos()).String(), imp.PkgPath)
+			return gno.ImportNotFoundError{Location: fset.Position(imp.Spec.Pos()).String(), PkgPath: imp.PkgPath}
 		}
 	}
 	return nil

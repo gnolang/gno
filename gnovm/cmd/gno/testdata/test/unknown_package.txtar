@@ -4,7 +4,7 @@
 
 ! stdout .+
 # XXX catch and convert to gnoImportError
-stderr 'contract.gno:3:8: could not import foobarbaz \(import not found: foobarbaz\) \(code=gnoUnknownError\)'
+stderr 'contract.gno:3:8: could not import foobarbaz \(unknown import path "foobarbaz"\) \(code=gnoImportError\)'
 
 -- contract.gno --
 package contract

@@ -248,7 +248,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 				_, _, _, _, _, errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore)
 				if errs != nil {
 					didError = true
-					io.ErrPrintln(errs)
+					// already printed in lintTypeCheck.
+					// io.ErrPrintln(errs)
 					return
 				}
 			} else if cmd.verbose {

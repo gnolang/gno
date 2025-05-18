@@ -5,7 +5,13 @@ import (
 	"testing/base"
 )
 
-// XXX everything actually declared in testing/base
+// NOTE almost everything actually declared in testing/base
+
+// NOTE These native functions are duplicated in testing and testing/base,
+// and also all overridden in test/stdlibs/testing and test/stdlibs/testing/base.
+func matchString(pat, str string) (bool, string)
+func recoverWithStacktrace() (interface{}, string)
+func unixNano() int64
 
 // ----------------------------------------
 // Top level functions
