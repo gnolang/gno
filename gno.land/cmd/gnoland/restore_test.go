@@ -45,17 +45,19 @@ func generateBackup(t *testing.T, backupDir string, height int64) {
 	cfg := &nodeCfg{}
 	fs := flag.NewFlagSet("", flag.PanicOnError)
 	cfg.RegisterFlags(fs)
-	require.NoError(t, fs.Parse([]string{"--lazy", "--data-dir", nodeDir, "--genesis", filepath.Join(backupDir, "genesis.json")}))
+	require.NoError(t, fs.Parse([]string{
+		"--lazy",
+		"--data-dir", nodeDir,
+		"--genesis", filepath.Join(backupDir, "genesis.json"),
+	}))
 
 	node, err := createNode(cfg, io)
 	require.NoError(t, err)
 
 	require.NoError(t, node.Start())
-
 	for node.BlockStore().Height() < height {
 		time.Sleep(1 * time.Second)
 	}
-
 	require.NoError(t, node.Stop())
 
 	err = backup.WithWriter(backupDir, 0, height, zap.NewNop(), func(startHeight int64, write backup.Writer) error {
