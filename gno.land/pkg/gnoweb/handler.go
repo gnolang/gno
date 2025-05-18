@@ -250,7 +250,8 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 
 		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
-		if qerr != nil {
+
+		if qerr != nil || paths[0] == "" {
 			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
 
 			return GetClientErrorStatusPage(gnourl, err)
@@ -386,7 +387,8 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
 
 		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
-		if qerr != nil {
+
+		if qerr != nil || paths[0] == "" {
 			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
 
 			return GetClientErrorStatusPage(gnourl, err)
