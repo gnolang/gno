@@ -28,3 +28,10 @@ lint:
 test:
 	go test $(GOTEST_FLAGS) -v ./...
 
+generate:
+	mkdir -p .tmp
+	(go run ./cmd/gnodev -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gnodev-usage.txt
+	(go run ./cmd/gnodev local -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gnodev-local-usage.txt
+	(go run ./cmd/gnodev staging -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gnodev-staging-usage.txt
+	(go run ./cmd/gnobro -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gnobro-usage.txt
+	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
