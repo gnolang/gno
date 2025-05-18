@@ -241,7 +241,6 @@ func CalculateHealthFactor(marketId string, userAddr string) *u256.Uint {
 	if borrowed.IsZero() {
 		return new(u256.Uint).Mul(WAD, u256.NewUint(100)) // 100 * WAD
 	}
-	
+
 	return WDivDown(maxBorrow, borrowed)
 }
-
