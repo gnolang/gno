@@ -237,3 +237,73 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 		})
 	}
 }
+
+func TestWebHandler_GetRealmView_EmptyPaths(t *testing.T) {
+	t.Parallel()
+
+	// Create a mock package with empty paths
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/demo/test",
+		Files:  map[string]string{},
+	}
+
+	// Create a WebHandlerConfig with the mock web client and markdown renderer
+	config := newTestHandlerConfig(t, mockPackage)
+
+	// Initialize testing logger
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+
+	// Create a new WebHandler
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Create a new HTTP request
+	req, err := http.NewRequest(http.MethodGet, "/r/demo/test", nil)
+	require.NoError(t, err)
+
+	// Create a ResponseRecorder to capture the response
+	rr := httptest.NewRecorder()
+
+	// Invoke serve method
+	handler.ServeHTTP(rr, req)
+
+	// Assert result
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "This realm does not implement a Render() function.")
+}
+
+func TestWebHandler_GetRealmView_QueryError(t *testing.T) {
+	t.Parallel()
+
+	// Create a mock package that doesn't exist
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/demo/test",
+		Files:  map[string]string{},
+	}
+
+	// Create a WebHandlerConfig with the mock web client and markdown renderer
+	config := newTestHandlerConfig(t, mockPackage)
+
+	// Initialize testing logger
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+
+	// Create a new WebHandler
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Create a new HTTP request for a non-existent path
+	req, err := http.NewRequest(http.MethodGet, "/r/nonexistent/test", nil)
+	require.NoError(t, err)
+
+	// Create a ResponseRecorder to capture the response
+	rr := httptest.NewRecorder()
+
+	// Invoke serve method
+	handler.ServeHTTP(rr, req)
+
+	// Assert result
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Contains(t, rr.Body.String(), "not found")
+}
