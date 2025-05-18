@@ -11,6 +11,10 @@ import (
 )
 
 func TestRestore(t *testing.T) {
+	// XXX: generating the golden backup is cumbersome currently,
+	// we need to start a node with backup service enabled, wait for some blocks to be commited,
+	// run tm2backup, and copy files in the testdata dir, TODO: automate it
+
 	tmpDir := t.TempDir()
 	io := commands.NewTestIO()
 	io.SetOut(os.Stdout)
