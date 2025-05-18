@@ -1,4 +1,16 @@
 include _info.mk
+include ../gnoswap-tests/_info.mk
+include ../gnoswap-tests/test.mk
+
+# Complete flow that includes both GNS-WUGNOT and BAR-WUGNOT operations
+workflow: pool-create-gns-wugnot-default mint-gns-gnot market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
+	pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot supply-assets-bar-wugnot supply-collateral-bar-wugnot borrow-bar \
+	check-position-gns-wugnot check-position-bar-wugnot
+	@echo "************ WORKFLOW FINISHED ************"
+
+# Additional complete flow for BAR-WUGNOT
+complete-flow-bar: enable-irm pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot supply-assets-bar-wugnot supply-collateral-bar-wugnot borrow-bar check-position-bar-wugnot
+	@echo "************ COMPLETE BAR-WUGNOT FLOW FINISHED ************"
 
 # Enable the linear IRM
 enable-irm:
@@ -571,6 +583,178 @@ withdraw-collateral-gns-wugnot:
 		-func WithdrawCollateral \
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
 		-args 500 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test supplying assets to BAR-WUGNOT market
+supply-assets-bar-wugnot:
+	$(info ************ Test supplying BAR assets to BAR-WUGNOT market ************)
+	# APPROVE FIRST
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnoswap/v1/test_token/bar \
+		-func Approve \
+		-args $(ADDR_GNOLEND) \
+		-args $(MAX_UINT64) \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# Wrap UGNOT to WUGNOT if needed
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/demo/wugnot \
+		-func Deposit \
+		-send "1000000000ugnot" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# THEN SUPPLY
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func Supply \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args 1000000 \
+		-args 0 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test supplying collateral to BAR-WUGNOT market
+supply-collateral-bar-wugnot:
+	$(info ************ Test supplying collateral to BAR-WUGNOT market ************)
+	# APPROVE FIRST
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/demo/wugnot \
+		-func Approve \
+		-args $(ADDR_GNOLEND) \
+		-args $(MAX_UINT64) \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# THEN SUPPLY COLLATERAL
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func SupplyCollateral \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args 1000000 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test borrowing BAR tokens
+borrow-bar:
+	$(info ************ Test borrowing BAR tokens ************)
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func Borrow \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args 500000 \
+		-args 0 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Check user position in BAR-WUGNOT market
+check-position-bar-wugnot:
+	$(info ************ Check user position in BAR-WUGNOT market ************)
+	# Check supply shares
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetPositionSupplyShares \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args "$(ADMIN)" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# Check borrow shares
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetPositionBorrowShares \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args "$(ADMIN)" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# Check collateral
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetPositionCollateral \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args "$(ADMIN)" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# Check health factor
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetHealthFactor \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000" \
+		-args "$(ADMIN)" \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
 		-broadcast=true \
