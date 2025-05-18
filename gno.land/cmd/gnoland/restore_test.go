@@ -34,6 +34,8 @@ func TestRestore(t *testing.T) {
 func generateBackup(t *testing.T, backupDir string, height int64) {
 	t.Helper()
 
+	// XXX: consider moving this into a gen command and commit a golden backup
+
 	nodeDir := t.TempDir()
 
 	io := commands.NewTestIO()
