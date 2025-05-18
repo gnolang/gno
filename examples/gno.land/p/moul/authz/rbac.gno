@@ -12,38 +12,29 @@ import (
 // XXX: Actionable? Doer?
 // XXX: make Authority an interface.
 // XXX: rename Authority to something else?
-
-const Admin = "_admin_"
+// XXX: rename action -> perm/role
 
 func New() (*Authority, *PrivateConfig) {
-	auth := &Authority{}
-	priv := &auth.priv
-	return auth, priv
+	auth := Authority{}
+	return &auth, &auth.cfg
 }
+
+// Authority
+//
+
+// XXX: Authority -> RBAC, PrivateConfig -> PrivateDirectory
 
 // Authority is the core interface for authorization checks.
 // It provides a single method to retrieve the membership of an action.
 type Authority struct {
-	priv PrivateConfig
+	cfg PrivateConfig
 }
 
-// PrivateConfig is the private configuration for the authority.
-// It contains the memberships of the actions.
-type PrivateConfig struct {
-	memberships map[string]Membership // action -> []Membership
-}
-
-func (p *PrivateConfig) MembersFor(action string) Membership {
-	return p.memberships[action]
-}
-
-func (p *PrivateConfig) Set(action string, membership Membership) {
-	p.memberships[action] = membership
-}
+const Admin = "_admin_"
 
 // Can checks if the given address is authorized to perform the action.
 func (a *Authority) Can(addr std.Address, action string) bool {
-	return a.priv.MemberFor(action).Has(addr)
+	return a.cfg.MembershipFor(action).Has(addr)
 }
 
 // CanByCurrent checks if the current realm is authorized to perform an action.
@@ -67,9 +58,16 @@ func (a *Authority) CanByPrevious(action string) bool {
 //
 // Example: authz.AssertCan(auth, caller, "vote")
 func (a *Authority) AssertCan(addr std.Address, action string) {
-	if !a.memberships[action].Has(addr) {
+	if !a.cfg.MembershipFor(action).Has(addr) {
 		panic("unauthorized: " + addr.String() + " cannot " + action)
 	}
+}
+
+// MembershipFor returns a safe Membership for the specified action.
+//
+// Example: teamDevs := teamrlm.Authority.MembershipFor("developers")
+func (a *Authority) MembershipFor(action string) Membership {
+	return &readonlyMembershipFromAuthority{a, action}
 }
 
 // AssertCanByCurrent panics if the current realm is not authorized to perform
@@ -88,4 +86,42 @@ func (a *Authority) AssertCanByCurrent(action string) {
 func (a *Authority) AssertCanByPrevious(action string) {
 	addr := std.PreviousRealm().Address()
 	a.AssertCan(addr, action)
+}
+
+// DoByCurrent implements the Actionable interface which is usually used in
+// asynchronous patterns; allowing to start an ownership with a static
+// memberset, and later switching to a DAO. A.k.a., progressive decentralization.
+func (a *Authority) DoByCurrent(action string, fn func() error) error {
+	a.AssertCanByCurrent(action)
+	return fn()
+}
+
+// DoByPrevious implements the Actionable interface.
+func (a *Authority) DoByPrevious(action string, fn func() error) error {
+	a.AssertCanByPrevious(action)
+	return fn()
+}
+
+// PrivateConfig
+//
+
+// PrivateConfig is the private configuration for the Authority.
+// It should not be exposed.
+type PrivateConfig struct {
+	memberships map[string]Membership // action -> Membership
+}
+
+// Set sets the Membership for the specified action.
+func (p *PrivateConfig) Set(action string, membership Membership) {
+	p.memberships[action] = membership
+}
+
+// Del removes the Membership for the specified action if it exists.
+func (p *PrivateConfig) Del(action string) {
+	delete(p.memberships, action)
+}
+
+// MembershipFor returns the private Membership for the specified action.
+func (p *PrivateConfig) MembershipFor(action string) Membership {
+	return p.memberships[action]
 }

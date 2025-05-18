@@ -37,7 +37,7 @@ type anyoneMembership struct{}
 
 func (m *anyoneMembership) Has(addr std.Address) bool {
 	return true
-}q
+}
 
 // Boolean operations
 //
@@ -71,7 +71,7 @@ type (
 	notMembership struct{ orig Membership }
 )
 
-func (and andMembership) Has(addr std.Address) bool {
+func (and *andMembership) Has(addr std.Address) bool {
 	for _, sub := range and.subs {
 		if !sub.Has(addr) {
 			return false
@@ -80,7 +80,7 @@ func (and andMembership) Has(addr std.Address) bool {
 	return true
 }
 
-func (or orMembership) Has(addr std.Address) bool {
+func (or *orMembership) Has(addr std.Address) bool {
 	for _, sub := range or.subs {
 		if sub.Has(addr) {
 			return true
@@ -89,12 +89,21 @@ func (or orMembership) Has(addr std.Address) bool {
 	return false
 }
 
-func (not notMembership) Has(addr std.Address) bool {
+func (not *notMembership) Has(addr std.Address) bool {
 	return !not.orig.Has(addr)
 }
 
-func (m xorMembership) Has(addr std.Address) bool {
+func (m *xorMembership) Has(addr std.Address) bool {
 	a := m.a.Has(addr)
 	b := m.b.Has(addr)
 	return a != b
+}
+
+type readonlyMembershipFromAuthority struct {
+	auth   *Authority
+	action string
+}
+
+func (romw *readonlyMembershipFromAuthority) Has(addr std.Address) bool {
+	return romw.auth.Can(addr, romw.action)
 }

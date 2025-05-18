@@ -132,6 +132,23 @@ func ExampleAuthority_composition() {
 	Auth.AssertCan("g1user2", "bar")
 }
 
+func ExampleActionable_dao() {
+	// XXX: improve usage
+	auth, priv := authz.New()
+	priv.Add("propose", "g1user1", "g1user2")
+	priv.Add("execute", std.DerivePkgAddress("gno.land/r/dao/executor"))
+
+	contractBasedActioner := NewContractActionable(
+		auth.MembershipFor("propose"),
+		auth.MembershipFor("execute"),
+	)
+
+	contractBasedActioner.ProposeByPrevious("do_this", func() error {
+		println("execute")
+		return nil
+	})
+}
+
 // mocks
 type govdao struct{} // replaces "import gno.land/r/gov/dao"
 
