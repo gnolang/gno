@@ -96,6 +96,9 @@ func TestWebHandler_Get(t *testing.T) {
 		// Invalid path
 		{Path: "/r", Status: http.StatusBadRequest, Contain: "invalid path"},
 		{Path: "/r/~!1337", Status: http.StatusNotFound, Contain: "invalid path"},
+		// Well-known paths
+		{Path: "/.well-known/appspecific/test", Status: http.StatusNotFound},
+		{Path: "/.well-known/appspecific/", Status: http.StatusNotFound},
 	}
 
 	for _, tc := range cases {
@@ -236,4 +239,31 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWebHandler_DirectoryViewExplorerMode(t *testing.T) {
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/explorer",
+		Files: map[string]string{
+			"file1.gno": `package main; func main() {}`,
+			"file2.gno": `package main; func main() {}`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "/r/mock/explorer/", nil)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Directory")
+	assert.Contains(t, rr.Body.String(), "file1.gno")
+	assert.Contains(t, rr.Body.String(), "file2.gno")
 }
