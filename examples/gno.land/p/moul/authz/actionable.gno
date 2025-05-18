@@ -2,6 +2,7 @@ package authz
 
 import "errors"
 
+
 // TODO: add a sync/async example with Do(action, callback) -- consider another
 // package.
 

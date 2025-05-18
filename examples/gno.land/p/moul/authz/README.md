@@ -1,0 +1,27 @@
+# p/moul/authz
+
+TODO:
+- transferable from static to dao-managed
+- easy to plug
+- easy to extend
+- english-first usage
+
+```go
+// p/authz
+
+// p/dao
+
+// r/moul/config
+var MyKeys authz.Membership = addrset.NewSet("g1manfred", "g1backup").Safe()
+// XXX: how to manage MyKeys -> safe object
+// r/team/dao
+
+// r/team/config
+
+// r/sys/team
+func func Has(handle string, addr std.Address)
+
+
+
+
+```
