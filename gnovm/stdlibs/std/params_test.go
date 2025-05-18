@@ -1,7 +1,7 @@
 package std
 
 import (
-	"testing"
+	testing "testing/base"
 )
 
 // XXX move elsewhere in the gno.land/ dir.

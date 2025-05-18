@@ -2,7 +2,7 @@ package std
 
 import (
 	"encoding/json"
-	"testing"
+	testing "testing/base"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
