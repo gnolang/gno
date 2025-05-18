@@ -1,6 +1,7 @@
 package gnoweb_test
 
 import (
+	"bytes"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -306,4 +309,94 @@ func TestWebHandler_GetRealmView_QueryError(t *testing.T) {
 	// Assert result
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 	assert.Contains(t, rr.Body.String(), "not found")
+}
+
+func TestWebHandler_GetSourceView(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+		Files: map[string]string{
+			"test.gno": "package main",
+		},
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Test successful source view
+	gnourl := &weburl.GnoURL{
+		Path:     "/r/test/pkg",
+		WebQuery: map[string][]string{"file": {"test.gno"}},
+	}
+	status, view := handler.GetSourceView(gnourl)
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, view)
+
+	// Test file not found
+	gnourl = &weburl.GnoURL{
+		Path:     "/r/test/pkg",
+		WebQuery: map[string][]string{"file": {"nonexistent.gno"}},
+	}
+	status, view = handler.GetSourceView(gnourl)
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.NotNil(t, view)
+
+	// Test no files available
+	mockPackage.Files = map[string]string{}
+	status, view = handler.GetSourceView(gnourl)
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, view)
+
+	// Render the view to check its content
+	var buf bytes.Buffer
+	err = view.Render(&buf)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "no files available")
+}
+
+func TestWebHandler_GetDirectoryView(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+		Files: map[string]string{
+			"test.gno": "package main",
+		},
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	indexData := &components.IndexData{
+		HeadData: components.HeadData{
+			Title: "Test Title",
+		},
+	}
+
+	// Test successful directory view
+	gnourl := &weburl.GnoURL{
+		Path: "/r/test/pkg/",
+	}
+	status, view := handler.GetDirectoryView(gnourl, indexData)
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, view)
+
+	// Test no files available
+	mockPackage.Files = map[string]string{}
+	status, view = handler.GetDirectoryView(gnourl, indexData)
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, view)
+
+	// Render the view to check its content
+	var buf bytes.Buffer
+	err = view.Render(&buf)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "no files available")
 }

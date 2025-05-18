@@ -2,6 +2,7 @@ package components
 
 import (
 	"io"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -65,4 +66,66 @@ func TestEnrichHeaderData(t *testing.T) {
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
 	assert.NotEmpty(t, enrichedData.Links.Dev, "expected dev links to be populated")
+}
+
+func TestIsActive(t *testing.T) {
+	cases := []struct {
+		name     string
+		query    url.Values
+		label    string
+		expected bool
+	}{
+		{
+			name:     "Content active when no source or help",
+			query:    url.Values{},
+			label:    "Content",
+			expected: true,
+		},
+		{
+			name: "Content inactive when source present",
+			query: url.Values{
+				"source": []string{""},
+			},
+			label:    "Content",
+			expected: false,
+		},
+		{
+			name: "Content inactive when help present",
+			query: url.Values{
+				"help": []string{""},
+			},
+			label:    "Content",
+			expected: false,
+		},
+		{
+			name: "Source active when source present",
+			query: url.Values{
+				"source": []string{""},
+			},
+			label:    "Source",
+			expected: true,
+		},
+		{
+			name: "Actions active when help present",
+			query: url.Values{
+				"help": []string{""},
+			},
+			label:    "Actions",
+			expected: true,
+		},
+		{
+			name:     "Unknown label returns false",
+			query:    url.Values{},
+			label:    "Unknown",
+			expected: false,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result := isActive(tc.query, tc.label)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }

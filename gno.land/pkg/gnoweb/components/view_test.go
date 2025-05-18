@@ -217,3 +217,85 @@ func TestDirectoryView(t *testing.T) {
 
 	assert.NoError(t, view.Render(io.Discard))
 }
+
+func TestDirLinkType_LinkPrefix(t *testing.T) {
+	cases := []struct {
+		name     string
+		linkType DirLinkType
+		pkgPath  string
+		expected string
+	}{
+		{
+			name:     "Source link type",
+			linkType: DirLinkTypeSource,
+			pkgPath:  "/r/test/pkg",
+			expected: "/r/test/pkg$source&file=",
+		},
+		{
+			name:     "File link type",
+			linkType: DirLinkTypeFile,
+			pkgPath:  "/r/test/pkg",
+			expected: "https://",
+		},
+		{
+			name:     "Invalid link type",
+			linkType: DirLinkType(999),
+			pkgPath:  "/r/test/pkg",
+			expected: "",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.linkType.LinkPrefix(tc.pkgPath)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestFilesLinks_GetFullLinks(t *testing.T) {
+	cases := []struct {
+		name     string
+		files    []string
+		linkType DirLinkType
+		pkgPath  string
+		expected FilesLinks
+	}{
+		{
+			name:     "Source link type with multiple files",
+			files:    []string{"file1.gno", "file2.gno"},
+			linkType: DirLinkTypeSource,
+			pkgPath:  "/r/test/pkg",
+			expected: FilesLinks{
+				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno"},
+				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno"},
+			},
+		},
+		{
+			name:     "File link type with multiple files",
+			files:    []string{"file1.gno", "file2.gno"},
+			linkType: DirLinkTypeFile,
+			pkgPath:  "/r/test/pkg",
+			expected: FilesLinks{
+				{Link: "https://file1.gno", Name: "file1.gno"},
+				{Link: "https://file2.gno", Name: "file2.gno"},
+			},
+		},
+		{
+			name:     "Empty files list",
+			files:    []string{},
+			linkType: DirLinkTypeSource,
+			pkgPath:  "/r/test/pkg",
+			expected: FilesLinks{},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result := FilesLinks{}.GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
