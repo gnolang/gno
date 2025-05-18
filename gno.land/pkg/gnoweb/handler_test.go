@@ -400,3 +400,161 @@ func TestWebHandler_GetDirectoryView(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "no files available")
 }
+
+func TestWebHandler_GetRealmView_WithRenderError(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { panic("test error") }`,
+		},
+		Functions: []*doc.JSONFunc{
+			{
+				Name:    "Render",
+				Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+				Results: []*doc.JSONField{{Name: "", Type: "string"}},
+			},
+		},
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	gnourl := &weburl.GnoURL{Path: "/r/test/pkg"}
+	status, view := handler.GetRealmView(gnourl, &components.IndexData{})
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, view)
+
+	// Render the view to check its content
+	var buf bytes.Buffer
+	err = view.Render(&buf)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "[test.gno.land]/r/test/pkg:")
+}
+
+func TestWebHandler_GetRealmView_WithInvalidPath(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Test with invalid path
+	gnourl := &weburl.GnoURL{Path: "/invalid/path"}
+	status, view := handler.GetRealmView(gnourl, &components.IndexData{})
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.NotNil(t, view)
+}
+
+func TestWebHandler_GetSourceView_WithInvalidPath(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Test with invalid path
+	gnourl := &weburl.GnoURL{Path: "/invalid/path"}
+	status, view := handler.GetSourceView(gnourl)
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.NotNil(t, view)
+}
+
+func TestWebHandler_GetDirectoryView_WithInvalidPath(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Test with invalid path
+	gnourl := &weburl.GnoURL{Path: "/invalid/path"}
+	status, view := handler.GetDirectoryView(gnourl, &components.IndexData{})
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.NotNil(t, view)
+}
+
+func TestWebHandler_GetSourceDownload_WithInvalidPath(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Test with invalid path
+	gnourl := &weburl.GnoURL{Path: "/invalid/path"}
+	rr := httptest.NewRecorder()
+	handler.GetSourceDownload(gnourl, rr, nil)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestWebHandler_GetSourceDownload_WithNoFile(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Test with no file specified
+	gnourl := &weburl.GnoURL{Path: "/r/test/pkg"}
+	rr := httptest.NewRecorder()
+	handler.GetSourceDownload(gnourl, rr, nil)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestWebHandler_GetSourceDownload_WithFileNotFound(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "test.gno.land",
+		Path:   "/r/test/pkg",
+	}
+
+	config := newTestHandlerConfig(t, mockPackage)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewWebHandler(logger, config)
+	require.NoError(t, err)
+
+	// Test with file not found
+	gnourl := &weburl.GnoURL{
+		Path:     "/r/test/pkg",
+		WebQuery: map[string][]string{"file": {"nonexistent.gno"}},
+	}
+	rr := httptest.NewRecorder()
+	handler.GetSourceDownload(gnourl, rr, nil)
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}

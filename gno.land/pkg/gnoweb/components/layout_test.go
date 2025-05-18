@@ -129,3 +129,50 @@ func TestIsActive(t *testing.T) {
 		})
 	}
 }
+
+func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/r/test/pkg",
+	}
+
+	// Test realm mode (default case)
+	links := StaticHeaderDevLinks(u, HeaderModeTemplateRealm)
+	assert.Len(t, links, 3)
+	assert.Equal(t, "Content", links[0].Label)
+	assert.Equal(t, "Source", links[1].Label)
+	assert.Equal(t, "Actions", links[2].Label)
+}
+
+func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
+	t.Parallel()
+
+	data := HeaderData{
+		RealmURL: weburl.GnoURL{
+			Path: "/r/test/pkg",
+		},
+	}
+
+	// Test realm mode
+	enriched := EnrichHeaderData(data, HeaderModeTemplateRealm)
+	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
+	assert.Empty(t, enriched.Links.General)
+	assert.Len(t, enriched.Links.Dev, 3)
+}
+
+func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
+	t.Parallel()
+
+	data := HeaderData{
+		RealmURL: weburl.GnoURL{
+			Path: "/r/test/pkg",
+		},
+	}
+
+	// Test explorer mode
+	enriched := EnrichHeaderData(data, HeaderModeTemplateExplorer)
+	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
+	assert.Empty(t, enriched.Links.General)
+	assert.Empty(t, enriched.Links.Dev)
+}
