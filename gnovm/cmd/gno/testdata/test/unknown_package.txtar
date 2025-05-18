@@ -3,8 +3,8 @@
 ! gno test -v .
 
 ! stdout .+
-# XXX catch and convert to lintImportError
-stderr 'contract.gno:3:8: could not import foobarbaz \(import not found: foobarbaz\) \(code=lintUnknownError\)'
+# XXX catch and convert to gnoImportError
+stderr 'contract.gno:3:8: could not import foobarbaz \(import not found: foobarbaz\) \(code=gnoUnknownError\)'
 
 -- contract.gno --
 package contract

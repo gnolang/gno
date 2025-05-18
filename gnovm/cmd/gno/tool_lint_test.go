@@ -13,32 +13,32 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/run_main/", "-auto-gnomod=false"},
-			stderrShouldContain: "../../tests/integ/run_main/gno.mod: could not read gno.mod file: stat ../../tests/integ/run_main/gno.mod: no such file or directory (code=lintGnoModError)",
+			stderrShouldContain: "../../tests/integ/run_main/gno.mod: could not read gno.mod file: stat ../../tests/integ/run_main/gno.mod: no such file or directory (code=gnoGnoModError)",
 			errShouldBe:         "exit code: 1",
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
-			stderrShouldContain: "../../tests/integ/undefined_variable_test/undefined_variables_test.gno:6:28: undefined: toto (code=lintTypeCheckError)",
+			stderrShouldContain: "../../tests/integ/undefined_variable_test/undefined_variables_test.gno:6:28: undefined: toto (code=gnoTypeCheckError)",
 			errShouldBe:         "exit code: 1",
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/package_not_declared/main.gno"},
-			stderrShouldContain: "../../tests/integ/package_not_declared/main.gno:4:2: undefined: fmt (code=lintTypeCheckError)",
+			stderrShouldContain: "../../tests/integ/package_not_declared/main.gno:4:2: undefined: fmt (code=gnoTypeCheckError)",
 			errShouldBe:         "exit code: 1",
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/several-lint-errors/main.gno"},
-			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5:5: expected ';', found example (code=lintParserError)\n../../tests/integ/several-lint-errors/main.gno:6",
+			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5:5: expected ';', found example (code=gnoParserError)\n../../tests/integ/several-lint-errors/main.gno:6",
 			errShouldBe:         "exit code: 1",
 		},
 		{
 			args: []string{"lint", "../../tests/integ/several-files-multiple-errors/main.gno"},
 			stderrShouldContain: func() string {
 				lines := []string{
-					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=lintParserError)",
-					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=lintParserError)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=lintParserError)",
-					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=lintParserError)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:3:5: expected 'IDENT', found '{' (code=gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/file2.gno:5:1: expected type, found '}' (code=gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:5:5: expected ';', found example (code=gnoParserError)",
+					"../../tests/integ/several-files-multiple-errors/main.gno:6:2: expected '}', found 'EOF' (code=gnoParserError)",
 				}
 				return strings.Join(lines, "\n") + "\n"
 			}(),
@@ -54,12 +54,12 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/invalid_gno_file/"},
-			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=lintReadError)",
+			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1:1: expected 'package', found packag (code=gnoReadError)",
 			errShouldBe:         "exit code: 1",
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/typecheck_missing_return/"},
-			stderrShouldContain: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=lintTypeCheckError)",
+			stderrShouldContain: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=gnoTypeCheckError)",
 			errShouldBe:         "exit code: 1",
 		},
 		{
