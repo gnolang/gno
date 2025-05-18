@@ -1,8 +1,12 @@
 # Gnolend
 
-Gnolend is a lending protocol built on Gno.land that leverages Gnoswap's liquidity pools for price feeds and collateral management. It provides a decentralized lending market where users can participate in lending and borrowing activities with any token pair that has sufficient liquidity in Gnoswap.
+GnoLend is the first lending protocol built using Gnolang, implementing financial primitives for decentralized lending and borrowing. The protocol features lending markets with configurable parameters, variable interest rate models, collateralized borrowing with health monitoring, and liquidation mechanisms for undercollateralized positions. It employs a shares-based accounting system to track user positions, calculates interest based on utilization metrics, and maintains system solvency through real-time risk assessment.
 
-> **Warning:** This is a work in progress. The protocol is under active development and contains incomplete features and known issues.
+For price determination, GnoLend integrates with [Gnoswap](https://github.com/gnoswap-labs/gnoswap)'s liquidity pools, using them as price oracles in the absence of dedicated oracle infrastructure. This approach enables the protocol to obtain reliable price data directly from on-chain sources without requiring external oracle networks, demonstrating how essential financial primitives can be implemented within the current gno.land ecosystem.
+
+The system calculates borrowing capacity based on collateral values derived from Gnoswap pool prices. This integration creates a self-contained lending solution that maintains the security guarantees of the underlying blockchain while providing the necessary infrastructure for expanding DeFi capabilities on gno.land.
+
+> **Warning:** This project is work in progress. The protocol is under active development and contains incomplete features and known issues.
 
 ## Prerequisites
 
@@ -17,7 +21,6 @@ Gnolend is a lending protocol built on Gno.land that leverages Gnoswap's liquidi
 2. Add Gnolend realms to your gno repository:
 
    ```bash
-   # Copy Gnolend realms to examples/r/gnolend
    cp -r gnolend/* $WORKDIR/gno.land/examples/r/gnolend/
    ```
 
