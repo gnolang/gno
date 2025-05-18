@@ -61,7 +61,7 @@ func TestEnrichHeaderData(t *testing.T) {
 		},
 	}
 
-	enrichedData := EnrichHeaderData(data, HeaderModeTemplateExplorer)
+	enrichedData := EnrichHeaderData(data, HeaderModeTemplateHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
 	assert.NotEmpty(t, enrichedData.Links.Dev, "expected dev links to be populated")
