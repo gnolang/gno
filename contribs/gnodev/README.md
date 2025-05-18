@@ -97,7 +97,6 @@ FLAGS
   -chain-id dev                                         set node ChainID
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  default key name or Bech32 address for deploying packages
   -genesis ...                                          load the given genesis file
-  -home /Users/moul/Library/Application Support/gno     user's local directory for keys
   -interactive=false                                    enable gnodev interactive mode
   -lazy-loader=true                                     enable lazy loader
   -log-format console                                   log output format, can be `json` or `console`
@@ -108,7 +107,6 @@ FLAGS
   -node-rpc-listener 127.0.0.1:26657                    listening address for GnoLand RPC node
   -paths ...                                            additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
   -resolver ...                                         list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
-  -root /Users/moul/go/src/github.com/gnolang/gno       gno root directory
   -txs-file ...                                         load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true                                      enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false                                              enable verbose output for development
@@ -142,7 +140,6 @@ FLAGS
   -chain-id dev                                         set node ChainID
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  default key name or Bech32 address for deploying packages
   -genesis ...                                          load the given genesis file
-  -home /Users/moul/Library/Application Support/gno     user's local directory for keys
   -interactive=false                                    enable gnodev interactive mode
   -lazy-loader=false                                    enable lazy loader
   -log-format json                                      log output format, can be `json` or `console`
@@ -153,7 +150,6 @@ FLAGS
   -node-rpc-listener 127.0.0.1:26657                    listening address for GnoLand RPC node
   -paths gno.land/**                                    additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
   -resolver ...                                         list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
-  -root /Users/moul/go/src/github.com/gnolang/gno       gno root directory
   -txs-file ...                                         load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false                                     enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false                                              enable verbose output for development
