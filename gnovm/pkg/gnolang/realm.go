@@ -1404,7 +1404,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
+			cv.vmap[cur.Key.ComputeMapKey(store, false, cv)] = cur
 		}
 		return cv
 	case TypeValue:
