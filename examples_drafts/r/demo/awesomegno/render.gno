@@ -225,7 +225,7 @@ func renderSingleCategory(id string) string {
 	if len(itemsList) > 0 {
 		out += md.BulletList(itemsList)
 	} else {
-		out += md.Italic("No items in this category yet")
+		out += md.Italic("No items in this category yet.")
 		out += "\n"
 	}
 
