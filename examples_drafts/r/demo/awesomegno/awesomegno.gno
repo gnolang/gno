@@ -67,9 +67,9 @@ func AddItem(title, description, url, authorAddress string) {
 		panic("item title cannot be empty")
 	}
 
-	addr := std.Address(authorAddress)
+	author := std.Address(authorAddress)
 	if err := Auth.DoByPrevious("add_item", func() error {
-		addItem(title, description, url, addr)
+		addItem(title, description, url, author)
 		return nil
 	}); err != nil {
 		panic(err)
