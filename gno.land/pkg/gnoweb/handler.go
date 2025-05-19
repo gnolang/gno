@@ -112,12 +112,6 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	// Ignore Chrome DevTools requests
-	if strings.HasPrefix(r.URL.Path, "/.well-known/appspecific/") {
-		http.NotFound(w, r)
-		return
-	}
-
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,

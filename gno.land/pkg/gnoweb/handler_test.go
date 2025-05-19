@@ -96,9 +96,6 @@ func TestWebHandler_Get(t *testing.T) {
 		// Invalid path
 		{Path: "/r", Status: http.StatusBadRequest, Contain: "invalid path"},
 		{Path: "/r/~!1337", Status: http.StatusNotFound, Contain: "invalid path"},
-		// Well-known paths
-		{Path: "/.well-known/appspecific/test", Status: http.StatusNotFound},
-		{Path: "/.well-known/appspecific/", Status: http.StatusNotFound},
 	}
 
 	for _, tc := range cases {
