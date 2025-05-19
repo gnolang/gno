@@ -1,6 +1,9 @@
 package gnoweb_test
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -21,6 +25,15 @@ type testingLogger struct {
 func (t *testingLogger) Write(b []byte) (n int, err error) {
 	t.T.Log(strings.TrimSpace(string(b)))
 	return len(b), nil
+}
+
+// pureClient is a WebClient stub that always returns exactly one source file.
+type pureClient struct {
+	stubDirectoryClient
+}
+
+func (c *pureClient) Sources(path string) ([]string, error) {
+	return []string{"only.gno"}, nil
 }
 
 func newTestHandlerConfig(t *testing.T, mockPackage *gnoweb.MockPackage) *gnoweb.WebHandlerConfig {
@@ -38,6 +51,16 @@ func newTestHandlerConfig(t *testing.T, mockPackage *gnoweb.MockPackage) *gnoweb
 		MarkdownRenderer: markdownRenderer,
 		Aliases:          map[string]gnoweb.AliasTarget{},
 	}
+}
+
+// renderFailClient simulates a client that always fails on RenderRealm
+// but provides valid paths via QueryPaths.
+type renderFailClient struct {
+	stubDirectoryClient
+}
+
+func (c *renderFailClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
+	return nil, errors.New("render failed")
 }
 
 // TestWebHandler_Get tests the Get method of WebHandler using table-driven tests.
@@ -265,40 +288,106 @@ func TestWebHandler_DirectoryViewExplorerMode(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "file2.gno")
 }
 
-// --- ajouter EN DESSOUS de TestWebHandler_DirectoryViewExplorerMode ---
+// stubDirectoryClient simulates a client that fails on Sources and, depending on the test,
+// returns either paths or an error on QueryPaths.
+type stubDirectoryClient struct {
+	sourcesErr    error
+	queryPaths    []string
+	queryPathsErr error
+}
 
-// // TestWebHandlerConfigValidate vérifie que validate() détecte les champs manquants.
-// func TestWebHandlerConfigValidate(t *testing.T) {
-// 	t.Parallel()
+func (c *stubDirectoryClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
+	return &gnoweb.RealmMeta{}, nil
+}
+func (c *stubDirectoryClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*gnoweb.FileMeta, error) {
+	return &gnoweb.FileMeta{}, nil
+}
+func (c *stubDirectoryClient) Doc(path string) (*doc.JSONDocumentation, error) {
+	return &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{}}, nil
+}
+func (c *stubDirectoryClient) Sources(path string) ([]string, error) {
+	return nil, c.sourcesErr
+}
+func (c *stubDirectoryClient) QueryPaths(prefix string, limit int) ([]string, error) {
+	return c.queryPaths, c.queryPathsErr
+}
 
-// 	// base config valide
-// 	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ex", Files: map[string]string{}}
-// 	base := newTestHandlerConfig(t, dummy)
+// TestWebHandler_DirectoryViewExplorerFallback covers the "explorer" path:
+func TestWebHandler_DirectoryViewExplorerFallback(t *testing.T) {
+	t.Parallel()
+	client := &stubDirectoryClient{
+		sourcesErr:    errors.New("fail"),
+		queryPaths:    []string{"a.gno", "b.gno"},
+		queryPathsErr: nil,
+	}
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{Domain: "ex", Path: "/r/x", Files: map[string]string{}})
+	cfg.WebClient = client
+	handler, err := gnoweb.NewWebHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+	require.NoError(t, err)
 
-// 	// WebClient manquant
-// 	cfg := *base
-// 	cfg.WebClient = nil
-// 	err := cfg.validate()
-// 	require.Error(t, err)
-// 	assert.Contains(t, err.Error(), "no `WebClient` configured")
+	req := httptest.NewRequest(http.MethodGet, "/r/x/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
 
-// 	// MarkdownRenderer manquant
-// 	cfg = *base
-// 	cfg.MarkdownRenderer = nil
-// 	err = cfg.validate()
-// 	require.Error(t, err)
-// 	assert.Contains(t, err.Error(), "no `MarkdownRenderer` configured")
+	assert.Equal(t, http.StatusOK, rr.Code)
+	// should contain our fallback files
+	assert.Contains(t, rr.Body.String(), "a.gno")
+	assert.Contains(t, rr.Body.String(), "b.gno")
+	// explorer mode
+	assert.Contains(t, rr.Body.String(), "Directory")
+}
 
-// 	// Aliases manquants
-// 	cfg = *base
-// 	cfg.Aliases = nil
-// 	err = cfg.validate()
-// 	require.Error(t, err)
-// 	assert.Contains(t, err.Error(), "no `Aliases` configured")
-// }
+// TestWebHandler_DirectoryViewPurePackage covers the pure "package" mode without error:
+func TestWebHandler_DirectoryViewPurePackage(t *testing.T) {
+	t.Parallel()
 
-// TestNewWebHandlerInvalidConfig s’assure que NewWebHandler échoue sur config invalide.
-// TestNewWebHandlerInvalidConfig s’assure que NewWebHandler échoue sur config invalide.
+	client := &pureClient{}
+
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+		Domain: "ex",
+		Path:   "/p/pkg",
+		Files:  map[string]string{},
+	})
+	cfg.WebClient = client
+
+	handler, err := gnoweb.NewWebHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/p/pkg/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "only.gno")
+	assert.Contains(t, rr.Body.String(), "/p/pkg/")
+}
+
+// TestWebHandler_DirectoryViewErrorTotal covers the case where neither Sources nor QueryPaths return anything:
+func TestWebHandler_DirectoryViewErrorTotal(t *testing.T) {
+	t.Parallel()
+	client := &stubDirectoryClient{
+		sourcesErr:    errors.New("fail"),
+		queryPaths:    []string{}, // empty
+		queryPathsErr: nil,
+	}
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{Domain: "ex", Path: "/r/y", Files: map[string]string{}})
+	cfg.WebClient = client
+	handler, err := gnoweb.NewWebHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/y/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// GetClientErrorStatusPage by default should return 500
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+// TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
 func TestNewWebHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
@@ -338,7 +427,7 @@ func TestNewWebHandlerInvalidConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Duplique la config valide et muter le champ
+			// Duplicate the valid config and mutate the field
 			cfg := *valid
 			tc.mutate(&cfg)
 
@@ -350,13 +439,13 @@ func TestNewWebHandlerInvalidConfig(t *testing.T) {
 	}
 }
 
-// TestIsHomePath couvre la fonction utilitaire.
+// TestIsHomePath covers the utility function.
 func TestIsHomePath(t *testing.T) {
 	assert.True(t, gnoweb.IsHomePath("/"))
 	assert.False(t, gnoweb.IsHomePath("/foo"))
 }
 
-// TestServeHTTPMethodNotAllowed vérifie le 405 pour les méthodes POST/PUT/etc.
+// TestServeHTTPMethodNotAllowed verifies 405 for POST/PUT/etc methods.
 func TestServeHTTPMethodNotAllowed(t *testing.T) {
 	t.Parallel()
 
@@ -374,59 +463,205 @@ func TestServeHTTPMethodNotAllowed(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "method not allowed")
 }
 
-// TestWebHandler_AliasPath teste le rebouclage d’alias GnowebPath.
-// func TestWebHandler_AliasPath(t *testing.T) {
-// 	t.Parallel()
+// TestWebHandler_GetRealmViewExplorerFallback covers the "explorer" fallback
+// in GetRealmView when RenderRealm returns an error.
+func TestWebHandler_GetRealmViewExplorerFallback(t *testing.T) {
+	t.Parallel()
 
-// 	// mock qui implémente Render
-// 	mockPkg := &gnoweb.MockPackage{
-// 		Domain: "example.com",
-// 		Path:   "/r/mypath",
-// 		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "from-alias" }`},
-// 		Functions: []*doc.JSONFunc{{
-// 			Name:    "Render",
-// 			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
-// 			Results: []*doc.JSONField{{Name: "", Type: "string"}},
-// 		}},
-// 	}
-// 	cfg := newTestHandlerConfig(t, mockPkg)
-// 	// alias "GET /alias" → "/r/mypath"
-// 	cfg.Aliases["/alias"] = gnoweb.AliasTarget{Value: "/r/mypath", Kind: gnoweb.GnowebPath}
+	// stub that fails on RenderRealm, but returns two files via QueryPaths
+	client := &renderFailClient{
+		stubDirectoryClient: stubDirectoryClient{
+			queryPaths:    []string{"x.gno", "y.gno"},
+			queryPathsErr: nil,
+		},
+	}
 
-// 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-// 	handler, err := gnoweb.NewWebHandler(logger, cfg)
-// 	require.NoError(t, err)
+	// we don't need MockPackage here: we just override WebClient
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{Domain: "ex", Path: "/r/fail", Files: map[string]string{}})
+	cfg.WebClient = client
 
-// 	req := httptest.NewRequest(http.MethodGet, "/alias", nil)
-// 	rr := httptest.NewRecorder()
-// 	handler.ServeHTTP(rr, req)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, nil))
+	handler, err := gnoweb.NewWebHandler(logger, cfg)
+	require.NoError(t, err)
 
-// 	assert.Equal(t, http.StatusOK, rr.Code)
-// 	assert.Contains(t, rr.Body.String(), "from-alias")
-// }
+	req := httptest.NewRequest(http.MethodGet, "/r/fail", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
 
-// TestWebHandler_StaticMarkdownAlias couvre l’alias qui renvoie du Markdown statique.
-// func TestWebHandler_StaticMarkdownAlias(t *testing.T) {
-// 	t.Parallel()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	// should contain our fallback files
+	assert.Contains(t, rr.Body.String(), "x.gno")
+	assert.Contains(t, rr.Body.String(), "y.gno")
+	// and be rendered in "explorer" mode (DirectoryView)
+	assert.Contains(t, rr.Body.String(), "Directory")
+}
 
-// 	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ignore", Files: map[string]string{}}
-// 	cfg := newTestHandlerConfig(t, dummy)
+// TestWebHandler_DirectoryViewNoFiles covers the case where Sources returns
+// no error but the list is empty (len(files)==0).
+func TestWebHandler_DirectoryViewNoFiles(t *testing.T) {
+	t.Parallel()
 
-// 	const md = "# Hello\n\nWorld"
-// 	// alias "/md" → contenu markdown statique
-// 	cfg.Aliases["/md"] = gnoweb.AliasTarget{Value: md, Kind: gnoweb.StaticMarkdown}
+	// stub that doesn't error on Sources, but returns an empty slice
+	client := &stubDirectoryClient{
+		sourcesErr:    nil,
+		queryPaths:    []string{"shouldNotBeUsed"},
+		queryPathsErr: nil,
+	}
 
-// 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-// 	handler, err := gnoweb.NewWebHandler(logger, cfg)
-// 	require.NoError(t, err)
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+		Domain: "ex",
+		Path:   "/r/empty",
+		Files:  map[string]string{},
+	})
+	cfg.WebClient = client
 
-// 	req := httptest.NewRequest(http.MethodGet, "/md", nil)
-// 	rr := httptest.NewRecorder()
-// 	handler.ServeHTTP(rr, req)
+	handler, err := gnoweb.NewWebHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
 
-// 	assert.Equal(t, http.StatusOK, rr.Code)
-// 	body := rr.Body.String()
-// 	// Goldmark génère <h1>Hello</h1> puis "World"
-// 	assert.Contains(t, body, "<h1>Hello</h1>")
-// 	assert.Contains(t, body, "World")
-// }
+	req := httptest.NewRequest(http.MethodGet, "/r/empty/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// We expect a 200 with the error component "no files available"
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "no files available")
+}
+
+// TestWebHandler_GetSourceView_Error covers the `if err != nil` branch of GetSourceView.
+func TestWebHandler_GetSourceView_Error(t *testing.T) {
+	t.Parallel()
+
+	// stubDirectoryClient implements Sources with an error
+	client := &stubDirectoryClient{
+		sourcesErr:    errors.New("fail listing sources"),
+		queryPaths:    nil,
+		queryPathsErr: nil,
+	}
+
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+		Domain: "ex",
+		Path:   "/r/errsrc",
+		Files:  map[string]string{},
+	})
+	cfg.WebClient = client
+
+	handler, err := gnoweb.NewWebHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	// We use the URL that triggers GetSourceView
+	req := httptest.NewRequest(http.MethodGet, "/r/errsrc$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Should be 500 + internal error
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+// TestWebHandler_GetSourceView_NoFiles covers the `if len(files)==0` of GetSourceView.
+func TestWebHandler_GetSourceView_NoFiles(t *testing.T) {
+	t.Parallel()
+
+	// stubDirectoryClient implements Sources without error but returns nil slice
+	client := &stubDirectoryClient{
+		sourcesErr:    nil,
+		queryPaths:    nil,
+		queryPathsErr: nil,
+	}
+
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+		Domain: "ex",
+		Path:   "/r/emptysrc",
+		Files:  map[string]string{},
+	})
+	cfg.WebClient = client
+
+	handler, err := gnoweb.NewWebHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/emptysrc$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Should be 200 + "no files available"
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "no files available")
+}
+
+func TestGetClientErrorStatusPage(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantView bool
+		wantMsg  string
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			wantCode: http.StatusOK,
+			wantView: false,
+		},
+		{
+			name:     "path not found",
+			err:      gnoweb.ErrClientPathNotFound,
+			wantCode: http.StatusNotFound,
+			wantView: true,
+			wantMsg:  gnoweb.ErrClientPathNotFound.Error(),
+		},
+		{
+			name:     "bad request",
+			err:      gnoweb.ErrClientBadRequest,
+			wantCode: http.StatusInternalServerError,
+			wantView: true,
+			wantMsg:  "bad request",
+		},
+		{
+			name:     "response error",
+			err:      gnoweb.ErrClientResponse,
+			wantCode: http.StatusInternalServerError,
+			wantView: true,
+			wantMsg:  "internal error",
+		},
+		{
+			name:     "other error",
+			err:      errors.New("foo"),
+			wantCode: http.StatusInternalServerError,
+			wantView: true,
+			wantMsg:  "internal error",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			code, view := gnoweb.GetClientErrorStatusPage(nil, tc.err)
+			assert.Equal(t, tc.wantCode, code)
+
+			if !tc.wantView {
+				assert.Nil(t, view)
+				return
+			}
+			require.NotNil(t, view)
+
+			// Render the component and check its output contains the expected message
+			var buf bytes.Buffer
+			err := view.Render(&buf)
+			require.NoError(t, err)
+			assert.Contains(t, buf.String(), tc.wantMsg)
+		})
+	}
+}
