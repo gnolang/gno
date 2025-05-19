@@ -158,7 +158,7 @@ func renderSingleItem(id string) string {
 			}
 			return strings.Join(itemAuthors, ", ")
 		}()),
-		ufmt.Sprintf("Created: %s", item.CreatedAt.Format("2006-01-02")),
+		ufmt.Sprintf("Created: %s", item.CreatedAt.Format("02 Jan 2006")),
 		ufmt.Sprintf("URL: %s", md.Link("Visit Item", item.URL)),
 	}
 	out += md.BulletList(metadata)
