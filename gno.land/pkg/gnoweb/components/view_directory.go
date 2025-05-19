@@ -18,7 +18,7 @@ const (
 	DirLinkTypeFile
 )
 
-// not just a prefix, in DirLinkTypeSource case, it nedds to wraP THE LINK SUCH AS {{ $pkgpath }}$source&file={{ . }}
+// Get the prefixed link depending on link type - Package Source Code or Package File
 func (d DirLinkType) LinkPrefix(pkgPath string) string {
 	switch d {
 	case DirLinkTypeSource:
