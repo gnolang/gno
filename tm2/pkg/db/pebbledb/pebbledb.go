@@ -1,8 +1,10 @@
 package pebbledb
 
 import (
+	"bytes"
 	goerrors "errors"
 	"path/filepath"
+	"slices"
 
 	"github.com/cockroachdb/pebble"
 
@@ -164,119 +166,140 @@ func (db *PebbleDB) Iterator(start, end []byte) db.Iterator {
 		panic(err)
 	}
 
-	return &pebbleIter{
-		pebbleBaseIter: pebbleBaseIter{
-			i:     it,
-			start: start,
-			end:   end,
-		},
-	}
+	return newPebbleDBIterator(it, start, end, false)
 }
 
 // Implements DB.
 func (db *PebbleDB) ReverseIterator(start, end []byte) db.Iterator {
-	it, err := db.db.NewIter(&pebble.IterOptions{
-		LowerBound: start,
-		UpperBound: end,
-	})
+	it, err := db.db.NewIter(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	return &pebbleReverseIter{
-		pebbleBaseIter: pebbleBaseIter{
-			i:     it,
-			start: start,
-			end:   end,
-		},
+	return newPebbleDBIterator(it, start, end, true)
+}
+
+type pebbleDBIterator struct {
+	source    *pebble.Iterator
+	start     []byte
+	end       []byte
+	isReverse bool
+	isInvalid bool
+}
+
+var _ db.Iterator = (*pebbleDBIterator)(nil)
+
+func newPebbleDBIterator(source *pebble.Iterator, start, end []byte, isReverse bool) *pebbleDBIterator {
+	if isReverse {
+		if end == nil {
+			source.Last()
+		} else {
+			valid := source.SeekGE(end)
+			if valid {
+				eoakey := source.Key() // end or after key
+				if bytes.Compare(end, eoakey) <= 0 {
+					source.Prev()
+				}
+			} else {
+				source.Last()
+			}
+		}
+	} else {
+		if start == nil {
+			source.First()
+		} else {
+			source.SeekGE(start)
+		}
+	}
+	return &pebbleDBIterator{
+		source:    source,
+		start:     start,
+		end:       end,
+		isReverse: isReverse,
+		isInvalid: false,
 	}
 }
 
-type pebbleBaseIter struct {
-	i *pebble.Iterator
-
-	init bool
-
-	start, end []byte
+// Implements Iterator.
+func (itr *pebbleDBIterator) Domain() ([]byte, []byte) {
+	return itr.start, itr.end
 }
 
-func (pi *pebbleBaseIter) Domain() (start []byte, end []byte) {
-	return pi.start, pi.end
+// Implements Iterator.
+func (itr *pebbleDBIterator) Valid() bool {
+	// Once invalid, forever invalid.
+	if itr.isInvalid {
+		return false
+	}
+
+	// Panic on DB error.  No way to recover.
+	itr.assertNoError()
+
+	// If source is invalid, invalid.
+	if !itr.source.Valid() {
+		itr.isInvalid = true
+		return false
+	}
+
+	// If key is end or past it, invalid.
+	start := itr.start
+	end := itr.end
+	key := itr.source.Key()
+
+	if itr.isReverse {
+		if start != nil && bytes.Compare(key, start) < 0 {
+			itr.isInvalid = true
+			return false
+		}
+	} else {
+		if end != nil && bytes.Compare(end, key) <= 0 {
+			itr.isInvalid = true
+			return false
+		}
+	}
+
+	// Valid
+	return true
 }
 
-// TODO no error handling on the Iterator interface
-// func (pi *pebbleBaseIter) Error() error {
-// 	return pi.i.Error()
-// }
-
-func (pi *pebbleBaseIter) Value() []byte {
-	pi.assertNoError()
-	pi.assertIsValid()
-
-	return pi.i.Value()
+// Implements Iterator.
+func (itr *pebbleDBIterator) Key() []byte {
+	itr.assertNoError()
+	itr.assertIsValid()
+	return slices.Clone(itr.source.Key())
 }
 
-func (pi *pebbleBaseIter) Key() []byte {
-	pi.assertNoError()
-	pi.assertIsValid()
-
-	return pi.i.Key()
+// Implements Iterator.
+func (itr *pebbleDBIterator) Value() []byte {
+	itr.assertNoError()
+	itr.assertIsValid()
+	return slices.Clone(itr.source.Value())
 }
 
-func (pi *pebbleBaseIter) Valid() bool {
-	pi.assertNoError()
-
-	return pi.i.Valid()
+// Implements Iterator.
+func (itr *pebbleDBIterator) Next() {
+	itr.assertNoError()
+	itr.assertIsValid()
+	if itr.isReverse {
+		itr.source.Prev()
+	} else {
+		itr.source.Next()
+	}
 }
 
-func (pi *pebbleBaseIter) assertNoError() {
-	if err := pi.i.Error(); err != nil {
+// Implements Iterator.
+func (itr *pebbleDBIterator) Close() {
+	itr.source.Close()
+}
+
+func (itr *pebbleDBIterator) assertNoError() {
+	if err := itr.source.Error(); err != nil {
 		panic(err)
 	}
 }
 
-func (pi *pebbleBaseIter) assertIsValid() {
-	if !pi.Valid() {
+func (itr pebbleDBIterator) assertIsValid() {
+	if !itr.Valid() {
 		panic("pebbleDBIterator is invalid")
 	}
-}
-
-func (pi *pebbleBaseIter) Close() {
-	// TODO no error handling
-	pi.i.Close()
-}
-
-var _ db.Iterator = &pebbleIter{}
-
-type pebbleIter struct {
-	pebbleBaseIter
-}
-
-func (pi *pebbleIter) Next() {
-	pi.assertNoError()
-	pi.assertIsValid()
-	if !pi.init {
-		pi.init = true
-
-		pi.i.First()
-	}
-
-	pi.i.Next()
-}
-
-var _ db.Iterator = &pebbleReverseIter{}
-
-type pebbleReverseIter struct {
-	pebbleBaseIter
-}
-
-func (pi *pebbleReverseIter) Next() {
-	pi.assertNoError()
-	if !pi.init {
-		pi.init = true
-
-		pi.i.Last()
-	}
-
-	pi.i.Prev()
 }
