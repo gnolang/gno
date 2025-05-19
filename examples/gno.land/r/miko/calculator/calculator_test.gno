@@ -76,7 +76,7 @@ func Test_DivisionDecimal(t *testing.T) {
 
 func Test_BaseParenthesis(t *testing.T) {
 	// Increment the value
-	value := ComputeResult("2*<3p4>")
+	value := ComputeResult("2*(3p4)")
 	// Verify the value is equal to 14
 	if value != "14" {
 		t.Fatalf("2 * (3 + 4) is not equal to 14")
@@ -85,7 +85,7 @@ func Test_BaseParenthesis(t *testing.T) {
 
 func Test_AdvancedParenthesis(t *testing.T) {
 	// Increment the value
-	value := ComputeResult("2*<3p4/<6-2>>")
+	value := ComputeResult("2*(3p4/(6-2))")
 	// Verify the value is equal to 8
 	if value != "8" {
 		t.Fatalf("2 * (3 + 4 / (6 - 2)) is not equal to 8")
