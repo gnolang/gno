@@ -195,13 +195,13 @@ func TestHelpView(t *testing.T) {
 }
 
 func TestDirectoryView(t *testing.T) {
-	data := DirData{
-		PkgPath:     "example/path",
-		Files:       []string{"file1.gno", "file2.gno"},
-		FileCounter: 2,
-	}
+	pkgPath := "example/path"
+	files := []string{"file1.gno", "file2.gno"}
+	fileCounter := 2
+	linkType := DirLinkTypeSource
+	mode := ViewModePackage
 
-	view := DirectoryView(data)
+	view := DirectoryView(pkgPath, files, fileCounter, linkType, mode)
 
 	assert.NotNil(t, view, "expected view to be non-nil")
 
@@ -211,9 +211,10 @@ func TestDirectoryView(t *testing.T) {
 	dirData, ok := templateComponent.data.(DirData)
 	assert.True(t, ok, "expected DirData type in component data")
 
-	assert.Equal(t, data.PkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", data.PkgPath, dirData.PkgPath)
-	assert.Equal(t, len(data.Files), len(dirData.Files), "expected %d files, got %d", len(data.Files), len(dirData.Files))
-	assert.Equal(t, data.FileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", data.FileCounter, dirData.FileCounter)
+	assert.Equal(t, pkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", pkgPath, dirData.PkgPath)
+	assert.Equal(t, len(files), len(dirData.Files), "expected %d files, got %d", len(files), len(dirData.Files))
+	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
+	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
 
 	assert.NoError(t, view.Render(io.Discard))
 }
@@ -254,7 +255,7 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 	}
 }
 
-func TestFilesLinks_GetFullLinks(t *testing.T) {
+func TestGetFullLinks(t *testing.T) {
 	cases := []struct {
 		name     string
 		files    []string
@@ -294,7 +295,7 @@ func TestFilesLinks_GetFullLinks(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			result := FilesLinks{}.GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
+			result := GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

@@ -1,7 +1,6 @@
 package components
 
 import (
-	"io"
 	"net/url"
 	"strings"
 	"testing"
@@ -11,29 +10,69 @@ import (
 )
 
 func TestIndexLayout(t *testing.T) {
-	data := IndexData{
-		HeadData: HeadData{
-			Title: "Test Title",
+	tests := []struct {
+		name       string
+		mode       ViewMode
+		viewType   ViewType
+		wantLayout string
+	}{
+		{
+			name:       "Home mode should use sidebar layout",
+			mode:       ViewModeHome,
+			viewType:   "test-view",
+			wantLayout: SidebarLayout,
 		},
-		BodyView: &View{
-			Type:      "test-view",
-			Component: NewReaderComponent(strings.NewReader("testdata")),
+		{
+			name:       "Realm mode should use sidebar layout",
+			mode:       ViewModeRealm,
+			viewType:   "test-view",
+			wantLayout: SidebarLayout,
+		},
+		{
+			name:       "Package mode should use sidebar layout",
+			mode:       ViewModePackage,
+			viewType:   "test-view",
+			wantLayout: SidebarLayout,
+		},
+		{
+			name:       "Explorer mode should use full layout",
+			mode:       ViewModeExplorer,
+			viewType:   "test-view",
+			wantLayout: FullLayout,
+		},
+		{
+			name:       "Directory view should use full layout regardless of mode",
+			mode:       ViewModePackage,
+			viewType:   DirectoryViewType,
+			wantLayout: FullLayout,
 		},
 	}
 
-	component := IndexLayout(data)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := IndexData{
+				HeadData: HeadData{
+					Title: "Test Title",
+				},
+				Mode: tt.mode,
+				BodyView: &View{
+					Type:      tt.viewType,
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
 
-	assert.NotNil(t, component, "expected component to be non-nil")
+			component := IndexLayout(data)
+			assert.NotNil(t, component, "expected component to be non-nil")
 
-	templateComponent, ok := component.(*TemplateComponent)
-	assert.True(t, ok, "expected TemplateComponent type in component")
+			templateComponent, ok := component.(*TemplateComponent)
+			assert.True(t, ok, "expected TemplateComponent type in component")
 
-	layoutParams, ok := templateComponent.data.(indexLayoutParams)
-	assert.True(t, ok, "expected indexLayoutParams type in component data")
+			layoutParams, ok := templateComponent.data.(indexLayoutParams)
+			assert.True(t, ok, "expected indexLayoutParams type in component data")
 
-	assert.Equal(t, FullLayout, layoutParams.Layout, "expected layout %s, got %s", FullLayout, layoutParams.Layout)
-
-	assert.NoError(t, component.Render(io.Discard))
+			assert.Equal(t, tt.wantLayout, layoutParams.Layout, "expected layout %s, got %s", tt.wantLayout, layoutParams.Layout)
+		})
+	}
 }
 
 func TestEnrichFooterData(t *testing.T) {
@@ -62,10 +101,10 @@ func TestEnrichHeaderData(t *testing.T) {
 		},
 	}
 
-	enrichedData := EnrichHeaderData(data, HeaderModeTemplateHome)
+	enrichedData := EnrichHeaderData(data, ViewModeHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
-	assert.NotEmpty(t, enrichedData.Links.Dev, "expected dev links to be populated")
+	assert.Len(t, enrichedData.Links.Dev, 3, "expected dev links with Actions for home mode")
 }
 
 func TestIsActive(t *testing.T) {
@@ -138,11 +177,37 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode (default case)
-	links := StaticHeaderDevLinks(u, HeaderModeTemplateRealm)
-	assert.Len(t, links, 3)
+	links := StaticHeaderDevLinks(u, ViewModeRealm)
+	assert.Len(t, links, 3, "expected Content, Source, and Actions links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
 	assert.Equal(t, "Actions", links[2].Label)
+}
+
+func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/r/test/pkg",
+	}
+
+	// Test package mode
+	links := StaticHeaderDevLinks(u, ViewModePackage)
+	assert.Len(t, links, 2, "expected Content and Source links only")
+	assert.Equal(t, "Content", links[0].Label)
+	assert.Equal(t, "Source", links[1].Label)
+}
+
+func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/r/test/pkg",
+	}
+
+	// Test explorer mode
+	links := StaticHeaderDevLinks(u, ViewModeExplorer)
+	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
 func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
@@ -155,10 +220,10 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode
-	enriched := EnrichHeaderData(data, HeaderModeTemplateRealm)
+	enriched := EnrichHeaderData(data, ViewModeRealm)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 3)
+	assert.Len(t, enriched.Links.Dev, 3, "expected Content, Source, and Actions links")
 }
 
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
@@ -171,15 +236,15 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 	}
 
 	// Test explorer mode
-	enriched := EnrichHeaderData(data, HeaderModeTemplateExplorer)
+	enriched := EnrichHeaderData(data, ViewModeExplorer)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Empty(t, enriched.Links.Dev)
+	assert.Empty(t, enriched.Links.Dev, "expected no dev links in explorer mode")
 }
 
-func TestHeaderModeTemplatePredicates(t *testing.T) {
+func TestViewModePredicates(t *testing.T) {
 	cases := []struct {
-		mode         HeaderModeTemplate
+		mode         ViewMode
 		name         string
 		wantExplorer bool
 		wantRealm    bool
@@ -187,22 +252,22 @@ func TestHeaderModeTemplatePredicates(t *testing.T) {
 		wantHome     bool
 	}{
 		{
-			mode:         HeaderModeTemplateExplorer,
+			mode:         ViewModeExplorer,
 			name:         "Explorer",
 			wantExplorer: true,
 		},
 		{
-			mode:      HeaderModeTemplateRealm,
+			mode:      ViewModeRealm,
 			name:      "Realm",
 			wantRealm: true,
 		},
 		{
-			mode:        HeaderModeTemplatePackage,
+			mode:        ViewModePackage,
 			name:        "Package",
 			wantPackage: true,
 		},
 		{
-			mode:     HeaderModeTemplateHome,
+			mode:     ViewModeHome,
 			name:     "Home",
 			wantHome: true,
 		},
@@ -211,10 +276,10 @@ func TestHeaderModeTemplatePredicates(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.wantExplorer, tc.mode.IsTemplateExplorer(), "IsTemplateExplorer")
-			assert.Equal(t, tc.wantRealm, tc.mode.IsTemplateRealm(), "IsTemplateRealm")
-			assert.Equal(t, tc.wantPackage, tc.mode.IsTemplateModePackage(), "IsTemplateModePackage")
-			assert.Equal(t, tc.wantHome, tc.mode.IsTemplateHome(), "IsTemplateHome")
+			assert.Equal(t, tc.wantExplorer, tc.mode.IsExplorer(), "IsExplorer")
+			assert.Equal(t, tc.wantRealm, tc.mode.IsRealm(), "IsRealm")
+			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
+			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 		})
 	}
 }
