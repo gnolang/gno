@@ -299,15 +299,19 @@ type stubDirectoryClient struct {
 func (c *stubDirectoryClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
 	return &gnoweb.RealmMeta{}, nil
 }
+
 func (c *stubDirectoryClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*gnoweb.FileMeta, error) {
 	return &gnoweb.FileMeta{}, nil
 }
+
 func (c *stubDirectoryClient) Doc(path string) (*doc.JSONDocumentation, error) {
 	return &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{}}, nil
 }
+
 func (c *stubDirectoryClient) Sources(path string) ([]string, error) {
 	return nil, c.sourcesErr
 }
+
 func (c *stubDirectoryClient) QueryPaths(prefix string, limit int) ([]string, error) {
 	return c.queryPaths, c.queryPathsErr
 }
