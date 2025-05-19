@@ -236,33 +236,20 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 	var content bytes.Buffer
 
 	meta, err := h.Client.RenderRealm(&content, gnourl, h.MarkdownRenderer)
-	if err != nil {
-		if errors.Is(err, ErrRenderNotDeclared) {
-			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
-		}
-
-		h.Logger.Warn("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-
-		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
-
-		if qerr != nil || len(paths) == 0 || paths[0] == "" {
-			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
-
-			return GetClientErrorStatusPage(gnourl, err)
-		}
-
-		indexData.HeaderData.Mode = components.HeaderModeTemplateExplorer
-
-		return http.StatusOK, components.DirectoryView(components.DirData{
-			PkgPath:     gnourl.Path,
-			Files:       paths,
-			FileCounter: len(paths),
-			LinkType:    components.DirLinkTypeFile,
-		})
+	switch {
+	case err == nil: // ok
+	case errors.Is(err, ErrRenderNotDeclared):
+		// XXX: We should display paths list along realm informations
+		return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
+	case errors.Is(err, ErrClientPathNotFound):
+		// No realm exists here, try to display underlying paths
+		return h.GetPathsListView(gnourl, indexData)
+	default:
+		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	indexData.HeaderData.Mode = components.HeaderModeTemplateRealm
-
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
 			Items: meta.Toc.Items,
@@ -368,29 +355,47 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	})
 }
 
+func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	const limit = 1_000 // XXX: implement pagination
+
+	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
+	paths, qerr := h.Client.QueryPaths(prefix, limit)
+	if qerr != nil {
+		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
+	} else {
+		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
+	}
+
+	if len(paths) == 0 || paths[0] == "" {
+		return GetClientErrorStatusPage(gnourl, ErrClientPathNotFound)
+	}
+
+	// Display paths list instead
+	indexData.HeaderData.Mode = components.HeaderModeTemplateExplorer
+
+	// XXX: use a dedicated component for path view
+	return http.StatusOK, components.DirectoryView(components.DirData{
+		PkgPath:     gnourl.Path,
+		Files:       paths,
+		LinkType:    components.DirLinkTypeFile,
+		FileCounter: len(paths),
+	})
+}
+
 func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	files, err := h.Client.Sources(pkgPath)
-	linkType := components.DirLinkTypeSource
-
 	if gnourl.IsPure() {
 		indexData.HeaderData.Mode = components.HeaderModeTemplatePackage
 	}
 
 	if err != nil {
-		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
-
-		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
-
-		if qerr != nil || len(paths) == 0 || paths[0] == "" {
-			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
-
+		if !errors.Is(err, ErrClientPathNotFound) {
+			h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
 			return GetClientErrorStatusPage(gnourl, err)
 		}
 
-		linkType = components.DirLinkTypeFile
-		indexData.HeaderData.Mode = components.HeaderModeTemplateExplorer
-		files = paths
+		return h.GetPathsListView(gnourl, indexData)
 	}
 
 	if len(files) == 0 {
@@ -401,7 +406,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 	return http.StatusOK, components.DirectoryView(components.DirData{
 		PkgPath:     gnourl.Path,
 		Files:       files,
-		LinkType:    linkType,
+		LinkType:    components.DirLinkTypeSource,
 		FileCounter: len(files),
 		HeaderData:  indexData.HeaderData,
 	})

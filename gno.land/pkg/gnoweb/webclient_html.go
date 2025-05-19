@@ -171,7 +171,7 @@ func (s *HTMLWebClient) QueryPaths(prefix string, limit int) ([]string, error) {
 		return nil, err
 	}
 
-	return strings.Split(string(res), "\n"), nil
+	return strings.Split(strings.TrimSpace(string(res)), "\n"), nil
 }
 
 // RenderRealm renders the content of a realm from a given path
@@ -216,12 +216,9 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 			return nil, ErrRenderNotDeclared
 		}
 
-		s.logger.Error("response error", "path", qpath, "log", qres.Response.Log)
+		s.logger.Debug("query response error", "path", qpath, "log", qres.Response.Log)
 		return nil, fmt.Errorf("%w: %s", ErrClientResponse, err.Error())
 	}
-
-	qlines := strings.Split(string(qres.Response.Data), "\n")
-	s.logger.Debug("response query", "path", qpath, "data", len(qlines))
 
 	return qres.Response.Data, nil
 }
