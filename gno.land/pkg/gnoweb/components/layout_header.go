@@ -37,6 +37,11 @@ const (
 	HeaderModeTemplateHome
 )
 
+func (m HeaderModeTemplate) IsTemplateExplorer() bool    { return m == HeaderModeTemplateExplorer }
+func (m HeaderModeTemplate) IsTemplateRealm() bool       { return m == HeaderModeTemplateRealm }
+func (m HeaderModeTemplate) IsTemplateModePackage() bool { return m == HeaderModeTemplatePackage }
+func (m HeaderModeTemplate) IsTemplateHome() bool        { return m == HeaderModeTemplateHome }
+
 func StaticHeaderGeneralLinks() []HeaderLink {
 	links := []HeaderLink{
 		{

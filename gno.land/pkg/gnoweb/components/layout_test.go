@@ -176,3 +176,45 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 	assert.Empty(t, enriched.Links.General)
 	assert.Empty(t, enriched.Links.Dev)
 }
+
+func TestHeaderModeTemplatePredicates(t *testing.T) {
+	cases := []struct {
+		mode         HeaderModeTemplate
+		name         string
+		wantExplorer bool
+		wantRealm    bool
+		wantPackage  bool
+		wantHome     bool
+	}{
+		{
+			mode:         HeaderModeTemplateExplorer,
+			name:         "Explorer",
+			wantExplorer: true,
+		},
+		{
+			mode:      HeaderModeTemplateRealm,
+			name:      "Realm",
+			wantRealm: true,
+		},
+		{
+			mode:        HeaderModeTemplatePackage,
+			name:        "Package",
+			wantPackage: true,
+		},
+		{
+			mode:     HeaderModeTemplateHome,
+			name:     "Home",
+			wantHome: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.wantExplorer, tc.mode.IsTemplateExplorer(), "IsTemplateExplorer")
+			assert.Equal(t, tc.wantRealm, tc.mode.IsTemplateRealm(), "IsTemplateRealm")
+			assert.Equal(t, tc.wantPackage, tc.mode.IsTemplateModePackage(), "IsTemplateModePackage")
+			assert.Equal(t, tc.wantHome, tc.mode.IsTemplateHome(), "IsTemplateHome")
+		})
+	}
+}
