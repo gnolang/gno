@@ -68,6 +68,7 @@ func renderHome() string {
 				"url", "",
 				"author", "",
 			).URL()
+		out += "\n\n"
 		out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
 		out += "\n"
 	}
