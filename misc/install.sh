@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-# Usage: curl -sSL https://raw.githubusercontent.com/gnolang/gno/main/misc/install.sh | bash
-# Optional: GNO_DIR=/custom/path curl -sSL https://raw.githubusercontent.com/gnolang/gno/main/misc/install.sh | bash
-# Uninstall: curl -sSL https://raw.githubusercontent.com/gnolang/gno/main/misc/install.sh | bash -s -- --uninstall
+# Usage: curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash
+# Optional: GNO_DIR=/custom/path curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash
+# Uninstall: curl -sSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | bash -s -- --uninstall
 #
 # This script is temporarily located in misc/ as we expect more official installation
 # methods to emerge. It provides a convenient one-liner for installing gno, which is
