@@ -5,7 +5,7 @@
       class="max-w-screen-max mx-auto px-4 md:px-10 flex lg:grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-stretch"
     >
       <div
-        class="main-navigation flex-auto min-w-0 flex items-stretch gap-1 col-span-7 w-full h-full py-2"
+        class="main-navigation flex-auto min-w-0 flex items-stretch gap-1 {{ if .Mode.IsExplorer }}col-span-10{{ else }} col-span-7{{ end }} w-full h-full py-2"
       >
         <a
           href="/"
@@ -127,7 +127,7 @@
       <div
         class="sidemenu col-span-3 h-auto flex flex-grow-0 flex-shrink-0 basis-auto"
       >
-        {{ if .IsHome }}
+        {{ if .Mode.IsHome }}
           <label
             for="header-input-devmode"
             class="order-3 ml-auto flex items-center cursor-pointer"
@@ -143,7 +143,7 @@
           type="checkbox"
           name="devmode"
           class="peer sr-only"
-          {{ if not .IsHome }}checked{{ end }}
+          {{ if not .Mode.IsHome }}checked{{ end }}
         />
         <div
           role="menu"
@@ -152,7 +152,7 @@
           {{ range .Links.Dev }}{{ template "ui/header_link" . }}{{ end }}
         </div>
 
-        {{ if .IsHome }}
+        {{ if .Mode.IsHome }}
           <div
             role="menu"
             class="peer-checked:hidden flex justify-end lg:justify-start h-full"

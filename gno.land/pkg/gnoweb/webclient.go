@@ -44,6 +44,9 @@ type WebClient interface {
 	// file's content is safely handled and formatted.
 	SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*FileMeta, error)
 
+	// QueryPath list any path given the specified prefix
+	QueryPaths(prefix string, limit int) ([]string, error)
+
 	// Doc retrieves the JSON doc suitable for printing from a
 	// specified package path.
 	Doc(path string) (*doc.JSONDocumentation, error)

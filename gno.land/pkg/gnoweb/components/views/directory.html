@@ -6,20 +6,20 @@
                     <h1 class="text-600 font-bold">{{ $pkgpath }}</h1>
                 </div>
                 <div class="flex gap-4 text-gray-300 pt-0.5">
-                    <span class="text-gray-300">Directory · {{ .FileCounter }} Files</span>
+                    <span class="text-gray-300">{{ if .Mode.IsExplorer }} Explorer · {{ .FileCounter }} Packages{{ else }} Directory · {{ .FileCounter }} Files{{ end }}</span>
                 </div>
             </div>
 
             <div class="source-code font-mono mt-6">
                 <ul>
-                    {{ range .Files }}
+                    {{ range .FilesLinks }}
                     <li class="border-b first:border-t">
-                        <a class="py-2 flex justify-between items-center px-2 text-gray-600 line-clamp-2 hover:bg-gray-100" href="{{ $pkgpath }}$source&file={{ . }}">
+                        <a class="py-2 flex justify-between items-center px-2 text-gray-600 line-clamp-2 hover:bg-gray-100" href="{{ .Link }}">
                             <span class="flex items-center gap-2">
                                 <svg class="w-4 h-4 shrink-0">
                                     <use href="#ico-file"></use>
                                 </svg>
-                                {{ . }}
+                                {{ .Name }}
                             </span>
                             <span class="text-gray-300">Open</span>
                         </a>
