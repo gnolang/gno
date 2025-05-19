@@ -10,7 +10,7 @@ The steps of Gno 0.0 --> Gno 0.9 transpiling.
   9. `Transpile*()` Part 2: main Go AST mutations for Gno upgrade.
   10. `mpkg.WriteTo()`: write mem package to disk.
 
-In `cmd/gno/tool_lint.go` each step is grouped into stages for all dirs:
+In `cmd/gno/tool_fix.go` each step is grouped into three stages for all dirs:
   * Stage 1: (for all dirs)
     1. `gno.ReadMemPackage()`
     2. `gno.TypeCheckMemPackage()` > `ParseGnoMod()
@@ -25,6 +25,18 @@ In `cmd/gno/tool_lint.go` each step is grouped into stages for all dirs:
     9. `gno.TranspileGno0p9()` Part 2
   * Stage 3:
     10. `mpkg.WriteTo()`
+
+In `cmd/gno/tool_lint.go` each step is grouped into two stages for all dirs,
+and some steps are omited as compared to `tool_fix.go`:
+  * Stage 1: (for all dirs)
+    1. `gno.ReadMemPackage()`
+    2. `gno.TypeCheckMemPackage()` > `ParseGnoMod()
+    3. `gno.TypeCheckMemPackage()`  > `GoParseMemPackage()
+       `gno.TypeCheckMemPackage()`  > `g.cfg.Check()
+    4. `sourceAndTestFileset()` > `gno.MustParseFile()`
+    5. `tm.PreprocessFiles()`
+  * Stage 2:
+    6. `mpkg.WriteTo()`
 
 In `pkg/gnolang/gotypecheck.go`, `TypeCheck*()` diverges at step 4 and terminates:
   1. `mpkg` provided as argument

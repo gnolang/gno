@@ -96,7 +96,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		io.ErrPrintfln("flinting directories: %v", dirs)
 	}
 	//----------------------------------------
-	// STAGE 1: Lint.
+	// LINT STAGE 1: Typecheck and lint.
 	for _, dir := range dirs {
 		if cmd.verbose {
 			io.ErrPrintfln("linting %q", dir)
@@ -145,7 +145,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 
 		// See adr/pr4264_lint_transpile.md
-		// STEP 1: ReadMemPackage()
+		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
 		mpkg, err := gno.ReadMemPackage(dir, pkgPath)
@@ -157,8 +157,6 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 		// Perform imports using the parent store.
 		if err := test.LoadImports(ts, mpkg); err != nil {
-			// io.ErrPrintln(guessIssueFromError(
-			//	dir, pkgPath, err, gnoImportError).String())
 			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
 			continue
@@ -176,7 +174,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			var errs error
 
 			// Run type checking
-			// STEP 2: ParseGnoMod()
+			// LINT STEP 2: ParseGnoMod()
 			// STEP 3: GoParse*()
 			//
 			// lintTypeCheck(mpkg) -->
@@ -196,26 +194,25 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
 			}
 
-			// STEP 4: Prepare*()
 			// Construct machine for testing.
 			tm := test.Machine(gs, goio.Discard, pkgPath, false)
 			defer tm.Release()
 
-			// STEP 5: re-parse
+			// LINT STEP 4: re-parse
 			// Gno parse source fileset and test filesets.
 			_, fset, _tests, ftests := sourceAndTestFileset(mpkg)
 
-			// STEP 6: PreprocessFiles()
+			// LINT STEP 5: PreprocessFiles()
 			// Preprocess fset files (w/ some _test.gno).
 			pn, _ = tm.PreprocessFiles(
 				mpkg.Name, mpkg.Path, fset, false, false)
-			// STEP 6: PreprocessFiles()
+			// LINT STEP 5: PreprocessFiles()
 			// Preprocess _test files (all _test.gno).
 			for _, fset := range _tests {
 				tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false)
 			}
-			// STEP 6: PreprocessFiles()
+			// LINT STEP 5: PreprocessFiles()
 			// Preprocess _filetest.gno files.
 			for _, fset := range ftests {
 				tm.PreprocessFiles(
@@ -236,7 +233,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	}
 
 	//----------------------------------------
-	// STAGE 2: Write.
+	// LINT STAGE 2: Write.
 	// Must be a separate stage to prevent partial writes.
 	for _, dir := range dirs {
 		ppkg, ok := ppkgs[dir]
@@ -244,7 +241,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			panic("where did it go")
 		}
 
-		// STEP 10: mpkg.WriteTo():
+		// LINT STEP 6: mpkg.WriteTo():
 		err := ppkg.mpkg.WriteTo(dir)
 		if err != nil {
 			return err
