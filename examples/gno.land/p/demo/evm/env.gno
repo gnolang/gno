@@ -14,3 +14,15 @@ type Env struct {
 	ChainID         *uint256.Uint
 	BlockDifficulty *uint256.Uint
 }
+
+func newEnv() *Env {
+	return &Env{
+		Logs: []LogEntry{},
+		Storage: map[uint256.Uint]*uint256.Uint{},
+		Accounts: Accounts{},
+		NextAccountId: 0,
+		Transaction: Transactions{},
+		ChainID: uint256.Zero(),
+		BlockDifficulty: uint256.Zero(),
+	}
+}

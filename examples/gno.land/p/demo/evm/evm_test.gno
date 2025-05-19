@@ -3,6 +3,7 @@ package evm
 import (
 	"errors"
 	"fmt"
+	"std"
 	"strconv"
 	"strings"
 	"testing"
@@ -1411,5 +1412,60 @@ func TestExecuteEvm(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCallEvm(t *testing.T) {
+	env := newEnv()
+	me, err := env.Accounts.PushCaller(env, std.Address("g18dgpzqxnhmrsemnadngg403f8clf5l82jalxza")) // me
+	if err != nil {
+		t.Error(err)
+	}
+
+	// create a contract that does something
+	codeThatReturns, err := env.Accounts.PushSmartContract(env, []byte{
+		byte(PUSH1), 42, // data
+		byte(PUSH0), // offset
+		byte(MSTORE),
+
+		byte(PUSH1), 1, // size
+		byte(PUSH1), 31, // offset
+		byte(RETURN),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	// call code to test
+	env.Accounts[me].Gas = 100000
+	res, err := env.Accounts[me].executeCallHex(env, 100000, "", env.Accounts[codeThatReturns].Code)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res) != 1 || res[0] != 42 {
+		t.Errorf("expected [42], got %v\n", res)
+	}
+
+	// create a contract that calls
+	env.Accounts[me].Gas = 100_000
+	prout, err := env.Accounts[me].executeCallHex(env, 100_000, "", []byte{
+		byte(PUSH1), 1, // retSize
+		byte(PUSH0),                              // retOffset
+		byte(PUSH0),                              // argsSize
+		byte(PUSH0),                              // argsOffset
+		byte(PUSH0),                              // value
+		byte(PUSH1), byte(codeThatReturns % 255), // address
+		byte(PUSH2), 0xff, 0xff, // gas (here, ~65k)
+		byte(CALL),
+
+		byte(PUSH1), 1, // size
+		byte(PUSH0), // offset
+		byte(RETURN),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(prout) != 1 || prout[0] != 42 {
+		t.Errorf("expected [42], got %v\n", prout)
 	}
 }
