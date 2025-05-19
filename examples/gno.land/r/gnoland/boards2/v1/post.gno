@@ -331,6 +331,7 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 	// TODO: figure out a way to decouple posts from a global storage.
 	board, ok := getBoard(post.repostBoardID)
 	if !ok {
+		// TODO: Boards can't be deleted so this might be redundant
 		return indentBody(indent, "*⚠ Source board has been deleted*\n\n"), nil
 	}
 
@@ -449,7 +450,6 @@ func (post *Post) Render(path string, indent string, levels int) string {
 		}
 	}
 
-	sb.WriteString(indent)
 	if title != "" { // Replies don't have a title
 		sb.WriteString("## " + title + "\n")
 	}

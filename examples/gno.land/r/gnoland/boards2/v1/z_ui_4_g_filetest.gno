@@ -1,0 +1,49 @@
+// Render thread repost of a flagged thread.
+package main
+
+import (
+	"std"
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v1"
+)
+
+const (
+	owner        = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	srcBoardName = "BoardName"
+	dstBoardName = "BoardName2"
+)
+
+var repostThreadID boards2.PostID
+
+func init() {
+	testing.SetRealm(std.NewUserRealm(owner))
+
+	// Create a board and a thread
+	boardID := cross(boards2.CreateBoard)(srcBoardName, false)
+	threadID := cross(boards2.CreateThread)(boardID, "Foo", "Body")
+
+	// Repost thread into a different board
+	dstBoardID := cross(boards2.CreateBoard)(dstBoardName, false)
+	repostThreadID = cross(boards2.CreateRepost)(boardID, threadID, "Bar", "Body2", dstBoardID)
+
+	// Flag original thread
+	cross(boards2.SetFlaggingThreshold)(boardID, 1)
+	cross(boards2.FlagThread)(boardID, threadID, "")
+}
+
+func main() {
+	path := dstBoardName + "/" + repostThreadID.String()
+	println(boards2.Render(path))
+}
+
+// Output:
+// ## Bar
+//
+// > *⚠ Source post has been flagged as inappropriate*
+// >
+// >
+// Body2
+//
+// Created by g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq on 2009-02-13 11:31pm UTC
+// [Flag](/r/gnoland/boards2/v1$help&func=FlagThread&boardID=2&reason=&threadID=1) • [Repost](/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=2&body=&destinationBoardID=&threadID=1&title=) • [Reply](/r/gnoland/boards2/v1$help&func=CreateReply&boardID=2&body=&replyID=0&threadID=1) • [Edit](/r/gnoland/boards2/v1$help&func=EditThread&boardID=2&body=Body2&threadID=1&title=Bar) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=2&threadID=1)
