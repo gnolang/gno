@@ -8,7 +8,6 @@ import (
 	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // ----------------------------------------
@@ -65,46 +64,7 @@ var gAddressType = &DeclaredType{
 	Name:    "address",
 	Base:    StringType,
 	sealed:  true,
-}
-
-func init() {
-	// address.String() string
-	gAddressType.DefineMethod(&FuncValue{
-		Name: "String",
-		Type: &FuncType{
-			Params: []FieldType{{
-				Type: gAddressType}},
-			Results: []FieldType{{
-				Type: StringType}}},
-		IsMethod: true,
-		PkgPath:  uversePkgPath,
-		Crossing: false,
-		nativeBody: func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1(nil)
-			res0 := typedString(arg0.TV.GetString())
-			m.PushValue(res0)
-			return
-		}})
-	// address.IsValid() bool
-	gAddressType.DefineMethod(&FuncValue{
-		Name: "IsValid",
-		Type: &FuncType{
-			Params: []FieldType{{
-				Type: gAddressType}},
-			Results: []FieldType{{
-				Type: BoolType}}},
-		IsMethod: true,
-		PkgPath:  uversePkgPath,
-		Crossing: false,
-		nativeBody: func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1(nil)
-			addr := arg0.TV.GetString()
-			_, err := crypto.AddressFromBech32(addr)
-			ok := err == nil
-			res0 := typedBool(ok)
-			m.PushValue(res0)
-			return
-		}})
+	// methods defined in makeUverseNode()
 }
 
 var gCoinType = &DeclaredType{
@@ -247,6 +207,7 @@ func makeUverseNode() {
 		uverseNode.Define(n, tv)
 	}
 	defNative := uverseNode.DefineNative
+	defNativeMethod := uverseNode.DefineNativeMethod
 
 	// Primitive types
 	undefined := TypedValue{}
@@ -879,6 +840,30 @@ func makeUverseNode() {
 	// Gno2 types
 	def("realm", asValue(gRealmType))
 	def("address", asValue(gAddressType))
+	defNativeMethod("address", "String",
+		nil, // params
+		Flds( // results
+			"", Nx("string"),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			res0 := typedString(arg0.TV.GetString())
+			m.PushValue(res0)
+			return
+		},
+	)
+	defNativeMethod("address", "IsValid",
+		nil, // params
+		Flds( // results
+			"", Nx("bool"),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			res0 := typedString(arg0.TV.GetString())
+			m.PushValue(res0)
+			return
+		},
+	)
 	def("gnocoin", asValue(gCoinType))
 	def("gnocoins", asValue(gCoinsType))
 	defNative("crossing",

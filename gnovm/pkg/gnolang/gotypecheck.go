@@ -40,10 +40,13 @@ type realm interface {
     Sudo() realm
 }
 type address string
+func (a address) String() string { return string(a) }
+func (a address) IsValid() bool { return false } // shim
 type gnocoins []gnocoin
 type gnocoin struct {
     Denom string
     Amount int64
+}
 `, pkgName)}
 	return file
 }

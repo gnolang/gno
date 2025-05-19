@@ -233,6 +233,7 @@ func (e *stackWrappedError) String() string {
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
 func LoadImports(store gno.Store, mpkg *std.MemPackage) (err error) {
+	// XXX If you want to debug an issue, you may want to comment this out.
 	defer func() {
 		// This is slightly different from other similar error handling; we do not have a
 		// machine to work with, as this comes from an import; so we need

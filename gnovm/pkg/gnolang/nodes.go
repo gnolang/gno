@@ -1548,7 +1548,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 }
 
-// DefineNativeFunc defines a native function.
+// DefineNative defines a native function.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
@@ -1566,6 +1566,37 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 		}
 	}
 	fv := x.GetValueRef(nil, n, true).V.(*FuncValue)
+	fv.nativeBody = native
+}
+
+// DefineNativeMethod defines a native method.
+func (x *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	if debug {
+		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
+	}
+	if native == nil {
+		panic("DefineNative expects a function, but got nil")
+	}
+
+	fd := MthdD(n, Fld("_", Nx(r)), ps, rs, nil)
+	fd = Preprocess(nil, x, fd).(*FuncDecl)
+	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
+	if debug {
+		if ft == nil {
+			panic("should not happen")
+		}
+	}
+	// attach fv to base declared type as method.
+	recv := evalStaticType(nil, x, Preprocess(nil, x, Nx(r))).(*DeclaredType)
+	if debug {
+		if ft == nil {
+			panic("should not happen")
+		}
+	}
+	// recv.DefineMethod(fv)
+	path := recv.GetPathForName(n)
+	ftv := recv.GetValueAt(nil, nil, path)
+	fv := ftv.GetFunc()
 	fv.nativeBody = native
 }
 
