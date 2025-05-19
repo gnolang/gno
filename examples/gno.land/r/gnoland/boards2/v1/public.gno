@@ -636,6 +636,10 @@ func assertIsValidBoardName(name string) {
 		panic("board name is empty")
 	}
 
+	if size < 3 {
+		panic("board name is too short, minimum length is 3 characters")
+	}
+
 	if size > MaxBoardNameLength {
 		n := strconv.Itoa(MaxBoardNameLength)
 		panic("board name is too long, maximum allowed is " + n + " characters")
