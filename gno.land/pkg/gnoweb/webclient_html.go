@@ -220,7 +220,8 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%w: %s", ErrClientResponse, err.Error())
 	}
 
-	s.logger.Debug("response query", "path", qpath, "data", qres.Response.Data)
+	qlines := strings.Split(string(qres.Response.Data), "\n")
+	s.logger.Debug("response query", "path", qpath, "data", len(qlines))
 
 	return qres.Response.Data, nil
 }

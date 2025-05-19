@@ -241,7 +241,7 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
 		}
 
-		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
+		h.Logger.Warn("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 
 		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
 
@@ -378,7 +378,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 	}
 
 	if err != nil {
-		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
 
 		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
 
