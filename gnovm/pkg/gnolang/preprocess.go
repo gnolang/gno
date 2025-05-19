@@ -4014,7 +4014,10 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		if un != "" {
 			return
 		}
-		cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, "FuncLitExpr")
+		switch last.(type) {
+		case *PackageNode, *FileNode:
+			cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, "FuncLitExpr")
+		}
 	case *FieldTypeExpr: // FIELD
 		return findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)
 	case *ArrayTypeExpr:
