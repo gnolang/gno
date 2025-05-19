@@ -80,7 +80,7 @@ func renderHome() string {
 	}
 	out += md.BulletList(stats)
 
-	out += md.Blockquote("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
+	out += md.Italic("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
 
 	return out
 }
