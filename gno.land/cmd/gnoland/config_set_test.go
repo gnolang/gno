@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // initializeTestConfig initializes a default configuration
@@ -168,7 +169,7 @@ func TestConfig_Set_Base(t *testing.T) {
 			"db backend updated",
 			[]string{
 				"db_backend",
-				db.GoLevelDBBackend.String(),
+				db.PebbleDBBackend.String(),
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.DBBackend)
