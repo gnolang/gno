@@ -17,6 +17,7 @@ import (
 /*
 	Type-checking (using go/types).
 	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
+	XXX move to pkg/gnolang/importer.go.
 */
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of

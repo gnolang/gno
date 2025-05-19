@@ -41,13 +41,13 @@ func genGnoMod(pkgPath string, gnoVersion string) string {
 const (
 	GnoVerLatest  = `0.9` // current version
 	GnoVerTesting = `0.9` // version of our tests
-	GnoVerDefault = `0.9` // no gno.mod
+	GnoVerDefault = `0.9` // auto generated gno.mod
+	GnoVerMissing = `0.0` // missing gno.mod, !autoGnoMod XXX
 )
 
 // ========================================
 // Parses and checks the gno.mod file from mpkg.
-// To generate default ones, use:
-// gnomod.ParseBytes(GnoModDefault)
+// To generate default ones, GenGnoMod*().
 //
 // Results:
 //   - mod: the gno.mod file, or nil if not found.
@@ -64,9 +64,8 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 		// error parsing gno.mod.
 		err = fmt.Errorf("%s/gno.mod: parse error %q", mpkg.Path, err)
 	} else if mod.Gno == nil {
-		// 'gno 0.9' was never specified; just write 0.0.
-		mod.SetGno(GnoVerDefault)
-		// err = fmt.Errorf("%s/gno.mod: gno version unspecified", mpkg.Path)
+		// gno.mod was never specified; set missing.
+		mod.SetGno(GnoVerMissing)
 	} else if mod.Gno.Version == GnoVersion {
 		// current version, nothing to do.
 	} else {

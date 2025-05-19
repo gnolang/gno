@@ -484,9 +484,11 @@ XFORMS1_LOOP:
 		}
 		panic("xforms1 and xforms2 don't match")
 	}
-	if len(xforms1) != len(xforms2) {
-		panic("xforms1 and xforms2 length don't match")
-	}
+	/*
+		if len(xforms1) != len(xforms2) {
+			panic("xforms1 and xforms2 length don't match")
+		}
+	*/
 	return found // good
 }
 

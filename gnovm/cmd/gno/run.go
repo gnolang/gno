@@ -136,12 +136,12 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	return runExpr(m, cfg.expr)
 }
 
-func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
-	files := make([]*gno.FileNode, 0, len(fnames))
+func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
+	files := make([]*gno.FileNode, 0, len(fpaths))
 	var didPanic bool
-	for _, fname := range fnames {
-		if s, err := os.Stat(fname); err == nil && s.IsDir() {
-			subFns, err := listNonTestFiles(fname)
+	for _, fpath := range fpaths {
+		if s, err := os.Stat(fpath); err == nil && s.IsDir() {
+			subFns, err := listNonTestFiles(fpath)
 			if err != nil {
 				return nil, err
 			}
@@ -157,8 +157,9 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 			return nil, err
 		}
 
-		didPanic = catchPanic(fname, fname, stderr, func() {
-			files = append(files, gno.MustReadFile(fname))
+		dir, fname := filepath.Split(fpath)
+		didPanic = catchPanic(dir, fname, stderr, func() {
+			files = append(files, gno.MustReadFile(fpath))
 		})
 	}
 

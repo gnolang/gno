@@ -82,29 +82,16 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 	return
 }
 
-func guessSourcePath(pkgPath, fname string) string {
-	if info, err := os.Stat(pkgPath); !os.IsNotExist(err) && !info.IsDir() {
-		pkgPath = filepath.Dir(pkgPath)
-	}
-
-	fnameJoin := filepath.Join(pkgPath, fname)
-	if _, err := os.Stat(fnameJoin); !os.IsNotExist(err) {
-		return filepath.Clean(fnameJoin)
-	}
-
-	if _, err := os.Stat(fname); !os.IsNotExist(err) {
-		return filepath.Clean(fname)
-	}
-
-	return filepath.Clean(pkgPath)
-}
-
 // reParseRecover is a regex designed to parse error details from a string.
 // It extracts the file location, line number, and error message from a
 // formatted error string.
 // XXX: Ideally, error handling should encapsulate location details within a
 // dedicated error type.
-var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
+const rePos = `(?:` + `\d+(?::\d+)?` + `)` // NOTE: allows the omission of columns, more relaxed than gno.Pos.
+const reSpan = `(?:` + rePos + `-` + rePos + `)`
+const rePosOrSpan = `(?:` + reSpan + `|` + rePos + `)`
+
+var reParseRecover = regexp.MustCompile(`^([^:]+):(` + rePosOrSpan + `):? *(.*)$`)
 
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	switch err := err.(type) {
@@ -129,7 +116,7 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 		})
 	case types.Error:
 		loc := err.Fset.Position(err.Pos).String()
-		loc = replaceWithDirPath(loc, pkgPath, dir)
+		loc = guessFilePathLoc(loc, pkgPath, dir)
 		code := gnoTypeCheckError
 		if strings.Contains(err.Msg, "(unknown import path \"") {
 			// NOTE: This is a bit of a hack.
@@ -146,7 +133,7 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	case scanner.ErrorList:
 		for _, err := range err {
 			loc := err.Pos.String()
-			loc = replaceWithDirPath(loc, pkgPath, dir)
+			loc = guessFilePathLoc(loc, pkgPath, dir)
 			fmt.Fprintln(w, gnoIssue{
 				Code:       gnoParserError,
 				Msg:        err.Msg,
@@ -156,7 +143,7 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 		}
 	case scanner.Error:
 		loc := err.Pos.String()
-		loc = replaceWithDirPath(loc, pkgPath, dir)
+		loc = guessFilePathLoc(loc, pkgPath, dir)
 		fmt.Fprintln(w, gnoIssue{
 			Code:       gnoParserError,
 			Msg:        err.Msg,
@@ -206,14 +193,16 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 	issue.Code = code
 
 	parsedError := strings.TrimSpace(err.Error())
-	parsedError = replaceWithDirPath(parsedError, pkgPath, dir)
-	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-
 	matches := reParseRecover.FindStringSubmatch(parsedError)
+
 	if len(matches) > 0 {
-		sourcepath := guessSourcePath(pkgPath, matches[1])
-		issue.Location = sourcepath + matches[2]
-		issue.Msg = strings.TrimSpace(matches[3])
+		errPath := matches[1]
+		errLoc := matches[2]
+		errMsg := matches[3]
+		errPath = guessFilePathLoc(errPath, pkgPath, dir)
+		errPath = filepath.Clean(errPath)
+		issue.Location = errPath + ":" + errLoc
+		issue.Msg = strings.TrimSpace(errMsg)
 	} else {
 		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
 		issue.Msg = err.Error()
@@ -221,9 +210,55 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 	return issue
 }
 
-func replaceWithDirPath(s, pkgPath, dir string) string {
-	if strings.HasPrefix(s, pkgPath) {
-		return filepath.Clean(dir + s[len(pkgPath):])
+// Takes a location string `s` and tries to convert to a path based on `dir`.
+// NOTE: s may not be in pkgPath (e.g. for type-check errors on imports).
+// Do not make a transformation unless the answer is highly unlikely to be incorrect.
+// Otherwise debugging may be painful. Better to return s as is.
+func guessFilePathLoc(s, pkgPath, dir string) string {
+	if !dirExists(dir) {
+		panic(fmt.Sprintf("dir %q does not exist", dir))
 	}
+	s = filepath.Clean(s)
+	pkgPath = filepath.Clean(pkgPath)
+	dir = filepath.Clean(dir)
+	// s already in dir.
+	if strings.HasPrefix(s, dir) {
+		return s
+	}
+	// s in pkgPath.
+	if strings.HasPrefix(s, pkgPath+"/") {
+		fname := s[len(pkgPath+"/"):]
+		fpath := filepath.Join(dir, fname)
+		return fpath
+	}
+	// "GNOROOT".
+	if strings.HasSuffix(dir, pkgPath) {
+		gnoRoot := dir[len(dir)-len(pkgPath):]
+		// s is maybe <pkgPath>/<filename>
+		if strings.Contains(s, "/") {
+			fpath := gnoRoot + s
+			if fileExists(fpath) {
+				return fpath
+			}
+		}
+	}
+	// s is a filename.
+	if !strings.Contains(s, "/") {
+		fpath := filepath.Join(dir, s)
+		if fileExists(fpath) {
+			return fpath
+		}
+	}
+	// dunno.
 	return s
+}
+
+func dirExists(dir string) bool {
+	info, err := os.Stat(dir)
+	return !os.IsNotExist(err) && info.IsDir()
+}
+
+func fileExists(fpath string) bool {
+	info, err := os.Stat(fpath)
+	return !os.IsNotExist(err) && !info.IsDir()
 }

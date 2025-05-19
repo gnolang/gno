@@ -30,6 +30,10 @@ type StoreOptions struct {
 	// [gno.Machine.PreprocessFiles]. It avoids executing code for contexts
 	// which only intend to perform a type check, ie. `gno lint`.
 	PreprocessOnly bool
+
+	// When transpiling code in examples/ we use the test store. gno fix may need
+	// gno.mod to not be auto-generated when importing from the test store.
+	DoNotGenerateGnoMod bool
 }
 
 // NOTE: this isn't safe, should only be used for testing.
