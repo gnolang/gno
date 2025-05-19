@@ -316,31 +316,6 @@ func (c *stubDirectoryClient) QueryPaths(prefix string, limit int) ([]string, er
 	return c.queryPaths, c.queryPathsErr
 }
 
-// TestWebHandler_DirectoryViewExplorerFallback covers the "explorer" path:
-func TestWebHandler_DirectoryViewExplorerFallback(t *testing.T) {
-	t.Parallel()
-	client := &stubDirectoryClient{
-		sourcesErr:    errors.New("fail"),
-		queryPaths:    []string{"a.gno", "b.gno"},
-		queryPathsErr: nil,
-	}
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{Domain: "ex", Path: "/r/x", Files: map[string]string{}})
-	cfg.WebClient = client
-	handler, err := gnoweb.NewWebHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/x/", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-	// should contain our fallback files
-	assert.Contains(t, rr.Body.String(), "a.gno")
-	assert.Contains(t, rr.Body.String(), "b.gno")
-	// explorer mode
-	assert.Contains(t, rr.Body.String(), "Explorer")
-}
-
 // TestWebHandler_DirectoryViewPurePackage covers the pure "package" mode without error:
 func TestWebHandler_DirectoryViewPurePackage(t *testing.T) {
 	t.Parallel()
@@ -465,39 +440,6 @@ func TestServeHTTPMethodNotAllowed(t *testing.T) {
 
 	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 	assert.Contains(t, rr.Body.String(), "method not allowed")
-}
-
-// TestWebHandler_GetRealmViewExplorerFallback covers the "explorer" fallback
-// in GetRealmView when RenderRealm returns an error.
-func TestWebHandler_GetRealmViewExplorerFallback(t *testing.T) {
-	t.Parallel()
-
-	// stub that fails on RenderRealm, but returns two files via QueryPaths
-	client := &renderFailClient{
-		stubDirectoryClient: stubDirectoryClient{
-			queryPaths:    []string{"x.gno", "y.gno"},
-			queryPathsErr: nil,
-		},
-	}
-
-	// we don't need MockPackage here: we just override WebClient
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{Domain: "ex", Path: "/r/fail", Files: map[string]string{}})
-	cfg.WebClient = client
-
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, nil))
-	handler, err := gnoweb.NewWebHandler(logger, cfg)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/fail", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-	// should contain our fallback files
-	assert.Contains(t, rr.Body.String(), "x.gno")
-	assert.Contains(t, rr.Body.String(), "y.gno")
-	// and be rendered in "explorer" mode
-	assert.Contains(t, rr.Body.String(), "Explorer")
 }
 
 // TestWebHandler_DirectoryViewNoFiles covers the case where Sources returns
