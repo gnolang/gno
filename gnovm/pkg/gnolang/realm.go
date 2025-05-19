@@ -645,7 +645,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			rc := oo.GetRefCount()
 			if debugRealm {
 				if rc == 0 {
-					panic(fmt.Sprintf("ancestor should have a non-zero reference count to be marked as dirty: %v", oo))
+					panic("ancestor should have a non-zero reference count to be marked as dirty")
 				}
 			}
 			if rc > 1 {
@@ -835,7 +835,7 @@ func (rlm *Realm) clearMarks() {
 
 		// A new real object can be possible here.
 		// This new real object may have recCount of 0
-		// but its state was not unset in `processNewCreatedMarks`.
+		// but its state was not unset. see `processNewCreatedMarks`.
 		// (As a result, it will be garbage collected.)
 		// therefore, new real is allowed to exist here.
 
