@@ -264,3 +264,169 @@ func TestWebHandler_DirectoryViewExplorerMode(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "file1.gno")
 	assert.Contains(t, rr.Body.String(), "file2.gno")
 }
+
+// --- ajouter EN DESSOUS de TestWebHandler_DirectoryViewExplorerMode ---
+
+// // TestWebHandlerConfigValidate vérifie que validate() détecte les champs manquants.
+// func TestWebHandlerConfigValidate(t *testing.T) {
+// 	t.Parallel()
+
+// 	// base config valide
+// 	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ex", Files: map[string]string{}}
+// 	base := newTestHandlerConfig(t, dummy)
+
+// 	// WebClient manquant
+// 	cfg := *base
+// 	cfg.WebClient = nil
+// 	err := cfg.validate()
+// 	require.Error(t, err)
+// 	assert.Contains(t, err.Error(), "no `WebClient` configured")
+
+// 	// MarkdownRenderer manquant
+// 	cfg = *base
+// 	cfg.MarkdownRenderer = nil
+// 	err = cfg.validate()
+// 	require.Error(t, err)
+// 	assert.Contains(t, err.Error(), "no `MarkdownRenderer` configured")
+
+// 	// Aliases manquants
+// 	cfg = *base
+// 	cfg.Aliases = nil
+// 	err = cfg.validate()
+// 	require.Error(t, err)
+// 	assert.Contains(t, err.Error(), "no `Aliases` configured")
+// }
+
+// TestNewWebHandlerInvalidConfig s’assure que NewWebHandler échoue sur config invalide.
+// TestNewWebHandlerInvalidConfig s’assure que NewWebHandler échoue sur config invalide.
+func TestNewWebHandlerInvalidConfig(t *testing.T) {
+	t.Parallel()
+
+	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ex", Files: map[string]string{}}
+	valid := newTestHandlerConfig(t, dummy)
+
+	cases := []struct {
+		name    string
+		mutate  func(cfg *gnoweb.WebHandlerConfig)
+		wantErr string
+	}{
+		{
+			name: "missing WebClient",
+			mutate: func(cfg *gnoweb.WebHandlerConfig) {
+				cfg.WebClient = nil
+			},
+			wantErr: "no `WebClient` configured",
+		},
+		{
+			name: "missing MarkdownRenderer",
+			mutate: func(cfg *gnoweb.WebHandlerConfig) {
+				cfg.MarkdownRenderer = nil
+			},
+			wantErr: "no `MarkdownRenderer` configured",
+		},
+		{
+			name: "missing Aliases",
+			mutate: func(cfg *gnoweb.WebHandlerConfig) {
+				cfg.Aliases = nil
+			},
+			wantErr: "no `Aliases` configured",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Duplique la config valide et muter le champ
+			cfg := *valid
+			tc.mutate(&cfg)
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			_, err := gnoweb.NewWebHandler(logger, &cfg)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// TestIsHomePath couvre la fonction utilitaire.
+func TestIsHomePath(t *testing.T) {
+	assert.True(t, gnoweb.IsHomePath("/"))
+	assert.False(t, gnoweb.IsHomePath("/foo"))
+}
+
+// TestServeHTTPMethodNotAllowed vérifie le 405 pour les méthodes POST/PUT/etc.
+func TestServeHTTPMethodNotAllowed(t *testing.T) {
+	t.Parallel()
+
+	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ex", Files: map[string]string{}}
+	cfg := newTestHandlerConfig(t, dummy)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler, err := gnoweb.NewWebHandler(logger, cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/r/ex", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+	assert.Contains(t, rr.Body.String(), "method not allowed")
+}
+
+// TestWebHandler_AliasPath teste le rebouclage d’alias GnowebPath.
+// func TestWebHandler_AliasPath(t *testing.T) {
+// 	t.Parallel()
+
+// 	// mock qui implémente Render
+// 	mockPkg := &gnoweb.MockPackage{
+// 		Domain: "example.com",
+// 		Path:   "/r/mypath",
+// 		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "from-alias" }`},
+// 		Functions: []*doc.JSONFunc{{
+// 			Name:    "Render",
+// 			Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+// 			Results: []*doc.JSONField{{Name: "", Type: "string"}},
+// 		}},
+// 	}
+// 	cfg := newTestHandlerConfig(t, mockPkg)
+// 	// alias "GET /alias" → "/r/mypath"
+// 	cfg.Aliases["/alias"] = gnoweb.AliasTarget{Value: "/r/mypath", Kind: gnoweb.GnowebPath}
+
+// 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+// 	handler, err := gnoweb.NewWebHandler(logger, cfg)
+// 	require.NoError(t, err)
+
+// 	req := httptest.NewRequest(http.MethodGet, "/alias", nil)
+// 	rr := httptest.NewRecorder()
+// 	handler.ServeHTTP(rr, req)
+
+// 	assert.Equal(t, http.StatusOK, rr.Code)
+// 	assert.Contains(t, rr.Body.String(), "from-alias")
+// }
+
+// TestWebHandler_StaticMarkdownAlias couvre l’alias qui renvoie du Markdown statique.
+// func TestWebHandler_StaticMarkdownAlias(t *testing.T) {
+// 	t.Parallel()
+
+// 	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ignore", Files: map[string]string{}}
+// 	cfg := newTestHandlerConfig(t, dummy)
+
+// 	const md = "# Hello\n\nWorld"
+// 	// alias "/md" → contenu markdown statique
+// 	cfg.Aliases["/md"] = gnoweb.AliasTarget{Value: md, Kind: gnoweb.StaticMarkdown}
+
+// 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+// 	handler, err := gnoweb.NewWebHandler(logger, cfg)
+// 	require.NoError(t, err)
+
+// 	req := httptest.NewRequest(http.MethodGet, "/md", nil)
+// 	rr := httptest.NewRecorder()
+// 	handler.ServeHTTP(rr, req)
+
+// 	assert.Equal(t, http.StatusOK, rr.Code)
+// 	body := rr.Body.String()
+// 	// Goldmark génère <h1>Hello</h1> puis "World"
+// 	assert.Contains(t, body, "<h1>Hello</h1>")
+// 	assert.Contains(t, body, "World")
+// }
