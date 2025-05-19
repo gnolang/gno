@@ -403,6 +403,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 		Files:       files,
 		LinkType:    linkType,
 		FileCounter: len(files),
+		HeaderData:  indexData.HeaderData,
 	})
 }
 

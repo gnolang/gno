@@ -338,7 +338,7 @@ func TestWebHandler_DirectoryViewExplorerFallback(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "a.gno")
 	assert.Contains(t, rr.Body.String(), "b.gno")
 	// explorer mode
-	assert.Contains(t, rr.Body.String(), "Directory")
+	assert.Contains(t, rr.Body.String(), "Explorer")
 }
 
 // TestWebHandler_DirectoryViewPurePackage covers the pure "package" mode without error:
@@ -496,8 +496,8 @@ func TestWebHandler_GetRealmViewExplorerFallback(t *testing.T) {
 	// should contain our fallback files
 	assert.Contains(t, rr.Body.String(), "x.gno")
 	assert.Contains(t, rr.Body.String(), "y.gno")
-	// and be rendered in "explorer" mode (DirectoryView)
-	assert.Contains(t, rr.Body.String(), "Directory")
+	// and be rendered in "explorer" mode
+	assert.Contains(t, rr.Body.String(), "Explorer")
 }
 
 // TestWebHandler_DirectoryViewNoFiles covers the case where Sources returns

@@ -6,7 +6,8 @@
                     <h1 class="text-600 font-bold">{{ $pkgpath }}</h1>
                 </div>
                 <div class="flex gap-4 text-gray-300 pt-0.5">
-                    <span class="text-gray-300">Directory · {{ .FileCounter }} Files</span>
+                    {{/* TODO: move template mode logic into the layoutData instead of HeaderData */}}
+                    <span class="text-gray-300">{{ if .HeaderData.Mode.IsTemplateExplorer }} Explorer · {{ .FileCounter }} Packages{{ else }} Directory · {{ .FileCounter }} Files{{ end }}</span>
                 </div>
             </div>
 
