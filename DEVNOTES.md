@@ -14,3 +14,8 @@ Golang devs are already acustomed to do that as a first step
 ### Use in txtar?
 
 no, it would require too much change and the loader is meant for tools that accept patterns, the txtars do not
+
+### Examples drafts
+
+Following the discussions, we deciced to go with a single gno.mod per workspace, but applying this to the examples directory prevents marking indiviual packages as draft.
+I wanted the examples folder to not have specific logic but I'll probably have to revisit and introduce the corner case where gno repo examples are processed differently
