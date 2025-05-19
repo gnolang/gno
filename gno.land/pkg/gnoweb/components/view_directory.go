@@ -7,8 +7,7 @@ type DirData struct {
 	Files       []string
 	FileCounter int
 	FilesLinks  FilesLinks
-	LinkType    DirLinkType
-	HeaderData  HeaderData
+	Mode        ViewMode
 }
 
 type DirLinkType int
@@ -38,7 +37,7 @@ type FullFileLink struct {
 // FilesLinks has to be an array of FileLink
 type FilesLinks []FullFileLink
 
-func (f FilesLinks) GetFullLinks(files []string, linkType DirLinkType, pkgPath string) FilesLinks {
+func GetFullLinks(files []string, linkType DirLinkType, pkgPath string) FilesLinks {
 	result := make(FilesLinks, len(files))
 	for i, file := range files {
 		result[i] = FullFileLink{Link: linkType.LinkPrefix(pkgPath) + file, Name: file}
@@ -46,14 +45,13 @@ func (f FilesLinks) GetFullLinks(files []string, linkType DirLinkType, pkgPath s
 	return result
 }
 
-func DirectoryView(data DirData) *View {
+func DirectoryView(pkgPath string, files []string, fileCounter int, linkType DirLinkType, mode ViewMode) *View {
 	viewData := DirData{
-		PkgPath:     data.PkgPath,
-		Files:       data.Files,
-		FilesLinks:  FilesLinks{}.GetFullLinks(data.Files, data.LinkType, data.PkgPath),
-		FileCounter: data.FileCounter,
-		LinkType:    data.LinkType,
-		HeaderData:  data.HeaderData,
+		PkgPath:     pkgPath,
+		Files:       files,
+		FilesLinks:  GetFullLinks(files, linkType, pkgPath),
+		FileCounter: fileCounter,
+		Mode:        mode,
 	}
 	return NewTemplateView(DirectoryViewType, "renderDir", viewData)
 }

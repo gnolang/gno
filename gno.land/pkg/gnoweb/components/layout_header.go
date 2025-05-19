@@ -25,22 +25,8 @@ type HeaderData struct {
 	Links      HeaderLinks
 	ChainId    string
 	Remote     string
-	Mode       HeaderModeTemplate
+	Mode       ViewMode
 }
-
-type HeaderModeTemplate int
-
-const (
-	HeaderModeTemplateExplorer HeaderModeTemplate = iota
-	HeaderModeTemplateRealm
-	HeaderModeTemplatePackage
-	HeaderModeTemplateHome
-)
-
-func (m HeaderModeTemplate) IsTemplateExplorer() bool    { return m == HeaderModeTemplateExplorer }
-func (m HeaderModeTemplate) IsTemplateRealm() bool       { return m == HeaderModeTemplateRealm }
-func (m HeaderModeTemplate) IsTemplateModePackage() bool { return m == HeaderModeTemplatePackage }
-func (m HeaderModeTemplate) IsTemplateHome() bool        { return m == HeaderModeTemplateHome }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
 	links := []HeaderLink{
@@ -60,7 +46,7 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 	return links
 }
 
-func StaticHeaderDevLinks(u weburl.GnoURL, mode HeaderModeTemplate) []HeaderLink {
+func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
@@ -82,10 +68,10 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode HeaderModeTemplate) []HeaderLink
 	}
 
 	switch mode {
-	case HeaderModeTemplateExplorer:
+	case ViewModeExplorer:
 		// no links - full width breadcrumb
 		return []HeaderLink{}
-	case HeaderModeTemplatePackage:
+	case ViewModePackage:
 		// links
 		return links
 	default:
@@ -99,15 +85,13 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode HeaderModeTemplate) []HeaderLink
 	}
 }
 
-func EnrichHeaderData(data HeaderData, mode HeaderModeTemplate) HeaderData {
+func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
-
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode)
+	data.Links.General = nil
 
-	if mode == HeaderModeTemplateHome {
+	if mode.ShouldShowGeneralLinks() {
 		data.Links.General = StaticHeaderGeneralLinks()
-	} else {
-		data.Links.General = nil
 	}
 
 	return data

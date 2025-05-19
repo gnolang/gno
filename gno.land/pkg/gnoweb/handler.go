@@ -145,12 +145,17 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set the header mode based on the URL type and context
+	if IsHomePath(r.RequestURI) {
+		indexData.Mode = components.ViewModeHome
+	} else if gnourl.IsPure() {
+		indexData.Mode = components.ViewModePackage
+	} else {
+		indexData.Mode = components.ViewModeRealm
+	}
+
 	var status int
 	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
-
-	if IsHomePath(r.RequestURI) {
-		indexData.HeaderData.Mode = components.HeaderModeTemplateHome
-	}
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
@@ -180,7 +185,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
-		Mode:       components.HeaderModeTemplateRealm,
+		Mode:       indexData.Mode,
 	}
 
 	switch {
@@ -249,7 +254,6 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
-	indexData.HeaderData.Mode = components.HeaderModeTemplateRealm
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
 			Items: meta.Toc.Items,
@@ -370,23 +374,28 @@ func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *componen
 		return GetClientErrorStatusPage(gnourl, ErrClientPathNotFound)
 	}
 
-	// Display paths list instead
-	indexData.HeaderData.Mode = components.HeaderModeTemplateExplorer
+	// Always use explorer mode for paths list
+	indexData.Mode = components.ViewModeExplorer
 
-	// XXX: use a dedicated component for path view
-	return http.StatusOK, components.DirectoryView(components.DirData{
-		PkgPath:     gnourl.Path,
-		Files:       paths,
-		LinkType:    components.DirLinkTypeFile,
-		FileCounter: len(paths),
-	})
+	// Update header mode
+	indexData.HeaderData.Mode = indexData.Mode
+
+	return http.StatusOK, components.DirectoryView(
+		gnourl.Path,
+		paths,
+		len(paths),
+		components.DirLinkTypeFile,
+		indexData.Mode,
+	)
 }
 
 func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	files, err := h.Client.Sources(pkgPath)
+
+	// Set header mode based on URL type
 	if gnourl.IsPure() {
-		indexData.HeaderData.Mode = components.HeaderModeTemplatePackage
+		indexData.Mode = components.ViewModePackage
 	}
 
 	if err != nil {
@@ -403,13 +412,13 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
-	return http.StatusOK, components.DirectoryView(components.DirData{
-		PkgPath:     gnourl.Path,
-		Files:       files,
-		LinkType:    components.DirLinkTypeSource,
-		FileCounter: len(files),
-		HeaderData:  indexData.HeaderData,
-	})
+	return http.StatusOK, components.DirectoryView(
+		gnourl.Path,
+		files,
+		len(files),
+		components.DirLinkTypeSource,
+		indexData.Mode,
+	)
 }
 
 func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
