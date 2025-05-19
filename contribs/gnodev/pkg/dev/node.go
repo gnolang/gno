@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/cachepath"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
@@ -280,6 +281,11 @@ func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, 
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
 			return nil, fmt.Errorf("unable to unmarshal tx: %w", unmarshalErr)
 		}
+		for _, msg := range tx.Msgs {
+			if addpkg, ok := msg.(vm.MsgAddPackage); ok && addpkg.Package != nil {
+				cachepath.Set(addpkg.Package.Path)
+			}
+		}
 
 		metaTxs = append(metaTxs, gnoland.TxWithMetadata{
 			Tx: tx,
@@ -497,6 +503,15 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 	// Load genesis packages
 	pkgs, err := n.loader.Load(n.paths...)
+	filterPackages := make([]packages.Package, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		if !cachepath.Get(pkg.Path) {
+			filterPackages = append(filterPackages, pkg)
+		} else {
+			n.logger.Error("Can't reload package, package conflict in ", "path", pkg.Path)
+		}
+	}
+
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
@@ -506,7 +521,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	genesis.Balances = n.config.BalancesList
 
 	// Generate txs
-	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
+	pkgsTxs := n.generateTxs(DefaultFee, filterPackages)
 	genesis.Txs = append(pkgsTxs, state...)
 
 	// Reset the node with the new genesis state.
@@ -520,7 +535,6 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	// Update node infos
 	n.pkgs = pkgs
 	n.loadedPackages = len(pkgsTxs)
-
 	// Emit reload event
 	n.emitter.Emit(&events.Reload{})
 	return nil
