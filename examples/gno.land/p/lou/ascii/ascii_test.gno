@@ -31,6 +31,14 @@ func TestPadLine_Center(t *testing.T) {
 	}
 }
 
+func TestPadLineNegativeWidth(t *testing.T) {
+	got := PadLine("hi", -1, AlignLeft, " ")
+	want := "hi"
+	if got != want {
+		t.Fatalf("padLine negative width failed: got '%s', want '%s'", got, want)
+	}
+}
+
 // padHeight
 
 func TestPadHeight_Top(t *testing.T) {
@@ -54,6 +62,14 @@ func TestPadHeight_Bottom(t *testing.T) {
 	out := PadHeight(lines, 2, AlignBottom)
 	if len(out) != 2 || out[0] != "" || out[1] != "one" {
 		t.Fatalf("padHeight bottom failed: got %#v", out)
+	}
+}
+
+func TestPadHeightNegativeHeight(t *testing.T) {
+	lines := []string{"one", "two"}
+	out := PadHeight(lines, -1, AlignTop)
+	if len(out) != 2 || out[0] != "one" || out[1] != "two" {
+		t.Fatalf("padHeight negative height failed: got %#v", out)
 	}
 }
 
@@ -96,6 +112,41 @@ func TestFrame_SizeAlign(t *testing.T) {
 	}
 }
 
+func TestFrameNegativeSize(t *testing.T) {
+	lines := []string{"line"}
+	got := Frame(lines, AlignWCenter, -1, -1, AlignHCenter)
+	if res := strings.Count(got, "\n"); res != 1+4 {
+		t.Fatalf("Frame negative size failed (got %d):\n%s", res, got)
+	}
+	if !strings.Contains(got, "| line |") {
+		t.Fatalf("Frame negative size failed:\n%s", got)
+	}
+}
+
+// FixedFrame
+
+func TestFixedFrame(t *testing.T) {
+	lines := []string{"line"}
+	got := FixedFrame(lines, AlignWCenter, 10, 3, AlignTop)
+	if res := strings.Count(got, "\n"); res != 7 {
+		t.Fatalf("FixedFrame height failed (got %d):\n%s", res, got)
+	}
+	if !strings.Contains(got, "|    line    |") {
+		t.Fatalf("FixedFrame width failed:\n%s", got)
+	}
+}
+
+func TestFixedFrameNegativeSize(t *testing.T) {
+	lines := []string{"line"}
+	got := FixedFrame(lines, AlignLeft, -1, -1, AlignTop)
+	if res := strings.Count(got, "\n"); res != 4 {
+		t.Fatalf("FixedFrame negative size failed (got %d):\n%s", res, got)
+	}
+	if strings.Contains(got, "| line |") {
+		t.Fatalf("FixedFrame negative size failed:\n%s", got)
+	}
+}
+
 // ProgressBar
 
 func TestProgressBar(t *testing.T) {
@@ -119,5 +170,13 @@ func TestGrid(t *testing.T) {
 	want := "***\n***\n"
 	if got != want {
 		t.Fatalf("Grid failed: got\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestGrid_NegativeSize(t *testing.T) {
+	got := Grid(-1, -1, "*")
+	want := ""
+	if got != want {
+		t.Fatalf("Grid negative size failed: got\n%s\nwant\n%s", got, want)
 	}
 }

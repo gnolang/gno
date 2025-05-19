@@ -30,6 +30,7 @@ func PadLine(line string, width int, align WAlignment, space string) string {
 	if width < len(line) {
 		padding = 0
 	}
+
 	switch align {
 	case AlignRight:
 		return Repeat(space, padding) + line
@@ -47,6 +48,9 @@ func PadLine(line string, width int, align WAlignment, space string) string {
 // Supports AlignTop, AlignBottom, and AlignHCenter alignment.
 func PadHeight(lines []string, height int, align HAlignment) []string {
 	padded := []string{}
+	if height <= 0 {
+		return lines
+	}
 	extra := height - len(lines)
 
 	topPad := 0
@@ -191,6 +195,12 @@ func FixedFrame(
 	hAlign HAlignment,
 ) string {
 	var wrapped []string
+	if width < 0 {
+		width = 0
+	}
+	if height < 0 {
+		height = 0
+	}
 
 	for _, line := range lines {
 		words := strings.Fields(line)
@@ -211,14 +221,16 @@ func FixedFrame(
 			wrapped = append(wrapped, current)
 		}
 	}
-
 	wrapped = PadHeight(wrapped, height, hAlign)
 
 	top := "+" + Repeat("-", width+2) + "+\n"
 	bottom := "+" + Repeat("-", width+2) + "+"
 
 	body := ""
-	for _, line := range wrapped {
+	for i, line := range wrapped {
+		if i == height {
+			break
+		}
 		body += "| " + PadLine(line, width, wAlign, " ") + " |\n"
 	}
 
@@ -275,6 +287,9 @@ func PercentageBar(percent int, size int, show bool) string {
 //	xxx
 func Grid(rows int, cols int, fill string) string {
 	out := ""
+	if rows <= 0 || cols <= 0 {
+		return out
+	}
 
 	for r := 0; r < rows; r++ {
 		row := ""
