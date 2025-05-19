@@ -469,12 +469,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// newCreated or updated.
 				child.SetOwner(oo)
 
-				// As a child of packageValue, packageBlock is
-				// visited once. As a child of fileBlock, it's
-				// visited twice. On the second visit, it's already
-				// Real, while it should be NewReal too, to avoid
-				// redundant dirty marking. So make SetNewReal happen
-				// first before recurse.
+				// Mark it as new-real first to prevent it
+				// from being marked dirty upon reentry.
 				child.SetIsNewReal(true)
 				rlm.incRefCreatedDescendants(store, child)
 			}
