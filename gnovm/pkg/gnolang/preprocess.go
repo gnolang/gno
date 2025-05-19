@@ -4003,8 +4003,9 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 								// 0. skip uverse names.
 								// 1. find name within funcLit and child blocks,
 								// if exist(include predefined), do nothing;
-								// else if check package level names, if predefined, ok
-								// else, tryPredefine
+								// else if checking package-level names: if *declared*
+								// (excluding predefined), ok;
+								// else, return un, define recursively.
 
 								// skip .uverse names
 								if _, ok := UverseNode().GetLocalIndex(nx.Name); ok {
@@ -4036,7 +4037,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 
 								pkg := packageOf(last)
 								if slices.Contains(pkg.GetBlockNames(), nx.Name) {
-									tv := pkg.GetValueRef(store, nx.Name, false) // include predefined
+									tv := pkg.GetValueRef(store, nx.Name, false)
 									if !tv.IsUndefined() {
 										return n, TRANS_CONTINUE
 									}
