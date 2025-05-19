@@ -30,7 +30,20 @@ func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
 func cross[F any](fn F) F { return fn } // shim
 func revive[F any](fn F) any { return nil } // shim
-type realm interface{} // shim
+type realm interface {
+    Address() address
+    Path() string
+    // Coins() gnocoins
+    // Send(coins gnocoins, to address) error 
+    Origin() realm
+    Previous() realm
+    Sudo() realm
+}
+type address string
+type gnocoins []gnocoin
+type gnocoin struct {
+    Denom string
+    Amount int64
 `, pkgName)}
 	return file
 }

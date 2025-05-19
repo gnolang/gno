@@ -149,14 +149,27 @@ func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage
 }
 
 // Minimal AST mutation(s) for Gno 0.9.
-//   - Renames 'realm' to '_realm' to avoid conflict with new builtin "realm".
+//   - Renames 'Realm' to 'Realm_' to avoid conflict with new builtin "Realm".
 func prepareGno0p9(f *ast.File) (err error) {
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		switch gon := c.Node().(type) {
 		case *ast.Ident:
-			if gon.Name == "realm" {
-				// XXX: optimistic.
-				gon.Name = "_realm"
+			// XXX: optimistic.
+			switch gon.Name {
+			case "realm":
+				gon.Name = "realm_XXX"
+			case "realm_gno0p9":
+				gon.Name = "realm"
+			case "address":
+				gon.Name = "address_XXX"
+			case "address_gno0p9":
+				gon.Name = "address"
+			case "gnocoin":
+				gon.Name = "gnocoin_XXX"
+			case "gnocoin_gno0p9":
+				gon.Name = "gnocoin"
+			case "gnocoins_gno0p9":
+				gon.Name = "gnocoins"
 			}
 		}
 		return true
@@ -528,16 +541,6 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 
 		// Main switch on c.Node() type.
 		switch gon := c.Node().(type) {
-		case *ast.Ident:
-			if gon.Name == "realm_XXX_TRANSPILE" {
-				// Impostor varname 'realm' will become
-				// renamed, so reclaim 'realm'.
-				gon.Name = "realm"
-			} else if gon.Name == "realm" {
-				// Rename name to _realm to avoid conflict with new builtin "realm".
-				// XXX: optimistic.
-				gon.Name = "_realm"
-			}
 		case *ast.ExprStmt:
 			if ce, ok := gon.X.(*ast.CallExpr); ok {
 				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
@@ -556,7 +559,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
 				gon.Type.Params.List = append([]*ast.Field{{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
-					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
+					Type:  ast.NewIdent("realm"),
 				}}, gon.Type.Params.List...)
 				delete(xforms2, gon)
 			}
@@ -564,7 +567,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
 				gon.Type.Params.List = append([]*ast.Field{{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
-					Type:  ast.NewIdent("realm_XXX_TRANSPILE"),
+					Type:  ast.NewIdent("realm"),
 				}}, gon.Type.Params.List...)
 				delete(xforms2, gon)
 			}

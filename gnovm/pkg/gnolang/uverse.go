@@ -8,6 +8,7 @@ import (
 	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // ----------------------------------------
@@ -59,43 +60,125 @@ var gStringerType = &DeclaredType{
 	sealed: true,
 }
 
+var gAddressType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "address",
+	Base:    StringType,
+	sealed:  true,
+}
+
+func init() {
+	// address.String() string
+	gAddressType.DefineMethod(&FuncValue{
+		Name: "String",
+		Type: &FuncType{
+			Params: []FieldType{{
+				Type: gAddressType}},
+			Results: []FieldType{{
+				Type: StringType}}},
+		IsMethod: true,
+		PkgPath:  uversePkgPath,
+		Crossing: false,
+		nativeBody: func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			res0 := typedString(arg0.TV.GetString())
+			m.PushValue(res0)
+			return
+		}})
+	// address.IsValid() bool
+	gAddressType.DefineMethod(&FuncValue{
+		Name: "IsValid",
+		Type: &FuncType{
+			Params: []FieldType{{
+				Type: gAddressType}},
+			Results: []FieldType{{
+				Type: BoolType}}},
+		IsMethod: true,
+		PkgPath:  uversePkgPath,
+		Crossing: false,
+		nativeBody: func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			addr := arg0.TV.GetString()
+			_, err := crypto.AddressFromBech32(addr)
+			ok := err == nil
+			res0 := typedBool(ok)
+			m.PushValue(res0)
+			return
+		}})
+}
+
+var gCoinType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "gnocoin",
+	Base: &StructType{
+		PkgPath: uversePkgPath,
+		Fields: []FieldType{
+			FieldType{Name: "Denom", Type: StringType},
+			FieldType{Name: "Amount", Type: Int64Type},
+		},
+	},
+	sealed: true,
+}
+
+var gCoinsType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "gnocoins",
+	Base:    &SliceType{Elt: gCoinType},
+	sealed:  true,
+}
+
 var gRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "realm",
 	Base: &InterfaceType{
 		PkgPath: uversePkgPath,
-		Methods: []FieldType{
-			{
-				Name: "Addr",
-				Type: &FuncType{
-					Params: nil,
-					Results: []FieldType{
-						{
-							// Name: "",
-							Type: StringType, // NOT std.Address.
-						},
-					},
-				},
-			},
-			{
-				Name: "Prev",
-				Type: &FuncType{
-					Params: nil,
-					Results: []FieldType{
-						{
-							// Name: "",
-							Type: nil, // gets filled in init() below.
-						},
-					},
-				},
-			},
+		Methods: []FieldType{{
+			Name: "Address",
+			Type: &FuncType{
+				Params: nil,
+				Results: []FieldType{{
+					Type: gAddressType}}}}, { // NOT std.Address.
+			Name: "Path",
+			Type: &FuncType{
+				Params: nil,
+				Results: []FieldType{{
+					Type: StringType}}}}, {
+			Name: "Coins",
+			Type: &FuncType{
+				Params: nil,
+				Results: []FieldType{{
+					Type: gCoinsType}}}}, {
+			Name: "Send",
+			Type: &FuncType{
+				Params: []FieldType{{
+					Name: "coins", Type: gCoinsType}, {
+					Name: "to", Type: gAddressType}},
+				Results: []FieldType{{
+					Type: gErrorType}}}}, {
+			Name: "Previous",
+			Type: &FuncType{
+				Params: nil,
+				Results: []FieldType{{
+					Type: nil}}}}, { // gets filled in init() below.
+			Name: "Origin",
+			Type: &FuncType{
+				Params: nil,
+				Results: []FieldType{{
+					Type: nil}}}}, { // gets filled in init() below.
+			Name: "Sudo",
+			Type: &FuncType{
+				Params: nil,
+				Results: []FieldType{{
+					Type: nil}}}}, // gets filled in init() below.
 		},
 	},
 	sealed: true,
 }
 
 func init() {
-	gRealmType.Base.(*InterfaceType).Methods[1].Type.(*FuncType).Results[0].Type = gRealmType
+	gRealmType.Base.(*InterfaceType).Methods[4].Type.(*FuncType).Results[0].Type = gRealmType // Previous
+	gRealmType.Base.(*InterfaceType).Methods[5].Type.(*FuncType).Results[0].Type = gRealmType // Origin
+	gRealmType.Base.(*InterfaceType).Methods[6].Type.(*FuncType).Results[0].Type = gRealmType // Sudo
 }
 
 // ----------------------------------------
@@ -795,6 +878,9 @@ func makeUverseNode() {
 	//----------------------------------------
 	// Gno2 types
 	def("realm", asValue(gRealmType))
+	def("address", asValue(gAddressType))
+	def("gnocoin", asValue(gCoinType))
+	def("gnocoins", asValue(gCoinsType))
 	defNative("crossing",
 		nil, // params
 		nil, // results
