@@ -5,14 +5,12 @@ import (
 	"flag"
 	"fmt"
 	goio "io"
-	"log"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -179,16 +177,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
-	if err != nil {
-		return fmt.Errorf("list targets from patterns: %w", err)
-	}
-
-	if len(paths) == 0 {
-		io.ErrPrintln("no packages to test")
-		return nil
-	}
-
 	if cfg.timeout > 0 {
 		go func() {
 			time.Sleep(cfg.timeout)
@@ -196,9 +184,14 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}()
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
+	// XXX: resolve deps via loader, this requires modifying the test store
+	pkgs, err := packages.Load(&packages.LoadConfig{
+		Out:  io.Err(),
+		Deps: true,
+		Test: true,
+	}, args...)
 	if err != nil {
-		return fmt.Errorf("list sub packages: %w", err)
+		return err
 	}
 
 	// Set up options to run tests.
@@ -206,7 +199,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, stdout, io.Err())
+	opts, err := test.NewPreloadedTestOptions(cfg.rootDir, pkgs, stdout, io.Err())
+	if err != nil {
+		return fmt.Errorf("instantiate store: %w", err)
+	}
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose
@@ -222,16 +218,23 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
 
-	for _, pkg := range subPkgs {
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+	for _, pkg := range pkgs {
+		if len(pkg.Match) == 0 {
+			// ignore deps
+			continue
+		}
+
+		if len(pkg.Files.Merge(packages.FileKindFiletest, packages.FileKindXTest, packages.FileKindFiletest)) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
 		}
-		// Determine gnoPkgPath by reading gno.mod
-		modfile, _ := gnomod.ParseAt(pkg.Dir)
-		gnoPkgPath, ok := determinePkgPath(modfile, pkg.Dir, cfg.rootDir)
-		if !ok {
-			io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
+
+		gnoPkgPath := pkg.ImportPath
+		modfile, err := gnomod.ParseAt(pkg.ModPath)
+		if err != nil {
+			io.ErrPrintfln("%s: parse gno.mod at %q: %w", gnoPkgPath, pkg.ModPath, err)
+			buildErrCount++
+			break
 		}
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
@@ -276,45 +279,4 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	return nil
-}
-
-func determinePkgPath(modfile *gnomod.File, dir, rootDir string) (string, bool) {
-	if modfile != nil {
-		return modfile.Module.Mod.Path, true
-	}
-
-	if path := pkgPathFromRootDir(dir, rootDir); path != "" {
-		return path, true
-	}
-	// unable to read pkgPath from gno.mod, use a deterministic path.
-	return "gno.land/r/txtar", false // XXX: gno.land hardcoded for convenience.
-}
-
-// attempts to determine the full gno pkg path by analyzing the directory.
-func pkgPathFromRootDir(pkgPath, rootDir string) string {
-	abPkgPath, err := filepath.Abs(pkgPath)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir, err := filepath.Abs(rootDir)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir += string(filepath.Separator)
-	if !strings.HasPrefix(abPkgPath, abRootDir) {
-		return ""
-	}
-	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
-	for _, prefix := range [...]string{
-		"examples/",
-		"gnovm/stdlibs/",
-		"gnovm/tests/stdlibs/",
-	} {
-		if strings.HasPrefix(impPath, prefix) {
-			return impPath[len(prefix):]
-		}
-	}
-	return ""
 }

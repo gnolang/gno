@@ -53,15 +53,6 @@ func StoreWithOptions(
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
-	processMemPackage := func(m *gno.Machine, memPkg *std.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
-		return m.RunMemPackage(memPkg, save)
-	}
-	if opts.PreprocessOnly {
-		processMemPackage = func(m *gno.Machine, memPkg *std.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
-			m.Store.AddMemPackage(memPkg)
-			return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), save, false)
-		}
-	}
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
@@ -73,16 +64,8 @@ func StoreWithOptions(
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
 				memPkg := gno.MustReadMemPackage(baseDir, pkgPath)
-				send := std.Coins{}
-				ctx := Context("", pkgPath, send)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath:       "test",
-					Output:        output,
-					Store:         store,
-					Context:       ctx,
-					ReviveEnabled: true,
-				})
-				return processMemPackage(m2, memPkg, true)
+
+				return loadPkg(pkgPath, store, output, memPkg, opts.PreprocessOnly)
 			}
 		}
 
@@ -97,21 +80,66 @@ func StoreWithOptions(
 		if osm.DirExists(examplePath) {
 			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
 			if memPkg.IsEmpty() {
-				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+				panic(fmt.Errorf("imports: found an empty package %q", pkgPath))
 			}
 
-			send := std.Coins{}
-			ctx := Context("", pkgPath, send)
-			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				PkgPath:       "test",
-				Output:        output,
-				Store:         store,
-				Context:       ctx,
-				ReviveEnabled: true,
-			})
-			return processMemPackage(m2, memPkg, true)
+			return loadPkg(pkgPath, store, output, memPkg, opts.PreprocessOnly)
 		}
 		return nil, nil
+	}
+	db := memdb.NewMemDB()
+	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	// Make a new store.
+	resStore = gno.NewStore(nil, baseStore, baseStore)
+	resStore.SetPackageGetter(getPackage)
+	resStore.SetNativeResolver(teststdlibs.NativeResolver)
+	return
+}
+
+// TODO doc
+func PreloadedStore(
+	rootDir string,
+	pkgs packages.PkgList,
+	output io.Writer,
+	opts StoreOptions,
+) (
+	baseStore storetypes.CommitStore,
+	resStore gno.Store,
+	outErr error,
+) {
+	if opts.WithExtern {
+		return nil, nil, errors.New("preloaded store does not support WithExtern")
+	}
+
+	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+		if pkgPath == "" {
+			panic(errors.New("invalid zero package path in testStore().pkgGetter"))
+		}
+
+		if gno.IsStdlib(pkgPath) {
+			// Load normal stdlib.
+			pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly)
+			if pn == nil {
+				return nil, nil
+			}
+			return
+		}
+
+		pkg := pkgs.Get(pkgPath)
+		if pkg == nil {
+			return nil, nil
+		}
+
+		// normal package
+		memPkg, err := pkg.MemPkg()
+		if err != nil {
+			panic(fmt.Errorf("failed to get mempkg for %q at %q: %w", pkg.ImportPath, pkg.Dir, err))
+		}
+		if memPkg.IsEmpty() {
+			panic(fmt.Errorf("imports: found an empty package %q", pkgPath))
+		}
+
+		return loadPkg(pkgPath, store, output, memPkg, opts.PreprocessOnly)
 	}
 	db := memdb.NewMemDB()
 	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
@@ -167,6 +195,23 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(memPkg, true)
+}
+
+func loadPkg(pkgPath string, store gno.Store, stdout io.Writer, memPkg *std.MemPackage, preprocessOnly bool) (*gno.PackageNode, *gno.PackageValue) {
+	send := std.Coins{}
+	ctx := Context("", pkgPath, send)
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath:       "test",
+		Output:        stdout,
+		Store:         store,
+		Context:       ctx,
+		ReviveEnabled: true,
+	})
+	if preprocessOnly {
+		m.Store.AddMemPackage(memPkg)
+		return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), true, false)
+	}
+	return m.RunMemPackage(memPkg, true)
 }
 
 type stackWrappedError struct {

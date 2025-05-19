@@ -21,7 +21,7 @@ import (
 func TestNoCycles(t *testing.T) {
 	// find stdlibs
 	gnoRoot := gnoenv.RootDir()
-	pkgs, err := listPkgs(gnomod.Pkg{
+	pkgs, err := listPkgs(packages.Package{
 		Dir:  filepath.Join(gnoRoot, "gnovm", "stdlibs"),
 		Name: "",
 	})
@@ -135,7 +135,7 @@ type testPkg struct {
 }
 
 // listPkgs lists all packages in rootMod
-func listPkgs(rootMod gnomod.Pkg) ([]testPkg, error) {
+func listPkgs(rootMod packages.Package) ([]testPkg, error) {
 	res := []testPkg{}
 	rootDir := rootMod.Dir
 	visited := map[string]struct{}{}
