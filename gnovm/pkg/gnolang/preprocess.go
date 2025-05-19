@@ -408,9 +408,8 @@ func doRecover(stack []BlockNode, n Node) {
 		// before re-throwing the error, append location information to message.
 		last := stack[len(stack)-1]
 		loc := last.GetLocation()
-		if nline := n.GetLine(); nline > 0 {
-			loc.Line = nline
-			loc.Column = n.GetColumn()
+		if !n.GetSpan().IsZero() {
+			loc.SetSpanOverride(n.GetSpan())
 		}
 
 		var err error
@@ -418,7 +417,7 @@ func doRecover(stack []BlockNode, n Node) {
 		if ok {
 			err = errors.Wrap(rerr, loc.String())
 		} else {
-			err = fmt.Errorf("%s: %v", loc.StringXXX(), r) // XXX revert to String().
+			err = fmt.Errorf("%s: %v", loc.String(), r)
 		}
 
 		// Re-throw the error after wrapping it with the preprocessing stack information.

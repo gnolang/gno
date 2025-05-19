@@ -395,7 +395,6 @@ func checkValDefineMismatch(n Node) {
 		if numNames > numValues {
 			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String()))
 		}
-
 		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
 	}
 

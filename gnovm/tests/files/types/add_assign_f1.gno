@@ -25,7 +25,7 @@ func main() {
 }
 
 // Error:
-// main/add_assign_f1.gno:21:2: invalid operation: mismatched types main.Error and .uverse.error
+// main/add_assign_f1.gno:21:2-13: invalid operation: mismatched types main.Error and .uverse.error
 
 // TypeCheckError:
 // main/add_assign_f1.gno:21:2: invalid operation: r += errCmp (mismatched types Error and error)

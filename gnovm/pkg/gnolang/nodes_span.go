@@ -114,10 +114,17 @@ func (s Span) GetSpan() Span {
 // If you need to update the span/pos/location of a node it should be re-parsed
 // from an updated AST.  This is important because location is used as identity.
 // Anyone with a node can still mutate these fields directly; the method guides.
+// If you need to override the span (e.g. constructing a Location by mutating
+// a copy) then call SetSpanOverride() instead of directly assigning to .Span.
 func (s1 *Span) SetSpan(s2 Span) {
 	if !s1.IsZero() && (*s1 != s2) {
 		panic(".Span can ony be set once. s1:" + s1.String() + " s2:" + s2.String())
 	}
+	*s1 = s2
+}
+
+// See documentation for SetSpan().
+func (s1 *Span) SetSpanOverride(s2 Span) {
 	*s1 = s2
 }
 
@@ -134,12 +141,6 @@ func (s Span) String() string {
 			strings.Repeat("'", s.Num), // e.g. 1:1-3:4'''
 		)
 	}
-}
-
-// XXX delete this after fixing all tests.
-func (s Span) StringXXX() string {
-	return fmt.Sprintf("%d:%d",
-		s.Pos.Line, s.Pos.Column)
 }
 
 // Overridden by Attributes.IsZero().
@@ -219,15 +220,6 @@ type Location struct {
 	PkgPath string
 	File    string
 	Span
-}
-
-// XXX Delete this after fixing all tests.
-func (loc Location) StringXXX() string {
-	return fmt.Sprintf("%s/%s:%s",
-		loc.PkgPath,
-		loc.File,
-		loc.Span.StringXXX(),
-	)
 }
 
 // Overridden by Attributes.String().

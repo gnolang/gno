@@ -138,21 +138,17 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 // setSpan() will not attempt to overwrite an existing span.
 // This usually happens when an inner node is passed outward,
 // in which case we want to keep the original specificity.
-func setSpan(fs *token.FileSet, astn ast.Node, n Node) Node {
+func setSpan(fs *token.FileSet, gon ast.Node, n Node) Node {
 	if n.GetSpan().IsZero() {
-		pos := astn.Pos()
-		posn := fs.Position(pos)
-		end := astn.End()
-		endn := fs.Position(end)
-		n.SetSpan(Span{Pos: Pos{posn.Line, posn.Column}, End: Pos{endn.Line, endn.Column}})
+		n.SetSpan(SpanFromGo(fs, gon))
 	}
 	return n
 }
 
-func sprintASTNode(fs *token.FileSet, astn ast.Node) string {
+func sprintASTNode(fs *token.FileSet, gon ast.Node) string {
 	// Write ast.Node as string.
 	var buf bytes.Buffer
-	err := gofmt.Node(&buf, fs, astn)
+	err := gofmt.Node(&buf, fs, gon)
 	if err != nil {
 		panic(fmt.Errorf("stringifying ast.Node: %v", err))
 	}

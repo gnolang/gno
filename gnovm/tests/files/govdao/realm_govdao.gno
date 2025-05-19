@@ -72,4 +72,4 @@ func Render() {
 }
 
 // Error:
-// gno.land/r/gov/dao/v3/memberstore/memberstore.gno:125:2: builtin identifiers cannot be shadowed: realm
+// gno.land/r/gov/dao/v3/memberstore/memberstore.gno:125:2-7: builtin identifiers cannot be shadowed: realm

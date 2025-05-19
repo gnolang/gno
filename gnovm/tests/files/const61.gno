@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/const61.gno:4:6: bigint underflows target kind
+// main/const61.gno:4:6-15: bigint underflows target kind
 
 // TypeCheckError:
 // main/const61.gno:4:12: constant -1 overflows uint8
