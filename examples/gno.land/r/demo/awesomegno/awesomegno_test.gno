@@ -152,12 +152,60 @@ func TestItemCategoryRelationship(t *testing.T) {
 	category := catValue.(*Category)
 
 	uassert.NotPanics(t, func() {
-		UpdateItem(item.ID, "", "", "", category.ID)
+		UpdateItemWithCategories(item.ID, "", "", "", category.ID)
 	})
 
 	DeleteCategory(category.ID)
 
 	uassert.PanicsWithMessage(t, "category not found: "+category.ID.String(), func() {
-		UpdateItem(item.ID, "", "", "", category.ID)
+		UpdateItemWithCategories(item.ID, "", "", "", category.ID)
+	})
+}
+
+func TestUpdateItemWithCategories(t *testing.T) {
+	t.Helper()
+	testing.SetOriginCaller(adminAddr)
+
+	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+
+	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
+	AddCategory("Cat1", "Category 1")
+	AddCategory("Cat2", "Category 2")
+
+	_, itemValue := items.GetByIndex(0)
+	item := itemValue.(*Item)
+	_, cat1Value := categories.GetByIndex(0)
+	cat1 := cat1Value.(*Category)
+	_, cat2Value := categories.GetByIndex(1)
+	cat2 := cat2Value.(*Category)
+
+	uassert.NotPanics(t, func() {
+		UpdateItemWithCategories(item.ID, "Updated Item", "Updated description", "https://updated.com", cat1.ID, cat2.ID)
+	})
+
+	invalidID := seqid.ID(999999)
+	uassert.PanicsWithMessage(t, "item not found: "+invalidID.String(), func() {
+		UpdateItemWithCategories(invalidID, "title", "desc", "url", cat1.ID)
+	})
+}
+
+func TestUpdateItemNoCategories(t *testing.T) {
+	t.Helper()
+	testing.SetOriginCaller(adminAddr)
+
+	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+
+	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
+
+	_, itemValue := items.GetByIndex(0)
+	item := itemValue.(*Item)
+
+	uassert.NotPanics(t, func() {
+		UpdateItem(item.ID, "Updated Item", "Updated description", "https://updated.com")
+	})
+
+	invalidID := seqid.ID(999999)
+	uassert.PanicsWithMessage(t, "item not found: "+invalidID.String(), func() {
+		UpdateItem(invalidID, "title", "desc", "url")
 	})
 }

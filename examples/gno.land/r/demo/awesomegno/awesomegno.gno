@@ -58,7 +58,7 @@ func AddItem(title, description, url, authorAddress string) {
 	}
 }
 
-func UpdateItem(itemID seqid.ID, title, description, url string, categories ...seqid.ID) {
+func UpdateItemWithCategories(itemID seqid.ID, title, description, url string, categories ...seqid.ID) {
 	crossing()
 
 	emptyAddrs := []std.Address{}
@@ -70,12 +70,24 @@ func UpdateItem(itemID seqid.ID, title, description, url string, categories ...s
 	}
 }
 
-func UpdateItemCategory(itemID seqid.ID, title, description, url string, category seqid.ID) {
+func UpdateItem(itemID seqid.ID, title, description, url string) {
 	crossing()
 
 	emptyAddrs := []std.Address{}
-	if err := Auth.DoByPrevious("update_item_category", func() error {
-		updateItem(itemID, title, description, url, emptyAddrs, category)
+	emptyCategories := []seqid.ID{}
+	if err := Auth.DoByPrevious("update_item_without_categories", func() error {
+		updateItem(itemID, title, description, url, emptyAddrs, emptyCategories...)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func AddItemToCategory(itemID seqid.ID, categoryID seqid.ID) {
+	crossing()
+
+	if err := Auth.DoByPrevious("add_item_to_category", func() error {
+		addItemToCategory(itemID, categoryID)
 		return nil
 	}); err != nil {
 		panic(err)
@@ -223,6 +235,24 @@ func updateItem(itemID seqid.ID, title, description, url string, authors []std.A
 		"authors", authorsToString(d.Authors),
 		"categories", categoriesstr,
 	)
+}
+
+func addItemToCategory(itemID seqid.ID, categoryID seqid.ID) {
+	itemVal, found := items.Get(itemID.String())
+	if !found {
+		panic("item not found: " + itemID.String())
+	}
+	item := itemVal.(*Item)
+
+	for _, cat := range item.Categories {
+		if cat == categoryID {
+			return
+		}
+	}
+
+	newCategories := append(item.Categories, categoryID)
+
+	updateItem(itemID, "", "", "", nil, newCategories...)
 }
 
 func authorsToString(authors []std.Address) string {
