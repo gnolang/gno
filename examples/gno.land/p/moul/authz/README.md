@@ -19,9 +19,9 @@ var MyKeys authz.Membership = addrset.NewSet("g1manfred", "g1backup").Safe()
 // r/team/config
 
 // r/sys/team
-func func Has(handle string, addr std.Address)
+func Has(handle string, addr std.Address)
 
-
+type Membership struct {} // optional
 
 
 ```
