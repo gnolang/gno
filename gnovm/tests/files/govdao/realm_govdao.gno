@@ -71,5 +71,21 @@ func Render() {
 	println(dao.Render(""))
 }
 
-// Error:
-// gno.land/r/gov/dao/v3/memberstore/memberstore.gno:125:2-7: builtin identifiers cannot be shadowed: realm
+// Output:
+// true
+// # Active Proposals:
+// ## Proposal with id: 0
+// ### Title: Proposal Title: Dummy proposal
+//
+// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// Description: Do nothing
+//
+//
+// ### Proposal Status:
+//
+// - **PROPOSAL HAS BEEN ACCEPTED**
+// - Allowed tiers to vote: T1 T2 T3
+// - YES PERCENT: 66.66666666666666%
+// - NO PERCENT: 0%
+// - [Go to votes list](/r/gov/dao:0/votes).

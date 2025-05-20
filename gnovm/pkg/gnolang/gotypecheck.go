@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"go/types"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -231,12 +232,27 @@ type realm interface{} // shim
 	*/
 
 	// STEP 4: Type-check Gno0.9 AST in Go (_filetest.gno if ParseModeAll).
-	// Each filetest is its own package.
 	defer func() { gmgof.Name = ast.NewIdent(mpkg.Name) }() // revert
 	for _, tgof := range tgofs {
-		gmgof.Name = tgof.Name // may be anything.
-		tgof2 := []*ast.File{gmgof, tgof}
-		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgof2, nil)
+		// Each filetest is its own package.
+		// XXX If we're re-parsing the filetest anyways,
+		// change GoParseMemPackage to not parse into tgofs.
+		tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
+		tfile := mpkg.GetFile(tfname)
+		tmpkg := &std.MemPackage{Name: tgof.Name.String(), Path: mpkg.Path}
+		tmpkg.NewFile(tfname, tfile.Body)
+		tgofset, _, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
+		if len(gimp.errors) != numErrs {
+			/* NOTE: Uncomment to fail earlier.
+			errs = multierr.Combine(gimp.errors...)
+			return
+			*/
+			continue
+		}
+		if len(tgofs2) != 1 { // should not happen
+			panic("unexpected GoParseMemPackage result")
+		}
+		_, _ = gimp.cfg.Check(tmpkg.Path, tgofset, tgofs2, nil)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors...)
