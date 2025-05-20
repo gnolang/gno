@@ -2943,9 +2943,9 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 	panic("should not happen, idx not found")
 }
 
-// finds the first FuncLitExpr in the stack at or after stop.
-// returns the depth of first closure, 1 if stop itself is a closure,
-// or 0 if not found.
+// finds the first FuncLitExpr in the stack after (excluding) stop.  returns
+// the depth of first closure, 1 if last stack item itself is a closure, or 0
+// if not found.
 func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
 	faux := 0 // count faux block
 	for i := len(stack) - 1; i >= 0; i-- {
@@ -2960,6 +2960,35 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 			found = true
 			// even if found, continue iteration in case
 			// an earlier *FuncLitExpr is found.
+		default:
+			if fauxChildBlockNode(stbn) {
+				faux++
+			}
+			if stbn == stop {
+				return
+			}
+		}
+	}
+	// This can happen e.g. if stop is a package but we are
+	// Preprocess()'ing an expression such as `func(){ ... }()` from
+	// Machine.Eval() on an already preprocessed package.
+	return
+}
+
+// finds the last FuncLitExpr in the stack at (including) or after stop.
+// returns the depth of last function, 1 if last stack item itself is a
+// closure, or 0 if not found.
+func findLastFunction(last BlockNode, stop BlockNode) (fn BlockNode, depth int, found bool) {
+	faux := 0   // count faux block
+	depth_ := 0 // working value
+	for stbn := last; stbn != stop; stbn = stbn.GetParentNode(nil) {
+		depth_ += 1
+		switch stbn := stbn.(type) {
+		case *FuncLitExpr, *FuncDecl:
+			fn = stbn
+			depth = depth_ - faux
+			found = true
+			return
 		default:
 			if fauxChildBlockNode(stbn) {
 				faux++
@@ -4014,17 +4043,10 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		if un != "" {
 			return
 		}
-		// only skip when no outer funcDecl or funcLit
-		for last != nil {
-			switch last.(type) {
-			case *FuncDecl, *FuncLitExpr:
-				return
-			}
-			last = last.GetParentNode(nil)
+		_, _, found := findLastFunction(last, nil)
+		if !found {
+			cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, "FuncLitExpr")
 		}
-
-		cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, "FuncLitExpr")
-
 	case *FieldTypeExpr: // FIELD
 		return findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)
 	case *ArrayTypeExpr:
