@@ -15,34 +15,25 @@ func TestNewRemoteSignerServer(t *testing.T) {
 	t.Parallel()
 
 	var (
-		signer          = types.NewMockSigner()
-		listenAddresses = []string{
-			"tcp://127.0.0.1",
-			"unix:///tmp/remote_signer.sock",
-		}
-		logger = log.NewNoopLogger()
+		signer        = types.NewMockSigner()
+		listenAddress = "tcp://127.0.0.1"
+		logger        = log.NewNoopLogger()
 	)
 
 	t.Run("nil signer", func(t *testing.T) {
 		t.Parallel()
 
-		rss, err := NewRemoteSignerServer(nil, nil, nil)
+		rss, err := NewRemoteSignerServer(nil, "", nil)
 		require.Nil(t, rss)
 		assert.ErrorIs(t, err, ErrNilSigner)
 	})
 
-	t.Run("invalid listenAddresses", func(t *testing.T) {
+	t.Run("invalid listenAddress", func(t *testing.T) {
 		t.Parallel()
 
-		// Test empty listenAddresses.
-		emptyListenAddresses := []string{}
-		rss, err := NewRemoteSignerServer(signer, emptyListenAddresses, nil)
-		require.Nil(t, rss)
-		require.ErrorIs(t, err, ErrNoListenAddressProvided)
-
-		// Test empty listenAddresses.
-		invalidListenAddresses := []string{"udp://127.0.0.1"}
-		rss, err = NewRemoteSignerServer(signer, invalidListenAddresses, nil)
+		// Test empty listenAddress.
+		invalidListenAddress := "udp://127.0.0.1"
+		rss, err := NewRemoteSignerServer(signer, invalidListenAddress, nil)
 		require.Nil(t, rss)
 		assert.ErrorIs(t, err, ErrInvalidAddressProtocol)
 	})
@@ -50,7 +41,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 	t.Run("nil logger", func(t *testing.T) {
 		t.Parallel()
 
-		rss, err := NewRemoteSignerServer(signer, listenAddresses, nil)
+		rss, err := NewRemoteSignerServer(signer, listenAddress, nil)
 		require.Nil(t, rss)
 		assert.ErrorIs(t, err, ErrNilLogger)
 	})
@@ -58,7 +49,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 	t.Run("valid config", func(t *testing.T) {
 		t.Parallel()
 
-		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
+		rss, err := NewRemoteSignerServer(signer, listenAddress, logger)
 		require.NotNil(t, rss)
 		assert.NoError(t, err)
 	})
@@ -67,14 +58,14 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		t.Parallel()
 
 		// Test default keepAlivePeriod.
-		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
+		rss, err := NewRemoteSignerServer(signer, listenAddress, logger)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.Equal(t, DefaultKeepAlivePeriod, rss.keepAlivePeriod)
 
 		// Test functional option.
 		option := WithKeepAlivePeriod(42)
-		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
+		rss, err = NewRemoteSignerServer(signer, listenAddress, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rss.keepAlivePeriod)
@@ -84,14 +75,14 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		t.Parallel()
 
 		// Test default responseTimeout.
-		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
+		rss, err := NewRemoteSignerServer(signer, listenAddress, logger)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.Equal(t, DefaultResponseTimeout, rss.responseTimeout)
 
 		// Test functional option.
 		option := WithResponseTimeout(42)
-		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
+		rss, err = NewRemoteSignerServer(signer, listenAddress, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rss.responseTimeout)
@@ -101,7 +92,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		t.Parallel()
 
 		// Test default serverPrivKey.
-		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
+		rss, err := NewRemoteSignerServer(signer, listenAddress, logger)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NotNil(t, rss.serverPrivKey)
@@ -109,7 +100,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		// Test functional option.
 		privKey := ed25519.GenPrivKey()
 		option := WithServerPrivKey(privKey)
-		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
+		rss, err = NewRemoteSignerServer(signer, listenAddress, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		assert.Equal(t, privKey, rss.serverPrivKey)
@@ -119,7 +110,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		t.Parallel()
 
 		// Test default authorizedKeys.
-		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
+		rss, err := NewRemoteSignerServer(signer, listenAddress, logger)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.Empty(t, rss.authorizedKeys)
@@ -127,7 +118,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		// Test functional option.
 		keys := []ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}
 		option := WithAuthorizedKeys(keys)
-		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
+		rss, err = NewRemoteSignerServer(signer, listenAddress, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		assert.Equal(t, keys, rss.authorizedKeys)

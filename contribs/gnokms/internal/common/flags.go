@@ -38,7 +38,7 @@ func (f *AuthFlags) RegisterFlags(fs *flag.FlagSet) {
 type ServerFlags struct {
 	AuthFlags
 
-	ListenAddresses string
+	Listener        string
 	KeepAlivePeriod time.Duration
 	ResponseTimeout time.Duration
 	LogLevel        string
@@ -46,7 +46,7 @@ type ServerFlags struct {
 }
 
 var defaultServerFlags = ServerFlags{
-	ListenAddresses: "tcp://127.0.0.1:26659",
+	Listener:        "tcp://127.0.0.1:26659",
 	KeepAlivePeriod: sserver.DefaultKeepAlivePeriod,
 	ResponseTimeout: sserver.DefaultResponseTimeout,
 	LogLevel:        zapcore.InfoLevel.String(),
@@ -57,10 +57,10 @@ func (f *ServerFlags) RegisterFlags(fs *flag.FlagSet) {
 	f.AuthFlags.RegisterFlags(fs)
 
 	fs.StringVar(
-		&f.ListenAddresses,
-		"listeners",
-		defaultServerFlags.ListenAddresses,
-		"list of TCP or UNIX listening addresses separated by comma",
+		&f.Listener,
+		"listener",
+		defaultServerFlags.Listener,
+		"TCP (tcp://<ip>:<port>) or UNIX (unix://<path>) listener",
 	)
 
 	fs.DurationVar(

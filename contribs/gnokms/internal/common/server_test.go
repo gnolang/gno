@@ -27,7 +27,7 @@ func TestNewSignerServer(t *testing.T) {
 
 	t.Run("nil signer", func(t *testing.T) {
 		serverFlags := &ServerFlags{
-			ListenAddresses: "tcp://127.0.0.1:0",
+			Listener: "tcp://127.0.0.1:0",
 		}
 
 		signerServer, err := NewSignerServer(
@@ -47,7 +47,7 @@ func TestNewSignerServer(t *testing.T) {
 		os.WriteFile(filePath, []byte("invalid"), 0o600)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: "tcp://127.0.0.1:0",
+			Listener: "tcp://127.0.0.1:0",
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
 			},
@@ -83,7 +83,7 @@ func TestNewSignerServer(t *testing.T) {
 		os.WriteFile(akf.filePath, jsonBytes, 0o600)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: "tcp://127.0.0.1:0",
+			Listener: "tcp://127.0.0.1:0",
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
 			},
@@ -189,8 +189,8 @@ func TestRunSignerServer(t *testing.T) {
 		os.WriteFile(filePath, []byte("invalid"), 0o600)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: "tcp://127.0.0.1:0",
-			LogLevel:        zapcore.ErrorLevel.String(),
+			Listener: "tcp://127.0.0.1:0",
+			LogLevel: zapcore.ErrorLevel.String(),
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
 			},
@@ -215,8 +215,8 @@ func TestRunSignerServer(t *testing.T) {
 
 		// Use the address:port for the server flags.
 		serverFlags := &ServerFlags{
-			ListenAddresses: fmt.Sprintf("tcp://127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port),
-			LogLevel:        zapcore.ErrorLevel.String(),
+			Listener: fmt.Sprintf("tcp://127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port),
+			LogLevel: zapcore.ErrorLevel.String(),
 		}
 
 		assert.Error(t, RunSignerServer(
@@ -233,8 +233,8 @@ func TestRunSignerServer(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: "tcp://127.0.0.1:0",
-			LogLevel:        zapcore.ErrorLevel.String(),
+			Listener: "tcp://127.0.0.1:0",
+			LogLevel: zapcore.ErrorLevel.String(),
 		}
 
 		assert.ErrorIs(t, RunSignerServer(
@@ -253,8 +253,8 @@ func TestRunSignerServer(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: "tcp://127.0.0.1:0",
-			LogLevel:        zapcore.ErrorLevel.String(),
+			Listener: "tcp://127.0.0.1:0",
+			LogLevel: zapcore.ErrorLevel.String(),
 		}
 
 		// Simulate a SIGINT signal after 50 milliseconds.

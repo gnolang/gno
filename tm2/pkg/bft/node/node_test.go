@@ -171,7 +171,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 
 	pvss, err := sserver.NewRemoteSignerServer(
 		signer,
-		[]string{addr},
+		addr,
 		log.NewNoopLogger(),
 	)
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 
 	pvss, err := sserver.NewRemoteSignerServer(
 		signer,
-		[]string{unixSocket},
+		unixSocket,
 		log.NewNoopLogger(),
 	)
 	require.NoError(t, err)

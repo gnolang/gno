@@ -49,7 +49,7 @@ func newRemoteSignerServer(t *testing.T, address string, signer types.Signer) *R
 
 	rss, _ := NewRemoteSignerServer(
 		signer,
-		[]string{address},
+		address,
 		log.NewNoopLogger(),
 	)
 
@@ -97,35 +97,26 @@ func TestCloseState(t *testing.T) {
 	t.Run("listeners cleanup", func(t *testing.T) {
 		t.Parallel()
 
-		unixSockets := []string{
-			testUnixSocket(t),
-			testUnixSocket(t),
-			testUnixSocket(t),
-		}
+		unixSocket := testUnixSocket(t)
 
 		// Init a new remote signer server.
-		rss, err := NewRemoteSignerServer(types.NewMockSigner(), unixSockets, log.NewNoopLogger())
-		require.Len(t, rss.listeners, 3)
+		rss, err := NewRemoteSignerServer(types.NewMockSigner(), unixSocket, log.NewNoopLogger())
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
 
 		// Stop the server then Start it again.
 		require.NoError(t, rss.Stop())
-		for _, listener := range rss.listeners {
-			require.Nil(t, listener)
-		}
+		require.Nil(t, rss.listener)
 		require.NoError(t, rss.Start())
-		for _, listener := range rss.listeners {
-			require.NotNil(t, listener)
-		}
+		require.NotNil(t, rss.listener)
 
-		// Stop the server with a listener already closed.
-		rss.listeners[0].Close()
+		// Stop the server with the listener already closed.
+		rss.listener.Close()
 		require.Error(t, rss.Stop())
 
 		// Start it again with a faulty listener.
-		_, address := osm.ProtocolAndAddress(unixSockets[1])
+		_, address := osm.ProtocolAndAddress(unixSocket)
 		file, err := os.Create(address)
 		require.NotNil(t, file)
 		require.NoError(t, err)
@@ -293,14 +284,14 @@ func TestServerConnection(t *testing.T) {
 		clientPrivKey := ed25519.GenPrivKey()
 		rss, err := NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpLocalhost + ":0"},
+			tcpLocalhost+":0",
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{clientPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort := rss.listeners[0].Addr().(*net.TCPAddr).Port
+		serverPort := rss.listener.Addr().(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
@@ -316,14 +307,14 @@ func TestServerConnection(t *testing.T) {
 		serverPrivKey := ed25519.GenPrivKey()
 		rss, err = NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpLocalhost + ":0"},
+			tcpLocalhost+":0",
 			log.NewNoopLogger(),
 			WithServerPrivKey(serverPrivKey),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort = rss.listeners[0].Addr().(*net.TCPAddr).Port
+		serverPort = rss.listener.Addr().(*net.TCPAddr).Port
 		rsc, err = c.NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
@@ -342,14 +333,14 @@ func TestServerConnection(t *testing.T) {
 		// Client fails authenticating server.
 		rss, err := NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpLocalhost + ":0"},
+			tcpLocalhost+":0",
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort := rss.listeners[0].Addr().(*net.TCPAddr).Port
+		serverPort := rss.listener.Addr().(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),

@@ -17,9 +17,9 @@ import (
 // RemoteSignerServer provides a service that forwards requests to a types.Signer.
 type RemoteSignerServer struct {
 	// Required config.
-	signer          types.Signer
-	listenAddresses []string
-	logger          *slog.Logger
+	signer        types.Signer
+	listenAddress string
+	logger        *slog.Logger
 
 	// Optional connection config.
 	keepAlivePeriod time.Duration // If 0, keep alive is disabled.
@@ -30,12 +30,11 @@ type RemoteSignerServer struct {
 	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
 
 	// Internal.
-	listeners     []net.Listener
-	listenersLock sync.RWMutex
-	conns         []net.Conn
-	connsLock     sync.RWMutex
-	running       atomic.Bool
-	wg            sync.WaitGroup // Listeners and connections goroutines will register in this.
+	listener  net.Listener
+	conns     []net.Conn
+	connsLock sync.RWMutex
+	running   atomic.Bool
+	wg        sync.WaitGroup // Listeners and connections goroutines will register in this.
 }
 
 // IsRunning returns true if the server is running.
@@ -55,30 +54,24 @@ func (rss *RemoteSignerServer) Start() error {
 		return ErrServerAlreadyStarted
 	}
 
-	// For each listen address, create a listener.
-	for i := range rss.listenAddresses {
-		// The protocol validity was already checked by the NewRemoteSignerServer function.
-		protocol, address := osm.ProtocolAndAddress(rss.listenAddresses[i])
+	var err error
 
-		// Create a listener. If the listener creation fails, stop the server and return an error.
-		listener, err := net.Listen(protocol, address)
-		if err != nil {
-			rss.Stop()
-			return fmt.Errorf("%w for listener %s://%s: %w", ErrListenFailed, protocol, address, err)
-		}
+	// The protocol validity was already checked by the NewRemoteSignerServer function.
+	protocol, address := osm.ProtocolAndAddress(rss.listenAddress)
 
-		// Add the listener to the server.
-		rss.listenersLock.Lock()
-		rss.listeners[i] = listener
-		rss.listenersLock.Unlock()
-
-		// The listener accepts connections in a separate goroutine which is added to the wait group.
-		rss.wg.Add(1)
-		go func(listener net.Listener) {
-			defer rss.wg.Done()
-			rss.listen(listener)
-		}(listener)
+	// Create a listener. If the listener creation fails, stop the server and return an error.
+	rss.listener, err = net.Listen(protocol, address)
+	if err != nil {
+		rss.Stop()
+		return fmt.Errorf("%w for listener %s://%s: %w", ErrListenFailed, protocol, address, err)
 	}
+
+	// The listener accepts connections in a separate goroutine which is added to the wait group.
+	rss.wg.Add(1)
+	go func() {
+		defer rss.wg.Done()
+		rss.listen()
+	}()
 
 	rss.logger.Info("Server started")
 
@@ -93,7 +86,7 @@ func (rss *RemoteSignerServer) Stop() error {
 	}
 
 	// Close all listeners.
-	err := rss.closeListeners()
+	err := rss.closeListener()
 
 	// Close all connections.
 	rss.closeConnections()
@@ -111,18 +104,14 @@ func (rss *RemoteSignerServer) Wait() {
 	rss.wg.Wait()
 }
 
-// ListenAddresses returns the listen addresses of the server.
+// ListenAddress returns the listen address of the server.
 // NOTE: This method is only used for testing purposes.
-func (rss *RemoteSignerServer) ListenAddresses(t *testing.T) []net.Addr {
+func (rss *RemoteSignerServer) ListenAddress(t *testing.T) net.Addr {
 	t.Helper() // Mark the function as a test helper.
 
-	// Get the addresses of all listeners.
-	rss.listenersLock.RLock()
-	addrs := make([]net.Addr, len(rss.listeners))
-	for i, listener := range rss.listeners {
-		addrs[i] = listener.Addr()
+	if rss.listener == nil {
+		return nil
 	}
-	rss.listenersLock.RUnlock()
 
-	return addrs
+	return rss.listener.Addr()
 }

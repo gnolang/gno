@@ -58,7 +58,7 @@ func newRemoteSignerServer(t *testing.T, address string, signer types.Signer) *s
 
 	rss, err := s.NewRemoteSignerServer(
 		signer,
-		[]string{address},
+		address,
 		log.NewNoopLogger(),
 		s.WithKeepAlivePeriod(tcpTimeouts),
 		s.WithResponseTimeout(tcpTimeouts),
@@ -425,14 +425,14 @@ func TestClientConnection(t *testing.T) {
 		serverPrivKey := ed25519.GenPrivKey()
 		rss, err := s.NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpLocalhost + ":0"},
+			tcpLocalhost+":0",
 			log.NewNoopLogger(),
 			s.WithServerPrivKey(serverPrivKey),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort := rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
+		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err := NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
@@ -448,14 +448,14 @@ func TestClientConnection(t *testing.T) {
 		clientPrivKey := ed25519.GenPrivKey()
 		rss, err = s.NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpLocalhost + ":0"},
+			tcpLocalhost+":0",
 			log.NewNoopLogger(),
 			s.WithAuthorizedKeys([]ed25519.PubKeyEd25519{clientPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort = rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
+		serverPort = rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err = NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
@@ -474,7 +474,7 @@ func TestClientConnection(t *testing.T) {
 		// Server fails authenticating client.
 		rss := newRemoteSignerServer(t, tcpLocalhost+":0", types.NewMockSigner())
 		require.NoError(t, rss.Start())
-		serverPort := rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
+		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err := NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
@@ -487,14 +487,14 @@ func TestClientConnection(t *testing.T) {
 		// Client fails authenticating server.
 		rss, err = s.NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpLocalhost + ":0"},
+			tcpLocalhost+":0",
 			log.NewNoopLogger(),
 			s.WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort = rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
+		serverPort = rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc = newRemoteSignerClient(t, fmt.Sprintf("%s:%d", tcpLocalhost, serverPort))
 		require.NotNil(t, rsc)
 		require.NoError(t, rsc.ensureConnection())

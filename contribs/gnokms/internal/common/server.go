@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -23,9 +22,6 @@ func NewSignerServer(
 	signer types.Signer,
 	logger *slog.Logger,
 ) (*rss.RemoteSignerServer, error) {
-	// Split the listen addresses into a slice.
-	listenAddresses := strings.Split(commonFlags.ListenAddresses, ",")
-
 	// Create server options.
 	options := []rss.Option{
 		rss.WithKeepAlivePeriod(commonFlags.KeepAlivePeriod),
@@ -47,22 +43,17 @@ func NewSignerServer(
 			rss.WithAuthorizedKeys(authorizedKeys),
 			rss.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
 		)
-	} else {
-		// No auth keys file found, so check if the server is using at least one tcp listener, and if so, log a security
+	} else if protocol, _ := osm.ProtocolAndAddress(commonFlags.Listener); protocol == "tcp" {
+		// If no auth keys file found and the listener use the TCP protocol, log a security
 		// warning suggesting to the user to generate mutual auth keys.
-		for _, listenAddress := range listenAddresses {
-			if protocol, _ := osm.ProtocolAndAddress(listenAddress); protocol == "tcp" {
-				logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
-				logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
-				break
-			}
-		}
+		logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
+		logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
 	}
 
 	// Initialize the remote signer server with its options.
 	server, err := rss.NewRemoteSignerServer(
 		signer,
-		listenAddresses,
+		commonFlags.Listener,
 		logger.With("module", "remote_signer_server"),
 		options...,
 	)

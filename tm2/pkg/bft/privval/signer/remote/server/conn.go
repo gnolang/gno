@@ -4,47 +4,22 @@ import (
 	"fmt"
 	"net"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 )
 
-// closeListerners closes all listeners and remove them from the slice.
-func (rss *RemoteSignerServer) closeListeners() error {
-	var errors []string
-
-	rss.listenersLock.Lock()
-	defer rss.listenersLock.Unlock()
-
-	// Iterate over all listeners and close them.
-	for i := range rss.listeners {
-		// Skip the listener if it's already closed.
-		if rss.listeners[i] == nil {
-			continue
-		}
-
-		// Close the listener and append the error to the slice if any.
-		if err := rss.listeners[i].Close(); err != nil {
-			errors = append(errors, fmt.Sprintf(
-				"%s://%s: %v",
-				rss.listeners[i].Addr().Network(),
-				rss.listeners[i].Addr().String(),
-				err,
-			))
-		}
-
-		// Remove the listener from the slice since it's not usable anymore.
-		rss.listeners[i] = nil
+// closeListerners closes all listener and remove them from the slice.
+func (rss *RemoteSignerServer) closeListener() error {
+	if rss.listener == nil {
+		return nil
 	}
 
-	// Format the errors and return them if any.
-	if len(errors) > 0 {
-		return fmt.Errorf("closing listeners failed: [%s]", strings.Join(errors, ", "))
-	}
+	err := rss.listener.Close()
+	rss.listener = nil
 
-	return nil
+	return err
 }
 
 // addConnection adds a connection to the server.
@@ -74,16 +49,16 @@ func (rss *RemoteSignerServer) closeConnections() {
 }
 
 // listen starts the listener and accepts incoming connections.
-func (rss *RemoteSignerServer) listen(listener net.Listener) {
+func (rss *RemoteSignerServer) listen() {
 	rss.logger.Info("Start listening",
-		"protocol", listener.Addr().Network(),
-		"address", listener.Addr().String(),
+		"protocol", rss.listener.Addr().Network(),
+		"address", rss.listener.Addr().String(),
 	)
 
 	// The listener will run until the server is stopped.
 	for {
 		// Accept incoming client connections.
-		conn, err := listener.Accept()
+		conn, err := rss.listener.Accept()
 		if err != nil {
 			// If the server is still running, log the error and continue accepting connections.
 			if rss.IsRunning() {
@@ -134,8 +109,8 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 	}
 
 	rss.logger.Info("Stop listening",
-		"protocol", listener.Addr().Network(),
-		"address", listener.Addr().String(),
+		"protocol", rss.listener.Addr().Network(),
+		"address", rss.listener.Addr().String(),
 	)
 }
 

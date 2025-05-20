@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"log/slog"
-	"net"
 	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
@@ -57,19 +56,18 @@ func WithAuthorizedKeys(keys []ed25519.PubKeyEd25519) Option {
 // logger. The server can be further configured using functional options.
 func NewRemoteSignerServer(
 	signer types.Signer,
-	listenAddresses []string,
+	listenAddress string,
 	logger *slog.Logger,
 	options ...Option,
 ) (*RemoteSignerServer, error) {
 	// Instantiate a RemoteSignerServer with default options.
 	rss := &RemoteSignerServer{
 		signer:          signer,
-		listenAddresses: listenAddresses,
+		listenAddress:   listenAddress,
 		logger:          logger,
 		keepAlivePeriod: DefaultKeepAlivePeriod,
 		responseTimeout: DefaultResponseTimeout,
 		serverPrivKey:   ed25519.GenPrivKey(),
-		listeners:       make([]net.Listener, len(listenAddresses)),
 	}
 
 	// Check if signer is nil.
@@ -77,22 +75,15 @@ func NewRemoteSignerServer(
 		return nil, ErrNilSigner
 	}
 
-	// At least one listen address must be provided.
-	if len(listenAddresses) == 0 {
-		return nil, ErrNoListenAddressProvided
-	}
-
-	// Check the protocol of each listener address.
-	for _, listenAddress := range listenAddresses {
-		protocol, _ := osm.ProtocolAndAddress(listenAddress)
-		if protocol != r.TCPProtocol && protocol != r.UDSProtocol {
-			return nil, fmt.Errorf(
-				"%w for listener %s: expected (tcp|unix), got %s",
-				ErrInvalidAddressProtocol,
-				listenAddress,
-				protocol,
-			)
-		}
+	// Check the protocol of the listener address.
+	protocol, _ := osm.ProtocolAndAddress(listenAddress)
+	if protocol != r.TCPProtocol && protocol != r.UDSProtocol {
+		return nil, fmt.Errorf(
+			"%w for listener %s: expected (tcp|unix), got %s",
+			ErrInvalidAddressProtocol,
+			listenAddress,
+			protocol,
+		)
 	}
 
 	// Check if logger is nil.
