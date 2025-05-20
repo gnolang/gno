@@ -246,7 +246,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		tmpkg.NewFile(tfname, tfile.Body)
 		bfile := makeGnoBuiltins(tpname)
 		tmpkg.AddFile(bfile)
-		tgofset, _, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
+		tgofset, tgofs2, _, _, _ := GoParseMemPackage(tmpkg, ParseModeAll)
 		if len(gimp.errors) != numErrs {
 			/* NOTE: Uncomment to fail earlier.
 			errs = multierr.Combine(gimp.errors...)
