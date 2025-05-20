@@ -1,0 +1,33 @@
+## Notifies the discord bot on the gno.land server of new commits to the examples folder
+name: Examples Discord Webhook
+
+on:
+  pull_request:
+    types: [closed]          # only when the PR is closed
+    branches: [master]       # …and its base branch is master
+    paths:
+      - 'examples/**'        # …and at least one file in examples/ changed
+
+jobs:
+  discord-notify:
+    if: github.event.pull_request.merged == true   # skip if PR was just closed
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send message to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          PR_URL:          ${{ github.event.pull_request.html_url }}
+          PR_TITLE:        ${{ github.event.pull_request.title }}
+          PR_NUMBER:       ${{ github.event.pull_request.number }}
+          PR_AUTHOR:       ${{ github.event.pull_request.user.login }}
+        run: |
+          # Compose a simple JSON payload (you can style it further)
+          payload=$(jq -nc \
+            --arg content "🔔 **examples/** updated in PR #$PR_NUMBER – *$PR_TITLE* by **$PR_AUTHOR**\n$PR_URL" \
+            '{content: $content}')
+
+          curl -X POST \
+               -H "Content-Type: application/json" \
+               -d "$payload" \
+               "$DISCORD_WEBHOOK"
