@@ -122,9 +122,9 @@ func Render(string) string {
 
 // Get gets the Members store
 func Get() MembersByTier {
-	rlm := std.CurrentRealm().PkgPath()
-	if !dao.InAllowedDAOs(rlm) {
-		panic("this Realm is not allowed to get the Members data: " + rlm)
+	currealm := std.CurrentRealm().PkgPath()
+	if !dao.InAllowedDAOs(currealm) {
+		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}
 
 	return members
