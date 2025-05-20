@@ -2,41 +2,37 @@ package expect
 
 import "strconv"
 
-type BooleanChecker interface {
-	ToEqual(bool)
-	Not() BooleanChecker
-	ToBeFalsy()
-	ToBeTruthy()
+func NewBooleanChecker(ctx Context, value bool) BooleanChecker {
+	return BooleanChecker{ctx, value}
 }
 
-type booleanChecker struct {
-	ctx   context
+type BooleanChecker struct {
+	ctx   Context
 	value bool
 }
 
-func (c booleanChecker) Not() BooleanChecker {
+func (c BooleanChecker) Not() BooleanChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c booleanChecker) ToEqual(v bool) {
-	c.ctx.t.Helper()
-
-	got := strconv.FormatBool(c.value)
+func (c BooleanChecker) ToEqual(v bool) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == v,
 		func() {
+			got := c.format(c.value)
 			c.ctx.Fail("Expected values to be different\nGot: %s", got)
 		},
 		func() {
+			got := c.format(c.value)
 			c.ctx.Fail("Expected values to match\nGot: %s\nWant: %s", got, strconv.FormatBool(v))
 		},
 	)
 }
 
-func (c booleanChecker) ToBeFalsy() {
-	c.ctx.t.Helper()
-
+func (c BooleanChecker) ToBeFalsy() {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		!c.value,
 		func() {
@@ -48,9 +44,8 @@ func (c booleanChecker) ToBeFalsy() {
 	)
 }
 
-func (c booleanChecker) ToBeTruthy() {
-	c.ctx.t.Helper()
-
+func (c BooleanChecker) ToBeTruthy() {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value,
 		func() {
@@ -60,6 +55,10 @@ func (c booleanChecker) ToBeTruthy() {
 			c.ctx.Fail("Expected value to be truthy")
 		},
 	)
+}
+
+func (BooleanChecker) format(value bool) string {
+	return strconv.FormatBool(value)
 }
 
 func asBoolean(value any) (bool, error) {

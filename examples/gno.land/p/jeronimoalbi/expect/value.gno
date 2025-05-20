@@ -1,42 +1,29 @@
 package expect
 
-type ValueChecker interface {
-	WithFailPrefix(string) ValueChecker
-	Not() ValueChecker
-	ToEqual(any)
-	ToBeNil()
-	AsString() StringChecker
-	AsBoolean() BooleanChecker
-	AsFloat() FloatChecker
-	AsUint() UintChecker
-	AsInt() IntChecker
-}
-
 func Value(t TestingT, value any) ValueChecker {
-	return valueChecker{
-		ctx:   context{t: t},
+	return ValueChecker{
+		ctx:   NewContext(t),
 		value: value,
 	}
 }
 
-type valueChecker struct {
-	ctx   context
+type ValueChecker struct {
+	ctx   Context
 	value any
 }
 
-func (c valueChecker) WithFailPrefix(prefix string) ValueChecker {
+func (c ValueChecker) WithFailPrefix(prefix string) ValueChecker {
 	c.ctx.prefix = prefix
 	return c
 }
 
-func (c valueChecker) Not() ValueChecker {
+func (c ValueChecker) Not() ValueChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c valueChecker) ToBeNil() {
-	c.ctx.t.Helper()
-
+func (c ValueChecker) ToBeNil() {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == nil,
 		func() {
@@ -48,8 +35,8 @@ func (c valueChecker) ToBeNil() {
 	)
 }
 
-func (c valueChecker) ToEqual(value any) {
-	c.ctx.t.Helper()
+func (c ValueChecker) ToEqual(value any) {
+	c.ctx.t().Helper()
 
 	switch v := value.(type) {
 	case string:
@@ -87,77 +74,62 @@ func (c valueChecker) ToEqual(value any) {
 	}
 }
 
-func (c valueChecker) AsString() StringChecker {
-	c.ctx.t.Helper()
+func (c ValueChecker) AsString() StringChecker {
+	c.ctx.t().Helper()
 
 	v, err := asString(c.value)
 	if err != nil {
 		c.ctx.Fail("Failed: %s: expected a string value\nGot: %T", err.Error(), c.value)
-		return stringChecker{}
+		return StringChecker{}
 	}
 
-	return stringChecker{
-		ctx:   c.ctx,
-		value: v,
-	}
+	return NewStringChecker(c.ctx, v)
 }
 
-func (c valueChecker) AsBoolean() BooleanChecker {
-	c.ctx.t.Helper()
+func (c ValueChecker) AsBoolean() BooleanChecker {
+	c.ctx.t().Helper()
 
 	v, err := asBoolean(c.value)
 	if err != nil {
 		c.ctx.Fail("Failed: %s: expected a boolean value\nGot: %T", err.Error(), c.value)
-		return booleanChecker{}
+		return BooleanChecker{}
 	}
 
-	return booleanChecker{
-		ctx:   c.ctx,
-		value: v,
-	}
+	return NewBooleanChecker(c.ctx, v)
 }
 
-func (c valueChecker) AsFloat() FloatChecker {
-	c.ctx.t.Helper()
+func (c ValueChecker) AsFloat() FloatChecker {
+	c.ctx.t().Helper()
 
-	value, err := asFloat(c.value)
+	v, err := asFloat(c.value)
 	if err != nil {
 		c.ctx.Fail("%s: expected a float value\nGot: %T", err.Error(), c.value)
-		return floatChecker{}
+		return FloatChecker{}
 	}
 
-	return floatChecker{
-		ctx:   c.ctx,
-		value: value,
-	}
+	return NewFloatChecker(c.ctx, v)
 }
 
-func (c valueChecker) AsUint() UintChecker {
-	c.ctx.t.Helper()
+func (c ValueChecker) AsUint() UintChecker {
+	c.ctx.t().Helper()
 
-	value, err := asUint(c.value)
+	v, err := asUint(c.value)
 	if err != nil {
 		c.ctx.Fail("Failed: %s: expected a uint value\nGot: %T", err.Error(), c.value)
-		return uintChecker{}
+		return UintChecker{}
 	}
 
-	return uintChecker{
-		ctx:   c.ctx,
-		value: value,
-	}
+	return NewUintChecker(c.ctx, v)
 }
 
-func (c valueChecker) AsInt() IntChecker {
-	c.ctx.t.Helper()
+func (c ValueChecker) AsInt() IntChecker {
+	c.ctx.t().Helper()
 
-	value, err := asInt(c.value)
+	v, err := asInt(c.value)
 	if err != nil {
 		c.ctx.Fail("Failed: %s: expected an int value\nGot: %T", err.Error(), c.value)
-		return intChecker{}
+		return IntChecker{}
 	}
 
-	return intChecker{
-		ctx:   c.ctx,
-		value: value,
-	}
+	return NewIntChecker(c.ctx, v)
 }

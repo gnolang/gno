@@ -1,31 +1,36 @@
 package expect
 
-type MessageChecker interface {
-	Not() MessageChecker
-	WithMessage(string)
+const (
+	MessageTypeError MessageType = "error"
+	MessageTypePanic             = "panic"
+)
+
+type MessageType string
+
+func NewMessageChecker(ctx Context, msg string, t MessageType) MessageChecker {
+	return MessageChecker{ctx, msg, t}
 }
 
-type messageChecker struct {
-	ctx    context
-	msg    string
-	prefix string
+type MessageChecker struct {
+	ctx     Context
+	msg     string
+	msgType MessageType
 }
 
-func (c messageChecker) Not() MessageChecker {
+func (c MessageChecker) Not() MessageChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c messageChecker) WithMessage(msg string) {
-	c.ctx.t.Helper()
-
+func (c MessageChecker) WithMessage(msg string) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.msg == msg,
 		func() {
-			c.ctx.Fail("Expected %s message to be different\nGot: %s", c.prefix, c.msg)
+			c.ctx.Fail("Expected %s message to be different\nGot: %s", string(c.msgType), c.msg)
 		},
 		func() {
-			c.ctx.Fail("Expected %s message to match\nGot: %s\nWant: %s", c.prefix, c.msg, msg)
+			c.ctx.Fail("Expected %s message to match\nGot: %s\nWant: %s", string(c.msgType), c.msg, msg)
 		},
 	)
 }

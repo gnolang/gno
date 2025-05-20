@@ -2,28 +2,22 @@ package expect
 
 import "strconv"
 
-type UintChecker interface {
-	Not() UintChecker
-	ToEqual(uint64)
-	ToBeGreaterThan(uint64)
-	ToBeGreaterOrEqualThan(uint64)
-	ToBeLowerThan(uint64)
-	ToBeLowerOrEqualThan(uint64)
+func NewUintChecker(ctx Context, value uint64) UintChecker {
+	return UintChecker{ctx, value}
 }
 
-type uintChecker struct {
-	ctx   context
+type UintChecker struct {
+	ctx   Context
 	value uint64
 }
 
-func (c uintChecker) Not() UintChecker {
+func (c UintChecker) Not() UintChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c uintChecker) ToEqual(value uint64) {
-	c.ctx.t.Helper()
-
+func (c UintChecker) ToEqual(value uint64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == value,
 		func() {
@@ -36,9 +30,8 @@ func (c uintChecker) ToEqual(value uint64) {
 	)
 }
 
-func (c uintChecker) ToBeGreaterThan(value uint64) {
-	c.ctx.t.Helper()
-
+func (c UintChecker) ToBeGreaterThan(value uint64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value > value,
 		func() {
@@ -52,9 +45,8 @@ func (c uintChecker) ToBeGreaterThan(value uint64) {
 	)
 }
 
-func (c uintChecker) ToBeGreaterOrEqualThan(value uint64) {
-	c.ctx.t.Helper()
-
+func (c UintChecker) ToBeGreaterOrEqualThan(value uint64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value >= value,
 		func() {
@@ -68,9 +60,8 @@ func (c uintChecker) ToBeGreaterOrEqualThan(value uint64) {
 	)
 }
 
-func (c uintChecker) ToBeLowerThan(value uint64) {
-	c.ctx.t.Helper()
-
+func (c UintChecker) ToBeLowerThan(value uint64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value < value,
 		func() {
@@ -84,9 +75,8 @@ func (c uintChecker) ToBeLowerThan(value uint64) {
 	)
 }
 
-func (c uintChecker) ToBeLowerOrEqualThan(value uint64) {
-	c.ctx.t.Helper()
-
+func (c UintChecker) ToBeLowerOrEqualThan(value uint64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value <= value,
 		func() {
@@ -100,7 +90,7 @@ func (c uintChecker) ToBeLowerOrEqualThan(value uint64) {
 	)
 }
 
-func (uintChecker) format(value uint64) string {
+func (UintChecker) format(value uint64) string {
 	return strconv.FormatUint(value, 10)
 }
 

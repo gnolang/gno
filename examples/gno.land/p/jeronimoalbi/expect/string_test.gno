@@ -1,48 +1,51 @@
-package expect
+package expect_test
 
 import (
-	"std"
 	"testing"
+
+	"gno.land/p/jeronimoalbi/expect"
 )
 
 func TestStringChecker(t *testing.T) {
 	t.Run("to equal", func(t *testing.T) {
 		t.Parallel()
-		Value(t, "foo").AsString().ToEqual("foo")
+
+		ctx := expect.NewContext(t)
+		expect.NewStringChecker(ctx, "foo").ToEqual("foo")
 	})
 
 	t.Run("not to equal", func(t *testing.T) {
 		t.Parallel()
-		Value(t, "foo").AsString().Not().ToEqual("bar")
-	})
 
-	t.Run("to equal stringer", func(t *testing.T) {
-		t.Parallel()
-		Value(t, std.Address("foo")).AsString().ToEqual("foo")
-	})
-
-	t.Run("not to equal stringer", func(t *testing.T) {
-		t.Parallel()
-		Value(t, std.Address("foo")).AsString().Not().ToEqual("bar")
+		ctx := expect.NewContext(t)
+		expect.NewStringChecker(ctx, "foo").Not().ToEqual("bar")
 	})
 
 	t.Run("to be empty", func(t *testing.T) {
 		t.Parallel()
-		Value(t, "").AsString().ToBeEmpty()
+
+		ctx := expect.NewContext(t)
+		expect.NewStringChecker(ctx, "").ToBeEmpty()
 	})
 
 	t.Run("not to be empty", func(t *testing.T) {
 		t.Parallel()
-		Value(t, "foo").AsString().Not().ToBeEmpty()
+
+		ctx := expect.NewContext(t)
+		expect.NewStringChecker(ctx, "foo").Not().ToBeEmpty()
 	})
 
 	t.Run("same length", func(t *testing.T) {
 		t.Parallel()
-		Value(t, "foo").AsString().ToHaveLength(3)
+
+		ctx := expect.NewContext(t)
+		expect.NewStringChecker(ctx, "foo").ToHaveLength(3)
 	})
 
 	t.Run("different length", func(t *testing.T) {
 		t.Parallel()
-		Value(t, "foo").AsString().Not().ToHaveLength(1)
+
+		ctx := expect.NewContext(t)
+		expect.NewStringChecker(ctx, "foo").Not().ToHaveLength(1)
 	})
 }

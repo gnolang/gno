@@ -7,38 +7,30 @@ type (
 	AnyErrorFn = func() (any, error)
 )
 
-type FuncChecker interface {
-	WithFailPrefix(string) FuncChecker
-	Not() FuncChecker
-	ToFail() ErrorChecker
-	ToPanic() MessageChecker
-	ToReturn(any)
-}
-
 func Func(t TestingT, fn any) FuncChecker {
-	return funcChecker{
-		ctx: context{t: t},
+	return FuncChecker{
+		ctx: NewContext(t),
 		fn:  fn,
 	}
 }
 
-type funcChecker struct {
-	ctx context
+type FuncChecker struct {
+	ctx Context
 	fn  any
 }
 
-func (c funcChecker) WithFailPrefix(prefix string) FuncChecker {
+func (c FuncChecker) WithFailPrefix(prefix string) FuncChecker {
 	c.ctx.prefix = prefix
 	return c
 }
 
-func (c funcChecker) Not() FuncChecker {
+func (c FuncChecker) Not() FuncChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c funcChecker) ToFail() ErrorChecker {
-	c.ctx.t.Helper()
+func (c FuncChecker) ToFail() ErrorChecker {
+	c.ctx.t().Helper()
 
 	var err error
 	switch fn := c.fn.(type) {
@@ -48,7 +40,7 @@ func (c funcChecker) ToFail() ErrorChecker {
 		_, err = fn()
 	default:
 		c.ctx.Fail("Unsupported error func type\nGot: %T", c.fn)
-		return errorChecker{}
+		return ErrorChecker{}
 	}
 
 	c.ctx.CheckExpectation(
@@ -61,14 +53,11 @@ func (c funcChecker) ToFail() ErrorChecker {
 		},
 	)
 
-	return errorChecker{
-		ctx: c.ctx,
-		err: err,
-	}
+	return NewErrorChecker(c.ctx, err)
 }
 
-func (c funcChecker) ToPanic() MessageChecker {
-	c.ctx.t.Helper()
+func (c FuncChecker) ToPanic() MessageChecker {
+	c.ctx.t().Helper()
 
 	var (
 		msg      string
@@ -100,7 +89,7 @@ func (c funcChecker) ToPanic() MessageChecker {
 		msg, panicked = handlePanic(func() { _, _ = fn() })
 	} else {
 		c.ctx.Fail("Unsupported func type\nGot: %T", c.fn)
-		return messageChecker{}
+		return MessageChecker{}
 	}
 
 	c.ctx.CheckExpectation(
@@ -113,15 +102,11 @@ func (c funcChecker) ToPanic() MessageChecker {
 		},
 	)
 
-	return messageChecker{
-		ctx:    c.ctx,
-		msg:    msg,
-		prefix: "panic",
-	}
+	return NewMessageChecker(c.ctx, msg, MessageTypePanic)
 }
 
-func (c funcChecker) ToReturn(value any) {
-	c.ctx.t.Helper()
+func (c FuncChecker) ToReturn(value any) {
+	c.ctx.t().Helper()
 
 	var (
 		err error
@@ -143,9 +128,9 @@ func (c funcChecker) ToReturn(value any) {
 	}
 
 	if c.ctx.not {
-		Value(c.ctx.t, v).Not().ToEqual(value)
+		Value(c.ctx.t(), v).Not().ToEqual(value)
 	} else {
-		Value(c.ctx.t, v).ToEqual(value)
+		Value(c.ctx.t(), v).ToEqual(value)
 	}
 }
 

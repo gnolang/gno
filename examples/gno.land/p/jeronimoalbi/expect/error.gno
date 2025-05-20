@@ -1,38 +1,32 @@
 package expect
 
-type ErrorChecker interface {
-	Not() ErrorChecker
-	WithMessage(string)
-	WithError(error)
+func NewErrorChecker(ctx Context, err error) ErrorChecker {
+	return ErrorChecker{ctx, err}
 }
 
-type errorChecker struct {
-	ctx context
+type ErrorChecker struct {
+	ctx Context
 	err error
 }
 
-func (c errorChecker) Not() ErrorChecker {
+func (c ErrorChecker) Not() ErrorChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c errorChecker) WithMessage(msg string) {
-	c.ctx.t.Helper()
+func (c ErrorChecker) WithMessage(msg string) {
+	c.ctx.t().Helper()
 
 	if c.err == nil {
 		c.ctx.Fail("Expected an error with message\nGot: nil\nWant: %s", msg)
 		return
 	}
 
-	messageChecker{
-		ctx:    c.ctx,
-		msg:    c.err.Error(),
-		prefix: "error",
-	}.WithMessage(msg)
+	NewMessageChecker(c.ctx, c.err.Error(), MessageTypeError).WithMessage(msg)
 }
 
-func (c errorChecker) WithError(err error) {
-	c.ctx.t.Helper()
+func (c ErrorChecker) WithError(err error) {
+	c.ctx.t().Helper()
 
 	if c.err == nil {
 		if err != nil {

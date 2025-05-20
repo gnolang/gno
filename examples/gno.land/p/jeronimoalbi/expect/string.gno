@@ -1,28 +1,29 @@
 package expect
 
 import (
+	"errors"
 	"std"
 	"strings"
 )
 
-type StringChecker interface {
-	Not() StringChecker
-	ToEqual(string)
-	ToBeEmpty()
-	ToHaveLength(int)
+var ErrIncompatibleType = errors.New("incompatible type")
+
+func NewStringChecker(ctx Context, value string) StringChecker {
+	return StringChecker{ctx, value}
 }
 
-type stringChecker struct {
-	ctx   context
+type StringChecker struct {
+	ctx   Context
 	value string
 }
 
-func (c stringChecker) Not() StringChecker {
+func (c StringChecker) Not() StringChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c stringChecker) ToEqual(v string) {
+func (c StringChecker) ToEqual(v string) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == v,
 		func() {
@@ -34,8 +35,8 @@ func (c stringChecker) ToEqual(v string) {
 	)
 }
 
-func (c stringChecker) ToBeEmpty() {
-	c.ctx.t.Helper()
+func (c StringChecker) ToBeEmpty() {
+	c.ctx.t().Helper()
 
 	got := strings.TrimSpace(c.value)
 	c.ctx.CheckExpectation(
@@ -49,8 +50,8 @@ func (c stringChecker) ToBeEmpty() {
 	)
 }
 
-func (c stringChecker) ToHaveLength(length int) {
-	c.ctx.t.Helper()
+func (c StringChecker) ToHaveLength(length int) {
+	c.ctx.t().Helper()
 
 	got := len(c.value)
 	c.ctx.CheckExpectation(

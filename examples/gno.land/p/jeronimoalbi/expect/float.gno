@@ -2,28 +2,22 @@ package expect
 
 import "strconv"
 
-type FloatChecker interface {
-	Not() FloatChecker
-	ToEqual(float64)
-	ToBeGreaterThan(float64)
-	ToBeGreaterOrEqualThan(float64)
-	ToBeLowerThan(float64)
-	ToBeLowerOrEqualThan(float64)
+func NewFloatChecker(ctx Context, value float64) FloatChecker {
+	return FloatChecker{ctx, value}
 }
 
-type floatChecker struct {
-	ctx   context
+type FloatChecker struct {
+	ctx   Context
 	value float64
 }
 
-func (c floatChecker) Not() FloatChecker {
+func (c FloatChecker) Not() FloatChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c floatChecker) ToEqual(value float64) {
-	c.ctx.t.Helper()
-
+func (c FloatChecker) ToEqual(value float64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == value,
 		func() {
@@ -36,9 +30,8 @@ func (c floatChecker) ToEqual(value float64) {
 	)
 }
 
-func (c floatChecker) ToBeGreaterThan(value float64) {
-	c.ctx.t.Helper()
-
+func (c FloatChecker) ToBeGreaterThan(value float64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value > value,
 		func() {
@@ -52,9 +45,8 @@ func (c floatChecker) ToBeGreaterThan(value float64) {
 	)
 }
 
-func (c floatChecker) ToBeGreaterOrEqualThan(value float64) {
-	c.ctx.t.Helper()
-
+func (c FloatChecker) ToBeGreaterOrEqualThan(value float64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value >= value,
 		func() {
@@ -68,9 +60,8 @@ func (c floatChecker) ToBeGreaterOrEqualThan(value float64) {
 	)
 }
 
-func (c floatChecker) ToBeLowerThan(value float64) {
-	c.ctx.t.Helper()
-
+func (c FloatChecker) ToBeLowerThan(value float64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value < value,
 		func() {
@@ -84,9 +75,8 @@ func (c floatChecker) ToBeLowerThan(value float64) {
 	)
 }
 
-func (c floatChecker) ToBeLowerOrEqualThan(value float64) {
-	c.ctx.t.Helper()
-
+func (c FloatChecker) ToBeLowerOrEqualThan(value float64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value <= value,
 		func() {
@@ -100,7 +90,7 @@ func (c floatChecker) ToBeLowerOrEqualThan(value float64) {
 	)
 }
 
-func (floatChecker) format(value float64) string {
+func (FloatChecker) format(value float64) string {
 	return strconv.FormatFloat(value, 'g', -1, 64)
 }
 

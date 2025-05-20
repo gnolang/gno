@@ -2,28 +2,22 @@ package expect
 
 import "strconv"
 
-type IntChecker interface {
-	Not() IntChecker
-	ToEqual(int64)
-	ToBeGreaterThan(int64)
-	ToBeGreaterOrEqualThan(int64)
-	ToBeLowerThan(int64)
-	ToBeLowerOrEqualThan(int64)
+func NewIntChecker(ctx Context, value int64) IntChecker {
+	return IntChecker{ctx, value}
 }
 
-type intChecker struct {
-	ctx   context
+type IntChecker struct {
+	ctx   Context
 	value int64
 }
 
-func (c intChecker) Not() IntChecker {
+func (c IntChecker) Not() IntChecker {
 	c.ctx.not = !c.ctx.not
 	return c
 }
 
-func (c intChecker) ToEqual(value int64) {
-	c.ctx.t.Helper()
-
+func (c IntChecker) ToEqual(value int64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == value,
 		func() {
@@ -36,9 +30,8 @@ func (c intChecker) ToEqual(value int64) {
 	)
 }
 
-func (c intChecker) ToBeGreaterThan(value int64) {
-	c.ctx.t.Helper()
-
+func (c IntChecker) ToBeGreaterThan(value int64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value > value,
 		func() {
@@ -52,9 +45,8 @@ func (c intChecker) ToBeGreaterThan(value int64) {
 	)
 }
 
-func (c intChecker) ToBeGreaterOrEqualThan(value int64) {
-	c.ctx.t.Helper()
-
+func (c IntChecker) ToBeGreaterOrEqualThan(value int64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value >= value,
 		func() {
@@ -68,9 +60,8 @@ func (c intChecker) ToBeGreaterOrEqualThan(value int64) {
 	)
 }
 
-func (c intChecker) ToBeLowerThan(value int64) {
-	c.ctx.t.Helper()
-
+func (c IntChecker) ToBeLowerThan(value int64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value < value,
 		func() {
@@ -84,9 +75,8 @@ func (c intChecker) ToBeLowerThan(value int64) {
 	)
 }
 
-func (c intChecker) ToBeLowerOrEqualThan(value int64) {
-	c.ctx.t.Helper()
-
+func (c IntChecker) ToBeLowerOrEqualThan(value int64) {
+	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value <= value,
 		func() {
@@ -100,7 +90,7 @@ func (c intChecker) ToBeLowerOrEqualThan(value int64) {
 	)
 }
 
-func (intChecker) format(value int64) string {
+func (IntChecker) format(value int64) string {
 	return strconv.FormatInt(value, 10)
 }
 
