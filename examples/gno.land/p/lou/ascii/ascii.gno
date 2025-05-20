@@ -258,9 +258,9 @@ func ProgressBar(current int, total int, charSize int, displayPercent bool) stri
 //
 // Example:
 //
-//	PercentageBar(50, 6, false)
+//	PercentageBar(50, 6, true)
 //
-// Gives: [###---]
+// Gives: [###---] 50%
 func PercentageBar(percent int, charSize int, displayPercent bool) string {
 	fillLength := (percent * charSize) / 100
 	emptyLength := charSize - fillLength
