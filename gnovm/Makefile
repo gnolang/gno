@@ -98,7 +98,7 @@ _test.cmd:
 .PHONY: test.cmd.coverage
 test.cmd.coverage:
 	$(eval export TXTARCOVERDIR := $(shell mktemp -d --tmpdir gnovm-make.XXXXXXX))
-	go test ./cmd/... -covermode atomic -test.gocoverdir='$(TXTARCOVERDIR)' $(GOTEST_FLAGS)
+	go test ./cmd/... ./pkg/... -covermode atomic -test.gocoverdir='$(TXTARCOVERDIR)' $(GOTEST_FLAGS)
 	@echo "coverage results:"
 	go tool covdata percent -i="$(TXTARCOVERDIR)"
 	go tool covdata textfmt -v 1 -i="$(TXTARCOVERDIR)" -o '$(GOTEST_COVER_PROFILE)'
