@@ -178,7 +178,7 @@ func Frame(
 //
 // Example:
 //
-//	Frame([]string{"hello world!!"}, "center", 10, 4, "center")
+//	Frame([]string{"hello world!!"}, ascii.AlignWCenter, 10, 4, ascii.AlignHCenter)
 //
 // Gives:
 //
