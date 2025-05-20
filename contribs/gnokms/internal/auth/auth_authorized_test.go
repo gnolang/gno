@@ -166,7 +166,7 @@ func TestAuthorizedRemove(t *testing.T) {
 		authKeysFile.ClientAuthorizedKeys = []string{authorizedKey}
 
 		// Save the auth key file.
-		require.NoError(t, authKeysFile.Save())
+		require.NoError(t, authKeysFile.Save(filePath))
 		require.Equal(t, 1, len(authKeysFile.ClientAuthorizedKeys))
 
 		// Run exec authorized key argument.
@@ -305,7 +305,7 @@ func TestAuthorizedList(t *testing.T) {
 		}
 
 		// Save the auth key file.
-		require.NoError(t, authKeysFile.Save())
+		require.NoError(t, authKeysFile.Save(filePath))
 
 		// Create the command flags with the auth key file.
 		flags := &common.AuthFlags{

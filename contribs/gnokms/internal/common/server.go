@@ -35,12 +35,9 @@ func NewSignerServer(
 			return nil, fmt.Errorf("invalid auth keys file: %w", err)
 		}
 
-		// Get the authorized keys from the auth keys file.
-		authorizedKeys, _ := authKeysFile.AuthorizedKeys() // Ignore error as it is already validated by LoadAuthKeysFile.
-
 		// Add the authorized keys and server private key to the server options.
 		options = append(options,
-			rss.WithAuthorizedKeys(authorizedKeys),
+			rss.WithAuthorizedKeys(authKeysFile.AuthorizedKeys()),
 			rss.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
 		)
 	} else if protocol, _ := osm.ProtocolAndAddress(commonFlags.Listener); protocol == "tcp" {

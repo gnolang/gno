@@ -46,7 +46,7 @@ func manipulatesAuthorizedKeys(
 
 	// Validate the public keys passed as arguments.
 	for _, publicKey := range args {
-		if err := common.ValidateAuthorizedKey(publicKey); err != nil {
+		if _, err := common.Bech32ToEd25519PubKey(publicKey); err != nil {
 			return fmt.Errorf("invalid public key %q: %w", publicKey, err)
 		}
 	}
@@ -58,7 +58,7 @@ func manipulatesAuthorizedKeys(
 	authKeysFile.ClientAuthorizedKeys = processKeys(authKeysFile.ClientAuthorizedKeys, publicKeys)
 
 	// Save the auth keys file.
-	if err := authKeysFile.Save(); err != nil {
+	if err := authKeysFile.Save(rootCfg.AuthKeysFile); err != nil {
 		return fmt.Errorf("unable to save the auth keys file: %w", err)
 	}
 

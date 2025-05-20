@@ -27,7 +27,7 @@ type AuthKeysFile struct {
 	ServerIdentity       ServerIdentity `json:"server_identity" comment:"the server identity ed25519 keypair"`
 	ClientAuthorizedKeys []string       `json:"authorized_keys" comment:"list of client authorized public keys"`
 
-	filePath string
+	authorizedKeys []ed25519.PubKeyEd25519
 }
 
 // AuthKeysFile validation errors.
@@ -36,7 +36,6 @@ var (
 	errPublicKeyMismatch    = errors.New("public key does not match private key derivation")
 	errInvalidPublicKey     = errors.New("invalid public key")
 	errInvalidPublicKeyType = errors.New("not an ed25519 public key")
-	errFilePathNotSet       = errors.New("filePath not set")
 )
 
 // SortAndDeduplicate sorts and deduplicates the given string slice.
@@ -86,21 +85,16 @@ func (akf *AuthKeysFile) validate() error {
 
 	// Validate the list of authorized keys.
 	for _, authorizedKey := range akf.ClientAuthorizedKeys {
-		if err := ValidateAuthorizedKey(authorizedKey); err != nil {
+		if _, err := Bech32ToEd25519PubKey(authorizedKey); err != nil {
 			return fmt.Errorf("%w: %w", errInvalidPublicKey, err)
 		}
-	}
-
-	// Check if the file path is set.
-	if akf.filePath == "" {
-		return errFilePathNotSet
 	}
 
 	return nil
 }
 
 // Save persists the AuthKeysFile to its file path.
-func (akf *AuthKeysFile) Save() error {
+func (akf *AuthKeysFile) Save(filePath string) error {
 	// Check if the AuthKeysFile is valid.
 	if err := akf.validate(); err != nil {
 		return err
@@ -113,13 +107,13 @@ func (akf *AuthKeysFile) Save() error {
 	}
 
 	// Ensure the parent directory exists.
-	parentDir := filepath.Dir(akf.filePath)
+	parentDir := filepath.Dir(filePath)
 	if err := osm.EnsureDir(parentDir, 0o700); err != nil {
 		return err
 	}
 
 	// Write the JSON bytes to the file.
-	if err := osm.WriteFileAtomic(akf.filePath, jsonBytes, 0o600); err != nil {
+	if err := osm.WriteFileAtomic(filePath, jsonBytes, 0o600); err != nil {
 		return err
 	}
 
@@ -143,15 +137,6 @@ func Bech32ToEd25519PubKey(bech32PubKey string) (ed25519.PubKeyEd25519, error) {
 	return ed25519PubKey, nil
 }
 
-// ValidateAuthorizedKey validates the given bech32 encoded public key.
-func ValidateAuthorizedKey(pubKeyBech32 string) error {
-	if _, err := Bech32ToEd25519PubKey(pubKeyBech32); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // LoadAuthKeysFile reads an AuthKeysFile from the given file path.
 func LoadAuthKeysFile(filePath string) (*AuthKeysFile, error) {
 	// Read the JSON bytes from the file.
@@ -167,8 +152,16 @@ func LoadAuthKeysFile(filePath string) (*AuthKeysFile, error) {
 		return nil, fmt.Errorf("unable to unmarshal AuthKeysFile from %v: %w", filePath, err)
 	}
 
-	// Manually set the private file path.
-	akf.filePath = filePath
+	// Decode the authorized keys.
+	akf.authorizedKeys = make([]ed25519.PubKeyEd25519, len(akf.ClientAuthorizedKeys))
+
+	for i, authorizedKey := range akf.ClientAuthorizedKeys {
+		ed25519PubKey, err := Bech32ToEd25519PubKey(authorizedKey)
+		if err != nil {
+			return nil, err
+		}
+		akf.authorizedKeys[i] = ed25519PubKey
+	}
 
 	// Validate the AuthKeysFile.
 	if err := akf.validate(); err != nil {
@@ -179,19 +172,8 @@ func LoadAuthKeysFile(filePath string) (*AuthKeysFile, error) {
 }
 
 // AuthorizedKeys decodes the bech32 authorized keys from the AuthKeysFile.
-func (akf *AuthKeysFile) AuthorizedKeys() ([]ed25519.PubKeyEd25519, error) {
-	authorizedKeys := make([]ed25519.PubKeyEd25519, len(akf.ClientAuthorizedKeys))
-
-	// Decode the authorized keys.
-	for i, authorizedKey := range akf.ClientAuthorizedKeys {
-		ed25519PubKey, err := Bech32ToEd25519PubKey(authorizedKey)
-		if err != nil {
-			return nil, err
-		}
-		authorizedKeys[i] = ed25519PubKey
-	}
-
-	return authorizedKeys, nil
+func (akf *AuthKeysFile) AuthorizedKeys() []ed25519.PubKeyEd25519 {
+	return akf.authorizedKeys
 }
 
 // GeneratePersistedAuthKeysFile generates a new AuthKeysFile with a random
@@ -207,11 +189,10 @@ func GeneratePersistedAuthKeysFile(filePath string) (*AuthKeysFile, error) {
 			PubKey:  privKey.PubKey().String(),
 		},
 		ClientAuthorizedKeys: []string{},
-		filePath:             filePath,
 	}
 
 	// Persist the AuthKeysFile to disk.
-	if err := afk.Save(); err != nil {
+	if err := afk.Save(filePath); err != nil {
 		return nil, err
 	}
 

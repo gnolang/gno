@@ -75,12 +75,11 @@ func TestNewSignerServer(t *testing.T) {
 				PubKey:  privKey.PubKey().String(),
 			},
 			ClientAuthorizedKeys: []string{ed25519.GenPrivKey().PubKey().String()},
-			filePath:             filePath,
 		}
 
 		jsonBytes, err := amino.MarshalJSONIndent(akf, "", "  ")
 		require.NoError(t, err)
-		os.WriteFile(akf.filePath, jsonBytes, 0o600)
+		os.WriteFile(filePath, jsonBytes, 0o600)
 
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",

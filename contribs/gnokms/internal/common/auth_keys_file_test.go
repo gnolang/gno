@@ -36,7 +36,7 @@ func TestValidate(t *testing.T) {
 		assert.ErrorIs(t, akf.validate(), errPublicKeyMismatch)
 	})
 
-	t.Run("invalid public key", func(t *testing.T) {
+	t.Run("invalid authorized key", func(t *testing.T) {
 		t.Parallel()
 
 		privKey := ed25519.GenPrivKey()
@@ -52,22 +52,6 @@ func TestValidate(t *testing.T) {
 		assert.ErrorIs(t, akf.validate(), errInvalidPublicKey)
 	})
 
-	t.Run("file path not set", func(t *testing.T) {
-		t.Parallel()
-
-		privKey := ed25519.GenPrivKey()
-
-		akf := AuthKeysFile{
-			ServerIdentity: ServerIdentity{
-				PrivKey: privKey,
-				PubKey:  privKey.PubKey().String(),
-			},
-			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
-		}
-
-		assert.ErrorIs(t, akf.validate(), errFilePathNotSet)
-	})
-
 	t.Run("valid AuthKeysFile", func(t *testing.T) {
 		t.Parallel()
 
@@ -79,7 +63,6 @@ func TestValidate(t *testing.T) {
 				PubKey:  privKey.PubKey().String(),
 			},
 			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
-			filePath:             "filePath",
 		}
 
 		assert.NoError(t, akf.validate())
@@ -94,7 +77,7 @@ func TestSave(t *testing.T) {
 
 		akf := AuthKeysFile{}
 
-		assert.Error(t, akf.Save())
+		assert.Error(t, akf.Save("filePath"))
 	})
 
 	t.Run("invalid parent dir", func(t *testing.T) {
@@ -103,6 +86,7 @@ func TestSave(t *testing.T) {
 		// Create an unwriteable directory.
 		basePath := filepath.Join(t.TempDir(), "unwriteable")
 		require.NoError(t, os.MkdirAll(basePath, 0o000))
+		filePath := filepath.Join(basePath, "parent", "file")
 
 		privKey := ed25519.GenPrivKey()
 
@@ -112,14 +96,13 @@ func TestSave(t *testing.T) {
 				PubKey:  privKey.PubKey().String(),
 			},
 			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
-			filePath:             filepath.Join(basePath, "parent", "file"),
 		}
 
-		require.Error(t, akf.Save())
+		require.Error(t, akf.Save(filePath))
 
 		// Make the directory unreadable.
 		require.NoError(t, os.Chmod(basePath, 0o500))
-		require.Error(t, akf.Save())
+		require.Error(t, akf.Save(filePath))
 
 		// Restore the permissions for cleanup.
 		assert.NoError(t, os.Chmod(basePath, 0o700))
@@ -128,6 +111,7 @@ func TestSave(t *testing.T) {
 	t.Run("valid auth keys file", func(t *testing.T) {
 		t.Parallel()
 
+		filePath := filepath.Join(t.TempDir(), "file")
 		privKey := ed25519.GenPrivKey()
 
 		akf := AuthKeysFile{
@@ -136,10 +120,9 @@ func TestSave(t *testing.T) {
 				PubKey:  privKey.PubKey().String(),
 			},
 			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
-			filePath:             filepath.Join(t.TempDir(), "file"),
 		}
 
-		assert.NoError(t, akf.Save())
+		assert.NoError(t, akf.Save(filePath))
 	})
 }
 
@@ -201,6 +184,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 		t.Parallel()
 
 		privKey := ed25519.GenPrivKey()
+		filePath := filepath.Join(t.TempDir(), "valid")
 
 		akf := AuthKeysFile{
 			ServerIdentity: ServerIdentity{
@@ -208,14 +192,13 @@ func TestLoadAuthKeysFile(t *testing.T) {
 				PubKey:  privKey.PubKey().String(),
 			},
 			ClientAuthorizedKeys: []string{"invalid"},
-			filePath:             filepath.Join(t.TempDir(), "valid"),
 		}
 
 		jsonBytes, err := amino.MarshalJSONIndent(akf, "", "  ")
 		require.NoError(t, err)
-		os.WriteFile(akf.filePath, jsonBytes, 0o600)
+		os.WriteFile(filePath, jsonBytes, 0o600)
 
-		authKeysFile, err := LoadAuthKeysFile(akf.filePath)
+		authKeysFile, err := LoadAuthKeysFile(filePath)
 		require.Nil(t, authKeysFile)
 		assert.Error(t, err)
 	})
@@ -224,6 +207,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 		t.Parallel()
 
 		privKey := ed25519.GenPrivKey()
+		filePath := filepath.Join(t.TempDir(), "valid")
 
 		akf := AuthKeysFile{
 			ServerIdentity: ServerIdentity{
@@ -231,14 +215,13 @@ func TestLoadAuthKeysFile(t *testing.T) {
 				PubKey:  privKey.PubKey().String(),
 			},
 			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
-			filePath:             filepath.Join(t.TempDir(), "valid"),
 		}
 
 		jsonBytes, err := amino.MarshalJSONIndent(akf, "", "  ")
 		require.NoError(t, err)
-		os.WriteFile(akf.filePath, jsonBytes, 0o600)
+		os.WriteFile(filePath, jsonBytes, 0o600)
 
-		authKeysFile, err := LoadAuthKeysFile(akf.filePath)
+		authKeysFile, err := LoadAuthKeysFile(filePath)
 		require.NotNil(t, authKeysFile)
 		assert.NoError(t, err)
 	})
@@ -246,18 +229,6 @@ func TestLoadAuthKeysFile(t *testing.T) {
 
 func TestAuthorizedKeys(t *testing.T) {
 	t.Parallel()
-
-	t.Run("invalid authorized keys", func(t *testing.T) {
-		t.Parallel()
-
-		akf := AuthKeysFile{
-			ClientAuthorizedKeys: []string{"invalid"},
-		}
-
-		authorizedKeys, err := akf.AuthorizedKeys()
-		require.Nil(t, authorizedKeys)
-		assert.Error(t, err)
-	})
 
 	t.Run("valid authorized keys", func(t *testing.T) {
 		t.Parallel()
@@ -267,9 +238,15 @@ func TestAuthorizedKeys(t *testing.T) {
 			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
 		}
 
-		authorizedKeys, err := akf.AuthorizedKeys()
-		require.NotNil(t, authorizedKeys)
+		filePath := filepath.Join(t.TempDir(), "valid")
+		akf.Save(filePath)
+
+		loaded, err := LoadAuthKeysFile(filePath)
 		require.NoError(t, err)
+		require.NotNil(t, loaded)
+
+		authorizedKeys := loaded.AuthorizedKeys()
+		require.NotNil(t, authorizedKeys)
 		require.Len(t, authorizedKeys, 1)
 		assert.Equal(t, privKey.PubKey(), authorizedKeys[0])
 	})
