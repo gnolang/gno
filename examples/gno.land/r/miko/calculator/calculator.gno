@@ -43,7 +43,6 @@ var (
 )
 
 func init() {
-	//cross(hor.Register)("My Gnome App", "This is my submission to the Hall of Realms.")
 	cross(hor.Register)("Miko's calculator", "Let's do maths")
 }
 
