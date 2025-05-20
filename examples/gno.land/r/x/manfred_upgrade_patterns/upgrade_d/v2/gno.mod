@@ -1,0 +1,3 @@
+module gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx
+
+gno 0.9
