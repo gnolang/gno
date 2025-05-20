@@ -265,14 +265,10 @@ func guessSourcePath(pkg, source string) string {
 	return filepath.Clean(pkg)
 }
 
-// reParseRecover is a regex designed to parse error details from a string.
-// It extracts the file location, line number, and error message from a formatted error string.
-// XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
 func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
 	defer func() {
-		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
 		if r == nil {
 			return
@@ -281,21 +277,21 @@ func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action 
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
-			fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, err).String())
+			fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, err).String())
 		case error:
 			errors := multierr.Errors(verr)
 			for _, err := range errors {
 				errList, ok := err.(scanner.ErrorList)
 				if ok {
 					for _, errorInList := range errList {
-						fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, errorInList).String())
+						fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, errorInList).String())
 					}
 				} else {
-					fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, err).String())
+					fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, err).String())
 				}
 			}
 		case string:
-			fmt.Fprintln(stderr, issueFromError(dirPath, pkgPath, errors.New(verr)).String())
+			fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, errors.New(verr)).String())
 		default:
 			panic(r)
 		}
@@ -311,13 +307,10 @@ func issueFromError(dirPath, pkgPath string, err error) lintIssue {
 	issue.Code = lintGnoError
 
 	parsedError := strings.TrimSpace(err.Error())
-	parsedError = replaceWithDirPath(parsedError, pkgPath, dirPath)
-	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-
+	
 	matches := reParseRecover.FindStringSubmatch(parsedError)
 	if len(matches) > 0 {
-		sourcepath := guessSourcePath(pkgPath, matches[1])
-		issue.Location = sourcepath + matches[2]
+		issue.Location = matches[1] + matches[2]
 		issue.Msg = strings.TrimSpace(matches[3])
 	} else {
 		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
