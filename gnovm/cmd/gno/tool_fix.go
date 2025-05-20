@@ -147,7 +147,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 	// FIX STAGE 1: Type-check and lint.
 	for _, dir := range dirs {
 		if cmd.verbose {
-			io.ErrPrintln("fixing %q", dir)
+			io.ErrPrintfln("fixing %q", dir)
 		}
 
 		// Only supports directories.
