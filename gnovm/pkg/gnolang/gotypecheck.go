@@ -21,6 +21,20 @@ import (
 	XXX move to pkg/gnolang/importer.go.
 */
 
+func makeGnoBuiltins(pkgName string) *std.MemFile {
+	file := &std.MemFile{
+		Name: ".gnobuiltins.go",
+		Body: fmt.Sprintf(`package %s
+
+func istypednil(x any) bool { return false } // shim
+func crossing() { } // shim
+func cross[F any](fn F) F { return fn } // shim
+func revive[F any](fn F) any { return nil } // shim
+type realm interface{} // shim
+`, pkgName)}
+	return file
+}
+
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
 type MemPackageGetter interface {
@@ -172,20 +186,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		panic("unexpected xxx_test and *_filetest.gno tests")
 	}
 
-	// STEP 3: Add .gnobuiltins.go file.
-	file := &std.MemFile{
-		Name: ".gnobuiltins.go",
-		Body: fmt.Sprintf(`package %s
-
-func istypednil(x any) bool { return false } // shim
-func crossing() { } // shim
-func cross[F any](fn F) F { return fn } // shim
-func revive[F any](fn F) any { return nil } // shim
-type realm interface{} // shim
-`, mpkg.Name),
-	}
-
-	// STEP 3: Parse .gnobuiltins.go file.
+	// STEP 3: Add and Parse .gnobuiltins.go file.
+	file := makeGnoBuiltins(mpkg.Name)
 	const parseOpts = parser.ParseComments |
 		parser.DeclarationErrors |
 		parser.SkipObjectResolution
@@ -238,9 +240,12 @@ type realm interface{} // shim
 		// XXX If we're re-parsing the filetest anyways,
 		// change GoParseMemPackage to not parse into tgofs.
 		tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
+		tpname := tgof.Name.String()
 		tfile := mpkg.GetFile(tfname)
-		tmpkg := &std.MemPackage{Name: tgof.Name.String(), Path: mpkg.Path}
+		tmpkg := &std.MemPackage{Name: tpname, Path: mpkg.Path}
 		tmpkg.NewFile(tfname, tfile.Body)
+		bfile := makeGnoBuiltins(tpname)
+		tmpkg.AddFile(bfile)
 		tgofset, _, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
 		if len(gimp.errors) != numErrs {
 			/* NOTE: Uncomment to fail earlier.
@@ -248,9 +253,6 @@ type realm interface{} // shim
 			return
 			*/
 			continue
-		}
-		if len(tgofs2) != 1 { // should not happen
-			panic("unexpected GoParseMemPackage result")
 		}
 		_, _ = gimp.cfg.Check(tmpkg.Path, tgofset, tgofs2, nil)
 		/* NOTE: Uncomment to fail earlier.
