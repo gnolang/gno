@@ -29,6 +29,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newDocCmd(io),
 		newEnvCmd(io),
 		// fix
+		newDoctestCmd(io),
 		newFmtCmd(io),
 		// generate
 		// get
