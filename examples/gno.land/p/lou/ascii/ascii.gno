@@ -237,20 +237,20 @@ func FixedFrame(
 	return md.CodeBlock(top+body+bottom) + "\n"
 }
 
-// PercentageBar renders a visual progress bar.
+// PercentageBar renders a visual progress bar, the size represents the number of chars in length for the bar.
 //
 // Example:
 //
 //	ProgressBar(2, 6, 10, true)
 //
 // Gives: [###-------] 33%
-func ProgressBar(current int, total int, size int, show bool) string {
+func ProgressBar(current int, total int, charSize int, displayPercent bool) string {
 	if total == 0 {
-		return PercentageBar(0, size, show)
+		return PercentageBar(0, charSize, displayPercent)
 	}
 	percent := (current * 100) / total
 
-	return PercentageBar(percent, size, show)
+	return PercentageBar(percent, charSize, displayPercent)
 }
 
 // PercentageBar renders a visual progress bar.
