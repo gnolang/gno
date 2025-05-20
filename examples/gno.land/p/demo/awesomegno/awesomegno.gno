@@ -40,7 +40,15 @@ func AddItem(title, description, url, authorAddress string) {
 		panic("item title cannot be empty")
 	}
 
+	if authorAddress == "" {
+		panic("author address cannot be empty")
+	}
+
 	author := std.Address(authorAddress)
+	if err := isValidAddress(author); err != nil {
+		panic(err, "invalid author address: " + authorAddress)
+	}
+
 	if err := Auth.DoByPrevious("add_item", func() error {
 		addItem(title, description, url, author)
 		return nil
@@ -63,6 +71,16 @@ func UpdateItem(itemID seqid.ID, title, description, url string, categories ...s
 
 func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
 	crossing()
+
+	if len(authors) == 0 {
+		panic("authors cannot be empty")
+	}
+
+	for _, author := range authors {
+		if err := isValidAddress(author); err != nil {
+			panic(err, "invalid author address: " + author.String())
+		}
+	}
 
 	if err := Auth.DoByPrevious("update_items_authors", func() error {
 		updateItem(itemID, "", "", "", authors)
