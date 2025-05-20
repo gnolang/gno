@@ -19,7 +19,6 @@ func TestValidate(t *testing.T) {
 		t.Parallel()
 
 		fk := GenerateFileKey()
-		fk.filePath = "filePath"
 
 		assert.NoError(t, fk.validate())
 	})
@@ -28,7 +27,6 @@ func TestValidate(t *testing.T) {
 		t.Parallel()
 
 		fk := GenerateFileKey()
-		fk.filePath = "filePath"
 		fk.PrivKey = nil
 
 		assert.ErrorIs(t, fk.validate(), errInvalidPrivateKey)
@@ -38,7 +36,6 @@ func TestValidate(t *testing.T) {
 		t.Parallel()
 
 		fk := GenerateFileKey()
-		fk.filePath = "filePath"
 		fk.PubKey = nil
 
 		assert.ErrorIs(t, fk.validate(), errPublicKeyMismatch)
@@ -48,7 +45,6 @@ func TestValidate(t *testing.T) {
 		t.Parallel()
 
 		fk := GenerateFileKey()
-		fk.filePath = "filePath"
 		fk.Address = crypto.Address{} // zero address
 
 		assert.ErrorIs(t, fk.validate(), errAddressMismatch)
@@ -145,7 +141,7 @@ func TestLoadFileKey(t *testing.T) {
 		copy(fk.Address[:], "invalid address")
 		jsonBytes, err := amino.MarshalJSONIndent(fk, "", "  ")
 		require.NoError(t, err)
-		require.NoError(t, osm.WriteFileAtomic(fk.filePath, jsonBytes, 0o600))
+		require.NoError(t, osm.WriteFileAtomic(filePath, jsonBytes, 0o600))
 
 		fk, err = LoadFileKey(filePath)
 		require.Nil(t, fk)

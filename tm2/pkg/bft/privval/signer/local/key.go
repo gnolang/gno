@@ -19,8 +19,6 @@ type FileKey struct {
 	PrivKey crypto.PrivKey `json:"priv_key" comment:"the validator private key"`
 	PubKey  crypto.PubKey  `json:"pub_key" comment:"the validator public key"`
 	Address types.Address  `json:"address" comment:"the validator address"`
-
-	filePath string
 }
 
 // FileKey validation errors.
@@ -48,16 +46,11 @@ func (fk *FileKey) validate() error {
 		return errAddressMismatch
 	}
 
-	// Check if the file path is set.
-	if fk.filePath == "" {
-		return errFilePathNotSet
-	}
-
 	return nil
 }
 
 // save persists the FileKey to its file path.
-func (fk *FileKey) save() error {
+func (fk *FileKey) save(filePath string) error {
 	// Check if the FileKey is valid.
 	if err := fk.validate(); err != nil {
 		return err
@@ -70,7 +63,7 @@ func (fk *FileKey) save() error {
 	}
 
 	// Write the JSON bytes to the file.
-	if err := osm.WriteFileAtomic(fk.filePath, jsonBytes, 0o600); err != nil {
+	if err := osm.WriteFileAtomic(filePath, jsonBytes, 0o600); err != nil {
 		return err
 	}
 
@@ -91,9 +84,6 @@ func LoadFileKey(filePath string) (*FileKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal FileKey from %v: %w", filePath, err)
 	}
-
-	// Manually set the private file path.
-	fk.filePath = filePath
 
 	// Validate the FileKey.
 	if err := fk.validate(); err != nil {
@@ -121,11 +111,8 @@ func GeneratePersistedFileKey(filePath string) (*FileKey, error) {
 	// Generate a new random FileKey.
 	fk := GenerateFileKey()
 
-	// Set the file path.
-	fk.filePath = filePath
-
 	// Persist the FileKey to disk.
-	if err := fk.save(); err != nil {
+	if err := fk.save(filePath); err != nil {
 		return nil, err
 	}
 
