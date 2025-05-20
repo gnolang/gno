@@ -80,9 +80,8 @@ func StoreWithOptions(
 				// In order to translate into a newer Gno version with
 				// the preprocessor make a slight modifications to the
 				// AST. This needs to happen even for imports, because
-				// the preprocessor requries imports also preprocessed.
+				// the preprocessor requires imports also preprocessed.
 				// This is because the linter uses pkg/test/imports.go.
-				const wtests = false // Tests don't matter for imports.
 				gofset, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(
 					mpkg, gno.ParseModeAll)
 				if errs != nil {

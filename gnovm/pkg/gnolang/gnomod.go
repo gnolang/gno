@@ -13,8 +13,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-const gnomodTemplate = `{{/* 
-This is a comment in a Go template in pkg/gnolang/gnomod.go. 
+const gnomodTemplate = `{{/*
+This is a comment in a Go template in pkg/gnolang/gnomod.go.
 The gnomodTemplate is used with the 'text/template' package
 to generate the final gno.mod file. */}}
 module {{.PkgPath}}
@@ -63,7 +63,7 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 		return nil, nil
 	} else if mod, err = gnomod.ParseMemPackage(mpkg); err != nil {
 		// error parsing gno.mod.
-		err = fmt.Errorf("%s/gno.mod: parse error %q", mpkg.Path, err)
+		err = fmt.Errorf("%s/gno.mod: parse error %w", mpkg.Path, err)
 	} else if mod.Gno == nil {
 		// gno.mod was never specified; set missing.
 		mod.SetGno(GnoVerMissing)

@@ -65,7 +65,7 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 			continue // Skip empty files
 		}
 		all.AddFiles(n)
-		if string(n.PkgName) == string(mpkg.Name)+"_test" {
+		if string(n.PkgName) == mpkg.Name+"_test" {
 			// A xxx_file integration test is a package of its own.
 			_tests.AddFiles(n)
 		} else if strings.HasSuffix(mfile.Name, "_filetest.gno") {
@@ -150,9 +150,11 @@ func (ppkg *processedPackage) GetFileTest(fname gno.Name) processedFileSet {
 // formatted error string.
 // XXX: Ideally, error handling should encapsulate location details within a
 // dedicated error type.
-const rePos = `(?:` + `\d+(?::\d+)?` + `)` // NOTE: allows the omission of columns, more relaxed than gno.Pos.
-const reSpan = `(?:` + rePos + `-` + rePos + `)`
-const rePosOrSpan = `(?:` + reSpan + `|` + rePos + `)`
+const (
+	rePos       = `(?:` + `\d+(?::\d+)?` + `)` // NOTE: allows the omission of columns, more relaxed than gno.Pos.
+	reSpan      = `(?:` + rePos + `-` + rePos + `)`
+	rePosOrSpan = `(?:` + reSpan + `|` + rePos + `)`
+)
 
 var reParseRecover = regexp.MustCompile(`^([^:]+):(` + rePosOrSpan + `):? *(.*)$`)
 

@@ -219,8 +219,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 			if !mod.Draft {
-				_, gofset, gofs, _gofs, tgofs, errs =
-					lintTypeCheck(io, dir, mpkg, gs)
+				_, gofset, gofs, _gofs, tgofs, errs = lintTypeCheck(io, dir, mpkg, gs)
 				if errs != nil {
 					// io.ErrPrintln(errs) already printed.
 					hasError = true
