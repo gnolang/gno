@@ -1322,6 +1322,15 @@ func (ft *FuncType) HasVarg() bool {
 	}
 }
 
+func (ft *FuncType) IsCrossing() bool {
+	if numParams := len(ft.Params); numParams == 0 {
+		return false
+	} else {
+		fpt := ft.Params[0].Type
+		return fpt == gRealmType
+	}
+}
+
 // ----------------------------------------
 // Map type
 

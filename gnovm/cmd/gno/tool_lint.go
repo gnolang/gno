@@ -196,14 +196,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 			{
 				// LINT STEP 5: PreprocessFiles()
-				// Preprocess fset files (w/ some _test.gno).
+				// Preprocess fset files (w/ some *_test.gno).
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false, "")
 				ppkg.AddNormal(pn, fset)
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
-				// Preprocess _test files (all _test.gno).
+				// Preprocess _test files (all xxx_test *_test.gno).
 				cw := bs.CacheWrap()
 				gs := ts.BeginTransaction(cw, cw, nil)
 				tm.Store = gs

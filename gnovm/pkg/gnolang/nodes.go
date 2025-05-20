@@ -147,6 +147,7 @@ const (
 	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
+	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"
 )
 
 // Embedded in each Node.
@@ -402,7 +403,7 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	Args      Exprs // function arguments, if any.
 	Varg      bool  // if true, final arg is variadic.
 	NumArgs   int   // len(Args) or len(Args[0].Results)
-	WithCross bool  // if called like cross(fn)(...).
+	WithCross bool  // if cross-called with `cur`.
 }
 
 // if x is *ConstExpr returns its source.
@@ -420,19 +421,6 @@ func (x *CallExpr) isWithCross() bool {
 			if nx.Name == "cross" {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-// returns true if x is of form crossing().
-func (x *CallExpr) isCrossing() bool {
-	if x == nil {
-		return false
-	}
-	if nx, ok := unwrapConstExpr(x.Func).(*NameExpr); ok {
-		if nx.Name == "crossing" {
-			return true
 		}
 	}
 	return false
@@ -721,25 +709,6 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 		}
 	}
 	return nil, -1
-}
-
-// Convenience, returns true if first statement is crossing()
-func (ss Body) IsCrossing() bool {
-	return ss.isCrossing()
-}
-
-// XXX deprecate
-func (ss Body) isCrossing() bool {
-	if len(ss) == 0 {
-		return false
-	}
-	fs := ss[0]
-	xs, ok := fs.(*ExprStmt)
-	if !ok {
-		return false
-	}
-	cx, ok := xs.X.(*CallExpr)
-	return cx.isCrossing()
 }
 
 // ----------------------------------------

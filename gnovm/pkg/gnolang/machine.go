@@ -463,6 +463,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // compile-time errors in the package. It is also usde to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
+//   - fixFrom: the version of gno to fix from.
 func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
@@ -476,6 +477,9 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	m.Store.SetBlockNode(pn)
 	PredefineFileSet(m.Store, pn, fset)
 	for _, fn := range fset.Files {
+		if fixFrom != "" {
+			pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
+		}
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)

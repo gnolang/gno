@@ -164,6 +164,19 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 			if err != nil {
 				panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
 			}
+		} else {
+			switch mod.GetGno() {
+			case gno.GnoVerLatest:
+				if cmd.verbose {
+					io.ErrPrintfln("%s: module is up to date, skipping fix", dir)
+				}
+				continue // nothing to do.
+			case gno.GnoVerMissing:
+				// good, fix it.
+			default:
+				io.ErrPrintfln("%s: unrecognized gno.mod version %q, skipping fix", dir, mod.GetGno())
+				continue // skip it.
+			}
 		}
 		if err != nil {
 			issue := gnoIssue{
@@ -175,6 +188,10 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 			io.ErrPrintln(issue)
 			hasError = true
 			return commands.ExitCodeError(1)
+		}
+		if mod.Draft {
+			io.ErrPrintfln("%s: module is draft, skipping fix", dir)
+			continue
 		}
 
 		// See adr/pr4264_fix_transpile.md
@@ -218,15 +235,12 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			if !mod.Draft {
-				_, gofset, gofs, _gofs, tgofs, errs = lintTypeCheck(io, dir, mpkg, gs)
-				if errs != nil {
-					// io.ErrPrintln(errs) already printed.
-					hasError = true
-					return
-				}
-			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
+			_, gofset, gofs, _gofs, tgofs, errs =
+				lintTypeCheck(io, dir, mpkg, gs)
+			if errs != nil {
+				// io.ErrPrintln(errs) already printed.
+				hasError = true
+				return
 			}
 
 			// FIX STEP 4: Prepare*()

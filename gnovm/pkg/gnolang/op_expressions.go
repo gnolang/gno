@@ -670,7 +670,7 @@ func (m *Machine) doOpFuncLit() {
 			Parent:     nil,
 			Captures:   captures,
 			PkgPath:    m.Package.PkgPath,
-			Crossing:   x.Body.isCrossing(),
+			Crossing:   ft.IsCrossing(),
 			body:       x.Body,
 			nativeBody: nil,
 		},

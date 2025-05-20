@@ -617,6 +617,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if p.Name == "" || p.Name == blankIdentifier {
 						panic("arg name should have been set in initStaticBlocks")
 					}
+					if nx, ok := p.Type.(*NameExpr); ok && nx.Name == Name("realm") {
+						// don't alow confusion by e.g. declaring a crossing function like
+						// func something(prev realm, x int) { ... }.
+						if i == 0 {
+							if p.Name != "cur" {
+								panic("a crossing function's first realm argument must have name `cur`")
+							}
+						} else {
+							if p.Name == "cur" {
+								panic("only the first realm type argument of a crossing function may have name `cur`")
+							}
+						}
+					}
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
@@ -727,7 +740,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
 				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == "FuncLitExpr" {
-					// Machine still needs it. Clear it @ initStaticBlocks.
+					// This preprocessing was initiated by predefineRecursively().
+					// When predefined from a package/file, the dependant names may
+					// be declared out of order, so preprocessing the body of
+					// function literals is not performed.  When predefined from
+					// within a function body, the depdent names must already be
+					// declared, so preprocessing is not skipped.
+					//
+					// NOTE: Machine still needs the attribute later for evalStatic*.
+					// Clear it @ initStaticBlocks.
 					// n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
 					for _, p := range ns {
 						// Prevent parents from being marked as attr
@@ -740,6 +761,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// n.SetAttribute(ATTR_PREPROCESS_INCOMPLETE, true)
 					return n, TRANS_SKIP
+				}
+				// a crossing function can only be declared in a realm.
+				if ft.IsCrossing() && !isRealm(ctx) {
+					panic(fmt.Sprintf("crossing function literal (realm first argument) declared in non-realm package: %v", n))
 				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
@@ -846,7 +871,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// retrieve cached function type.
 				// the type and receiver are already set in predefineRecursively.
 				ft := getType(&n.Type).(*FuncType)
-
+				// a crossing function can only be declared in a realm.
+				if ft.IsCrossing() && !isRealm(ctx) {
+					panic(fmt.Sprintf("crossing function (realm first argument) declared in non-realm package: %v", n))
+				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
 				// define receiver in new block, if method.
@@ -1296,7 +1324,36 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ift := evalStaticTypeOf(store, last, n.Func)
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
-					ft = cft
+					// a non-crossing call of a crossing function (passing in `cur`) may
+					// only happen with a `cur` declared as the first realm argument
+					// of a containing function.
+					if cft.IsCrossing() {
+						nx, ok := n.Args[0].(*NameExpr)
+						if !ok || nx.Name != Name("cur") {
+							panic("only `cur` and `nil` are allowed as the first argument to a crossing function")
+						} else { // nx.Name == `cur`
+							dbn := last.GetBlockNodeForPath(store, nx.Path)
+							switch dbn.(type) {
+							case *FuncDecl, *FuncLitExpr:
+								ft := getType(dbn).(*FuncType)
+								if !ft.IsCrossing() {
+									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+								}
+								// at this point we know that `cur` is from a containing crossing function.
+								// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
+								// argument of the crossing function.
+							default:
+								panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+							}
+							// the `cur` cannot be passed as capture through a func lit.
+							fle, _, found := findFirstClosure(stack, dbn)
+							if found && dbn != fle {
+								panic(fmt.Sprintf("`cur realm` cannot be used as a closure capture, but found %v", fle))
+							}
+							// `cur` is valid, n is a valid non-crossing call of a crossing function.
+							n.SetWithCross()
+						}
+					}
 				case *TypeType:
 					if len(n.Args) != 1 {
 						panic("type conversion requires single argument")
@@ -1454,16 +1511,25 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
-						// Memoize *CallExpr.WithCross.
-						pc, ok := ns[len(ns)-1].(*CallExpr)
-						if !ok {
-							panic("cross(fn) must be followed by a call")
+						pn := packageOf(last)
+						if pn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
+							// This is only backwards compatibility for the gno 0.9
+							// transpiler/fixer.  cross() is no longer used.
+							// See adr/pr4264_lint_transpile.md for more info.
+							//
+							// Memoize *CallExpr.WithCross.
+							pc, ok := ns[len(ns)-1].(*CallExpr)
+							if !ok {
+								panic("cross(fn) must be followed by a call")
+							}
+							pc.SetWithCross()
+						} else {
+							panic("cross(fn) is deprecated but reserved")
 						}
-						pc.SetWithCross()
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						pn := packageOf(last)
-						if !IsRealmPath(pn.PkgPath) {
-							panic("crossing() is only allowed in realm packages")
+						if pn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
+							panic("crossing() is deprecated but reserved")
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
@@ -3487,6 +3553,11 @@ func setPreprocessed(x Expr) {
 	}
 }
 
+func isRealm(ctx BlockNode) bool {
+	pn := packageOf(ctx)
+	return IsRealmPath(pn.PkgPath)
+}
+
 func packageOf(last BlockNode) *PackageNode {
 	for {
 		if pn, ok := last.(*PackageNode); ok {
@@ -4553,7 +4624,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				Parent:     nil, // set lazily
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
-				Crossing:   d.Body.isCrossing(),
+				Crossing:   ft.IsCrossing(),
 				body:       d.Body,
 				nativeBody: nil,
 			}) {
@@ -4580,7 +4651,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				Parent:     nil, // set lazily.
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
-				Crossing:   d.Body.isCrossing(),
+				Crossing:   ft.IsCrossing(),
 				body:       d.Body,
 				nativeBody: nil,
 			}

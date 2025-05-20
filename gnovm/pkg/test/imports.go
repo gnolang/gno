@@ -34,6 +34,9 @@ type StoreOptions struct {
 	// When transpiling code in examples/ we use the test store. gno fix may need
 	// gno.mod to not be auto-generated when importing from the test store.
 	DoNotGenerateGnoMod bool
+
+	// When fixing code from an earler gno version. Not supported for stdlibs.
+	FixFrom string
 }
 
 // NOTE: this isn't safe, should only be used for testing.
@@ -98,7 +101,7 @@ func StoreWithOptions(
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
 				gno.ParseMemPackage(mpkg),
-				save, false, "")
+				save, false, opts.FixFrom)
 		} else {
 			return m.RunMemPackage(mpkg, save)
 		}
@@ -211,7 +214,8 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true, "")
+		pn, pv := m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true, "")
+		return pn, pv
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)
