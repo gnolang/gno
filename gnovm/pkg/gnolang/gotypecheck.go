@@ -32,12 +32,13 @@ func cross[F any](fn F) F { return fn } // shim
 func revive[F any](fn F) any { return nil } // shim
 type realm interface {
     Address() address
-    Path() string
+    PkgPath() string
     // Coins() gnocoins
     // Send(coins gnocoins, to address) error 
     Origin() realm
     Previous() realm
     Sudo() realm
+    String() string
 }
 type address string
 func (a address) String() string { return string(a) }

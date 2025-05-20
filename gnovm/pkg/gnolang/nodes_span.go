@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX rename this file to nodes_location.gno
+
 import (
 	"fmt"
 	"go/ast"
@@ -131,6 +133,12 @@ func (s *Span) SetSpanOverride(s2 Span) {
 // Overridden by Attributes.String().
 func (s Span) String() string {
 	if s.Pos.Line == s.End.Line {
+		if s.Pos.Column == s.End.Column {
+			return fmt.Sprintf("%d:%d%s",
+				s.Pos.Line, s.Pos.Column,
+				strings.Repeat("'", s.Num), // e.g. 1:1-12'
+			)
+		}
 		return fmt.Sprintf("%d:%d-%d%s",
 			s.Pos.Line, s.Pos.Column, s.End.Column,
 			strings.Repeat("'", s.Num), // e.g. 1:1-12'
@@ -224,11 +232,18 @@ type Location struct {
 
 // Overridden by Attributes.String().
 func (loc Location) String() string {
-	return fmt.Sprintf("%s/%s:%s",
-		loc.PkgPath,
-		loc.File,
-		loc.Span.String(),
-	)
+	if loc.File == "" {
+		return fmt.Sprintf("%s:%s",
+			loc.PkgPath,
+			loc.Span.String(),
+		)
+	} else {
+		return fmt.Sprintf("%s/%s:%s",
+			loc.PkgPath,
+			loc.File,
+			loc.Span.String(),
+		)
+	}
 }
 
 // Overridden by Attributes.IsZero().

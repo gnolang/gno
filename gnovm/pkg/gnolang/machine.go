@@ -917,8 +917,9 @@ const (
 	OpNoop                Op = 0x02 // no-op
 	OpExec                Op = 0x03 // exec next statement
 	OpPrecall             Op = 0x04 // sets X (func) to frame
-	OpCall                Op = 0x05 // call(Frame.Func, [...])
-	OpCallNativeBody      Op = 0x06 // call body is native
+	OpEnterCrossing       Op = 0x05 // before OpCall of a crossing function
+	OpCall                Op = 0x06 // call(Frame.Func, [...])
+	OpCallNativeBody      Op = 0x07 // call body is native
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
@@ -1050,6 +1051,7 @@ const (
 	OpCPUNoop                = 1
 	OpCPUExec                = 25
 	OpCPUPrecall             = 207
+	OpCPUEnterCrossing       = 100 // XXX
 	OpCPUCall                = 256
 	OpCPUCallNativeBody      = 424
 	OpCPUDefer               = 64
@@ -1223,6 +1225,9 @@ func (m *Machine) Run(st Stage) {
 		case OpPrecall:
 			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
+		case OpEnterCrossing:
+			m.incrCPU(OpCPUEnterCrossing)
+			m.doOpEnterCrossing()
 		case OpCall:
 			m.incrCPU(OpCPUCall)
 			m.doOpCall()
@@ -1846,10 +1851,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	m.Package = pv
 
-	// If cross, always switch to pv.Realm.
+	// If with cross, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
 	if withCross {
+		// since gno 0.9 cross type-checking makes this impossible.
+		// XXX move this into if debug { ... }
 		if !fv.IsCrossing() {
 			// panic; notcrossing
 			mrpath := "<no realm>"
@@ -1868,8 +1875,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not called like cross(fn)(...).
+	// Non-crossing call of a crossing function like Public(cur, ...).
 	if fv.IsCrossing() {
+		// since gno 0.9 cross type-checking makes this impossible.
+		// XXX move this into if debug { ... }
 		if m.Realm != pv.Realm {
 			// panic; not explicit
 			mrpath := "<no realm>"
@@ -1886,11 +1895,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				fv.String(),
 				mrpath,
 			))
-		} else {
-			// ok
-			// Technically OK even if recv.Realm is different.
-			return
 		}
+		// OK even if recv.Realm is different.
+		return
 	}
 
 	// Not cross nor crossing.

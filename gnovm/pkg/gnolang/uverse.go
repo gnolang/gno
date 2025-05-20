@@ -73,8 +73,8 @@ var gCoinType = &DeclaredType{
 	Base: &StructType{
 		PkgPath: uversePkgPath,
 		Fields: []FieldType{
-			FieldType{Name: "Denom", Type: StringType},
-			FieldType{Name: "Amount", Type: Int64Type},
+			{Name: "Denom", Type: StringType},
+			{Name: "Amount", Type: Int64Type},
 		},
 	},
 	sealed: true,
@@ -92,44 +92,68 @@ var gRealmType = &DeclaredType{
 	Name:    "realm",
 	Base: &InterfaceType{
 		PkgPath: uversePkgPath,
-		Methods: []FieldType{{
-			Name: "Address",
-			Type: &FuncType{
-				Params: nil,
-				Results: []FieldType{{
-					Type: gAddressType}}}}, { // NOT std.Address.
-			Name: "Path",
-			Type: &FuncType{
-				Params: nil,
-				Results: []FieldType{{
-					Type: StringType}}}}, {
-			Name: "Coins",
-			Type: &FuncType{
-				Params: nil,
-				Results: []FieldType{{
-					Type: gCoinsType}}}}, {
-			Name: "Send",
-			Type: &FuncType{
-				Params: []FieldType{{
-					Name: "coins", Type: gCoinsType}, {
-					Name: "to", Type: gAddressType}},
-				Results: []FieldType{{
-					Type: gErrorType}}}}, {
-			Name: "Previous",
-			Type: &FuncType{
-				Params: nil,
-				Results: []FieldType{{
-					Type: nil}}}}, { // gets filled in init() below.
-			Name: "Origin",
-			Type: &FuncType{
-				Params: nil,
-				Results: []FieldType{{
-					Type: nil}}}}, { // gets filled in init() below.
-			Name: "Sudo",
-			Type: &FuncType{
-				Params: nil,
-				Results: []FieldType{{
-					Type: nil}}}}, // gets filled in init() below.
+		Methods: []FieldType{
+			{
+				Name: "Address",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: gAddressType,
+					}},
+				},
+			}, { // NOT std.Address.
+				Name: "PkgPath",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: StringType,
+					}},
+				},
+			}, {
+				Name: "Coins",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: gCoinsType,
+					}},
+				},
+			}, {
+				Name: "Send",
+				Type: &FuncType{
+					Params: []FieldType{{
+						Name: "coins", Type: gCoinsType,
+					}, {
+						Name: "to", Type: gAddressType,
+					}},
+					Results: []FieldType{{
+						Type: gErrorType,
+					}},
+				},
+			}, {
+				Name: "Previous",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "Origin",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
+			}, { // gets filled in init() below.
+				Name: "Sudo",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: nil,
+					}},
+				},
+			}, // gets filled in init() below.
 		},
 	},
 	sealed: true,
@@ -139,6 +163,21 @@ func init() {
 	gRealmType.Base.(*InterfaceType).Methods[4].Type.(*FuncType).Results[0].Type = gRealmType // Previous
 	gRealmType.Base.(*InterfaceType).Methods[5].Type.(*FuncType).Results[0].Type = gRealmType // Origin
 	gRealmType.Base.(*InterfaceType).Methods[6].Type.(*FuncType).Results[0].Type = gRealmType // Sudo
+}
+
+var gConcreteRealmType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    ".realm",
+	Base: &StructType{
+		PkgPath: uversePkgPath,
+		Fields: []FieldType{
+			{Name: "addr", Type: gAddressType},
+			{Name: "pkgPath", Type: StringType},
+			{Name: "prev", Type: gRealmType},
+		},
+	},
+	sealed: true,
+	// methods defined in makeUverseNode()
 }
 
 // ----------------------------------------
@@ -838,12 +877,11 @@ func makeUverseNode() {
 
 	//----------------------------------------
 	// Gno2 types
-	def("realm", asValue(gRealmType))
 	def("address", asValue(gAddressType))
 	defNativeMethod("address", "String",
 		nil, // params
 		Flds( // results
-			"", Nx("string"),
+			"", "string",
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
@@ -855,7 +893,7 @@ func makeUverseNode() {
 	defNativeMethod("address", "IsValid",
 		nil, // params
 		Flds( // results
-			"", Nx("bool"),
+			"", "bool",
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
@@ -864,63 +902,70 @@ func makeUverseNode() {
 			return
 		},
 	)
+	def("realm", asValue(gRealmType))
+	def(".realm", asValue(gConcreteRealmType))
+	defNativeMethod(".realm", "Address",
+		nil, // params
+		Flds( // results
+			"", "address",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".realm", "PkgPath",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".realm", "Origin",
+		nil, // params
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".realm", "Previous",
+		nil, // params
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".realm", "Sudo",
+		nil, // params
+		Flds( // results
+			"", "realm",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".realm", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
 	def("gnocoin", asValue(gCoinType))
 	def("gnocoins", asValue(gCoinsType))
 	defNative("crossing",
 		nil, // params
 		nil, // results
 		func(m *Machine) {
-			stmt := m.PeekStmt(1)
-			bs, ok := stmt.(*bodyStmt)
-			if !ok {
-				panic("unexpected origin of crossing call")
-			}
-			if bs.NextBodyIndex != 1 {
-				panic("crossing call must be the first call of a function or method")
-			}
-			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
-			if !fr1.LastPackage.IsRealm() {
-				panic("crossing call only allowed in realm packages") // XXX test
-			}
-			// Verify prior fr.WithCross or fr.DidCrossing.
-			// NOTE: fr.WithCross may or may not be true,
-			// crossing() (which sets fr.DidCrossing) can be
-			// stacked.
-			for i := 1 + 1; ; i++ {
-				fri := m.PeekCallFrame(i)
-				if fri == nil {
-					// For stage add, meaning init() AND
-					// global var decls inherit a faux
-					// frame of index -1 which crossed from
-					// the package deployer.
-					// For stage run, main() does the same,
-					// so main() can be crossing or not, it
-					// doesn't matter. This applies for
-					// MsgRun() as well as tests. MsgCall()
-					// runs like cross(fn)(...) which
-					// meains fri.WithCross would have been
-					// found below.
-					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCrossing()
-					return
-				}
-				if fri.WithCross || fri.DidCrossing {
-					// NOTE: fri.DidCrossing implies
-					// everything under it is also valid.
-					// fri.DidCrossing && !fri.WithCross
-					// can happen with an implicit switch.
-					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidCrossing()
-					return
-				}
-				// Neither fri.WithCross nor fri.DidCrossing, yet
-				// Realm already switched implicitly.
-				if fri.LastRealm != m.Realm {
-					panic("crossing could not find corresponding cross(fn)(...) call")
-				}
-			}
-			//nolint:govet // detected as unreachable
-			panic("should not happen") // defensive
+			// should not happen since gno 0.9.
+			panic("crossing() is reserved but deprecated")
 		},
 	)
 	defNative("cross",

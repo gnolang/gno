@@ -151,9 +151,10 @@ func (ppkg *processedPackage) GetFileTest(fname gno.Name) processedFileSet {
 // XXX: Ideally, error handling should encapsulate location details within a
 // dedicated error type.
 const (
-	rePos       = `(?:` + `\d+(?::\d+)?` + `)` // NOTE: allows the omission of columns, more relaxed than gno.Pos.
+	rePos       = `(?:` + `\d+(?::\d+)?` + `)` // more relaxed than Gno Pos.
 	reSpan      = `(?:` + rePos + `-` + rePos + `)`
-	rePosOrSpan = `(?:` + reSpan + `|` + rePos + `)`
+	rePrimes    = `(?:'*)` // Gno uses primes to distinguish superimposed nodes.
+	rePosOrSpan = `(?:` + reSpan + `|` + rePos + `)` + rePrimes
 )
 
 var reParseRecover = regexp.MustCompile(`^([^:]+):(` + rePosOrSpan + `):? *(.*)$`)

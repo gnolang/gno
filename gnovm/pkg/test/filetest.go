@@ -161,7 +161,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error
 			evtstr := string(evtjson)
 			match(dir, evtstr)
 		case DirectivePreprocessed:
-			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
+			pn := m.Store.GetBlockNodeSafe(gno.PackageNodeLocation(pkgPath))
+			if pn == nil {
+				return "", fmt.Errorf("package %q not preprocessed: %s", pkgPath, result.Error)
+			}
 			pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
 			match(dir, pre)
 		case DirectiveStacktrace:

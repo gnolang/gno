@@ -1324,19 +1324,21 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ift := evalStaticTypeOf(store, last, n.Func)
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
+					ft = cft // used later.
 					// a non-crossing call of a crossing function (passing in `cur`) may
 					// only happen with a `cur` declared as the first realm argument
 					// of a containing function.
 					if cft.IsCrossing() {
 						nx, ok := n.Args[0].(*NameExpr)
-						if !ok || nx.Name != Name("cur") {
+						if !ok || nx.Name != Name("cur") && nx.Name != Name("nil") {
 							panic("only `cur` and `nil` are allowed as the first argument to a crossing function")
-						} else { // nx.Name == `cur`
+						} else if nx.Name == Name("cur") { // nx.Name == `cur`
+							// A non-crossing call of a crossing function.
 							dbn := last.GetBlockNodeForPath(store, nx.Path)
 							switch dbn.(type) {
 							case *FuncDecl, *FuncLitExpr:
-								ft := getType(dbn).(*FuncType)
-								if !ft.IsCrossing() {
+								dft := getType(dbn).(*FuncType)
+								if !dft.IsCrossing() {
 									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 								}
 								// at this point we know that `cur` is from a containing crossing function.
@@ -1350,7 +1352,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if found && dbn != fle {
 								panic(fmt.Sprintf("`cur realm` cannot be used as a closure capture, but found %v", fle))
 							}
-							// `cur` is valid, n is a valid non-crossing call of a crossing function.
+						} else if nx.Name == Name("nil") { // nx.Name == `nil`
+							// n is a valid crossing call of a crossing function.
 							n.SetWithCross()
 						}
 					}
@@ -1524,12 +1527,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 							pc.SetWithCross()
 						} else {
-							panic("cross(fn) is deprecated but reserved")
+							panic("cross(fn) is reserved and deprecated")
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						pn := packageOf(last)
 						if pn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
-							panic("crossing() is deprecated but reserved")
+							panic("crossing() is reserved and deprecated")
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.

@@ -1059,6 +1059,10 @@ func copyTypeWithRefs(typ Type) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
+		if ct.PkgPath == uversePkgPath {
+			// This happens with a type alias to a uverse type.
+			return RefType{ID: ct.TypeID()}
+		}
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,

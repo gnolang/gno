@@ -1564,8 +1564,7 @@ func (x *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, 
 	}
 	// recv.DefineMethod(fv)
 	path := recv.GetPathForName(n)
-	ftv := recv.GetValueAt(nil, nil, path)
-	fv := ftv.GetFunc()
+	fv := recv.Methods[path.Index].GetFunc()
 	fv.nativeBody = native
 }
 
