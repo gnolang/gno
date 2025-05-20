@@ -1,7 +1,6 @@
 package place
 
 import (
-	"encoding/base64"
 	"std"
 	"time"
 
@@ -10,18 +9,18 @@ import (
 
 func generateSquareSvg(color string) string {
 	canvas := svg.Canvas{Width: 30, Height: 30}
-	canvas.DrawRectangle(0, 0, 30, 30, color)
-	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
+	canvas.Append(svg.NewRectangle(0, 0, 30, 30, color))
+	return canvas.Base64()
 }
 
 func generateSVG() string {
 	canvas := svg.Canvas{Width: (int)(cols * 40), Height: (int)(rows * 40)}
 	for y := 0; y < int(rows); y++ {
 		for x := 0; x < int(cols); x++ {
-			canvas.DrawRectangle(x*40, y*40, 40, 40, tableColor[y][x].rgb)
+			canvas.Append(svg.NewRectangle(x*40, y*40, 40, 40, tableColor[y][x].rgb))
 		}
 	}
-	return base64.StdEncoding.EncodeToString([]byte(canvas.String()))
+	return canvas.Base64()
 }
 
 func Submit(x, y uint64, colorName string) {
