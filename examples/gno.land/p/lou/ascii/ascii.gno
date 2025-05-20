@@ -237,7 +237,7 @@ func FixedFrame(
 	return md.CodeBlock(top+body+bottom) + "\n"
 }
 
-// PercentageBar renders a visual progress bar, the size represents the number of chars in length for the bar.
+// ProgressBar renders a visual progress bar, the size represents the number of chars in length for the bar.
 //
 // Example:
 //
@@ -253,22 +253,23 @@ func ProgressBar(current int, total int, charSize int, displayPercent bool) stri
 	return PercentageBar(percent, charSize, displayPercent)
 }
 
-// PercentageBar renders a visual progress bar.
+// PercentageBar renders a visual progress bar, the size represents the number of chars in length for the bar.
+// This differs from ProgressBar in that it does not require a total value, takes a percentage directly.
 //
 // Example:
 //
 //	PercentageBar(50, 6, false)
 //
 // Gives: [###---]
-func PercentageBar(percent int, size int, show bool) string {
-	fillLength := (percent * size) / 100
-	emptyLength := size - fillLength
+func PercentageBar(percent int, charSize int, displayPercent bool) string {
+	fillLength := (percent * charSize) / 100
+	emptyLength := charSize - fillLength
 
 	filled := Repeat("#", fillLength)
 	empty := Repeat("-", emptyLength)
 
 	out := "[" + filled + empty + "]"
-	if !show {
+	if !displayPercent {
 		return out
 	}
 	return out + " " + strconv.Itoa(percent) + "%"
