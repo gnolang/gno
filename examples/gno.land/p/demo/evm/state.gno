@@ -180,7 +180,7 @@ func (s *State) loadStagedChangesIntoEnv(env *Env) {
 }
 
 func (s *State) executeByteCode() error {
-	for !s.code.Ill() && s.code.Current() != byte(STOP) {
+	for !s.code.EndOfCode() && s.code.Current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.Current())]
 		if !ok {
 			return invalidInstruction
@@ -196,10 +196,10 @@ func (s *State) executeByteCode() error {
 		if s.code.IsDone() { // break before increment to avoid out of bounds
 			break
 		}
+		if s.code.Ill() {
+			return s.code.err
+		}
 		s.code.Increment()
-	}
-	if s.code.Ill() {
-		return s.code.err
 	}
 	return nil
 }

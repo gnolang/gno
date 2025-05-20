@@ -1273,6 +1273,56 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 2,
 		},
+		{
+			name: "return data size and return data copy",
+			code: []byte{
+				byte(PUSH1), 1,
+				byte(PUSH0),
+				byte(PUSH0),
+				byte(PUSH0),
+				byte(PUSH1), 80,
+				byte(PUSH1), 1,
+				byte(PUSH1), 255,
+				byte(CALL),
+				byte(RETURNDATASIZE),
+			},
+			caller: Account{
+				AccountType: CallerAccount,
+				EvmAddress:  0,
+				GnoAddress:  "address",
+				Balance:     uint256.NewUint(100),
+				Gas:         uint(1000),
+				Code:        []byte{},
+			},
+			env: Env{
+				Accounts: Accounts{
+					uint64(1): &Account{
+						AccountType: ContractAccount,
+						EvmAddress:  1,
+						GnoAddress:  "address",
+						Balance:     uint256.NewUint(100),
+						Gas:         uint(1000),
+						Code: []byte{
+							byte(PUSH1), 42, // data
+							byte(PUSH0), // offset
+							byte(MSTORE),
+
+							byte(PUSH1), 1, // size
+							byte(PUSH1), 31, // offset
+							byte(RETURN),
+						},
+					},
+				},
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.One(),
+				uint256.One(),
+			},
+			expectedMemory: []byte{
+				0x2a,
+			},
+			ignoreGasConsumed: true,
+		},
 	}
 
 	for _, tc := range testCases {

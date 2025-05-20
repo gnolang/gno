@@ -77,3 +77,7 @@ func (i instructions) At(n int) byte {
 	}
 	return i.instructions[n]
 }
+
+func (i instructions) EndOfCode() bool {
+	return i.rip >= i.length
+}

@@ -63,6 +63,7 @@ func opCall(s *State) error {
 		return errors.New("not enough money to send " + moneyToGive.String() + " wei to call adress " + address.String())
 	}
 	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
+		s.stack.Push(uint256.Zero())
 		return notEnoughGas
 	}
 
@@ -76,6 +77,7 @@ func opCall(s *State) error {
 	contract := tmpState.tmp.accounts[address.Uint64()]
 	if contract == nil || contract.AccountType != ContractAccount {
 		s.stack.Push(uint256.Zero())
+		println("e1", contract.AccountType == ContractAccount)
 		return nil
 	}
 	contractCode := contract.Code
@@ -83,6 +85,7 @@ func opCall(s *State) error {
 	tmpState.setCode(contractCode)
 	err = tmpState.executeByteCode()
 	if err != nil {
+		println("e2")
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
@@ -121,5 +124,39 @@ func opReturnDataSize(s *State) error {
 	} else {
 		s.stack.Push(uint256.Zero())
 	}
+	return nil
+}
+
+func opReturnDataCopy(s *State) error {
+
+	destOffset, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	offset, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	size, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+
+	if s.lastCallState == nil {
+	}
+
+	if offset.Add(offset, size).Uint64() > uint64(len(s.lastCallState.result)) {
+		return errors.New("return data copy overflow")
+	}
+
+	memoryCost := uint64(0)
+	extendMemory(s, destOffset, size, &memoryCost)
+
+	res := s.lastCallState.getResult()
+	copy(s.memory[destOffset.Uint64():destOffset.Uint64()+size.Uint64()], res[offset.Uint64():])
+
+	minimumWordSize := (size.Uint64() + 31) / 32
+	s.gasConsumed += uint(memoryCost + 3*minimumWordSize)
+
 	return nil
 }
