@@ -60,7 +60,7 @@ func renderHome() string {
 		out += "\n"
 		out += md.Paragraph(md.Link("See all items →", "/r/demo/awesomegno:items"))
 	} else {
-		out += md.Italic("No items added yet")
+		out += md.Italic("No items added yet.")
 		addItemLink := txlink.NewLink("AddItem").
 			AddArgs(
 				"title", "",
@@ -79,7 +79,7 @@ func renderHome() string {
 	}
 	out += md.BulletList(stats)
 
-	out += md.Blockquote("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
+	out += md.Italic("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
 
 	return out
 }
@@ -95,7 +95,9 @@ func renderItems(path string) string {
 			"url", "",
 			"author", "",
 		).URL()
+	out += "\n\n"
 	out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
+	out += "\n"
 
 	var itemItems []string
 	itemPager := pager.NewPager(items, pageSize, false)
@@ -120,8 +122,9 @@ func renderCategories(path string) string {
 			"name", "",
 			"description", "",
 		).URL()
+	out += "\n\n"
 	out += md.Paragraph(md.Link("➕ Add New Category", addCategoryLink))
-
+	out += "\n"
 	var categoryItems []string
 	categoryPager := pager.NewPager(categories, pageSize, false)
 	page := categoryPager.MustGetPageByPath(path)
@@ -157,7 +160,7 @@ func renderSingleItem(id string) string {
 			}
 			return strings.Join(itemAuthors, ", ")
 		}()),
-		ufmt.Sprintf("Created: %s", item.CreatedAt.Format("2006-01-02")),
+		ufmt.Sprintf("Created: %s", item.CreatedAt.Format("02 Jan 2006")),
 		ufmt.Sprintf("URL: %s", md.Link("Visit Item", item.URL)),
 	}
 	out += md.BulletList(metadata)
@@ -211,7 +214,7 @@ func renderSingleCategory(id string) string {
 	category := v.(*Category)
 	out := md.H1(category.Name)
 	out += md.Paragraph(category.Description)
-	out += md.Paragraph(ufmt.Sprintf("Created: %s", category.CreatedAt.Format("2006-01-02")))
+	out += md.Paragraph(ufmt.Sprintf("Created: %s", category.CreatedAt.Format("02 Jan 2006")))
 
 	out += md.H2("Items in this category")
 	var itemsList []string
