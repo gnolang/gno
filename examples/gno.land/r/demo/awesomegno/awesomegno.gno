@@ -25,6 +25,7 @@ var (
 	authority = authz.NewMemberAuthority(
 		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
 		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
+		std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), // admin
 	)
 	Auth = authz.NewWithAuthority(authority)
 )
@@ -45,8 +46,8 @@ func AddItem(title, description, url, authorAddress string) {
 	}
 
 	author := std.Address(authorAddress)
-	if err := isValidAddress(author); err != nil {
-		panic(err, "invalid author address: " + authorAddress)
+	if !author.IsValid() {
+		panic("invalid author address: " + authorAddress)
 	}
 
 	if err := Auth.DoByPrevious("add_item", func() error {
@@ -69,6 +70,18 @@ func UpdateItem(itemID seqid.ID, title, description, url string, categories ...s
 	}
 }
 
+func UpdateItemCategory(itemID seqid.ID, title, description, url string, category seqid.ID) {
+	crossing()
+
+	emptyAddrs := []std.Address{}
+	if err := Auth.DoByPrevious("update_item_category", func() error {
+		updateItem(itemID, title, description, url, emptyAddrs, category)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+}
+
 func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
 	crossing()
 
@@ -77,8 +90,8 @@ func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
 	}
 
 	for _, author := range authors {
-		if err := isValidAddress(author); err != nil {
-			panic(err, "invalid author address: " + author.String())
+		if !author.IsValid() {
+			panic("invalid author address: " + author.String())
 		}
 	}
 
