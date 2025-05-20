@@ -24,6 +24,11 @@ var (
 	ErrNilConn            = errors.New("nil connection")
 )
 
+type TCPConnConfig struct {
+	KeepAlivePeriod  time.Duration
+	HandshakeTimeout time.Duration
+}
+
 // configureTCPConnection configures the linger and keep alive options for a TCP connection.
 // It also secures the connection and mutually authenticates with the remote peer using the
 // provided localPrivKey and a list of authorizedKeys.
@@ -31,8 +36,7 @@ func ConfigureTCPConnection(
 	conn *net.TCPConn,
 	localPrivKey ed25519.PrivKeyEd25519,
 	authorizedKeys []ed25519.PubKeyEd25519,
-	keepAlivePeriod time.Duration,
-	handshakeTimeout time.Duration,
+	cfg TCPConnConfig,
 ) (net.Conn, error) {
 	// Check if the connection is nil.
 	if conn == nil {
@@ -42,15 +46,15 @@ func ConfigureTCPConnection(
 	// Set the linger option to 0 to close the connection immediately.
 	conn.SetLinger(0)
 
-	// If keepAlive duration is not 0, set the keep alive options.
-	if keepAlivePeriod != 0 {
+	// If KeepAlive duration is not 0, set the keep alive options.
+	if cfg.KeepAlivePeriod != 0 {
 		conn.SetKeepAlive(true)
-		conn.SetKeepAlivePeriod(keepAlivePeriod)
+		conn.SetKeepAlivePeriod(cfg.KeepAlivePeriod)
 	}
 
-	// If handshakeTimeout is not 0, set the deadline for the secret connection handshake.
-	if handshakeTimeout != 0 {
-		conn.SetDeadline(time.Now().Add(handshakeTimeout))
+	// If HandshakeTimeout is not 0, set the deadline for the secret connection handshake.
+	if cfg.HandshakeTimeout != 0 {
+		conn.SetDeadline(time.Now().Add(cfg.HandshakeTimeout))
 	}
 
 	// Secure the TCP connection and authenticate the remote signer.
@@ -60,7 +64,7 @@ func ConfigureTCPConnection(
 	}
 
 	// Reset the deadline after the secret connection handshake.
-	if handshakeTimeout != 0 {
+	if cfg.HandshakeTimeout != 0 {
 		conn.SetDeadline(time.Time{})
 	}
 

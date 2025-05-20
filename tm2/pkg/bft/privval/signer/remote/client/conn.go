@@ -50,13 +50,17 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 		// If the connection is a TCP connection, configure and secure it.
 		tcpConn, ok := conn.(*net.TCPConn)
 		if ok {
+			tcpCfg := r.TCPConnConfig{
+				KeepAlivePeriod:  rsc.keepAlivePeriod,
+				HandshakeTimeout: rsc.requestTimeout,
+			}
+
 			// Configure and secure the TCP connection then authenticate the server.
 			sconn, err := r.ConfigureTCPConnection(
 				tcpConn,
 				rsc.clientPrivKey,
 				rsc.authorizedKeys,
-				rsc.keepAlivePeriod,
-				rsc.requestTimeout,
+				tcpCfg,
 			)
 			if err != nil {
 				rsc.logger.Error("Failed to configure TCP connection", "error", err)

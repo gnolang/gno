@@ -72,13 +72,17 @@ func (rss *RemoteSignerServer) listen() {
 		// If the connection is a TCP connection, configure and secure it.
 		tcpConn, ok := conn.(*net.TCPConn)
 		if ok {
+			tcpCfg := r.TCPConnConfig{
+				KeepAlivePeriod:  rss.keepAlivePeriod,
+				HandshakeTimeout: rss.responseTimeout * 2, // Double the response timeout for the handshake (send + receive).
+			}
+
 			// Configure and secure the TCP connection then authenticate the client.
 			sconn, err := r.ConfigureTCPConnection(
 				tcpConn,
 				rss.serverPrivKey,
 				rss.authorizedKeys,
-				rss.keepAlivePeriod,
-				rss.responseTimeout*2, // Double the response timeout for the handshake (send + receive).
+				tcpCfg,
 			)
 			if err != nil {
 				rss.logger.Error("Failed to configure TCP connection", "error", err)

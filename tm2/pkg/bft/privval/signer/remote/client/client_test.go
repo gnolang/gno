@@ -502,7 +502,7 @@ func TestClientConnection(t *testing.T) {
 		rsc.Close()
 
 		// Check if the configuration fail with a nil connection.
-		conn, err := r.ConfigureTCPConnection(nil, ed25519.PrivKeyEd25519{}, nil, 0, 0)
+		conn, err := r.ConfigureTCPConnection(nil, ed25519.PrivKeyEd25519{}, nil, r.TCPConnConfig{})
 		require.Nil(t, conn)
 		assert.ErrorIs(t, err, r.ErrNilConn)
 	})
