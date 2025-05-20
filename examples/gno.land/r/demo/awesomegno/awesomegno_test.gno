@@ -11,51 +11,51 @@ import (
 var adminAddr = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
 
 func TestAddItem(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
 	uassert.NotPanics(t, func() {
-		AddItem("Test Item", "A test description", "https://test.com", validAddr.String())
+		cross(AddItem)("Test Item", "A test description", "https://test.com", validAddr.String())
 	})
 
-	uassert.PanicsWithMessage(t, "item title cannot be empty", func() {
-		AddItem("", "description", "url", validAddr.String())
+	uassert.AbortsWithMessage(t, "item title cannot be empty", func() {
+		cross(AddItem)("", "description", "url", validAddr.String())
 	})
 }
 
 func TestUpdateItem(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
-	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
+	cross(AddItem)("Original Item", "Original description", "https://original.com", validAddr.String())
 
-	AddCategory("Test Category", "Test Category Description")
+	cross(AddCategory)("Test Category", "Test Category Description")
 
 	_, itemValue := items.GetByIndex(0)
 	item := itemValue.(*Item)
 
 	uassert.NotPanics(t, func() {
-		UpdateItem(item.ID, "Updated Item", "Updated description", "https://updated.com")
+		cross(UpdateItem)(item.ID, "Updated Item", "Updated description", "https://updated.com")
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.PanicsWithMessage(t, "item not found: "+invalidID.String(), func() {
-		UpdateItem(invalidID, "title", "desc", "url")
+	uassert.AbortsWithMessage(t, "item not found: "+invalidID.String(), func() {
+		cross(UpdateItem)(invalidID, "title", "desc", "url")
 	})
 }
 
 func TestUpdateItemsAuthors(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	validAddr2 := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
+	validAddr2 := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
 
-	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
+	cross(AddItem)("Original Item", "Original description", "https://original.com", validAddr.String())
 
 	_, itemValue := items.GetByIndex(0)
 	item := itemValue.(*Item)
@@ -63,88 +63,88 @@ func TestUpdateItemsAuthors(t *testing.T) {
 	authors := []std.Address{validAddr, validAddr2}
 
 	uassert.NotPanics(t, func() {
-		UpdateItemsAuthors(item.ID, authors)
+		cross(UpdateItemsAuthors)(item.ID, authors)
 	})
 }
 
 func TestDeleteItem(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
-	AddItem("Item to Delete", "Will be deleted", "https://delete.com", validAddr.String())
+	cross(AddItem)("Item to Delete", "Will be deleted", "https://delete.com", validAddr.String())
 
 	_, itemValue := items.GetByIndex(0)
 	item := itemValue.(*Item)
 
 	uassert.NotPanics(t, func() {
-		DeleteItem(item.ID)
+		cross(DeleteItem)(item.ID)
 	})
 
-	uassert.PanicsWithMessage(t, "item not found: "+item.ID.String(), func() {
-		DeleteItem(item.ID)
+	uassert.AbortsWithMessage(t, "item not found: "+item.ID.String(), func() {
+		cross(DeleteItem)(item.ID)
 	})
 }
 
 func TestAddCategory(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	uassert.NotPanics(t, func() {
-		AddCategory("Test Category", "A test category description")
+		cross(AddCategory)("Test Category", "A test category description")
 	})
 
-	uassert.PanicsWithMessage(t, "category name cannot be empty", func() {
-		AddCategory("", "description")
+	uassert.AbortsWithMessage(t, "category name cannot be empty", func() {
+		cross(AddCategory)("", "description")
 	})
 }
 
 func TestUpdateCategory(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
-	AddCategory("Original Category", "Original description")
+	cross(AddCategory)("Original Category", "Original description")
 
 	_, catValue := categories.GetByIndex(0)
 	category := catValue.(*Category)
 
 	uassert.NotPanics(t, func() {
-		UpdateCategory(category.ID, "Updated Category", "Updated description")
+		cross(UpdateCategory)(category.ID, "Updated Category", "Updated description")
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.PanicsWithMessage(t, "category not found: "+invalidID.String(), func() {
-		UpdateCategory(invalidID, "name", "desc")
+	uassert.AbortsWithMessage(t, "category not found: "+invalidID.String(), func() {
+		cross(UpdateCategory)(invalidID, "name", "desc")
 	})
 }
 
 func TestDeleteCategory(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
-	AddCategory("Category to Delete", "Will be deleted")
+	cross(AddCategory)("Category to Delete", "Will be deleted")
 
 	_, catValue := categories.GetByIndex(0)
 	category := catValue.(*Category)
 
 	uassert.NotPanics(t, func() {
-		DeleteCategory(category.ID)
+		cross(DeleteCategory)(category.ID)
 	})
 
-	uassert.PanicsWithMessage(t, "category not found: "+category.ID.String(), func() {
-		DeleteCategory(category.ID)
+	uassert.AbortsWithMessage(t, "category not found: "+category.ID.String(), func() {
+		cross(DeleteCategory)(category.ID)
 	})
 }
 
 func TestItemCategoryRelationship(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
-	AddItem("Relationship Test Item", "Testing relationships", "https://test.com", validAddr.String())
-	AddCategory("Relationship Category", "For testing relationships")
+	cross(AddItem)("Relationship Test Item", "Testing relationships", "https://test.com", validAddr.String())
+	cross(AddCategory)("Relationship Category", "For testing relationships")
 
 	_, itemValue := items.GetByIndex(0)
 	_, catValue := categories.GetByIndex(0)
@@ -152,25 +152,25 @@ func TestItemCategoryRelationship(t *testing.T) {
 	category := catValue.(*Category)
 
 	uassert.NotPanics(t, func() {
-		UpdateItemWithCategories(item.ID, "", "", "", category.ID)
+		cross(UpdateItemWithCategories)(item.ID, "", "", "", category.ID)
 	})
 
-	DeleteCategory(category.ID)
+	cross(DeleteCategory)(category.ID)
 
-	uassert.PanicsWithMessage(t, "category not found: "+category.ID.String(), func() {
-		UpdateItemWithCategories(item.ID, "", "", "", category.ID)
+	uassert.AbortsWithMessage(t, "category not found: "+category.ID.String(), func() {
+		cross(UpdateItemWithCategories)(item.ID, "", "", "", category.ID)
 	})
 }
 
 func TestUpdateItemWithCategories(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
-	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
-	AddCategory("Cat1", "Category 1")
-	AddCategory("Cat2", "Category 2")
+	cross(AddItem)("Original Item", "Original description", "https://original.com", validAddr.String())
+	cross(AddCategory)("Cat1", "Category 1")
+	cross(AddCategory)("Cat2", "Category 2")
 
 	_, itemValue := items.GetByIndex(0)
 	item := itemValue.(*Item)
@@ -180,32 +180,32 @@ func TestUpdateItemWithCategories(t *testing.T) {
 	cat2 := cat2Value.(*Category)
 
 	uassert.NotPanics(t, func() {
-		UpdateItemWithCategories(item.ID, "Updated Item", "Updated description", "https://updated.com", cat1.ID, cat2.ID)
+		cross(UpdateItemWithCategories)(item.ID, "Updated Item", "Updated description", "https://updated.com", cat1.ID, cat2.ID)
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.PanicsWithMessage(t, "item not found: "+invalidID.String(), func() {
-		UpdateItemWithCategories(invalidID, "title", "desc", "url", cat1.ID)
+	uassert.AbortsWithMessage(t, "item not found: "+invalidID.String(), func() {
+		cross(UpdateItemWithCategories)(invalidID, "title", "desc", "url", cat1.ID)
 	})
 }
 
 func TestUpdateItemNoCategories(t *testing.T) {
-	t.Helper()
-	testing.SetOriginCaller(adminAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+	testing.SetRealm(adminRealm)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
-	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
+	cross(AddItem)("Original Item", "Original description", "https://original.com", validAddr.String())
 
 	_, itemValue := items.GetByIndex(0)
 	item := itemValue.(*Item)
 
 	uassert.NotPanics(t, func() {
-		UpdateItem(item.ID, "Updated Item", "Updated description", "https://updated.com")
+		cross(UpdateItem)(item.ID, "Updated Item", "Updated description", "https://updated.com")
 	})
 
 	invalidID := seqid.ID(999999)
-	uassert.PanicsWithMessage(t, "item not found: "+invalidID.String(), func() {
-		UpdateItem(invalidID, "title", "desc", "url")
+	uassert.AbortsWithMessage(t, "item not found: "+invalidID.String(), func() {
+		cross(UpdateItem)(invalidID, "title", "desc", "url")
 	})
 }
