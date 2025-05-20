@@ -7,32 +7,32 @@ import (
 
 // padLine
 
-func TestPadLine_Left(t *testing.T) {
-	got := PadLine("hi", 6, AlignLeft, " ")
+func TestpadLine_Left(t *testing.T) {
+	got := padLine("hi", 6, AlignLeft, " ")
 	want := "hi    "
 	if got != want {
 		t.Fatalf("padLine left failed: got '%s', want '%s'", got, want)
 	}
 }
 
-func TestPadLine_Right(t *testing.T) {
-	got := PadLine("hi", 6, AlignRight, " ")
+func TestpadLine_Right(t *testing.T) {
+	got := padLine("hi", 6, AlignRight, " ")
 	want := "    hi"
 	if got != want {
 		t.Fatalf("padLine right failed: got '%s', want '%s'", got, want)
 	}
 }
 
-func TestPadLine_Center(t *testing.T) {
-	got := PadLine("hi", 6, AlignWCenter, " ")
+func TestpadLine_Center(t *testing.T) {
+	got := padLine("hi", 6, AlignWCenter, " ")
 	want := "  hi  "
 	if got != want {
 		t.Fatalf("padLine center failed: got '%s', want '%s'", got, want)
 	}
 }
 
-func TestPadLineNegativeWidth(t *testing.T) {
-	got := PadLine("hi", -1, AlignLeft, " ")
+func TestpadLineNegativeWidth(t *testing.T) {
+	got := padLine("hi", -1, AlignLeft, " ")
 	want := "hi"
 	if got != want {
 		t.Fatalf("padLine negative width failed: got '%s', want '%s'", got, want)
@@ -41,33 +41,33 @@ func TestPadLineNegativeWidth(t *testing.T) {
 
 // padHeight
 
-func TestPadHeight_Top(t *testing.T) {
+func TestpadHeight_Top(t *testing.T) {
 	lines := []string{"one", "two"}
-	out := PadHeight(lines, 4, AlignTop)
+	out := padHeight(lines, 4, AlignTop)
 	if len(out) != 4 || out[0] != "one" || out[3] != "" {
 		t.Fatalf("padHeight top failed: got %#v", out)
 	}
 }
 
-func TestPadHeight_Center(t *testing.T) {
+func TestpadHeight_Center(t *testing.T) {
 	lines := []string{"one"}
-	out := PadHeight(lines, 3, AlignHCenter)
+	out := padHeight(lines, 3, AlignHCenter)
 	if len(out) != 3 || out[0] != "" || out[1] != "one" || out[2] != "" {
 		t.Fatalf("padHeight center failed: got %#v", out)
 	}
 }
 
-func TestPadHeight_Bottom(t *testing.T) {
+func TestpadHeight_Bottom(t *testing.T) {
 	lines := []string{"one"}
-	out := PadHeight(lines, 2, AlignBottom)
+	out := padHeight(lines, 2, AlignBottom)
 	if len(out) != 2 || out[0] != "" || out[1] != "one" {
 		t.Fatalf("padHeight bottom failed: got %#v", out)
 	}
 }
 
-func TestPadHeightNegativeHeight(t *testing.T) {
+func TestpadHeightNegativeHeight(t *testing.T) {
 	lines := []string{"one", "two"}
-	out := PadHeight(lines, -1, AlignTop)
+	out := padHeight(lines, -1, AlignTop)
 	if len(out) != 2 || out[0] != "one" || out[1] != "two" {
 		t.Fatalf("padHeight negative height failed: got %#v", out)
 	}
