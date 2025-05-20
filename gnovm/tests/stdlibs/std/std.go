@@ -128,7 +128,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 		// Sanity check XXX move check elsewhere
 		if !overridden {
-			if !fr.DidCross {
+			if !fr.DidCrossing {
 				panic(fmt.Sprintf(
 					"cross(fn) but fn didn't call crossing(): %s.%s",
 					fr.Func.PkgPath,
@@ -222,7 +222,7 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 	tb.CoinTable[from] = frest
 	// Second, add to 'to'.
 	// NOTE: even works when from==to, due to 2-step isolation.
-	tcoins, _ := tb.CoinTable[to]
+	tcoins := tb.CoinTable[to]
 	tsum := tcoins.Add(amt)
 	tb.CoinTable[to] = tsum
 }
@@ -237,7 +237,7 @@ func (tb *TestBanker) TotalCoin(denom string) int64 {
 
 // IssueCoin implements the Banker interface.
 func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.CoinTable[addr]
+	coins := tb.CoinTable[addr]
 	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = sum
 	tb.Supplies[denom] += amt
@@ -245,7 +245,7 @@ func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int
 
 // RemoveCoin implements the Banker interface.
 func (tb *TestBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.CoinTable[addr]
+	coins := tb.CoinTable[addr]
 	rest := coins.Sub(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = rest
 	tb.Supplies[denom] -= amt
