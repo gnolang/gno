@@ -7,10 +7,8 @@ import (
 )
 
 func TestCachePath(t *testing.T) {
-
 	assert.NotNil(t, cache, "Cache should be initialized")
 	assert.NotNil(t, cache.data, "Cache data map should be initialized")
-
 	t.Run("Set and Get", func(t *testing.T) {
 		path := "gno.land/r/test/example"
 
@@ -24,9 +22,7 @@ func TestCachePath(t *testing.T) {
 	})
 
 	t.Run("Multiple paths", func(t *testing.T) {
-
 		cache.data = make(map[string]bool)
-
 		paths := []string{
 			"gno.land/r/test/path1",
 			"gno.land/r/test/path2",
