@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"strings"
 
 	"gno.land/p/jeronimoalbi/expect"
