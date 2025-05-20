@@ -23,7 +23,7 @@ import (
 
 func makeGnoBuiltins(pkgName string) *std.MemFile {
 	file := &std.MemFile{
-		Name: ".gnobuiltins.go",
+		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
 		Body: fmt.Sprintf(`package %s
 
 func istypednil(x any) bool { return false } // shim
@@ -197,7 +197,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		file.Body,
 		parseOpts)
 	if err != nil {
-		panic("error parsing gotypecheck gnobuiltins.go file")
+		panic("error parsing gotypecheck .gnobuiltins.gno file")
 	}
 
 	// NOTE: When returning errs from this function,
@@ -246,7 +246,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		tmpkg.NewFile(tfname, tfile.Body)
 		bfile := makeGnoBuiltins(tpname)
 		tmpkg.AddFile(bfile)
-		tgofset, tgofs2, _, _, _ := GoParseMemPackage(tmpkg, ParseModeAll)
+		tgofset, tgofs, _, ttgofs, _ := GoParseMemPackage(tmpkg, ParseModeAll)
 		if len(gimp.errors) != numErrs {
 			/* NOTE: Uncomment to fail earlier.
 			errs = multierr.Combine(gimp.errors...)
@@ -254,7 +254,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 			*/
 			continue
 		}
-		_, _ = gimp.cfg.Check(tmpkg.Path, tgofset, tgofs2, nil)
+		ttgofs2 := append(ttgofs, tgofs...)
+
+		_, _ = gimp.cfg.Check(tmpkg.Path, tgofset, ttgofs2, nil)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors...)
