@@ -64,6 +64,8 @@ const (
 	// TODO: add new linter codes here.
 )
 
+const errPkgFormat = "Error in package %s:\n  %s\n"
+
 type lintIssue struct {
 	Code       lintCode
 	Msg        string
@@ -248,23 +250,6 @@ func sourceAndTestFileset(memPkg *std.MemPackage) *gno.FileSet {
 	return testfiles
 }
 
-func guessSourcePath(pkg, source string) string {
-	if info, err := os.Stat(pkg); !os.IsNotExist(err) && !info.IsDir() {
-		pkg = filepath.Dir(pkg)
-	}
-
-	sourceJoin := filepath.Join(pkg, source)
-	if _, err := os.Stat(sourceJoin); !os.IsNotExist(err) {
-		return filepath.Clean(sourceJoin)
-	}
-
-	if _, err := os.Stat(source); !os.IsNotExist(err) {
-		return filepath.Clean(source)
-	}
-
-	return filepath.Clean(pkg)
-}
-
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
 func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
@@ -277,21 +262,21 @@ func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action 
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
-			fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, err).String())
+			fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, err).String())
 		case error:
 			errors := multierr.Errors(verr)
 			for _, err := range errors {
 				errList, ok := err.(scanner.ErrorList)
 				if ok {
 					for _, errorInList := range errList {
-						fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, errorInList).String())
+						fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, errorInList).String())
 					}
 				} else {
-					fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, err).String())
+					fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, err).String())
 				}
 			}
 		case string:
-			fmt.Fprintf(stderr, "Error in package %s:\n  %s\n", pkgPath, issueFromError(dirPath, pkgPath, errors.New(verr)).String())
+			fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, errors.New(verr)).String())
 		default:
 			panic(r)
 		}
@@ -307,7 +292,7 @@ func issueFromError(dirPath, pkgPath string, err error) lintIssue {
 	issue.Code = lintGnoError
 
 	parsedError := strings.TrimSpace(err.Error())
-	
+
 	matches := reParseRecover.FindStringSubmatch(parsedError)
 	if len(matches) > 0 {
 		issue.Location = matches[1] + matches[2]
