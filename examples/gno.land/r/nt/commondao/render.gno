@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/commondao"
 
@@ -121,13 +122,13 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 		return
 	}
 
-	res.Write("| Members |\n| --- |\n")
+	table := mdtable.Table{Headers: []string{"Members"}}
 	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr std.Address) bool {
-		res.Write("| ")
-		res.Write(userLink(addr))
-		res.Write(" |\n")
+		table.Append([]string{userLink(addr)})
 		return false
 	})
+
+	res.Write(table.String())
 
 	if pages.HasPages() {
 		res.Write("\n")
@@ -174,12 +175,14 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("\n\n---\n")
 
 	// Render options
+	table := mdtable.Table{Headers: []string{"Options", "Values"}}
+	table.Append([]string{"Allow Render", strconv.FormatBool(o.AllowRender)})
+	table.Append([]string{"Allow SubDAOs", strconv.FormatBool(o.AllowChildren)})
+	table.Append([]string{"Enable Voting", strconv.FormatBool(o.AllowVoting)})
+	table.Append([]string{"Enable Proposal Execution", strconv.FormatBool(o.AllowExecution)})
+
 	res.Write("## Options\n")
-	res.Write("| Option | Value |\n| --- | --- |\n")
-	res.Write(ufmt.Sprintf("| Allow Render | %s |\n", strconv.FormatBool(o.AllowRender)))
-	res.Write(ufmt.Sprintf("| Allow SubDAOs | %s |\n", strconv.FormatBool(o.AllowChildren)))
-	res.Write(ufmt.Sprintf("| Enable Voting | %s |\n", strconv.FormatBool(o.AllowVoting)))
-	res.Write(ufmt.Sprintf("| Enable Proposal Execution | %s |\n", strconv.FormatBool(o.AllowExecution)))
+	res.Write(table.String())
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -371,15 +374,16 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 func renderProposalStats(res *mux.ResponseWriter, record *commondao.VotingRecord) {
 	totalCount := float64(record.Size())
+	table := mdtable.Table{Headers: []string{"Vote Choices", "Percentage of Votes"}}
 
-	res.Write("| Vote Choice | Percentage of Votes |\n| --- | --- |\n")
 	record.IterateVotesCount(func(c commondao.VoteChoice, voteCount int) bool {
 		percentage := float64(voteCount*100) / totalCount
-		res.Write(
-			ufmt.Sprintf("| %s | %s%% |\n", string(c), strconv.FormatFloat(percentage, 'f', 2, 64)),
-		)
+
+		table.Append([]string{string(c), strconv.FormatFloat(percentage, 'f', 2, 64) + "%"})
 		return false
 	})
+
+	res.Write(table.String())
 }
 
 func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.CommonDAO, p *commondao.Proposal) {
@@ -390,20 +394,18 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 		return
 	}
 
-	res.Write("| User | Vote |\n| --- | --- |\n")
+	table := mdtable.Table{Headers: []string{"Users", "Votes"}}
 	record.Iterate(pages.Offset(), pages.PageSize(), false, func(v commondao.Vote) bool {
-		res.Write("| ")
-		res.Write(userLink(v.Address))
-		res.Write(" | ")
-		res.Write(ufmt.Sprintf("[%s](%s)", string(v.Choice), voteURL(dao, p, v.Address)))
-
+		voteDetails := ufmt.Sprintf("[%s](%s)", string(v.Choice), voteURL(dao, p, v.Address))
 		if v.Reason != "" {
-			res.Write(" with a reason")
+			voteDetails += " with a reason"
 		}
 
-		res.Write(" |\n")
+		table.Append([]string{userLink(v.Address), voteDetails})
 		return false
 	})
+
+	res.Write(table.String())
 
 	if pages.HasPages() {
 		res.Write("\n")
