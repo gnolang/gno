@@ -133,7 +133,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 
 	bs, ts := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true},
+		test.StoreOptions{PreprocessOnly: true, FixFrom: gno.GnoVerMissing},
 	)
 	ppkgs := map[string]processedPackage{}
 

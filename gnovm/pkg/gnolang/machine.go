@@ -471,15 +471,15 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		}
 	}
 	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	if fixFrom != "" {
+		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
+	}
 	pv := pn.NewPackage()
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
 	PredefineFileSet(m.Store, pn, fset)
 	for _, fn := range fset.Files {
-		if fixFrom != "" {
-			pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
-		}
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)
