@@ -31,10 +31,8 @@ package gnolang
 */
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	gofmt "go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -143,16 +141,6 @@ func setSpan(fs *token.FileSet, gon ast.Node, n Node) Node {
 		n.SetSpan(SpanFromGo(fs, gon))
 	}
 	return n
-}
-
-func sprintASTNode(fs *token.FileSet, gon ast.Node) string {
-	// Write ast.Node as string.
-	var buf bytes.Buffer
-	err := gofmt.Node(&buf, fs, gon)
-	if err != nil {
-		panic(fmt.Errorf("stringifying ast.Node: %v", err))
-	}
-	return buf.String()
 }
 
 // If gon is a *ast.File, the name must be filled later.

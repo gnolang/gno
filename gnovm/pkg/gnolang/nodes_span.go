@@ -53,23 +53,23 @@ func (p Pos) GetColumn() int {
 	return p.Column
 }
 
-func (p1 Pos) Compare(p2 Pos) int {
+func (p Pos) Compare(p2 Pos) int {
 	switch {
-	case p1.Line < p2.Line:
+	case p.Line < p2.Line:
 		return -1
-	case p1.Line == p2.Line:
+	case p.Line == p2.Line:
 		break
-	case p1.Line > p2.Line:
+	case p.Line > p2.Line:
 		return 1
 	default:
 		panic("should not happen")
 	}
 	switch {
-	case p1.Column < p2.Column:
+	case p.Column < p2.Column:
 		return -1
-	case p1.Column == p2.Column:
+	case p.Column == p2.Column:
 		return 0
-	case p1.Column > p2.Column:
+	case p.Column > p2.Column:
 		return 1
 	default:
 		panic("should not happen")
@@ -116,16 +116,16 @@ func (s Span) GetSpan() Span {
 // Anyone with a node can still mutate these fields directly; the method guides.
 // If you need to override the span (e.g. constructing a Location by mutating
 // a copy) then call SetSpanOverride() instead of directly assigning to .Span.
-func (s1 *Span) SetSpan(s2 Span) {
-	if !s1.IsZero() && (*s1 != s2) {
-		panic(".Span can ony be set once. s1:" + s1.String() + " s2:" + s2.String())
+func (s *Span) SetSpan(s2 Span) {
+	if !s.IsZero() && (*s != s2) {
+		panic(".Span can ony be set once. s:" + s.String() + " s2:" + s2.String())
 	}
-	*s1 = s2
+	*s = s2
 }
 
 // See documentation for SetSpan().
-func (s1 *Span) SetSpanOverride(s2 Span) {
-	*s1 = s2
+func (s *Span) SetSpanOverride(s2 Span) {
+	*s = s2
 }
 
 // Overridden by Attributes.String().
@@ -153,21 +153,21 @@ func (s Span) IsZero() bool {
 // Start (.Pos) determines node order before .End/ .Num,
 // then the end (greater means containing, thus sooner),
 // then the num (smaller means containing, thus sooner).
-func (s1 Span) Compare(s2 Span) int {
-	switch s1.Pos.Compare(s2.Pos) {
-	case -1: // s1.Pos < s2.Pos
+func (s Span) Compare(s2 Span) int {
+	switch s.Pos.Compare(s2.Pos) {
+	case -1: // s.Pos < s2.Pos
 		return -1
-	case 0: // s1.Pos == s2.Pos
+	case 0: // s.Pos == s2.Pos
 		break
-	case 1: // s1.Pos > s2.Pos
+	case 1: // s.Pos > s2.Pos
 		return 1
 	default:
 		panic("should not happen")
 	}
-	switch s1.End.Compare(s2.End) {
-	case -1: // s1.End < s2.End
+	switch s.End.Compare(s2.End) {
+	case -1: // s.End < s2.End
 		return 1 // see comment
-	case 0: // s1.End == s2.End
+	case 0: // s.End == s2.End
 		break
 	case 1:
 		return -1 // see comment
@@ -175,11 +175,11 @@ func (s1 Span) Compare(s2 Span) int {
 		panic("should not happen")
 	}
 	switch {
-	case s1.Num < s2.Num:
+	case s.Num < s2.Num:
 		return -1
-	case s1.Num == s2.Num:
+	case s.Num == s2.Num:
 		return 0
-	case s1.Num > s2.Num:
+	case s.Num > s2.Num:
 		return 1
 	default:
 		panic("should not happen")
@@ -191,20 +191,20 @@ func (s1 Span) Compare(s2 Span) int {
 // 2D container boxes. 2D has cardinality of 2, and span has cardinality of 1.
 // See Span.Compare() to see a quirk where a greater end can mean lesser span.
 // (we assume our 3D world has a cardinality of 3 but what if it is really 2?)
-func (s1 Span) Union(s2 Span) (res Span) {
-	if s1.Pos.Compare(s2.Pos) < 0 {
-		res.Pos = s1.Pos
+func (s Span) Union(s2 Span) (res Span) {
+	if s.Pos.Compare(s2.Pos) < 0 {
+		res.Pos = s.Pos
 	} else {
 		res.Pos = s2.Pos
 	}
-	if s1.End.Compare(s2.End) < 0 {
+	if s.End.Compare(s2.End) < 0 {
 		res.End = s2.End
 	} else {
-		res.End = s1.End
+		res.End = s.End
 	}
-	// Only when s1 == s2 does .Num get set.
-	if s1.Pos == s2.Pos && s1.End == s2.End {
-		res.Num = min(s1.Num, s2.Num) - 1 // maybe < 0.
+	// Only when s == s2 does .Num get set.
+	if s.Pos == s2.Pos && s.End == s2.End {
+		res.Num = min(s.Num, s2.Num) - 1 // maybe < 0.
 	} else {
 		res.Num = 0 // starts with zero.
 	}

@@ -175,7 +175,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 // It creates and returns a list of transactions based on these packages.
 func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
-	pkgs, err := gnomod.ListPkgs(dir)
+	pkgs, err := gno.ReadPkgListFromDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}

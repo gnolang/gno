@@ -28,14 +28,6 @@ import (
 	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
-type processedPackage struct {
-	mpkg   *std.MemPackage
-	fset   *gno.FileSet
-	pn     *gno.PackageNode
-	_tests []*gno.FileSet
-	ftests []*gno.FileSet
-}
-
 type lintCmd struct {
 	verbose    bool
 	rootDir    string
@@ -170,7 +162,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// These are Go types.
-			var pn *gno.PackageNode
+			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
 			var errs error
 
 			// Run type checking
@@ -202,27 +194,47 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			// Gno parse source fileset and test filesets.
 			_, fset, _tests, ftests := sourceAndTestFileset(mpkg)
 
-			// LINT STEP 5: PreprocessFiles()
-			// Preprocess fset files (w/ some _test.gno).
-			pn, _ = tm.PreprocessFiles(
-				mpkg.Name, mpkg.Path, fset, false, false)
-			// LINT STEP 5: PreprocessFiles()
-			// Preprocess _test files (all _test.gno).
-			for _, fset := range _tests {
-				tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false)
+			{
+				// LINT STEP 5: PreprocessFiles()
+				// Preprocess fset files (w/ some _test.gno).
+				pn, _ := tm.PreprocessFiles(
+					mpkg.Name, mpkg.Path, fset, false, false, "")
+				ppkg.AddNormal(pn, fset)
 			}
-			// LINT STEP 5: PreprocessFiles()
-			// Preprocess _filetest.gno files.
-			for _, fset := range ftests {
-				tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false)
+			{
+				// LINT STEP 5: PreprocessFiles()
+				// Preprocess _test files (all _test.gno).
+				cw := bs.CacheWrap()
+				gs := ts.BeginTransaction(cw, cw, nil)
+				tm.Store = gs
+				pn, _ := tm.PreprocessFiles(
+					mpkg.Name, mpkg.Path, _tests, false, false, "")
+				ppkg.AddUnderscoreTests(pn, _tests)
+			}
+			{
+				// LINT STEP 5: PreprocessFiles()
+				// Preprocess _filetest.gno files.
+				for i, fset := range ftests {
+					cw := bs.CacheWrap()
+					gs := ts.BeginTransaction(cw, cw, nil)
+					tm.Store = gs
+					fname := string(fset.Files[0].Name)
+					mfile := mpkg.GetFile(fname)
+					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
+					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
+					if err != nil {
+						io.ErrPrintln(err)
+						hasError = true
+						continue
+					}
+					pkgName := string(fset.Files[0].PkgName)
+					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false, "")
+					ppkg.AddFileTest(pn, fset)
+				}
 			}
 
 			// Record results.
-			ppkgs[dir] = processedPackage{
-				mpkg, fset, pn, _tests, ftests,
-			}
+			ppkgs[dir] = ppkg
 		})
 		if didPanic {
 			hasError = true

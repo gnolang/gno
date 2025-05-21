@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"go/types"
 	goio "io"
 	"io/fs"
 	"os"
@@ -85,9 +84,8 @@ Also refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
 type fixCmd struct {
-	verbose    bool
-	rootDir    string
-	autoGnomod bool
+	verbose bool
+	rootDir string
 	// min_confidence: minimum confidence of a problem to print it
 	// (default 0.8) auto-fix: apply suggested fixes automatically.
 }
@@ -113,7 +111,6 @@ func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
-	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gno.mod file if not already present.")
 }
 
 func execFix(cmd *fixCmd, args []string, io commands.IO) error {
@@ -136,7 +133,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 
 	bs, ts := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true},
+		test.StoreOptions{PreprocessOnly: true, FixFrom: gno.GnoVerMissing},
 	)
 	ppkgs := map[string]processedPackage{}
 
@@ -147,7 +144,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 	// FIX STAGE 1: Type-check and lint.
 	for _, dir := range dirs {
 		if cmd.verbose {
-			io.ErrPrintln("fixing %q", dir)
+			io.ErrPrintfln("fixing %q", dir)
 		}
 
 		// Only supports directories.
@@ -161,18 +158,11 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 		fpath := path.Join(dir, "gno.mod")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
-			if cmd.autoGnomod {
-				modstr := gno.GenGnoModDefault("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
-				mod, err = gnomod.ParseBytes("gno.mod", []byte(modstr))
-				if err != nil {
-					panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
-				}
-				io.ErrPrintfln("auto-generated %q", fpath)
-				err = mod.WriteFile(fpath)
-				if err != nil {
-					panic(fmt.Errorf("unexpected panic writing to %q: %w", fpath, err))
-				}
-				// err == nil.
+			// Make a temporary gno.mod (but don't write it yet)
+			modstr := gno.GenGnoModMissing("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
+			mod, err = gnomod.ParseBytes("gno.mod", []byte(modstr))
+			if err != nil {
+				panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
 			}
 		}
 		if err != nil {
@@ -213,8 +203,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// These are Go types.
-			var pn *gno.PackageNode
-			var _ *types.Package
+			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
 			var gofset *token.FileSet
 			var gofs, _gofs, tgofs []*ast.File
 			var errs error
@@ -230,8 +219,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 			if !mod.Draft {
-				_, gofset, gofs, _gofs, tgofs, errs =
-					lintTypeCheck(io, dir, mpkg, gs)
+				_, gofset, gofs, _gofs, tgofs, errs = lintTypeCheck(io, dir, mpkg, gs)
 				if errs != nil {
 					// io.ErrPrintln(errs) already printed.
 					hasError = true
@@ -247,51 +235,93 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 			defer tm.Release()
 
 			// Prepare Go AST for preprocessing.
-			if mod.GetGno() == "0.0" {
-				allgofs := append(gofs, _gofs...)
-				allgofs = append(allgofs, tgofs...)
-				errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
-				if errs != nil {
-					io.ErrPrintln(errs)
-					hasError = true
-					return // Prepare must succeed.
-				}
+			allgofs := append(gofs, _gofs...)
+			allgofs = append(allgofs, tgofs...)
+			errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
+			if errs != nil {
+				io.ErrPrintln(errs)
+				hasError = true
+				return // Prepare must succeed.
 			}
 
 			// FIX STEP 5: re-parse
 			// Gno parse source fileset and test filesets.
-			all, fset, _tests, ftests := sourceAndTestFileset(mpkg)
+			_, fset, _tests, ftests := sourceAndTestFileset(mpkg)
 
-			// FIX STEP 6: PreprocessFiles()
-			// Preprocess fset files (w/ some _test.gno).
-			pn, _ = tm.PreprocessFiles(
-				mpkg.Name, mpkg.Path, fset, false, false)
-			// Preprocess _test files (all _test.gno).
-			for _, fset := range _tests {
-				tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false)
-			}
-			// Preprocess _filetest.gno files.
-			for _, fset := range ftests {
-				tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false)
-			}
+			{
+				// FIX STEP 6: PreprocessFiles()
+				// Preprocess fset files (w/ some _test.gno).
+				cw := bs.CacheWrap()
+				gs := ts.BeginTransaction(cw, cw, nil)
+				tm.Store = gs
+				pn, _ := tm.PreprocessFiles(
+					mpkg.Name, mpkg.Path, fset, false, false, gno.GnoVerMissing)
+				ppkg.AddNormal(pn, fset)
 
-			// Record results.
-			ppkgs[dir] = processedPackage{
-				mpkg, fset, pn, _tests, ftests}
-
-			// FIX STEP 7: FindXforms():
-			// FindXforms for all files if outdated.
-			if mod.GetGno() == "0.0" {
+				// FIX STEP 7: FindXforms():
+				// FindXforms for all files if outdated.
 				// Use the preprocessor to collect the
 				// transformations needed to be done.
 				// They are collected in
 				// pn.GetAttribute("XREALMFORM")
-				for _, fn := range all.Files {
+				for _, fn := range fset.Files {
 					gno.FindXformsGno0p9(gs, pn, fn)
 				}
 			}
+			{
+				// FIX STEP 6: PreprocessFiles()
+				// Preprocess xxx_test files (some _test.gno).
+				cw := bs.CacheWrap()
+				gs := ts.BeginTransaction(cw, cw, nil)
+				tm.Store = gs
+				pn, _ := tm.PreprocessFiles(
+					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, gno.GnoVerMissing)
+				ppkg.AddUnderscoreTests(pn, _tests)
+
+				// FIX STEP 7: FindXforms():
+				// FindXforms for all files if outdated.
+				// Use the preprocessor to collect the
+				// transformations needed to be done.
+				// They are collected in
+				// pn.GetAttribute("XREALMFORM")
+				for _, fn := range _tests.Files {
+					gno.FindXformsGno0p9(gs, pn, fn)
+				}
+			}
+			{
+				// FIX STEP 6: PreprocessFiles()
+				// Preprocess _filetest.gno files.
+				for i, fset := range ftests {
+					cw := bs.CacheWrap()
+					gs := ts.BeginTransaction(cw, cw, nil)
+					tm.Store = gs
+					fname := string(fset.Files[0].Name)
+					mfile := mpkg.GetFile(fname)
+					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
+					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
+					if err != nil {
+						io.ErrPrintln(err)
+						hasError = true
+						continue
+					}
+					pkgName := string(fset.Files[0].PkgName)
+					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false, gno.GnoVerMissing)
+					ppkg.AddFileTest(pn, fset)
+
+					// FIX STEP 7: FindXforms():
+					// FindXforms for all files if outdated.
+					// Use the preprocessor to collect the
+					// transformations needed to be done.
+					// They are collected in
+					// pn.GetAttribute("XREALMFORM")
+					for _, fn := range fset.Files {
+						gno.FindXformsGno0p9(gs, pn, fn)
+					}
+				}
+			}
+
+			// Record results.
+			ppkgs[dir] = ppkg
 		})
 		if didPanic {
 			hasError = true
@@ -307,23 +337,38 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 	for _, dir := range dirs {
 		ppkg, ok := ppkgs[dir]
 		if !ok {
-			// XXX fix this; happens when fixing a file.
-			// XXX see comment on top of this file.
-			panic("missing package; gno fix currently only supports directories.")
-		}
-		mpkg, pn := ppkg.mpkg, ppkg.pn
-
-		// If gno version is already 0.9, skip.
-		mod, err := gno.ParseCheckGnoMod(mpkg)
-		if mod.GetGno() == "0.9" { // XXX
+			// Happens when fixing a file, (XXX fix this case)
+			// but also happens when preprocessing isn't needed.
 			continue
 		}
 
+		// Sanity check.
+		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
+		if mod.GetGno() != gno.GnoVerMissing {
+			panic("should not happen")
+		}
+
 		// FIX STEP 8 & 9: gno.TranspileGno0p9() Part 1 & 2
-		xforms1, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XFORMS).(map[string]struct{})
-		err = gno.TranspileGno0p9(mpkg, dir, xforms1)
+		mpkg := ppkg.mpkg
+		transpileProcessedFileSet := func(pfs processedFileSet) error {
+			pn, fset := pfs.pn, pfs.fset
+			xforms1, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XFORMS).(map[string]struct{})
+			err = gno.TranspileGno0p9(mpkg, dir, pn, fset.GetFileNames(), xforms1)
+			return err
+		}
+		err = transpileProcessedFileSet(ppkg.normal)
 		if err != nil {
 			return err
+		}
+		err = transpileProcessedFileSet(ppkg._tests)
+		if err != nil {
+			return err
+		}
+		for _, ftest := range ppkg.ftests {
+			err = transpileProcessedFileSet(ftest)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if hasError {
@@ -336,11 +381,22 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 	for _, dir := range dirs {
 		ppkg, ok := ppkgs[dir]
 		if !ok {
-			panic("where did it go")
+			// Happens when fixing a file, (XXX fix this case)
+			// but also happens when preprocessing isn't needed.
+			continue
 		}
 
+		// Write version to gno.mod.
+		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
+		if err != nil {
+			// should have been auto-generated.
+			panic("missing gno.mod")
+		}
+		mod.SetGno(gno.GnoVerLatest)
+		ppkg.mpkg.SetFile("gno.mod", mod.WriteString())
+
 		// FIX STEP 10: mpkg.WriteTo():
-		err := ppkg.mpkg.WriteTo(dir)
+		err = ppkg.mpkg.WriteTo(dir)
 		if err != nil {
 			return err
 		}

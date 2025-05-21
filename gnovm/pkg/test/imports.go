@@ -34,6 +34,9 @@ type StoreOptions struct {
 	// When transpiling code in examples/ we use the test store. gno fix may need
 	// gno.mod to not be auto-generated when importing from the test store.
 	DoNotGenerateGnoMod bool
+
+	// XXX
+	FixFrom string
 }
 
 // NOTE: this isn't safe, should only be used for testing.
@@ -76,13 +79,12 @@ func StoreWithOptions(
 			if err != nil {
 				panic(fmt.Errorf("test store parsing gno.mod: %w", err))
 			}
-			if mod.GetGno() == "0.0" {
+			if mod.GetGno() == gno.GnoVerMissing {
 				// In order to translate into a newer Gno version with
 				// the preprocessor make a slight modifications to the
 				// AST. This needs to happen even for imports, because
-				// the preprocessor requries imports also preprocessed.
+				// the preprocessor requires imports also preprocessed.
 				// This is because the linter uses pkg/test/imports.go.
-				const wtests = false // Tests don't matter for imports.
 				gofset, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(
 					mpkg, gno.ParseModeAll)
 				if errs != nil {
@@ -99,7 +101,7 @@ func StoreWithOptions(
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
 				gno.ParseMemPackage(mpkg),
-				save, false)
+				save, false, "")
 		} else {
 			return m.RunMemPackage(mpkg, save)
 		}
@@ -212,7 +214,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true)
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true, "")
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)

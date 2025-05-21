@@ -463,13 +463,16 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // compile-time errors in the package. It is also usde to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
-func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))
 		}
 	}
 	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	if fixFrom != "" {
+		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
+	}
 	pv := pn.NewPackage()
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)

@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"go/types"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -19,6 +20,20 @@ import (
 	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 	XXX move to pkg/gnolang/importer.go.
 */
+
+func makeGnoBuiltins(pkgName string) *std.MemFile {
+	file := &std.MemFile{
+		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
+		Body: fmt.Sprintf(`package %s
+
+func istypednil(x any) bool { return false } // shim
+func crossing() { } // shim
+func cross[F any](fn F) F { return fn } // shim
+func revive[F any](fn F) any { return nil } // shim
+type realm interface{} // shim
+`, pkgName)}
+	return file
+}
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
@@ -171,20 +186,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		panic("unexpected xxx_test and *_filetest.gno tests")
 	}
 
-	// STEP 3: Add .gnobuiltins.go file.
-	file := &std.MemFile{
-		Name: ".gnobuiltins.go",
-		Body: fmt.Sprintf(`package %s
-
-func istypednil(x any) bool { return false } // shim
-func crossing() { } // shim
-func cross[F any](fn F) F { return fn } // shim
-func revive[F any](fn F) any { return nil } // shim
-type realm interface{} // shim
-`, mpkg.Name),
-	}
-
-	// STEP 3: Parse .gnobuiltins.go file.
+	// STEP 3: Add and Parse .gnobuiltins.go file.
+	file := makeGnoBuiltins(mpkg.Name)
 	const parseOpts = parser.ParseComments |
 		parser.DeclarationErrors |
 		parser.SkipObjectResolution
@@ -194,7 +197,7 @@ type realm interface{} // shim
 		file.Body,
 		parseOpts)
 	if err != nil {
-		panic("error parsing gotypecheck gnobuiltins.go file")
+		panic(fmt.Errorf("error parsing gotypecheck .gnobuiltins.gno file: %w", err))
 	}
 
 	// NOTE: When returning errs from this function,
@@ -222,7 +225,7 @@ type realm interface{} // shim
 		defer func() { gmgof.Name = ast.NewIdent(mpkg.Name) }() // revert
 	}
 	_gofs2 := append(_gofs, gmgof)
-	_, _ = gimp.cfg.Check(mpkg.Path, gofset, _gofs2, nil)
+	_, _ = gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
 	/* NOTE: Uncomment to fail earlier.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors...)
@@ -231,12 +234,32 @@ type realm interface{} // shim
 	*/
 
 	// STEP 4: Type-check Gno0.9 AST in Go (_filetest.gno if ParseModeAll).
-	// Each filetest is its own package.
 	defer func() { gmgof.Name = ast.NewIdent(mpkg.Name) }() // revert
 	for _, tgof := range tgofs {
-		gmgof.Name = tgof.Name // may be anything.
-		tgof2 := []*ast.File{gmgof, tgof}
-		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgof2, nil)
+		// Each filetest is its own package.
+		// XXX If we're re-parsing the filetest anyways,
+		// change GoParseMemPackage to not parse into tgofs.
+		tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
+		tpname := tgof.Name.String()
+		tfile := mpkg.GetFile(tfname)
+		// XXX If filetest are having issues, consider this:
+		// pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
+		pkgPath := mpkg.Path
+		tmpkg := &std.MemPackage{Name: tpname, Path: pkgPath}
+		tmpkg.NewFile(tfname, tfile.Body)
+		bfile := makeGnoBuiltins(tpname)
+		tmpkg.AddFile(bfile)
+		gofset2, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
+		if len(gimp.errors) != numErrs {
+			/* NOTE: Uncomment to fail earlier.
+			errs = multierr.Combine(gimp.errors...)
+			return
+			*/
+			continue
+		}
+		// gofs2 (.gnobuiltins.gno), tgofs2 (*_testfile.gno)
+		gofs2 = append(gofs2, tgofs2...)
+		_, _ = gimp.cfg.Check(tmpkg.Path, gofset2, gofs2, nil)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors...)

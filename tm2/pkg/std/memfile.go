@@ -160,17 +160,18 @@ func (mpkg *MemPackage) GetFile(name string) *MemFile {
 	return nil
 }
 
-func (mpkg *MemPackage) appendFile(mfile *MemFile) {
+// Adds a file to the package without validation.
+func (mpkg *MemPackage) AddFile(mfile *MemFile) {
 	mpkg.Files = append(mpkg.Files, mfile)
 }
 
-// Creates a new MemFile and appends without validation.
+// Creates a new MemFile and adds without validation.
 func (mpkg *MemPackage) NewFile(name string, body string) (mfile *MemFile) {
 	mfile = &MemFile{
 		Name: name,
 		Body: body,
 	}
-	mpkg.appendFile(mfile)
+	mpkg.AddFile(mfile)
 	return
 }
 
