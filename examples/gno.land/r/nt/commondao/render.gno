@@ -451,7 +451,7 @@ func mustGetDAOFromRequest(req *mux.Request) *commondao.CommonDAO {
 	}
 
 	o := getOptions(daoID)
-	if o == nil || o.Private {
+	if o == nil || !o.AllowListing {
 		panic("Forbidden")
 	}
 
