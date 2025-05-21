@@ -1,8 +1,10 @@
-package uassert
+package uassert_test
 
 import (
 	"fmt"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 type mockTestingT struct {
@@ -12,7 +14,7 @@ type mockTestingT struct {
 
 // --- interface mock
 
-var _ TestingT = (*mockTestingT)(nil)
+var _ uassert.TestingT = (*mockTestingT)(nil)
 
 func (mockT *mockTestingT) Helper()                      { /* noop */ }
 func (mockT *mockTestingT) Skip(args ...any)             { /* not implmented */ }

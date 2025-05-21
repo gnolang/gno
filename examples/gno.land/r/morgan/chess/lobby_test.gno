@@ -12,11 +12,11 @@ import (
 func TestLobbyJoin(t *testing.T) {
 	cleanup()
 	testing.SetRealm(std.NewUserRealm(white))
-	LobbyJoin(10*60, 5)
+	cross(LobbyJoin)(10*60, 5)
 	os.Sleep(time.Second * 5)
 	testing.SetRealm(std.NewUserRealm(black))
-	LobbyJoin(10*60, 5)
-	res := LobbyGameFound()
+	cross(LobbyJoin)(10*60, 5)
+	res := cross(LobbyGameFound)()
 	if res == "null" {
 		t.Errorf("LobbyGameFound is null")
 	}
@@ -153,7 +153,7 @@ func TestLobbyGameFound(t *testing.T) {
 			}
 
 			testing.SetRealm(std.NewUserRealm(tc.caller))
-			game := LobbyGameFound()
+			game := cross(LobbyGameFound)()
 
 			if tc.check != nil {
 				tc.check(t)
@@ -175,7 +175,7 @@ func TestLobbyJoin_HasOpenGames(t *testing.T) {
 	addToUser2Games(black, g)
 
 	testing.SetRealm(std.NewUserRealm(white))
-	LobbyJoin(10*60, 5)
+	cross(LobbyJoin)(10*60, 5)
 	if g.State != GameStateAborted {
 		t.Errorf("state wrong: want %d got %d", GameStateAborted, g.State)
 	}

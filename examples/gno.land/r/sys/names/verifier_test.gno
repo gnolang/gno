@@ -31,8 +31,7 @@ func TestDefaultVerifier(t *testing.T) {
 
 	// Register proper username
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gnoland/users/v1"))
-	urequire.NoError(t, users.RegisterUser("alice", alice))
+	urequire.NoError(t, cross(users.RegisterUser)("alice", alice))
 
 	// Proper namespace
 	uassert.True(t, verifier(true, alice, "alice"))
@@ -40,15 +39,14 @@ func TestDefaultVerifier(t *testing.T) {
 
 func TestEnable(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
-	testing.SetOriginCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 	uassert.NotPanics(t, func() {
-		Enable()
+		cross(Enable)()
 	})
 
 	// Confirm enable drops ownerships
 	uassert.Equal(t, Ownable.Owner().String(), "")
-	uassert.PanicsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
-		Enable()
+	uassert.AbortsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
+		cross(Enable)()
 	})
 }

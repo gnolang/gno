@@ -26,7 +26,7 @@ var (
 	auint16      uint16        = 16
 	auint32      uint32        = 16
 	auint64      uint64        = 16
-	ainterface   any   = struct{ a float32 }{16.0}
+	ainterface   any           = struct{ a float32 }{16.0}
 	afunc        func() string = func() string { return "A" }
 
 	// TODO:
@@ -45,6 +45,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	printVars("premain ")
 	mutateVars("C")
 	printVars("postmain")
