@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -917,6 +918,17 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			if err != nil {
 				return err
 			}
+			// Emit event for storage deposit lock
+			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
+			evt := gnostd.GnoEvent{
+				Type: "StorageDeposit",
+				Attributes: []gnostd.GnoEventAttribute{
+					{Key: "Deposit", Value: d.String()},
+					{Key: "Storage", Value: fmt.Sprintf("%d bytes", diff)},
+				},
+				PkgPath: rlmPath,
+			}
+			ctx.EventLogger().EmitEvent(evt)
 		} else {
 			// release storage used and return deposit
 			released := -diff
@@ -934,6 +946,17 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			if err != nil {
 				return err
 			}
+			// Emit event for deposit return
+			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}}
+			evt := gnostd.GnoEvent{
+				Type: "UnlockDeposit",
+				Attributes: []gnostd.GnoEventAttribute{
+					{Key: "Deposit", Value: d.String()},
+					{Key: "ReleaseStorage", Value: fmt.Sprintf("%d bytes", released)},
+				},
+				PkgPath: rlmPath,
+			}
+			ctx.EventLogger().EmitEvent(evt)
 		}
 		gnostore.SetPackageRealm(rlm)
 	}

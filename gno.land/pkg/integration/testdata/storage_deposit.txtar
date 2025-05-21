@@ -3,17 +3,18 @@
 ## start a new node
 gnoland start
 
+# add a package and it lock storage deposit
 gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 472100ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
+stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"472100ugnot\"},{\"key\":\"Storage\",\"value\":\"4721 bytes\"}\],\"pkg_path\":\"gno.land/r/foo\"}\]'
 
 gnokey query vm/qstorage --data gno.land/r/foo
-
 stdout 'storage: 4721, deposit: 472100'
 
 ## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
 gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
-stdout ''
 stdout OK!
+stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"200ugnot\"},{\"key\":\"ReleaseStorage\",\"value\":\"2 bytes\"}\],\"pkg_path\":\"gno.land/r/foo\"}\]'
 
 gnokey query vm/qstorage --data gno.land/r/foo
 stdout 'storage: 4719, deposit: 471900'
@@ -25,8 +26,8 @@ gnoland restart
 ## remove an object
 
  gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
- stdout ''
  stdout OK!
+ stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"2700ugnot\"},{\"key\":\"ReleaseStorage\",\"value\":\"27 bytes\"}\],\"pkg_path\":\"gno.land/r/foo\"}\]'
 
  gnokey query vm/qstorage --data gno.land/r/foo
  stdout 'storage: 4692, deposit: 469200'
@@ -38,6 +39,7 @@ gnoland restart
 ## test storage deposit for package gno.land/p/foo
 gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 299900ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
+stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"299900ugnot\"},{\"key\":\"Storage\",\"value\":\"2999 bytes\"}\],\"pkg_path\":\"gno.land/p/foo\"}\]'
 
 gnokey query vm/qstorage --data gno.land/p/foo
 stdout 'storage: 2999, deposit: 299900'
