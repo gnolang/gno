@@ -7,6 +7,7 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
@@ -18,6 +19,7 @@ type Mempool struct {
 	mutex        sync.RWMutex       // Synchronizes concurrent access
 	proxyAppConn appconn.Mempool    // Connection to the underlying application
 	txsBytes     int64              // Total size of all transactions in bytes
+	config       *config.Config     // Configuration parameters for the mempool
 }
 
 // txEntry encapsulates a transaction with its associated metadata.
@@ -29,32 +31,42 @@ type txEntry struct {
 
 // NewMempool creates and initializes a new Mempool with the provided application connection.
 func NewMempool(proxyAppConn appconn.Mempool) *Mempool {
+	return NewMempoolWithConfig(proxyAppConn, config.DefaultConfig())
+}
+
+// NewMempoolWithConfig creates a new Mempool with custom configuration.
+func NewMempoolWithConfig(proxyAppConn appconn.Mempool, cfg *config.Config) *Mempool {
 	return &Mempool{
 		proxyAppConn: proxyAppConn,
 		txMap:        make(map[string]txEntry),
 		txHashes:     make([]string, 0, 1024), // Pre-allocate memory for efficiency
+		config:       cfg,
 	}
 }
 
 // AddTx validates and adds a transaction to the mempool.
 // Returns error if the transaction is invalid or already exists.
 func (mp *Mempool) AddTx(tx types.Tx) error {
+	mp.mutex.Lock()
+	defer mp.mutex.Unlock()
+
 	txHash := tx.Hash()
 	hashStr := string(txHash)
+	txSize := int64(len(tx))
 
-	mp.mutex.RLock()
-	_, exists := mp.txMap[hashStr]
-	mp.mutex.RUnlock()
-
-	if exists {
+	if _, exists := mp.txMap[hashStr]; exists {
 		return fmt.Errorf("transaction already exists in mempool")
 	}
 
-	// Validate transaction with application
-	req := abci.RequestCheckTx{
-		Tx: tx,
+	if mp.config.MaxBytes > 0 && mp.txsBytes+txSize > mp.config.MaxBytes {
+		return fmt.Errorf("mempool is full (max bytes limit): %d", mp.config.MaxBytes)
 	}
 
+	if mp.config.MaxTxCount > 0 && len(mp.txHashes) >= mp.config.MaxTxCount {
+		return fmt.Errorf("mempool is full (max transaction count): %d", mp.config.MaxTxCount)
+	}
+
+	req := abci.RequestCheckTx{Tx: tx}
 	reqRes := mp.proxyAppConn.CheckTxAsync(req)
 	reqRes.Wait()
 
@@ -67,58 +79,50 @@ func (mp *Mempool) AddTx(tx types.Tx) error {
 		return fmt.Errorf("transaction rejected by application: %s", res.Error)
 	}
 
-	// Store the validated transaction
 	entry := txEntry{
 		tx:        tx,
 		gasWanted: res.GasWanted,
 		timestamp: time.Now(),
 	}
 
-	txSize := int64(len(tx))
-	mp.mutex.Lock()
 	mp.txMap[hashStr] = entry
 	mp.txHashes = append(mp.txHashes, hashStr)
 	mp.txsBytes += txSize
-	mp.mutex.Unlock()
 
 	return nil
 }
 
-// RemoveTx removes a transaction from the mempool by its hash.
-// This operation maintains the FIFO order of remaining transactions.
-func (mp *Mempool) RemoveTx(hash []byte) {
-	hashStr := string(hash)
-
+// Update synchronizes the mempool state by removing transactions that were
+// committed in a block. This function handles direct removal of transactions
+// without requiring a separate RemoveTx function.
+func (mp *Mempool) Update(committed []types.Tx) {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
-	entry, exists := mp.txMap[hashStr]
-	if !exists {
-		return
-	}
+	for _, tx := range committed {
+		txHash := tx.Hash()
+		hashStr := string(txHash)
 
-	delete(mp.txMap, hashStr)
-	mp.txsBytes -= int64(len(entry.tx))
+		entry, exists := mp.txMap[hashStr]
+		if !exists {
+			continue
+		}
 
-	for i, h := range mp.txHashes {
-		if h == hashStr {
-			mp.txHashes = append(mp.txHashes[:i], mp.txHashes[i+1:]...)
-			break
+		delete(mp.txMap, hashStr)
+		mp.txsBytes -= int64(len(entry.tx))
+
+		for i, h := range mp.txHashes {
+			if h == hashStr {
+				mp.txHashes = append(mp.txHashes[:i], mp.txHashes[i+1:]...)
+				break
+			}
 		}
 	}
 }
 
-// Update synchronizes the mempool state by removing transactions that were
-// committed in a block.
-func (mp *Mempool) Update(committed []types.Tx) {
-	for _, tx := range committed {
-		mp.RemoveTx(tx.Hash())
-	}
-}
-
-// ReapMaxBytesMaxGas selects transactions from the mempool that fit within
+// Pending selects transactions from the mempool that fit within
 // the specified gas and byte limits, maintaining their original FIFO order.
-func (mp *Mempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) []types.Tx {
+func (mp *Mempool) Pending(maxBytes, maxGas int64) []types.Tx {
 	mp.mutex.RLock()
 	defer mp.mutex.RUnlock()
 
@@ -152,10 +156,10 @@ func (mp *Mempool) Content() []types.Tx {
 // Flush empties the mempool, removing all pending transactions.
 func (mp *Mempool) Flush() {
 	mp.mutex.Lock()
+	defer mp.mutex.Unlock()
 	mp.txMap = make(map[string]txEntry)
 	mp.txHashes = make([]string, 0, 1024)
 	mp.txsBytes = 0
-	mp.mutex.Unlock()
 }
 
 // iterateTransactions processes mempool transactions applying optional limit criteria.

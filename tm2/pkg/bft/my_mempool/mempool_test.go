@@ -127,7 +127,7 @@ func TestAddInvalidTx(t *testing.T) {
 	assert.Equal(t, 0, mp.Size(), "Mempool size should be 0")
 }
 
-func TestRemoveTx(t *testing.T) {
+func TestRemoveTxViaUpdate(t *testing.T) {
 	mockConn := new(MockAppConn)
 	mockConn.On("Error").Return(nil)
 
@@ -148,10 +148,11 @@ func TestRemoveTx(t *testing.T) {
 		t.Fatalf("Expected 2 txs, got %d", mp.Size())
 	}
 
-	mp.RemoveTx(tx1.Hash())
+	// Instead of calling RemoveTx, we now use Update
+	mp.Update([]types.Tx{tx1})
 
 	if mp.Size() != 1 {
-		t.Errorf("Expected 1 tx after remove, got %d", mp.Size())
+		t.Errorf("Expected 1 tx after update, got %d", mp.Size())
 	}
 
 	foundTx, exists := mp.GetTx(tx1.Hash())
@@ -165,7 +166,7 @@ func TestRemoveTx(t *testing.T) {
 	}
 }
 
-func TestRemoveNonexistentTx(t *testing.T) {
+func TestUpdateWithNonexistentTx(t *testing.T) {
 	mockConn := new(MockAppConn)
 	mockConn.On("Error").Return(nil)
 
@@ -181,7 +182,7 @@ func TestRemoveNonexistentTx(t *testing.T) {
 	initialSize := mp.Size()
 
 	nonexistentTx := makeTx("nonexistent_tx")
-	mp.RemoveTx(nonexistentTx.Hash())
+	mp.Update([]types.Tx{nonexistentTx})
 
 	if mp.Size() != initialSize {
 		t.Errorf("Expected size to remain %d, got %d", initialSize, mp.Size())
@@ -226,7 +227,7 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestReapMaxBytesMaxGas(t *testing.T) {
+func TestPending(t *testing.T) {
 	mockConn := new(MockAppConn)
 	mockConn.On("Error").Return(nil)
 
@@ -248,7 +249,7 @@ func TestReapMaxBytesMaxGas(t *testing.T) {
 	mp.AddTx(tx3)
 
 	// Test bytes limit
-	txs := mp.ReapMaxBytesMaxGas(6, -1)
+	txs := mp.Pending(6, -1)
 	if len(txs) != 2 {
 		t.Errorf("Expected 2 txs with 6 byte limit, got %d", len(txs))
 	}
@@ -257,13 +258,13 @@ func TestReapMaxBytesMaxGas(t *testing.T) {
 	mp.AddTx(tx1) // 20 gas
 	mp.AddTx(tx2) // 20 gas
 
-	txs = mp.ReapMaxBytesMaxGas(100, 30)
+	txs = mp.Pending(100, 30)
 	if len(txs) != 1 {
 		t.Errorf("Expected 1 tx with 30 gas limit, got %d", len(txs))
 	}
 
 	// Test zero byte limit
-	txs = mp.ReapMaxBytesMaxGas(0, 100)
+	txs = mp.Pending(0, 100)
 	if txs != nil {
 		t.Errorf("Expected nil result with 0 byte limit, got %v", txs)
 	}
@@ -528,7 +529,7 @@ func TestFullMempoolLifecycleWithTwoMempools(t *testing.T) {
 
 	// Get transactions for a block from the first mempool (only first 3)
 	bytesLimit := int64(9) // Limit of 9 bytes (3 transactions of 3 bytes each)
-	selectedTxs := mp1.ReapMaxBytesMaxGas(bytesLimit, -1)
+	selectedTxs := mp1.Pending(bytesLimit, -1)
 
 	// Verify we received exactly 3 transactions
 	assert.Equal(t, 3, len(selectedTxs))
