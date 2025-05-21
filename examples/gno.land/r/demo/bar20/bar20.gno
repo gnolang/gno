@@ -18,7 +18,7 @@ var (
 )
 
 func init() {
-	cross(grc20reg.Register)(Token.Getter(), "")
+	cross(grc20reg.Register)(Token, "")
 }
 
 func Faucet() string {

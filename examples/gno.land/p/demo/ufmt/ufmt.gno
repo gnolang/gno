@@ -150,10 +150,50 @@ func (p *printer) doPrintf(format string, args []any) {
 			continue
 		}
 
-		verb := sTor[i+1]
+		length := -1
+		precision := -1
+		i++ // skip '%'
+
+		if i < end && sTor[i] >= '0' && sTor[i] <= '9' {
+			start := i
+			for i < end && sTor[i] >= '0' && sTor[i] <= '9' {
+				i++
+			}
+			if i > start {
+				var n int64
+				var err error
+				n, err = strconv.ParseInt(string(sTor[start:i]), 10, 0)
+				if err != nil {
+					panic("ufmt: invalid length specification")
+				}
+				length = int(n)
+			}
+		}
+
+		if i < end && sTor[i] == '.' {
+			i++ // skip '.'
+			start := i
+			for i < end && sTor[i] >= '0' && sTor[i] <= '9' {
+				i++
+			}
+			if i > start {
+				precStr := string(sTor[start:i])
+				var err error
+				precision, err = strconv.Atoi(precStr)
+				if err != nil {
+					panic("ufmt: invalid precision specification")
+				}
+			}
+		}
+
+		if i >= end {
+			panic("ufmt: invalid format string")
+		}
+
+		verb := sTor[i]
 		if verb == '%' {
 			p.buf.writeRune('%')
-			i += 2
+			i++
 			continue
 		}
 
@@ -167,13 +207,13 @@ func (p *printer) doPrintf(format string, args []any) {
 		case 'v':
 			writeValue(p, verb, arg)
 		case 's':
-			writeString(p, verb, arg)
+			writeStringWithLength(p, verb, arg, length)
 		case 'c':
 			writeChar(p, verb, arg)
 		case 'd':
 			writeInt(p, verb, arg)
 		case 'e', 'E', 'f', 'F', 'g', 'G':
-			writeFloat(p, verb, arg)
+			writeFloatWithPrecision(p, verb, arg, precision)
 		case 't':
 			writeBool(p, verb, arg)
 		case 'x':
@@ -187,7 +227,7 @@ func (p *printer) doPrintf(format string, args []any) {
 			p.buf.writeString("(unhandled verb: %" + string(verb) + ")")
 		}
 
-		i += 2
+		i++
 	}
 
 	if argNum < argLen {
@@ -239,18 +279,24 @@ func writeValue(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeString handles %s formatting
-func writeString(p *printer, verb rune, arg any) {
+// writeStringWithLength handles %s formatting with length specification
+func writeStringWithLength(p *printer, verb rune, arg any, length int) {
+	var s string
 	switch v := arg.(type) {
 	case (interface{ String() string }):
-		p.buf.writeString(v.String())
+		s = v.String()
 	case error:
-		p.buf.writeString(v.Error())
+		s = v.Error()
 	case string:
-		p.buf.writeString(v)
+		s = v
 	default:
-		p.buf.writeString(fallback(verb, v))
+		s = fallback(verb, v)
 	}
+
+	if length > 0 && len(s) > length {
+		s = s[:length]
+	}
+	p.buf.writeString(s)
 }
 
 // writeChar handles %c formatting
@@ -304,22 +350,23 @@ func writeInt(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeFloat handles floating-point formatting verbs
-func writeFloat(p *printer, verb rune, arg any) {
+// writeFloatWithPrecision handles floating-point formatting with precision
+func writeFloatWithPrecision(p *printer, verb rune, arg any, precision int) {
 	switch v := arg.(type) {
 	case float64:
-		switch verb {
-		case 'e':
-			p.buf.writeString(strconv.FormatFloat(v, 'e', -1, 64))
-		case 'E':
-			p.buf.writeString(strconv.FormatFloat(v, 'E', -1, 64))
-		case 'f', 'F':
-			p.buf.writeString(strconv.FormatFloat(v, 'f', 6, 64))
-		case 'g':
-			p.buf.writeString(strconv.FormatFloat(v, 'g', -1, 64))
-		case 'G':
-			p.buf.writeString(strconv.FormatFloat(v, 'G', -1, 64))
+		format := byte(verb)
+		if format == 'F' {
+			format = 'f'
 		}
+		if precision < 0 {
+			switch format {
+			case 'e', 'E':
+				precision = 2
+			default:
+				precision = 6
+			}
+		}
+		p.buf = strconv.AppendFloat(p.buf, v, format, precision, 64)
 	default:
 		p.buf.writeString(fallback(verb, v))
 	}
