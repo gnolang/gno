@@ -65,14 +65,15 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 			continue // Skip empty files
 		}
 		all.AddFiles(n)
-		if string(n.PkgName) == mpkg.Name+"_test" {
-			// A xxx_file integration test is a package of its own.
-			_tests.AddFiles(n)
-		} else if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
 			// A _filetest.gno is a package of its own.
 			ftset := &gno.FileSet{}
 			ftset.AddFiles(n)
 			ftests = append(ftests, ftset)
+		} else if strings.HasSuffix(mfile.Name, "_test.gno") &&
+			strings.HasSuffix(string(n.PkgName), "_test") {
+			// A xxx_file integration test is a package of its own.
+			_tests.AddFiles(n)
 		} else {
 			// All normal package files and,
 			// _test.gno files that aren't xxx_test.
