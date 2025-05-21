@@ -5,34 +5,33 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/nt/commondao"
 )
 
 func currentRealmPath() string {
 	return strings.TrimPrefix(string(realmLink), std.ChainDomain())
 }
 
-func daoURL(dao *commondao.CommonDAO) string {
+func daoURL(daoID uint64) string {
 	path := currentRealmPath()
-	return ufmt.Sprintf("%s:%d", path, dao.ID())
+	return ufmt.Sprintf("%s:%d", path, daoID)
 }
 
-func settingsURL(dao *commondao.CommonDAO) string {
+func settingsURL(daoID uint64) string {
 	path := currentRealmPath()
-	return ufmt.Sprintf("%s:%d/settings", path, dao.ID())
+	return ufmt.Sprintf("%s:%d/settings", path, daoID)
 }
 
-func daoProposalsURL(dao *commondao.CommonDAO) string {
+func daoProposalsURL(daoID uint64) string {
 	path := currentRealmPath()
-	return ufmt.Sprintf("%s:%d/proposals", path, dao.ID())
+	return ufmt.Sprintf("%s:%d/proposals", path, daoID)
 }
 
-func proposalURL(dao *commondao.CommonDAO, p *commondao.Proposal) string {
+func proposalURL(daoID, proposalID uint64) string {
 	path := currentRealmPath()
-	return ufmt.Sprintf("%s:%d/proposals/%d", path, dao.ID(), p.ID())
+	return ufmt.Sprintf("%s:%d/proposals/%d", path, daoID, proposalID)
 }
 
-func voteURL(dao *commondao.CommonDAO, p *commondao.Proposal, addr std.Address) string {
+func voteURL(daoID, proposalID uint64, addr std.Address) string {
 	path := currentRealmPath()
-	return ufmt.Sprintf("%s:%d/proposals/%d/vote/%s", path, dao.ID(), p.ID(), addr)
+	return ufmt.Sprintf("%s:%d/proposals/%d/vote/%s", path, daoID, proposalID, addr)
 }

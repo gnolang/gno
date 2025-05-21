@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/nt/commondao"
@@ -32,7 +33,7 @@ func Render(path string) string {
 func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
 	// TODO: Render a header text for users
 	// TODO: Render generic links to vote or execute proposals
-	res.Write("# Common DAO\n")
+	res.Write(md.H1("Common DAO"))
 }
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
@@ -40,48 +41,46 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render header messages
 	if dao.IsDeleted() {
-		res.Write("> ⚠ This DAO has been dismissed\n")
+		res.Write(md.Blockquote("⚠ This DAO has been dismissed"))
 	}
 
 	// Render header
-	res.Write("# ")
-	res.Write(dao.Name())
-	res.Write("\n")
-
+	res.Write(md.H1(dao.Name()))
 	if s := dao.Description(); s != "" {
-		res.Write(s)
-		res.Write("\n\n")
+		res.Write(s + "\n\n")
 	}
 
 	// Render main menu
 	menu := []string{
-		ufmt.Sprintf("[List Proposals](%s)", daoProposalsURL(dao)),
-		ufmt.Sprintf("[View Settings](%s)", settingsURL(dao)),
+		md.Link("List Proposals", daoProposalsURL(dao.ID())),
+		md.Link("View Settings", settingsURL(dao.ID())),
 	}
 
 	// TODO: Add submenu with proposal links when proposals support is enabled
 
 	if parentDAO := dao.Parent(); parentDAO != nil {
-		menu = append(menu, ufmt.Sprintf("[Go to Parent DAO](%s)", daoURL(parentDAO)))
+		menu = append(menu, md.Link("Go to Parent DAO", daoURL(parentDAO.ID())))
 	}
 
 	res.Write(strings.Join(menu, " • "))
-	res.Write("\n\n---\n")
+	res.Write("\n\n" + md.HorizontalRule())
 
 	// Render members
 	members := dao.Members()
 	if members.Size() == 0 {
-		res.Write("**⚠ The DAO has no members**\n\n")
+		res.Write(md.Bold("⚠ The DAO has no members") + "\n")
 	} else {
 		renderMembers(res, req.RawPath, members)
 	}
+
+	res.Write("\n")
 
 	// Render organization tree
 	if dao.Children().Len() > 0 {
 		r := parseRealmPath(req.RawPath)
 		dismissedVisible := r.Query.Has("dismissed") || dao.IsDeleted()
 		if dismissedVisible || !dao.IsDeleted() {
-			res.Write("## Tree\n")
+			res.Write(md.H2("Tree"))
 
 			// Render toggle only when DAO is not dismissed,
 			// otherwise render the whole tree when DAO is dismissed
@@ -90,11 +89,12 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 				if dismissedVisible {
 					r.Query.Del("dismissed")
-					res.Write(ufmt.Sprintf("[hide](%s)", r.String()))
+					res.Write(md.Link("hide", r.String()))
 				} else {
 					r.Query.Add("dismissed", "")
-					res.Write(ufmt.Sprintf("[show](%s)", r.String()))
+					res.Write(md.Link("show", r.String()))
 				}
+
 				res.Write("\n\n")
 			}
 
@@ -108,7 +108,7 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write("## Latest Proposals\n")
+	res.Write(md.H2("Latest Proposals"))
 	proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
 		renderProposalsListItem(res, dao, p)
 		return false
@@ -131,21 +131,18 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 	res.Write(table.String())
 
 	if pages.HasPages() {
-		res.Write("\n")
-		res.Write(pager.Picker(pages))
-		res.Write("\n")
+		res.Write("\n" + pager.Picker(pages) + "\n")
 	}
-
-	res.Write("\n")
 }
 
 func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string, showDismissed bool) {
+	daoLink := md.Link(dao.Name(), daoURL(dao.ID()))
 	if dao.IsDeleted() {
-		// Strikethough dismissed DAO names and add a help tooltip
-		res.Write(ufmt.Sprintf("%s- [~~%s~~](%s 'Dismissed DAO')\n", indent, dao.Name(), daoURL(dao)))
-	} else {
-		res.Write(ufmt.Sprintf("%s- [%s](%s)\n", indent, dao.Name(), daoURL(dao)))
+		// Strikethough dismissed DAO names
+		daoLink = md.Strikethrough(daoLink)
 	}
+
+	res.Write(indent + md.BulletItem(daoLink))
 
 	indent += "  "
 	dao.Children().ForEach(func(_ int, v any) bool {
@@ -166,13 +163,11 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	o := getOptions(dao.ID())
 
 	// Render header
-	res.Write("# ")
-	res.Write(dao.Name())
-	res.Write(": Settings\n")
+	res.Write(md.H1(dao.Name() + ": Settings"))
 
 	// Render main menu
-	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
-	res.Write("\n\n---\n")
+	res.Write(goToDAOLink(dao.ID()))
+	res.Write("\n\n" + md.HorizontalRule())
 
 	// Render options
 	table := mdtable.Table{Headers: []string{"Options", "Values"}}
@@ -181,7 +176,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	table.Append([]string{"Enable Voting", strconv.FormatBool(o.AllowVoting)})
 	table.Append([]string{"Enable Proposal Execution", strconv.FormatBool(o.AllowExecution)})
 
-	res.Write("## Options\n")
+	res.Write(md.H2("Options"))
 	res.Write(table.String())
 }
 
@@ -189,17 +184,15 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	dao := mustGetDAOFromRequest(req)
 
 	// Render header
-	res.Write("# ")
-	res.Write(dao.Name())
-	res.Write(": Proposals\n")
+	res.Write(md.H1(dao.Name() + ": Proposals"))
 
 	// Render main menu
-	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
-	res.Write("\n\n---\n")
+	res.Write(goToDAOLink(dao.ID()))
+	res.Write("\n\n" + md.HorizontalRule())
 
 	// Render proposals
 	if dao.ActiveProposals().Size() == 0 && dao.FinishedProposals().Size() == 0 {
-		res.Write("**⚠ The DAO has no proposals**\n")
+		res.Write(md.Bold("⚠ The DAO has no proposals") + "\n")
 		return
 	}
 
@@ -219,10 +212,10 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	r := parseRealmPath(req.RawPath)
 	if renderFinished {
 		r.Query.Del("finished")
-		res.Write(ufmt.Sprintf("[active](%s)", r.String()))
+		res.Write(md.Link("active", r.String()))
 	} else {
 		r.Query.Add("finished", "")
-		res.Write(ufmt.Sprintf("[finished](%s)", r.String()))
+		res.Write(md.Link("finished", r.String()))
 	}
 
 	res.Write(" • Sort by: ")
@@ -231,10 +224,10 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	reverseSort := r.Query.Get("order") != "asc"
 	if reverseSort {
 		r.Query.Set("order", "asc")
-		res.Write(ufmt.Sprintf("[oldest](%s)", r.String()))
+		res.Write(md.Link("oldest", r.String()))
 	} else {
 		r.Query.Set("order", "desc")
-		res.Write(ufmt.Sprintf("[newest](%s)", r.String()))
+		res.Write(md.Link("newest", r.String()))
 	}
 
 	res.Write("\n\n")
@@ -254,9 +247,8 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render pager
 	if pages.HasPages() {
-		res.Write("\n\n---\n")
-		res.Write(pager.Picker(pages))
-		res.Write("\n")
+		res.Write("\n\n" + md.HorizontalRule())
+		res.Write(pager.Picker(pages) + "\n")
 	}
 }
 
@@ -266,7 +258,7 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 	o := getOptions(dao.ID())
 
 	// Render title
-	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), def.Title(), proposalURL(dao, p)))
+	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), def.Title(), proposalURL(dao.ID(), p.ID())))
 
 	// Render details
 	res.Write(ufmt.Sprintf("Created by %s  \n", userLink(p.Creator())))
@@ -297,27 +289,23 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Check that proposal has no issues
 	if err := p.Validate(); err != nil {
-		res.Write("> ⚠ **ERROR**: ")
-		res.Write(err.Error())
-		res.Write("\n")
+		res.Write(md.Blockquote("⚠ **ERROR**: " + err.Error()))
 	}
 
 	votingActive := isVotingPeriodActive(p)
 	if votingActive {
-		res.Write(ufmt.Sprintf("> Voting ends on **%s**\n", p.VotingDeadline().UTC().Format(dateFormat)))
+		res.Write(
+			md.Blockquote("Voting ends on " + md.Bold(p.VotingDeadline().UTC().Format(dateFormat))),
+		)
 	}
 
 	def := p.Definition()
 
 	// Render header
-	res.Write("# #")
-	res.Write(strconv.FormatUint(p.ID(), 10))
-	res.Write(" ")
-	res.Write(def.Title())
-	res.Write("\n")
+	res.Write(md.H1("#" + strconv.FormatUint(p.ID(), 10) + " " + def.Title()))
 
 	// Render main menu
-	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
+	res.Write(goToDAOLink(dao.ID()))
 
 	o := getOptions(dao.ID())
 	if o.AllowVoting && votingActive {
@@ -330,43 +318,42 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(executeLink(dao.ID(), p.ID()))
 	}
 
-	res.Write("\n\n---\n")
+	res.Write("\n\n" + md.HorizontalRule())
 
 	// Render details
-	res.Write("## Details\n")
-	res.Write(ufmt.Sprintf("- Proposer: %s\n", userLink(p.Creator())))
-	res.Write(ufmt.Sprintf("- Submit Time: %s\n", p.CreatedAt().UTC().Format(time.RFC1123)))
+	res.Write(md.H2("Details"))
+	res.Write(md.BulletItem("Proposer: " + userLink(p.Creator())))
+	res.Write(md.BulletItem("Submit Time: " + p.CreatedAt().UTC().Format(time.RFC1123)))
 
 	record := p.VotingRecord()
 	if p.Status() == commondao.StatusActive {
 		passes, _ := def.Tally(record.Readonly(), commondao.NewMemberSet(dao.Members()))
 		if passes {
-			res.Write("- Expected Outcome: **pass** ☑\n")
+			res.Write(md.BulletItem("Expected Outcome: **pass** ☑"))
 		} else {
-			res.Write("- Expected Outcome: **fail** ☒\n")
+			res.Write(md.BulletItem("Expected Outcome: **fail** ☒"))
 		}
 	}
 
-	res.Write(ufmt.Sprintf("- Status: **%s**", string(p.Status())))
+	statusItem := "Status: " + md.Bold(string(p.Status()))
 	if reason := p.StatusReason(); reason != "" {
-		res.Write(ufmt.Sprintf(" • _%s_", reason))
+		statusItem += " • " + md.Italic(reason)
 	}
-	res.Write("\n")
+	res.Write(md.BulletItem(statusItem))
 
 	// Render proposal body
 	if body := def.Body(); body != "" {
-		res.Write("## Description\n")
-		res.Write(body)
-		res.Write("\n\n")
+		res.Write(md.H2("Description"))
+		res.Write(body + "\n\n")
 	}
 
 	if record.Size() > 0 {
 		// Render voting stats
-		res.Write("## Stats\n")
+		res.Write(md.H2("Stats"))
 		renderProposalStats(res, record)
 
 		// Render votes
-		res.Write("## Votes\n")
+		res.Write(md.H2("Votes"))
 		res.Write(ufmt.Sprintf("Total number of votes: **%d**\n", record.Size()))
 		renderProposalVotes(res, req.RawPath, dao, p)
 	}
@@ -396,7 +383,7 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 
 	table := mdtable.Table{Headers: []string{"Users", "Votes"}}
 	record.Iterate(pages.Offset(), pages.PageSize(), false, func(v commondao.Vote) bool {
-		voteDetails := ufmt.Sprintf("[%s](%s)", string(v.Choice), voteURL(dao, p, v.Address))
+		voteDetails := md.Link(string(v.Choice), voteURL(dao.ID(), p.ID(), v.Address))
 		if v.Reason != "" {
 			voteDetails += " with a reason"
 		}
@@ -408,12 +395,8 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 	res.Write(table.String())
 
 	if pages.HasPages() {
-		res.Write("\n")
-		res.Write(pager.Picker(pages))
-		res.Write("\n")
+		res.Write("\n" + pager.Picker(pages) + "\n")
 	}
-
-	res.Write("\n")
 }
 
 func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
@@ -432,16 +415,16 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write(ufmt.Sprintf("# Vote: Proposal #%d\n", p.ID()))
-	res.Write(ufmt.Sprintf("[Go to DAO](%s) • ", daoURL(dao)))
-	res.Write(ufmt.Sprintf("[Go to Proposal](%s)", proposalURL(dao, p)))
-	res.Write("\n\n---\n")
+	res.Write(goToDAOLink(dao.ID()) + " • ")
+	res.Write(goToProposalLink(dao.ID(), p.ID()))
+	res.Write("\n\n" + md.HorizontalRule())
 
-	res.Write("## Details\n")
-	res.Write(ufmt.Sprintf("- User: %s\n", userLink(v.Address)))
-	res.Write(ufmt.Sprintf("- Vote: %s\n", string(v.Choice)))
+	res.Write(md.H2("Details"))
+	res.Write(md.BulletItem("User: " + userLink(v.Address)))
+	res.Write(md.BulletItem("Vote: " + string(v.Choice)))
 
 	if v.Reason != "" {
-		res.Write("## Reason\n")
+		res.Write(md.H2("Reason"))
 		res.Write(v.Reason)
 	}
 }
@@ -483,7 +466,7 @@ func parseRealmPath(path string) *realmpath.Request {
 }
 
 func voteLink(daoID, proposalID uint64) string {
-	return ufmt.Sprintf("[Vote](%s)", realmLink.Call(
+	return md.Link("Vote", realmLink.Call(
 		"Vote",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"proposalID", strconv.FormatUint(proposalID, 10),
@@ -493,7 +476,7 @@ func voteLink(daoID, proposalID uint64) string {
 }
 
 func executeLink(daoID, proposalID uint64) string {
-	return ufmt.Sprintf("[Execute](%s)", realmLink.Call(
+	return md.Link("Execute", realmLink.Call(
 		"Execute",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"proposalID", strconv.FormatUint(proposalID, 10),
@@ -501,12 +484,20 @@ func executeLink(daoID, proposalID uint64) string {
 }
 
 func updateMembersLink(daoID uint64) string {
-	return ufmt.Sprintf("[Update Members](%s)", realmLink.Call(
+	return md.Link("Update Members", realmLink.Call(
 		"CreateMembersUpdateProposal",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"newMembers", "",
 		"removeMembers", "",
 	))
+}
+
+func goToDAOLink(daoID uint64) string {
+	return md.Link("Go to DAO", daoURL(daoID))
+}
+
+func goToProposalLink(daoID, proposalID uint64) string {
+	return md.Link("Go to Proposal", proposalURL(daoID, proposalID))
 }
 
 func userLink(addr std.Address) string {
