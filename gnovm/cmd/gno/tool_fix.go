@@ -84,8 +84,9 @@ Also refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
 type fixCmd struct {
-	verbose bool
-	rootDir string
+	verbose       bool
+	rootDir       string
+	onlyFiletests bool
 	// min_confidence: minimum confidence of a problem to print it
 	// (default 0.8) auto-fix: apply suggested fixes automatically.
 }
@@ -109,8 +110,9 @@ func newFixCmd(io commands.IO) *commands.Command {
 func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
 	rootdir := gnoenv.RootDir()
 
-	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixning")
+	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixing")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
+	fs.BoolVar(&c.onlyFiletests, "only-filetests", false, "dir only contains filetests. not recursive.")
 }
 
 func execFix(cmd *fixCmd, args []string, io commands.IO) error {
@@ -260,7 +262,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 
 			// FIX STEP 5: re-parse
 			// Gno parse source fileset and test filesets.
-			_, fset, _tests, ftests := sourceAndTestFileset(mpkg)
+			_, fset, _tests, ftests := sourceAndTestFileset(mpkg, cmd.onlyFiletests)
 
 			{
 				// FIX STEP 6: PreprocessFiles()

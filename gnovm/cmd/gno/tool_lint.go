@@ -192,7 +192,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 			// LINT STEP 4: re-parse
 			// Gno parse source fileset and test filesets.
-			_, fset, _tests, ftests := sourceAndTestFileset(mpkg)
+			_, fset, _tests, ftests := sourceAndTestFileset(mpkg, false)
 
 			{
 				// LINT STEP 5: PreprocessFiles()

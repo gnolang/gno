@@ -45,11 +45,16 @@ func (i gnoIssue) String() string {
 }
 
 // Gno parses and sorts mpkg files into the following filesets:
+// Args:
+//   - onlyFiletests: true if all files are filetests. relaxed.
+//     used to transpile test/files/*.gno (no _filetest.gno suffix).
+//
+// Results:
 //   - fset: all normal and _test.go files in package excluding `package xxx_test`
 //     integration *_test.gno files.
 //   - _tests: `package xxx_test` integration *_test.gno files.
 //   - ftests: *_filetest.gno file tests, each in their own file set.
-func sourceAndTestFileset(mpkg *std.MemPackage) (
+func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 	all, fset *gno.FileSet, _tests *gno.FileSet, ftests []*gno.FileSet,
 ) {
 	all = &gno.FileSet{}
@@ -65,7 +70,7 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 			continue // Skip empty files
 		}
 		all.AddFiles(n)
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") || onlyFiletests {
 			// A _filetest.gno is a package of its own.
 			ftset := &gno.FileSet{}
 			ftset.AddFiles(n)
