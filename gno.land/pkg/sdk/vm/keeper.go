@@ -173,11 +173,14 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 func loadStdlib(store gno.Store, stdlibDir string) {
 	stdlibInitList := stdlibs.InitOrder()
 	for _, lib := range stdlibInitList {
-		if lib == "testing" {
-			// XXX: testing is skipped for now while it uses testing-only packages
+		parts := strings.Split(lib, "/")
+		if len(parts) > 0 && parts[0] == "testing" {
+			// XXX: testing and sub testing packages are skipped for
+			// now while it uses testing-only packages
 			// like fmt and encoding/json
 			continue
 		}
+
 		loadStdlibPackage(lib, stdlibDir, store)
 	}
 }
