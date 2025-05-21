@@ -358,7 +358,7 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 
 		// Sanity check.
 		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
-		if mod.GetGno() != gno.GnoVerMissing {
+		if mod != nil && mod.GetGno() != gno.GnoVerMissing {
 			panic("should not happen")
 		}
 
@@ -403,10 +403,15 @@ func execFix(cmd *fixCmd, args []string, io commands.IO) error {
 		// Write version to gno.mod.
 		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
 		if err != nil {
-			// should have been auto-generated.
-			panic("missing gno.mod")
+			panic(fmt.Sprintf("unhandled error: %w", err))
 		}
-		mod.SetGno(gno.GnoVerLatest)
+		if mod == nil {
+			modStr := gno.GenGnoModLatest(ppkg.mpkg.Path)
+			mod = gnomod.MustParseBytes(
+				"gno.mod (generated)", []byte(modStr))
+		} else {
+			mod.SetGno(gno.GnoVerLatest)
+		}
 		ppkg.mpkg.SetFile("gno.mod", mod.WriteString())
 
 		// FIX STEP 10: mpkg.WriteTo():

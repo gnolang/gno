@@ -214,8 +214,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		}
 		gnoVersion = mod.GetGno()
 	} else {
-		if mod == nil {
-			gnoVersion = GnoVerLatest
+		if mod == nil { // cannot be stdlib.
+			gnoVersion = GnoVerMissing
 		} else {
 			gnoVersion = mod.GetGno()
 		}
