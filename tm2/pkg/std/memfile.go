@@ -56,6 +56,9 @@ func (mfile *MemFile) ValidateBasic() error {
 
 // Print file to stdout.
 func (mfile *MemFile) Print() error {
+	if mfile == nil {
+		return fmt.Errorf("file not found")
+	}
 	fmt.Printf("MemFile[%q]:\n", mfile.Name)
 	fmt.Println(mfile.Body)
 	return nil

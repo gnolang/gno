@@ -96,7 +96,6 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		deleteOldIdents(delFunc, gof)
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") {
 			tgofs = append(tgofs, gof)
@@ -106,9 +105,11 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 				// never wanted these gofs.
 				// (we do want other *_test.gno in gofs)
 			} else {
+				deleteOldIdents(delFunc, gof)
 				_gofs = append(_gofs, gof)
 			}
 		} else { // normal *_test.gno here for integration testing.
+			deleteOldIdents(delFunc, gof)
 			gofs = append(gofs, gof)
 		}
 	}
