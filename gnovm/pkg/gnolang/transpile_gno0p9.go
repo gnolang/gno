@@ -277,13 +277,15 @@ func FindXformsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 					case TypeValue:
 						return n, TRANS_CONTINUE
 					case *FuncValue:
-						if cv.IsCrossing() {
+						fd := cv.GetSource(store)
+						if fd.GetBody().isCrossing_gno0p0() {
 							// Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
 							addXform1(pn, loc.PkgPath, loc.File, n.GetSpan(), XTYPE_ADD_CURCALL)
 						}
 					case *BoundMethodValue:
-						if cv.IsCrossing() {
+						md := cv.Func.GetSource(store)
+						if md.GetBody().isCrossing_gno0p0() {
 							// Not cross-called, so add `cur` as first argument.
 							loc := last.GetLocation()
 							addXform1(pn, loc.PkgPath, loc.File, n.GetSpan(), XTYPE_ADD_CURCALL)

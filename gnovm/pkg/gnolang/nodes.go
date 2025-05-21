@@ -426,6 +426,19 @@ func (x *CallExpr) isWithCross() bool {
 	return false
 }
 
+// Legacy; only for fixing gno0.0 to gno0.9
+func (x *CallExpr) isCrossing_gno0p0() bool {
+	if x == nil {
+		return false
+	}
+	if nx, ok := unwrapConstExpr(x.Func).(*NameExpr); ok {
+		if nx.Name == "crossing" {
+			return true
+		}
+	}
+	return false
+}
+
 func (x *CallExpr) SetWithCross() {
 	if !x.isWithCross() {
 		panic("expected cross(fn)(...)")
@@ -709,6 +722,20 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 		}
 	}
 	return nil, -1
+}
+
+// Legacy, only for fixing 0.0 to 0.9
+func (ss Body) isCrossing_gno0p0() bool {
+	if len(ss) == 0 {
+		return false
+	}
+	fs := ss[0]
+	xs, ok := fs.(*ExprStmt)
+	if !ok {
+		return false
+	}
+	cx, ok := xs.X.(*CallExpr)
+	return cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
