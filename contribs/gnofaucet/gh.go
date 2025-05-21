@@ -33,6 +33,8 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/plain")
+
 				// Extracts the authorization code returned by the GitHub OAuth flow.
 				//
 				// When a user successfully authenticates via GitHub OAuth, GitHub redirects them
