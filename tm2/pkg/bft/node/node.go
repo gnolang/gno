@@ -896,7 +896,7 @@ func makeNodeInfo(
 		Channels: []byte{
 			bcChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
-			mempl.MempoolChannel,
+			mempl.Channel,
 		},
 		Moniker: config.Moniker,
 		Other: p2pTypes.NodeInfoOther{

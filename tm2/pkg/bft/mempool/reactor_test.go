@@ -73,7 +73,7 @@ func makeAndConnectReactors(t *testing.T, mconfig *memcfg.Config, pconfig *p2pcf
 		Count:         n,
 		P2PCfg:        pconfig,
 		SwitchOptions: options,
-		Channels:      []byte{MempoolChannel},
+		Channels:      []byte{Channel},
 	}
 
 	p2pTesting.MakeConnectedPeers(t, ctx, cfg)
