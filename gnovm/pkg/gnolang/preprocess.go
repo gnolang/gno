@@ -4329,7 +4329,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 
 		// NOTE: imports from "pure packages" are actually sometimes
 		// allowed, most notably filetests.
-		if IsPPackagePath(pkg.PkgPath) && IsRealmPath(d.PkgPath) {
+		if IsPPackagePath(pkg.PkgPath) && IsRealmPath(d.PkgPath) && !IsTestFile(last.GetLocation().File) {
 			panic(fmt.Sprintf("pure package path %q cannot import realm path %q", pkg.PkgPath, d.PkgPath))
 		}
 

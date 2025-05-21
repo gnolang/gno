@@ -84,6 +84,10 @@ func IsStdlib(s string) bool {
 	return strings.IndexByte(s[:idx+1], '.') < 0
 }
 
+func IsTestFile(file string) bool {
+	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
+}
+
 // ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
