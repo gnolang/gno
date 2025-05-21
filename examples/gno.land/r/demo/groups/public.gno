@@ -18,6 +18,7 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 }
 
 func CreateGroup(name string) GroupID {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -30,6 +31,7 @@ func CreateGroup(name string) GroupID {
 }
 
 func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -51,6 +53,7 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 }
 
 func DeleteGroup(gid GroupID) {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)
@@ -61,6 +64,7 @@ func DeleteGroup(gid GroupID) {
 }
 
 func DeleteMember(gid GroupID, mid MemberID) {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)

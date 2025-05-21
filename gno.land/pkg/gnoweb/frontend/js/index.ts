@@ -1,3 +1,5 @@
+import initTooltip from './tooltip';
+
 (() => {
   interface Module {
     selector: string;
@@ -16,6 +18,10 @@
     searchBar: {
       selector: ".js-header-searchbar",
       path: "/public/js/searchbar.js",
+    },
+    tooltip: {
+      selector: ".js-tooltip",
+      path: "/public/js/tooltip.js",
     },
   };
 

@@ -15,15 +15,21 @@ var AllowedDAOs []string
 // proposals contains all the proposals in history.
 var proposals *Proposals = NewProposals()
 
+// Remember this realm for rendering.
+var gRealm = std.CurrentRealm()
+
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(p string) string {
-	return dao.Render(context(), p)
+	crossing()
+	return dao.Render(gRealm.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
 // but instead of erroing if something happens, it panics.
 func MustCreateProposal(r ProposalRequest) ProposalID {
+	crossing()
+
 	pid, err := CreateProposal(r)
 	if err != nil {
 		panic(err.Error())
@@ -36,7 +42,9 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 // If the proposal was denied, it will return false. If the proposal is correctly
 // executed, it will return true. If something happens this function will panic.
 func ExecuteProposal(pid ProposalID) bool {
-	execute, err := dao.PreExecuteProposal(context(), pid)
+	crossing()
+
+	execute, err := dao.PreExecuteProposal(pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -57,7 +65,9 @@ func ExecuteProposal(pid ProposalID) bool {
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
-	author, err := dao.PreCreateProposal(context(), r)
+	crossing()
+
+	author, err := dao.PreCreateProposal(r)
 	if err != nil {
 		return -1, err
 	}
@@ -71,12 +81,14 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-	dao.PostCreateProposal(context(), r, pid)
+	dao.PostCreateProposal(r, pid)
 
 	return pid, nil
 }
 
 func MustVoteOnProposal(r VoteRequest) {
+	crossing()
+
 	if err := VoteOnProposal(r); err != nil {
 		panic(err.Error())
 	}
@@ -86,11 +98,15 @@ func MustVoteOnProposal(r VoteRequest) {
 // If the voter cannot vote the specified proposal, this method will return an error
 // with the explanation of why.
 func VoteOnProposal(r VoteRequest) error {
-	return dao.VoteOnProposal(context(), r)
+	crossing()
+
+	return dao.VoteOnProposal(r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
 func MustVoteOnProposalSimple(pid int64, option string) {
+	crossing()
+
 	MustVoteOnProposal(VoteRequest{
 		Option:     VoteOption(option),
 		ProposalID: ProposalID(pid),
@@ -98,6 +114,8 @@ func MustVoteOnProposalSimple(pid int64, option string) {
 }
 
 func MustGetProposal(pid ProposalID) *Proposal {
+	crossing()
+
 	p, err := GetProposal(pid)
 	if err != nil {
 		panic(err.Error())
@@ -108,13 +126,15 @@ func MustGetProposal(pid ProposalID) *Proposal {
 
 // GetProposal gets created proposal by its ID
 func GetProposal(pid ProposalID) (*Proposal, error) {
-	if err := dao.PreGetProposal(context(), pid); err != nil {
+	crossing()
+
+	if err := dao.PreGetProposal(pid); err != nil {
 		return nil, err
 	}
 
 	prop := proposals.GetProposal(pid)
 
-	if err := dao.PostGetProposal(context(), pid, prop); err != nil {
+	if err := dao.PostGetProposal(pid, prop); err != nil {
 		return nil, err
 	}
 
@@ -129,10 +149,12 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(r UpdateRequest) {
-	realm := std.PreviousRealm().PkgPath()
+	crossing()
 
-	if !InAllowedDAOs(realm) {
-		panic("permission denied for prev realm: " + realm)
+	gRealm := std.PreviousRealm().PkgPath()
+
+	if !InAllowedDAOs(gRealm) {
+		panic("permission denied for prev realm: " + gRealm)
 	}
 
 	if r.AllowedDAOs != nil {
@@ -154,11 +176,4 @@ func InAllowedDAOs(pkg string) bool {
 		}
 	}
 	return false
-}
-
-func context() *Context {
-	return &Context{
-		PrevRealm:    std.PreviousRealm(),
-		CurrentRealm: std.CurrentRealm(),
-	}
 }
