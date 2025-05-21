@@ -45,7 +45,7 @@ type MemPackageGetter interface {
 // mpkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, pmode ParseMode) (
 	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
 ) {
 	var gimp *gnoImporter
@@ -62,8 +62,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 	}
 	gimp.cfg.Importer = gimp
 
-	pmode := ParseModeAll // type check all .gno files
-	strict := true        // check gno.mod exists
+	strict := true // check gno.mod exists
 	pkg, gofset, gofs, _gofs, tgofs, errs = gimp.typeCheckMemPackage(mpkg, pmode, strict)
 	return
 }

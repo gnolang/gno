@@ -281,7 +281,7 @@ func lintTypeCheck(
 
 	// gno.TypeCheckMemPackage(mpkg, testStore)
 	var tcErrs error
-	gopkg, gofset, gofs, _gofs, tgofs, tcErrs = gno.TypeCheckMemPackage(mpkg, testStore)
+	gopkg, gofset, gofs, _gofs, tgofs, tcErrs = gno.TypeCheckMemPackage(mpkg, testStore, gno.ParseModeAll)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)
