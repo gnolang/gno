@@ -140,16 +140,17 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
-		alloc.Allocate(size)
 
-		// Stop if alloc max exceeded.
+		// Stop if alloc max exceeded during GC.
 		// NOTE: Unlikely to occur, but keep it here for
 		// now to handle potential edge cases.
 		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
-		if maxBytes < curBytes {
+		if maxBytes < curBytes+size {
 			return true
 		}
+
+		alloc.Allocate(size)
 
 		// Invoke the traverser on v.
 		stop := v.VisitAssociated(vis)
