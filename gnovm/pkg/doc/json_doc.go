@@ -8,8 +8,8 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // JSONDocumentation holds package documentation suitable for transmitting
@@ -60,7 +60,7 @@ type JSONType struct {
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable
-func NewDocumentableFromMemPkg(memPkg *gnovm.MemPackage, unexported bool, symbol, accessible string) (*Documentable, error) {
+func NewDocumentableFromMemPkg(memPkg *std.MemPackage, unexported bool, symbol, accessible string) (*Documentable, error) {
 	pd, err := newPkgDataFromMemPkg(memPkg, unexported)
 	if err != nil {
 		return nil, err

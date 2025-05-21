@@ -13,6 +13,17 @@ import (
 	mdhtml "github.com/yuin/goldmark/renderer/html"
 )
 
+var DefaultAliases = map[string]AliasTarget{
+	"/":           {"/r/gnoland/home", GnowebPath},
+	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
+	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
+	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
+	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
+	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
+	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
+	"/events":     {"/r/gnoland/events", GnowebPath},
+}
+
 // AppConfig contains configuration for the gnoweb.
 type AppConfig struct {
 	// UnsafeHTML, if enabled, allows to use HTML in the markdown.
@@ -33,6 +44,8 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+	// Aliases is a map of aliases pointing to another path or a static file.
+	Aliases map[string]AliasTarget
 }
 
 // NewDefaultAppConfig returns a new default [AppConfig]. The default sets
@@ -46,6 +59,7 @@ func NewDefaultAppConfig() *AppConfig {
 		ChainID:    "dev",
 		AssetsPath: "/public/",
 		Domain:     "gno.land",
+		Aliases:    DefaultAliases,
 	}
 }
 
@@ -60,11 +74,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Setup web client HTML
 	webcfg := NewDefaultHTMLWebClientConfig(client)
 	webcfg.Domain = cfg.Domain
-	if cfg.UnsafeHTML {
-		webcfg.GoldmarkOptions = append(webcfg.GoldmarkOptions, goldmark.WithRendererOptions(
-			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
-		))
-	}
 	webcli := NewHTMLClient(logger, webcfg)
 
 	// Setup StaticMetadata
@@ -78,9 +87,25 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Analytics:  cfg.Analytics,
 	}
 
+	// Configure Markdown renderer
+	markdownCfg := NewDefaultMarkdownRendererConfig(webcfg.ChromaHTMLOptions)
+	if cfg.UnsafeHTML {
+		markdownCfg.GoldmarkOptions = append(markdownCfg.GoldmarkOptions, goldmark.WithRendererOptions(
+			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
+		))
+	}
+	markdownRenderer := NewMarkdownRenderer(logger, markdownCfg)
+
 	// Configure WebHandler
-	webConfig := WebHandlerConfig{WebClient: webcli, Meta: staticMeta}
-	webhandler, err := NewWebHandler(logger, webConfig)
+	if cfg.Aliases == nil {
+		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
+	}
+	webhandler, err := NewWebHandler(logger, &WebHandlerConfig{
+		WebClient:        webcli,
+		Meta:             staticMeta,
+		MarkdownRenderer: markdownRenderer,
+		Aliases:          cfg.Aliases,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)
 	}
@@ -88,8 +113,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Setup HTTP muxer
 	mux := http.NewServeMux()
 
-	// Handle web handler with alias middleware
-	mux.Handle("/", AliasAndRedirectMiddleware(webhandler, cfg.Analytics))
+	// Handle web handler with redirect middleware
+	mux.Handle("/", RedirectMiddleware(webhandler, cfg.Analytics))
 
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {
