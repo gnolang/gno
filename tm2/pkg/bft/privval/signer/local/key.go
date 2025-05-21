@@ -26,7 +26,6 @@ var (
 	errInvalidPrivateKey = errors.New("invalid private key")
 	errPublicKeyMismatch = errors.New("public key does not match private key derivation")
 	errAddressMismatch   = errors.New("address does not match public key")
-	errFilePathNotSet    = errors.New("filePath not set")
 )
 
 // validate validates the FileKey.

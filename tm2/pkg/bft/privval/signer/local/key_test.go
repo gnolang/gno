@@ -49,14 +49,6 @@ func TestValidate(t *testing.T) {
 
 		assert.ErrorIs(t, fk.validate(), errAddressMismatch)
 	})
-
-	t.Run("empty filepath", func(t *testing.T) {
-		t.Parallel()
-
-		fk := GenerateFileKey()
-
-		assert.ErrorIs(t, fk.validate(), errFilePathNotSet)
-	})
 }
 
 func TestSave(t *testing.T) {
