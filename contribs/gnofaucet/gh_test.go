@@ -21,7 +21,7 @@ func TestGitHubUsernameMiddleware(t *testing.T) {
 		secret   = "secret"
 	)
 
-	tests := []struct {
+	testTable := []struct {
 		name             string
 		query            string
 		exchangeFn       ghExchangeFn
@@ -59,7 +59,7 @@ func TestGitHubUsernameMiddleware(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range tests {
+	for _, testCase := range testTable {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -110,7 +110,7 @@ func (m *mockCooldownLimiter) checkCooldown(ctx context.Context, key string, amo
 func TestGitHubClaimMiddleware(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	testTable := []struct {
 		ctx             context.Context
 		name            string
 		limiter         cooldownLimiter
@@ -210,12 +210,12 @@ func TestGitHubClaimMiddleware(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			var (
-				mw     = gitHubClaimMiddleware(tt.limiter)
+				mw     = gitHubClaimMiddleware(testCase.limiter)
 				called = false
 				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 					called = true
@@ -225,11 +225,11 @@ func TestGitHubClaimMiddleware(t *testing.T) {
 			)
 
 			handler := mw(next)
-			resp := handler(tt.ctx, tt.req)
+			resp := handler(testCase.ctx, testCase.req)
 
-			assert.Equal(t, tt.nextShouldRun, called)
+			assert.Equal(t, testCase.nextShouldRun, called)
 
-			if tt.nextShouldRun {
+			if testCase.nextShouldRun {
 				assert.Nil(t, resp.Error)
 
 				assert.Equal(t, "ok", resp.Result.(string))
@@ -238,8 +238,8 @@ func TestGitHubClaimMiddleware(t *testing.T) {
 			}
 
 			assert.NotNil(t, resp.Error)
-			assert.Contains(t, resp.Error.Message, tt.expectedError)
-			assert.Equal(t, resp.Error.Code, tt.expectedErrCode)
+			assert.Contains(t, resp.Error.Message, testCase.expectedError)
+			assert.Equal(t, resp.Error.Code, testCase.expectedErrCode)
 		})
 	}
 }
