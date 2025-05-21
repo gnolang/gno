@@ -2,7 +2,7 @@ package commondao
 
 // TODO: List default DAO options somewhere to make devs aware of them
 var defaultOptions = Options{
-	AllowListing:   true,
+	AllowRender:    true,
 	AllowChildren:  true,
 	AllowVoting:    true,
 	AllowExecution: true,
@@ -12,8 +12,8 @@ var defaultOptions = Options{
 // These options are only valid for the CommonDAO ream, dApps that
 // own a DAO can implement these features by themselves.
 type Options struct {
-	// AllowListing enables support for rendering the DAO within the CommonDAO realm.
-	AllowListing bool
+	// AllowRender enables support for rendering the DAO within the CommonDAO realm.
+	AllowRender bool
 
 	// AllowChildren enables hierarchical DAOs by allowing the creation of SubDAOs.
 	AllowChildren bool
@@ -25,8 +25,8 @@ type Options struct {
 	AllowExecution bool
 }
 
-func (o *Options) SetAllowListing(allow bool) {
-	o.AllowListing = allow
+func (o *Options) SetAllowRender(allow bool) {
+	o.AllowRender = allow
 }
 
 func (o *Options) SetAllowChildren(allow bool) {

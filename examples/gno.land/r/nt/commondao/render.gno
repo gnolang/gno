@@ -176,6 +176,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	// Render options
 	res.Write("## Options\n")
 	res.Write("| Option | Value |\n| --- | --- |\n")
+	res.Write(ufmt.Sprintf("| Allow Render | %s |\n", strconv.FormatBool(o.AllowRender)))
 	res.Write(ufmt.Sprintf("| Allow SubDAOs | %s |\n", strconv.FormatBool(o.AllowChildren)))
 	res.Write(ufmt.Sprintf("| Enable Voting | %s |\n", strconv.FormatBool(o.AllowVoting)))
 	res.Write(ufmt.Sprintf("| Enable Proposal Execution | %s |\n", strconv.FormatBool(o.AllowExecution)))
@@ -451,7 +452,7 @@ func mustGetDAOFromRequest(req *mux.Request) *commondao.CommonDAO {
 	}
 
 	o := getOptions(daoID)
-	if o == nil || !o.AllowListing {
+	if o == nil || !o.AllowRender {
 		panic("Forbidden")
 	}
 
