@@ -147,6 +147,7 @@ const (
 	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
+	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM" // gno fix this version.
 )
 
 // Embedded in each Node.

@@ -34,6 +34,9 @@ type StoreOptions struct {
 	// When transpiling code in examples/ we use the test store. gno fix may need
 	// gno.mod to not be auto-generated when importing from the test store.
 	DoNotGenerateGnoMod bool
+
+	// XXX
+	FixFrom string
 }
 
 // NOTE: this isn't safe, should only be used for testing.
