@@ -259,7 +259,7 @@ func FindXformsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 					case nil:
 						return n, TRANS_CONTINUE
 					case TypeValue:
-						panic("wtf")
+						return n, TRANS_CONTINUE
 					case *FuncValue:
 						if cv.IsCrossing() {
 							// Not cross-called, so add `cur` as first argument.
@@ -334,15 +334,18 @@ func addXform2IfMatched(
 //
 // Args:
 //   - dir: where to write to.
+//   - pn: package node of fnames
+//   - fnames: file names (subset of mpkg) to transpile.
 //   - xforms1: result of FindGno0p9Xforms().
-func TranspileGno0p9(mpkg *std.MemPackage, dir string, xforms1 map[string]struct{}) error {
+func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames []Name, xforms1 map[string]struct{}) error {
 	// Return if gno.mod is current.
 	var mod *gnomod.File
 	var err error
 	mod, err = ParseCheckGnoMod(mpkg)
 	if err == nil {
-		if mod.Gno.Version != "0.0" {
-			return fmt.Errorf("cannot transpile to gno 0.9: not gno 0.0")
+		if mod.GetGno() != GnoVerMissing {
+			return fmt.Errorf("cannot transpile to gno 0.9: expected gno 0.0 but got %s",
+				mod.GetGno())
 		}
 	}
 
@@ -350,11 +353,11 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xforms1 map[string]struct
 	gofset := token.NewFileSet()
 	var errs error
 	var xall int = 0 // number translated from part 1
-	for _, mfile := range mpkg.Files {
-		// Ignore non-gno files.
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue
+	for _, fname := range fnames {
+		if !strings.HasSuffix(string(fname), ".gno") {
+			panic(fmt.Sprintf("expected a .gno file but got %q", fname))
 		}
+		mfile := mpkg.GetFile(string(fname))
 		// Go parse file.
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
@@ -397,13 +400,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, xforms1 map[string]struct
 		panic("some xform items were not translated")
 	}
 
-	// Write version to mod and to memfile named "gno.mod".
-	mod.SetGno(GnoVersion)
-	mpkg.SetFile("gno.mod", mod.WriteString())
-
-	// Write mempackage to dir.
-	err = mpkg.WriteTo(dir)
-	return err
+	return nil
 }
 
 // Transpile Step 1: re-key xforms1 by ast.Node.

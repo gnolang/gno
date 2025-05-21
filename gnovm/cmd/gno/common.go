@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/scanner"
 	"go/types"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
@@ -45,14 +47,14 @@ func (i gnoIssue) String() string {
 // Gno parses and sorts mpkg files into the following filesets:
 //   - fset: all normal and _test.go files in package excluding `package xxx_test`
 //     integration *_test.gno files.
-//   - _tests: `package xxx_test` integration *_test.gno files, each in their
-//     own file set.
+//   - _tests: `package xxx_test` integration *_test.gno files.
 //   - ftests: *_filetest.gno file tests, each in their own file set.
 func sourceAndTestFileset(mpkg *std.MemPackage) (
-	all, fset *gno.FileSet, _tests, ftests []*gno.FileSet,
+	all, fset *gno.FileSet, _tests *gno.FileSet, ftests []*gno.FileSet,
 ) {
 	all = &gno.FileSet{}
 	fset = &gno.FileSet{}
+	_tests = &gno.FileSet{}
 	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // Skip non-GNO files
@@ -65,14 +67,12 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 		all.AddFiles(n)
 		if string(n.PkgName) == string(mpkg.Name)+"_test" {
 			// A xxx_file integration test is a package of its own.
-			fset := &gno.FileSet{}
-			fset.AddFiles(n)
-			_tests = append(_tests, fset)
+			_tests.AddFiles(n)
 		} else if strings.HasSuffix(mfile.Name, "_filetest.gno") {
 			// A _filetest.gno is a package of its own.
-			fset := &gno.FileSet{}
-			fset.AddFiles(n)
-			ftests = append(ftests, fset)
+			ftset := &gno.FileSet{}
+			ftset.AddFiles(n)
+			ftests = append(ftests, ftset)
 		} else {
 			// All normal package files and,
 			// _test.gno files that aren't xxx_test.
@@ -80,6 +80,69 @@ func sourceAndTestFileset(mpkg *std.MemPackage) (
 		}
 	}
 	return
+}
+
+func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
+	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
+	if err != nil {
+		return "", fmt.Errorf("error parsing directives: %w", err)
+	}
+	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
+}
+
+type processedFileSet struct {
+	pn   *gno.PackageNode
+	fset *gno.FileSet
+}
+
+type processedPackage struct {
+	dir    string             // dirctory
+	mpkg   *std.MemPackage    // includes all files
+	normal processedFileSet   // includes all prod (and some *_test.gno) files
+	_tests processedFileSet   // includes all xxx_test *_test.gno integration files
+	ftests []processedFileSet // includes all *_filetest.gno filetest files
+}
+
+func (ppkg *processedPackage) AddNormal(pn *gno.PackageNode, fset *gno.FileSet) {
+	if ppkg.normal != (processedFileSet{}) {
+		panic("normal processed fileset already set")
+	}
+	ppkg.normal = processedFileSet{pn, fset}
+}
+
+func (ppkg *processedPackage) AddUnderscoreTests(pn *gno.PackageNode, fset *gno.FileSet) {
+	if ppkg._tests != (processedFileSet{}) {
+		panic("_test processed fileset already set")
+	}
+	ppkg._tests = processedFileSet{pn, fset}
+}
+
+func (ppkg *processedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet) {
+	if len(fset.Files) != 1 {
+		panic("filetests must have filesets of length 1")
+	}
+	fname := fset.Files[0].Name
+	if !strings.HasSuffix(string(fname), "_filetest.gno") {
+		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
+	}
+	for _, ftest := range ppkg.ftests {
+		if ftest.fset.Files[0].Name == fname {
+			panic(fmt.Sprintf("fileetest with name %q already exists", fname))
+		}
+	}
+	ppkg.ftests = append(ppkg.ftests, processedFileSet{pn, fset})
+}
+
+func (ppkg *processedPackage) GetFileTest(fname gno.Name) processedFileSet {
+	if !strings.HasSuffix(string(fname), "_filetest.gno") {
+		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
+	}
+	for _, ftest := range ppkg.ftests {
+		if ftest.fset.Files[0].Name == fname {
+			return ftest
+		}
+	}
+	panic(fmt.Sprintf("processedFileSet for filetest %q not found", fname))
 }
 
 // reParseRecover is a regex designed to parse error details from a string.

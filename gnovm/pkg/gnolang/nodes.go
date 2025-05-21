@@ -1156,6 +1156,13 @@ type FileSet struct {
 	Files []*FileNode
 }
 
+func (fset FileSet) GetFileNames() (fnames []Name) {
+	for _, fnode := range fset.Files {
+		fnames = append(fnames, fnode.Name)
+	}
+	return
+}
+
 // PackageNameFromFileBody extracts the package name from the given Gno code body.
 // The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
 func PackageNameFromFileBody(name, body string) (Name, error) {
@@ -1244,13 +1251,18 @@ func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 // No parsing or validation is done on the filenames.
 //
 // NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
-// lowercase, and must start with a letter).
+// lowercase, and must start with a letter, and be the same for normal files
+// and normal *_test.gno files, and xxx_test for integration tests). Filetest
+// package names are not checked. If the only file present is a single filetest,
+// its package name is used.
 //
 // XXX TODO pkgPath should instead be derived by inspecting the contents, among them
 // the gno.mod file.
 func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
 	mpkg := &std.MemPackage{Path: pkgPath}
-	var pkgName Name
+	var pkgName Name            // normal file pkg name
+	var pkgNameFT Name          // filetest pkg name
+	var pkgNameFTDifferent bool // if pkgNameFT are different
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
 		bz, err := os.ReadFile(fpath)
@@ -1258,13 +1270,31 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 			return nil, err
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
-		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
+		if strings.HasSuffix(fname, ".gno") {
+			var pkgName2 Name
+			pkgName2, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
 			if err != nil {
 				return nil, err
 			}
-			if strings.HasSuffix(string(pkgName), "_test") {
-				pkgName = pkgName[:len(pkgName)-len("_test")]
+			if strings.HasSuffix(fname, "_filetest.gno") {
+				// Filetests may have arbitrary package names.
+				// pkgName2 (of this file) may be unrelated to pkgName of the mem package.
+				if pkgNameFT == "" && !pkgNameFTDifferent {
+					pkgNameFT = pkgName2
+				} else if pkgNameFT != pkgName2 {
+					pkgNameFT = ""
+					pkgNameFTDifferent = true
+				}
+			} else {
+				// Ensure that package names are the same.
+				if strings.HasSuffix(string(pkgName2), "_test") {
+					pkgName2 = pkgName2[:len(pkgName2)-len("_test")]
+				}
+				if pkgName == "" {
+					pkgName = pkgName2
+				} else if pkgName != pkgName2 {
+					return nil, fmt.Errorf("expected package name %q but got %q", pkgName, pkgName2)
+				}
 			}
 		}
 		mpkg.Files = append(mpkg.Files,
@@ -1272,6 +1302,15 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 				Name: fname,
 				Body: string(bz),
 			})
+	}
+
+	// If the only file present is a single filetest, its package name is used.
+	if pkgName == "" && !pkgNameFTDifferent {
+		pkgName = pkgNameFT
+	}
+	// Still no pkgName... use a sensible default.
+	if pkgName == "" {
+		pkgName = "main"
 	}
 
 	mpkg.Name = string(pkgName)

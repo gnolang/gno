@@ -24,6 +24,7 @@ gno {{.GnoVersion}}`
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
 func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }
 func GenGnoModDefault(pkgPath string) string { return genGnoMod(pkgPath, GnoVerDefault) }
+func GenGnoModMissing(pkgPath string) string { return genGnoMod(pkgPath, GnoVerMissing) }
 
 func genGnoMod(pkgPath string, gnoVersion string) string {
 	buf := new(bytes.Buffer)
@@ -66,7 +67,7 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 	} else if mod.Gno == nil {
 		// gno.mod was never specified; set missing.
 		mod.SetGno(GnoVerMissing)
-	} else if mod.Gno.Version == GnoVersion {
+	} else if mod.Gno.Version == GnoVerLatest {
 		// current version, nothing to do.
 	} else {
 		panic("unsupported gno version " + mod.Gno.Version)

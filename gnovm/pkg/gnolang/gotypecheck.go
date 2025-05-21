@@ -197,7 +197,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		file.Body,
 		parseOpts)
 	if err != nil {
-		panic("error parsing gotypecheck .gnobuiltins.gno file")
+		panic(fmt.Errorf("error parsing gotypecheck .gnobuiltins.gno file: %w", err))
 	}
 
 	// NOTE: When returning errs from this function,
@@ -225,7 +225,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		defer func() { gmgof.Name = ast.NewIdent(mpkg.Name) }() // revert
 	}
 	_gofs2 := append(_gofs, gmgof)
-	_, _ = gimp.cfg.Check(mpkg.Path, gofset, _gofs2, nil)
+	_, _ = gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
 	/* NOTE: Uncomment to fail earlier.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors...)
@@ -242,11 +242,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
 		tpname := tgof.Name.String()
 		tfile := mpkg.GetFile(tfname)
-		tmpkg := &std.MemPackage{Name: tpname, Path: mpkg.Path}
+		// XXX If filetest are having issues, consider this:
+		// pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
+		pkgPath := mpkg.Path
+		tmpkg := &std.MemPackage{Name: tpname, Path: pkgPath}
 		tmpkg.NewFile(tfname, tfile.Body)
 		bfile := makeGnoBuiltins(tpname)
 		tmpkg.AddFile(bfile)
-		tgofset, tgofs, _, ttgofs, _ := GoParseMemPackage(tmpkg, ParseModeAll)
+		gofset2, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
 		if len(gimp.errors) != numErrs {
 			/* NOTE: Uncomment to fail earlier.
 			errs = multierr.Combine(gimp.errors...)
@@ -254,9 +257,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 			*/
 			continue
 		}
-		ttgofs2 := append(ttgofs, tgofs...)
+		gofs2 = append(gofs2, tgofs2...)
 
-		_, _ = gimp.cfg.Check(tmpkg.Path, tgofset, ttgofs2, nil)
+		_, _ = gimp.cfg.Check(tmpkg.Path, gofset2, gofs2, nil)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors...)
