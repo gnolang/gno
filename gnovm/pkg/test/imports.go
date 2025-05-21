@@ -76,7 +76,7 @@ func StoreWithOptions(
 			if err != nil {
 				panic(fmt.Errorf("test store parsing gno.mod: %w", err))
 			}
-			if mod.GetGno() == "0.0" {
+			if mod.GetGno() == gno.GnoVerMissing {
 				// In order to translate into a newer Gno version with
 				// the preprocessor make a slight modifications to the
 				// AST. This needs to happen even for imports, because

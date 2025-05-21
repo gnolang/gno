@@ -470,6 +470,9 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		}
 	}
 	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	if fixFrom != "" {
+		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
+	}
 	pv := pn.NewPackage()
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
