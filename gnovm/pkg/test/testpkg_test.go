@@ -12,52 +12,105 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-func TestBasic(t *testing.T) {
+type pkgTestCase struct {
+	name                string
+	pkgPath             string   // relative to repo root
+	runFlag             string   // optional
+	verbose             bool
+	stderrShouldContain []string
+	stdoutShouldContain []string
+	errShouldBe         string
+}
+
+func TestPkgTestCases(t *testing.T) {
 	rootDir := gnoenv.RootDir()
-	mockOut := bytes.NewBufferString("")
-	mockErr := bytes.NewBufferString("")
 
-	io := commands.NewTestIO()
-	io.SetOut(commands.WriteNopCloser(mockOut))
-	io.SetErr(commands.WriteNopCloser(mockErr))
-	opts := test.NewTestOptions(rootDir, io.Out(), io.Err())
-	opts.Verbose = true
-	if rootDir != opts.RootDir {
-		t.Errorf("rootDir was %#v, (expected %#v)", opts.RootDir, rootDir)
+	cases := []pkgTestCase{
+		{
+			name:                "unit tests with one pass and one fail",
+			pkgPath:             "../../tests/integ/test/basic",
+			verbose:             true,
+			stderrShouldContain: []string{"PASS: TestBasic/greater_than_one", "FAIL: TestBasic/less_than_one"},
+			errShouldBe:         `failed: "TestBasic"`,
+		},
+		{
+			name:                "filtered unit tests using -run",
+			pkgPath:             "../../tests/integ/test/basic",
+			runFlag:             "TestBasic/greater.*",
+			verbose:             true,
+			stderrShouldContain: []string{"PASS: TestBasic/greater_than_one"},
+			errShouldBe:         "",
+		},
+		{
+			name:                "filetests: one pass, one fail",
+			pkgPath:             "../../tests/integ/test/basic_ft",
+			verbose:             true,
+			stderrShouldContain: []string{
+				"--- PASS: ../../tests/integ/test/basic_ft/pass_filetest.gno",
+				"--- FAIL: ../../tests/integ/test/basic_ft/fail_filetest.gno",
+			},
+			stdoutShouldContain: []string{"Goodbye from filetest"},
+			errShouldBe:         "../../tests/integ/test/basic_ft/fail_filetest.gno failed",
+		},
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths([]string{"../../tests/integ/test/basic"})
-	if err != nil {
-		t.Errorf("list sub packages error: %#v", err.Error())
-		return
-	}
-	if len(subPkgs) != 1 {
-		t.Errorf("only expected one element: %#v", subPkgs)
-		return
-	}
-	if len(subPkgs[0].TestGnoFiles) == 0 && len(subPkgs[0].FiletestGnoFiles) == 0 {
-		t.Errorf("no test files found")
-		return
-	}
-	// Determine gnoPkgPath by reading gno.mod
-	modfile, _ := gnomod.ParseAt(subPkgs[0].Dir)
-	if modfile == nil {
-		t.Error("Unable to read package path from gno.mod or gno root directory")
-		return
-	}
-	gnoPkgPath := modfile.Module.Mod.Path
-	memPkg := gno.MustReadMemPackage(subPkgs[0].Dir, gnoPkgPath)
-	err = test.Test(memPkg, subPkgs[0].Dir, opts)
-	if err == nil {
-		t.Error("Expected non-nil error. Got nil!")
-	} else if err.Error() != "failed: \"TestBasic\"" {
-		t.Errorf("results in error: %#v", err.Error())
-	}
-	stdErrStr := string(mockErr.Bytes())
-	if !strings.Contains(stdErrStr, "PASS: TestBasic/greater_than_one") {
-		t.Errorf("Expected test TestBasic/greater_than_one to pass, got: %#v", stdErrStr)
-	}
-	if !strings.Contains(stdErrStr, "FAIL: TestBasic/less_than_one") {
-		t.Errorf("Expected test TestBasic/less_than_one to fail, got: %#v", stdErrStr)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockOut := new(bytes.Buffer)
+			mockErr := new(bytes.Buffer)
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOut))
+			io.SetErr(commands.WriteNopCloser(mockErr))
+
+			opts := test.NewTestOptions(rootDir, io.Out(), io.Err())
+			opts.Verbose = tc.verbose
+			opts.RunFlag = tc.runFlag
+
+			subPkgs, err := gnomod.SubPkgsFromPaths([]string{tc.pkgPath})
+			if err != nil {
+				t.Fatalf("list sub packages error: %v", err)
+			}
+			if len(subPkgs) == 0 {
+				t.Fatalf("expected at least one package, got 0")
+			}
+
+			for _, pkg := range subPkgs {
+				if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+					t.Fatalf("no test files found in %q", pkg.Dir)
+				}
+				modfile, _ := gnomod.ParseAt(pkg.Dir)
+				if modfile == nil {
+					t.Fatalf("unable to parse gno.mod at %q", pkg.Dir)
+				}
+				gnoPkgPath := modfile.Module.Mod.Path
+				memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
+
+				err := test.Test(memPkg, pkg.Dir, opts)
+
+				if tc.errShouldBe != "" {
+					if err == nil {
+						t.Errorf("expected error: %q, got nil", tc.errShouldBe)
+					} else if !strings.Contains(err.Error(), tc.errShouldBe) {
+						t.Errorf("error mismatch:\nwant substring: %q\ngot: %q", tc.errShouldBe, err.Error())
+					}
+				} else if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+
+				stdoutStr := mockOut.String()
+				stderrStr := mockErr.String()
+
+				for _, want := range tc.stdoutShouldContain {
+					if !strings.Contains(stdoutStr, want) {
+						t.Errorf("stdout missing expected substring:\nwant: %q\ngot: %q", want, stdoutStr)
+					}
+				}
+				for _, want := range tc.stderrShouldContain {
+					if !strings.Contains(stderrStr, want) {
+						t.Errorf("stderr missing expected substring:\nwant: %q\ngot: %q", want, stderrStr)
+					}
+				}
+			}
+		})
 	}
 }
