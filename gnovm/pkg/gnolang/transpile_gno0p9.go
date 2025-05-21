@@ -150,7 +150,6 @@ func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage
 }
 
 // Minimal AST mutation(s) for Gno 0.9.
-//   - Renames 'Realm' to 'Realm_' to avoid conflict with new builtin "Realm".
 func prepareGno0p9(f *ast.File) (err error) {
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		switch gon := c.Node().(type) {
@@ -159,17 +158,19 @@ func prepareGno0p9(f *ast.File) (err error) {
 			switch gon.Name {
 			case "realm":
 				gon.Name = "realm_XXX"
-			case "realm_gno0p9":
+			case "realm_gno0p9": // not used
 				gon.Name = "realm"
 			case "address":
 				gon.Name = "address_XXX"
-			case "address_gno0p9":
+			case "address_gno0p9": // not used
 				gon.Name = "address"
 			case "gnocoin":
 				gon.Name = "gnocoin_XXX"
-			case "gnocoin_gno0p9":
+			case "gnocoin_gno0p9": // not used
 				gon.Name = "gnocoin"
-			case "gnocoins_gno0p9":
+			case "gnocoins":
+				gon.Name = "gnocoins_XXX"
+			case "gnocoins_gno0p9": // not used
 				gon.Name = "gnocoins"
 			}
 		}
@@ -603,7 +604,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 	// Verify that all xforms2 items were consumed.
 	if len(xforms2) > 0 {
 		for gon, xform2 := range xforms2 {
-			fmt.Println("left over:", xform2, gon)
+			fmt.Println("xform2 left over:", xform2, gon)
 		}
 		panic("Xform items left over")
 	}

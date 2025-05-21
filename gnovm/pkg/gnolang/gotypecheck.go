@@ -21,10 +21,11 @@ import (
 	XXX move to pkg/gnolang/importer.go.
 */
 
-func makeGnoBuiltins(pkgName string) *std.MemFile {
-	file := &std.MemFile{
-		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
-		Body: fmt.Sprintf(`package %s
+func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
+	gnoBuiltins := ""
+	switch gnoVersion {
+	case GnoVerLatest: // 0.9
+		gnoBuiltins = `package %s
 
 func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
@@ -47,8 +48,20 @@ type gnocoins []gnocoin
 type gnocoin struct {
     Denom string
     Amount int64
-}
-`, pkgName)}
+}`
+	case GnoVerMissing: // 0.0
+		gnoBuiltins = `package %s
+
+func istypednil(x any) bool { return false } // shim
+func crossing() { } // shim
+func cross[F any](fn F) F { return fn } // shim
+func revive[F any](fn F) any { return nil } // shim`
+	default:
+		panic("unsupported gno.mod version " + gnoVersion)
+	}
+	file := &std.MemFile{
+		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
+		Body: fmt.Sprintf(gnoBuiltins, pkgName)}
 	return file
 }
 
@@ -62,7 +75,10 @@ type MemPackageGetter interface {
 // mpkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
+//
+// Args:
+//   - strict: ensure gno.mod exists and gno version is latest.
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, strict bool) (
 	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
 ) {
 	var gimp *gnoImporter
@@ -80,7 +96,6 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter) (
 	gimp.cfg.Importer = gimp
 
 	pmode := ParseModeAll // type check all .gno files
-	strict := true        // check gno.mod exists
 	pkg, gofset, gofs, _gofs, tgofs, errs = gimp.typeCheckMemPackage(mpkg, pmode, strict)
 	return
 }
@@ -184,10 +199,25 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 ) {
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
+	var gnoVersion string
+	mod, err := ParseCheckGnoMod(mpkg)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
 	if strict {
-		_, err := ParseCheckGnoMod(mpkg)
-		if err != nil {
-			return nil, nil, nil, nil, nil, err
+		if mod == nil {
+			panic("gno.mod not found")
+		}
+		if mod.GetGno() != GnoVerLatest {
+			panic(fmt.Sprintf("expected gno.mod gno version %v but got %v",
+				GnoVerLatest, mod.GetGno()))
+		}
+		gnoVersion = mod.GetGno()
+	} else {
+		if mod == nil {
+			gnoVersion = GnoVerLatest
+		} else {
+			gnoVersion = mod.GetGno()
 		}
 	}
 
@@ -204,7 +234,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	}
 
 	// STEP 3: Add and Parse .gnobuiltins.go file.
-	file := makeGnoBuiltins(mpkg.Name)
+	file := makeGnoBuiltins(mpkg.Name, gnoVersion)
 	const parseOpts = parser.ParseComments |
 		parser.DeclarationErrors |
 		parser.SkipObjectResolution
@@ -264,7 +294,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		pkgPath := mpkg.Path
 		tmpkg := &std.MemPackage{Name: tpname, Path: pkgPath}
 		tmpkg.NewFile(tfname, tfile.Body)
-		bfile := makeGnoBuiltins(tpname)
+		bfile := makeGnoBuiltins(tpname, gnoVersion)
 		tmpkg.AddFile(bfile)
 		gofset2, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
 		if len(gimp.errors) != numErrs {

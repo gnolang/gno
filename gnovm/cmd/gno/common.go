@@ -235,7 +235,7 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 }
 
 func catchPanic(dir, pkgPath string, stderr io.WriteCloser, action func()) (didPanic bool) {
-	// Uncomment for debugging.
+	// Comment for debugging.
 	defer func() {
 		// Errors catched here mostly come from:
 		// gnovm/pkg/gnolang/preprocess.go
