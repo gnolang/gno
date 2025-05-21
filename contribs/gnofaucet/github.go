@@ -98,7 +98,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 	}
 
 	// Create cooldown limiter
-	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, rdb, cfg.maxClaimableLimit)
+	cooldownLimiter := newRedisLimiter(cfg.cooldownPeriod, rdb, cfg.maxClaimableLimit)
 
 	// Start the IP throttler
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)

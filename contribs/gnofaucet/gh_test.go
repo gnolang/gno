@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gnolang/faucet"
+	"github.com/gnolang/faucet/spec"
 	"github.com/google/go-github/v64/github"
 	"github.com/stretchr/testify/assert"
 )
@@ -87,6 +89,157 @@ func TestGitHubUsernameMiddleware(t *testing.T) {
 
 			assert.Equal(t, testCase.nextShouldRun, called)
 			assert.Equal(t, testCase.expectedStatus, rr.Code)
+		})
+	}
+}
+
+type checkCooldownDelegate func(context.Context, string, int64) (bool, error)
+
+type mockCooldownLimiter struct {
+	checkCooldownFn checkCooldownDelegate
+}
+
+func (m *mockCooldownLimiter) checkCooldown(ctx context.Context, key string, amountClaimed int64) (bool, error) {
+	if m.checkCooldownFn != nil {
+		return m.checkCooldownFn(ctx, key, amountClaimed)
+	}
+
+	return false, nil
+}
+
+func TestGitHubClaimMiddleware(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		ctx             context.Context
+		name            string
+		limiter         cooldownLimiter
+		req             *spec.BaseJSONRequest
+		nextShouldRun   bool
+		expectedError   string
+		expectedErrCode int
+	}{
+		{
+			name: "no username in ctx",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, errors.New("error")
+				},
+			},
+			ctx:             context.Background(),
+			req:             spec.NewJSONRequest(1, faucet.DefaultDripMethod, []any{"foo", "1000ugnot"}),
+			nextShouldRun:   false,
+			expectedError:   "invalid username value",
+			expectedErrCode: spec.InvalidRequestErrorCode,
+		},
+		{
+			name: "invalid method",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(2, "random_method", []any{"foo", "1000ugnot"}),
+			nextShouldRun:   false,
+			expectedError:   "invalid method requested",
+			expectedErrCode: spec.InvalidRequestErrorCode,
+		},
+		{
+			name: "missing amount param",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(3, faucet.DefaultDripMethod, []any{"only_one"}),
+			nextShouldRun:   false,
+			expectedError:   "amount not provided",
+			expectedErrCode: spec.InvalidParamsErrorCode,
+		},
+		{
+			name: "invalid amount parse",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(4, faucet.DefaultDripMethod, []any{"foo", "notacoins"}),
+			nextShouldRun:   false,
+			expectedError:   "invalid amount",
+			expectedErrCode: spec.InvalidParamsErrorCode,
+		},
+		{
+			name: "cooldown check error",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, errors.New("cooldown error")
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(5, faucet.DefaultDripMethod, []any{"foo", "100atom"}),
+			nextShouldRun:   false,
+			expectedError:   "unable to check cooldown",
+			expectedErrCode: spec.ServerErrorCode,
+		},
+		{
+			name: "cooldown active",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(6, faucet.DefaultDripMethod, []any{"foo", "100atom"}),
+			nextShouldRun:   false,
+			expectedError:   "user is on cooldown",
+			expectedErrCode: spec.ServerErrorCode,
+		},
+		{
+			name: "no cooldown",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:           context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:           spec.NewJSONRequest(7, faucet.DefaultDripMethod, []any{"foo", "100atom"}),
+			nextShouldRun: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				mw     = gitHubClaimMiddleware(tt.limiter)
+				called = false
+				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+					called = true
+
+					return spec.NewJSONResponse(req.ID, "ok", nil)
+				}
+			)
+
+			handler := mw(next)
+			resp := handler(tt.ctx, tt.req)
+
+			assert.Equal(t, tt.nextShouldRun, called)
+
+			if tt.nextShouldRun {
+				assert.Nil(t, resp.Error)
+
+				assert.Equal(t, "ok", resp.Result.(string))
+
+				return
+			}
+
+			assert.NotNil(t, resp.Error)
+			assert.Contains(t, resp.Error.Message, tt.expectedError)
+			assert.Equal(t, resp.Error.Code, tt.expectedErrCode)
 		})
 	}
 }

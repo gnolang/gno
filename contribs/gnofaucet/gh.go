@@ -67,8 +67,12 @@ func gitHubUsernameMiddleware(clientID, secret string, exchangeFn ghExchangeFn) 
 	}
 }
 
+type cooldownLimiter interface {
+	checkCooldown(context.Context, string, int64) (bool, error)
+}
+
 // gitHubClaimMiddleware is the GitHub claim validation middleware, based on the provided username
-func gitHubClaimMiddleware(coolDownLimiter *CooldownLimiter) faucet.Middleware {
+func gitHubClaimMiddleware(coolDownLimiter cooldownLimiter) faucet.Middleware {
 	return func(next faucet.HandlerFunc) faucet.HandlerFunc {
 		return func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
 			// Grab the username from the context
@@ -109,7 +113,7 @@ func gitHubClaimMiddleware(coolDownLimiter *CooldownLimiter) faucet.Middleware {
 			}
 
 			// Just check if given account have asked for faucet before the cooldown period
-			allowedToClaim, err := coolDownLimiter.CheckCooldown(ctx, username, claimAmount.Amount)
+			allowedToClaim, err := coolDownLimiter.checkCooldown(ctx, username, claimAmount.Amount)
 			if err != nil {
 				return spec.NewJSONResponse(
 					req.ID,
