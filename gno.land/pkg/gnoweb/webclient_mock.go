@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"iter"
 	"sort"
 	"strings"
 
@@ -97,6 +98,50 @@ func (m *MockWebClient) Sources(path string) ([]string, error) {
 	sort.Strings(fileNames)
 
 	return fileNames, nil
+}
+
+func (m *MockWebClient) iterPath(filter func(s string) bool) iter.Seq[string] {
+	return func(yield func(v string) bool) {
+		for _, pkg := range m.Packages {
+			if filter(pkg.Path) {
+				continue
+			}
+
+			if !yield(pkg.Path) {
+				return
+			}
+		}
+	}
+}
+
+// Sources simulates listing all source files in a package.
+func (m *MockWebClient) QueryPaths(prefix string, limit int) ([]string, error) {
+	var shouldKeep func(s string) bool
+	if strings.HasPrefix(prefix, "@") {
+		name := prefix[1:]
+		shouldKeep = func(s string) bool {
+			return strings.HasPrefix(s, "/r/"+name) ||
+				strings.HasPrefix(s, "/p/"+name)
+		}
+	} else {
+		shouldKeep = func(s string) bool {
+			return strings.HasPrefix(s, prefix)
+		}
+	}
+
+	list := []string{}
+	m.iterPath(func(s string) bool {
+		if len(list) > limit {
+			return false
+		}
+
+		if shouldKeep(s) {
+			list = append(list, s)
+		}
+
+		return true
+	})
+	return list, nil
 }
 
 func pkgHasRender(pkg *MockPackage) bool {

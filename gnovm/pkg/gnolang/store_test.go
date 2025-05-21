@@ -1,7 +1,9 @@
 package gnolang
 
 import (
+	"fmt"
 	"io"
+	"path"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -9,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTransactionStore(t *testing.T) {
@@ -93,4 +96,89 @@ func TestCopyFromCachedStore(t *testing.T) {
 	assert.Equal(t, c1, d1, "cached baseStore and dest baseStore should match")
 	assert.Equal(t, c2, d2, "cached iavlStore and dest iavlStore should match")
 	assert.Equal(t, cachedStore.cacheTypes, destStore.cacheTypes, "cacheTypes should match")
+}
+
+func TestFindByPrefix(t *testing.T) {
+	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
+	pkgs := []string{
+		"fruits.org/abricot",
+		"fruits.org/abricot/fraise",
+		"fruits.org/fraise",
+	}
+
+	cases := []struct {
+		Prefix   string
+		Limit    int
+		Expected []string
+	}{
+		{"", 100, append(stdlibs, pkgs...)}, // no prefix == everything
+		{"fruits.org", 100, pkgs},
+		{"fruits.org/abricot", 100, []string{
+			"fruits.org/abricot", "fruits.org/abricot/fraise",
+		}},
+		{"fruits.org/abricot/", 100, []string{
+			"fruits.org/abricot/fraise",
+		}},
+		{"fruits", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
+		{"_", 100, stdlibs},
+		{"_/a", 100, []string{"abricot"}},
+		// special case
+		{string([]byte{255}), 100, []string{}}, // using 255 as prefix, should not panic
+		{string([]byte{0}), 100, []string{}},   // using 0 as prefix, should not panic
+		// testing iter seq
+		{"_", 0, []string{}},
+		{"_", 2, stdlibs[:2]},
+	}
+
+	// Create cached store, with a type and a mempackage.
+	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+	store := NewStore(nil, d1s, d2s)
+
+	// Add stdlibs
+	for _, lib := range stdlibs {
+		store.AddMemPackage(&std.MemPackage{
+			Name: lib,
+			Path: lib,
+			Files: []*std.MemFile{
+				{Name: lib + ".gno", Body: "package " + lib},
+			},
+		})
+	}
+
+	// Add pkgs
+	for _, pkg := range pkgs {
+		name := path.Base(pkg)
+		store.AddMemPackage(&std.MemPackage{
+			Name: name,
+			Path: pkg,
+			Files: []*std.MemFile{
+				{Name: name + ".gno", Body: "package " + name},
+			},
+		})
+	}
+
+	for _, tc := range cases {
+		name := fmt.Sprintf("%s:limit(%d)", tc.Prefix, tc.Limit)
+		t.Run(name, func(t *testing.T) {
+			t.Logf("lookup prefix: %q, limit: %d", tc.Prefix, tc.Limit)
+
+			paths := []string{}
+
+			var count int
+			yield := func(path string) bool {
+				if count >= tc.Limit {
+					return false
+				}
+
+				paths = append(paths, path)
+				count++
+				return true // continue
+			}
+
+			store.FindPathsByPrefix(tc.Prefix)(yield) // find stdlibs
+			require.Equal(t, tc.Expected, paths)
+		})
+	}
 }

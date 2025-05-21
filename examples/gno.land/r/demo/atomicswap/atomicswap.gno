@@ -71,8 +71,7 @@ func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey strin
 	crossing()
 
 	timelock := time.Now().Add(defaultTimelockDuration)
-	tokenGetter := grc20reg.MustGet(tokenRegistryKey)
-	token := tokenGetter()
+	token := grc20reg.MustGet(tokenRegistryKey)
 	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
 }
 
