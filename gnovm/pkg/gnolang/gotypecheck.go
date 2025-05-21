@@ -257,8 +257,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 			*/
 			continue
 		}
+		// gofs2 (.gnobuiltins.gno), tgofs2 (*_testfile.gno)
 		gofs2 = append(gofs2, tgofs2...)
-
 		_, _ = gimp.cfg.Check(tmpkg.Path, gofset2, gofs2, nil)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {

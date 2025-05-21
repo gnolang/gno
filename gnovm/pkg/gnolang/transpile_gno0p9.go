@@ -100,7 +100,8 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") {
 			tgofs = append(tgofs, gof)
-		} else if strings.HasSuffix(gof.Name.String(), "_test") {
+		} else if strings.HasSuffix(file.Name, "_test.gno") &&
+			strings.HasSuffix(gof.Name.String(), "_test") {
 			if pmode == ParseModeIntegration {
 				// never wanted these gofs.
 				// (we do want other *_test.gno in gofs)
@@ -323,6 +324,9 @@ func addXform2IfMatched(
 			panic("oops, need to refactor xforms2 to allow multiple xforms per node?")
 		}
 		xforms2[gon] = xform1
+	} else {
+		// for debugging:
+		// fmt.Println("not found", xform1)
 	}
 }
 
@@ -338,6 +342,10 @@ func addXform2IfMatched(
 //   - fnames: file names (subset of mpkg) to transpile.
 //   - xforms1: result of FindGno0p9Xforms().
 func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames []Name, xforms1 map[string]struct{}) error {
+	// NOTE: The pkgPath may be different than mpkg.Path
+	// e.g. for filetests or xxx_test tests.
+	pkgPath := pn.PkgPath
+
 	// Return if gno.mod is current.
 	var mod *gnomod.File
 	var err error
@@ -350,7 +358,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	}
 
 	// Go parse and collect files from mpkg.
-	gofset := token.NewFileSet()
+	var gofset = token.NewFileSet()
 	var errs error
 	var xall int = 0 // number translated from part 1
 	for _, fname := range fnames {
@@ -372,14 +380,14 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 			continue
 		}
 		// Transpile Part 1: re-key xforms1 by ast.Node.
-		xnum, xforms2, err := transpileGno0p9_part1(mpkg.Path, gofset, mfile.Name, gof, xforms1)
+		xnum, xforms2, err := transpileGno0p9_part1(pkgPath, gofset, mfile.Name, gof, xforms1)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
 		xall += xnum
 		// Transpile Part 2: main Go AST transform for Gno 0.9.
-		if err := transpileGno0p9_part2(mpkg.Path, gofset, mfile.Name, gof, xforms2); err != nil {
+		if err := transpileGno0p9_part2(pkgPath, gofset, mfile.Name, gof, xforms2); err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
@@ -413,10 +421,6 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 //   - xfound: number of items matched for file with name `fname` (for integrity)
 func transpileGno0p9_part1(pkgPath string, gofs *token.FileSet, fname string, gof *ast.File, xforms1 map[string]struct{}) (xfound int, xforms2 map[ast.Node]string, err error) {
 	xforms2 = make(map[ast.Node]string, len(xforms1))
-
-	if len(xforms1) == 0 {
-		return 0, nil, nil // nothing to translate.
-	}
 
 	astutil.Apply(gof, func(c *astutil.Cursor) bool {
 		// Main switch on c.Node() type.
@@ -469,7 +473,10 @@ XFORMS1_LOOP:
 				continue XFORMS1_LOOP
 			}
 		}
-		fmt.Println("xform2 item not found for xform1:", xform1)
+		fmt.Println("xform2 item not found for xform1:", xform1, len(xforms2))
+		for _, xform2 := range xforms2 {
+			fmt.Println("xform2:", xform2)
+		}
 		mismatch = true
 	}
 	if mismatch {
