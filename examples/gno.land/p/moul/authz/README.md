@@ -23,5 +23,11 @@ func Has(handle string, addr std.Address)
 
 type Membership struct {} // optional
 
+// r/boards2
+
+dao := commondao.New()
+membersWithRoles := authz.WrapExistingAddrset(dao)
+// membersWithRoles.AssignRole..
+
 
 ```
