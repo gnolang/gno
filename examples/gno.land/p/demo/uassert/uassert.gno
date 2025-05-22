@@ -575,24 +575,3 @@ func NotNil(t TestingT, value any, msgs ...string) bool {
 	}
 	return true
 }
-
-// TypedNil asserts that the value is a typed-nil (nil pointer) value.
-func TypedNil(t TestingT, value any, msgs ...string) bool {
-	t.Helper()
-	if value == nil {
-		return fail(t, msgs, "should be typed-nil but got nil instead")
-	}
-	if !istypednil(value) {
-		return fail(t, msgs, "should be typed-nil")
-	}
-	return true
-}
-
-// NotTypedNil asserts that the value is not a typed-nil (nil pointer) value.
-func NotTypedNil(t TestingT, value any, msgs ...string) bool {
-	t.Helper()
-	if istypednil(value) {
-		return fail(t, msgs, "should not be typed-nil")
-	}
-	return true
-}

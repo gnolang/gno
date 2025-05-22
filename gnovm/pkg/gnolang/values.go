@@ -961,16 +961,6 @@ func (tv *TypedValue) IsUndefined() bool {
 	return tv.T == nil
 }
 
-func (tv *TypedValue) IsTypedNil() bool {
-	if tv.V != nil {
-		return false
-	}
-	if tv.T != nil && tv.T.Kind() == PointerKind {
-		return true
-	}
-	return false
-}
-
 // (this is used mostly by the preprocessor)
 func (tv *TypedValue) IsNilInterface() bool {
 	if tv.T != nil && tv.T.Kind() == InterfaceKind {
@@ -2572,12 +2562,6 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 func typedInt(i int) TypedValue {
 	tv := TypedValue{T: IntType}
 	tv.SetInt(int64(i))
-	return tv
-}
-
-func typedBool(b bool) TypedValue {
-	tv := TypedValue{T: BoolType}
-	tv.SetBool(b)
 	return tv
 }
 

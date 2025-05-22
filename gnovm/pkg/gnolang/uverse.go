@@ -834,27 +834,6 @@ func makeUverseNode() {
 			panic("attach() is not yet supported")
 		},
 	)
-	// Typed nils in Go1 are problematic.
-	// https://dave.cheney.net/2017/08/09/typed-nils-in-go-2
-	// Dave Cheney suggests typed-nil == nil when the typed-nil is not an
-	// interface type, but arguably it should be the other way around, e.g.
-	// > (*int)(nil) != nil.
-	// Since Gno doesn't yet support reflect, and since even with reflect
-	// implementing istypednil() is annoying, while istypednil() shouldn't
-	// require reflect, Gno should therefore offer istypednil() as a uverse
-	// function.
-	defNative("istypednil",
-		Flds( // params
-			"x", AnyT(),
-		),
-		Flds( // results
-			"", "bool",
-		),
-		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1(m.Store)
-			m.PushValue(typedBool(arg0.TV.IsTypedNil()))
-		},
-	)
 	// In the final form, it will do nothing if no abort; but otherwise
 	// will make it as if nothing happened (with full cache wrapping). This
 	// gives programs precognition, or at least hypotheticals.
