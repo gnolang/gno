@@ -12,6 +12,9 @@ var defaultOptions = Options{
 // These options are only valid for the CommonDAO ream, dApps that
 // own a DAO can implement these features by themselves.
 type Options struct {
+	// AllowListing adds the DAO to the public list of realm DAOs.
+	AllowListing bool
+
 	// AllowRender enables support for rendering the DAO within the CommonDAO realm.
 	AllowRender bool
 
@@ -23,6 +26,10 @@ type Options struct {
 
 	// AllowExecution enables proposal execution support.
 	AllowExecution bool
+}
+
+func (o *Options) SetAllowListing(allow bool) {
+	o.AllowListing = allow
 }
 
 func (o *Options) SetAllowRender(allow bool) {

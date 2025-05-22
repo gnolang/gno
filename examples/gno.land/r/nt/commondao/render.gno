@@ -30,10 +30,40 @@ func Render(path string) string {
 	return router.Render(path)
 }
 
-func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
-	// TODO: Render a header text for users
-	// TODO: Render generic links to vote or execute proposals
+func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1("Common DAO"))
+	res.Write(md.HorizontalRule())
+	res.Write(ufmt.Sprintf(
+		md.Paragraph("This realm can be used to create CommonDAO instances based on %s package."),
+		md.Link("commondao", "/p/nt/commondao/"),
+	))
+
+	pages, err := pager.New(req.RawPath, daos.Size(), pager.WithPageSize(10))
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	var items []string
+	daos.ReverseIterateByOffset(pages.Offset(), pages.PageSize(), func(_ string, v any) bool {
+		dao := v.(*commondao.CommonDAO)
+		o := getOptions(dao.ID())
+		if o.AllowRender && o.AllowListing {
+			items = append(items, md.Link(dao.Name(), daoURL(dao.ID())))
+		}
+		return false
+	})
+
+	if len(items) == 0 {
+		return
+	}
+
+	res.Write(md.Paragraph("Here is a list of some of the DAOs that were created:"))
+	res.Write(md.Paragraph(md.BulletList(items)))
+
+	if pages.HasPages() {
+		res.Write(md.Paragraph(pager.Picker(pages)))
+	}
 }
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
