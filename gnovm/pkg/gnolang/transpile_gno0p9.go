@@ -591,7 +591,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 				gon.Args = append([]ast.Expr{ast.NewIdent("cur")}, gon.Args...)
 				delete(xforms2, gon)
 			} else if inXforms2(gon, XTYPE_ADD_NILREALM) {
-				gon.Args = append([]ast.Expr{ast.NewIdent("nil")}, gon.Args...)
+				gon.Args = append([]ast.Expr{ast.NewIdent("cross")}, gon.Args...)
 				delete(xforms2, gon)
 			}
 			if id, ok := gon.Fun.(*ast.Ident); ok && id.Name == "cross" {

@@ -671,7 +671,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.runFunc(StageAdd, fv.Name)
+				m.runFunc(StageAdd, fv.Name, false)
 				m.PopBlock()
 			}
 		}
@@ -729,12 +729,34 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) runFunc(st Stage, fn Name) {
+func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
+	if maybeCrossing {
+		pv := m.Package
+		pb := pv.GetBlock(m.Store)
+		pn := pb.GetSource(m.Store).(*PackageNode)
+		ft := pn.GetStaticTypeOf(m.Store, fn).(*FuncType)
+		if ft.IsCrossing() {
+			// .cur is a special keyword for non-crossing
+			// calls of a crossing function where `cur` is
+			// not available from m.RunFuncMaybeCrossing().
+			// In testing, main(cur realm) is considered
+			// to have already crossed at "frame -1",
+			// so we do not want to cross-call main,
+			// and the behavior is similar to main().
+			m.RunStatement(st, S(Call(Nx(fn), Nx(".cur"))))
+		}
+	}
 	m.RunStatement(st, S(Call(Nx(fn))))
 }
 
 func (m *Machine) RunMain() {
-	m.runFunc(StageRun, "main")
+	m.runFunc(StageRun, "main", false)
+}
+
+// This is used for realm filetests which may declare
+// either main() or main(cur crossing).
+func (m *Machine) RunMainMaybeCrossing() {
+	m.runFunc(StageRun, "main", true)
 }
 
 // Evaluate throwaway expression in new block scope.

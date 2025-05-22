@@ -544,7 +544,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
-	lastpn := packageOf(last)
+	ctxpn := packageOf(ctx)
 	stack = append(stack, last)
 
 	// iterate over all nodes recursively
@@ -900,7 +900,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 				// functions that don't return a value do not need termination analysis
 				// functions that are externally defined or builtin implemented in the vm can't be analysed
-				if len(ft.Results) > 0 && lastpn.PkgPath != uversePkgPath && n.Body != nil {
+				if len(ft.Results) > 0 && ctxpn.PkgPath != uversePkgPath && n.Body != nil {
 					errs := Analyze(n)
 					if len(errs) > 0 {
 						panic(fmt.Sprintf("%+v\n", errs))
@@ -1097,6 +1097,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					io := pd.GetAttribute(ATTR_IOTA).(int)
 					cx := constUntypedBigint(n, int64(io))
 					return cx, TRANS_CONTINUE
+				case ".cur":
+					// special name that is defined in uverse as undefined,
+					// but should not be statically evaluated.
+					// (will be replaced TRANS_LEAVE *CallExpr).
+					return n, TRANS_CONTINUE
+				case "cross":
+					// Special case for gno 0.0.
+					if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
+						// Do nothing here, TRANS_LEAVE *CallExpr will handle it.
+						return n, TRANS_CONTINUE
+					}
+					// `cross` can only be used as the first argument
+					// to a crossing function, for cross-calling.
+					if ftype != TRANS_CALL_ARG {
+						panic(fmt.Sprintf(
+							"cross can only be used as the first argument to a crossing function (since gno 0.9)"))
+					}
+					if index != 0 {
+						panic(fmt.Sprintf(
+							"cross can only be used as the first argument to a crossing function (since gno 0.9)"))
+					}
+					// special name that is defined in uverse as undefined,
+					// but should not be statically evaluated.
+					// (will be replaced TRANS_LEAVE *CallExpr).
+					return n, TRANS_CONTINUE
 				case nilStr:
 					// nil will be converted to
 					// typed-nils when appropriate upon
@@ -1330,9 +1355,20 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// of a containing function.
 					if cft.IsCrossing() {
 						nx, ok := n.Args[0].(*NameExpr)
-						if !ok || nx.Name != Name("cur") && nx.Name != Name("nil") {
-							panic("only `cur` and `nil` are allowed as the first argument to a crossing function")
-						} else if nx.Name == Name("cur") { // nx.Name == `cur`
+						if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
+							panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
+						}
+						switch nx.Name {
+						case Name(".cur"):
+							if _, ok := last.(*PackageNode); !ok {
+								// .cur should only be used from
+								// m.RunMainMaybeCrossing().
+								panic("unexpected context for .cur")
+							}
+							// evaluation was skipped TRANS_LEAVE *NameExpr.
+							crlm := newConcreteRealm(ctxpn.PkgPath)
+							n.Args[0] = constConcreteRealm(nx, crlm)
+						case Name("cur"):
 							// A non-crossing call of a crossing function.
 							dbn := last.GetBlockNodeForPath(store, nx.Path)
 							switch dbn.(type) {
@@ -1352,9 +1388,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if found && dbn != fle {
 								panic(fmt.Sprintf("`cur realm` cannot be used as a closure capture, but found %v", fle))
 							}
-						} else if nx.Name == Name("nil") { // nx.Name == `nil`
+						case Name("cross"):
 							// n is a valid crossing call of a crossing function.
 							n.SetWithCross()
+							// evaluation was skipped TRANS_LEAVE *NameExpr.
+							n.Args[0] = constNil(nx)
+						default:
+							panic("should not happen")
 						}
 					}
 				case *TypeType:
@@ -1514,8 +1554,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
-						pn := packageOf(last)
-						if pn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
+						if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 							// This is only backwards compatibility for the gno 0.9
 							// transpiler/fixer.  cross() is no longer used.
 							// See adr/pr4264_lint_transpile.md for more info.
@@ -1530,8 +1569,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							panic("cross(fn) is reserved and deprecated")
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
-						pn := packageOf(last)
-						if pn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
+						if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
 							panic("crossing() is reserved and deprecated")
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
@@ -1836,10 +1874,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
+					tr, _, rcvr, _, aerr := findEmbeddedFieldType(ctxpn.PkgPath, cxt, n.Sel, nil)
 					if aerr {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
-							cxt.String(), n.Sel, lastpn.PkgPath))
+							cxt.String(), n.Sel, ctxpn.PkgPath))
 					} else if tr == nil {
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
@@ -1936,9 +1974,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					pn := pv.GetPackageNode(store)
 					// ensure exposed or package path match.
-					if !isUpper(string(n.Sel)) && lastpn.PkgPath != pv.PkgPath {
+					if !isUpper(string(n.Sel)) && ctxpn.PkgPath != pv.PkgPath {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
-							pv.PkgPath, n.Sel, lastpn.PkgPath))
+							pv.PkgPath, n.Sel, ctxpn.PkgPath))
 					} else {
 						// NOTE: this can happen with software upgrades,
 						// with multiple versions of the same package path.
@@ -2409,7 +2447,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// (e.g.  *ArrayType, *StructType) of declared
 						// types are actually instantiated, not in
 						// machine.go:runDeclaration().
-						tmp2 := declareWith(lastpn.PkgPath, last, n.Name, tmp)
+						tmp2 := declareWith(ctxpn.PkgPath, last, n.Name, tmp)
 						// if !n.IsAlias { // not sure why this was here.
 						tmp2.Seal()
 						// }
@@ -4735,6 +4773,25 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
 	cx.T = UntypedBigintType
 	cx.V = BigintValue{big.NewInt(i64)}
+	setPreprocessed(cx)
+	return cx
+}
+
+func constNil(source Expr) *ConstExpr {
+	cx := &ConstExpr{Source: source}
+	cx.T = nil
+	cx.V = nil
+	setPreprocessed(cx)
+	return cx
+}
+
+func constConcreteRealm(source Expr, cur TypedValue) *ConstExpr {
+	cx := &ConstExpr{Source: source}
+	if cur.T != gConcreteRealmType || cur.V == nil {
+		panic(fmt.Sprintf("unexpected concrete realm typedvalue %v",
+			cur.String()))
+	}
+	cx.TypedValue = cur
 	setPreprocessed(cx)
 	return cx
 }

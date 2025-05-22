@@ -101,7 +101,7 @@ var gRealmType = &DeclaredType{
 						Type: gAddressType,
 					}},
 				},
-			}, { // NOT std.Address.
+			}, {
 				Name: "PkgPath",
 				Type: &FuncType{
 					Params: nil,
@@ -129,7 +129,7 @@ var gRealmType = &DeclaredType{
 						Type: gErrorType,
 					}},
 				},
-			}, {
+			}, { // gets filled in init() below.
 				Name: "Previous",
 				Type: &FuncType{
 					Params: nil,
@@ -146,28 +146,29 @@ var gRealmType = &DeclaredType{
 					}},
 				},
 			}, { // gets filled in init() below.
-				Name: "Sudo",
+				Name: "String",
 				Type: &FuncType{
 					Params: nil,
 					Results: []FieldType{{
-						Type: nil,
+						Type: StringType,
 					}},
 				},
-			}, // gets filled in init() below.
+			},
 		},
 	},
 	sealed: true,
 }
 
 func init() {
-	gRealmType.Base.(*InterfaceType).Methods[4].Type.(*FuncType).Results[0].Type = gRealmType // Previous
-	gRealmType.Base.(*InterfaceType).Methods[5].Type.(*FuncType).Results[0].Type = gRealmType // Origin
-	gRealmType.Base.(*InterfaceType).Methods[6].Type.(*FuncType).Results[0].Type = gRealmType // Sudo
+	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethod("Previous")
+	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethod("Origin")
+	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
+	gRealmOrigin.Type.(*FuncType).Results[0].Type = gRealmType
 }
 
 var gConcreteRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
-	Name:    ".realm",
+	Name:    ".grealm",
 	Base: &StructType{
 		PkgPath: uversePkgPath,
 		Fields: []FieldType{
@@ -902,9 +903,11 @@ func makeUverseNode() {
 			return
 		},
 	)
+	def("gnocoin", asValue(gCoinType))
+	def("gnocoins", asValue(gCoinsType))
 	def("realm", asValue(gRealmType))
-	def(".realm", asValue(gConcreteRealmType))
-	defNativeMethod(".realm", "Address",
+	def(".grealm", asValue(gConcreteRealmType))
+	defNativeMethod(".grealm", "Address",
 		nil, // params
 		Flds( // results
 			"", "address",
@@ -913,7 +916,7 @@ func makeUverseNode() {
 			panic("not yet implemented")
 		},
 	)
-	defNativeMethod(".realm", "PkgPath",
+	defNativeMethod(".grealm", "PkgPath",
 		nil, // params
 		Flds( // results
 			"", "string",
@@ -922,7 +925,28 @@ func makeUverseNode() {
 			panic("not yet implemented")
 		},
 	)
-	defNativeMethod(".realm", "Origin",
+	defNativeMethod(".grealm", "Coins",
+		nil, // params
+		Flds( // results
+			"", "gnocoins",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Send",
+		Flds( // params
+			"coins", "gnocoins",
+			"to", "address",
+		),
+		Flds( // results
+			"", "error",
+		),
+		func(m *Machine) {
+			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "Origin",
 		nil, // params
 		Flds( // results
 			"", "realm",
@@ -931,7 +955,7 @@ func makeUverseNode() {
 			panic("not yet implemented")
 		},
 	)
-	defNativeMethod(".realm", "Previous",
+	defNativeMethod(".grealm", "Previous",
 		nil, // params
 		Flds( // results
 			"", "realm",
@@ -940,16 +964,7 @@ func makeUverseNode() {
 			panic("not yet implemented")
 		},
 	)
-	defNativeMethod(".realm", "Sudo",
-		nil, // params
-		Flds( // results
-			"", "realm",
-		),
-		func(m *Machine) {
-			panic("not yet implemented")
-		},
-	)
-	defNativeMethod(".realm", "String",
+	defNativeMethod(".grealm", "String",
 		nil, // params
 		Flds( // results
 			"", "string",
@@ -958,8 +973,6 @@ func makeUverseNode() {
 			panic("not yet implemented")
 		},
 	)
-	def("gnocoin", asValue(gCoinType))
-	def("gnocoins", asValue(gCoinsType))
 	defNative("crossing",
 		nil, // params
 		nil, // results
@@ -968,6 +981,9 @@ func makeUverseNode() {
 			panic("crossing() is reserved but deprecated")
 		},
 	)
+	def("cross", undefined) // special keyword for cross-calling
+	def(".cur", undefined)  // special keyword for non-cross-calling main(cur realm)
+	/* `cross` used to be a function, but it is now a special value.
 	defNative("cross",
 		Flds( // param
 			"x", GenT("X", nil),
@@ -978,12 +994,9 @@ func makeUverseNode() {
 		func(m *Machine) {
 			// This is handled by op_call instead.
 			panic("cross is a virtual function")
-			/*
-				arg0 := m.LastBlock().GetParams1(m.Store)
-				m.PushValue(arg0.Deref())
-			*/
 		},
 	)
+	*/
 	defNative("attach",
 		Flds( // params
 			"xs", Vrd(AnyT()), // args[0]

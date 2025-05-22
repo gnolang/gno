@@ -6,13 +6,16 @@ import (
 	"strings"
 )
 
-func newConcreteRealm(rlm *Realm) TypedValue {
+// NOTE: the value is set as a constExpr for the `.cur` in the preprocessor,
+// and likewise for MsgCall cross-call of crossing functions, so the value
+// should be deterministic, not dynamic, and only depend on the realm.
+func newConcreteRealm(pkgPath string) TypedValue {
 	return TypedValue{
 		T: gConcreteRealmType,
 		V: &StructValue{
 			Fields: []TypedValue{
 				{T: gAddressType, V: nil}, // XXX
-				{T: StringType, V: StringValue(rlm.Path)},
+				{T: StringType, V: StringValue(pkgPath)},
 				{T: gConcreteRealmType, V: nil}, // XXX
 			},
 		},
@@ -42,7 +45,7 @@ func (m *Machine) doOpPrecall() {
 		if m.Realm == nil {
 			panic("unexpected nil m.Realm")
 		}
-		crlm := newConcreteRealm(m.Realm)
+		crlm := newConcreteRealm(m.Realm.Path)
 		niltv.Assign(m.Alloc, crlm, false)
 	}
 

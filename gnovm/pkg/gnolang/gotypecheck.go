@@ -28,8 +28,8 @@ func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
 		gnoBuiltins = `package %s
 
 func istypednil(x any) bool { return false } // shim
-func crossing() { } // shim
-func cross[F any](fn F) F { return fn } // shim
+// func crossing() { } // shim
+var cross realm // shim
 func revive[F any](fn F) any { return nil } // shim
 type realm interface {
     Address() address
@@ -38,7 +38,6 @@ type realm interface {
     // Send(coins gnocoins, to address) error 
     Origin() realm
     Previous() realm
-    Sudo() realm
     String() string
 }
 type address string

@@ -941,6 +941,16 @@ func (it *InterfaceType) TypeID() TypeID {
 	return it.typeid
 }
 
+func (it *InterfaceType) GetMethod(mname Name) *FieldType {
+	for i := range it.Methods {
+		im := &it.Methods[i]
+		if im.Name == mname {
+			return im
+		}
+	}
+	return nil
+}
+
 func (it *InterfaceType) String() string {
 	if it.Generic != "" {
 		return fmt.Sprintf("<%s>{%s}",

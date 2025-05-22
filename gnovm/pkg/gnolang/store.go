@@ -615,6 +615,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	if tt, exists := ds.cacheTypes.Get(tid); exists {
 		return tt
 	}
+
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
@@ -1014,6 +1015,9 @@ func backendPackagePathKey(path string) string {
 // builtin types and packages
 
 func InitStoreCaches(store Store) {
+	/* This is what it used to be, but it's confusing when there are new
+	 * uverse types.
+
 	types := []Type{
 		BoolType, UntypedBoolType,
 		StringType, UntypedStringType,
@@ -1028,6 +1032,19 @@ func InitStoreCaches(store Store) {
 	}
 	for _, tt := range types {
 		store.SetCacheType(tt)
+	}
+	*/
+	uverse := UverseNode()
+	for _, tv := range uverse.GetStaticBlock().Values {
+		if tv.T != nil && tv.T.Kind() == TypeKind {
+			uverseType := tv.GetType()
+			switch uverseType.(type) {
+			case PrimitiveType:
+				store.SetCacheType(uverseType)
+			case *DeclaredType:
+				store.SetCacheType(uverseType)
+			}
+		}
 	}
 	store.SetCachePackage(Uverse())
 }

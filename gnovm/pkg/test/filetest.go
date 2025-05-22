@@ -343,7 +343,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
-		m.RunMain()
+		m.RunMainMaybeCrossing()
 	}
 
 	return runResult{
