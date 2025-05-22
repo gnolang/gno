@@ -26,10 +26,11 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user))
+	// Use a caller that is not the owner of the DAO
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 
 	commondao.Get(daoID)
 }
 
 // Error:
-// caller is not a realm
+// unauthorized
