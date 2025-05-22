@@ -46,8 +46,8 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render header
 	res.Write(md.H1(dao.Name()))
-	if s := dao.Description(); s != "" {
-		res.Write(s + "\n\n")
+	if desc := dao.Description(); desc != "" {
+		res.Write(md.Paragraph(desc))
 	}
 
 	// Render main menu
@@ -62,18 +62,16 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		menu = append(menu, md.Link("Go to Parent DAO", daoURL(parentDAO.ID())))
 	}
 
-	res.Write(strings.Join(menu, " • "))
-	res.Write("\n\n" + md.HorizontalRule())
+	res.Write(md.Paragraph(strings.Join(menu, " • ")))
+	res.Write(md.HorizontalRule())
 
 	// Render members
 	members := dao.Members()
 	if members.Size() == 0 {
-		res.Write(md.Bold("⚠ The DAO has no members") + "\n")
+		res.Write(md.Paragraph(md.Bold("⚠ The DAO has no members")))
 	} else {
 		renderMembers(res, req.RawPath, members)
 	}
-
-	res.Write("\n")
 
 	// Render organization tree
 	if dao.Children().Len() > 0 {
@@ -85,17 +83,16 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 			// Render toggle only when DAO is not dismissed,
 			// otherwise render the whole tree when DAO is dismissed
 			if !dao.IsDeleted() {
-				res.Write("Dismissed: ")
-
+				var toggleLink string
 				if dismissedVisible {
 					r.Query.Del("dismissed")
-					res.Write(md.Link("hide", r.String()))
+					toggleLink = md.Link("hide", r.String())
 				} else {
 					r.Query.Add("dismissed", "")
-					res.Write(md.Link("show", r.String()))
+					toggleLink = md.Link("show", r.String())
 				}
 
-				res.Write("\n\n")
+				res.Write(md.Paragraph("Dismissed: " + toggleLink))
 			}
 
 			renderTree(res, dao, "", dismissedVisible)
@@ -128,10 +125,10 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 		return false
 	})
 
-	res.Write(table.String())
+	res.Write(md.Paragraph(table.String()))
 
 	if pages.HasPages() {
-		res.Write("\n" + pager.Picker(pages) + "\n")
+		res.Write(md.Paragraph(pager.Picker(pages)))
 	}
 }
 
@@ -166,8 +163,8 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1(dao.Name() + ": Settings"))
 
 	// Render main menu
-	res.Write(goToDAOLink(dao.ID()))
-	res.Write("\n\n" + md.HorizontalRule())
+	res.Write(md.Paragraph(goToDAOLink(dao.ID())))
+	res.Write(md.HorizontalRule())
 
 	// Render options
 	table := mdtable.Table{Headers: []string{"Options", "Values"}}
@@ -187,12 +184,12 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1(dao.Name() + ": Proposals"))
 
 	// Render main menu
-	res.Write(goToDAOLink(dao.ID()))
-	res.Write("\n\n" + md.HorizontalRule())
+	res.Write(md.Paragraph(goToDAOLink(dao.ID())))
+	res.Write(md.HorizontalRule())
 
 	// Render proposals
 	if dao.ActiveProposals().Size() == 0 && dao.FinishedProposals().Size() == 0 {
-		res.Write(md.Bold("⚠ The DAO has no proposals") + "\n")
+		res.Write(md.Paragraph(md.Bold("⚠ The DAO has no proposals")))
 		return
 	}
 
@@ -208,35 +205,34 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write("View: ")
+	var viewLink, sortLink string
+
 	r := parseRealmPath(req.RawPath)
 	if renderFinished {
 		r.Query.Del("finished")
-		res.Write(md.Link("active", r.String()))
+		viewLink = md.Link("active", r.String())
 	} else {
 		r.Query.Add("finished", "")
-		res.Write(md.Link("finished", r.String()))
+		viewLink = md.Link("finished", r.String())
 	}
-
-	res.Write(" • Sort by: ")
 
 	r = parseRealmPath(req.RawPath)
 	reverseSort := r.Query.Get("order") != "asc"
 	if reverseSort {
 		r.Query.Set("order", "asc")
-		res.Write(md.Link("oldest", r.String()))
+		sortLink = md.Link("oldest", r.String())
 	} else {
 		r.Query.Set("order", "desc")
-		res.Write(md.Link("newest", r.String()))
+		sortLink = md.Link("newest", r.String())
 	}
 
-	res.Write("\n\n")
+	res.Write(md.Paragraph("View: " + viewLink + " • Sort by: " + sortLink))
 
 	if proposals.Size() == 0 {
 		if renderFinished {
-			res.Write("Currently there are no finished proposals\n")
+			res.Write(md.Paragraph("Currently there are no finished proposals"))
 		} else {
-			res.Write("Currently there are no active proposals\n")
+			res.Write(md.Paragraph("Currently there are no active proposals"))
 		}
 	} else {
 		proposals.Iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
@@ -247,8 +243,8 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render pager
 	if pages.HasPages() {
-		res.Write("\n\n" + md.HorizontalRule())
-		res.Write(pager.Picker(pages) + "\n")
+		res.Write(md.HorizontalRule())
+		res.Write(pager.Picker(pages))
 	}
 }
 
@@ -279,8 +275,7 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 		status = append(status, executeLink(dao.ID(), p.ID()))
 	}
 
-	res.Write(strings.Join(status, " • "))
-	res.Write("\n\n")
+	res.Write(md.Paragraph(strings.Join(status, " • ")))
 }
 
 func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
@@ -305,20 +300,18 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1("#" + strconv.FormatUint(p.ID(), 10) + " " + def.Title()))
 
 	// Render main menu
-	res.Write(goToDAOLink(dao.ID()))
-
+	items := []string{goToDAOLink(dao.ID())}
 	o := getOptions(dao.ID())
 	if o.AllowVoting && votingActive {
-		res.Write(" • ")
-		res.Write(voteLink(dao.ID(), p.ID()))
+		items = append(items, voteLink(dao.ID(), p.ID()))
 	}
 
 	if o.AllowExecution && isExecutionAllowed(p) {
-		res.Write(" • ")
-		res.Write(executeLink(dao.ID(), p.ID()))
+		items = append(items, executeLink(dao.ID(), p.ID()))
 	}
 
-	res.Write("\n\n" + md.HorizontalRule())
+	res.Write(md.Paragraph(strings.Join(items, " • ")))
+	res.Write(md.HorizontalRule())
 
 	// Render details
 	res.Write(md.H2("Details"))
@@ -344,17 +337,12 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	// Render proposal body
 	if body := def.Body(); body != "" {
 		res.Write(md.H2("Description"))
-		res.Write(body + "\n\n")
+		res.Write(md.Paragraph(body))
 	}
 
+	// Render voting stats and votes
 	if record.Size() > 0 {
-		// Render voting stats
-		res.Write(md.H2("Stats"))
 		renderProposalStats(res, record)
-
-		// Render votes
-		res.Write(md.H2("Votes"))
-		res.Write(ufmt.Sprintf("Total number of votes: **%d**\n", record.Size()))
 		renderProposalVotes(res, req.RawPath, dao, p)
 	}
 }
@@ -370,10 +358,13 @@ func renderProposalStats(res *mux.ResponseWriter, record *commondao.VotingRecord
 		return false
 	})
 
-	res.Write(table.String())
+	res.Write(md.H2("Stats"))
+	res.Write(md.Paragraph(table.String()))
 }
 
 func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.CommonDAO, p *commondao.Proposal) {
+	res.Write(md.H2("Votes")) // Render title here so it appears before any pager errors
+
 	record := p.VotingRecord()
 	pages, err := pager.New(path, record.Size(), pager.WithPageQueryParam("votes"), pager.WithPageSize(5))
 	if err != nil {
@@ -392,10 +383,11 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 		return false
 	})
 
-	res.Write(table.String())
+	res.Write(ufmt.Sprintf("Total number of votes: **%d**\n", record.Size()))
+	res.Write(md.Paragraph(table.String()))
 
 	if pages.HasPages() {
-		res.Write("\n" + pager.Picker(pages) + "\n")
+		res.Write(md.Paragraph(pager.Picker(pages)))
 	}
 }
 
@@ -414,10 +406,14 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
+	links := []string{
+		goToDAOLink(dao.ID()),
+		goToProposalLink(dao.ID(), p.ID()),
+	}
+
 	res.Write(ufmt.Sprintf("# Vote: Proposal #%d\n", p.ID()))
-	res.Write(goToDAOLink(dao.ID()) + " • ")
-	res.Write(goToProposalLink(dao.ID(), p.ID()))
-	res.Write("\n\n" + md.HorizontalRule())
+	res.Write(md.Paragraph(strings.Join(links, " • ")))
+	res.Write(md.HorizontalRule())
 
 	res.Write(md.H2("Details"))
 	res.Write(md.BulletItem("User: " + userLink(v.Address)))
@@ -455,7 +451,6 @@ func mustGetProposalFromRequest(req *mux.Request, dao *commondao.CommonDAO) *com
 	if p == nil {
 		panic("Proposal not found")
 	}
-
 	return p
 }
 
