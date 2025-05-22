@@ -234,21 +234,24 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 }
 
 func catchPanic(dir, pkgPath string, stderr io.WriteCloser, action func()) (didPanic bool) {
-	// Uncomment for debugging.
-	defer func() {
-		// Errors catched here mostly come from:
-		// gnovm/pkg/gnolang/preprocess.go
-		r := recover()
-		if r == nil {
-			return
-		}
-		didPanic = true
-		if err, ok := r.(error); ok {
-			printError(stderr, dir, pkgPath, err)
-		} else {
-			panic(r)
-		}
-	}()
+	// If this gets out of hand (e.g. with nested catchPanic with need for
+	// selective catching) then pass in a bool instead.
+	if os.Getenv("DEBUG_PANIC") != "1" {
+		defer func() {
+			// Errors catched here mostly come from:
+			// gnovm/pkg/gnolang/preprocess.go
+			r := recover()
+			if r == nil {
+				return
+			}
+			didPanic = true
+			if err, ok := r.(error); ok {
+				printError(stderr, dir, pkgPath, err)
+			} else {
+				panic(r)
+			}
+		}()
+	}
 
 	action()
 	return

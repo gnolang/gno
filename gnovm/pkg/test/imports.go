@@ -97,7 +97,7 @@ func StoreWithOptions(
 					panic(fmt.Errorf("test store preparing AST: %w", errs))
 				}
 			}
-			m.Store.AddMemPackage(mpkg)
+			m.Store.AddMemPackage(mpkg, gno.MemPackageTypeAny)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
 				gno.ParseMemPackage(mpkg),
@@ -213,7 +213,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		ReviveEnabled: true,
 	})
 	if preprocessOnly {
-		m2.Store.AddMemPackage(mpkg)
+		m2.Store.AddMemPackage(mpkg, gno.MemPackageTypeStdlib)
 		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true, "")
 	}
 	// TODO: make this work when using gno lint.

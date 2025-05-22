@@ -17,7 +17,8 @@ const pkgNameLimit = 256
 const pkgPathLimit = 256
 
 var (
-	// See also gnovm/pkg/gnolang/validate_mempackage.go.
+	// See also gnovm/pkg/gnolang/mempackage.go.
+	// NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
 	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)\.[a-z0-9_]{1,7}|LICENSE|README)$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
@@ -45,6 +46,9 @@ type MemFile struct {
 }
 
 func (mfile *MemFile) ValidateBasic() error {
+	if len(mfile.Name) == 0 {
+		return fmt.Errorf("name cannot be empty")
+	}
 	if len(mfile.Name) > fileNameLimit {
 		return fmt.Errorf("name length %d exceeds limit %d", len(mfile.Name), fileNameLimit)
 	}
@@ -68,8 +72,8 @@ func (mfile *MemFile) Print() error {
 // stored in memory. It will generally be initialized by package gnolang's
 // ReadMemPackage.
 //
-// NOTE: in the future, a MemPackage may represent
-// updates/additional-files for an existing package.
+// NOTE: in the future, a MemPackage may represent updates/additional-files for
+// an existing package.
 type MemPackage struct {
 	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
 	Path  string     `json:"path" yaml:"path"`   // import path
@@ -108,7 +112,7 @@ func (mpkg *MemPackage) ValidateBasic() error {
 	)
 	if !sorted {
 		for i := 0; i < len(mpkg.Files); i++ {
-			fmt.Println(">>>", i, mpkg.Files[i].Name)
+			fmt.Println("memfile", i, ":", mpkg.Files[i].Name)
 		}
 		return fmt.Errorf("mempackage %q has unsorted files", mpkg.Path)
 	}
@@ -186,10 +190,25 @@ func (mpkg *MemPackage) SetFile(name string, body string) *MemFile {
 	return mpkg.NewFile(name, body)
 }
 
-// Returns true if zero.
-// XXX Reconsider renaming all IsEmpty() to IsZero(), each carefully.
+// Removes an existing file and returns it or nil.
+func (mpkg *MemPackage) DeleteFile(name string) *MemFile {
+	for i, mfile := range mpkg.Files {
+		if mfile.Name == name {
+			mpkg.Files = append(mpkg.Files[:i], mpkg.Files[i+1:]...)
+			return mfile
+		}
+	}
+	return nil
+}
+
+// Returns true if it has no files.
 func (mpkg *MemPackage) IsEmpty() bool {
-	return mpkg.Name == "" || len(mpkg.Files) == 0
+	return len(mpkg.Files) == 0
+}
+
+// Returns true if zero.
+func (mpkg *MemPackage) IsZero() bool {
+	return mpkg.Name == "" && len(mpkg.Files) == 0
 }
 
 // Write all files into dir.

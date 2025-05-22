@@ -79,7 +79,7 @@ func TestCopyFromCachedStore(t *testing.T) {
 		Files: []*std.MemFile{
 			{Name: "math.gno", Body: "package math"},
 		},
-	})
+	}, MemPackageTypeAny)
 
 	// Create dest store and copy.
 	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
