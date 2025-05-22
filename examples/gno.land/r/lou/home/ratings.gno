@@ -62,7 +62,7 @@ func updateRating(rating uint64, commentStr string) string {
 	val, removed := ratings.Remove(caller.String())
 	oldComment := val.(*comment.Comment)
 	if !removed {
-		panic("Removal of rating was unsuccessful")
+		panic("removal of rating was unsuccessful")
 	}
 	if commentStr == "" && oldComment.Comment() != nil {
 		commentStr = *oldComment.Comment()
@@ -78,7 +78,7 @@ func UpdateByID(comment string, id seqid.ID, rating uint64) string {
 			return updateRating(rating, comment)
 		}
 	}
-	panic("Not authorized to update this rating")
+	panic("not authorized to update this rating")
 }
 
 func DeleteRating(id seqid.ID) string {
@@ -92,7 +92,7 @@ func DeleteRating(id seqid.ID) string {
 	}
 	checkoutCaller()
 	if _, removed := ratings.Remove(caller.String()); !removed {
-		panic("Invalid removal of comment")
+		panic("invalid removal of comment")
 	}
 	return ufmt.Sprintf("Rating was removed successfully!")
 }
@@ -100,11 +100,11 @@ func DeleteRating(id seqid.ID) string {
 func checkoutCaller() {
 	caller := std.PreviousRealm().Address()
 	if !caller.IsValid() {
-		panic("Invalid address")
+		panic("invalid address")
 	}
 
 	if _, exists := ratings.Get(caller.String()); !exists {
-		panic("Rating either unrecognisable/ inaccessible from your address")
+		panic("rating either unrecognisable/ inaccessible from your address")
 	}
 }
 
