@@ -1216,7 +1216,7 @@ func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(list, pkgPath)
+	return ReadMemPackageFromList(list, pkgPath, MemPackageTypeAny)
 }
 
 func endsWithAny(str string, suffixes []string) bool {
@@ -1248,7 +1248,7 @@ func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 //
 // XXX TODO pkgPath should instead be derived by inspecting the contents, among
 // them the gno.mod file.
-func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
+func ReadMemPackageFromList(list []string, pkgPath string, mtype MemPackageType) (*std.MemPackage, error) {
 	mpkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name          // normal file pkg name
 	var pkgNameDiffers bool   // normal file pkg name is inconsistent
@@ -1271,7 +1271,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 				errs = multierr.Append(errs, err)
 				continue
 			}
-			if strings.HasSuffix(fname, "_filetest.gno") {
+			if mtype == MemPackageTypeFiletests || strings.HasSuffix(fname, "_filetest.gno") {
 				// Filetests may have arbitrary package names.
 				// pkgName2 (of this file) may be unrelated to
 				// pkgName of the mem package.
@@ -1285,15 +1285,15 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 				if strings.HasSuffix(string(pkgName2), "_test") {
 					pkgName2 = pkgName2[:len(pkgName2)-len("_test")]
 				}
-				if pkgName == "" && !pkgNameDiffers {
+				if !pkgNameDiffers && pkgName == "" {
 					pkgName = pkgName2
-				} else if pkgName != pkgName2 {
+				} else if !pkgNameDiffers && pkgName != pkgName2 {
 					// This happens when transpiling
 					// tests/files; both mpkg and errors
 					// will be returned.
+					errs = multierr.Append(errs, fmt.Errorf("%s:0: expected package name %q but got %q", fpath, pkgName, pkgName2))
 					pkgName = ""
 					pkgNameDiffers = true
-					errs = multierr.Append(errs, fmt.Errorf("%s:0: expected package name %q but got %q", fpath, pkgName, pkgName2))
 				}
 			}
 		}
@@ -1313,7 +1313,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 		return mpkg, fmt.Errorf("package has no files")
 	}
 	// If pkgNameDiffers, return mpkg and the errors.
-	if pkgNameDiffers {
+	if mtype != MemPackageTypeFiletests && pkgNameDiffers {
 		return mpkg, errs
 	}
 	// If only filetests with the same name, its package name is used.
@@ -1322,21 +1322,27 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, err
 	}
 	// Still no pkgName or invalid; ensure error.
 	if pkgName == "" {
-		pkgName = "xxxinvalidpackagenamexxx" // sensible default
-		errs = multierr.Append(errs, fmt.Errorf("package name could be determined"))
+		if mtype == MemPackageTypeFiletests {
+			pkgName = "filetests"
+		} else {
+			pkgName = "xxxinvalidpackagenamexxx" // sensible default
+			errs = multierr.Append(errs, fmt.Errorf("package name could be determined"))
+		}
 	} else if err := validatePkgName(pkgName); err != nil {
 		errs = multierr.Append(errs, err)
-		return mpkg, errs
+		return mpkg, errs // terminate before setting name.
 	}
-
+	// Finally, set the name.
 	mpkg.Name = string(pkgName)
-	mpkg.Sort() // sort files for gno.ValidateMemPackage().
+
+	// Sort files and return.
+	mpkg.Sort()
 	return mpkg, nil
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
-func MustReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
-	pkg, err := ReadMemPackageFromList(list, pkgPath)
+func MustReadMemPackageFromList(list []string, pkgPath string, mtype MemPackageType) *std.MemPackage {
+	pkg, err := ReadMemPackageFromList(list, pkgPath, mtype)
 	if err != nil {
 		panic(err)
 	}

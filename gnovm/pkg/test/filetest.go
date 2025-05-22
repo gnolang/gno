@@ -237,6 +237,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
+	abortOnError := true
 	if err := LoadImports(opts.TestStore, &std.MemPackage{
 		Name: string(pkgName),
 		Path: pkgPath,
@@ -244,7 +245,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			{Name: "gno.mod", Body: gno.GenGnoModLatest(pkgPath)},
 			{Name: fname, Body: string(content)},
 		},
-	}); err != nil {
+	}, abortOnError); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
 		if swe, ok := err.(*stackWrappedError); ok {
 			return runResult{Error: err.Error(), GoPanicStack: swe.stack}

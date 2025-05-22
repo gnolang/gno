@@ -218,7 +218,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	var errs error
 
 	// Eagerly load imports.
-	if err := LoadImports(opts.TestStore, mpkg); err != nil {
+	abortOnError := true
+	if err := LoadImports(opts.TestStore, mpkg, abortOnError); err != nil {
 		return err
 	}
 

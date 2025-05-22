@@ -113,7 +113,6 @@ func StoreWithOptions(
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
-
 		if opts.WithExtern {
 			// if _test package...
 			const testPath = "github.com/gnolang/gno/_test/"
@@ -202,7 +201,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		return nil, nil
 	}
 
-	mpkg := gno.MustReadMemPackageFromList(files, pkgPath)
+	mpkg := gno.MustReadMemPackageFromList(files, pkgPath, gno.MemPackageTypeStdlib)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
@@ -235,27 +234,33 @@ func (e *stackWrappedError) String() string {
 // from the store. This is mostly useful for "eager import loading", whereby all
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
-func LoadImports(store gno.Store, mpkg *std.MemPackage) (err error) {
-	// XXX If you want to debug an issue, you may want to comment this out.
-	defer func() {
-		// This is slightly different from other similar error handling; we do not have a
-		// machine to work with, as this comes from an import; so we need
-		// "machine-less" alternatives. (like v.String instead of v.Sprint)
-		if r := recover(); r != nil {
-			switch v := r.(type) {
-			case *gno.TypedValue:
-				err = errors.New(v.String())
-			case *gno.PreprocessError:
-				err = &stackWrappedError{v.Unwrap(), debug.Stack()}
-			case gno.UnhandledPanicError:
-				err = v
-			case error:
-				err = &stackWrappedError{v, debug.Stack()}
-			default:
-				err = &stackWrappedError{fmt.Errorf("%v", v), debug.Stack()}
+func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err error) {
+	// If this gets out of hand (e.g. with nested catchPanic with need for
+	// selective catching) then pass in a bool instead.
+	// See also cmd/gno/common.go.
+	if os.Getenv("DEBUG_PANIC") == "1" {
+		fmt.Println("DEBUG_PANIC=1 (will not recover)")
+	} else {
+		defer func() {
+			// This is slightly different from other similar error handling; we do not have a
+			// machine to work with, as this comes from an import; so we need
+			// "machine-less" alternatives. (like v.String instead of v.Sprint)
+			if r := recover(); r != nil {
+				switch v := r.(type) {
+				case *gno.TypedValue:
+					err = errors.New(v.String())
+				case *gno.PreprocessError:
+					err = &stackWrappedError{v.Unwrap(), debug.Stack()}
+				case gno.UnhandledPanicError:
+					err = v
+				case error:
+					err = &stackWrappedError{v, debug.Stack()}
+				default:
+					err = &stackWrappedError{fmt.Errorf("%v", v), debug.Stack()}
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	fset := token.NewFileSet()
 	importsMap, err := packages.Imports(mpkg, fset)
@@ -269,8 +274,15 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage) (err error) {
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
+		if !abortOnError {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Printf("ignoring panic: %v\n", r)
+				}
+			}()
+		}
 		pkg := store.GetPackage(imp.PkgPath, true)
-		if pkg == nil {
+		if abortOnError && pkg == nil {
 			return gno.ImportNotFoundError{Location: fset.Position(imp.Spec.Pos()).String(), PkgPath: imp.PkgPath}
 		}
 	}

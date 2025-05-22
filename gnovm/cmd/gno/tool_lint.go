@@ -85,7 +85,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	ppkgs := map[string]processedPackage{}
 
 	if cmd.verbose {
-		io.ErrPrintfln("flinting directories: %v", dirs)
+		io.ErrPrintfln("linting directories: %v", dirs)
 	}
 	//----------------------------------------
 	// LINT STAGE 1: Typecheck and lint.
@@ -148,7 +148,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 
 		// Perform imports using the parent store.
-		if err := test.LoadImports(ts, mpkg); err != nil {
+		abortOnError := true
+		if err := test.LoadImports(ts, mpkg, abortOnError); err != nil {
 			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
 			continue

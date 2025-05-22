@@ -128,9 +128,11 @@ func (ppkg *processedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet
 		panic("filetests must have filesets of length 1")
 	}
 	fname := fset.Files[0].Name
+	/* NOTE: filetests in tests/files do not end with _filetest.gno.
 	if !strings.HasSuffix(string(fname), "_filetest.gno") {
 		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
 	}
+	*/
 	for _, ftest := range ppkg.ftests {
 		if ftest.fset.Files[0].Name == fname {
 			panic(fmt.Sprintf("fileetest with name %q already exists", fname))
@@ -242,7 +244,10 @@ func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 func catchPanic(dir, pkgPath string, stderr io.WriteCloser, action func()) (didPanic bool) {
 	// If this gets out of hand (e.g. with nested catchPanic with need for
 	// selective catching) then pass in a bool instead.
-	if os.Getenv("DEBUG_PANIC") != "1" {
+	// See also pkg/test/imports.go.
+	if os.Getenv("DEBUG_PANIC") == "1" {
+		fmt.Println("DEBUG_PANIC=1 (will not recover)")
+	} else {
 		defer func() {
 			// Errors catched here mostly come from:
 			// gnovm/pkg/gnolang/preprocess.go
