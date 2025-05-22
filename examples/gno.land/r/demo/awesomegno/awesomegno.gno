@@ -25,7 +25,6 @@ var (
 	authority = authz.NewMemberAuthority(
 		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
 		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
-		std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), // admin
 	)
 	Auth = authz.NewWithAuthority(authority)
 )
@@ -39,10 +38,6 @@ func AddItem(title, description, url, authorAddress string) {
 
 	if title == "" {
 		panic("item title cannot be empty")
-	}
-
-	if authorAddress == "" {
-		panic("author address cannot be empty")
 	}
 
 	author := std.Address(authorAddress)

@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/r/sys/users"
 )
 
 const (
@@ -61,6 +62,7 @@ func renderHome() string {
 		out += md.Paragraph(md.Link("See all items →", "/r/demo/awesomegno:items"))
 	} else {
 		out += md.Italic("No items added yet.")
+		out += "\n\n"
 		addItemLink := txlink.NewLink("AddItem").
 			AddArgs(
 				"title", "",
@@ -69,7 +71,6 @@ func renderHome() string {
 				"author", "",
 			).URL()
 		out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
-		out += "\n"
 	}
 
 	out += md.H2("Quick Stats")
@@ -78,7 +79,7 @@ func renderHome() string {
 		ufmt.Sprintf("Categories: %d", categories.Size()),
 	}
 	out += md.BulletList(stats)
-
+	out += "\n"
 	out += md.Italic("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
 
 	return out
@@ -150,7 +151,13 @@ func renderSingleItem(id string) string {
 
 	itemAuthors := []string{}
 	for _, author := range item.Authors {
-		itemAuthors = append(itemAuthors, author.String())
+		displayName := author.String()
+		if userData, _ := users.ResolveAny(author.String()); userData != nil && userData.Name() != "" {
+			displayName = userData.Name()
+		}
+
+		authorLink := md.Link(displayName, "/r/gnoland/users/v1:"+author.String())
+		itemAuthors = append(itemAuthors, authorLink)
 	}
 
 	metadata := []string{
