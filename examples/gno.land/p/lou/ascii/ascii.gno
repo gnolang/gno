@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
 
@@ -95,7 +94,7 @@ func Box(text string) string {
 	if strings.Contains(text, "\n") {
 		return FlexFrame(strings.Split(text, "\n"), "left")
 	}
-	top := "+" + Repeat("-", width-2) + ufmt.Sprintf("[%d] = %s", len(text), text) + "+\n"
+	top := "+" + Repeat("-", width-2) + "+\n"
 	middle := "| " + text + " |\n"
 	bottom := "+" + Repeat("-", width-2) + "+"
 
