@@ -14,11 +14,6 @@
 // interface and doesn't maintain any state of its own. This pattern allows for
 // simple, stateless information retrieval directly through the blockchain's
 // rendering capabilities.
-//
-// Example usage:
-//
-//	/r/gnoland/coins:ugnot - shows the total supply of ugnot
-//	/r/gnoland/coins:ugnot/g1... - shows the ugnot balance of a specific address
 package coins
 
 import (
