@@ -143,30 +143,30 @@ func RenderRatings() string {
 
 	if ratings.Size() == 0 {
 		out += "No ratings found."
-	} else {
-		ratings.ReverseIterate("", "", func(key string, value interface{}) bool {
-			c := value.(*comment.Comment)
-			user := users.ResolveAddress(c.Author())
-			out += "# "
-			out += comment.RenderRating(c.Rating())
-			out += ufmt.Sprintf("\n> (%d) ", c.Rating())
-			if *c.Comment() != "" {
-				out += ufmt.Sprintf("\"%s\" ", *c.Comment())
-			}
-
-			out += "from "
-			if user != nil {
-				out += md.Bold(user.RenderLink(""))
-			} else {
-				out += md.Bold(key)
-			}
-
-			out += " [" + md.Link("✎ EDIT", txlink.Call("UpdateByID", "comment", "Comment", "id", c.ID().String(), "rating", "0"))
-			out += " | " + md.Link("🗑 DELETE", txlink.Call("DeleteRating", "id", c.ID().String()))
-			out += " ]\n\n"
-			return false
-		})
+		return out
 	}
+	ratings.ReverseIterate("", "", func(key string, value interface{}) bool {
+		c := value.(*comment.Comment)
+		user := users.ResolveAddress(c.Author())
+		out += "# "
+		out += comment.RenderRating(c.Rating())
+		out += ufmt.Sprintf("\n> (%d) ", c.Rating())
+		if *c.Comment() != "" {
+			out += ufmt.Sprintf("\"%s\" ", *c.Comment())
+		}
+
+		out += "from "
+		if user != nil {
+			out += md.Bold(user.RenderLink(""))
+		} else {
+			out += md.Bold(key)
+		}
+
+		out += " [" + md.Link("✎ EDIT", txlink.Call("UpdateByID", "comment", "Comment", "id", c.ID().String(), "rating", "0"))
+		out += " | " + md.Link("🗑 DELETE", txlink.Call("DeleteRating", "id", c.ID().String()))
+		out += " ]\n\n"
+		return false
+	})
 
 	return out
 }
