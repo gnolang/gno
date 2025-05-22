@@ -16,7 +16,7 @@ var (
 
 // RequireMinimumBalance ensures a caller has at least amount of tokens.
 func RequireMinimumBalance(token *grc20.Token, amount uint64, caller std.Address) error {
-	if err := checkoutCaller(caller); err != nil {
+	if err := checkCaller(caller); err != nil {
 		return err
 	}
 	balance := token.BalanceOf(caller)
@@ -33,7 +33,7 @@ func RequireMinimumAllowance(
 	amount uint64,
 	caller std.Address,
 ) error {
-	if err := checkoutCaller(caller); err != nil {
+	if err := checkCaller(caller); err != nil {
 		return err
 	}
 	allowance := token.Allowance(owner, caller)
@@ -52,7 +52,7 @@ func RewardAndApprove(
 	target std.Address,
 	allowanceIncrement uint64,
 ) error {
-	if err := checkoutCaller(target); err != nil {
+	if err := checkCaller(target); err != nil {
 		return err
 	}
 	currentAllowance := token.Allowance(owner, target)
@@ -77,7 +77,7 @@ func Spend(
 	amount uint64,
 	caller std.Address,
 ) error {
-	if err := checkoutCaller(caller); err != nil {
+	if err := checkCaller(caller); err != nil {
 		return err
 	}
 	err := ledger.TransferFrom(from, caller, to, amount)
@@ -101,7 +101,7 @@ func HasAccess(
 		token.Allowance(owner, caller) >= minAllowance
 }
 
-func checkoutCaller(caller std.Address) error {
+func checkCaller(caller std.Address) error {
 	if caller == "" {
 		return ErrNoCaller
 	}
@@ -112,7 +112,7 @@ func checkoutCaller(caller std.Address) error {
 }
 
 func assertCaller(caller std.Address) {
-	if err := checkoutCaller(caller); err != nil {
+	if err := checkCaller(caller); err != nil {
 		panic(err)
 	}
 }

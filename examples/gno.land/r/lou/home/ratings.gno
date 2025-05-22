@@ -56,7 +56,7 @@ func UpdateRatingComment(comment string, rating uint64) string {
 }
 
 func updateRating(rating uint64, commentStr string) string {
-	checkoutCaller()
+	checkCaller()
 	caller := std.PreviousRealm().Address()
 
 	val, removed := ratings.Remove(caller.String())
@@ -90,14 +90,14 @@ func DeleteRating(id seqid.ID) string {
 		}
 		return ufmt.Sprintf("Rating as admin was removed successfully!")
 	}
-	checkoutCaller()
+	checkCaller()
 	if _, removed := ratings.Remove(caller.String()); !removed {
 		panic("invalid removal of comment")
 	}
 	return ufmt.Sprintf("Rating was removed successfully!")
 }
 
-func checkoutCaller() {
+func checkCaller() {
 	caller := std.PreviousRealm().Address()
 	if !caller.IsValid() {
 		panic("invalid address")
