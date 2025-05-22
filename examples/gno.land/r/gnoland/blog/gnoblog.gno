@@ -12,6 +12,7 @@ var b = &blog.Blog{
 }
 
 func AddComment(postSlug, comment string) {
+	crossing()
 	assertIsCommenter()
 	assertNotInPause()
 

@@ -13,3 +13,6 @@ loop:
 
 // Output:
 // hey
+
+// TypeCheckError:
+// main/files/for20.gno:6:1: label loop declared and not used

@@ -20,48 +20,60 @@ var (
 
 func init() {
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	grc20reg.Register(Token.Getter(), "")
+	cross(grc20reg.Register)(Token, "")
 }
 
-func TotalSupply() uint64 {
+func TotalSupply() int64 {
 	return UserTeller.TotalSupply()
 }
 
-func BalanceOf(owner std.Address) uint64 {
+func BalanceOf(owner std.Address) int64 {
 	return UserTeller.BalanceOf(owner)
 }
 
-func Allowance(owner, spender std.Address) uint64 {
+func Allowance(owner, spender std.Address) int64 {
 	return UserTeller.Allowance(owner, spender)
 }
 
-func Transfer(to std.Address, amount uint64) {
+func Transfer(to std.Address, amount int64) {
+	crossing()
+
 	checkErr(UserTeller.Transfer(to, amount))
 }
 
-func Approve(spender std.Address, amount uint64) {
+func Approve(spender std.Address, amount int64) {
+	crossing()
+
 	checkErr(UserTeller.Approve(spender, amount))
 }
 
-func TransferFrom(from, to std.Address, amount uint64) {
+func TransferFrom(from, to std.Address, amount int64) {
+	crossing()
+
 	checkErr(UserTeller.TransferFrom(from, to, amount))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).
 // For a real token faucet, you should take care of setting limits are asking payment.
 func Faucet() {
+	crossing()
+
 	caller := std.PreviousRealm().Address()
-	amount := uint64(1_000 * 10_000) // 1k
+	amount := int64(1_000 * 10_000) // 1k
 	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Mint(to std.Address, amount uint64) {
-	Ownable.AssertCallerIsOwner()
+func Mint(to std.Address, amount int64) {
+	crossing()
+
+	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Mint(to, amount))
 }
 
-func Burn(from std.Address, amount uint64) {
-	Ownable.AssertCallerIsOwner()
+func Burn(from std.Address, amount int64) {
+	crossing()
+
+	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Burn(from, amount))
 }
 
@@ -83,6 +95,6 @@ func Render(path string) string {
 
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }

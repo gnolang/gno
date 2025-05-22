@@ -1,16 +1,21 @@
 // PKGPATH: gno.land/r/gnoland/valopers_proposal_test
-package valopers_proposal_test
-
 // SEND: 100000000ugnot
+
+package valopers_proposal_test
 
 import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gnoland/valopers_proposal"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
+	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
+)
+
+var (
+	g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 )
 
 const (
@@ -21,27 +26,33 @@ const (
 )
 
 func init() {
-	c := std.OriginCaller()
-	init.InitWithUsers(c)
+	testing.SetOriginCaller(g1user)
+	daoinit.InitWithUsers(g1user)
 
 	// Register a validator and add the proposal
-	valopers.Register(validMoniker, validDescription, validAddress, validPubKey)
-	pr := valopers_proposal.NewValidatorProposalRequest(validAddress)
+	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
 
-	testing.SetOriginCaller(c)
-	dao.MustCreateProposal(pr)
+	if err := revive(func() {
+		pr := cross(valopers_proposal.NewValidatorProposalRequest)(validAddress)
+		cross(dao.MustCreateProposal)(pr)
+	}); err != nil {
+		println("r: ", err)
+	} else {
+		println("OK")
+	}
 }
 
 func main() {
-	println(dao.Render(""))
+	println(cross(dao.Render)(""))
 }
 
 // Output:
+// OK
 // # Active Proposals:
 // ## Proposal with id: 0
 // ### Title: Add valoper test-1 to the valset
 //
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ### Proposed by: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 //
 // Valoper profile: [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
 //
