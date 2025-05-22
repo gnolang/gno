@@ -46,42 +46,42 @@ type GameSession struct {
 	detail string
 }
 
-func (profile Profile) Wins() int64 {
-	return profile.wins
+func (p Profile) Wins() int64 {
+	return p.wins
 }
 
-func (profile Profile) Losses() int64 {
-	return profile.losses
+func (p Profile) Losses() int64 {
+	return p.losses
 }
 
-func (profile Profile) Account() string {
-	return profile.account
+func (p Profile) Account() string {
+	return p.account
 }
 
-func (profile *Profile) SetWins(wins int64) {
-	profile.wins = wins
+func (p *Profile) SetWins(wins int64) {
+	p.wins = wins
 }
 
-func (profile *Profile) SetLosses(losses int64) {
-	profile.losses = losses
+func (p *Profile) SetLosses(losses int64) {
+	p.losses = losses
 }
 
-func (profile *Profile) SetAddrOwner(addr std.Address) {
-	profile.owner = &addr
+func (p *Profile) SetAddrOwner(addr std.Address) {
+	p.owner = &addr
 }
 
-func (profile Profile) RewardOnWin(owner std.Address) {
-	tokenaccess.RewardAndApprove(owner, 10, profile.token, profile.led, std.Address(profile.account), 5)
+func (p Profile) RewardOnWin(owner std.Address) {
+	tokenaccess.RewardAndApprove(owner, 10, p.token, p.led, std.Address(p.account), 5)
 }
 
-func (profile Profile) String() string {
+func (p Profile) String() string {
 	out := ""
 
-	if profile.Wins() > 0 || profile.Losses() > 0 {
+	if p.Wins() > 0 || p.Losses() > 0 {
 		out += "Career: "
 	}
-	out += ascii.Repeat("🏆", int(profile.Wins()))
-	out += ascii.Repeat("❌", int(profile.Losses()))
+	out += ascii.Repeat("🏆", int(p.Wins()))
+	out += ascii.Repeat("❌", int(p.Losses()))
 	return out
 }
 
@@ -124,37 +124,37 @@ func NewSession() *GameSession {
 	}
 }
 
-func (game GameSession) IsATie() bool {
-	return game.isATie
+func (g GameSession) IsATie() bool {
+	return g.isATie
 }
 
-func (game GameSession) HasWon() bool {
-	return game.hasWon
+func (g GameSession) HasWon() bool {
+	return g.hasWon
 }
 
-func (game *GameSession) SendHand(input string) error {
+func (g *GameSession) SendHand(input string) error {
 	if _, ok := winMap[input]; !ok {
 		return ErrInvalidHand
 	}
 
 	opponent := GetHand()
-	game.isATie = false
-	game.hasWon = false
+	g.isATie = false
+	g.hasWon = false
 
 	if input == opponent {
-		game.detail = "It's a **tie**! Try Again!\n"
-		game.isATie = true
+		g.detail = "It's a **tie**! Try Again!\n"
+		g.isATie = true
 	} else if winMap[input] == opponent {
-		game.detail = ufmt.Sprintf("**%s** beats **%s**! You Won!\n", input, opponent)
-		game.hasWon = true
+		g.detail = ufmt.Sprintf("**%s** beats **%s**! You Won!\n", input, opponent)
+		g.hasWon = true
 	} else {
-		game.detail = ufmt.Sprintf("**%s** beats **%s**! You Lost!\n", opponent, input)
+		g.detail = ufmt.Sprintf("**%s** beats **%s**! You Lost!\n", opponent, input)
 	}
 	return nil
 }
 
-func (game GameSession) String() string {
-	return game.detail
+func (g GameSession) String() string {
+	return g.detail
 }
 
 func GetHand() string {
