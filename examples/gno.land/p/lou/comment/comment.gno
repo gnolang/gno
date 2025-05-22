@@ -8,6 +8,15 @@ import (
 )
 
 var (
+	ratings = []string{
+		"☆☆☆☆☆",
+		"★☆☆☆☆",
+		"★★☆☆☆",
+		"★★★☆☆",
+		"★★★★☆",
+		"★★★★★",
+	}
+
 	ErrInvalidRating = errors.New("rating is invalid, should be from 0-5")
 )
 
@@ -47,13 +56,8 @@ func NewComment(rating uint64, comment string, author std.Address, id seqid.ID) 
 }
 
 func RenderRating(rating uint64) string {
-	out := ""
-	for i := 0; i < 5; i++ {
-		if uint64(i) < rating {
-			out += "★"
-		} else {
-			out += "☆"
-		}
+	if rating > 5 {
+		rating = 5
 	}
-	return out
+	return ratings[rating]
 }
