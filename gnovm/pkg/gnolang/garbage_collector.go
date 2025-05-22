@@ -122,15 +122,11 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		}
 
 		if oo, isObject := v.(Object); isObject {
-			defer func() {
-				// Finally bump cycle for object.
-				oo.SetLastGCCycle(gcCycle)
-			}()
-
 			// Return if already measured.
 			if debug {
 				debug.Printf("oo.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			}
+
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
 			}
@@ -151,6 +147,12 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 		}
 
 		alloc.Allocate(size)
+
+		// bump before visiting associated,
+		// this avoids infinite recurse.
+		if oo, isObject := v.(Object); isObject {
+			oo.SetLastGCCycle(gcCycle)
+		}
 
 		// Invoke the traverser on v.
 		stop := v.VisitAssociated(vis)
@@ -199,8 +201,18 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// Skip visiting the parent to avoid redundancy
-	// and prevent a potential cycle.
+	// Visit parent.
+	switch v := fv.Parent.(type) {
+	case nil:
+		return
+	case *Block:
+		if v != nil {
+			stop = vis(v)
+		}
+	case RefValue:
+		stop = vis(v)
+	}
+
 	return
 }
 
