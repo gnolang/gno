@@ -14,6 +14,35 @@ var (
 	ErrInsufficientAllowance = errors.New("access denied: insufficient allowance")
 )
 
+// RequireMinimumBalance ensures a caller has at least amount of tokens.
+func RequireMinimumBalance(token *grc20.Token, amount int64, caller std.Address) error {
+	if err := checkCaller(caller); err != nil {
+		return err
+	}
+	balance := token.BalanceOf(caller)
+	if balance < amount {
+		return ErrInsufficientBalance
+	}
+	return nil
+}
+
+// RequireMinimumAllowance ensures a caller has an approved allowance from the owner.
+func RequireMinimumAllowance(
+	token *grc20.Token,
+	owner std.Address,
+	amount int64,
+	caller std.Address,
+) error {
+	if err := checkCaller(caller); err != nil {
+		return err
+	}
+	allowance := token.Allowance(owner, caller)
+	if allowance < amount {
+		return ErrInsufficientAllowance
+	}
+	return nil
+}
+
 // RewardAndApprove mints rewardAmt tokens to owner and increases target's allowance by allowanceIncrement.
 func RewardAndApprove(
 	owner std.Address,
@@ -72,37 +101,6 @@ func HasAccess(
 		token.Allowance(owner, caller) >= minAllowance
 }
 
-
-// requireMinimumBalance ensures a caller has at least amount of tokens.
-func requireMinimumBalance(token *grc20.Token, amount int64, caller std.Address) error {
-	if err := checkCaller(caller); err != nil {
-		return err
-	}
-	balance := token.BalanceOf(caller)
-	if balance < amount {
-		return ErrInsufficientBalance
-	}
-	return nil
-}
-
-// requireMinimumAllowance ensures a caller has an approved allowance from the owner.
-func requireMinimumAllowance(
-	token *grc20.Token,
-	owner std.Address,
-	amount int64,
-	caller std.Address,
-) error {
-	if err := checkCaller(caller); err != nil {
-		return err
-	}
-	allowance := token.Allowance(owner, caller)
-	if allowance < amount {
-		return ErrInsufficientAllowance
-	}
-	return nil
-}
-
-// checkCaller checks if the caller is a valid address.
 func checkCaller(caller std.Address) error {
 	if caller == "" {
 		return ErrNoCaller
@@ -113,7 +111,6 @@ func checkCaller(caller std.Address) error {
 	return nil
 }
 
-// assertCaller checks if the caller is a valid address and panics if not.
 func assertCaller(caller std.Address) {
 	if err := checkCaller(caller); err != nil {
 		panic(err)

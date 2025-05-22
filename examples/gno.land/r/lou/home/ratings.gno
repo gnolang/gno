@@ -108,7 +108,7 @@ func renderRatings() string {
 		if *c.Comment() != "" {
 			out += ufmt.Sprintf("\"%s\" ", *c.Comment())
 		}
-		
+
 		out += "from "
 		user := users.ResolveAddress(c.Author())
 		if user != nil {
