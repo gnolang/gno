@@ -159,7 +159,7 @@ func (m *Machine) doOpStar() {
 	default:
 		panic(fmt.Sprintf(
 			"illegal star expression x type %s",
-			xv.T.String()))
+			xv.T.String(nil)))
 	}
 }
 
@@ -196,7 +196,7 @@ func (m *Machine) doOpTypeAssert1() {
 	if t.Kind() == InterfaceKind { // is interface assert
 		if xt == nil || xv.IsNilInterface() {
 			// TODO: default panic type?
-			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
+			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String(nil))
 			m.pushPanic(typedString(ex))
 			return
 		}
@@ -208,8 +208,8 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"non-concrete %s doesn't implement %s",
-					xt.String(),
-					it.String())
+					xt.String(NewPrinter(m.GasMeter)),
+					it.String(NewPrinter(m.GasMeter)))
 				m.pushPanic(typedString(ex))
 				return
 			}
@@ -221,8 +221,8 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s (%s)",
-					xt.String(),
-					it.String(),
+					xt.String(NewPrinter(m.GasMeter)),
+					it.String(NewPrinter(m.GasMeter)),
 					err.Error())
 				m.pushPanic(typedString(ex))
 				return
@@ -235,7 +235,7 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 	} else { // is concrete assert
 		if xt == nil {
-			ex := fmt.Sprintf("nil is not of type %s", t.String())
+			ex := fmt.Sprintf("nil is not of type %s", t.String(NewPrinter(m.GasMeter)))
 			m.pushPanic(typedString(ex))
 			return
 		}
@@ -248,8 +248,8 @@ func (m *Machine) doOpTypeAssert1() {
 			// TODO: default panic type?
 			ex := fmt.Sprintf(
 				"%s is not of type %s",
-				xt.String(),
-				t.String())
+				xt.String(NewPrinter(m.GasMeter)),
+				t.String(NewPrinter(m.GasMeter)))
 			m.pushPanic(typedString(ex))
 			return
 		}
@@ -595,7 +595,7 @@ func (m *Machine) doOpStructLit() {
 					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
-						st.PkgPath, st.String(), m.Package.PkgPath))
+						st.PkgPath, st.String(nil), m.Package.PkgPath))
 				} else {
 					// this is fine.
 				}

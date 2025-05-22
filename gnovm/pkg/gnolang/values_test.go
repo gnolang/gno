@@ -15,7 +15,7 @@ func (m *mockTypedValueStruct) VisitAssociated(vis Visitor) (stop bool) {
 	return true
 }
 
-func (m *mockTypedValueStruct) String() string {
+func (m *mockTypedValueStruct) String(printer *Printer) string {
 	return fmt.Sprintf("MockTypedValueStruct(%d)", m.field)
 }
 

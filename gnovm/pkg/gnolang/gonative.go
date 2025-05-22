@@ -293,7 +293,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type %s",
-				tv.T.String()))
+				tv.T.String(nil)))
 		}
 	case *PointerType:
 		// This doesn't take into account pointer relativity, or even
@@ -360,7 +360,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %s",
-			tv.T.String()))
+			tv.T.String(nil)))
 	}
 	return
 }

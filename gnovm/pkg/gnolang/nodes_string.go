@@ -543,9 +543,9 @@ func (ds Decls) String() string {
 
 func (x ConstExpr) String() string {
 	if x.TypedValue.HasKind(TypeKind) {
-		return x.TypedValue.V.String()
+		return x.TypedValue.V.String(nil)
 	} else {
-		return fmt.Sprintf("(const %s)", x.TypedValue.String())
+		return fmt.Sprintf("(const %s)", x.TypedValue.String(nil))
 	}
 }
 
@@ -553,5 +553,5 @@ func (x constTypeExpr) String() string {
 	if x.Type == nil { // type switch case
 		return fmt.Sprintf("(const-type nil)")
 	}
-	return fmt.Sprintf("(const-type %s)", x.Type.String())
+	return fmt.Sprintf("(const-type %s)", x.Type.String(nil))
 }

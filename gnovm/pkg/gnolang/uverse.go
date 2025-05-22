@@ -471,7 +471,7 @@ func makeUverseNode() {
 				switch bst := baseOf(src.TV.T).(type) {
 				case PrimitiveType:
 					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+						debug.Println("copy(<%s>,<%s>)", bdt.String(nil), bst.String(nil))
 					}
 					if bst.Kind() != StringKind {
 						panic("should not happen")
@@ -569,7 +569,7 @@ func makeUverseNode() {
 			default:
 				panic(fmt.Sprintf(
 					"unexpected map type %s",
-					arg0.TV.T.String()))
+					arg0.TV.T.String(nil)))
 			}
 		},
 	)
@@ -711,7 +711,7 @@ func makeUverseNode() {
 			default:
 				panic(fmt.Sprintf(
 					"cannot make type %s kind %v",
-					tt.String(), tt.Kind()))
+					tt.String(nil), tt.Kind()))
 			}
 		},
 	)
@@ -974,7 +974,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 		}
 	case 1:
 		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-		res := ev.Sprint(m)
+		res := ev.Sprint(NewPrinter(m.GasMeter), m)
 		io.WriteString(m.Output, res)
 		if newline {
 			m.Output.Write(bNewline)
@@ -986,7 +986,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 				buf.WriteByte(' ')
 			}
 			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-			buf.WriteString(ev.Sprint(m))
+			buf.WriteString(ev.Sprint(NewPrinter(m.GasMeter), m))
 		}
 		if newline {
 			buf.WriteByte('\n')

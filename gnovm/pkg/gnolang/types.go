@@ -18,10 +18,10 @@ import (
 type Type interface {
 	assertType()
 
-	Kind() Kind     // penetrates *DeclaredType
-	TypeID() TypeID // deterministic
-	String() string // for dev/debugging
-	Elem() Type     // for TODO... types
+	Kind() Kind                     // penetrates *DeclaredType
+	TypeID() TypeID                 // deterministic
+	String(printer *Printer) string // for dev/debugging
+	Elem() Type                     // for TODO... types
 	GetPkgPath() string
 	IsNamed() bool     // named vs unname type. property as a method
 	IsImmutable() bool // immutable types
@@ -274,50 +274,50 @@ func (pt PrimitiveType) TypeID() TypeID {
 	}
 }
 
-func (pt PrimitiveType) String() string {
+func (pt PrimitiveType) String(printer *Printer) string {
 	switch pt {
 	case InvalidType:
-		return string("<invalid type>")
+		return printer.Sprint("<invalid type>")
 	case UntypedBoolType:
-		return string("<untyped> bool")
+		return printer.Sprint("<untyped> bool")
 	case BoolType:
-		return string("bool")
+		return printer.Sprint("bool")
 	case UntypedStringType:
-		return string("<untyped> string")
+		return printer.Sprint("<untyped> string")
 	case StringType:
-		return string("string")
+		return printer.Sprint("string")
 	case IntType:
-		return string("int")
+		return printer.Sprint("int")
 	case Int8Type:
-		return string("int8")
+		return printer.Sprint("int8")
 	case Int16Type:
-		return string("int16")
+		return printer.Sprint("int16")
 	case UntypedRuneType:
-		return string("<untyped> int32")
+		return printer.Sprint("<untyped> int32")
 	case Int32Type:
-		return string("int32")
+		return printer.Sprint("int32")
 	case Int64Type:
-		return string("int64")
+		return printer.Sprint("int64")
 	case UintType:
-		return string("uint")
+		return printer.Sprint("uint")
 	case Uint8Type:
-		return string("uint8")
+		return printer.Sprint("uint8")
 	case DataByteType:
-		return string("<databyte> uint8")
+		return printer.Sprint("<databyte> uint8")
 	case Uint16Type:
-		return string("uint16")
+		return printer.Sprint("uint16")
 	case Uint32Type:
-		return string("uint32")
+		return printer.Sprint("uint32")
 	case Uint64Type:
-		return string("uint64")
+		return printer.Sprint("uint64")
 	case Float32Type:
-		return string("float32")
+		return printer.Sprint("float32")
 	case Float64Type:
-		return string("float64")
+		return printer.Sprint("float64")
 	case UntypedBigintType:
-		return string("<untyped> bigint")
+		return printer.Sprint("<untyped> bigint")
 	case UntypedBigdecType:
-		return string("<untyped> bigdec")
+		return printer.Sprint("<untyped> bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
 	}
@@ -366,15 +366,15 @@ func (ft FieldType) TypeID() TypeID {
 	return typeid(s)
 }
 
-func (ft FieldType) String() string {
+func (ft FieldType) String(printer *Printer) string {
 	tag := ""
 	if ft.Tag != "" {
 		tag = " " + strconv.Quote(string(ft.Tag))
 	}
 	if ft.Name == "" {
-		return fmt.Sprintf("(embedded) %s%s", ft.Type.String(), tag)
+		return printer.Sprintf("(embedded) %s%s", ft.Type.String(printer), tag)
 	} else {
-		return fmt.Sprintf("%s %s%s", ft.Name, ft.Type.String(), tag)
+		return printer.Sprintf("%s %s%s", ft.Name, ft.Type.String(printer), tag)
 	}
 }
 
@@ -469,18 +469,18 @@ func (l FieldTypeList) HasUnexported() bool {
 	return false
 }
 
-func (l FieldTypeList) String() string {
-	return l.string(true, "; ")
+func (l FieldTypeList) String(printer *Printer) string {
+	return l.string(printer, true, "; ")
 }
 
 // StringForFunc returns a list of the fields, suitable for functions.
 // Compared to [FieldTypeList.String], this method does not return field names,
 // and separates the fields using ", ".
-func (l FieldTypeList) StringForFunc() string {
-	return l.string(false, ", ")
+func (l FieldTypeList) StringForFunc(printer *Printer) string {
+	return l.string(printer, false, ", ")
 }
 
-func (l FieldTypeList) string(withName bool, sep string) string {
+func (l FieldTypeList) string(printer *Printer, withName bool, sep string) string {
 	var bld strings.Builder
 	for i, ft := range l {
 		if i != 0 {
@@ -490,7 +490,7 @@ func (l FieldTypeList) string(withName bool, sep string) string {
 			bld.WriteString(string(ft.Name))
 			bld.WriteByte(' ')
 		}
-		bld.WriteString(ft.Type.String())
+		bld.WriteString(ft.Type.String(printer))
 	}
 	return bld.String()
 }
@@ -539,8 +539,8 @@ func (at *ArrayType) TypeID() TypeID {
 	return at.typeid
 }
 
-func (at *ArrayType) String() string {
-	return fmt.Sprintf("[%d]%s", at.Len, at.Elt.String())
+func (at *ArrayType) String(printer *Printer) string {
+	return printer.Sprintf("[%d]%s", at.Len, at.Elt.String(printer))
 }
 
 func (at *ArrayType) Elem() Type {
@@ -585,11 +585,11 @@ func (st *SliceType) TypeID() TypeID {
 	return st.typeid
 }
 
-func (st *SliceType) String() string {
+func (st *SliceType) String(printer *Printer) string {
 	if st.Vrd {
-		return fmt.Sprintf("...%s", st.Elt.String())
+		return fmt.Sprintf("...%s", st.Elt.String(printer))
 	} else {
-		return fmt.Sprintf("[]%s", st.Elt.String())
+		return fmt.Sprintf("[]%s", st.Elt.String(printer))
 	}
 }
 
@@ -625,13 +625,13 @@ func (pt *PointerType) TypeID() TypeID {
 	return pt.typeid
 }
 
-func (pt *PointerType) String() string {
+func (pt *PointerType) String(printer *Printer) string {
 	if pt == nil {
 		panic("invalid nil pointer type")
 	} else if pt.Elt == nil {
 		panic("invalid nil pointer element type")
 	} else {
-		return fmt.Sprintf("*%v", pt.Elt)
+		return printer.Sprintf("*%v", pt.Elt)
 	}
 }
 
@@ -764,9 +764,9 @@ func (st *StructType) TypeID() TypeID {
 	return st.typeid
 }
 
-func (st *StructType) String() string {
-	return fmt.Sprintf("struct{%s}",
-		FieldTypeList(st.Fields).String())
+func (st *StructType) String(printer *Printer) string {
+	return printer.Sprintf("struct{%s}",
+		FieldTypeList(st.Fields).String(printer))
 }
 
 func (st *StructType) Elem() Type {
@@ -799,7 +799,7 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 		}
 	}
 	panic(fmt.Sprintf("struct type %s has no field %s",
-		st.String(), n))
+		st.String(nil), n))
 }
 
 func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
@@ -885,8 +885,8 @@ func (pt *PackageType) TypeID() TypeID {
 	return pt.typeid
 }
 
-func (pt *PackageType) String() string {
-	return "package{}"
+func (pt *PackageType) String(printer *Printer) string {
+	return printer.Sprint("package{}")
 }
 
 func (pt *PackageType) Elem() Type {
@@ -941,14 +941,14 @@ func (it *InterfaceType) TypeID() TypeID {
 	return it.typeid
 }
 
-func (it *InterfaceType) String() string {
+func (it *InterfaceType) String(printer *Printer) string {
 	if it.Generic != "" {
 		return fmt.Sprintf("<%s>{%s}",
 			it.Generic,
-			FieldTypeList(it.Methods).String())
+			FieldTypeList(it.Methods).String(printer))
 	} else {
 		return fmt.Sprintf("interface {%s}",
-			FieldTypeList(it.Methods).String())
+			FieldTypeList(it.Methods).String(printer))
 	}
 }
 
@@ -1084,14 +1084,14 @@ func (ct *ChanType) TypeID() TypeID {
 	return ct.typeid
 }
 
-func (ct *ChanType) String() string {
+func (ct *ChanType) String(printer *Printer) string {
 	switch ct.Dir {
 	case SEND | RECV:
-		return "chan " + ct.Elt.String()
+		return "chan " + ct.Elt.String(printer)
 	case SEND:
-		return "<-chan " + ct.Elt.String()
+		return "<-chan " + ct.Elt.String(printer)
 	case RECV:
-		return "chan<- " + ct.Elt.String()
+		return "chan<- " + ct.Elt.String(printer)
 	default:
 		panic("should not happen")
 	}
@@ -1207,14 +1207,14 @@ func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg boo
 				} else if vargt.TypeID() != varg.T.TypeID() {
 					panic(fmt.Sprintf(
 						"incompatible varg types: expected %v, got %s",
-						vargt.String(),
-						varg.T.String()))
+						vargt.String(nil),
+						varg.T.String(nil)))
 				}
 			}
 			if nvarg > 0 && vargt == nil {
 				panic(fmt.Sprintf(
 					"unspecified generic varg %s",
-					ft.Params[len(ft.Params)-1].String()))
+					ft.Params[len(ft.Params)-1].String(nil)))
 			}
 			argTVs = argTVs[:len(ft.Params)-1]
 			argTVs = append(argTVs, TypedValue{
@@ -1279,21 +1279,19 @@ func (ft *FuncType) TypeID() TypeID {
 	return ft.typeid
 }
 
-func (ft *FuncType) String() string {
+func (ft *FuncType) String(printer *Printer) string {
 	switch len(ft.Results) {
 	case 0:
 		// XXX add ->()
-		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc())
+		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc(printer))
 	case 1:
-		// XXX add ->()
 		return fmt.Sprintf("func(%s) %s",
-			FieldTypeList(ft.Params).StringForFunc(),
-			ft.Results[0].Type.String())
+			FieldTypeList(ft.Params).StringForFunc(printer),
+			ft.Results[0].Type.String(printer))
 	default:
-		// XXX make ()->()
 		return fmt.Sprintf("func(%s) (%s)",
-			FieldTypeList(ft.Params).StringForFunc(),
-			FieldTypeList(ft.Results).StringForFunc())
+			FieldTypeList(ft.Params).StringForFunc(printer),
+			FieldTypeList(ft.Results).StringForFunc(printer))
 	}
 }
 
@@ -1347,10 +1345,10 @@ func (mt *MapType) TypeID() TypeID {
 	return mt.typeid
 }
 
-func (mt *MapType) String() string {
+func (mt *MapType) String(printer *Printer) string {
 	return fmt.Sprintf("map[%s]%s",
-		mt.Key.String(),
-		mt.Value.String())
+		mt.Key.String(printer),
+		mt.Value.String(printer))
 }
 
 func (mt *MapType) Elem() Type {
@@ -1381,8 +1379,8 @@ func (tt *TypeType) TypeID() TypeID {
 	return typeid("type{}")
 }
 
-func (tt *TypeType) String() string {
-	return string("type{}")
+func (tt *TypeType) String(printer *Printer) string {
+	return printer.Sprint("type{}")
 }
 
 func (tt *TypeType) Elem() Type {
@@ -1497,11 +1495,11 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 	}
 }
 
-func (dt *DeclaredType) String() string {
+func (dt *DeclaredType) String(printer *Printer) string {
 	if dt.Loc.IsZero() {
-		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+		return printer.Sprintf("%s.%s", dt.PkgPath, dt.Name)
 	} else {
-		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.Loc.String(), dt.Name)
+		return printer.Sprintf("%s[%s].%s", dt.PkgPath, dt.Loc.String(), dt.Name)
 	}
 }
 
@@ -1740,8 +1738,8 @@ func (bt blockType) TypeID() TypeID {
 	return typeid("block")
 }
 
-func (bt blockType) String() string {
-	return "block"
+func (bt blockType) String(printer *Printer) string {
+	return printer.Sprint("block")
 }
 
 func (bt blockType) Elem() Type {
@@ -1769,8 +1767,8 @@ func (bt heapItemType) TypeID() TypeID {
 	return typeid("heapitem")
 }
 
-func (bt heapItemType) String() string {
-	return "heapitem"
+func (bt heapItemType) String(printer *Printer) string {
+	return printer.Sprint("heapitem")
 }
 
 func (bt heapItemType) Elem() Type {
@@ -1814,11 +1812,11 @@ func (tt *tupleType) TypeID() TypeID {
 	return tt.typeid
 }
 
-func (tt *tupleType) String() string {
+func (tt *tupleType) String(printer *Printer) string {
 	ell := len(tt.Elts)
 	s := "("
 	for i, et := range tt.Elts {
-		s += et.String()
+		s += et.String(printer)
 		if i != ell-1 {
 			s += ","
 		}
@@ -1854,8 +1852,8 @@ func (rt RefType) TypeID() TypeID {
 	return rt.ID
 }
 
-func (rt RefType) String() string {
-	return fmt.Sprintf("RefType{%v}", rt.ID)
+func (rt RefType) String(printer *Printer) string {
+	return printer.Sprintf("RefType{%v}", rt.ID)
 }
 
 func (rt RefType) Elem() Type {
@@ -1951,7 +1949,7 @@ func KindOf(t Type) Kind {
 		case UntypedBigdecType:
 			return BigdecKind
 		default:
-			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
+			panic(fmt.Sprintf("unexpected primitive type %s", t.String(nil)))
 		}
 	case *DeclaredType:
 		panic("unexpected nested DeclaredType")
@@ -2016,8 +2014,8 @@ func debugAssertSameTypes(lt, rt Type) {
 	} else {
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
-			lt.String(),
-			rt.String(),
+			lt.String(nil),
+			rt.String(nil),
 		)
 	}
 }
@@ -2044,8 +2042,8 @@ func debugAssertEqualityTypes(lt, rt Type) {
 	} else {
 		debug.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
-			lt.String(),
-			rt.String(),
+			lt.String(nil),
+			rt.String(nil),
 		)
 	}
 }
@@ -2140,7 +2138,7 @@ func fillEmbeddedName(ft *FieldType) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected field type %s",
-			ft.Type.String()))
+			ft.Type.String(nil)))
 	}
 	ft.Embedded = true
 }
@@ -2243,9 +2241,9 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 					if match.TypeID() != specTypeval.TypeID() {
 						panic(fmt.Sprintf(
 							"expected %s for <%s> but got %s",
-							match.String(),
+							match.String(nil),
 							ct.Generic,
-							specTypeval.String()))
+							specTypeval.String(nil)))
 					} else {
 						return // ok
 					}

@@ -1142,7 +1142,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			default:
 				panic(fmt.Sprintf(
 					"cannot convert %s to %s",
-					tvk.String(), t.String()))
+					tvk.String(), t.String(nil)))
 			}
 		default:
 			panic(fmt.Sprintf(
@@ -1155,7 +1155,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			if tk != Uint8Kind && tk != Int32Kind {
 				panic(fmt.Sprintf(
 					"cannot convert %s to %s",
-					tv.T.String(), t.String()))
+					tv.T.String(nil), t.String(nil)))
 			}
 			switch sv := tv.V.(type) {
 			case nil:
@@ -1197,7 +1197,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		} else {
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
-				tv.T.String(), k.String()))
+				tv.T.String(nil), k.String()))
 		}
 	default:
 		panic(fmt.Sprintf(
@@ -1221,7 +1221,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
 				"ConvertUntypedTo expects untyped const source but got %s",
-				tv.T.String()))
+				tv.T.String(nil)))
 		}
 		if isUntyped(t) {
 			tvpt, ok1 := baseOf(tv.T).(PrimitiveType)
@@ -1236,8 +1236,8 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			} else {
 				panic(fmt.Sprintf(
 					"ConvertUntypedTo expects more specific target for %v but got %s",
-					tv.String(),
-					t.String()))
+					tv.String(nil),
+					t.String(nil)))
 			}
 		}
 	}
@@ -1269,7 +1269,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected untyped const type %s",
-			tv.T.String()))
+			tv.T.String(nil)))
 	}
 }
 

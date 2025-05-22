@@ -132,7 +132,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 				panic(fmt.Sprintf(
 					"cross(fn) but fn didn't call crossing(): %s.%s",
 					fr.Func.PkgPath,
-					fr.Func.String()))
+					fr.Func.String(nil)))
 			}
 		}
 
