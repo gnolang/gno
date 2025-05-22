@@ -90,7 +90,7 @@ func Ask(question string) string {
 	return answer
 }
 
-func RenderMagic8Ball() string {
+func renderMagic8Ball() string {
 	out := md.H2("Magic 8 Ball\n\n")
 	out += md.Link("[ ASK A QUESTION ]", txlink.Call("Ask", "question", "Question")) + "\n\n"
 	out += eightballAnswer

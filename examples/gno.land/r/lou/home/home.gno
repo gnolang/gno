@@ -19,10 +19,10 @@ func Render(_ string) string {
 		out += md.H2("No further content unlocked.") + "\n\n"
 		out += md.Italic("--> "+err.Error()) + "\n\n"
 	} else {
-		out += RenderMagic8Ball()
+		out += renderMagic8Ball()
 	}
 	out += "</gno-columns>\n\n"
 
-	out += RenderRatings()
+	out += renderRatings()
 	return out
 }

@@ -125,7 +125,7 @@ func findRatingByID(id seqid.ID) (string, bool) {
 	return keyP, found
 }
 
-func RenderPostRating() string {
+func renderPostRating() string {
 	out := "# "
 	out += md.Link("☆", txlink.Call("NewRating", "rating", "1"))
 	out += md.Link("☆", txlink.Call("NewRating", "rating", "2"))
@@ -136,10 +136,10 @@ func RenderPostRating() string {
 	return out
 }
 
-func RenderRatings() string {
+func renderRatings() string {
 	out := md.HorizontalRule()
 	out += md.H1("Ratings\n\n")
-	out += RenderPostRating()
+	out += renderPostRating()
 
 	if ratings.Size() == 0 {
 		out += "No ratings found."
