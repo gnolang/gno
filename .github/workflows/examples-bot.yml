@@ -1,10 +1,11 @@
-## Notifies the discord bot on the gno.land server of new commits to the examples folder
-name: Examples Discord Webhook
+name: Notify Discord about examples updates
 
 on:
+  # Fire **only** when a PR that touches the `examples/` tree
+  # is merged into `master`
   pull_request:
     types: [closed]          # only when the PR is closed
-    branches: [master]       # …and its base branch is master
+    branches: [main]       # …and its base branch is master
     paths:
       - 'examples/**'        # …and at least one file in examples/ changed
 
@@ -16,7 +17,7 @@ jobs:
     steps:
       - name: Send message to Discord
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }}     # add this secret
           PR_URL:          ${{ github.event.pull_request.html_url }}
           PR_TITLE:        ${{ github.event.pull_request.title }}
           PR_NUMBER:       ${{ github.event.pull_request.number }}
@@ -24,7 +25,9 @@ jobs:
         run: |
           # Compose a simple JSON payload (you can style it further)
           payload=$(jq -nc \
-            --arg content "🔔 **examples/** updated in PR #$PR_NUMBER – *$PR_TITLE* by **$PR_AUTHOR**\n$PR_URL" \
+            --arg content "🔔 Fresh Gno code just dropped! 
+          #$PR_NUMBER – *$PR_TITLE* by **$PR_AUTHOR**
+          $PR_URL" \
             '{content: $content}')
 
           curl -X POST \
