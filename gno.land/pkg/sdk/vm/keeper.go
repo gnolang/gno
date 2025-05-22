@@ -500,7 +500,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer doRecover(m, &err)
 	rtvs := m.Eval(xn)
 	for i, rtv := range rtvs {
-		res = res + rtv.String()
+		res = res + rtv.String(gno.NewPrinter(m.GasMeter))
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
@@ -787,7 +787,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 			if pname == "" {
 				pname = "_"
 			}
-			ptype := gno.BaseOf(param.Type).String()
+			ptype := gno.BaseOf(param.Type).String(nil)
 			fsig.Params = append(fsig.Params,
 				NamedType{Name: pname, Type: ptype},
 			)
@@ -797,7 +797,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 			if rname == "" {
 				rname = "_"
 			}
-			rtype := gno.BaseOf(result.Type).String()
+			rtype := gno.BaseOf(result.Type).String(nil)
 			fsig.Results = append(fsig.Results,
 				NamedType{Name: rname, Type: rtype},
 			)
@@ -815,7 +815,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	res = ""
 	for i, rtv := range rtvs {
-		res += rtv.String()
+		res += rtv.String(gno.NewPrinter(ctx.GasMeter()))
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}

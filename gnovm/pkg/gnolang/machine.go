@@ -1029,6 +1029,7 @@ const (
 	OpRangeIterArrayPtr Op = 0xD6
 	OpReturnCallDefers  Op = 0xD7 // XXX rename to OpCallDefers
 	OpVoid              Op = 0xFF // For profiling simple operation
+
 )
 
 const GasFactorCPU int64 = 1
@@ -1163,6 +1164,8 @@ const (
 	OpCPURangeIterMap      = 48
 	OpCPURangeIterArrayPtr = 46
 	OpCPUReturnCallDefers  = 78
+
+	OpCharPrint = 100
 )
 
 //----------------------------------------
@@ -1862,7 +1865,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			panic(fmt.Sprintf(
 				"cannot cross-call a non-crossing function %s.%v from %s",
 				prpath,
-				fv.String(),
+				fv.String(nil),
 				mrpath,
 			))
 		}
@@ -1885,7 +1888,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			panic(fmt.Sprintf(
 				"must cross-call like cross(%s.%v)(...) from %s",
 				prpath,
-				fv.String(),
+				fv.String(nil),
 				mrpath,
 			))
 		} else {
@@ -2385,7 +2388,7 @@ func (m *Machine) String() string {
 			// print the pkgpath.
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, pv.PkgPath)
 		} else {
-			bsi := b.StringIndented("            ")
+			bsi := b.StringIndented(NewPrinter(m.GasMeter), "            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 		}
 		// Update b
@@ -2411,7 +2414,7 @@ func (m *Machine) String() string {
 			break // done, skip *PackageNode.
 		} else {
 			fmt.Fprintf(builder, "          #%d %s\n", i,
-				b.StringIndented("            "))
+				b.StringIndented(NewPrinter(m.GasMeter), "            "))
 		}
 	}
 	builder.WriteString("    Frames:\n")
