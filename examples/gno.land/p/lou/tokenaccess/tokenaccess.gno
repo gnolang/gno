@@ -15,7 +15,7 @@ var (
 )
 
 // RequireMinimumBalance ensures a caller has at least amount of tokens.
-func RequireMinimumBalance(token *grc20.Token, amount uint64, caller std.Address) error {
+func RequireMinimumBalance(token *grc20.Token, amount int64, caller std.Address) error {
 	if err := checkCaller(caller); err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func RequireMinimumBalance(token *grc20.Token, amount uint64, caller std.Address
 func RequireMinimumAllowance(
 	token *grc20.Token,
 	owner std.Address,
-	amount uint64,
+	amount int64,
 	caller std.Address,
 ) error {
 	if err := checkCaller(caller); err != nil {
@@ -46,11 +46,11 @@ func RequireMinimumAllowance(
 // RewardAndApprove mints rewardAmt tokens to owner and increases target's allowance by allowanceIncrement.
 func RewardAndApprove(
 	owner std.Address,
-	rewardAmt uint64,
+	rewardAmt int64,
 	token *grc20.Token,
 	ledger *grc20.PrivateLedger,
 	target std.Address,
-	allowanceIncrement uint64,
+	allowanceIncrement int64,
 ) error {
 	if err := checkCaller(target); err != nil {
 		return err
@@ -74,7 +74,7 @@ func Spend(
 	ledger *grc20.PrivateLedger,
 	from std.Address,
 	to std.Address,
-	amount uint64,
+	amount int64,
 	caller std.Address,
 ) error {
 	if err := checkCaller(caller); err != nil {
@@ -92,8 +92,8 @@ func HasAccess(
 	token *grc20.Token,
 	owner std.Address,
 	caller std.Address,
-	minBalance uint64,
-	minAllowance uint64,
+	minBalance int64,
+	minAllowance int64,
 ) bool {
 	assertCaller(caller)
 

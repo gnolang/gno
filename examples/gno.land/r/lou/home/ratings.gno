@@ -23,22 +23,14 @@ func init() {
 	ratingID = seqid.ID(0)
 }
 
-func NewRating(rating uint64) string {
-	return addRating(rating, "")
-}
-
-func NewRatingComment(comment string, rating uint64) string {
-	return addRating(rating, comment)
-}
-
-func addRating(rating uint64, commment string) string {
+func NewRating(rating uint64, commentStr string) string {
 	caller := std.PreviousRealm().Address()
 	if _, exists := ratings.Get(caller.String()); exists {
 		panic(caller.String() + " has already rated and update instead")
 	}
 	id := ratingID.Next()
 
-	p, err := comment.NewComment(rating, commment, std.PreviousRealm().Address(), id)
+	p, err := comment.NewComment(rating, commentStr, std.PreviousRealm().Address(), id)
 	if err != nil {
 		panic(err)
 	}
@@ -47,15 +39,7 @@ func addRating(rating uint64, commment string) string {
 	return ufmt.Sprintf("Successfully added a #%d rating!", rating)
 }
 
-func UpdateRating(rating uint64) string {
-	return updateRating(rating, "")
-}
-
-func UpdateRatingComment(comment string, rating uint64) string {
-	return updateRating(rating, comment)
-}
-
-func updateRating(rating uint64, commentStr string) string {
+func UpdateRating(rating uint64, commentStr string) string {
 	checkCaller()
 	caller := std.PreviousRealm().Address()
 
@@ -67,7 +51,7 @@ func updateRating(rating uint64, commentStr string) string {
 	if commentStr == "" && oldComment.Comment() != nil {
 		commentStr = *oldComment.Comment()
 	}
-	return addRating(rating, commentStr) + "\nSuccessfully updated rating!\n"
+	return NewRating(rating, commentStr) + "\nSuccessfully updated rating!\n"
 }
 
 func UpdateByID(comment string, id seqid.ID, rating uint64) string {
@@ -75,7 +59,7 @@ func UpdateByID(comment string, id seqid.ID, rating uint64) string {
 
 	if key, found := findRatingByID(id); found {
 		if key == caller.String() {
-			return updateRating(rating, comment)
+			return UpdateRating(rating, comment)
 		}
 	}
 	panic("not authorized to update this rating")
@@ -84,7 +68,7 @@ func UpdateByID(comment string, id seqid.ID, rating uint64) string {
 func DeleteRating(id seqid.ID) string {
 	caller := std.PreviousRealm().Address()
 
-	if Ownable.CallerIsOwner() {
+	if Ownable.OwnedByPrevious() {
 		if key, found := findRatingByID(id); found {
 			ratings.Remove(key)
 		}
@@ -127,12 +111,12 @@ func findRatingByID(id seqid.ID) (string, bool) {
 
 func renderPostRating() string {
 	out := "# "
-	out += md.Link("☆", txlink.Call("NewRating", "rating", "1"))
-	out += md.Link("☆", txlink.Call("NewRating", "rating", "2"))
-	out += md.Link("☆", txlink.Call("NewRating", "rating", "3"))
-	out += md.Link("☆", txlink.Call("NewRating", "rating", "4"))
-	out += md.Link("☆", txlink.Call("NewRating", "rating", "5")) + "\n\n"
-	out += md.Link("[ ADD A RATING ]", txlink.Call("NewRatingComment", "comment", "Comment", "rating", "0")) + "\n\n"
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "1", "commentStr", ""))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "2", "commentStr", ""))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "3", "commentStr", ""))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "4", "commentStr", ""))
+	out += md.Link("☆", txlink.Call("NewRating", "rating", "5", "commentStr", "")) + "\n\n"
+	out += md.Link("[ ADD A RATING ]", txlink.Call("NewRating", "rating", "0", "comment", "Comment")) + "\n\n"
 	return out
 }
 

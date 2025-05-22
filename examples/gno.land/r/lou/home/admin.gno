@@ -27,7 +27,7 @@ func CreateToken(name, symbol string, decimals uint) {
 }
 
 func ResetRatings() {
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 
 	ratings = avl.NewTree()
 	ratingID = seqid.ID(0)
