@@ -38,15 +38,15 @@ func init() {
 		res.Write(renderHomepage())
 	})
 
-	// coin info
+	// Coin info
 	router.HandleFunc("{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
 		// denom := req.GetVar("denom")
 		// banker := std.NewBanker(std.BankerTypeReadonly)
 		// res.Write(renderAddressBalance(banker, denom, denom))
-		res.Write("Total supply feature is coming soon. Please check back later!")
+		res.Write("The total supply feature is coming soon.")
 	})
 
-	// address balance
+	// Address balance
 	router.HandleFunc("{address}/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
 		denom := req.GetVar("denom")
 		addr := req.GetVar("address")
