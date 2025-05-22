@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrInvalidRating = errors.New("Rating is invalid, should be from 0-5")
+	ErrInvalidRating = errors.New("rating is invalid, should be from 0-5")
 )
 
 type Comment struct {

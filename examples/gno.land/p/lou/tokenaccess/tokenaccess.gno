@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	ErrNoCaller              = errors.New("Caller isn't identified")
-	ErrInvalidCaller         = errors.New("Caller isn't a valid address")
+	ErrNoCaller              = errors.New("caller isn't identified")
+	ErrInvalidCaller         = errors.New("caller isn't a valid address")
 	ErrInsufficientBalance   = errors.New("access denied: insufficient token balance")
 	ErrInsufficientAllowance = errors.New("access denied: insufficient allowance")
 )

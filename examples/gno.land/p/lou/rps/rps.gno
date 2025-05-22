@@ -28,7 +28,7 @@ var (
 		Scissors: Paper,
 	}
 
-	ErrInvalidHand = errors.New("Invalid hand input: only rock, paper or scissors")
+	ErrInvalidHand = errors.New("invalid hand input: only rock, paper or scissors")
 )
 
 type Profile struct {
