@@ -46,18 +46,6 @@ func NewComment(rating uint64, comment string, author std.Address, id seqid.ID) 
 	}, nil
 }
 
-func NewRating(rating uint64, author std.Address, id seqid.ID) (*Comment, error) {
-	if rating > 5 || rating < 0 {
-		return nil, ErrInvalidRating
-	}
-	return &Comment{
-		rating:  rating,
-		comment: nil,
-		author:  author,
-		id:      id,
-	}, nil
-}
-
 func RenderRating(rating uint64) string {
 	out := ""
 	for i := 0; i < 5; i++ {
