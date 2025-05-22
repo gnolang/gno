@@ -147,15 +147,14 @@ func RenderRatings() string {
 	}
 	ratings.ReverseIterate("", "", func(key string, value interface{}) bool {
 		c := value.(*comment.Comment)
-		user := users.ResolveAddress(c.Author())
-		out += "# "
-		out += comment.RenderRating(c.Rating())
+		out += "# " + comment.RenderRating(c.Rating())
 		out += ufmt.Sprintf("\n> (%d) ", c.Rating())
 		if *c.Comment() != "" {
 			out += ufmt.Sprintf("\"%s\" ", *c.Comment())
 		}
-
+		
 		out += "from "
+		user := users.ResolveAddress(c.Author())
 		if user != nil {
 			out += md.Bold(user.RenderLink(""))
 		} else {
