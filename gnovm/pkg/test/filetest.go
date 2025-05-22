@@ -271,6 +271,15 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		}
 	}()
 
+	typecheck := func(memPkg *std.MemPackage) {
+		if err := gno.TypeCheckMemPackage(memPkg, m.Store, gno.TypeCheckOptions{
+			Redefinitions: true,
+			Cache:         opts.TypeCheckCache(),
+		}); err != nil {
+			tcError = fmt.Sprintf("%v", err.Error())
+		}
+	}
+
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) {
 		// Type check.
@@ -284,10 +293,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 				},
 			},
 		}
-		// Validate Gno syntax and type check.
-		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
-			tcError = fmt.Sprintf("%v", err.Error())
-		}
+		typecheck(memPkg)
 
 		// Simple case - pure package.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
@@ -322,10 +328,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = tx
 
-		// Validate Gno syntax and type check.
-		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
-			tcError = fmt.Sprintf("%v", err.Error())
-		}
+		typecheck(memPkg)
 
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
