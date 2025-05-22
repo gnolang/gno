@@ -23,7 +23,10 @@ var ErrPkgPathEmpty = errors.New("pkgPath must be set in gno.toml")
 type Modfile struct {
 	PkgPath  string `toml:"pkgPath" json:"pkgPath"`
 	Draft    bool   `toml:"draft,omitempty" json:"draft,omitempty"`
+	Private  bool   `toml:"private,omitempty" json:"private,omitempty"`
 	Uploader string `toml:"uploader,omitempty" json:"uploader,omitempty"`
+	// Replace
+	// ...
 }
 
 // ParseModfile parses the content of a gno.toml file.
