@@ -172,3 +172,161 @@ func TestSetIterationLimits(t *testing.T) {
 		})
 	}
 }
+
+func TestNew(t *testing.T) {
+	addr1 := std.Address("addr1")
+	addr2 := std.Address("addr2")
+	addr3 := std.Address("addr3")
+
+	tests := []struct {
+		name     string
+		addrs    []std.Address
+		expected int
+	}{
+		{
+			name:     "empty constructor",
+			addrs:    []std.Address{},
+			expected: 0,
+		},
+		{
+			name:     "single address",
+			addrs:    []std.Address{addr1},
+			expected: 1,
+		},
+		{
+			name:     "multiple addresses",
+			addrs:    []std.Address{addr1, addr2, addr3},
+			expected: 3,
+		},
+		{
+			name:     "duplicate addresses",
+			addrs:    []std.Address{addr1, addr1, addr2},
+			expected: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			set := New(tt.addrs...)
+			uassert.Equal(t, tt.expected, set.Size())
+		})
+	}
+}
+
+func TestToSlice(t *testing.T) {
+	addr1 := std.Address("addr1")
+	addr2 := std.Address("addr2")
+	addr3 := std.Address("addr3")
+	addr4 := std.Address("addr4")
+
+	tests := []struct {
+		name     string
+		addrs    []std.Address
+		offset   int
+		limit    int
+		expected []std.Address
+	}{
+		{
+			name:     "empty set",
+			addrs:    []std.Address{},
+			offset:   0,
+			limit:    10,
+			expected: []std.Address{},
+		},
+		{
+			name:     "full slice",
+			addrs:    []std.Address{addr1, addr2, addr3},
+			offset:   0,
+			limit:    10,
+			expected: []std.Address{addr1, addr2, addr3},
+		},
+		{
+			name:     "partial slice with offset",
+			addrs:    []std.Address{addr1, addr2, addr3, addr4},
+			offset:   1,
+			limit:    2,
+			expected: []std.Address{addr2, addr3},
+		},
+		{
+			name:     "offset beyond size",
+			addrs:    []std.Address{addr1, addr2},
+			offset:   3,
+			limit:    1,
+			expected: []std.Address{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			set := New(tt.addrs...)
+			slice := set.ToSlice(tt.offset, tt.limit)
+			uassert.Equal(t, len(tt.expected), len(slice))
+			for i, addr := range tt.expected {
+				uassert.Equal(t, addr, slice[i])
+			}
+		})
+	}
+}
+
+func TestTree(t *testing.T) {
+	addr1 := std.Address("addr1")
+	addr2 := std.Address("addr2")
+
+	set := New(addr1, addr2)
+	tree := set.Tree()
+
+	// Verify the tree interface works as expected
+	uassert.Equal(t, 2, tree.Size())
+	uassert.True(t, tree.Has(string(addr1)))
+	uassert.True(t, tree.Has(string(addr2)))
+	uassert.False(t, tree.Has("nonexistent"))
+}
+
+func TestIterationEarlyReturn(t *testing.T) {
+	addr1 := std.Address("addr1")
+	addr2 := std.Address("addr2")
+	addr3 := std.Address("addr3")
+	addr4 := std.Address("addr4")
+
+	set := New(addr1, addr2, addr3, addr4)
+
+	// Test forward iteration with early return
+	count := 0
+	set.IterateByOffset(0, 10, func(addr std.Address) bool {
+		count++
+		return count == 2 // Stop after second item
+	})
+	uassert.Equal(t, 2, count)
+
+	// Test reverse iteration with early return
+	count = 0
+	set.ReverseIterateByOffset(0, 10, func(addr std.Address) bool {
+		count++
+		return count == 2 // Stop after second item
+	})
+	uassert.Equal(t, 2, count)
+}
+
+func TestEmptySetIteration(t *testing.T) {
+	var set Set
+
+	// Test forward iteration on empty set
+	count := 0
+	set.IterateByOffset(0, 10, func(addr std.Address) bool {
+		count++
+		return false
+	})
+	uassert.Equal(t, 0, count)
+
+	// Test reverse iteration on empty set
+	count = 0
+	set.ReverseIterateByOffset(0, 10, func(addr std.Address) bool {
+		count++
+		return false
+	})
+	uassert.Equal(t, 0, count)
+
+	// Test ToSlice on empty set
+	slice := set.ToSlice(0, 10)
+	uassert.Equal(t, 0, len(slice))
+}

@@ -52,7 +52,6 @@ import (
 )
 
 // XXX: Stringer?
-// XXX: ToSlice(offset, count) []std.Address?
 
 // Set is a specialized set data structure for managing unique Gno addresses.
 type Set struct {
@@ -112,4 +111,14 @@ func (s *Set) ReverseIterateByOffset(offset int, count int, cb func(addr std.Add
 // Tree returns the underlying AVL tree for advanced usage.
 func (s *Set) Tree() avl.ITree {
 	return &s.tree
+}
+
+// ToSlice returns a slice of addresses from the set.
+func (s *Set) ToSlice(offset int, count int) []std.Address {
+	slice := make([]std.Address, 0, count)
+	s.IterateByOffset(offset, count, func(addr std.Address) bool {
+		slice = append(slice, addr)
+		return false
+	})
+	return slice
 }

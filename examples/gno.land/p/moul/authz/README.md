@@ -28,6 +28,4 @@ type Membership struct {} // optional
 dao := commondao.New()
 membersWithRoles := authz.WrapExistingAddrset(dao)
 // membersWithRoles.AssignRole..
-
-
 ```
