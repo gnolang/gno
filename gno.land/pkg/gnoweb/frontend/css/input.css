@@ -287,6 +287,7 @@
   }
   .realm-view .gno-form input[type="submit"] {
     @apply bg-green-600 text-light border-green-600 cursor-pointer font-interVar mb-2 hover:opacity-90;
+  }
 
   /* Alert */
   .realm-view .gno-alert {
