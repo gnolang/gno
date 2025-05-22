@@ -1519,7 +1519,6 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
-	fillValueTV(store, tv)
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
