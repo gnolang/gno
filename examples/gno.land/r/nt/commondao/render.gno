@@ -71,7 +71,7 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render header messages
 	if dao.IsDeleted() {
-		res.Write(md.Blockquote("⚠ This DAO has been dismissed"))
+		res.Write(md.Blockquote("⚠ This DAO has been dissolved"))
 	}
 
 	// Render header
@@ -106,26 +106,26 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	// Render organization tree
 	if dao.Children().Len() > 0 {
 		r := parseRealmPath(req.RawPath)
-		dismissedVisible := r.Query.Has("dismissed") || dao.IsDeleted()
-		if dismissedVisible || !dao.IsDeleted() {
+		dissolvedVisible := r.Query.Has("dissolved") || dao.IsDeleted()
+		if dissolvedVisible || !dao.IsDeleted() {
 			res.Write(md.H2("Tree"))
 
-			// Render toggle only when DAO is not dismissed,
-			// otherwise render the whole tree when DAO is dismissed
+			// Render toggle only when DAO is not dissolved,
+			// otherwise render the whole tree when DAO is dissolved
 			if !dao.IsDeleted() {
 				var toggleLink string
-				if dismissedVisible {
-					r.Query.Del("dismissed")
+				if dissolvedVisible {
+					r.Query.Del("dissolved")
 					toggleLink = md.Link("hide", r.String())
 				} else {
-					r.Query.Add("dismissed", "")
+					r.Query.Add("dissolved", "")
 					toggleLink = md.Link("show", r.String())
 				}
 
-				res.Write(md.Paragraph("Dismissed: " + toggleLink))
+				res.Write(md.Paragraph("Dissolved: " + toggleLink))
 			}
 
-			renderTree(res, dao, "", dismissedVisible)
+			renderTree(res, dao, "", dissolvedVisible)
 		}
 	}
 
@@ -162,10 +162,10 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 	}
 }
 
-func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string, showDismissed bool) {
+func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string, showDissolved bool) {
 	daoLink := md.Link(dao.Name(), daoURL(dao.ID()))
 	if dao.IsDeleted() {
-		// Strikethough dismissed DAO names
+		// Strikethough dissolved DAO names
 		daoLink = md.Strikethrough(daoLink)
 	}
 
@@ -178,8 +178,8 @@ func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string
 			return false
 		}
 
-		if showDismissed || !subDAO.IsDeleted() {
-			renderTree(res, subDAO, indent, showDismissed)
+		if showDissolved || !subDAO.IsDeleted() {
+			renderTree(res, subDAO, indent, showDissolved)
 		}
 		return false
 	})
