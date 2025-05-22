@@ -76,7 +76,7 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 
 	// Add form / inputs extension with context
 	Forms.Extend(m)
-  
+
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {
 		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
