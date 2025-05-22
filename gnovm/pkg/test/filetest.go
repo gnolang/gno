@@ -280,7 +280,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) {
 		// Type check.
-		memPkg := &std.MemPackage{
+		mpkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -289,7 +289,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Validate Gno syntax and type check.
-		if _, _, _, _, _, err := gno.TypeCheckMemPackage(memPkg, m.Store, true); err != nil {
+		if _, _, _, _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, true); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
@@ -313,7 +313,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		fname = strings.ReplaceAll(fname, "_filetest", "")
 
 		// save package using realm crawl procedure.
-		memPkg := &std.MemPackage{
+		mpkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -325,12 +325,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = tx
 
 		// Validate Gno syntax and type check.
-		if _, _, _, _, _, err := gno.TypeCheckMemPackage(memPkg, m.Store, true); err != nil {
+		if _, _, _, _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, true); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
 		// Run decls and init functions.
-		m.RunMemPackage(memPkg, true)
+		m.RunMemPackage(mpkg, true)
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()

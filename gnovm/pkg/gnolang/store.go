@@ -60,7 +60,7 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(mpkg *std.MemPackage)
+	AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	IterMemPackage() <-chan *std.MemPackage
@@ -785,7 +785,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage) {
+func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -798,7 +798,8 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage) {
 			bm.StopStore(size)
 		}()
 	}
-	err := ValidateMemPackage(mpkg) // NOTE: duplicate validation.
+	err := ValidateMemPackageWithOptions(mpkg,
+		ValidateMemPackageOptions{Type: mtype})
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}

@@ -196,9 +196,9 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
-	for memPkg := range ch {
-		fset := ParseMemPackage(memPkg)
-		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+	for mpkg := range ch {
+		fset := ParseMemPackage(mpkg)
+		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
@@ -224,40 +224,43 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 //----------------------------------------
 // top level Run* methods.
 
-// Sorts and parses files, sets the package if doesn't exist, runs files, saves mempkg
-// and corresponding package node, package value, and types to store. Save
-// is set to false for tests where package values may be native.
-func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+// Sorts the package, then sets the package if doesn't exist, runs files, saves
+// mpkg and corresponding package node, package value, and types to store. Save
+// is set to false for tests where package values may be native.  NOTE: Does
+// not validate the mpkg. Caller must validate the mpkg before calling.
+func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	if bm.OpsEnabled || bm.StorageEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
 		defer bm.FinishStore()
 	}
-	memPkg.Sort()
-	return m.runMemPackage(memPkg, save, false)
+	return m.runMemPackage(mpkg, save, false)
 }
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
-// declarations are filtered removing duplicate declarations.
-// To control which declaration overrides which, use [ReadMemPackageFromList],
-// putting the overrides at the top of the list.
-func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	return m.runMemPackage(memPkg, save, true)
+// declarations are filtered removing duplicate declarations.  To control which
+// declaration overrides which, use [ReadMemPackageFromList], putting the
+// overrides at the top of the list.  NOTE: Does not validate the mpkg, except
+// when saving validates with type MemPackageTypeAny.
+func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(mpkg, save, true)
 }
 
-func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+	// sort mpkg.
+	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackage(memPkg)
+	files := ParseMemPackage(mpkg)
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
-	if m.Package != nil && m.Package.PkgPath == memPkg.Path {
+	if m.Package != nil && m.Package.PkgPath == mpkg.Path {
 		pv = m.Package
-		loc := PackageNodeLocation(memPkg.Path)
+		loc := PackageNodeLocation(mpkg.Path)
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
-		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
+		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
@@ -281,7 +284,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	if save {
 		m.resavePackageValues(throwaway)
 		// store mempackage
-		m.Store.AddMemPackage(memPkg)
+		m.Store.AddMemPackage(mpkg, MemPackageTypeAny)
 		if throwaway != nil {
 			m.Realm = nil
 		}

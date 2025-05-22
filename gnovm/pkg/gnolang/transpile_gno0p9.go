@@ -35,6 +35,8 @@ const (
 	ParseModeIntegration
 	// all files even including *_filetest.gno; for linting and testing.
 	ParseModeAll
+	// a directory of file tests. consider all to be filetests.
+	ParseModeOnlyFiletests
 )
 
 // ========================================
@@ -78,7 +80,7 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 			if strings.HasSuffix(file.Name, "_filetest.gno") {
 				continue
 			}
-		case ParseModeAll:
+		case ParseModeAll, ParseModeOnlyFiletests:
 			// include all
 		default:
 			panic("should not happen")
@@ -97,7 +99,8 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 			continue
 		}
 		// The *ast.File passed all filters.
-		if strings.HasSuffix(file.Name, "_filetest.gno") {
+		if strings.HasSuffix(file.Name, "_filetest.gno") ||
+			pmode == ParseModeOnlyFiletests {
 			tgofs = append(tgofs, gof)
 		} else if strings.HasSuffix(file.Name, "_test.gno") &&
 			strings.HasSuffix(gof.Name.String(), "_test") {

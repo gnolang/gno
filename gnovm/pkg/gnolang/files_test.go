@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,10 +153,28 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(dir, path)
-		memPkg := gnolang.MustReadMemPackage(fp, path)
-		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
+
+		// Exclude empty directories.
+		files, err := ioutil.ReadDir(fp)
+		hasFiles := false
+		if err != nil {
+			return err
+		}
+		for _, file := range files {
+			if !file.IsDir() &&
+				strings.HasSuffix(file.Name(), ".gno") {
+				hasFiles = true
+			}
+		}
+		if !hasFiles {
+			return nil
+		}
+
+		// Read and run tests.
+		mpkg := gnolang.MustReadMemPackage(fp, path)
+		t.Run(strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
-			switch memPkg.Path {
+			switch mpkg.Path {
 			// Excluded in short
 			case
 				"bufio",
@@ -179,7 +198,7 @@ func TestStdlibs(t *testing.T) {
 				capture.Reset()
 			}
 
-			err := test.Test(memPkg, "", opts)
+			err := test.Test(mpkg, "", opts)
 			if !testing.Verbose() {
 				t.Log(capture.String())
 			}
@@ -210,13 +229,13 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(testDir, path)
-		memPkg := gnolang.MustReadMemPackage(fp, path)
-		t.Run("test-"+strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
+		mpkg := gnolang.MustReadMemPackage(fp, path)
+		t.Run("test-"+strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
 			if sharedCapture != nil {
 				sharedCapture.Reset()
 			}
 
-			err := test.Test(memPkg, "", sharedOpts)
+			err := test.Test(mpkg, "", sharedOpts)
 			if !testing.Verbose() {
 				t.Log(sharedCapture.String())
 			}
