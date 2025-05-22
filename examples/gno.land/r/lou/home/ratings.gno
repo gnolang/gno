@@ -81,34 +81,6 @@ func DeleteRating(id seqid.ID) string {
 	return ufmt.Sprintf("Rating was removed successfully!")
 }
 
-func checkCaller() {
-	caller := std.PreviousRealm().Address()
-	if !caller.IsValid() {
-		panic("invalid address")
-	}
-
-	if _, exists := ratings.Get(caller.String()); !exists {
-		panic("rating either unrecognisable/ inaccessible from your address")
-	}
-}
-
-func findRatingByID(id seqid.ID) (string, bool) {
-	keyP := ""
-	found := false
-
-	ratings.Iterate("", "", func(key string, value any) bool {
-		c := value.(*comment.Comment)
-		if c.ID() == id {
-			keyP = key
-			found = true
-			return true
-		}
-		return false
-	})
-
-	return keyP, found
-}
-
 func renderPostRating() string {
 	out := "# "
 	out += md.Link("☆", txlink.Call("NewRating", "rating", "1", "commentStr", ""))
@@ -152,4 +124,32 @@ func renderRatings() string {
 	})
 
 	return out
+}
+
+func checkCaller() {
+	caller := std.PreviousRealm().Address()
+	if !caller.IsValid() {
+		panic("invalid address")
+	}
+
+	if _, exists := ratings.Get(caller.String()); !exists {
+		panic("rating either unrecognisable/ inaccessible from your address")
+	}
+}
+
+func findRatingByID(id seqid.ID) (string, bool) {
+	keyP := ""
+	found := false
+
+	ratings.Iterate("", "", func(key string, value any) bool {
+		c := value.(*comment.Comment)
+		if c.ID() == id {
+			keyP = key
+			found = true
+			return true
+		}
+		return false
+	})
+
+	return keyP, found
 }
