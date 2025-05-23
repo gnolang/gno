@@ -128,7 +128,7 @@ func CreateBoard(name string, private bool) BoardID {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
 
-		perms := createDefaultBoardPermissions(caller)
+		perms := createBasicBoardPermissions(caller)
 		board := newBoard(id, name, caller, perms)
 		if private {
 			board.SetPrivate(true)

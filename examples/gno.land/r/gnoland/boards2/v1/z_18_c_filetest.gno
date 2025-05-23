@@ -18,7 +18,7 @@ var (
 
 func init() {
 	// Create a new permissions instance without users
-	perms = boards2.NewDefaultPermissions(commondao.New())
+	perms = boards2.NewBasicPermissions(commondao.New())
 
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("foobar", false)

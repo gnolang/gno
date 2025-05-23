@@ -9,15 +9,15 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-var _ Permissions = (*DefaultPermissions)(nil)
+var _ Permissions = (*BasicPermissions)(nil)
 
-func TestDefaultPermissionsWithPermission(t *testing.T) {
+func TestBasicPermissionsWithPermission(t *testing.T) {
 	cases := []struct {
 		name       string
 		user       std.Address
 		permission Permission
 		args       Args
-		setup      func() *DefaultPermissions
+		setup      func() *BasicPermissions
 		err        string
 		called     bool
 	}{
@@ -25,8 +25,8 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			name:       "ok",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
@@ -38,8 +38,8 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
 			args:       Args{"a", "b"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
@@ -50,8 +50,8 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			name:       "no permission",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
@@ -62,8 +62,8 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 			name:       "is not a DAO member",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				return NewBasicPermissions(commondao.New())
 			},
 			err: "unauthorized",
 		},
@@ -102,19 +102,19 @@ func TestDefaultPermissionsWithPermission(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsGetUserRoles(t *testing.T) {
+func TestBasicPermissionsGetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  std.Address
 		roles []string
-		setup func() *DefaultPermissions
+		setup func() *BasicPermissions
 	}{
 		{
 			name:  "single role",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
 				return perms
@@ -124,8 +124,8 @@ func TestDefaultPermissionsGetUserRoles(t *testing.T) {
 			name:  "multiple roles",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin", "foo", "bar"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
 				perms.AddRole("foo", "x")
 				perms.AddRole("bar", "x")
@@ -136,8 +136,8 @@ func TestDefaultPermissionsGetUserRoles(t *testing.T) {
 		{
 			name: "without roles",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
@@ -145,16 +145,16 @@ func TestDefaultPermissionsGetUserRoles(t *testing.T) {
 		{
 			name: "not a user",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				return NewBasicPermissions(commondao.New())
 			},
 		},
 		{
 			name:  "multiple users",
 			user:  "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			roles: []string{"admin"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
 				perms.AddRole("bar", "x")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
@@ -178,20 +178,20 @@ func TestDefaultPermissionsGetUserRoles(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsHasRole(t *testing.T) {
+func TestBasicPermissionsHasRole(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  std.Address
 		role  Role
-		setup func() *DefaultPermissions
+		setup func() *BasicPermissions
 		want  bool
 	}{
 		{
 			name: "ok",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role: "admin",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin")
 				return perms
@@ -202,8 +202,8 @@ func TestDefaultPermissionsHasRole(t *testing.T) {
 			name: "ok with multiple roles",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role: "foo",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("admin", "x")
 				perms.AddRole("foo", "x")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "admin", "foo")
@@ -214,8 +214,8 @@ func TestDefaultPermissionsHasRole(t *testing.T) {
 		{
 			name: "user without roles",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
@@ -224,8 +224,8 @@ func TestDefaultPermissionsHasRole(t *testing.T) {
 			name: "has no role",
 			user: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			role: "bar",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "x")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
@@ -242,20 +242,20 @@ func TestDefaultPermissionsHasRole(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsHasPermission(t *testing.T) {
+func TestBasicPermissionsHasPermission(t *testing.T) {
 	cases := []struct {
 		name       string
 		user       std.Address
 		permission Permission
-		setup      func() *DefaultPermissions
+		setup      func() *BasicPermissions
 		want       bool
 	}{
 		{
 			name:       "ok",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
@@ -266,8 +266,8 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 			name:       "ok with multiple users",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "bar",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				perms.AddUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "foo")
@@ -279,8 +279,8 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 			name:       "ok with multiple roles",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddRole("baz", "other")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo", "baz")
@@ -292,8 +292,8 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 			name:       "no permission",
 			user:       "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			permission: "other",
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("foo", "bar")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "foo")
 				return perms
@@ -310,20 +310,20 @@ func TestDefaultPermissionsHasPermission(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsAddUser(t *testing.T) {
+func TestBasicPermissionsAddUser(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  std.Address
 		roles []Role
-		setup func() *DefaultPermissions
+		setup func() *BasicPermissions
 		err   string
 	}{
 		{
 			name:  "single user",
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a", "b"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
 				return perms
@@ -333,8 +333,8 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			name:  "multiple users",
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddUser("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", "a")
 				perms.AddUser("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")
@@ -344,8 +344,8 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 		{
 			name: "duplicated user",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
@@ -355,8 +355,8 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			name:  "duplicated user",
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a", "foo"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				return perms
 			},
@@ -365,8 +365,8 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 		{
 			name: "already a DAO member",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(
+			setup: func() *BasicPermissions {
+				return NewBasicPermissions(
 					commondao.New(commondao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				)
 			},
@@ -397,20 +397,20 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsSetUserRoles(t *testing.T) {
+func TestBasicPermissionsSetUserRoles(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  std.Address
 		roles []Role
-		setup func() *DefaultPermissions
+		setup func() *BasicPermissions
 		err   string
 	}{
 		{
 			name:  "single role",
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"b"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a")
@@ -421,8 +421,8 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			name:  "multiple roles",
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"b", "c"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
 				perms.AddRole("c", "permission2")
@@ -434,8 +434,8 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			name:  "duplicated role",
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"a", "c"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
 				perms.AddRole("c", "permission2")
@@ -446,8 +446,8 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 		{
 			name: "remove roles",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddRole("b", "permission2")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a", "b")
@@ -458,8 +458,8 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 			name:  "invalid role",
 			user:  std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			roles: []Role{"x", "a"},
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddRole("a", "permission1")
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "a")
 				return perms
@@ -469,8 +469,8 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 		{
 			name: "user not found",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				return NewBasicPermissions(commondao.New())
 			},
 			err: "user not found",
 		},
@@ -499,18 +499,18 @@ func TestDefaultPermissionsSetUserRoles(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsRemoveUser(t *testing.T) {
+func TestBasicPermissionsRemoveUser(t *testing.T) {
 	cases := []struct {
 		name  string
 		user  std.Address
-		setup func() *DefaultPermissions
+		setup func() *BasicPermissions
 		want  bool
 	}{
 		{
 			name: "ok",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *DefaultPermissions {
-				perms := NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				perms := NewBasicPermissions(commondao.New())
 				perms.AddUser("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 				return perms
 			},
@@ -519,8 +519,8 @@ func TestDefaultPermissionsRemoveUser(t *testing.T) {
 		{
 			name: "user not found",
 			user: std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-			setup: func() *DefaultPermissions {
-				return NewDefaultPermissions(commondao.New())
+			setup: func() *BasicPermissions {
+				return NewBasicPermissions(commondao.New())
 			},
 		},
 	}
@@ -534,7 +534,7 @@ func TestDefaultPermissionsRemoveUser(t *testing.T) {
 	}
 }
 
-func TestDefaultPermissionsIterateUsers(t *testing.T) {
+func TestBasicPermissionsIterateUsers(t *testing.T) {
 	users := []User{
 		{
 			Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -550,7 +550,7 @@ func TestDefaultPermissionsIterateUsers(t *testing.T) {
 		},
 	}
 
-	perms := NewDefaultPermissions(commondao.New())
+	perms := NewBasicPermissions(commondao.New())
 	perms.AddRole("foo", "perm1")
 	perms.AddRole("bar", "perm2")
 	for _, u := range users {

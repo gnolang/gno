@@ -12,7 +12,7 @@ import (
 
 func TestPostUpdate(t *testing.T) {
 	addr := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	board := newBoard(1, "test123", addr, perms)
 	creator := testutils.TestAddress("creator")
 	post := newPost(board, 1, creator, "Title", "Body", 1, 0, 0)
@@ -53,7 +53,7 @@ func TestPostSetVisible(t *testing.T) {
 func TestPostAddRepostTo(t *testing.T) {
 	// TODO: Improve this unit test
 	addr := testutils.TestAddress("creatorDstBoard")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	cases := []struct {
 		name, title, body string
 		dstBoard          *Board
@@ -119,7 +119,7 @@ func TestNewThread(t *testing.T) {
 	boardID := BoardID(1)
 	threadID := PostID(42)
 	boardName := "test123"
-	perms := createDefaultBoardPermissions(creator)
+	perms := createBasicBoardPermissions(creator)
 	board := newBoard(boardID, boardName, creator, perms)
 	url := ufmt.Sprintf(
 		"/r/gnoland/boards2/v1:%s/%d",
@@ -298,7 +298,7 @@ func TestNewReply(t *testing.T) {
 	parentID := PostID(1)
 	replyID := PostID(2)
 	boardName := "test123"
-	perms := createDefaultBoardPermissions(creator)
+	perms := createBasicBoardPermissions(creator)
 	board := newBoard(boardID, boardName, creator, perms)
 	url := ufmt.Sprintf(
 		"/r/gnoland/boards2/v1:%s/%d/%d",
@@ -407,7 +407,7 @@ func createTestThread(t *testing.T) *Post {
 	t.Helper()
 
 	creator := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(creator)
+	perms := createBasicBoardPermissions(creator)
 	board := newBoard(1, "test_board_123", creator, perms)
 	return board.AddThread(creator, "Title", "Body")
 }

@@ -255,8 +255,8 @@ func (board *Board) GetMembersURL() string {
 	return board.GetURL() + "/members"
 }
 
-func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
-	perms := NewDefaultPermissions(commondao.New())
+func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
+	perms := NewBasicPermissions(commondao.New())
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(
 		RoleAdmin,

@@ -31,7 +31,7 @@ func TestBoard_GetURL(t *testing.T) {
 	want := pkgPath + ":" + name
 
 	addr := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	board := newBoard(1, name, addr, perms)
 	got := board.GetURL()
 	uassert.Equal(t, want, got)
@@ -39,7 +39,7 @@ func TestBoard_GetURL(t *testing.T) {
 
 func TestBoard_GetThread(t *testing.T) {
 	addr := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	b := newBoard(1, "test123", addr, perms)
 
 	_, ok := b.GetThread(12345)
@@ -52,7 +52,7 @@ func TestBoard_GetThread(t *testing.T) {
 
 func TestBoard_DeleteThread(t *testing.T) {
 	addr := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	b := newBoard(1, "test123", addr, perms)
 
 	post := b.AddThread(addr, "foo", "bar")
@@ -71,7 +71,7 @@ func TestBoard_GetURLFromThreadID(t *testing.T) {
 
 	boardName := "test12345"
 	addr := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	b := newBoard(BoardID(11), boardName, addr, perms)
 	want := boardUrlPrefix + ":" + boardName + "/10"
 
@@ -84,7 +84,7 @@ func TestBoard_GetURLFromReplyID(t *testing.T) {
 
 	boardName := "test12345"
 	addr := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	b := newBoard(BoardID(11), boardName, addr, perms)
 	want := boardUrlPrefix + ":" + boardName + "/10/20"
 
@@ -95,7 +95,7 @@ func TestBoard_GetURLFromReplyID(t *testing.T) {
 func TestBoard_GetPostFormURL(t *testing.T) {
 	bid := BoardID(386)
 	addr := testutils.TestAddress("creator")
-	perms := createDefaultBoardPermissions(addr)
+	perms := createBasicBoardPermissions(addr)
 	b := newBoard(bid, "foo1234", addr, perms)
 	expect := gRealmLink.Call("CreateThread", "boardID", bid.String(), "title", "", "body", "")
 
