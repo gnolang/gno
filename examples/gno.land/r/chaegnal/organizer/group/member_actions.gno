@@ -8,6 +8,7 @@ import (
 
 // Wrapper to accept new members into friendgroup and DAO
 func AcceptAwaitingMember(groupId, logged string, adr std.Address) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.WhitelistUser(std.Address(logged), adr)
@@ -15,6 +16,7 @@ func AcceptAwaitingMember(groupId, logged string, adr std.Address) {
 
 // Wrapper to refuse new members into friendgroup and DAO
 func RefuseAwaitingMember(groupId, logged string, adr std.Address) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.RefuseAwaitingMember(std.Address(logged), adr)
@@ -22,6 +24,7 @@ func RefuseAwaitingMember(groupId, logged string, adr std.Address) {
 
 // Wrapper to remove members from group and DAO
 func RemoveMember(groupId, logged string, adr std.Address) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.RemoveMember(std.Address(logged), adr)
@@ -29,6 +32,7 @@ func RemoveMember(groupId, logged string, adr std.Address) {
 
 // Wrapper to promote member to admin status
 func MakeAdmin(groupId, logged string, adr std.Address) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.SetAdmin(std.Address(logged), adr)
@@ -36,6 +40,7 @@ func MakeAdmin(groupId, logged string, adr std.Address) {
 
 // Wrapper to demote admin to member status
 func RemoveAdminRank(groupId, logged string, adr std.Address) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	if adr == group.Owner.Owner() {

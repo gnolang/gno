@@ -41,6 +41,7 @@ func init() {
 // Create the new friendgroup with its associated DAO.
 // Set the creator as the default admin
 func CreateFriendGroup(title string) {
+	crossing()
 	caller := std.OriginCaller()
 
 	newDao := dao.NewDAO(caller)
@@ -59,6 +60,7 @@ func CreateFriendGroup(title string) {
 // Put the user in a waitlist until an admin let them join
 // Verify if the group exist and if the user is already a member
 func AskJoinFriendGroup(groupId int) {
+	crossing()
 	txSender := std.OriginCaller()
 
 	raw, exists := ListGroups.Groups.Get(strconv.Itoa(groupId))
@@ -79,6 +81,7 @@ func AskJoinFriendGroup(groupId int) {
 
 // Wrapper to leave a group and DAO
 func LeaveGroup(groupId string) {
+	crossing()
 	group := GetGroupFromId(groupId)
 
 	if std.OriginCaller() == group.Owner.Owner() {

@@ -11,6 +11,7 @@ import (
 
 // Allows the owner to delete the friendgroup
 func DeleteFriendGroup(groupId, logged string) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != std.Address(logged) {
@@ -22,6 +23,7 @@ func DeleteFriendGroup(groupId, logged string) {
 
 // Enables giving out ownership of the group
 func SwitchOwner(groupId, logged string, adr std.Address) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != std.Address(logged) {
