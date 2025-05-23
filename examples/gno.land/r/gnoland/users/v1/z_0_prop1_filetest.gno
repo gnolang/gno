@@ -24,13 +24,13 @@ func init() {
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
-	cross(users.Register)("alice123")
+	users.Register(cross, "alice123")
 
 	// Prop to change name
 	testing.SetOriginCaller(c)
 	testing.SetRealm(std.NewUserRealm(c))
 	pr := users.ProposeNewName(alice, "alice_new123")
-	cross(dao.MustCreateProposal)(pr)
+	dao.MustCreateProposal(cross, pr)
 }
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
@@ -51,7 +51,7 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.ExecuteProposal)(dao.ProposalID(0))
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 
 	println("--")
 	println(dao.Render("0"))

@@ -16,7 +16,7 @@ var (
 )
 
 func init() {
-	cross(hor.Register)("N2p5's Home Realm", "")
+	hor.Register(cross, "N2p5's Home Realm", "")
 
 }
 

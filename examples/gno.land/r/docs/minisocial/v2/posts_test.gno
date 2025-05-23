@@ -16,11 +16,11 @@ func TestCreatePostSingle(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := cross(CreatePost)(text1)
+	err := CreatePost(cross, text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
-	got := Render("")
+	got := Render(cur, "")
 
 	// Content should have the text and alice's address in it
 	condition := strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())
@@ -45,12 +45,12 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := cross(CreatePost)(p.text)
+		err := CreatePost(cross, p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
 	// Get the rendered page
-	got := Render("")
+	got := Render(cur, "")
 
 	// Check that all posts and their authors are present in the rendered output
 	for _, p := range posts {
@@ -66,22 +66,22 @@ func TestReset(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = cross(CreatePost)(text1)
+	_ = CreatePost(cross, text1)
 
-	got := Render("")
+	got := Render(cur, "")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
 	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
-	cross(ResetPosts)()
+	ResetPosts(cross)
 
-	got = Render("")
+	got = Render(cur, "")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	text2 := "Some other Text!!"
-	_ = cross(CreatePost)(text2)
+	_ = CreatePost(cross, text2)
 
-	got = Render("")
+	got = Render(cur, "")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	uassert.True(t, strings.Contains(got, text2), "expected render to contain text2")

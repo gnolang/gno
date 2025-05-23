@@ -18,13 +18,13 @@ var (
 
 // NewValidatorProposalRequest creates a proposal request to the GovDAO
 // for adding the given valoper to the validator set.
-func NewValidatorProposalRequest(address std.Address) dao.ProposalRequest {
+func NewValidatorProposalRequest(address_XXX std.Address) dao.ProposalRequest {
 	var (
-		valoper     = valopers.GetByAddr(address)
+		valoper     = valopers.GetByAddr(address_XXX)
 		votingPower = uint64(1)
 	)
 
-	exist := validators.IsValidator(address)
+	exist := validators.IsValidator(address_XXX)
 
 	// Determine the voting power
 	if !valoper.KeepRunning {
@@ -35,7 +35,7 @@ func NewValidatorProposalRequest(address std.Address) dao.ProposalRequest {
 	}
 
 	if exist {
-		validator := validators.GetValidator(address)
+		validator := validators.GetValidator(address_XXX)
 		if validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
 			panic(ErrSameValues)
 		}

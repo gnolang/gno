@@ -7,12 +7,12 @@ import (
 )
 
 func main() {
-	cross(home.SetImpl)(v1impl.Instance())
+	home.SetImpl(cross, v1impl.Instance())
 	println(home.Render(""))
 	println(home.Foo())
 
 	println("-------------")
-	cross(home.SetImpl)(v2impl.Instance())
+	home.SetImpl(cross, v2impl.Instance())
 	println(home.Render(""))
 	println(home.Foo())
 }

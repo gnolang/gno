@@ -58,9 +58,7 @@ func DisperseUgnotString(addresses string, amounts string) {
 // DisperseGRC20 disperses tokens to multiple addresses
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
-func DisperseGRC20(addresses []std.Address, amounts []int64, symbols []string) {
-	crossing()
-
+func DisperseGRC20(cur realm, addresses []std.Address, amounts []int64, symbols []string) {
 	caller := std.PreviousRealm().Address()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
@@ -73,15 +71,13 @@ func DisperseGRC20(addresses []std.Address, amounts []int64, symbols []string) {
 	}
 
 	for i := 0; i < len(addresses); i++ {
-		cross(tokens.TransferFrom)(symbols[i], caller, addresses[i], amounts[i])
+		tokens.TransferFrom(cross, symbols[i], caller, addresses[i], amounts[i])
 	}
 }
 
 // DisperseGRC20String receives a string of addresses and a string of tokens
 // and parses them to be used in DisperseGRC20
-func DisperseGRC20String(addresses string, tokens string) {
-	crossing()
-
+func DisperseGRC20String(cur realm, addresses string, tokens string) {
 	parsedAddresses, err := parseAddresses(addresses)
 	if err != nil {
 		panic(err)
@@ -92,5 +88,5 @@ func DisperseGRC20String(addresses string, tokens string) {
 		panic(err)
 	}
 
-	DisperseGRC20(parsedAddresses, parsedAmounts, parsedSymbols)
+	DisperseGRC20(cur, parsedAddresses, parsedAmounts, parsedSymbols)
 }
