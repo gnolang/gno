@@ -24,7 +24,7 @@ type Market struct {
 	TotalBorrowAssets *u256.Uint // Total assets borrowed from market
 	TotalBorrowShares *u256.Uint // Total shares issued for borrows
 	LastUpdate        int64      // Last time market was updated (unix timestamp)
-	Fee               *u256.Uint // Market fee as a percentage (e.g. 5 means 5%)
+	Fee               *u256.Uint // Market fee
 }
 
 // Position represents a user's position in a market
