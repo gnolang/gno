@@ -10,22 +10,22 @@ import (
 	"gno.land/r/sys/users"
 )
 
-// DefaultPermissions manages users, roles and permissions.
-type DefaultPermissions struct {
+// BasicPermissions manages users, roles and permissions.
+type BasicPermissions struct {
 	superRole Role
 	dao       *commondao.CommonDAO
 	users     *avl.Tree // string(std.Address) -> []Role
 	roles     *avl.Tree // string(role) -> []Permission
 }
 
-// NewDefaultPermissions creates a new permissions type.
+// NewBasicPermissions creates a new permissions type.
 // This type is a default implementation to handle users, roles and permissions.
-func NewDefaultPermissions(dao *commondao.CommonDAO) *DefaultPermissions {
+func NewBasicPermissions(dao *commondao.CommonDAO) *BasicPermissions {
 	if dao == nil {
-		panic("default permissions require a DAO")
+		panic("basic permissions require a DAO")
 	}
 
-	dp := &DefaultPermissions{
+	bp := &BasicPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
 		users: avl.NewTree(),
@@ -33,39 +33,39 @@ func NewDefaultPermissions(dao *commondao.CommonDAO) *DefaultPermissions {
 
 	// Make sure that DAO users are indexed when DAO has members
 	dao.Members().IterateByOffset(0, dao.Members().Size(), func(m std.Address) bool {
-		dp.users.Set(m.String(), []Role(nil))
+		bp.users.Set(m.String(), []Role(nil))
 		return false
 	})
 
-	return dp
+	return bp
 }
 
 // SetSuperRole assigns a super role.
 // A super role is one that have all permissions.
 // These type of role doesn't need to be mapped to any permission.
-func (dp *DefaultPermissions) SetSuperRole(r Role) {
-	dp.superRole = r
+func (bp *BasicPermissions) SetSuperRole(r Role) {
+	bp.superRole = r
 }
 
 // AddRole add a role with one or more assigned permissions.
-func (dp *DefaultPermissions) AddRole(r Role, p Permission, extra ...Permission) {
-	dp.roles.Set(string(r), append([]Permission{p}, extra...))
+func (bp *BasicPermissions) AddRole(r Role, p Permission, extra ...Permission) {
+	bp.roles.Set(string(r), append([]Permission{p}, extra...))
 }
 
 // RoleExists checks if a role exists.
-func (dp DefaultPermissions) RoleExists(r Role) bool {
-	if dp.superRole != "" && r == dp.superRole {
+func (bp BasicPermissions) RoleExists(r Role) bool {
+	if bp.superRole != "" && r == bp.superRole {
 		return true
 	}
 
-	return dp.roles.Iterate("", "", func(name string, _ interface{}) bool {
+	return bp.roles.Iterate("", "", func(name string, _ interface{}) bool {
 		return Role(name) == r
 	})
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
-func (dp DefaultPermissions) GetUserRoles(user std.Address) []Role {
-	v, found := dp.users.Get(user.String())
+func (bp BasicPermissions) GetUserRoles(user std.Address) []Role {
+	v, found := bp.users.Get(user.String())
 	if !found {
 		return nil
 	}
@@ -73,8 +73,8 @@ func (dp DefaultPermissions) GetUserRoles(user std.Address) []Role {
 }
 
 // HasRole checks if a user has a specific role assigned.
-func (dp DefaultPermissions) HasRole(user std.Address, r Role) bool {
-	for _, role := range dp.GetUserRoles(user) {
+func (bp BasicPermissions) HasRole(user std.Address, r Role) bool {
+	for _, role := range bp.GetUserRoles(user) {
 		if role == r {
 			return true
 		}
@@ -83,13 +83,13 @@ func (dp DefaultPermissions) HasRole(user std.Address, r Role) bool {
 }
 
 // HasPermission checks if a user has a specific permission.
-func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bool {
-	for _, r := range dp.GetUserRoles(user) {
-		if dp.superRole == r {
+func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool {
+	for _, r := range bp.GetUserRoles(user) {
+		if bp.superRole == r {
 			return true
 		}
 
-		v, found := dp.roles.Get(string(r))
+		v, found := bp.roles.Get(string(r))
 		if !found {
 			continue
 		}
@@ -104,43 +104,43 @@ func (dp DefaultPermissions) HasPermission(user std.Address, perm Permission) bo
 }
 
 // AddUser adds a new user to permissions.
-func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
-	if dp.users.Has(user.String()) {
+func (bp *BasicPermissions) AddUser(user std.Address, roles ...Role) error {
+	if bp.users.Has(user.String()) {
 		return errors.New("user already exists")
 	}
 
-	dp.dao.Members().Add(user)
-	return dp.setUserRoles(user, roles...)
+	bp.dao.Members().Add(user)
+	return bp.setUserRoles(user, roles...)
 }
 
 // SetUserRoles sets the roles of a user.
-func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) error {
-	if !dp.users.Has(user.String()) {
+func (bp *BasicPermissions) SetUserRoles(user std.Address, roles ...Role) error {
+	if !bp.users.Has(user.String()) {
 		return errors.New("user not found")
 	}
-	return dp.setUserRoles(user, roles...)
+	return bp.setUserRoles(user, roles...)
 }
 
 // RemoveUser removes a user from permissions.
-func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
-	_, removed := dp.users.Remove(user.String())
-	dp.dao.Members().Remove(user)
+func (bp *BasicPermissions) RemoveUser(user std.Address) bool {
+	_, removed := bp.users.Remove(user.String())
+	bp.dao.Members().Remove(user)
 	return removed
 }
 
 // HasUser checks if a user exists.
-func (dp DefaultPermissions) HasUser(user std.Address) bool {
-	return dp.users.Has(user.String())
+func (bp BasicPermissions) HasUser(user std.Address) bool {
+	return bp.users.Has(user.String())
 }
 
 // UsersCount returns the total number of users the permissioner contains.
-func (dp DefaultPermissions) UsersCount() int {
-	return dp.users.Size()
+func (bp BasicPermissions) UsersCount() int {
+	return bp.users.Size()
 }
 
 // IterateUsers iterates permissions' users.
-func (dp DefaultPermissions) IterateUsers(start, count int, fn UsersIterFn) bool {
-	return dp.users.IterateByOffset(start, count, func(k string, v interface{}) bool {
+func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) bool {
+	return bp.users.IterateByOffset(start, count, func(k string, v interface{}) bool {
 		return fn(User{
 			Address: std.Address(k),
 			Roles:   v.([]Role),
@@ -151,37 +151,37 @@ func (dp DefaultPermissions) IterateUsers(start, count int, fn UsersIterFn) bool
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
-func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
-	if !dp.HasPermission(user, perm) || !dp.dao.Members().Has(user) {
+func (bp *BasicPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
+	if !bp.HasPermission(user, perm) || !bp.dao.Members().Has(user) {
 		panic("unauthorized")
 	}
 
 	switch perm {
 	case PermissionBoardCreate:
-		dp.handleBoardCreate(args, cb)
+		bp.handleBoardCreate(args, cb)
 	case PermissionBoardRename:
-		dp.handleBoardRename(args, cb)
+		bp.handleBoardRename(args, cb)
 	case PermissionMemberInvite:
-		dp.handleMemberInvite(args, cb)
+		bp.handleMemberInvite(args, cb)
 	case PermissionRoleChange:
-		dp.handleRoleChange(args, cb)
+		bp.handleRoleChange(args, cb)
 	default:
 		cb(args)
 	}
 }
 
-func (dp *DefaultPermissions) setUserRoles(user std.Address, roles ...Role) error {
+func (bp *BasicPermissions) setUserRoles(user std.Address, roles ...Role) error {
 	for _, r := range roles {
-		if !dp.RoleExists(r) {
+		if !bp.RoleExists(r) {
 			return errors.New("invalid role: " + string(r))
 		}
 	}
 
-	dp.users.Set(user.String(), append([]Role(nil), roles...))
+	bp.users.Set(user.String(), append([]Role(nil), roles...))
 	return nil
 }
 
-func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
+func (BasicPermissions) handleBoardCreate(args Args, cb func(Args)) {
 	name, ok := args[0].(string)
 	if !ok {
 		panic("expected board name to be a string")
@@ -193,7 +193,7 @@ func (DefaultPermissions) handleBoardCreate(args Args, cb func(Args)) {
 	cb(args)
 }
 
-func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
+func (BasicPermissions) handleBoardRename(args Args, cb func(Args)) {
 	newName, ok := args[2].(string)
 	if !ok {
 		panic("expected new board name to be a string")
@@ -205,7 +205,7 @@ func (DefaultPermissions) handleBoardRename(args Args, cb func(Args)) {
 	cb(args)
 }
 
-func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
+func (bp BasicPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	// Make sure that only owners invite other owners
 	role, ok := args[1].(Role)
 	if !ok {
@@ -213,7 +213,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	}
 
 	if role == RoleOwner {
-		if !dp.HasRole(std.PreviousRealm().Address(), RoleOwner) {
+		if !bp.HasRole(std.PreviousRealm().Address(), RoleOwner) {
 			panic("only owners are allowed to invite other owners")
 		}
 	}
@@ -221,10 +221,10 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	cb(args)
 }
 
-func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
+func (bp BasicPermissions) handleRoleChange(args Args, cb func(Args)) {
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	if dp.HasRole(std.PreviousRealm().Address(), RoleAdmin) {
+	if bp.HasRole(std.PreviousRealm().Address(), RoleAdmin) {
 		role, ok := args[2].(Role)
 		if !ok {
 			panic("expected a valid member role")
@@ -238,7 +238,7 @@ func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 				panic("expected a valid member address")
 			}
 
-			if dp.HasRole(member, RoleOwner) {
+			if bp.HasRole(member, RoleOwner) {
 				panic("admins are not allowed to remove the Owner role")
 			}
 		}
@@ -247,8 +247,8 @@ func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 	cb(args)
 }
 
-func createDefaultPermissions(owners ...std.Address) *DefaultPermissions {
-	perms := NewDefaultPermissions(commondao.New())
+func createBasicPermissions(owners ...std.Address) *BasicPermissions {
+	perms := NewBasicPermissions(commondao.New())
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(RoleAdmin, PermissionBoardCreate)
 	for _, owner := range owners {

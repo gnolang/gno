@@ -18,7 +18,7 @@ var perms boards2.Permissions
 
 func init() {
 	// Create a new permissions instance
-	perms = boards2.NewDefaultPermissions(commondao.New())
+	perms = boards2.NewBasicPermissions(commondao.New())
 }
 
 func main() {

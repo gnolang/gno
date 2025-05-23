@@ -28,7 +28,7 @@ func init() {
 	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
 
 	// Initialize default realm permissions
-	gPerms = createDefaultPermissions(
+	gPerms = createBasicPermissions(
 		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
 		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
 	)
