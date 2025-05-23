@@ -3,9 +3,7 @@ package const_test
 
 import "std"
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	println(std.RawAddressSize)
 }
 
