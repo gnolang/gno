@@ -77,7 +77,6 @@ func opCall(s *State) error {
 	contract := tmpState.tmp.accounts[address.Uint64()]
 	if contract == nil || contract.AccountType != ContractAccount {
 		s.stack.Push(uint256.Zero())
-		println("e1", contract.AccountType == ContractAccount)
 		return nil
 	}
 	contractCode := contract.Code
@@ -85,7 +84,6 @@ func opCall(s *State) error {
 	tmpState.setCode(contractCode)
 	err = tmpState.executeByteCode()
 	if err != nil {
-		println("e2")
 		s.stack.Push(uint256.Zero())
 		return nil
 	}

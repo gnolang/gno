@@ -1274,7 +1274,7 @@ func TestExecuteEvm(t *testing.T) {
 			expectedGasConsumed: 2,
 		},
 		{
-			name: "return data size and return data copy",
+			name: "return data size after call",
 			code: []byte{
 				byte(PUSH1), 1,
 				byte(PUSH0),
