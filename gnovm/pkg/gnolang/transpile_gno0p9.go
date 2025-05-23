@@ -84,7 +84,6 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 			// include all
 		default:
 			panic("should not happen")
-
 		}
 		// Go parse file.
 		const parseOpts = parser.ParseComments |

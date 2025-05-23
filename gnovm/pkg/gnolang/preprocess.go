@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	blankIdentifier = "_"
-	debugFind       = false // toggle when debugging.
+	debugFind = false // toggle when debugging.
+
+	blankIdentifier           = "_"
+	AttrPreprocessFuncLitExpr = "FuncLitExpr"
 )
 
 // Predefine (initStaticBlocks) and partially evaluates all names
@@ -465,7 +467,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				return n, TRANS_CONTINUE
 			}
 			if _, ok := n.(*FuncLitExpr); ok {
-				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == "FuncLitExpr" {
+				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
 					clearSkip = true // clear what preprocess1 will do.
 					return n, TRANS_SKIP
 				}
@@ -507,7 +509,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				return n, TRANS_CONTINUE
 			}
 			if _, ok := n.(*FuncLitExpr); ok {
-				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == "FuncLitExpr" {
+				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
 					return n, TRANS_SKIP
 				}
 			}
@@ -726,7 +728,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *FuncLitExpr:
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
-				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == "FuncLitExpr" {
+				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
 					// Machine still needs it. Clear it @ initStaticBlocks.
 					// n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
 					for _, p := range ns {
@@ -4045,7 +4047,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		}
 		_, _, found := findLastFunction(last, nil)
 		if !found {
-			cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, "FuncLitExpr")
+			cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, AttrPreprocessFuncLitExpr)
 		}
 	case *FieldTypeExpr: // FIELD
 		return findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)

@@ -6,13 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/token"
 	goio "io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -128,12 +127,12 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
-	var dirs []string = nil
-	var hasError bool = false
-	var err error = nil
+	var dirs []string
+	var hasError bool
+	var err error
 
 	if cmd.filetestsOnly {
-		dirs = append([]string(nil), args...)
+		dirs = slices.Clone(args)
 	} else {
 		dirs, err = gnoPackagesFromArgsRecursively(args)
 		if err != nil {
@@ -236,10 +235,6 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 
 			// These are Go types.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
-			var gofset *token.FileSet
-			var gofs, _gofs, tgofs []*ast.File
-			var errs error
-
 			// Run type checking
 			// FIX STEP 2: ParseGnoMod()
 			// FIX STEP 3: GoParse*()
@@ -250,7 +245,8 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			_, gofset, gofs, _gofs, tgofs, errs = lintTypeCheck(cio, dir, mpkg, gs) // , false)
+
+			_, tfiles, errs := lintTypeCheck(cio, dir, mpkg, gs)
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true
@@ -263,9 +259,9 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			defer tm.Release()
 
 			// Prepare Go AST for preprocessing.
-			allgofs := append(gofs, _gofs...)
-			allgofs = append(allgofs, tgofs...)
-			errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
+			allgofs := append(tfiles.SourceFiles, tfiles.TestPackageFiles...)
+			allgofs = append(allgofs, tfiles.TestFiles...)
+			errs = gno.PrepareGno0p9(tfiles.FileSet, allgofs, mpkg)
 			if errs != nil {
 				cio.ErrPrintln(errs)
 				hasError = true

@@ -286,7 +286,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Validate Gno syntax and type check.
-		if _, _, _, _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
+		if _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
@@ -322,7 +322,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = tx
 
 		// Validate Gno syntax and type check.
-		if _, _, _, _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
+		if _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 

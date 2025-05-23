@@ -12,9 +12,11 @@ import (
 
 // XXX rename to mempackage.go
 
-const fileNameLimit = 256
-const pkgNameLimit = 256
-const pkgPathLimit = 256
+const (
+	fileNameLimit = 256
+	pkgNameLimit  = 256
+	pkgPathLimit  = 256
+)
 
 var (
 	// See also gnovm/pkg/gnolang/mempackage.go.
@@ -136,7 +138,7 @@ func (mpkg *MemPackage) ValidateBasic() error {
 
 // Returns an error if lowercase(file.Name) are not unique.
 func (mpkg *MemPackage) Uniq() error {
-	var uniq = make(map[string]struct{}, len(mpkg.Files))
+	uniq := make(map[string]struct{}, len(mpkg.Files))
 	for _, mfile := range mpkg.Files {
 		lname := strings.ToLower(mfile.Name)
 		if _, exists := uniq[lname]; exists {
@@ -217,7 +219,7 @@ func (mpkg *MemPackage) WriteTo(dir string) error {
 	for _, mfile := range mpkg.Files {
 		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))
 		fpath := filepath.Join(dir, mfile.Name)
-		err := ioutil.WriteFile(fpath, []byte(mfile.Body), 0644)
+		err := ioutil.WriteFile(fpath, []byte(mfile.Body), 0o644)
 		if err != nil {
 			return err
 		}

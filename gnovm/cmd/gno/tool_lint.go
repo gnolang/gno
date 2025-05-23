@@ -5,8 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/token"
 	"go/types"
 	goio "io"
 	"io/fs"
@@ -176,7 +174,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 			if !mod.Draft {
-				_, _, _, _, _, errs = lintTypeCheck(io, dir, mpkg, gs)
+				_, _, errs = lintTypeCheck(io, dir, mpkg, gs)
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
 					hasError = true
@@ -273,15 +271,14 @@ func lintTypeCheck(
 	testStore gno.Store) (
 	// Results:
 	gopkg *types.Package,
-	gofset *token.FileSet,
-	gofs, _gofs, tgofs []*ast.File,
+	tfiles *gno.TypeCheckFilesResult,
 	lerr error,
 ) {
 	//----------------------------------------
 
 	// gno.TypeCheckMemPackage(mpkg, testStore)
 	var tcErrs error
-	gopkg, gofset, gofs, _gofs, tgofs, tcErrs = gno.TypeCheckMemPackage(mpkg, testStore, gno.ParseModeAll)
+	gopkg, tfiles, tcErrs = gno.TypeCheckMemPackage(mpkg, testStore, gno.ParseModeAll)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)

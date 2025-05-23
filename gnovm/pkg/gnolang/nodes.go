@@ -1157,8 +1157,8 @@ type FileSet struct {
 	Files []*FileNode
 }
 
-func (fset FileSet) GetFileNames() (fnames []Name) {
-	for _, fnode := range fset.Files {
+func (fs FileSet) GetFileNames() (fnames []Name) {
+	for _, fnode := range fs.Files {
 		fnames = append(fnames, fnode.Name)
 	}
 	return
