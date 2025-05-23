@@ -157,7 +157,7 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 
 func (post *Post) Update(title string, body string) error {
 	if post.IsThread() && title == "" {
-		return errors.New("title is empty")
+		return errors.New("title is empty") // TODO: Use error vars when Post is moved to a package
 	}
 
 	if body == "" {
