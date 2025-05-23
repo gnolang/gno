@@ -3,7 +3,6 @@ package vm
 import (
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 	creator := crypto.AddressFromPreimage([]byte("addr1"))
 	pkgName := "test"
 	pkgPath := "gno.land/r/namespace/test"
-	files := []*gnovm.MemFile{
+	files := []*std.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -41,7 +40,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 			name: "missing creator address",
 			msg: MsgAddPackage{
 				Creator: crypto.Address{},
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  pkgPath,
 					Files: files,
@@ -57,7 +56,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 			name: "missing package path",
 			msg: MsgAddPackage{
 				Creator: creator,
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  "",
 					Files: files,
@@ -73,7 +72,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 			name: "invalid deposit coins",
 			msg: MsgAddPackage{
 				Creator: creator,
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  pkgPath,
 					Files: files,
@@ -214,7 +213,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 	caller := crypto.AddressFromPreimage([]byte("addr1"))
 	pkgName := "main"
 	pkgPath := "gno.land/r/" + caller.String() + "/run"
-	pkgFiles := []*gnovm.MemFile{
+	pkgFiles := []*std.MemFile{
 		{
 			Name: "main.gno",
 			Body: `package main
@@ -241,7 +240,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 			name: "invalid caller address",
 			msg: MsgRun{
 				Caller: crypto.Address{},
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  pkgPath,
 					Files: pkgFiles,
@@ -257,7 +256,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 			name: "invalid package path",
 			msg: MsgRun{
 				Caller: caller,
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name:  pkgName,
 					Path:  "gno.land/r/namespace/test", // this is not a valid run path
 					Files: pkgFiles,

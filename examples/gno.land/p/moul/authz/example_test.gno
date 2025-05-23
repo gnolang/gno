@@ -10,7 +10,7 @@ func Example_basic() {
 	auth := NewWithOrigin()
 
 	// Use the authority to perform a privileged action
-	auth.Do("update_config", func() error {
+	auth.DoByCurrent("update_config", func() error {
 		// config = newValue
 		return nil
 	})
@@ -19,11 +19,12 @@ func Example_basic() {
 // Example_addingMembers demonstrates how to add new members to a member authority
 func Example_addingMembers() {
 	// Initialize with contract deployer as authority
+	addr := std.CurrentRealm().Address()
 	auth := NewWithCurrent()
 
 	// Add a new member to the authority
-	memberAuth := auth.Current().(*MemberAuthority)
-	memberAuth.AddMember(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	memberAuth := auth.Authority().(*MemberAuthority)
+	memberAuth.AddMember(addr, std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 
 // Example_contractAuthority demonstrates using a contract-based authority
@@ -37,7 +38,7 @@ func Example_contractAuthority() {
 	)
 
 	// Privileged actions will be handled by the contract
-	auth.Do("update_params", func() error {
+	auth.DoByCurrent("update_params", func() error {
 		// Executes after DAO approval
 		return nil
 	})
@@ -61,7 +62,7 @@ func Example_restrictedContractAuthority() {
 	)
 
 	// Only members can propose, and contract must approve
-	auth.Do("update_params", func() error {
+	auth.DoByCurrent("update_params", func() error {
 		// Executes after:
 		// 1. Proposer initiates
 		// 2. DAO approves
@@ -72,6 +73,7 @@ func Example_restrictedContractAuthority() {
 // Example_switchingAuthority demonstrates switching from member to contract authority
 func Example_switchingAuthority() {
 	// Start with member authority (deployer)
+	addr := std.CurrentRealm().Address()
 	auth := NewWithCurrent()
 
 	// Create and switch to contract authority
@@ -79,7 +81,7 @@ func Example_switchingAuthority() {
 		"gno.land/r/demo/dao",
 		mockDAOHandler,
 	)
-	auth.Transfer(daoAuthority)
+	auth.Transfer(addr, daoAuthority)
 }
 
 // Mock handler for examples

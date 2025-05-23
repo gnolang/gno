@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -13,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -1200,7 +1201,7 @@ func MustPackageNameFromFileBody(name, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -1243,7 +1244,7 @@ func endsWithAny(str string, suffixes []string) bool {
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
-func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	pkg, err := ReadMemPackage(dir, pkgPath)
 	if err != nil {
 		panic(err)
@@ -1251,14 +1252,14 @@ func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 	return pkg
 }
 
-// ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
+// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
 // containing the contents of all the files provided in the list slice.
 // No parsing or validation is done on the filenames.
 //
 // NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, error) {
-	memPkg := &gnovm.MemPackage{Path: pkgPath}
+func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
+	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
@@ -1268,7 +1269,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName, err = PackageNameFromFileBody(fname, string(bz))
+			pkgName, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
 			if err != nil {
 				return nil, err
 			}
@@ -1277,7 +1278,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 			}
 		}
 		memPkg.Files = append(memPkg.Files,
-			&gnovm.MemFile{
+			&std.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})
@@ -1296,7 +1297,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
-func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
+func MustReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 	pkg, err := ReadMemPackageFromList(list, pkgPath)
 	if err != nil {
 		panic(err)
@@ -1309,7 +1310,7 @@ func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage
 //
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	var errs error
 	for _, mfile := range memPkg.Files {

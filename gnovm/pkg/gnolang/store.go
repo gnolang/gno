@@ -3,16 +3,17 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
@@ -60,10 +61,11 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg *gnovm.MemPackage)
-	GetMemPackage(path string) *gnovm.MemPackage
-	GetMemFile(path string, name string) *gnovm.MemFile
-	IterMemPackage() <-chan *gnovm.MemPackage
+	AddMemPackage(memPkg *std.MemPackage)
+	GetMemPackage(path string) *std.MemPackage
+	GetMemFile(path string, name string) *std.MemFile
+	FindPathsByPrefix(prefix string) iter.Seq[string]
+	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                     // for native functions
@@ -785,7 +787,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
+func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -812,11 +814,11 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 
 // GetMemPackage retrieves the MemPackage at the given path.
 // It returns nil if the package could not be found.
-func (ds *defaultStore) GetMemPackage(path string) *gnovm.MemPackage {
+func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 	return ds.getMemPackage(path, false)
 }
 
-func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPackage {
+func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -848,7 +850,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
-	var memPkg *gnovm.MemPackage
+	var memPkg *std.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
 	size = len(bz)
 	return memPkg
@@ -857,7 +859,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
 // do not exist.
-func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
+func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	memPkg := ds.GetMemPackage(path)
 	if memPkg == nil {
 		return nil
@@ -866,7 +868,32 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 	return memFile
 }
 
-func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
+// FindPathsByPrefix retrieves all paths starting with the given prefix.
+func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
+	// If prefix is empty range every package
+	startKey := []byte(backendPackageGlobalPath("\x00"))
+	endKey := []byte(backendPackageGlobalPath("\xFF"))
+	if len(prefix) > 0 {
+		startKey = []byte(backendPackageGlobalPath(prefix))
+		// Create endkey by incrementing last byte of startkey
+		endKey = slices.Clone(startKey)
+		endKey[len(endKey)-1]++
+	}
+
+	return func(yield func(string) bool) {
+		iter := ds.iavlStore.Iterator(startKey, endKey)
+		defer iter.Close()
+
+		for ; iter.Valid(); iter.Next() {
+			path := decodeBackendPackagePathKey(string(iter.Key()))
+			if !yield(path) {
+				return
+			}
+		}
+	}
+}
+
+func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -876,7 +903,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *gnovm.MemPackage, 0)
+		ch := make(chan *std.MemPackage, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))
@@ -1002,8 +1029,23 @@ func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
 }
 
+// We need to prefix stdlibs path with `_` to maitain them lexicographically
+// ordered with domain path
 func backendPackagePathKey(path string) string {
-	return "pkg:" + path
+	if IsStdlib(path) {
+		return backendPackageStdlibPath(path)
+	}
+
+	return backendPackageGlobalPath(path)
+}
+
+func backendPackageStdlibPath(path string) string { return "pkg:_/" + path }
+
+func backendPackageGlobalPath(path string) string { return "pkg:" + path }
+
+func decodeBackendPackagePathKey(key string) string {
+	path := strings.TrimPrefix(key, "pkg:")
+	return strings.TrimPrefix(path, "_/")
 }
 
 // ----------------------------------------

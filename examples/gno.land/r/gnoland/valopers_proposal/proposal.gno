@@ -19,6 +19,7 @@ var (
 // NewValidatorProposalRequest creates a proposal request to the GovDAO
 // for adding the given valoper to the validator set.
 func NewValidatorProposalRequest(address std.Address) dao.ProposalRequest {
+	crossing()
 	var (
 		valoper     = valopers.GetByAddr(address)
 		votingPower = uint64(1)
@@ -70,6 +71,7 @@ func NewValidatorProposalRequest(address std.Address) dao.ProposalRequest {
 // ProposeNewInstructionsProposalRequest creates a proposal to the GovDAO
 // for updating the realm instructions.
 func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalRequest {
+	crossing()
 	cb := valopers.NewInstructionsProposalCallback(newInstructions)
 
 	// Create a proposal
@@ -84,6 +86,7 @@ func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalR
 // ProposeNewMinFee creates a proposal to the GovDAO
 // for updating the minimum fee to register a new valoper.
 func ProposeNewMinFeeProposalRequest(newMinFee int64) dao.ProposalRequest {
+	crossing()
 	cb := valopers.NewMinFeeProposalCallback(newMinFee)
 
 	// Create a proposal

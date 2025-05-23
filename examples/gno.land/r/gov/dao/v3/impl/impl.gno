@@ -8,7 +8,7 @@ import (
 
 var govDAO *GovDAO = NewGovDAO()
 var law *Law
-var realm = std.CurrentRealm()
+var gRealm = std.CurrentRealm()
 
 func init() {
 	law = &Law{
@@ -17,7 +17,7 @@ func init() {
 }
 
 func Render(in string) string {
-	return govDAO.Render(realm.PkgPath(), in)
+	return govDAO.Render(gRealm.PkgPath(), in)
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package gno;
 
-option go_package = "github.com/gnolang/gno/gnovm/pb";
+option go_package = "github.com/gnolang/gno/pb";
 
 // imports
 import "google/protobuf/any.proto";
@@ -595,16 +595,4 @@ message tupleType {
 
 message RefType {
 	string ID = 1;
-}
-
-// messages
-message MemFile {
-	string name = 1;
-	string body = 2;
-}
-
-message MemPackage {
-	string name = 1;
-	string path = 2;
-	repeated MemFile files = 3;
 }

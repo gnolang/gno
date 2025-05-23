@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type PackageKind int
@@ -21,7 +21,7 @@ const (
 )
 
 type Package struct {
-	gnovm.MemPackage
+	std.MemPackage
 	Kind     PackageKind
 	Location string
 }
@@ -62,7 +62,7 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 	}, nil
 }
 
-func validateMemPackage(fset *token.FileSet, mempkg *gnovm.MemPackage) error {
+func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 	if mempkg.IsEmpty() {
 		return fmt.Errorf("empty package: %w", ErrResolverPackageSkip)
 	}

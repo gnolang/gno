@@ -3,7 +3,7 @@
 The gno.land Go client is a dedicated library for interacting seamlessly with the gno.land RPC API.
 This library simplifies the process of querying or sending transactions to the gno.land RPC API and interpreting the responses.
 
-Documentation may be found at [gnoclient](../../../docs/reference/gnoclient).
+Documentation may be found [here](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html).
 
 ## Installation
 

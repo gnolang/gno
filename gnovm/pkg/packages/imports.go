@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// Imports returns the list of gno imports from a [gnovm.MemPackage].
+// Imports returns the list of gno imports from a [std.MemPackage].
 // fset is optional.
-func Imports(pkg *gnovm.MemPackage, fset *token.FileSet) (ImportsMap, error) {
+func Imports(pkg *std.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 	res := make(ImportsMap, 16)
 	seen := make(map[FileKind]map[string]struct{}, 16)
 

@@ -28,3 +28,12 @@ lint:
 test:
 	go test $(GOTEST_FLAGS) -v ./...
 
+embedmd_filters = grep -v "exit status 1" | grep -v -- " -root" | grep -v -- " -home"
+generate:
+	mkdir -p .tmp
+	go build ./cmd/gnodev ./cmd/gnobro
+	(go run ./cmd/gnodev -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-usage.txt
+	(go run ./cmd/gnodev local -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-local-usage.txt
+	(go run ./cmd/gnodev staging -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-staging-usage.txt
+	(go run ./cmd/gnobro -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnobro-usage.txt
+	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`

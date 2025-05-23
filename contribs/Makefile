@@ -64,3 +64,12 @@ fmt:
 .PHONY: tidy
 tidy:
 	find . -name go.mod -execdir go mod tidy -v \;
+
+
+generate: $(addprefix generate.,$(programs))
+generate.%:
+	@if grep '^generate:' $(subst generate.,,$@)/Makefile; then \
+	  echo "[+] make -C $(subst generate.,,$@) generate"; \
+	  $(MAKE) --no-print-directory -C $(subst generate.,,$@) generate; \
+	fi
+.PHONY: generate

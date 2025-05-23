@@ -31,16 +31,23 @@ func init() {
 
 	// Register a validator and add the proposal
 	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
-	pr := valopers_proposal.NewValidatorProposalRequest(validAddress)
 
-	cross(dao.MustCreateProposal)(pr)
+	if err := revive(func() {
+		pr := cross(valopers_proposal.NewValidatorProposalRequest)(validAddress)
+		cross(dao.MustCreateProposal)(pr)
+	}); err != nil {
+		println("r: ", err)
+	} else {
+		println("OK")
+	}
 }
 
 func main() {
-	println(dao.Render(""))
+	println(cross(dao.Render)(""))
 }
 
 // Output:
+// OK
 // # Active Proposals:
 // ## Proposal with id: 0
 // ### Title: Add valoper test-1 to the valset

@@ -26,7 +26,8 @@ for modfile in $gomods; do
   dir=$(dirname "$modfile")
 
   # Run go mod tidy in the directory
-  (cd "$dir" && go mod tidy -v) || exit 1
+  echo "Running \`go -C $dir mod tidy -v\`"
+  go -C "$dir" mod tidy -v || exit 1
 done
 
 # Optionally verify the sums

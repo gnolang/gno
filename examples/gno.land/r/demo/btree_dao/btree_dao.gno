@@ -145,7 +145,7 @@ func Render(path string) string {
 			balance, err := dao.BalanceOf(addr)
 			if err == nil && balance > 0 {
 				nftList = " (NFTs: "
-				for i := uint64(0); i < balance; i++ {
+				for i := int64(0); i < balance; i++ {
 					if i > 0 {
 						nftList += ", "
 					}
@@ -172,7 +172,7 @@ func Render(path string) string {
 			balance, err := dao.BalanceOf(addr)
 			if err == nil && balance > 0 {
 				nftList = " (NFTs: "
-				for i := uint64(0); i < balance; i++ {
+				for i := int64(0); i < balance; i++ {
 					if i > 0 {
 						nftList += ", "
 					}

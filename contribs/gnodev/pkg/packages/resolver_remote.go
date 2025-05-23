@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type remoteResolver struct {
@@ -52,7 +52,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	}
 
 	var name string
-	memFiles := []*gnovm.MemFile{}
+	memFiles := []*std.MemFile{}
 	files := bytes.Split(qres.Response.Data, []byte{'\n'})
 	for _, filename := range files {
 		fname := string(filename)
@@ -77,13 +77,13 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 			name = f.Name.Name
 		}
 
-		memFiles = append(memFiles, &gnovm.MemFile{
+		memFiles = append(memFiles, &std.MemFile{
 			Name: fname, Body: string(body),
 		})
 	}
 
 	return &Package{
-		MemPackage: gnovm.MemPackage{
+		MemPackage: std.MemPackage{
 			Name:  name,
 			Path:  path,
 			Files: memFiles,

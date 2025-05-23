@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/grc/exts"
 )
 
-// TODO: use big.Int or a custom uint64 instead of uint64
+// TODO: use big.Int or a custom int64 instead of int64
 
 type IGRC777 interface {
 	exts.TokenMetadata
@@ -16,13 +16,13 @@ type IGRC777 interface {
 	// have amounts that are a multiple of this number.
 	//
 	// For most token contracts, this value will equal 1.
-	Granularity() (granularity uint64)
+	Granularity() (granularity int64)
 
 	// Returns the amount of tokens in existence.
-	TotalSupply() (supply uint64)
+	TotalSupply() (supply int64)
 
 	// Returns the amount of tokens owned by an account (`owner`).
-	BalanceOf(address std.Address) uint64
+	BalanceOf(address std.Address) int64
 
 	// Moves `amount` tokens from the caller's account to `recipient`.
 	//
@@ -38,7 +38,7 @@ type IGRC777 interface {
 	// - `recipient` cannot be the zero address.
 	// - if `recipient` is a contract, it must implement the {IERC777Recipient}
 	// interface.
-	Send(recipient std.Address, amount uint64, data []byte)
+	Send(recipient std.Address, amount int64, data []byte)
 
 	// Destroys `amount` tokens from the caller's account, reducing the
 	// total supply.
@@ -51,7 +51,7 @@ type IGRC777 interface {
 	// Requirements
 	//
 	// - the caller must have at least `amount` tokens.
-	Burn(amount uint64, data []byte)
+	Burn(amount int64, data []byte)
 
 	// Returns true if an account is an operator of `tokenHolder`.
 	// Operators can send and burn tokens on behalf of their owners. All
@@ -107,7 +107,7 @@ type IGRC777 interface {
 	// - `recipient` cannot be the zero address.
 	// - if `recipient` is a contract, it must implement the {IERC777Recipient}
 	// interface.
-	OperatorSend(sender, recipient std.Address, amount uint64, data, operatorData []byte)
+	OperatorSend(sender, recipient std.Address, amount int64, data, operatorData []byte)
 
 	// Destroys `amount` tokens from `account`, reducing the total supply.
 	// The caller must be an operator of `account`.
@@ -122,7 +122,7 @@ type IGRC777 interface {
 	// - `account` cannot be the zero address.
 	// - `account` must have at least `amount` tokens.
 	// - the caller must be an operator for `account`.
-	OperatorBurn(account std.Address, amount uint64, data, operatorData []byte)
+	OperatorBurn(account std.Address, amount int64, data, operatorData []byte)
 }
 
 // Emitted when `amount` tokens are created by `operator` and assigned to `to`.
@@ -131,7 +131,7 @@ type IGRC777 interface {
 type MintedEvent struct {
 	Operator     std.Address
 	To           std.Address
-	Amount       uint64
+	Amount       int64
 	Data         []byte
 	OperatorData []byte
 }
@@ -142,7 +142,7 @@ type MintedEvent struct {
 type BurnedEvent struct {
 	Operator     std.Address
 	From         std.Address
-	Amount       uint64
+	Amount       int64
 	Data         []byte
 	OperatorData []byte
 }
@@ -163,7 +163,7 @@ type SentEvent struct {
 	Operator     std.Address
 	From         std.Address
 	To           std.Address
-	Amount       uint64
+	Amount       int64
 	Data         []byte
 	OperatorData []byte
 }

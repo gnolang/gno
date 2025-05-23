@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -21,7 +21,7 @@ import (
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
 type MemPackageGetter interface {
-	GetMemPackage(path string) *gnovm.MemPackage
+	GetMemPackage(path string) *std.MemPackage
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -31,7 +31,7 @@ type MemPackageGetter interface {
 //
 // If format is true, the code in msmpkg will be automatically updated with the
 // formatted source code.
-func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
+func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, format bool) error {
 	return typeCheckMemPackage(mempkg, getter, false, format)
 }
 
@@ -39,11 +39,11 @@ func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, form
 // but allows re-declarations.
 //
 // Note: like TypeCheckMemPackage, this function ignores tests and filetests.
-func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
+func TypeCheckMemPackageTest(mempkg *std.MemPackage, getter MemPackageGetter) error {
 	return typeCheckMemPackage(mempkg, getter, true, false)
 }
 
-func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) error {
+func typeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, testing, format bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -107,7 +107,7 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*types.Package, error) {
+func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, fmt_ bool) (*types.Package, error) {
 	// This map is used to allow for function re-definitions, which are allowed
 	// in Gno (testing context) but not in Go.
 	// This map links each function identifier with a closure to remove its
@@ -176,7 +176,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt_ bool) (*
 	}
 
 	// Add builtins file.
-	file := &gnovm.MemFile{
+	file := &std.MemFile{
 		Name: ".gnobuiltins.go",
 		Body: fmt.Sprintf(`package %s
 

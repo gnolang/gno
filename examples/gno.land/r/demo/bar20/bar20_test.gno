@@ -11,7 +11,7 @@ func TestPackage(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
 
-	urequire.Equal(t, UserTeller.BalanceOf(alice), uint64(0))
+	urequire.Equal(t, UserTeller.BalanceOf(alice), int64(0))
 	urequire.Equal(t, cross(Faucet)(), "OK")
-	urequire.Equal(t, UserTeller.BalanceOf(alice), uint64(1_000_000))
+	urequire.Equal(t, UserTeller.BalanceOf(alice), int64(1_000_000))
 }
