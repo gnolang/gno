@@ -27,19 +27,43 @@ const (
 	FormTagInput                // For an input node (<gno-input />)
 )
 
+const (
+	defaultInputType   = "text"
+	defaultPlaceholder = "Enter value"
+)
+
 var (
 	ErrFormUnexpectedOrInvalidTag = errors.New("unexpected or invalid tag")
 	ErrFormInputMissingName       = errors.New("gno-input must have a 'name' attribute")
 	ErrFormNoEndingTag            = errors.New("no ending tag found")
+	ErrFormInvalidInputType       = errors.New("invalid input type")
 )
+
+// Whitelist of allowed input types
+var allowedInputTypes = map[string]bool{
+	"text":     true,
+	"number":   true,
+	"email":    true,
+	"tel":      true,
+	"password": true,
+}
+
+// validateInputType checks if the input type is allowed
+func validateInputType(inputType string) bool {
+	if inputType == "" {
+		return true // Empty type will use default
+	}
+	return allowedInputTypes[inputType]
+}
 
 type FormNode struct {
 	ast.BaseBlock
-	Tag         FormTag
-	Name        string
-	Placeholder string
-	RealmName   string
-	Error       error
+	Tag              FormTag
+	InputName        string
+	InputType        string
+	InputPlaceholder string
+	RealmName        string
+	Error            error
 }
 
 func (n *FormNode) Kind() ast.NodeKind { return KindForm }
@@ -48,7 +72,7 @@ func (n *FormNode) Kind() ast.NodeKind { return KindForm }
 func (n *FormNode) Dump(source []byte, level int) {
 	kv := map[string]string{"tag": fmt.Sprintf("%v", n.Tag)}
 	if n.Tag == FormTagInput {
-		kv["name"] = n.Name
+		kv["name"] = n.InputName
 	}
 	ast.DumpHelper(n, source, level, kv, nil)
 }
@@ -62,33 +86,45 @@ func NewForm(tag FormTag) *FormNode {
 // We do a very simplified parsing: we rely on the complete trim
 // of the line to detect exact tags and, for <gno-input>, we extract
 // in a rudimentary way the "name" and "placeholder" attributes (between quotes).
-func parseFormTag(line []byte) (tag FormTag, name, placeholder string, err error) {
+func parseFormTag(line []byte) (tag FormTag, name, placeholder, inputType string, err error) {
 	trimmed := bytes.TrimSpace(line)
 	// Start of form block
 	if !(bytes.HasSuffix(trimmed, []byte(">")) || bytes.HasSuffix(trimmed, []byte("/>"))) {
-		return 0, "", "", ErrFormUnexpectedOrInvalidTag
+		return 0, "", "", "", ErrFormUnexpectedOrInvalidTag
 	}
 	if bytes.Equal(trimmed, []byte("<gno-form>")) {
-		return FormTagOpen, "", "", nil
+		return FormTagOpen, "", "", "", nil
 	}
 	// Close form block
 	if bytes.Equal(trimmed, []byte("</gno-form>")) {
 		// We don't have a closing node in our AST,
 		// the closing tag only serves to end the block.
-		return FormTagOpen, "", "", ErrFormNoEndingTag
+		return FormTagOpen, "", "", "", ErrFormNoEndingTag
 	}
 	// Input detection
 	if bytes.HasPrefix(trimmed, []byte("<gno-input")) {
 		// Simplified attribute extraction
 		name = extractAttr(trimmed, "name")
 		placeholder = extractAttr(trimmed, "placeholder")
+		inputType = extractAttr(trimmed, "type")
+
 		if strings.TrimSpace(name) == "" {
 			// If "name" is missing, it's an error.
-			return FormTagInput, "", placeholder, ErrFormInputMissingName
+			return FormTagInput, "", placeholder, inputType, ErrFormInputMissingName
 		}
-		return FormTagInput, name, placeholder, nil
+
+		// Validate input type
+		if !validateInputType(inputType) {
+			return FormTagInput, name, placeholder, defaultInputType, ErrFormInvalidInputType
+		}
+
+		if inputType == "" {
+			inputType = defaultInputType
+		}
+
+		return FormTagInput, name, placeholder, inputType, nil
 	}
-	return 0, "", "", ErrFormUnexpectedOrInvalidTag
+	return 0, "", "", "", ErrFormUnexpectedOrInvalidTag
 }
 
 // extractAttr extracts the value of the first found attribute from a line
@@ -125,7 +161,7 @@ func (p *formParser) Trigger() []byte {
 // Open starts a block only when the line is exactly "<gno-form>"
 func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, seg := reader.PeekLine()
-	tag, _, _, err := parseFormTag(line)
+	tag, _, _, _, err := parseFormTag(line)
 	if err != nil || tag != FormTagOpen {
 		return nil, parser.NoChildren
 	}
@@ -134,8 +170,6 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	reader.Advance(seg.Len())
 	return node, parser.HasChildren
 }
-
-const defaultPlaceholder = "Enter value"
 
 // Continue processes lines until "</gno-form>" is encountered.
 // When a line contains <gno-input />, it adds a child node.
@@ -151,16 +185,17 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		return parser.Close
 	}
 	// If the line starts with "<gno-input", we add an input node.
-	tag, name, placeholder, err := parseFormTag(line)
+	tag, name, placeholder, inputType, err := parseFormTag(line)
 	if tag == FormTagInput {
 		input := NewForm(FormTagInput)
 
 		// Get realm name and placeholder
-		input.Name = name
+		input.InputName = name
+		input.InputType = inputType
 		if placeholder == "" {
-			input.Placeholder = defaultPlaceholder
+			input.InputPlaceholder = defaultPlaceholder
 		} else {
-			input.Placeholder = placeholder
+			input.InputPlaceholder = placeholder
 		}
 
 		// If an error occurred during parsing, we store it in the node.
@@ -215,7 +250,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 			fmt.Fprintln(w, `<form class="gno-form" method="post">`)
 			fmt.Fprintln(w, `<div class="gno-form_header">`)
 			fmt.Fprintf(w, `<span><span class="font-bold"> %s </span> Form</span>`, realmName)
-			fmt.Fprintf(w, `<span class="tooltip" data-tooltip="This form is secure and processed on the current %s realm itself."><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`, realmName)
+			fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s."><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`, realmName)
 			fmt.Fprintln(w, `</div>`)
 		} else {
 			// Check if the form contains at least one input
@@ -234,8 +269,8 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		}
 	} else if n.Tag == FormTagInput && entering {
 		// Render an input
-		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>`, n.Name, n.Placeholder)
-		fmt.Fprintf(w, `<input type="text" id="%s" name="%s" placeholder="%s" /></div>`, n.Name, n.Name, n.Placeholder)
+		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>`, n.InputName, n.InputPlaceholder)
+		fmt.Fprintf(w, `<input type="%s" id="%s" name="%s" placeholder="%s" /></div>`, n.InputType, n.InputName, n.InputName, n.InputPlaceholder)
 
 		if n.Error != nil {
 			fmt.Fprintf(w, `<!-- Error: %s -->`, n.Error.Error())
@@ -283,4 +318,4 @@ func (e *formExtension) Extend(m goldmark.Markdown) {
 }
 
 // Forms is the extension instance
-var Forms = &formExtension{}
+var ExtForms = &formExtension{}

@@ -393,33 +393,42 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Created with ±<gno-input>± tag
    - Required attributes:
      - ±name±: Unique identifier for the input (required)
+     - ±type±: Type of input (optional, defaults to "text")
      - ±placeholder±: Hint text shown in the input (optional, defaults to "Enter value")
+   - Supported input types:
+     - ±type="text"± (default): For text input
+     - ±type="number"±: For numeric values only (with browser validation)
+     - ±type="email"±: For email addresses (with basic browser validation)
+     - ±type="tel"±: For phone numbers (no specific validation)
+     - ±type="password"±: For password input (masked characters)
+   - Note: Input validation is handled by the browser's HTML5 validation
+   - Any other type will default to "text"
    - Each input must have a unique name
    - Inputs are rendered with labels and proper styling
 
 #### Example Use Cases
 
-1. **Simple Data Entry**
 ±±±markdown
 <gno-form>
 
-  <gno-input name="username" placeholder="Enter username" />
+  <gno-input name="username" type="text" placeholder="Enter username" />
 
-  <gno-input name="message" placeholder="Type your message" />
+  <gno-input name="age" type="number" placeholder="Your age" />
 
-</gno-form>
-±±±
-
-2. **Transaction Form**
-±±±markdown
-<gno-form>
-
-  <gno-input name="recipient" placeholder="Enter recipient address" />
-
-  <gno-input name="amount" placeholder="Enter amount in ugnot" />
+  <gno-input name="email" type="email" placeholder="Your email" />
   
 </gno-form>
 ±±±
+
+<gno-form>
+
+  <gno-input name="username" type="text" placeholder="Enter username" />
+
+  <gno-input name="age" type="number" placeholder="Your age" />
+
+  <gno-input name="email" type="email" placeholder="Your email" />
+  
+</gno-form>
 
 #### Important Rules
 
