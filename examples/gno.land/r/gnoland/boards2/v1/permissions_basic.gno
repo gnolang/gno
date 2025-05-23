@@ -25,19 +25,11 @@ func NewBasicPermissions(dao *commondao.CommonDAO) *BasicPermissions {
 		panic("basic permissions require a DAO")
 	}
 
-	bp := &BasicPermissions{
+	return &BasicPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
 		users: avl.NewTree(),
 	}
-
-	// Make sure that DAO users are indexed when DAO has members
-	dao.Members().IterateByOffset(0, dao.Members().Size(), func(m std.Address) bool {
-		bp.users.Set(m.String(), []Role(nil))
-		return false
-	})
-
-	return bp
 }
 
 // SetSuperRole assigns a super role.
@@ -99,7 +91,7 @@ func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool
 
 // AddUser adds a new user to permissions.
 func (bp *BasicPermissions) AddUser(user std.Address, roles ...Role) error {
-	if bp.users.Has(user.String()) {
+	if bp.dao.Members().Has(user) {
 		return errors.New("user already exists")
 	}
 
@@ -109,7 +101,7 @@ func (bp *BasicPermissions) AddUser(user std.Address, roles ...Role) error {
 
 // SetUserRoles sets the roles of a user.
 func (bp *BasicPermissions) SetUserRoles(user std.Address, roles ...Role) error {
-	if !bp.users.Has(user.String()) {
+	if !bp.HasUser(user) {
 		return errors.New("user not found")
 	}
 	return bp.setUserRoles(user, roles...)
@@ -124,22 +116,25 @@ func (bp *BasicPermissions) RemoveUser(user std.Address) bool {
 
 // HasUser checks if a user exists.
 func (bp BasicPermissions) HasUser(user std.Address) bool {
-	return bp.users.Has(user.String())
+	return bp.dao.Members().Has(user)
 }
 
 // UsersCount returns the total number of users the permissioner contains.
 func (bp BasicPermissions) UsersCount() int {
-	return bp.users.Size()
+	return bp.dao.Members().Size()
 }
 
 // IterateUsers iterates permissions' users.
-func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) bool {
-	return bp.users.IterateByOffset(start, count, func(k string, v interface{}) bool {
-		return fn(User{
-			Address: std.Address(k),
-			Roles:   v.([]Role),
+func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) (stopped bool) {
+	bp.dao.Members().IterateByOffset(start, count, func(addr std.Address) bool {
+		roles := bp.GetUserRoles(addr)
+		stopped = fn(User{
+			Address: addr,
+			Roles:   roles,
 		})
+		return stopped
 	})
+	return
 }
 
 // WithPermission calls a callback when a user has a specific permission.

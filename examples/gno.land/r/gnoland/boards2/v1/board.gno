@@ -256,7 +256,8 @@ func (board *Board) GetMembersURL() string {
 }
 
 func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
-	perms := NewBasicPermissions(commondao.New())
+	dao := commondao.New(commondao.WithMember(owner))
+	perms := NewBasicPermissions(dao)
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(
 		RoleAdmin,
@@ -291,6 +292,6 @@ func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
 		PermissionThreadRepost,
 		PermissionReplyCreate,
 	)
-	perms.AddUser(owner, RoleOwner)
+	perms.SetUserRoles(owner, RoleOwner)
 	return perms
 }

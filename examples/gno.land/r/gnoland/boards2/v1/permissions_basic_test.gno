@@ -597,11 +597,12 @@ func TestBasicPermissionsIterateUsers(t *testing.T) {
 				uassert.Equal(t, users[i].Address, u.Address)
 
 				urequire.Equal(t, len(users[i].Roles), len(u.Roles), "expect number of roles to match")
-				for j, r := range u.Roles {
+				for j := range u.Roles {
 					uassert.Equal(t, string(users[i].Roles[j]), string(u.Roles[j]))
 				}
 
 				i++
+				return false
 			})
 
 			uassert.Equal(t, i, len(users), "expect iterator to iterate all users")
