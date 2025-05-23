@@ -181,6 +181,22 @@ var gConcreteRealmType = &DeclaredType{
 	// methods defined in makeUverseNode()
 }
 
+// NOTE: the value is set as a constExpr for the `.cur` in the preprocessor,
+// and likewise for MsgCall cross-call of crossing functions, so the value
+// should be deterministic, not dynamic, and only depend on the realm.
+func newConcreteRealm(pkgPath string) TypedValue {
+	return TypedValue{
+		T: gConcreteRealmType,
+		V: &StructValue{
+			Fields: []TypedValue{
+				{T: gAddressType, V: nil}, // XXX
+				{T: StringType, V: StringValue(pkgPath)},
+				{T: gConcreteRealmType, V: nil}, // XXX
+			},
+		},
+	}
+}
+
 // ----------------------------------------
 // Uverse package
 
@@ -983,8 +999,12 @@ func makeUverseNode() {
 	)
 	def("cross", undefined) // special keyword for cross-calling
 	def(".cur", undefined)  // special keyword for non-cross-calling main(cur realm)
-	// /* `cross` used to be a function, but it is now a special value.
-	defNative("_cross_gno0p0", // XXX make this unavailable in prod 0.9.
+	// `cross` used to be a function, but it is now a special value.
+	// XXX make this unavailable in prod 0.9.  Code that refers to this
+	// intermediate name (gno fix > prepare()) will not pass type-checking
+	// because it isn't available in .gnobuiltins.gno for gno 0.9, but this
+	// name is unnecessarily reserved and brittle.
+	defNative("_cross_gno0p0",
 		Flds( // param
 			"x", GenT("X", nil),
 		),

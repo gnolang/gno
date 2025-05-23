@@ -21,15 +21,22 @@ import (
 	XXX move to pkg/gnolang/importer.go.
 */
 
-func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
-	gnoBuiltins := ""
-	switch gnoVersion {
-	case GnoVerLatest: // 0.9
-		gnoBuiltins = `package %s
-
-func istypednil(x any) bool { return false } // shim
-var cross realm // shim
-func revive[F any](fn F) any { return nil } // shim
+// While makeGnoBuiltins() returns a *std.MemFile to inject into each package,
+// they may need to import a central package if they declare any types,
+// otherwise each .gnobuiltins.gno would be declaring their own types.
+var gnoBuiltinsCache = make(map[string]*std.MemPackage) // pkgPath -> mpkg or nil.
+func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
+	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
+		panic("expected pkgPath to start with gnobuiltins/")
+	}
+	mpkg, ok := gnoBuiltinsCache[pkgPath]
+	if ok {
+		return mpkg
+	}
+	switch pkgPath {
+	case "gnobuiltins/gno0p9": // 0.9
+		mpkg = &std.MemPackage{Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+		mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
     PkgPath() string
@@ -39,14 +46,42 @@ type realm interface {
     Origin() realm
     String() string
 }
+type Realm = realm
+
 type address string
 func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
+type Address = address
+
 type gnocoins []gnocoin
+type Gnocoins = gnocoins
+
 type gnocoin struct {
     Denom string
     Amount int64
-}`
+}
+type Gnocoin = gnocoin`)
+	default:
+		panic("unrecognized gnobuiltins pkgpath")
+	}
+	gnoBuiltinsCache[pkgPath] = mpkg
+	return mpkg
+}
+
+func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
+	gnoBuiltins := ""
+	switch gnoVersion {
+	case GnoVerLatest: // 0.9
+		gnoBuiltins = `package %s
+import "gnobuiltins/gno0p9"
+
+func istypednil(x any) bool { return false } // shim
+var cross realm // shim
+func revive[F any](fn F) any { return nil } // shim
+type realm = gno0p9.Realm
+type address = gno0p9.Address
+type gnocoins = gno0p9.Gnocoins
+type gnocoin = gno0p9.Gnocoin`
 	case GnoVerMissing: // 0.0
 		gnoBuiltins = `package %s
 
@@ -67,7 +102,21 @@ func revive[F any](fn F) any { return nil } // shim`
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
 type MemPackageGetter interface {
-	GetMemPackage(path string) *std.MemPackage
+	GetMemPackage(pkgPath string) *std.MemPackage
+}
+
+// Wrap the getter and intercept "gnobuiltins/*" paths, which is only used for
+// type-checking.
+type gnoBuiltinsGetterWrapper struct {
+	getter MemPackageGetter
+}
+
+func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
+	if strings.HasPrefix(pkgPath, "gnobuiltins/") {
+		return gnoBuiltinsMemPackage(pkgPath)
+	} else {
+		return gw.getter.GetMemPackage(pkgPath)
+	}
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -83,7 +132,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, strict b
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
-		getter:  getter,
+		getter:  gnoBuiltinsGetterWrapper{getter},
 		cache:   map[string]*gnoImporterResult{},
 		cfg: &types.Config{
 			Error: func(err error) {
@@ -249,7 +298,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	// NOTE: When returning errs from this function,
 
 	// STEP 4: Type-check Gno0.9 AST in Go (normal, and _test.gno if ParseModeIntegration).
-	gofs = append(gofs, gmgof)
+	if !strings.HasPrefix(mpkg.Path, "gnobuiltins/") {
+		gofs = append(gofs, gmgof)
+	}
 	// NOTE: .Check doesn't return an err, it appends to .errors.  also,
 	// gimp.errors may already be populated. For example, even after an
 	// import failure the Go type checker will continue to try to import
@@ -266,11 +317,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	// STEP 4: Type-check Gno0.9 AST in Go (xxx_test package if ParseModeAll).
 	if strings.HasSuffix(mpkg.Name, "_test") {
 		// e.g. When running a filetest // PKGPATH: xxx_test.
-	} else {
+	} else if !strings.HasPrefix(mpkg.Path, "gnobuiltins/") {
 		gmgof.Name = ast.NewIdent(mpkg.Name + "_test")
 		defer func() { gmgof.Name = ast.NewIdent(mpkg.Name) }() // revert
 	}
-	_gofs2 := append(_gofs, gmgof)
+	_gofs2 := _gofs
+	if !strings.HasPrefix(mpkg.Path, "gnobuiltins/") {
+		_gofs2 = append(_gofs, gmgof)
+	}
 	_, _ = gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
 	/* NOTE: Uncomment to fail earlier.
 	if len(gimp.errors) != numErrs {
@@ -280,7 +334,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	*/
 
 	// STEP 4: Type-check Gno0.9 AST in Go (_filetest.gno if ParseModeAll).
-	defer func() { gmgof.Name = ast.NewIdent(mpkg.Name) }() // revert
 	for _, tgof := range tgofs {
 		// Each filetest is its own package.
 		// XXX If we're re-parsing the filetest anyways,
@@ -293,6 +346,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		pkgPath := mpkg.Path
 		tmpkg := &std.MemPackage{Name: tpname, Path: pkgPath}
 		tmpkg.NewFile(tfname, tfile.Body)
+		// NOTE: not gnobuiltins/*; gnobuiltins/* don't have filetests.
 		bfile := makeGnoBuiltins(tpname, gnoVersion)
 		tmpkg.AddFile(bfile)
 		gofset2, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
