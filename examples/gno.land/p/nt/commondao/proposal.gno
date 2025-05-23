@@ -225,16 +225,15 @@ func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) 
 		return false
 	}
 
-	var votesCount int
-	for _, c := range r.Choices() {
+	var totalCount int
+	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
 		// Don't count explicit abstentions or invalid votes
-		if c == ChoiceNone || c == ChoiceAbstain {
-			continue
+		if c != ChoiceNone && c != ChoiceAbstain {
+			totalCount += r.VoteCount(c)
 		}
+		return false
+	})
 
-		votesCount += r.VoteCount(c)
-	}
-
-	percentage := float64(votesCount) / float64(members.Size())
+	percentage := float64(totalCount) / float64(members.Size())
 	return percentage >= quorum
 }
