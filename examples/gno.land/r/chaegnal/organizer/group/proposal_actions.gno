@@ -11,6 +11,7 @@ import (
 // Wrapper to create proposal
 // Sanitizes the arguments given
 func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged string) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	callbackArgsStr = strings.Trim(callbackArgsStr, "\"")
@@ -22,6 +23,7 @@ func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged str
 // Wrapper to vote on proposal
 // Verify if the vote ID exist and if the vote's choice exists
 func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	voteId, err := strconv.Atoi(voteIdStr)
@@ -43,6 +45,7 @@ func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 
 // Wrapper for admin to close proposal forcefully
 func AdminCloseProposal(groupId, voteIdStr, logged string) {
+	crossing()
 	group := organizer.GetGroupFromId(groupId)
 
 	voteId, err := strconv.Atoi(voteIdStr)

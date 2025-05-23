@@ -5,6 +5,14 @@ type Realm struct {
 	pkgPath string
 }
 
+func (r Realm) String() string {
+	if r.pkgPath == "" {
+		return "UserRealm{ " + r.addr.String() + " }"
+	} else {
+		return "CodeRealm{ " + r.addr.String() + ", " + r.pkgPath + " }"
+	}
+}
+
 func (r Realm) Address() Address {
 	return r.addr
 }

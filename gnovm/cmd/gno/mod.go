@@ -235,7 +235,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := downloadDeps(io, path, gnoMod, fetcher); err != nil {
+	if err := downloadDeps(io, path, gnoMod, fetcher, make(map[string]struct{})); err != nil {
 		return err
 	}
 

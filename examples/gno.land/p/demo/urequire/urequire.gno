@@ -54,6 +54,33 @@ func ErrorIs(t uassert.TestingT, err, target error, msgs ...string) {
 	t.FailNow()
 }
 
+// AbortsWithMessage requires that the code inside the specified func aborts
+// (panics when crossing another realm).
+// Use PanicsWithMessage for requiring local panics within the same realm.
+// Note: This relies on gno's `revive` mechanism to catch aborts.
+func AbortsWithMessage(t uassert.TestingT, msg string, f func(), msgs ...string) {
+	t.Helper()
+	if uassert.AbortsWithMessage(t, msg, f, msgs...) {
+		return
+	}
+	t.FailNow()
+}
+
+// NotAborts requires that the code inside the specified func does NOT abort
+// when crossing an execution boundary (e.g., VM call).
+// Use NotPanics for requiring the absence of local panics within the same realm.
+// Note: This relies on Gno's `revive` mechanism.
+func NotAborts(t uassert.TestingT, f func(), msgs ...string) {
+	t.Helper()
+	if uassert.NotPanics(t, f, msgs...) {
+		return
+	}
+	t.FailNow()
+}
+
+// PanicsWithMessage requires that the code inside the specified func panics
+// locally within the same execution realm.
+// Use AbortsWithMessage for requiring panics that cross execution boundaries (aborts).
 func PanicsWithMessage(t uassert.TestingT, msg string, f func(), msgs ...string) {
 	t.Helper()
 	if uassert.PanicsWithMessage(t, msg, f, msgs...) {
@@ -62,6 +89,9 @@ func PanicsWithMessage(t uassert.TestingT, msg string, f func(), msgs ...string)
 	t.FailNow()
 }
 
+// NotPanics requires that the code inside the specified func does NOT panic
+// locally within the same execution realm.
+// Use NotAborts for requiring the absence of panics that cross execution boundaries (aborts).
 func NotPanics(t uassert.TestingT, f func(), msgs ...string) {
 	t.Helper()
 	if uassert.NotPanics(t, f, msgs...) {

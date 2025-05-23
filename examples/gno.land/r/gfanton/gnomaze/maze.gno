@@ -50,7 +50,7 @@ func init() {
 	salt = rng.Int64()
 
 	// Register to hor
-	hor.Register("GnoMaze, A 3D Maze Game", "")
+	cross(hor.Register)("GnoMaze, A 3D Maze Game", "")
 }
 
 // Position represents the X, Y coordinates in the maze
@@ -115,6 +115,8 @@ func (p *PlayerState) Rotate(clockwise bool) {
 
 // GenerateNextLevel validates the answer and generates a new level
 func GenerateNextLevel(answer string) {
+	crossing()
+
 	seed := uint64(std.ChainHeight())
 	rng := rand.New(rand.NewPCG(seed, uint64(time.Now().Unix())))
 
@@ -261,6 +263,8 @@ func castRay(playerX, playerY, rayAngle float64, m [][]int) (distance float64, w
 
 // GenerateSVG creates an SVG representation of the maze scene
 func GenerateSVG(p *PlayerState) string {
+	crossing()
+
 	const (
 		svgWidth, svgHeight = 800, 600
 		offsetX, offsetY    = 0.0, 500.0
