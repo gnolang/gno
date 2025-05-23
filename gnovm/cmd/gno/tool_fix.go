@@ -235,7 +235,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// These are Go types.
-			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
+			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 			var gofset *token.FileSet
 			var gofs, _gofs, tgofs []*ast.File
 			var errs error
@@ -250,8 +250,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			_, gofset, gofs, _gofs, tgofs, errs =
-				lintTypeCheck(cio, dir, mpkg, gs) // , false)
+			_, gofset, gofs, _gofs, tgofs, errs = lintTypeCheck(cio, dir, mpkg, gs) // , false)
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true

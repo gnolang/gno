@@ -162,7 +162,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// These are Go types.
-			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
+			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 			var errs error
 
 			// Run type checking

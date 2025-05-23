@@ -31,7 +31,8 @@ func crossing() { } // shim
 func cross[F any](fn F) F { return fn } // shim
 func revive[F any](fn F) any { return nil } // shim
 type realm interface{} // shim
-`, pkgName)}
+`, pkgName),
+	}
 	return file
 }
 

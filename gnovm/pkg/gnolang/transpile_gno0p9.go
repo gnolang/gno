@@ -361,7 +361,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	}
 
 	// Go parse and collect files from mpkg.
-	var gofset = token.NewFileSet()
+	gofset := token.NewFileSet()
 	var errs error
 	var xall int = 0 // number translated from part 1
 	for _, fname := range fnames {
