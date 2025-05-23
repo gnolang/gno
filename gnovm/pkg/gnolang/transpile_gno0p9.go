@@ -143,25 +143,32 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage) (errs error) {
 	for _, gof := range gofs {
 		// AST transform for Gno 0.9.
-		err := prepareGno0p9(gof)
+		err := prepareGno0p9_part1(gof)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
 	}
-	errs = WriteToMemPackage(gofset, gofs, mpkg)
-	return
+	if errs != nil {
+		return errs
+	}
+	// Write AST transforms to mpkg.
+	err := WriteToMemPackage(gofset, gofs, mpkg)
+	if err != nil {
+		errs = multierr.Append(errs, err)
+	}
+	return errs
 }
 
 // Minimal AST mutation(s) for Gno 0.9.
-func prepareGno0p9(f *ast.File) (err error) {
+func prepareGno0p9_part1(f *ast.File) (err error) {
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		switch gon := c.Node().(type) {
 		case *ast.Ident:
 			// XXX: optimistic.
 			switch gon.Name {
 			case "cross":
-				gon.Name = "_cross_gno0p0"
+				gon.Name = "_cross_gno0p0" // only exists in .gnobuiltins.gno for gno 0.0
 			case "realm":
 				gon.Name = "realm_XXX"
 			case "realm_gno0p9": // not used

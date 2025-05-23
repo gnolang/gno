@@ -68,6 +68,12 @@ func (mfile *MemFile) Print() error {
 	return nil
 }
 
+// Creates a new copy.
+func (mfile *MemFile) Copy() *MemFile {
+	mfile2 := *mfile
+	return &mfile2
+}
+
 //----------------------------------------
 // MemPackage
 
@@ -243,6 +249,15 @@ func (mpkg *MemPackage) FileNames() (fnames []string) {
 		fnames = append(fnames, mfile.Name)
 	}
 	return
+}
+
+// Creates a new copy.
+func (mpkg *MemPackage) Copy() *MemPackage {
+	mpkg2 := *mpkg
+	for i, mfile := range mpkg2.Files {
+		mpkg2.Files[i] = mfile.Copy()
+	}
+	return &mpkg2
 }
 
 const licenseName = "LICENSE"

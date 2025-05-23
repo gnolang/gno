@@ -28,9 +28,7 @@ func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
 		gnoBuiltins = `package %s
 
 func istypednil(x any) bool { return false } // shim
-// func crossing() { } // shim
 var cross realm // shim
-func _cross_gno0p0[F any](fn F) F { return fn } // shim
 func revive[F any](fn F) any { return nil } // shim
 type realm interface {
     Address() address
@@ -54,7 +52,7 @@ type gnocoin struct {
 
 func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
-func cross[F any](fn F) F { return fn } // shim
+func _cross_gno0p0[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
 func revive[F any](fn F) any { return nil } // shim`
 	default:
 		panic("unsupported gno.mod version " + gnoVersion)
