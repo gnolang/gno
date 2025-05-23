@@ -69,15 +69,16 @@
           >
             <span>{{ $query.Key }}=</span>
             <input
-              class="peer field-content focus:opacity-100 w-0 focus:w-min focus-no-field-sizing:w-20 opacity-0 outline-none bg-gray-50 order-3"
+              class="peer field-content focus-no-field-sizing:w-20 max-w-[8ch] outline-none bg-gray-50 order-3 placeholder-shown:opacity-0 placeholder-shown:w-0"
               type="text"
               id="{{ $query.Key }}"
               name="{{ $query.Key }}"
-              value=""
+              value="{{ $query.Value }}"
               onfocus="this.select()"
+              placeholder="{{ $query.Key }}"
             />
             <span
-              class="peer-focus:hidden peer-placeholder-shown:hidden order-2"
+              class="peer-focus:hidden peer-placeholder-shown:inline hidden order-2"
             >
               {{ $query.Value }}
             </span>
