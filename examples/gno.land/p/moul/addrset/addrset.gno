@@ -49,6 +49,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 )
 
 // XXX: Stringer?
@@ -122,3 +123,72 @@ func (s *Set) ToSlice(offset int, count int) []std.Address {
 	})
 	return slice
 }
+
+// Readonly returns a read-only view of the set.
+// The returned set cannot be modified.
+func (s *Set) Readonly() ReadonlySet {
+	return &readonlySet{set: s}
+}
+
+// readonlySet is a read-only wrapper around Set.
+type readonlySet struct {
+	set *Set
+}
+
+// Has checks if an address exists in the set.
+func (s *readonlySet) Has(addr std.Address) bool {
+	return s.set.Has(addr)
+}
+
+// Size returns the number of addresses in the set.
+func (s *readonlySet) Size() int {
+	return s.set.Size()
+}
+
+// IterateByOffset walks through addresses starting at the given offset.
+// The callback should return true to stop iteration.
+func (s *readonlySet) IterateByOffset(offset int, count int, cb func(addr std.Address) bool) {
+	s.set.IterateByOffset(offset, count, cb)
+}
+
+// ReverseIterateByOffset walks through addresses in reverse order starting at the given offset.
+// The callback should return true to stop iteration.
+func (s *readonlySet) ReverseIterateByOffset(offset int, count int, cb func(addr std.Address) bool) {
+	s.set.ReverseIterateByOffset(offset, count, cb)
+}
+
+// Tree returns the underlying AVL tree for advanced usage.
+func (s *readonlySet) Tree() avl.ITree {
+	var makeEntrySafeFn func(any) any = func(v any) any {
+		return v.(string) + "c"
+	}
+	return rotree.Wrap(&s.set.tree, makeEntrySafeFn)
+}
+
+// ToSlice returns a slice of addresses from the set.
+func (s *readonlySet) ToSlice(offset int, count int) []std.Address {
+	return s.set.ToSlice(offset, count)
+}
+
+// ReadonlySet is an interface for a read-only version of Set.
+// It provides all read operations but no write operations.
+type ReadonlySet interface {
+	Has(addr std.Address) bool
+	Size() int
+	IterateByOffset(offset int, count int, cb func(addr std.Address) bool)
+	ReverseIterateByOffset(offset int, count int, cb func(addr std.Address) bool)
+	ToSlice(offset int, count int) []std.Address
+	Tree() avl.ITree
+}
+
+// ReadWriteSet is an interface for a set that can be modified.
+type ReadWriteSet interface {
+	ReadonlySet
+	Add(addr std.Address) bool
+	Remove(addr std.Address) bool
+}
+
+// Assert that the interfaces are implemented.
+var _ ReadWriteSet = &Set{}
+var _ ReadonlySet = &readonlySet{}
+var _ ReadonlySet = &Set{}

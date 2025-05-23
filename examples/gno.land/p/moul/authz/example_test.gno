@@ -152,6 +152,6 @@ func ExampleActionable_dao() {
 // mocks
 type govdao struct{} // replaces "import gno.land/r/gov/dao"
 
-func (g govdao) T1() addrset.Set                           { return addrset.Set{"g1t1member"} }
-func (g govdao) T2() addrset.Set                           { return addrset.Set{"g1t2member"} }
+func (g govdao) T1() addrset.Set                           { return addrset.New("g1t1member") }
+func (g govdao) T2() addrset.Set                           { return addrset.New("g1t2member") }
 func (g govdao) GetJoiningTime(addr std.Address) time.Time { return time.Now() }
