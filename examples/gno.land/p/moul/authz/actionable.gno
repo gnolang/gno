@@ -1,11 +1,9 @@
 package authz
 
-import "errors"
-
-
 // TODO: add a sync/async example with Do(action, callback) -- consider another
 // package.
 
+/*
 type Doer interface {
 	Do(action string, fn func() error) error
 }
@@ -21,7 +19,7 @@ type ActionableProposalSystem struct {
 	proposers, executors Membership
 }
 
-func (aps *ActionableProposalSystem) DoByCurrent(metadata any, fn func() error) error {
+func (aps *ActionableProposalSystem) DoByCurrent(metadata any, fn func()) error {
 	if !aps.proposers.Has(std.CurrentRealm().Address()) {
 		return errors.New("unauthorized")
 	}

@@ -11,8 +11,10 @@ type Membership interface {
 	Has(addr std.Address) bool
 }
 
-// Nil membership always returns false.
-func (m *Membership) Has(addr std.Address) bool { return false }
+// nilMembership is a zero/noop membership implementation that is always empty.
+type nilMembership struct{}
+
+func (m *nilMembership) Has(addr std.Address) bool { return false }
 
 // CustomMembership returns a membership that matches any address that
 // satisfies the given function.

@@ -1,5 +1,7 @@
 package authz
 
+import "std"
+
 type AccessControl interface {
 	// ACLCan is prefixed with ACL to allow implementing structure to reserve
 	// the Can keyword for a potentially different function signature, i.e.,
