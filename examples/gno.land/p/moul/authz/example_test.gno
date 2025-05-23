@@ -155,3 +155,12 @@ type govdao struct{} // replaces "import gno.land/r/gov/dao"
 func (g govdao) T1() addrset.Set                           { return addrset.New("g1t1member") }
 func (g govdao) T2() addrset.Set                           { return addrset.New("g1t2member") }
 func (g govdao) GetJoiningTime(addr std.Address) time.Time { return time.Now() }
+
+type readonlyMembershipFromPBAC struct {
+	pbac   *authz.PBAC
+	action string
+}
+
+func (romw *readonlyMembershipFromPBAC) Has(addr std.Address) bool {
+	return romw.pbac.Can(addr, romw.action)
+}

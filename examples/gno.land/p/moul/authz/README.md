@@ -5,6 +5,9 @@ TODO:
 - easy to plug
 - easy to extend
 - english-first usage
+---
+- in addition to PBAC -> RBAC
+- try to have a shared interface between drivers
 
 ```go
 // p/authz
@@ -29,3 +32,4 @@ dao := commondao.New()
 membersWithRoles := authz.WrapExistingAddrset(dao)
 // membersWithRoles.AssignRole..
 ```
+

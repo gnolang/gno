@@ -1,5 +1,6 @@
 package authz
 
+/*
 import "std"
 
 type AccessControl interface {
@@ -8,3 +9,4 @@ type AccessControl interface {
 	// without resourceAndContext, or with a specific type instead of any.
 	ACLCan(addr std.Address, action string, resourceAndContext any) bool
 }
+*/

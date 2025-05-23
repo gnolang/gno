@@ -16,17 +16,17 @@ type nilMembership struct{}
 
 func (m *nilMembership) Has(addr std.Address) bool { return false }
 
-// CustomMembership returns a membership that matches any address that
+// NewFuncMembership returns a membership that matches any address that
 // satisfies the given function.
-func CustomMembership(f func(addr std.Address) bool) Membership {
-	return &customMembership{f: f}
+func NewFuncMembership(f func(addr std.Address) bool) Membership {
+	return &funcMembership{f: f}
 }
 
-type customMembership struct {
+type funcMembership struct {
 	f func(addr std.Address) bool
 }
 
-func (m *customMembership) Has(addr std.Address) bool {
+func (m *funcMembership) Has(addr std.Address) bool {
 	return m.f(addr)
 }
 
@@ -101,11 +101,19 @@ func (m *xorMembership) Has(addr std.Address) bool {
 	return a != b
 }
 
-type readonlyMembershipFromAuthority struct {
-	auth   *Authority
+/* XXX: consider PBAC.MembershipFor()
+// MembershipFromPBAC returns a membership that is the same as the membership
+// for the given action in the given PBAC.
+func MembershipFromPBAC(pbac *PBAC, action string) Membership {
+	return &readonlyMembershipFromPBAC{pbac: pbac, action: action}
+}
+
+type readonlyMembershipFromPBAC struct {
+	pbac   *PBAC
 	action string
 }
 
-func (romw *readonlyMembershipFromAuthority) Has(addr std.Address) bool {
-	return romw.auth.Can(addr, romw.action)
+func (romw *readonlyMembershipFromPBAC) Has(addr std.Address) bool {
+	return romw.pbac.Can(addr, romw.action)
 }
+*/
