@@ -54,13 +54,7 @@ func (bp *BasicPermissions) AddRole(r Role, p Permission, extra ...Permission) {
 
 // RoleExists checks if a role exists.
 func (bp BasicPermissions) RoleExists(r Role) bool {
-	if bp.superRole != "" && r == bp.superRole {
-		return true
-	}
-
-	return bp.roles.Iterate("", "", func(name string, _ interface{}) bool {
-		return Role(name) == r
-	})
+	return (bp.superRole != "" && r == bp.superRole) || bp.roles.Has(string(r))
 }
 
 // GetUserRoles returns the list of roles assigned to a user.
