@@ -3303,11 +3303,13 @@ func findPackageSelectors(bn BlockNode) {
 							},
 						},
 					}
+					setPreprocessed(cx)
 					sx := &SelectorExpr{
 						X:    cx,
 						Path: NewValuePathBlock(1, n.Path.Index, n.Name),
 						Sel:  n.Name,
 					}
+					setPreprocessed(sx)
 					return sx, TRANS_CONTINUE
 				}
 			}

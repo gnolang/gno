@@ -278,6 +278,7 @@ func FindXformsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 						// cannot be resolved statically
 						defer func() {
 							recover()
+							// for debugging:
 							// fmt.Println("FAILED TO EVALSTATIC", n.Func, r)
 						}()
 						// try to evaluate n.Func.
