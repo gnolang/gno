@@ -112,6 +112,9 @@ func (p *PBAC) DoByPrevious(action string, fn func() error) error {
 // It should not be exposed.
 type PBACPrivateConfig struct {
 	memberships map[string]Membership // action -> Membership
+	// XXX: or map[string]addrset.Set?; or both?
+	// XXX: filters (dynamic And()/Or()), for instance to allow a high-level
+	//      police DAO.
 }
 
 // Set sets the Membership for the specified action.
