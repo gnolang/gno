@@ -208,7 +208,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				gs := ts.BeginTransaction(cw, cw, nil)
 				tm.Store = gs
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, _tests, false, false, "")
+					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, "")
 				ppkg.AddUnderscoreTests(pn, _tests)
 			}
 			{
