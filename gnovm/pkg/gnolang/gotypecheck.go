@@ -30,14 +30,15 @@ func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
 func istypednil(x any) bool { return false } // shim
 // func crossing() { } // shim
 var cross realm // shim
+func _cross_gno0p0[F any](fn F) F { return fn } // shim
 func revive[F any](fn F) any { return nil } // shim
 type realm interface {
     Address() address
     PkgPath() string
-    // Coins() gnocoins
-    // Send(coins gnocoins, to address) error 
-    Origin() realm
+    Coins() gnocoins
+    Send(coins gnocoins, to address) error
     Previous() realm
+    Origin() realm
     String() string
 }
 type address string

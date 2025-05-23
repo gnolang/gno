@@ -983,8 +983,8 @@ func makeUverseNode() {
 	)
 	def("cross", undefined) // special keyword for cross-calling
 	def(".cur", undefined)  // special keyword for non-cross-calling main(cur realm)
-	/* `cross` used to be a function, but it is now a special value.
-	defNative("cross",
+	// /* `cross` used to be a function, but it is now a special value.
+	defNative("_cross_gno0p0", // XXX make this unavailable in prod 0.9.
 		Flds( // param
 			"x", GenT("X", nil),
 		),
@@ -996,7 +996,6 @@ func makeUverseNode() {
 			panic("cross is a virtual function")
 		},
 	)
-	*/
 	defNative("attach",
 		Flds( // params
 			"xs", Vrd(AnyT()), // args[0]

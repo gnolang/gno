@@ -160,6 +160,8 @@ func prepareGno0p9(f *ast.File) (err error) {
 		case *ast.Ident:
 			// XXX: optimistic.
 			switch gon.Name {
+			case "cross":
+				gon.Name = "_cross_gno0p0"
 			case "realm":
 				gon.Name = "realm_XXX"
 			case "realm_gno0p9": // not used
@@ -232,7 +234,7 @@ func FindXformsGno0p9(store Store, pn *PackageNode, bn BlockNode) {
 						return n, TRANS_CONTINUE
 					}
 					fv := cx.GetFunc()
-					if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
+					if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
 						// Add a nil realm as first argument.
 						pc, ok := ns[len(ns)-1].(*CallExpr)
 						if !ok {
@@ -591,12 +593,12 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 				gon.Args = append([]ast.Expr{ast.NewIdent("cur")}, gon.Args...)
 				delete(xforms2, gon)
 			} else if inXforms2(gon, XTYPE_ADD_NILREALM) {
-				gon.Args = append([]ast.Expr{ast.NewIdent("cross")}, gon.Args...)
+				gon.Args = append([]ast.Expr{ast.NewIdent("_cross_gno0p0")}, gon.Args...)
 				delete(xforms2, gon)
 			}
-			if id, ok := gon.Fun.(*ast.Ident); ok && id.Name == "cross" {
+			if id, ok := gon.Fun.(*ast.Ident); ok && id.Name == "_cross_gno0p0" {
 				// Replace expression 'cross(x)' by 'x'.
-				// In Gno 0.9 @cross decorator is used instead.
+				// Gno 0.0: `cross(fn)(...)`, Gno 0.9 : `fn(cross,...)`
 				if len(gon.Args) == 1 {
 					c.Replace(gon.Args[0])
 				} else {
