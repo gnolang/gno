@@ -155,10 +155,19 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 	return reply
 }
 
-func (post *Post) Update(title string, body string) {
+func (post *Post) Update(title string, body string) error {
+	if post.IsThread() && title == "" {
+		return errors.New("title is empty")
+	}
+
+	if body == "" {
+		return errors.New("body is empty")
+	}
+
 	post.title = title
 	post.body = body
 	post.updatedAt = time.Now()
+	return nil
 }
 
 func (post *Post) HasReplies() bool {
