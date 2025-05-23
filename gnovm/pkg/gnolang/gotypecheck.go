@@ -52,6 +52,7 @@ type gnocoin struct {
 
 func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
+func cross[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
 func _cross_gno0p0[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
 func revive[F any](fn F) any { return nil } // shim`
 	default:
