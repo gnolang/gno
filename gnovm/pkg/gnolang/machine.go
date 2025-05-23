@@ -744,6 +744,7 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 			// so we do not want to cross-call main,
 			// and the behavior is similar to main().
 			m.RunStatement(st, S(Call(Nx(fn), Nx(".cur"))))
+			return
 		}
 	}
 	m.RunStatement(st, S(Call(Nx(fn))))

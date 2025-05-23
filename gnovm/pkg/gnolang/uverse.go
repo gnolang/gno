@@ -8,6 +8,7 @@ import (
 	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // ----------------------------------------
@@ -914,8 +915,17 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			res0 := typedString(arg0.TV.GetString())
-			m.PushValue(res0)
+			b32addr := arg0.TV.GetString()
+			addr, err := crypto.AddressFromBech32(b32addr)
+			if err != nil {
+				m.PushValue(typedBool(false))
+				return
+			}
+			if len(addr) != 20 {
+				m.PushValue(typedBool(false))
+				return
+			}
+			m.PushValue(typedBool(true))
 			return
 		},
 	)

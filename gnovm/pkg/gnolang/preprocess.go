@@ -1371,9 +1371,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						case Name("cur"):
 							// A non-crossing call of a crossing function.
 							dbn := last.GetBlockNodeForPath(store, nx.Path)
-							switch dbn.(type) {
-							case *FuncDecl, *FuncLitExpr:
-								dft := getType(dbn).(*FuncType)
+							switch dbn := dbn.(type) {
+							case *FuncDecl:
+								// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+								dft := getType(&dbn.Type).(*FuncType)
+								if !dft.IsCrossing() {
+									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+								}
+								// at this point we know that `cur` is from a containing crossing function.
+								// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
+								// argument of the crossing function.
+							case *FuncLitExpr:
+								// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+								dft := getType(&dbn.Type).(*FuncType)
 								if !dft.IsCrossing() {
 									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 								}
@@ -4629,7 +4639,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			rft := evalStaticType(store, last, &d.Recv).(FieldType)
 			rt := rft.Type
 			ft := evalStaticType(store, last, &d.Type).(*FuncType)
-			ft = ft.UnboundType(rft)
+			ubft := ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
 
 			// check base type of receiver type, should not be pointer type or interface type
@@ -4658,7 +4668,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			}
 			// The body may get altered during preprocessing later.
 			if !dt.TryDefineMethod(&FuncValue{
-				Type:       ft,
+				Type:       ubft,
 				IsMethod:   true,
 				Source:     d,
 				Name:       d.Name,
@@ -4692,7 +4702,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				Parent:     nil, // set lazily.
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
-				Crossing:   ft.IsCrossing(),
+				Crossing:   false, // gets set after evalStaticType(d.Type)
 				body:       d.Body,
 				nativeBody: nil,
 			}
@@ -4711,16 +4721,6 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				T: ft,
 				V: fv,
 			})
-			/* XXX delete
-			if d.Name == "init" {
-				// init functions can't be referenced.
-			} else {
-				d.Path = last.GetPathForName(store, d.Name)
-			}
-			if d.Name == "init" {
-				panic("d.Name 'init' should have been appended with a number in initStaticBlocks")
-			}
-			*/
 			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
 			ft2 := evalStaticType(store, last, &d.Type).(*FuncType)
 			if !ft.IsZero() {
@@ -4735,6 +4735,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			} else {
 				*ft = *ft2
 			}
+			fv.Crossing = ft.IsCrossing()
 		}
 	default:
 		panic(fmt.Sprintf(

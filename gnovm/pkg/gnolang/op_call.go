@@ -18,34 +18,51 @@ func (m *Machine) doOpPrecall() {
 		}
 	}
 
-	// If a cross-call of a crossing function,
-	// replace the first nil arg with a new realm.
-	if cx.IsWithCross() {
-		niltv := m.PeekValue(cx.NumArgs)
-		if !niltv.IsUndefined() {
-			panic(fmt.Sprintf(
-				"expected nil for realm argument in cross call but got %v", niltv))
-		}
-		if m.Realm == nil {
-			panic("unexpected nil m.Realm")
-		}
-		crlm := newConcreteRealm(m.Realm.Path)
-		niltv.Assign(m.Alloc, crlm, false)
-	}
-
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{}, false)
 		m.PushOp(OpCall)
-		if fv.IsCrossing() {
+		isCrossing := fv.IsCrossing()
+		if isCrossing {
 			m.PushOp(OpEnterCrossing)
+		}
+		// If a cross-call of a crossing function,
+		// replace the first nil arg with a new realm.
+		if cx.IsWithCross() {
+			if !isCrossing { // sanity
+				panic(fmt.Sprintf(
+					"non-crossing function in cross call"))
+			}
+			niltv := m.PeekValue(cx.NumArgs)
+			if !niltv.IsUndefined() { // sanity
+				panic(fmt.Sprintf(
+					"expected nil for realm argument in cross call but got %v", niltv))
+			}
+			crlm := newConcreteRealm(fv.PkgPath)
+			niltv.Assign(m.Alloc, crlm, false)
 		}
 	case *BoundMethodValue:
 		recv := fv.Receiver
 		m.PushFrameCall(cx, fv.Func, recv, false)
 		m.PushOp(OpCall)
-		if fv.IsCrossing() {
+		isCrossing := fv.IsCrossing()
+		if isCrossing {
 			m.PushOp(OpEnterCrossing)
+		}
+		// If a cross-call of a crossing function,
+		// replace the first nil arg with a new realm.
+		if cx.IsWithCross() {
+			if !isCrossing { // sanity
+				panic(fmt.Sprintf(
+					"non-crossing function in cross call"))
+			}
+			niltv := m.PeekValue(cx.NumArgs)
+			if !niltv.IsUndefined() { // sanity
+				panic(fmt.Sprintf(
+					"expected nil for realm argument in cross call but got %v", niltv))
+			}
+			crlm := newConcreteRealm(fv.Func.PkgPath)
+			niltv.Assign(m.Alloc, crlm, false)
 		}
 	case TypeValue:
 		// Do not pop type yet.
@@ -74,17 +91,18 @@ var gReturnStmt = &ReturnStmt{}
 // whether or not it was cross-called.
 func (m *Machine) doOpEnterCrossing() {
 	// Sanity check.
-	fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
-	if !fr1.LastPackage.IsRealm() {
-		panic("crossing call only allowed in realm packages")
+	fr1 := m.PeekCallFrame(1) // fr1.LastPackage called to create fr1.
+	if !m.Package.IsRealm() {
+		panic("expected crossing function in a realm package")
 	}
+
 	// Verify prior fr.WithCross or fr.DidCrossing.
 	// NOTE: fr.WithCross may or may not be true,
 	// crossing() (which sets fr.DidCrossing) can be
 	// stacked.
 	for i := 1; ; i++ {
 		fri := m.PeekCallFrame(i) // TODO: O(n^2), optimize.
-		if fri == nil {
+		if 1 < i && fri == nil {
 			// For stage add, meaning init() AND
 			// global var decls inherit a faux
 			// frame of index -1 which crossed from
@@ -97,8 +115,6 @@ func (m *Machine) doOpEnterCrossing() {
 			// meains fri.WithCross would have been
 			// found below.
 			fr1.SetDidCrossing()
-			// fr2 := m.PeekCallFrame(1) XXX delete
-			// fr2.SetDidCrossing()
 			return
 		}
 		if fri.WithCross || fri.DidCrossing {
@@ -107,8 +123,6 @@ func (m *Machine) doOpEnterCrossing() {
 			// fri.DidCrossing && !fri.WithCross
 			// can happen with an implicit switch.
 			fr1.SetDidCrossing()
-			// fr2 := m.PeekCallFrame(1) XXX delete
-			// fr2.SetDidCrossing()
 			return
 		}
 		// Neither fri.WithCross nor fri.DidCrossing, yet

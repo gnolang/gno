@@ -414,14 +414,20 @@ func unwrapConstExpr(x Expr) Expr {
 	return x
 }
 
-// returns true if x is of form cross(fn)(...).
-func (x *CallExpr) isWithCross() bool {
-	if fnc, ok := x.Func.(*CallExpr); ok {
-		if nx, ok := unwrapConstExpr(fnc.Func).(*NameExpr); ok {
-			if nx.Name == "cross" {
-				return true
-			}
-		}
+// returns true if x is of form fn(cur,...) or fn(cross,...).
+// but fn(cur,...) doesn't always mean with cross,
+// because `cur` could be anything, so this is a sanity check.
+func (x *CallExpr) isLikeWithCross() bool {
+	if len(x.Args) == 0 {
+		return false
+	}
+	first := x.Args[0]
+	nx, ok := first.(*NameExpr)
+	if !ok {
+		return false
+	}
+	if nx.Name == Name("cross") || nx.Name == Name("cur") {
+		return true
 	}
 	return false
 }
@@ -440,8 +446,8 @@ func (x *CallExpr) isCrossing_gno0p0() bool {
 }
 
 func (x *CallExpr) SetWithCross() {
-	if !x.isWithCross() {
-		panic("expected fn(cur,...)")
+	if !x.isLikeWithCross() {
+		panic("expected fn(cur,...) or fn(cross,...)")
 	}
 	x.WithCross = true
 }
