@@ -82,58 +82,76 @@ func NewForm(tag FormTag) *FormNode {
 	return &FormNode{Tag: tag}
 }
 
-// --- Line Parsing Utility Function ---
-//
-// We do a very simplified parsing: we rely on the complete trim
-// of the line to detect exact tags and, for <gno-input>, we extract
-// in a rudimentary way the "name" and "placeholder" attributes (between quotes).
-func parseFormTag(line []byte) (tag FormTag, name, placeholder, inputType, renderPath string, err error) {
+// FormTagInfo contains all the information parsed from a form tag
+type FormTagInfo struct {
+	Tag         FormTag
+	Name        string
+	Placeholder string
+	InputType   string
+	RenderPath  string
+	Error       error
+}
+
+// parseFormTag parses a form tag and returns the tag information
+func parseFormTag(line []byte) FormTagInfo {
 	trimmed := bytes.TrimSpace(line)
+	result := FormTagInfo{}
+
 	// Start of form block
 	if !(bytes.HasSuffix(trimmed, []byte(">")) || bytes.HasSuffix(trimmed, []byte("/>"))) {
-		return 0, "", "", "", "", ErrFormUnexpectedOrInvalidTag
+		result.Error = ErrFormUnexpectedOrInvalidTag
+		return result
 	}
+
 	if bytes.Equal(trimmed, []byte("<gno-form>")) {
-		return FormTagOpen, "", "", "", "", nil
+		result.Tag = FormTagOpen
+		return result
 	}
+
 	// Close form block
 	if bytes.Equal(trimmed, []byte("</gno-form>")) {
-		// We don't have a closing node in our AST,
-		// the closing tag only serves to end the block.
-		return FormTagOpen, "", "", "", "", ErrFormNoEndingTag
+		result.Tag = FormTagOpen
+		result.Error = ErrFormNoEndingTag
+		return result
 	}
+
 	// Input detection
 	if bytes.HasPrefix(trimmed, []byte("<gno-input")) {
-		// Simplified attribute extraction
-		name = extractAttr(trimmed, "name")
-		placeholder = extractAttr(trimmed, "placeholder")
-		inputType = extractAttr(trimmed, "type")
+		result.Tag = FormTagInput
+		result.Name = extractAttr(trimmed, "name")
+		result.Placeholder = extractAttr(trimmed, "placeholder")
+		result.InputType = extractAttr(trimmed, "type")
 
 		// Always set default type, even if name is missing
-		if inputType == "" {
-			inputType = defaultInputType
+		if result.InputType == "" {
+			result.InputType = defaultInputType
 		}
 
-		if strings.TrimSpace(name) == "" {
+		if strings.TrimSpace(result.Name) == "" {
 			// If "name" is missing, it's an error, but keep the type
-			return FormTagInput, "", placeholder, inputType, "", ErrFormInputMissingName
+			result.Error = ErrFormInputMissingName
+			return result
 		}
 
 		// Validate input type
-		if !validateInputType(inputType) {
-			return FormTagInput, name, placeholder, defaultInputType, "", ErrFormInvalidInputType
+		if !validateInputType(result.InputType) {
+			result.InputType = defaultInputType
+			result.Error = ErrFormInvalidInputType
+			return result
 		}
 
-		return FormTagInput, name, placeholder, inputType, "", nil
+		return result
 	}
 
 	// Extract path attribute for form tag
 	if bytes.HasPrefix(trimmed, []byte("<gno-form")) {
-		renderPath = extractAttr(trimmed, "path")
-		return FormTagOpen, "", "", "", renderPath, nil
+		result.Tag = FormTagOpen
+		result.RenderPath = extractAttr(trimmed, "path")
+		return result
 	}
 
-	return 0, "", "", "", "", ErrFormUnexpectedOrInvalidTag
+	result.Error = ErrFormUnexpectedOrInvalidTag
+	return result
 }
 
 // extractAttr extracts the value of the first found attribute from a line
@@ -170,12 +188,12 @@ func (p *formParser) Trigger() []byte {
 // Open starts a block only when the line is exactly "<gno-form>"
 func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, seg := reader.PeekLine()
-	tag, _, _, _, renderPath, err := parseFormTag(line)
-	if err != nil || tag != FormTagOpen {
+	info := parseFormTag(line)
+	if info.Error != nil || info.Tag != FormTagOpen {
 		return nil, parser.NoChildren
 	}
 	node := NewForm(FormTagOpen)
-	node.RenderPath = renderPath
+	node.RenderPath = info.RenderPath
 	// Consume the line "<gno-form>"
 	reader.Advance(seg.Len())
 	return node, parser.HasChildren
@@ -195,22 +213,22 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		return parser.Close
 	}
 	// If the line starts with "<gno-input", we add an input node.
-	tag, name, placeholder, inputType, _, err := parseFormTag(line)
-	if tag == FormTagInput {
+	info := parseFormTag(line)
+	if info.Tag == FormTagInput {
 		input := NewForm(FormTagInput)
 
 		// Get realm name and placeholder
-		input.InputName = name
-		input.InputType = inputType
-		if placeholder == "" {
+		input.InputName = info.Name
+		input.InputType = info.InputType
+		if info.Placeholder == "" {
 			input.InputPlaceholder = defaultPlaceholder
 		} else {
-			input.InputPlaceholder = placeholder
+			input.InputPlaceholder = info.Placeholder
 		}
 
 		// If an error occurred during parsing, we store it in the node.
-		if err != nil {
-			input.Error = err
+		if info.Error != nil {
+			input.Error = info.Error
 		}
 
 		node.AppendChild(node, input)
