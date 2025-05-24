@@ -43,12 +43,14 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
 		},
-		false,
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 
-			r0 := testlibs_fmt.X_typeString(p0)
+			r0 := testlibs_fmt.X_typeString(
+				m,
+				p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -70,12 +72,14 @@ var nativeFuncs = [...]NativeFunc{
 			{NameExpr: *gno.Nx("r3"), Type: gno.X("any")},
 			{NameExpr: *gno.Nx("r4"), Type: gno.X("int")},
 		},
-		false,
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 
-			r0, r1, r2, r3, r4 := testlibs_fmt.X_valueOfInternal(p0)
+			r0, r1, r2, r3, r4 := testlibs_fmt.X_valueOfInternal(
+				m,
+				p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
