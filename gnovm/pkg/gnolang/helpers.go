@@ -72,7 +72,9 @@ func IsPPackagePath(pkgPath string) bool {
 	return true
 }
 
-// IsStdlib determines whether s is a pkgpath for a standard library.
+// IsStdlib determines whether s is a pkgpath for a standard library.  If it
+// doesn't start with a domain (e.g. has a dot), it is stdlib.  This
+// implementation ignores dots after the first slash.
 func IsStdlib(s string) bool {
 	idx := strings.IndexByte(s, '/')
 	if idx < 0 {
@@ -80,6 +82,10 @@ func IsStdlib(s string) bool {
 		return strings.IndexByte(s, '.') < 0
 	}
 	return strings.IndexByte(s[:idx+1], '.') < 0
+}
+
+func IsTestFile(file string) bool {
+	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
 }
 
 // ----------------------------------------

@@ -458,7 +458,7 @@ func (x FileNode) String() string {
 }
 
 func (x PackageNode) String() string {
-	return fmt.Sprintf("package(%s)", x.PkgName)
+	return fmt.Sprintf("package(%s %s)", x.PkgName, x.PkgPath)
 }
 
 func (rn RefNode) String() string {

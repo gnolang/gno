@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/files/var19.gno:4:6: missing init expr for c<!VPUverse(0)>
+// main/var19.gno:4:6-24: missing init expr for c<!VPUverse(0)>
 
 // TypeCheckError:
-// main/files/var19.gno:4:12: missing init expr for c; main/files/var19.gno:4:19: undefined: a
+// main/var19.gno:4:12: missing init expr for c; main/var19.gno:4:19: undefined: a

@@ -82,7 +82,7 @@ func TestCopyFromCachedStore(t *testing.T) {
 		Files: []*std.MemFile{
 			{Name: "math.gno", Body: "package math"},
 		},
-	})
+	}, MemPackageTypeAny)
 
 	// Create dest store and copy.
 	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
@@ -144,7 +144,7 @@ func TestFindByPrefix(t *testing.T) {
 			Files: []*std.MemFile{
 				{Name: lib + ".gno", Body: "package " + lib},
 			},
-		})
+		}, MemPackageTypeAny)
 	}
 
 	// Add pkgs
@@ -156,7 +156,7 @@ func TestFindByPrefix(t *testing.T) {
 			Files: []*std.MemFile{
 				{Name: name + ".gno", Body: "package " + name},
 			},
-		})
+		}, MemPackageTypeAny)
 	}
 
 	for _, tc := range cases {

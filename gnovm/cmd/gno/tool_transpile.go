@@ -205,7 +205,7 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	}
 	opts.markAsTranspiled(dirPath)
 
-	gmod, err := gnomod.ParseAt(dirPath)
+	gmod, err := gnomod.ParseDir(dirPath)
 	if err != nil && !errors.Is(err, gnomod.ErrGnoModNotFound) {
 		return err
 	}

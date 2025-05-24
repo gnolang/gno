@@ -6,7 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/convert6.gno:5:10: cannot convert constant of type IntKind to UintKind
+// main/convert6.gno:5:10-17: cannot convert constant of type IntKind to UintKind
 
 // TypeCheckError:
-// main/files/convert6.gno:5:15: constant -1 overflows uint
+// main/convert6.gno:5:15: constant -1 overflows uint

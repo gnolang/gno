@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// gno.land/p/demo/files/import13.gno:6:2: internal/ packages can only be imported by packages rooted at the parent of "internal"
+// gno.land/p/demo/import13.gno:6:2-48: internal/ packages can only be imported by packages rooted at the parent of "internal"

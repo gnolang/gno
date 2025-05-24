@@ -2,7 +2,7 @@ package overflow
 
 import (
 	"math"
-	"testing"
+	testing "testing/base"
 )
 
 // sample all possibilities of 8 bit numbers

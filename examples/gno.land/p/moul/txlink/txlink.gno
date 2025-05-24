@@ -134,9 +134,9 @@ func (r Realm) prefix() string {
 	}
 
 	// local realm -> /realm
-	realm := string(r)
-	if strings.HasPrefix(realm, chainDomain) {
-		return strings.TrimPrefix(realm, chainDomain)
+	rlm := string(r)
+	if strings.HasPrefix(rlm, chainDomain) {
+		return strings.TrimPrefix(rlm, chainDomain)
 	}
 
 	// remote realm -> https://remote.land/realm

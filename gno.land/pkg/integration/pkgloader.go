@@ -84,14 +84,14 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 	return txs, nil
 }
 
-func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
+func (pl *PkgsLoader) LoadAllPackagesFromDir(dir string) error {
 	// list all packages from target path
-	pkgslist, err := gnomod.ListPkgs(path)
+	pkglist, err := gnolang.ReadPkgListFromDir(dir)
 	if err != nil {
 		return fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
 
-	for _, pkg := range pkgslist {
+	for _, pkg := range pkglist {
 		if !pl.exist(pkg) {
 			pl.add(pkg)
 		}
@@ -115,11 +115,11 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 
 		if currentPkg.Name == "" {
 			// Load `gno.mod` information
-			gnoModPath := filepath.Join(currentPkg.Dir, "gno.mod")
-			gm, err := gnomod.ParseGnoMod(gnoModPath)
+			gm, err := gnomod.ParseDir(currentPkg.Dir)
 			if err != nil {
-				return fmt.Errorf("unable to load %q: %w", gnoModPath, err)
+				return fmt.Errorf("unable to load %q: %w", currentPkg.Dir, err)
 			}
+
 			gm.Sanitize()
 
 			// Override package info with mod infos

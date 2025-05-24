@@ -13,4 +13,4 @@ func main() {
 // allocation limit exceeded
 
 // TypeCheckError:
-// main/files/alloc_2.gno:8:2: declared and not used: data
+// main/alloc_2.gno:8:2: declared and not used: data

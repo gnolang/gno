@@ -12,4 +12,4 @@ func getSlice() any {
 // illegal assignment X expression type *gnolang.TypeAssertExpr
 
 // TypeCheckError:
-// main/files/addressable_6d_err.gno:4:7: invalid operation: cannot take address of getSlice().([]int) (comma, ok expression of type []int)
+// main/addressable_6d_err.gno:4:7: invalid operation: cannot take address of getSlice().([]int) (comma, ok expression of type []int)

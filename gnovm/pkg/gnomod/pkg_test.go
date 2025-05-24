@@ -1,13 +1,16 @@
-package gnomod
+package gnomod_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 func TestListAndNonDraftPkgs(t *testing.T) {
@@ -15,7 +18,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 		desc string
 		in   []struct{ name, modfile string }
 
-		outListPkgs     []string
+		outPkgList      []string
 		outNonDraftPkgs []string
 	}{
 		{
@@ -37,7 +40,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 					`module baz`,
 				},
 			},
-			outListPkgs:     []string{"foo", "bar", "baz"},
+			outPkgList:      []string{"foo", "bar", "baz"},
 			outNonDraftPkgs: []string{"foo", "bar", "baz"},
 		},
 		{
@@ -58,7 +61,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 					module qux`,
 				},
 			},
-			outListPkgs:     []string{"foo", "baz", "qux"},
+			outPkgList:      []string{"foo", "baz", "qux"},
 			outNonDraftPkgs: []string{"foo", "baz"},
 		},
 	} {
@@ -74,11 +77,11 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			}
 
 			// List packages
-			pkgs, err := ListPkgs(dirPath)
+			pkgs, err := gno.ReadPkgListFromDir(dirPath)
 			require.NoError(t, err)
-			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
+			assert.Equal(t, len(tc.outPkgList), len(pkgs))
 			for _, p := range pkgs {
-				assert.Contains(t, tc.outListPkgs, p.Name)
+				assert.Contains(t, tc.outPkgList, p.Name)
 			}
 
 			// Sort packages
@@ -111,17 +114,17 @@ func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
 func TestSortPkgs(t *testing.T) {
 	for _, tc := range []struct {
 		desc      string
-		in        PkgList
+		in        gnomod.PkgList
 		expected  []string
 		shouldErr bool
 	}{
 		{
 			desc:     "empty_input",
-			in:       []Pkg{},
+			in:       []gnomod.Pkg{},
 			expected: make([]string, 0),
 		}, {
 			desc: "no_dependencies",
-			in: []Pkg{
+			in: []gnomod.Pkg{
 				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{}},
 				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{}},
 				{Name: "pkg3", Dir: "/path/to/pkg3", Imports: []string{}},
@@ -129,20 +132,20 @@ func TestSortPkgs(t *testing.T) {
 			expected: []string{"pkg1", "pkg2", "pkg3"},
 		}, {
 			desc: "circular_dependencies",
-			in: []Pkg{
+			in: []gnomod.Pkg{
 				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
 				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{"pkg1"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "missing_dependencies",
-			in: []Pkg{
+			in: []gnomod.Pkg{
 				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
 			},
 			shouldErr: true,
 		}, {
 			desc: "valid_dependencies",
-			in: []Pkg{
+			in: []gnomod.Pkg{
 				{Name: "pkg1", Dir: "/path/to/pkg1", Imports: []string{"pkg2"}},
 				{Name: "pkg2", Dir: "/path/to/pkg2", Imports: []string{"pkg3"}},
 				{Name: "pkg3", Dir: "/path/to/pkg3", Imports: []string{}},

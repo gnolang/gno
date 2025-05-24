@@ -9,9 +9,9 @@ func main() {
 }
 
 // Error:
-// main/files/fun21.gno:4:2: expected 1 return values; got 0
+// main/fun21.gno:4:2-8: expected 1 return values; got 0
 
 // TypeCheckError:
-// main/files/fun21.gno:4:2: not enough return values
+// main/fun21.gno:4:2: not enough return values
 // 	have ()
 // 	want (string)

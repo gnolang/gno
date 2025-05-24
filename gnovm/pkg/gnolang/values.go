@@ -2480,6 +2480,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 		}
 	}
 	b.Values = values
+	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
 // NOTE: RefValue Object methods declared in ownership.go

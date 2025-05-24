@@ -12,7 +12,7 @@ func main() {
 }
 
 // Error:
-// main/files/var22c.gno:10:6: missing init expr for z<!VPUverse(0)>
+// main/var22c.gno:10:6-22: missing init expr for z<!VPUverse(0)>
 
 // TypeCheckError:
-// main/files/var22c.gno:10:12: missing init expr for z; main/files/var22c.gno:10:19: multiple-value f() (value of type (a int, b int)) in single-value context
+// main/var22c.gno:10:12: missing init expr for z; main/var22c.gno:10:19: multiple-value f() (value of type (a int, b int)) in single-value context

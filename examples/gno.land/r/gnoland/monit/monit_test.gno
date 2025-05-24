@@ -78,7 +78,6 @@ func TestReset(t *testing.T) {
 	// Initial state check
 	initialCounter := counter
 	initialLastUpdate := lastUpdate
-	initialLastCaller := lastCaller
 	initialStatus := wd.Status()
 
 	// Call Incr to change the state

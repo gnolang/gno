@@ -52,7 +52,7 @@ func main() {
 //     -        },
 //     -        "V": {
 //     -            "@type": "/gno.RefValue",
-//     -            "Hash": "5b8e03f7f8b6fe2399fb8f4a27dd5a1a49518df8",
+//     -            "Hash": "47596878835b82fc5bcd8469e6d3f9b90e545e45",
 //     -            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:16"
 //     +            "@type": "/gno.PrimitiveType",
 //     +            "value": "32"

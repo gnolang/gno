@@ -56,7 +56,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	}
 
 	for _, mdir := range modDirs {
-		gm, err := gnomod.ParseGnoMod(filepath.Join(mdir, "gno.mod"))
+		gm, err := gnomod.ParseFilepath(filepath.Join(mdir, "gno.mod"))
 		if err != nil {
 			log.Printf("%v", err)
 			continue

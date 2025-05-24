@@ -11,8 +11,8 @@ stdout '"coins": "10000000000000ugnot"'
 
 # Tx add package -simulate only, estimate gas used and gas fee
 gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
-stdout 'GAS USED:   186176'
-stdout 'INFO:       estimated gas usage: 186176, gas fee: 196ugnot, current gas price: 1000gas/1ugnot'
+stdout 'GAS USED:   186496'
+stdout 'INFO:       estimated gas usage: 186496, gas fee: 196ugnot, current gas price: 1000gas/1ugnot'
 
 ## No fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr

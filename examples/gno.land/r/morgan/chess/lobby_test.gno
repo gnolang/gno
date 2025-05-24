@@ -153,7 +153,7 @@ func TestLobbyGameFound(t *testing.T) {
 			}
 
 			testing.SetRealm(std.NewUserRealm(tc.caller))
-			game := cross(LobbyGameFound)()
+			cross(LobbyGameFound)()
 
 			if tc.check != nil {
 				tc.check(t)

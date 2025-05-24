@@ -15,3 +15,6 @@ func main() {
 
 // Output:
 // some error
+
+// TypeCheckError:
+// main/errors2_filetest.gno:12:2: declared and not used: b

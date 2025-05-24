@@ -7,7 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/const34.gno:3:7: func func(){ (const (println func(...interface {})))((const ("hey" string))) } (variable of type func()) is not constant
+// main/const34.gno:3:7-36: func func(){ println<VPUverse(0)>("hey") } (variable of type func()) is not constant
 
 // TypeCheckError:
-// main/files/const34.gno:3:11: (func() literal) (value of type func()) is not constant
+// main/const34.gno:3:11: (func() literal) (value of type func()) is not constant

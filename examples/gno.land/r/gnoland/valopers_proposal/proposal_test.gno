@@ -42,10 +42,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 			cross(valopers.UpdateKeepRunning)(g1user, false)
 		})
 
-		var valoper valopers.Valoper
-
 		urequire.NotPanics(t, func() {
-			valoper = valopers.GetByAddr(g1user)
+			valopers.GetByAddr(g1user)
 		})
 
 		// Send coins to be able to make a proposal
@@ -79,7 +77,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.NotPanics(t, func() {
 			pr := NewValidatorProposalRequest(g1user)
 
-			pid := cross(dao.MustCreateProposal)(pr)
+			pid = cross(dao.MustCreateProposal)(pr)
 		})
 
 		proposal, err := cross(dao.GetProposal)(pid) // index starts from 0
@@ -99,10 +97,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
-		var valoper valopers.Valoper
-
 		urequire.NotPanics(t, func() {
-			valoper = valopers.GetByAddr(g1user)
+			valopers.GetByAddr(g1user)
 		})
 
 		urequire.NotPanics(t, func() {

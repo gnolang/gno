@@ -59,9 +59,9 @@ type JSONType struct {
 	Doc       string `json:"doc"` // markdown
 }
 
-// NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable
-func NewDocumentableFromMemPkg(memPkg *std.MemPackage, unexported bool, symbol, accessible string) (*Documentable, error) {
-	pd, err := newPkgDataFromMemPkg(memPkg, unexported)
+// NewDocumentableFromMemPkg gets the pkgData from mpkg and returns a Documentable
+func NewDocumentableFromMemPkg(mpkg *std.MemPackage, unexported bool, symbol, accessible string) (*Documentable, error) {
+	pd, err := newPkgDataFromMemPkg(mpkg, unexported)
 	if err != nil {
 		return nil, err
 	}

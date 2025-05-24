@@ -95,8 +95,8 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 	var pkgpath string
 
 	// Check for a gno.mod, in which case it will define the module path
-	gnoModPath := filepath.Join(dir, "gno.mod")
-	data, err := os.ReadFile(gnoModPath)
+	modpath := filepath.Join(dir, "gno.mod")
+	data, err := os.ReadFile(modpath)
 	switch {
 	case os.IsNotExist(err):
 		if len(root) > 0 {
@@ -106,19 +106,19 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 		}
 
 	case err == nil:
-		gnoMod, err := gnomod.Parse(gnoModPath, data)
+		mod, err := gnomod.ParseBytes(modpath, data)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse gnomod %q: %w", gnoModPath, err)
+			return nil, fmt.Errorf("unable to parse gnomod %q: %w", modpath, err)
 		}
 
-		gnoMod.Sanitize()
-		if err := gnoMod.Validate(); err != nil {
-			return nil, fmt.Errorf("unable to validate gnomod %q: %w", gnoModPath, err)
+		mod.Sanitize()
+		if err := mod.Validate(); err != nil {
+			return nil, fmt.Errorf("unable to validate gnomod %q: %w", modpath, err)
 		}
 
-		pkgpath = gnoMod.Module.Mod.Path
+		pkgpath = mod.Module.Mod.Path
 	default:
-		return nil, fmt.Errorf("unable to read %q: %w", gnoModPath, err)
+		return nil, fmt.Errorf("unable to read %q: %w", modpath, err)
 	}
 
 	return &fsPackage{

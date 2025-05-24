@@ -1,19 +1,24 @@
 package gnomod
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
-// ParseAt parses, validates and returns a gno.mod file located at dir or at
+var ErrNoModFile = errors.New("gno.mod doesn't exist")
+
+// ParseDir parses, validates and returns a gno.mod file located at dir or at
 // dir's parents.
-func ParseAt(dir string) (*File, error) {
+func ParseDir(dir string) (*File, error) {
 	ferr := func(err error) (*File, error) {
 		return nil, fmt.Errorf("parsing gno.mod at %s: %w", dir, err)
 	}
@@ -27,12 +32,12 @@ func ParseAt(dir string) (*File, error) {
 	if err != nil {
 		return ferr(err)
 	}
-	fname := filepath.Join(rd, "gno.mod")
-	b, err := os.ReadFile(fname)
+	fpath := filepath.Join(rd, "gno.mod")
+	b, err := os.ReadFile(fpath)
 	if err != nil {
 		return ferr(err)
 	}
-	gm, err := Parse(fname, b)
+	gm, err := ParseBytes(fpath, b)
 	if err != nil {
 		return ferr(err)
 	}
@@ -42,40 +47,36 @@ func ParseAt(dir string) (*File, error) {
 	return gm, nil
 }
 
-// tries to parse gno mod file given the filename, using Parse and Validate from
-// the gnomod package
-//
-// TODO(tb): replace by `gnomod.ParseAt` ? The key difference is the latter
-// looks for gno.mod in parent directories, while this function doesn't.
-func ParseGnoMod(fname string) (*File, error) {
-	file, err := os.Stat(fname)
+// Tries to parse gno mod file given the file path, using ParseBytes and Validate.
+func ParseFilepath(fpath string) (*File, error) {
+	file, err := os.Stat(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
 	}
 	if file.IsDir() {
-		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
+		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fpath)
 	}
 
-	b, err := os.ReadFile(fname)
+	b, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
 	}
-	gm, err := Parse(fname, b)
+	gm, err := ParseBytes(fpath, b)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fname, err)
+		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fpath, err)
 	}
 	if err := gm.Validate(); err != nil {
-		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fname, err)
+		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fpath, err)
 	}
 	return gm, nil
 }
 
-// Parse parses and returns a gno.mod file.
+// ParseBytes parses and returns a gno.mod file.
 //
-// - file is the name of the file, used in positions and errors.
+// - fname is the name of the file, used in positions and errors.
 // - data is the content of the file.
-func Parse(file string, data []byte) (*File, error) {
-	fs, err := parse(file, data)
+func ParseBytes(fname string, data []byte) (*File, error) {
+	fs, err := parse(fname, data)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +92,7 @@ func Parse(file string, data []byte) (*File, error) {
 		case *modfile.LineBlock:
 			if len(x.Token) > 1 {
 				errs = append(errs, modfile.Error{
-					Filename: file,
+					Filename: fname,
 					Pos:      x.Start,
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
@@ -100,7 +101,7 @@ func Parse(file string, data []byte) (*File, error) {
 			switch x.Token[0] {
 			default:
 				errs = append(errs, modfile.Error{
-					Filename: file,
+					Filename: fname,
 					Pos:      x.Start,
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
@@ -123,6 +124,33 @@ func Parse(file string, data []byte) (*File, error) {
 	return f, nil
 }
 
+// Parse gno.mod from MemPackage, or return nil and error.
+func ParseMemPackage(mpkg *std.MemPackage) (*File, error) {
+	mf := mpkg.GetFile("gno.mod")
+	if mf == nil {
+		return nil, fmt.Errorf(
+			"gno.mod not in mem package %s (name=%s): %w",
+			mpkg.Path, mpkg.Name, os.ErrNotExist,
+		)
+	}
+	mod, err := ParseBytes(mf.Name, []byte(mf.Body))
+	if err != nil {
+		return nil, err
+	}
+	return mod, nil
+}
+
+// Must parse gno.mod from MemPackage.
+func MustParseMemPackage(mpkg *std.MemPackage) *File {
+	mod, err := ParseMemPackage(mpkg)
+	if err != nil {
+		panic(fmt.Errorf("parsing mempackage %w", err))
+	}
+	return mod
+}
+
+var reGnoVersion = regexp.MustCompile(`^([0-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)
+
 func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modfile.Line, verb string, args []string) {
 	wrapError := func(err error) {
 		*errs = append(*errs, modfile.Error{
@@ -139,25 +167,25 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 	default:
 		errorf("unknown directive: %s", verb)
 
-	case "go":
-		if f.Go != nil {
-			errorf("repeated go statement")
+	case "gno":
+		if f.Gno != nil {
+			errorf("repeated gno statement")
 			return
 		}
 		if len(args) != 1 {
-			errorf("go directive expects exactly one argument")
+			errorf("gno directive expects exactly one argument")
 			return
-		} else if !modfile.GoVersionRE.MatchString(args[0]) {
+		} else if !reGnoVersion.MatchString(args[0]) {
 			fixed := false
 			if !fixed {
-				errorf("invalid go version '%s': must match format 1.23", args[0])
+				errorf("invalid gno version %s: must match format 1.23", args[0])
 				return
 			}
 		}
 
 		line := reflect.ValueOf(line).Interface().(*modfile.Line)
-		f.Go = &modfile.Go{Syntax: line}
-		f.Go.Version = args[0]
+		f.Gno = &modfile.Go{Syntax: line}
+		f.Gno.Version = args[0]
 
 	case "module":
 		if f.Module != nil {

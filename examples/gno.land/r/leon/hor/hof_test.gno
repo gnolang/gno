@@ -125,7 +125,7 @@ func TestDelete(t *testing.T) {
 	})
 
 	i, _ := exhibition.items.Get(rlmPath)
-	id := i.(*Item).id
+	_ = i.(*Item).id
 
 	uassert.NotPanics(t, func() {
 		cross(Delete)(rlmPath)
@@ -137,7 +137,7 @@ func TestDelete(t *testing.T) {
 func itemExists(t *testing.T, rlmPath string) bool {
 	t.Helper()
 
-	i, ok1 := exhibition.items.Get(rlmPath)
+	_, ok1 := exhibition.items.Get(rlmPath)
 
 	return ok1
 }
@@ -210,11 +210,11 @@ func TestSortByUpvote(t *testing.T) {
 	cross(Upvote)(rlmPath5)
 
 	// We are displaying data in reverse order in render, so items should be sorted in reverse order
-	firstKey, firstRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(0)
+	_, firstRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(0)
 	firstValue := firstRawValue.(*Item)
 	uassert.Equal(t, firstValue.pkgpath, rlmPath3)
 
-	secondKey, secondRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(1)
+	_, secondRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(1)
 	secondValue := secondRawValue.(*Item)
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
 }
@@ -268,13 +268,13 @@ func TestSortByDownvote(t *testing.T) {
 	cross(Downvote)(rlmPath5)
 
 	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
-	firstKey, firstRawValue := exhibition.itemsSortedByDownvotes.GetByIndex(0)
+	_, firstRawValue := exhibition.itemsSortedByDownvotes.GetByIndex(0)
 
 	firstValue := firstRawValue.(*Item)
 
 	uassert.Equal(t, firstValue.pkgpath, rlmPath3)
 
-	secondKey, secondRawValue := exhibition.itemsSortedByDownvotes.GetByIndex(1)
+	_, secondRawValue := exhibition.itemsSortedByDownvotes.GetByIndex(1)
 
 	secondValue := secondRawValue.(*Item)
 
@@ -313,13 +313,13 @@ func TestSortByCreation(t *testing.T) {
 	cross(Register)(validTitle, validDesc)
 
 	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
-	firstKey, firstRawValue := exhibition.itemsSortedByCreation.GetByIndex(0)
+	_, firstRawValue := exhibition.itemsSortedByCreation.GetByIndex(0)
 
 	firstValue := firstRawValue.(*Item)
 
 	uassert.Equal(t, firstValue.pkgpath, rlmPath3)
 
-	secondKey, secondRawValue := exhibition.itemsSortedByCreation.GetByIndex(1)
+	_, secondRawValue := exhibition.itemsSortedByCreation.GetByIndex(1)
 
 	secondValue := secondRawValue.(*Item)
 

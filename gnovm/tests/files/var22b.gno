@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/files/var22b.gno:8:6: extra init expr foo<VPUverse(0)>()
+// main/var22b.gno:8:6-30: extra init expr foo<VPUverse(0)>()
 
 // TypeCheckError:
-// main/files/var22b.gno:8:25: extra init expr foo()
+// main/var22b.gno:8:25: extra init expr foo()

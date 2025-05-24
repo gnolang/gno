@@ -14,4 +14,7 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/unnamedtype0b_filetest.gno:11:2: cannot use []main.word as []int
+// main/unnamedtype0b_filetest.gno:11:2-7: cannot use []main.word as []int
+
+// TypeCheckError:
+// main/unnamedtype0b_filetest.gno:11:6: cannot use b (variable of type []word) as nat value in assignment
