@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Flag to track if a link click is in progress
     let clickInProgress = false;
 
+    let enterInProgress = false;
+
+
     // Capture clicks on <a> tags to prevent reloading appening when clicking on link
     document.addEventListener('click', function(event) {
         const target = event.target;
@@ -26,6 +29,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Wait a bit before allowing reload again
             setTimeout(function() {
                 clickInProgress = false;
+            }, 5000);
+        }
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' ) {
+            enterInProgress = true;
+            setTimeout(function() {
+                enterInProgress = false;
             }, 5000);
         }
     });
@@ -41,8 +53,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Reload the page immediately if we're not in the grace period and no clicks are in progress
-            if (!gracePeriod && !clickInProgress) {
+            // Reload the page immediately if we're not in the grace period and no clicks and enters are in progress
+            if (!gracePeriod && !clickInProgress && !enterInProgress) {
                 window.location.reload();
                 return;
             }
