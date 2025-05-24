@@ -28,7 +28,7 @@ var (
 )
 
 //----------------------------------------
-// MemPackage
+// MemFile
 
 // A MemFile is the simplest representation of a "file".
 //
@@ -73,6 +73,7 @@ func (mfile *MemFile) Print() error {
 // MemPackage represents the information and files of a package which will be
 // stored in memory. It will generally be initialized by package gnolang's
 // ReadMemPackage.
+// Note: a package does not support subfolders.
 //
 // NOTE: in the future, a MemPackage may represent updates/additional-files for
 // an existing package.
@@ -128,9 +129,6 @@ func (mpkg *MemPackage) ValidateBasic() error {
 	for _, mfile := range mpkg.Files {
 		if err := mfile.ValidateBasic(); err != nil {
 			return fmt.Errorf("invalid file in package: %w", err)
-		}
-		if !reFileName.MatchString(mfile.Name) {
-			return fmt.Errorf("invalid file name %q, failed to match %q", mfile.Name, reFileName)
 		}
 	}
 	return nil
