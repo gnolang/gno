@@ -658,7 +658,11 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			for i := uint8(0); i < cs.Depth; i++ {
+			// Pop the frame before popping the block
+			for i := uint8(0); i < cs.FrameDepth; i++ {
+				m.PopFrameAndReset()
+			}
+			for i := uint8(0); i < cs.BlockDepth; i++ {
 				m.PopBlock()
 			}
 			last := m.LastBlock()
