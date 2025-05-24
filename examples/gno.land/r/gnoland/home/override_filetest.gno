@@ -16,7 +16,7 @@ func main() {
 	println(home.Render(""))
 
 	newAdmin := testutils.TestAddress("newAdmin")
-	home.Admin.TransferOwnership(newAdmin)
+	home.Admin.TransferOwnershipByPrevious(newAdmin)
 	if err := revive(func() {
 		cross(home.AdminSetOverride)("Not admin anymore")
 	}); err == nil {

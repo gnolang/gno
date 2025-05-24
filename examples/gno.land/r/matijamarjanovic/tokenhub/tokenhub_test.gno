@@ -111,7 +111,7 @@ func TestErrorCases(t *testing.T) {
 	err = cross(RegisterMultiToken)(mt.Getter(), "1")
 
 	err = cross(RegisterMultiToken)(mt.Getter(), "1")
-	uassert.True(t, err != nil, "Should not allow duplicate registrasdasdation")
+	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
 func TestTokenListingFunctions(t *testing.T) {
