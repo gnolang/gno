@@ -144,7 +144,7 @@ func TestFindByPrefix(t *testing.T) {
 			Files: []*std.MemFile{
 				{Name: lib + ".gno", Body: "package " + lib},
 			},
-		})
+		}, MemPackageTypeAny)
 	}
 
 	// Add pkgs
@@ -156,7 +156,7 @@ func TestFindByPrefix(t *testing.T) {
 			Files: []*std.MemFile{
 				{Name: name + ".gno", Body: "package " + name},
 			},
-		})
+		}, MemPackageTypeAny)
 	}
 
 	for _, tc := range cases {
