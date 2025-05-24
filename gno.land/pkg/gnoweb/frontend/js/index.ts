@@ -1,5 +1,3 @@
-import initTooltip from './tooltip';
-
 (() => {
   interface Module {
     selector: string;
@@ -23,6 +21,10 @@ import initTooltip from './tooltip';
       selector: ".js-tooltip",
       path: "/public/js/tooltip.js",
     },
+    breadcrumb: {
+      selector: "[data-role='header-breadcrumb-search']",
+      path: "/public/js/breadcrumb.js",
+    },
   };
 
   const loadModuleIfExists = async ({ selector, path }: Module): Promise<void> => {
@@ -30,12 +32,10 @@ import initTooltip from './tooltip';
     if (element) {
       try {
         const module = await import(path);
-        module.default();
+        module.default(element);
       } catch (err) {
         console.error(`Error while loading script ${path}:`, err);
       }
-    } else {
-      console.warn(`Module not loaded: no element matches selector "${selector}"`);
     }
   };
 
