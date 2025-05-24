@@ -23,6 +23,7 @@ func TestMain_Gno(t *testing.T) {
 }
 
 type testMainCase struct {
+	name                 string
 	args                 []string
 	testDir              string
 	simulateExternalRepo bool
@@ -52,8 +53,11 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 		stderrShouldBeEmpty := test.stderrShouldContain == "" && test.stderrShouldBe == ""
 		recoverShouldBeEmpty := test.recoverShouldContain == "" && test.recoverShouldBe == ""
 
-		testName := strings.Join(test.args, " ")
-		testName = strings.ReplaceAll(testName+test.testDir, "/", "~")
+		testName := test.name
+		if testName == "" {
+			testName := strings.Join(test.args, " ")
+			testName = strings.ReplaceAll(testName+test.testDir, "/", "~")
+		}
 
 		t.Run(testName, func(t *testing.T) {
 			mockOut := bytes.NewBufferString("")

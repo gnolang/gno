@@ -14,8 +14,8 @@ import (
 
 type pkgTestCase struct {
 	name                string
-	pkgPath             string   // relative to repo root
-	runFlag             string   // optional
+	pkgPath             string // relative to repo root
+	runFlag             string // optional
 	verbose             bool
 	stderrShouldContain []string
 	stdoutShouldContain []string
@@ -42,9 +42,9 @@ func TestPkgTestCases(t *testing.T) {
 			errShouldBe:         "",
 		},
 		{
-			name:                "filetests: one pass, one fail",
-			pkgPath:             "../../tests/integ/test/basic_ft",
-			verbose:             true,
+			name:    "filetests: one pass, one fail",
+			pkgPath: "../../tests/integ/test/basic_ft",
+			verbose: true,
 			stderrShouldContain: []string{
 				"--- PASS: ../../tests/integ/test/basic_ft/pass_filetest.gno",
 				"--- FAIL: ../../tests/integ/test/basic_ft/fail_filetest.gno",
