@@ -519,23 +519,7 @@ type CompositeLitExpr struct {
 // Returns true if any elements are keyed.
 // Panics if inconsistent.
 func (x *CompositeLitExpr) IsKeyed() bool {
-	if len(x.Elts) == 0 {
-		return false
-	} else if x.Elts[0].Key == nil {
-		for i := 1; i < len(x.Elts); i++ {
-			if x.Elts[i].Key != nil {
-				panic("mixed keyed and unkeyed elements")
-			}
-		}
-		return false
-	} else {
-		for i := 1; i < len(x.Elts); i++ {
-			if x.Elts[i].Key == nil {
-				panic("mixed keyed and unkeyed elements")
-			}
-		}
-		return true
-	}
+	return x.Elts.IsKeyed()
 }
 
 // A KeyValueExpr represents a single key-value pair in
@@ -547,6 +531,28 @@ type KeyValueExpr struct {
 }
 
 type KeyValueExprs []KeyValueExpr
+
+// Returns true if any elements are keyed.
+// Panics if inconsistent.
+func (kvxs KeyValueExprs) IsKeyed() bool {
+	if len(kvxs) == 0 {
+		return false
+	} else if kvxs[0].Key == nil {
+		for i := 1; i < len(kvxs); i++ {
+			if kvxs[i].Key != nil {
+				panic("mixed keyed and unkeyed elements")
+			}
+		}
+		return false
+	} else {
+		for i := 1; i < len(kvxs); i++ {
+			if kvxs[i].Key == nil {
+				panic("mixed keyed and unkeyed elements")
+			}
+		}
+		return true
+	}
+}
 
 // A FuncLitExpr node represents a function literal.  Here one
 // can reference statements from an expression, which
@@ -561,6 +567,10 @@ type FuncLitExpr struct {
 
 func (fle *FuncLitExpr) GetFuncTypeExpr() *FuncTypeExpr {
 	return &fle.Type
+}
+
+func (fle *FuncLitExpr) GetIsMethod() bool {
+	return false
 }
 
 // The preprocessor replaces const expressions
@@ -623,6 +633,16 @@ type FieldTypeExpr struct {
 }
 
 type FieldTypeExprs []FieldTypeExpr
+
+func (ftxz FieldTypeExprs) GetFieldTypeExpr(n Name) *FieldTypeExpr {
+	for i := range ftxz {
+		ftx := &ftxz[i]
+		if ftx.Name == n {
+			return ftx
+		}
+	}
+	return nil
+}
 
 // Keep it slow, validating.
 // If you need it faster, memoize it elsewhere.
@@ -1065,10 +1085,15 @@ func (x *FuncDecl) GetFuncTypeExpr() *FuncTypeExpr {
 	return &x.Type
 }
 
+func (x *FuncDecl) GetIsMethod() bool {
+	return x.IsMethod
+}
+
 // *FuncDecl and *FuncLitExpr
 type FuncNode interface {
 	BlockNode
 	GetFuncTypeExpr() *FuncTypeExpr
+	GetIsMethod() bool
 }
 
 // If FuncDecl is for method, construct a FuncTypeExpr with receiver as first
@@ -1675,6 +1700,8 @@ type BlockNode interface {
 	GetBlockNames() []Name
 	GetExternNames() []Name
 	GetNumNames() uint16
+	GetNameSources() []*NameExpr
+	GetNameParents() []Node
 	SetIsHeapItem(n Name)
 	GetHeapItems() []bool
 	GetParentNode(Store) BlockNode
@@ -1684,11 +1711,12 @@ type BlockNode interface {
 	GetIsConstAt(Store, ValuePath) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name, bool) *TypedValue
+	GetValueRefAndSource(Store, Name, bool) (*TypedValue, *NameExpr)
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
-	Reserve(bool, Name)
+	Reserve(bool, *NameExpr, Node)
 	Define(Name, TypedValue)
-	Define2(bool, Name, Type, TypedValue)
+	Define2(bool, Name, Type, TypedValue, *NameExpr, Node)
 	GetBody() Body
 	SetBody(Body)
 }
@@ -1718,6 +1746,8 @@ type StaticBlock struct {
 	Types             []Type
 	NumNames          uint16
 	Names             []Name
+	NameSources       []*NameExpr
+	NameParents       []Node
 	HeapItems         []bool
 	UnassignableNames []Name
 	Consts            []Name // TODO consider merging with Names.
@@ -1780,6 +1810,8 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	}
 	sb.NumNames = 0
 	sb.Names = make([]Name, 0, 16)
+	sb.NameSources = make([]*NameExpr, 0, 16)
+	sb.NameParents = make([]Node, 0, 16)
 	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
@@ -1835,6 +1867,16 @@ func (sb *StaticBlock) addExternName(n Name) {
 // Implements BlockNode.
 func (sb *StaticBlock) GetNumNames() (nn uint16) {
 	return sb.NumNames
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) GetNameSources() []*NameExpr {
+	return sb.NameSources
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) GetNameParents() []Node {
+	return sb.NameParents
 }
 
 // Implements BlockNode.
@@ -2062,6 +2104,29 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name, ignoreReserved bool) *Ty
 	}
 }
 
+// Implemented BlockNode.
+// This method is too slow for runtime, but it is used
+// during preprocessing to compute types.
+// If ignoreReserved, skips over names that are only reserved (and neither predefined nor defined).
+// Returns nil if not found.
+func (sb *StaticBlock) GetValueRefAndSource(store Store, n Name, ignoreReserved bool) (*TypedValue, *NameExpr) {
+	idx, ok := sb.GetLocalIndex(n)
+	bb := &sb.Block
+	bp := sb.GetParentNode(store)
+	for {
+		if ok && (!ignoreReserved || sb.Types[idx] != nil) {
+			return bb.GetPointerToInt(store, int(idx)).TV, sb.NameSources[idx]
+		} else if bp != nil {
+			idx, ok = bp.GetLocalIndex(n)
+			sb = bp.GetStaticBlock()
+			bb = sb.GetBlock()
+			bp = bp.GetParentNode(store)
+		} else {
+			return nil, nil
+		}
+	}
+}
+
 // Implements BlockNode
 // Statically declares a name definition.
 // At runtime, use *Block.GetPointerTo() which takes a path
@@ -2074,21 +2139,21 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name, ignoreReserved bool) *Ty
 // could go further and store preprocessed constant results here too.  See
 // "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
-	sb.Define2(false, n, tv.T, tv)
+	sb.Define2(false, n, tv.T, tv, nil, nil)
 }
 
 // Set type to nil, only reserving the name.
-func (sb *StaticBlock) Reserve(isConst bool, n Name) {
-	_, exists := sb.GetLocalIndex(n)
+func (sb *StaticBlock) Reserve(isConst bool, src *NameExpr, parent Node) {
+	_, exists := sb.GetLocalIndex(src.Name)
 	if !exists {
-		sb.Define2(isConst, n, nil, anyValue(nil))
+		sb.Define2(isConst, src.Name, nil, anyValue(nil), src, parent)
 	}
 }
 
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
 // Setting st and tv to nil/zero reserves (predefines) name for definition later.
-func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
+func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, src *NameExpr, parent Node) {
 	if debug {
 		debug.Printf(
 			"StaticBlock.Define2(%v, %s, %v, %v)\n",
@@ -2100,6 +2165,15 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	}
 	if int(sb.NumNames) != len(sb.Names) {
 		panic("StaticBlock.NumNames and len(.Names) mismatch")
+	}
+	if int(sb.NumNames) != len(sb.Types) {
+		panic("StaticBlock.NumNames and len(.Types) mismatch")
+	}
+	if int(sb.NumNames) != len(sb.NameSources) {
+		panic("StaticBlock.NumNames and len(.NameSources) mismatch")
+	}
+	if int(sb.NumNames) != len(sb.NameParents) {
+		panic("StaticBlock.NumNames and len(.NameParents) mismatch")
 	}
 	if sb.NumNames == math.MaxUint16 {
 		panic("too many variables in block")
@@ -2147,6 +2221,14 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		}
 		sb.Block.Values[idx] = tv
 		sb.Types[idx] = st
+		if src != nil && sb.NameSources[idx] != src {
+			panic(fmt.Sprintf("name source mismatch in block Define2(): was %v, got %v",
+				sb.NameSources[idx], src))
+		}
+		if parent != nil && sb.NameParents[idx] != parent {
+			panic(fmt.Sprintf("name parent mismatch in block Define2(): was %v, got %v",
+				sb.NameParents[idx], parent))
+		}
 	} else {
 		// The general case without re-definition.
 		sb.Names = append(sb.Names, n)
@@ -2157,6 +2239,8 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		sb.NumNames++
 		sb.Block.Values = append(sb.Block.Values, tv)
 		sb.Types = append(sb.Types, st)
+		sb.NameSources = append(sb.NameSources, src)
+		sb.NameParents = append(sb.NameParents, parent)
 	}
 }
 
