@@ -90,6 +90,10 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `sign` command")
+	}
+
 	// saveTx saves the given transaction to the given path (Amino-encoded JSON)
 	saveTx := func(tx *std.Tx, path string) error {
 		// Encode the transaction

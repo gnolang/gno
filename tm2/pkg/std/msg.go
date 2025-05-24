@@ -4,6 +4,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
+// Query messages must fulfill the QueryMsg.
+type QueryMsg interface {
+	// ValidateBasic does a simple validation check that
+	// doesn't require access to any other information.
+	ValidateBasic() error
+}
+
 // Transactions messages must fulfill the Msg.
 type Msg interface {
 	// Return the message type.
