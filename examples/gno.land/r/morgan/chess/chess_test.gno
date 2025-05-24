@@ -587,7 +587,7 @@ func runCommandTest(t *testing.T, command string) {
 	t.Run(testName, func(t *testing.T) {
 		cleanup()
 		bufs := make(map[string]string, 3)
-		for idx, f := range funcs {
+		for _, f := range funcs {
 			if _, ok := f.(interface{ Checker() }); ok {
 				f.Run(t, bufs)
 			} else {

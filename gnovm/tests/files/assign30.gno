@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/assign30.gno:4:2: *struct{} (type) is not an expression
+// main/assign30.gno:4:2-16: *struct{} (type) is not an expression
 
 // TypeCheckError:
-// main/files/assign30.gno:4:7: *struct{} (type) is not an expression; main/files/assign30.gno:4:2: declared and not used: t
+// main/assign30.gno:4:7: *struct{} (type) is not an expression; main/assign30.gno:4:2: declared and not used: t

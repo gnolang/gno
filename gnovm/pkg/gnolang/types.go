@@ -1269,16 +1269,9 @@ func (ft *FuncType) TypeID() TypeID {
 	// this exchangeability is useful to denote type semantics.
 	ps := FieldTypeList(ft.Params)
 	rs := FieldTypeList(ft.Results)
-	/*
-		pp := ""
-		if ps.HasUnexported() || rs.HasUnexported() {
-			pp = fmt.Sprintf("@%q", ft.PkgPath)
-		}
-	*/
 	if ft.typeid.IsZero() {
 		ft.typeid = typeidf(
 			"func(%s)(%s)",
-			// pp,
 			ps.UnnamedTypeID(),
 			rs.UnnamedTypeID(),
 		)
@@ -1289,12 +1282,15 @@ func (ft *FuncType) TypeID() TypeID {
 func (ft *FuncType) String() string {
 	switch len(ft.Results) {
 	case 0:
+		// XXX add ->()
 		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc())
 	case 1:
+		// XXX add ->()
 		return fmt.Sprintf("func(%s) %s",
 			FieldTypeList(ft.Params).StringForFunc(),
 			ft.Results[0].Type.String())
 	default:
+		// XXX make ()->()
 		return fmt.Sprintf("func(%s) (%s)",
 			FieldTypeList(ft.Params).StringForFunc(),
 			FieldTypeList(ft.Results).StringForFunc())
@@ -1484,6 +1480,11 @@ func (dt *DeclaredType) checkSeal() {
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
 		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Loc, dt.Name)
+	} else {
+		// XXX delete this if tests pass.
+		if dt.typeid != DeclaredTypeID(dt.PkgPath, dt.Loc, dt.Name) {
+			panic("should not happen")
+		}
 	}
 	return dt.typeid
 }
@@ -2100,6 +2101,7 @@ func fillEmbeddedName(ft *FieldType) {
 		case *DeclaredType:
 			ft.Name = ct.Name
 		default:
+			// should not happen,
 			panic("should not happen")
 		}
 	case *DeclaredType:
