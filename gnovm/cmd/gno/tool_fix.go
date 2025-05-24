@@ -350,6 +350,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range fset.Files {
 					gno.FindXformsGno0p9(gs, pn, fn)
+					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
 				}
 			}
 			{
@@ -370,6 +371,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range _tests.Files {
 					gno.FindXformsGno0p9(gs, pn, fn)
+					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
 				}
 			}
 			{
@@ -400,6 +402,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 					// pn.GetAttribute("XREALMFORM")
 					for _, fn := range fset.Files {
 						gno.FindXformsGno0p9(gs, pn, fn)
+						gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
 					}
 				}
 			}

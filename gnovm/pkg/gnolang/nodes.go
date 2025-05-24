@@ -559,6 +559,10 @@ type FuncLitExpr struct {
 	HeapCaptures NameExprs    // filled in findLoopUses1
 }
 
+func (fle *FuncLitExpr) GetFuncTypeExpr() *FuncTypeExpr {
+	return &fle.Type
+}
+
 // The preprocessor replaces const expressions
 // with *ConstExpr nodes.
 type ConstExpr struct {
@@ -1036,6 +1040,7 @@ var (
 	_ Decl = &TypeDecl{}
 )
 
+// XXX consider embedding FuncLitExpr.
 type FuncDecl struct {
 	Attributes
 	StaticBlock
@@ -1054,6 +1059,16 @@ func (x *FuncDecl) GetDeclNames() []Name {
 	} else {
 		return []Name{x.NameExpr.Name}
 	}
+}
+
+func (x *FuncDecl) GetFuncTypeExpr() *FuncTypeExpr {
+	return &x.Type
+}
+
+// *FuncDecl and *FuncLitExpr
+type FuncNode interface {
+	BlockNode
+	GetFuncTypeExpr() *FuncTypeExpr
 }
 
 // If FuncDecl is for method, construct a FuncTypeExpr with receiver as first
@@ -1678,6 +1693,22 @@ type BlockNode interface {
 	SetBody(Body)
 }
 
+var (
+	_ BlockNode = &FuncLitExpr{}
+	_ BlockNode = &BlockStmt{}
+	_ BlockNode = &ForStmt{}
+	_ BlockNode = &IfStmt{} // faux block node
+	_ BlockNode = &IfCaseStmt{}
+	_ BlockNode = &RangeStmt{}
+	_ BlockNode = &SelectCaseStmt{}
+	_ BlockNode = &SwitchStmt{} // faux block node
+	_ BlockNode = &SwitchClauseStmt{}
+	_ BlockNode = &FuncDecl{}
+	_ BlockNode = &FileNode{}
+	_ BlockNode = &PackageNode{}
+	_ BlockNode = RefNode{}
+)
+
 // ----------------------------------------
 // StaticBlock
 
@@ -2133,22 +2164,6 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 func (sb *StaticBlock) SetStaticBlock(osb StaticBlock) {
 	*sb = osb
 }
-
-var (
-	_ BlockNode = &FuncLitExpr{}
-	_ BlockNode = &BlockStmt{}
-	_ BlockNode = &ForStmt{}
-	_ BlockNode = &IfStmt{} // faux block node
-	_ BlockNode = &IfCaseStmt{}
-	_ BlockNode = &RangeStmt{}
-	_ BlockNode = &SelectCaseStmt{}
-	_ BlockNode = &SwitchStmt{} // faux block node
-	_ BlockNode = &SwitchClauseStmt{}
-	_ BlockNode = &FuncDecl{}
-	_ BlockNode = &FileNode{}
-	_ BlockNode = &PackageNode{}
-	_ BlockNode = RefNode{}
-)
 
 func (x *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
