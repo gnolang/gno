@@ -20,7 +20,7 @@ func isOriginCall(m *gno.Machine) bool {
 		return false
 	}
 	firstPkg := m.Frames[0].LastPackage
-	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == ""
 	return n <= 2 && isMsgCall
 }
 

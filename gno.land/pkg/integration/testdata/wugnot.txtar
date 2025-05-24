@@ -52,7 +52,7 @@ stdout 'Total supply..: 20000'
 stdout 'Known accounts..: 2'
 
 
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Transfer -gas-fee 10000ugnot -gas-wanted 10_000_000 -args ${user3_user_addr} -args '10000' -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Transfer -gas-fee 11000ugnot -gas-wanted 11_000_000 -args ${user3_user_addr} -args '10000' -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
 gnokey query vm/qrender --data "gno.land/r/demo/wugnot:"
