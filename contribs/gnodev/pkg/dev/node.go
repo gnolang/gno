@@ -666,7 +666,7 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 	genesis.AppState = appstate
 
 	// Add self as validator
-	self, _ := pv.PubKey()
+	self := pv.PubKey()
 	genesis.Validators = []bft.GenesisValidator{
 		{
 			Address: self.Address(),
