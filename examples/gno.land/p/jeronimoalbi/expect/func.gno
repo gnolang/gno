@@ -80,16 +80,18 @@ func (c FuncChecker) ToPanic() MessageChecker {
 	// TODO: Can't use a switch because it triggers the following VM error:
 	// "panic: should not happen, should be heapItemType: fn<()~VPBlock(1,0)>"
 	//
+	// switch fn := c.fn.(type) {
 	// case Fn:
 	// 	msg, panicked = handlePanic(fn)
 	// case ErrorFn:
-	// 	msg, panicked = handlePanic(func() { err = fn() })
+	// 	msg, panicked = handlePanic(func() { _ = fn() })
 	// case AnyFn:
-	// 	msg, panicked = handlePanic(func() { v = fn() })
+	// 	msg, panicked = handlePanic(func() { _ = fn() })
 	// case AnyErrorFn:
-	// 	msg, panicked = handlePanic(func() { v, err = fn() })
+	// 	msg, panicked = handlePanic(func() { _, _ = fn() })
 	// default:
 	// 	c.ctx.Fail("Unsupported func type\nGot: %T", c.fn)
+	// 	return MessageChecker{}
 	// }
 
 	if fn, ok := c.fn.(Fn); ok {
