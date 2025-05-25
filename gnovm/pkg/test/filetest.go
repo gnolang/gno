@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"runtime/debug"
 	"slices"
@@ -22,14 +23,14 @@ import (
 // RunFiletest executes the program in source as a filetest.
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
-func (opts *TestOptions) RunFiletest(filename string, source []byte) (string, error) {
+func (opts *TestOptions) RunFiletest(fname string, source []byte) (string, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
-	return opts.runFiletest(filename, source)
+	return opts.runFiletest(fname, source)
 }
 
-func (opts *TestOptions) runFiletest(filename string, source []byte) (string, error) {
+func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -64,7 +65,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		ReviveEnabled: true,
 	})
 	defer m.Release()
-	result := opts.runTest(m, pkgPath, filename, source, opslog)
+	result := opts.runTest(m, pkgPath, fname, source, opslog)
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -223,12 +224,13 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte, opslog io.Writer) (rr runResult) {
+func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer) (rr runResult) {
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	tcError := ""
+	fname = filepath.Base(fname)
 
 	// Eagerly load imports.
-	// This is executed using opts.Store, rather than the transaction store;
+	// LoadImports is run using opts.Store, rather than the transaction store;
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
@@ -236,7 +238,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		Name: string(pkgName),
 		Path: pkgPath,
 		Files: []*std.MemFile{
-			{Name: filename, Body: string(content)},
+			{Name: "gno.mod", Body: gno.GenGnoModLatest(pkgPath)},
+			{Name: fname, Body: string(content)},
 		},
 	}); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
@@ -274,18 +277,16 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) {
 		// Type check.
-		memPkg := &std.MemPackage{
+		mpkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
-				{
-					Name: filename,
-					Body: string(content),
-				},
+				{Name: "gno.mod", Body: "gno 0.9"},
+				{Name: fname, Body: string(content)},
 			},
 		}
 		// Validate Gno syntax and type check.
-		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+		if _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
@@ -296,7 +297,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
-		n := gno.MustParseFile(filename, string(content))
+		n := gno.MustParseFile(fname, string(content))
 
 		m.RunFiles(n)
 		m.RunMain()
@@ -306,29 +307,27 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 
 		// Remove filetest from name, as that can lead to the package not being
 		// parsed correctly when using RunMemPackage.
-		filename = strings.ReplaceAll(filename, "_filetest", "")
+		fname = strings.ReplaceAll(fname, "_filetest", "")
 
 		// save package using realm crawl procedure.
-		memPkg := &std.MemPackage{
+		mpkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
-				{
-					Name: filename,
-					Body: string(content),
-				},
+				{Name: "gno.mod", Body: "gno 0.9"},
+				{Name: fname, Body: string(content)},
 			},
 		}
 		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = tx
 
 		// Validate Gno syntax and type check.
-		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+		if _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
 		// Run decls and init functions.
-		m.RunMemPackage(memPkg, true)
+		m.RunMemPackage(mpkg, true)
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
