@@ -12,7 +12,9 @@ func init() {
 	// node, _ = node.Set("key0", "value0")
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	var updated bool
 	node, updated = node.Set("key1", "value1")
 	// println(node, updated)

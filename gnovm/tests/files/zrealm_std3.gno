@@ -9,7 +9,9 @@ func foo() {
 	println("foo", std.CurrentRealm().PkgPath())
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	println("main", std.CurrentRealm().PkgPath())
 	foo()
 }

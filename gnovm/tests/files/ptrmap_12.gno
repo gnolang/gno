@@ -11,7 +11,9 @@ func init() {
 	m[S[0]] = "first key"
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	println(m[S[0]]) // Output: first key
 	println(m[S[1]] == "")
 }

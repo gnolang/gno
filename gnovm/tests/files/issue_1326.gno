@@ -10,7 +10,9 @@ func init() {
 	println(Delta())
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	println(Delta())
 }
 

@@ -13,7 +13,9 @@ func init() {
 	*a.A = 4
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	b = a
 }
 

@@ -29,7 +29,9 @@ func init() {
 	b[1] = &d
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	b[0].A = a2
 }
 

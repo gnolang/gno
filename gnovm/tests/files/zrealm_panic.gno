@@ -7,7 +7,9 @@ func (ms MyStruct) Panic() {
 	panic("panic")
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	ms := MyStruct{}
 	ms.Panic()
 }

@@ -16,7 +16,9 @@ func init() {
 	println(m[i1])
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	i2 := *i1
 	println(m[&i2] == "")
 

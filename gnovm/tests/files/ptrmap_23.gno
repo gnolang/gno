@@ -8,7 +8,9 @@ func init() {
 	m[&arr] = "ok"
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	println(m[&arr]) // Output: example
 }
 
