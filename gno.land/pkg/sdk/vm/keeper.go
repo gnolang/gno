@@ -175,11 +175,14 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 func loadStdlib(store gno.Store, stdlibDir string) {
 	stdlibInitList := stdlibs.InitOrder()
 	for _, lib := range stdlibInitList {
-		if lib == "testing" {
-			// XXX: testing is skipped for now while it uses testing-only packages
+		parts := strings.Split(lib, "/")
+		if len(parts) > 0 && parts[0] == "testing" {
+			// XXX: testing and sub testing packages are skipped for
+			// now while it uses testing-only packages
 			// like fmt and encoding/json
 			continue
 		}
+
 		loadStdlibPackage(lib, stdlibDir, store)
 	}
 }
@@ -339,7 +342,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := msg.Package.Validate(); err != nil {
+	if err := gno.ValidateMemPackage(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
@@ -359,8 +362,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	format := true
-	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+	_, _, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction)
+	if err != nil {
 		return ErrTypeCheck(err)
 	}
 
@@ -584,13 +587,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
-	if err := msg.Package.Validate(); err != nil {
+	if err := gno.ValidateMemPackage(msg.Package); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
 	// Validate Gno syntax and type check.
-	format := false
-	if err = gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+	_, _, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction)
+	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
 
