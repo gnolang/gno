@@ -23,7 +23,7 @@ const (
 
 	chaeWallet = "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g"
 	ghhvWallet = "g1d2hvkqhqckhzpaum09c002fesdw89qrcg9zqws"
-	louWallet  = "g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n"
+	louWallet  = "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"
 )
 
 var (
