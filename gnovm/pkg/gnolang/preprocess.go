@@ -1362,10 +1362,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 						switch nx.Name {
 						case Name(".cur"):
-							if _, ok := last.(*PackageNode); !ok {
+							if _, ok := skipFile(last).(*PackageNode); !ok {
 								// .cur should only be used from
 								// m.RunMainMaybeCrossing().
-								panic("unexpected context for .cur")
+								panic(fmt.Sprintf("unexpected context for .cur; wanted last.(*PackageNode), got last.(%T)", last))
 							}
 							// evaluation was skipped TRANS_LEAVE *NameExpr.
 							crlm := newConcreteRealm(ctxpn.PkgPath)
@@ -3666,6 +3666,15 @@ func packageOf(last BlockNode) *PackageNode {
 	for {
 		if pn, ok := last.(*PackageNode); ok {
 			return pn
+		}
+		last = last.GetParentNode(nil)
+	}
+}
+
+func fileOf(last BlockNode) *FileNode {
+	for {
+		if fn, ok := last.(*FileNode); ok {
+			return fn
 		}
 		last = last.GetParentNode(nil)
 	}

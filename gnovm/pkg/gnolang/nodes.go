@@ -565,6 +565,10 @@ type FuncLitExpr struct {
 	HeapCaptures NameExprs    // filled in findLoopUses1
 }
 
+func (fle *FuncLitExpr) GetName() Name {
+	return Name("")
+}
+
 func (fle *FuncLitExpr) GetFuncTypeExpr() *FuncTypeExpr {
 	return &fle.Type
 }
@@ -1073,6 +1077,10 @@ type FuncDecl struct {
 	unboundType *FuncTypeExpr // memoized
 }
 
+func (x *FuncDecl) GetName() Name {
+	return x.NameExpr.Name
+}
+
 func (x *FuncDecl) GetDeclNames() []Name {
 	if x.IsMethod {
 		return nil
@@ -1092,6 +1100,7 @@ func (x *FuncDecl) GetIsMethod() bool {
 // *FuncDecl and *FuncLitExpr
 type FuncNode interface {
 	BlockNode
+	GetName() Name // func lit expr returns ""
 	GetFuncTypeExpr() *FuncTypeExpr
 	GetIsMethod() bool
 }
@@ -1676,12 +1685,19 @@ func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
 
 // Reference to a node by its location.
 type RefNode struct {
-	Location  Location // location of node.
-	BlockNode          // convenience to implement BlockNode (nil).
+	Location  // location of node.
+	BlockNode // convenience to implement BlockNode (nil).
 }
 
-func (rn RefNode) GetLocation() Location {
-	return rn.Location
+func (ref RefNode) GetLocation() Location {
+	return ref.Location.GetLocation()
+}
+
+func (ref RefNode) SetLocation(loc Location) {
+	// NOTE: Keep RefNode a non-pointer type,
+	// and disallow RefNode.SetLocation().
+	// You can still call ref.Location.SetLocation().
+	panic("should not happen")
 }
 
 // ----------------------------------------
@@ -1743,6 +1759,7 @@ var (
 // Embed in node to make it a BlockNode.
 type StaticBlock struct {
 	Block
+	Location
 	Types             []Type
 	NumNames          uint16
 	Names             []Name
@@ -1753,7 +1770,6 @@ type StaticBlock struct {
 	Consts            []Name // TODO consider merging with Names.
 	Externs           []Name
 	Parent            BlockNode
-	Loc               Location
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
@@ -1827,16 +1843,6 @@ func (sb *StaticBlock) IsInitialized() bool {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticBlock() *StaticBlock {
 	return sb
-}
-
-// Implements BlockNode.
-func (sb *StaticBlock) GetLocation() Location {
-	return sb.Loc
-}
-
-// Implements BlockNode.
-func (sb *StaticBlock) SetLocation(loc Location) {
-	sb.Loc = loc
 }
 
 // Does not implement BlockNode to prevent confusion.

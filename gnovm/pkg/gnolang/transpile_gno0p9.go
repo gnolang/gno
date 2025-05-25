@@ -25,104 +25,8 @@ import (
 	Refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 
 	ParseCheckGnoMod() defined in pkg/gnolang/gnomod.go.
+	GoParseMemPackage() defined in pkg/gnolang/gotypecheck.go.
 */
-
-type ParseMode int
-
-const (
-	// no test files.
-	ParseModeProduction ParseMode = iota
-	// production and test files when xxx_test tests import xxx package.
-	ParseModeIntegration
-	// all files even including *_filetest.gno; for linting and testing.
-	ParseModeAll
-	// a directory of file tests. consider all to be filetests.
-	ParseModeOnlyFiletests
-)
-
-// ========================================
-// Go parse the Gno source in mpkg to Go's *token.FileSet and
-// []ast.File with `go/parser`.
-//
-// Args:
-//   - pmode: see documentation for ParseMode.
-//
-// Results:
-//   - gofs: all normal .gno files (and _test.gno files if wtests).
-//   - _gofs: all xxx_test package _test.gno files if wtests.
-//   - tgofs: all _testfile.gno test files.
-//
-// XXX move to pkg/gnolang/gotypecheck.go?
-func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
-	gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
-) {
-	gofset = token.NewFileSet()
-
-	// This map is used to allow for function re-definitions, which are
-	// allowed in Gno (testing context) but not in Go.  This map links
-	// each function identifier with a closure to remove its associated
-	// declaration.
-	delFunc := make(map[string]func())
-
-	// Go parse and collect files from mpkg.
-	for _, file := range mpkg.Files {
-		// Ignore non-gno files.
-		if !strings.HasSuffix(file.Name, ".gno") {
-			continue
-		}
-		// Ignore _test/_filetest.gno files depending.
-		switch pmode {
-		case ParseModeProduction:
-			if strings.HasSuffix(file.Name, "_test.gno") ||
-				strings.HasSuffix(file.Name, "_filetest.gno") {
-				continue
-			}
-		case ParseModeIntegration:
-			if strings.HasSuffix(file.Name, "_filetest.gno") {
-				continue
-			}
-		case ParseModeAll, ParseModeOnlyFiletests:
-			// include all
-		default:
-			panic("should not happen")
-
-		}
-		// Go parse file.
-		const parseOpts = parser.ParseComments |
-			parser.DeclarationErrors |
-			parser.SkipObjectResolution
-		gof, err := parser.ParseFile(
-			gofset, path.Join(mpkg.Path, file.Name),
-			file.Body,
-			parseOpts)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		// The *ast.File passed all filters.
-		if strings.HasSuffix(file.Name, "_filetest.gno") ||
-			pmode == ParseModeOnlyFiletests {
-			tgofs = append(tgofs, gof)
-		} else if strings.HasSuffix(file.Name, "_test.gno") &&
-			strings.HasSuffix(gof.Name.String(), "_test") {
-			if pmode == ParseModeIntegration {
-				// never wanted these gofs.
-				// (we do want other *_test.gno in gofs)
-			} else {
-				deleteOldIdents(delFunc, gof)
-				_gofs = append(_gofs, gof)
-			}
-		} else { // normal *_test.gno here for integration testing.
-			deleteOldIdents(delFunc, gof)
-			gofs = append(gofs, gof)
-		}
-	}
-	if errs != nil {
-		return gofset, gofs, _gofs, tgofs, errs
-	}
-	// END processing all files.
-	return
-}
 
 // ========================================
 // Prepare Gno 0.0 for Gno 0.9.
@@ -257,22 +161,23 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 						fmt.Println("FAILED TO EVALSTATIC", n.Func, err)
 					}
 					var isCrossing bool
+					var fnode FuncNode
 					switch fv := ftv.V.(type) {
 					case nil:
 						return n, TRANS_CONTINUE
 					case TypeValue:
 						return n, TRANS_CONTINUE
 					case *FuncValue:
-						fd := fv.GetSource(store)
-						if fd.GetBody().isCrossing_gno0p0() {
+						fnode = fv.GetSource(store).(FuncNode)
+						if fnode.GetBody().isCrossing_gno0p0() {
 							// Not cross-called, so add `cur` as first argument.
 							fname := last.GetLocation().File
 							addXform1(pn, fname, n, XTYPE_ADD_CURCALL)
 							isCrossing = true
 						}
 					case *BoundMethodValue:
-						md := fv.Func.GetSource(store)
-						if md.GetBody().isCrossing_gno0p0() {
+						fnode = fv.Func.GetSource(store).(FuncNode)
+						if fnode.GetBody().isCrossing_gno0p0() {
 							// Not cross-called, so add `cur` as first argument.
 							fname := last.GetLocation().File
 							addXform1(pn, fname, n, XTYPE_ADD_CURCALL)
@@ -283,12 +188,24 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 						// If `cur` isn't available, it needs to be included
 						// in the outer-most containing func decl/expr.
 						if last.GetValueRef(store, Name(`cur`), true) == nil {
+							// Except, test functions cannot take cur;
+							// tests don't have a "caller". A default
+							// caller is convenient but surprising.
+							name := string(fnode.GetName())
+							file := fnode.GetLocation().GetFile()
+							if strings.HasSuffix(file, "_test.gno") &&
+								strings.HasPrefix(name, "Test") {
+								// TODO: improve test cross utils.
+								fmt.Errorf("illegal `cur` in test %s.\n",
+									name) // just a warning.
+								return n, TRANS_CONTINUE
+							}
 							fn, _, ok := findLastFunction(last, pn)
 							if ok {
 								// NOTE: will also add to init/main,
 								// but gnovm knows how to call them.
-								fname := last.GetLocation().File
-								addXform1(pn, fname, fn, XTYPE_ADD_CURFUNC)
+								file := last.GetLocation().File
+								addXform1(pn, file, fn, XTYPE_ADD_CURFUNC)
 							} else {
 								panic("`cur` can only be used in a func body")
 							}

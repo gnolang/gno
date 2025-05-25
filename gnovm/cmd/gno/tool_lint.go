@@ -5,9 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/token"
-	"go/types"
 	goio "io"
 	"io/fs"
 	"os"
@@ -162,9 +159,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
-			// These are Go types.
+			// Store process results here.
 			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
-			var errs error
 
 			// Run type checking
 			// LINT STEP 2: ParseGnoMod()
@@ -177,7 +173,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 			if !mod.Draft {
-				_, _, _, _, _, errs = lintTypeCheck(io, dir, mpkg, gs, true)
+				errs := lintTypeCheck(io, dir, mpkg, gs, true)
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
 					hasError = true
@@ -273,18 +269,12 @@ func lintTypeCheck(
 	mpkg *std.MemPackage,
 	testStore gno.Store,
 	strict bool) (
-	// Results:
-	gopkg *types.Package,
-	gofset *token.FileSet,
-	gofs, _gofs, tgofs []*ast.File,
-	lerr error,
-) {
-	//----------------------------------------
 
-	// gno.TypeCheckMemPackage(mpkg, testStore)
-	var tcErrs error
-	gopkg, gofset, gofs, _gofs, tgofs, tcErrs =
-		gno.TypeCheckMemPackage(mpkg, testStore, strict)
+	// Results:
+	lerr error) {
+
+	// gno.TypeCheckMemPackage(mpkg, testStore).
+	_, tcErrs := gno.TypeCheckMemPackage(mpkg, testStore, strict)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)

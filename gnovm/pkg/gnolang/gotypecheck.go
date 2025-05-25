@@ -13,6 +13,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 /*
@@ -60,7 +61,8 @@ type gnocoin struct {
     Denom string
     Amount int64
 }
-type Gnocoin = gnocoin`)
+type Gnocoin = gnocoin
+`)
 	default:
 		panic("unrecognized gnobuiltins pkgpath")
 	}
@@ -81,7 +83,8 @@ func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
 type gnocoins = gno0p9.Gnocoins
-type gnocoin = gno0p9.Gnocoin`
+type gnocoin = gno0p9.Gnocoin
+`
 	case GnoVerMissing: // 0.0
 		gnoBuiltins = `package %s
 
@@ -89,7 +92,8 @@ func istypednil(x any) bool { return false } // shim
 func crossing() { } // shim
 func cross[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
 func _cross_gno0p0[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
-func revive[F any](fn F) any { return nil } // shim`
+func revive[F any](fn F) any { return nil } // shim
+`
 	default:
 		panic("unsupported gno.mod version " + gnoVersion)
 	}
@@ -127,8 +131,8 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 // Args:
 //   - strict: ensure gno.mod exists and gno version is latest.
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, strict bool) (
-	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
-) {
+	pkg *types.Package, errs error) {
+
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
@@ -144,7 +148,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, strict b
 	gimp.cfg.Importer = gimp
 
 	pmode := ParseModeAll // type check all .gno files
-	pkg, gofset, gofs, _gofs, tgofs, errs = gimp.typeCheckMemPackage(mpkg, pmode, strict)
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, pmode, strict)
 	return
 }
 
@@ -222,7 +226,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		pmode = ParseModeIntegration
 	}
 	strict := false // don't check for gno.mod for imports.
-	pkg, _, _, _, _, errs := gimp.typeCheckMemPackage(mpkg, pmode, strict)
+	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode, strict)
 	if errs != nil {
 		result.err = errs
 		result.pending = false
@@ -234,6 +238,52 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 	return pkg, errs
 }
 
+// Minimal AST mutation(s) for Go.
+// For gno 0.0 there was nothing to do besides including .gnobuiltins.gno.
+// For gno 0.9 we need to support init(cur realm), main(cur realm) by
+// removing them and instead setting `cur := cross`; hacky but good enough.
+func prepareGoGno0p9(f *ast.File) (err error) {
+	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
+		switch gon := c.Node().(type) {
+		case *ast.FuncDecl:
+			name := gon.Name.String()
+			if gon.Recv == nil && (name == "main" || name == "init") {
+				if len(gon.Type.Params.List) == 1 { // `cur realm`
+					gon.Type.Params.List = nil
+				} else {
+					return true
+				}
+				// This assignment is not valid in gno.
+				// `as1` declares cur and `as2` "uses" it.
+				as1 := &ast.AssignStmt{
+					Lhs: []ast.Expr{ast.NewIdent("cur")},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{ast.NewIdent("cross")},
+				}
+				as2 := &ast.AssignStmt{
+					Lhs: []ast.Expr{ast.NewIdent("cross")},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{ast.NewIdent("cur")},
+				}
+				// Not sure if this does anything,
+				// but we want the line numbers to not change.
+				insert := gon.Type.End()
+				as1.Lhs[0].(*ast.Ident).NamePos = insert
+				as1.TokPos = insert
+				as1.Rhs[0].(*ast.Ident).NamePos = insert
+				as2.Lhs[0].(*ast.Ident).NamePos = insert
+				as2.TokPos = insert
+				as2.Rhs[0].(*ast.Ident).NamePos = insert
+				// Prepend define and use of `cur`.
+				gon.Body.List = append([]ast.Stmt{as1, as2},
+					gon.Body.List...)
+			}
+		}
+		return true
+	})
+	return err
+}
+
 // Assumes that the code is Gno 0.9.
 // If not, first use `gno lint` to transpile the code.
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
@@ -243,14 +293,14 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 //     ParseModeProduction when type-checking imports.
 //   - strict: If true errors on gno.mod version mismatch.
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode, strict bool) (
-	pkg *types.Package, gofset *token.FileSet, gofs, _gofs, tgofs []*ast.File, errs error,
-) {
+	pkg *types.Package, errs error) {
+
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
 	mod, err := ParseCheckGnoMod(mpkg)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
 	if strict {
 		if mod == nil {
@@ -270,15 +320,17 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	}
 
 	// STEP 3: Parse the mem package to Go AST.
-	gofset, gofs, _gofs, tgofs, errs = GoParseMemPackage(mpkg, pmode)
+	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg, pmode)
 	if errs != nil {
-		return nil, nil, nil, nil, nil, errs
+		return nil, errs
 	}
-	if pmode == ParseModeProduction && (len(_gofs) > 0 || len(tgofs) > 0) {
-		panic("unexpected test files from GoParseMemPackage()")
-	}
-	if pmode == ParseModeIntegration && (len(_gofs) > 0 || len(tgofs) > 0) {
-		panic("unexpected xxx_test and *_filetest.gno tests")
+
+	// STEP 3: Prepare for Go type-checking.
+	for _, gof := range allgofs {
+		err := prepareGoGno0p9(gof)
+		if err != nil {
+			panic(fmt.Sprintf("unexpected error: %w", err))
+		}
 	}
 
 	// STEP 3: Add and Parse .gnobuiltins.go file.
@@ -295,9 +347,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		panic(fmt.Errorf("error parsing gotypecheck .gnobuiltins.gno file: %w", err))
 	}
 
-	// NOTE: When returning errs from this function,
-
-	// STEP 4: Type-check Gno0.9 AST in Go (normal, and _test.gno if ParseModeIntegration).
+	// STEP 4: Type-check Gno0.9 AST in Go (normal, and _test.gno if
+	// ParseModeIntegration).
 	if !strings.HasPrefix(mpkg.Path, "gnobuiltins/") {
 		gofs = append(gofs, gmgof)
 	}
@@ -349,7 +400,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		// NOTE: not gnobuiltins/*; gnobuiltins/* don't have filetests.
 		bfile := makeGnoBuiltins(tpname, gnoVersion)
 		tmpkg.AddFile(bfile)
-		gofset2, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
+		gofset2, _, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
 		if len(gimp.errors) != numErrs {
 			/* NOTE: Uncomment to fail earlier.
 			errs = multierr.Combine(gimp.errors...)
@@ -367,7 +418,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		}
 		*/
 	}
-	return pkg, gofset, gofs, _gofs, tgofs, multierr.Combine(gimp.errors[numErrs:]...)
+	return pkg, multierr.Combine(gimp.errors[numErrs:]...)
 }
 
 func deleteOldIdents(idents map[string]func(), gof *ast.File) {
@@ -392,6 +443,114 @@ func deleteOldIdents(idents map[string]func(), gof *ast.File) {
 				func(d ast.Decl) bool { return decl == d })
 		}
 	}
+}
+
+//----------------------------------------
+// GoParseMemPackage
+
+type ParseMode int
+
+const (
+	// no test files.
+	ParseModeProduction ParseMode = iota
+	// production and test files when xxx_test tests import xxx package.
+	ParseModeIntegration
+	// all files even including *_filetest.gno; for linting and testing.
+	ParseModeAll
+	// a directory of file tests. consider all to be filetests.
+	ParseModeOnlyFiletests
+)
+
+// ========================================
+// Go parse the Gno source in mpkg to Go's *token.FileSet and
+// []ast.File with `go/parser`.
+//
+// Args:
+//   - pmode: see documentation for ParseMode.
+//
+// Results:
+//   - gofs: all normal .gno files (and _test.gno files if wtests).
+//   - _gofs: all xxx_test package _test.gno files if wtests.
+//   - tgofs: all _testfile.gno test files.
+func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
+	gofset *token.FileSet, allgofs, gofs, _gofs, tgofs []*ast.File, errs error,
+) {
+	gofset = token.NewFileSet()
+
+	// This map is used to allow for function re-definitions, which are
+	// allowed in Gno (testing context) but not in Go.  This map links
+	// each function identifier with a closure to remove its associated
+	// declaration.
+	delFunc := make(map[string]func())
+
+	// Go parse and collect files from mpkg.
+	for _, file := range mpkg.Files {
+		// Ignore non-gno files.
+		if !strings.HasSuffix(file.Name, ".gno") {
+			continue
+		}
+		// Ignore _test/_filetest.gno files depending.
+		switch pmode {
+		case ParseModeProduction:
+			if strings.HasSuffix(file.Name, "_test.gno") ||
+				strings.HasSuffix(file.Name, "_filetest.gno") {
+				continue
+			}
+		case ParseModeIntegration:
+			if strings.HasSuffix(file.Name, "_filetest.gno") {
+				continue
+			}
+		case ParseModeAll, ParseModeOnlyFiletests:
+			// include all
+		default:
+			panic("should not happen")
+
+		}
+		// Go parse file.
+		const parseOpts = parser.ParseComments |
+			parser.DeclarationErrors |
+			parser.SkipObjectResolution
+		gof, err := parser.ParseFile(
+			gofset, path.Join(mpkg.Path, file.Name),
+			file.Body,
+			parseOpts)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		// The *ast.File passed all filters.
+		if strings.HasSuffix(file.Name, "_filetest.gno") ||
+			pmode == ParseModeOnlyFiletests {
+			tgofs = append(tgofs, gof)
+			allgofs = append(allgofs, gof)
+		} else if strings.HasSuffix(file.Name, "_test.gno") &&
+			strings.HasSuffix(gof.Name.String(), "_test") {
+			if pmode == ParseModeIntegration {
+				// never wanted these gofs.
+				// (we do want other *_test.gno in gofs)
+			} else {
+				deleteOldIdents(delFunc, gof)
+				_gofs = append(_gofs, gof)
+				allgofs = append(allgofs, gof)
+			}
+		} else { // normal *_test.gno here for integration testing.
+			deleteOldIdents(delFunc, gof)
+			gofs = append(gofs, gof)
+			allgofs = append(allgofs, gof)
+		}
+	}
+	if errs != nil {
+		return gofset, allgofs, gofs, _gofs, tgofs, errs
+	}
+	// END processing all files.
+	// Sanity check before returning.
+	if pmode == ParseModeProduction && (len(_gofs) > 0 || len(tgofs) > 0) {
+		panic("unexpected test files from GoParseMemPackage()")
+	}
+	if pmode == ParseModeIntegration && (len(_gofs) > 0 || len(tgofs) > 0) {
+		panic("unexpected xxx_test and *_filetest.gno tests")
+	}
+	return
 }
 
 //----------------------------------------

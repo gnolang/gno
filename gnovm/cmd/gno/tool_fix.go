@@ -6,8 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/token"
 	"io"
 	"io/fs"
 	"os"
@@ -289,11 +287,8 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
-			// These are Go types.
+			// Memo process results here.
 			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
-			var gofset *token.FileSet
-			var gofs, _gofs, tgofs []*ast.File
-			var errs error
 
 			// Run type checking
 			// FIX STEP 2: ParseGnoMod()
@@ -305,22 +300,25 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			_, gofset, gofs, _gofs, tgofs, errs =
-				lintTypeCheck(cio, dir, mpkg, gs, false)
+			errs := lintTypeCheck(cio, dir, mpkg, gs, false)
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true
 				return
 			}
 
-			// FIX STEP 4: Prepare*()
-			// Construct machine for preprocessing.
+			// FIX STEP 4.a: Prepare*()
 			tm := test.Machine(gs, io.Discard, pkgPath, false)
 			defer tm.Release()
-
-			// Prepare Go AST for preprocessing.
-			allgofs := append(gofs, _gofs...)
-			allgofs = append(allgofs, tgofs...)
+			// FIX STEP 4.b: Re-parse the mem package to Go AST.
+			pmode := gno.ParseModeAll
+			gofset, allgofs, _, _, _, errs := gno.GoParseMemPackage(mpkg, pmode)
+			if errs != nil {
+				cio.ErrPrintln(errs)
+				hasError = true
+				return // Go parse must succeed.
+			}
+			// FIX STEP 4.c: PrepareGno0p9() for Gno preprocessing.
 			errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
 			if errs != nil {
 				cio.ErrPrintln(errs)
@@ -391,7 +389,9 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 						continue
 					}
 					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false, gno.GnoVerMissing)
+					pn, _ := tm.PreprocessFiles(
+						pkgName, pkgPath, fset,
+						false, false, gno.GnoVerMissing)
 					ppkg.AddFileTest(pn, fset)
 
 					// FIX STEP 7: FindXforms():

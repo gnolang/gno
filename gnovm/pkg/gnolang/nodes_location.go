@@ -251,3 +251,18 @@ func (loc Location) String() string {
 func (loc Location) IsZero() bool {
 	return loc == Location{}
 }
+
+func (loc Location) GetLocation() Location {
+	return loc
+}
+
+func (loc Location) GetFile() string {
+	return loc.File
+}
+
+func (loc *Location) SetLocation(loc2 Location) {
+	if !loc.IsZero() && (*loc != loc2) {
+		panic(".Location can ony be set once. loc:" + loc.String() + " loc2:" + loc2.String())
+	}
+	*loc = loc2
+}
