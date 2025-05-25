@@ -5,7 +5,8 @@ import (
 	"std"
 )
 
-func AdminSetInPause(cur realm, inPause bool) string {
+func AdminSetInPause(inPause bool) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -13,7 +14,8 @@ func AdminSetInPause(cur realm, inPause bool) string {
 	return ""
 }
 
-func AdminSetMessage(cur realm, message string) string {
+func AdminSetMessage(message string) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -21,7 +23,8 @@ func AdminSetMessage(cur realm, message string) string {
 	return ""
 }
 
-func AdminSetTransferLimit(cur realm, amount int64) string {
+func AdminSetTransferLimit(amount int64) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -29,7 +32,8 @@ func AdminSetTransferLimit(cur realm, amount int64) string {
 	return ""
 }
 
-func AdminSetAdminAddr(cur realm, addr std.Address) string {
+func AdminSetAdminAddr(addr std.Address) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -37,7 +41,8 @@ func AdminSetAdminAddr(cur realm, addr std.Address) string {
 	return ""
 }
 
-func AdminAddController(cur realm, addr std.Address) string {
+func AdminAddController(addr std.Address) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
@@ -57,7 +62,8 @@ func AdminAddController(cur realm, addr std.Address) string {
 	return ""
 }
 
-func AdminRemoveController(cur realm, addr std.Address) string {
+func AdminRemoveController(addr std.Address) string {
+	crossing()
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}

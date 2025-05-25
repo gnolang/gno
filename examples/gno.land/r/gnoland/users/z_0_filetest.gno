@@ -21,18 +21,18 @@ func init() {
 
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
 
-	dao.MustCreateProposal(cross, pReq)
+	cross(dao.MustCreateProposal)(pReq)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(alice))
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+	cross(dao.ExecuteProposal)(dao.ProposalID(0))
 	println(users.Render(""))
 }
 

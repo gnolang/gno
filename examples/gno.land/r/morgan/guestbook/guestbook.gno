@@ -32,7 +32,7 @@ var (
 )
 
 func init() {
-	Sign(cur, "You reached the end of the guestbook!")
+	Sign("You reached the end of the guestbook!")
 }
 
 const (
@@ -42,7 +42,8 @@ const (
 )
 
 // Sign signs the guestbook, with the specified message.
-func Sign(cur realm, message string) {
+func Sign(message string) {
+	crossing()
 	prev := std.PreviousRealm()
 	switch {
 	case !prev.IsUser():

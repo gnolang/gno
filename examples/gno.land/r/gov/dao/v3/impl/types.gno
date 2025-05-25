@@ -56,7 +56,8 @@ type proposalStatus struct {
 	TotalPower float64 // TotalPower is the power of all the members existing when this proposal was created.
 }
 
-func getMembers(cur realm) memberstore.MembersByTier {
+func getMembers() memberstore.MembersByTier {
+	crossing()
 	return memberstore.Get()
 }
 
@@ -81,7 +82,7 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 
 		TiersAllowedToVote: allowedToVote,
 
-		TotalPower: getMembers(cross).GetTotalPower(),
+		TotalPower: cross(getMembers)().GetTotalPower(),
 	}
 }
 
@@ -94,7 +95,7 @@ func (ps *proposalStatus) YesPercent() float64 {
 			panic("type must be memberstore.Tier")
 		}
 
-		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
+		power := tier.PowerHandler(cross(getMembers)(), memberstore.Tiers)
 		ts := ps.YesVotes.GetTierSize(tn)
 
 		yp = yp + (power * float64(ts))
@@ -114,7 +115,7 @@ func (ps *proposalStatus) NoPercent() float64 {
 			panic("type must be memberstore.Tier")
 		}
 
-		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
+		power := tier.PowerHandler(cross(getMembers)(), memberstore.Tiers)
 		ts := ps.NoVotes.GetTierSize(tn)
 		np = np + (power * float64(ts))
 
@@ -186,7 +187,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 			panic("tier not found")
 		}
 
-		power := tier.PowerHandler(getMembers(cross), memberstore.Tiers)
+		power := tier.PowerHandler(cross(getMembers)(), memberstore.Tiers)
 
 		sb.WriteString(ufmt.Sprintf("### %v from %v (VPPM %v):\n", title, tn, power))
 		ms, _ := value.(*avl.Tree)

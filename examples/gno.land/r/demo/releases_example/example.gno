@@ -24,12 +24,12 @@ func NewRelease(name, url, notes string) {
 	changelog.NewRelease(name, url, notes)
 }
 
-func UpdateAdmin(address_XXX std.Address) {
+func UpdateAdmin(address std.Address) {
 	caller := std.OriginCaller()
 	if caller != admin {
 		panic("restricted area")
 	}
-	admin = address_XXX
+	admin = address
 }
 
 func Render(path string) string {

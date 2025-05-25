@@ -8,7 +8,9 @@ import (
 
 var counter int
 
-func Inc(cur realm, nb int) {
+func Inc(nb int) {
+	crossing()
+
 	counter += nb
 }
 

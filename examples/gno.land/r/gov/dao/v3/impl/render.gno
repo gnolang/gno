@@ -81,7 +81,7 @@ func (ren *render) renderProposal(sPid string, d *GovDAO) string {
 	}
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 
-	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
+	p := cross(dao.MustGetProposal)(dao.ProposalID(pid))
 
 	out := ""
 	out += ufmt.Sprintf("## Proposal with id: %v", sPid)

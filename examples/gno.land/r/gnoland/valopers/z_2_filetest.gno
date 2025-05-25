@@ -26,7 +26,7 @@ func init() {
 	testing.SetOriginCaller(g1user)
 
 	// Register a validator and add the proposal
-	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
+	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
 }
 
 func main() {

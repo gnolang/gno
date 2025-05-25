@@ -21,7 +21,8 @@ func init() {
 	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
-func AdminSetAdminAddr(cur realm, addr std.Address) {
+func AdminSetAdminAddr(addr std.Address) {
+	crossing()
 	assertIsAdmin()
 	adminAddr = addr
 }
@@ -59,7 +60,8 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 	)
 }
 
-func ModAddPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
+func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
+	crossing()
 	assertIsModerator()
 	caller := std.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
@@ -80,8 +82,10 @@ func addPost(caller std.Address, slug, title, body, publicationDate, authors, ta
 	checkErr(err)
 }
 
-func ModEditPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
+func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
+	crossing()
 	assertIsModerator()
+
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -89,23 +93,29 @@ func ModEditPost(cur realm, slug, title, body, publicationDate, authors, tags st
 	checkErr(err)
 }
 
-func ModRemovePost(cur realm, slug string) {
+func ModRemovePost(slug string) {
+	crossing()
 	assertIsModerator()
+
 	b.RemovePost(slug)
 }
 
-func ModAddCommenter(cur realm, addr std.Address) {
+func ModAddCommenter(addr std.Address) {
+	crossing()
 	assertIsModerator()
 	commenterList.Set(addr.String(), true)
 }
 
-func ModDelCommenter(cur realm, addr std.Address) {
+func ModDelCommenter(addr std.Address) {
+	crossing()
 	assertIsModerator()
 	commenterList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func ModDelComment(cur realm, slug string, index int) {
+func ModDelComment(slug string, index int) {
+	crossing()
 	assertIsModerator()
+
 	err := b.GetPost(slug).DeleteComment(index)
 	checkErr(err)
 }

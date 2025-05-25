@@ -196,7 +196,8 @@ func quoteOfTheBlock() string {
 	return qotb
 }
 
-func AdminSetOverride(cur realm, content string) {
+func AdminSetOverride(content string) {
+	crossing()
 	Admin.AssertOwnedByPrevious()
 	override = content
 }

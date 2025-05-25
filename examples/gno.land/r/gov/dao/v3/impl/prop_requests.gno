@@ -8,7 +8,9 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func NewChangeLawRequest(cur realm, newLaw *Law) dao.ProposalRequest {
+func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
+	crossing()
+
 	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
@@ -36,11 +38,13 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 		// what calls this cb function is r/gov/dao.
 		// therefore we must cross back into v3/impl and then
 		// cross call dao.UpdateRequest().
-		func(cur realm) {
-			dao.UpdateImpl(cross, dao.UpdateRequest{DAO: newDao,
+		cross(func() {
+			crossing()
+			cross(dao.UpdateImpl)(dao.UpdateRequest{
+				DAO:         newDao,
 				AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
 			})
-		}(cross)
+		})()
 		return nil
 	}
 
@@ -49,7 +53,9 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+	crossing()
+
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -88,7 +94,9 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 	)
 }
 
-func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.ProposalRequest {
+func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
+	crossing()
+
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")

@@ -17,10 +17,12 @@ const (
 )
 
 func init() {
-	grc20reg.Register(cross, Token.Getter(), "")
+	cross(grc20reg.Register)(Token.Getter(), "")
 }
 
-func Deposit(cur realm) {
+func Deposit() {
+	crossing()
+
 	caller := std.PreviousRealm().Address()
 	sent := std.OriginSend()
 	amount := sent.AmountOf("ugnot")
@@ -30,7 +32,9 @@ func Deposit(cur realm) {
 	checkErr(adm.Mint(caller, int64(amount)))
 }
 
-func Withdraw(cur realm, amount int64) {
+func Withdraw(amount int64) {
+	crossing()
+
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
 	caller := std.PreviousRealm().Address()
@@ -73,17 +77,23 @@ func Allowance(owner, spender std.Address) int64 {
 	return Token.Allowance(owner, spender)
 }
 
-func Transfer(cur realm, to std.Address, amount int64) {
+func Transfer(to std.Address, amount int64) {
+	crossing()
+
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Transfer(to, amount))
 }
 
-func Approve(cur realm, spender std.Address, amount int64) {
+func Approve(spender std.Address, amount int64) {
+	crossing()
+
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Approve(spender, amount))
 }
 
-func TransferFrom(cur realm, from, to std.Address, amount int64) {
+func TransferFrom(from, to std.Address, amount int64) {
+	crossing()
+
 	userTeller := Token.CallerTeller()
 	checkErr(userTeller.TransferFrom(from, to, amount))
 }

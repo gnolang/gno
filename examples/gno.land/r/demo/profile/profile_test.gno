@@ -28,13 +28,13 @@ func TestStringFields(t *testing.T) {
 	uassert.Equal(t, "anon", name)
 
 	// Set new key
-	updated := SetStringField(cross, DisplayName, "Alice foo")
+	updated := cross(SetStringField)(DisplayName, "Alice foo")
 	uassert.Equal(t, updated, false)
-	updated = SetStringField(cross, Homepage, "https://example.com")
+	updated = cross(SetStringField)(Homepage, "https://example.com")
 	uassert.Equal(t, updated, false)
 
 	// Update the key
-	updated = SetStringField(cross, DisplayName, "Alice foo")
+	updated = cross(SetStringField)(DisplayName, "Alice foo")
 	uassert.Equal(t, updated, true)
 
 	// Get after setting
@@ -55,11 +55,11 @@ func TestIntFields(t *testing.T) {
 	uassert.Equal(t, 25, age)
 
 	// Set new key
-	updated := SetIntField(cross, Age, 30)
+	updated := cross(SetIntField)(Age, 30)
 	uassert.Equal(t, updated, false)
 
 	// Update the key
-	updated = SetIntField(cross, Age, 30)
+	updated = cross(SetIntField)(Age, 30)
 	uassert.Equal(t, updated, true)
 
 	// Get after setting
@@ -75,11 +75,11 @@ func TestBoolFields(t *testing.T) {
 	uassert.Equal(t, false, hiring)
 
 	// Set
-	updated := SetBoolField(cross, AvailableForHiring, true)
+	updated := cross(SetBoolField)(AvailableForHiring, true)
 	uassert.Equal(t, updated, false)
 
 	// Update the key
-	updated = SetBoolField(cross, AvailableForHiring, true)
+	updated = cross(SetBoolField)(AvailableForHiring, true)
 	uassert.Equal(t, updated, true)
 
 	// Get after setting
@@ -90,12 +90,12 @@ func TestBoolFields(t *testing.T) {
 func TestMultipleProfiles(t *testing.T) {
 	// Set profile for user1
 	testing.SetRealm(std.NewUserRealm(user1))
-	updated := SetStringField(cross, DisplayName, "User One")
+	updated := cross(SetStringField)(DisplayName, "User One")
 	uassert.Equal(t, updated, false)
 
 	// Set profile for user2
 	testing.SetRealm(std.NewUserRealm(user2))
-	updated = SetStringField(cross, DisplayName, "User Two")
+	updated = cross(SetStringField)(DisplayName, "User Two")
 	uassert.Equal(t, updated, false)
 
 	// Get profiles
@@ -112,7 +112,7 @@ func TestArbitraryStringField(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(user1))
 
 	// Set arbitrary string field
-	updated := SetStringField(cross, "MyEmail", "my@email.com")
+	updated := cross(SetStringField)("MyEmail", "my@email.com")
 	uassert.Equal(t, updated, false)
 
 	val := GetStringField(user1, "MyEmail", "")
@@ -123,7 +123,7 @@ func TestArbitraryIntField(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(user1))
 
 	// Set arbitrary int field
-	updated := SetIntField(cross, "MyIncome", 100_000)
+	updated := cross(SetIntField)("MyIncome", 100_000)
 	uassert.Equal(t, updated, false)
 
 	val := GetIntField(user1, "MyIncome", 0)
@@ -134,7 +134,7 @@ func TestArbitraryBoolField(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(user1))
 
 	// Set arbitrary bool field
-	updated := SetBoolField(cross, "IsWinner", true)
+	updated := cross(SetBoolField)("IsWinner", true)
 	uassert.Equal(t, updated, false)
 
 	val := GetBoolField(user1, "IsWinner", false)

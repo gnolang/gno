@@ -54,7 +54,7 @@ func (s *Swap) Claim(preimage string) {
 	require(hashlockHex == s.hashlock, "invalid preimage")
 
 	s.claimed = true
-	s.sendFn(cross, s.recipient)
+	cross(s.sendFn)(s.recipient)
 }
 
 // Refund allows the sender to refund the funds after the timelock has expired.
@@ -65,7 +65,7 @@ func (s *Swap) Refund() {
 	require(time.Now().After(s.timelock), "timelock not expired")
 
 	s.refunded = true
-	s.sendFn(cross, s.sender)
+	cross(s.sendFn)(s.sender)
 }
 
 func (s Swap) Status() string {
