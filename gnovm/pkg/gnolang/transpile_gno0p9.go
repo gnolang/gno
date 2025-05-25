@@ -539,7 +539,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 							}
 							// XXX Get the xtype from spreadXform,
 							// or otherwise check XTYPE_ADD_CURFUNC is good.
-							addXform1(pn, fname, ftx, XTYPE_ADD_CURFUNC)
+							addXform1(pn, fname, ftx.Type, XTYPE_ADD_CURFUNC)
 							// Dive into the param type? maybe useful later.
 							FindMoreXformsGno0p9(store, pn, last, ftx.Type)
 						case cmp > 0:

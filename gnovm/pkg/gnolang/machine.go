@@ -659,6 +659,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 // behavior, build systems are encouraged to present
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
+// If m.Realm is set `init(cur realm)` works too.
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	// Only for the init functions make the origin caller
 	// the package addr.
@@ -671,7 +672,8 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.runFunc(StageAdd, fv.Name, false)
+				maybeCrossing := m.Realm != nil
+				m.runFunc(StageAdd, fv.Name, maybeCrossing)
 				m.PopBlock()
 			}
 		}
@@ -736,13 +738,14 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 		pn := pb.GetSource(m.Store).(*PackageNode)
 		ft := pn.GetStaticTypeOf(m.Store, fn).(*FuncType)
 		if ft.IsCrossing() {
-			// .cur is a special keyword for non-crossing
-			// calls of a crossing function where `cur` is
-			// not available from m.RunFuncMaybeCrossing().
-			// In testing, main(cur realm) is considered
-			// to have already crossed at "frame -1",
-			// so we do not want to cross-call main,
-			// and the behavior is similar to main().
+			// .cur is a special keyword for non-crossing calls of
+			// a crossing function where `cur` is not available
+			// from m.RunFuncMaybeCrossing().
+			//
+			// `main(cur realm)` and `init(cur realm)` are
+			// considered to have already crossed at "frame -1", so
+			// we do not want to cross-call main, and the behavior
+			// is identical to main(), like wise init().
 			m.RunStatement(st, S(Call(Nx(fn), Nx(".cur"))))
 			return
 		}

@@ -313,7 +313,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// parsed correctly when using RunMemPackage.
 		fname = strings.ReplaceAll(fname, "_filetest", "")
 
-		// save package using realm crawl procedure.
+		// Save package using realm crawl procedure.
 		mpkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
@@ -332,16 +332,17 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 
 		// Run decls and init functions.
 		m.RunMemPackage(mpkg, true)
+
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
 		m.Store = orig
-
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2) // XXX should it set the realm?
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
-		// clear store.opslog from init function(s).
+
+		// Clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
 		m.RunMainMaybeCrossing()
 	}
