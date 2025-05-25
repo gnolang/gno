@@ -10,33 +10,33 @@ import (
 )
 
 func (rss *RemoteSignerServer) setListener(listener net.Listener) error {
-  rss.lock.Lock()
-  defer rss.lock.Unlock()
+	rss.lock.Lock()
+	defer rss.lock.Unlock()
 
-  // If the listener is already set, close it.
-  var err error
-  if rss.listener != nil {
-    err = rss.listener.Close()
-  }
+	// If the listener is already set, close it.
+	var err error
+	if rss.listener != nil {
+		err = rss.listener.Close()
+	}
 
-  rss.listener = listener
+	rss.listener = listener
 
-  return err
+	return err
 }
 
 func (rss *RemoteSignerServer) setConnection(conn net.Conn) error {
-  rss.lock.Lock()
-  defer rss.lock.Unlock()
+	rss.lock.Lock()
+	defer rss.lock.Unlock()
 
-  // If the connection is already set, close it.
-  var err error
-  if rss.conn != nil {
-    err = rss.conn.Close()
-  }
+	// If the connection is already set, close it.
+	var err error
+	if rss.conn != nil {
+		err = rss.conn.Close()
+	}
 
-  rss.conn = conn
+	rss.conn = conn
 
-  return err
+	return err
 }
 
 // serve accepts incoming client connections and handles them.
@@ -96,8 +96,8 @@ func (rss *RemoteSignerServer) serve(listener net.Listener) {
 
 // handleConnection handles the connection with the client.
 func (rss *RemoteSignerServer) handleConnection(conn net.Conn) {
-  rss.setConnection(conn)
-  defer rss.setConnection(nil)
+	rss.setConnection(conn)
+	defer rss.setConnection(nil)
 
 	// Serve will run until the connection is closed or an error occurs while receiving
 	// a request from or sending a response to the client.
@@ -142,7 +142,7 @@ func (rss *RemoteSignerServer) handleRequest(request r.RemoteSignerMessage) r.Re
 	case *r.PubKeyRequest:
 		return &r.PubKeyResponse{PubKey: rss.signer.PubKey()}
 
-  // Sign request is proxied to the signer.
+		// Sign request is proxied to the signer.
 	case *r.SignRequest:
 		if signature, err := rss.signer.Sign(request.SignBytes); err != nil {
 			return &r.SignResponse{Signature: nil, Error: &r.RemoteSignerError{Err: err.Error()}}
@@ -150,7 +150,7 @@ func (rss *RemoteSignerServer) handleRequest(request r.RemoteSignerMessage) r.Re
 			return &r.SignResponse{Signature: signature, Error: nil}
 		}
 
-  // Ping request is not related to the signer interface and is only used to confirm the connection.
+		// Ping request is not related to the signer interface and is only used to confirm the connection.
 	case *r.PingRequest:
 		return &r.PingResponse{}
 
