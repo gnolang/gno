@@ -1,12 +1,20 @@
 package expect
 
 type (
-	Fn         = func()
-	ErrorFn    = func() error
-	AnyFn      = func() any
+	// Fn defines a type for generic functions.
+	Fn = func()
+
+	// ErrorFn defines a type for generic functions that return an error.
+	ErrorFn = func() error
+
+	// AnyFn defines a type for generic functions that returns a value.
+	AnyFn = func() any
+
+	// AnyErrorFn defines a type for generic functions that return a value and an error.
 	AnyErrorFn = func() (any, error)
 )
 
+// Func creates a new checker for functions.
 func Func(t TestingT, fn any) FuncChecker {
 	return FuncChecker{
 		ctx: NewContext(t),
@@ -14,21 +22,25 @@ func Func(t TestingT, fn any) FuncChecker {
 	}
 }
 
+// FuncChecker asserts function panics, errors and returned value.
 type FuncChecker struct {
 	ctx Context
 	fn  any
 }
 
+// WithFailPrefix assigns a prefix that will be prefixed to testing errors when an assertion fails.
 func (c FuncChecker) WithFailPrefix(prefix string) FuncChecker {
 	c.ctx.prefix = prefix
 	return c
 }
 
+// Not negates the next called expectation.
 func (c FuncChecker) Not() FuncChecker {
-	c.ctx.not = !c.ctx.not
+	c.ctx.negated = !c.ctx.negated
 	return c
 }
 
+// ToFail return an error checker to assert if current function returns an error.
 func (c FuncChecker) ToFail() ErrorChecker {
 	c.ctx.t().Helper()
 
@@ -46,16 +58,17 @@ func (c FuncChecker) ToFail() ErrorChecker {
 	c.ctx.CheckExpectation(
 		err != nil,
 		func() {
-			c.ctx.Fail("Func failed with error\nGot: %s", err.Error())
+			c.ctx.Fail("Expected func to return an error")
 		},
 		func() {
-			c.ctx.Fail("Expected func to return an error")
+			c.ctx.Fail("Func failed with error\nGot: %s", err.Error())
 		},
 	)
 
 	return NewErrorChecker(c.ctx, err)
 }
 
+// ToPanic return an message checker to assert if current function panicked.
 func (c FuncChecker) ToPanic() MessageChecker {
 	c.ctx.t().Helper()
 
@@ -95,16 +108,17 @@ func (c FuncChecker) ToPanic() MessageChecker {
 	c.ctx.CheckExpectation(
 		panicked,
 		func() {
-			c.ctx.Fail("Expected func not to panic\nGot: %s", msg)
+			c.ctx.Fail("Expected function to panic")
 		},
 		func() {
-			c.ctx.Fail("Expected function to panic")
+			c.ctx.Fail("Expected func not to panic\nGot: %s", msg)
 		},
 	)
 
 	return NewMessageChecker(c.ctx, msg, MessageTypePanic)
 }
 
+// ToReturn asserts that current function returned a value equal to an expected value.
 func (c FuncChecker) ToReturn(value any) {
 	c.ctx.t().Helper()
 
@@ -127,7 +141,7 @@ func (c FuncChecker) ToReturn(value any) {
 		return
 	}
 
-	if c.ctx.not {
+	if c.ctx.negated {
 		Value(c.ctx.t(), v).Not().ToEqual(value)
 	} else {
 		Value(c.ctx.t(), v).ToEqual(value)

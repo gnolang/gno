@@ -28,7 +28,7 @@ func main() {
 	expect.Value(t, int32(1)).Not().ToEqual(int32(1))
 	expect.Value(t, int64(1)).Not().ToEqual(int64(1))
 
-	expect.Value(t, 0).Not().ToEqual(struct{})
+	expect.Value(t, 0).Not().ToEqual([]string{})
 
 	println(output.String())
 }

@@ -2,90 +2,98 @@ package expect
 
 import "strconv"
 
+// NewFloatChecker creates a new checker of float64 values.
 func NewFloatChecker(ctx Context, value float64) FloatChecker {
 	return FloatChecker{ctx, value}
 }
 
+// FloatChecker asserts float64 values.
 type FloatChecker struct {
 	ctx   Context
 	value float64
 }
 
+// Not negates the next called expectation.
 func (c FloatChecker) Not() FloatChecker {
-	c.ctx.not = !c.ctx.not
+	c.ctx.negated = !c.ctx.negated
 	return c
 }
 
+// ToEqual asserts that current value is equal to an expected value.
 func (c FloatChecker) ToEqual(value float64) {
 	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == value,
 		func() {
-			c.ctx.Fail("Expected value to be different\nGot: %s", c.format(c.value))
-		},
-		func() {
 			got := c.format(c.value)
 			c.ctx.Fail("Expected values to match\nGot: %s\nWant: %s", got, c.format(value))
+		},
+		func() {
+			c.ctx.Fail("Expected value to be different\nGot: %s", c.format(c.value))
 		},
 	)
 }
 
+// ToBeGreaterThan asserts that current value is greater than an expected value.
 func (c FloatChecker) ToBeGreaterThan(value float64) {
 	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value > value,
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be greater than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected values to be gerater than %s\nGot: %s", c.format(value), got)
 		},
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be gerater than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected value to not to be greater than %s\nGot: %s", c.format(value), got)
 		},
 	)
 }
 
+// ToBeGreaterOrEqualThan asserts that current value is greater or equal than an expected value.
 func (c FloatChecker) ToBeGreaterOrEqualThan(value float64) {
 	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value >= value,
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be greater or equal than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected values to be greater or equal than %s\nGot: %s", c.format(value), got)
 		},
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be greater or equal than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected value to not to be greater or equal than %s\nGot: %s", c.format(value), got)
 		},
 	)
 }
 
+// ToBeLowerThan asserts that current value is lower than an expected value.
 func (c FloatChecker) ToBeLowerThan(value float64) {
 	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value < value,
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be lower than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected values to be lower than %s\nGot: %s", c.format(value), got)
 		},
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be lower than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected value to not to be lower than %s\nGot: %s", c.format(value), got)
 		},
 	)
 }
 
+// ToBeLowerOrEqualThan asserts that current value is lower or equal than an expected value.
 func (c FloatChecker) ToBeLowerOrEqualThan(value float64) {
 	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value <= value,
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be lower or equal than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected values to be lower or equal than %s\nGot: %s", c.format(value), got)
 		},
 		func() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be lower or equal than %s\nGot: %s", c.format(value), got)
+			c.ctx.Fail("Expected value to not to be lower or equal than %s\nGot: %s", c.format(value), got)
 		},
 	)
 }

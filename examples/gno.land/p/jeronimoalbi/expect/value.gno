@@ -1,5 +1,6 @@
 package expect
 
+// Value creates a new checker values of different types.
 func Value(t TestingT, value any) ValueChecker {
 	return ValueChecker{
 		ctx:   NewContext(t),
@@ -7,34 +8,39 @@ func Value(t TestingT, value any) ValueChecker {
 	}
 }
 
+// ValueChecker asserts values of different types.
 type ValueChecker struct {
 	ctx   Context
 	value any
 }
 
+// WithFailPrefix assigns a prefix that will be prefixed to testing errors when an assertion fails.
 func (c ValueChecker) WithFailPrefix(prefix string) ValueChecker {
 	c.ctx.prefix = prefix
 	return c
 }
 
+// Not negates the next called expectation.
 func (c ValueChecker) Not() ValueChecker {
-	c.ctx.not = !c.ctx.not
+	c.ctx.negated = !c.ctx.negated
 	return c
 }
 
+// ToBeNil asserts that current value is nil.
 func (c ValueChecker) ToBeNil() {
 	c.ctx.t().Helper()
 	c.ctx.CheckExpectation(
 		c.value == nil,
 		func() {
-			c.ctx.Fail("Expected a non nil value")
+			c.ctx.Fail("Expected value to be nil\nGot: %v", c.value)
 		},
 		func() {
-			c.ctx.Fail("Expected value to be nil\nGot: %v", c.value)
+			c.ctx.Fail("Expected a non nil value")
 		},
 	)
 }
 
+// ToEqual asserts that current value is equal to an expected value.
 func (c ValueChecker) ToEqual(value any) {
 	c.ctx.t().Helper()
 
@@ -74,6 +80,7 @@ func (c ValueChecker) ToEqual(value any) {
 	}
 }
 
+// AsString returns a checker to assert current value as a string.
 func (c ValueChecker) AsString() StringChecker {
 	c.ctx.t().Helper()
 
@@ -86,6 +93,7 @@ func (c ValueChecker) AsString() StringChecker {
 	return NewStringChecker(c.ctx, v)
 }
 
+// AsBoolean returns a checker to assert current value as a boolean.
 func (c ValueChecker) AsBoolean() BooleanChecker {
 	c.ctx.t().Helper()
 
@@ -98,6 +106,7 @@ func (c ValueChecker) AsBoolean() BooleanChecker {
 	return NewBooleanChecker(c.ctx, v)
 }
 
+// AsFloat returns a checker to assert current value as a float64.
 func (c ValueChecker) AsFloat() FloatChecker {
 	c.ctx.t().Helper()
 
@@ -110,6 +119,7 @@ func (c ValueChecker) AsFloat() FloatChecker {
 	return NewFloatChecker(c.ctx, v)
 }
 
+// AsUint returns a checker to assert current value as a uint64.
 func (c ValueChecker) AsUint() UintChecker {
 	c.ctx.t().Helper()
 
@@ -122,6 +132,7 @@ func (c ValueChecker) AsUint() UintChecker {
 	return NewUintChecker(c.ctx, v)
 }
 
+// AsInt returns a checker to assert current value as a int64.
 func (c ValueChecker) AsInt() IntChecker {
 	c.ctx.t().Helper()
 

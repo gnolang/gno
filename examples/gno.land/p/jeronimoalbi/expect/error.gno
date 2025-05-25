@@ -1,19 +1,23 @@
 package expect
 
+// NewErrorChecker creates a new checker of errors.
 func NewErrorChecker(ctx Context, err error) ErrorChecker {
 	return ErrorChecker{ctx, err}
 }
 
+// ErrorChecker asserts error values.
 type ErrorChecker struct {
 	ctx Context
 	err error
 }
 
+// Not negates the next called expectation.
 func (c ErrorChecker) Not() ErrorChecker {
-	c.ctx.not = !c.ctx.not
+	c.ctx.negated = !c.ctx.negated
 	return c
 }
 
+// WithMessage asserts that current error contains an expected message.
 func (c ErrorChecker) WithMessage(msg string) {
 	c.ctx.t().Helper()
 
@@ -25,6 +29,7 @@ func (c ErrorChecker) WithMessage(msg string) {
 	NewMessageChecker(c.ctx, c.err.Error(), MessageTypeError).WithMessage(msg)
 }
 
+// WithError asserts that current error message is the same as an expected error.
 func (c ErrorChecker) WithError(err error) {
 	c.ctx.t().Helper()
 
@@ -39,10 +44,10 @@ func (c ErrorChecker) WithError(err error) {
 	c.ctx.CheckExpectation(
 		got == err.Error(),
 		func() {
-			c.ctx.Fail("Expected errors to be different\nGot: %s", got)
+			c.ctx.Fail("Expected errors to match\nGot: %s\nWant: %s", got, err.Error())
 		},
 		func() {
-			c.ctx.Fail("Expected errors to match\nGot: %s\nWant: %s", got, err.Error())
+			c.ctx.Fail("Expected errors to be different\nGot: %s", got)
 		},
 	)
 }
