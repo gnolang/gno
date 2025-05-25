@@ -49,6 +49,11 @@ func TestTestApp(t *testing.T) {
 		// 	stderrShouldContain: "test timed out after 1ms",
 		// },
 		{
+			name:             "file in wrong language",
+			args:             []string{"test", "../../tests/integ/test/wrong_lang/file.go"},
+			errShouldContain: "list sub packages: files must be .gno files",
+		},
+		{
 			name:                "sub packages error with malformed modfile",
 			args:                []string{"test", "../../tests/integ/test/broken_mod"},
 			stderrShouldContain: "--- WARNING: unable to read package path",
@@ -63,16 +68,11 @@ func TestTestApp(t *testing.T) {
 			args:                []string{"test", "../../tests/integ/test/no_tests"},
 			stderrShouldContain: "testing: warning: no tests to run",
 		},
-		// {
-		// 	name:                "directory with no gno.mod and nonstandard path",
-		// 	args:                []string{"test", "../../tests/integ/test/unknown_pkg"},
-		// 	stderrShouldContain: "--- WARNING: unable to read package path",
-		// },
-		// {
+		// {`
 		// 	name:                "lint failure",
-		// 	args:                []string{"test", "-v", "../../tests/integ/test/lint_fail"},
-		// 	stderrShouldContain: "type mismatch", // or whatever type/lint error message you induce
-		// },
+		// 	args:                []string{"test", "-v", "../../tests/integ/test/type_error"},
+		// 	errShouldContain:    "FAIL: 0 build errors, 1 test errors", // or whatever type/lint error message you induce
+		// },`
 		// {
 		// 	name:                "foundErr true (but no fatal lint error)",
 		// 	args:                []string{"test", "-v", "../../tests/integ/test/found_err"},
