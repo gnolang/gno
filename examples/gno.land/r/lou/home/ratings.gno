@@ -24,6 +24,8 @@ func init() {
 }
 
 func NewRating(rating uint64, commentStr string) string {
+	crossing()
+	
 	caller := std.PreviousRealm().Address()
 	if _, exists := ratings.Get(caller.String()); exists {
 		panic(caller.String() + " has already rated and update instead")
@@ -40,6 +42,8 @@ func NewRating(rating uint64, commentStr string) string {
 }
 
 func UpdateRating(rating uint64, commentStr string) string {
+	crossing()
+
 	checkCaller()
 	caller := std.PreviousRealm().Address()
 
@@ -55,6 +59,8 @@ func UpdateRating(rating uint64, commentStr string) string {
 }
 
 func UpdateByID(comment string, id seqid.ID, rating uint64) string {
+	crossing()
+
 	caller := std.PreviousRealm().Address()
 
 	if key, found := findRatingByID(id); found {
@@ -66,6 +72,8 @@ func UpdateByID(comment string, id seqid.ID, rating uint64) string {
 }
 
 func DeleteRating(id seqid.ID) string {
+	crossing()
+
 	caller := std.PreviousRealm().Address()
 
 	if Ownable.OwnedByPrevious() {

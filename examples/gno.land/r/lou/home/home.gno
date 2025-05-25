@@ -55,7 +55,7 @@ func Render(_ string) string {
 	out += "# Lou's Home\n"
 	out += md.HorizontalRule()
 	out += RenderRockPaperScissors()
-	if err := tokenaccess.RequireMinimumAllowance(token, admin, 10, std.Address(currentProfile.Account())); err != nil {
+	if err := tokenaccess.RequireMinimumAllowance(token, admin, 5, std.Address(currentProfile.Account())); err != nil {
 		out += md.H2("No further content unlocked.") + "\n\n"
 		out += md.Italic("--> "+err.Error()) + "\n\n"
 	} else {

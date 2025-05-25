@@ -29,6 +29,8 @@ func init() {
 // ROCK PAPER SCISSORS
 
 func Play(input string) {
+	crossing()
+
 	caller := std.PreviousRealm().Address()
 	addr := caller.String()
 
@@ -85,6 +87,8 @@ func RenderRockPaperScissors() string {
 // MAGIC 8 BALL
 
 func Ask(question string) string {
+	crossing()
+
 	answer := eightball.GetResponse(question)
 	eightballAnswer = answer + "\n\n"
 	return answer

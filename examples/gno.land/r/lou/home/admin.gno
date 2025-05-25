@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	Ownable = ownable.NewWithAddress("g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n")
-
 	admin  = std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
+	Ownable = ownable.NewWithAddress(admin)
+
 	token  *grc20.Token
 	ledger *grc20.PrivateLedger
 )
@@ -27,6 +27,8 @@ func CreateToken(name, symbol string, decimals uint) {
 }
 
 func ResetRatings() {
+	crossing()
+
 	Ownable.AssertOwnedByPrevious()
 
 	ratings = avl.NewTree()
