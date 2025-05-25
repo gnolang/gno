@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -13,11 +14,7 @@ import (
 func TestNewRemoteSignerClient(t *testing.T) {
 	t.Parallel()
 
-	var (
-		validTCP  = "tcp://127.0.0.1"
-		validUnix = "unix:///tmp/remote_signer.sock"
-		logger    = log.NewNoopLogger()
-	)
+	logger := log.NewNoopLogger()
 
 	t.Run("nil logger", func(t *testing.T) {
 		t.Parallel()
@@ -36,32 +33,26 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidAddressProtocol)
 	})
 
-	t.Run("valid config", func(t *testing.T) {
-		t.Parallel()
-
-		// Test TCP connection.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
-		require.NotNil(t, rsc)
-		require.NoError(t, err)
-
-		// Test Unix socket connection.
-		rsc, err = NewRemoteSignerClient(validUnix, logger)
-		require.NotNil(t, rsc)
-		assert.NoError(t, err)
-	})
-
 	t.Run("option dialMaxRetries", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		// Test default dialMaxRetries.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
+		rsc, err := NewRemoteSignerClient(unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialMaxRetries, rsc.dialMaxRetries)
+		rsc.Close()
 
 		// Test functional option.
 		option := WithDialMaxRetries(3)
-		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
+		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, 3, rsc.dialMaxRetries)
@@ -70,15 +61,23 @@ func TestNewRemoteSignerClient(t *testing.T) {
 	t.Run("option dialRetryInterval", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		// Test default dialRetryInterval.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
+		rsc, err := NewRemoteSignerClient(unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialRetryInterval, rsc.dialRetryInterval)
+		rsc.Close()
 
 		// Test functional option.
 		option := WithDialRetryInterval(42)
-		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
+		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rsc.dialRetryInterval)
@@ -87,32 +86,48 @@ func TestNewRemoteSignerClient(t *testing.T) {
 	t.Run("option dialTimeout", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		// Test default dialTimeout.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
+		rsc, err := NewRemoteSignerClient(unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultDialTimeout, rsc.dialTimeout)
+		rsc.Close()
 
 		// Test functional option.
-		option := WithDialTimeout(time.Microsecond)
-		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
+		option := WithDialTimeout(time.Millisecond)
+		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		assert.Equal(t, time.Microsecond, rsc.dialTimeout)
+		assert.Equal(t, time.Millisecond, rsc.dialTimeout)
 	})
 
 	t.Run("option keepAlivePeriod", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		// Test default keepAlivePeriod.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
+		rsc, err := NewRemoteSignerClient(unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultKeepAlivePeriod, rsc.keepAlivePeriod)
+		rsc.Close()
 
 		// Test functional option.
 		option := WithKeepAlivePeriod(42)
-		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
+		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, time.Duration(42), rsc.keepAlivePeriod)
@@ -121,33 +136,49 @@ func TestNewRemoteSignerClient(t *testing.T) {
 	t.Run("option requestTimeout", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		// Test default requestTimeout.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
+		rsc, err := NewRemoteSignerClient(unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Equal(t, defaultRequestTimeout, rsc.requestTimeout)
+		rsc.Close()
 
 		// Test functional option.
-		option := WithRequestTimeout(42)
-		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
+		option := WithRequestTimeout(time.Millisecond)
+		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		assert.Equal(t, time.Duration(42), rsc.requestTimeout)
+		assert.Equal(t, time.Millisecond, rsc.requestTimeout)
 	})
 
 	t.Run("option clientPrivKey", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		// Test default clientPrivKey.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
+		rsc, err := NewRemoteSignerClient(unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.NotNil(t, rsc.clientPrivKey)
+		rsc.Close()
 
 		// Test functional option.
 		privKey := ed25519.GenPrivKey()
 		option := WithClientPrivKey(privKey)
-		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
+		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, privKey, rsc.clientPrivKey)
@@ -156,16 +187,24 @@ func TestNewRemoteSignerClient(t *testing.T) {
 	t.Run("option authorizedKeys", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		// Test default authorizedKeys.
-		rsc, err := NewRemoteSignerClient(validTCP, logger)
+		rsc, err := NewRemoteSignerClient(unixSocket, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		require.Empty(t, rsc.authorizedKeys)
+		rsc.Close()
 
 		// Test functional option.
 		keys := []ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}
 		option := WithAuthorizedKeys(keys)
-		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
+		rsc, err = NewRemoteSignerClient(unixSocket, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
 		assert.Equal(t, keys, rsc.authorizedKeys)

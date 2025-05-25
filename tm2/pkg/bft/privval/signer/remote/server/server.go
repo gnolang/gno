@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/multierr"
 )
 
 // RemoteSignerServer provides a service that forwards requests to a types.Signer.
@@ -30,11 +31,10 @@ type RemoteSignerServer struct {
 	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
 
 	// Internal.
-	listener  net.Listener
-	conns     []net.Conn
-	connsLock sync.RWMutex
-	running   atomic.Bool
-	wg        sync.WaitGroup // Listeners and connections goroutines will register in this.
+	listener net.Listener
+	conn     net.Conn
+	lock     sync.RWMutex
+	running  atomic.Bool
 }
 
 // IsRunning returns true if the server is running.
@@ -54,26 +54,21 @@ func (rss *RemoteSignerServer) Start() error {
 		return ErrServerAlreadyStarted
 	}
 
-	var err error
-
 	// The protocol validity was already checked by the NewRemoteSignerServer function.
 	protocol, address := osm.ProtocolAndAddress(rss.listenAddress)
 
 	// Create a listener. If the listener creation fails, stop the server and return an error.
-	rss.listener, err = net.Listen(protocol, address)
+	listener, err := net.Listen(protocol, address)
 	if err != nil {
 		rss.Stop()
 		return fmt.Errorf("%w for listener %s://%s: %w", ErrListenFailed, protocol, address, err)
 	}
 
-	// The listener accepts connections in a separate goroutine which is added to the wait group.
-	rss.wg.Add(1)
-	go func() {
-		defer rss.wg.Done()
-		rss.listen()
-	}()
-
 	rss.logger.Info("Server started")
+
+	// Start listening for incoming connections.
+	rss.setListener(listener)
+	go rss.serve(listener)
 
 	return nil
 }
@@ -85,29 +80,24 @@ func (rss *RemoteSignerServer) Stop() error {
 		return ErrServerAlreadyStopped
 	}
 
-	// Close all listeners.
-	err := rss.closeListener()
-
-	// Close all connections.
-	rss.closeConnections()
-
-	// Wait for all listeners and connections goroutines to stop.
-	rss.wg.Wait()
+	// Close the listener and conn if any.
+	err := multierr.Combine(
+		rss.setListener(nil),
+		rss.setConnection(nil),
+	)
 
 	rss.logger.Info("Server stopped")
 
 	return err
 }
 
-// Wait waits for the remote signer server to stop.
-func (rss *RemoteSignerServer) Wait() {
-	rss.wg.Wait()
-}
-
 // ListenAddress returns the listen address of the server.
 // NOTE: This method is only used for testing purposes.
 func (rss *RemoteSignerServer) ListenAddress(t *testing.T) net.Addr {
 	t.Helper() // Mark the function as a test helper.
+
+	rss.lock.RLock()
+	defer rss.lock.RUnlock()
 
 	if rss.listener == nil {
 		return nil

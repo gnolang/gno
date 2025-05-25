@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/multierr"
 )
 
 // NewSignerServer creates a new remote signer server with the given gnokms signer.
@@ -121,35 +122,26 @@ func RunSignerServer(ctx context.Context, commonFlags *ServerFlags, signer types
 		return fmt.Errorf("signer server initialization failed: %w", err)
 	}
 
-	// Catch SIGINT/SIGTERM/SIGQUIT signals to stop the server gracefully.
-	catch := make(chan os.Signal, 1)
-	signal.Notify(catch, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	go func() {
-		// Block until a signal is received or the context is done.
-		select {
-		case <-catch:
-			logger.Info("Caught interrupt signal, stopping signer server...")
-		case <-ctx.Done():
-			logger.Info("Context done, stopping signer server...")
-		}
-
-		// Stop the server gracefully.
-		if err := server.Stop(); err != nil {
-			logger.Error("Failed to stop signer server", "error", err)
-		}
-	}()
-
-	// Start the remote signer server, then wait for it to finish.
+	// Start the remote signer server.
 	if err := server.Start(); err != nil {
 		return fmt.Errorf("signer server start failed: %w", err)
 	}
-	server.Wait()
 
-	// Close the signer.
-	if err := signer.Close(); err != nil {
-		return fmt.Errorf("signer close failed: %w", err)
-	}
+	// Catch SIGINT/SIGTERM/SIGQUIT signals to stop the server gracefully.
+	serverCtx, _ := signal.NotifyContext(
+		ctx,
+		os.Interrupt,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
 
-	return nil
+	// Wait for the server context to be done.
+	<-serverCtx.Done()
+
+	// Close the server and the signer gracefully.
+	return multierr.Combine(
+		server.Stop(),
+		signer.Close(),
+	)
 }

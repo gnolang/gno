@@ -68,7 +68,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 				[]string{
 					"--log-level",
 					"error",
-					"--listeners",
+					"--listener",
 					"wrong_address",
 					"--home",
 					filePath,

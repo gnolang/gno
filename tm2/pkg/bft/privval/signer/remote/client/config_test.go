@@ -3,6 +3,7 @@ package client
 import (
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -103,6 +104,13 @@ func TestNewRemoteSignerClientFromConfig(t *testing.T) {
 	t.Run("valid authorized keys", func(t *testing.T) {
 		t.Parallel()
 
+		// Set up a remote signer server for testing.
+		unixSocket := testUnixSocket(t)
+		rss := newRemoteSignerServer(t, unixSocket, types.NewMockSigner())
+		require.NotNil(t, rss)
+		require.NoError(t, rss.Start())
+		defer rss.Stop()
+
 		validKeys := make([]string, 3)
 		for i := range validKeys {
 			validKeys[i] = ed25519.GenPrivKey().PubKey().String()
@@ -110,6 +118,7 @@ func TestNewRemoteSignerClientFromConfig(t *testing.T) {
 
 		cfg := DefaultRemoteSignerClientConfig()
 		cfg.AuthorizedKeys = validKeys
+		cfg.ServerAddress = unixSocket
 
 		client, err := NewRemoteSignerClientFromConfig(cfg, privKey, logger)
 		require.NotNil(t, client)

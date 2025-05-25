@@ -20,7 +20,7 @@ func TestValidate(t *testing.T) {
 
 		akf := AuthKeysFile{}
 
-		assert.ErrorIs(t, akf.validate(), errInvalidPrivateKey)
+		assert.ErrorIs(t, akf.validate(), errInvalidPublicKey)
 	})
 
 	t.Run("public key mismatch", func(t *testing.T) {
@@ -235,11 +235,15 @@ func TestAuthorizedKeys(t *testing.T) {
 
 		privKey := ed25519.GenPrivKey()
 		akf := AuthKeysFile{
+			ServerIdentity: ServerIdentity{
+				PrivKey: privKey,
+				PubKey:  privKey.PubKey().String(),
+			},
 			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
 		}
 
 		filePath := filepath.Join(t.TempDir(), "valid")
-		akf.Save(filePath)
+		require.NoError(t, akf.Save(filePath))
 
 		loaded, err := LoadAuthKeysFile(filePath)
 		require.NoError(t, err)

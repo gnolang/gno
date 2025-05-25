@@ -3,62 +3,52 @@ package server
 import (
 	"fmt"
 	"net"
-	"slices"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 )
 
-// closeListerners closes all listener and remove them from the slice.
-func (rss *RemoteSignerServer) closeListener() error {
-	if rss.listener == nil {
-		return nil
-	}
+func (rss *RemoteSignerServer) setListener(listener net.Listener) error {
+  rss.lock.Lock()
+  defer rss.lock.Unlock()
 
-	err := rss.listener.Close()
-	rss.listener = nil
+  // If the listener is already set, close it.
+  var err error
+  if rss.listener != nil {
+    err = rss.listener.Close()
+  }
 
-	return err
+  rss.listener = listener
+
+  return err
 }
 
-// addConnection adds a connection to the server.
-func (rss *RemoteSignerServer) addConnection(conn net.Conn) {
-	rss.connsLock.Lock()
-	defer rss.connsLock.Unlock()
-	rss.conns = append(rss.conns, conn)
+func (rss *RemoteSignerServer) setConnection(conn net.Conn) error {
+  rss.lock.Lock()
+  defer rss.lock.Unlock()
+
+  // If the connection is already set, close it.
+  var err error
+  if rss.conn != nil {
+    err = rss.conn.Close()
+  }
+
+  rss.conn = conn
+
+  return err
 }
 
-// removeConnection removes a connection from the server.
-func (rss *RemoteSignerServer) removeConnection(conn net.Conn) {
-	rss.connsLock.Lock()
-	defer rss.connsLock.Unlock()
-	rss.conns = slices.DeleteFunc(rss.conns, func(entry net.Conn) bool { return entry == conn })
-}
-
-// closeConnections closes all connections.
-func (rss *RemoteSignerServer) closeConnections() {
-	rss.connsLock.RLock()
-	defer rss.connsLock.RUnlock()
-
-	// Iterate over all connections and close them.
-	for _, conn := range rss.conns {
-		conn.Close()
-		// No need remove it from the slice since the serve goroutine will do it on exit.
-	}
-}
-
-// listen starts the listener and accepts incoming connections.
-func (rss *RemoteSignerServer) listen() {
+// serve accepts incoming client connections and handles them.
+func (rss *RemoteSignerServer) serve(listener net.Listener) {
 	rss.logger.Info("Start listening",
-		"protocol", rss.listener.Addr().Network(),
-		"address", rss.listener.Addr().String(),
+		"protocol", listener.Addr().Network(),
+		"address", listener.Addr().String(),
 	)
 
-	// The listener will run until the server is stopped.
 	for {
 		// Accept incoming client connections.
-		conn, err := rss.listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			// If the server is still running, log the error and continue accepting connections.
 			if rss.IsRunning() {
@@ -94,32 +84,21 @@ func (rss *RemoteSignerServer) listen() {
 			conn = sconn
 		}
 
-		// The connection is served in a separate goroutine which is added to the wait group.
-		rss.wg.Add(1)
-		go func(conn net.Conn) {
-			defer rss.wg.Done()
-			defer conn.Close() // Close the connection when the goroutine exits.
-
-			rss.logger.Info("Connected to client",
-				"protocol", conn.RemoteAddr().Network(),
-				"address", conn.RemoteAddr().String(),
-			)
-
-			// Add the connection to the server then serve it.
-			rss.addConnection(conn)
-			rss.serve(conn)
-			rss.removeConnection(conn)
-		}(conn)
+		// Start serving the connection.
+		rss.handleConnection(conn)
 	}
 
 	rss.logger.Info("Stop listening",
-		"protocol", rss.listener.Addr().Network(),
-		"address", rss.listener.Addr().String(),
+		"protocol", listener.Addr().Network(),
+		"address", listener.Addr().String(),
 	)
 }
 
-// serve processes the incoming requests and sends the responses.
-func (rss *RemoteSignerServer) serve(conn net.Conn) {
+// handleConnection handles the connection with the client.
+func (rss *RemoteSignerServer) handleConnection(conn net.Conn) {
+  rss.setConnection(conn)
+  defer rss.setConnection(nil)
+
 	// Serve will run until the connection is closed or an error occurs while receiving
 	// a request from or sending a response to the client.
 	for {
@@ -136,7 +115,7 @@ func (rss *RemoteSignerServer) serve(conn net.Conn) {
 		}
 
 		// Handle the request and get the response.
-		response := rss.handle(request)
+		response := rss.handleRequest(request)
 
 		// Set the deadline for the response sending.
 		if rss.responseTimeout != 0 {
@@ -156,14 +135,14 @@ func (rss *RemoteSignerServer) serve(conn net.Conn) {
 	}
 }
 
-// handle processes the incoming request and returns the response.
-func (rss *RemoteSignerServer) handle(request r.RemoteSignerMessage) r.RemoteSignerMessage {
+// handleRequest processes the incoming request and returns the response.
+func (rss *RemoteSignerServer) handleRequest(request r.RemoteSignerMessage) r.RemoteSignerMessage {
 	switch request := request.(type) {
 	// PubKey request is proxied to the signer.
 	case *r.PubKeyRequest:
 		return &r.PubKeyResponse{PubKey: rss.signer.PubKey()}
 
-		// Sign request is proxied to the signer.
+  // Sign request is proxied to the signer.
 	case *r.SignRequest:
 		if signature, err := rss.signer.Sign(request.SignBytes); err != nil {
 			return &r.SignResponse{Signature: nil, Error: &r.RemoteSignerError{Err: err.Error()}}
@@ -171,7 +150,7 @@ func (rss *RemoteSignerServer) handle(request r.RemoteSignerMessage) r.RemoteSig
 			return &r.SignResponse{Signature: signature, Error: nil}
 		}
 
-		// Ping request is not related to the signer interface and is only used to confirm the connection.
+  // Ping request is not related to the signer interface and is only used to confirm the connection.
 	case *r.PingRequest:
 		return &r.PingResponse{}
 

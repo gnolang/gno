@@ -1,12 +1,17 @@
 package privval
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
+	rsserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,18 +99,35 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 	t.Run("valid remote signer", func(t *testing.T) {
 		t.Parallel()
 
+		// Setup a Unix socket address for the remote signer.
+		unixSocketPath := "test_tm2_remote_signer"
+		addr := fmt.Sprintf("unix://%s/%s.sock", unixSocketPath, xid.New().String())
+
+		// Create the directory for the Unix socket then remove it after the test.
+		os.MkdirAll(unixSocketPath, 0o755)
+		t.Cleanup(func() {
+			os.Remove(unixSocketPath)
+		})
+
+		// Init a remote signer server to fetch the public key on client init.
+		rss, err := rsserver.NewRemoteSignerServer(types.NewMockSigner(), addr, log.NewNoopLogger())
+		require.NotNil(t, rss)
+		require.NoError(t, err)
+		require.NoError(t, rss.Start())
+
 		cfg := DefaultPrivValidatorConfig()
 		cfg.RootDir = t.TempDir()
-		cfg.RemoteSigner.ServerAddress = "unix:///tmp/remote_signer.sock"
+		cfg.RemoteSigner.ServerAddress = addr
 
 		privval, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.NotNil(t, privval)
 		require.NoError(t, err)
 		assert.IsType(t, &rsclient.RemoteSignerClient{}, privval.signer)
 		privval.Close()
+		rss.Stop()
 	})
 
-	t.Run("invalid remote signer", func(t *testing.T) {
+	t.Run("invalid authorized keys", func(t *testing.T) {
 		t.Parallel()
 
 		cfg := DefaultPrivValidatorConfig()

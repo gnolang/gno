@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 	c "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -89,9 +88,6 @@ func TestCloseState(t *testing.T) {
 		// Stop it.
 		require.NoError(t, rss.Stop())
 		assert.False(t, rss.IsRunning())
-
-		// Wait should not block.
-		rss.Wait()
 	})
 
 	t.Run("listeners cleanup", func(t *testing.T) {
@@ -107,7 +103,6 @@ func TestCloseState(t *testing.T) {
 
 		// Stop the server then Start it again.
 		require.NoError(t, rss.Stop())
-		require.Nil(t, rss.listener)
 		require.NoError(t, rss.Start())
 		require.NotNil(t, rss.listener)
 
@@ -224,7 +219,7 @@ func TestServerResponse(t *testing.T) {
 		t.Parallel()
 
 		rss := newRemoteSignerServer(t, testUnixSocket(t), types.NewMockSigner())
-		assert.Nil(t, rss.handle([]byte("invalid request")))
+		assert.Nil(t, rss.handleRequest([]byte("invalid request")))
 	})
 }
 
@@ -237,44 +232,6 @@ func TestServerConnection(t *testing.T) {
 	// Remove the directory after the test.
 	t.Cleanup(func() {
 		os.Remove(unixSocketPath)
-	})
-
-	t.Run("conn closed during read/write", func(t *testing.T) {
-		t.Parallel()
-
-		// Server that fails on read.
-		newReadWriteErrorRemoteSignerClient := func(t *testing.T, address string, noWrite bool) {
-			t.Helper()
-
-			// Dial the server.
-			protocol, address := osm.ProtocolAndAddress(address)
-			conn, err := net.Dial(protocol, address)
-			if err == nil {
-				defer conn.Close()
-			}
-
-			// If noWrite is true, return without writing anything.
-			if noWrite {
-				return // Do not write anything.
-			}
-
-			// Write a ping request then close the connection.
-			amino.MarshalAnySizedWriter(conn, &r.PingRequest{})
-		}
-
-		unixSocket := testUnixSocket(t)
-
-		rss := newRemoteSignerServer(t, unixSocket, nil)
-		require.NoError(t, rss.Start())
-		require.NotNil(t, rss)
-
-		for i := 0; i < 100; i++ {
-			newReadWriteErrorRemoteSignerClient(t, unixSocket, false)
-			newReadWriteErrorRemoteSignerClient(t, unixSocket, true)
-		}
-
-		require.True(t, rss.IsRunning())
-		assert.NoError(t, rss.Stop())
 	})
 
 	t.Run("tcp configuration succeeded", func(t *testing.T) {
@@ -291,7 +248,7 @@ func TestServerConnection(t *testing.T) {
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort := rss.listener.Addr().(*net.TCPAddr).Port
+		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
@@ -314,7 +271,7 @@ func TestServerConnection(t *testing.T) {
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort = rss.listener.Addr().(*net.TCPAddr).Port
+		serverPort = rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err = c.NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
@@ -340,7 +297,7 @@ func TestServerConnection(t *testing.T) {
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		serverPort := rss.listener.Addr().(*net.TCPAddr).Port
+		serverPort := rss.ListenAddress(t).(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
 			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),

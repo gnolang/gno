@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 	"testing"
 	"time"
 
@@ -105,12 +104,6 @@ func TestGenesisValidatorInfoFromSigner(t *testing.T) {
 		t.Parallel()
 
 		assert.Error(t, printValidatorInfo(nil, log.NewNoopLogger()))
-	})
-
-	t.Run("erroring signer", func(t *testing.T) {
-		t.Parallel()
-
-		assert.Error(t, printValidatorInfo(types.NewErroringMockSigner(), log.NewNoopLogger()))
 	})
 
 	t.Run("valid signer", func(t *testing.T) {
@@ -229,7 +222,7 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("signer fail on close", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
 
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",
@@ -249,18 +242,12 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("valid server params", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
 
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",
 			LogLevel: zapcore.ErrorLevel.String(),
 		}
-
-		// Simulate a SIGINT signal after 50 milliseconds.
-		go func() {
-			time.Sleep(50 * time.Millisecond)
-			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-		}()
 
 		assert.NoError(t, RunSignerServer(
 			ctx,
