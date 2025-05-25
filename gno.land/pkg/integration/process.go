@@ -425,6 +425,7 @@ func isAllZero(key [64]byte) bool {
 	return true
 }
 
+// XXX why is this needed?
 type MarshalableGenesisDoc bft.GenesisDoc
 
 func NewMarshalableGenesisDoc(doc *bft.GenesisDoc) *MarshalableGenesisDoc {

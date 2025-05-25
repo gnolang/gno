@@ -8,7 +8,7 @@ func MakeCommit(blockID BlockID, height int64, round int,
 	voteSet *VoteSet, validators []PrivValidator,
 ) (*Commit, error) {
 	// all sign
-	for i := 0; i < len(validators); i++ {
+	for i := range validators {
 		vote := &Vote{
 			ValidatorAddress: validators[i].PubKey().Address(),
 			ValidatorIndex:   i,

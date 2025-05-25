@@ -117,10 +117,12 @@ _test.pkg:
 
 .PHONY: _test.stdlibs
 _test.stdlibs:
+	go test -v ./stdlibs/...
 	go run ./cmd/gno test -v ./stdlibs/...
 
 .PHONY: _test.filetest
-_test.filetest:;
+_test.filetest:
+	@echo "use 'go test pkg/gnolang/files_test.go -test.short --update-golden-tests' to update filetest expectations"
 	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 
 ########################################

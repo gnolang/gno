@@ -4,14 +4,20 @@ package test
 var root any
 
 func main() {
+	crossing()
+
 	println(root)
 	root = 1
 	println(root)
 }
 
 // Output:
-// nil
+// undefined
 // 1
+
+
+
+
 
 // The below tests that the realm's block (of 1 variable) changed.  The first
 // element image in the package (block) is for the "main" function, which
@@ -19,4 +25,23 @@ func main() {
 // vars.
 
 // Realm:
-// switchrealm["gno.land/r/test"]
+// finalizerealm["gno.land/r/test"]
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+//     @@ -1,9 +1,15 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//     -        "ModTime": "0",
+//     +        "ModTime": "5",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "RefCount": "1"
+//          },
+//     -    "Value": {}
+//     +    "Value": {
+//     +        "N": "AQAAAAAAAAA=",
+//     +        "T": {
+//     +            "@type": "/gno.PrimitiveType",
+//     +            "value": "32"
+//     +        }
+//     +    }
+//      }

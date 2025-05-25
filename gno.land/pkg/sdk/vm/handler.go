@@ -2,6 +2,8 @@ package vm
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/version"
@@ -74,13 +76,14 @@ const (
 	QueryEval   = "qeval"
 	QueryFile   = "qfile"
 	QueryDoc    = "qdoc"
+	QueryPaths  = "qpaths"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
-	var (
-		res  abci.ResponseQuery
-		path = secondPart(req.Path)
-	)
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	path := secondPart(req.Path)
+	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
+		path = path[:i]
+	}
 
 	switch path {
 	case QueryRender:
@@ -93,6 +96,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryFile(ctx, req)
 	case QueryDoc:
 		res = vh.queryDoc(ctx, req)
+	case QueryPaths:
+		res = vh.queryPaths(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -131,10 +136,46 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	pkgPath := string(req.Data)
 	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
 	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
+		return sdk.ABCIResponseQueryFromError(err)
 	}
 	res.Data = []byte(fsigs.JSON())
+	return
+}
+
+// queryPaths retrieves paginated package paths based on request data.
+// data can be username prefixed by a @ or a path prefix.
+func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	const defaultLimit = 1_000
+	const maxLimit = 10_000
+
+	target := string(req.Data)
+
+	var query string
+	if i := strings.IndexByte(req.Path, '?'); i >= 0 {
+		query = req.Path[i+1:]
+	}
+
+	params, _ := url.ParseQuery(query)
+
+	// XXX: implement pagination
+
+	// Get limit param, if any
+	limit := defaultLimit // default
+	if l := params.Get("limit"); len(l) > 0 {
+		var err error
+		if limit, err = strconv.Atoi(l); err != nil {
+			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid limit argument"))
+		}
+
+		limit = min(limit, maxLimit) // cap to maxLimit
+	}
+
+	paths, err := vh.vm.QueryPaths(ctx, target, limit)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+
+	res.Data = []byte(strings.Join(paths, "\n"))
 	return
 }
 

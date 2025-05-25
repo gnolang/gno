@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -33,10 +34,6 @@ type InMemoryNodeConfig struct {
 
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
 func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
-	// custom chain domain
-	var domainParam Param
-	_ = domainParam.Parse("gno.land/r/sys/params.vm.chain_domain.string=" + chaindomain)
-
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
@@ -46,8 +43,10 @@ func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
 			Txs:      []TxWithMetadata{},
-			Params: []Param{
-				domainParam,
+			VM: vm.GenesisState{
+				Params: vm.Params{
+					ChainDomain: chaindomain,
+				},
 			},
 		},
 	}

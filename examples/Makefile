@@ -22,13 +22,6 @@ GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
-# Official packages (non-overridable): more reliable and tested modules, distinct from the experimentation area.
-OFFICIAL_PACKAGES = ./gno.land/p
-OFFICIAL_PACKAGES += ./gno.land/r/demo
-OFFICIAL_PACKAGES += ./gno.land/r/gnoland
-OFFICIAL_PACKAGES += ./gno.land/r/sys
-OFFICIAL_PACKAGES += ./gno.land/r/gov
-
 ########################################
 # Dev tools
 .PHONY: transpile
@@ -41,11 +34,19 @@ build:
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test -v ./...
+	go run ../gnovm/cmd/gno test -v ./gno.land/...
+
+.PHONY: test.fast
+test.fast:
+	go run ../gnovm/cmd/gno test -failfast -v  ./... 
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno tool lint -v $(OFFICIAL_PACKAGES)
+	go run ../gnovm/cmd/gno lint -v .
+
+.PHONY: fix
+fix:
+	go run ../gnovm/cmd/gno fix -v .
 
 .PHONY: test.sync
 test.sync:

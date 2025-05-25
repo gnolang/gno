@@ -13,4 +13,4 @@ func main() {
 // Output:
 // (nil main.integer)
 // <nil>
-// *int
+// main.integer

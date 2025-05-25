@@ -15,11 +15,11 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
-type testCfg struct {
+type testCmd struct {
 	verbose             bool
+	failfast            bool
 	rootDir             string
 	run                 string
 	timeout             time.Duration
@@ -31,7 +31,7 @@ type testCfg struct {
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
-	cfg := &testCfg{}
+	cmd := &testCmd{}
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -50,8 +50,8 @@ functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
 tests that belong to the same package are supported for now (no "xxx_test").
 
 The package path used to execute the "*_test.gno" file is fetched from the
-module name found in 'gno.mod', or else it is randomly generated like
-"gno.land/r/XXXXXXXX".
+module name found in 'gno.mod', or else it is set to
+"gno.land/r/txtar".
 
 - "*_filetest.gno" files on the other hand are kind of unique. They exist to
 provide a way to interact and assert a gno contract, thanks to a set of
@@ -89,19 +89,26 @@ the execution of the tests. This makes testing faster, but means that the
 initialization of imported pure packages cannot be checked in filetests.
 `,
 		},
-		cfg,
+		cmd,
 		func(_ context.Context, args []string) error {
-			return execTest(cfg, args, io)
+			return execTest(cmd, args, io)
 		},
 	)
 }
 
-func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
 		"v",
 		false,
 		"verbose output when running",
+	)
+
+	fs.BoolVar(
+		&c.failfast,
+		"failfast",
+		false,
+		"do not start new tests after the first test failure",
 	)
 
 	fs.BoolVar(
@@ -161,15 +168,15 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execTest(cfg *testCfg, args []string, io commands.IO) error {
+func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	// Default to current directory if no args provided
 	if len(args) == 0 {
 		args = []string{"."}
 	}
 
-	// guess opts.RootDir
-	if cfg.rootDir == "" {
-		cfg.rootDir = gnoenv.RootDir()
+	// Guess opts.RootDir.
+	if cmd.rootDir == "" {
+		cmd.rootDir = gnoenv.RootDir()
 	}
 
 	paths, err := targetsFromPatterns(args)
@@ -182,10 +189,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	if cfg.timeout > 0 {
+	if cmd.timeout > 0 {
 		go func() {
-			time.Sleep(cfg.timeout)
-			panic("test timed out after " + cfg.timeout.String())
+			time.Sleep(cmd.timeout)
+			panic("test timed out after " + cmd.timeout.String())
 		}()
 	}
 
@@ -196,66 +203,94 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// Set up options to run tests.
 	stdout := goio.Discard
-	if cfg.verbose {
+	if cmd.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
-	opts.RunFlag = cfg.run
-	opts.Sync = cfg.updateGoldenTests
-	opts.Verbose = cfg.verbose
-	opts.Metrics = cfg.printRuntimeMetrics
-	opts.Events = cfg.printEvents
-	opts.Debug = cfg.debug
+	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err())
+	opts.RunFlag = cmd.run
+	opts.Sync = cmd.updateGoldenTests
+	opts.Verbose = cmd.verbose
+	opts.Metrics = cmd.printRuntimeMetrics
+	opts.Events = cmd.printEvents
+	opts.Debug = cmd.debug
+	opts.FailfastFlag = cmd.failfast
 
 	buildErrCount := 0
 	testErrCount := 0
+	fail := func() error {
+		io.ErrPrintfln("FAIL")
+		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+	}
+
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
 		}
-		// Determine gnoPkgPath by reading gno.mod
-		var gnoPkgPath string
-		modfile, err := gnomod.ParseAt(pkg.Dir)
-		if err == nil {
-			gnoPkgPath = modfile.Module.Mod.Path
-		} else {
-			gnoPkgPath = pkgPathFromRootDir(pkg.Dir, cfg.rootDir)
-			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
-				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/" + strings.ToLower(random.RandStr(8)) // XXX: gno.land hardcoded for convenience.
-			}
+
+		// Determine pkgPath by reading gno.mod from disk.
+		// TODO: Have ReadMemPackage handle it.
+		modfile, _ := gnomod.ParseDir(pkg.Dir)
+		pkgPath, ok := determinePkgPath(modfile, pkg.Dir, cmd.rootDir)
+		if !ok {
+			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
-		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
+		// Read MemPackage.
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
 
+		// Lint/typecheck/format.
+		// (gno.mod will be read again).
+		var didPanic, didError bool
 		startedAt := time.Now()
-		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
-			err = test.Test(memPkg, pkg.Dir, opts)
+		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
+			if modfile == nil || !modfile.Draft {
+				if _, _, errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore); errs != nil {
+					didError = true
+					// already printed in lintTypeCheck.
+					// io.ErrPrintln(errs)
+					return
+				}
+			} else if cmd.verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+			}
+			errs := test.Test(mpkg, pkg.Dir, opts)
+			if errs != nil {
+				didError = true
+				io.ErrPrintln(errs)
+				return
+			}
 		})
 
+		// Print status with duration.
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
-
-		if hasError || err != nil {
-			if err != nil {
-				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
-			}
-			io.ErrPrintfln("FAIL")
+		if didPanic || didError {
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
-			io.ErrPrintfln("FAIL")
 			testErrCount++
+			if cmd.failfast {
+				return fail()
+			}
 		} else {
 			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
-		io.ErrPrintfln("FAIL")
-		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+		return fail()
 	}
 
 	return nil
+}
+
+func determinePkgPath(modfile *gnomod.File, dir, rootDir string) (string, bool) {
+	if modfile != nil {
+		return modfile.Module.Mod.Path, true
+	}
+	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
+		return pkgPath, true
+	}
+	// unable to read pkgPath from gno.mod, use a deterministic path.
+	return "gno.land/r/test", false // XXX: gno.land hardcoded for convenience.
 }
 
 // attempts to determine the full gno pkg path by analyzing the directory.

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -51,7 +50,7 @@ func Test_parseQueryEval_panic(t *testing.T) {
 	t.Parallel()
 
 	assert.PanicsWithValue(t, panicInvalidQueryEvalData, func() {
-		parseQueryEvalData("gno.land/r/demo/users")
+		parseQueryEvalData("gno.land/r/sys/users")
 	})
 }
 
@@ -81,14 +80,14 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.float64(1337)`), expectedResult: `(1337 float64)`},
 		{input: []byte(`gno.land/r/hello.myStructInst`), expectedResult: `(struct{(1000 int)} gno.land/r/hello.myStruct)`},
 		{input: []byte(`gno.land/r/hello.myStructInst.Foo()`), expectedResult: `("myStruct.Foo" string)`},
-		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct \(0x.*\)} type{}\)`},
-		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func()( int))`},
+		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct} type{}\)`},
+		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func() int)`},
 		{input: []byte(`gno.land/r/hello.fn()("hi")`), expectedResult: `("echo:hi" string)`},
 		{input: []byte(`gno.land/r/hello.sl`), expectedResultMatch: `(slice[ref(.*)] []int)`},    // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.sl[1]`), expectedResultMatch: `(slice[ref(.*)] []int)`}, // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.println(1234)`), expectedResultMatch: `^$`},             // XXX: compare stdout?
 		{
-			input:          []byte(`gno.land/r/hello.func() string { return "hello123" + pvString }()`),
+			input:          []byte(`gno.land/r/hello.(func() string { return "hello123" + pvString })()`),
 			expectedResult: `("hello123private string" string)`,
 		},
 
@@ -114,11 +113,11 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "hello.gno", Body: `
 package hello
 
@@ -168,7 +167,7 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 				if tc.expectedErrorMatch == "" {
 					assert.True(t, res.IsOK(), "should not have error")
 					if tc.expectedResult != "" {
-						assert.Equal(t, string(res.Data), tc.expectedResult)
+						assert.Equal(t, tc.expectedResult, string(res.Data))
 					}
 					if tc.expectedResultMatch != "" {
 						assert.Regexp(t, tc.expectedResultMatch, string(res.Data))
@@ -190,7 +189,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 		expectedErrorMatch string
 	}{
 		// valid queries
-		{input: []byte(`gno.land/r/hello`), expectedResult: `[{"FuncName":"Panic","Params":null,"Results":null},{"FuncName":"Echo","Params":[{"Name":"msg","Type":"string","Value":""}],"Results":[{"Name":"_","Type":"string","Value":""}]},{"FuncName":"GetCounter","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]},{"FuncName":"Inc","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]}]`},
+		{input: []byte(`gno.land/r/hello`), expectedResult: `[{"FuncName":"Panic","Params":null,"Results":null},{"FuncName":"Echo","Params":[{"Name":"msg","Type":"string","Value":""}],"Results":[{"Name":".res.0","Type":"string","Value":""}]},{"FuncName":"GetCounter","Params":null,"Results":[{"Name":".res.0","Type":"int","Value":""}]},{"FuncName":"Inc","Params":null,"Results":[{"Name":".res.0","Type":"int","Value":""}]}]`},
 		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `invalid package path`},
 		{input: []byte(`std`), expectedErrorMatch: `invalid package path`},
 		{input: []byte(`strings`), expectedErrorMatch: `invalid package path`},
@@ -207,11 +206,11 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "hello.gno", Body: `
 package hello
 
@@ -285,11 +284,11 @@ func TestVmHandlerQuery_File(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "README.md", Body: "# Hello"},
 				{Name: "hello.gno", Body: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 			}
@@ -402,11 +401,11 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
-			files := []*gnovm.MemFile{
+			files := []*std.MemFile{
 				{Name: "hello.gno", Body: `
 // hello is a package for testing
 package hello

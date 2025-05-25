@@ -83,6 +83,30 @@ func TestJSONDocumentation(t *testing.T) {
 					},
 				},
 			},
+			{
+				Signature: "const myStructConst *myStruct = &myStruct{a: 1000}",
+				Const:     true,
+				Doc:       "This const belongs to the myStruct type\n",
+				Values: []*JSONValue{
+					{
+						Name: "myStructConst",
+						Doc:  "",
+						Type: "*myStruct",
+					},
+				},
+			},
+			{
+				Signature: "var myStructPtr *myStruct",
+				Const:     false,
+				Doc:       "This var belongs to the myStruct type\n",
+				Values: []*JSONValue{
+					{
+						Name: "myStructPtr",
+						Doc:  "",
+						Type: "*myStruct",
+					},
+				},
+			},
 		},
 		Funcs: []*JSONFunc{
 			{
@@ -168,9 +192,9 @@ func TestJSONDocumentation(t *testing.T) {
 	}
 
 	// Get the JSONDocumentation similar to VMKeeper.QueryDoc
-	memPkg, err := gnolang.ReadMemPackage(dir, pkgPath)
+	mpkg, err := gnolang.ReadMemPackage(dir, pkgPath)
 	require.NoError(t, err)
-	d, err := NewDocumentableFromMemPkg(memPkg, true, "", "")
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
 	jdoc, err := d.WriteJSONDocumentation()
 	require.NoError(t, err)

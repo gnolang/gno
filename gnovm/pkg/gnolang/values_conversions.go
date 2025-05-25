@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
 	"strconv"
 
 	"github.com/cockroachdb/apd/v3"
@@ -29,57 +28,8 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			panic("should not happen")
 		}
 	}
-	// special case for go-native conversions
-	ntv, tvIsNat := tv.T.(*NativeType)
-	nt, tIsNat := t.(*NativeType)
-	if tvIsNat {
-		if tIsNat {
-			// both NativeType, use reflect to assert.
-			if debug {
-				if !ntv.Type.ConvertibleTo(nt.Type) {
-					panic(fmt.Sprintf(
-						"cannot convert %s to %s",
-						ntv.String(), nt.String()))
-				}
-			}
-			tv.T = t
-			return
-		} else {
-			// both NativeType, use reflect to assert.
-			// convert go-native to gno type (shallow).
-			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
-			ConvertTo(alloc, store, tv, t, isConst)
-			return
-		}
-	} else {
-		if tIsNat {
-			// convert gno to go-native type.
-			rv := reflect.New(nt.Type).Elem()
-			rv = gno2GoValue(tv, rv)
-			if debug {
-				if !rv.Type().ConvertibleTo(nt.Type) {
-					panic(fmt.Sprintf(
-						"cannot convert %s to %s",
-						tv.String(), nt.String()))
-				}
-			}
-			*tv = TypedValue{
-				T: t,
-				V: alloc.NewNative(rv),
-			}
-			return
-		} else {
-			goto GNO_CASE
-		}
-	}
-GNO_CASE:
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
-		if tv.IsUndefined() && tv.T == nil {
-			if _, ok := t.(*NativeType); !ok { // no support for native now
-				tv.T = t
-			}
-		}
 		return
 	}
 	// special case for undefined/nil source
@@ -1291,20 +1241,6 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			}
 		}
 	}
-	// special case: native
-	if nt, ok := t.(*NativeType); ok {
-		// first convert untyped to typed gno value.
-		gnot := go2GnoBaseType(nt.Type)
-		if debug {
-			if _, ok := gnot.(*NativeType); ok {
-				panic("should not happen")
-			}
-		}
-		ConvertUntypedTo(tv, gnot)
-		// then convert to native value.
-		// NOTE: this should only be called during preprocessing, so no alloc needed.
-		ConvertTo(nilAllocator, nil, tv, t, false)
-	}
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
 		tv.T = t
@@ -1424,15 +1360,15 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	}
 }
 
-func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
+func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	k := t.Kind()
-	bi := bv.V
+	bi := biv.V
 	var sv int64 = 0  // if signed.
 	var uv uint64 = 0 // if unsigned.
 	switch k {
 	case BigintKind:
 		dst.T = t
-		dst.V = bv
+		dst.V = biv
 		return // done
 	case BoolKind:
 		panic("not yet implemented")
@@ -1580,9 +1516,9 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 	}
 }
 
-func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
+func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
-	bd := bv.V
+	bd := bdv.V
 	switch k {
 	case BigintKind:
 		if !isInteger(bd) {
