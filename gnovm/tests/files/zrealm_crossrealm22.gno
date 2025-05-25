@@ -97,10 +97,19 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
-//             "Column": "35",
-//             "File": "files/zrealm_crossrealm22.gno",
-//             "Line": "13",
-//             "PkgPath": "gno.land/r/crossrealm_test"
+//             "File": "zrealm_crossrealm22.gno",
+//             "PkgPath": "gno.land/r/crossrealm_test",
+//             "Span": {
+//                 "End": {
+//                     "Column": "71",
+//                     "Line": "13"
+//                 },
+//                 "Num": "0",
+//                 "Pos": {
+//                     "Column": "35",
+//                     "Line": "13"
+//                 }
+//             }
 //         }
 //     },
 //     "Type": {
@@ -136,7 +145,7 @@ func main() {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "496beec28378b765d658286561b08be89e32efee",
+//     +            "Hash": "95bd5e4ce205cb541fd5e0ef755457f33b725dc7",
 //     +            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:36"
 //              }
 //          }
@@ -203,7 +212,7 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "496beec28378b765d658286561b08be89e32efee",
+//     -            "Hash": "95bd5e4ce205cb541fd5e0ef755457f33b725dc7",
 //     -            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:36"
 //     +            "Escaped": true,
 //     +            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:7"
@@ -279,10 +288,19 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
-//             "Column": "62",
 //             "File": "crossrealm.gno",
-//             "Line": "26",
-//             "PkgPath": "gno.land/r/demo/tests/crossrealm_b"
+//             "PkgPath": "gno.land/r/demo/tests/crossrealm_b",
+//             "Span": {
+//                 "End": {
+//                     "Column": "102",
+//                     "Line": "26"
+//                 },
+//                 "Num": "0",
+//                 "Pos": {
+//                     "Column": "62",
+//                     "Line": "26"
+//                 }
+//             }
 //         }
 //     },
 //     "Type": {
@@ -308,7 +326,7 @@ func main() {
 //                  "@type": "/gno.RefValue",
 //     -            "Escaped": true,
 //     -            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:7"
-//     +            "Hash": "6a8bf31929a4f73151f3b404c376f279bacd9c81",
+//     +            "Hash": "a43fc472719083cebcd120f2d1232bd77c87801f",
 //     +            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:38"
 //              }
 //          }
