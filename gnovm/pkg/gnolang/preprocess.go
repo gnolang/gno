@@ -3113,15 +3113,15 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 // finds the last FuncLitExpr in the stack at (including) or after stop.
 // returns the depth of last function, 1 if last stack item itself is a
 // closure, or 0 if not found.
-func findLastFunction(last BlockNode, stop BlockNode) (fn BlockNode, depth int, found bool) {
-	faux := 0   // count faux block
-	depth_ := 0 // working value
+func findLastFunction(last BlockNode, stop BlockNode) (fn FuncNode, depth int, found bool) {
+	var faux = 0   // count faux block
+	var depth2 = 0 // working value
 	for stbn := last; stbn != stop; stbn = stbn.GetParentNode(nil) {
-		depth_ += 1
+		depth2 += 1
 		switch stbn := stbn.(type) {
 		case *FuncLitExpr, *FuncDecl:
-			fn = stbn
-			depth = depth_ - faux
+			fn = stbn.(FuncNode)
+			depth = depth2 - faux
 			found = true
 			return
 		default:
