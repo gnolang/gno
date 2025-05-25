@@ -2,6 +2,7 @@ package commondao
 
 import (
 	"errors"
+	"math"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -11,64 +12,61 @@ import (
 var ErrVoteExists = errors.New("user already voted")
 
 type (
+	// VoteIterFn defines a callback to iterate votes.
+	VoteIterFn func(Vote) (stop bool)
+
+	// VotesCountIterFn defines a callback to iterate voted choices.
+	VotesCountIterFn func(_ VoteChoice, voteCount int) (stop bool)
+
 	// Vote defines a single vote.
 	Vote struct {
+		// Address is the address of the user that this vote belons to.
 		Address std.Address
-		Choice  VoteChoice
-	}
 
-	// ReadOnlyVotingRecord defines an interface for read only voting records.
-	ReadOnlyVotingRecord interface {
-		// VoteChoices returns the voting choices that has been voted.
-		VoteChoices() []VoteChoice
+		// Choice contains the voted choice.
+		Choice VoteChoice
 
-		// Votes returns the list of all votes.
-		Votes() []Vote
+		// Reason contains the reason for the vote.
+		Reason string
 
-		// VoteCount returns the number of votes for a single voting choice.
-		VoteCount(VoteChoice) int
-
-		// HasVoted checks if an account already voted.
-		HasVoted(std.Address) bool
-
-		// GetProvableMajorityChoice returns the choice voted by the majority.
-		// The result is only valid if there is a majority.
-		// Caller must validate that the returned choice represents a majority.
-		GetProvableMajorityChoice() VoteChoice
+		// Context can store any custom voting values related to the vote.
+		//
+		// Warning: When using context be careful if references/pointers are
+		// assigned to it because they could potentially be accessed anywhere,
+		// which could lead to unwanted indirect modifications.
+		Context any
 	}
 )
 
-// VotingRecord stores accounts that voted and vote choices.
-type VotingRecord struct {
-	votes avl.Tree // string(address) -> VoteChoice
+// ReadonlyVotingRecord defines an read only voting record.
+type ReadonlyVotingRecord struct {
+	votes avl.Tree // string(address) -> Vote
 	count avl.Tree // string(choice) -> int
 }
 
-// VoteChoices returns the voting choices that has been voted.
-func (r VotingRecord) VoteChoices() []VoteChoice {
-	var choices []VoteChoice
-	r.count.Iterate("", "", func(k string, v interface{}) bool {
-		choices = append(choices, VoteChoice(k))
-		return false
-	})
-	return choices
+// Size returns the total number of votes that record contains.
+func (r ReadonlyVotingRecord) Size() int {
+	return r.votes.Size()
 }
 
-// Votes returns the list of all votes.
-func (r VotingRecord) Votes() []Vote {
-	var votes []Vote
-	r.votes.Iterate("", "", func(k string, v interface{}) bool {
-		votes = append(votes, Vote{
-			Address: std.Address(k),
-			Choice:  v.(VoteChoice),
-		})
-		return false
+// Iterate iterates voting record votes.
+func (r ReadonlyVotingRecord) Iterate(offset, count int, reverse bool, fn VoteIterFn) bool {
+	cb := func(_ string, v any) bool { return fn(v.(Vote)) }
+	if reverse {
+		return r.votes.ReverseIterateByOffset(offset, count, cb)
+	}
+	return r.votes.IterateByOffset(offset, count, cb)
+}
+
+// IterateVotesCount iterates voted choices with the amount of votes submited for each.
+func (r ReadonlyVotingRecord) IterateVotesCount(fn VotesCountIterFn) bool {
+	return r.count.Iterate("", "", func(k string, v any) bool {
+		return fn(VoteChoice(k), v.(int))
 	})
-	return votes
 }
 
 // VoteCount returns the number of votes for a single voting choice.
-func (r VotingRecord) VoteCount(c VoteChoice) int {
+func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
 	if v, found := r.count.Get(string(c)); found {
 		return v.(int)
 	}
@@ -76,90 +74,110 @@ func (r VotingRecord) VoteCount(c VoteChoice) int {
 }
 
 // HasVoted checks if an account already voted.
-func (r VotingRecord) HasVoted(user std.Address) bool {
+func (r ReadonlyVotingRecord) HasVoted(user std.Address) bool {
 	return r.votes.Has(user.String())
 }
 
-// AddVote adds a vote.
-// Users are allowd to vote only once.
-func (r *VotingRecord) AddVote(user std.Address, c VoteChoice) error {
-	if r.HasVoted(user) {
-		return ErrVoteExists
+// GetVote returns a vote.
+func (r ReadonlyVotingRecord) GetVote(user std.Address) (_ Vote, found bool) {
+	if v, found := r.votes.Get(user.String()); found {
+		return v.(Vote), true
 	}
-
-	r.votes.Set(user.String(), c)
-	r.count.Set(string(c), r.VoteCount(c)+1)
-	return nil
+	return Vote{}, false
 }
 
-// GetProvableMajorityChoice returns the choice voted by the majority.
-// The result is only valid if there is a majority.
-// Caller must validate that the returned choice represents a majority.
-func (r VotingRecord) GetProvableMajorityChoice() VoteChoice {
+// VotingRecord stores accounts that voted and vote choices.
+type VotingRecord struct {
+	ReadonlyVotingRecord
+}
+
+// Readonly returns a read only voting record.
+func (r VotingRecord) Readonly() ReadonlyVotingRecord {
+	return r.ReadonlyVotingRecord
+}
+
+// AddVote adds a vote to the voting record.
+// If a vote for the same user already exists is overwritten.
+func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
+	// Get previous member vote if it exists
+	v, _ := r.votes.Get(vote.Address.String())
+
+	// When a previous vote exists update counter for the previous choice
+	updated = r.votes.Set(vote.Address.String(), vote)
+	if updated {
+		prev := v.(Vote)
+		r.count.Set(string(prev.Choice), r.VoteCount(prev.Choice)-1)
+	}
+
+	r.count.Set(string(vote.Choice), r.VoteCount(vote.Choice)+1)
+	return
+}
+
+// FindMostVotedChoice returns the most voted choice.
+// ChoiceNone is returned when there is a tie between different
+// voting choices or when the voting record has are no votes.
+func FindMostVotedChoice(r ReadonlyVotingRecord) VoteChoice {
 	var (
-		choice       VoteChoice
-		currentCount int
+		choice                  VoteChoice
+		currentCount, prevCount int
 	)
 
-	r.count.Iterate("", "", func(k string, v interface{}) bool {
-		count := v.(int)
-		if currentCount < count {
-			choice = VoteChoice(k)
+	r.IterateVotesCount(func(c VoteChoice, count int) bool {
+		if currentCount <= count {
+			choice = c
+			prevCount = currentCount
 			currentCount = count
 		}
 		return false
 	})
-	return choice
+
+	if prevCount < currentCount {
+		return choice
+	}
+	return ChoiceNone
 }
 
 // SelectChoiceByAbsoluteMajority select the vote choice by absolute majority.
 // Vote choice is a majority when chosen by more than half of the votes.
 // Absolute majority considers abstentions when counting votes.
-func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, memberCount int) (VoteChoice, bool) {
-	choice := r.GetProvableMajorityChoice()
-	if r.VoteCount(choice) > int(memberCount/2) {
+func SelectChoiceByAbsoluteMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
+	choice := FindMostVotedChoice(r)
+	if choice != ChoiceNone && r.VoteCount(choice) > int(membersCount/2) {
 		return choice, true
 	}
-	return "", false
+	return ChoiceNone, false
 }
 
 // SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
-// Abstentions are not considered when calculating the super majority choice.
-func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord) (VoteChoice, bool) {
-	var count int
-	for _, v := range r.Votes() {
-		if v.Choice != ChoiceAbstain {
-			count++
-		}
+// Abstentions are considered when calculating the super majority choice.
+func SelectChoiceBySuperMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
+	if membersCount < 3 {
+		return ChoiceNone, false
 	}
 
-	if count < 3 {
-		return "", false
-	}
-
-	choice := r.GetProvableMajorityChoice()
-	if r.VoteCount(choice) >= int((2*count)/3) {
+	choice := FindMostVotedChoice(r)
+	if choice != ChoiceNone && r.VoteCount(choice) >= int(math.Ceil((2*float64(membersCount))/3)) {
 		return choice, true
 	}
-	return "", false
+	return ChoiceNone, false
 }
 
 // SelectChoiceByPlurality selects the vote choice by plurality.
 // The choice will be considered a majority if it has votes and if there is no other
 // choice with the same number of votes. A tie won't be considered majority.
-func SelectChoiceByPlurality(r ReadOnlyVotingRecord) (VoteChoice, bool) {
+func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
 	var (
 		choice       VoteChoice
 		currentCount int
 		isMajority   bool
 	)
 
-	for _, c := range r.VoteChoices() {
-		if c == ChoiceAbstain {
-			continue
+	r.IterateVotesCount(func(c VoteChoice, count int) bool {
+		// Don't consider explicit abstentions or invalid votes
+		if c == ChoiceAbstain || c == ChoiceNone {
+			return false
 		}
 
-		count := r.VoteCount(c)
 		if currentCount < count {
 			choice = c
 			currentCount = count
@@ -167,10 +185,11 @@ func SelectChoiceByPlurality(r ReadOnlyVotingRecord) (VoteChoice, bool) {
 		} else if currentCount == count {
 			isMajority = false
 		}
-	}
+		return false
+	})
 
 	if isMajority {
 		return choice, true
 	}
-	return "", false
+	return ChoiceNone, false
 }

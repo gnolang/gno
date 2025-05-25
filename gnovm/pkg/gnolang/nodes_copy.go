@@ -118,9 +118,9 @@ func (x *FuncLitExpr) Copy() Node {
 
 func (x *FieldTypeExpr) Copy() Node {
 	return &FieldTypeExpr{
-		Name: x.Name,
-		Type: x.Type.Copy().(Expr),
-		Tag:  copyExpr(x.Tag),
+		NameExpr: *(x.NameExpr.Copy().(*NameExpr)),
+		Type:     x.Type.Copy().(Expr),
+		Tag:      copyExpr(x.Tag),
 	}
 }
 
@@ -168,12 +168,6 @@ func (x *MapTypeExpr) Copy() Node {
 func (x *StructTypeExpr) Copy() Node {
 	return &StructTypeExpr{
 		Fields: copyFTs(x.Fields),
-	}
-}
-
-func (x *MaybeNativeTypeExpr) Copy() Node {
-	return &MaybeNativeTypeExpr{
-		Type: x.Type.Copy().(Expr),
 	}
 }
 
@@ -270,12 +264,6 @@ func (x *RangeStmt) Copy() Node {
 func (x *ReturnStmt) Copy() Node {
 	return &ReturnStmt{
 		Results: copyExprs(x.Results),
-	}
-}
-
-func (x *PanicStmt) Copy() Node {
-	return &PanicStmt{
-		Exception: x.Exception.Copy().(Expr),
 	}
 }
 

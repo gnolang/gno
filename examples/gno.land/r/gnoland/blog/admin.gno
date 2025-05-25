@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/dao"
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/gov/dao"
 )
 
 var (
@@ -22,6 +22,7 @@ func init() {
 }
 
 func AdminSetAdminAddr(addr std.Address) {
+	crossing()
 	assertIsAdmin()
 	adminAddr = addr
 }
@@ -41,17 +42,26 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) dao.Executor {
-	callback := func() error {
-		addPost(std.PreviousRealm().Address(), slug, title, body, publicationDate, authors, tags)
+func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+	caller := std.PreviousRealm().Address()
+	e := dao.NewSimpleExecutor(
+		func() error {
+			addPost(caller, slug, title, body, publicationDate, authors, tags)
 
-		return nil
-	}
+			return nil
+		},
+		ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", title, publicationDate, authors, tags),
+	)
 
-	return bridge.GovDAO().NewGovDAOExecutor(callback)
+	return dao.NewProposalRequest(
+		"Add new post to gnoland blog",
+		"This propoposal is looking to add a new post to gnoland blog",
+		e,
+	)
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
+	crossing()
 	assertIsModerator()
 	caller := std.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
@@ -73,6 +83,7 @@ func addPost(caller std.Address, slug, title, body, publicationDate, authors, ta
 }
 
 func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
+	crossing()
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
@@ -83,22 +94,26 @@ func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 }
 
 func ModRemovePost(slug string) {
+	crossing()
 	assertIsModerator()
 
 	b.RemovePost(slug)
 }
 
 func ModAddCommenter(addr std.Address) {
+	crossing()
 	assertIsModerator()
 	commenterList.Set(addr.String(), true)
 }
 
 func ModDelCommenter(addr std.Address) {
+	crossing()
 	assertIsModerator()
 	commenterList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
 func ModDelComment(slug string, index int) {
+	crossing()
 	assertIsModerator()
 
 	err := b.GetPost(slug).DeleteComment(index)

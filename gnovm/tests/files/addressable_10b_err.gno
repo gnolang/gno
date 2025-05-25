@@ -9,4 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_10b_err.gno:8:10: cannot take address of (const (new func(t type{})( *main.S)))(S<VPBlock(3,0)>)
+// illegal assignment X expression type *gnolang.CallExpr
+
+// TypeCheckError:
+// main/addressable_10b_err.gno:8:11: invalid operation: cannot take address of new(S) (value of type *S)

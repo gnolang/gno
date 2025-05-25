@@ -5,16 +5,16 @@ package avl
 
 // Node represents a node in an AVL tree.
 type Node struct {
-	key       string      // key is the unique identifier for the node.
-	value     interface{} // value is the data stored in the node.
-	height    int8        // height is the height of the node in the tree.
-	size      int         // size is the number of nodes in the subtree rooted at this node.
-	leftNode  *Node       // leftNode is the left child of the node.
-	rightNode *Node       // rightNode is the right child of the node.
+	key       string // key is the unique identifier for the node.
+	value     any    // value is the data stored in the node.
+	height    int8   // height is the height of the node in the tree.
+	size      int    // size is the number of nodes in the subtree rooted at this node.
+	leftNode  *Node  // leftNode is the left child of the node.
+	rightNode *Node  // rightNode is the right child of the node.
 }
 
 // NewNode creates a new node with the given key and value.
-func NewNode(key string, value interface{}) *Node {
+func NewNode(key string, value any) *Node {
 	return &Node{
 		key:    key,
 		value:  value,
@@ -42,7 +42,7 @@ func (node *Node) Key() string {
 }
 
 // Value returns the value of the node.
-func (node *Node) Value() interface{} {
+func (node *Node) Value() any {
 	return node.value
 }
 
@@ -80,7 +80,7 @@ func (node *Node) Has(key string) (has bool) {
 
 // Get searches for a node with the given key in the subtree rooted at the node
 // and returns its index, value, and whether it exists.
-func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
+func (node *Node) Get(key string) (index int, value any, exists bool) {
 	if node == nil {
 		return 0, nil, false
 	}
@@ -107,7 +107,7 @@ func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
 
 // GetByIndex retrieves the key-value pair of the node at the given index
 // in the subtree rooted at the node.
-func (node *Node) GetByIndex(index int) (key string, value interface{}) {
+func (node *Node) GetByIndex(index int) (key string, value any) {
 	if node.height == 0 {
 		if index == 0 {
 			return node.key, node.value
@@ -129,7 +129,7 @@ func (node *Node) GetByIndex(index int) (key string, value interface{}) {
 // and returns the new root of the subtree and whether an existing node was updated.
 //
 // XXX consider a better way to do this... perhaps split Node from Node.
-func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated bool) {
+func (node *Node) Set(key string, value any) (newSelf *Node, updated bool) {
 	if node == nil {
 		return NewNode(key, value), false
 	}
@@ -173,7 +173,7 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 // returns the new root of the subtree, the new leftmost leaf key (if changed),
 // the removed value and the removal was successful.
 func (node *Node) Remove(key string) (
-	newNode *Node, newKey string, value interface{}, removed bool,
+	newNode *Node, newKey string, value any, removed bool,
 ) {
 	if node == nil {
 		return nil, "", nil, false

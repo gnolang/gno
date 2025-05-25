@@ -122,7 +122,7 @@ func (in *input) peekRune() int {
 func (in *input) peekPrefix(prefix string) bool {
 	// This is like bytes.HasPrefix(in.remaining, []byte(prefix))
 	// but without the allocation of the []byte copy of prefix.
-	for i := 0; i < len(prefix); i++ {
+	for i := range len(prefix) {
 		if i >= len(in.remaining) || in.remaining[i] != prefix[i] {
 			return false
 		}
@@ -735,7 +735,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 			Err:      err,
 		}
 	}
-	errorf := func(format string, args ...interface{}) *modfile.Error {
+	errorf := func(format string, args ...any) *modfile.Error {
 		return wrapError(fmt.Errorf(format, args...))
 	}
 
@@ -955,7 +955,7 @@ func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfil
 	return newl
 }
 
-func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath, oldVers, newPath, newVers string) error {
+func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath, oldVers, newPath, newVers string) {
 	need := true
 	oldv := module.Version{Path: oldPath, Version: oldVers}
 	newv := module.Version{Path: newPath, Version: newVers}
@@ -989,5 +989,4 @@ func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath
 	if need {
 		*replace = append(*replace, &modfile.Replace{Old: oldv, New: newv, Syntax: addLine(syntax, hint, tokens...)})
 	}
-	return nil
 }

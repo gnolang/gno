@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
-	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs/std"
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -53,10 +52,10 @@ func TestNewAppWithOptions(t *testing.T) {
 	appState.Txs = []TxWithMetadata{
 		{
 			Tx: std.Tx{
-				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
+				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
 					{
 						Name: "demo.gno",
-						Body: "package demo; func Hello() string { return `hello`; }",
+						Body: "package demo; func Hello() string { crossing(); return `hello`; }",
 					},
 				})},
 				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
@@ -64,12 +63,13 @@ func TestNewAppWithOptions(t *testing.T) {
 			},
 		},
 	}
-	appState.Params = []Param{
-		{key: "foo", kind: "string", value: "hello"},
-		{key: "foo", kind: "int64", value: int64(-42)},
-		{key: "foo", kind: "uint64", value: uint64(1337)},
-		{key: "foo", kind: "bool", value: true},
-		{key: "foo", kind: "bytes", value: []byte{0x48, 0x69, 0x21}},
+	appState.VM.RealmParams = []params.Param{
+		params.NewParam("gno.land/r/sys/testrealm:bar_string", "hello"),
+		params.NewParam("gno.land/r/sys/testrealm:bar_int64", int64(-42)),
+		params.NewParam("gno.land/r/sys/testrealm:bar_uint64", uint64(1337)),
+		params.NewParam("gno.land/r/sys/testrealm:bar_bool", true),
+		params.NewParam("gno.land/r/sys/testrealm:bar_strings", []string{"some", "strings"}),
+		params.NewParam("gno.land/r/sys/testrealm:bar_bytes", []byte{0x48, 0x69, 0x21}),
 	}
 
 	resp := bapp.InitChain(abci.RequestInitChain{
@@ -108,12 +108,14 @@ func TestNewAppWithOptions(t *testing.T) {
 		path        string
 		expectedVal string
 	}{
-		{"params/vm/foo.string", `"hello"`},
-		{"params/vm/foo.int64", `"-42"`},
-		{"params/vm/foo.uint64", `"1337"`},
-		{"params/vm/foo.bool", `true`},
-		{"params/vm/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
+		{"params/vm:gno.land/r/sys/testrealm:bar_string", `"hello"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_int64", `"-42"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_uint64", `"1337"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_bool", `true`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_strings", `["some","strings"]`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_bytes", `"SGkh"`}, // XXX: make this test more readable
 	}
+
 	for _, tc := range tcs {
 		qres := bapp.Query(abci.RequestQuery{
 			Path: tc.path,
@@ -215,13 +217,14 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	// call initchainer
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
-		vmKpr:           mock,
+		vmk:             mock,
+		acck:            &mockAuthKeeper{},
+		bankk:           &mockBankKeeper{},
+		prmk:            &mockParamsKeeper{},
+		gpk:             &mockGasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
-	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(iavlCapKey, "")
-	cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
-	cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
+
 	cfg.InitChainer(testCtx, abci.RequestInitChain{
 		AppState: DefaultGenState(),
 	})
@@ -244,7 +247,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	validators := make([]abci.ValidatorUpdate, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		// Generate a random private key
 		key := getDummyKey(t).PubKey()
 
@@ -311,6 +314,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				},
 				// Make sure the deployer account has a balance
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 
@@ -322,6 +328,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 					},
 				},
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 	)
@@ -363,7 +372,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	var t time.Time = time.Now()
 
 	// GetT returns the time that was saved from genesis
-	func GetT() int64 { return t.Unix() }
+	func GetT() int64 { crossing(); return t.Unix() }
 `
 			)
 
@@ -374,10 +383,10 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			// Prepare the deploy transaction
 			msg := vm.MsgAddPackage{
 				Creator: key.PubKey().Address(),
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name: "metadatatx",
 					Path: path,
-					Files: []*gnovm.MemFile{
+					Files: []*std.MemFile{
 						{
 							Name: "file.gno",
 							Body: body,
@@ -532,7 +541,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -575,7 +584,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -614,7 +623,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := gnostdlibs.GnoEvent{
+			event := gnostd.GnoEvent{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -623,7 +632,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = gnostdlibs.GnoEvent{
+				event = gnostd.GnoEvent{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}
@@ -822,16 +831,18 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey, "")
-	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
-	gpKpr := auth.NewGasPriceKeeper(mainKey)
-	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
-
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	gpk := auth.NewGasPriceKeeper(mainKey)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	prmk.Register(vm.ModuleName, vmk)
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.gpKpr = acctKpr, bankKpr, vmk, gpKpr
+	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -841,10 +852,10 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
 			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpKpr.LastGasPrice(ctx))
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			if ctx.IsCheckTx() {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
@@ -875,16 +886,16 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
-			acctKpr,
-			gpKpr,
+			acck,
+			gpk,
 			nil,
 			baseApp,
 		),
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
-	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
+	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
 		newTestHandler(
@@ -945,11 +956,16 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
         "sig_verify_cost_secp256k1": "1000",
         "target_gas_ratio": "60",
         "tx_sig_limit": "7",
-        "tx_size_cost_per_byte": "10"
+        "tx_size_cost_per_byte": "10",
+        "fee_collector": "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy"
       }
     }
   }`)
 	err := amino.UnmarshalJSON(genBytes, &gen)
+
+	gen.Bank = bank.DefaultGenesisState()
+	gen.VM = vm.DefaultGenesisState()
+
 	if err != nil {
 		t.Fatalf("failed to create genesis state: %v", err)
 	}

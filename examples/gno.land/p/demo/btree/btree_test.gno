@@ -9,8 +9,8 @@ import (
 // Content represents a key-value pair where the Key can be either an int or string
 // and the Value can be any type.
 type Content struct {
-	Key   interface{}
-	Value interface{}
+	Key   any
+	Value any
 }
 
 // Less compares two Content records by their Keys.
@@ -120,7 +120,6 @@ func TestLen(t *testing.T) {
 	if length != 123 {
 		t.Errorf("Length is incorrect. Expected 123, but got %d.", length)
 	}
-
 }
 
 func TestHas(t *testing.T) {
@@ -400,7 +399,7 @@ func TestBTree(t *testing.T) {
 	// Create a B-Tree of degree 3
 	tree := New(WithDegree(3))
 
-	//insertData := []Content{}
+	// insertData := []Content{}
 	var insertData ContentSlice
 
 	// Insert integer keys

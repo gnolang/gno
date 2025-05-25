@@ -14,4 +14,4 @@ func main() {
 
 // Output:
 // 30m0s
-// df: 1800000000000 int64
+// df: 30m0s time.Duration

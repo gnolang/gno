@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func check(v1, v2 interface{}) bool {
+func check(v1, v2 any) bool {
 	return v1 == v2
 }
 

@@ -15,6 +15,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println(m[s[myStruct.Index]])
 }
 

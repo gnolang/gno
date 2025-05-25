@@ -5,50 +5,84 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/rotree"
+	"gno.land/p/demo/avl/list"
 	"gno.land/p/demo/seqid"
 )
 
+// PathSeparator is the separator character used in DAO paths.
+const PathSeparator = "/"
+
 var (
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
-	ErrMemberExists         = errors.New("member already exist")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
+	ErrProposalFailed       = errors.New("proposal failed to pass")
 	ErrProposalNotFound     = errors.New("proposal not found")
-	ErrStatusIsNotActive    = errors.New("proposal status is not active")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 )
 
-type (
-	// CommonDAO defines a DAO.
-	CommonDAO struct {
-		parent   *CommonDAO
-		members  *avl.Tree // string(std.Address) -> struct{}
-		genID    seqid.ID
-		active   *avl.Tree // string(proposal ID) -> *Proposal
-		finished *avl.Tree // string(proposal ID) -> *Proposal
-	}
-
-	// Stats contains proposal voting stats.
-	Stats struct {
-		YayVotes  int
-		NayVotes  int
-		Abstained int
-	}
-)
+// CommonDAO defines a DAO.
+type CommonDAO struct {
+	id                uint64
+	slug              string
+	name              string
+	description       string
+	parent            *CommonDAO
+	children          list.IList
+	members           MemberStorage
+	genID             seqid.ID
+	activeProposals   ProposalStorage
+	finishedProposals ProposalStorage
+	deleted           bool // Soft delete
+}
 
 // New creates a new common DAO.
 func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
-		members:  avl.NewTree(),
-		active:   avl.NewTree(),
-		finished: avl.NewTree(),
+		children:          &list.List{},
+		members:           NewMemberStorage(),
+		activeProposals:   NewProposalStorage(),
+		finishedProposals: NewProposalStorage(),
 	}
 	for _, apply := range options {
 		apply(dao)
 	}
 	return dao
+}
+
+// ID returns DAO's unique identifier.
+func (dao CommonDAO) ID() uint64 {
+	return dao.id
+}
+
+// Slug returns DAO's URL slug.
+func (dao CommonDAO) Slug() string {
+	return dao.slug
+}
+
+// Name returns DAO's name.
+func (dao CommonDAO) Name() string {
+	return dao.name
+}
+
+// Description returns DAO's description.
+func (dao CommonDAO) Description() string {
+	return dao.description
+}
+
+// Path returns the full path to the DAO.
+// Paths are normally used when working with hierarchical
+// DAOs and is created by concatenating DAO slugs.
+func (dao CommonDAO) Path() string {
+	// NOTE: Path could be a value but there might be use cases where dynamic path is useful (?)
+	parent := dao.Parent()
+	if parent != nil {
+		prefix := parent.Path()
+		if prefix != "" {
+			return prefix + PathSeparator + dao.slug
+		}
+	}
+	return dao.slug
 }
 
 // Parent returns the parent DAO.
@@ -57,44 +91,45 @@ func (dao CommonDAO) Parent() *CommonDAO {
 	return dao.parent
 }
 
-// Members returns the list of DAO members.
-func (dao CommonDAO) Members() []std.Address {
-	var members []std.Address
-	dao.members.Iterate("", "", func(key string, _ interface{}) bool {
-		members = append(members, std.Address(key))
-		return false
-	})
-	return members
+// Children returns a list with the direct DAO children.
+// Each item in the list is a reference to a CommonDAO instance.
+func (dao CommonDAO) Children() list.IList {
+	return dao.children
 }
 
-// AddMember adds a new member to the DAO.
-func (dao *CommonDAO) AddMember(user std.Address) error {
-	if dao.IsMember(user) {
-		return ErrMemberExists
+// TopParent returns the topmost parent DAO.
+// The top parent is the root of the DAO tree.
+func (dao *CommonDAO) TopParent() *CommonDAO {
+	parent := dao.Parent()
+	if parent != nil {
+		return parent.TopParent()
 	}
-	dao.members.Set(user.String(), struct{}{})
-	return nil
+	return dao
 }
 
-// RemoveMember removes a member from the DAO.
-func (dao *CommonDAO) RemoveMember(user std.Address) (removed bool) {
-	_, removed = dao.members.Remove(user.String())
-	return removed
+// Members returns the list of DAO members.
+func (dao CommonDAO) Members() MemberStorage {
+	return dao.members
 }
 
-// IsMember checks if a user is a member of the DAO.
-func (dao CommonDAO) IsMember(user std.Address) bool {
-	return dao.members.Has(user.String())
+// ActiveProposals returns active DAO proposals.
+func (dao CommonDAO) ActiveProposals() ProposalStorage {
+	return dao.activeProposals
 }
 
-// ActiveProposals returns all active DAO proposals.
-func (dao CommonDAO) ActiveProposals() rotree.IReadOnlyTree {
-	return dao.active
+// FinishedProposalsi returns finished DAO proposals.
+func (dao CommonDAO) FinishedProposals() ProposalStorage {
+	return dao.finishedProposals
 }
 
-// FinishedProposalsi returns all finished DAO proposals.
-func (dao CommonDAO) FinishedProposals() rotree.IReadOnlyTree {
-	return dao.finished
+// IsDeleted returns true when DAO has been soft deleted.
+func (dao CommonDAO) IsDeleted() bool {
+	return dao.deleted
+}
+
+// SetDeleted changes DAO's soft delete flag.
+func (dao *CommonDAO) SetDeleted(deleted bool) {
+	dao.deleted = deleted
 }
 
 // Propose creates a new DAO proposal.
@@ -109,76 +144,76 @@ func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Propo
 		return nil, err
 	}
 
-	key := makeProposalKey(p.ID())
-	dao.active.Set(key, p)
+	dao.activeProposals.Add(p)
 	return p, nil
 }
 
-// GetActiveProposal returns an active proposal.
-func (dao CommonDAO) GetActiveProposal(proposalID uint64) (_ *Proposal, found bool) {
-	key := makeProposalKey(proposalID)
-	if v, ok := dao.active.Get(key); ok {
-		return v.(*Proposal), true
+// MustPropose creates a new DAO proposal or panics on error.
+func (dao *CommonDAO) MustPropose(creator std.Address, d ProposalDefinition) *Proposal {
+	p, err := dao.Propose(creator, d)
+	if err != nil {
+		panic(err)
 	}
-	return nil, false
+	return p
 }
 
-// GetFinishedProposal returns a finished proposal.
-func (dao CommonDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found bool) {
-	key := makeProposalKey(proposalID)
-	if v, ok := dao.finished.Get(key); ok {
-		return v.(*Proposal), true
+// GetProposal returns a proposal or nil when proposal is not found.
+func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
+	p := dao.activeProposals.Get(proposalID)
+	if p != nil {
+		return p
 	}
-	return nil, false
+	return dao.finishedProposals.Get(proposalID)
 }
 
 // Vote submits a new vote for a proposal.
-func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
-	if c != ChoiceYes && c != ChoiceNo && c != ChoiceAbstain {
-		return ErrInvalidVoteChoice
-	}
-
-	if !dao.IsMember(member) {
+func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, reason string) error {
+	if !dao.Members().Has(member) {
 		return ErrNotMember
 	}
 
-	p, found := dao.GetActiveProposal(proposalID)
-	if !found {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
 		return ErrProposalNotFound
 	}
-	return p.record.AddVote(member, c)
+
+	if !p.IsVoteChoiceValid(c) {
+		return ErrInvalidVoteChoice
+	}
+
+	p.record.AddVote(Vote{
+		Address: member,
+		Choice:  c,
+		Reason:  reason,
+	})
+	return nil
 }
 
-func (dao *CommonDAO) Tally(p *Proposal) Stats {
-	// Initialize stats considering only yes/no votes
-	record := p.VotingRecord()
-	stats := Stats{
-		YayVotes: record.VoteCount(ChoiceYes),
-		NayVotes: record.VoteCount(ChoiceNo),
-	}
-	votesCount := stats.YayVotes + stats.NayVotes
-	membersCount := len(dao.Members())
-	stats.Abstained = membersCount - votesCount
-
-	percentage := float64(votesCount) / float64(membersCount)
-	if percentage < p.Quorum() {
-		p.status = StatusFailed
-		p.statusReason = "low participation"
-		return stats
+// Tally counts votes and validates if a proposal passes.
+func (dao *CommonDAO) Tally(proposalID uint64) (passes bool, _ error) {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
+		return false, ErrProposalNotFound
 	}
 
-	if !p.Definition().Tally(record, membersCount) {
-		p.status = StatusFailed
-		p.statusReason = "no consensus"
+	if p.Status() != StatusActive {
+		return false, ErrStatusIsNotActive
 	}
 
-	return stats
+	if err := dao.checkProposalPasses(p); err != nil {
+		// Don't return an error if proposal failed to pass when tallying
+		if err == ErrProposalFailed {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // Execute executes a proposal.
 func (dao *CommonDAO) Execute(proposalID uint64) error {
-	p, found := dao.GetActiveProposal(proposalID)
-	if !found {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
 		return ErrProposalNotFound
 	}
 
@@ -190,36 +225,45 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		return ErrVotingDeadlineNotMet
 	}
 
-	// Validate proposal before executing it
-	def := p.Definition()
-	err := def.Validate()
+	// From this point any error results in a proposal failure and successful execution
+	err := p.Validate()
+
+	if err == nil {
+		err = dao.checkProposalPasses(p)
+	}
+
+	if err == nil {
+		// Execute proposal only if it's executable
+		if e, ok := p.Definition().(Executable); ok {
+			err = cross(e.Execute)()
+		}
+	}
+
+	// Proposal fails if there is any error during validation and execution process
 	if err != nil {
 		p.status = StatusFailed
 		p.statusReason = err.Error()
 	} else {
-		// Tally votes and update proposal status
-		dao.Tally(p)
-
-		// Execute proposal only when the majority vote wins
-		if p.Status() != StatusFailed {
-			err = def.Execute()
-			if err != nil {
-				p.status = StatusFailed
-				p.statusReason = err.Error()
-			} else {
-				p.status = StatusExecuted
-			}
-		}
+		p.status = StatusPassed
 	}
 
 	// Whichever the outcome of the validation, tallying
 	// and execution consider the proposal finished.
-	key := makeProposalKey(p.id)
-	dao.active.Remove(key)
-	dao.finished.Set(key, p)
-	return err
+	dao.activeProposals.Remove(p.id)
+	dao.finishedProposals.Add(p)
+	return nil
 }
 
-func makeProposalKey(id uint64) string {
-	return seqid.ID(id).String()
+func (dao *CommonDAO) checkProposalPasses(p *Proposal) error {
+	record := p.VotingRecord().Readonly()
+	members := NewMemberSet(dao.Members())
+	passes, err := p.Definition().Tally(record, members)
+	if err != nil {
+		return err
+	}
+
+	if !passes {
+		return ErrProposalFailed
+	}
+	return nil
 }

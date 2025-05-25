@@ -127,7 +127,7 @@ func TestStateProposerSelection2(t *testing.T) {
 	ensureNewRound(newRoundCh, height, round) // wait for the new round
 
 	// everyone just votes nil. we get a new proposer each round
-	for i := 0; i < len(vss); i++ {
+	for i := range vss {
 		prop := cs1.GetRoundState().Validators.GetProposer()
 		addr := vss[(i+round)%len(vss)].GetPubKey().Address()
 		correctProposer := addr

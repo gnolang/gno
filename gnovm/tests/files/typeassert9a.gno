@@ -16,4 +16,9 @@ func main() {
 }
 
 // Error:
-// main/files/typeassert9a.gno:15:6: *main.csvReader does not implement main.Reader (wrong type for method Read)
+// main/typeassert9a.gno:15:6-37: *main.csvReader does not implement main.Reader (wrong type for method Read)
+
+// TypeCheckError:
+// main/typeassert9a.gno:15:25: cannot use &csvReader{} (value of type *csvReader) as Reader value in variable declaration: *csvReader does not implement Reader (wrong type for method Read)
+// 		have Read(string) string
+// 		want Read(int) string; main/typeassert9a.gno:15:6: declared and not used: csvReader

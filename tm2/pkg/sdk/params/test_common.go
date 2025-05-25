@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
@@ -23,8 +24,9 @@ func setupTestEnv() testEnv {
 	ms.MountStoreWithDB(paramsCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
-	prefix := "params_test"
-	keeper := NewParamsKeeper(paramsCapKey, prefix)
+	prmk := NewParamsKeeper(paramsCapKey)
+	dk := NewDummyKeeper(prmk.ForModule(dummyModuleName))
+	prmk.Register(dummyModuleName, dk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 	// XXX: context key?
@@ -42,5 +44,21 @@ func setupTestEnv() testEnv {
 	})
 
 	stor := ctx.Store(paramsCapKey)
-	return testEnv{ctx: ctx, store: stor, keeper: keeper}
+	return testEnv{ctx: ctx, store: stor, keeper: prmk}
+}
+
+const dummyModuleName = "params_test"
+
+type DummyKeeper struct {
+	prmk ParamsKeeperI
+}
+
+func NewDummyKeeper(prmk ParamsKeeperI) DummyKeeper {
+	return DummyKeeper{
+		prmk: prmk,
+	}
+}
+
+func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+	// do nothing
 }

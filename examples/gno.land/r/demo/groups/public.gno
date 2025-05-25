@@ -3,7 +3,7 @@ package groups
 import (
 	"std"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 //----------------------------------------
@@ -18,6 +18,7 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 }
 
 func CreateGroup(name string) GroupID {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -30,6 +31,7 @@ func CreateGroup(name string) GroupID {
 }
 
 func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -37,7 +39,7 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.GetUserByAddress(std.Address(address))
+	user := users.ResolveAddress(std.Address(address))
 	if user == nil {
 		panic("unknown address " + address)
 	}
@@ -51,6 +53,7 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 }
 
 func DeleteGroup(gid GroupID) {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)
@@ -61,6 +64,7 @@ func DeleteGroup(gid GroupID) {
 }
 
 func DeleteMember(gid GroupID, mid MemberID) {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)

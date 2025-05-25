@@ -1,7 +1,6 @@
 package entropy
 
 import (
-	"std"
 	"strconv"
 	"testing"
 )
@@ -24,7 +23,7 @@ func TestInstanceValue(t *testing.T) {
 		t.Errorf("should have the same result: new=%s, base=%s", sameHeightResult, baseResult)
 	}
 
-	std.TestSkipHeights(1)
+	testing.SkipHeights(1)
 	differentHeightEntropy := New()
 	differentHeightResult := computeValue(t, differentHeightEntropy)
 
@@ -44,7 +43,7 @@ func TestInstanceValue64(t *testing.T) {
 		t.Errorf("should have the same result: new=%s, base=%s", sameHeightResult, baseResult)
 	}
 
-	std.TestSkipHeights(1)
+	testing.SkipHeights(1)
 	differentHeightEntropy := New()
 	differentHeightResult := computeValue64(t, differentHeightEntropy)
 

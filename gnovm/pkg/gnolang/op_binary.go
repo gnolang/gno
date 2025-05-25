@@ -343,7 +343,7 @@ func (m *Machine) doOpBandn() {
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
 	// If one is undefined, the other must be as well.
-	// Fields/items are set to defaultValue along the way.
+	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
 	rvu := rv.IsUndefined()
 	if lvu {
@@ -353,18 +353,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	}
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
-	}
-	if lnt, ok := lv.T.(*NativeType); ok {
-		if rnt, ok := rv.T.(*NativeType); ok {
-			if lnt.Type != rnt.Type {
-				return false
-			}
-			lrv := lv.V.(*NativeValue).Value.Interface()
-			rrv := rv.V.(*NativeValue).Value.Interface()
-			return lrv == rrv
-		} else {
-			return false
-		}
 	}
 	switch lv.T.Kind() {
 	case BoolKind:
@@ -417,7 +405,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal type")
 			}
 		}
-		for i := 0; i < la.GetLength(); i++ {
+		for i := range la.GetLength() {
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
 			if !isEql(store, &li, &ri) {
@@ -438,7 +426,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on structs of unequal size")
 			}
 		}
-		for i := 0; i < len(ls.Fields); i++ {
+		for i := range ls.Fields {
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(store, &lf, &rf) {
@@ -466,24 +454,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("function can only be compared with `nil`")
 			}
 		}
-		if _, ok := lv.V.(*BoundMethodValue); ok {
-			// BoundMethodValues are objects so just compare.
-			return lv.V == rv.V
-		} else if lv.V == nil && rv.V == nil {
-			return true
-		} else {
-			lfv := lv.V.(*FuncValue)
-			rfv, ok := rv.V.(*FuncValue)
-			if !ok {
-				return false
-			}
-			if lfv.Source.GetLocation() !=
-				rfv.Source.GetLocation() {
-				return false
-			}
-			return lfv.GetClosure(store) ==
-				rfv.GetClosure(store)
-		}
+		return lv.V == rv.V
 	case PointerKind:
 		if lv.T != rv.T &&
 			lv.T.Elem() != DataByteType &&
@@ -495,7 +466,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			lpv := lv.V.(PointerValue)
 			rpv := rv.V.(PointerValue)
 			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
-				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index
 			}
 		}
 		return lv.V == rv.V
@@ -1201,7 +1172,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
 
 	checkOverflow := func(v func() bool) {
-		if m.PreprocessorMode && !v() {
+		if m.Stage == StagePre && !v() {
 			panic(`constant overflows`)
 		}
 	}
@@ -1325,7 +1296,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	rv.AssertNonNegative("runtime error: negative shift amount")
 
 	checkOverflow := func(v func() bool) {
-		if m.PreprocessorMode && !v() {
+		if m.Stage == StagePre && !v() {
 			panic(`constant overflows`)
 		}
 	}

@@ -15,7 +15,7 @@ func main() {
 	println(CheckNil())
 }
 
-func areEqual(v, w interface{}) bool {
+func areEqual(v, w any) bool {
 	return v == w
 }
 

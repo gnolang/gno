@@ -15,7 +15,7 @@ func (t TestStruct) String() string {
 func main() {
 	aType := reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
 
-	var t interface{}
+	var t any
 	t = time.Nanosecond
 	s, ok := t.(fmt.Stringer)
 	if !ok {
@@ -36,7 +36,7 @@ func main() {
 	}
 	_ = foo
 
-	var tt interface{}
+	var tt any
 	tt = TestStruct{}
 	ss, ok := tt.(fmt.Stringer)
 	if !ok {

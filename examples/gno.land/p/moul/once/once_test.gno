@@ -73,7 +73,7 @@ func TestOnce_DoValue(t *testing.T) {
 	expected := "test value"
 	counter := 0
 
-	fn := func() interface{} {
+	fn := func() any {
 		counter++
 		return expected
 	}
@@ -99,7 +99,7 @@ func TestOnce_DoValueErr(t *testing.T) {
 	expectedErr := errors.New("test error")
 	counter := 0
 
-	fn := func() (interface{}, error) {
+	fn := func() (any, error) {
 		counter++
 		return expectedVal, expectedErr
 	}
@@ -186,7 +186,7 @@ func TestOnce_Value(t *testing.T) {
 
 	// Test after execution
 	expected := "test value"
-	once.DoValue(func() interface{} {
+	once.DoValue(func() any {
 		return expected
 	})
 
@@ -202,11 +202,11 @@ func TestOnce_Value(t *testing.T) {
 func TestOnce_DoValueErr_Panic_MarkedDone(t *testing.T) {
 	once := New()
 	count := 0
-	fn := func() (interface{}, error) {
+	fn := func() (any, error) {
 		count++
 		panic("panic")
 	}
-	var r interface{}
+	var r any
 	func() {
 		defer func() { r = recover() }()
 		once.DoValueErr(fn)

@@ -6,11 +6,13 @@ import (
 )
 
 func main() {
+	crossing()
+
 	println(std.ChainDomain())
 }
 
 // Output:
-// tests.gno.land
+// gno.land
 
 // Realm:
-// switchrealm["gno.land/r/test"]
+// finalizerealm["gno.land/r/test"]

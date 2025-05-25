@@ -30,7 +30,7 @@ func IterateByteStringKeysByPrefix(tree avl.ITree, prefix string, cb avl.IterCbF
 // The prefix and keys are treated as byte strings, ignoring possible multi-byte Unicode runes.
 func ListByteStringKeysByPrefix(tree avl.ITree, prefix string, maxResults int) []string {
 	result := []string{}
-	IterateByteStringKeysByPrefix(tree, prefix, func(key string, value interface{}) bool {
+	IterateByteStringKeysByPrefix(tree, prefix, func(key string, value any) bool {
 		result = append(result, key)
 		if len(result) >= maxResults {
 			return true

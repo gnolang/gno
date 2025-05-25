@@ -5,18 +5,18 @@ package groups_test
 
 import (
 	"gno.land/r/demo/groups"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var gid groups.GroupID
 
 func main() {
-	users.Register("", "gnouser", "my profile")
-	gid = groups.CreateGroup("test_group")
+	cross(users.Register)("gnouser123")
+	gid = cross(groups.CreateGroup)("test_group")
 	println(gid)
-	groups.DeleteMember(2, 0)
+	cross(groups.DeleteMember)(2, 0)
 	println(groups.Render(""))
 }
 
 // Error:
-// group id (2) does not exists
+// r/gnoland/users: non-user call
