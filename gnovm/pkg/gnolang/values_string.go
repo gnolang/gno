@@ -470,7 +470,6 @@ func (tv *TypedValue) ProtectedSprint(printer *Printer, seen *seenValues, consid
 
 		// *NativeType
 		return roPre + tv.V.String(printer) + roPost
-
 	}
 }
 

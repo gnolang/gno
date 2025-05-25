@@ -53,7 +53,7 @@ clean:
 # Dev tools
 .PHONY: lint
 lint:
-	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
+	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./... --fix
 
 .PHONY: fmt
 fmt:
