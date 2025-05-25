@@ -145,7 +145,8 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("invalid logger level", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		serverFlags := &ServerFlags{
 			LogLevel: "invalid",
 		}
@@ -161,7 +162,8 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("nil signer", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		serverFlags := &ServerFlags{}
 
 		assert.Error(t, RunSignerServer(
@@ -175,7 +177,8 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("invalid auth keys file", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		filePath := filepath.Join(t.TempDir(), "invalid")
 		os.WriteFile(filePath, []byte("invalid"), 0o600)
@@ -199,7 +202,8 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("listener not free", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		// Listen on the address to make it unavailable.
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -222,7 +226,8 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("signer fail on close", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
 
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",
@@ -242,7 +247,8 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("valid server params", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
 
 		serverFlags := &ServerFlags{
 			Listener: "tcp://127.0.0.1:0",
