@@ -9,4 +9,4 @@ func main() {
 // pass
 
 // TypeCheckError:
-// main/files/var33.gno:4:6: declared and not used: t
+// main/var33.gno:4:6: declared and not used: t

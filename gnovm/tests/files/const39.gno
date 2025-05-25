@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/files/const39.gno:10:8: typeval{main.T}.Mv (variable of type func(main.T, int) int) is not constant
+// main/const39.gno:10:8-16: typeval{main.T}.Mv (variable of type func(main.T, int) int) is not constant
 
 // TypeCheckError:
-// main/files/const39.gno:10:12: T.Mv (value of type func(tv T, a int) int) is not constant
+// main/const39.gno:10:12: T.Mv (value of type func(tv T, a int) int) is not constant
