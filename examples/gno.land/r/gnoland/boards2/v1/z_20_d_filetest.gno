@@ -26,7 +26,7 @@ func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	// unfrozen thread - should work
-	r2 := cross(boards2.CreateReply)(bid, tid, rid, "child 1")
+	cross(boards2.CreateReply)(bid, tid, rid, "child 1")
 
 	// frozen thread - can't reply
 	cross(boards2.FreezeReply)(bid, tid, rid)

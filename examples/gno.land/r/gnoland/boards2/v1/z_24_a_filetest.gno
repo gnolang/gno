@@ -31,6 +31,8 @@ func main() {
 			println(u.Address, string(u.Roles[0]))
 			return false
 		})
+
+		return false
 	})
 }
 
