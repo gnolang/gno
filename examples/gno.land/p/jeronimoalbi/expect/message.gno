@@ -1,8 +1,9 @@
 package expect
 
 const (
-	MessageTypeError MessageType = "error"
-	MessageTypePanic             = "panic"
+	MessageTypeCrossPanic MessageType = "cross panic"
+	MessageTypeError                  = "error"
+	MessageTypePanic                  = "panic"
 )
 
 // MessageType defines a type for message checker errors.

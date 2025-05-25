@@ -69,6 +69,8 @@ func (c FuncChecker) ToFail() ErrorChecker {
 }
 
 // ToPanic return an message checker to assert if current function panicked.
+// This assertion is handled within the same realm, to assert panics when crossing
+// to another realm use the `ToAbort()` assertion.
 func (c FuncChecker) ToPanic() MessageChecker {
 	c.ctx.t().Helper()
 
@@ -120,6 +122,60 @@ func (c FuncChecker) ToPanic() MessageChecker {
 	return NewMessageChecker(c.ctx, msg, MessageTypePanic)
 }
 
+// ToCrossPanic return an message checker to assert if current function panicked when crossing.
+// This assertion is handled only when making a crossing call to another realm, when asserting
+// within the same realm use `ToPanic()`.
+func (c FuncChecker) ToCrossPanic() MessageChecker {
+	c.ctx.t().Helper()
+
+	var (
+		msg      string
+		panicked bool
+	)
+
+	// TODO: Can't use a switch because it triggers the following VM error:
+	// "panic: should not happen, should be heapItemType: fn<()~VPBlock(1,0)>"
+	//
+	// switch fn := c.fn.(type) {
+	// case Fn:
+	// 	msg, panicked = handleCrossPanic(fn)
+	// case ErrorFn:
+	// 	msg, panicked = handleCrossPanic(func() { _ = fn() })
+	// case AnyFn:
+	// 	msg, panicked = handleCrossPanic(func() { _ = fn() })
+	// case AnyErrorFn:
+	// 	msg, panicked = handleCrossPanic(func() { _, _ = fn() })
+	// default:
+	// 	c.ctx.Fail("Unsupported func type\nGot: %T", c.fn)
+	// 	return MessageChecker{}
+	// }
+
+	if fn, ok := c.fn.(Fn); ok {
+		msg, panicked = handleCrossPanic(fn)
+	} else if fn, ok := c.fn.(ErrorFn); ok {
+		msg, panicked = handleCrossPanic(func() { _ = fn() })
+	} else if fn, ok := c.fn.(AnyFn); ok {
+		msg, panicked = handleCrossPanic(func() { _ = fn() })
+	} else if fn, ok := c.fn.(AnyErrorFn); ok {
+		msg, panicked = handleCrossPanic(func() { _, _ = fn() })
+	} else {
+		c.ctx.Fail("Unsupported func type\nGot: %T", c.fn)
+		return MessageChecker{}
+	}
+
+	c.ctx.CheckExpectation(
+		panicked,
+		func() {
+			c.ctx.Fail("Expected function to cross panic")
+		},
+		func() {
+			c.ctx.Fail("Expected func not to cross panic\nGot: %s", msg)
+		},
+	)
+
+	return NewMessageChecker(c.ctx, msg, MessageTypeCrossPanic)
+}
+
 // ToReturn asserts that current function returned a value equal to an expected value.
 func (c FuncChecker) ToReturn(value any) {
 	c.ctx.t().Helper()
@@ -150,7 +206,7 @@ func (c FuncChecker) ToReturn(value any) {
 	}
 }
 
-func handlePanic(f func()) (msg string, panicked bool) {
+func handlePanic(fn func()) (msg string, panicked bool) {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -172,6 +228,23 @@ func handlePanic(f func()) (msg string, panicked bool) {
 		msg = "unsupported panic type"
 	}()
 
-	f()
+	fn()
 	return
+}
+
+func handleCrossPanic(fn func()) (string, bool) {
+	r := revive(fn)
+	if r == nil {
+		return "", false
+	}
+
+	if err, ok := r.(error); ok {
+		return err.Error(), true
+	}
+
+	if s, ok := r.(string); ok {
+		return s, true
+	}
+
+	return "unsupported panic type", true
 }
