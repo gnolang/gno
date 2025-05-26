@@ -753,6 +753,27 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		return tv, false
 	}
 
+	// XXX The following logic isn't necessary and it isn't correct either.
+	// XXX See `GetPathForName(Store, Name) ValuePath` in node.go,
+	// XXX get the path and pass it into the last block.GetPointerTo().
+	// XXX That function will find the correct block by depth etc.
+	// XXX There was some latent bug for case:
+	// XXX '{in: "b 37\nc\np b\n", out: "(3 int)"},' (debugger test case #51)
+	// XXX which was revealed by some earlier commits regarding lines
+	// XXX (Node now has not just the starting .Pos but also .End.)
+	// XXX and is resolved by the following diff to values.go:
+	// XXX The exact bug probably doesn't matter, as the logic
+	// XXX should be replaced by the aforementioned block.GetPointerTo().
+	//
+	// --- a/gnovm/pkg/gnolang/values.go
+	// +++ b/gnovm/pkg/gnolang/values.go
+	// @@ -2480,6 +2480,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
+	//                 }
+	//         }
+	//         b.Values = values
+	// +       b.Source = source // otherwise new variables won't show in print or debugger.
+	//  }
+
 	// Position to the right block, i.e the first after the last fblock (if any).
 	for i = len(m.Blocks) - 1; i >= 0; i-- {
 		if len(fblocks) == 0 {
