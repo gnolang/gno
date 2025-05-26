@@ -62,6 +62,7 @@ func main() {
 	println(record.HasVoted(user))
 	record.Iterate(0, record.Size(), false, func(v pdao.Vote) bool {
 		println(v.Choice == vote)
+		return false
 	})
 }
 
