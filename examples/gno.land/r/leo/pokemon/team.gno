@@ -12,6 +12,8 @@ import (
 )
 
 func SwapTeam(team string) {
+	crossing()
+
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
 	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {

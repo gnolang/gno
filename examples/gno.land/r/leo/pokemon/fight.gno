@@ -242,6 +242,8 @@ func initEnemy(state string) string {
 }
 
 func ApplyGameEnd(state string) {
+	crossing()
+
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
 	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {

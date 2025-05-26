@@ -81,6 +81,8 @@ func applyMaxElixer(p *Pokemon) {
 }
 
 func BuyItem(itemId ItemType) {
+	crossing()
+
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
 

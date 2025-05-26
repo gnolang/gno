@@ -30,6 +30,8 @@ func defaultUserData() UserData {
 }
 
 func Login() {
+	crossing()
+
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsNotMember(usr)
 
@@ -38,6 +40,8 @@ func Login() {
 }
 
 func DeleteMyAccount() {
+	crossing()
+
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
 

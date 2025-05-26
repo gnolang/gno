@@ -38,7 +38,7 @@ var (
 )
 
 func init() {
-	hor.Register("Pokémon", "Come play some Pokémon's fights")
+	cross(hor.Register)("Pokémon", "Come play some Pokémon's fights")
 }
 
 func Render(path string) (rend string) {
