@@ -142,7 +142,6 @@ func getEnnemyNextAttack(p *Pokemon) string {
 			return "e" + strconv.Itoa(attack_id)
 		}
 	}
-	return ""
 }
 
 func renderTeamSwap(game GameState, team *[teamSize]Pokemon, user, state string) (rend string) {
