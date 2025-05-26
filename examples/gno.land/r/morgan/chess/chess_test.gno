@@ -255,7 +255,7 @@ func (tc testCommandFunc) Run(t *testing.T, bufs map[string]string) { tc(t, bufs
 // form func(gameID string) string (hence ID), and that takes as the first
 // parameter a <player> which will be the caller.
 type testCommandColorID struct {
-	fn   func(string) string
+	fn   func(realm, string) string
 	addr std.Address
 }
 
