@@ -1485,7 +1485,8 @@ func toRefValue(val Value) RefValue {
 				PkgPath: pv.PkgPath,
 			}
 		} else if !oo.GetIsReal() {
-			panic("unexpected unreal object")
+			//panic("unexpected unreal object")
+			panic(fmt.Sprintf("unexpected unreal object: %v", oo))
 		} else if oo.GetIsDirty() {
 			// This can happen with some circular
 			// references.

@@ -723,7 +723,8 @@ func (mv *MapValue) GetLength() int {
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
-	kmk := key.ComputeMapKey(store, false)
+	key2 := (*key).Copy(alloc)
+	kmk := key2.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
@@ -731,7 +732,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Index: PointerIndexMap,
 		}
 	}
-	mli := mv.List.Append(alloc, *key)
+	mli := mv.List.Append(alloc, key2)
 	mv.vmap[kmk] = mli
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
