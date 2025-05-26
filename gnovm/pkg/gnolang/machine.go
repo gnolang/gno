@@ -1892,7 +1892,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		} else {
 			recvOID := obj.GetObjectInfo().ID
 			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
+					(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
 				// no switch
 				return
 			} else {
@@ -2163,6 +2163,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
+
 		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
