@@ -189,6 +189,12 @@ func TestSplitFilepath(t *testing.T) {
 			expFilename: "LICENSE",
 		},
 		{
+			name:        "readme",
+			filepath:    "gno.land/r/demo/avl/README",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "README",
+		},
+		{
 			name:       "regular path",
 			filepath:   "gno.land/p/demo/avl",
 			expDirPath: "gno.land/p/demo/avl",

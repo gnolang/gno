@@ -242,8 +242,6 @@ func (mpkg *MemPackage) FileNames() (fnames []string) {
 	return
 }
 
-const licenseName = "LICENSE"
-
 // Splits a path into the dir and filename.
 func SplitFilepath(fpath string) (dir string, filename string) {
 	parts := strings.Split(fpath, "/")
@@ -251,13 +249,16 @@ func SplitFilepath(fpath string) (dir string, filename string) {
 		return parts[0], ""
 	}
 
-	switch last := parts[len(parts)-1]; {
-	case strings.Contains(last, "."):
+	last := parts[len(parts)-1]
+
+	switch {
+	case false,
+		strings.Contains(last, "."),
+		last == "LICENSE",
+		last == "README":
 		return strings.Join(parts[:len(parts)-1], "/"), last
 	case last == "":
 		return strings.Join(parts[:len(parts)-1], "/"), ""
-	case last == licenseName:
-		return strings.Join(parts[:len(parts)-1], "/"), licenseName
 	}
 
 	return strings.Join(parts, "/"), ""
