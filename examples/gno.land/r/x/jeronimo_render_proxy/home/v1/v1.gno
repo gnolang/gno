@@ -4,7 +4,7 @@ import "gno.land/r/x/jeronimo_render_proxy/home"
 
 func init() {
 	// Register the private render function with the render proxy
-	cross(home.Register)(render)
+	home.Register(cross, render)
 }
 
 func render(string) string {

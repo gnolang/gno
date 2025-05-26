@@ -30,10 +30,10 @@ func init() {
 	daoinit.InitWithUsers(g1user)
 
 	// Register a validator and add the proposal
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 	pr := valopers_proposal.NewValidatorProposalRequest(validAddress)
 
-	cross(dao.MustCreateProposal)(pr)
+	dao.MustCreateProposal(cross, pr)
 }
 
 func main() {

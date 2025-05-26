@@ -24,8 +24,7 @@ func Get() int {
 	return v1.Get() + counter
 }
 
-func SetNextVersion(addr string) {
-	crossing()
+func SetNextVersion(cur realm, addr string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin.

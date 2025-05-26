@@ -26,9 +26,7 @@ func CurrentRealmPath() string {
 }
 
 // Register registers a render function of a realm.
-func Register(fn RenderFn) {
-	crossing()
-
+func Register(cur realm, fn RenderFn) {
 	if fn == nil {
 		panic("render function must not be nil")
 	}
