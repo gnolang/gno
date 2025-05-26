@@ -47,6 +47,7 @@ func checkGameEnd(myTeam [teamSize]Pokemon, game *GameState) bool {
 	}
 	return false
 }
+
 func getGameState(state string, me *UserData) (game GameState, err error) {
 	if len(state)%2 == 1 {
 		err = errors.New("state bad format")
@@ -144,7 +145,7 @@ func getEnnemyNextAttack(p *Pokemon) string {
 	}
 }
 
-func renderTeamSwap(game GameState, team *[teamSize]Pokemon, user, state string) (rend string) {
+func renderTeamSwap(game GameState, team [teamSize]Pokemon, user, state string) (rend string) {
 	have_pokemon := false
 	table := mdtable.Table{Headers: []string{"Swap for "}, Rows: [][]string{[]string{"HP"}}}
 	for i, p := range team {
@@ -308,7 +309,7 @@ func renderPokemonFight(rend *mux.ResponseWriter, req *mux.Request) {
 		rend.Write(renderEndGame(game, me, user, state) + nl)
 		return
 	}
-	rend.Write(renderTeamSwap(game, &me.team, user, state) + nl)
+	rend.Write(renderTeamSwap(game, me.team, user, state) + nl)
 	rend.Write(renderInventoryUse(me.inventory, user, state) + nl)
 	rend.Write(renderPokemon1v1(game, user, state) + nl)
 	rend.Write(md.Link("Give up and go back to lobby", atmPath+":lobby?user="+user))
