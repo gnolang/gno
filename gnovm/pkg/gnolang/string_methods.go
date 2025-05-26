@@ -51,6 +51,7 @@ func (i Kind) String() string {
 	}
 	return _Kind_name[_Kind_index[i]:_Kind_index[i+1]]
 }
+
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -274,6 +275,7 @@ func (i Op) String() string {
 	}
 	return "Op(" + strconv.FormatInt(int64(i), 10) + ")"
 }
+
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -293,6 +295,7 @@ func (i TransCtrl) String() string {
 	}
 	return _TransCtrl_name[_TransCtrl_index[i]:_TransCtrl_index[i+1]]
 }
+
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -388,6 +391,7 @@ func (i TransField) String() string {
 	}
 	return _TransField_name[_TransField_index[i]:_TransField_index[i+1]]
 }
+
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -426,6 +430,7 @@ func (i VPType) String() string {
 		return "VPType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
+
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.

@@ -113,31 +113,14 @@ const (
 
 type Name string
 
-// ----------------------------------------
-// Location
-// Acts as an identifier for nodes.
+type Names []Name
 
-type Location struct {
-	PkgPath string
-	File    string
-	Line    int
-	Column  int
-}
-
-func (loc Location) String() string {
-	return fmt.Sprintf("%s/%s:%d:%d",
-		loc.PkgPath,
-		loc.File,
-		loc.Line,
-		loc.Column,
-	)
-}
-
-func (loc Location) IsZero() bool {
-	return loc.PkgPath == "" &&
-		loc.File == "" &&
-		loc.Line == 0 &&
-		loc.Column == 0
+func (ns Names) Join(j string) string {
+	ss := make([]string, 0, len(ns))
+	for _, n := range ns {
+		ss = append(ss, string(n))
+	}
+	return strings.Join(ss, j)
 }
 
 // ----------------------------------------
@@ -149,42 +132,29 @@ func (loc Location) IsZero() bool {
 
 type GnoAttribute string
 
+// XXX once everything is done, convert to a uint64 bitflag.
 const (
-	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
-	ATTR_HEAP_DEFINES    GnoAttribute = "ATTR_HEAP_DEFINES" // []Name heap items.
-	ATTR_HEAP_USES       GnoAttribute = "ATTR_HEAP_USES"    // []Name heap items used.
-	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
-	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
-	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
-	ATTR_PACKAGE_REF     GnoAttribute = "ATTR_PACKAGE_REF"
-	ATTR_PACKAGE_DECL    GnoAttribute = "ATTR_PACKAGE_DECL"
+	ATTR_PREPROCESSED          GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREPROCESS_SKIPPED    GnoAttribute = "ATTR_PREPROCESS_SKIPPED"
+	ATTR_PREPROCESS_INCOMPLETE GnoAttribute = "ATTR_PREPROCESS_INCOMPLETE"
+	ATTR_PREDEFINED            GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE            GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE          GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA                  GnoAttribute = "ATTR_IOTA"
+	ATTR_HEAP_DEFINES          GnoAttribute = "ATTR_HEAP_DEFINES" // []Name heap items.
+	ATTR_HEAP_USES             GnoAttribute = "ATTR_HEAP_USES"    // []Name heap items used.
+	ATTR_SHIFT_RHS             GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_LAST_BLOCK_STMT       GnoAttribute = "ATTR_LAST_BLOCK_STMT"
+	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
+	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
+	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM" // gno fix this version.
 )
 
+// Embedded in each Node.
 type Attributes struct {
-	Line   int
-	Column int
-	Label  Name
-	data   map[GnoAttribute]any // not persisted
-}
-
-func (attr *Attributes) GetLine() int {
-	return attr.Line
-}
-
-func (attr *Attributes) SetLine(line int) {
-	attr.Line = line
-}
-
-func (attr *Attributes) GetColumn() int {
-	return attr.Column
-}
-
-func (attr *Attributes) SetColumn(column int) {
-	attr.Column = column
+	Span  // Node.Line is the start.
+	Label Name
+	data  map[GnoAttribute]any // not persisted
 }
 
 func (attr *Attributes) GetLabel() Name {
@@ -220,6 +190,22 @@ func (attr *Attributes) DelAttribute(key GnoAttribute) {
 	delete(attr.data, key)
 }
 
+func (attr *Attributes) GetAttributeKeys() []GnoAttribute {
+	res := make([]GnoAttribute, 0, len(attr.data))
+	for key := range attr.data {
+		res = append(res, key)
+	}
+	return res
+}
+
+func (attr *Attributes) String() string {
+	panic("should not use") // node should override Pos/Span/Location methods.
+}
+
+func (attr *Attributes) IsZero() bool {
+	panic("should not use") // node should override Pos/Span/Location methods.
+}
+
 // ----------------------------------------
 // Node
 
@@ -227,10 +213,11 @@ type Node interface {
 	assertNode()
 	String() string
 	Copy() Node
+	GetPos() Pos
 	GetLine() int
-	SetLine(int)
 	GetColumn() int
-	SetColumn(int)
+	GetSpan() Span
+	SetSpan(Span) // once.
 	GetLabel() Name
 	SetLabel(Name)
 	HasAttribute(key GnoAttribute) bool
@@ -454,7 +441,7 @@ func (x *CallExpr) isCrossing() bool {
 
 func (x *CallExpr) SetWithCross() {
 	if !x.isWithCross() {
-		panic("expected cross(fn)(...)")
+		panic("expected fn(cur,...)")
 	}
 	x.WithCross = true
 }
@@ -1170,6 +1157,13 @@ type FileSet struct {
 	Files []*FileNode
 }
 
+func (fs FileSet) GetFileNames() (fnames []Name) {
+	for _, fnode := range fs.Files {
+		fnames = append(fnames, fnode.Name)
+	}
+	return
+}
+
 // PackageNameFromFileBody extracts the package name from the given Gno code body.
 // The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
 func PackageNameFromFileBody(name, body string) (Name, error) {
@@ -1191,10 +1185,10 @@ func MustPackageNameFromFileBody(name, body string) Name {
 	return pkgName
 }
 
-// ReadMemPackage initializes a new MemPackage by reading the OS directory
-// at dir, and saving it with the given pkgPath (import path).
-// The resulting MemPackage will contain the names and content of all *.gno files,
-// and additionally README.md, LICENSE.
+// ReadMemPackage initializes a new MemPackage by reading the OS directory at
+// dir, and saving it with the given pkgPath (import path).  The resulting
+// MemPackage will contain the names and content of all *.gno files, and
+// additionally README.md, LICENSE.
 //
 // ReadMemPackage does not perform validation aside from the package's name;
 // the files are not parsed but their contents are merely stored inside a MemFile.
@@ -1206,30 +1200,23 @@ func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 	if err != nil {
 		return nil, err
 	}
-	allowedFiles := []string{ // make case insensitive?
-		"LICENSE",
-		"README.md",
-	}
-	allowedFileExtensions := []string{
-		".gno",
-	}
-	// exceptions to allowedFileExtensions
-	var rejectedFileExtensions []string
+	// exceptions to allowedMemPackageFileExtensions
+	var badFileExtensions []string
 
 	if IsStdlib(pkgPath) {
 		// Allows transpilation to work on stdlibs with native fns.
-		allowedFileExtensions = append(allowedFileExtensions, ".go")
-		rejectedFileExtensions = []string{".gen.go"}
+		allowedMemPackageFileExtensions = append(allowedMemPackageFileExtensions, ".go")
+		badFileExtensions = []string{".gen.go"}
 	}
 
 	list := make([]string, 0, len(files))
 	for _, file := range files {
 		// Ignore directories and hidden files, only include allowed files & extensions,
-		// then exclude files that are of the rejected extensions.
+		// then exclude files that are of the bad extensions.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWithAny(file.Name(), allowedFileExtensions) && !slices.Contains(allowedFiles, file.Name())) ||
-			endsWithAny(file.Name(), rejectedFileExtensions) {
+			(!endsWithAny(file.Name(), allowedMemPackageFileExtensions) && !slices.Contains(allowedMemPackageFiles, file.Name())) ||
+			endsWithAny(file.Name(), badFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
@@ -1252,48 +1239,104 @@ func MustReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	return pkg
 }
 
-// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
-// containing the contents of all the files provided in the list slice.
-// No parsing or validation is done on the filenames.
+// ReadMemPackageFromList creates a new [std.MemPackage] with the specified
+// pkgPath, containing the contents of all the files provided in the list
+// slice. No parsing is done on the file bodies except package names for
+// validation. The returned mempackage must be validated separately with
+// gno.ValidateMemPackage().
 //
-// NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
-// lowercase, and must start with a letter).
+// Returns both read mempackage and (multi)error if package name is invalid
+// (characters must be alphanumeric or _, lowercase, and must start with a
+// letter, and be the same for normal files and normal *_test.gno files, and
+// xxx_test for integration tests).  Filetest package names are not checked. If
+// the only file present is a single filetest, its package name is used.
+//
+// XXX TODO pkgPath should instead be derived by inspecting the contents, among
+// them the gno.mod file.
 func ReadMemPackageFromList(list []string, pkgPath string) (*std.MemPackage, error) {
-	memPkg := &std.MemPackage{Path: pkgPath}
-	var pkgName Name
+	mpkg := &std.MemPackage{Path: pkgPath}
+	var pkgName Name          // normal file pkg name
+	var pkgNameDiffers bool   // normal file pkg name is inconsistent
+	var pkgNameFT Name        // filetest pkg name
+	var pkgNameFTDiffers bool // filetest pkg name is inconsistent
+	var errs error            // all errors minus filetest pkg name errors.
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
 		bz, err := os.ReadFile(fpath)
 		if err != nil {
 			return nil, err
 		}
-		// XXX: should check that all pkg names are the same (else package is invalid)
-		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
+		// Check that all pkg names are the same (else package is invalid).
+		// Try to derive the package name, but this is not a replacement
+		// for gno.ValidateMemPackage().
+		if strings.HasSuffix(fname, ".gno") {
+			var pkgName2 Name
+			pkgName2, err = PackageNameFromFileBody(path.Join(pkgPath, fname), string(bz))
 			if err != nil {
-				return nil, err
+				errs = multierr.Append(errs, err)
+				continue
 			}
-			if strings.HasSuffix(string(pkgName), "_test") {
-				pkgName = pkgName[:len(pkgName)-len("_test")]
+			if strings.HasSuffix(fname, "_filetest.gno") {
+				// Filetests may have arbitrary package names.
+				// pkgName2 (of this file) may be unrelated to
+				// pkgName of the mem package.
+				if pkgNameFT == "" && !pkgNameFTDiffers {
+					pkgNameFT = pkgName2
+				} else if pkgNameFT != pkgName2 {
+					pkgNameFT = ""
+					pkgNameFTDiffers = true
+				}
+			} else {
+				if strings.HasSuffix(string(pkgName2), "_test") {
+					pkgName2 = pkgName2[:len(pkgName2)-len("_test")]
+				}
+				if pkgName == "" && !pkgNameDiffers {
+					pkgName = pkgName2
+				} else if pkgName != pkgName2 {
+					// This happens when transpiling
+					// tests/files; both mpkg and errors
+					// will be returned.
+					pkgName = ""
+					pkgNameDiffers = true
+					errs = multierr.Append(errs, fmt.Errorf("%s:0: expected package name %q but got %q", fpath, pkgName, pkgName2))
+				}
 			}
 		}
-		memPkg.Files = append(memPkg.Files,
+		mpkg.Files = append(mpkg.Files,
 			&std.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})
 	}
 
-	memPkg.Name = string(pkgName)
-
-	// If no .gno files are present, package simply does not exist.
-	if !memPkg.IsEmpty() {
-		if err := validatePkgName(string(pkgName)); err != nil {
-			return nil, err
-		}
+	// If there were any errors so far, return error.
+	if errs != nil {
+		return mpkg, errs
+	}
+	// If mpkg is empty, return an error
+	if mpkg.IsEmpty() {
+		return mpkg, fmt.Errorf("package has no files")
+	}
+	// If pkgNameDiffers, return mpkg and the errors.
+	if pkgNameDiffers {
+		return mpkg, errs
+	}
+	// If only filetests with the same name, its package name is used.
+	if pkgName == "" && !pkgNameDiffers && !pkgNameFTDiffers {
+		pkgName = pkgNameFT
+	}
+	// Still no pkgName or invalid; ensure error.
+	if pkgName == "" {
+		pkgName = "xxxinvalidpackagenamexxx" // sensible default
+		errs = multierr.Append(errs, fmt.Errorf("package name could be determined"))
+	} else if err := validatePkgName(pkgName); err != nil {
+		errs = multierr.Append(errs, err)
+		return mpkg, errs
 	}
 
-	return memPkg, nil
+	mpkg.Name = string(pkgName)
+	mpkg.Sort() // sort files for gno.ValidateMemPackage().
+	return mpkg, nil
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
@@ -1305,28 +1348,29 @@ func MustReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 	return pkg
 }
 
-// ParseMemPackage executes [ParseFile] on each file of the memPkg, excluding
+// ParseMemPackage executes [ParseFile] on each file of the mpkg, excluding
 // test and spurious (non-gno) files. The resulting *FileSet is returned.
 //
-// If one of the files has a different package name than memPkg.Name,
+// If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	var errs error
-	for _, mfile := range memPkg.Files {
+	for _, mfile := range mpkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
-			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
-			continue // skip spurious or test file.
+			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) ||
+			mfile.Name == "gno.mod" {
+			continue // skip spurious or test or gno.mod file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
 		}
-		if memPkg.Name != string(n.PkgName) {
+		if mpkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
 				"expected package name [%s] but got [%s]",
-				memPkg.Name, n.PkgName))
+				mpkg.Name, n.PkgName))
 		}
 		// add package file.
 		fset.AddFiles(n)
@@ -1418,8 +1462,6 @@ type PackageNode struct {
 func PackageNodeLocation(path string) Location {
 	return Location{
 		PkgPath: path,
-		File:    "",
-		Line:    0,
 	}
 }
 
@@ -1592,7 +1634,7 @@ type BlockNode interface {
 	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
-	Predefine(bool, Name)
+	Reserve(bool, Name)
 	Define(Name, TypedValue)
 	Define2(bool, Name, Type, TypedValue)
 	GetBody() Body
@@ -1932,14 +1974,14 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used
 // during preprocessing to compute types.
-// If skipPredefined, skips over names that are only predefined.
-// Returns nil if not defined.
-func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *TypedValue {
+// If ignoreReserved, skips over names that are only reserved (and neither predefined nor defined).
+// Returns nil if not found.
+func (sb *StaticBlock) GetValueRef(store Store, n Name, ignoreReserved bool) *TypedValue {
 	idx, ok := sb.GetLocalIndex(n)
 	bb := &sb.Block
 	bp := sb.GetParentNode(store)
 	for {
-		if ok && (!skipPredefined || sb.Types[idx] != nil) {
+		if ok && (!ignoreReserved || sb.Types[idx] != nil) {
 			return bb.GetPointerToInt(store, int(idx)).TV
 		} else if bp != nil {
 			idx, ok = bp.GetLocalIndex(n)
@@ -1968,7 +2010,7 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 }
 
 // Set type to nil, only reserving the name.
-func (sb *StaticBlock) Predefine(isConst bool, n Name) {
+func (sb *StaticBlock) Reserve(isConst bool, n Name) {
 	_, exists := sb.GetLocalIndex(n)
 	if !exists {
 		sb.Define2(isConst, n, nil, anyValue(nil))
@@ -2309,9 +2351,9 @@ var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
-func validatePkgName(name string) error {
-	if !rePkgName.MatchString(name) {
-		return fmt.Errorf("cannot create package with invalid name %q", name)
+func validatePkgName(name Name) error {
+	if !rePkgName.MatchString(string(name)) {
+		return fmt.Errorf("invalid package name %q", name)
 	}
 	return nil
 }

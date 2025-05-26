@@ -10,4 +10,4 @@ func main() {
 // illegal assignment X expression type *gnolang.TypeAssertExpr
 
 // TypeCheckError:
-// main/files/addressable_6a_err.gno:6:11: invalid operation: cannot take address of i.(int) (comma, ok expression of type int)
+// main/addressable_6a_err.gno:6:11: invalid operation: cannot take address of i.(int) (comma, ok expression of type int)
