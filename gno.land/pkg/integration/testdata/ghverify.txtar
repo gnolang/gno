@@ -8,7 +8,7 @@ gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func RequestVerificatio
 stdout OK!
 
 # request tasks to complete (this is done by the agent)
-gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'request' -gas-fee 1000000ugnot -gas-wanted 8000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/ghverify -func GnorkleEntrypoint -args 'request' -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stdout '\("\[\{\\"id\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"type\\":\\"0\\",\\"value_type\\":\\"string\\",\\"tasks\\":\[\{\\"gno_address\\":\\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\\",\\"github_handle\\":\\"deelawn\\"\}\]\}\]" string\)'
 
 # a verification request was made but there should be no verified address
