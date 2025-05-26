@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils" // Provides testing utilities
+	"gno.land/p/demo/uassert"
 )
 
 func TestCreatePostSingle(t *testing.T) {
@@ -15,21 +16,20 @@ func TestCreatePostSingle(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(text1)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	err := cross(CreatePost)(text1)
+	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
 	got := Render("")
 
 	// Content should have the text and alice's address in it
-	if !(strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())) {
-		t.Fatal("expected render to contain text & alice's address")
-	}
+	condition := strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())
+	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
 func TestCreatePostMultiple(t *testing.T) {
+	testing.SetRealm(std.NewUserRealm(testutils.TestAddress("alice")))
+
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -47,10 +47,8 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(p.text)
-		if err != nil {
-			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
-		}
+		err := cross(CreatePost)(p.text)
+		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
 	// Get the rendered page
@@ -60,8 +58,7 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		expectedText := p.text
 		expectedAuthor := testutils.TestAddress(p.author).String() // Get the address for the author
-		if !(strings.Contains(got, expectedText) && strings.Contains(got, expectedAuthor)) {
-			t.Fatalf("expected render to contain text '%s' and address '%s'", expectedText, expectedAuthor)
-		}
+		condition := strings.Contains(got, expectedText) && strings.Contains(got, expectedAuthor)
+		uassert.True(t, condition, "expected render to contain text '"+expectedText+"' and address '"+expectedAuthor+"'")
 	}
 }

@@ -5,4 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/cont3.gno:4:2: continue statement out of place
+// main/cont3.gno:4:2-10: continue statement out of place
+
+// TypeCheckError:
+// main/cont3.gno:4:2: continue not in for statement

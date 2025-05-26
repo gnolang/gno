@@ -28,7 +28,7 @@ var (
 
 func TestEvaluationAddContribution(t *testing.T) {
 	pr := NewPullRequest(id, name, description, status, category)
-	contributionId, ok := e.AddContribution(pr, address)
+	contributionId, _ := e.AddContribution(pr, address)
 
 	t.Run("", func(t *testing.T) {
 		if contributionId != id {

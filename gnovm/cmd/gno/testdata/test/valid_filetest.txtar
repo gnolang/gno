@@ -8,8 +8,8 @@ stderr 'ok      \. 	\d+\.\d\ds'
 gno test -v .
 
 stdout 'test'
-stderr '=== RUN   file/valid_filetest.gno'
-stderr '--- PASS: file/valid_filetest.gno \(\d+\.\d\ds\)'
+stderr '=== RUN   ./valid_filetest.gno'
+stderr '--- PASS: ./valid_filetest.gno \(\d+\.\d\ds\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --

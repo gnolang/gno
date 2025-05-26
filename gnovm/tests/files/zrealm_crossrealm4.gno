@@ -13,10 +13,12 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	// NOTE: it is valid to modify it using the external realm function.
 	somevalue.Modify()
 	println(somevalue)
 }
 
 // Output:
-// &(struct{("_modified" string)} gno.land/r/demo/tests.TestRealmObject)
+// readonly(&(struct{("_modified" string)} gno.land/r/demo/tests.TestRealmObject))
