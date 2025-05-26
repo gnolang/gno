@@ -193,8 +193,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 
 // filetest: if cmd.filetestsOnly, a single filetest to run fixDir on.
 func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, ts gno.Store, filetest string) error {
-
-	var ppkgs = map[string]processedPackage{}
+	ppkgs := map[string]processedPackage{}
 	var hasError bool = false
 	//----------------------------------------
 	// FIX STAGE 1: Type-check and lint.
@@ -288,7 +287,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// Memo process results here.
-			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
+			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 
 			// Run type checking
 			// FIX STEP 2: ParseGnoMod()

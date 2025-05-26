@@ -3150,8 +3150,8 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 // returns the depth of last function, 1 if last stack item itself is a
 // closure, or 0 if not found.
 func findLastFunction(last BlockNode, stop BlockNode) (fn FuncNode, depth int, found bool) {
-	var faux = 0   // count faux block
-	var depth2 = 0 // working value
+	faux := 0   // count faux block
+	depth2 := 0 // working value
 	for stbn := last; stbn != stop; stbn = stbn.GetParentNode(nil) {
 		depth2 += 1
 		switch stbn := stbn.(type) {
@@ -3564,7 +3564,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 	pv := pn.NewPackage() // throwaway
 	store = store.BeginTransaction(nil, nil, nil)
 	store.SetCachePackage(pv)
-	var m = NewMachine(pn.PkgPath, store)
+	m := NewMachine(pn.PkgPath, store)
 	defer m.Release()
 	func() {
 		// cannot be resolved statically

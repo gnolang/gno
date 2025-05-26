@@ -1720,6 +1720,8 @@ type BlockNode interface {
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
+	GetTypeExprForPath(store Store, path ValuePath) TypeExpr
+	GetTypeExprForExpr(store Store, txe Expr) TypeExpr
 	GetIsConst(Store, Name) bool
 	GetIsConstAt(Store, ValuePath) bool
 	GetLocalIndex(Name) (uint16, bool)
@@ -2130,6 +2132,49 @@ func (sb *StaticBlock) GetValueRefAndSource(store Store, n Name, ignoreReserved 
 	}
 }
 
+// Implemented BlockNode.
+// This method is too slow for runtime, but it is used by `gno fix` to find the
+// origin type declaration.  Panics if path does not lead to a type expr.
+//
+// NOTE: Types are interchangeable, or should be, so they should not be used
+// for acquiring the source in general, unless it is a struct or interface type
+// which may have unexposed names; and for these they also need to keep
+// .PkgPath; but still should not be relied on for acquiring source. Use this
+// and GetTypeExprForExpr() instead.
+func (sb *StaticBlock) GetTypeExprForPath(store Store, path ValuePath) TypeExpr {
+	if path.Type != VPBlock {
+		panic("expected path.Type of VPBlock")
+	}
+	dbn := sb.GetBlockNodeForPath(store, path)
+	td := dbn.GetNameParents()[path.Index].(*TypeDecl)
+	return sb.GetTypeExprForExpr(store, td.Type)
+}
+
+// Implemented BlockNode.
+// This method is too slow for runtime, but it is used by `gno fix` to find the
+// origin type declaration.  Panics if type does not lead to a type expr.
+// Valid types are those that can be .Type in a TypeDecl; *TypeExpr, *NameExpr,
+// and *SelectorExpr
+//
+// NOTE: Types are interchangeable, or should be, so they should not be used
+// for acquiring the source in general, unless it is a struct or interface type
+// which may have unexposed names; and for these they also need to keep
+// .PkgPath; but still should not be relied on for acquiring source. Use this
+// and GetTypeExprForPath() instead.
+func (sb *StaticBlock) GetTypeExprForExpr(store Store, txe Expr) TypeExpr {
+	switch txe := txe.(type) {
+	case TypeExpr:
+		return txe
+	case *NameExpr:
+		return sb.GetTypeExprForPath(store, txe.Path)
+	case *SelectorExpr:
+		pn := txe.X.(*ConstExpr).V.(*PackageNode)
+		return pn.GetTypeExprForPath(store, txe.Path)
+	default:
+		panic("should not happen")
+	}
+}
+
 // Implements BlockNode
 // Statically declares a name definition.
 // At runtime, use *Block.GetPointerTo() which takes a path
@@ -2326,17 +2371,18 @@ func (vp *ValuePath) SetDepth(d uint8) {
 type VPType uint8
 
 const (
-	VPUverse         VPType = 0x00
-	VPBlock          VPType = 0x01 // blocks and packages
-	VPField          VPType = 0x02
-	VPValMethod      VPType = 0x03
-	VPPtrMethod      VPType = 0x04
-	VPInterface      VPType = 0x05
-	VPSubrefField    VPType = 0x06 // not deref type
-	VPDerefField     VPType = 0x12 // 0x10 + VPField
-	VPDerefValMethod VPType = 0x13 // 0x10 + VPValMethod
-	VPDerefPtrMethod VPType = 0x14 // 0x10 + VPPtrMethod
-	VPDerefInterface VPType = 0x15 // 0x10 + VPInterface
+	VPInvalid        VPType = 0x00 // not used
+	VPUverse         VPType = 0x01
+	VPBlock          VPType = 0x02 // blocks and packages
+	VPField          VPType = 0x03
+	VPValMethod      VPType = 0x04
+	VPPtrMethod      VPType = 0x05
+	VPInterface      VPType = 0x06
+	VPSubrefField    VPType = 0x07 // not deref type
+	VPDerefField     VPType = 0x13 // 0x10 + VPField
+	VPDerefValMethod VPType = 0x14 // 0x10 + VPValMethod
+	VPDerefPtrMethod VPType = 0x15 // 0x10 + VPPtrMethod
+	VPDerefInterface VPType = 0x16 // 0x10 + VPInterface
 	// 0x3X, 0x5X, 0x7X, 0x9X, 0xAX, 0xCX, 0xEX reserved.
 )
 

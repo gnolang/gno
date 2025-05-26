@@ -10,7 +10,6 @@ import (
 	"go/token"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -198,8 +197,10 @@ const (
 	XTYPE_ADD_CROSS_CALL xtype = "ADD_CROSS_CALL" // add `cross` as first arg in call
 )
 
-const ATTR_PN_XFORMS = "ATTR_PN_XFORMS" // all on package node
-const ATTR_XFORM = "ATTR_XFORM"         // one per node
+const (
+	ATTR_PN_XFORMS = "ATTR_PN_XFORMS" // all on package node
+	ATTR_XFORM     = "ATTR_XFORM"     // one per node
+)
 
 // Called from FindXformsGno0p9().
 // pn: package node to write xform1s.
@@ -207,15 +208,15 @@ const ATTR_XFORM = "ATTR_XFORM"         // one per node
 // n: node to transform.
 // x: transform type.
 func addXform1(pn *PackageNode, f string, n Node, x xtype) {
-	var s = n.GetSpan()
-	var p = pn.PkgPath
+	s := n.GetSpan()
+	p := pn.PkgPath
 	// key: p/f:s+x
-	var xforms1, _ = pn.GetAttribute(ATTR_PN_XFORMS).(map[string]struct{})
+	xforms1, _ := pn.GetAttribute(ATTR_PN_XFORMS).(map[string]struct{})
 	if xforms1 == nil {
 		xforms1 = make(map[string]struct{})
 		pn.SetAttribute(ATTR_PN_XFORMS, xforms1)
 	}
-	var xform1 = fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
+	xform1 := fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
 	if _, exists := xforms1[xform1]; exists {
 		// panic("cannot trample existing item")
 		return // allow duplicates.
@@ -231,7 +232,7 @@ func addXform2IfMatched(
 	xforms2 map[ast.Node]string,
 	gon ast.Node, p string, f string, s Span, x xtype,
 ) {
-	var xform1 = fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
+	xform1 := fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
 	if _, exists := xforms1[xform1]; exists {
 		if prior, exists := xforms2[gon]; exists {
 			fmt.Println("xform2 already exists. prior:", prior, "new:", xform1)
@@ -247,8 +248,8 @@ func addXform2IfMatched(
 // only applies for ATTR_XFORM attr. So this general name is not ideal,
 // but it will be renamed once it becomes more clear how to move forward.
 func spreadXform(lhs, rhs Node) (more Node, cmp int) {
-	var attrl = lhs.GetAttribute(ATTR_XFORM)
-	var attrr = rhs.GetAttribute(ATTR_XFORM)
+	attrl := lhs.GetAttribute(ATTR_XFORM)
+	attrr := rhs.GetAttribute(ATTR_XFORM)
 	if attrl == nil && attrr != nil {
 		if attrr != XTYPE_ADD_CUR_FUNC {
 			return
@@ -312,6 +313,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 					dbnLast := dbn.GetParentNode(store)
 					FindMoreXformsGno0p9(store, pn, dbnLast, dbn)
 				}
+				return n, TRANS_CONTINUE
 			case *AssignStmt:
 				// XXX if RHS has attribute, apply attribute to LHS.
 				lhs := n.Lhs
@@ -329,58 +331,21 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				} else {
 					panic("should not happen")
 				}
+				return n, TRANS_CONTINUE
 			case *CompositeLitExpr:
-				clt := evalStaticType(store, last, n.Type)
-				// NOTE: Types are interchangeable, or should
-				// be, so they should not be used for acquiring
-				// the source in general, unless it is a struct
-				// or interface type which may have unexposed
-				// names; and for these they also need to keep
-				// .PkgPath; but still should not be relied on
-				// for acquiring the source.
-				//
-				// In FindXformsGno0p9 tryEvalStatic >
-				// FuncValue.GetSource() is used to get the
-				// source, but getting the type is a little
-				// tricker.
-				// XXX Keep 'type' about interchangeable types,
-				// and refine usage to do what is wanted here.
-				switch cltx := n.Type.(type) {
-				case *constTypeExpr:
-					nx, ok := cltx.Source.(*NameExpr)
-					if !ok {
-						return n, TRANS_CONTINUE // XXX ?
-					}
-					// Find the block where type is defined.
-					dbn := last.GetBlockNodeForPath(store, nx.Path)
-					dnp := dbn.GetNameParents()[nx.Path.Index] // type decl/expr
-					_, ok = clt.(*DeclaredType)
-					if !ok { // XXX support more types.
-						return n, TRANS_CONTINUE
-					}
-					fn, decl, ok := pn.GetDeclForSafe(nx.Name)
-					if !ok {
-						// e.g. dnp declared in a func.
-					} else if dnp != *decl {
-						// This check exists to verify correctness of
-						// assumptions. Keep it for a while until it
-						// is replaced with a finalized spec and docs.
-						panic(fmt.Sprintf("decl mismatch", *decl, dnp))
-					}
-					_, ok = baseOf(clt).(*StructType)
-					if !ok { // XXX support more types
-						return n, TRANS_CONTINUE
-					}
+				cltx := unConstTypeExpr(n.Type)
+				tx := last.GetTypeExprForExpr(store, cltx)
+				switch tx := tx.(type) {
+				case *StructTypeExpr:
+					fields := tx.Fields
 					// Iterate over CompositeLitExpr key:value elements
 					// and match them against the declaration fields.
 					for i, kvx := range n.Elts {
-						// .Type of composite lit expr is pre-evaluated.
-						ctx := dnp.(*TypeDecl).Type.(*constTypeExpr)
-						fields := ctx.Source.(*StructTypeExpr).Fields
-						var ftx *FieldTypeExpr = nil
+						var ftx *FieldTypeExpr
 						if n.IsKeyed() {
-							ftx = fields.GetFieldTypeExpr(kvx.Key.(*NameExpr).Name)
-							if ftx == nil { // Key not used in CompositeLitExpr.
+							ftx = fields.GetFieldTypeExpr(
+								kvx.Key.(*NameExpr).Name)
+							if ftx == nil { // key omitted
 								continue
 							}
 						} else {
@@ -389,36 +354,29 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 						// Spread xform attribute from value to type expr field.
 						_, cmp := spreadXform(&ftx.NameExpr, kvx.Value)
 						switch {
-						case cmp < 0: // name expr <<< value
+						case cmp < 0: // name expr <<< value (add cur to func)
 							_, cmp = spreadXform(ftx.Type, kvx.Value)
 							if cmp >= 0 {
 								panic("expected spread xform to type expr")
 							}
-							var fname string
-							if fn != nil {
-								fname = string(fn.Name)
-							} else {
-								fname = dbn.GetLocation().GetFile()
-							}
-							// XXX Get the xtype from spreadXform,
-							// or otherwise check XTYPE_ADD_CUR_FUNC is good.
-							addXform1(pn, fname, ftx.Type, XTYPE_ADD_CUR_FUNC)
+							fname := last.GetLocation().GetFile()
+							addXform1(pn, fname, ftx.Type,
+								XTYPE_ADD_CUR_FUNC)
 							// Dive into the param type? maybe useful later.
 							FindMoreXformsGno0p9(store, pn, last, ftx.Type)
-						case cmp > 0:
+						case cmp > 0: // name expr >>> value (add cur to func)
 							// Find more in kvx.
 							FindMoreXformsGno0p9(store, pn, last, kvx.Value)
 						}
 					}
 					return n, TRANS_CONTINUE
-				case *SelectorExpr:
-					return n, TRANS_CONTINUE // XXX implement
-				case TypeExpr:
-					return n, TRANS_CONTINUE // XXX implement
-				default:
-					panic(fmt.Sprintf("unexpected composite lit type %v\n%v\n%v", n, n.Type, reflect.TypeOf(n.Type)))
+				default: // XXX implement more type exprs
+					return n, TRANS_CONTINUE
 				}
 			case *CallExpr:
+				// XXX Implement sb.GetFuncNodeForExpr() like
+				// sb.GetTypeExprForExpr() and simplify this
+				// logic.
 				if _, ok := n.Func.(*constTypeExpr); ok {
 					// TODO: handle conversions.
 					return n, TRANS_CONTINUE
@@ -570,7 +528,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	}
 
 	// Go parse and collect files from mpkg.
-	var gofset = token.NewFileSet()
+	gofset := token.NewFileSet()
 	var errs error
 	var xall int = 0 // number translated from part 1
 	for _, fname := range fnames {

@@ -99,7 +99,8 @@ func revive[F any](fn F) any { return nil } // shim
 	}
 	file := &std.MemFile{
 		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
-		Body: fmt.Sprintf(gnoBuiltins, pkgName)}
+		Body: fmt.Sprintf(gnoBuiltins, pkgName),
+	}
 	return file
 }
 
@@ -131,8 +132,8 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 // Args:
 //   - strict: ensure gno.mod exists and gno version is latest.
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, strict bool) (
-	pkg *types.Package, errs error) {
-
+	pkg *types.Package, errs error,
+) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
@@ -293,8 +294,8 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 //     ParseModeProduction when type-checking imports.
 //   - strict: If true errors on gno.mod version mismatch.
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode, strict bool) (
-	pkg *types.Package, errs error) {
-
+	pkg *types.Package, errs error,
+) {
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
