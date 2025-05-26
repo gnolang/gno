@@ -6,7 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/or_b2.gno:5:10: operator | not defined on: StringKind
+// main/or_b2.gno:5:10-17: operator | not defined on: StringKind
 
 // TypeCheckError:
-// main/files/types/or_b2.gno:5:10: invalid operation: 1 | "a" (mismatched types untyped int and untyped string)
+// main/or_b2.gno:5:10: invalid operation: 1 | "a" (mismatched types untyped int and untyped string)

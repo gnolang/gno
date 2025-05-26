@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/init"
+	ini "gno.land/r/gov/dao/v3/init"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(g1user))
-	init.InitWithUsers(g1user)
+	ini.InitWithUsers(g1user)
 }
 
 func TestProUnlockTransfer(t *testing.T) {
@@ -48,7 +48,7 @@ func TestExeUnlockTransfer(t *testing.T) {
 
 	pr := ProposeUnlockTransferRequest()
 	id := cross(dao.MustCreateProposal)(pr)
-	p, err := cross(dao.GetProposal)(id)
+	_, err := cross(dao.GetProposal)(id)
 	urequire.NoError(t, err)
 	// urequire.True(t, dao.Active == p.Status()) // TODO
 
