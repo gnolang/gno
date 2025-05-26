@@ -14,7 +14,7 @@ var noopTracerProvider = noop.NewTracerProvider()
 
 func Tracer(name string, options ...trace.TracerOption) TracerFactory {
 	var once sync.Once
-	var t trace.Tracer = noopTracerProvider.Tracer(name, options...) // Initilize noop tracer as default
+	t := noopTracerProvider.Tracer(name, options...) // Initilize noop tracer as default
 	return func() trace.Tracer {
 		if TracesEnabled() {
 			once.Do(func() {

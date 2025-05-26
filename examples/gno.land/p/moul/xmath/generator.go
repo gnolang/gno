@@ -158,7 +158,7 @@ func main() {
 	}
 
 	// Write source file
-	if err := os.WriteFile("xmath.gen.gno", formattedSource, 0644); err != nil {
+	if err := os.WriteFile("xmath.gen.gno", formattedSource, 0o644); err != nil {
 		log.Fatal(err)
 	}
 
@@ -176,7 +176,7 @@ func main() {
 	}
 
 	// Write test file
-	if err := os.WriteFile("xmath.gen_test.gno", formattedTest, 0644); err != nil {
+	if err := os.WriteFile("xmath.gen_test.gno", formattedTest, 0o644); err != nil {
 		log.Fatal(err)
 	}
 
