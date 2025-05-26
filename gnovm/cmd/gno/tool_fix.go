@@ -439,7 +439,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 		mpkg := ppkg.mpkg
 		transpileProcessedFileSet := func(pfs processedFileSet) error {
 			pn, fset := pfs.pn, pfs.fset
-			xforms1, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XFORMS).(map[string]struct{})
+			xforms1, _ := pn.GetAttribute(gno.ATTR_PN_XFORMS).(map[string]struct{})
 			err = gno.TranspileGno0p9(mpkg, dir, pn, fset.GetFileNames(), xforms1)
 			return err
 		}

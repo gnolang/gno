@@ -645,19 +645,24 @@ func (m *Machine) doOpFuncLit() {
 	// to *FuncValue. Later during doOpCall a block
 	// will be created that copies these values for
 	// every invocation of the function.
-	captures := []TypedValue(nil)
-	for _, nx := range x.HeapCaptures {
-		ptr := lb.GetPointerToDirect(m.Store, nx.Path)
-		// check that ptr.TV is a heap item value.
-		// it must be in the form of:
-		// {T:heapItemType{},V:HeapItemValue{...}}
-		if _, ok := ptr.TV.T.(heapItemType); !ok {
-			panic("should not happen, should be heapItemType: " + nx.String())
+	var captures []TypedValue
+	if m.Stage == StagePre {
+		// TODO static block items aren't heap items.
+		captures = make([]TypedValue, len(x.HeapCaptures))
+	} else {
+		for _, nx := range x.HeapCaptures {
+			ptr := lb.GetPointerToDirect(m.Store, nx.Path)
+			// check that ptr.TV is a heap item value.
+			// it must be in the form of:
+			// {T:heapItemType{},V:HeapItemValue{...}}
+			if _, ok := ptr.TV.T.(heapItemType); !ok {
+				panic("should not happen, should be heapItemType: " + nx.String())
+			}
+			if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+				panic("should not happen, should be heapItemValue: " + nx.String())
+			}
+			captures = append(captures, *ptr.TV)
 		}
-		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-			panic("should not happen, should be heapItemValue: " + nx.String())
-		}
-		captures = append(captures, *ptr.TV)
 	}
 	m.PushValue(TypedValue{
 		T: ft,

@@ -1362,79 +1362,83 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// as non-realm packages do not have access to `cur`,
 						// and you cannot pass `cur` to an external realm anyways.
 						if ctxpn.PkgPath == "testing/base" {
-							return n, TRANS_CONTINUE
+							goto LEAVE_CALL_EXPR_END_CHECK_CROSSING
 						}
-						// Check validity of n.Args[0].(*NameExpr).
-						nx, ok := n.Args[0].(*NameExpr)
-						if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
-							panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
-						}
-						switch nx.Name {
-						case Name(".cur"):
-							if _, ok := skipFile(last).(*PackageNode); !ok {
-								// .cur should only be used from
-								// m.RunMainMaybeCrossing() or m.runFunc(maybeCrossing=true),
-								// or as a special case in TestFoo(cur realm, t *testing.T),
-								// but in the latter case nx.Name isn't `.cur`, but
-								// eval(n.Args[0]).(*ConstExpr) and handled separately above.
-								panic(fmt.Sprintf("unexpected context for .cur; wanted last.(*PackageNode), got last.(%T)", last))
+						// START Check validity of crossing arg n.Args[0].(*NameExpr).
+						// TODO: Refactor this out into a function call.
+						{
+							nx, ok := n.Args[0].(*NameExpr)
+							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
+								panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
-							// evaluation was skipped TRANS_LEAVE *NameExpr.
-							crlm := NewConcreteRealm(ctxpn.PkgPath)
-							n.Args[0] = toConstExpr(nx, crlm)
-						case Name("cur"): // non-crossing call of a crossing function.
-							// Try to check that called function is local.
-							// NOTE: We don't necessaryily know statically
-							// whether n.Func is a local realm function or external,
-							// so this check must also happen at runtime.
-							ftv, err := tryEvalStatic(store, ctxpn, last, n.Func)
-							if err == nil {
-								// This is fine; e.g. somefunc()(cur,...)
-							} else {
-								fpp := ftv.GetUnboundFunc().PkgPath
-								if fpp != ctxpn.PkgPath {
-									panic(fmt.Sprintf("`cur` from %q cannot be passed to external realm %q",
-										ctxpn.PkgPath, fpp))
+							switch nx.Name {
+							case Name(".cur"):
+								if _, ok := skipFile(last).(*PackageNode); !ok {
+									// .cur should only be used from
+									// m.RunMainMaybeCrossing() or m.runFunc(maybeCrossing=true),
+									// or as a special case in TestFoo(cur realm, t *testing.T),
+									// but in the latter case nx.Name isn't `.cur`, but
+									// eval(n.Args[0]).(*ConstExpr) and handled separately above.
+									panic(fmt.Sprintf("unexpected context for .cur; wanted last.(*PackageNode), got last.(%T)", last))
 								}
-							}
-							// Check `cur` directly from parent crossing function's argument.
-							dbn := last.GetBlockNodeForPath(store, nx.Path)
-							switch dbn := dbn.(type) {
-							case *FuncDecl:
-								// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
-								dft := getType(&dbn.Type).(*FuncType)
-								if !dft.IsCrossing() {
+								// evaluation was skipped TRANS_LEAVE *NameExpr.
+								crlm := NewConcreteRealm(ctxpn.PkgPath)
+								n.Args[0] = toConstExpr(nx, crlm)
+							case Name("cur"): // non-crossing call of a crossing function.
+								// Try to check that called function is local.
+								// NOTE: We don't necessaryily know statically
+								// whether n.Func is a local realm function or external,
+								// so this check must also happen at runtime.
+								ftv, err := tryEvalStatic(store, ctxpn, last, n.Func)
+								if err == nil {
+									// This is fine; e.g. somefunc()(cur,...)
+								} else {
+									fpp := ftv.GetUnboundFunc().PkgPath
+									if fpp != ctxpn.PkgPath {
+										panic(fmt.Sprintf("`cur` from %q cannot be passed to external realm %q",
+											ctxpn.PkgPath, fpp))
+									}
+								}
+								// Check `cur` directly from parent crossing function's argument.
+								dbn := last.GetBlockNodeForPath(store, nx.Path)
+								switch dbn := dbn.(type) {
+								case *FuncDecl:
+									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+									dft := getType(&dbn.Type).(*FuncType)
+									if !dft.IsCrossing() {
+										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+									}
+									// at this point we know that `cur` is from a containing crossing function.
+									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
+									// argument of the crossing function.
+								case *FuncLitExpr:
+									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
+									dft := getType(&dbn.Type).(*FuncType)
+									if !dft.IsCrossing() {
+										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+									}
+									// at this point we know that `cur` is from a containing crossing function.
+									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
+									// argument of the crossing function.
+								default:
 									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 								}
-								// at this point we know that `cur` is from a containing crossing function.
-								// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
-								// argument of the crossing function.
-							case *FuncLitExpr:
-								// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
-								dft := getType(&dbn.Type).(*FuncType)
-								if !dft.IsCrossing() {
-									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
+								// the `cur` cannot be passed as capture through a func lit.
+								fle, _, found := findFirstClosure(stack, dbn)
+								if found && dbn != fle {
+									panic(fmt.Sprintf("`cur realm` cannot be used as a closure capture, but found %v", fle))
 								}
-								// at this point we know that `cur` is from a containing crossing function.
-								// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
-								// argument of the crossing function.
+							case Name("cross"):
+								// n is a valid crossing call of a crossing function.
+								n.SetWithCross()
+								// evaluation was skipped TRANS_LEAVE *NameExpr.
+								n.Args[0] = constNil(nx)
 							default:
-								panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
-							}
-							// the `cur` cannot be passed as capture through a func lit.
-							fle, _, found := findFirstClosure(stack, dbn)
-							if found && dbn != fle {
-								panic(fmt.Sprintf("`cur realm` cannot be used as a closure capture, but found %v", fle))
-							}
-						case Name("cross"):
-							// n is a valid crossing call of a crossing function.
-							n.SetWithCross()
-							// evaluation was skipped TRANS_LEAVE *NameExpr.
-							n.Args[0] = constNil(nx)
-						default:
-							panic("should not happen")
+								panic("should not happen")
+							} // END Check validity of crossing arg n.Args[0].(*NameExpr).
 						}
-					}
+					LEAVE_CALL_EXPR_END_CHECK_CROSSING:
+					} // END if cft.IsCrossing()
 				case *TypeType:
 					if len(n.Args) != 1 {
 						panic("type conversion requires single argument")
@@ -1538,7 +1542,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						ift, reflect.TypeOf(ift)))
 				}
 
-				// Handle special cases.
+				//----------------------------------------
+				// LEAVE CALL EXPR SPECIAL CASES:
+				//----------------------------------------
+
 				// NOTE: these appear to be actually special cases in go.
 				// In general, a string is not assignable to []bytes
 				// without conversion.
@@ -1616,7 +1623,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
-				// Continue with general case.
+				//----------------------------------------
+				// LEAVE CALL EXPR GENERAL CASE:
+				//----------------------------------------
+
 				hasVarg := ft.HasVarg()
 				isVarg := n.Varg
 				embedded := false
@@ -3546,8 +3556,11 @@ func evalStaticTypedValues(store Store, last BlockNode, xs ...Expr) []TypedValue
 	return res
 }
 
-// XXX Memoize.
-func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, n Node) (tv TypedValue, err error) {
+// Evaluate (but do not memoize) x. May fail for a variety of reasons.
+func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv TypedValue, err error) {
+	if cx, ok := x.(*ConstExpr); ok {
+		return cx.TypedValue, nil
+	}
 	pv := pn.NewPackage() // throwaway
 	store = store.BeginTransaction(nil, nil, nil)
 	store.SetCachePackage(pv)
@@ -3564,7 +3577,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, n Node) (tv Typ
 			}
 		}()
 		// try to evaluate n
-		tv = m.EvalStatic(last, n)
+		tv = m.EvalStatic(last, x)
 	}()
 	return
 }
@@ -3671,7 +3684,10 @@ func toConstTypeExpr(source Expr, t Type) *constTypeExpr {
 	if _, ok := cx.Source.(*ConstExpr); ok {
 		panic("should not happen")
 	}
-	cx.Source = source
+	// e.g. TRANS_LEAVE <(type) name>{composite lit}
+	// type name expr replaced w/ &ConstExpr{Source:*NameExpr}
+	// We want &constTypeExpr{Source:*NameExpr} too.
+	cx.Source = unConstExpr(source)
 	cx.Type = t
 	cx.SetSpan(source.GetSpan())
 	setPreprocessed(cx)

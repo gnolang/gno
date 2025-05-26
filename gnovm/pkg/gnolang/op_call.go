@@ -78,9 +78,10 @@ func (m *Machine) doOpPrecall() {
 			}
 		}
 	default:
+		// e.g. when *CallExpr.NumArgs is wrong.
 		panic(fmt.Sprintf(
-			"unexpected function value type %s",
-			reflect.TypeOf(v).String()))
+			"unexpected function value type %s %v",
+			reflect.TypeOf(v).String(), v))
 	}
 }
 

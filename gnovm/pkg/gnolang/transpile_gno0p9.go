@@ -109,7 +109,7 @@ type Xform struct {
 }
 
 // Finds Xforms for Gno 0.9 from the Gno AST and stores them pn
-// ATTR_GNO0P9_XFORMS.
+// ATTR_PN_XFORMS.
 func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 	// Iterate over all file nodes recursively.
 	_ = TranscribeB(pn, fn, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -134,82 +134,53 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 							panic("cross(fn) must be followed by a call")
 						}
 						fname := last.GetLocation().GetFile()
-						addXform1(pn, fname, pc, XTYPE_ADD_NILREALM)
+						addXform1(pn, fname, pc, XTYPE_ADD_CROSS_CALL)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						if !IsRealmPath(pn.PkgPath) {
 							panic("crossing() is only allowed in realm packages")
 						}
 						// Add `cur realm` as first argument to func decl.
 						fname := last.GetLocation().GetFile()
-						addXform1(pn, fname, last, XTYPE_ADD_CURFUNC)
+						addXform1(pn, fname, last, XTYPE_ADD_CUR_FUNC)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
 						panic("attach() not yet supported")
 					}
 					return n, TRANS_CONTINUE
-				} else {
-					// Already handled, added XTYPE_ADD_NILREALM
-					// from the "cross" case above.
-					if n.WithCross {
-						// Is a cross(fn)(...) call.
-						// Leave it alone.
-						return n, TRANS_CONTINUE
-					}
-					// Try to evaluate statically n.Func; may fail.
-					ftv, err := tryEvalStatic(store, pn, last, n.Func)
-					if false { // for debugging:
-						fmt.Println("FAILED TO EVALSTATIC", n.Func, err)
-					}
-					var isCrossing bool
-					switch fv := ftv.V.(type) {
-					case nil:
-						return n, TRANS_CONTINUE
-					case TypeValue:
-						return n, TRANS_CONTINUE
-					case *FuncValue:
-						fnode := fv.GetSource(store).(FuncNode)
-						if fnode.GetBody().isCrossing_gno0p0() {
-							// Not cross-called, so add `cur` as first argument.
-							fname := last.GetLocation().GetFile()
-							addXform1(pn, fname, n, XTYPE_ADD_CURCALL)
-							isCrossing = true
-						}
-					case *BoundMethodValue:
-						fnode := fv.Func.GetSource(store).(FuncNode)
-						if fnode.GetBody().isCrossing_gno0p0() {
-							// Not cross-called, so add `cur` as first argument.
-							fname := last.GetLocation().GetFile()
-							addXform1(pn, fname, n, XTYPE_ADD_CURCALL)
-							isCrossing = true
-						}
-					}
-					if isCrossing {
-						// If `cur` isn't available, it needs to be included
-						// in the outer-most containing func decl/expr.
-						if last.GetValueRef(store, Name(`cur`), true) == nil {
-							// Except, test functions cannot take cur;
-							// tests don't have a "caller". A default
-							// caller is convenient but surprising.
-							file := last.GetLocation().GetFile()
-							fn, _, ok := findLastFunction(last, pn)
-							if !ok {
-								panic("`cur` can only be used in a func body")
-							}
-							name := string(fn.GetName())
-							if strings.HasSuffix(file, "_test.gno") &&
-								strings.HasPrefix(name, "Test") {
-								// TODO: improve test cross utils.
-								fmt.Printf("illegal `cur` in test %s.\n",
-									name) // just a warning.
-								return n, TRANS_CONTINUE
-							}
-							// NOTE: will also add to init/main,
-							// but gnovm knows how to call them.
-							addXform1(pn, file, fn, XTYPE_ADD_CURFUNC)
-						}
-					}
+				}
+				if n.WithCross { // (cross-called)
+					// Already handled, added XTYPE_ADD_CROSS_CALL
+					// cross(fn)(...) --> fn(cross,...)
 					return n, TRANS_CONTINUE
 				}
+				// Try to evaluate statically n.Func; may fail.
+				ftv, err := tryEvalStatic(store, pn, last, n.Func)
+				if false { // for debugging:
+					fmt.Println("FAILED TO EVALSTATIC", n.Func, err)
+				}
+				switch fv := ftv.V.(type) {
+				case nil:
+					return n, TRANS_CONTINUE
+				case TypeValue:
+					return n, TRANS_CONTINUE
+				case *FuncValue:
+					fn := fv.GetSource(store).(FuncNode)
+					if fn.GetBody().isCrossing_gno0p0() {
+						// Not cross-called, so add `cur` as first argument.
+						fname := last.GetLocation().GetFile()
+						addXform1(pn, fname, n, XTYPE_ADD_CUR_CALL)
+						ensureCurFunc(store, pn, last)
+					}
+				case *BoundMethodValue:
+					fn := fv.Func.GetSource(store).(FuncNode)
+					if fn.GetBody().isCrossing_gno0p0() {
+						// Not cross-called, so add `cur` as first argument.
+						fname := last.GetLocation().GetFile()
+						addXform1(pn, fname, n, XTYPE_ADD_CUR_CALL)
+						ensureCurFunc(store, pn, last)
+					}
+				}
+				return n, TRANS_CONTINUE
 			} // END switch n.(type) {}
 			// END TRANS_LEAVE -----------------------
 			return n, TRANS_CONTINUE
@@ -221,13 +192,13 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 type xtype string
 
 const (
-	XTYPE_ADD_CURCALL  xtype = "ADD_CURCALL"
-	XTYPE_ADD_CURFUNC  xtype = "ADD_CURFUNC"
-	XTYPE_ADD_NILREALM xtype = "ADD_NILREALM"
+	XTYPE_ADD_CUR_FUNC   xtype = "ADD_CUR_FUNC"   // add `cur realm` to func signature
+	XTYPE_ADD_CUR_CALL   xtype = "ADD_CUR_CALL"   // add `cur` as first arg in call
+	XTYPE_ADD_CROSS_CALL xtype = "ADD_CROSS_CALL" // add `cross` as first arg in call
 )
 
-const ATTR_GNO0P9_XFORMS = "ATTR_GNO0P9_XFORMS" // all on package node
-const ATTR_GNO0P9_XFORM = "ATTR_GNO0P9_XFORM"   // one per node
+const ATTR_PN_XFORMS = "ATTR_PN_XFORMS" // all on package node
+const ATTR_XFORM = "ATTR_XFORM"         // one per node
 
 // Called from FindXformsGno0p9().
 // pn: package node to write xform1s.
@@ -238,10 +209,10 @@ func addXform1(pn *PackageNode, f string, n Node, x xtype) {
 	var s = n.GetSpan()
 	var p = pn.PkgPath
 	// key: p/f:s+x
-	var xforms1, _ = pn.GetAttribute(ATTR_GNO0P9_XFORMS).(map[string]struct{})
+	var xforms1, _ = pn.GetAttribute(ATTR_PN_XFORMS).(map[string]struct{})
 	if xforms1 == nil {
 		xforms1 = make(map[string]struct{})
-		pn.SetAttribute(ATTR_GNO0P9_XFORMS, xforms1)
+		pn.SetAttribute(ATTR_PN_XFORMS, xforms1)
 	}
 	var xform1 = fmt.Sprintf("%s/%s:%v+%s", p, f, s, x)
 	if _, exists := xforms1[xform1]; exists {
@@ -249,7 +220,7 @@ func addXform1(pn *PackageNode, f string, n Node, x xtype) {
 		return // allow duplicates.
 	}
 	xforms1[xform1] = struct{}{}
-	n.SetAttribute(ATTR_GNO0P9_XFORM, x)
+	n.SetAttribute(ATTR_XFORM, x)
 	fmt.Printf("xpiling to Gno 0.9: +%q\n", xform1)
 }
 
@@ -271,23 +242,23 @@ func addXform2IfMatched(
 	}
 }
 
-// XXX Rename, only spreads XTYPE_ADD_CURFUNC (because it's a type change?) and
-// only applies for ATTR_GNO0P9_XFORM attr. So this general name is not ideal,
+// XXX Rename, only spreads XTYPE_ADD_CUR_FUNC (because it's a type change?) and
+// only applies for ATTR_XFORM attr. So this general name is not ideal,
 // but it will be renamed once it becomes more clear how to move forward.
 func spreadXform(lhs, rhs Node) (more Node, cmp int) {
-	var attrl = lhs.GetAttribute(ATTR_GNO0P9_XFORM)
-	var attrr = rhs.GetAttribute(ATTR_GNO0P9_XFORM)
+	var attrl = lhs.GetAttribute(ATTR_XFORM)
+	var attrr = rhs.GetAttribute(ATTR_XFORM)
 	if attrl == nil && attrr != nil {
-		if attrr != XTYPE_ADD_CURFUNC {
+		if attrr != XTYPE_ADD_CUR_FUNC {
 			return
 		}
-		lhs.SetAttribute(ATTR_GNO0P9_XFORM, attrr)
+		lhs.SetAttribute(ATTR_XFORM, attrr)
 		more, cmp = lhs, -1
 	} else if attrl != nil && attrr == nil {
-		if attrr != XTYPE_ADD_CURFUNC {
+		if attrr != XTYPE_ADD_CUR_FUNC {
 			return
 		}
-		rhs.SetAttribute(ATTR_GNO0P9_XFORM, attrl)
+		rhs.SetAttribute(ATTR_XFORM, attrl)
 		more, cmp = rhs, 1
 	} else if attrl != attrr {
 		panic("conflicting attributes not yet handled")
@@ -297,7 +268,8 @@ func spreadXform(lhs, rhs Node) (more Node, cmp int) {
 	return
 }
 
-// Apply the found xforms and xform more.
+// Apply the found xform's and xform more.  The ultimate goal is to find more
+// pn xforms which result in actual transforms in part 2.
 func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) {
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(last, n, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -428,8 +400,8 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 								fname = dbn.GetLocation().GetFile()
 							}
 							// XXX Get the xtype from spreadXform,
-							// or otherwise check XTYPE_ADD_CURFUNC is good.
-							addXform1(pn, fname, ftx.Type, XTYPE_ADD_CURFUNC)
+							// or otherwise check XTYPE_ADD_CUR_FUNC is good.
+							addXform1(pn, fname, ftx.Type, XTYPE_ADD_CUR_FUNC)
 							// Dive into the param type? maybe useful later.
 							FindMoreXformsGno0p9(store, pn, last, ftx.Type)
 						case cmp > 0:
@@ -447,79 +419,125 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				}
 			case *CallExpr:
 				if _, ok := n.Func.(*constTypeExpr); ok {
-					return n, TRANS_CONTINUE
-				} else if _, ok := n.Func.(*ConstExpr); ok {
-					return n, TRANS_CONTINUE
-				} else {
-					// Try to evaluate statically n.Func; may fail.
-					// NOTE: Document some of the reasons why it may fail,
-					// and find intuitve ways to solve for them.
-					tv, err := tryEvalStatic(store, pn, last, n.Func)
-					// Get the source of the function.
-					if false { // for debugging:
-						fmt.Println("FAILED TO EVALSTATIC", n.Func, err)
-					}
-					// Find func source and func type.
-					var src FuncNode
-					var ft *FuncType
-					var ftx *FuncTypeExpr
-					switch cv := tv.V.(type) {
-					case nil:
-						return n, TRANS_CONTINUE
-					case TypeValue:
-						return n, TRANS_CONTINUE
-					case *FuncValue:
-						src = cv.GetSource(store).(FuncNode)
-						ft = cv.GetType(store)
-						if src.GetIsMethod() {
-							ftx = src.(*FuncDecl).GetUnboundTypeExpr()
-						} else {
-							ftx = src.GetFuncTypeExpr()
-						}
-					case *BoundMethodValue:
-						src = cv.Func.GetSource(store).(FuncNode)
-						ft = cv.Func.GetType(store).BoundType()
-						ftx = src.GetFuncTypeExpr()
-					}
-					if ft.HasVarg() { // not yet supported
-						return n, TRANS_CONTINUE
-					}
-
-					spn := packageOf(src)
-					var didFix bool // did fix func type expr.
-					for i, argx := range n.Args {
-						_, cmp := spreadXform(&ftx.Params[i].NameExpr, argx)
-						switch {
-						case cmp < 0: // param <<< argx
-							ptx, cmp := spreadXform(ftx.Params[i].Type, argx)
-							if cmp >= 0 {
-								panic("expected spread xform to type expr")
-							}
-							fname := src.GetLocation().File
-							addXform1(spn, fname, ptx, XTYPE_ADD_CURFUNC)
-							// Dive into the param type? maybe useful later.
-							FindMoreXformsGno0p9(store, spn, src, ptx)
-							didFix = true
-						case cmp > 0: // param >>> argx
-							FindMoreXformsGno0p9(store, pn, last, argx)
-						}
-					}
-					// Recurse again in source body. Since Params[i].NameExpr/.Type
-					// were set ADD_CURFUNC, more calls may spread more.
-					// NOTE: Generally this isn't the most computationally efficient,
-					// but it's simple enough and works for the most part.
-					if didFix {
-						parent := src.GetParentNode(store)
-						FindMoreXformsGno0p9(store, pn, parent, src)
-					}
+					// TODO: handle conversions.
 					return n, TRANS_CONTINUE
 				}
+				// Try to evaluate statically n.Func; may fail.
+				// NOTE: Document some of the reasons why it may fail,
+				// and find intuitve ways to solve for them.
+				tv, err := tryEvalStatic(store, pn, last, n.Func)
+				// Get the source of the function.
+				if false { // for debugging:
+					fmt.Println("FAILED TO EVALSTATIC", n.Func, err)
+				}
+				// Find func source and func type.
+				var fn FuncNode
+				var ft *FuncType
+				var ftx *FuncTypeExpr
+				switch cv := tv.V.(type) {
+				case nil:
+					return n, TRANS_CONTINUE
+				case TypeValue:
+					return n, TRANS_CONTINUE
+				case *FuncValue:
+					fn = cv.GetSource(store).(FuncNode)
+					ft = cv.GetType(store)
+					if fn.GetIsMethod() {
+						ftx = fn.(*FuncDecl).GetUnboundTypeExpr()
+					} else {
+						ftx = fn.GetFuncTypeExpr()
+					}
+				case *BoundMethodValue:
+					fn = cv.Func.GetSource(store).(FuncNode)
+					ft = cv.Func.GetType(store).BoundType()
+					ftx = fn.GetFuncTypeExpr()
+				}
+				if n.WithCross {
+					// Already handled, added XTYPE_ADD_CROSS_CALL
+					// cross(fn)(...) --> fn(cross,...)
+					return n, TRANS_CONTINUE
+				}
+				if ft.HasVarg() { // not yet supported
+					return n, TRANS_CONTINUE
+				}
+
+				// Apply xform from n.Func to pn xforms.
+				if n.Func.GetAttribute(ATTR_XFORM) == XTYPE_ADD_CUR_FUNC {
+					// Not cross-called, so add `cur` as first argument.
+					fname := last.GetLocation().GetFile()
+					addXform1(pn, fname, n, XTYPE_ADD_CUR_CALL)
+					ensureCurFunc(store, pn, last)
+				}
+
+				// Spread xform from func param types to arg exprs.
+				fpn := packageOf(fn)
+				var didFixArg bool
+				for i, argx := range n.Args {
+					_, cmp := spreadXform(&ftx.Params[i].NameExpr, argx)
+					switch {
+					case cmp < 0: // param <<< argx
+						ptx, cmp := spreadXform(ftx.Params[i].Type, argx)
+						if cmp >= 0 {
+							panic("expected spread xform to type expr")
+						}
+						fname := fn.GetLocation().File
+						addXform1(fpn, fname, ptx, XTYPE_ADD_CUR_FUNC)
+						// Dive into the param type? maybe useful later.
+						FindMoreXformsGno0p9(store, fpn, fn, ptx)
+						didFixArg = true
+					case cmp > 0: // param >>> argx
+						FindMoreXformsGno0p9(store, pn, last, argx)
+					}
+				}
+
+				// If any arg types changed, recurse again in
+				// source body. Since Params[i].NameExpr/.Type
+				// were set ADD_CUR_FUNC, more calls may spread
+				// more.
+				// NOTE: Generally this isn't the most
+				// computationally efficient, but it's simple.
+				if didFixArg {
+					fparent := fn.GetParentNode(store)
+					FindMoreXformsGno0p9(store, fpn, fparent, fn)
+				}
+				return n, TRANS_CONTINUE
 			} // END switch n.(type) {}
 			// END TRANS_LEAVE -----------------------
 			return n, TRANS_CONTINUE
 		}
 		return n, TRANS_CONTINUE
 	})
+}
+
+func ensureCurFunc(store Store, pn *PackageNode, last BlockNode) {
+	// If `cur` isn't available, it needs to be included
+	// in the outer-most containing func decl/expr.
+	if last.GetValueRef(store, Name(`cur`), true) == nil {
+		file := last.GetLocation().GetFile()
+		fn, _, ok := findLastFunction(last, pn)
+		if !ok {
+			panic("`cur` can only be used in a func body")
+		}
+		/* NOTE: Uncomment the following to disable
+			TestFoo(cur realm, t *testing.T).
+			Also see pkg/test/test.go *_cur, and
+			preprocessor special case for "testing/base".
+		// Test functions cannot take cur;
+		// tests don't have a "caller". A default
+		// caller is convenient but surprising.
+		if strings.HasSuffix(file, "_test.gno") &&
+			name := string(fn.GetName())
+			strings.HasPrefix(name, "Test") {
+			// TODO: improve test cross utils.
+			fmt.Printf("illegal `cur` in test %s.\n",
+				name) // just a warning.
+			return n, TRANS_CONTINUE
+		}
+		*/
+		// NOTE: will also add to init/main,
+		// but gnovm knows how to call them.
+		addXform1(pn, file, fn, XTYPE_ADD_CUR_FUNC)
+	}
 }
 
 // ========================================
@@ -623,29 +641,29 @@ func transpileGno0p9_part1(pkgPath string, gofs *token.FileSet, fname string, go
 			addXform2IfMatched(
 				xforms1, xforms2, gon,
 				pkgPath, fname, span,
-				XTYPE_ADD_CURFUNC)
+				XTYPE_ADD_CUR_FUNC)
 		case *ast.FuncDecl:
 			span := SpanFromGo(gofs, gon)
 			addXform2IfMatched(
 				xforms1, xforms2, gon,
 				pkgPath, fname, span,
-				XTYPE_ADD_CURFUNC)
+				XTYPE_ADD_CUR_FUNC)
 		case *ast.FuncType:
 			span := SpanFromGo(gofs, gon)
 			addXform2IfMatched(
 				xforms1, xforms2, gon,
 				pkgPath, fname, span,
-				XTYPE_ADD_CURFUNC)
+				XTYPE_ADD_CUR_FUNC)
 		case *ast.CallExpr:
 			span := SpanFromGo(gofs, gon)
 			addXform2IfMatched(
 				xforms1, xforms2, gon,
 				pkgPath, fname, span,
-				XTYPE_ADD_CURCALL)
+				XTYPE_ADD_CUR_CALL)
 			addXform2IfMatched(
 				xforms1, xforms2, gon,
 				pkgPath, fname, span,
-				XTYPE_ADD_NILREALM)
+				XTYPE_ADD_CROSS_CALL)
 		}
 		return true
 	}, nil)
@@ -682,7 +700,7 @@ XFORMS1_LOOP:
 		for n2, xform2 := range xforms2 {
 			fmt.Println("xform2:", xform2, n2)
 		}
-		panic("xforms1 and xforms2 don't match")
+		panic("xforms1 and xforms2 mismatch")
 	}
 	/*
 		if len(xforms1) != len(xforms2) {
@@ -746,7 +764,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 				}
 			}
 		case *ast.FuncLit:
-			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
+			if inXforms2(gon, XTYPE_ADD_CUR_FUNC) {
 				gon.Type.Params.List = append([]*ast.Field{{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
 					Type:  ast.NewIdent("realm"),
@@ -754,7 +772,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 				delete(xforms2, gon)
 			}
 		case *ast.FuncDecl:
-			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
+			if inXforms2(gon, XTYPE_ADD_CUR_FUNC) {
 				gon.Type.Params.List = append([]*ast.Field{{
 					Names: []*ast.Ident{ast.NewIdent("cur")},
 					Type:  ast.NewIdent("realm"),
@@ -762,7 +780,7 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 				delete(xforms2, gon)
 			}
 		case *ast.FuncType:
-			if inXforms2(gon, XTYPE_ADD_CURFUNC) {
+			if inXforms2(gon, XTYPE_ADD_CUR_FUNC) {
 				names := []*ast.Ident(nil)
 				for _, param := range gon.Params.List {
 					if len(param.Names) > 0 {
@@ -776,10 +794,10 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 				delete(xforms2, gon)
 			}
 		case *ast.CallExpr:
-			if inXforms2(gon, XTYPE_ADD_CURCALL) {
+			if inXforms2(gon, XTYPE_ADD_CUR_CALL) {
 				gon.Args = append([]ast.Expr{ast.NewIdent("cur")}, gon.Args...)
 				delete(xforms2, gon)
-			} else if inXforms2(gon, XTYPE_ADD_NILREALM) {
+			} else if inXforms2(gon, XTYPE_ADD_CROSS_CALL) {
 				gon.Args = append([]ast.Expr{ast.NewIdent("cross")}, gon.Args...)
 				delete(xforms2, gon)
 			}
