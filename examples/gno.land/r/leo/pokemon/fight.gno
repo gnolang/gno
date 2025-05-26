@@ -136,7 +136,7 @@ func getEnnemyNextAttack(p *Pokemon) string {
 	if !can_attack {
 		return ""
 	}
-	for true {
+	for {
 		attack_id := r.Int() % len(p.attacks)
 		if p.attacks[attack_id].pc > 0 {
 			return "e" + strconv.Itoa(attack_id)
