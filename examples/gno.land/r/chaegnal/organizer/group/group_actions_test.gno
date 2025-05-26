@@ -16,7 +16,7 @@ func Test_DeleteFriendGroup_Success(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	DeleteFriendGroup("1", "Chaegnal")
 }
@@ -30,9 +30,9 @@ func Test_DeleteFriendGroup_Failure(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
-	DeleteFriendGroup("2", "Ghhv")
+	cross(DeleteFriendGroup)("2", "Ghhv")
 }
 
 // Test SwitchOwner
@@ -45,17 +45,17 @@ func Test_SwitchOwner_Success(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	organizer.AskJoinFriendGroup(3)
+	cross(organizer.AskJoinFriendGroup)(3)
 
 	group := organizer.GetGroupFromId("3")
-	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
+	cross(group.DAO.WhitelistUser)("Chaegnal", "Ghhv")
 
 	testing.SetOriginCaller("Chaegnal")
-	MakeAdmin("3", "Chaegnal", "Ghhv")
-	SwitchOwner("3", "Chaegnal", "Ghhv")
+	cross(MakeAdmin)("3", "Chaegnal", "Ghhv")
+	cross(SwitchOwner)("3", "Chaegnal", "Ghhv")
 }
 
 func Test_SwitchOwner_NotOwner(t *testing.T) {
@@ -67,10 +67,10 @@ func Test_SwitchOwner_NotOwner(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	SwitchOwner("4", "Ghhv", "Ghhv")
+	cross(SwitchOwner)("4", "Ghhv", "Ghhv")
 }
 
 func Test_SwitchOwner_NotAdmin(t *testing.T) {
@@ -82,14 +82,14 @@ func Test_SwitchOwner_NotAdmin(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	organizer.AskJoinFriendGroup(5)
+	cross(organizer.AskJoinFriendGroup)(5)
 
 	group := organizer.GetGroupFromId("5")
-	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
+	cross(group.DAO.WhitelistUser)("Chaegnal", "Ghhv")
 
 	testing.SetOriginCaller("Chaegnal")
-	SwitchOwner("5", "Chaegnal", "Ghhv")
+	cross(SwitchOwner)("5", "Chaegnal", "Ghhv")
 }

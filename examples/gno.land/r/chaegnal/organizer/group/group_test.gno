@@ -46,7 +46,7 @@ func Test_getGroupFromUrl_Success(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	getGroupFromUrl("http://test.com?groupId=2")
 }
