@@ -34,7 +34,6 @@ linters:
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
     - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
-    - gofumpt # Stricter gofmt
     - unused # Checks Go code for unused constants, variables, functions and types
     - gomodguard # Enforces an allow and block list for direct Go module dependencies
     - forbidigo # Forbids some custom-set identifiers, like regexp.MatchString

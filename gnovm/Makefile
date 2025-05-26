@@ -15,11 +15,6 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 # cases, and is not strictly required by any tm2 code.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
-# flags for `make fmt`. -w will write the result to the destination files.
-GOFMT_FLAGS ?= -w
-GNOFMT_FLAGS ?= -w
-# flags for `make imports`.
-GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # used to set the default GNOROOT. This helps on local development, as it sets
@@ -57,12 +52,9 @@ lint:
 
 .PHONY: fmt
 fmt:
-	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
-	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
-
-.PHONY: imports
-imports:
-	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
+	go fmt ./...
+	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/...
+	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
 # Benchmarking the VM's opcode and storage access
 .PHONY: opcode storage build_opcode build_storage
@@ -128,7 +120,7 @@ _test.filetest:
 ########################################
 # Code gen
 .PHONY: generate
-generate: _dev.generate _dev.docs fmt imports
+generate: _dev.generate _dev.docs fmt
 
 .PHONY: _dev.docs
 _dev.docs:
