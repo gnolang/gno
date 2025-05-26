@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/mux"
-	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
@@ -138,7 +137,7 @@ func getEnnemyNextAttack(p *Pokemon) string {
 		return ""
 	}
 	for true {
-		attack_id := rand.Next() % len(p.attacks)
+		attack_id := r.Int() % len(p.attacks)
 		if p.attacks[attack_id].pc > 0 {
 			return "e" + strconv.Itoa(attack_id)
 		}
@@ -238,7 +237,7 @@ func initEnemy(state string) string {
 	}
 	res := ""
 	for i := 0; i < teamSize; i++ {
-		res += strconv.Itoa(rand.Next() % len(pokemonList))
+		res += strconv.Itoa(r.Int() % len(pokemonList))
 	}
 	return res
 }

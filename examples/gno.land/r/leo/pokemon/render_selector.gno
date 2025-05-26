@@ -1,12 +1,13 @@
 package pokemon
 
 import (
+	"math/rand"
 	"net/url"
 	"std"
 	"strings"
+	"time"
 
 	"gno.land/p/demo/mux"
-	"gno.land/p/leo/randomizer"
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hor"
 )
@@ -24,7 +25,7 @@ const (
 )
 
 var (
-	rand        = randomizer.NewRandomizer()
+	r           = rand.New(rand.NewPCG(uint64(time.Now().Unix()), uint64(time.Now().Unix())))
 	atmPath     = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
 	pokemonPath = map[RenderPage]mux.HandlerFunc{
 		pokemonLogin:        renderPokemonLogin,
