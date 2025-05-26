@@ -406,14 +406,6 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	WithCross bool  // if cross-called with `cur`.
 }
 
-// if x is *ConstExpr returns its source.
-func unwrapConstExpr(x Expr) Expr {
-	if cx, ok := x.(*ConstExpr); ok {
-		return cx.Source
-	}
-	return x
-}
-
 // returns true if x is of form fn(cur,...) or fn(cross,...).
 // but fn(cur,...) doesn't always mean with cross,
 // because `cur` could be anything, so this is a sanity check.
@@ -437,7 +429,7 @@ func (x *CallExpr) isCrossing_gno0p0() bool {
 	if x == nil {
 		return false
 	}
-	if nx, ok := unwrapConstExpr(x.Func).(*NameExpr); ok {
+	if nx, ok := unConstExpr(x.Func).(*NameExpr); ok {
 		if nx.Name == "crossing" {
 			return true
 		}
@@ -583,6 +575,11 @@ type ConstExpr struct {
 	Attributes
 	Source Expr // (preprocessed) source of this value.
 	TypedValue
+}
+
+func NewConstExpr(source Expr, tv TypedValue) *ConstExpr {
+	// internally, use toConstExpr().
+	return toConstExpr(source, tv)
 }
 
 // ----------------------------------------

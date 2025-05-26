@@ -837,7 +837,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								ct = evalStaticType(store, last, cx)
 							}
-							n.Cases[i] = constType(cx, ct)
+							n.Cases[i] = toConstTypeExpr(cx, ct)
 							// maybe type-switch def.
 							if ss.VarName != "" {
 								if len(n.Cases) == 1 {
@@ -1153,7 +1153,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								n.Name))
 						}
 						if !cx.IsUndefined() && cx.T.Kind() == TypeKind {
-							return constType(n, cx.GetType()), TRANS_CONTINUE
+							return toConstTypeExpr(n, cx.GetType()), TRANS_CONTINUE
 						}
 						return cx, TRANS_CONTINUE
 					}
@@ -1356,6 +1356,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// only happen with a `cur` declared as the first realm argument
 					// of a containing function.
 					if cft.IsCrossing() {
+						// Special case when ctxpn.PkgPath is "testing/base",
+						// pkg/test/test.gno will pass toConstExpr(Nx(`.cur`), NewConcreteRealm())
+						// of the callee function's realm. Normally this isn't possible,
+						// as non-realm packages do not have access to `cur`,
+						// and you cannot pass `cur` to an external realm anyways.
+						if ctxpn.PkgPath == "testing/base" {
+							return n, TRANS_CONTINUE
+						}
+						// Check validity of n.Args[0].(*NameExpr).
 						nx, ok := n.Args[0].(*NameExpr)
 						if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
 							panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
@@ -1364,14 +1373,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						case Name(".cur"):
 							if _, ok := skipFile(last).(*PackageNode); !ok {
 								// .cur should only be used from
-								// m.RunMainMaybeCrossing().
+								// m.RunMainMaybeCrossing() or m.runFunc(maybeCrossing=true),
+								// or as a special case in TestFoo(cur realm, t *testing.T),
+								// but in the latter case nx.Name isn't `.cur`, but
+								// eval(n.Args[0]).(*ConstExpr) and handled separately above.
 								panic(fmt.Sprintf("unexpected context for .cur; wanted last.(*PackageNode), got last.(%T)", last))
 							}
 							// evaluation was skipped TRANS_LEAVE *NameExpr.
-							crlm := newConcreteRealm(ctxpn.PkgPath)
-							n.Args[0] = constConcreteRealm(nx, crlm)
-						case Name("cur"):
-							// A non-crossing call of a crossing function.
+							crlm := NewConcreteRealm(ctxpn.PkgPath)
+							n.Args[0] = toConstExpr(nx, crlm)
+						case Name("cur"): // non-crossing call of a crossing function.
+							// Try to check that called function is local.
+							// NOTE: We don't necessaryily know statically
+							// whether n.Func is a local realm function or external,
+							// so this check must also happen at runtime.
+							ftv, err := tryEvalStatic(store, ctxpn, last, n.Func)
+							if err == nil {
+								// This is fine; e.g. somefunc()(cur,...)
+							} else {
+								fpp := ftv.GetUnboundFunc().PkgPath
+								if fpp != ctxpn.PkgPath {
+									panic(fmt.Sprintf("`cur` from %q cannot be passed to external realm %q",
+										ctxpn.PkgPath, fpp))
+								}
+							}
+							// Check `cur` directly from parent crossing function's argument.
 							dbn := last.GetBlockNodeForPath(store, nx.Path)
 							switch dbn := dbn.(type) {
 							case *FuncDecl:
@@ -1524,7 +1550,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := constType(n.Func, gByteSliceType)
+								bsx := toConstTypeExpr(n.Func, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
@@ -1546,7 +1572,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if tx == nil {
 									// Get the array type from the first argument.
 									s0 := evalStaticTypeOf(store, last, n.Args[0])
-									tx = constType(arg, s0.Elem())
+									tx = toConstTypeExpr(arg, s0.Elem())
 								}
 								// Convert to the array type.
 								arg1 := Call(tx, arg)
@@ -1559,7 +1585,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := constType(args1, gByteSliceType)
+								bsx := toConstTypeExpr(args1, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
@@ -1804,7 +1830,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *CompositeLitExpr:
 				// Get or evaluate composite type.
 				clt := evalStaticType(store, last, n.Type)
-				n.Type = constType(n.Type, clt)
+				n.Type = toConstTypeExpr(n.Type, clt)
 				// Replace const Elts with default *ConstExpr.
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
@@ -1863,7 +1889,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						at.Len = idx
 						// update node
 						cx := constInt(n, int64(idx))
-						constTypeSource(n.Type).(*ArrayTypeExpr).Len = cx
+						unConstTypeExpr(n.Type).(*ArrayTypeExpr).Len = cx
 					}
 				}
 
@@ -2481,7 +2507,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type.SetAttribute(ATTR_TYPE_VALUE, dst)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
-				n.Type = constType(n.Type, dst)
+				n.Type = toConstTypeExpr(n.Type, dst)
 
 			case *RefExpr:
 			}
@@ -3520,6 +3546,29 @@ func evalStaticTypedValues(store Store, last BlockNode, xs ...Expr) []TypedValue
 	return res
 }
 
+// XXX Memoize.
+func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, n Node) (tv TypedValue, err error) {
+	pv := pn.NewPackage() // throwaway
+	store = store.BeginTransaction(nil, nil, nil)
+	store.SetCachePackage(pv)
+	var m = NewMachine(pn.PkgPath, store)
+	defer m.Release()
+	func() {
+		// cannot be resolved statically
+		defer func() {
+			r := recover()
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				err = fmt.Errorf("recovered panic with: %v", r)
+			}
+		}()
+		// try to evaluate n
+		tv = m.EvalStatic(last, n)
+	}()
+	return
+}
+
 func getGnoFuncTypeOf(store Store, it Type) *FuncType {
 	return baseOf(it).(*FuncType)
 }
@@ -3599,7 +3648,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	return cx
 }
 
-func constType(source Expr, t Type) *constTypeExpr {
+func toConstTypeExpr(source Expr, t Type) *constTypeExpr {
 	if cx, ok := source.(*constTypeExpr); ok {
 		if cx.Source == nil {
 			panic("should not happen")
@@ -3607,22 +3656,55 @@ func constType(source Expr, t Type) *constTypeExpr {
 		if _, ok := cx.Source.(*ConstExpr); ok {
 			panic("should not happen")
 		}
-		cx.Type = t
+		if _, ok := cx.Source.(*constTypeExpr); ok {
+			panic("should not happen")
+		}
 		if cx.Span != source.GetSpan() {
 			panic("should not happen")
 		}
+		cx.Type = t
 		// setPreprocessed(cx)
 		return cx
 	}
 	cx := &constTypeExpr{}
-	cx.Source = constSource(source)
+	// cx.Source = unConstExpr(source)
+	if _, ok := cx.Source.(*ConstExpr); ok {
+		panic("should not happen")
+	}
+	cx.Source = source
 	cx.Type = t
 	cx.SetSpan(source.GetSpan())
 	setPreprocessed(cx)
 	return cx
 }
 
-func constTypeSource(cx Expr) Expr {
+func toConstExpr(source Expr, tv TypedValue) *ConstExpr {
+	if cx, ok := source.(*ConstExpr); ok {
+		if cx.Source == nil {
+			panic("should not happen")
+		}
+		if _, ok := cx.Source.(*ConstExpr); ok {
+			panic("should not happen")
+		}
+		if _, ok := cx.Source.(*constTypeExpr); ok {
+			panic("should not happen")
+		}
+		if cx.Span != source.GetSpan() {
+			panic("should not happen")
+		}
+		cx.TypedValue = tv
+		// setPreprocessed(cx)
+		return cx
+	}
+	cx := &ConstExpr{}
+	cx.Source = source
+	cx.TypedValue = tv
+	cx.SetSpan(source.GetSpan())
+	setPreprocessed(cx)
+	return cx
+}
+
+func unConstTypeExpr(cx Expr) Expr {
 	switch cx := cx.(type) {
 	case *constTypeExpr:
 		return cx.Source
@@ -3631,13 +3713,37 @@ func constTypeSource(cx Expr) Expr {
 	}
 }
 
-func constSource(cx Expr) Expr {
+func unConstExpr(cx Expr) Expr {
 	switch cx := cx.(type) {
 	case *ConstExpr:
 		return cx.Source
 	default:
 		return cx
 	}
+}
+
+func constInt(source Expr, i int64) *ConstExpr {
+	cx := &ConstExpr{Source: source}
+	cx.T = IntType
+	cx.SetInt(i)
+	setPreprocessed(cx)
+	return cx
+}
+
+func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
+	cx := &ConstExpr{Source: source}
+	cx.T = UntypedBigintType
+	cx.V = BigintValue{big.NewInt(i64)}
+	setPreprocessed(cx)
+	return cx
+}
+
+func constNil(source Expr) *ConstExpr {
+	cx := &ConstExpr{Source: source}
+	cx.T = nil
+	cx.V = nil
+	setPreprocessed(cx)
+	return cx
 }
 
 func setConstAttrs(cx *ConstExpr) {
@@ -3976,7 +4082,7 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 // convert x to destination type t
 func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 	// XXX
-	cx := Expr(Call(constType(*x, t), *x))
+	cx := Expr(Call(toConstTypeExpr(*x, t), *x))
 	cx = Preprocess(store, last, cx).(Expr)
 	*x = cx
 }
@@ -4182,7 +4288,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				panic("cannot elide unknown composite type")
 			}
 			ct = elide
-			cx.Type = constType(cx, elide)
+			cx.Type = toConstTypeExpr(cx, elide)
 		} else {
 			un, directR = findUndefinedT(store, last, cx.Type, stack, defining, isalias, astype && direct)
 			if un != "" {
@@ -4822,41 +4928,6 @@ func expectedPkgName(path string) (string, bool) {
 		return "", false
 	}
 	return res[1], true
-}
-
-func constInt(source Expr, i int64) *ConstExpr {
-	cx := &ConstExpr{Source: source}
-	cx.T = IntType
-	cx.SetInt(i)
-	setPreprocessed(cx)
-	return cx
-}
-
-func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
-	cx := &ConstExpr{Source: source}
-	cx.T = UntypedBigintType
-	cx.V = BigintValue{big.NewInt(i64)}
-	setPreprocessed(cx)
-	return cx
-}
-
-func constNil(source Expr) *ConstExpr {
-	cx := &ConstExpr{Source: source}
-	cx.T = nil
-	cx.V = nil
-	setPreprocessed(cx)
-	return cx
-}
-
-func constConcreteRealm(source Expr, cur TypedValue) *ConstExpr {
-	cx := &ConstExpr{Source: source}
-	if cur.T != gConcreteRealmType || cur.V == nil {
-		panic(fmt.Sprintf("unexpected concrete realm typedvalue %v",
-			cur.String()))
-	}
-	cx.TypedValue = cur
-	setPreprocessed(cx)
-	return cx
 }
 
 func skipFaux(bn BlockNode) BlockNode {

@@ -1973,6 +1973,17 @@ func (tv *TypedValue) GetFunc() *FuncValue {
 	return tv.V.(*FuncValue)
 }
 
+func (tv *TypedValue) GetUnboundFunc() *FuncValue {
+	switch fv := tv.V.(type) {
+	case *FuncValue:
+		return fv
+	case *BoundMethodValue:
+		return fv.Func
+	default:
+		panic(fmt.Sprintf("expected function or bound method but got %T", tv.V))
+	}
+}
+
 func (tv *TypedValue) GetLength() int {
 	if tv.V == nil {
 		switch bt := baseOf(tv.T).(type) {

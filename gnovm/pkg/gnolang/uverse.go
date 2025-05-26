@@ -185,7 +185,7 @@ var gConcreteRealmType = &DeclaredType{
 // NOTE: the value is set as a constExpr for the `.cur` in the preprocessor,
 // and likewise for MsgCall cross-call of crossing functions, so the value
 // should be deterministic, not dynamic, and only depend on the realm.
-func newConcreteRealm(pkgPath string) TypedValue {
+func NewConcreteRealm(pkgPath string) TypedValue {
 	return TypedValue{
 		T: gConcreteRealmType,
 		V: &StructValue{

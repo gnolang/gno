@@ -38,7 +38,7 @@ func (m *Machine) doOpPrecall() {
 				panic(fmt.Sprintf(
 					"expected nil for realm argument in cross call but got %v", niltv))
 			}
-			crlm := newConcreteRealm(fv.PkgPath)
+			crlm := NewConcreteRealm(fv.PkgPath)
 			niltv.Assign(m.Alloc, crlm, false)
 		}
 	case *BoundMethodValue:
@@ -61,7 +61,7 @@ func (m *Machine) doOpPrecall() {
 				panic(fmt.Sprintf(
 					"expected nil for realm argument in cross call but got %v", niltv))
 			}
-			crlm := newConcreteRealm(fv.Func.PkgPath)
+			crlm := NewConcreteRealm(fv.Func.PkgPath)
 			niltv.Assign(m.Alloc, crlm, false)
 		}
 	case TypeValue:

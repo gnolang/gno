@@ -159,7 +159,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
-			// Store process results here.
+			// Memo process results here.
 			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
 
 			// Run type checking

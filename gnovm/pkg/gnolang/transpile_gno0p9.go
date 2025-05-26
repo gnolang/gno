@@ -133,14 +133,14 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 						if !ok {
 							panic("cross(fn) must be followed by a call")
 						}
-						fname := last.GetLocation().File
+						fname := last.GetLocation().GetFile()
 						addXform1(pn, fname, pc, XTYPE_ADD_NILREALM)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						if !IsRealmPath(pn.PkgPath) {
 							panic("crossing() is only allowed in realm packages")
 						}
 						// Add `cur realm` as first argument to func decl.
-						fname := last.GetLocation().File
+						fname := last.GetLocation().GetFile()
 						addXform1(pn, fname, last, XTYPE_ADD_CURFUNC)
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
 						// reserve attach() so we can support it later.
@@ -161,25 +161,24 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 						fmt.Println("FAILED TO EVALSTATIC", n.Func, err)
 					}
 					var isCrossing bool
-					var fnode FuncNode
 					switch fv := ftv.V.(type) {
 					case nil:
 						return n, TRANS_CONTINUE
 					case TypeValue:
 						return n, TRANS_CONTINUE
 					case *FuncValue:
-						fnode = fv.GetSource(store).(FuncNode)
+						fnode := fv.GetSource(store).(FuncNode)
 						if fnode.GetBody().isCrossing_gno0p0() {
 							// Not cross-called, so add `cur` as first argument.
-							fname := last.GetLocation().File
+							fname := last.GetLocation().GetFile()
 							addXform1(pn, fname, n, XTYPE_ADD_CURCALL)
 							isCrossing = true
 						}
 					case *BoundMethodValue:
-						fnode = fv.Func.GetSource(store).(FuncNode)
+						fnode := fv.Func.GetSource(store).(FuncNode)
 						if fnode.GetBody().isCrossing_gno0p0() {
 							// Not cross-called, so add `cur` as first argument.
-							fname := last.GetLocation().File
+							fname := last.GetLocation().GetFile()
 							addXform1(pn, fname, n, XTYPE_ADD_CURCALL)
 							isCrossing = true
 						}
@@ -191,24 +190,22 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 							// Except, test functions cannot take cur;
 							// tests don't have a "caller". A default
 							// caller is convenient but surprising.
-							name := string(fnode.GetName())
-							file := fnode.GetLocation().GetFile()
+							file := last.GetLocation().GetFile()
+							fn, _, ok := findLastFunction(last, pn)
+							if !ok {
+								panic("`cur` can only be used in a func body")
+							}
+							name := string(fn.GetName())
 							if strings.HasSuffix(file, "_test.gno") &&
 								strings.HasPrefix(name, "Test") {
 								// TODO: improve test cross utils.
-								fmt.Errorf("illegal `cur` in test %s.\n",
+								fmt.Printf("illegal `cur` in test %s.\n",
 									name) // just a warning.
 								return n, TRANS_CONTINUE
 							}
-							fn, _, ok := findLastFunction(last, pn)
-							if ok {
-								// NOTE: will also add to init/main,
-								// but gnovm knows how to call them.
-								file := last.GetLocation().File
-								addXform1(pn, file, fn, XTYPE_ADD_CURFUNC)
-							} else {
-								panic("`cur` can only be used in a func body")
-							}
+							// NOTE: will also add to init/main,
+							// but gnovm knows how to call them.
+							addXform1(pn, file, fn, XTYPE_ADD_CURFUNC)
 						}
 					}
 					return n, TRANS_CONTINUE
@@ -297,29 +294,6 @@ func spreadXform(lhs, rhs Node) (more Node, cmp int) {
 	} else { // attrl == attr
 		more, cmp = nil, 0
 	}
-	return
-}
-
-// XXX Memoize.
-func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, n Node) (tv TypedValue, err error) {
-	pv := pn.NewPackage() // throwaway
-	store = store.BeginTransaction(nil, nil, nil)
-	store.SetCachePackage(pv)
-	var m = NewMachine("x", store)
-	defer m.Release()
-	func() {
-		// cannot be resolved statically
-		defer func() {
-			r := recover()
-			if e, ok := r.(error); ok {
-				err = e
-			} else {
-				err = fmt.Errorf("recovered panic with: %v", r)
-			}
-		}()
-		// try to evaluate n
-		tv = m.EvalStatic(last, n)
-	}()
 	return
 }
 
@@ -451,8 +425,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 							if fn != nil {
 								fname = string(fn.Name)
 							} else {
-								loc := dbn.GetLocation()
-								fname = loc.File
+								fname = dbn.GetLocation().GetFile()
 							}
 							// XXX Get the xtype from spreadXform,
 							// or otherwise check XTYPE_ADD_CURFUNC is good.
@@ -700,9 +673,6 @@ XFORMS1_LOOP:
 			}
 		}
 		fmt.Println("xform2 item not found for xform1:", xform1, len(xforms2))
-		for _, xform2 := range xforms2 {
-			fmt.Println("xform2:", xform2)
-		}
 		mismatch = true
 	}
 	if mismatch {
