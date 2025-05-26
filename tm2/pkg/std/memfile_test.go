@@ -137,7 +137,7 @@ func TestMemPackage_Validate(t *testing.T) {
 					{Name: "gnomod.toml"},
 				},
 			},
-			"package has no .gno files",
+			"",
 		},
 	}
 

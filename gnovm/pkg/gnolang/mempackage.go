@@ -35,6 +35,7 @@ var (
 	allowedMemPackageFileExtensions = []string{
 		".gno",
 		".toml",
+		// ".txtar", // XXX: to be considered
 	}
 	badMemPackageFileExtensions = []string{
 		".gen.go",
