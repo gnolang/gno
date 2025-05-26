@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX append and delete need checks too.
+
 import (
 	"bytes"
 	"fmt"
@@ -55,6 +57,45 @@ var gStringerType = &DeclaredType{
 		},
 	},
 	sealed: true,
+}
+
+var gRealmType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "realm",
+	Base: &InterfaceType{
+		PkgPath: uversePkgPath,
+		Methods: []FieldType{
+			{
+				Name: "Addr",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{
+						{
+							// Name: "",
+							Type: StringType, // NOT std.Address.
+						},
+					},
+				},
+			},
+			{
+				Name: "Prev",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{
+						{
+							// Name: "",
+							Type: nil, // gets filled in init() below.
+						},
+					},
+				},
+			},
+		},
+	},
+	sealed: true,
+}
+
+func init() {
+	gRealmType.Base.(*InterfaceType).Methods[1].Type.(*FuncType).Results[0].Type = gRealmType
 }
 
 // ----------------------------------------
@@ -162,7 +203,7 @@ func makeUverseNode() {
 			"res", GenT("X", nil), // res
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			// As a special case, if arg1 is a string type, first convert it into
 			// a data slice type.
 			if arg1.TV.T != nil && arg1.TV.T.Kind() == StringKind {
@@ -404,7 +445,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -423,7 +464,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
 			switch bdt := baseOf(dst.TV.T).(type) {
 			case *SliceType:
@@ -501,7 +542,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			itv := arg1.Deref()
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
@@ -540,7 +581,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -559,7 +600,7 @@ func makeUverseNode() {
 			"", GenT("T", nil),
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			vargs := arg1
 			vargsl := vargs.TV.GetLength()
 			tt := arg0.TV.GetType()
@@ -599,7 +640,7 @@ func makeUverseNode() {
 					ci := int(cv.ConvertGetInt())
 
 					if ci < li {
-						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
+						m.Panic(typedString(`makeslice: cap out of range`))
 					}
 
 					if et.Kind() == Uint8Kind {
@@ -682,14 +723,11 @@ func makeUverseNode() {
 			"", GenT("*T", nil),
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			tt := arg0.TV.GetType()
-			vv := defaultValue(m.Alloc, tt)
+			tv := defaultTypedValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
-			hi := m.Alloc.NewHeapItem(TypedValue{
-				T: tt,
-				V: vv,
-			})
+			hi := m.Alloc.NewHeapItem(tv)
 			m.PushValue(TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
@@ -711,7 +749,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
 	)
@@ -721,8 +759,22 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
+		},
+	)
+	defNative("panic",
+		Flds( // params
+			"exception", AnyT(),
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			ex := arg0.TV.Copy(m.Alloc)
+			// m.Panic(ex) also works, but after return will immediately OpPanic2.
+			// This should be the only place .pushPanic() is called
+			// outside of op_*.go doOp*() functions.
+			m.pushPanic(ex)
 		},
 	)
 	defNative("recover",
@@ -736,6 +788,155 @@ func makeUverseNode() {
 				m.PushValue(TypedValue{})
 			} else {
 				m.PushValue(exception.Value)
+			}
+		},
+	)
+
+	//----------------------------------------
+	// Gno2 types
+	def("realm", asValue(gRealmType))
+	defNative("crossing",
+		nil, // params
+		nil, // results
+		func(m *Machine) {
+			stmt := m.PeekStmt(1)
+			bs, ok := stmt.(*bodyStmt)
+			if !ok {
+				panic("unexpected origin of crossing call")
+			}
+			if bs.NextBodyIndex != 1 {
+				panic("crossing call must be the first call of a function or method")
+			}
+			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
+			if !fr1.LastPackage.IsRealm() {
+				panic("crossing call only allowed in realm packages") // XXX test
+			}
+			// Verify prior fr.WithCross or fr.DidCrossing.
+			// NOTE: fr.WithCross may or may not be true,
+			// crossing() (which sets fr.DidCrossing) can be
+			// stacked.
+			for i := 1 + 1; ; i++ {
+				fri := m.PeekCallFrame(i)
+				if fri == nil {
+					// For stage add, meaning init() AND
+					// global var decls inherit a faux
+					// frame of index -1 which crossed from
+					// the package deployer.
+					// For stage run, main() does the same,
+					// so main() can be crossing or not, it
+					// doesn't matter. This applies for
+					// MsgRun() as well as tests. MsgCall()
+					// runs like cross(fn)(...) which
+					// meains fri.WithCross would have been
+					// found below.
+					fr2 := m.PeekCallFrame(2)
+					fr2.SetDidCrossing()
+					return
+				}
+				if fri.WithCross || fri.DidCrossing {
+					// NOTE: fri.DidCrossing implies
+					// everything under it is also valid.
+					// fri.DidCrossing && !fri.WithCross
+					// can happen with an implicit switch.
+					fr2 := m.PeekCallFrame(2)
+					fr2.SetDidCrossing()
+					return
+				}
+				// Neither fri.WithCross nor fri.DidCrossing, yet
+				// Realm already switched implicitly.
+				if fri.LastRealm != m.Realm {
+					panic("crossing could not find corresponding cross(fn)(...) call")
+				}
+			}
+			//nolint:govet // detected as unreachable
+			panic("should not happen") // defensive
+		},
+	)
+	defNative("cross",
+		Flds( // param
+			"x", GenT("X", nil),
+		),
+		Flds( // results
+			"x", GenT("X", nil),
+		),
+		func(m *Machine) {
+			// This is handled by op_call instead.
+			panic("cross is a virtual function")
+			/*
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				m.PushValue(arg0.Deref())
+			*/
+		},
+	)
+	defNative("attach",
+		Flds( // params
+			"xs", Vrd(AnyT()), // args[0]
+		),
+		nil, // results
+		func(m *Machine) {
+			panic("attach() is not yet supported")
+		},
+	)
+	// Typed nils in Go1 are problematic.
+	// https://dave.cheney.net/2017/08/09/typed-nils-in-go-2
+	// Dave Cheney suggests typed-nil == nil when the typed-nil is not an
+	// interface type, but arguably it should be the other way around, e.g.
+	// > (*int)(nil) != nil.
+	// Since Gno doesn't yet support reflect, and since even with reflect
+	// implementing istypednil() is annoying, while istypednil() shouldn't
+	// require reflect, Gno should therefore offer istypednil() as a uverse
+	// function.
+	// XXX REMOVE, move to std function.
+	defNative("istypednil",
+		Flds( // params
+			"x", AnyT(),
+		),
+		Flds( // results
+			"", "bool",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			m.PushValue(typedBool(arg0.TV.IsTypedNil()))
+		},
+	)
+	// In the final form, it will do nothing if no abort; but otherwise
+	// will make it as if nothing happened (with full cache wrapping). This
+	// gives programs precognition, or at least hypotheticals.
+	// e.g. "If it **would have** done this, do that instead".
+	//
+	// XXX This is only enabled in testing mode (for now), and test
+	// developers should be aware that behavior will change to be like
+	// above; currently it doesn't cache-wrap the fn function so residual
+	// state mutations remain even after revive(), but they will be
+	// "magically" rolled back upon panic in the future. The fn function
+	// must *always* panic in the end in order to prevent state mutations
+	// after a non-aborting transaction.
+	defNative("revive",
+		Flds( // params
+			"fn", FuncT(nil, nil),
+		),
+		Flds( // results
+			"ex", AnyT(),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			if m.ReviveEnabled {
+				last := m.LastFrame()
+
+				// Push the no-abort result.
+				// last.SetRevive() marks the frame and this
+				// value will get replaced w/ exception.
+				m.PushValue(TypedValue{})
+				last.SetIsRevive()
+
+				// Push function and precall it.
+				m.PushExpr(Call(&ConstExpr{Source: X("fn"), TypedValue: *arg0.TV}))
+				m.PushOp(OpPrecall)
+				m.PushValue(*arg0.TV)
+			} else {
+				// If revive isn't enabled just panic.
+				m.pushPanic(typedString("revive() not enabled"))
+				// m.PushValue(TypedValue{})
 			}
 		},
 	)

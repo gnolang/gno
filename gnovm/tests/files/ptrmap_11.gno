@@ -13,6 +13,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println(m[S[index]]) // Output: first key
 	println(m[S[1]] == "")
 }
