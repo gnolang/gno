@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	gameContinue int = iota
-	gameWin
-	gameLoose
+	gameContinue int = iota // Game is ongoing
+	gameWin                 // Player has won the game
+	gameLoose               // Player has lost the game
 )
 
+// GameState holds the current state of a Pokémon battle
 type GameState struct {
 	myPokemon    *Pokemon
 	otherPokemon *Pokemon
@@ -24,6 +25,7 @@ type GameState struct {
 	state        int
 }
 
+// checkGameEnd determines if the game has ended and updates the game state
 func checkGameEnd(myTeam [teamSize]Pokemon, game *GameState) bool {
 	game.state = gameWin
 	for j := 0; j < teamSize; j++ {
@@ -48,6 +50,7 @@ func checkGameEnd(myTeam [teamSize]Pokemon, game *GameState) bool {
 	return false
 }
 
+// getGameState parses the game state string and initializes the battle state
 func getGameState(state string, me *UserData) (game GameState, err error) {
 	if len(state)%2 == 1 {
 		err = errors.New("state bad format")
@@ -123,10 +126,12 @@ func getGameState(state string, me *UserData) (game GameState, err error) {
 	return
 }
 
+// getFightLink generates a URL for the fight page with user and state parameters
 func getFightLink(user, state string) string {
 	return atmPath + ":fight?user=" + user + "&state=" + state
 }
 
+// getEnnemyNextAttack selects a random valid attack for the enemy Pokémon
 func getEnnemyNextAttack(p *Pokemon) string {
 	can_attack := false
 	for _, a := range p.attacks {
@@ -145,6 +150,7 @@ func getEnnemyNextAttack(p *Pokemon) string {
 	}
 }
 
+// renderTeamSwap renders the team swap interface for the player
 func renderTeamSwap(game GameState, team [teamSize]Pokemon, user, state string) (rend string) {
 	have_pokemon := false
 	table := mdtable.Table{Headers: []string{"Swap for "}, Rows: [][]string{[]string{"HP"}}}
@@ -173,6 +179,7 @@ func renderTeamSwap(game GameState, team [teamSize]Pokemon, user, state string) 
 	return
 }
 
+// renderInventoryUse renders the player's inventory for item usage
 func renderInventoryUse(inventory []ItemType, user, state string) (rend string) {
 	if len(inventory) != 0 {
 		table := mdtable.Table{Headers: []string{"Item", "Description"}}
@@ -186,20 +193,19 @@ func renderInventoryUse(inventory []ItemType, user, state string) (rend string) 
 	return
 }
 
+// renderFightPokemon renders a Pokémon's details and attack options for the fight page
 func renderFightPokemon(p *Pokemon, user, state string, canAttack bool, otherP *Pokemon) (rend string) {
 	if p == nil {
 		rend = "Pokémon is NULL ??"
 		return
 	}
 	rend += md.H3(p.name)
-
 	rend += md.Image(p.name, p.assetPath)
 	if p.pv > 0 {
 		rend += md.Bold(strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
 	} else {
 		rend += md.Bold(strconv.Itoa(0)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
 	}
-
 	table := mdtable.Table{Headers: []string{"ATTACK"},
 		Rows: [][]string{
 			[]string{md.Bold("Damage")},
@@ -222,6 +228,7 @@ func renderFightPokemon(p *Pokemon, user, state string, canAttack bool, otherP *
 	return
 }
 
+// renderPokemon1v1 renders a 1v1 battle view with both Pokémon
 func renderPokemon1v1(game GameState, user, state string) (rend string) {
 	rend += "<gno-columns>" + nl
 	rend += renderFightPokemon(game.myPokemon, user, state, true, game.myPokemon)
@@ -231,6 +238,7 @@ func renderPokemon1v1(game GameState, user, state string) (rend string) {
 	return
 }
 
+// initEnemy initializes the enemy team with random Pokémon if not already set
 func initEnemy(state string) string {
 	if len(state) >= teamSize {
 		return state
@@ -242,16 +250,15 @@ func initEnemy(state string) string {
 	return res
 }
 
+// ApplyGameEnd updates user data based on the game outcome
 func ApplyGameEnd(state string) {
 	crossing()
-
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
 	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return usr == member
 	})
 	me := &pokemonDAO.userData[idx]
-
 	game, err := getGameState(state, me)
 	if err != nil {
 		panic("bad state : " + err.Error())
@@ -276,6 +283,7 @@ func ApplyGameEnd(state string) {
 	}
 }
 
+// renderEndGame renders the game outcome screen with reward or loss options
 func renderEndGame(game GameState, me *UserData, user string, state string) (rend string) {
 	if game.state == gameWin {
 		rend += md.H3("You WIN ! GGWP")
@@ -290,6 +298,7 @@ func renderEndGame(game GameState, me *UserData, user string, state string) (ren
 	return
 }
 
+// renderPokemonFight renders the main fight page with team, inventory, and battle view
 func renderPokemonFight(rend *mux.ResponseWriter, req *mux.Request) {
 	rend.Write(md.H2("Fight !"))
 	user := req.Query.Get("user")

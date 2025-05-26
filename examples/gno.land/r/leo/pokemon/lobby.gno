@@ -8,6 +8,7 @@ import (
 	"gno.land/p/moul/mdtable"
 )
 
+// pathDescription maps RenderPage to descriptions for navigation links
 var (
 	pathDescription = map[RenderPage]string{
 		pokemonLogin:        "To swap account, or delete your actual one",
@@ -19,10 +20,12 @@ var (
 	}
 )
 
+// renderWallet displays the player's Pokedollar balance
 func renderWallet(money uint) string {
 	return "Wallet : " + renderPokedollar(int(money)) + nl
 }
 
+// renderSelectedPokemon displays the player's selected Pokémon team in a table
 func renderSelectedPokemon(team [teamSize]Pokemon) (rend string) {
 	rend += "Selected Pokémons : "
 	have_pokemon := false
@@ -43,6 +46,7 @@ func renderSelectedPokemon(team [teamSize]Pokemon) (rend string) {
 	return
 }
 
+// renderInventory displays the player's inventory with item details
 func renderInventory(inventory []ItemType) (rend string) {
 	rend += "Inventory : "
 	if len(inventory) != 0 {
@@ -57,6 +61,7 @@ func renderInventory(inventory []ItemType) (rend string) {
 	return
 }
 
+// renderMe displays the player's wallet, inventory, and selected Pokémon
 func renderMe(user string) (rend string) {
 	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return std.Address(user) == member
@@ -68,6 +73,7 @@ func renderMe(user string) (rend string) {
 	return
 }
 
+// renderMap generates navigation links for the game pages
 func renderMap(user string) (rend string) {
 	for k, v := range pathDescription {
 		link := atmPath + ":" + string(k) + "?user=" + user
@@ -77,6 +83,7 @@ func renderMap(user string) (rend string) {
 	return
 }
 
+// renderPokemonLobby renders the main lobby page with navigation and player info
 func renderPokemonLobby(rend *mux.ResponseWriter, req *mux.Request) {
 	user := req.Query.Get("user")
 

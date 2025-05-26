@@ -80,12 +80,11 @@ func applyMaxElixer(p *Pokemon) {
 	}
 }
 
+// BuyItem allows a user to purchase an item and updates their inventory and balance
 func BuyItem(itemId ItemType) {
 	crossing()
-
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
-
 	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return usr == member
 	})
@@ -97,10 +96,12 @@ func BuyItem(itemId ItemType) {
 	me.pokedollar -= uint(itemData[itemId].price)
 }
 
+// renderPokedollar formats a Pokedollar amount with the Pokedollar symbol
 func renderPokedollar(price int) string {
 	return md.Bold(strconv.Itoa(price) + " ₽")
 }
 
+// renderShop renders the shop interface with items available for purchase
 func renderShop() (rend string) {
 	table := mdtable.Table{Headers: []string{"Item", "Description", "Price"}}
 	for k, v := range itemData {
@@ -111,6 +112,7 @@ func renderShop() (rend string) {
 	return
 }
 
+// renderPokemonShop renders the shop page with user wallet, inventory, and items for sale
 func renderPokemonShop(rend *mux.ResponseWriter, req *mux.Request) {
 	user := req.Query.Get("user")
 	rend.Write(md.H2("Shop"))

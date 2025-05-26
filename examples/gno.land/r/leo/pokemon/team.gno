@@ -11,6 +11,7 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
+// SwapTeam updates the user's Pokémon team based on the provided team string
 func SwapTeam(team string) {
 	crossing()
 
@@ -20,7 +21,6 @@ func SwapTeam(team string) {
 		return usr == member
 	})
 	me := &pokemonDAO.userData[idx]
-
 	if len(team) != teamSize {
 		panic("a team contain 6 pokémon or empty slots")
 	}
@@ -35,6 +35,7 @@ func SwapTeam(team string) {
 	}
 }
 
+// getTeam validates the team string format for Pokémon selection
 func getTeam(state string) (err error) {
 	if len(state) != teamSize {
 		err = errors.New("")
@@ -50,10 +51,12 @@ func getTeam(state string) (err error) {
 	return
 }
 
+// getTeamLink generates a URL for the team selection page with user and team parameters
 func getTeamLink(user, team string) string {
 	return atmPath + ":team?user=" + user + "&team=" + team
 }
 
+// renderTeam renders the current team with swap options for the team selector page
 func renderTeam(team string, user string, swap int) (rend string) {
 	table := mdtable.Table{Headers: []string{}, Rows: [][]string{[]string{}, []string{}}}
 	for i, p := range team {
@@ -74,6 +77,7 @@ func renderTeam(team string, user string, swap int) (rend string) {
 	return
 }
 
+// renderPokemonList renders a Pokémon's details with a link to select it for the team
 func renderPokemonList(p Pokemon, link string) (rend string) {
 	rend += md.H3(p.name)
 
@@ -95,6 +99,7 @@ func renderPokemonList(p Pokemon, link string) (rend string) {
 	return
 }
 
+// renderPokemonTeam renders the team selection page with current team and available Pokémon
 func renderPokemonTeam(rend *mux.ResponseWriter, req *mux.Request) {
 	user := req.Query.Get("user")
 	team := req.Query.Get("team")

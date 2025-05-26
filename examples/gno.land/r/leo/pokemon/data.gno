@@ -33,6 +33,7 @@ const (
 	MaxElixer
 )
 
+// deepCopy creates a deep copy of a Pokémon, including its attacks.
 func (p *Pokemon) deepCopy() Pokemon {
 	copiedAttacks := make([]Attack, len(p.attacks))
 	copy(copiedAttacks, p.attacks)
@@ -44,6 +45,7 @@ func (p *Pokemon) deepCopy() Pokemon {
 	}
 }
 
+// getDefault retrieves the default Pokémon data from pokemonList by it's name
 func (p *Pokemon) getDefault() *Pokemon {
 	for _, d := range pokemonList {
 		if p.name == d.name {
@@ -53,6 +55,7 @@ func (p *Pokemon) getDefault() *Pokemon {
 	return nil
 }
 
+// getId returns the index of the Pokémon in pokemonList by name, or -1 if not found
 func (p *Pokemon) getId() int {
 	for i, d := range pokemonList {
 		if p.name == d.name {
@@ -62,6 +65,7 @@ func (p *Pokemon) getId() int {
 	return -1
 }
 
+// pokemonList contains predefined Pokémon with their attributes and attacks
 var (
 	pokemonList = []Pokemon{
 		{

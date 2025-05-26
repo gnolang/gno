@@ -25,15 +25,16 @@ const (
 )
 
 var (
+	// time-based seed for combat enemy IA (random issou)
 	r           = rand.New(rand.NewPCG(uint64(time.Now().Unix()), uint64(time.Now().Unix())))
 	atmPath     = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
 	pokemonPath = map[RenderPage]mux.HandlerFunc{
-		pokemonLogin:        renderPokemonLogin,
-		pokemonLobby:        renderPokemonLobby,
-		pokemonTeamSelector: renderPokemonTeam,
-		pokemonFight:        renderPokemonFight,
-		pokemonShop:         renderPokemonShop,
-		pokemonRank:         renderPokemonRank,
+		pokemonLogin:        renderPokemonLogin, // login page for user selection
+		pokemonLobby:        renderPokemonLobby, // lobby page for game navigation
+		pokemonTeamSelector: renderPokemonTeam,  // team selection page for choosing Pokémon
+		pokemonFight:        renderPokemonFight, // fight page for Pokémon battles
+		pokemonShop:         renderPokemonShop,  // shop page for purchasing items
+		pokemonRank:         renderPokemonRank,  // ranking page for player standings
 	}
 )
 
@@ -41,6 +42,7 @@ func init() {
 	cross(hor.Register)("Pokémon", "Come play some Pokémon's fights")
 }
 
+// render the Pokémon game pages based on the provided path and user query
 func Render(path string) (rend string) {
 	router := mux.NewRouter()
 	rend += md.H1("Pokémon")
