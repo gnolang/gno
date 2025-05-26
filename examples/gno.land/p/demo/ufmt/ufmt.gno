@@ -291,12 +291,8 @@ func writeStringWithLength(p *printer, verb rune, arg any, length int) {
 		s = fallback(verb, v)
 	}
 
-	if length > 0 {
-		if len(s) < length {
-			s = strings.Repeat(" ", length-len(s)) + s
-		} else {
-			s = s[:length]
-		}
+	if length > 0 && len(s) < length {
+		s = strings.Repeat(" ", length-len(s)) + s
 	}
 	p.buf.writeString(s)
 }
