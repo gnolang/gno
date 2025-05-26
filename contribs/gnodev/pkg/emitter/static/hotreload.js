@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Create macrotask when enter is pressed, to prevent reload when submitting forms
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Enter' ) {
             enterInProgress = true;
