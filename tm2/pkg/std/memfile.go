@@ -251,14 +251,15 @@ func SplitFilepath(fpath string) (dir string, filename string) {
 
 	last := parts[len(parts)-1]
 
-	switch {
-	case false,
-		strings.Contains(last, "."),
-		last == "LICENSE",
-		last == "README":
-		return strings.Join(parts[:len(parts)-1], "/"), last
-	case last == "":
-		return strings.Join(parts[:len(parts)-1], "/"), ""
+	if false ||
+		strings.Contains(last, ".") ||
+		last == "LICENSE" ||
+		last == "README" ||
+		last == "" {
+		dir = strings.Join(parts[:len(parts)-1], "/")
+		dir = strings.TrimRight(dir, "/") // gno.land/r/path//a.gno -> dir=gno.land/r/path filename=a.gno
+		filename = last
+		return
 	}
 
 	return strings.Join(parts, "/"), ""
