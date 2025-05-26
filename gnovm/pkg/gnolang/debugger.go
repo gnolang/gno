@@ -590,7 +590,7 @@ func debugLineInfo(m *Machine) {
 			line += "." + string(f.Func.Name) + "()"
 		}
 	}
-	fmt.Fprintf(m.Debugger.out, "> %s %s\n", line, m.Debugger.loc)
+	fmt.Fprintf(m.Debugger.out, "> %s %s\n  %s\n", line, m.Debugger.loc, m.Realm)
 }
 
 func isMemPackage(st Store, pkgPath string) bool {
@@ -818,7 +818,7 @@ const (
 func debugStack(m *Machine, arg string) error {
 	i := 0
 	for {
-		ff := debugFrameFunc(m, i)
+		ff, realm := debugFrameFunc(m, i)
 		loc := debugFrameLoc(m, i)
 		if ff == nil {
 			break
@@ -829,31 +829,34 @@ func debugStack(m *Machine, arg string) error {
 		} else {
 			fname = fmt.Sprintf("%v.%v", ff.PkgPath, ff.Name)
 		}
-		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s\n", i, fname, loc)
+		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s\n\t%s\n", i, fname, loc, realm)
 		i++
 	}
 	return nil
 }
 
-func debugFrameFunc(m *Machine, n int) *FuncValue {
+func debugFrameFunc(m *Machine, n int) (*FuncValue, *Realm) {
 	for ncall, i := 0, len(m.Frames)-1; i >= 0; i-- {
 		f := m.Frames[i]
 		if f.Func == nil {
 			continue
 		}
 		if ncall == n {
-			return f.Func
+			return f.Func, f.LastRealm
 		}
 		ncall++
 	}
-	return nil
+	return nil, nil
 }
 
 func debugFrameLoc(m *Machine, n int) Location {
 	if n == 0 || len(m.Debugger.call) == 0 {
 		return m.Debugger.loc
 	}
-	return m.Debugger.call[len(m.Debugger.call)-n]
+	if i := len(m.Debugger.call) - n; i > 0 {
+		return m.Debugger.call[i]
+	}
+	return m.Debugger.call[0]
 }
 
 // ---------------------------------------

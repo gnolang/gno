@@ -164,7 +164,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2) // XXX should it set the realm?
 		m.Context.(*teststd.TestExecContext).OriginCaller = test.DefaultCaller
-		//return runExpr(m, cfg.expr)
+		// return runExpr(m, cfg.expr)
 		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main")))))
 		return nil
 	}
