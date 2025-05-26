@@ -38,14 +38,17 @@ func init() {
 	b.IssueCoin(std.OriginCaller(), "/gno.land/r/gnoland/coins:leoncoin", 100)
 	b.IssueCoin(std.OriginCaller(), "/gno.land/r/gnoland/coins:zeoncoin", 100)
 
+	for i := 0; i < 20; i++ {
+		b.IssueCoin(std.OriginCaller(), "/gno.land/r/gnoland/coins:zeoncoin"+strconv.Itoa(i), int64(i+1))
+	}
+
 	router = mux.NewRouter()
 
-	// homepage
 	router.HandleFunc("", func(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(renderHomepage())
 	})
 
-	router.HandleFunc("full/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
+	router.HandleFunc("balances/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(renderAllBalances(req.RawPath, req.GetVar("address")))
 	})
 
@@ -53,25 +56,16 @@ func init() {
 		res.Write(renderConvertedAddress(req.GetVar("address")))
 	})
 
-	// Address balance
-	router.HandleFunc("{address}/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
-		denom := req.GetVar("denom")
-		addr := req.GetVar("address")
-		banker := std.NewBanker(std.BankerTypeReadonly)
-		res.Write(renderAddressBalance(banker, denom, addr))
+	// Coin info
+	router.HandleFunc("supply/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
+		// banker := std.NewBanker(std.BankerTypeReadonly)
+		// res.Write(renderAddressBalance(banker, denom, denom))
+		res.Write("The total supply feature is coming soon.")
 	})
 
-	// Coin info
-	router.HandleFunc("{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
-		denom := req.GetVar("denom")
-		if std.Address(denom).IsValid() {
-			res.Write("Invalid denom.")
-		} else {
-			// banker := std.NewBanker(std.BankerTypeReadonly)
-			// res.Write(renderAddressBalance(banker, denom, denom))
-			res.Write("The total supply feature is coming soon.")
-		}
-	})
+	router.NotFoundHandler = func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write("We cannot find this page - maybe you would like to [**go home**?](/r/gnoland/coins)")
+	}
 }
 
 func Render(path string) string {
@@ -84,12 +78,12 @@ func renderHomepage() string {
 This is a simple, readonly realm that allows users to browse native coin balances.   
 Here are a few examples on how to use it:
 
-- ~/r/gnoland/coins:<denom>~ - shows the total supply of denom (coming soon)
-	- [Example](/r/gnoland/coins:ugnot)
-- ~/r/gnoland/coins:<address>/<denom>~ - shows the denom balance of a specific address
-	- [Example](/r/gnoland/coins:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/ugnot)
-- ~/r/gnoland/coins:full/<address>~ - show full list of coin balances of an address
-	- [Example](/r/gnoland/coins:full/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
+- ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom 
+	- Coming soon!
+- ~/r/gnoland/coins:balances/<address>~ - show full list of coin balances of an address
+	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
+- ~/r/gnoland/coins:balances/<address>?coin=ugnot~ - shows the balance of an address for a specific coin
+	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5?coin=ugnot)
 - ~/r/gnoland/coins:cosmos/<cosmos_address>~ - convert Cosmos address to Gno address
 	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
 `, "~", "`", -1)
@@ -118,12 +112,12 @@ func renderConvertedAddress(addr string) string {
 	}
 
 	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
-	out += "[View `ugnot` balance for this address](/r/gnoland/coins:" + gnoAddress + "/ugnot" + ")\n\n"
-	out += "[View full balance list for this address](/r/gnoland/coins:full/" + gnoAddress + ")"
+	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances/" + gnoAddress + "?coin=ugnot" + ")\n\n"
+	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + gnoAddress + ")"
 	return out
 }
 
-func renderAddressBalance(banker std.Banker, denom string, addr string) string {
+func renderSingleCoinBalance(banker std.Banker, denom string, addr string) string {
 	out := "# Single balance page\n\n"
 	if !std.Address(addr).IsValid() {
 		out += "Invalid address."
@@ -137,9 +131,9 @@ func renderAddressBalance(banker std.Banker, denom string, addr string) string {
 	}
 
 	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker.GetCoins(std.Address(addr)).AmountOf("/gno.land/r/gnoland/coins:zeoncoin"), "/gno.land/r/gnoland/coins:zeoncoin", std.ChainHeight())
+		name, banker.GetCoins(std.Address(addr)).AmountOf(denom), denom, std.ChainHeight())
 
-	out += "[View full balance list for this address](/r/gnoland/coins:full/" + addr + ")"
+	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + addr + ")"
 
 	return out
 }
@@ -158,11 +152,18 @@ func renderAllBalances(rawpath, addr string) string {
 		name = user.RenderLink("")
 	}
 
+	banker := std.NewBanker(std.BankerTypeReadonly)
 	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
 		name, std.ChainHeight())
 
 	req := realmpath.Parse(rawpath)
-	balances := std.NewBanker(std.BankerTypeReadonly).GetCoins(std.Address(addr))
+
+	coin := req.Query.Get("coin")
+	if coin != "" {
+		return renderSingleCoinBalance(banker, coin, addr)
+	}
+
+	balances := banker.GetCoins(std.Address(addr))
 
 	// Create table
 	denomColumn := renderSortLink(req, "denom", "Denomination")
