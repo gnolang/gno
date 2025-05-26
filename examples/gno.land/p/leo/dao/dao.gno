@@ -3,8 +3,6 @@ package dao
 import (
 	"errors"
 	"std"
-
-	"gno.land/p/leo/utils"
 )
 
 type IDAO interface {
@@ -55,9 +53,12 @@ func (d *DAO) DeleteMember(usr std.Address) error {
 }
 
 func (d *DAO) IsMember(usr std.Address) bool {
-	return utils.AddressSliceContains(d.members, func(_ int, e std.Address) bool {
-		return e == usr
-	})
+	for _, v := range d.members {
+		if v == usr {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *DAO) AsserUserIsMember(usr std.Address) {

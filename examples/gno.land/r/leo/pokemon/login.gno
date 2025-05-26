@@ -5,7 +5,6 @@ import (
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/leo/dao"
-	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
 	"gno.land/r/sys/users"
@@ -42,7 +41,7 @@ func DeleteMyAccount() {
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
 
-	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
+	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return usr == member
 	})
 	pokemonDAO.userData = append(pokemonDAO.userData[:idx], pokemonDAO.userData[idx+1:]...)

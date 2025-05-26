@@ -4,7 +4,6 @@ import (
 	"std"
 
 	"gno.land/p/demo/mux"
-	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 )
@@ -59,7 +58,7 @@ func renderInventory(inventory []ItemType) (rend string) {
 }
 
 func renderMe(user string) (rend string) {
-	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
+	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return std.Address(user) == member
 	})
 	me := pokemonDAO.userData[idx]

@@ -245,7 +245,7 @@ func initEnemy(state string) string {
 func ApplyGameEnd(state string) {
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
-	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
+	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return usr == member
 	})
 	me := &pokemonDAO.userData[idx]
@@ -291,7 +291,7 @@ func renderEndGame(game GameState, me *UserData, user string, state string) (ren
 func renderPokemonFight(rend *mux.ResponseWriter, req *mux.Request) {
 	rend.Write(md.H2("Fight !"))
 	user := req.Query.Get("user")
-	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
+	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return std.Address(user) == member
 	})
 	me := &pokemonDAO.userData[idx]

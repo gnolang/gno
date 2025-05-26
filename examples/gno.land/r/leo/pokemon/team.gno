@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/mux"
-	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
@@ -15,7 +14,7 @@ import (
 func SwapTeam(team string) {
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
-	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
+	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return usr == member
 	})
 	me := &pokemonDAO.userData[idx]
@@ -100,7 +99,7 @@ func renderPokemonTeam(rend *mux.ResponseWriter, req *mux.Request) {
 	swapParam := req.Query.Get("swap")
 
 	rend.Write(md.H2("Team selector"))
-	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
+	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return std.Address(user) == member
 	})
 	me := &pokemonDAO.userData[idx]
