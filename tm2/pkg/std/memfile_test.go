@@ -14,258 +14,106 @@ func TestMemPackage_Validate(t *testing.T) {
 		errContains string
 	}{
 		{
-			"Correct",
+			"correct",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/path/to/pkg",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
 			"",
 		},
 		{
-			"Unsorted",
+			"unsorted",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{{Name: "b.gno"}, {Name: "a.gno"}},
+				Path:  "example.com/path/to/pkg",
+				Files: []*MemFile{{Name: "b.txt"}, {Name: "a.txt"}},
 			},
 			"unsorted",
 		},
 		{
-			"Duplicate",
+			"duplicate",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{{Name: "a.gno"}, {Name: "a.gno"}},
+				Path:  "example.com/path/to/pkg",
+				Files: []*MemFile{{Name: "a.txt"}, {Name: "a.txt"}},
 			},
 			"duplicate",
 		},
 		{
-			"InvalidPathLength",
+			"invalid_path_length",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
 			"path length",
 		},
 		{
-			"valid p",
+			"invalid_empty_path",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/p/path/path",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/path//def",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
-			"",
+			"invalid package path",
 		},
 		{
-			"valid r",
+			"invalid_trailing_slash",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/path/path",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/path/abc/def/",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
-			"",
+			"invalid package path",
 		},
 		{
-			"Leading underscore",
+			"invalid_uppercase",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/path/_path",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/PaTh/abc/def",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
-			"",
+			"invalid package path",
 		},
 		{
-			"Trailing underscore",
+			"invalid_number",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/path/path_",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/1Path/abc/def",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
-			"",
+			"invalid package path",
 		},
 		{
-			"Between underscore",
+			"special_character",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/path/p_ath",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/p@th/abc/def",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
-			"",
+			"invalid package path",
 		},
 		{
-			"Invalid underscore",
+			"special_character_2",
 			&MemPackage{
 				Name:  "hey",
-				Path:  "gno.land/r/path/_",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Path:  "example.com/p&th/abc/def",
+				Files: []*MemFile{{Name: "a.txt"}},
 			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid underscore 2",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/path/_/_",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid underscore 3",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/path/__/path",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid hyphen",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/path/pa-th",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid x",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/x/path/path",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid missing path 1",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid missing path 2",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p/",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Custom domain",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "github.com/p/path/path",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"",
-		},
-		{
-			"Special character",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p/p@th/abc/def",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Special character 2",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p/p&th/abc/def",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid number",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p/1Path/abc/def",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid uppercase",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p/PaTh/abc/def",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid empty path",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p/path//def",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid trailing slash",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/p/path/abc/def/",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"valid long path",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/very/very/very/long/path",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"",
-		},
-		{
-			"Invalid long path with special character",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/very/very/very/long/p@th",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid long path with trailing slash",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/very/very/very/long/path/",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
-		},
-		{
-			"Invalid long path with empty",
-			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/very/very/very//long/path/",
-				Files: []*MemFile{{Name: "a.gno"}},
-			},
-			"invalid package/realm path",
+			"invalid package path",
 		},
 	}
+
 	for _, tc := range tt {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-
 			err := tc.mpkg.ValidateBasic()
-			if tc.errContains != "" {
-				assert.ErrorContains(t, err, tc.errContains)
-			} else {
+			if tc.errContains == "" {
 				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.errContains)
 			}
 		})
 	}
