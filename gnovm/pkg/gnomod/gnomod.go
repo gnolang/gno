@@ -40,8 +40,8 @@ func CreateGnoModFile(rootDir, modPath string) error {
 	}
 
 	modfile := new(File)
-	modfile.AddModuleStmt(modPath)
-	modfile.Write(filepath.Join(rootDir, "gno.mod"))
+	modfile.SetModule(modPath)
+	modfile.WriteFile(filepath.Join(rootDir, "gno.mod"))
 
 	return nil
 }
