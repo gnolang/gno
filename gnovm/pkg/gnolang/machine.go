@@ -2164,12 +2164,6 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		iv := m.PopValue()
 		xv := m.PopValue()
 
-		// XXX, works but seems not the right place? thinking...
-		if mv, ok := xv.V.(*MapValue); ok {
-			fmt.Println("============mv: ", mv)
-			m.Realm.DidUpdate(mv, nil, iv.GetFirstObject(m.Store))
-		}
-
 		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
