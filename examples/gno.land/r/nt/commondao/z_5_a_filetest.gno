@@ -64,7 +64,7 @@ func main() {
 		println(v.Choice == vote)
 	})
 
-  return
+	return
 }
 
 // Output:
