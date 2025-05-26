@@ -1,11 +1,11 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -27,19 +27,19 @@ type Package struct {
 }
 
 func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error) {
-	modpath := filepath.Join(dir, "gno.mod")
-	if _, err := os.Stat(modpath); err == nil {
-		draft, err := isDraftFile(modpath)
-		if err != nil {
-			return nil, err
-		}
-
-		// Skip draft package
-		// XXX: We could potentially do that in a middleware, but doing this
-		// here avoid to potentially parse broken files
-		if draft {
+	mod, err := gnomod.ParseDir(dir)
+	switch {
+	case err == nil:
+		if mod.Draft {
+			// Skip draft package
+			// XXX: We could potentially do that in a middleware, but doing this
+			// here avoid to potentially parse broken files
 			return nil, ErrResolverPackageSkip
 		}
+	case errors.Is(err, os.ErrNotExist), errors.Is(err, gnomod.ErrGnoModNotFound):
+		// gno.mod is not present, continue anyway
+	default:
+		return nil, err
 	}
 
 	mempkg, err := gnolang.ReadMemPackage(dir, path)
@@ -63,7 +63,7 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 }
 
 func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
-	if mempkg.IsEmpty() {
+	if isMemPackageEmpty(mempkg) {
 		return fmt.Errorf("empty package: %w", ErrResolverPackageSkip)
 	}
 
@@ -87,16 +87,16 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 	return nil
 }
 
-func isDraftFile(modpath string) (bool, error) {
-	modfile, err := os.ReadFile(modpath)
-	if err != nil {
-		return false, fmt.Errorf("unable to read file %q: %w", modpath, err)
+func isMemPackageEmpty(mempkg *std.MemPackage) bool {
+	if mempkg.IsEmpty() {
+		return true
 	}
 
-	mod, err := gnomod.Parse(modpath, modfile)
-	if err != nil {
-		return false, fmt.Errorf("unable to parse `gno.mod`: %w", err)
+	for _, file := range mempkg.Files {
+		if isGnoFile(file.Name) || file.Name == "gno.mod" {
+			return false
+		}
 	}
 
-	return mod.Draft, nil
+	return true
 }

@@ -261,7 +261,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := tc.mpkg.Validate()
+			err := tc.mpkg.ValidateBasic()
 			if tc.errContains != "" {
 				assert.ErrorContains(t, err, tc.errContains)
 			} else {
