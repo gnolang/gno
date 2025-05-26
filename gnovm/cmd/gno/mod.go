@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -179,7 +180,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 
 	stdout := io.Out()
 
-	pkgs, err := gnomod.ListPkgs(args[0])
+	pkgs, err := gno.ReadPkgListFromDir(args[0])
 	if err != nil {
 		return err
 	}
@@ -223,7 +224,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	}
 
 	// parse gno.mod
-	gnoMod, err := gnomod.Parse(modPath, data)
+	gnoMod, err := gnomod.ParseBytes(modPath, data)
 	if err != nil {
 		return fmt.Errorf("parse: %w", err)
 	}
@@ -307,7 +308,7 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		pkgs, err := gnomod.ListPkgs(wd)
+		pkgs, err := gno.ReadPkgListFromDir(wd)
 		if err != nil {
 			return err
 		}
@@ -324,8 +325,8 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 }
 
 func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
-	fname := filepath.Join(pkgdir, "gno.mod")
-	relpath, err := filepath.Rel(wd, fname)
+	fpath := filepath.Join(pkgdir, "gno.mod")
+	relpath, err := filepath.Rel(wd, fpath)
 	if err != nil {
 		return err
 	}
@@ -333,12 +334,12 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 		io.ErrPrintfln("%s", relpath)
 	}
 
-	gm, err := gnomod.ParseGnoMod(fname)
+	gm, err := gnomod.ParseFilepath(fpath)
 	if err != nil {
 		return err
 	}
 
-	gm.Write(fname)
+	gm.WriteFile(fpath)
 	return nil
 }
 
@@ -351,8 +352,8 @@ func execModWhy(args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(wd, "gno.mod")
-	gm, err := gnomod.ParseGnoMod(fname)
+	fpath := filepath.Join(wd, "gno.mod")
+	gm, err := gnomod.ParseFilepath(fpath)
 	if err != nil {
 		return err
 	}
