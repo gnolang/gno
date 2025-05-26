@@ -256,6 +256,42 @@ func TestMemPackage_Validate(t *testing.T) {
 			},
 			"invalid package/realm path",
 		},
+		{
+			"Valid toml file",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{Name: "a.gno"},
+					{Name: "gnomod.toml"},
+				},
+			},
+			"",
+		},
+		{
+			"Multiple toml files",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{Name: "a.gno"},
+					{Name: "gnomod.toml"},
+					{Name: "gnoweb.toml"},
+				},
+			},
+			"",
+		},
+		{
+			"Toml file without gno file",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{Name: "gnomod.toml"},
+				},
+			},
+			"package has no .gno files",
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
