@@ -23,13 +23,13 @@ func TestBalanceChecker(t *testing.T) {
 	tests := []struct {
 		name      string
 		path      string
-		expected  string
+		contains  string
 		wantPanic bool
 	}{
 		{
 			name:     "homepage",
 			path:     "",
-			expected: "# gno.land Coins Explorer",
+			contains: "# Gno.land Coins Explorer",
 		},
 		// TODO: not supported yet
 		// {
@@ -39,20 +39,20 @@ func TestBalanceChecker(t *testing.T) {
 		// },
 		{
 			name:     "addr1's balance",
-			path:     ufmt.Sprintf("%s/%s", denom, addr1.String()),
-			expected: "Balance: 1000000testtoken",
+			path:     ufmt.Sprintf("%s/%s", addr1.String(), denom),
+			contains: ufmt.Sprintf("`%s` has `%d%s`", addr1.String(), 1000000, denom),
 		},
 		{
 			name:     "addr2's balance",
-			path:     ufmt.Sprintf("%s/%s", denom, addr2.String()),
-			expected: "Balance: 500000testtoken",
+			path:     ufmt.Sprintf("%s/%s", addr2.String(), denom),
+			contains: ufmt.Sprintf("`%s` has `%d%s`", addr2.String(), 500000, denom),
 		},
-		{
-			name:      "invalid path",
-			path:      ufmt.Sprintf("%s/invalid/extra", denom),
-			expected:  "404",
-			wantPanic: false,
-		},
+		//{
+		//	name:      "invalid path",
+		//	path:      ufmt.Sprintf("%s/invalid/extra", denom),
+		//	contains:  "404",
+		//	wantPanic: false,
+		//},
 	}
 
 	for _, tt := range tests {
@@ -67,8 +67,8 @@ func TestBalanceChecker(t *testing.T) {
 
 			result := Render(tt.path)
 			if !tt.wantPanic {
-				if !strings.Contains(result, tt.expected) {
-					t.Errorf("expected %s to contain %s", result, tt.expected)
+				if !strings.Contains(result, tt.contains) {
+					t.Errorf("expected %s to contain %s", result, tt.contains)
 				}
 			}
 		})

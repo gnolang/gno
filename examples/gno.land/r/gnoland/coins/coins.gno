@@ -91,7 +91,7 @@ Here are a few examples on how to use it:
 - ~/r/gnoland/coins:full/<address>~ - show full list of coin balances of an address
 	- [Example](/r/gnoland/coins:full/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
 - ~/r/gnoland/coins:cosmos/<cosmos_address>~ - convert Cosmos address to Gno address
-	- [Example](/r/gnoland/coins:convert/cosmos19ttg8h8u7qmled55x6rt8mplhqsfdx8myc0tl2)
+	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
 `, "~", "`", -1)
 }
 
@@ -118,6 +118,7 @@ func renderConvertedAddress(addr string) string {
 	}
 
 	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
+	out += "[View `ugnot` balance for this address](/r/gnoland/coins:" + gnoAddress + "/ugnot" + ")\n\n"
 	out += "[View full balance list for this address](/r/gnoland/coins:full/" + gnoAddress + ")"
 	return out
 }
@@ -136,7 +137,7 @@ func renderAddressBalance(banker std.Banker, denom string, addr string) string {
 	}
 
 	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker.GetCoins(std.Address(addr)).AmountOf(denom), denom, std.ChainHeight())
+		name, banker.GetCoins(std.Address(addr)).AmountOf("/gno.land/r/gnoland/coins:zeoncoin"), "/gno.land/r/gnoland/coins:zeoncoin", std.ChainHeight())
 
 	out += "[View full balance list for this address](/r/gnoland/coins:full/" + addr + ")"
 
