@@ -49,7 +49,7 @@ if one exists. For instance append :g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t to
 this URL to view the value stored at that address.
 `
 	}
-	return renderGet(std.Address(path))
+	return renderGet(cross, std.Address(path))
 }
 
 func renderGet(cur realm, addr std.Address) string {
