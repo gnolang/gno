@@ -3,11 +3,7 @@
 //
 // Usage examples:
 //
-//	coins := std.Coins{
-//	    {Denom: "atom", Amount: 25},
-//	    {Denom: "ustake", Amount: 4},
-//	    {Denom: "gnob", Amount: 1000},
-//	}
+//  coins := banker.GetCoins("g1....")
 //
 //	// Ascending by balance
 //	coinsort.SortByBalance(coins)
