@@ -65,7 +65,7 @@ func TestBalanceChecker(t *testing.T) {
 		{
 			name:     "cosmos addr conversion",
 			path:     "convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs",
-			contains: ufmt.Sprintf("`%s` on Cosmos matches `%s`", "cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			contains: "`cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs` on Cosmos matches `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`",
 		},
 		{
 			name:      "invalid path",
