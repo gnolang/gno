@@ -1,1 +1,1 @@
-module gno.land/p/leon/sortcoins
+module gno.land/p/leon/coinsort
