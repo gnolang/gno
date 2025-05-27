@@ -117,7 +117,7 @@ func escapeDollarSign(s string) string {
 // EncodeArgs encodes the arguments and query parameters into a string.
 // This function is intended to be passed as a realm `Render` argument.
 func (gnoURL GnoURL) EncodeArgs() string {
-	return gnoURL.Encode(EncodeArgs | EncodeQuery | EncodeNoEscape)
+	return gnoURL.Encode(EncodeArgs | EncodeQuery)
 }
 
 // EncodeURL encodes the path, arguments, and query parameters into a string.
