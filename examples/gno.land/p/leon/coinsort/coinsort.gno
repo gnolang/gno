@@ -8,13 +8,12 @@
 //	// Ascending by balance
 //	coinsort.SortByBalance(coins)
 //
-//	// Alphabetically by denom
-//	coinsort.SortByDenomAlphabetically(coins)
-//
 //	// Custom order – largest balance first
 //	coinsort.SortBy(coins, func(a, b std.Coin) bool {
 //	    return a.Amount > b.Amount // descending
 //	})
+//
+// Note: when getting std.Coins from the banler, it's sorted by denom by default.
 package coinsort
 
 import (
