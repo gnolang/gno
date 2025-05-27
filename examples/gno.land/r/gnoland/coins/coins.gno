@@ -25,7 +25,7 @@ import (
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/leon/coinsort"
-	"gno.land/p/leon/cosmtogno"
+	"gno.land/p/leon/ctg"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
@@ -86,7 +86,7 @@ Here are a few examples on how to use it:
 func renderConvertedAddress(addr string) string {
 	out := "# Address converter\n\n"
 
-	gnoAddress, err := cosmtogno.ConvertCosmosToGno(addr)
+	gnoAddress, err := ctg.ConvertCosmosToGno(addr)
 	if err != nil {
 		out += err.Error()
 		return out

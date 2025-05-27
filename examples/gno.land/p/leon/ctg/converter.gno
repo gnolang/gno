@@ -1,4 +1,4 @@
-package cosmtogno
+package ctg
 
 import (
 	"std"

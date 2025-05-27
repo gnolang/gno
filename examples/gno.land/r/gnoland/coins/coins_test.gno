@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/leon/ctg"
 )
 
 func TestBalanceChecker(t *testing.T) {
@@ -22,6 +23,8 @@ func TestBalanceChecker(t *testing.T) {
 	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom1, 501)))
 
 	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom2, 12345)))
+
+	gnoAddr, _ := ctg.ConvertCosmosToGno("cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr")
 
 	tests := []struct {
 		name      string
@@ -64,8 +67,8 @@ func TestBalanceChecker(t *testing.T) {
 		},
 		{
 			name:     "cosmos addr conversion",
-			path:     "convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs",
-			contains: "`cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs` on Cosmos matches `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`",
+			path:     "convert/cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr",
+			contains: ufmt.Sprintf("`cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr` on Cosmos matches `%s`", gnoAddr),
 		},
 		{
 			name:      "invalid path",
