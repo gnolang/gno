@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/testutils"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/init"
+	daov3init "gno.land/r/gov/dao/v3/init"
 	susers "gno.land/r/sys/users"
 )
 
@@ -18,7 +18,7 @@ import (
 var c std.Address = std.OriginCaller()
 
 func init() {
-	init.InitWithUsers(c)
+	daov3init.InitWithUsers(c)
 
 	alice := testutils.TestAddress("alice")
 

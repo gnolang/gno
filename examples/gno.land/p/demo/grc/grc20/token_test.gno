@@ -95,9 +95,8 @@ func TestMintOverflow(t *testing.T) {
 
 func TestTransferFromAtomicity(t *testing.T) {
 	var (
-		owner     = testutils.TestAddress("owner")
-		spender   = testutils.TestAddress("spender")
-		recipient = testutils.TestAddress("recipient")
+		owner   = testutils.TestAddress("owner")
+		spender = testutils.TestAddress("spender")
 
 		invalidRecipient = std.Address("")
 	)
