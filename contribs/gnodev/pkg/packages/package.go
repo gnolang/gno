@@ -47,6 +47,8 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 	case err == nil: // ok
 	case os.IsNotExist(err):
 		return nil, ErrResolverPackageNotFound
+	case mempkg.IsEmpty(): // XXX: should check an internal error instead
+		return nil, ErrResolverPackageSkip
 	default:
 		return nil, fmt.Errorf("unable to read package %q: %w", dir, err)
 	}
