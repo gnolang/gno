@@ -220,11 +220,10 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		// Get realm name and placeholder
 		input.InputName = info.Name
 		input.InputType = info.InputType
+		input.InputPlaceholder = info.Placeholder
 		if info.Placeholder == "" {
 			input.InputPlaceholder = defaultPlaceholder
-		} else {
-			input.InputPlaceholder = info.Placeholder
-		}
+		} 
 
 		// If an error occurred during parsing, we store it in the node.
 		if info.Error != nil {
