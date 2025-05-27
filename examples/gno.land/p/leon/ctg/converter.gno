@@ -1,6 +1,6 @@
-// Package cosmtogno is a simple utility package that helps convert
+// Package ctg is a simple utility package that helps convert
 // cosmos-prefixed addresses to gno addresses.
-package cosmtogno
+package ctg
 
 import (
 	"std"
