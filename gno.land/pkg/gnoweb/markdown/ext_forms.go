@@ -192,10 +192,10 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	if info.Error != nil || info.Tag != FormTagOpen {
 		return nil, parser.NoChildren
 	}
+	
 	node := NewForm(FormTagOpen)
 	node.RenderPath = info.RenderPath
-	// Consume the line "<gno-form>"
-	reader.Advance(seg.Len())
+	reader.Advance(seg.Len()) // Consume the line "<gno-form>"
 	return node, parser.HasChildren
 }
 
