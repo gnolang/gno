@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/files/const55.gno:5:2: assignment mismatch: 1 variable(s) but 2 value(s)
+// main/const55.gno:5:2-3: assignment mismatch: 1 variable(s) but 2 value(s)
 
 // TypeCheckError:
-// main/files/const55.gno:5:2: extra init expr at main/files/const55.gno:4:2
+// main/const55.gno:5:2: extra init expr at main/const55.gno:4:2

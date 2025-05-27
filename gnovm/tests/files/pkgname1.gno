@@ -10,7 +10,7 @@ func main() {
 }
 
 // Error:
-// main/files/pkgname1.gno:5:2: package name for "github.com/gnolang/gno/_test/bar" ("quux") doesn't match its expected identifier "bar"; the import declaration must specify an identifier
+// main/pkgname1.gno:5:2-36: package name for "github.com/gnolang/gno/_test/bar" ("quux") doesn't match its expected identifier "bar"; the import declaration must specify an identifier
 
 // TypeCheckError:
-// main/files/pkgname1.gno:9:19: undefined: bar; main/files/pkgname1.gno:5:2: "github.com/gnolang/gno/_test/bar" imported as quux and not used
+// main/pkgname1.gno:9:19: undefined: bar; main/pkgname1.gno:5:2: "github.com/gnolang/gno/_test/bar" imported as quux and not used

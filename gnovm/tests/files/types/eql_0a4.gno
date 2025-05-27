@@ -22,7 +22,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a4.gno:21:10: cannot use main.Error1 as main.Error2 without explicit conversion
+// main/eql_0a4.gno:21:10-32: cannot use main.Error1 as main.Error2 without explicit conversion
 
 // TypeCheckError:
-// main/files/types/eql_0a4.gno:21:23: invalid operation: Error1(0) != Error2(0) (mismatched types Error1 and Error2)
+// main/eql_0a4.gno:21:23: invalid operation: Error1(0) != Error2(0) (mismatched types Error1 and Error2)
