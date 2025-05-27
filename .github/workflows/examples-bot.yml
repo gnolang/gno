@@ -1,4 +1,4 @@
-name: New Gno Examples Code Notifier
+name: Discord Examples Hook
 
 on:
   pull_request:
