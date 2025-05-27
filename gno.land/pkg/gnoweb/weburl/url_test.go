@@ -579,3 +579,18 @@ func TestEncode(t *testing.T) {
 		})
 	}
 }
+
+func TestGnoURL_EncodeArgs(t *testing.T) {
+	// EncodeArgs is used to pass the values to the render function in Gno.
+	// Thus, it should maintain values escaped as they are in the original URL
+	// where it matters - like =&
+	gurl, err := Parse("/r/demo/users:foo%3d%24bar%26%3fbaz?hey=1&a%2bb=b%2b&%26=%3d")
+	require.NoError(t, err)
+	assert.Equal(t, "foo=$bar&?baz", gurl.Args)
+	assert.Equal(t, url.Values{
+		"hey": {"1"},
+		"a+b": {"b+"},
+		"&":   {"="},
+	}, gurl.Query)
+	assert.Equal(t, "foo=%24bar&%3Fbaz?%26=%3D&a%2Bb=b%2B&hey=1", gurl.EncodeArgs())
+}
