@@ -277,7 +277,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 			fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s">`, formAction)
 			fmt.Fprintln(w, `<div class="gno-form_header">`)
 			fmt.Fprintf(w, `<span><span class="font-bold"> %s </span> Form</span>`, n.RealmName)
-			fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s."><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`, n.RealmName)
+			fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`, n.RealmName)
 			fmt.Fprintln(w, `</div>`)
 		} else {
 			// Check if the form contains at least one input
