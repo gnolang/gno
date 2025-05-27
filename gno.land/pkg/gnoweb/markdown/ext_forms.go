@@ -14,8 +14,6 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// --- Node Types and Constants ---
-
 var KindForm = ast.NewNodeKind("Form")
 
 // We only need two tags in our AST: the block node (gno-form)
@@ -53,12 +51,14 @@ func validateInputType(inputType string) bool {
 	if inputType == "" {
 		return true // Empty type will use default
 	}
+
 	return allowedInputTypes[inputType]
 }
 
 type FormNode struct {
 	ast.BaseBlock
 	Tag              FormTag
+	FormTagInfo      FormTagInfo
 	InputName        string
 	InputType        string
 	InputPlaceholder string
@@ -72,9 +72,11 @@ func (n *FormNode) Kind() ast.NodeKind { return KindForm }
 // Dump displays the information level for the Form node
 func (n *FormNode) Dump(source []byte, level int) {
 	kv := map[string]string{"tag": fmt.Sprintf("%v", n.Tag)}
+
 	if n.Tag == FormTagInput {
 		kv["name"] = n.InputName
 	}
+
 	ast.DumpHelper(n, source, level, kv, nil)
 }
 
@@ -93,47 +95,44 @@ type FormTagInfo struct {
 }
 
 // parseFormTag parses a form tag and returns the tag information
-func parseFormTag(line []byte) FormTagInfo {
-	trimmed := bytes.TrimSpace(line)
+func parseFormTag(line string) FormTagInfo {
+	trimmed := strings.TrimSpace(line)
 	result := FormTagInfo{}
 
 	// Start of form block
-	if !(bytes.HasSuffix(trimmed, []byte(">")) || bytes.HasSuffix(trimmed, []byte("/>"))) {
+	if !(strings.HasSuffix(trimmed, ">") || strings.HasSuffix(trimmed, "/>")) {
 		result.Error = ErrFormUnexpectedOrInvalidTag
 		return result
 	}
 
-	if bytes.Equal(trimmed, []byte("<gno-form>")) {
+	if trimmed == "<gno-form>" {
 		result.Tag = FormTagOpen
 		return result
 	}
 
 	// Close form block
-	if bytes.Equal(trimmed, []byte("</gno-form>")) {
+	if trimmed == "</gno-form>" {
 		result.Tag = FormTagOpen
 		result.Error = ErrFormNoEndingTag
 		return result
 	}
 
 	// Input detection
-	if bytes.HasPrefix(trimmed, []byte("<gno-input")) {
+	if strings.HasPrefix(trimmed, "<gno-input") {
 		result.Tag = FormTagInput
-		result.Name = extractAttr(trimmed, "name")
-		result.Placeholder = extractAttr(trimmed, "placeholder")
-		result.InputType = extractAttr(trimmed, "type")
+		result.Name = ExtractAttr(trimmed, "name")
+		result.Placeholder = ExtractAttr(trimmed, "placeholder")
+		result.InputType = ExtractAttr(trimmed, "type")
 
-		// Always set default type, even if name is missing
 		if result.InputType == "" {
 			result.InputType = defaultInputType
 		}
 
 		if strings.TrimSpace(result.Name) == "" {
-			// If "name" is missing, it's an error, but keep the type
 			result.Error = ErrFormInputMissingName
 			return result
 		}
 
-		// Validate input type
 		if !validateInputType(result.InputType) {
 			result.InputType = defaultInputType
 			result.Error = ErrFormInvalidInputType
@@ -144,29 +143,15 @@ func parseFormTag(line []byte) FormTagInfo {
 	}
 
 	// Extract path attribute for form tag
-	if bytes.HasPrefix(trimmed, []byte("<gno-form")) {
+	if strings.HasPrefix(trimmed, "<gno-form") {
 		result.Tag = FormTagOpen
-		result.RenderPath = extractAttr(trimmed, "path")
+		result.RenderPath = ExtractAttr(trimmed, "path")
 		return result
 	}
 
 	result.Error = ErrFormUnexpectedOrInvalidTag
 	return result
 }
-
-// extractAttr extracts the value of the first found attribute from a line
-func extractAttr(line []byte, attr string) string {
-	pattern := attr + "=\""
-	if i := bytes.Index(line, []byte(pattern)); i != -1 {
-		start := i + len(pattern)
-		if end := bytes.IndexByte(line[start:], '"'); end != -1 {
-			return string(line[start : start+end])
-		}
-	}
-	return ""
-}
-
-// --- Block Parser ---
 
 // formParser starts a block as soon as we encounter "<gno-form>"
 // and closes it as soon as we encounter "</gno-form>".
@@ -188,11 +173,11 @@ func (p *formParser) Trigger() []byte {
 // Open starts a block only when the line is exactly "<gno-form>"
 func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, seg := reader.PeekLine()
-	info := parseFormTag(line)
+	info := parseFormTag(string(line))
 	if info.Error != nil || info.Tag != FormTagOpen {
 		return nil, parser.NoChildren
 	}
-	
+
 	node := NewForm(FormTagOpen)
 	node.RenderPath = info.RenderPath
 	reader.Advance(seg.Len()) // Consume the line "<gno-form>"
@@ -206,14 +191,17 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 	if seg.Len() == 0 {
 		return parser.Close
 	}
+
 	trimmed := bytes.TrimSpace(line)
+
 	// If the line is exactly "</gno-form>", consume it and close the block.
 	if bytes.Equal(trimmed, []byte("</gno-form>")) {
 		reader.Advance(seg.Len())
 		return parser.Close
 	}
+
 	// If the line starts with "<gno-input", we add an input node.
-	info := parseFormTag(line)
+	info := parseFormTag(string(line))
 	if info.Tag == FormTagInput {
 		input := NewForm(FormTagInput)
 
@@ -223,7 +211,7 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		input.InputPlaceholder = info.Placeholder
 		if info.Placeholder == "" {
 			input.InputPlaceholder = defaultPlaceholder
-		} 
+		}
 
 		// If an error occurred during parsing, we store it in the node.
 		if info.Error != nil {
@@ -243,7 +231,24 @@ func (p *formParser) Close(node ast.Node, reader text.Reader, pc parser.Context)
 func (p *formParser) CanInterruptParagraph() bool                                { return true }
 func (p *formParser) CanAcceptIndentedLine() bool                                { return true }
 
-// --- Renderer ---
+type formASTTransformer struct{}
+
+// formASTTransformer is an AST transformer for the Form node
+func (a *formASTTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	if gnourl, ok := getUrlFromContext(pc); ok {
+		// Use full path instead of just namespace
+		realm := gnourl.Path
+
+		// Traverse the AST to update open form nodes
+		ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+			if fn, ok := n.(*FormNode); ok && entering && fn.Tag == FormTagOpen {
+				fn.RealmName = realm
+			}
+
+			return ast.WalkContinue, nil
+		})
+	}
+}
 
 // formRenderer renders the Form node.
 // When entering the Form node, it displays the opening <form> tag
@@ -265,7 +270,8 @@ func (r *formRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	n := node.(*FormNode)
 
-	if n.Tag == FormTagOpen {
+	switch n.Tag {
+	case FormTagOpen:
 		if entering {
 			// Form action must include the full path
 			formAction := n.RealmName // start with /r/docs/markdown
@@ -274,10 +280,10 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 			}
 
 			// Render form opening and header
-			fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s">`, formAction)
+			fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s">`, HTMLEscapeString(formAction))
 			fmt.Fprintln(w, `<div class="gno-form_header">`)
-			fmt.Fprintf(w, `<span><span class="font-bold"> %s </span> Form</span>`, n.RealmName)
-			fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`, n.RealmName)
+			fmt.Fprintf(w, `<span><span class="font-bold"> %s </span> Form</span>`, HTMLEscapeString(n.RealmName))
+			fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`, HTMLEscapeString(n.RealmName))
 			fmt.Fprintln(w, `</div>`)
 		} else {
 			// Check if the form contains at least one input
@@ -288,43 +294,36 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 					break
 				}
 			}
+
 			// Display submit button only if there is at least one input
 			if hasInput {
-				fmt.Fprintf(w, `<input type="submit" value="Submit to %s Realm" />`, n.RealmName)
+				fmt.Fprintf(w, `<input type="submit" value="Submit to %s Realm" />`, HTMLEscapeString(n.RealmName))
 			}
+
 			fmt.Fprintln(w, `</form>`)
 		}
-	} else if n.Tag == FormTagInput && entering {
+
+	case FormTagInput:
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
 		// Render an input
-		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>`, n.InputName, n.InputPlaceholder)
-		fmt.Fprintf(w, `<input type="%s" id="%s" name="%s" placeholder="%s" /></div>`, n.InputType, n.InputName, n.InputName, n.InputPlaceholder)
+		fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>`,
+			HTMLEscapeString(n.InputName),
+			HTMLEscapeString(n.InputPlaceholder))
+		fmt.Fprintf(w, `<input type="%s" id="%s" name="%s" placeholder="%s" /></div>`,
+			HTMLEscapeString(n.InputType),
+			HTMLEscapeString(n.InputName),
+			HTMLEscapeString(n.InputName),
+			HTMLEscapeString(n.InputPlaceholder))
 
 		if n.Error != nil {
-			fmt.Fprintf(w, `<!-- Error: %s -->`, n.Error.Error())
+			fmt.Fprintf(w, `<!-- Error: %s -->`, HTMLEscapeString(n.Error.Error()))
 		}
 	}
 	return ast.WalkContinue, nil
 }
-
-// --- The AST Transformer ---
-
-type formASTTransformer struct{}
-
-// formASTTransformer is an AST transformer for the Form node
-func (a *formASTTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
-	if gnourl, ok := getUrlFromContext(pc); ok {
-		// Use full path instead of just namespace
-		realm := gnourl.Path
-		// Traverse the AST to update open form nodes
-		ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-			if fn, ok := n.(*FormNode); ok && entering && fn.Tag == FormTagOpen {
-				fn.RealmName = realm
-			}
-			return ast.WalkContinue, nil
-		})
-	}
-}
-
 
 type formExtension struct{}
 
