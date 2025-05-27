@@ -64,7 +64,7 @@ func init() {
 	})
 
 	router.NotFoundHandler = func(res *mux.ResponseWriter, req *mux.Request) {
-		res.Write("We cannot find this page - maybe you would like to [**go home**?](/r/gnoland/coins)")
+		res.Write("# 404\n\nThat page was not found. Would you like to [**go home**?](/r/gnoland/coins)")
 	}
 }
 
@@ -118,7 +118,7 @@ func renderConvertedAddress(addr string) string {
 }
 
 func renderSingleCoinBalance(banker std.Banker, denom string, addr string) string {
-	out := "# Single balance page\n\n"
+	out := "# Single coin balance\n\n"
 	if !std.Address(addr).IsValid() {
 		out += "Invalid address."
 		return out
@@ -139,7 +139,7 @@ func renderSingleCoinBalance(banker std.Banker, denom string, addr string) strin
 }
 
 func renderAllBalances(rawpath, addr string) string {
-	out := "# Full balances\n\n"
+	out := "# Balances\n\n"
 
 	if !std.Address(addr).IsValid() {
 		out += "Invalid address."
