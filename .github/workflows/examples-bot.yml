@@ -30,9 +30,8 @@ jobs:
             '{
               content: (
                 "🔔 Fresh Gno code just dropped! Check it out below:\n\n" +
-                "#\($number) – *\($title)*\n\n" +
-                "PR link: \($url)\n\n" +
-                "by **@\($author)**"
+                "\($title) - by **@\($author)**\n\n" +
+                "PR #\($number): \($url)\n\n"
               )
             }')
           
