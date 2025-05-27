@@ -243,7 +243,7 @@ func (p *formParser) Close(node ast.Node, reader text.Reader, pc parser.Context)
 func (p *formParser) CanInterruptParagraph() bool                                { return true }
 func (p *formParser) CanAcceptIndentedLine() bool                                { return true }
 
-// --- The Renderer ---
+// --- Renderer ---
 
 // formRenderer renders the Form node.
 // When entering the Form node, it displays the opening <form> tag
