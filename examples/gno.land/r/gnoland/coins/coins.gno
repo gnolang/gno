@@ -25,9 +25,11 @@ import (
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/leon/coinsort"
+	"gno.land/p/leon/cosmtogno"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
+
 	"gno.land/r/sys/users"
 )
 
@@ -93,18 +95,11 @@ Here are a few examples on how to use it:
 func renderConvertedAddress(addr string) string {
 	out := "# Address converter\n\n"
 
-	prefix, decoded, b := std.DecodeBech32(std.Address(addr)) // just to satisfy typechecker
-	if !b {
-		out += "Could not decode address."
+	gnoAddress, err := cosmtogno.ConvertCosmosToGno(addr)
+	if err != nil {
+		out += err.Error()
 		return out
 	}
-
-	if prefix != "cosmos" {
-		out += "Please provide a cosmos address."
-		return out
-	}
-
-	gnoAddress := std.EncodeBech32("g", decoded).String()
 
 	user, _ := users.ResolveAny(gnoAddress)
 	name := "`" + gnoAddress + "`"
@@ -113,7 +108,7 @@ func renderConvertedAddress(addr string) string {
 	}
 
 	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
-	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances/" + gnoAddress + "?coin=ugnot" + ")\n\n"
+	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances/" + gnoAddress + "?coin=ugnot)\n\n"
 	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + gnoAddress + ")"
 	return out
 }

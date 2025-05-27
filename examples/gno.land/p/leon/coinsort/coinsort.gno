@@ -3,18 +3,18 @@
 //
 // Usage examples:
 //
-//  coins := banker.GetCoins("g1....")
+//	 coins := banker.GetCoins("g1....")
 //
-//	// Ascending by balance
-//	coinsort.SortByBalance(coins)
+//		// Ascending by balance
+//		coinsort.SortByBalance(coins)
 //
-//	// Alphabetically by denom
-//	coinsort.SortByDenomAlphabetically(coins)
+//		// Alphabetically by denom
+//		coinsort.SortByDenomAlphabetically(coins)
 //
-//	// Custom order – largest balance first
-//	coinsort.SortBy(coins, func(a, b std.Coin) bool {
-//	    return a.Amount > b.Amount // descending
-//	})
+//		// Custom order – largest balance first
+//		coinsort.SortBy(coins, func(a, b std.Coin) bool {
+//		    return a.Amount > b.Amount // descending
+//		})
 package coinsort
 
 import (

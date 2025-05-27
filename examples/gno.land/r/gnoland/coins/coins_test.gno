@@ -20,9 +20,9 @@ func TestBalanceChecker(t *testing.T) {
 	testing.SetRealm(realm)
 
 	testing.IssueCoins(addr1, std.NewCoins(std.NewCoin(denom1, 1000000)))
-	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom1, 1000000)))
+	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom1, 501)))
 
-	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom2, 1000000)))
+	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom2, 12345)))
 
 	tests := []struct {
 		name      string
@@ -41,31 +41,38 @@ func TestBalanceChecker(t *testing.T) {
 		// 	path:     denom,
 		// 	expected: "Balance: 1500000testtoken",
 		// },
+
 		{
-			name:     "addr1's full balances",
-			path:     ufmt.Sprintf("balances/%s", addr1.String()),
-			contains: ufmt.Sprintf("This page shows full coin balances of `%s` at block", addr1.String()),
-		},
-		{
-			name:     "addr1's balance",
+			name:     "addr1's coin balance",
 			path:     ufmt.Sprintf("balances/%s?coin=%s", addr1.String(), denom1),
 			contains: ufmt.Sprintf("`%s` has `%d%s`", addr1.String(), 1000000, denom1),
 		},
 		{
-			name:     "addr2's balance",
+			name:     "addr2's full balances",
+			path:     ufmt.Sprintf("balances/%s", addr2.String()),
+			contains: ufmt.Sprintf("This page shows full coin balances of `%s` at block", addr2.String()),
+		},
+		{
+			name: "addr2's full balances",
+			path: ufmt.Sprintf("balances/%s", addr2.String()),
+			contains: `| testtoken1 | 501 |
+| testtoken2 | 12345 |`,
+		},
+		{
+			name:     "addr2's coin balance",
 			path:     ufmt.Sprintf("balances/%s?coin=%s", addr2.String(), denom1),
-			contains: ufmt.Sprintf("`%s` has `%d%s`", addr2.String(), 1000000, denom1),
+			contains: ufmt.Sprintf("`%s` has `%d%s`", addr2.String(), 501, denom1),
+		},
+		{
+			name:     "cosmos addr conversion",
+			path:     "convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs",
+			contains: ufmt.Sprintf("`%s` on Cosmos matches `%s`", "cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 		},
 		{
 			name:      "invalid path",
 			path:      "invalid",
 			contains:  "404",
 			wantPanic: false,
-		},
-		{
-			name:     "cosmos conversion",
-			path:     ufmt.Sprintf("balances/%s?coin=%s", addr2.String(), denom1),
-			contains: ufmt.Sprintf("`%s` has `%d%s`", addr2.String(), 1000000, denom1),
 		},
 	}
 
