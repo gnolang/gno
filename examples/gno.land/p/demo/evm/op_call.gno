@@ -8,34 +8,16 @@ import (
 )
 
 func getVariables(stack *evmStack) (*uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, error) {
-	gas, err := stack.Pop()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, err
+	if stack.length < 7 {
+		return nil, nil, nil, nil, nil, nil, nil, tooFewStack
 	}
-	address, err := stack.Pop()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, err
-	}
-	moneyToGive, err := stack.Pop()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, err
-	}
-	argsOffset, err := stack.Pop()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, err
-	}
-	argsSize, err := stack.Pop()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, err
-	}
-	retOffset, err := stack.Pop()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, err
-	}
-	retSize, err := stack.Pop()
-	if err != nil {
-		return nil, nil, nil, nil, nil, nil, nil, err
-	}
+	gas, _ := stack.Pop()
+	address, _ := stack.Pop()
+	moneyToGive, _ := stack.Pop()
+	argsOffset, _ := stack.Pop()
+	argsSize, _ := stack.Pop()
+	retOffset, _ := stack.Pop()
+	retSize, _ := stack.Pop()
 	return gas, address, moneyToGive, argsOffset, argsSize, retOffset, retSize, nil
 }
 
