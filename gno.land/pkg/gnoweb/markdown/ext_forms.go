@@ -199,7 +199,7 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	return node, parser.HasChildren
 }
 
-// Continue processes lines until "</gno-form>" is encountered.
+// Continue processes lines until "</gno-form>" is found.
 // When a line contains <gno-input />, it adds a child node.
 func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	line, seg := reader.PeekLine()
