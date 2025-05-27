@@ -23,7 +23,7 @@ package coinsort
 
 import (
 	"sort"
-	"std" // assuming std is the package where Coin and Coins are defined
+	"std"
 )
 
 type ByAmount struct{ std.Coins }
