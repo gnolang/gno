@@ -325,7 +325,6 @@ func (a *formASTTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 	}
 }
 
-// --- The Goldmark Extension ---
 
 type formExtension struct{}
 
