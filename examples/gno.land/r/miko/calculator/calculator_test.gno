@@ -4,7 +4,7 @@ import "testing"
 
 func Test_Addition(t *testing.T) {
 	// Increment the value
-	value := ComputeResult("1p1")
+	value := ComputeResult("1+1")
 	// Verify the value is equal to 2
 	if value != "2" {
 		t.Fatalf("1 + 1 is not equal to 2")
@@ -40,7 +40,7 @@ func Test_Division(t *testing.T) {
 
 func Test_AdditionDecimal(t *testing.T) {
 	// Increment the value
-	value := ComputeResult("1.2p1.3")
+	value := ComputeResult("1.2+1.3")
 	// Verify the value is equal to 2.5
 	if value != "2.5" {
 		t.Fatalf("1.2 + 1.3 is not equal to 2.5")
@@ -76,7 +76,7 @@ func Test_DivisionDecimal(t *testing.T) {
 
 func Test_BaseParenthesis(t *testing.T) {
 	// Increment the value
-	value := ComputeResult("2*(3p4)")
+	value := ComputeResult("2*(3+4)")
 	// Verify the value is equal to 14
 	if value != "14" {
 		t.Fatalf("2 * (3 + 4) is not equal to 14")
@@ -85,7 +85,7 @@ func Test_BaseParenthesis(t *testing.T) {
 
 func Test_AdvancedParenthesis(t *testing.T) {
 	// Increment the value
-	value := ComputeResult("2*(3p4/(6-2))")
+	value := ComputeResult("2*(3+4/(6-2))")
 	// Verify the value is equal to 8
 	if value != "8" {
 		t.Fatalf("2 * (3 + 4 / (6 - 2)) is not equal to 8")
@@ -94,7 +94,7 @@ func Test_AdvancedParenthesis(t *testing.T) {
 
 func Test_Negative(t *testing.T) {
 	// Increment the value
-	value := ComputeResult("-2p10")
+	value := ComputeResult("-2+10")
 	// Verify the value is equal to 8
 	if value != "8" {
 		t.Fatalf("-2 + 10 is not equal to 8")
