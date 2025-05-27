@@ -166,7 +166,7 @@ func extractAttr(line []byte, attr string) string {
 	return ""
 }
 
-// --- The Block Parser ---
+// --- Block Parser ---
 
 // formParser starts a block as soon as we encounter "<gno-form>"
 // and closes it as soon as we encounter "</gno-form>".
