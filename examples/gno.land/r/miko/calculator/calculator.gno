@@ -18,10 +18,10 @@ type Node struct {
 }
 
 const (
-	specialCharacters             = "p-*/."
-	specialCharactersWithoutMinus = "p*/."
+	specialCharacters             = "+-*/."
+	specialCharactersWithoutMinus = "+*/."
 	topPriority                   = "*/"
-	lowPriority                   = "p-"
+	lowPriority                   = "+-"
 	realmPath                     = "/r/miko/calculator"
 )
 
@@ -30,7 +30,7 @@ var (
 	displayVal string
 
 	operationMap = map[string]func(left float64, right float64) float64{
-		"p": func(left float64, right float64) float64 { return left + right },
+		"+": func(left float64, right float64) float64 { return left + right },
 		"-": func(left float64, right float64) float64 { return left - right },
 		"*": func(left float64, right float64) float64 { return left * right },
 		"/": func(left float64, right float64) float64 {
@@ -78,7 +78,7 @@ func evaluateValidity(line string) (bool, string) {
 			isPriorSpecial = true
 			continue
 		}
-		if line[i] != 'p' && (line[i] < '0' || line[i] > '9') {
+		if line[i] < '0' || line[i] > '9' {
 			return false, "Invalid character encountered "
 		}
 		isPriorSpecial = false
@@ -196,13 +196,9 @@ func createTable(req *realmpath.Request, query url.Values, expression string) md
 		Headers: line,
 	}
 	line = []string{}
-	for _, c := range "789p456-123*0.=/" {
+	for _, c := range "789+456-123*0.=/" {
 		query.Set("expression", expression+string(c))
-		if c == 'p' {
-			line = append(line, md.Link(string('+'), req.String()))
-		} else {
-			line = append(line, md.Link(string(c), req.String()))
-		}
+		line = append(line, md.Link(string(c), req.String()))
 		if len(line) == 4 {
 			table.Append(line)
 			line = []string{}
@@ -222,7 +218,7 @@ func Render(path string) string {
 		if expression[len(expression)-1] == '=' {
 			expression = ComputeResult(expression[:len(expression)-1])
 		} else {
-			displayVal = strings.Replace(expression, "p", "+", -1)
+			displayVal = expression
 		}
 	}
 	out := md.H1("Calculator page")
