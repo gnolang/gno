@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Flag to track if a link click is in progress
     let clickInProgress = false;
-
+    // Flag to track if a enter is in progress
     let enterInProgress = false;
 
 
@@ -33,10 +33,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Create macrotask when enter is pressed, to prevent reload when submitting forms
+    // Capture enter on <input> tags to prevent reloading appening when entering link
     document.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter' ) {
+        if (event.key === 'Enter' && event.target.id === "header-input-search") {
             enterInProgress = true;
+            // Wait a bit before allowing reload after entering a search, 5000ms ensure to node was reloaded
             setTimeout(function() {
                 enterInProgress = false;
             }, 5000);
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Reload the page immediately if we're not in the grace period and no clicks and enters are in progress
+            // Reload the page immediately if we're not in the grace period and no clicks or enters are in progress
             if (!gracePeriod && !clickInProgress && !enterInProgress) {
                 window.location.reload();
                 return;
