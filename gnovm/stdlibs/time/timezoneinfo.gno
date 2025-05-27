@@ -63,13 +63,13 @@ const (
 	omega = 1<<63 - 1 // math.MaxInt64
 )
 
-// ChainTZ represents the timezone of the chain.
-var ChainTZ *Location = &chainLoc
+// Local represents the chain's local time zone.
+var Local *Location = &localLoc
 
-// chainLoc is kept separate so that ChainTZ can always refer to &chainLoc,
+// localLoc is kept separate so that Local can always refer to &localLoc,
 // ensuring it never returns a nil *Location, even if a client improperly
-// modifies ChainTZ.
-var chainLoc Location = ChainTZFromTZData()
+// modifies Local.
+var localLoc Location = LocalChainFromTZData()
 
 // UTC represents Universal Coordinated Time (UTC).
 var UTC *Location = &utcLoc
@@ -79,11 +79,11 @@ var UTC *Location = &utcLoc
 // even if a badly behaved client has changed UTC.
 var utcLoc = Location{name: "UTC"}
 
-func chainTZParamData() (data []byte) // injected
+func localParamData() (data []byte) // injected
 
-// ChainTZFromTZData returns the ChainTZ location from the TZ data injected
-func ChainTZFromTZData() Location {
-	data := chainTZParamData()
+// LocalChainFromTZData returns the Local location from the TZ data injected
+func LocalChainFromTZData() Location {
+	data := localParamData()
 	if len(data) == 0 {
 		return Location{name: "UTC"}
 	}

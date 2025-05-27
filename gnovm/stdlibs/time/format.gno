@@ -541,8 +541,8 @@ func (t Time) GoString() string {
 	switch loc := t.Location(); loc {
 	case UTC, nil:
 		buf = append(buf, "time.UTC"...)
-	case ChainTZ:
-		buf = append(buf, "time.ChainTZ"...)
+	case Local:
+		buf = append(buf, "time.Local"...)
 	default:
 		// there are several options for how we could display this, none of
 		// which are great:
@@ -934,7 +934,7 @@ func skip(value, prefix string) (string, error) {
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
 func Parse(layout, value string) (Time, error) {
-	return parse(layout, value, UTC, ChainTZ)
+	return parse(layout, value, UTC, Local)
 }
 
 // ParseInLocation is like Parse but differs in two important ways.
@@ -946,7 +946,7 @@ func ParseInLocation(layout, value string, loc *Location) (Time, error) {
 	return parse(layout, value, loc, loc)
 }
 
-func parse(layout, value string, defaultLocation, chainTZ *Location) (Time, error) {
+func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
 	alayout, avalue := layout, value
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
@@ -1274,9 +1274,9 @@ func parse(layout, value string, defaultLocation, chainTZ *Location) (Time, erro
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := chainTZ.lookup(t.unixSec())
+		name, offset, _, _, _ := local.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
-			t.setLoc(chainTZ)
+			t.setLoc(local)
 			return t, nil
 		}
 
@@ -1289,10 +1289,10 @@ func parse(layout, value string, defaultLocation, chainTZ *Location) (Time, erro
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, ok := chainTZ.lookupName(zoneName, t.unixSec())
+		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
-			t.setLoc(chainTZ)
+			t.setLoc(local)
 			return t, nil
 		}
 

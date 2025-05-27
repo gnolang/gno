@@ -56,7 +56,7 @@ type Time struct {
 	// that correspond to this Time.
 	// The nil location means UTC.
 	// All UTC times are represented with loc==nil, never loc==&utcLoc.
-	// default location is ChainTZ
+	// default location is Local based on the blockchain's timezone
 	loc *Location
 }
 
@@ -859,11 +859,11 @@ func now() (sec int64, nsec int32, mono int64) // injected
 func Now() Time {
 	sec, nsec, _ := now()
 	sec += unixToInternal
-	return Time{sec, nsec, ChainTZ}
+	return Time{sec, nsec, Local}
 }
 
 func unixTime(sec int64, nsec int32) Time {
-	return Time{sec + unixToInternal, nsec, ChainTZ}
+	return Time{sec + unixToInternal, nsec, Local}
 }
 
 // UTC returns t with the location set to UTC.
@@ -873,9 +873,9 @@ func (t Time) UTC() Time {
 }
 
 // Replace time.Local()
-// ChainTZ returns t with the location set to ChainTZ time.
-func (t Time) ChainTZ() Time {
-	t.setLoc(ChainTZ)
+// Local returns t with the location set to Local time.
+func (t Time) Local() Time {
+	t.setLoc(Local)
 	return t
 }
 
@@ -1056,8 +1056,8 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	if offset == -1*60 {
 		t.setLoc(&utcLoc)
-	} else if _, localoff, _, _, _ := ChainTZ.lookup(t.unixSec()); offset == localoff {
-		t.setLoc(ChainTZ)
+	} else if _, localoff, _, _, _ := Local.lookup(t.unixSec()); offset == localoff {
+		t.setLoc(Local)
 	} else {
 		t.setLoc(FixedZone("", offset))
 	}
