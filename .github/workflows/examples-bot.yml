@@ -14,7 +14,6 @@ jobs:
 
     steps:
       - name: Setup notification
-        id: notify
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }}
           PR_URL: ${{ github.event.pull_request.html_url }}
