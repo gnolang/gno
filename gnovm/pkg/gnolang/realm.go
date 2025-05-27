@@ -348,9 +348,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -421,6 +421,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
+	//fmt.Println("---incRefCreatedDescendants..., oo: ", oo)
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -679,6 +680,16 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
+		//fmt.Println("===uo: ", oo)
+		more := getChildObjects2(store, oo)
+		//fmt.Println("===more: ", more)
+		for _, child := range more {
+			//fmt.Println("===child: ", child, child.GetIsReal(), child.GetIsNewReal())
+			rlm.incRefCreatedDescendants(store, child)
+			child.SetOwner(oo)
+			child.IncRefCount()
+			child.SetIsNewReal(true)
+		}
 		markAncestorsOne(oo)
 	}
 	// NOTE: must happen after iterating over rlm.updated
@@ -693,7 +704,9 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
+	//fmt.Println("---saveUnsavedObjects...")
 	for _, co := range rlm.created {
+		//fmt.Println("---co: ", co, co.GetIsReal(), co.GetIsNewReal())
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
 		if !co.GetIsNewReal() {
@@ -705,6 +718,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
+		//fmt.Println("---uo: ", uo)
 		// for i := len(rlm.updated) - 1; i >= 0; i-- {
 		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
@@ -719,6 +733,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 
 // store unsaved children first.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
+	//fmt.Println("---saveUnsavedObjectRecursively..., oo: ", oo)
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -729,9 +744,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
@@ -744,6 +759,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 			rlm.saveUnsavedObjectRecursively(store, uch)
 		}
 	}
+	//fmt.Println("---oo.GetIsReal(): ", oo.GetIsReal())
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
@@ -773,6 +789,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 }
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
+	//fmt.Println("---saveObject: ", oo)
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
 		panic("unexpected zero object id")
@@ -1458,6 +1475,7 @@ func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 		panic("unexpected non-zero object id")
 	}
 	noid := rlm.nextObjectID()
+	//fmt.Println("---noid: ", noid)
 	oo.SetObjectID(noid)
 	return noid
 }

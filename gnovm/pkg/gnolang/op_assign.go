@@ -28,16 +28,16 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 
-		if _, ok := s.Lhs[i].(*IndexExpr); ok {
-			iv := m.PeekValue(1)
-			xv := m.PeekValue(2)
-
-			// XXX, works but seems not the right place? thinking...
-			if mv, ok := xv.V.(*MapValue); ok {
-				//fmt.Println("============mv: ", mv)
-				m.Realm.DidUpdate(mv, nil, iv.GetFirstObject(m.Store))
-			}
-		}
+		//if _, ok := s.Lhs[i].(*IndexExpr); ok {
+		//	iv := m.PeekValue(1)
+		//	xv := m.PeekValue(2)
+		//
+		//	// XXX, works but seems not the right place? thinking...
+		//	if mv, ok := xv.V.(*MapValue); ok {
+		//		//fmt.Println("============mv: ", mv)
+		//		m.Realm.DidUpdate(mv, nil, iv.GetFirstObject(m.Store))
+		//	}
+		//}
 
 		lv := m.PopAsPointer(s.Lhs[i])
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
