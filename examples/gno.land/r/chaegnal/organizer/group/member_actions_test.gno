@@ -16,10 +16,10 @@ func Test_RemoveAdminRank_Success(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	organizer.AskJoinFriendGroup(7)
+	cross(organizer.AskJoinFriendGroup)(7)
 
 	group := organizer.GetGroupFromId("7")
 	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
@@ -39,10 +39,10 @@ func Test_RemoveAdminRank_Failure(t *testing.T) {
 	}()
 
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	organizer.AskJoinFriendGroup(8)
+	cross(organizer.AskJoinFriendGroup)(8)
 
 	group := organizer.GetGroupFromId("8")
 	group.DAO.WhitelistUser("Chaegnal", "Ghhv")

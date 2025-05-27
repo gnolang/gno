@@ -32,7 +32,7 @@ func Test_DeleteFriendGroup_Failure(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
-	cross(DeleteFriendGroup)("2", "Ghhv")
+	DeleteFriendGroup("2", "Ghhv")
 }
 
 // Test SwitchOwner
@@ -51,11 +51,11 @@ func Test_SwitchOwner_Success(t *testing.T) {
 	cross(organizer.AskJoinFriendGroup)(3)
 
 	group := organizer.GetGroupFromId("3")
-	cross(group.DAO.WhitelistUser)("Chaegnal", "Ghhv")
+	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
 
 	testing.SetOriginCaller("Chaegnal")
-	cross(MakeAdmin)("3", "Chaegnal", "Ghhv")
-	cross(SwitchOwner)("3", "Chaegnal", "Ghhv")
+	MakeAdmin("3", "Chaegnal", "Ghhv")
+	SwitchOwner("3", "Chaegnal", "Ghhv")
 }
 
 func Test_SwitchOwner_NotOwner(t *testing.T) {
@@ -70,7 +70,7 @@ func Test_SwitchOwner_NotOwner(t *testing.T) {
 	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	cross(SwitchOwner)("4", "Ghhv", "Ghhv")
+	SwitchOwner("4", "Ghhv", "Ghhv")
 }
 
 func Test_SwitchOwner_NotAdmin(t *testing.T) {
@@ -88,8 +88,8 @@ func Test_SwitchOwner_NotAdmin(t *testing.T) {
 	cross(organizer.AskJoinFriendGroup)(5)
 
 	group := organizer.GetGroupFromId("5")
-	cross(group.DAO.WhitelistUser)("Chaegnal", "Ghhv")
+	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
 
 	testing.SetOriginCaller("Chaegnal")
-	cross(SwitchOwner)("5", "Chaegnal", "Ghhv")
+	SwitchOwner("5", "Chaegnal", "Ghhv")
 }
