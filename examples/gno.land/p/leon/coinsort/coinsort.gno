@@ -28,24 +28,11 @@ func (b ByAmount) Len() int           { return len(b.Coins) }
 func (b ByAmount) Swap(i, j int)      { b.Coins[i], b.Coins[j] = b.Coins[j], b.Coins[i] }
 func (b ByAmount) Less(i, j int) bool { return b.Coins[i].Amount < b.Coins[j].Amount }
 
-type ByDenom struct{ std.Coins }
-
-func (b ByDenom) Len() int           { return len(b.Coins) }
-func (b ByDenom) Swap(i, j int)      { b.Coins[i], b.Coins[j] = b.Coins[j], b.Coins[i] }
-func (b ByDenom) Less(i, j int) bool { return b.Coins[i].Denom < b.Coins[j].Denom }
-
 // SortByBalance sorts c in ascending order by Amount.
 //
 //	coinsort.SortByBalance(myCoins)
 func SortByBalance(c std.Coins) {
 	sort.Sort(ByAmount{c})
-}
-
-// SortByDenomAlphabetically sorts c in ascending lexicographic order by Denom.
-//
-//	coinsort.SortByDenomAlphabetically(myCoins)
-func SortByDenomAlphabetically(c std.Coins) {
-	sort.Sort(ByDenom{c})
 }
 
 // LessFunc defines the comparison function for SortBy. It must return true if

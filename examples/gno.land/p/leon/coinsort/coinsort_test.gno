@@ -27,28 +27,6 @@ func TestSortByBalance(t *testing.T) {
 	}
 }
 
-func TestSortByDenomAlphabetically(t *testing.T) {
-	coins := std.Coins{
-		std.Coin{Denom: "ugnot", Amount: 1},
-		std.Coin{Denom: "btc", Amount: 1},
-		std.Coin{Denom: "eth", Amount: 1},
-	}
-
-	expected := std.Coins{
-		std.Coin{Denom: "btc", Amount: 1},
-		std.Coin{Denom: "eth", Amount: 1},
-		std.Coin{Denom: "ugnot", Amount: 1},
-	}
-
-	SortByDenomAlphabetically(coins)
-
-	for i := range coins {
-		if coins[i] != expected[i] {
-			t.Errorf("SortByDenomAlphabetically failed at index %d: got %+v, want %+v", i, coins[i], expected[i])
-		}
-	}
-}
-
 func TestSortByCustomDescendingAmount(t *testing.T) {
 	coins := std.Coins{
 		std.Coin{Denom: "a", Amount: 2},
