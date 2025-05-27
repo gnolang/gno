@@ -40,7 +40,7 @@ func opCall(s *State) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// check for enough money
 	if s.tmp.accounts[s.callerAddress] == nil || s.tmp.accounts[s.callerAddress].Balance == nil {
 		return errors.New("invalid caller")
@@ -61,6 +61,7 @@ func opCall(s *State) error {
 	tmpState := s.clone()
 	tmpState.setCallData(callData)
 	tmpState.setGasLimit(uint(gas.Uint64()))
+	tmpState.setCallerAddress(address.Uint64())
 
 	// check for precompiled
 	var res []byte
@@ -98,6 +99,75 @@ func opCall(s *State) error {
 	s.tmp.logs = tmpState.tmp.logs
 	s.tmp.accounts = tmpState.tmp.accounts
 	s.tmp.warmStorage = tmpState.tmp.warmStorage
+	return nil
+}
+
+func opCallCode(s *State) error {
+	// get the values pushed in stack
+	gas, address, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getVariables(&s.stack)
+	if err != nil {
+		return err
+	}
+
+	// check for enough money
+	if s.tmp.accounts[s.callerAddress] == nil || s.tmp.accounts[s.callerAddress].Balance == nil {
+		return errors.New("invalid caller")
+	}
+
+	if s.tmp.accounts[s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
+		s.stack.Push(uint256.Zero())
+		return errors.New("not enough money to send " + moneyToGive.String() + " wei to call adress " + address.String())
+	}
+	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
+		s.stack.Push(uint256.Zero())
+		return notEnoughGas
+	}
+	memoryCost := uint64(0)
+	callData := getCallData(argsOffset, s, argsSize)
+
+	// create a tmp state
+	tmpState := s.clone()
+	tmpState.setCallData(callData)
+	tmpState.setGasLimit(uint(gas.Uint64()))
+	tmpState.transientStorage = s.transientStorage
+
+	// check for precompiled
+	var res []byte
+	if address.Uint64() < 0x10 {
+		f := precompiled[address.Uint64()]
+		err = f(tmpState)
+	} else {
+		// get the contrat code
+		contract := tmpState.tmp.accounts[address.Uint64()]
+		if contract == nil || contract.AccountType != ContractAccount {
+			s.stack.Push(uint256.Zero())
+			return nil
+		}
+		contractCode := contract.Code
+
+		// execute the bytecode in tmpState
+		tmpState.setCode(contractCode)
+		err = tmpState.executeByteCode()
+	}
+	// check for error, and push 1 or 0 if success
+	if err != nil {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	s.stack.Push(uint256.One())
+	res = tmpState.getResult()
+
+	// extend memory as needed, and copy the result (res) in parent process
+	// also change storages, gas consumed and stuff like that
+	extendMemory(s, retOffset, retSize, &memoryCost)
+	copy(s.memory[retOffset.Uint64():retOffset.Uint64()+retSize.Uint64()], res)
+	s.gasConsumed += uint(memoryCost) + tmpState.gasConsumed
+	s.lastCallState = tmpState
+	s.tmp.storage = tmpState.tmp.storage
+	s.tmp.logs = tmpState.tmp.logs
+	s.tmp.accounts = tmpState.tmp.accounts
+	s.tmp.warmStorage = tmpState.tmp.warmStorage
+	s.transientStorage = tmpState.transientStorage
 	return nil
 }
 
