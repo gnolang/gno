@@ -61,7 +61,7 @@ const (
 func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 	var urlstr strings.Builder
 
-	noEscape := encodeFlags.Has(EncodeNoEscape)
+	escape := !encodeFlags.Has(EncodeNoEscape)
 
 	if encodeFlags.Has(EncodeDomain) {
 		urlstr.WriteString(gnoURL.Domain)
@@ -82,42 +82,47 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 			urlstr.WriteRune(':')
 		}
 
-		// XXX: Arguments should ideally always be escaped,
-		// but this may require changes in some realms.
+		// web: $ url-encoded + normal path encoding except /
+		// qrender arg: ? url-encoded, rest is sent decoded.
 		args := gnoURL.Args
-		if !noEscape {
-			args = escapeDollarSign(url.PathEscape(args))
+		if escape {
+			args = webEscapedReplacer.Replace(url.PathEscape(args))
+		} else {
+			args = strings.ReplaceAll(args, "?", "%3F")
 		}
 
 		urlstr.WriteString(args)
 	}
 
+	// webquery & query should always be encoded, regardless.
+
 	if encodeFlags.Has(EncodeWebQuery) && len(gnoURL.WebQuery) > 0 {
 		urlstr.WriteRune('$')
-		urlstr.WriteString(EncodeValues(gnoURL.WebQuery, !noEscape))
+		urlstr.WriteString(EncodeValues(gnoURL.WebQuery, true))
 	}
 
 	if encodeFlags.Has(EncodeQuery) && len(gnoURL.Query) > 0 {
 		urlstr.WriteRune('?')
-		urlstr.WriteString(EncodeValues(gnoURL.Query, !noEscape))
+		urlstr.WriteString(EncodeValues(gnoURL.Query, true))
 	}
 
 	return urlstr.String()
 }
+
+var webEscapedReplacer = strings.NewReplacer(
+	"$", "%24",
+	"%2F", "/",
+)
 
 // Has checks if the EncodeFlag contains all the specified flags.
 func (f EncodeFlag) Has(flags EncodeFlag) bool {
 	return f&flags != 0
 }
 
-func escapeDollarSign(s string) string {
-	return strings.ReplaceAll(s, "$", "%24")
-}
-
 // EncodeArgs encodes the arguments and query parameters into a string.
 // This function is intended to be passed as a realm `Render` argument.
 func (gnoURL GnoURL) EncodeArgs() string {
-	return gnoURL.Encode(EncodeArgs | EncodeQuery)
+	return gnoURL.Encode(EncodeArgs | EncodeQuery | EncodeNoEscape)
 }
 
 // EncodeURL encodes the path, arguments, and query parameters into a string.
@@ -129,7 +134,7 @@ func (gnoURL GnoURL) EncodeURL() string {
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
 // This function provides the full representation of the URL.
 func (gnoURL GnoURL) EncodeWebURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery | EncodeNoEscape)
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
 }
 
 // IsPure checks if the URL path represents a pure path.
