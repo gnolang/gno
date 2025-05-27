@@ -1,3 +1,5 @@
+// Package cosmtogno is a simple utility package that helps convert
+// cosmos-prefixed addresses to gno addresses.
 package cosmtogno
 
 import (
