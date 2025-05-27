@@ -348,9 +348,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -367,6 +367,8 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
+	// dirty object may have new real children
+	rlm.markNewRealChildren(store)
 	if debug {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
 		ensureUniq(rlm.escaped)
@@ -679,24 +681,29 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
-		//fmt.Println("===uo: ", oo)
-		more := getChildObjects2(store, oo)
-		//fmt.Println("===more: ", more)
-		for _, child := range more {
-			//fmt.Println("===child: ", child, child.GetIsReal(), child.GetIsNewReal())
-			if child.GetObjectID().IsZero() {
-				rlm.incRefCreatedDescendants(store, child)
-				child.SetOwner(oo)
-				child.IncRefCount()
-				child.SetIsNewReal(true)
-			}
-		}
 		markAncestorsOne(oo)
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
 		markAncestorsOne(oo)
+	}
+}
+
+// ----------------------------------------
+// markNewRealChildren
+func (rlm *Realm) markNewRealChildren(store Store) {
+	for _, oo := range rlm.updated {
+		more := getChildObjects2(store, oo)
+		for _, child := range more {
+			if !child.GetObjectID().IsZero() {
+				continue
+			}
+			rlm.incRefCreatedDescendants(store, child)
+			child.SetOwner(oo)
+			child.IncRefCount()
+			child.SetIsNewReal(true)
+		}
 	}
 }
 
@@ -741,9 +748,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
