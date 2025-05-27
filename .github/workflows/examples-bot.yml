@@ -13,7 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send message to Discord
+      - name: Setup notification
+        id: notify
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -21,16 +22,29 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
-          payload=$(jq -nc \
-            --arg content "🔔 Fresh Gno code just dropped! Check it out below:
+          # Create a sanitized message using jq's built-in escaping
+          SANITIZED_MESSAGE=$(jq -nc \
+            --arg number "$PR_NUMBER" \
+            --arg title "$PR_TITLE" \
+            --arg url "$PR_URL" \
+            --arg author "$PR_AUTHOR" \
+            '{
+              content: (
+                "🔔 Fresh Gno code just dropped! Check it out below:\n\n" +
+                "#\($number) – *\($title)*\n\n" +
+                "PR link: \($url)\n\n" +
+                "by **@\($author)**"
+              )
+            }')
           
-          #$PR_NUMBER – *$PR_TITLE*
-          
-          PR link: $PR_URL
-          
-          by **@$PR_AUTHOR**" \
-            '{content: $content}')
-          curl -X POST \
+          # Try to send (but never fail the job)
+          if ! curl -sSf -X POST \
             -H "Content-Type: application/json" \
-            -d "$payload" \
-            "$DISCORD_WEBHOOK"
+            -d "$SANITIZED_MESSAGE" \
+            "$DISCORD_WEBHOOK"; then
+          
+              echo "::warning::Failed to send Discord notification"
+              echo "This is non-fatal - continuing workflow"
+          else
+              echo "Successfully sent Discord notification"
+          fi
