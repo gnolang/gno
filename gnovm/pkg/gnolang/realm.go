@@ -348,9 +348,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -679,6 +679,18 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
+		//fmt.Println("===uo: ", oo)
+		more := getChildObjects2(store, oo)
+		//fmt.Println("===more: ", more)
+		for _, child := range more {
+			//fmt.Println("===child: ", child, child.GetIsReal(), child.GetIsNewReal())
+			if child.GetObjectID().IsZero() {
+				rlm.incRefCreatedDescendants(store, child)
+				child.SetOwner(oo)
+				child.IncRefCount()
+				child.SetIsNewReal(true)
+			}
+		}
 		markAncestorsOne(oo)
 	}
 	// NOTE: must happen after iterating over rlm.updated
@@ -729,9 +741,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
