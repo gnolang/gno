@@ -24,6 +24,7 @@ import (
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/leon/coinsort"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
@@ -165,20 +166,25 @@ func renderAllBalances(rawpath, addr string) string {
 
 	balances := banker.GetCoins(std.Address(addr))
 
-	// Create table
-	denomColumn := renderSortLink(req, "denom", "Denomination")
-	table := mdtable.Table{
-		Headers: []string{denomColumn, "Balance"},
+	// Determine sorting
+	if getSortField(req) == "balance" {
+		coinsort.SortByBalance(balances)
 	}
 
-	if getSortField(req) == "denom" && isSortReversed(req) {
-		for i := len(balances) - 1; i >= 0; i-- {
-			b := balances[i]
+	// Create table
+	denomColumn := renderSortLink(req, "denom", "Denomination")
+	balanceColumn := renderSortLink(req, "balance", "Balance")
+	table := mdtable.Table{
+		Headers: []string{denomColumn, balanceColumn},
+	}
+
+	if isSortReversed(req) {
+		for _, b := range balances {
 			table.Append([]string{b.Denom, strconv.Itoa(int(b.Amount))})
 		}
 	} else {
-		for _, b := range balances {
-			table.Append([]string{b.Denom, strconv.Itoa(int(b.Amount))})
+		for i := len(balances) - 1; i >= 0; i-- {
+			table.Append([]string{balances[i].Denom, strconv.Itoa(int(balances[i].Amount))})
 		}
 	}
 
