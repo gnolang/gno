@@ -23,4 +23,4 @@ func main() {
 // znil == y true
 
 // TypeCheckError:
-// main/files/comp5.gno:7:2: declared and not used: x
+// main/comp5.gno:7:2: declared and not used: x

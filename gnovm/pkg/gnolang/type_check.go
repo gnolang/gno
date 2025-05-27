@@ -177,7 +177,7 @@ func assertComparable2(dt Type) {
 	}
 }
 
-func maybeNil(t Type) bool {
+func mayBeNil(t Type) bool {
 	switch baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
 		return true
@@ -395,7 +395,6 @@ func checkValDefineMismatch(n Node) {
 		if numNames > numValues {
 			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String()))
 		}
-
 		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
 	}
 
@@ -405,7 +404,7 @@ func checkValDefineMismatch(n Node) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
+func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
@@ -414,20 +413,20 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 		if dt == nil || dt.Kind() == InterfaceKind {
 			return nil
 		}
-		if !maybeNil(dt) {
+		if !mayBeNil(dt) {
 			switch n := n.(type) {
 			case *ValueDecl:
-				panic(fmt.Sprintf("cannot use nil as %v value in variable declaration", dt))
+				return errors.New("cannot use nil as %v value in variable declaration", dt)
 			case *AssignStmt:
-				panic(fmt.Sprintf("cannot use nil as %v value in assignment", dt))
+				return errors.New("cannot use nil as %v value in assignment", dt)
 			case *CompositeLitExpr:
-				panic(fmt.Sprintf("cannot use nil as %v value in array, slice literal or map literal", dt))
+				return errors.New("cannot use nil as %v value in array, slice literal or map literal", dt)
 			case *CallExpr:
-				panic(fmt.Sprintf("cannot use nil as %v value in argument to %v", dt, n.Func))
+				return errors.New("cannot use nil as %v value in argument to %v", dt, n.Func)
 			case *BinaryExpr:
-				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and untyped nil)", n, dt))
+				return errors.New("invalid operation: %v (mismatched types %v and untyped nil)", n, dt)
 			default:
-				panic(fmt.Sprintf("cannot use nil as %v value", dt))
+				return errors.New("cannot use nil as %v value", dt)
 			}
 		}
 		return nil
@@ -451,7 +450,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 					err.Error())
 			}
 		} else {
-			return errors.New("should not happen")
+			panic("should not happen")
 		}
 	}
 
@@ -540,9 +539,9 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 				Uint32Kind, Uint64Kind, BigdecKind, Float32Kind, Float64Kind:
 				return nil // ok
 			default:
-				panic(fmt.Sprintf(
+				return errors.New(
 					"cannot use untyped Bigdec as %s",
-					dt.Kind()))
+					dt.Kind())
 			}
 		case UntypedBigintType:
 			switch dt.Kind() {
@@ -569,7 +568,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 
 		default:
 			if isUntyped(xt) {
-				panic("unexpected untyped type")
+				return errors.New("unexpected untyped type")
 			}
 			if xt.TypeID() == cdt.TypeID() {
 				return nil // ok
@@ -623,7 +622,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 			return nil
 		}
 	case *InterfaceType:
-		return errors.New("should not happen")
+		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
 	case *FuncType, *StructType, *PackageType, *ChanType, *TypeType:
@@ -721,9 +720,9 @@ func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
-	xt, dt := lt, rt
+	xt, dt, swapped := lt, rt, false
 	if shouldSwapOnSpecificity(lt, rt) {
-		xt, dt = dt, xt
+		xt, dt, swapped = dt, xt, true
 	}
 
 	if isComparison(x.Op) {
@@ -735,7 +734,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
-				x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString())
+				x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString(), swapped)
 			} else {
 				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 			}
@@ -744,7 +743,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[x.Op]; ok {
-			x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString())
+			x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString(), swapped)
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
@@ -772,16 +771,29 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 // The function checkOrConvertType will be invoked after this check.
 // NOTE: dt is established based on a specificity check between xt and dt,
 // confirming dt as the appropriate destination type for this context.
-func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type) bool, OpStr string) {
+func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type) bool, OpStr string, swapped bool) {
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
+	}
+
+	// display xt as "untyped nil" if nil as Go does.
+	untypedNil := func(t Type) string {
+		if t == nil {
+			return "untyped nil"
+		} else {
+			return t.String()
+		}
 	}
 
 	// if both typed
 	if !isUntyped(xt) && !isUntyped(dt) {
 		err := checkAssignableTo(n, xt, dt, false)
 		if err != nil {
-			panic(fmt.Sprintf("invalid operation: mismatched types %v and %v", xt, dt))
+			if swapped {
+				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and %v)", n, dt, untypedNil(xt)))
+			} else {
+				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and %v)", n, untypedNil(xt), dt))
+			}
 		}
 	}
 }
