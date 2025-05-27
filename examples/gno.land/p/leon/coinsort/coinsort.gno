@@ -13,7 +13,7 @@
 //	    return a.Amount > b.Amount // descending
 //	})
 //
-// Note: when getting std.Coins from the banler, it's sorted by denom by default.
+// Note: when getting std.Coins from the banker, it's sorted by denom by default.
 package coinsort
 
 import (
