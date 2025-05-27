@@ -92,15 +92,15 @@ func renderConvertedAddress(addr string) string {
 		return out
 	}
 
-	user, _ := users.ResolveAny(gnoAddress)
-	name := "`" + gnoAddress + "`"
+	user, _ := users.ResolveAny(gnoAddress.String())
+	name := "`" + gnoAddress.String() + "`"
 	if user != nil {
 		name = user.RenderLink("")
 	}
 
 	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
-	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances/" + gnoAddress + "?coin=ugnot)\n\n"
-	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + gnoAddress + ")"
+	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances/" + gnoAddress.String() + "?coin=ugnot)\n\n"
+	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + gnoAddress.String() + ")"
 	return out
 }
 
