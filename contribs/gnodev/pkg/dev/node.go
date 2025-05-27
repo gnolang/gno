@@ -525,7 +525,6 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 	// Load genesis packages
 	pkgs, err := n.loader.Load(n.paths...)
-
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}

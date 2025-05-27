@@ -82,7 +82,6 @@ func Render(_ string) string { return "foo" }
 
 // TestNewNode_WithPackage tests the NewDevNode with a single package.
 func TestNewNode_ConflictPackage(t *testing.T) {
-
 	// Define 2 packages with same path
 	fooPkg := std.MemPackage{
 		Name: "foo",
