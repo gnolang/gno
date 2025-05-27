@@ -40,8 +40,12 @@ func opCall(s *State) error {
 	if err != nil {
 		return err
 	}
-
+	
 	// check for enough money
+	if s.tmp.accounts[s.callerAddress] == nil || s.tmp.accounts[s.callerAddress].Balance == nil {
+		return errors.New("invalid caller")
+	}
+
 	if s.tmp.accounts[s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
 		s.stack.Push(uint256.Zero())
 		return errors.New("not enough money to send " + moneyToGive.String() + " wei to call adress " + address.String())
@@ -61,7 +65,8 @@ func opCall(s *State) error {
 	// check for precompiled
 	var res []byte
 	if address.Uint64() < 0x10 {
-		return nil
+		f := precompiled[address.Uint64()]
+		err = f(tmpState)
 	} else {
 		// get the contrat code
 		contract := tmpState.tmp.accounts[address.Uint64()]
@@ -70,17 +75,18 @@ func opCall(s *State) error {
 			return nil
 		}
 		contractCode := contract.Code
-	
-		// execute the bytecode in tmpState, and push 1 or 0 if success
+
+		// execute the bytecode in tmpState
 		tmpState.setCode(contractCode)
 		err = tmpState.executeByteCode()
-		if err != nil {
-			s.stack.Push(uint256.Zero())
-			return nil
-		}
-		s.stack.Push(uint256.One())
-		res = tmpState.getResult()
 	}
+	// check for error, and push 1 or 0 if success
+	if err != nil {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	s.stack.Push(uint256.One())
+	res = tmpState.getResult()
 
 	// extend memory as needed, and copy the result (res) in parent process
 	// also change storages, gas consumed and stuff like that

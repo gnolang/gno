@@ -1323,6 +1323,31 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			ignoreGasConsumed: true,
 		},
+		{
+			name: "precompiled: empty sha256",
+			code: []byte{
+				byte(PUSH1), 0x20, // retSize
+				byte(PUSH1), 0x20, // retOffset
+				byte(PUSH0), // argsSize
+				byte(PUSH0), // argsOffset
+				byte(PUSH0), // value
+				byte(PUSH1), 2, // address
+				byte(PUSH4), 0xff, 0xff, 0xff, 0xff, // gas
+				byte(CALL),
+			},
+			caller: Account{
+				AccountType: CallerAccount,
+				EvmAddress:  0xbebecaca,
+				GnoAddress:  "bebecaca",
+				Balance:     uint256.NewUint(100),
+				Gas:         uint(0xffffffffff),
+				Code:        []byte{},
+			},
+			ignoreGasConsumed: true,
+			ignoreMemory: true,
+			ignoreTransientStorage: true,
+			ignoreStack: true,
+		},
 	}
 
 	for _, tc := range testCases {
