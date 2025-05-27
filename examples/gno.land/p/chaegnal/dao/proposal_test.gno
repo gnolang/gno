@@ -1,19 +1,18 @@
 package dao
 
-import "testing"
+import (
+	"testing"
+
+	"gno.land/p/demo/uassert"
+)
 
 // Test CreateProposals
 func Test_CreateProposals(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
-	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
+	uassert.NotPanics(t, func() {
+		dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
+	})
 
 	raw, _ := dao.Proposals.Get("1")
 	proposal := raw.(Proposal)
@@ -30,13 +29,6 @@ func Test_CreateProposals(t *testing.T) {
 
 // Test VoteProposal
 func Test_VoteProposal_Success(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
@@ -44,48 +36,27 @@ func Test_VoteProposal_Success(t *testing.T) {
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
-	dao.VoteProposal(1, 1, "user")
+	uassert.NotPanics(t, func() { dao.VoteProposal(1, 1, "user") })
 }
 
 func Test_VoteProposal_Failure_NotMember(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "you are not whitelisted" {
-			t.Errorf("Expected 'you are not whitelisted' panic, got '%v' panic", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
-	dao.VoteProposal(1, 1, "user")
+	uassert.PanicsWithMessage(t, "you are not whitelisted", func() { dao.VoteProposal(1, 1, "user") })
 }
 
 func Test_VoteProposal_Failure_InvalidProposal(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "proposal does not exist" {
-			t.Errorf("Expected 'proposal does not exist' panic, got '%v' panic", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
 	dao.WhitelistUser("admin", "user")
 
-	dao.VoteProposal(1, 1, "user")
+	uassert.PanicsWithMessage(t, "proposal does not exist", func() { dao.VoteProposal(1, 1, "user") })
 }
 
 func Test_VoteProposal_Failure_AlreadyVoted(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "already voted" {
-			t.Errorf("Expected 'already voted' panic, got '%v' panic", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
@@ -94,17 +65,10 @@ func Test_VoteProposal_Failure_AlreadyVoted(t *testing.T) {
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
 	dao.VoteProposal(1, 1, "user")
-	dao.VoteProposal(1, 1, "user")
+	uassert.PanicsWithMessage(t, "already voted", func() { dao.VoteProposal(1, 1, "user") })
 }
 
 func Test_VoteProposal_Failure_InvalidVote(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "invalid vote: must be 0 (nay) or 1 (yay)" {
-			t.Errorf("Expected 'invalid vote: must be 0 (nay) or 1 (yay)' panic, got '%v' panic", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.PendingApproval("user")
@@ -112,80 +76,45 @@ func Test_VoteProposal_Failure_InvalidVote(t *testing.T) {
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
-	dao.VoteProposal(1, 2, "user")
+	uassert.PanicsWithMessage(t, "invalid vote: must be 0 (nay) or 1 (yay)", func() { dao.VoteProposal(1, 2, "user") })
 }
 
 func Test_closeProposal_Success(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
-	dao.closeProposal(1, "admin")
+	uassert.NotPanics(t, func() { dao.closeProposal(1, "admin") })
 }
 
 func Test_closeProposal_NoExist(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "proposal does not exist" {
-			t.Errorf("Expected 'proposal does not exist' panic, got '%v' panic", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
-	dao.closeProposal(100, "admin")
+	uassert.PanicsWithMessage(t, "proposal does not exist", func() { dao.closeProposal(100, "admin") })
 }
 
 func Test_closeProposal_AlreadyClosed(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "proposal already closed" {
-			t.Errorf("Expected 'proposal already closed' panic, got '%v' panic", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
 	dao.closeProposal(1, "admin")
-	dao.closeProposal(1, "admin")
+	uassert.PanicsWithMessage(t, "proposal already closed", func() { dao.closeProposal(1, "admin") })
 }
 
 // Test AdminCloseProposal
 func Test_AdminCloseProposal_Success(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
-	dao.AdminCloseProposal(1, "admin")
+	uassert.NotPanics(t, func() { dao.AdminCloseProposal(1, "admin") })
 }
 
 func Test_AdminCloseProposal_Failure(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "you cannot close a proposal" {
-			t.Errorf("Expected 'you cannot close a proposal' panic, got '%v' panic", r)
-		}
-	}()
-
 	dao := NewDAO("admin")
 
 	dao.CreateProposals("Test Title", "Test Description", "testCallback", []string{"arg1", "arg2"}, "admin")
 
-	dao.AdminCloseProposal(1, "user")
+	uassert.PanicsWithMessage(t, "you cannot close a proposal", func() { dao.AdminCloseProposal(1, "user") })
 }

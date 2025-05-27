@@ -3,6 +3,7 @@ package group
 import (
 	"testing"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/r/chaegnal/organizer"
 )
 
@@ -38,26 +39,12 @@ func Test_ParseQueryKeyword(t *testing.T) {
 
 // Test getGroupFromUrl
 func Test_getGroupFromUrl_Success(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup("Chaegnal's group")
+	cross(organizer.CreateFriendGroup)("Chaegnal's group")
 
-	getGroupFromUrl("http://test.com?groupId=2")
+	uassert.NotPanics(t, func() { getGroupFromUrl("http://test.com?groupId=2") })
 }
 
 func Test_getGroupFromUrl_Failure(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "no group id provided" {
-			t.Errorf("Expected 'no group id provided' panic, got '%v' panic", r)
-		}
-	}()
-
-	getGroupFromUrl("http://test.com?groupId=")
+	uassert.PanicsWithMessage(t, "no group id provided", func() { getGroupFromUrl("http://test.com?groupId=") })
 }
