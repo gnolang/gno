@@ -2,20 +2,15 @@ package organizer
 
 import (
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 // Test CreateFriendGroup
 func Test_CreateFriendGroup(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	testing.SetOriginCaller("Chaegnal")
 
-	CreateFriendGroup("Test")
+	uassert.NotPanics(t, func() { CreateFriendGroup("Test") })
 
 	raw, found := ListGroups.Groups.Get("1")
 	if !found {
@@ -38,18 +33,11 @@ func Test_CreateFriendGroup(t *testing.T) {
 
 // Test AskJoinFriendGroup
 func Test_AskJoinFriendGroup_Success(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	testing.SetOriginCaller("Chaegnal")
 	CreateFriendGroup("Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	AskJoinFriendGroup(2)
+	uassert.NotPanics(t, func() { AskJoinFriendGroup(2) })
 
 	group := GetGroupFromId("2")
 	if !group.DAO.IsPending("Ghhv") {
@@ -58,39 +46,18 @@ func Test_AskJoinFriendGroup_Success(t *testing.T) {
 }
 
 func Test_AskJoinFriendGroup_GroupFail(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "group does not exist" {
-			t.Errorf("Expected 'group does not exist' panic, got '%v' panic", r)
-		}
-	}()
-
-	AskJoinFriendGroup(100)
+	uassert.PanicsWithMessage(t, "group does not exist", func() { AskJoinFriendGroup(100) })
 }
 
 func Test_AskJoinFriendGroup_AlreadyPart(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "you are already part of this friend group" {
-			t.Errorf("Expected 'you are already part of this friend group' panic, got '%v' panic", r)
-		}
-	}()
-
 	testing.SetOriginCaller("Chaegnal")
 	CreateFriendGroup("Chaegnal's Already In")
 
-	AskJoinFriendGroup(3)
+	uassert.PanicsWithMessage(t, "you are already part of this friend group", func() { AskJoinFriendGroup(3) })
 }
 
 // Test LeaveGroup
 func Test_LeaveGroup_Success(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
 	testing.SetOriginCaller("Chaegnal")
 	CreateFriendGroup("Chaegnal's Leave Ghhv")
 
@@ -100,7 +67,7 @@ func Test_LeaveGroup_Success(t *testing.T) {
 	group := GetGroupFromId("4")
 	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
 
-	LeaveGroup("4")
+	uassert.NotPanics(t, func() { LeaveGroup("4") })
 
 	if group.DAO.Whitelist.Has("Ghhv") {
 		t.Errorf("'Ghhv' still in whitelist")
@@ -108,53 +75,25 @@ func Test_LeaveGroup_Success(t *testing.T) {
 }
 
 func Test_LeaveGroup_Failure(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "owner cannot leave the group" {
-			t.Errorf("Expected 'owner cannot leave the group' panic, got '%v' panic", r)
-		}
-	}()
-
 	testing.SetOriginCaller("Chaegnal")
 	CreateFriendGroup("Chaegnal's Leave")
 
-	LeaveGroup("4")
+	uassert.PanicsWithMessage(t, "owner cannot leave the group", func() { LeaveGroup("4") })
 }
 
 // Helpers
 
 // Test getGroupFromId
 func Test_getGroupFromId_invalidID(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "invalid id" {
-			t.Errorf("Expected 'invalid id' panic, got '%v' panic", r)
-		}
-	}()
-
-	GetGroupFromId("abc")
+	uassert.PanicsWithMessage(t, "invalid id", func() { GetGroupFromId("abc") })
 }
 
 func Test_getGroupFromId_notFound(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != "could not find group" {
-			t.Errorf("Expected 'could not find group' panic, got '%v' panic", r)
-		}
-	}()
-
-	GetGroupFromId("100")
+	uassert.PanicsWithMessage(t, "could not find group", func() { GetGroupFromId("100") })
 }
 
 func TestGetGroupFromId_Success(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r != nil {
-			t.Errorf("Unexpected panic: %v", r)
-		}
-	}()
-
-	CreateFriendGroup("Test")
+	uassert.NotPanics(t, func() { CreateFriendGroup("Test") })
 
 	group := GetGroupFromId("1")
 
