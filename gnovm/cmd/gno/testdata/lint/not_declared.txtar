@@ -18,5 +18,4 @@ module gno.land/p/demo/hello
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:4:2: undefined: hello (code=4)
-bad_file.gno:4:2: name hello not declared (code=2)
+bad_file.gno:4:2: undefined: hello (code=gnoTypeCheckError)

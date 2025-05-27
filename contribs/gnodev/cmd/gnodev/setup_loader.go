@@ -88,12 +88,11 @@ func setupPackagesResolver(logger *slog.Logger, cfg *AppConfig, dirs ...string) 
 }
 
 func guessPathGnoMod(dir string) (path string, ok bool) {
-	modfile, err := gnomod.ParseAt(dir)
-	if err == nil {
-		return modfile.Module.Mod.Path, true
+	modfile, err := gnomod.ParseDir(dir)
+	if err != nil {
+		return "", false
 	}
-
-	return "", false
+	return modfile.Module.Mod.Path, true
 }
 
 var reInvalidChar = regexp.MustCompile(`[^\w_-]`)
