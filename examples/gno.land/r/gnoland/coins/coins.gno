@@ -36,15 +36,6 @@ import (
 var router *mux.Router
 
 func init() {
-	b := std.NewBanker(std.BankerTypeRealmIssue)
-	b.IssueCoin(std.OriginCaller(), "/gno.land/r/gnoland/coins:funcoin", 100000)
-	b.IssueCoin(std.OriginCaller(), "/gno.land/r/gnoland/coins:leoncoin", 100)
-	b.IssueCoin(std.OriginCaller(), "/gno.land/r/gnoland/coins:zeoncoin", 100)
-
-	for i := 0; i < 20; i++ {
-		b.IssueCoin(std.OriginCaller(), "/gno.land/r/gnoland/coins:zeoncoin"+strconv.Itoa(i), int64(i+1))
-	}
-
 	router = mux.NewRouter()
 
 	router.HandleFunc("", func(res *mux.ResponseWriter, req *mux.Request) {
