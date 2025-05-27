@@ -1281,7 +1281,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(PUSH0),
 				byte(PUSH0),
 				byte(PUSH1), 80,
-				byte(PUSH1), 1,
+				byte(PUSH1), 0x42,
 				byte(PUSH1), 255,
 				byte(CALL),
 				byte(RETURNDATASIZE),
@@ -1296,9 +1296,9 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			env: Env{
 				Accounts: Accounts{
-					uint64(1): &Account{
+					uint64(0x42): &Account{
 						AccountType: ContractAccount,
-						EvmAddress:  1,
+						EvmAddress:  0x42,
 						GnoAddress:  "address",
 						Balance:     uint256.NewUint(100),
 						Gas:         uint(1000),

@@ -35,11 +35,13 @@ func getCallData(argsOffset *uint256.Uint, s *State, argsSize *uint256.Uint) []b
 }
 
 func opCall(s *State) error {
+	// get the values pushed in stack
 	gas, address, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getVariables(&s.stack)
 	if err != nil {
 		return err
 	}
 
+	// check for enough money
 	if s.tmp.accounts[s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
 		s.stack.Push(uint256.Zero())
 		return errors.New("not enough money to send " + moneyToGive.String() + " wei to call adress " + address.String())
@@ -48,36 +50,43 @@ func opCall(s *State) error {
 		s.stack.Push(uint256.Zero())
 		return notEnoughGas
 	}
-
 	memoryCost := uint64(0)
 	callData := getCallData(argsOffset, s, argsSize)
 
+	// create a tmp state
 	tmpState := s.clone()
 	tmpState.setCallData(callData)
 	tmpState.setGasLimit(uint(gas.Uint64()))
 
-	contract := tmpState.tmp.accounts[address.Uint64()]
-	if contract == nil || contract.AccountType != ContractAccount {
-		s.stack.Push(uint256.Zero())
+	// check for precompiled
+	var res []byte
+	if address.Uint64() < 0x10 {
 		return nil
+	} else {
+		// get the contrat code
+		contract := tmpState.tmp.accounts[address.Uint64()]
+		if contract == nil || contract.AccountType != ContractAccount {
+			s.stack.Push(uint256.Zero())
+			return nil
+		}
+		contractCode := contract.Code
+	
+		// execute the bytecode in tmpState, and push 1 or 0 if success
+		tmpState.setCode(contractCode)
+		err = tmpState.executeByteCode()
+		if err != nil {
+			s.stack.Push(uint256.Zero())
+			return nil
+		}
+		s.stack.Push(uint256.One())
+		res = tmpState.getResult()
 	}
-	contractCode := contract.Code
 
-	tmpState.setCode(contractCode)
-	err = tmpState.executeByteCode()
-	if err != nil {
-		s.stack.Push(uint256.Zero())
-		return nil
-	}
-	s.stack.Push(uint256.One())
-
+	// extend memory as needed, and copy the result (res) in parent process
+	// also change storages, gas consumed and stuff like that
 	extendMemory(s, retOffset, retSize, &memoryCost)
-
-	res := tmpState.getResult()
 	copy(s.memory[retOffset.Uint64():retOffset.Uint64()+retSize.Uint64()], res)
-
 	s.gasConsumed += uint(memoryCost) + tmpState.gasConsumed
-
 	s.lastCallState = tmpState
 	s.tmp.storage = tmpState.tmp.storage
 	s.tmp.logs = tmpState.tmp.logs

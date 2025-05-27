@@ -20,7 +20,7 @@ func newEnv() *Env {
 		Logs: []LogEntry{},
 		Storage: map[uint256.Uint]*uint256.Uint{},
 		Accounts: Accounts{},
-		NextAccountId: 0,
+		NextAccountId: 0x10,
 		Transaction: Transactions{},
 		ChainID: uint256.Zero(),
 		BlockDifficulty: uint256.Zero(),
