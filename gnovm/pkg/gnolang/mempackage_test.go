@@ -43,10 +43,19 @@ func TestMemPackage_Validate(t *testing.T) {
 			"duplicate",
 		},
 		{
+			"valid_long_path",
+			&std.MemPackage{
+				Name:  "hey",
+				Path:  "example.com/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
+				Files: heyPackageFiles,
+			},
+			"",
+		},
+		{
 			"invalid_path_length",
 			&std.MemPackage{
 				Name:  "hey",
-				Path:  "example.com/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
+				Path:  "example.com/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
 				Files: heyPackageFiles,
 			},
 			"path length",
@@ -192,6 +201,32 @@ func TestMemPackage_Validate(t *testing.T) {
 				Name:  "hey",
 				Path:  "gno.land/r/path/path",
 				Files: heyPackageFiles,
+			},
+			"",
+		},
+		{
+			"valid_with_gno_toml",
+			&std.MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/path/path",
+				Files: []*std.MemFile{
+					{Name: "a.gno", Body: "package hey"},
+					{Name: "bar.toml"},
+					{Name: "foo.toml"},
+				},
+			},
+			"",
+		},
+		{
+			"valid_with_gno_toml_and_readme",
+			&std.MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/path/path",
+				Files: []*std.MemFile{
+					{Name: "README.md", Body: "# Hey Package"},
+					{Name: "a.gno", Body: "package hey"},
+					{Name: "foo.toml"},
+				},
 			},
 			"",
 		},
