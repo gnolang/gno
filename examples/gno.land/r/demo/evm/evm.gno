@@ -20,12 +20,7 @@ import (
 const br = "\n\n"
 
 var (
-	env = &evm.Env{
-		Logs:        []evm.LogEntry{},
-		Storage:     map[uint256.Uint]*uint256.Uint{},
-		Accounts:    evm.Accounts{},
-		Transaction: []evm.Transaction{},
-	}
+	env = evm.NewEnv()
 
 	gnoUserToAccountHelper = map[std.Address]*evm.Account{}
 	addressToAccountHelper = map[string]*evm.Account{}
@@ -102,8 +97,8 @@ func Call(path string, gasLimit uint) {
 
 	// get contract index
 	contractIndex := uint64(0)
-	if contractIndex, err = strconv.ParseUint(callexpr[0], 16, len(callexpr[0])); err != nil || env.Accounts[contractIndex] == nil {
-		panic("call: bad address (bad number, or invalid address)")
+	if contractIndex, err = strconv.ParseUint(callexpr[1], 16, 64); err != nil || env.Accounts[contractIndex] == nil {
+		panic("call: bad address (bad number, or invalid address) or " + err.Error())
 	}
 
 	// call the contract with parametters
@@ -139,7 +134,7 @@ func Render(path string) string {
 	actionPart := md.H2("Actions") + br
 	publishLnk := txlink.Call("Publish")
 	faucetLnk := txlink.Call("Faucet", "n", "100000")
-	callLnk := txlink.Call("Call", "path", "call/0/foo(uint256)/42", "gasLimit", "100000")
+	callLnk := txlink.Call("Call", "path", "call/12/foo(uint256,uint256)/42/1", "gasLimit", "100000")
 	actionPart += md.BulletList([]string{
 		"Click " + md.Link("here", publishLnk) + " to publish a new contract.",
 		"Click " + md.Link("here", faucetLnk) + " to give gas to your account (faucet).",
@@ -155,10 +150,21 @@ func Render(path string) string {
 	}
 	transactionsPart += transTable.String()
 
+	// create the accounts
+	accountPart := md.H2("Accounts")
+	accountTable := mdtable.Table{}
+	accountTable.Headers = []string{"id", "name"}
+	for k, v := range env.Accounts {
+		accountTable.Append([]string{"0x" + strconv.FormatUint(uint64(k), 16), v.AccountType.String() + ": " + strconv.Itoa(int(v.Gas)) + " gas"})
+	}
+	accountPart += accountTable.String()
+
 	// put everything together
 	return title + md.Columns([]string{
 		loginPart,
 		actionPart,
+	}) + md.Columns([]string{
 		transactionsPart,
+		accountPart,
 	})
 }

@@ -15,7 +15,7 @@ type Env struct {
 	BlockDifficulty *uint256.Uint
 }
 
-func newEnv() *Env {
+func NewEnv() *Env {
 	return &Env{
 		Logs: []LogEntry{},
 		Storage: map[uint256.Uint]*uint256.Uint{},

@@ -10,12 +10,22 @@ import (
 )
 
 type Accounts map[uint64]*Account
-type accountType int
+type accountType uint
 
 const (
 	CallerAccount accountType = iota
 	ContractAccount
 )
+
+func (x accountType) String() string {
+	switch x {
+	case CallerAccount:
+		return "CallerAccount"
+	case ContractAccount:
+		return "ContractAccount"
+	}
+	return "<none>"
+}
 
 type Account struct {
 	AccountType accountType

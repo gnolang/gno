@@ -75,7 +75,7 @@ func (t *CreateContractTransaction) String() string {
 		CallerAccount:   "caller (EAO)",
 		ContractAccount: "smart contract",
 	}
-	return strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " created an account for a " + accountTypeStr[t.caller.AccountType] + ", costing " + strconv.FormatUint(gasPrice, 10) + " gas"
+	return "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " created an account for a " + accountTypeStr[t.caller.AccountType] + ", costing " + strconv.FormatUint(gasPrice, 10) + " gas"
 }
 
 type ExecuteContractTransaction struct {

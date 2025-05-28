@@ -1491,7 +1491,7 @@ func TestExecuteEvm(t *testing.T) {
 }
 
 func TestCallEvm(t *testing.T) {
-	env := newEnv()
+	env := NewEnv()
 	me, err := env.Accounts.PushCaller(env, std.Address("g18dgpzqxnhmrsemnadngg403f8clf5l82jalxza")) // me
 	if err != nil {
 		t.Error(err)
