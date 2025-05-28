@@ -10,7 +10,7 @@ import (
 type User struct {
 	Address std.Address
 	Rank    int
-	Timer   time.Time // Cooldown for place tiles on r/place
+	Timer   time.Time // Cooldown to place tiles on r/place
 }
 
 const (
