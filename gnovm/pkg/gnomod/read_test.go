@@ -105,22 +105,23 @@ func TestParseVersions(t *testing.T) {
 		ok          bool
 	}{
 		// go lines
-		{desc: "empty", input: "module m\ngo \n", ok: false},
-		{desc: "one", input: "module m\ngo 1\n", ok: false},
-		{desc: "two", input: "module m\ngo 1.22\n", ok: true},
-		{desc: "three", input: "module m\ngo 1.22.333", ok: true},
-		{desc: "before", input: "module m\ngo v1.2\n", ok: false},
-		{desc: "after", input: "module m\ngo 1.2rc1\n", ok: true},
-		{desc: "space", input: "module m\ngo 1.2 3.4\n", ok: false},
-		{desc: "alt1", input: "module m\ngo 1.2.3\n", ok: true},
-		{desc: "alt2", input: "module m\ngo 1.2rc1\n", ok: true},
-		{desc: "alt3", input: "module m\ngo 1.2beta1\n", ok: true},
-		{desc: "alt4", input: "module m\ngo 1.2.beta1\n", ok: false},
+		{desc: "empty", input: "module m\ngno \n", ok: false},
+		{desc: "one", input: "module m\ngno 1\n", ok: false},
+		{desc: "two", input: "module m\ngno 1.22\n", ok: true},
+		{desc: "two go", input: "module m\ngo 1.22\n", ok: false},
+		{desc: "three", input: "module m\ngno 1.22.333", ok: true},
+		{desc: "before", input: "module m\ngno v1.2\n", ok: false},
+		{desc: "after", input: "module m\ngno 1.2rc1\n", ok: true},
+		{desc: "space", input: "module m\ngno 1.2 3.4\n", ok: false},
+		{desc: "alt1", input: "module m\ngno 1.2.3\n", ok: true},
+		{desc: "alt2", input: "module m\ngno 1.2rc1\n", ok: true},
+		{desc: "alt3", input: "module m\ngno 1.2beta1\n", ok: true},
+		{desc: "alt4", input: "module m\ngno 1.2.beta1\n", ok: false},
 	}
 	t.Run("Strict", func(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.desc, func(t *testing.T) {
-				if _, err := Parse("gno.mod", []byte(test.input)); err == nil && !test.ok {
+				if _, err := ParseBytes("gno.mod", []byte(test.input)); err == nil && !test.ok {
 					t.Error("unexpected success")
 				} else if err != nil && test.ok {
 					t.Errorf("unexpected error: %v", err)
@@ -169,7 +170,7 @@ comments before "// e"
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			f, err := Parse("gno.mod", []byte(test.input))
+			f, err := ParseBytes("gno.mod", []byte(test.input))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -210,7 +211,33 @@ comments before "// e"
 	}
 }
 
-var addModuleStmtTests = []struct {
+var setGnoTests = []struct {
+	desc    string
+	in      string
+	version string
+	out     string
+}{
+	{
+		`existing`,
+		`
+		gno 0.0
+		`,
+		"0.9",
+		`
+		gno 0.9
+		`,
+	},
+	{
+		`new`,
+		``,
+		"0.9",
+		`
+		gno 0.9
+		`,
+	},
+}
+
+var setModuleTests = []struct {
 	desc string
 	in   string
 	path string
@@ -312,13 +339,25 @@ var dropReplaceTests = []struct {
 	},
 }
 
-func TestAddModuleStmt(t *testing.T) {
-	for _, tt := range addModuleStmtTests {
+func TestSetGno(t *testing.T) {
+	for _, tt := range setGnoTests {
 		t.Run(tt.desc, func(t *testing.T) {
 			testEdit(t, tt.in, tt.out, func(f *File) error {
-				err := f.AddModuleStmt(tt.path)
+				f.SetGno(tt.version)
 				f.Syntax.Cleanup()
-				return err
+				return nil
+			})
+		})
+	}
+}
+
+func TestSetModule(t *testing.T) {
+	for _, tt := range setModuleTests {
+		t.Run(tt.desc, func(t *testing.T) {
+			testEdit(t, tt.in, tt.out, func(f *File) error {
+				f.SetModule(tt.path)
+				f.Syntax.Cleanup()
+				return nil
 			})
 		})
 	}
@@ -340,9 +379,9 @@ func TestDropReplace(t *testing.T) {
 	for _, tt := range dropReplaceTests {
 		t.Run(tt.desc, func(t *testing.T) {
 			testEdit(t, tt.in, tt.out, func(f *File) error {
-				err := f.DropReplace(tt.path, tt.vers)
+				f.DropReplace(tt.path, tt.vers)
 				f.Syntax.Cleanup()
-				return err
+				return nil
 			})
 		})
 	}
@@ -350,11 +389,11 @@ func TestDropReplace(t *testing.T) {
 
 func testEdit(t *testing.T, in, want string, transform func(f *File) error) *File {
 	t.Helper()
-	f, err := Parse("in", []byte(in))
+	f, err := ParseBytes("in", []byte(in))
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err := Parse("out", []byte(want))
+	g, err := ParseBytes("out", []byte(want))
 	if err != nil {
 		t.Fatal(err)
 	}
