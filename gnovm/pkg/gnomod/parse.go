@@ -14,13 +14,16 @@ import (
 	"golang.org/x/mod/module"
 )
 
-var ErrNoModFile = errors.New("gno.mod doesn't exist")
+var (
+	ErrNoModFile  = errors.New("gno.mod doesn't exist")
+	ErrNoTomlFile = errors.New("gnomod.toml doesn't exist")
+)
 
-// ParseDir parses, validates and returns a gno.mod file located at dir or at
+// ParseDir parses, validates and returns a gno.mod or gnomod.toml file located at dir or at
 // dir's parents.
 func ParseDir(dir string) (*File, error) {
 	ferr := func(err error) (*File, error) {
-		return nil, fmt.Errorf("parsing gno.mod at %s: %w", dir, err)
+		return nil, fmt.Errorf("parsing gno.mod/gnomod.toml at %s: %w", dir, err)
 	}
 
 	// FindRootDir requires absolute path, make sure its the case
@@ -32,55 +35,72 @@ func ParseDir(dir string) (*File, error) {
 	if err != nil {
 		return ferr(err)
 	}
-	fpath := filepath.Join(rd, "gno.mod")
-	b, err := os.ReadFile(fpath)
+
+	// Try gnomod.toml first
+	tomlPath := filepath.Join(rd, "gnomod.toml")
+	if _, err := os.Stat(tomlPath); err == nil {
+		return ParseTomlFile(tomlPath)
+	}
+
+	// Fall back to gno.mod
+	modPath := filepath.Join(rd, "gno.mod")
+	if _, err := os.Stat(modPath); err != nil {
+		return ferr(err)
+	}
+	b, err := os.ReadFile(modPath)
 	if err != nil {
 		return ferr(err)
 	}
-	gm, err := ParseBytes(fpath, b)
+	dmf, err := ParseModBytes(modPath, b)
 	if err != nil {
 		return ferr(err)
 	}
-	if err := gm.Validate(); err != nil {
+	if err := dmf.Validate(); err != nil {
 		return ferr(err)
 	}
-	return gm, nil
+	return FromDeprecatedModFile(dmf), nil
 }
 
-// Tries to parse gno mod file given the file path, using ParseBytes and Validate.
+// ParseFilepath tries to parse gno.mod or gnomod.toml file given the file path
 func ParseFilepath(fpath string) (*File, error) {
 	file, err := os.Stat(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
+		return nil, fmt.Errorf("could not read file: %w", err)
 	}
 	if file.IsDir() {
-		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fpath)
+		return nil, fmt.Errorf("invalid file at %q: is a directory", fpath)
 	}
 
+	// Check if it's a TOML file
+	if filepath.Ext(fpath) == ".toml" {
+		return ParseTomlFile(fpath)
+	}
+
+	// Assume it's a gno.mod file
 	b, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
 	}
-	gm, err := ParseBytes(fpath, b)
+	dmf, err := ParseModBytes(fpath, b)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fpath, err)
 	}
-	if err := gm.Validate(); err != nil {
+	if err := dmf.Validate(); err != nil {
 		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fpath, err)
 	}
-	return gm, nil
+	return FromDeprecatedModFile(dmf), nil
 }
 
-// ParseBytes parses and returns a gno.mod file.
+// ParseModBytes parses and returns a gno.mod file.
 //
 // - fname is the name of the file, used in positions and errors.
 // - data is the content of the file.
-func ParseBytes(fname string, data []byte) (*File, error) {
+func ParseModBytes(fname string, data []byte) (*DeprecatedModFile, error) {
 	fs, err := parse(fname, data)
 	if err != nil {
 		return nil, err
 	}
-	f := &File{
+	f := &DeprecatedModFile{
 		Syntax: fs,
 	}
 	var errs modfile.ErrorList
@@ -124,8 +144,14 @@ func ParseBytes(fname string, data []byte) (*File, error) {
 	return f, nil
 }
 
-// Parse gno.mod from MemPackage, or return nil and error.
+// ParseMemPackage parses gno.mod or gnomod.toml from MemPackage
 func ParseMemPackage(mpkg *std.MemPackage) (*File, error) {
+	// Try gnomod.toml first
+	if mf := mpkg.GetFile("gnomod.toml"); mf != nil {
+		return ParseTomlFile(mf.Name)
+	}
+
+	// Fall back to gno.mod
 	mf := mpkg.GetFile("gno.mod")
 	if mf == nil {
 		return nil, fmt.Errorf(
@@ -133,14 +159,14 @@ func ParseMemPackage(mpkg *std.MemPackage) (*File, error) {
 			mpkg.Path, mpkg.Name, os.ErrNotExist,
 		)
 	}
-	mod, err := ParseBytes(mf.Name, []byte(mf.Body))
+	dmf, err := ParseModBytes(mf.Name, []byte(mf.Body))
 	if err != nil {
 		return nil, err
 	}
-	return mod, nil
+	return FromDeprecatedModFile(dmf), nil
 }
 
-// Must parse gno.mod from MemPackage.
+// MustParseMemPackage parses gno.mod or gnomod.toml from MemPackage, panicking on error
 func MustParseMemPackage(mpkg *std.MemPackage) *File {
 	mod, err := ParseMemPackage(mpkg)
 	if err != nil {
@@ -151,7 +177,7 @@ func MustParseMemPackage(mpkg *std.MemPackage) *File {
 
 var reGnoVersion = regexp.MustCompile(`^([0-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)
 
-func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modfile.Line, verb string, args []string) {
+func (f *DeprecatedModFile) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modfile.Line, verb string, args []string) {
 	wrapError := func(err error) {
 		*errs = append(*errs, modfile.Error{
 			Filename: f.Syntax.Name,
@@ -220,4 +246,12 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 		}
 		f.Replace = append(f.Replace, replace)
 	}
+}
+
+// Validate validates gno.mod
+func (f *DeprecatedModFile) Validate() error {
+	if f.Module == nil {
+		return errors.New("requires module")
+	}
+	return nil
 }

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
@@ -17,7 +16,7 @@ func ModCachePath() string {
 }
 
 // PackageDir resolves a given module.Version to the path on the filesystem.
-// If root is dir, it is defaulted to the value of [ModCachePath].
+// If root is empty, it is defaulted to the value of [ModCachePath].
 func PackageDir(root string, v module.Version) string {
 	if root == "" {
 		root = ModCachePath()
@@ -44,15 +43,4 @@ func CreateGnoModFile(rootDir, modPath string) error {
 	modfile.WriteFile(filepath.Join(rootDir, "gno.mod"))
 
 	return nil
-}
-
-func isReplaced(mod module.Version, repl []*modfile.Replace) (module.Version, bool) {
-	for _, r := range repl {
-		hasNoVersion := r.Old.Path == mod.Path && r.Old.Version == ""
-		hasExactVersion := r.Old == mod
-		if hasNoVersion || hasExactVersion {
-			return r.New, true
-		}
-	}
-	return module.Version{}, false
 }
