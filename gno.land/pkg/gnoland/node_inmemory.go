@@ -137,8 +137,10 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	nodekey := &types.NodeKey{PrivKey: ed25519.GenPrivKey()}
 
 	// Create and return the in-memory node instance
-	return node.NewNode(cfg.TMConfig,
-		cfg.PrivValidator, nodekey,
+	return node.NewNode(
+		cfg.TMConfig,
+		cfg.PrivValidator,
+		nodekey,
 		appClientCreator,
 		genProvider,
 		dbProvider,

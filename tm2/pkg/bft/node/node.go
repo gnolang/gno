@@ -129,7 +129,8 @@ func DefaultNewNode(
 		return nil, err
 	}
 
-	return NewNode(config,
+	return NewNode(
+		config,
 		privVal,
 		nodeKey,
 		appClientCreator,
