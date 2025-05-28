@@ -15,33 +15,12 @@ document.addEventListener('DOMContentLoaded', function() {
         gracePeriod = false;
     }, graceTimeout);
 
-    // Flag to track if a link click is in progress
-    let clickInProgress = false;
-    // Flag to track if a enter is in progress
-    let enterInProgress = false;
+    // Flag to track if navigation is in progress, make sure navigation is not blocked
+    let isNavigatingAway = false;
 
-
-    // Capture clicks on <a> tags to prevent reloading appening when clicking on link
-    document.addEventListener('click', function(event) {
-        const target = event.target;
-        if (target.tagName === 'A' && target.href) {
-            clickInProgress = true;
-            // Wait a bit before allowing reload again
-            setTimeout(function() {
-                clickInProgress = false;
-            }, 5000);
-        }
-    });
-
-    // Capture enter on <input> tags to prevent reloading appening when entering link
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter' && event.target.id === "header-input-search") {
-            enterInProgress = true;
-            // Wait a bit before allowing reload after entering a search, 5000ms ensure to node was reloaded
-            setTimeout(function() {
-                enterInProgress = false;
-            }, 5000);
-        }
+    // This function is called before the page is redirected to another URL
+    window.addEventListener('beforeunload', function(event) {
+        isNavigatingAway = true;
     });
 
     // Handle incoming WebSocket messages
@@ -55,8 +34,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Reload the page immediately if we're not in the grace period and no clicks or enters are in progress
-            if (!gracePeriod && !clickInProgress && !enterInProgress) {
+            // Reload the page immediately if we're not in the grace period and no navigation is in progress.
+            if (!gracePeriod && !isNavigatingAway) {
                 window.location.reload();
                 return;
             }
@@ -64,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // If still in the grace period or a click is in progress, debounce the reload
             clearTimeout(debounceTimeout);
             debounceTimeout = setTimeout(function() {
-                if (!clickInProgress) {
+                if (!isNavigatingAway) {
                     window.location.reload();
                 }
             }, graceTimeout);
