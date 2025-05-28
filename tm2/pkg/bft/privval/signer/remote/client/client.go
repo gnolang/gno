@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -33,10 +34,13 @@ type RemoteSignerClient struct {
 	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
 
 	// Internal.
-	conn         net.Conn
-	connLock     sync.RWMutex
-	closed       atomic.Bool
-	cachedPubKey crypto.PubKey
+	conn          net.Conn
+	connLock      sync.RWMutex
+	dialer        net.Dialer
+	dialCtx       context.Context
+	cancelDialCtx context.CancelFunc
+	closed        atomic.Bool
+	cachedPubKey  crypto.PubKey
 }
 
 // RemoteSignerClient type implements types.Signer.
@@ -107,6 +111,9 @@ func (rsc *RemoteSignerClient) Close() error {
 	if !rsc.closed.CompareAndSwap(false, true) {
 		return ErrClientAlreadyClosed
 	}
+
+	// Cancel the dial context.
+	rsc.cancelDialCtx()
 
 	// Close the connection.
 	err := rsc.setConnection(nil)

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -111,6 +112,9 @@ func NewRemoteSignerClient(
 	for _, option := range options {
 		option(rsc)
 	}
+
+	// Set a cancelable context for dialing the server.
+	rsc.dialCtx, rsc.cancelDialCtx = context.WithCancel(context.Background())
 
 	// Fetch the public key from the server and cache it.
 	if err := rsc.cachePubKey(); err != nil {
