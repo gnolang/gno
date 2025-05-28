@@ -30,15 +30,15 @@ func TestPkgTestCases(t *testing.T) {
 			name:                "unit tests with one pass and one fail",
 			pkgPath:             "../../tests/integ/test/basic",
 			verbose:             true,
-			stderrShouldContain: []string{"PASS: TestBasic/greater_than_one", "FAIL: TestBasic/less_than_one"},
+			stderrShouldContain: []string{"PASS: TestBasic/greater_than_one__", "FAIL: TestBasic/less_than_one"},
 			errShouldBe:         `failed: "TestBasic"`,
 		},
 		{
 			name:                "filtered unit tests using -run",
 			pkgPath:             "../../tests/integ/test/basic",
-			runFlag:             "TestBasic/greater.*",
+			runFlag:             "TestBasic/gr[e](at|])er\\_.*|nonExistantPattern",
 			verbose:             true,
-			stderrShouldContain: []string{"PASS: TestBasic/greater_than_one"},
+			stderrShouldContain: []string{"PASS: TestBasic/greater_than_one__"},
 			errShouldBe:         "",
 		},
 		{

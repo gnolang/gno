@@ -132,8 +132,8 @@ func rewrite(s string) string {
 		case isSpace(r):
 			b = append(b, '_')
 		case !unicode.IsPrint(r):
-			s := simpleQuoteRune(r)
-			b = append(b, s[1:len(s)-1]...)
+			dot := simpleQuoteRune(r)
+			b = append(b, dot...)
 		default:
 			b = append(b, string(r)...)
 		}

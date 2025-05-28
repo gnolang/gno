@@ -14,7 +14,7 @@ func TestBasic(t *testing.T) {
 	}{
 		{
 			// This test should pass
-			name:        "greater than one",
+			name:        "greater than one\u2000\u202f", //two unicode space characters
 			valToSquare: 5.0,
 		},
 		{
