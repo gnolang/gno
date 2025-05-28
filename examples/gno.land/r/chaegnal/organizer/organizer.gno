@@ -42,7 +42,7 @@ func init() {
 // Set the creator as the default admin
 func CreateFriendGroup(title string) {
 	crossing()
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 
 	newDao := dao.NewDAO(caller)
 	newGroup := FriendGroup{
@@ -61,7 +61,7 @@ func CreateFriendGroup(title string) {
 // Verify if the group exist and if the user is already a member
 func AskJoinFriendGroup(groupId int) {
 	crossing()
-	txSender := std.OriginCaller()
+	txSender := std.PreviousRealm().Address()
 
 	raw, exists := ListGroups.Groups.Get(strconv.Itoa(groupId))
 	if !exists {
@@ -84,11 +84,11 @@ func LeaveGroup(groupId string) {
 	crossing()
 	group := GetGroupFromId(groupId)
 
-	if std.OriginCaller() == group.Owner.Owner() {
+	if std.PreviousRealm().Address() == group.Owner.Owner() {
 		panic("owner cannot leave the group")
 	}
 
-	group.DAO.LeaveDao(std.OriginCaller())
+	group.DAO.LeaveDao(std.PreviousRealm().Address())
 }
 
 // Helpers
