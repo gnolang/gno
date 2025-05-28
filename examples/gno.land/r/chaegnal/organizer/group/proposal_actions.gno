@@ -8,8 +8,8 @@ import (
 	"gno.land/r/chaegnal/organizer"
 )
 
-// Wrapper to create proposal
-// Sanitizes the arguments given
+// CreateProposals is a wrapper to create a proposal
+// It sanitizes the arguments given
 func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged string) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
@@ -20,8 +20,8 @@ func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged str
 	group.DAO.CreateProposals(title, desc, callback, callbackArgs, std.Address(logged))
 }
 
-// Wrapper to vote on proposal
-// Verify if the vote ID exist and if the vote's choice exists
+// VoteOnProposal is a wrapper to vote on a proposal
+// Panics if the given vote informations are not possible
 func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
@@ -43,7 +43,8 @@ func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 	group.DAO.VoteProposal(voteId, vote, std.Address(logged))
 }
 
-// Wrapper for admin to close proposal forcefully
+// AdminCloseProposal is a wrapper for admin to close proposal forcefully
+// Panics if the vote ID does not belong to any open proposals
 func AdminCloseProposal(groupId, voteIdStr, logged string) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
