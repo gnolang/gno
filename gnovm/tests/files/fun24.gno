@@ -7,7 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/fun24.gno:3:28: cannot use untyped string as IntKind
+// main/fun24.gno:3:28-43: cannot use untyped string as IntKind
 
 // TypeCheckError:
-// main/files/fun24.gno:3:38: cannot use "foo" (untyped string constant) as int value in return statement
+// main/fun24.gno:3:38: cannot use "foo" (untyped string constant) as int value in return statement

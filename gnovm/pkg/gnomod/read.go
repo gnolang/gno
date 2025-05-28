@@ -955,7 +955,7 @@ func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfil
 	return newl
 }
 
-func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath, oldVers, newPath, newVers string) error {
+func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath, oldVers, newPath, newVers string) {
 	need := true
 	oldv := module.Version{Path: oldPath, Version: oldVers}
 	newv := module.Version{Path: newPath, Version: newVers}
@@ -989,5 +989,4 @@ func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath
 	if need {
 		*replace = append(*replace, &modfile.Replace{Old: oldv, New: newv, Syntax: addLine(syntax, hint, tokens...)})
 	}
-	return nil
 }

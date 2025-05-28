@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// main/files/const27.gno:11:8: i<VPBlock(1,0)>.((const-type int)) (comma, ok expression of type (const-type int)) is not constant
+// main/const27.gno:11:8-23: i<VPBlock(1,0)>.((const-type int)) (comma, ok expression of type (const-type int)) is not constant
 
 // TypeCheckError:
-// main/files/const27.gno:11:11: missing init expr for ok; main/files/const27.gno:11:16: i.(int) (comma, ok expression of type int) is not constant
+// main/const27.gno:11:11: missing init expr for ok; main/const27.gno:11:16: i.(int) (comma, ok expression of type int) is not constant
