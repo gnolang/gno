@@ -21,14 +21,14 @@ const (
 )
 
 var (
-	Users  *avl.Tree = avl.NewTree()
-	Banned *avl.Tree = avl.NewTree()
+	users  *avl.Tree = avl.NewTree()
+	banned *avl.Tree = avl.NewTree()
 )
 
 func RegisterMember() {
 	address := std.PreviousRealm().Address()
 
-	if _, banned := Banned.Get(address.String()); banned {
+	if _, banned := banned.Get(address.String()); banned {
 		panic("you are banned")
 	}
 
@@ -43,7 +43,7 @@ func RegisterMember() {
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
 	}
 
-	Users.Set(address.String(), newMember)
+	users.Set(address.String(), newMember)
 }
 
 func isAdmin(address std.Address) bool {
@@ -74,7 +74,7 @@ func SetNewAdmin(address std.Address) {
 	}
 
 	user.Rank = adminRank
-	Users.Set(address.String(), user)
+	users.Set(address.String(), user)
 }
 
 func DeleteYourself() {
@@ -90,7 +90,7 @@ func DeleteYourself() {
 		panic("you are the last admin. you cannot delete yourself until more admin are nominated")
 	}
 
-	Users.Remove(address.String())
+	users.Remove(address.String())
 }
 
 func BanMember(adr std.Address) {
@@ -104,8 +104,8 @@ func BanMember(adr std.Address) {
 		panic("you cannot ban an admin")
 	}
 
-	Users.Remove(adr.String())
-	Banned.Set(adr.String(), true)
+	users.Remove(adr.String())
+	banned.Set(adr.String(), true)
 }
 
 func UnbanMember(adr std.Address) {
@@ -114,12 +114,12 @@ func UnbanMember(adr std.Address) {
 		panic("only admin can ban members")
 	}
 
-	_, ok = Banned.Get(adr.String())
+	_, ok = banned.Get(adr.String())
 	if !ok {
 		panic("user is not banned")
 	}
 
-	Banned.Remove(adr.String())
+	banned.Remove(adr.String())
 }
 
 func setDefaultAdmin(adr std.Address) {
@@ -129,5 +129,5 @@ func setDefaultAdmin(adr std.Address) {
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
 	}
 
-	Users.Set(adr.String(), newMember)
+	users.Set(adr.String(), newMember)
 }

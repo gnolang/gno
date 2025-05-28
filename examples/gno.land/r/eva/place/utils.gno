@@ -41,7 +41,7 @@ func findColor(colorName string) (bool, Color) {
 }
 
 func retrieveMember(address std.Address) (User, bool) {
-	raw, ok := Users.Get(address.String())
+	raw, ok := users.Get(address.String())
 	if !ok {
 		return User{}, false
 	}
@@ -52,7 +52,7 @@ func retrieveMember(address std.Address) (User, bool) {
 func countAdmins() int {
 	var adminCounter int
 
-	Users.Iterate("", "", func(_ string, val any) bool {
+	users.Iterate("", "", func(_ string, val any) bool {
 		user := val.(User)
 
 		if user.Rank == adminRank {

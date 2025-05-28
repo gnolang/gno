@@ -43,5 +43,5 @@ func Submit(x, y uint64, colorName string) {
 	tableColor[y][x].initial = color.initial
 
 	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
-	Users.Set(std.PreviousRealm().Address().String(), user)
+	users.Set(std.PreviousRealm().Address().String(), user)
 }
