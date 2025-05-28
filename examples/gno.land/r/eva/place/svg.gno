@@ -26,7 +26,7 @@ func generateSVG() string {
 func Submit(x, y uint64, colorName string) {
 	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {
-		RegisterMember()
+		Register()
 	}
 
 	if time.Now().Before(user.Timer) {

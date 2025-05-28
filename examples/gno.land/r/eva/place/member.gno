@@ -25,7 +25,7 @@ var (
 	banned *avl.Tree = avl.NewTree()
 )
 
-func RegisterMember() {
+func Register() {
 	caller := std.PreviousRealm().Address()
 
 	if banned.Has(caller.String()) {
