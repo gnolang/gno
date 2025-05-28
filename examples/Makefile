@@ -45,6 +45,10 @@ test.fast: # Run all Gno tests but stop immediately on the first failure
 lint: # Run gno's built-in linter over the current directory
 	go run ../gnovm/cmd/gno lint -v .
 
+.PHONY: fix
+fix:
+	go run ../gnovm/cmd/gno fix -v .
+
 .PHONY: test.sync
 test.sync: # Run tests and update golden test outputs to match current results
 	go run ../gnovm/cmd/gno test -v --update-golden-tests ./...

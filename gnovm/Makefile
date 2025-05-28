@@ -16,11 +16,6 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 # cases, and is not strictly required by any tm2 code.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
-# flags for `make fmt`. -w will write the result to the destination files.
-GOFMT_FLAGS ?= -w
-GNOFMT_FLAGS ?= -w
-# flags for `make imports`.
-GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # used to set the default GNOROOT. This helps on local development, as it sets
@@ -57,13 +52,10 @@ lint: # Run golangci-lint on all Go packages in the repo using shared configurat
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
-fmt: # Format all Go and Gno files in this directory and subtrees using gofumpt and gno fmt
-	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
-	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/... ./tests/stdlibs/...
-
-.PHONY: imports
-imports: # Organize Go imports recursively using goimports
-	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
+fmt: # Format all Go and Gno files in this directory and subtrees using gofumpt, gno fmt and goimports
+	go fmt ./...
+	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/...
+	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
 # Benchmarking the VM's opcode and storage access
 .PHONY: opcode storage build_opcode build_storage
@@ -129,7 +121,7 @@ _test.filetest:
 ########################################
 # Code gen
 .PHONY: generate
-generate: _dev.generate _dev.docs fmt imports # Run Go code generation and embed help text into markdown files, then format and fix imports
+generate: _dev.generate _dev.docs fmt # Run Go code generation and embed help text into markdown files, then format and fix imports
 
 .PHONY: _dev.docs
 _dev.docs:

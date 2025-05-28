@@ -1,0 +1,22 @@
+# Test with a valid _test.gno file.
+
+gno test -v .
+
+stdout 'hello123'
+stderr 'PASS: TestAlwaysValid'
+
+-- valid.gno --
+package valid
+
+func fn() {
+	println("hello123")
+}
+
+-- valid_test.gno --
+package valid
+
+import "testing"
+
+func TestAlwaysValid(t *testing.T) {
+	fn()
+}

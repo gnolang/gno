@@ -19,10 +19,6 @@ rundep=go run -modfile misc/devdeps/go.mod
 # cases, and is not strictly required by any tm2 code.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
-# flags for `make fmt`. -w will write the result to the destination files.
-GOFMT_FLAGS ?= -w
-# flags for `make imports`.
-GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # when running `make tidy`, use it to check that the go.mods are up-to-date.
@@ -68,10 +64,11 @@ test.components: # Test components Tendermint2, GnoVM, Gno.land, examples and mi
 
 .PHONY: fmt
 fmt: # Format components Tendermint2, GnoVM, Gno.land and examples
-	$(MAKE) --no-print-directory -C tm2      fmt imports
-	$(MAKE) --no-print-directory -C gnovm    fmt imports
-	$(MAKE) --no-print-directory -C gno.land fmt imports
+	$(MAKE) --no-print-directory -C tm2      fmt
+	$(MAKE) --no-print-directory -C gnovm    fmt
+	$(MAKE) --no-print-directory -C gno.land fmt
 	$(MAKE) --no-print-directory -C examples fmt
+	$(MAKE) --no-print-directory -C contribs fmt
 
 .PHONY: lint
 lint:  # Lint all non-vendor *.go and *.gno code recursively

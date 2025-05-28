@@ -16,10 +16,6 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 # cases, and is not strictly required by any tm2 code.
 CGO_ENABLED ?= 0
 export CGO_ENABLED
-# flags for `make fmt`. -w will write the result to the destination files.
-GOFMT_FLAGS ?= -w
-# flags for `make imports`.
-GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
@@ -81,12 +77,9 @@ lint:  # Run golangci-lint on all Go code in gno.land using the shared config
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
-fmt:  # Format Go code in this directory recursively using gofumpt
-	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
-
-.PHONY: imports
-imports:  # Organize imports using goimports
-	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
+fmt:  # Format Go code in this directory recursively using gofumpt and goimports
+	go fmt ./...
+	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
 ########################################
 # Test suite

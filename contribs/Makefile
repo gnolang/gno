@@ -65,3 +65,12 @@ fmt: # Format all Go files in this directory and subdirectories
 .PHONY: tidy
 tidy: # Run 'go mod tidy' in all Go modules within this directory and subdirectories
 	find . -name go.mod -execdir go mod tidy -v \;
+
+
+generate: $(addprefix generate.,$(programs))
+generate.%:
+	@if grep '^generate:' $(subst generate.,,$@)/Makefile; then \
+	  echo "[+] make -C $(subst generate.,,$@) generate"; \
+	  $(MAKE) --no-print-directory -C $(subst generate.,,$@) generate; \
+	fi
+.PHONY: generate
