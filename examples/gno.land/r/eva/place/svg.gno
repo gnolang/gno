@@ -29,6 +29,7 @@ func Submit(x, y uint64, colorName string) {
 	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {
 		Register()
+		user, _ = retrieveMember(std.PreviousRealm().Address())
 	}
 
 	if time.Now().Before(user.Timer) {
@@ -45,5 +46,4 @@ func Submit(x, y uint64, colorName string) {
 	tableColor[y][x].initial = color.initial
 
 	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
-	users.Set(std.PreviousRealm().Address().String(), user)
 }
