@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_d56.gno:6:2: cannot use int as int64
+// main/shift_d56.gno:6:2-22: cannot use int as int64
 
 // TypeCheckError:
-// main/files/types/shift_d56.gno:6:9: cannot use 1 << 4 + int(1) (constant 17 of type int) as int64 value in return statement
+// main/shift_d56.gno:6:9: cannot use 1 << 4 + int(1) (constant 17 of type int) as int64 value in return statement
