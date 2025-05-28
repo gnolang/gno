@@ -3,7 +3,7 @@ package overflow
 import (
 	"math"
 	"math/rand"
-	"testing"
+	testing "testing/base"
 )
 
 func TestSigned(t *testing.T) {
