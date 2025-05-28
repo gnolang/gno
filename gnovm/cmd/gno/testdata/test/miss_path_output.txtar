@@ -1,10 +1,4 @@
-mkdir $WORK/gnovm/tests
-symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
-symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
-env GNOROOT=$WORK
-
-
-gno test -v ./examples/gno.land/r/demo/pkg1
+gno test -v ./examples/gno.land/r/demo/pkg2
 
 -- examples/gno.land/r/demo/pkg1/gno.mod --
 module gno.land/r/demo/pkg1
@@ -16,16 +10,20 @@ func Foo() int64 {
     return "hello"
 }
 
--- examples/gno.land/r/demo/pkg1/test_pkg.gno --
-package pkg1
+-- examples/gno.land/r/demo/pkg2/gno.mod --
+module gno.land/r/demo/pkg2
+
+-- examples/gno.land/r/demo/pkg2/test_pkg.gno --
+package pkg2
+
+import "examples/gno.land/r/demo/pkg1"
 
 func Bar() int64 {
-    return pkg.Foo()
+    return pkg1.Foo()
 }
 
 
 
 // Output:
-//Error in package ./examples/gno.land/r/demo/pkg1/test_pkg:
+// Error in package ./examples/gno.land/r/demo/pkg2/test_pkg.gno:
 // ./examples/gno.land/r/demo/pkg1/pkg.gno:3:5: cannot use string as int64 (code=2)
-
