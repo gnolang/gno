@@ -7,17 +7,19 @@ import (
 	"gno.land/p/demo/avl"
 )
 
+// User is a struct containing the user address, rank and its cooldown timer
+// User represents the members who can place tiles on r/place
 type User struct {
 	Address std.Address
 	Rank    int
-	Timer   time.Time // Cooldown to place tiles on r/place
+	Timer   time.Time // Cooldown timer before placing another tile
 }
 
 const (
-	memberRank = iota
-	adminRank
+	memberRank = iota // Default rank for user
+	adminRank         // Administrator rank with privilege to manage users
 
-	timeRefill int = 2
+	timeRefill int = 2 // Cooldown in minutes
 )
 
 var (
@@ -26,6 +28,7 @@ var (
 )
 
 // Register a new user when clicking submit for the first time
+// Panics if the user is banned or already registered
 func Register() {
 	caller := std.PreviousRealm().Address()
 
@@ -46,6 +49,7 @@ func Register() {
 	users.Set(caller.String(), newMember)
 }
 
+// isAdmin returns true if the user linked to the address is an administrator
 func isAdmin(address std.Address) bool {
 	user, ok := retrieveMember(address)
 	if !ok {
@@ -55,7 +59,8 @@ func isAdmin(address std.Address) bool {
 	return user.Rank == adminRank
 }
 
-// Give the admin rank to a new user
+// SetNewAdmin promotes a member to the admin rank
+// Only admin can use it
 func SetNewAdmin(address std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("must be an admin")
@@ -73,7 +78,8 @@ func SetNewAdmin(address std.Address) {
 	user.Rank = adminRank
 }
 
-// Allow user to remove itself from the registered users
+// DeleteYourself removes the callers from the list of registered users
+// Panics if caller is the last admin of the board
 func DeleteYourself() {
 	address := std.PreviousRealm().Address()
 
@@ -88,7 +94,8 @@ func DeleteYourself() {
 	users.Remove(address.String())
 }
 
-// Ban members by removing them from the users and adding them to a blacklist
+// BanMembers removes users from the users list and adds them to a blacklist
+// Only admin can use it and they cannot ban fellow admins
 func BanMember(adr std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
@@ -102,7 +109,9 @@ func BanMember(adr std.Address) {
 	banned.Set(adr.String(), true)
 }
 
-// Remove banned user from blacklist (need to be registered manually again)
+// UnbanMember removes a user from the blacklist
+// Only admin can use it
+// Previously banned user must be registered again manually
 func UnbanMember(adr std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
@@ -115,7 +124,7 @@ func UnbanMember(adr std.Address) {
 	banned.Remove(adr.String())
 }
 
-// Set the place first admin (creator of the realm)
+// setDefaultAdmin set the first admins of the realm
 func setDefaultAdmin(adr std.Address) {
 	newMember := &User{
 		Address: adr,
