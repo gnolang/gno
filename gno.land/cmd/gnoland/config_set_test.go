@@ -187,7 +187,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"validator sign state updated",
 			[]string{
-				"priv_validator.sign_state",
+				"consensus.priv_validator.sign_state",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
@@ -197,7 +197,7 @@ func TestConfig_Set_Base(t *testing.T) {
 		{
 			"validator local signer updated",
 			[]string{
-				"priv_validator.local_signer",
+				"consensus.priv_validator.local_signer",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
