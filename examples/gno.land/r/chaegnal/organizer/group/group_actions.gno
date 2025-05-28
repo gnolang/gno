@@ -9,7 +9,8 @@ import (
 	"gno.land/r/chaegnal/organizer"
 )
 
-// Allows the owner to delete the friendgroup
+// DeleteFriendGroup allows the owner to delete the friendgroup
+// Panics if anyone but the owner try to delete the group
 func DeleteFriendGroup(groupId, logged string) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
@@ -21,7 +22,8 @@ func DeleteFriendGroup(groupId, logged string) {
 	organizer.ListGroups.Groups.Remove(strconv.Itoa(group.ID))
 }
 
-// Enables giving out ownership of the group
+// SwitchOwner enables giving out ownership of the group
+// Panics if the caller is not the owner or if the new owner is not an admin
 func SwitchOwner(groupId, logged string, adr std.Address) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)

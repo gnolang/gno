@@ -14,7 +14,7 @@ const (
 	pageSize = 5
 )
 
-// Display the joining status for each group if user is logged in
+// displayJoiningStatus displays the joining status for each group if user is logged in
 func displayJoiningStatus(group FriendGroup, address std.Address) string {
 	var out string
 
@@ -32,9 +32,8 @@ func displayJoiningStatus(group FriendGroup, address std.Address) string {
 	return out
 }
 
-// Display all the existing group in a pager
-// Display primitive informations about them
-// Display joining status if logged in
+// displayAllExistingGroups displays all the existing group in a pager
+// Display primitive informations about them and joining status if logged in
 func displayAllExistingGroups(pageNumber, pageSize int, address std.Address) string {
 	var out string
 
@@ -68,8 +67,8 @@ func displayAllExistingGroups(pageNumber, pageSize int, address std.Address) str
 	return out
 }
 
-// Display, in a table, the joined group and give the option to see their page or leave the group
-// Does not allow pending member to view the group
+// displayGroupInfo display, in a table, the joined group and give the option to see their page or leave the group
+// It does not allow pending member to view the group
 func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool, address std.Address) {
 	author := ResolveAddressName(group.Owner.Owner())
 	var view string
@@ -87,6 +86,7 @@ func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool, a
 	table.Append([]string{group.Title, author, strconv.Itoa(group.DAO.Whitelist.Size()), view})
 }
 
+// displayJoinedGroups displays the group joined by the logged in user
 func displayJoinedGroups(address std.Address) string {
 	var out string
 	found := false
@@ -117,7 +117,7 @@ func displayJoinedGroups(address std.Address) string {
 	return out
 }
 
-// Display the group that the user asked to join but is not yet approved
+// displayPendingApproval displays the group that the user asked to join but is not yet approved
 func displayPendingApproval(address std.Address) string {
 	var out string
 	found := false

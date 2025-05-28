@@ -14,8 +14,8 @@ import (
 	"gno.land/r/chaegnal/organizer"
 )
 
-// Display in a table the users awaiting approval into the group
-// Let admin directly accept or refuse members
+// displayPendingApproval displays in a table the users awaiting approval into the group
+// It lets admin directly accept or refuse members
 func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOnlyTree, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Inspect"},
@@ -34,8 +34,8 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOn
 	return table.String()
 }
 
-// Display the group current members
-// Let the admin promote / demote / remove member
+// displayMembers displays the group current members
+// It lets the admin promote / demote / remove member
 func displayMembers(group organizer.FriendGroup, whitelist rotree.IReadOnlyTree, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Rank", "Action"},
@@ -78,8 +78,8 @@ func displayMembers(group organizer.FriendGroup, whitelist rotree.IReadOnlyTree,
 	return table.String()
 }
 
-// Display admin board with Waitlist and Whiteliste
-// Let admins create new proposals
+// displayAdminBoard displays admin board with Waitlist and Whiteliste
+// It lets admins create new proposals
 func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 	var out string
 
@@ -252,7 +252,7 @@ func Render(url string) string {
 
 // Helpers
 
-// Parse the URL to retrieve the data behind the "=" sign according to the keyword given
+// parseQueryKeyword parses the URL to retrieve the data behind the "=" sign according to the keyword given
 func parseQueryKeyword(url, keyword string) string {
 	query := strings.SplitAfter(url, "?")[1]
 	params := strings.Split(query, "&")
@@ -265,7 +265,7 @@ func parseQueryKeyword(url, keyword string) string {
 	return ""
 }
 
-// Retrieve the group ID from the URL
+// getGroupFromUrl retrieves the group ID from the URL
 func getGroupFromUrl(url string) organizer.FriendGroup {
 	groupId := parseQueryKeyword(url, "groupId")
 	if groupId == "" {

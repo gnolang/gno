@@ -6,7 +6,7 @@ import (
 	"gno.land/r/chaegnal/organizer"
 )
 
-// Wrapper to accept new members into friendgroup and DAO
+// AcceptAwaitingMember is a wrapper to accept new members into friendgroup and DAO
 func AcceptAwaitingMember(groupId, logged string, adr std.Address) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
@@ -14,7 +14,7 @@ func AcceptAwaitingMember(groupId, logged string, adr std.Address) {
 	group.DAO.WhitelistUser(std.Address(logged), adr)
 }
 
-// Wrapper to refuse new members into friendgroup and DAO
+// RefuseAwaitingMember is a wrapper to refuse new members into friendgroup and DAO
 func RefuseAwaitingMember(groupId, logged string, adr std.Address) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
@@ -22,7 +22,7 @@ func RefuseAwaitingMember(groupId, logged string, adr std.Address) {
 	group.DAO.RefuseAwaitingMember(std.Address(logged), adr)
 }
 
-// Wrapper to remove members from group and DAO
+// RemoveMember is a wrapper to remove members from group and DAO
 func RemoveMember(groupId, logged string, adr std.Address) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
@@ -30,7 +30,7 @@ func RemoveMember(groupId, logged string, adr std.Address) {
 	group.DAO.RemoveMember(std.Address(logged), adr)
 }
 
-// Wrapper to promote member to admin status
+// MakeAdmin is a wrapper to promote member to admin status
 func MakeAdmin(groupId, logged string, adr std.Address) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)
@@ -38,7 +38,7 @@ func MakeAdmin(groupId, logged string, adr std.Address) {
 	group.DAO.SetAdmin(std.Address(logged), adr)
 }
 
-// Wrapper to demote admin to member status
+// RemoveAdminRank is a wrapper to demote admin to member status
 func RemoveAdminRank(groupId, logged string, adr std.Address) {
 	crossing()
 	group := organizer.GetGroupFromId(groupId)

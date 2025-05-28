@@ -13,20 +13,22 @@ import (
 )
 
 const (
-	VoteYay = 1
-	VoteNay = 0
+	VoteYay = 1 // VoteYay represented yes votes
+	VoteNay = 0 // VoteNay represented no votes
 )
 
 var (
-	ListGroups AllGroups
+	ListGroups AllGroups // ListGroups has all the created friend group
 
-	NextGroupId = 1
+	NextGroupId = 1 // NextGroupId tracks the next available ID
 )
 
+// AllGroups wrap a avl.tree of created groups
 type AllGroups struct {
 	Groups *avl.Tree
 }
 
+// FriendGroup is a struc for created groups with their ID, Title, Owner and DAO
 type FriendGroup struct {
 	ID    int
 	Title string
@@ -38,8 +40,8 @@ func init() {
 	ListGroups.Groups = avl.NewTree()
 }
 
-// Create the new friendgroup with its associated DAO.
-// Set the creator as the default admin
+// CreateFriendGroup creates a new group with the chosen title
+// The caller is set as the first admin and the owner
 func CreateFriendGroup(title string) {
 	crossing()
 	caller := std.PreviousRealm().Address()
@@ -56,9 +58,8 @@ func CreateFriendGroup(title string) {
 	ListGroups.Groups.Set(strconv.Itoa(newGroup.ID), newGroup)
 }
 
-// Triggered when a user request to join a group
-// Put the user in a waitlist until an admin let them join
-// Verify if the group exist and if the user is already a member
+// JoinFriendGroup puts the caller in a waitlist for the specified group
+// The caller is in the waitlist until an admin of the group approves
 func AskJoinFriendGroup(groupId int) {
 	crossing()
 	caller := std.PreviousRealm().Address()
@@ -79,7 +80,7 @@ func AskJoinFriendGroup(groupId int) {
 	ListGroups.Groups.Set(strconv.Itoa(groupId), group)
 }
 
-// Wrapper to leave a group and DAO
+// LeaveGroup is a wrapper to leave a group and DAO
 func LeaveGroup(groupId string) {
 	crossing()
 	group := GetGroupFromId(groupId)
@@ -93,7 +94,7 @@ func LeaveGroup(groupId string) {
 
 // Helpers
 
-// Return the user's registered name or address
+// ResolveAddressName the user's registered name or address
 func ResolveAddressName(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
@@ -102,7 +103,7 @@ func ResolveAddressName(addr std.Address) string {
 	return addr.String()
 }
 
-// Retrieve a group from a given ID
+// GetGroupFromId retrieves a group from a given ID
 func GetGroupFromId(groupId string) FriendGroup {
 	convertedId, err := strconv.Atoi(groupId)
 	if err != nil {
