@@ -1,7 +1,5 @@
 package gnomod_test
 
-/*
-
 import (
 	"os"
 	"path/filepath"
@@ -168,5 +166,3 @@ func TestSortPkgs(t *testing.T) {
 		})
 	}
 }
-
-*/

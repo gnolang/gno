@@ -784,10 +784,10 @@ var (
 	moduleStr  = []byte("module")
 )
 
-// ModulePath returns the module path from the gomod file text.
+// modulePath returns the module path from the gomod file text.
 // If it cannot find a module path, it returns an empty string.
 // It is tolerant of unrelated problems in the go.mod file.
-func ModulePath(mod []byte) string {
+func modulePath(mod []byte) string {
 	for len(mod) > 0 {
 		line := mod
 		mod = nil

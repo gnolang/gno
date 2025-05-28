@@ -1,7 +1,5 @@
 package gnomod
 
-/*
-
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -93,7 +91,7 @@ var modulePathTests = []struct {
 func TestModulePath(t *testing.T) {
 	for _, test := range modulePathTests {
 		t.Run(string(test.input), func(t *testing.T) {
-			result := ModulePath(test.input)
+			result := modulePath(test.input)
 			if result != test.expected {
 				t.Fatalf("ModulePath(%q): %s, want %s", string(test.input), result, test.expected)
 			}
@@ -123,7 +121,7 @@ func TestParseVersions(t *testing.T) {
 	t.Run("Strict", func(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.desc, func(t *testing.T) {
-				if _, err := ParseDeprecatedDotModBytes("gno.mod", []byte(test.input)); err == nil && !test.ok {
+				if _, err := parseDeprecatedDotModBytes("gno.mod", []byte(test.input)); err == nil && !test.ok {
 					t.Error("unexpected success")
 				} else if err != nil && test.ok {
 					t.Errorf("unexpected error: %v", err)
@@ -172,7 +170,7 @@ comments before "// e"
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			f, err := ParseBytes("gno.mod", []byte(test.input))
+			f, err := parseDeprecatedDotModBytes("gno.mod", []byte(test.input))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -341,61 +339,13 @@ var dropReplaceTests = []struct {
 	},
 }
 
-func TestSetGno(t *testing.T) {
-	for _, tt := range setGnoTests {
-		t.Run(tt.desc, func(t *testing.T) {
-			testEdit(t, tt.in, tt.out, func(f *File) error {
-				f.SetGno(tt.version)
-				f.Syntax.Cleanup()
-				return nil
-			})
-		})
-	}
-}
-
-func TestSetModule(t *testing.T) {
-	for _, tt := range setModuleTests {
-		t.Run(tt.desc, func(t *testing.T) {
-			testEdit(t, tt.in, tt.out, func(f *File) error {
-				f.SetModule(tt.path)
-				f.Syntax.Cleanup()
-				return nil
-			})
-		})
-	}
-}
-
-func TestAddReplace(t *testing.T) {
-	for _, tt := range addReplaceTests {
-		t.Run(tt.desc, func(t *testing.T) {
-			testEdit(t, tt.in, tt.out, func(f *File) error {
-				f.AddReplace(tt.oldPath, tt.oldVers, tt.newPath, tt.newVers)
-				f.Syntax.Cleanup()
-				return nil
-			})
-		})
-	}
-}
-
-func TestDropReplace(t *testing.T) {
-	for _, tt := range dropReplaceTests {
-		t.Run(tt.desc, func(t *testing.T) {
-			testEdit(t, tt.in, tt.out, func(f *File) error {
-				f.DropReplace(tt.path, tt.vers)
-				f.Syntax.Cleanup()
-				return nil
-			})
-		})
-	}
-}
-
-func testEdit(t *testing.T, in, want string, transform func(f *File) error) *File {
+func testEdit(t *testing.T, in, want string, transform func(f *deprecatedModFile) error) *deprecatedModFile {
 	t.Helper()
-	f, err := ParseBytes("in", []byte(in))
+	f, err := parseDeprecatedDotModBytes("in", []byte(in))
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err := ParseBytes("out", []byte(want))
+	g, err := parseDeprecatedDotModBytes("out", []byte(want))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,5 +363,3 @@ func testEdit(t *testing.T, in, want string, transform func(f *File) error) *Fil
 
 	return f
 }
-
-*/
