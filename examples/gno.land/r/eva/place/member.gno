@@ -49,14 +49,10 @@ func Register() {
 func isAdmin(address std.Address) bool {
 	user, ok := retrieveMember(address)
 	if !ok {
-		panic("user not registered")
-	}
-
-	if user.Rank != adminRank {
 		return false
 	}
 
-	return true
+	return user.Rank == adminRank
 }
 
 // Give the admin rank to a new user
