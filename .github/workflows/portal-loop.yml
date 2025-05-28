@@ -43,7 +43,7 @@ jobs:
           target: portalloopd
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' }}
 
   test-portal-loop-running-in-compose:
     runs-on: ubuntu-latest 
