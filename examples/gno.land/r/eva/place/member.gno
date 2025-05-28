@@ -82,7 +82,7 @@ func DeleteYourself() {
 	}
 
 	if isAdmin(address) && countAdmins() <= 1 {
-		panic("you are the last admin. you cannot delete yourself until more admin are nominated")
+		panic("you are the last admin. you cannot delete yourself until more admins are nominated")
 	}
 
 	users.Remove(address.String())
