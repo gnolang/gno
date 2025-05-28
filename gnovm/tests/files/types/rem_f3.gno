@@ -6,7 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/rem_f3.gno:5:10: invalid operation: division by zero
+// main/rem_f3.gno:5:10-15: invalid operation: division by zero
 
 // TypeCheckError:
-// main/files/types/rem_f3.gno:5:14: invalid operation: division by zero
+// main/rem_f3.gno:5:14: invalid operation: division by zero
