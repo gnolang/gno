@@ -23,6 +23,8 @@ func generateSVG() string {
 	return canvas.Base64()
 }
 
+// Place a tile on the tile of choice with the selected color
+// Verify that the user is allowed to place a tile
 func Submit(x, y uint64, colorName string) {
 	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {

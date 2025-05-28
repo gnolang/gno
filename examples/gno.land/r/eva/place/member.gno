@@ -25,6 +25,7 @@ var (
 	banned *avl.Tree = avl.NewTree()
 )
 
+// Register a new user when clicking submit for the first time
 func Register() {
 	caller := std.PreviousRealm().Address()
 
@@ -58,6 +59,7 @@ func isAdmin(address std.Address) bool {
 	return true
 }
 
+// Give the admin rank to a new user
 func SetNewAdmin(address std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("must be an admin")
@@ -75,6 +77,7 @@ func SetNewAdmin(address std.Address) {
 	user.Rank = adminRank
 }
 
+// Allow user to remove itself from the registered users
 func DeleteYourself() {
 	address := std.PreviousRealm().Address()
 
@@ -89,6 +92,7 @@ func DeleteYourself() {
 	users.Remove(address.String())
 }
 
+// Ban members by removing them from the users and adding them to a blacklist
 func BanMember(adr std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
@@ -102,6 +106,7 @@ func BanMember(adr std.Address) {
 	banned.Set(adr.String(), true)
 }
 
+// Remove banned user from blacklist (need to be registered manually again)
 func UnbanMember(adr std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
@@ -114,6 +119,7 @@ func UnbanMember(adr std.Address) {
 	banned.Remove(adr.String())
 }
 
+// Set the place first admin (creator of the realm)
 func setDefaultAdmin(adr std.Address) {
 	newMember := &User{
 		Address: adr,

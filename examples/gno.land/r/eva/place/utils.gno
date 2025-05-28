@@ -40,6 +40,7 @@ func findColor(colorName string) (bool, Color) {
 	return false, Color{}
 }
 
+// Return a pointer of User struct
 func retrieveMember(address std.Address) (*User, bool) {
 	raw, ok := users.Get(address.String())
 	if !ok {
@@ -49,6 +50,7 @@ func retrieveMember(address std.Address) (*User, bool) {
 	return raw.(*User), true
 }
 
+// Count the number of admins
 func countAdmins() int {
 	var adminCounter int
 
