@@ -90,7 +90,7 @@ func Call(path string, gasLimit uint) {
 		panic("call: cant unescape string, " + err.Error())
 	}
 	caller := assertGetConnectedUserFromRealm()
-	callexpr := strings.Split(path, "/")
+	callexpr := strings.Split(path, " ")
 	if len(callexpr) < 3 {
 		panic("call: invalid number of arguments, expected 'call/address:<int hex>/function(types)/arg1/arg2/...'")
 	}
@@ -126,15 +126,15 @@ func Render(path string) string {
 
 	// create the login part
 	loginPart := md.H2("Login") + br
-	loginPart += "There are " + strconv.Itoa(len(env.Accounts)) + " callers." + br
+	loginPart += "There are " + strconv.Itoa(len(env.Accounts)) + " accounts." + br
 	registerLnk := txlink.Call("Register", "addrStr", "0")
-	loginPart += "Click " + md.Link("here", registerLnk) + " to register yourself as a caller."
+	loginPart += "Click " + md.Link("here", registerLnk) + " to create an account."
 
 	// create the action part
 	actionPart := md.H2("Actions") + br
 	publishLnk := txlink.Call("Publish")
 	faucetLnk := txlink.Call("Faucet", "n", "100000")
-	callLnk := txlink.Call("Call", "path", "call/12/foo(uint256,uint256)/42/1", "gasLimit", "100000")
+	callLnk := txlink.Call("Call", "path", "call 12 foo(uint256,uint256) 42 1", "gasLimit", "100000")
 	actionPart += md.BulletList([]string{
 		"Click " + md.Link("here", publishLnk) + " to publish a new contract.",
 		"Click " + md.Link("here", faucetLnk) + " to give gas to your account (faucet).",
@@ -153,9 +153,9 @@ func Render(path string) string {
 	// create the accounts
 	accountPart := md.H2("Accounts")
 	accountTable := mdtable.Table{}
-	accountTable.Headers = []string{"id", "name"}
+	accountTable.Headers = []string{"id", "type", "gas", "wei"}
 	for k, v := range env.Accounts {
-		accountTable.Append([]string{"0x" + strconv.FormatUint(uint64(k), 16), v.AccountType.String() + ": " + strconv.Itoa(int(v.Gas)) + " gas"})
+		accountTable.Append([]string{"0x" + strconv.FormatUint(uint64(k), 16), v.AccountType.String(), strconv.Itoa(int(v.Gas)) + " gas", v.Balance.String() + " wei"})
 	}
 	accountPart += accountTable.String()
 

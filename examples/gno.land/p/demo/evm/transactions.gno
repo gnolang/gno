@@ -71,11 +71,7 @@ func (t *CreateContractTransaction) getCaller() *Account {
 }
 
 func (t *CreateContractTransaction) String() string {
-	accountTypeStr := map[accountType]string{
-		CallerAccount:   "caller (EAO)",
-		ContractAccount: "smart contract",
-	}
-	return "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " created an account for a " + accountTypeStr[t.caller.AccountType] + ", costing " + strconv.FormatUint(gasPrice, 10) + " gas"
+	return "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " created an account for a " + t.caller.AccountType.String() + " (to change), costing " + strconv.FormatUint(gasPrice, 10) + " gas"
 }
 
 type ExecuteContractTransaction struct {
@@ -116,9 +112,9 @@ func trimLeadingZeros(data []byte) []byte {
 }
 
 func (t *ExecuteContractTransaction) String() string {
-	x := strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " executed " + strconv.FormatInt(int64(t.contractAddress), 16)
+	x := "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " executed " + "0x" + strconv.FormatInt(int64(t.contractAddress), 16)
 	x += " costing " + strconv.FormatUint(gasPrice, 10)
-	x += ", resulting with " + hex.EncodeToString(trimLeadingZeros(t.result))
+	x += ", resulting with 0x" + hex.EncodeToString(trimLeadingZeros(t.result))
 	x += " (decimal: " + strconv.FormatUint(binary.BigEndian.Uint64(t.result[len(t.result)-8:len(t.result)]), 10) + ")"
 	return x
 }
