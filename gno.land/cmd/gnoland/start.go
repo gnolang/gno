@@ -229,26 +229,32 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 	// Initialize telemetry
 	// Return the providers so we can gracefully shutdown them if needed
-	tracesProvider, metricsProvider, err := telemetry.Init(*cfg.Telemetry, logger)
+	metricsProvider, err := telemetry.InitMetrics(*cfg.Telemetry)
 	if err != nil {
-		return fmt.Errorf("unable to initialize telemetry, %w", err)
+		return fmt.Errorf("unable to initialize metrics, %w", err)
+	}
+
+	tracesProvider, err := telemetry.InitTraces(*cfg.Telemetry)
+	if err != nil {
+		return fmt.Errorf("unable to initialize traces, %w", err)
 	}
 
 	if cfg.Telemetry.GracefulShutdownTelemetry {
-		defer func() {
-			if tracesProvider != nil {
-				logger.Info("Gracefully shutting down tracesProvider")
-				if err := tracesProvider.Shutdown(ctx); err != nil {
-					logger.Error("unable to shutdown traces provider", "error", err)
-				}
-			}
-			if metricsProvider != nil {
-				logger.Info("Gracefully shutting down metricsProvider")
+		if metricsProvider != nil {
+			defer func() {
 				if err := metricsProvider.Shutdown(ctx); err != nil {
 					logger.Error("unable to shutdown metrics provider", "error", err)
 				}
-			}
-		}()
+			}()
+		}
+
+		if tracesProvider != nil {
+			defer func() {
+				if err := tracesProvider.Shutdown(ctx); err != nil {
+					logger.Error("unable to shutdown traces provider", "error", err)
+				}
+			}()
+		}
 	}
 
 	// Print the starting graphic

@@ -8,11 +8,9 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
-type TracerFactory func() trace.Tracer
-
 var noopTracerProvider = noop.NewTracerProvider()
 
-func Tracer(name string, options ...trace.TracerOption) TracerFactory {
+func Tracer(name string, options ...trace.TracerOption) func() trace.Tracer {
 	var once sync.Once
 	t := noopTracerProvider.Tracer(name, options...) // Initilize noop tracer as default
 	return func() trace.Tracer {

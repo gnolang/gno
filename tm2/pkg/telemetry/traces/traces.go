@@ -7,7 +7,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
@@ -36,14 +35,7 @@ func Init(cfg config.Config) (*sdkTrace.TracerProvider, error) {
 			return nil, fmt.Errorf("unable to create http traces exporter, %w", err)
 		}
 	default:
-		exp, err = otlptracegrpc.New(
-			ctx,
-			otlptracegrpc.WithEndpoint(cfg.ExporterEndpoint),
-			otlptracegrpc.WithInsecure(),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create grpc traces exporter, %w", err)
-		}
+		return nil, fmt.Errorf("unsupported scheme: %s", u.Scheme)
 	}
 
 	provider := sdkTrace.NewTracerProvider(

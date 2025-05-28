@@ -5,7 +5,6 @@ package telemetry
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
@@ -24,45 +23,42 @@ func TracesEnabled() bool {
 	return config.GetGlobalConfig().TracesEnabled
 }
 
-// Init initializes the global telemetry
-func Init(c config.Config, logger *slog.Logger) (*sdkTrace.TracerProvider, *sdkMetric.MeterProvider, error) {
-	anyTelemetryEnabled := c.MetricsEnabled || c.TracesEnabled
-	if !anyTelemetryEnabled {
-		return nil, nil, nil
+func InitMetrics(c config.Config) (*sdkMetric.MeterProvider, error) {
+	if !c.MetricsEnabled {
+		return nil, nil
 	}
 
 	// Validate the configuration
 	if err := c.ValidateBasic(); err != nil {
-		return nil, nil, fmt.Errorf("unable to validate config, %w", err)
+		return nil, fmt.Errorf("unable to validate config, %w", err)
 	}
 
 	// Check if it's been enabled already
-	if !config.SetTelemetryInitialized() {
-		return nil, nil, nil
+	if !config.SetMetricsInitialized() {
+		return nil, nil
 	}
 
-	// Update the global configuration
 	config.SetGlobalConfig(c)
 
-	// Check if the metrics are enabled at all
-	var metricsProvider *sdkMetric.MeterProvider
-	var tracesProvider *sdkTrace.TracerProvider
-	var err error
-	if c.MetricsEnabled {
-		metricsProvider, err = metrics.Init(c)
-		if err != nil {
-			return nil, nil, fmt.Errorf("unable to initialize metrics, %w", err)
-		}
-		logger.Info("Metrics initialized")
+	return metrics.Init(c)
+}
+
+func InitTraces(c config.Config) (*sdkTrace.TracerProvider, error) {
+	if !c.TracesEnabled {
+		return nil, nil
 	}
 
-	if c.TracesEnabled {
-		tracesProvider, err = traces.Init(c)
-		if err != nil {
-			return nil, nil, fmt.Errorf("unable to initialize traces, %w", err)
-		}
-		logger.Info("Traces initialized")
+	// Validate the configuration
+	if err := c.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("unable to validate config, %w", err)
 	}
 
-	return tracesProvider, metricsProvider, nil
+	// Check if it's been enabled already
+	if !config.SetTracesInitialized() {
+		return nil, nil
+	}
+
+	config.SetGlobalConfig(c)
+
+	return traces.Init(c)
 }

@@ -5,12 +5,17 @@ import (
 )
 
 var (
-	globalConfig         Config
-	telemetryInitialized atomic.Bool
+	globalConfig       Config
+	metricsInitialized atomic.Bool
+	tracesInitialized  atomic.Bool
 )
 
-func SetTelemetryInitialized() bool {
-	return telemetryInitialized.CompareAndSwap(false, true)
+func SetMetricsInitialized() bool {
+	return metricsInitialized.CompareAndSwap(false, true)
+}
+
+func SetTracesInitialized() bool {
+	return tracesInitialized.CompareAndSwap(false, true)
 }
 
 func SetGlobalConfig(config Config) {
