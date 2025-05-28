@@ -1,12 +1,3 @@
-// Some part of file is copied and modified from
-// golang.org/x/mod/modfile/read.go
-//
-// Copyright 2018 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in here[1].
-//
-// [1]: https://cs.opensource.google/go/x/mod/+/master:LICENSE
-
 package gnomod
 
 import (
@@ -14,13 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pelletier/go-toml"
 	"golang.org/x/mod/module"
 )
 
-// Parsed gno.mod file.
+// Parsed gnomod.toml file.
 type File struct {
-	// Module is the module section of the gno.mod file.
+	// Module is the module section of the gnomod.toml file.
 	// It is intended to be the main place for manual customization by the
 	// author of the module.
 	Module struct {
@@ -45,7 +35,7 @@ type File struct {
 		// XXX: Version // version of the module?
 	} `toml:"module" json:"module"`
 
-	// Develop is the develop section of the gno.mod file.
+	// Develop is the develop section of the gnomod.toml file.
 	//
 	// It is wiped out by the vmkeeper when a module is added.
 	Develop struct {
@@ -56,7 +46,7 @@ type File struct {
 		Replace []Replace `toml:"replace" json:"replace"`
 	} `toml:"develop" json:"develop"`
 
-	// Gno is the gno section of the gno.mod file.
+	// Gno is the gno section of the gnomod.toml file.
 	//
 	// It is used to specify the compatibility of the module within the gno
 	// toolchain.
@@ -66,7 +56,7 @@ type File struct {
 		Version string `toml:"version" json:"version"`
 	} `toml:"gno" json:"gno"`
 
-	// UploadMetadata is the upload metadata section of the gno.mod file.
+	// UploadMetadata is the upload metadata section of the gnomod.toml file.
 	//
 	// Is it filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
@@ -97,11 +87,16 @@ func (f *File) GetGnoVersion() (version string) {
 	return f.Gno.Version
 }
 
+// SetGnoVersion sets the gno version.
+func (f *File) SetGnoVersion(version string) {
+	f.Gno.Version = version
+}
+
 // AddReplace adds a replace directive or replaces an existing one.
 func (f *File) AddReplace(oldPath, newPath string) {
-	for _, r := range f.Develop.Replace {
+	for i, r := range f.Develop.Replace {
 		if r.Old == oldPath {
-			r.New = newPath
+			f.Develop.Replace[i].New = newPath
 			return
 		}
 	}
@@ -124,7 +119,7 @@ func (f *File) Validate() error {
 
 	// module.path is required.
 	if modPath == "" {
-		return errors.New("requires module.path")
+		return errors.New("requires module path")
 	}
 
 	// module.path is a valid import path.
@@ -155,15 +150,6 @@ func (f *File) WriteFile(fpath string) error {
 		return fmt.Errorf("writefile %q: %w", fpath, err)
 	}
 	return nil
-}
-
-// writes to a string.
-func (f *File) WriteString() string {
-	data, err := toml.Marshal(f)
-	if err != nil {
-		panic(err)
-	}
-	return string(data)
 }
 
 // Sanitize sanitizes the gnomod.toml file.

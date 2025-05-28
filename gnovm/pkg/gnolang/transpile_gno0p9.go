@@ -353,9 +353,8 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	var err error
 	mod, err = ParseCheckGnoMod(mpkg)
 	if err == nil {
-		if mod.GetGno() != GnoVerMissing {
-			return fmt.Errorf("cannot transpile to gno 0.9: expected gno 0.0 but got %s",
-				mod.GetGno())
+		if mod.GetGnoVersion() != GnoVerMissing {
+			return fmt.Errorf("cannot transpile to gno 0.9: expected gno 0.0 but got %s", mod.GetGnoVersion())
 		}
 	}
 
