@@ -29,6 +29,12 @@ gnodev uses its own package loader and resolver system to support multiple scena
 - root: This resolver takes a <dir> as its location. It attempts to resolve packages based on your file system structure and the package path. For example, if 'root=/user/gnome/myproject' and you try to resolve 'gno.land/r/bar/buzz' as a package, the <root> resolver will attempt to resolve it to /user/gnome/myproject/gno.land/r/bar/buzz.
 - local: This resolver also takes a <dir> as its location. It is designed to load a single package, using the module name from 'gno.mod' within this package to resolve the package.
 - remote: This resolver takes a <remote> RPC address as its location. It is meant to use a remote node as a resolver, primarily for testing a local package against a remote node.
+- flamegraph: Profiles a Go binary and generates a CPU flamegraph (see below).
+
+Example usage of flamegraph:
+	gnodev flamegraph --bin ./binary --duration 30 --output flamegraph.svg
+
+This runs the binary for 30 seconds with PPROF_PROFILE=1, collects CPU data, and generates a flamegraph SVG.
 
 Resolvers can be chained, and gnodev will attempt to use them in the order they are declared.
 
