@@ -82,8 +82,7 @@ func DeleteYourself() {
 		panic("user not registered")
 	}
 
-	ok := isAdmin(address)
-	if ok && countAdmins() <= 1 {
+	if isAdmin(address) && countAdmins() <= 1 {
 		panic("you are the last admin. you cannot delete yourself until more admin are nominated")
 	}
 
@@ -91,13 +90,11 @@ func DeleteYourself() {
 }
 
 func BanMember(adr std.Address) {
-	ok := isAdmin(std.PreviousRealm().Address())
-	if !ok {
+	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
 	}
 
-	ok = isAdmin(adr)
-	if ok {
+	if isAdmin(adr) {
 		panic("you cannot ban an admin")
 	}
 
@@ -106,8 +103,7 @@ func BanMember(adr std.Address) {
 }
 
 func UnbanMember(adr std.Address) {
-	ok := isAdmin(std.PreviousRealm().Address())
-	if !ok {
+	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
 	}
 
