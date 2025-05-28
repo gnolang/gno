@@ -731,7 +731,8 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Index: PointerIndexMap,
 		}
 	}
-	mli := mv.List.Append(alloc, *key)
+	key2 := (*key).Copy(alloc)
+	mli := mv.List.Append(alloc, key2)
 	mv.vmap[kmk] = mli
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
@@ -1539,7 +1540,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
-		fillValueTV(store, tv)
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 		bz = append(bz, uintptrToBytes(&ptr)...)
 	case FieldType:
