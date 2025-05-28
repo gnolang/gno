@@ -28,12 +28,11 @@ var (
 func RegisterMember() {
 	caller := std.PreviousRealm().Address()
 
-	if _, banned := banned.Get(caller.String()); banned {
+	if banned.Has(caller.String()) {
 		panic("you are banned")
 	}
 
-	_, ok := retrieveMember(caller)
-	if ok {
+	if users.Has(caller.String()) {
 		panic("user already registered")
 	}
 
@@ -80,12 +79,11 @@ func SetNewAdmin(address std.Address) {
 func DeleteYourself() {
 	address := std.PreviousRealm().Address()
 
-	_, ok := retrieveMember(address)
-	if !ok {
+	if users.Has(address.String()) {
 		panic("user not registered")
 	}
 
-	ok = isAdmin(address)
+	ok := isAdmin(address)
 	if ok && countAdmins() <= 1 {
 		panic("you are the last admin. you cannot delete yourself until more admin are nominated")
 	}
@@ -114,8 +112,7 @@ func UnbanMember(adr std.Address) {
 		panic("only admin can ban members")
 	}
 
-	_, ok = banned.Get(adr.String())
-	if !ok {
+	if banned.Has(adr.String()) {
 		panic("user is not banned")
 	}
 
