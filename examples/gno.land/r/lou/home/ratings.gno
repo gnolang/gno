@@ -25,7 +25,7 @@ func init() {
 
 func NewRating(rating uint64, commentStr string) string {
 	crossing()
-	
+
 	caller := std.PreviousRealm().Address()
 	if _, exists := ratings.Get(caller.String()); exists {
 		panic(caller.String() + " has already rated and update instead")

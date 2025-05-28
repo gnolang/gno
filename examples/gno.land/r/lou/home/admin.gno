@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	admin  = std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
+	admin   = std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
 	Ownable = ownable.NewWithAddress(admin)
 
 	token  *grc20.Token
