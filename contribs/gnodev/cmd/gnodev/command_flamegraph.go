@@ -71,7 +71,7 @@ func generateFlamegraph(profilePath, outputPath string, io commands.IO) error {
 
 	cmdA := exec.Command("go", "tool", "pprof", "-raw", profilePath)
 	cmdB := exec.Command("/Users/moonia/FlameGraph/stackcollapse-go.pl") // tmp
-	cmdC := exec.Command("/Users/moonia/FlameGraph/flamegraph.pl") // tmp
+	cmdC := exec.Command("/Users/moonia/FlameGraph/flamegraph.pl", "--width=2000", "--fontsize=10") // tmp
 
 	aOut, err := cmdA.StdoutPipe()
 	if err != nil {
