@@ -61,9 +61,10 @@ type File struct {
 	// Is it filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
 	UploadMetadata struct {
-		Uploader   string `toml:"uploader" json:"uploader"`
-		UploadedAt string `toml:"uploaded_at" json:"uploaded_at"`
+		Uploader string `toml:"uploader" json:"uploader"` // address
+		Height   int    `toml:"uploaded_at" json:"uploaded_at"`
 		// XXX: GnoVersion // gno version at upload time?
+		// XXX: Consider things like IsUsingBanker or other security-awareness flags
 	} `toml:"upload_metadata" json:"upload_metadata"`
 }
 
