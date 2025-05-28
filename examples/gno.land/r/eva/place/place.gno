@@ -61,7 +61,7 @@ func init() {
 
 func renderAccountManagement(selectedColor string) string {
 	out := md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
-		md.Link("Delete account", txlink.Call("DeleteUser")) + "\n\n")
+		md.Link("Delete account", txlink.Call("DeleteYourself")) + "\n\n")
 
 	return out
 }
