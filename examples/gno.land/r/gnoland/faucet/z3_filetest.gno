@@ -21,7 +21,7 @@ func main() {
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 		testaddr1       = testutils.TestAddress("test1")
-		testaddr2       = testutils.TestAddress("test2")
+		_               = testutils.TestAddress("test2")
 	)
 	testing.SetRealm(std.NewUserRealm(adminaddr))
 	err := cross(faucet.AdminAddController)(controlleraddr1)
