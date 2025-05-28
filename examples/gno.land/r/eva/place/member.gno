@@ -14,8 +14,8 @@ type User struct {
 }
 
 const (
-	memberRank int = 0
-	adminRank  int = 1
+	memberRank = iota
+	adminRank
 
 	timeRefill int = 2
 )
