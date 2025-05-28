@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/urequire"
 )
 
@@ -115,7 +114,7 @@ func TestCreateMembers(t *testing.T) {
 }
 
 func addMembers(ms MembersByTier, c int, tier string) {
-	mt := avl.NewTree()
+	// mt := avl.NewTree() XXX
 	ms.SetTier(tier)
 	for i := 0; i < c; i++ {
 		addr := std.Address(strconv.Itoa(i) + tier)
