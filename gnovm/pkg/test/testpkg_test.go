@@ -78,7 +78,7 @@ func TestPkgTestCases(t *testing.T) {
 				if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 					t.Fatalf("no test files found in %q", pkg.Dir)
 				}
-				modfile, _ := gnomod.ParseAt(pkg.Dir)
+				modfile, _ := gnomod.ParseDir(pkg.Dir)
 				if modfile == nil {
 					t.Fatalf("unable to parse gno.mod at %q", pkg.Dir)
 				}

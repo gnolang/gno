@@ -56,7 +56,8 @@ func TestTestApp(t *testing.T) {
 		{
 			name:                "sub packages error with malformed modfile",
 			args:                []string{"test", "../../tests/integ/test/broken_mod"},
-			stderrShouldContain: "--- WARNING: unable to read package path",
+			stderrShouldContain: "WARNING: unable to read package path",
+			errShouldContain:    "FAIL: 0 build errors, 1 test errors",
 		},
 		{
 			name:                "directory with no test files",
