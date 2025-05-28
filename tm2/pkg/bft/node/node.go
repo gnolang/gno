@@ -670,11 +670,6 @@ func (n *Node) OnStop() {
 			n.Logger.Error("Error closing listener", "listener", l, "err", err)
 		}
 	}
-
-	// Close the private validator
-	if err := n.privValidator.Close(); err != nil {
-		n.Logger.Error("Error closing private validator", "err", err)
-	}
 }
 
 // Ready signals that the node is ready by returning a blocking channel. This channel is closed when the node receives its first block.
