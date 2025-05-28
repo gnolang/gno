@@ -62,7 +62,7 @@ func SetNewAdmin(address std.Address) {
 	}
 
 	user, ok := retrieveMember(address)
-	if !ok || user.Rank == adminRank {
+	if !ok {
 		panic("user does not exist")
 	}
 
