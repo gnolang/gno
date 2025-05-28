@@ -36,7 +36,7 @@ func Register() {
 		panic("user already registered")
 	}
 
-	newMember := User{
+	newMember := &User{
 		Address: caller,
 		Rank:    memberRank,
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
@@ -73,7 +73,6 @@ func SetNewAdmin(address std.Address) {
 	}
 
 	user.Rank = adminRank
-	users.Set(address.String(), user)
 }
 
 func DeleteYourself() {
@@ -120,7 +119,7 @@ func UnbanMember(adr std.Address) {
 }
 
 func setDefaultAdmin(adr std.Address) {
-	newMember := User{
+	newMember := &User{
 		Address: adr,
 		Rank:    adminRank,
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
