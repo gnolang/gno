@@ -14,9 +14,9 @@ All networks follow the same pattern for websocket connections:
 wss://<rpc-endpoint:port>/websocket
 ```
 
-## Staging Environments (Portal Loops)
+## Staging Environments
 
-XXX: tell that portal loop is currently using a custom code but will switch to a gnodev powered alternative, usable by anyone to run a staging
+XXX: tell that staging is currently using a custom code but will switch to a gnodev powered alternative, usable by anyone to run a staging
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
