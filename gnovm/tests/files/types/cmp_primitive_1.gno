@@ -19,7 +19,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_primitive_1.gno:14:5: cannot use untyped Bigint as StringKind
+// main/cmp_primitive_1.gno:14:5-18: cannot use untyped Bigint as StringKind
 
 // TypeCheckError:
-// main/files/types/cmp_primitive_1.gno:14:10: invalid operation: 1 == Error(1) (mismatched types untyped int and Error)
+// main/cmp_primitive_1.gno:14:10: invalid operation: 1 == Error(1) (mismatched types untyped int and Error)

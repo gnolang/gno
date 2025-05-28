@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/assign23.gno:7:2: assignment operator += requires only one expression on lhs and rhs
+// main/assign23.gno:7:2-17: assignment operator += requires only one expression on lhs and rhs
 
 // TypeCheckError:
-// main/files/assign23.gno:7:8: assignment operation += requires single-valued expressions; main/files/assign23.gno:4:2: declared and not used: m
+// main/assign23.gno:7:8: assignment operation += requires single-valued expressions; main/assign23.gno:4:2: declared and not used: m
