@@ -94,8 +94,8 @@ func LeaveGroup(groupId string) {
 
 // Helpers
 
-// ResolveAddressName the user's registered name or address
-func ResolveAddressName(addr std.Address) string {
+// NameOrAddress returns the user's registered name if available
+func NameOrAddress(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
 		return user.Name()

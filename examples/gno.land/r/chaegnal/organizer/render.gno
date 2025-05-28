@@ -52,7 +52,7 @@ func displayAllExistingGroups(pageNumber, pageSize int, address std.Address) str
 			continue
 		}
 
-		author := ResolveAddressName(group.Owner.Owner())
+		author := NameOrAddress(group.Owner.Owner())
 
 		out += md.H3("Group: "+group.Title+" - By: "+author) + "\n"
 		out += md.Paragraph("Number of friends in the group: "+strconv.Itoa(group.DAO.Whitelist.Size())) + "\n"
@@ -70,7 +70,7 @@ func displayAllExistingGroups(pageNumber, pageSize int, address std.Address) str
 // displayGroupInfo display, in a table, the joined group and give the option to see their page or leave the group
 // It does not allow pending member to view the group
 func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool, address std.Address) {
-	author := ResolveAddressName(group.Owner.Owner())
+	author := NameOrAddress(group.Owner.Owner())
 	var view string
 
 	if hasJoined {

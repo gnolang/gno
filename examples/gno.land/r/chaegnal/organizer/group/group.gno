@@ -221,7 +221,7 @@ func Render(url string) string {
 	logged := parseQueryKeyword(url, "address")
 
 	out += md.H1("Group: " + group.Title)
-	out += md.H2("Created by: " + organizer.ResolveAddressName(group.Owner.Owner()))
+	out += md.H2("Created by: " + organizer.NameOrAddress(group.Owner.Owner()))
 	out += md.Paragraph("Number of friends: "+strconv.Itoa(group.DAO.Whitelist.Size())) + "\n"
 	out += md.HorizontalRule()
 
