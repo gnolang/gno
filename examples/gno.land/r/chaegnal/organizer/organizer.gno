@@ -61,7 +61,7 @@ func CreateFriendGroup(title string) {
 // Verify if the group exist and if the user is already a member
 func AskJoinFriendGroup(groupId int) {
 	crossing()
-	txSender := std.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 
 	raw, exists := ListGroups.Groups.Get(strconv.Itoa(groupId))
 	if !exists {
@@ -70,12 +70,12 @@ func AskJoinFriendGroup(groupId int) {
 
 	group := raw.(FriendGroup)
 
-	_, ok := group.DAO.IsMember(txSender)
+	_, ok := group.DAO.IsMember(caller)
 	if ok {
 		panic("you are already part of this friend group")
 	}
 
-	group.DAO.PendingApproval(txSender)
+	group.DAO.PendingApproval(caller)
 	ListGroups.Groups.Set(strconv.Itoa(groupId), group)
 }
 
