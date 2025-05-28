@@ -70,7 +70,7 @@ func displayCurrentPosition(path string) {
 	if strings.Contains(path, "?") {
 		x, y, err := parseXY(path)
 		if err != nil {
-			panic(err)
+			return
 		}
 		tableColor[y][x].initial = "X"
 	}
