@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -11,23 +12,23 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"go.uber.org/zap"
 )
 
 type DockerHandler struct {
 	DockerClient *client.Client
-	Logger       *zap.Logger
+	Logger       *slog.Logger
 }
 
 const (
-	GnoOfficialImage string = "ghcr.io/gnolang/gno/gnoland:master"
+	gnoContainerLabel string = "gno-staging"
+	gnoOfficialImage  string = "ghcr.io/gnolang/gno/gnoland:master"
 )
 
 // Checks if a fresh pull of Master image corresponds to a new version
 func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, error) {
-	localImage, _, err := dh.DockerClient.ImageInspectWithRaw(ctx, GnoOfficialImage)
+	localImage, _, err := dh.DockerClient.ImageInspectWithRaw(ctx, gnoOfficialImage)
 	if err != nil {
-		dh.DockerClient.ImagePull(ctx, GnoOfficialImage, types.ImagePullOptions{})
+		dh.DockerClient.ImagePull(ctx, gnoOfficialImage, types.ImagePullOptions{})
 		return true, nil
 	}
 
@@ -39,11 +40,11 @@ func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, erro
 		return true, nil
 	}
 	// local digest include full repository name
-	localDigestPrefix := strings.ReplaceAll(GnoOfficialImage, ":master", "")
+	localDigestPrefix := strings.ReplaceAll(gnoOfficialImage, ":master", "")
 	localDigest := strings.ReplaceAll(localImage.RepoDigests[0], fmt.Sprintf("%s@", localDigestPrefix), "")
 
 	// Get remote image digest
-	remoteImage, err := dh.DockerClient.DistributionInspect(ctx, GnoOfficialImage, "")
+	remoteImage, err := dh.DockerClient.DistributionInspect(ctx, gnoOfficialImage, "")
 	if err != nil {
 		return false, err
 	}
@@ -60,7 +61,7 @@ func (dh *DockerHandler) GetActiveGnoPortalLoopContainers(ctx context.Context) (
 	gnoPortalLoopContainers := make([]types.Container, 0)
 
 	for _, container := range containers {
-		if _, exists := container.Labels["the-portal-loop"]; exists {
+		if _, exists := container.Labels[gnoContainerLabel]; exists {
 			gnoPortalLoopContainers = append(gnoPortalLoopContainers, container)
 		}
 	}
@@ -80,7 +81,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 
 	// force pull image
 	if pullImage {
-		_, err := dh.DockerClient.ImagePull(ctx, GnoOfficialImage, types.ImagePullOptions{})
+		_, err := dh.DockerClient.ImagePull(ctx, gnoOfficialImage, types.ImagePullOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -88,13 +89,13 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 
 	// Run Docker container
 	dockerContainer, err := dh.DockerClient.ContainerCreate(ctx, &container.Config{
-		Image: GnoOfficialImage,
+		Image: gnoOfficialImage,
 		Labels: map[string]string{
-			"the-portal-loop": containerName,
+			gnoContainerLabel: containerName,
 		},
 		WorkingDir: "/gnoroot",
 		Env: []string{
-			"MONIKER=the-portal-loop",
+			"MONIKER=the-staging-chain",
 			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
 			"GENESIS_BALANCES_FILE=/backups/balances.jsonl",
 		},
@@ -145,7 +146,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 	return nil, fmt.Errorf("container not found")
 }
 
-// Gether the RPC Port published for the given container
+// Gather the RPC Port published for the given container
 func (dh *DockerHandler) GetPublishedRPCPort(dockerContainer types.Container) string {
 	for _, p := range dockerContainer.Ports {
 		if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
@@ -160,8 +161,8 @@ func (dh *DockerHandler) GetPublishedRPCPort(dockerContainer types.Container) st
 func (dh *DockerHandler) RemoveContainersWithVolumes(ctx context.Context, containers []types.Container) error {
 	for _, c := range containers {
 		dh.Logger.Info("removing container",
-			zap.String("container.id", c.ID),
-			zap.Reflect("container.ports", c.Ports),
+			slog.String("container.id", c.ID),
+			slog.Any("container.ports", c.Ports),
 		)
 		err := dh.DockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{
 			Force:         true,  // Force the removal of a running container

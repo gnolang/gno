@@ -2,11 +2,9 @@ package portalloop
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/docker/docker/api/types"
-	"github.com/sirupsen/logrus"
-
-	"go.uber.org/zap"
 )
 
 // Runs a Portal Loop routine
@@ -27,8 +25,8 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		return err
 	}
 	logger.Info("Starting the Portal Loop",
-		zap.Bool("is_new", isNew),
-		zap.Bool("is_forced", force),
+		slog.Bool("_new", isNew),
+		slog.Bool("_forced", force),
 	)
 
 	// 2. Get existing portal loop
@@ -37,7 +35,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		return err
 	}
 	logger.Info("Get containers",
-		zap.Reflect("container", containers),
+		slog.Any("containers", containers),
 	)
 
 	if len(containers) == 0 {
@@ -46,7 +44,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		container, err := dockerHandler.StartGnoPortalLoopContainer(
 			ctx,
 			portalLoopHandler.GetContainerName(),
-			portalLoopHandler.cfg.HostPWD,
+			portalLoopHandler.cfg.HostPwd,
 			false, // do not pull new image
 		)
 		if err != nil {
@@ -58,7 +56,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(containers[0])
 	logger.Info("Current loop container",
-		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
+		slog.String("portal.url", portalLoopHandler.currentRpcUrl),
 	)
 	logger.Info("Updating Traefik portal loop url")
 	if err := portalLoopHandler.UpdateTraefikPortalLoopUrl(); err != nil {
@@ -80,7 +78,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		logger.Info("Unsetting read only mode")
 		err = portalLoopHandler.UnlockTraefikAccess()
 		if err != nil {
-			logrus.WithError(err).Error()
+			logger.Error("Issues whil unsetting read-only mode", slog.Any("err", err))
 		}
 	}()
 
@@ -98,7 +96,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	dockerContainer, err := dockerHandler.StartGnoPortalLoopContainer(
 		ctx,
 		portalLoopHandler.GetContainerName(),
-		portalLoopHandler.cfg.HostPWD,
+		portalLoopHandler.cfg.HostPwd,
 		true, // always pull new image
 	)
 	if err != nil {
@@ -106,7 +104,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	}
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(*dockerContainer)
 	logger.Info("Updated portal loop container",
-		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
+		slog.String("portal.url", portalLoopHandler.currentRpcUrl),
 	)
 
 	// 7. Wait first blocks meaning new portal loop to be ready

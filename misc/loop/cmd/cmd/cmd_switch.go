@@ -6,7 +6,7 @@ import (
 	"loop/cmd/portalloop"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"go.uber.org/zap"
+	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 func NewSwitchCmd(_ commands.IO) *commands.Command {
@@ -25,7 +25,7 @@ func NewSwitchCmd(_ commands.IO) *commands.Command {
 }
 
 func execSwitch(ctx context.Context, cfg_ *cfg.CmdCfg) error {
-	logger, _ := zap.NewProduction()
+	logger := log.NewNoopLogger()
 	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg_, logger)
 	if err != nil {
 		return err

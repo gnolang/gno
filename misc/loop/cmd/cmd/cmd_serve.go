@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"loop/cmd/cfg"
 	"loop/cmd/portalloop"
-	"sync"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"go.uber.org/zap"
+	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 func NewServeCmd(_ commands.IO) *commands.Command {
@@ -27,30 +27,25 @@ func NewServeCmd(_ commands.IO) *commands.Command {
 }
 
 func execServe(ctx context.Context, cfg_ *cfg.CmdCfg) error {
-	var wg sync.WaitGroup
-	logger, _ := zap.NewProduction()
+	logger := log.NewNoopLogger()
 	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg_, logger)
 	if err != nil {
 		return err
 	}
 
 	for {
-		var err_ error
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err_ = portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
-			if err_ != nil {
-				logger.Error("Portal Loop Run ended with error", zap.Error(err_))
-				return
-			}
-			// Wait for a new round
-			logger.Info("Waiting 3 min before new loop attempt")
-			time.Sleep(3 * time.Minute)
-		}()
-		wg.Wait()
-		if err_ != nil {
-			return err_
+		if err := portalloop.RunPortalLoop(ctx, *portalLoopHandler, false); err != nil {
+			return fmt.Errorf("unable to run loop: %w", err)
+		}
+
+		logger.Info("Waiting 3 min before new loop attempt")
+
+		// Wait for a new round
+		select {
+		case <-time.After(3 * time.Minute):
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
+
 }

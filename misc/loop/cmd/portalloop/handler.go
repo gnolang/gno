@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"loop/cmd/cfg"
 	"loop/cmd/docker"
 	"net/http"
@@ -18,7 +19,6 @@ import (
 	"github.com/gnolang/tx-archive/backup"
 	"github.com/gnolang/tx-archive/backup/client/rpc"
 	"github.com/gnolang/tx-archive/backup/writer/standard"
-	"go.uber.org/zap"
 )
 
 type TraefikMode string
@@ -30,7 +30,7 @@ const (
 
 type PortalLoopHandler struct {
 	cfg                *cfg.CmdCfg
-	logger             *zap.Logger
+	logger             *slog.Logger
 	dockerHandler      *docker.DockerHandler
 	currentRpcUrl      string
 	backupFile         string
@@ -40,10 +40,10 @@ type PortalLoopHandler struct {
 // Gets formatted current time
 func getFormattedTimestamp() string {
 	timenow := time.Now()
-	return fmt.Sprintf("%s_%v", timenow.Format("2006-01-02_"), timenow.UnixNano())
+	return timenow.Format("2006-01-02_") + strconv.FormatInt(timenow.UnixNano(), 10)
 }
 
-func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *zap.Logger) (*PortalLoopHandler, error) {
+func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *slog.Logger) (*PortalLoopHandler, error) {
 	dockerClient_, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
 	if err != nil {
 		return nil, err
@@ -193,9 +193,9 @@ func (plh *PortalLoopHandler) WaitStartedLoop() error {
 			}
 
 			if strings.HasPrefix(err.Error(), "blocks: ") {
-				plh.logger.Error("Fetched blocks", zap.Error(err))
+				plh.logger.Error("Fetched blocks", slog.Any("err", err))
 			} else {
-				plh.logger.Error("Error fetching blocks", zap.Error(err))
+				plh.logger.Error("Error fetching blocks", slog.Any("err", err))
 			}
 			time.Sleep(5 * time.Second)
 		}
