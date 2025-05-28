@@ -42,7 +42,7 @@ Both TCP and Unix domain socket connections are supported for communication betw
 2. Start a `gnokms` server with the [gnokey](../../gno.land/cmd/gnokey) backend using:
 
 ```shell
-$ gnokms gnokey '<key_name>' -listeners '<listen_address>'`
+$ gnokms gnokey '<key_name>' -listener '<listen_address>'`
 # <key_name> is the name of the key generated in step 1.
 # <listen_address> is the address on which the server should listen (e.g., 'tcp://127.0.0.1:26659' or 'unix:///tmp/gnokms.sock').
 ```
