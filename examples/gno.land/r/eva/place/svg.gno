@@ -23,8 +23,8 @@ func generateSVG() string {
 	return canvas.Base64()
 }
 
-// Place a tile on the tile of choice with the selected color
-// Verify that the user is allowed to place a tile
+// Submit places a tile on the tile of choice with the selected color
+// Panics if the user's cooldown timer is not 0
 func Submit(x, y uint64, colorName string) {
 	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {
