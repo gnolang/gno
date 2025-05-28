@@ -26,24 +26,24 @@ var (
 )
 
 func RegisterMember() {
-	address := std.PreviousRealm().Address()
+	caller := std.PreviousRealm().Address()
 
-	if _, banned := banned.Get(address.String()); banned {
+	if _, banned := banned.Get(caller.String()); banned {
 		panic("you are banned")
 	}
 
-	_, ok := retrieveMember(address)
+	_, ok := retrieveMember(caller)
 	if ok {
 		panic("user already registered")
 	}
 
 	newMember := User{
-		Address: address,
+		Address: caller,
 		Rank:    memberRank,
 		Timer:   time.Now().Add(time.Duration(-timeRefill) * time.Minute),
 	}
 
-	users.Set(address.String(), newMember)
+	users.Set(caller.String(), newMember)
 }
 
 func isAdmin(address std.Address) bool {
