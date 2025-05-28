@@ -39,6 +39,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 		{
 			Name: "test.gno",
 			Body: `package test
+
 func Echo() string {
 	crossing()
 
@@ -70,8 +71,7 @@ func Echo() string {
 	crossing()
 
 	return "hello world"
-}
-`
+}`
 	assert.Equal(t, expected, memFile.Body)
 }
 
@@ -637,10 +637,10 @@ func Test_loadStdlibPackage(t *testing.T) {
 	cs := dbadapter.StoreConstructor(mdb, types.StoreOptions{})
 
 	gs := gnolang.NewStore(nil, cs, cs)
-	assert.PanicsWithValue(t, `failed loading stdlib "notfound": does not exist`, func() {
+	assert.PanicsWithError(t, `failed loading stdlib "notfound": does not exist`, func() {
 		loadStdlibPackage("notfound", "./testdata", gs)
 	})
-	assert.PanicsWithValue(t, `failed loading stdlib "emptystdlib": not a valid MemPackage`, func() {
+	assert.PanicsWithError(t, `failed loading stdlib "emptystdlib": package has no files`, func() {
 		loadStdlibPackage("emptystdlib", "./testdata", gs)
 	})
 }
