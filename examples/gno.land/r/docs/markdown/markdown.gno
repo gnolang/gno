@@ -238,161 +238,227 @@ This approach allows for a more consistent rendering experience across different
 
 ### Columns
 
-Gno Flavored Markdown introduces a column layout system using special HTML-like tags. This system allows content to be organized into multiple vertical columns using heading elements as separators.
-On GnoWeb, up to four columns can be displayed in a single row; exceeding this limit will transfer additional columns to another row, and so on.
+Gno-Flavored Markdown introduces a column layout system that uses special tags. You can create columns with
+±<gno-columns>± blocks and separate the content with ±|||±.
 
 #### Basic Syntax
-Wrap your column content in ±<gno-columns>± tags and use standard markdown headings (from h1 ±#± to h6 ±######±) to define column breaks:
-
 ±±±markdown
 <gno-columns>
-## Column 1 Title
+Left content
 
-Column 1 content
+|||
 
-## Column 2 Title
-
-Column 2 content
+Right content
 </gno-columns>
 ±±±
 
-This will render as:
+- Renders as:
+
+---
 
 <gno-columns>
-## Column 1 Title
+Left content
 
-Column 1 content
+|||
 
-## Column 2 Title
-
-Column 2 content
+Right content
 </gno-columns>
+
 ---
 
 #### Key Features
 
-1. **Heading Levels**: Any heading level from ±#± (h1) to ±######± (h6) can be used as column separators. The first one will be the reference for subsequent separator.
+1. **Multiple Columns**:
+
+Depending on the screen size. A maximum of four rows can be displayed in
+one row.
+
+***Note**: Any overflow will result in items being displayed in the next row. Also, keep in mind that on smaller screens
+(e.g., phones), this overflow may occur with fewer elements.*
 
 ±±±markdown
 <gno-columns>
-# Main Section
+First column
 
-Content
+|||
 
-## Subsection
+Second column
 
-More content
+|||
 
-# Second section
+Third column
 
-Content
+|||
 
-## Subsection
+Fourth column
 
-More content
+|||
+
+Fifth column
 </gno-columns>
 ±±±
 
+- Renders as:
+
+---
+
 <gno-columns>
-## Main Section
-Content
-### Subsection
-More content
-## Second section
-Content
-### Subsection
-More content
+First column
+
+|||
+
+Second column
+
+|||
+
+Third column
+
+|||
+
+Fourth column
+
+|||
+
+Fifth column
 </gno-columns>
 
 ---
 
-2. **Empty Headings**: Use empty headings to create columns without titles:
+2. **Mixed Content**:
+
+Columns can be mixed with any markdown content
+
+***Note**: Nested columns are currently not possible*
 
 ±±±markdown
 <gno-columns>
-###
+### Text Section
+Paragraph with _formatting_
 
-![Alt text](/public/imgs/gnoland.svg "Optional title")
-Content without title
+|||
 
-### Second Column
-
-Another column
+My Image ![Alt](/public/imgs/gnoland.svg)
 </gno-columns>
 ±±±
 
+- Renders as:
+
+---
+
 <gno-columns>
-###
+### Text Section
+Paragraph with _formatting_
 
-![Alt text](/public/imgs/gnoland.svg "Optional title")
-Content without title
+|||
 
-### Second Column
-
-Another column
+My Image ![Alt](/public/imgs/gnoland.svg)
 </gno-columns>
 
+---
 
-#### Validation Rules
+### Alerts
 
-The column system will ignore invalid structures and generate errors in the form of comments in the following cases:
+Alerts are a way to highlight important information in your markdown.
 
-1. Unclosed Tags
-±±±markdown
-<gno-columns>
-## Title
-Content
-<!-- Missing closing tag -->
-±±±
+There are five types of alerts:
 
-2. Nested Columns
+- INFO
+- NOTE
+- TIP
+- SUCCESS
+- WARNING
+- CAUTION
 
-Nested columns tag will be ignored, e.g.
+**NOTE**: The default alert type is INFO (if a wrong alert type is used).
 
-±±±markdown
-<gno-columns>
-## Parent
-<gno-columns> <!-- this tag will be ignored -->
-  ## Child
-</gno-columns>
-</gno-columns> <!-- this tag will be ignored -->
-±±±
-
-3. Invalid Headings.
-
-Invalid stating heading will generate an error, e.g.
-
-  - Headings in list:
-±±±markdown
-<gno-columns>
-- ## List Heading
-</gno-columns>
-±±±
-
-  - Headings beyond h6:
-±±±markdown
-<gno-columns>
-####### Invalid
-</gno-columns>
-±±±
-
-4. Content Before First Heading
-
-Setting content before first heading, is considered as invalid and will generate an error.
+The alert boxes are expandable/collapsible and can have a title. 
+By default, the alert boxes are opened. The title is optional and if not provided, the alert type will be used as the title.
 
 ±±±markdown
-<gno-columns>
-Invalid content
-## Title
-</gno-columns>
+> [!NOTE]
+> This is a note
 ±±±
 
-#### Best Pratices
-- Always start column content with a heading
-- Maintain consistent heading levels within a columns block
-- Close tags immediately after final column content
-- Prefer simple markdown structures within columns
-- Use empty headings (##) for image-focused columns
+> [!NOTE]
+> This is a note
+
+±±±markdown
+> [!NOTE]-
+> This is a closed note
+±±±
+
+> [!NOTE]-
+> This is a closed note
+
+±±±markdown
+> [!NOTE] This is a note with title
+> This is a note with title
+±±±
+
+> [!NOTE] This is a note with title
+> This is a note with title
+
+±±±markdown
+> [!INFO]
+> This is an info
+±±±
+
+> [!INFO]
+> This is an info
+
+±±±markdown
+> [!TIP]
+> This is a tip
+±±±
+
+> [!TIP]
+> This is a tip
+
+±±±
+> [!SUCCESS]
+> This is a success
+±±±
+
+> [!SUCCESS]
+> This is a success
+
+±±±
+> [!WARNING]
+> This is a warning
+±±±
+
+> [!WARNING]
+> This is a warning
+
+±±±
+> [!CAUTION]
+> This is a caution
+±±±
+
+> [!CAUTION]
+> This is a caution
+
+±±±markdown
+> [!FOO]
+> The default alert if a wrong alert type is used
+±±±
+
+> [!FOO]
+> This is the default alert
+
+±±±markdown
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+±±±
+
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+
+---
 
 ### Usernames
 

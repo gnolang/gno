@@ -45,18 +45,26 @@ class Help {
     this.funcList = this.DOM.funcs.map((funcEl) => new HelpFunc(funcEl));
 
     this.restoreAddress();
+    this.restoreMode();
     this.bindEvents();
   }
 
-  private restoreAddress(): void {
-    const { addressInput } = this.DOM;
-    if (addressInput) {
-      const storedAddress = localStorage.getItem("helpAddressInput");
-      if (storedAddress) {
-        addressInput.value = storedAddress;
-        this.funcList.forEach((func) => func.updateAddr(storedAddress));
+  private restoreValue(storageKey: string, inputElement: HTMLInputElement | HTMLSelectElement | null, updateCallback: (value: string) => void): void {
+    if (inputElement) {
+      const storedValue = localStorage.getItem(storageKey);
+      if (storedValue) {
+        inputElement.value = storedValue;
+        updateCallback(storedValue);
       }
     }
+  }
+
+  private restoreAddress(): void {
+    this.restoreValue("helpAddressInput", this.DOM.addressInput, (value) => this.funcList.forEach((func) => func.updateAddr(value)));
+  }
+
+  private restoreMode(): void {
+    this.restoreValue("helpCmdMode", this.DOM.cmdModeSelect, (value) => this.funcList.forEach((func) => func.updateMode(value)));
   }
 
   private bindEvents(): void {
@@ -64,7 +72,6 @@ class Help {
 
     const debouncedUpdate = debounce((addressInput: HTMLInputElement) => {
       const address = addressInput.value;
-
       localStorage.setItem("helpAddressInput", address);
       this.funcList.forEach((func) => func.updateAddr(address));
     }, 50);
@@ -72,7 +79,9 @@ class Help {
 
     cmdModeSelect?.addEventListener("change", (e) => {
       const target = e.target as HTMLSelectElement;
-      this.funcList.forEach((func) => func.updateMode(target.value));
+      const mode = target.value;
+      localStorage.setItem("helpCmdMode", mode);
+      this.funcList.forEach((func) => func.updateMode(mode));
     });
   }
 }
@@ -84,6 +93,8 @@ class HelpFunc {
     args: HTMLElement[];
     modes: HTMLElement[];
     paramInputs: HTMLInputElement[];
+    send: HTMLElement[];
+    sendInput: HTMLInputElement | null;
   };
 
   private funcName: string | null;
@@ -93,6 +104,8 @@ class HelpFunc {
     args: "[data-role='help-code-args']",
     mode: "[data-code-mode]",
     paramInput: "[data-role='help-param-input']",
+    send: "[data-role='help-code-send']",
+    sendInput: "[data-role='help-send-input']",
   };
 
   constructor(el: HTMLElement) {
@@ -102,6 +115,8 @@ class HelpFunc {
       args: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.args)),
       modes: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.mode)),
       paramInputs: Array.from(el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput)),
+      send: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.send)),
+      sendInput: el.querySelector<HTMLInputElement>(HelpFunc.SELECTORS.sendInput),
     };
 
     this.funcName = el.dataset.func || null;
@@ -133,6 +148,13 @@ class HelpFunc {
         debouncedUpdate(paramName, paramValue);
       }
     });
+
+    this.DOM.el.addEventListener("change", (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.dataset.role === "help-send-input") {
+        this.updateSend(target.checked);
+      }
+    });
   }
 
   private initializeArgs(): void {
@@ -149,6 +171,11 @@ class HelpFunc {
       .forEach((arg) => {
         arg.textContent = escapedValue || "";
       });
+  }
+
+  public updateSend(sendValue: boolean): void {
+    const sendAmount = sendValue ? this.DOM.sendInput?.dataset.send ?? "" : "";
+    this.DOM.send.forEach(send => send.textContent = sendAmount);
   }
 
   public updateAddr(addr: string): void {
