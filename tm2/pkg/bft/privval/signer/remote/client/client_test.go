@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -20,8 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	unixSocketPath = "/tmp/test_tm2_remote_signer"
+var (
+	unixSocketPath = filepath.Join(os.TempDir(), "test_tm2_remote_signer")
 	tcpLocalhost   = "tcp://127.0.0.1"
 	tcpTimeouts    = 100 * time.Millisecond
 )
