@@ -152,6 +152,8 @@ func FindXformsGno0p9(store Store, pn *PackageNode, fn *FileNode) {
 					// cross(fn)(...) --> fn(cross,...)
 					return n, TRANS_CONTINUE
 				}
+				// Add xform to call expr n if the body is crossing.
+				// The rest will be handled by FindMore.
 				// Try to evaluate statically n.Func; may fail.
 				ftv, err := tryEvalStatic(store, pn, last, n.Func)
 				if false { // for debugging:
@@ -373,6 +375,29 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 					return n, TRANS_CONTINUE
 				}
 			case *CallExpr:
+				// See if n.Func is a selector into an interface method being cross-called.
+				if n.WithCross {
+					if sx, ok := n.Func.(*SelectorExpr); ok {
+						// Get static type of n.Func.
+						ift := evalStaticTypeOf(store, last, sx.X)
+						if dit, ok := ift.(*DeclaredType); ok && ift.Kind() == InterfaceKind {
+							iname := dit.Name
+							ipkg := dit.PkgPath
+							ipn := store.GetPackageNode(ipkg)
+							inx := unconst(Preprocess(store, ipn, Nx(iname))).(*NameExpr)
+							idn := ipn.GetTypeExprForExpr(store, inx)
+							panic(fmt.Sprintf("found interface %v: %v", iname, idn))
+							// If cross-calling an interface method that isn't crossing,
+							// add `cur realm` to method type signature.
+							if n.WithCross && !baseOf(ift).(*FuncType).IsCrossing() {
+								panic(fmt.Sprintf("will add crossing to %v.%v", ift, n.Func))
+								//
+								// addXform1(pn, ifname, ftx.Type,
+								//		XTYPE_ADD_CUR_FUNC)
+							}
+						}
+					}
+				}
 				// XXX use sb.GetFuncNodeForExpr() and simplify.
 				if _, ok := n.Func.(*constTypeExpr); ok {
 					// TODO: handle conversions.
