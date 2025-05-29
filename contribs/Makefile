@@ -1,8 +1,10 @@
 include ../misc/makeHelpMsgs.mk
 
+progs_with_generate := $(patsubst %/Makefile,%,$(shell grep -l '^generate:' */Makefile))
+
 .PHONY: help
 help: # Print this help message
-	@$(call RUN_MAKEFILE_HELP,..,$(patsubst %/,%,$(programs)))
+	@$(call RUN_MAKEFILE_HELP,..,$(patsubst %/,%,$(programs)) $(patsubst %,2:%,$(progs_with_generate)))
 
 programs=$(wildcard */)
 
@@ -67,8 +69,8 @@ tidy: # Run 'go mod tidy' in all Go modules within this directory and subdirecto
 	find . -name go.mod -execdir go mod tidy -v \;
 
 
-generate: $(addprefix generate.,$(programs))
-generate.%:
+generate: $(addprefix generate.,$(progs_with_generate)) # Generate documentation (for applicable tools)
+generate.%: # %2:Generate documentation for %
 	@if grep '^generate:' $(subst generate.,,$@)/Makefile; then \
 	  echo "[+] make -C $(subst generate.,,$@) generate"; \
 	  $(MAKE) --no-print-directory -C $(subst generate.,,$@) generate; \

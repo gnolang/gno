@@ -27,8 +27,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
+)
+
+var (
+	numPrefixRE        = regexp.MustCompile(`^(\d+):`)
+	percentNumPrefixRE = regexp.MustCompile(`^%(\d+):`)
 )
 
 // flagList accumulates multiple flag values into a slice.
@@ -36,7 +42,18 @@ type flagList []string
 
 // String returns the comma‑separated flag values.
 func (f *flagList) String() string {
-	return strings.Join(*f, ",")
+	var b strings.Builder
+	b.WriteByte('[')
+
+	for i, s := range *f {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(strconv.Quote(s))
+	}
+
+	b.WriteByte(']')
+	return b.String()
 }
 
 // Set appends a new value to the flag list.
@@ -45,12 +62,62 @@ func (f *flagList) Set(val string) error {
 	return nil
 }
 
+// flagList accumulates multiple flag values into a slice.
+type nestedFlagList [][]string
+
+// String returns the comma‑separated flag values.
+func (nf *nestedFlagList) String() string {
+	var b strings.Builder
+	b.WriteByte('[')
+
+	for i, inner := range *nf {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteByte('[')
+		for j, s := range inner {
+			if j > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(strconv.Quote(s))
+		}
+		b.WriteByte(']')
+	}
+
+	b.WriteByte(']')
+	return b.String()
+}
+
+// Set appends a new value to the flag list.
+func (nf *nestedFlagList) Set(val string) error {
+	targetIdx := 0
+	rest := val
+
+	if m := numPrefixRE.FindStringSubmatch(val); m != nil {
+		idx, err := strconv.Atoi(m[1])
+		if err != nil || idx <= 0 {
+			// This should not be reachable.
+			return fmt.Errorf("invalid prefix index in %q", val)
+		}
+		targetIdx = idx - 1
+		rest = val[len(m[0]):]
+	}
+
+	// Ensure enough inner slices
+	for len(*nf) <= targetIdx {
+		*nf = append(*nf, []string{})
+	}
+
+	(*nf)[targetIdx] = append((*nf)[targetIdx], rest)
+	return nil
+}
+
 // Config holds all command‑line options.
 type Config struct {
-	Makefile   string   // path to the main Makefile
-	RelativeTo string   // base path for printing sub‑directory commands
-	Dirs       flagList // additional directories to scan
-	Wildcards  flagList // wildcard values to expand '%' targets
+	Makefile   string         // path to the main Makefile
+	RelativeTo string         // base path for printing sub‑directory commands
+	Dirs       flagList       // additional directories to scan
+	Wildcards  nestedFlagList // wildcard values to expand '%' targets
 }
 
 // parseConfig parses flags and the single required Makefile argument.
@@ -102,7 +169,7 @@ func extractMakefileTargets(filePath string) (map[string]string, error) {
 			continue
 		}
 		colon := strings.IndexRune(line, ':')
-		if colon < 0 || legacyRe.MatchString(line) {
+		if colon < 0 || legacyRe.MatchString(line) || (colon+1 < len(line) && line[colon+1] == '=') {
 			continue
 		}
 
@@ -135,12 +202,22 @@ func maxStringLength(items []string) int {
 
 // maxKeyLength calculates the column width for printing keys,
 // accounting for '%' expansions if wildcards are provided.
-func maxKeyLength(keys, wildcards []string) int {
-	wildMax := maxStringLength(wildcards)
+func maxKeyLength(keys []string, wildcards [][]string) int {
+	totalWildcards := 0
+	for _, w := range wildcards {
+		totalWildcards += len(w)
+	}
+	flatWild := make([]string, 0, totalWildcards)
+	for _, wo := range wildcards {
+		for _, wi := range wo {
+			flatWild = append(flatWild, wi)
+		}
+	}
+	wildMax := maxStringLength(flatWild)
 	maxLen := 0
 	for _, k := range keys {
 		length := len(k)
-		if strings.Contains(k, "%") && len(wildcards) > 0 {
+		if strings.Contains(k, "%") && len(flatWild) > 0 {
 			length += wildMax - 1
 		}
 		if length > maxLen {
@@ -189,19 +266,33 @@ func scrapeReadmeBanners(wildcards, dirs []string) map[string]string {
 }
 
 // printTargets lists all targets and descriptions, expanding '%' with wildcards.
-func printTargets(w io.Writer, targets map[string]string, wildcards []string, banners map[string]string) {
+func printTargets(w io.Writer, targets map[string]string, wildcards [][]string, banners map[string]string) {
 	keys := make([]string, 0, len(targets))
 	for k := range targets {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	sort.Strings(wildcards)
+	for i := range wildcards {
+		sort.Strings(wildcards[i])
+	}
 
 	width := maxKeyLength(keys, wildcards)
 	for _, key := range keys {
 		desc := targets[key]
-		if strings.Contains(key, "%") && len(wildcards) > 0 {
-			for _, wild := range wildcards {
+		wildIdx := 0
+
+		if m := percentNumPrefixRE.FindStringSubmatch(desc); m != nil {
+			idx, err := strconv.Atoi(m[1])
+			if err != nil || idx <= 0 {
+				// This should not be reachable.
+				panic(fmt.Sprintf("invalid prefix index in %q", desc))
+			}
+			wildIdx = idx - 1
+			desc = desc[len(m[0]):]
+		}
+
+		if strings.Contains(key, "%") && (len(wildcards) > wildIdx) && (len(wildcards[wildIdx]) > 0) {
+			for _, wild := range wildcards[wildIdx] {
 				ek := strings.ReplaceAll(key, "%", wild)
 				if desc == "" {
 					fmt.Fprintf(w, "  %s\n", ek)
@@ -269,7 +360,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	banners := scrapeReadmeBanners(cfg.Wildcards, cfg.Dirs)
+	if len(cfg.Wildcards) < 1 {
+		cfg.Wildcards = [][]string{{}}
+	}
+
+	banners := scrapeReadmeBanners(cfg.Wildcards[0], cfg.Dirs)
 	fmt.Fprintln(stdout, "Available make targets:")
 	tMap, err := extractMakefileTargets(cfg.Makefile)
 	if err != nil {

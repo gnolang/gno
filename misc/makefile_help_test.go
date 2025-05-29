@@ -25,7 +25,7 @@ func TestParseConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, _, err := parseConfig([]string{"-r", "base", "-d", "sub", "-w", "X", mf})
+	cfg, _, err := parseConfig([]string{"-r", "base", "-d", "sub", "-w", "X", "-w", "Y", "-w", "2:Z", mf})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -38,8 +38,13 @@ func TestParseConfig(t *testing.T) {
 	if len(cfg.Dirs) != 1 || cfg.Dirs[0] != "sub" {
 		t.Errorf("Dirs = %v, want [sub]", cfg.Dirs)
 	}
-	if len(cfg.Wildcards) != 1 || cfg.Wildcards[0] != "X" {
-		t.Errorf("Wildcards = %v, want [X]", cfg.Wildcards)
+	if len(cfg.Wildcards) != 2 ||
+		len(cfg.Wildcards[0]) != 2 ||
+		len(cfg.Wildcards[1]) != 1 ||
+		cfg.Wildcards[0][0] != "X" ||
+		cfg.Wildcards[0][1] != "Y" ||
+		cfg.Wildcards[1][0] != "Z" {
+		t.Errorf("Wildcards = %v, want [[X,Y],[Z]]", cfg.Wildcards)
 	}
 }
 
@@ -50,6 +55,7 @@ foo: # first target
 bar: do stuff ## double hash desc
 baz: # description with % wildcard %
 legacy: # @LEGACY should skip
+immediate_var:=skip me value
 `
 	mf := filepath.Join(t.TempDir(), "Makefile")
 	if err := ioutil.WriteFile(mf, []byte(content), 0o644); err != nil {
@@ -71,6 +77,9 @@ legacy: # @LEGACY should skip
 	}
 	if _, ok := tMap["legacy"]; ok {
 		t.Error("expected legacy target to be skipped")
+	}
+	if _, ok := tMap["immediate_var"]; ok {
+		t.Error("expected variable assignment to be skipped")
 	}
 }
 
@@ -103,7 +112,7 @@ func TestReadReadmeBanner(t *testing.T) {
 // Test maxKeyLength with and without wildcards.
 func TestMaxKeyLength(t *testing.T) {
 	keys := []string{"a", "longer", "p%t"}
-	w := []string{"X", "YY"}
+	w := [][]string{{"X", "YY"}}
 	// "longer" length 6
 	if got := maxKeyLength(keys, nil); got != 6 {
 		t.Errorf("maxKeyLength(keys,nil) = %d; want 6", got)
@@ -265,14 +274,14 @@ func TestMaxKeyLength_Table(t *testing.T) {
 	cases := []struct {
 		name      string
 		keys      []string
-		wildcards []string
+		wildcards [][]string
 		want      int
 	}{
 		{"no wildcards", []string{"a", "bb", "ccc"}, nil, 3},
-		{"single wildcard shorter", []string{"p%t", "xx"}, []string{"Z"}, 3},
-		{"wildcard longer than key", []string{"p%t"}, []string{"YY"}, 4},
-		{"multiple wildcards, picks longest", []string{"p%t"}, []string{"X", "WWW"}, 5},
-		{"mix wild and non‑wild", []string{"long", "m%x"}, []string{"ZZZ"}, 5},
+		{"single wildcard shorter", []string{"p%t", "xx"}, [][]string{{"Z"}}, 3},
+		{"wildcard longer than key", []string{"p%t"}, [][]string{{"YY"}}, 4},
+		{"multiple wildcards, picks longest", []string{"p%t"}, [][]string{{"X", "WWW"}}, 5},
+		{"mix wild and non‑wild", []string{"long", "m%x"}, [][]string{{"ZZZ"}}, 5},
 	}
 
 	for _, tc := range cases {
@@ -322,7 +331,7 @@ func TestPrintTargets_Simple(t *testing.T) {
 
 func TestPrintTargets_Wildcards(t *testing.T) {
 	targets := map[string]string{"x%y": "hi%there"}
-	wc := []string{"Z"}
+	wc := [][]string{{"Z"}}
 	banners := map[string]string{"Z": " (ban)"}
 	var buf bytes.Buffer
 

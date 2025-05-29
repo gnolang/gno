@@ -46,7 +46,7 @@ lint: # Run gno's built-in linter over the current directory
 	go run ../gnovm/cmd/gno lint -v .
 
 .PHONY: fix
-fix:
+fix: # Run gno's cross-realm fixer over the current directory
 	go run ../gnovm/cmd/gno fix -v .
 
 .PHONY: test.sync
