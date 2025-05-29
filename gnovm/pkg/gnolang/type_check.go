@@ -461,8 +461,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 		if ddt, ok := dt.(*DeclaredType); ok {
 			// types must match exactly.
 			if !dxt.sealed && !ddt.sealed &&
-				dxt.PkgPath == ddt.PkgPath &&
-				dxt.Name == ddt.Name { // not yet sealed
+					dxt.PkgPath == ddt.PkgPath &&
+					dxt.Name == ddt.Name { // not yet sealed
 				return nil // ok
 			} else if dxt.TypeID() == ddt.TypeID() {
 				return nil // ok
@@ -520,6 +520,7 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 					dt.Kind())
 			}
 		case UntypedStringType:
+			//fmt.Println("---dt.kind: ", dt.Kind())
 			if dt.Kind() == StringKind {
 				return nil // ok
 			} else {
@@ -596,6 +597,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 			return nil
 		}
 	case *SliceType:
+		//fmt.Println("---dt slice type..., cdt.Elt: ", cdt.Elt)
+		//fmt.Println("---xt, type of xt: ", xt, reflect.TypeOf(xt))
 		if st, ok := xt.(*SliceType); ok {
 			if cdt.Vrd {
 				return checkAssignableTo(n, st.Elt, cdt.Elt, false)
@@ -609,6 +612,17 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 				}
 				return nil
 			}
+		} else if cxt, ok := xt.(PrimitiveType); ok {
+			if cxt.Kind() == StringKind {
+				switch cdt.Elt {
+				case Uint8Type, Int32Type:
+					return nil
+				}
+			}
+			return errors.New(
+				"cannot use %s as %s",
+				cxt.String(),
+				cdt.String())
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
@@ -889,7 +903,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if len(x.Lhs) != len(cft.Results) {
 					panic(fmt.Sprintf(
 						"assignment mismatch: "+
-							"%d variables but %s returns %d values",
+								"%d variables but %s returns %d values",
 						len(x.Lhs), cx.Func.String(), len(cft.Results)))
 				}
 				if x.Op == ASSIGN {
@@ -973,7 +987,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		// expr on lhs/rhs.
 		if len(x.Lhs) != 1 || len(x.Rhs) != 1 {
 			panic("assignment operator " + x.Op.TokenString() +
-				" requires only one expression on lhs and rhs")
+					" requires only one expression on lhs and rhs")
 		}
 		lt := evalStaticTypeOf(store, last, x.Lhs[0])
 		rt := evalStaticTypeOf(store, last, x.Rhs[0])
