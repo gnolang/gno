@@ -38,6 +38,12 @@ func (c *Canvas) WithViewBox(x, y, width, height int) *Canvas {
 	return c
 }
 
+// Render renders your canvas
+func (c Canvas) Render(alt string) string {
+	base64SVG := base64.StdEncoding.EncodeToString([]byte(c.String()))
+	return ufmt.Sprintf("![%s](data:image/svg+xml;base64,%s)", alt, base64SVG)
+}
+
 func (c Canvas) String() string {
 	out := ""
 	out += ufmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="%s">`, c.Width, c.Height, c.ViewBox)

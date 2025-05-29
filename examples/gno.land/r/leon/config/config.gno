@@ -32,6 +32,7 @@ type Config struct {
 }
 
 func AddConfig(name, lines string) {
+	crossing()
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
@@ -46,6 +47,7 @@ func AddConfig(name, lines string) {
 }
 
 func EditConfig(id string, name, lines string) {
+	crossing()
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
@@ -63,6 +65,7 @@ func EditConfig(id string, name, lines string) {
 }
 
 func RemoveConfig(id string) {
+	crossing()
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
@@ -73,6 +76,7 @@ func RemoveConfig(id string) {
 }
 
 func UpdateBanner(newBanner string) {
+	crossing()
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
