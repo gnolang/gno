@@ -110,7 +110,7 @@ func RenderSVGGnome() string { // exported for your pleasure :)
 	c := svg.NewCanvas(430, 430).WithViewBox(13, 25, 75, 75)
 
 	// Body: blue triangle
-	body := svg.NewPolygon("50,50 30,100 70,100", "#2196F3")
+	body := svg.NewPolygon("50,50 30,100 70,100", gnomeBodyColors[int(std.ChainHeight())%len(gnomeBodyColors)])
 
 	// Head: peach circle (overlaps body)
 	head := svg.NewCircle(50, 60, 10, "#FAD7B6")
@@ -129,4 +129,23 @@ func RenderSVGGnome() string { // exported for your pleasure :)
 	c.Append(body, head, beard, hat, leftEye, rightEye)
 
 	return c.Render("svg gnome")
+}
+
+var gnomeBodyColors = []string{
+	"#4CAF50", // Green
+	"#2196F3", // Blue
+	"#9C27B0", // Purple
+	"#FF5722", // Orange
+	"#795548", // Brown
+	"#607D8B", // Grayish Blue
+	"#E91E63", // Pink
+	"#FFC107", // Amber
+	"#00BCD4", // Cyan
+	"#8BC34A", // Light Green
+	"#FF9800", // Deep Orange
+	"#3F51B5", // Indigo
+	"#673AB7", // Deep Purple
+	"#009688", // Teal
+	"#F44336", // Red
+	"#CDDC39", // Lime
 }
