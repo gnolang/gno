@@ -154,7 +154,7 @@ func TestItemRecord(t *testing.T) {
 	fields, err := r.Fields()
 	urequire.NoError(t, err)
 
-	authors, found := fields.Get("authors")
+	_, found := fields.Get("authors")
 	urequire.True(t, found, "authors field")
 
 	url, found := fields.Get("url")
