@@ -59,29 +59,29 @@ stdout ${RFOO_USER_ADDR}
 ## stdout ${test1_user_addr}
 
 ## 7. MsgRun -> myrlm.A: user address
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmA.gno
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlm-a.gno
 stdout ${test1_user_addr}
 
 ## 8. MsgRun -> myrealm.B -> myrlm.A: user address
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmB.gno
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlm-b.gno
 stdout ${test1_user_addr}
 
 ## 9. MsgRun -> r/foo.A -> myrlm.A: r/foo
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooA.gno
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/foo-a.gno
 stdout ${RFOO_USER_ADDR}
 
 ## 10. MsgRun -> r/foo.B -> myrlm.B -> r/foo.A: r/foo
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooB.gno
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/foo-b.gno
 stdout ${RFOO_USER_ADDR}
 
 ## 11. MsgRun -> p/demo/bar.A -> myrlm.A: user address
 ## XXX: crossing call only allowed in realm packages, doesn't work
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-a.gno
 stderr 'crossing'
 
 ## 12. MsgRun -> p/demo/bar.B -> myrlm.B -> r/foo.A: user address
 ## XXX: crossing call only allowed in realm packages, doesn't work
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-b.gno
 stderr 'crossing'
 
 ## 13. MsgCall -> std.PreviousRealm(): user address
@@ -136,7 +136,7 @@ func A() string {
 func B() string {
 	return cross(A)()
 }
--- run/myrlmA.gno --
+-- run/myrlm-a.gno --
 package main
 
 import myrlm "gno.land/r/myrlm"
@@ -146,7 +146,7 @@ func main() {
 
 	println(cross(myrlm.A)())
 }
--- run/myrlmB.gno --
+-- run/myrlm-b.gno --
 package main
 
 import "gno.land/r/myrlm"
@@ -156,7 +156,7 @@ func main() {
 
 	println(cross(myrlm.B)())
 }
--- run/fooA.gno --
+-- run/foo-a.gno --
 package main
 
 import "gno.land/r/foo"
@@ -166,7 +166,7 @@ func main() {
 
 	println(cross(foo.A)())
 }
--- run/fooB.gno --
+-- run/foo-b.gno --
 package main
 
 import "gno.land/r/foo"
@@ -176,7 +176,7 @@ func main() {
 
 	println(cross(foo.B)())
 }
--- run/barA.gno --
+-- run/bar-a.gno --
 package main
 
 import "gno.land/p/demo/bar"
@@ -186,7 +186,7 @@ func main() {
 
 	println(cross(bar.A)())
 }
--- run/barB.gno --
+-- run/bar-b.gno --
 package main
 
 import "gno.land/p/demo/bar"
