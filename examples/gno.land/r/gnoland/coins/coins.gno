@@ -131,7 +131,7 @@ func renderAllBalances(rawpath, input string) string {
 	if strings.HasPrefix(input, "cosmos") {
 		addr, err := ctg.ConvertCosmosToGno(input)
 		if err != nil {
-			out += "Tried converting a cosmos address but failed. Please double check your input."
+			out += "Tried converting a Cosmos address to a Gno address but failed. Please double-scheck your input."
 			return out
 		}
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
