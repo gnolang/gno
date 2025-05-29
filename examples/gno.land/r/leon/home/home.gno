@@ -1,10 +1,10 @@
 package home
 
 import (
-	"gno.land/p/demo/svg"
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 
