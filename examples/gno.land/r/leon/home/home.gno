@@ -1,6 +1,7 @@
 package home
 
 import (
+	"gno.land/p/demo/svg"
 	"std"
 	"strconv"
 
@@ -49,6 +50,7 @@ TODO import r/gh`,
 }
 
 func UpdatePFP(url, caption string) {
+	crossing()
 	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
@@ -58,6 +60,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
+	crossing()
 	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
@@ -80,7 +83,7 @@ func renderArt() string {
 	out += md.Columns([]string{
 		gnoface.Render(strconv.Itoa(int(std.ChainHeight()))),
 		renderMillipede(),
-		"Empty spot :/",
+		"SVG Gnome\n" + RenderSVGGnome(),
 	})
 
 	out += "This art is dynamic; it will change with every new block.\n\n"
@@ -101,4 +104,29 @@ func renderBlogPosts() string {
 	// todo fetch blog posts authored by @leohhhn
 	// and render them
 	return out
+}
+
+func RenderSVGGnome() string { // exported for your pleasure :)
+	c := svg.NewCanvas(430, 430).WithViewBox(13, 25, 75, 75)
+
+	// Body: blue triangle
+	body := svg.NewPolygon("50,50 30,100 70,100", "#2196F3")
+
+	// Head: peach circle (overlaps body)
+	head := svg.NewCircle(50, 60, 10, "#FAD7B6")
+
+	// Hat: red triangle on top of head
+	hat := svg.NewPolygon("50,30 35,55 65,55", "#E53935")
+
+	// Eyes: two small black dots
+	leftEye := svg.NewCircle(46, 59, 1, "#000")
+	rightEye := svg.NewCircle(54, 59, 1, "#000")
+
+	// Beard: small white triangle under head
+	beard := svg.NewPolygon("50,85 42,63 58,63", "#FFF")
+
+	// Layering order matters (bottom to top)
+	c.Append(body, head, beard, hat, leftEye, rightEye)
+
+	return c.Render("svg gnome")
 }
