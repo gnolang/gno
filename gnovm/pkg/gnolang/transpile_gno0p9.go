@@ -305,10 +305,9 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 					return n, TRANS_CONTINUE
 				}
 				// Find the block where name is defined.
-				dbn := last.GetBlockNodeForPath(store, n.Path)
-				src := dbn.GetNameSources()[n.Path.Index] // name expr
+				dbn, _, _, snx := last.GetOriginForPath(store, n.Path)
 				// Spread attribute.
-				_, cmp := spreadXform(n, src)
+				_, cmp := spreadXform(n, snx)
 				if cmp > 0 {
 					// recurse again in dbn.
 					dbnLast := dbn.GetParentNode(store)
@@ -335,7 +334,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				return n, TRANS_CONTINUE
 			case *CompositeLitExpr:
 				cltx := unconst(n.Type)
-				tx := last.GetTypeExprForExpr(store, cltx)
+				_, tx := last.GetTypeExprForExpr(store, cltx)
 				switch tx := tx.(type) {
 				case *StructTypeExpr:
 					fields := tx.Fields
@@ -377,23 +376,41 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 			case *CallExpr:
 				// See if n.Func is a selector into an interface method being cross-called.
 				if n.WithCross {
-					if sx, ok := n.Func.(*SelectorExpr); ok {
+					if sx, ok := n.Func.(*CallExpr).Args[0].(*SelectorExpr); ok {
 						// Get static type of n.Func.
-						ift := evalStaticTypeOf(store, last, sx.X)
-						if dit, ok := ift.(*DeclaredType); ok && ift.Kind() == InterfaceKind {
+						sxt := evalStaticTypeOf(store, last, sx.X)
+						if dit, ok := sxt.(*DeclaredType); ok && sxt.Kind() == InterfaceKind {
 							iname := dit.Name
 							ipkg := dit.PkgPath
 							ipn := store.GetPackageNode(ipkg)
 							inx := unconst(Preprocess(store, ipn, Nx(iname))).(*NameExpr)
-							idn := ipn.GetTypeExprForExpr(store, inx)
-							panic(fmt.Sprintf("found interface %v: %v", iname, idn))
-							// If cross-calling an interface method that isn't crossing,
-							// add `cur realm` to method type signature.
-							if n.WithCross && !baseOf(ift).(*FuncType).IsCrossing() {
-								panic(fmt.Sprintf("will add crossing to %v.%v", ift, n.Func))
-								//
-								// addXform1(pn, ifname, ftx.Type,
-								//		XTYPE_ADD_CUR_FUNC)
+							ipn_, itx := ipn.GetTypeExprForExpr(store, inx)
+							if ipn != ipn_ {
+								panic("package mismatch")
+							}
+							// itx: interface type expr.
+							// ipn2 : package node of type decl.
+							// ifn2: file node of type decl.
+							// idn2: the (iface) type decl.
+							// inx2: the name expr of type decl.
+							ipn2, ifn2, idn2, inx2 := pn.GetOriginForPath(store, inx.Path)
+							if ipn != ipn2 {
+								panic("package mismatch")
+							}
+							if false {
+								println(idn2, inx2) // use
+							}
+							mfnt := dit.Base.(*InterfaceType).GetMethod(sx.Sel)
+							if mfnt == nil {
+								panic("could not find method") // shouldn't happen
+							}
+							mft := mfnt.Type.(*FuncType)
+							if mft.IsCrossing() {
+								// weird. it might have an attribute,
+								// but this shouldn't be happening
+								panic("should not happen")
+							} else {
+								addXform1(ipn, ifn2.FileName, itx, XTYPE_ADD_CUR_FUNC)
 							}
 						}
 					}
@@ -493,7 +510,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 func ensureCurFunc(store Store, pn *PackageNode, last BlockNode) {
 	// If `cur` isn't available, it needs to be included
 	// in the outer-most containing func decl/expr.
-	if last.GetValueRef(store, Name(`cur`), true) == nil {
+	if last.GetSlot(store, Name(`cur`), true) == nil {
 		file := last.GetLocation().GetFile()
 		fn, _, ok := findLastFunction(last, pn)
 		if !ok {
@@ -532,7 +549,7 @@ func ensureCurFunc(store Store, pn *PackageNode, last BlockNode) {
 //   - pn: package node of fnames
 //   - fnames: file names (subset of mpkg) to transpile.
 //   - xforms1: result of FindGno0p9Xforms().
-func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames []Name, xforms1 map[string]struct{}) error {
+func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames []string, xforms1 map[string]struct{}) error {
 	// NOTE: The pkgPath may be different than mpkg.Path
 	// e.g. for filetests or xxx_test tests.
 	pkgPath := pn.PkgPath

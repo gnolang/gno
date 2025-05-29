@@ -215,7 +215,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					cw := bs.CacheWrap()
 					gs := ts.BeginTransaction(cw, cw, nil)
 					tm.Store = gs
-					fname := string(fset.Files[0].Name)
+					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)

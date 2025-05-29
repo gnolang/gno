@@ -485,7 +485,7 @@ type FuncValue struct {
 	Name       Name         // name of function/method
 	Parent     Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
-	FileName   Name         // file name where declared
+	FileName   string       // file name where declared
 	PkgPath    string       // package path in which func declared
 	NativePkg  string       // for native bindings through NativeResolver
 	NativeName Name         // not redundant with Name; this cannot be changed in userspace
@@ -775,12 +775,12 @@ type PackageValue struct {
 	Block      Value
 	PkgName    Name
 	PkgPath    string
-	FNames     []Name
+	FNames     []string
 	FBlocks    []Value
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
 	// NOTE: Realm is persisted separately.
 
-	fBlocksMap map[Name]*Block
+	fBlocksMap map[string]*Block
 }
 
 // IsRealm returns true if pv represents a realm.
@@ -788,9 +788,9 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
-func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
+func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	if pv.fBlocksMap == nil {
-		pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
+		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	}
 	return pv.fBlocksMap
 }
@@ -800,7 +800,7 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 	if pv.fBlocksMap != nil {
 		panic("should not happen")
 	}
-	pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
+	pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	for i := range pv.FNames {
 		fname := pv.FNames[i]
 		fblock := pv.GetFileBlock(store, fname)
@@ -835,21 +835,21 @@ func (pv *PackageValue) GetValueAt(store Store, path ValuePath) TypedValue {
 		TV)
 }
 
-func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
-	for _, fname := range pv.FNames {
+func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
+	for _, fn := range pv.FNames {
 		if fname == fn {
 			panic(fmt.Sprintf(
 				"duplicate file block for file %s",
-				fn))
+				fname))
 		}
 	}
-	pv.FNames = append(pv.FNames, fn)
+	pv.FNames = append(pv.FNames, fname)
 	pv.FBlocks = append(pv.FBlocks, fb)
-	pv.getFBlocksMap()[fn] = fb
+	pv.getFBlocksMap()[fname] = fb
 	fb.SetOwner(pv)
 }
 
-func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
+func (pv *PackageValue) GetFileBlock(store Store, fname string) *Block {
 	if fb, ex := pv.getFBlocksMap()[fname]; ex {
 		return fb
 	}

@@ -51,8 +51,8 @@ func MustReadFile(path string) *FileNode {
 	return n
 }
 
-func MustParseFile(filename string, body string) *FileNode {
-	n, err := ParseFile(filename, body)
+func MustParseFile(fname string, body string) *FileNode {
+	n, err := ParseFile(fname, body)
 	if err != nil {
 		panic(err)
 	}
@@ -99,13 +99,13 @@ func MustParseExpr(expr string) Expr {
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
-func ParseFile(filename string, body string) (fn *FileNode, err error) {
+func ParseFile(fname string, body string) (fn *FileNode, err error) {
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	astf, err := parser.ParseFile(fs, filename, body, parseOpts)
+	astf, err := parser.ParseFile(fs, fname, body, parseOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	}
 	// Parse with Go2Gno.
 	fn = Go2Gno(fs, astf).(*FileNode)
-	fn.Name = Name(filename)
+	fn.FileName = fname
 	return fn, nil
 }
 
@@ -469,9 +469,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			}
 		}
 		return &FileNode{
-			Name:    "", // filled later.
-			PkgName: pkgName,
-			Decls:   decls,
+			FileName: "", // filled later.
+			PkgName:  pkgName,
+			Decls:    decls,
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}

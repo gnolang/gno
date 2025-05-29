@@ -35,7 +35,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// preprocessing.
 	for _, fn := range fset.Files {
 		setNodeLines(fn)
-		setNodeLocations(pn.PkgPath, string(fn.Name), fn)
+		setNodeLocations(pn.PkgPath, fn.FileName, fn)
 		initStaticBlocks(store, pn, fn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
@@ -537,7 +537,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
-		fileName := string(fn.Name)
+		fileName := fn.FileName
 		setNodeLines(fn)
 		setNodeLocations(pkgPath, fileName, fn)
 	}
@@ -671,7 +671,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
 				for _, n := range ifs.GetBlockNames() {
-					tv := ifs.GetValueRef(nil, n, false)
+					tv := ifs.GetSlot(nil, n, false)
 					last.Define(n, *tv)
 				}
 
@@ -808,7 +808,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss.Init are copied.
 				for _, n := range ss.GetBlockNames() {
-					tv := ss.GetValueRef(nil, n, false)
+					tv := ss.GetSlot(nil, n, false)
 					last.Define(n, *tv)
 				}
 				if ss.IsTypeSwitch {
@@ -1403,6 +1403,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								ftv, err := tryEvalStatic(store, ctxpn, last, n.Func)
 								if err == nil {
 									// This is fine; e.g. somefunc()(cur,...)
+								} else if ftv.IsUndefined() {
+									// Interface... what can we do?
 								} else {
 									fpp := ftv.GetUnboundFunc().PkgPath
 									if fpp != ctxpn.PkgPath {
@@ -1613,6 +1615,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
+						panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
 						if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 							// This is only backwards compatibility for the gno 0.9
 							// transpiler/fixer.  cross() is no longer used.
@@ -1623,9 +1627,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if !ok {
 								panic("cross(fn) must be followed by a call")
 							}
-							pc.SetWithCross()
+							pc.WithCross = true // bypass method with checks.
 						} else {
-							panic("cross(fn) is reserved and deprecated")
+							// only way _cross_gno0p0 appears is
+							panic("_cross_gno0p0 is reserved")
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
@@ -2485,7 +2490,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				//
 				// In short, the relationship between tmp and dst is:
 				//   `type dst tmp`.
-				dst := last.GetValueRef(store, n.Name, true).GetType()
+				dst := last.GetSlot(store, n.Name, true).GetType()
 				switch dst := dst.(type) {
 				case *FuncType:
 					*dst = *(tmp.(*FuncType))
@@ -3099,7 +3104,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		panic("~name already defined in fle")
 	}
 
-	tv := dbn.GetValueRef(nil, name, true)
+	tv := dbn.GetSlot(nil, name, true)
 	fle.Define("~"+name, tv.Copy(nil))
 
 	// add name to fle.HeapCaptures.
@@ -3434,7 +3439,7 @@ func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 // anything declared in orig are copied.
 func copyFromFauxBlock(bn BlockNode, orig BlockNode) {
 	for _, n := range orig.GetBlockNames() {
-		tv := orig.GetValueRef(nil, n, false)
+		tv := orig.GetSlot(nil, n, false)
 		bn.Define(n, *tv)
 	}
 }
@@ -3747,10 +3752,11 @@ func setConstAttrs(cx *ConstExpr) {
 	}
 }
 
-func setPreprocessed(x Expr) {
+func setPreprocessed(x Expr) Expr {
 	if x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
 		x.SetAttribute(ATTR_PREPROCESSED, true)
 	}
+	return x
 }
 
 func isRealm(ctx BlockNode) bool {
@@ -4200,17 +4206,17 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
 						Names(stack).Join(" -> "), cx.Name))
 				}
-				if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 					return
 				}
 			} else {
-				if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 					return
 				}
 				return cx.Name, direct
 			}
 		} else {
-			if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+			if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 				return
 			}
 		}
@@ -4714,7 +4720,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					panic("nil is not a type")
 				}
 				// sanity check.
-				if tv := last.GetValueRef(store, tx.Name, true); tv != nil {
+				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
 						if !dt.sealed {
@@ -4739,7 +4745,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					return
 				}
 				pkgName := tx.X.(*NameExpr).Name
-				tv := last.GetValueRef(store, pkgName, true)
+				tv := last.GetSlot(store, pkgName, true)
 				pv, ok := tv.V.(*PackageValue)
 				if !ok {
 					panic(fmt.Sprintf(
@@ -5025,9 +5031,9 @@ func skipFile(n BlockNode) BlockNode {
 }
 
 // If n is a *FileNode, return name, otherwise empty.
-func fileNameOf(n BlockNode) Name {
+func fileNameOf(n BlockNode) string {
 	if fnode, ok := n.(*FileNode); ok {
-		return fnode.Name
+		return fnode.FileName
 	} else {
 		return ""
 	}
@@ -5362,7 +5368,7 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 	pn := packageOf(fn)
 	store.SetBlockNode(pn)
 	pkgPath := pn.PkgPath
-	fileName := string(fn.Name)
+	fileName := fn.FileName
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}

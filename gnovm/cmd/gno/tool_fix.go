@@ -87,9 +87,10 @@ Also refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
 type fixCmd struct {
-	verbose       bool
-	rootDir       string
-	filetestsOnly bool
+	verbose        bool
+	rootDir        string
+	filetestsOnly  bool
+	filetestsMatch string
 	// min_confidence: minimum confidence of a problem to print it
 	// (default 0.8) auto-fix: apply suggested fixes automatically.
 }
@@ -116,6 +117,7 @@ func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixing")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.BoolVar(&c.filetestsOnly, "filetests-only", false, "dir only contains filetests. not recursive.")
+	fs.StringVar(&c.filetestsMatch, "filetests-match", "", "if --filetests-only=true, filters by substring match.")
 }
 
 func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
@@ -162,7 +164,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		}
 		files, err := os.ReadDir(dirs[0])
 		if err != nil {
-			return fmt.Errorf("reading dfirectory: %w", err)
+			return fmt.Errorf("reading directory: %w", err)
 		}
 		fnames := make([]string, 0, len(files))
 		for _, file := range files {
@@ -173,6 +175,12 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 				strings.HasPrefix(file.Name(), ".") ||
 				!strings.HasSuffix(file.Name(), ".gno") {
 				continue
+			}
+			fpath := filepath.Join(dirs[0], file.Name())
+			if cmd.filetestsMatch != "" {
+				if !strings.Contains(fpath, cmd.filetestsMatch) {
+					continue
+				}
 			}
 			fnames = append(fnames, filepath.Join(dirs[0], file.Name()))
 		}
@@ -378,7 +386,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 					cw := bs.CacheWrap()
 					gs := ts.BeginTransaction(cw, cw, nil)
 					tm.Store = gs
-					fname := string(fset.Files[0].Name)
+					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
