@@ -1,4 +1,4 @@
-# `gnokeykc`
+# `gnokeykc`: CLI tool enhancing gnokey for system keychain integration
 
 `gnokeykc` is a Go-based CLI tool that enhances [`gnokey`](../../gno.land/cmd/gnokey) by integrating with your system's keychain. It adds `gnokey kc ...` subcommands to set and unset passwords in the keychain, allowing Gnokey to fetch passwords directly from the keychain instead of prompting for terminal input.
 
