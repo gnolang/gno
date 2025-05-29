@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strconv"
 	"strings"
+
+	r "github.com/gnolang/gno/tm2/pkg/regx"
 )
 
 /* ========================================
@@ -98,6 +101,11 @@ type Span struct {
 	Num int // positive if conflicts.
 }
 
+// Convenience with no changes.
+func Span4(line, col, endLine, endCol int) Span {
+	return Span{Pos: Pos{line, col}, End: Pos{endLine, endCol}}
+}
+
 func SpanFromGo(gofs *token.FileSet, gon ast.Node) Span {
 	pos := gon.Pos()
 	end := gon.End()
@@ -130,13 +138,53 @@ func (s *Span) SetSpanOverride(s2 Span) {
 	*s = s2
 }
 
+func SpanFromMatch(line, col, endLine, endCol string) (span Span, err error) {
+	if endLine == "" && endCol == "" {
+		endLine = line
+		endCol = col
+	} else if endLine == "" {
+		endLine = line
+	}
+	l, err := strconv.Atoi(line)
+	if err != nil {
+		return
+	}
+	c, err := strconv.Atoi(col)
+	if err != nil {
+		return
+	}
+	el, err := strconv.Atoi(endLine)
+	if err != nil {
+		return
+	}
+	ec, err := strconv.Atoi(endCol)
+	if err != nil {
+		return
+	}
+	span = Span4(l, c, el, ec)
+	return
+}
+
+func ParseSpan(spanstr string) (span Span, err error) {
+	match := Re_span.Match(spanstr)
+	if match == nil {
+		return
+	}
+	line := match.Get("LINE")
+	col := match.Get("COL")
+	endLine := match.Get("ENDLINE")
+	endCol := match.Get("ENDCOL")
+	span, err = SpanFromMatch(line, col, endLine, endCol)
+	return
+}
+
 // Overridden by Attributes.String().
 func (s Span) String() string {
 	if s.Pos.Line == s.End.Line {
 		if s.Pos.Column == s.End.Column {
 			return fmt.Sprintf("%d:%d%s",
 				s.Pos.Line, s.Pos.Column,
-				strings.Repeat("'", s.Num), // e.g. 1:1-12'
+				strings.Repeat("'", s.Num), // e.g. 1:1 or 3:45''
 			)
 		}
 		return fmt.Sprintf("%d:%d-%d%s",
@@ -230,6 +278,30 @@ type Location struct {
 	Span
 }
 
+// Convenience with no modifications.
+func Location3(pkgPath string, fname string, span Span) Location {
+	return Location{PkgPath: pkgPath, File: fname, Span: span}
+}
+
+func ParseLocation(locstr string) (loc Location, err error) {
+	match := Re_location.Match(locstr)
+	if match == nil {
+		return
+	}
+	ppath := match.Get("PATH")
+	fname := match.Get("FILE")
+	line := match.Get("LINE")
+	col := match.Get("COL")
+	endLine := match.Get("ENDLINE")
+	endCol := match.Get("ENDCOL")
+	span, err := SpanFromMatch(line, col, endLine, endCol)
+	if err != nil {
+		return
+	}
+	loc = Location{PkgPath: ppath, File: fname, Span: span}
+	return
+}
+
 // Overridden by Attributes.String().
 func (loc Location) String() string {
 	if loc.File == "" {
@@ -266,3 +338,94 @@ func (loc *Location) SetLocation(loc2 Location) {
 	}
 	*loc = loc2
 }
+
+// ----------------------------------------
+// Regexp for pos/span/location and more
+//
+// Regexp conventions:
+//   - Re_xxx is (an exposed) regexp pattern *string*.
+//   - Re_xxx must be composed of one outer group, or wrapped in `(?:___)`.
+//   - Re_xxxLine must start with `^` and end with `$`, otherwise not.
+//   - ReXxx is a *compiled* *regexp.Regexp instance.
+//   - ReXxx should generally add `^`/`$` unless Re_xxxLine.
+//   - Same rules apply for re_xxx and reXxx for unexposed values.
+//   - All groups must be like (?:___) or (?P<key>___).
+//   - Capture group names should not repeat.
+//   - Also see: tm2/pkg/regx.
+//
+// NOTE: ReErrorLine is a regex designed to parse error details from a string.  It
+// extracts the file location, line number, and error message from a formatted
+// error string for both Go and Gno. cmd/gno/common.go uses it.
+// TODO: Write exhaustive tests.
+
+// Usage:
+//   - Re_pos.Match("123:45").Get("LINE")
+//   - Re_location.Match("gno.land/r/some/realm/somefile.gno:123:45").Get("FILE")
+var Re_pos = r.G(r.N("LINE", r.P(r.C_d)), `:`, r.N("COL", r.P(r.C_d)))
+var Re_posish = r.G(r.N("LINE", r.P(r.C_d)), r.M(`:`, r.N("COL", r.P(r.C_d))))
+var Re_end = r.G(r.M(r.N("ENDLINE", r.P(r.C_d)), `:`), r.N("ENDCOL", r.P(r.C_d)))
+var Re_primes = r.N("PRIMES", r.S("`"))
+var Re_span = r.G(r.N("POS", Re_pos), r.G(`-`, r.N("END", Re_end)), Re_primes)
+var Re_spanish = r.G(r.N("POS", Re_posish), r.M(`-`, r.N("END", Re_end), Re_primes))
+var Re_location = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_span))
+var Re_locationish = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_spanish))
+var Re_errorLine = r.L(r.N("LOC", Re_locationish), r.M(`:`), r.S(` `), r.N("MSG", r.S(`.`)))
+
+/* Compare to...
+const (
+	Re_pos         = `(?:(?P<line>\d+):(?P<col>\d+))`                                               // exact (for gno).
+	Re_posish      = `(?:(?P<line>\d+)(?::(?P<col>\d+))?)`                                          // relaxed: col optional.
+	Re_end         = `(?:(?:(?P<endline>\d+):)?(?P<endcol>\d+))`                                    // exact (endline optional).
+	Re_primes      = `(?P<primes>'*)`                                                               // exact for superimposed nodes.
+	Re_span        = `(?:(?P<pos>` + Re_pos + `)(?:-(?P<end>` + Re_end + `))` + Re_primes + `)`     // exact for gno.Span.
+	Re_spanish     = `(?:(?P<pos>` + Re_posish + `)(?:-(?P<end>` + Re_end + `)` + Re_primes + `)?)` // relajada: end optional.
+	Re_location    = `(?:(?P<path>[^:]+)(?:/(?P<file>[^:]+))?:(?P<span>` + Re_span + `))`           // exact for gno.Location (but relaxed for path/file).
+	Re_locationish = `(?:(?P<path>[^:]+)(?:/(?P<file>[^:]+))?:(?P<span>` + Re_spanish + `))`        // relaxed for Go & Gno.
+	Re_errorLine   = `^(?P<loc>` + Re_locationish + `):? *(P:<msg>.*)$`                             // relaxed for Go & Gno error line.
+)
+
+// Usage:
+//
+// match := ReLocation.FindStringSubmatch(locstr)
+// match[ReLocPathIndex]    --> path
+// match[ReLocFileIndex]    --> file
+// match[ReLocSpanIndex]    --> span
+// match[ReLocLineIndex]    --> start line
+// match[ReLocEndLineIndex] --> end line
+// ...
+var (
+	ReSpan             = regexp.MustCompile(`^` + Re_span + `$`)
+	ReSpanPosIndex     = ReSpan.SubexpIndex("POS")
+	ReSpanLineIndex    = ReSpan.SubexpIndex("LINE")
+	ReSpanColIndex     = ReSpan.SubexpIndex("COL")
+	ReSpanEndIndex     = ReSpan.SubexpIndex("END")
+	ReSpanEndLineIndex = ReSpan.SubexpIndex("ENDLINE")
+	ReSpanEndColIndex  = ReSpan.SubexpIndex("ENDCOL")
+
+	ReLocation        = regexp.MustCompile(`^` + Re_location + `$`)
+	ReLocPathIndex    = ReLocation.SubexpIndex("PATH")
+	ReLocFileIndex    = ReLocation.SubexpIndex("FILE")
+	ReLocSpanIndex    = ReLocation.SubexpIndex("SPAN")
+	ReLocPosIndex     = ReLocation.SubexpIndex("POS")
+	ReLocLineIndex    = ReLocation.SubexpIndex("LINE")
+	ReLocColIndex     = ReLocation.SubexpIndex("COL")
+	ReLocEndIndex     = ReLocation.SubexpIndex("END")
+	ReLocEndLineIndex = ReLocation.SubexpIndex("ENDLINE")
+	ReLocEndColIndex  = ReLocation.SubexpIndex("ENDCOL")
+	ReLocPrimesIndex  = ReLocation.SubexpIndex("PRIMES")
+
+	ReErrorLine           = regexp.MustCompile(Re_errorLine)
+	ReErrLineLocIndex     = ReErrorLine.SubexpIndex("LOC")
+	ReErrLinePathIndex    = ReErrorLine.SubexpIndex("PATH")
+	ReErrLineFileIndex    = ReErrorLine.SubexpIndex("FILE")
+	ReErrLineSpanIndex    = ReErrorLine.SubexpIndex("SPAN")
+	ReErrLinePosIndex     = ReErrorLine.SubexpIndex("POS")
+	ReErrLineLineIndex    = ReErrorLine.SubexpIndex("LINE")
+	ReErrLineColIndex     = ReErrorLine.SubexpIndex("COL")
+	ReErrLineEndIndex     = ReErrorLine.SubexpIndex("END")
+	ReErrLineEndLineIndex = ReErrorLine.SubexpIndex("ENDLINE")
+	ReErrLineEndColIndex  = ReErrorLine.SubexpIndex("ENDCOL")
+	ReErrLinePrimesIndex  = ReErrorLine.SubexpIndex("PRIMES")
+	ReErrLineMsgIndex     = ReErrorLine.SubexpIndex("MSG")
+)
+*/

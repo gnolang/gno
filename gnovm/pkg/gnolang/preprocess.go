@@ -837,7 +837,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								ct = evalStaticType(store, last, cx)
 							}
-							n.Cases[i] = toConstTypeExpr(cx, ct)
+							n.Cases[i] = toConstTypeExpr(last, cx, ct)
 							// maybe type-switch def.
 							if ss.VarName != "" {
 								if len(n.Cases) == 1 {
@@ -1041,7 +1041,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// get or evaluate composite type.
 					clt := evalStaticType(store, last, n.(Expr))
 					// elide composite lit element (nested) composite types.
-					elideCompositeElements(clx, clt)
+					elideCompositeElements(last, clx, clt)
 				}
 			}()
 
@@ -1153,12 +1153,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								n.Name))
 						}
 						if !cx.IsUndefined() && cx.T.Kind() == TypeKind {
-							return toConstTypeExpr(n, cx.GetType()), TRANS_CONTINUE
+							return toConstTypeExpr(last, n, cx.GetType()), TRANS_CONTINUE
 						}
 						return cx, TRANS_CONTINUE
 					}
+					// Is const decl or type decl. Not (import) packages.
 					if last.GetIsConst(store, n.Name) {
+						// n.Name may refer to either
+						// a value OR a type. But don't change
+						// this behavior, it's reasonable for
+						// a name to be a value by default.
 						cx := evalConst(store, last, n)
+						/*
+							if !cx.IsUndefined() && cx.T.Kind() == TypeKind && ftype == TRANS_TYPE_TYPE {
+								return toConstTypeExpr(last, n, cx.GetType()), TRANS_CONTINUE
+							}
+						*/
 						return cx, TRANS_CONTINUE
 					}
 					// Special handling of packages
@@ -1186,6 +1196,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 						pref := toRefValue(pv)
 						n.SetAttribute(ATTR_PACKAGE_REF, pref)
+						n.SetAttribute(ATTR_PACKAGE_PATH, pv.PkgPath)
 					}
 				}
 
@@ -1557,7 +1568,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := toConstTypeExpr(n.Func, gByteSliceType)
+								fn := last.GetFuncNodeForExpr(store, n.Func)
+								ftx := fn.GetFuncTypeExpr()
+								etx := ftx.Params[1].Type
+								bsx := toConstTypeExpr(last, etx, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
@@ -1579,7 +1593,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if tx == nil {
 									// Get the array type from the first argument.
 									s0 := evalStaticTypeOf(store, last, n.Args[0])
-									tx = toConstTypeExpr(arg, s0.Elem())
+									tx = toConstTypeExpr(last, arg, s0.Elem())
 								}
 								// Convert to the array type.
 								arg1 := Call(tx, arg)
@@ -1592,7 +1606,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := toConstTypeExpr(args1, gByteSliceType)
+								bsx := toConstTypeExpr(last, args1, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
@@ -1840,7 +1854,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *CompositeLitExpr:
 				// Get or evaluate composite type.
 				clt := evalStaticType(store, last, n.Type)
-				n.Type = toConstTypeExpr(n.Type, clt)
+				n.Type = toConstTypeExpr(last, n.Type, clt)
 				// Replace const Elts with default *ConstExpr.
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
@@ -1899,7 +1913,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						at.Len = idx
 						// update node
 						cx := constInt(n, int64(idx))
-						unConstTypeExpr(n.Type).(*ArrayTypeExpr).Len = cx
+						unconst(n.Type).(*ArrayTypeExpr).Len = cx
 					}
 				}
 
@@ -2517,9 +2531,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type.SetAttribute(ATTR_TYPE_VALUE, dst)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
-				n.Type = toConstTypeExpr(n.Type, dst)
-
-			case *RefExpr:
+				n.Type = toConstTypeExpr(last, n.Type, dst)
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
@@ -3654,6 +3666,10 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 			Source:     x,
 			TypedValue: cv,
 		}
+	} else {
+		if cx.Source != x {
+			panic(fmt.Sprintf("source si diffenrent? %v, %v", cx.Source, x))
+		}
 	}
 	// cx.SetSpan(x.GetSpan())
 	setPreprocessed(cx)
@@ -3661,33 +3677,11 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	return cx
 }
 
-func toConstTypeExpr(source Expr, t Type) *constTypeExpr {
-	if cx, ok := source.(*constTypeExpr); ok {
-		if cx.Source == nil {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*ConstExpr); ok {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*constTypeExpr); ok {
-			panic("should not happen")
-		}
-		if cx.Span != source.GetSpan() {
-			panic("should not happen")
-		}
-		cx.Type = t
-		// setPreprocessed(cx)
-		return cx
-	}
+func toConstTypeExpr(last BlockNode, source Expr, t Type) *constTypeExpr {
+	source = unconst(source)
 	cx := &constTypeExpr{}
-	// cx.Source = unConstExpr(source)
-	if _, ok := cx.Source.(*ConstExpr); ok {
-		panic("should not happen")
-	}
-	// e.g. TRANS_LEAVE <(type) name>{composite lit}
-	// type name expr replaced w/ &ConstExpr{Source:*NameExpr}
-	// We want &constTypeExpr{Source:*NameExpr} too.
-	cx.Source = unConstExpr(source)
+	cx.Last = last
+	cx.Source = source
 	cx.Type = t
 	cx.SetSpan(source.GetSpan())
 	setPreprocessed(cx)
@@ -3695,23 +3689,7 @@ func toConstTypeExpr(source Expr, t Type) *constTypeExpr {
 }
 
 func toConstExpr(source Expr, tv TypedValue) *ConstExpr {
-	if cx, ok := source.(*ConstExpr); ok {
-		if cx.Source == nil {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*ConstExpr); ok {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*constTypeExpr); ok {
-			panic("should not happen")
-		}
-		if cx.Span != source.GetSpan() {
-			panic("should not happen")
-		}
-		cx.TypedValue = tv
-		// setPreprocessed(cx)
-		return cx
-	}
+	source = unconst(source)
 	cx := &ConstExpr{}
 	cx.Source = source
 	cx.TypedValue = tv
@@ -3720,17 +3698,10 @@ func toConstExpr(source Expr, tv TypedValue) *ConstExpr {
 	return cx
 }
 
-func unConstTypeExpr(cx Expr) Expr {
+func unconst(cx Expr) Expr {
 	switch cx := cx.(type) {
 	case *constTypeExpr:
 		return cx.Source
-	default:
-		return cx
-	}
-}
-
-func unConstExpr(cx Expr) Expr {
-	switch cx := cx.(type) {
 	case *ConstExpr:
 		return cx.Source
 	default:
@@ -3739,6 +3710,7 @@ func unConstExpr(cx Expr) Expr {
 }
 
 func constInt(source Expr, i int64) *ConstExpr {
+	source = unconst(source)
 	cx := &ConstExpr{Source: source}
 	cx.T = IntType
 	cx.SetInt(i)
@@ -3747,6 +3719,7 @@ func constInt(source Expr, i int64) *ConstExpr {
 }
 
 func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
+	source = unconst(source)
 	cx := &ConstExpr{Source: source}
 	cx.T = UntypedBigintType
 	cx.V = BigintValue{big.NewInt(i64)}
@@ -3755,6 +3728,7 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 }
 
 func constNil(source Expr) *ConstExpr {
+	source = unconst(source)
 	cx := &ConstExpr{Source: source}
 	cx.T = nil
 	cx.V = nil
@@ -4097,8 +4071,7 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 // convert x to destination type t
 func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
-	// XXX
-	cx := Expr(Call(toConstTypeExpr(*x, t), *x))
+	cx := Expr(Call(toConstTypeExpr(last, *x, t), *x))
 	cx = Preprocess(store, last, cx).(Expr)
 	*x = cx
 }
@@ -4300,11 +4273,17 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
-			if elide == nil {
-				panic("cannot elide unknown composite type")
-			}
-			ct = elide
-			cx.Type = toConstTypeExpr(cx, elide)
+			panic("should not happen")
+			/*
+				if elide == nil {
+					panic("cannot elide unknown composite type")
+				}
+				ct = elide
+				// When the type expr is elided, .elided is generated.
+				tx := Nx(".elided")
+				tx.SetSpan(Span{Pos: cx.GetPos(), End: cx.GetPos()})
+				cx.Type = toConstTypeExpr(tx, elide)
+			*/
 		} else {
 			un, directR = findUndefinedT(store, last, cx.Type, stack, defining, isalias, astype && direct)
 			if un != "" {
@@ -4318,7 +4297,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			cx.Type = Preprocess(store, last, cx.Type).(Expr) // recursive
 			ct = evalStaticType(store, last, cx.Type)
 			// elide composite lit element (nested) composite types.
-			elideCompositeElements(cx, ct)
+			elideCompositeElements(last, cx, ct)
 		}
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
@@ -5054,36 +5033,21 @@ func fileNameOf(n BlockNode) Name {
 	}
 }
 
-func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
+func elideCompositeElements(last BlockNode, clx *CompositeLitExpr, clt Type) {
 	switch clt := baseOf(clt).(type) {
-	/*
-		case *PointerType:
-			det := clt.Elt.Elt
-			for _, ex := range clx.Elts {
-				vx := evx.Value
-				if vclx, ok := vx.(*CompositeLitExpr); ok {
-					if vclx.Type == nil {
-						vclx.Type = &constTypeExpr{
-							Source: vx,
-							Type:   et,
-						}
-					}
-				}
-			}
-	*/
 	case *ArrayType:
 		et := clt.Elt
 		el := len(clx.Elts)
 		for i := range el {
 			kvx := &clx.Elts[i]
-			elideCompositeExpr(&kvx.Value, et)
+			elideCompositeExpr(last, &kvx.Value, et)
 		}
 	case *SliceType:
 		et := clt.Elt
 		el := len(clx.Elts)
 		for i := range el {
 			kvx := &clx.Elts[i]
-			elideCompositeExpr(&kvx.Value, et)
+			elideCompositeExpr(last, &kvx.Value, et)
 		}
 	case *MapType:
 		kt := clt.Key
@@ -5091,8 +5055,8 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 		el := len(clx.Elts)
 		for i := range el {
 			kvx := &clx.Elts[i]
-			elideCompositeExpr(&kvx.Key, kt)
-			elideCompositeExpr(&kvx.Value, vt)
+			elideCompositeExpr(last, &kvx.Key, kt)
+			elideCompositeExpr(last, &kvx.Value, vt)
 		}
 	case *StructType:
 		// Struct fields cannot be elided in Go for
@@ -5117,22 +5081,23 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 // if *vx is composite lit type, fill in elided type.
 // if composite type is pointer type, replace composite
 // expression with ref expr.
-func elideCompositeExpr(vx *Expr, vt Type) {
-	if vclx, ok := (*vx).(*CompositeLitExpr); ok {
-		if vclx.Type == nil {
-			if vt.Kind() == PointerKind {
-				vclx.Type = &constTypeExpr{
-					Source: *vx,
-					Type:   vt.Elem(),
-				}
-				*vx = &RefExpr{
-					X: vclx,
-				}
+func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
+	if clx, ok := (*x).(*CompositeLitExpr); ok {
+		if clx.Type == nil {
+			// Make a placeholder name expr.
+			tx := Nx(".elided")
+			span := Span{Pos: (*x).GetPos(), End: (*x).GetPos()}
+			tx.SetSpan(span)
+			// Handle implicit &{}.
+			if t.Kind() == PointerKind {
+				clx.Type = toConstTypeExpr(last, tx, t.Elem())
+				refx := &RefExpr{X: clx}
+				refx.SetSpan(clx.GetSpan())
+				*x = refx
+				elideCompositeElements(last, clx, t.Elem()) // recurse
 			} else {
-				vclx.Type = &constTypeExpr{
-					Source: *vx,
-					Type:   vt,
-				}
+				clx.Type = toConstTypeExpr(last, tx, t)
+				elideCompositeElements(last, clx, t) // recurse
 			}
 		}
 	}

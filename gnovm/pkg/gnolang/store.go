@@ -50,7 +50,8 @@ type Store interface {
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
-	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
+	GetPackageNode(pkgPath string) *PackageNode
+	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 
@@ -688,6 +689,11 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	// save type to cache.
 	ds.cacheTypes.Set(tid, tt)
+}
+
+// Convenience
+func (ds *defaultStore) GetPackageNode(pkgPath string) *PackageNode {
+	return ds.GetBlockNode(PackageNodeLocation(pkgPath)).(*PackageNode)
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {

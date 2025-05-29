@@ -333,7 +333,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				}
 				return n, TRANS_CONTINUE
 			case *CompositeLitExpr:
-				cltx := unConstTypeExpr(n.Type)
+				cltx := unconst(n.Type)
 				tx := last.GetTypeExprForExpr(store, cltx)
 				switch tx := tx.(type) {
 				case *StructTypeExpr:
@@ -374,9 +374,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 					return n, TRANS_CONTINUE
 				}
 			case *CallExpr:
-				// XXX Implement sb.GetFuncNodeForExpr() like
-				// sb.GetTypeExprForExpr() and simplify this
-				// logic.
+				// XXX use sb.GetFuncNodeForExpr() and simplify.
 				if _, ok := n.Func.(*constTypeExpr); ok {
 					// TODO: handle conversions.
 					return n, TRANS_CONTINUE

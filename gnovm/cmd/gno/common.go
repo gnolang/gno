@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -153,20 +152,6 @@ func (ppkg *processedPackage) GetFileTest(fname gno.Name) processedFileSet {
 	panic(fmt.Sprintf("processedFileSet for filetest %q not found", fname))
 }
 
-// reParseRecover is a regex designed to parse error details from a string.
-// It extracts the file location, line number, and error message from a
-// formatted error string.
-// XXX: Ideally, error handling should encapsulate location details within a
-// dedicated error type.
-const (
-	rePos       = `(?:` + `\d+(?::\d+)?` + `)` // more relaxed than Gno Pos.
-	reSpan      = `(?:` + rePos + `-` + rePos + `)`
-	rePrimes    = `(?:'*)` // Gno uses primes to distinguish superimposed nodes.
-	rePosOrSpan = `(?:` + reSpan + `|` + rePos + `)` + rePrimes
-)
-
-var reParseRecover = regexp.MustCompile(`^([^:]+):(` + rePosOrSpan + `):? *(.*)$`)
-
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	switch err := err.(type) {
 	case *gno.PreprocessError:
@@ -274,19 +259,18 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 	issue.Code = code
 
 	parsedError := strings.TrimSpace(err.Error())
-	matches := reParseRecover.FindStringSubmatch(parsedError)
-
-	if len(matches) > 0 {
-		errPath := matches[1]
-		errLoc := matches[2]
-		errMsg := matches[3]
+	match := gno.Re_errorLine.Match(parsedError)
+	if match == nil {
+		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
+		issue.Msg = err.Error()
+	} else {
+		errPath := match.Get("PATH")
+		errLoc := match.Get("LOC")
+		errMsg := match.Get("MSG")
 		errPath = guessFilePathLoc(errPath, pkgPath, dir)
 		errPath = filepath.Clean(errPath)
 		issue.Location = errPath + ":" + errLoc
 		issue.Msg = strings.TrimSpace(errMsg)
-	} else {
-		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
-		issue.Msg = err.Error()
 	}
 	return issue
 }
