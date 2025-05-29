@@ -125,16 +125,26 @@ func renderSingleCoinBalance(banker std.Banker, denom string, addr string) strin
 	return out
 }
 
-func renderAllBalances(rawpath, addr string) string {
+func renderAllBalances(rawpath, input string) string {
 	out := "# Balances\n\n"
 
-	if !std.Address(addr).IsValid() {
-		out += "Invalid address."
-		return out
+	if strings.HasPrefix(input, "cosmos") {
+		addr, err := ctg.ConvertCosmosToGno(input)
+		if err != nil {
+			out += "Tried converting a cosmos address but failed. Please double check your input."
+			return out
+		}
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
+		input = addr.String()
+	} else {
+		if !std.Address(input).IsValid() {
+			out += "Invalid address."
+			return out
+		}
 	}
 
-	user, _ := users.ResolveAny(addr)
-	name := "`" + addr + "`"
+	user, _ := users.ResolveAny(input)
+	name := "`" + input + "`"
 	if user != nil {
 		name = user.RenderLink("")
 	}
@@ -147,10 +157,10 @@ func renderAllBalances(rawpath, addr string) string {
 
 	coin := req.Query.Get("coin")
 	if coin != "" {
-		return renderSingleCoinBalance(banker, coin, addr)
+		return renderSingleCoinBalance(banker, coin, input)
 	}
 
-	balances := banker.GetCoins(std.Address(addr))
+	balances := banker.GetCoins(std.Address(input))
 
 	// Determine sorting
 	if getSortField(req) == "balance" {
