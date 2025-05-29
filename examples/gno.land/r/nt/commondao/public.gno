@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-// TODO: Limit the number of DAOs per address, maybe discuss fees ranges to avoid spaming
+// TODO: Limit the number of DAOs per address, maybe discuss fees ranges to avoid spamming
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
