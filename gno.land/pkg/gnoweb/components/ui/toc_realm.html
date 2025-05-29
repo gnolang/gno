@@ -1,5 +1,5 @@
 {{ define "ui/toc_realm" }}
-<ul class="space-y-2 pt-2 pl-4">
+<ul class="group/toc space-y-2 mt-2 pl-4 group-first/toc:border-l group-first/toc:border-gray-100">
   {{ range .Items }}
   <li>
     <a class="line-clamp-2 hover:text-green-600 hover:underline" href="{{ .Anchor }}"> {{ .Title | noescape_bytes }} </a>
