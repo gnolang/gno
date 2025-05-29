@@ -1,24 +1,17 @@
 // PKGPATH: gno.land/r/map_test
 package map_test
 
-var (
-	m = map[*int]int{}
-)
-
-func init() {
-	i := 3
-	tmpInt := &i
-	m[tmpInt] = 1
+type myInt struct {
+	num int
 }
 
+var root interface{}
+
 func main() {
-	for k, v := range m {
-		println(k, v)
-	}
+	// map is new real, its children is handled via incRefCreatedDescendants.
+	root = map[myInt]int{myInt{1}: 1}
+	println(root)
 }
 
 // Output:
-// &(3 int) 1
-
-// Realm:
-// finalizerealm["gno.land/r/map_test"]
+// map{(struct{(1 int)} gno.land/r/map_test.myInt):(1 int)}
