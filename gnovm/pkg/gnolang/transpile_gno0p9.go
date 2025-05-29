@@ -47,7 +47,7 @@ import (
 func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage) (errs error) {
 	for _, gof := range gofs {
 		// AST transform for Gno 0.9.
-		err := prepareGno0p9(gof)
+		err := prepareGno0p9_part1(gof)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -61,36 +61,35 @@ func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage
 	if err != nil {
 		errs = multierr.Append(errs, err)
 	}
+	// NOTE: If there was a need to preserve the gofs,
+	// a reversal can happen here as prepareGno0p2_part2().
 	return errs
 }
 
 // Minimal AST mutation(s) for Gno 0.9.
-func prepareGno0p9(f *ast.File) (err error) {
+func prepareGno0p9_part1(f *ast.File) (err error) {
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		switch gon := c.Node().(type) {
 		case *ast.Ident:
 			// XXX: optimistic.
 			switch gon.Name {
 			case "cross":
-				// only exists in .gnobuiltins.gno for gno 0.0
-				gon.Name = "_cross_gno0p0"
+				gon.Name = "_cross_gno0p0" // only exists in .gnobuiltins.gno for gno 0.0
 			case "realm":
 				gon.Name = "realm_XXX"
+			case "realm_gno0p9": // not used
+				gon.Name = "realm"
 			case "address":
 				gon.Name = "address_XXX"
+			case "address_gno0p9": // not used
+				gon.Name = "address"
 			case "gnocoin":
 				gon.Name = "gnocoin_XXX"
+			case "gnocoin_gno0p9": // not used
+				gon.Name = "gnocoin"
 			case "gnocoins":
 				gon.Name = "gnocoins_XXX"
-			case "cross_gno0p9":
-				gon.Name = "cross"
-			case "realm_gno0p9": // doesn't work, prepare in pkg/test/import.
-				gon.Name = "realm"
-			case "address_gno0p9":
-				gon.Name = "address"
-			case "gnocoin_gno0p9":
-				gon.Name = "gnocoin"
-			case "gnocoins_gno0p9":
+			case "gnocoins_gno0p9": // not used
 				gon.Name = "gnocoins"
 			}
 		}
