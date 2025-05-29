@@ -219,6 +219,8 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 
+// add default prop render
+
 // IsQuorumReached checks if a participation quorum is reach.
 func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
 	if members.Size() <= 0 || quorum <= 0 {
