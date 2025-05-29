@@ -31,7 +31,7 @@ func setupTest(cur realm, t *testing.T) {
 }
 
 func TestAddManager(cur realm, t *testing.T) {
-	setupTest(cur, t)
+	setupTest(t)
 
 	// Origin adds manager1 - Should succeed
 	testing.SetRealm(std.NewUserRealm(originAddr))
@@ -63,7 +63,7 @@ func TestAddManager(cur realm, t *testing.T) {
 }
 
 func TestRemoveManager(cur realm, t *testing.T) {
-	setupTest(cur, t)
+	setupTest(t)
 
 	// Add manager1 first
 	testing.SetRealm(std.NewUserRealm(originAddr))
@@ -99,8 +99,8 @@ func TestRemoveManager(cur realm, t *testing.T) {
 	uassert.ErrorContains(t, err, "current authority is not a MemberAuthority", "removing manager should fail after transfer")
 }
 
-func TestListManagers(cur realm, t *testing.T) {
-	setupTest(cur, t)
+func TestListManagers(t *testing.T) {
+	setupTest(t)
 	initialList := ListManagers(cross)
 	assertAddrSliceEqual(t, []std.Address{originAddr}, initialList)
 	// Add manager1 and manager2
@@ -135,8 +135,8 @@ func TestListManagers(cur realm, t *testing.T) {
 	uassert.True(t, len(list3) == 0, "manager list should be empty after transfer")
 }
 
-func TestHasManager(cur realm, t *testing.T) {
-	setupTest(cur, t)
+func TestHasManager(t *testing.T) {
+	setupTest(t)
 
 	// Initially, only origin is manager
 	uassert.True(t, HasManager(cross, originAddr), "origin should initially be a manager")
@@ -164,8 +164,8 @@ func TestHasManager(cur realm, t *testing.T) {
 	uassert.False(t, HasManager(cross, nonManagerAddr), "HasManager should be false after transfer")
 }
 
-func TestTransferManagement(cur realm, t *testing.T) {
-	setupTest(cur, t)
+func TestTransferManagement(t *testing.T) {
+	setupTest(t)
 
 	// Add manager1
 	testing.SetRealm(std.NewUserRealm(originAddr))
@@ -214,8 +214,8 @@ func TestTransferManagement(cur realm, t *testing.T) {
 	uassert.ErrorContains(t, err, "new authority cannot be nil", "transferring to nil should fail")
 }
 
-func TestTransferToContractAuthority(cur realm, t *testing.T) {
-	setupTest(cur, t) // Origin is the initial manager
+func TestTransferToContractAuthority(t *testing.T) {
+	setupTest(t) // Origin is the initial manager
 
 	contractPath := "gno.land/r/testcontract"
 	contractRealm := std.NewCodeRealm(contractPath) // Simulate contract realm
