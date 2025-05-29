@@ -139,7 +139,7 @@ func FindMostVotedChoice(r ReadonlyVotingRecord) VoteChoice {
 
 // SelectChoiceByAbsoluteMajority select the vote choice by absolute majority.
 // Vote choice is a majority when chosen by more than half of the votes.
-// Absolute majority considers abstentions when counting votes.
+// Absolute majority considers abstentions when counting votes. // what does the bool mean? quorum reached? prop passed?
 func SelectChoiceByAbsoluteMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
 	choice := FindMostVotedChoice(r)
 	if choice != ChoiceNone && r.VoteCount(choice) > int(membersCount/2) {

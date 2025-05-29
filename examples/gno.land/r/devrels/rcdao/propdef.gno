@@ -36,13 +36,23 @@ func (ep EventProposal) Render() string {
 	return out
 }
 
-func (EventProposal) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error) {
-	// how do i tally? are there any prebuilt methods?
-	return true, nil
+func (EventProposal) Tally(r commondao.ReadonlyVotingRecord, set commondao.MemberSet) (bool, error) {
+	_, passed := commondao.SelectChoiceBySuperMajority(r, set.Size())
+	return passed, nil
 }
 
-func (EventProposal) Execute() error {
+func (ep EventProposal) Execute() error {
 	crossing()
+
+	bank := std.NewBanker(std.BankerTypeRealmSend)
+	treasuryCoins := bank.GetCoins(std.CurrentRealm().Address()) // DAO treasury coins
+
+	for i := 0; i < len(ep.requestedBudget); i++ {
+		coin := ep.requestedBudget[i]
+		if treasuryCoins.AmountOf(coin.Denom) >= coin.Amount {
+			panic("cannot pay out requested budget, too little in the treasury")
+		}
+	}
 
 	return nil
 }
