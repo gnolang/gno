@@ -2163,7 +2163,6 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-
 		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		ro = m.IsReadonly(xv)
 	case *SelectorExpr:

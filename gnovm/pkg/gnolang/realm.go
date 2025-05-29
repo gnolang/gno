@@ -367,7 +367,10 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
-	// dirty object may have new real children
+	// dirty object may have new real children,
+	// e.g. Map[oo1] = oo2, where oo1 as mapkey.
+	// it can be new real, but not in .newCreated,
+	// as it's not explicitly assigned via "=".
 	rlm.markNewRealChildren(store)
 	if debug {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
@@ -699,10 +702,10 @@ func (rlm *Realm) markNewRealChildren(store Store) {
 			if !child.GetObjectID().IsZero() {
 				continue
 			}
-			rlm.incRefCreatedDescendants(store, child)
-			child.SetOwner(oo)
 			child.IncRefCount()
+			child.SetOwner(oo)
 			child.SetIsNewReal(true)
+			rlm.incRefCreatedDescendants(store, child)
 		}
 	}
 }
