@@ -97,6 +97,12 @@ type (
 		Execute() error
 	}
 
+	// RenderableProposal makes sure that the proposal is renderable
+	RenderableProposal interface {
+		ProposalDefinition
+		Render() string
+	}
+
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
 	// to customize the list of allowed voting choices.
 	CustomizableVoteChoices interface {

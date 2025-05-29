@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	"gno.land/p/nt/commondao"
-	"gno.land/p/sunspirit/md"
 )
 
 var dao *commondao.CommonDAO
@@ -21,7 +21,7 @@ func init() {
 // I want to have an easy render, name it DefaultRender
 // Exposing RO trees for members & props would make it easy to integrate with existing p/
 
-func ProposeMeetup(title, body, location string, reqBudget std.Coins, beneficiary std.Address) uint64 {
+func ProposeMeetup(title, body, location string, reqBudget std.Coins, beneficiary std.Address) {
 	crossing()
 
 	proposer := std.PreviousRealm().Address()
@@ -39,8 +39,6 @@ func ProposeMeetup(title, body, location string, reqBudget std.Coins, beneficiar
 
 	p := dao.MustPropose(proposer, prop)
 	std.Emit("NewProp", "id", strconv.Itoa(int(p.ID())), "title", p.Definition().Title())
-
-	return p.ID()
 }
 
 func Render(_ string) string {
@@ -48,10 +46,14 @@ func Render(_ string) string {
 
 	out += "---\n\n"
 	out += "## Active Props\n\n"
-	out += ufmt.Sprintf("Active prop num: %d", dao.ActiveProposals().Size())
+	out += ufmt.Sprintf("Active prop num: %d\n\n", dao.ActiveProposals().Size())
 
-	dao.ActiveProposals().Iterate(0, 0, false, func(prop *commondao.Proposal) bool {
-		out += prop.Definition().Title()
+	dao.ActiveProposals().Iterate(0, dao.ActiveProposals().Size(), true, func(prop *commondao.Proposal) bool {
+		out += ufmt.Sprintf("### Prop #%d - %s\n\n", +prop.ID(), prop.Definition().Title())
+
+		ep := prop.Definition().(commondao.RenderableProposal)
+		out += ep.Render()
+
 		return false
 	})
 
