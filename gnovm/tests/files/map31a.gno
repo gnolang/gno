@@ -12,14 +12,12 @@ func init() {
 }
 
 func main() {
-	println("---------m: ", m)
 	for k, v := range m {
 		println(k, v)
 	}
 }
 
 // Output:
-// ---------m:  map{(&(3 int) *int):(1 int)}
 // &(3 int) 1
 
 // Realm:
