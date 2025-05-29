@@ -108,10 +108,10 @@ func (rsc *RemoteSignerClient) setConnection(conn net.Conn) error {
 
 // send sends a request to the server and returns the response.
 func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSignerMessage, error) {
-	// This infinite loop ensures that if the connection is lost while sending the request
-	// or receiving the response, the client will retry to establish the connection and
-	// resend the request. This loop will break if the attempt to establish the connection
-	// fails, if the client is closed or if the response is received successfully.
+	// This infinite loop ensures that if the connection is lost while sending a request
+	// or receiving a response, the client will retry establishing the connection and
+	// resending the request. The loop will terminate if the connection attempt fails,
+	// the client is closed, or the response is successfully received.
 	for {
 		// Ensure the connection is established.
 		if err := rsc.ensureConnection(); err != nil {
@@ -136,7 +136,7 @@ func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSign
 		// Receive the response from the server and unmarshal it using amino.
 		if _, err := amino.UnmarshalSizedReader(rsc.conn, &response, r.MaxMessageSize); err != nil {
 			rsc.logger.Warn("Failed to receive response", "error", err)
-			rsc.setConnection(nil) // Close the connection if the receiving the response failed.
+			rsc.setConnection(nil) // Close the connection if receiving the response failed.
 			continue
 		}
 
