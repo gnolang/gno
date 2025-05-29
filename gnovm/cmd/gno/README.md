@@ -18,6 +18,7 @@ SUBCOMMANDS
   clean    remove generated and cached data
   doc      show documentation for package or symbol
   env      print gno environment information
+  fix      runs the fixer for the specified packages
   fmt      gnofmt (reformat) package sources
   lint     runs the linter for the specified packages
   mod      module maintenance

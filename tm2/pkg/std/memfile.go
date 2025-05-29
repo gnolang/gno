@@ -3,6 +3,7 @@ package std
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -242,23 +243,23 @@ func (mpkg *MemPackage) FileNames() (fnames []string) {
 	return
 }
 
-const licenseName = "LICENSE"
-
 // Splits a path into the dir and filename.
 func SplitFilepath(fpath string) (dir string, filename string) {
-	parts := strings.Split(fpath, "/")
-	if len(parts) == 1 {
-		return parts[0], ""
+	dir, filename = path.Split(fpath)
+	if dir == "" {
+		// assume that filename is actually a directory
+		return filename, ""
 	}
 
-	switch last := parts[len(parts)-1]; {
-	case strings.Contains(last, "."):
-		return strings.Join(parts[:len(parts)-1], "/"), last
-	case last == "":
-		return strings.Join(parts[:len(parts)-1], "/"), ""
-	case last == licenseName:
-		return strings.Join(parts[:len(parts)-1], "/"), licenseName
+	var (
+		isFileWithExtension = strings.Contains(filename, ".")
+		isSpecialFile       = filename == "LICENSE" || filename == "README"
+		noFileSpecified     = filename == ""
+	)
+	if isFileWithExtension || isSpecialFile || noFileSpecified {
+		dir = strings.TrimRight(dir, "/") // gno.land/r/path//a.gno -> dir=gno.land/r/path filename=a.gno
+		return
 	}
 
-	return strings.Join(parts, "/"), ""
+	return dir + filename, ""
 }
