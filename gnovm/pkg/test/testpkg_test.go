@@ -52,6 +52,12 @@ func TestPkgTestCases(t *testing.T) {
 			stdoutShouldContain: []string{"Goodbye from filetest"},
 			errShouldBe:         "../../tests/integ/test/basic_ft/fail_filetest.gno failed",
 		},
+		{
+			name:                "unit tests has bad import",
+			pkgPath:             "../../tests/integ/test/has_bad_import",
+			verbose:             true,
+			errShouldBe:         "unknown import path \"gno.land/q/there_is_no_q\"",
+		},
 	}
 
 	for _, tc := range cases {

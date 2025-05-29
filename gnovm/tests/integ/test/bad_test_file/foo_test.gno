@@ -1,1 +1,0 @@
-./foo_test.gno
