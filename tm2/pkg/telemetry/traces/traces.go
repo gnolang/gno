@@ -24,7 +24,6 @@ func Init(cfg config.Config) (*sdkTrace.TracerProvider, error) {
 		return nil, fmt.Errorf("error parsing tracer exporter endpoint: %s, %w", cfg.ExporterEndpoint, err)
 	}
 
-	// Use oltp metric exporter with http/https or grpc
 	switch u.Scheme {
 	case "http", "https":
 		exp, err = otlptracehttp.New(
