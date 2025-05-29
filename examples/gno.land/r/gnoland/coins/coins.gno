@@ -14,17 +14,23 @@
 // interface and doesn't maintain any state of its own. This pattern allows for
 // simple, stateless information retrieval directly through the blockchain's
 // rendering capabilities.
-//
-// Example usage:
-//
-//	/r/gnoland/coins:ugnot - shows the total supply of ugnot
-//	/r/gnoland/coins:ugnot/g1... - shows the ugnot balance of a specific address
 package coins
 
 import (
+	"net/url"
 	"std"
+	"strconv"
+	"strings"
 
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/leon/coinsort"
+	"gno.land/p/leon/ctg"
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/realmpath"
+
+	"gno.land/r/sys/users"
 )
 
 var router *mux.Router
@@ -32,26 +38,28 @@ var router *mux.Router
 func init() {
 	router = mux.NewRouter()
 
-	// homepage
 	router.HandleFunc("", func(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(renderHomepage())
 	})
 
-	// coin info
-	router.HandleFunc("{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
-		// denom := req.GetVar("denom")
-		// banker := std.NewBanker(std.BankerTypeReadonly)
-		// res.Write(renderAddressBalance(banker, denom, denom))
-		res.Write("Total supply feature is coming soon. Please check back later!")
+	router.HandleFunc("balances/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write(renderAllBalances(req.RawPath, req.GetVar("address")))
 	})
 
-	// address balance
-	router.HandleFunc("{denom}/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
-		denom := req.GetVar("denom")
-		addr := req.GetVar("address")
-		banker := std.NewBanker(std.BankerTypeReadonly)
-		res.Write(renderAddressBalance(banker, denom, addr))
+	router.HandleFunc("convert/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write(renderConvertedAddress(req.GetVar("address")))
 	})
+
+	// Coin info
+	router.HandleFunc("supply/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
+		// banker := std.NewBanker(std.BankerTypeReadonly)
+		// res.Write(renderAddressBalance(banker, denom, denom))
+		res.Write("The total supply feature is coming soon.")
+	})
+
+	router.NotFoundHandler = func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write("# 404\n\nThat page was not found. Would you like to [**go home**?](/r/gnoland/coins)")
+	}
 }
 
 func Render(path string) string {
@@ -59,30 +67,165 @@ func Render(path string) string {
 }
 
 func renderHomepage() string {
-	return `# gno.land Coins Explorer
+	return strings.Replace(`# Gno.land Coins Explorer
 
-## Usage
+This is a simple, readonly realm that allows users to browse native coin balances.   
+Here are a few examples on how to use it:
 
-- /r/gnoland/coins:<denom> - shows the total supply of denom (coming soon)
-- /r/gnoland/coins:<denom>/<address> - shows the denom balance of a specific address
-
-Examples:
-
-- /r/gnoland/coins:ugnot - shows the total supply of ` + "`ugnot`" + ` (coming soon)
-- /r/gnoland/coins:ugnot/g1... - shows the ` + "`ugnot`" + ` balance of a specific address
-
-`
+- ~/r/gnoland/coins:balances/<address>~ - show full list of coin balances of an address
+	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
+- ~/r/gnoland/coins:balances/<address>?coin=ugnot~ - shows the balance of an address for a specific coin
+	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5?coin=ugnot)
+- ~/r/gnoland/coins:convert/<cosmos_address>~ - convert Cosmos address to Gno address
+	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
+- ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom 
+	- Coming soon!
+`, "~", "`", -1)
 }
 
-func renderAddressBalance(banker std.Banker, denom string, addr string) string {
-	address := std.Address(addr)
-	coins := banker.GetCoins(address)
+func renderConvertedAddress(addr string) string {
+	out := "# Address converter\n\n"
 
-	for _, coin := range coins {
-		if coin.Denom == denom {
-			return "Balance: " + coin.String()
+	gnoAddress, err := ctg.ConvertCosmosToGno(addr)
+	if err != nil {
+		out += err.Error()
+		return out
+	}
+
+	user, _ := users.ResolveAny(gnoAddress.String())
+	name := "`" + gnoAddress.String() + "`"
+	if user != nil {
+		name = user.RenderLink("")
+	}
+
+	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
+	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances/" + gnoAddress.String() + "?coin=ugnot)\n\n"
+	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + gnoAddress.String() + ")"
+	return out
+}
+
+func renderSingleCoinBalance(banker std.Banker, denom string, addr string) string {
+	out := "# Single coin balance\n\n"
+	if !std.Address(addr).IsValid() {
+		out += "Invalid address."
+		return out
+	}
+
+	user, _ := users.ResolveAny(addr)
+	name := "`" + addr + "`"
+	if user != nil {
+		name = user.RenderLink("")
+	}
+
+	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
+		name, banker.GetCoins(std.Address(addr)).AmountOf(denom), denom, std.ChainHeight())
+
+	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + addr + ")"
+
+	return out
+}
+
+func renderAllBalances(rawpath, input string) string {
+	out := "# Balances\n\n"
+
+	if strings.HasPrefix(input, "cosmos") {
+		addr, err := ctg.ConvertCosmosToGno(input)
+		if err != nil {
+			out += "Tried converting a Cosmos address to a Gno address but failed. Please double-scheck your input."
+			return out
+		}
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
+		input = addr.String()
+	} else {
+		if !std.Address(input).IsValid() {
+			out += "Invalid address."
+			return out
 		}
 	}
 
-	return "Balance: 0 " + denom
+	user, _ := users.ResolveAny(input)
+	name := "`" + input + "`"
+	if user != nil {
+		name = user.RenderLink("")
+	}
+
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
+		name, std.ChainHeight())
+
+	req := realmpath.Parse(rawpath)
+
+	coin := req.Query.Get("coin")
+	if coin != "" {
+		return renderSingleCoinBalance(banker, coin, input)
+	}
+
+	balances := banker.GetCoins(std.Address(input))
+
+	// Determine sorting
+	if getSortField(req) == "balance" {
+		coinsort.SortByBalance(balances)
+	}
+
+	// Create table
+	denomColumn := renderSortLink(req, "denom", "Denomination")
+	balanceColumn := renderSortLink(req, "balance", "Balance")
+	table := mdtable.Table{
+		Headers: []string{denomColumn, balanceColumn},
+	}
+
+	if isSortReversed(req) {
+		for _, b := range balances {
+			table.Append([]string{b.Denom, strconv.Itoa(int(b.Amount))})
+		}
+	} else {
+		for i := len(balances) - 1; i >= 0; i-- {
+			table.Append([]string{balances[i].Denom, strconv.Itoa(int(balances[i].Amount))})
+		}
+	}
+
+	out += table.String() + "\n\n"
+	return out
+}
+
+// Helper functions for sorting and pagination
+func getSortField(req *realmpath.Request) string {
+	field := req.Query.Get("sort")
+	switch field {
+	case "denom", "balance": // XXX: add Coins.SortBy{denom,bal} methods
+		return field
+	}
+	return "denom"
+}
+
+func isSortReversed(req *realmpath.Request) bool {
+	return req.Query.Get("order") != "asc"
+}
+
+func renderSortLink(req *realmpath.Request, field, label string) string {
+	currentField := getSortField(req)
+	currentOrder := req.Query.Get("order")
+
+	newOrder := "desc"
+	if field == currentField && currentOrder != "asc" {
+		newOrder = "asc"
+	}
+
+	query := make(url.Values)
+	for k, vs := range req.Query {
+		query[k] = append([]string(nil), vs...)
+	}
+
+	query.Set("sort", field)
+	query.Set("order", newOrder)
+
+	if field == currentField {
+		if currentOrder == "asc" {
+			label += " ↑"
+		} else {
+			label += " ↓"
+		}
+	}
+
+	return md.Link(label, "?"+query.Encode())
 }
