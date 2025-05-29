@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/authz"
+	"gno.land/p/moul/fifo"
 
 	"gno.land/r/leon/hor"
 )
@@ -19,12 +20,16 @@ var (
 	Items      = rotree.Wrap(items, nil)
 	Categories = rotree.Wrap(categories, nil)
 
+	latestItems      = fifo.New(5)
+	latestCategories = fifo.New(5)
+
 	nextItemID     seqid.ID
 	nextCategoryID seqid.ID
 
 	authority = authz.NewMemberAuthority(
 		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
 		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
+		std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), // leon
 	)
 	Auth = authz.NewWithAuthority(authority)
 )
@@ -158,6 +163,49 @@ func DeleteCategory(categoryID seqid.ID) {
 	}
 }
 
+func SetLatestItemsSize(size int) {
+	crossing()
+
+	if err := Auth.DoByPrevious("set_latest_items_size", func() error {
+		latestItems.SetMaxSize(size)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func SetLatestCategoriesSize(size int) {
+	crossing()
+
+	if err := Auth.DoByPrevious("set_latest_categories_size", func() error {
+		latestCategories.SetMaxSize(size)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func GetLatestItems() []seqid.ID {
+	crossing()
+
+	entries := latestItems.Entries()
+	result := make([]seqid.ID, len(entries))
+	for i, entry := range entries {
+		result[i] = entry.(seqid.ID)
+	}
+	return result
+}
+
+func GetLatestCategories() []seqid.ID {
+	crossing()
+	entries := latestCategories.Entries()
+	result := make([]seqid.ID, len(entries))
+	for i, entry := range entries {
+		result[i] = entry.(seqid.ID)
+	}
+	return result
+}
+
 func addItem(name, description, url string, author std.Address) seqid.ID {
 	item := &Item{
 		ID:          nextItemID.Next(),
@@ -170,6 +218,8 @@ func addItem(name, description, url string, author std.Address) seqid.ID {
 	}
 
 	items.Set(item.ID.String(), item)
+
+	latestItems.Append(item.ID)
 
 	std.Emit("ItemAdded",
 		"id", item.ID.String(),
@@ -275,6 +325,13 @@ func deleteItem(itemID seqid.ID) {
 
 	items.Remove(itemID.String())
 
+	for i := 0; i < latestItems.Size(); i++ {
+		if latestItems.Get(i).(seqid.ID) == itemID {
+			latestItems.Delete(i)
+			break
+		}
+	}
+
 	std.Emit("ItemDeleted", "id", itemID.String())
 }
 
@@ -288,6 +345,8 @@ func addCategory(name, description string) seqid.ID {
 	}
 
 	categories.Set(category.ID.String(), category)
+
+	latestCategories.Append(category.ID)
 
 	std.Emit("CategoryAdded",
 		"id", category.ID.String(),
@@ -339,6 +398,13 @@ func deleteCategory(categoryID seqid.ID) {
 	})
 
 	categories.Remove(categoryID.String())
+
+	for i := 0; i < latestCategories.Size(); i++ {
+		if latestCategories.Get(i).(seqid.ID) == categoryID {
+			latestCategories.Delete(i)
+			break
+		}
+	}
 
 	std.Emit("CategoryDeleted", "id", categoryID.String())
 }
