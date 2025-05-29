@@ -15,7 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	sserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -165,76 +165,70 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 
 	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
-	config.BaseConfig.PrivValidatorListenAddr = addr
+	config.Consensus.PrivValidator.RemoteSigner.ServerAddress = addr
 
-	dialer := privval.DialTCPFn(addr, 100*time.Millisecond, ed25519.GenPrivKey())
-	dialerEndpoint := privval.NewSignerDialerEndpoint(
-		log.NewTestingLogger(t),
-		dialer,
-	)
-	privval.SignerDialerEndpointTimeoutReadWrite(100 * time.Millisecond)(dialerEndpoint)
+	signer := types.NewMockSigner()
 
-	signerServer := privval.NewSignerServer(
-		dialerEndpoint,
-		config.ChainID(),
-		types.NewMockPV(),
+	pvss, err := sserver.NewRemoteSignerServer(
+		signer,
+		addr,
+		log.NewNoopLogger(),
 	)
+	require.NoError(t, err)
 
 	go func() {
-		err := signerServer.Start()
-		if err != nil {
-			panic(err)
-		}
+		err := pvss.Start()
+		require.NoError(t, err)
 	}()
-	defer signerServer.Stop()
+	defer pvss.Stop()
 
 	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
+	require.NotNil(t, n)
 	require.NoError(t, err)
-	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
-}
 
-// address without a protocol must result in error
-func TestPrivValidatorListenAddrNoProtocol(t *testing.T) {
-	addrNoPrefix := testFreeAddr(t)
+	privValPK := n.PrivValidator().PubKey()
+	require.NotNil(t, privValPK)
 
-	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
-	defer os.RemoveAll(config.RootDir)
-	config.BaseConfig.PrivValidatorListenAddr = addrNoPrefix
+	signerPK := signer.PubKey()
+	require.NotNil(t, signerPK)
 
-	_, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
-	assert.Error(t, err)
+	require.Equal(t, signerPK, privValPK)
 }
 
 func TestNodeSetPrivValIPC(t *testing.T) {
-	tmpfile := "/tmp/kms." + random.RandStr(6) + ".sock"
-	defer os.Remove(tmpfile) // clean up
+	unixSocket := "unix:///tmp/kms." + random.RandStr(6) + ".sock"
+	defer os.Remove(unixSocket) // clean up
 
 	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
-	config.BaseConfig.PrivValidatorListenAddr = "unix://" + tmpfile
+	config.Consensus.PrivValidator.RemoteSigner.ServerAddress = unixSocket
 
-	dialer := privval.DialUnixFn(tmpfile)
-	dialerEndpoint := privval.NewSignerDialerEndpoint(
-		log.NewTestingLogger(t),
-		dialer,
-	)
-	privval.SignerDialerEndpointTimeoutReadWrite(100 * time.Millisecond)(dialerEndpoint)
+	signer := types.NewMockSigner()
 
-	pvsc := privval.NewSignerServer(
-		dialerEndpoint,
-		config.ChainID(),
-		types.NewMockPV(),
+	pvss, err := sserver.NewRemoteSignerServer(
+		signer,
+		unixSocket,
+		log.NewNoopLogger(),
 	)
+	require.NoError(t, err)
 
 	go func() {
-		err := pvsc.Start()
+		err := pvss.Start()
 		require.NoError(t, err)
 	}()
-	defer pvsc.Stop()
+	defer pvss.Stop()
 
 	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
+	require.NotNil(t, n)
 	require.NoError(t, err)
-	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
+
+	privValPK := n.PrivValidator().PubKey()
+	require.NotNil(t, privValPK)
+
+	signerPK := signer.PubKey()
+	require.NotNil(t, signerPK)
+
+	require.Equal(t, signerPK, privValPK)
 }
 
 // testFreeAddr claims a free port so we don't block on listener being ready.
