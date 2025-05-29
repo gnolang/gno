@@ -9,25 +9,25 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-func TestCreatePostSingle(cur realm, t *testing.T) {
+func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(cross, text1)
+	err := cross(CreatePost)(text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
-	got := Render(cur, "")
+	got := Render("")
 
 	// Content should have the text and alice's address in it
 	condition := strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())
 	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
-func TestCreatePostMultiple(cur realm, t *testing.T) {
+func TestCreatePostMultiple(t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -45,12 +45,12 @@ func TestCreatePostMultiple(cur realm, t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(cross, p.text)
+		err := cross(CreatePost)(p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
 	// Get the rendered page
-	got := Render(cur, "")
+	got := Render("")
 
 	// Check that all posts and their authors are present in the rendered output
 	for _, p := range posts {
@@ -61,27 +61,27 @@ func TestCreatePostMultiple(cur realm, t *testing.T) {
 	}
 }
 
-func TestReset(cur realm, t *testing.T) {
+func TestReset(t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = CreatePost(cross, text1)
+	_ = cross(CreatePost)(text1)
 
-	got := Render(cur, "")
+	got := Render("")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
 	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
-	ResetPosts(cross)
+	cross(ResetPosts)()
 
-	got = Render(cur, "")
+	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	text2 := "Some other Text!!"
-	_ = CreatePost(cross, text2)
+	_ = cross(CreatePost)(text2)
 
-	got = Render(cur, "")
+	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	uassert.True(t, strings.Contains(got, text2), "expected render to contain text2")

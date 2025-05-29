@@ -5,19 +5,19 @@ import (
 )
 
 func main() {
-	println("tests.CallIsOriginCall:", tests.CallIsOriginCall(cross))
-	tests.CallAssertOriginCall(cross)
+	println("tests.CallIsOriginCall:", cross(tests.CallIsOriginCall)())
+	cross(tests.CallAssertOriginCall)()
 	println("tests.CallAssertOriginCall doesn't panic when called directly")
 
 	{
 		// if called inside a block, this is no longer an origin call because
 		// there's one additional frame (the block).
-		println("tests.CallIsOriginCall:", tests.CallIsOriginCall(cross))
+		println("tests.CallIsOriginCall:", cross(tests.CallIsOriginCall)())
 		defer func() {
 			r := recover()
 			println("tests.AssertOriginCall panics if when called inside a function literal:", r)
 		}()
-		tests.CallAssertOriginCall(cross)
+		cross(tests.CallAssertOriginCall)()
 	}
 }
 

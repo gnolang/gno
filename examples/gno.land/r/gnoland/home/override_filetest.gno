@@ -11,14 +11,14 @@ import (
 func main() {
 	var admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	testing.SetOriginCaller(admin)
-	home.AdminSetOverride(cross, "Hello World!")
+	cross(home.AdminSetOverride)("Hello World!")
 	println("---")
 	println(home.Render(""))
 
 	newAdmin := testutils.TestAddress("newAdmin")
 	home.Admin.TransferOwnership(newAdmin)
 	if err := revive(func() {
-		home.AdminSetOverride(cross, "Not admin anymore")
+		cross(home.AdminSetOverride)("Not admin anymore")
 	}); err == nil {
 		panic("AdminSetOverride should have aborted the transaction")
 	}

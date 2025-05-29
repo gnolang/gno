@@ -17,7 +17,8 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 	return groupI.(*Group).id, true
 }
 
-func CreateGroup(cur realm, name string) GroupID {
+func CreateGroup(name string) GroupID {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -29,7 +30,8 @@ func CreateGroup(cur realm, name string) GroupID {
 	return group.id
 }
 
-func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata string) MemberID {
+func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	usernameOf(caller)
@@ -37,12 +39,12 @@ func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata 
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.ResolveAddress(std.Address(address_XXX))
+	user := users.ResolveAddress(std.Address(address))
 	if user == nil {
-		panic("unknown address " + address_XXX)
+		panic("unknown address " + address)
 	}
 	mid := group.lastMemberID
-	member := group.newMember(mid, std.Address(address_XXX), weight, metadata)
+	member := group.newMember(mid, std.Address(address), weight, metadata)
 	midkey := memberIDKey(mid)
 	group.members.Set(midkey, member)
 	mid++
@@ -50,7 +52,8 @@ func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata 
 	return member.id
 }
 
-func DeleteGroup(cur realm, gid GroupID) {
+func DeleteGroup(gid GroupID) {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)
@@ -60,7 +63,8 @@ func DeleteGroup(cur realm, gid GroupID) {
 	group.deleteGroup()
 }
 
-func DeleteMember(cur realm, gid GroupID, mid MemberID) {
+func DeleteMember(gid GroupID, mid MemberID) {
+	crossing()
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	group := getGroup(gid)

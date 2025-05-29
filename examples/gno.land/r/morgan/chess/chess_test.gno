@@ -25,10 +25,10 @@ func cleanup() {
 	playerRatings = [CategoryMax][]*glicko2.PlayerRating{}
 }
 
-func TestNewGame(cur realm, t *testing.T) {
+func TestNewGame(t *testing.T) {
 	cleanup()
 
-	g := xNewGame(cur, std.DerivePkgAddr("xx").String(), 0, 0)
+	g := xNewGame(std.DerivePkgAddr("xx").String(), 0, 0)
 	println(g)
 }
 
@@ -265,7 +265,7 @@ func newTestCommandColorID(fn func(string) string, s string, addr string) testCo
 
 func (tc *testCommandColorID) Run(t *testing.T, bufs map[string]string) {
 	testing.SetRealm(std.NewUserRealm(tc.addr))
-	bufs["result"] = tc.fn(cross, bufs["id"])
+	bufs["result"] = cross(tc.fn)(bufs["id"])
 }
 
 type testCommandNewGame struct {
@@ -275,7 +275,7 @@ type testCommandNewGame struct {
 
 func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
 	testing.SetRealm(std.NewUserRealm(tc.w))
-	res := xNewGame(cross, string(tc.b), tc.seconds, tc.incr)
+	res := cross(xNewGame)(string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
 	const idMagicString = `"id":"`
@@ -296,7 +296,7 @@ type testCommandMove struct {
 
 func (tc *testCommandMove) Run(t *testing.T, bufs map[string]string) {
 	testing.SetRealm(std.NewUserRealm(tc.addr))
-	bufs["result"] = MakeMove(cross, bufs["id"], tc.from, tc.to, tc.promotion)
+	bufs["result"] = cross(MakeMove)(bufs["id"], tc.from, tc.to, tc.promotion)
 }
 
 type testCommandGame struct {

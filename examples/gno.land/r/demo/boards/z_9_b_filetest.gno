@@ -17,14 +17,14 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register(cross, "gnouser123")
+	cross(users.Register)("gnouser123")
 
-	srcBoard = boards.CreateBoard(cross, "first_board")
-	pid = boards.CreateThread(cross, srcBoard, "First Post in (title)", "Body of the first post. (body)")
+	srcBoard = cross(boards.CreateBoard)("first_board")
+	pid = cross(boards.CreateThread)(srcBoard, "First Post in (title)", "Body of the first post. (body)")
 }
 
 func main() {
-	boards.CreateRepost(cross, srcBoard, pid, "First Post in (title)", "Body of the first post. (body)", 0)
+	cross(boards.CreateRepost)(srcBoard, pid, "First Post in (title)", "Body of the first post. (body)", 0)
 }
 
 // Error:

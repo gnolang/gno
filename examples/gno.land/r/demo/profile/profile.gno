@@ -69,7 +69,9 @@ var boolFields = map[string]bool{
 
 // Setters
 
-func SetStringField(cur realm, field, value string) bool {
+func SetStringField(field, value string) bool {
+	crossing()
+
 	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
@@ -84,7 +86,9 @@ func SetStringField(cur realm, field, value string) bool {
 	return updated
 }
 
-func SetIntField(cur realm, field string, value int) bool {
+func SetIntField(field string, value int) bool {
+	crossing()
+
 	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
@@ -99,7 +103,9 @@ func SetIntField(cur realm, field string, value int) bool {
 	return updated
 }
 
-func SetBoolField(cur realm, field string, value bool) bool {
+func SetBoolField(field string, value bool) bool {
+	crossing()
+
 	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)

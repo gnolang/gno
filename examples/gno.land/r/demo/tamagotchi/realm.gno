@@ -9,11 +9,13 @@ import (
 
 var t *tamagotchi.Tamagotchi
 
-func init(cur realm) {
-	Reset(cur, "gnome#0")
+func init() {
+	Reset("gnome#0")
 }
 
-func Reset(cur realm, optionalName string) string {
+func Reset(optionalName string) string {
+	crossing()
+
 	name := optionalName
 	if name == "" {
 		height := std.ChainHeight()
@@ -25,17 +27,23 @@ func Reset(cur realm, optionalName string) string {
 	return ufmt.Sprintf("A new tamagotchi is born. Their name is %s %s.", t.Name(), t.Face())
 }
 
-func Feed(cur realm) string {
+func Feed() string {
+	crossing()
+
 	t.Feed()
 	return t.Markdown()
 }
 
-func Play(cur realm) string {
+func Play() string {
+	crossing()
+
 	t.Play()
 	return t.Markdown()
 }
 
-func Heal(cur realm) string {
+func Heal() string {
+	crossing()
+
 	t.Heal()
 	return t.Markdown()
 }

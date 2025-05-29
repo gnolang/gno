@@ -17,7 +17,8 @@ func init() {
 // Set takes a base64 encoded string and stores it in the Loci store.
 // Keyed by the address of the caller. It also emits a "set" event with
 // the address of the caller.
-func Set(cur realm, value string) {
+func Set(value string) {
+	crossing()
 	b, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		panic(err)
@@ -28,7 +29,8 @@ func Set(cur realm, value string) {
 
 // Get retrieves the value stored at the provided address and
 // returns it as a base64 encoded string.
-func Get(cur realm, addr std.Address) string {
+func Get(addr std.Address) string {
+	crossing()
 	return base64.StdEncoding.EncodeToString(store.Get(addr))
 }
 
@@ -52,8 +54,8 @@ this URL to view the value stored at that address.
 	return renderGet(std.Address(path))
 }
 
-func renderGet(cur realm, addr std.Address) string {
-	value := "```\n" + Get(cur, addr) + "\n```"
+func renderGet(addr std.Address) string {
+	value := "```\n" + Get(addr) + "\n```"
 
 	return ufmt.Sprintf(`
 # Loci Value Viewer

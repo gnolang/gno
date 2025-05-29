@@ -34,7 +34,7 @@ func init() {
 func main() {
 	testing.SetOriginCaller(g1user)
 	// Register a validator
-	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
+	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
 	// Try to make a proposal for a non-existing validator
 	defer func() {
 		r := recover()
@@ -42,7 +42,7 @@ func main() {
 	}()
 	pr := valopers_proposal.NewValidatorProposalRequest(otherAddress)
 
-	dao.MustCreateProposal(cross, pr)
+	cross(dao.MustCreateProposal)(pr)
 }
 
 // Output:

@@ -12,7 +12,9 @@ func init() {
 	tree.Set("key1", "value1")
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	var updated bool
 	updated = tree.Set("key2", "value2")
 	println(updated, tree.Size())

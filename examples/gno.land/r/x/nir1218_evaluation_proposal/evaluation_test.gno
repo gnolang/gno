@@ -23,12 +23,12 @@ var (
 	status      = "Draft"
 	category    = "feat"
 	criteria    = map[string]int32{"simplicity": 1, "usefullnes": 1, "quality": 1}
-	address_XXX = testutils.TestAddress("contributor")
+	address     = testutils.TestAddress("contributor")
 )
 
 func TestEvaluationAddContribution(t *testing.T) {
 	pr := NewPullRequest(id, name, description, status, category)
-	contributionId, _ := e.AddContribution(pr, address_XXX)
+	contributionId, _ := e.AddContribution(pr, address)
 
 	t.Run("", func(t *testing.T) {
 		if contributionId != id {

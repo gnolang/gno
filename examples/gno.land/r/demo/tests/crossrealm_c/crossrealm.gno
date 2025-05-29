@@ -25,17 +25,17 @@ func passThrough() {
 	owner = crossrealm.PrevRealmNoCrossing().Owner()
 	println("Owner from crossrealm PrevRealmNoCrossing: " + owner)
 	println()
-	owner = crossrealm.PrevRealmCrossing(cross).Owner()
+	owner = cross(crossrealm.PrevRealmCrossing)().Owner()
 	println("Owner from crossrealm PrevRealmCrossing: " + owner)
 }
 
 func CurRealmEntryPoint() {
 
-	println("crossrealm CurRealmWithCrossing: " + crossrealm.CurRealmWithCrossing(cross).Address())
+	println("crossrealm CurRealmWithCrossing: " + cross(crossrealm.CurRealmWithCrossing)().Address())
 	println("crossrealm CurRealmNoCrossing: " + crossrealm.CurRealmNoCrossing().Address())
 
 	println("p_crossrealm CurRealm: " + p_crossrealm.CurrentRealm().Address())
-	println("crossrealm PkgCurRealmWithCrossing: " + crossrealm.PkgCurRealmWithCrossing(cross).Address())
+	println("crossrealm PkgCurRealmWithCrossing: " + cross(crossrealm.PkgCurRealmWithCrossing)().Address())
 	println("crossrealm PkgCurRealmNoCrossing: " + crossrealm.PkgCurRealmNoCrossing().Address())
 
 }

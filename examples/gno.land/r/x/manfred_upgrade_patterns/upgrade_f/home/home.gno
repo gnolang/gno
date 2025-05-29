@@ -7,7 +7,9 @@ type myInterface interface {
 
 var currentImpl myInterface
 
-func SetImpl(cur realm, impl myInterface) {
+func SetImpl(impl myInterface) {
+	crossing()
+
 	assertIsAdmin()
 	currentImpl = impl
 }

@@ -31,7 +31,7 @@ func TestNewCustomCoinSwap_Claim(t *testing.T) {
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
 	testing.SetOriginSend(amount)
-	id, swap := NewCustomCoinSwap(cross, recipient, hashlockHex, timelock)
+	id, swap := cross(NewCustomCoinSwap)(recipient, hashlockHex, timelock)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -89,7 +89,7 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
 	testing.SetOriginSend(amount)
-	id, swap := NewCustomCoinSwap(cross, recipient, hashlockHex, timelock) // Create a new swap
+	id, swap := cross(NewCustomCoinSwap)(recipient, hashlockHex, timelock) // Create a new swap
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -135,7 +135,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(cross, recipient, hashlockHex, timelock, test20.Token)
+	id, swap := cross(NewCustomGRC20Swap)(recipient, hashlockHex, timelock, test20.Token)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -210,7 +210,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(cross, recipient, hashlockHex, timelock, test20.Token)
+	id, swap := cross(NewCustomGRC20Swap)(recipient, hashlockHex, timelock, test20.Token)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -274,7 +274,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/demo/tests/test20")
+	id, swap := cross(NewGRC20Swap)(recipient, hashlockHex, "gno.land/r/demo/tests/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -347,7 +347,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(std.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross, recipient, hashlockHex, "gno.land/r/demo/tests/test20")
+	id, swap := cross(NewGRC20Swap)(recipient, hashlockHex, "gno.land/r/demo/tests/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -412,10 +412,10 @@ func TestRender(t *testing.T) {
 
 	userTeller := test20.Token.RealmTeller()
 	userTeller.Approve(rlm, 10_000)
-	_, bobSwap := NewCustomGRC20Swap(cross, bob, hashlockHex, timelock, test20.Token)
+	_, bobSwap := cross(NewCustomGRC20Swap)(bob, hashlockHex, timelock, test20.Token)
 
 	userTeller.Approve(rlm, 20_000)
-	_, _ = NewCustomGRC20Swap(cross, charly, hashlockHex, timelock, test20.Token)
+	_, _ = cross(NewCustomGRC20Swap)(charly, hashlockHex, timelock, test20.Token)
 
 	testing.SetRealm(std.NewUserRealm(bob))
 	bobSwap.Claim("secret")

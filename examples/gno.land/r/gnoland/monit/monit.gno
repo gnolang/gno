@@ -26,7 +26,8 @@ var (
 
 // Incr increments the counter and informs the watchdog that we're alive.
 // This function can be called by anyone.
-func Incr(cur realm) int {
+func Incr() int {
+	crossing()
 	counter++
 	lastUpdate = time.Now()
 	lastCaller = std.PreviousRealm().Address()
@@ -36,8 +37,10 @@ func Incr(cur realm) int {
 
 // Reset resets the realm state.
 // This function can only be called by the admin.
-func Reset(cur realm) {
+func Reset() {
+	crossing()
 	Ownable.AssertOwnedByPrevious()
+
 	counter = 0
 	lastCaller = std.PreviousRealm().Address()
 	lastUpdate = time.Now()
