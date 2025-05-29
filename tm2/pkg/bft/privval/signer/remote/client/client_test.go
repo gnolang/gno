@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -21,8 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	unixSocketPath = filepath.Join(os.TempDir(), "test_tm2_remote_signer")
+const (
+	unixSocketPath = "/tmp/test_tm2_remote_signer"
 	tcpLocalhost   = "tcp://127.0.0.1"
 	tcpTimeouts    = 100 * time.Millisecond
 )
@@ -30,7 +29,20 @@ var (
 func testUnixSocket(t *testing.T) string {
 	t.Helper()
 
-	return fmt.Sprintf("unix://%s/%s.sock", unixSocketPath, xid.New().String())
+	// Ensure the unix socket path exists.
+	if err := os.MkdirAll(unixSocketPath, 0o755); err != nil {
+		t.Fatalf("failed to create unix socket path: %v", err)
+	}
+
+	// Create a unique unix socket file path.
+	filePath := fmt.Sprintf("%s/%s.sock", unixSocketPath, xid.New().String())
+
+	// Ensure the file is deleted after the test.
+	t.Cleanup(func() {
+		os.Remove(filePath)
+	})
+
+	return fmt.Sprintf("unix://%s", filePath)
 }
 
 func newRemoteSignerClient(t *testing.T, address string) *RemoteSignerClient {
@@ -71,14 +83,6 @@ func newRemoteSignerServer(t *testing.T, address string, signer types.Signer) *s
 
 func TestCloseState(t *testing.T) {
 	t.Parallel()
-
-	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0o755)
-
-	// Remove the directory after the test.
-	t.Cleanup(func() {
-		os.Remove(unixSocketPath)
-	})
 
 	t.Run("basic", func(t *testing.T) {
 		t.Parallel()
@@ -130,21 +134,8 @@ func TestCloseState(t *testing.T) {
 	})
 }
 
-// TODO: Fix tests bellow when change will be made...
 func TestClientRequest(t *testing.T) {
 	t.Parallel()
-
-	// Create a wait group for the faulty server goroutines.
-	wg := new(sync.WaitGroup)
-
-	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0o755)
-
-	// Remove the directory after the test.
-	t.Cleanup(func() {
-		wg.Wait()
-		os.Remove(unixSocketPath)
-	})
 
 	// Faulty remote signer error.
 	errFaultyServer := fmt.Errorf("faulty server")
@@ -251,6 +242,7 @@ func TestClientRequest(t *testing.T) {
 		var (
 			unixSocket = testUnixSocket(t)
 			signer     = types.NewMockSigner()
+			wg         = new(sync.WaitGroup)
 		)
 
 		// Init a new remote signer server and client.
@@ -302,6 +294,8 @@ func TestClientRequest(t *testing.T) {
 		remoteSignature, err = rsc.Sign([]byte("sign bytes"))
 		require.Nil(t, remoteSignature)
 		assert.ErrorIs(t, err, ErrSendingRequestFailed)
+
+		wg.Wait()
 	})
 
 	t.Run("Ping request", func(t *testing.T) {
@@ -310,6 +304,7 @@ func TestClientRequest(t *testing.T) {
 		var (
 			unixSocket = testUnixSocket(t)
 			signer     = types.NewMockSigner()
+			wg         = new(sync.WaitGroup)
 		)
 
 		// Init a new remote signer server and client.
@@ -339,6 +334,8 @@ func TestClientRequest(t *testing.T) {
 		rsc.Close()
 		err = rsc.Ping()
 		assert.ErrorIs(t, err, ErrSendingRequestFailed)
+
+		wg.Wait()
 	})
 
 	t.Run("String method and cache", func(t *testing.T) {
@@ -368,18 +365,6 @@ func TestClientRequest(t *testing.T) {
 
 func TestClientConnection(t *testing.T) {
 	t.Parallel()
-
-	// Create a wait group for the faulty server goroutines.
-	wg := new(sync.WaitGroup)
-
-	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0o755)
-
-	// Remove the directory after the test.
-	t.Cleanup(func() {
-		wg.Wait()
-		os.Remove(unixSocketPath)
-	})
 
 	t.Run("tcp configuration succeeded", func(t *testing.T) {
 		t.Parallel()

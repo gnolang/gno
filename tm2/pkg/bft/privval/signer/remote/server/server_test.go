@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"testing"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
@@ -18,15 +17,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	unixSocketPath = filepath.Join(os.TempDir(), "test_tm2_remote_signer")
+const (
+	unixSocketPath = "/tmp/test_tm2_remote_signer"
 	tcpLocalhost   = "tcp://127.0.0.1"
 )
 
 func testUnixSocket(t *testing.T) string {
 	t.Helper()
 
-	return fmt.Sprintf("unix://%s/%s.sock", unixSocketPath, xid.New().String())
+	// Ensure the unix socket path exists.
+	if err := os.MkdirAll(unixSocketPath, 0o755); err != nil {
+		t.Fatalf("failed to create unix socket path: %v", err)
+	}
+
+	// Create a unique unix socket file path.
+	filePath := fmt.Sprintf("%s/%s.sock", unixSocketPath, xid.New().String())
+
+	// Ensure the file is deleted after the test.
+	t.Cleanup(func() {
+		os.Remove(filePath)
+	})
+
+	return fmt.Sprintf("unix://%s", filePath)
 }
 
 func newRemoteSignerClient(t *testing.T, address string) *c.RemoteSignerClient {
@@ -58,14 +70,6 @@ func newRemoteSignerServer(t *testing.T, address string, signer types.Signer) *R
 
 func TestCloseState(t *testing.T) {
 	t.Parallel()
-
-	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0o755)
-
-	// Remove the directory after the test.
-	t.Cleanup(func() {
-		os.Remove(unixSocketPath)
-	})
 
 	t.Run("basic", func(t *testing.T) {
 		t.Parallel()
@@ -124,14 +128,6 @@ func TestCloseState(t *testing.T) {
 
 func TestServerResponse(t *testing.T) {
 	t.Parallel()
-
-	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0o755)
-
-	// Remove the directory after the test.
-	t.Cleanup(func() {
-		os.Remove(unixSocketPath)
-	})
 
 	t.Run("PubKey response", func(t *testing.T) {
 		t.Parallel()
@@ -226,14 +222,6 @@ func TestServerResponse(t *testing.T) {
 
 func TestServerConnection(t *testing.T) {
 	t.Parallel()
-
-	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0o755)
-
-	// Remove the directory after the test.
-	t.Cleanup(func() {
-		os.Remove(unixSocketPath)
-	})
 
 	t.Run("tcp configuration succeeded", func(t *testing.T) {
 		t.Parallel()
