@@ -5,8 +5,6 @@ import (
 )
 
 func GetLatestItemsWidget() string {
-	crossing()
-
 	latestIDs := GetLatestItems()
 	if len(latestIDs) == 0 {
 		return md.Italic("No items available")
@@ -28,8 +26,6 @@ func GetLatestItemsWidget() string {
 }
 
 func GetLatestCategoriesWidget() string {
-	crossing()
-
 	latestIDs := GetLatestCategories()
 	if len(latestIDs) == 0 {
 		return md.Italic("No categories available")
@@ -51,16 +47,12 @@ func GetLatestCategoriesWidget() string {
 }
 
 func GetLatestItemsWithTitle(title string) string {
-	crossing()
-
 	out := md.H3(title)
 	out += GetLatestItemsWidget()
 	return out
 }
 
 func GetLatestCategoriesWithTitle(title string) string {
-	crossing()
-
 	out := md.H3(title)
 	out += GetLatestCategoriesWidget()
 	return out
