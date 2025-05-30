@@ -44,9 +44,9 @@ func mustHex(str string) []byte {
 	return x
 }
 
-func (c *Account) executeCallHex(env *Env, gasAmount uint, f string, code []byte, args ...*uint256.Uint) ([]byte, error) {
-	if gasAmount > c.Gas {
-		return []byte{}, notEnoughGas
+func (c *Account) executeCallHex(env *Env, valueToSend *uint256.Uint, f string, code []byte, args ...*uint256.Uint) ([]byte, error) {
+	if valueToSend.Cmp(c.Balance) == 1 {
+		return []byte{}, notEnoughWei
 	}
 	st := newStateFromEnv(env)
 	buf := keccak256.Keccak256([]byte(f))[0:4]
@@ -55,62 +55,39 @@ func (c *Account) executeCallHex(env *Env, gasAmount uint, f string, code []byte
 		buf = append(buf, b[:]...)
 	}
 	st.setCallData(buf)
-	st.setGasLimit(gasAmount)
+	st.setGasLimit(c.Gas)
 	st.setCallerAddress(c.EvmAddress)
 	st.setCode(code)
 	err := st.executeByteCode()
-	if err != nil {
+	if err != nil && err != revertError {
 		return []byte{}, err
 	}
 
-	if st.tmp.accounts[st.callerAddress] != nil && st.tmp.accounts[st.callerAddress].AccountType == CallerAccount {
-		st.tmp.accounts[st.callerAddress].Gas -= st.gasConsumed
+	c.Gas -= st.gasConsumed
+	c.Balance.Sub(c.Balance, valueToSend)
+	if err != revertError {
+		st.loadStagedChangesIntoEnv(env)
 	}
-	st.loadStagedChangesIntoEnv(env)
 	return st.getResult(), nil
 }
 
-func (c *Account) RawContractCall(env *Env, gasAmount uint, f string, raw string, args ...*uint256.Uint) ([]byte, error) {
-	st := newStateFromEnv(env)
-	st.setCode(mustHex(raw))
-	err := st.executeByteCode()
+func (c *Account) Call(env *Env, valueToSend *uint256.Uint, code string, f string, args ...*uint256.Uint) ([]byte, error) {
+	byteCode, err := hex.DecodeString(code)
 	if err != nil {
 		return []byte{}, err
 	}
-	st.loadStagedChangesIntoEnv(env)
-	return c.executeCallHex(env, gasAmount, f, st.getResult(), args...)
+	return c.executeCallHex(env, valueToSend, f, byteCode, args...)
 }
 
-func (c *Account) Call(env *Env, gasAmount uint, f string, code string, args ...*uint256.Uint) ([]byte, error) {
-	x, err := hex.DecodeString(code)
-	if err != nil {
-		return []byte{}, err
+func (c *Account) CallContract(env *Env, contractAdress uint64, valueToSend *uint256.Uint, f string, args ...*uint256.Uint) ([]byte, error) {
+	contract := env.Accounts[contractAdress]
+	if contract.AccountType != ContractAccount {
+		return []byte{}, errors.New("invalid contract adress")
 	}
-	return c.executeCallHex(env, gasAmount, f, x, args...)
-}
-
-func (c *Accounts) PushSmartContract(env *Env, code []byte) (uint64, error) {
-	if c == nil {
-		return 0, errors.New("Accounts are nil")
-	}
-	for env.NextAccountId = env.NextAccountId + 1; (*c)[env.NextAccountId] != nil; env.NextAccountId = env.NextAccountId + 1 {
-	}
-
-	(*c)[env.NextAccountId] = &Account{
-		AccountType: ContractAccount,
-		EvmAddress:  env.NextAccountId,
-		GnoAddress:  "",
-		Balance:     uint256.Zero(),
-		Gas:         0,
-		Code:        code,
-	}
-	return env.NextAccountId, nil
+	return c.executeCallHex(env, valueToSend, f, contract.Code, args...)
 }
 
 func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) {
-	if c == nil {
-		return 0, errors.New("Accounts are nil")
-	}
 	for env.NextAccountId = env.NextAccountId + 1; (*c)[env.NextAccountId] != nil; env.NextAccountId = env.NextAccountId + 1 {
 	}
 

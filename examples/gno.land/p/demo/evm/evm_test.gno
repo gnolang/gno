@@ -1328,9 +1328,9 @@ func TestExecuteEvm(t *testing.T) {
 			code: []byte{
 				byte(PUSH1), 0x20, // retSize
 				byte(PUSH1), 0x20, // retOffset
-				byte(PUSH0), // argsSize
-				byte(PUSH0), // argsOffset
-				byte(PUSH0), // value
+				byte(PUSH0),    // argsSize
+				byte(PUSH0),    // argsOffset
+				byte(PUSH0),    // value
 				byte(PUSH1), 2, // address
 				byte(PUSH4), 0xff, 0xff, 0xff, 0xff, // gas
 				byte(CALL),
@@ -1343,10 +1343,10 @@ func TestExecuteEvm(t *testing.T) {
 				Gas:         uint(0xffffffffff),
 				Code:        []byte{},
 			},
-			ignoreGasConsumed: true,
-			ignoreMemory: true,
+			ignoreGasConsumed:      true,
+			ignoreMemory:           true,
 			ignoreTransientStorage: true,
-			ignoreStack: true,
+			ignoreStack:            true,
 		},
 	}
 
@@ -1498,22 +1498,29 @@ func TestCallEvm(t *testing.T) {
 	}
 
 	// create a contract that does something
-	codeThatReturns, err := env.Accounts.PushSmartContract(env, []byte{
-		byte(PUSH1), 42, // data
-		byte(PUSH0), // offset
-		byte(MSTORE),
+	codeThatReturns := uint64(12)
+	env.Accounts[codeThatReturns] = &Account{
+		AccountType: ContractAccount,
+		EvmAddress:  codeThatReturns,
+		GnoAddress:  "",
+		Balance:     uint256.Zero(),
+		Code: []byte{
+			byte(PUSH1), 42, // data
+			byte(PUSH0), // offset
+			byte(MSTORE),
 
-		byte(PUSH1), 1, // size
-		byte(PUSH1), 31, // offset
-		byte(RETURN),
-	})
+			byte(PUSH1), 1, // size
+			byte(PUSH1), 31, // offset
+			byte(RETURN),
+		},
+	}
 	if err != nil {
 		t.Error(err)
 	}
 
 	// call code to test
 	env.Accounts[me].Gas = 100000
-	res, err := env.Accounts[me].executeCallHex(env, 100000, "", env.Accounts[codeThatReturns].Code)
+	res, err := env.Accounts[me].executeCallHex(env, uint256.Zero(), "", env.Accounts[codeThatReturns].Code)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1523,7 +1530,7 @@ func TestCallEvm(t *testing.T) {
 
 	// create a contract that calls
 	env.Accounts[me].Gas = 100_000
-	prout, err := env.Accounts[me].executeCallHex(env, 100_000, "", []byte{
+	prout, err := env.Accounts[me].executeCallHex(env, uint256.Zero(), "", []byte{
 		byte(PUSH1), 1, // retSize
 		byte(PUSH0),                              // retOffset
 		byte(PUSH0),                              // argsSize
