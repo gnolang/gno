@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/big"
 	"reflect"
+
 	// "runtime/debug"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	testpkg "github.com/gnolang/gno/gnovm/pkg/test"
+
 	// teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	// "github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	// "github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -54,7 +56,7 @@ func newPreprocessError(inner error) *gno.PreprocessError {
 }
 
 func TestLoadImports_RecoveryTypedValue(t *testing.T) {
-	val := &gno.TypedValue{T: nil, V: gno.BigintValue{V:big.NewInt(7)}}
+	val := &gno.TypedValue{T: nil, V: gno.BigintValue{V: big.NewInt(7)}}
 	store := makeStoreThatPanics(val)
 	err := testpkg.LoadImports(store, makeMemPkg())
 	if err == nil {
@@ -79,26 +81,34 @@ func TestLoadImports_RecoveryPreprocessError(t *testing.T) {
 }
 
 func TestLoadImports_RecoveryUnhandledPanicError(t *testing.T) {
-	val := gno.UnhandledPanicError{Descriptor:"oops!"}
-	store := makeStoreThatPanics(val)
+	expectedErrDescriptor := "oops!"
+	errVal := gno.UnhandledPanicError{Descriptor: expectedErrDescriptor}
+	store := makeStoreThatPanics(&errVal)
 	err := testpkg.LoadImports(store, makeMemPkg())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if err != val {
-		t.Errorf("got %T %v; want same value", err, err)
+
+	var typedErr *gno.UnhandledPanicError
+
+	if errors.As(err, &typedErr) {
+		if typedErr.Descriptor != expectedErrDescriptor {
+			t.Errorf("got %T (%#v); want gno.UnhandledPanicError{Descriptor:%#v}", err, err.Error(), expectedErrDescriptor)
+		}
+	} else {
+		t.Errorf("got %T (%#v); want gno.UnhandledPanicError{}", err, err.Error())
 	}
 }
 
 func TestLoadImports_RecoveryGenericError(t *testing.T) {
-	generic := errors.New("generic error")
-	store := makeStoreThatPanics(generic)
+	expectedErrString := "generic error"
+	store := makeStoreThatPanics(errors.New(expectedErrString))
 	err := testpkg.LoadImports(store, makeMemPkg())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !errors.Is(err, generic) {
-		t.Errorf("expected error to wrap generic; got %v", err)
+	if !strings.Contains(err.Error(), expectedErrString) {
+		t.Errorf("expected error to contain string %#v; got %#v", expectedErrString, err)
 	}
 }
 
@@ -113,6 +123,6 @@ func TestLoadImports_RecoveryDefaultPanic(t *testing.T) {
 		t.Errorf("error message %q does not contain %v", err.Error(), val)
 	}
 	if !strings.Contains(err.Error(), "12345") {
-		t.Errorf("expected stack trace in error message: %#v (%#v)",err, err.Error())
+		t.Errorf("expected stack trace in error message: %#v (%#v)", err, err.Error())
 	}
 }

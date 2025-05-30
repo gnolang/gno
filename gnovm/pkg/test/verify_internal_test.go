@@ -47,8 +47,8 @@ func TestSimpleMatchVerify_InvalidPatterns(t *testing.T) {
 
 func TestAlternationMatchVerify_ValidPatterns(t *testing.T) {
 	cases := []string{
-		"a|b",        // simple alternation
-		"foo|bar|baz",// multiple alternations
+		"a|b",           // simple alternation
+		"foo|bar|baz",   // multiple alternations
 		"x[0-9]|y[0-9]", // alternations with regex
 	}
 	for _, pat := range cases {
@@ -61,9 +61,9 @@ func TestAlternationMatchVerify_ValidPatterns(t *testing.T) {
 
 func TestAlternationMatchVerify_InvalidPatterns(t *testing.T) {
 	cases := []string{
-		"**bad/**things",  // starts with |
-		"**one_bad",  // trailing |
-		"/??fail/",  // empty alternative
+		"**bad/**things", // starts with |
+		"**one_bad",      // trailing |
+		"/??fail/",       // empty alternative
 	}
 	for _, pat := range cases {
 		// splitRegexp will parse these into alternations, then verify each

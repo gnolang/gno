@@ -2,6 +2,7 @@ package test_test
 
 import (
 	"testing"
+
 	"github.com/gnolang/gno/gnovm/pkg/test"
 )
 
