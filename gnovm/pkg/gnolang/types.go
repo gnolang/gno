@@ -943,7 +943,7 @@ func (it *InterfaceType) TypeID() TypeID {
 	return it.typeid
 }
 
-func (it *InterfaceType) GetMethod(mname Name) *FieldType {
+func (it *InterfaceType) GetMethodFieldType(mname Name) *FieldType {
 	for i := range it.Methods {
 		im := &it.Methods[i]
 		if im.Name == mname {

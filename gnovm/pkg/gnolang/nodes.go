@@ -1714,9 +1714,9 @@ type BlockNode interface {
 
 	// StaticBlock promoted methods
 	GetParentNode(Store) BlockNode
-	Reserve(bool, *NameExpr, Node)
+	Reserve(bool, *NameExpr, Node, NSType, int)
 	Define(Name, TypedValue)
-	Define2(bool, Name, Type, TypedValue, *NameExpr, Node)
+	Define2(bool, Name, Type, TypedValue, NameSource)
 	GetPathForName(Store, Name) ValuePath
 	GetBlockNames() []Name
 	GetExternNames() []Name
@@ -1725,22 +1725,27 @@ type BlockNode interface {
 	GetIsConstAt(Store, ValuePath) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetSlot(Store, Name, bool) *TypedValue // was GetValueRef()
-	GetNameSources() []*NameExpr
-	GetNameOrigins() []Node
-	GetOriginForPath(Store, ValuePath) (BlockNode, *FileNode, Node, *NameExpr)
 	SetIsHeapItem(n Name)
 	GetHeapItems() []bool
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
-	GetTypeDeclForPath(Store, ValuePath) *TypeDecl
-	GetTypeDeclForExpr(Store, Expr) *TypeDecl
-	GetTypeExprForPath(Store, ValuePath) (BlockNode, TypeExpr)
-	GetTypeExprForExpr(Store, Expr) (BlockNode, TypeExpr)
-	GetFuncNodeForPath(Store, ValuePath) FuncNode
-	GetFuncNodeForExpr(Store, Expr) FuncNode
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
 	GetBody() Body
 	SetBody(Body)
+
+	// Utility methods for gno fix etc.
+	// Unlike GetType[Decl|Expr]For[Path|Expr] which are determined
+	// statically, functions may be variable, so GetFuncNodeFor[Path|Expr]
+	// may return an error if the func node cannot be determined.
+	// (vs say GetTypeDeclForPath() is user error if it panics).
+	GetNameSources() []NameSource
+	GetNameSourceForPath(Store, ValuePath) (BlockNode, *FileNode, NameSource)
+	GetTypeDeclForPath(Store, ValuePath) *TypeDecl
+	GetTypeDeclForExpr(Store, Expr) *TypeDecl
+	GetTypeExprForPath(Store, ValuePath) (BlockNode, TypeExpr)
+	GetTypeExprForExpr(Store, Expr) (BlockNode, TypeExpr)
+	GetFuncNodeForPath(Store, ValuePath) (FuncNode, error)
+	GetFuncNodeForExpr(Store, Expr) (FuncNode, error)
 }
 
 var (
@@ -1769,8 +1774,7 @@ type StaticBlock struct {
 	Types             []Type
 	NumNames          uint16
 	Names             []Name
-	NameSources       []*NameExpr
-	NameOrigins       []Node // references to nodes in Block.Source (decl/define/func/for etc)
+	NameSources       []NameSource
 	HeapItems         []bool
 	UnassignableNames []Name
 	Consts            []Name // TODO consider merging with Names.
@@ -1780,6 +1784,36 @@ type StaticBlock struct {
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
 }
+
+// NameSource holds origin information about a name.
+type NameSource struct {
+	NameExpr *NameExpr // name expr of decl/assign/etc
+	Origin   Node      // ref to a node in block.Source
+	Type     NSType    // type of name
+	Index    int       // index given type, or -1
+}
+
+var noNameSource = NameSource{}
+
+func (nsrc NameSource) IsZero() bool {
+	return nsrc == noNameSource
+}
+
+type NSType int // name source type
+
+const (
+	NSDefine NSType = iota // AssignStmt <name>... := (indexed)
+	NSImportDecl
+	NSValueDecl    // var <name>... (indexed)
+	NSTypeDecl     // type <name>
+	NSFuncDecl     // func <name>
+	NSRangeKey     // for <name> := range
+	NSRangeValue   // for _, <name> := range
+	NSFuncReceiver // func (<name> _) _()
+	NSFuncParam    // func(<name>...) (indexed)
+	NSFuncResult   // func()<name>... (indexed)
+	NSTypeSwitch   // switch <name> := _.(type)
+)
 
 type oldValue struct {
 	idx   uint16
@@ -1832,8 +1866,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	}
 	sb.NumNames = 0
 	sb.Names = make([]Name, 0, 16)
-	sb.NameSources = make([]*NameExpr, 0, 16)
-	sb.NameOrigins = make([]Node, 0, 16)
+	sb.NameSources = make([]NameSource, 0, 16)
 	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
@@ -1879,18 +1912,6 @@ func (sb *StaticBlock) addExternName(n Name) {
 // Implements BlockNode.
 func (sb *StaticBlock) GetNumNames() (nn uint16) {
 	return sb.NumNames
-}
-
-// Implements BlockNode.
-// NOTE: This probably isn't what you think it is.
-// See GetOriginForPath() impl.
-func (sb *StaticBlock) GetNameSources() []*NameExpr {
-	return sb.NameSources
-}
-
-// Implements BlockNode.
-func (sb *StaticBlock) GetNameOrigins() []Node {
-	return sb.NameOrigins
 }
 
 // Implements BlockNode.
@@ -2121,25 +2142,31 @@ func (sb *StaticBlock) GetSlot(store Store, n Name, ignoreReserved bool) *TypedV
 	}
 }
 
+// Implements BlockNode.
+// NOTE: This probably isn't what you think it is.
+// See GetNameSourceForPath() impl.
+func (sb *StaticBlock) GetNameSources() []NameSource {
+	return sb.NameSources
+}
+
 // Implemented BlockNode.
 // Convenience for getting name origin and source name expr.
 // Too slow for runtime.
 // The returned *NameExpr is in the context of the filenode if BlockNode is a
 // package node, otherwise is in the block node.  See also usage of `skipFile`.
 // NOTE The returned *NameExpr is used by `gno fix` to store attributes.
-func (sb *StaticBlock) GetOriginForPath(store Store, path ValuePath) (BlockNode, *FileNode, Node, *NameExpr) {
+func (sb *StaticBlock) GetNameSourceForPath(store Store, path ValuePath) (BlockNode, *FileNode, NameSource) {
 	dbn := sb.GetBlockNodeForPath(store, path)
-	no := dbn.GetNameOrigins()[path.Index]
-	nx := dbn.GetNameSources()[path.Index]
+	nsrc := dbn.GetNameSources()[path.Index]
 	var fn *FileNode
 	if pn, ok := dbn.(*PackageNode); ok {
-		fn, _ = pn.GetDeclFor(nx.Name)
+		fn, _ = pn.GetDeclFor(nsrc.NameExpr.Name)
 	} else {
 		fname := dbn.GetLocation().GetFile()
 		pn := packageOf(dbn)
 		fn = pn.GetFileByName(fname)
 	}
-	return dbn, fn, no, nx
+	return dbn, fn, nsrc
 }
 
 // Implemented BlockNode.
@@ -2156,7 +2183,7 @@ func (sb *StaticBlock) GetTypeDeclForPath(store Store, path ValuePath) *TypeDecl
 		panic(fmt.Sprintf("expected path.Type of VPBlock but got %v", path))
 	}
 	dbn := sb.GetBlockNodeForPath(store, path)
-	td := dbn.GetNameOrigins()[path.Index].(*TypeDecl)
+	td := dbn.GetNameSources()[path.Index].Origin.(*TypeDecl)
 	return td
 }
 
@@ -2213,8 +2240,8 @@ func (sb *StaticBlock) GetTypeDeclForExpr(store Store, txe Expr) *TypeDecl {
 // origin type declaration.  Unlike GetTypeDeclForPath, this function is
 // recursive because a type decl may refer to a type-expr by a non-type-expr
 // expression such as a name expr or selector.  The returned block node is the
-// one where the type expr is actually declared. Panics if path does not lead
-// to a type expr.
+// one where the type expr is actually declared, typically the file node.
+// Panics if path does not lead to a type expr.
 //
 // See also note for GetTypeDeclForPath.
 func (sb *StaticBlock) GetTypeExprForPath(store Store, path ValuePath) (BlockNode, TypeExpr) {
@@ -2229,13 +2256,15 @@ func (sb *StaticBlock) GetTypeExprForPath(store Store, path ValuePath) (BlockNod
 // This method is too slow for runtime, but it is used by `gno fix` to find the
 // origin type declaration.  Valid types are those that can be .Type in a
 // TypeDecl; *TypeExpr, *NameExpr, and *SelectorExpr.  The returned block node
-// is the one where the type expr is actually declared.  Panics if type does not
-// lead to a type expr.
+// is the one where the type expr is actually declared, typically the file
+// node.  If txe is a type expr, returns the source for sb. Panics if type does
+// not lead to a type expr.
 //
 // See also note for GetTypeDeclForPath.
 func (sb *StaticBlock) GetTypeExprForExpr(store Store, txe Expr) (BlockNode, TypeExpr) {
 	switch txe := txe.(type) {
 	case *constTypeExpr:
+		// NOTE: `last` usually refers to a file node for file decls.
 		return txe.Last.GetTypeExprForExpr(store, txe.Source)
 	case *TypeDecl:
 		return sb.GetTypeExprForExpr(store, txe.Type)
@@ -2276,38 +2305,65 @@ func (sb *StaticBlock) GetTypeExprForExpr(store Store, txe Expr) (BlockNode, Typ
 
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used by `gno fix` to find the
-// origin func decl/expr.  Panics if type does not lead to a func node.
-func (sb *StaticBlock) GetFuncNodeForPath(store Store, path ValuePath) FuncNode {
+// origin func decl/expr.
+func (sb *StaticBlock) GetFuncNodeForPath(store Store, path ValuePath) (FuncNode, error) {
 	if path.Type != VPBlock && path.Type != VPUverse {
-		panic(fmt.Sprintf("expected path.Type of VPBlock but got %v", path))
+		return nil, fmt.Errorf("expected path.Type of VPBlock but got %v", path)
 	}
 	dbn := sb.GetBlockNodeForPath(store, path)
-	fn := dbn.GetNameOrigins()[path.Index]
+	fn := dbn.GetNameSources()[path.Index].Origin
 	switch fn := fn.(type) {
 	case *FuncDecl:
-		return fn
+		return fn, nil
 	case *FuncLitExpr:
-		return fn
+		return fn, nil
 	default:
-		panic(fmt.Sprintf("unexpected node type %v (expected func node)", fn))
+		return nil, fmt.Errorf("unexpected node type %v (expected func node)", fn)
 	}
 }
 
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used by `gno fix` to find the
-// origin func decl/expr.  Panics if type does not lead to a func node.
-func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) FuncNode {
+// origin func decl/expr.
+func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, error) {
 	fne = unconst(fne)
 	switch fne := fne.(type) {
 	case FuncNode:
-		return fne
+		return fne, nil
 	case *NameExpr:
 		return sb.GetFuncNodeForPath(store, fne.Path)
 	case *SelectorExpr:
-		pn := fne.X.(*ConstExpr).V.(*PackageNode)
-		return pn.GetFuncNodeForPath(store, fne.Path)
+		fnsx, ok := fne.X.(*ConstExpr)
+		if !ok {
+			return nil, fmt.Errorf("unhandled selector base in %v (expected something const)", fne)
+		}
+		switch fnsxt := fnsx.T.(type) {
+		case *PackageType:
+			pv, ok := fnsx.V.(*PackageValue)
+			if !ok {
+				ref, ok := fnsx.V.(RefValue)
+				if !ok {
+					// this shouldn't happen, thus a panic.
+					panic(fmt.Sprintf("unexpected package value type %T", fnsx.V))
+				}
+				pv = store.GetPackage(ref.PkgPath, false)
+			}
+			pn := pv.GetBlock(store).GetSource(store)
+			return pn.GetFuncNodeForPath(store, fne.Path)
+		case *DeclaredType:
+			switch fne.Path.Type {
+			case VPValMethod, VPPtrMethod:
+				mtv := fnsxt.Methods[fne.Path.Index]
+				return mtv.V.(*FuncValue).GetSource(store).(FuncNode), nil
+			default:
+				return nil, fmt.Errorf("%v is not a method function", fne)
+			}
+		default:
+			return nil, fmt.Errorf("unhandled selector base in %v (expected package or decl)", fne)
+		}
 	default:
-		panic(fmt.Sprintf("expected func node (suitable for func decl/expr) but got %v", fne))
+		return nil, fmt.Errorf("unhandled expr (expected func node, name expr, or selector expr) but "+
+			"got %v", fne)
 	}
 }
 
@@ -2323,24 +2379,24 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) FuncNode {
 // could go further and store preprocessed constant results here too.  See
 // "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
-	sb.Define2(false, n, tv.T, tv, nil, nil)
+	sb.Define2(false, n, tv.T, tv, NameSource{})
 }
 
 // Set type to nil, only reserving the name.
-func (sb *StaticBlock) Reserve(isConst bool, src *NameExpr, origin Node) {
-	_, exists := sb.GetLocalIndex(src.Name)
+func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
+	_, exists := sb.GetLocalIndex(nx.Name)
 	if !exists {
-		sb.Define2(isConst, src.Name, nil, anyValue(nil), src, origin)
+		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
 	}
 }
 
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
 // Setting st and tv to nil/zero reserves (predefines) name for definition later.
-func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, src *NameExpr, origin Node) {
+func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsrc NameSource) {
 	if debug {
 		debug.Printf(
-			"StaticBlock.Define2(%v, %s, %v, %v)\n",
+			"StaticBlock.Define2(%v, %s, %v, %v)\n", // XXX add nsrc
 			isConst, n, st, tv)
 	}
 	// TODO check that tv.T implements t.
@@ -2355,9 +2411,6 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, src
 	}
 	if int(sb.NumNames) != len(sb.NameSources) {
 		panic("StaticBlock.NumNames and len(.NameSources) mismatch")
-	}
-	if int(sb.NumNames) != len(sb.NameOrigins) {
-		panic("StaticBlock.NumNames and len(.NameOrigins) mismatch")
 	}
 	if sb.NumNames == math.MaxUint16 {
 		panic("too many variables in block")
@@ -2405,21 +2458,14 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, src
 		}
 		sb.Block.Values[idx] = tv
 		sb.Types[idx] = st
-		if src != nil {
-			sb.NameSources[idx] = src
-		}
-		if origin != nil {
-			sb.NameOrigins[idx] = origin
+		if !nsrc.IsZero() {
+			sb.NameSources[idx] = nsrc
 		}
 		// This can happen when a *ValueDecl is split after initStaticBlocks.
 		/*
-			if src != nil && sb.NameSources[idx] != src {
+			if !nsrc.IsZero() && sb.NameSources[idx] != nsrc {
 				panic(fmt.Sprintf("name source mismatch in block Define2(): was %v, got %v",
-					sb.NameSources[idx], src))
-			}
-			if origin != nil && sb.NameOrigins[idx] != origin {
-				panic(fmt.Sprintf("name origin mismatch in block Define2(): was %v, got %v",
-					sb.NameOrigins[idx], origin))
+					sb.NameSources[idx], nsrc))
 			}
 		*/
 	} else {
@@ -2432,13 +2478,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, src
 		sb.NumNames++
 		sb.Block.Values = append(sb.Block.Values, tv)
 		sb.Types = append(sb.Types, st)
-		sb.NameSources = append(sb.NameSources, src)
-		sb.NameOrigins = append(sb.NameOrigins, origin)
-		if src != nil && src.String() == "a<!VPInvalid(0)>" {
-			if src.GetSpan().String() == `3:7-28'` {
-				// panic("QWE")
-			}
-		}
+		sb.NameSources = append(sb.NameSources, nsrc)
 	}
 }
 

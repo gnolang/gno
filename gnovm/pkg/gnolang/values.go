@@ -2502,6 +2502,10 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"`
 }
 
+func RefValueFromPackage(pv *PackageValue) RefValue {
+	return RefValue{PkgPath: pv.PkgPath}
+}
+
 func (rv RefValue) GetObjectID() ObjectID {
 	return rv.ObjectID
 }

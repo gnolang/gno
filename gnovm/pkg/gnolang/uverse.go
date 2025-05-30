@@ -161,8 +161,8 @@ var gRealmType = &DeclaredType{
 }
 
 func init() {
-	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethod("Previous")
-	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethod("Origin")
+	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Previous")
+	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Origin")
 	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
 	gRealmOrigin.Type.(*FuncType).Results[0].Type = gRealmType
 }

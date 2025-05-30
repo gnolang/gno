@@ -357,6 +357,16 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 					gno.FindXformsGno0p9(gs, pn, fn)
 					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
 				}
+				for { // continue to find more until exhausted.
+					xnewSum := 0
+					for _, fn := range fset.Files {
+						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+						xnewSum += xnew
+					}
+					if xnewSum == 0 {
+						break // done
+					}
+				}
 			}
 			{
 				// FIX STEP 6: PreprocessFiles()
@@ -377,6 +387,16 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 				for _, fn := range _tests.Files {
 					gno.FindXformsGno0p9(gs, pn, fn)
 					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+				}
+				for { // continue to find more until exhausted.
+					xnewSum := 0
+					for _, fn := range _tests.Files {
+						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+						xnewSum += xnew
+					}
+					if xnewSum == 0 {
+						break // done
+					}
 				}
 			}
 			{
@@ -410,6 +430,16 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 					for _, fn := range fset.Files {
 						gno.FindXformsGno0p9(gs, pn, fn)
 						gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+					}
+					for { // continue to find more until exhausted.
+						xnewSum := 0
+						for _, fn := range fset.Files {
+							xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+							xnewSum += xnew
+						}
+						if xnewSum == 0 {
+							break // done
+						}
 					}
 				}
 			}

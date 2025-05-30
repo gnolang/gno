@@ -186,7 +186,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			switch n := n.(type) {
 			case *AssignStmt:
 				if n.Op == DEFINE {
-					for _, lx := range n.Lhs {
+					for i, lx := range n.Lhs {
 						nx := lx.(*NameExpr)
 						ln := nx.Name
 						if ln == blankIdentifier {
@@ -196,7 +196,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
-							last.Reserve(false, nx, n)
+							last.Reserve(false, nx, n, NSDefine, i)
 						}
 					}
 				}
@@ -218,7 +218,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 				if nn != blankIdentifier {
 					nx.Type = NameExprTypeDefine
-					last.Reserve(false, nx, n)
+					last.Reserve(false, nx, n, NSImportDecl, -1)
 				}
 			case *ValueDecl:
 				last2 := skipFile(last)
@@ -229,13 +229,13 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						continue
 					}
 					nx.Type = NameExprTypeDefine
-					last2.Reserve(n.Const, nx, n)
+					last2.Reserve(n.Const, nx, n, NSValueDecl, i)
 				}
 			case *TypeDecl:
 				last2 := skipFile(last)
 				nx := &n.NameExpr
 				nx.Type = NameExprTypeDefine
-				last2.Reserve(true, nx, n)
+				last2.Reserve(true, nx, n, NSTypeDecl, -1)
 			case *FuncDecl:
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
@@ -259,7 +259,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					}
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
-					pkg.Reserve(false, nx, n)
+					pkg.Reserve(false, nx, n, NSFuncDecl, -1)
 					pkg.UnassignableNames = append(pkg.UnassignableNames, n.Name)
 				}
 			case *FuncTypeExpr:
@@ -294,8 +294,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
-				for _, src := range ifs.GetNameSources() {
-					last.Reserve(false, src, ifs)
+				for _, ns := range ifs.GetNameSources() {
+					last.Reserve(false, ns.NameExpr, ns.Origin, ns.Type, ns.Index)
 				}
 			case *RangeStmt:
 				if n.Op == DEFINE {
@@ -303,14 +303,14 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						nx := n.Key.(*NameExpr)
 						if nx.Name != blankIdentifier {
 							nx.Type = NameExprTypeDefine
-							last.Reserve(false, nx, n)
+							last.Reserve(false, nx, n, NSRangeKey, -1)
 						}
 					}
 					if n.Value != nil {
 						nx := n.Value.(*NameExpr)
 						if nx.Name != blankIdentifier {
 							nx.Type = NameExprTypeDefine
-							last.Reserve(false, nx, n)
+							last.Reserve(false, nx, n, NSRangeValue, -1)
 						}
 					}
 				}
@@ -318,7 +318,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				for i := range n.Type.Params {
 					px := &n.Type.Params[i].NameExpr
 					px.Type = NameExprTypeDefine
-					last.Reserve(false, px, &n.Type)
+					last.Reserve(false, px, &n.Type, NSFuncParam, i)
 				}
 				for i := range n.Type.Results {
 					rx := &n.Type.Results[i].NameExpr
@@ -327,7 +327,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						rx.Name = Name(rn)
 					}
 					rx.Type = NameExprTypeDefine
-					last.Reserve(false, rx, &n.Type)
+					last.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			case *SwitchStmt:
 				// n.Varname is declared in each clause.
@@ -340,8 +340,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss.init are copied.
-				for _, src := range ss.GetNameSources() {
-					last.Reserve(false, src, ss)
+				for _, ns := range ss.GetNameSources() {
+					last.Reserve(false, ns.NameExpr, ns.Origin, ns.Type, ns.Index)
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
@@ -350,7 +350,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						// > Switch varnames cannot be
 						// captured as heap items.
 						// [test](../gnovm/tests/files/closure11_known.gno)
-						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss) // XXX
+						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss, NSTypeSwitch, -1)
 					}
 				} else {
 					if ss.VarName != "" {
@@ -360,7 +360,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			case *FuncDecl:
 				if n.IsMethod {
 					n.Recv.NameExpr.Type = NameExprTypeDefine
-					n.Reserve(false, &n.Recv.NameExpr, n)
+					n.Reserve(false, &n.Recv.NameExpr, n, NSFuncReceiver, -1)
 				}
 				for i := range n.Type.Params {
 					px := &n.Type.Params[i].NameExpr
@@ -368,7 +368,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						panic("should not happen")
 					}
 					px.Type = NameExprTypeDefine
-					n.Reserve(false, px, &n.Type)
+					n.Reserve(false, px, &n.Type, NSFuncParam, i)
 				}
 				for i := range n.Type.Results {
 					rx := &n.Type.Results[i].NameExpr
@@ -377,7 +377,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						rx.Name = Name(rn)
 					}
 					rx.Type = NameExprTypeDefine
-					n.Reserve(false, rx, &n.Type)
+					n.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -569,7 +569,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
-					for _, lx := range n.Lhs {
+					for i, lx := range n.Lhs {
 						lnx := lx.(*NameExpr)
 						if lnx.Name == blankIdentifier {
 							// ignore.
@@ -577,7 +577,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							_, ok := last.GetLocalIndex(lnx.Name)
 							if !ok {
 								// initial declaration to be re-defined.
-								last.Reserve(false, lnx, n)
+								last.Reserve(false, lnx, n, NSDefine, i)
 							} else {
 								// do not redeclare.
 							}
@@ -1194,7 +1194,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								"missing package %s",
 								n.String()))
 						}
-						pref := toRefValue(pv)
+						pref := RefValueFromPackage(pv)
 						n.SetAttribute(ATTR_PACKAGE_REF, pref)
 						n.SetAttribute(ATTR_PACKAGE_PATH, pv.PkgPath)
 					}
@@ -1570,7 +1570,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								fn := last.GetFuncNodeForExpr(store, n.Func)
+								fn, err := last.GetFuncNodeForExpr(store, n.Func)
+								if err != nil {
+									panic(fmt.Sprintf("unexpected: %w", err))
+								}
 								ftx := fn.GetFuncTypeExpr()
 								etx := ftx.Params[1].Type
 								bsx := toConstTypeExpr(last, etx, gByteSliceType)
@@ -2586,9 +2589,13 @@ func defineOrDecl(
 			_, ok := node.GetLocalIndex(nx.Name)
 			if isDefine && ok {
 				// Keep the original nx, this one is fake.
-				node.Define2(isConst, nx.Name, sts[i], tvs[i], nil, nil)
+				node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
 			} else {
-				node.Define2(isConst, nx.Name, sts[i], tvs[i], nx, n)
+				nsType := NSValueDecl
+				if isDefine {
+					nsType = NSDefine
+				}
+				node.Define2(isConst, nx.Name, sts[i], tvs[i], NameSource{nx, n, nsType, i})
 			}
 			nx.Path = bn.GetPathForName(nil, nx.Name)
 		}
@@ -3366,7 +3373,7 @@ func findPackageSelectors(bn BlockNode) {
 					}
 					pn := packageOf(bn)
 					cx := &ConstExpr{
-						Source: n,
+						Source: Nx(".pkgSelector"),
 						TypedValue: TypedValue{
 							T: gPackageType,
 							V: RefValue{
@@ -3775,6 +3782,18 @@ func packageOf(last BlockNode) *PackageNode {
 
 func fileOf(last BlockNode) *FileNode {
 	for {
+		if fn, ok := last.(*FileNode); ok {
+			return fn
+		}
+		last = last.GetParentNode(nil)
+	}
+}
+
+func fileOfSafe(last BlockNode) *FileNode {
+	for {
+		if last == nil {
+			return nil
+		}
 		if fn, ok := last.(*FileNode); ok {
 			return fn
 		}
@@ -4773,8 +4792,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				t = dt
 			}
 			// fill in later.
-			// last2.Define(d.Name, asValue(t))
-			last2.Define2(true, d.Name, t, asValue(t), &d.NameExpr, d)
+			last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
 			d.Path = last.GetPathForName(store, d.Name)
 		} // END if !isLocallyDefined(last2, d.Name) {
 		// now it is or was locally defined.
@@ -5030,13 +5048,16 @@ func skipFile(n BlockNode) BlockNode {
 	}
 }
 
-// If n is a *FileNode, return name, otherwise empty.
+// returns "" if not in a file node.
 func fileNameOf(n BlockNode) string {
-	if fnode, ok := n.(*FileNode); ok {
-		return fnode.FileName
-	} else {
+	if n == nil {
 		return ""
 	}
+	fn := fileOfSafe(n)
+	if fn == nil {
+		return ""
+	}
+	return fn.FileName
 }
 
 func elideCompositeElements(last BlockNode, clx *CompositeLitExpr, clt Type) {
