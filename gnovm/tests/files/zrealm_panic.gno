@@ -17,7 +17,7 @@ func main(cur realm,) {
 
 // Stacktrace:
 // panic: panic
-// ms<VPBlock(1,0)>.Panic()
+// ms<VPBlock(1,1)>.Panic()
 //     gno.land/r/test/zrealm_panic.gno:7
-// main<VPBlock(1,1)>()
-//     gno.land/r/test/zrealm_panic.gno:14
+// main<VPBlock(1,1)>(struct{( .uverse.address),("gno.land/r/test" string),(nil .uverse..grealm)})
+//     gno.land/r/test/zrealm_panic.gno:12
