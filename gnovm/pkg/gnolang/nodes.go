@@ -2339,6 +2339,7 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 		}
 		switch fnsxt := fnsx.T.(type) {
 		case *PackageType:
+			var pn *PackageNode
 			pv, ok := fnsx.V.(*PackageValue)
 			if !ok {
 				ref, ok := fnsx.V.(RefValue)
@@ -2346,9 +2347,24 @@ func (sb *StaticBlock) GetFuncNodeForExpr(store Store, fne Expr) (FuncNode, erro
 					// this shouldn't happen, thus a panic.
 					panic(fmt.Sprintf("unexpected package value type %T", fnsx.V))
 				}
-				pv = store.GetPackage(ref.PkgPath, false)
+				this := packageOf(sb.GetSource(store))
+				if ref.PkgPath == this.PkgPath {
+					// NOTE: when non-integration *_test.gno refer
+					// to a selector(ref(pkgPath),<decl name>), the
+					// selector's path will not match because the
+					// import from store doesn't include decls from
+					// *_test.gno, and also the files are sorted
+					// alphabetically so path indices will be off.
+					// So just return this.
+					pn = this
+				} else {
+					pv = store.GetPackage(ref.PkgPath, false)
+					pn = store.GetPackageNode(ref.PkgPath)
+				}
+			} else {
+				pn = pv.GetBlock(store).GetSource(store).(*PackageNode)
+				// pn = store.GetPackageNode(ref.PkgPath)
 			}
-			pn := pv.GetBlock(store).GetSource(store)
 			return pn.GetFuncNodeForPath(store, fne.Path)
 		case *DeclaredType:
 			switch fne.Path.Type {

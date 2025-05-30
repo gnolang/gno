@@ -417,7 +417,8 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				if sx != nil && sxt.Kind() == InterfaceKind {
 					it, ok := sxt.(*DeclaredType)
 					if !ok {
-						panic("anonymous interfaces not supported by gno fix")
+						return n, TRANS_CONTINUE
+						// panic("anonymous interfaces not supported by gno fix")
 					}
 					if it.PkgPath == ".uverse" {
 						return n, TRANS_CONTINUE
@@ -444,7 +445,9 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 
 					mfnt := it.Base.(*InterfaceType).GetMethodFieldType(sx.Sel)
 					if mfnt == nil {
-						panic("could not find method") // shouldn't happen
+						// XXX embedded interface methods not supported;
+						// e.g. `.Write()` in `interface {io.Writer; io.Closer}`
+						return n, TRANS_CONTINUE
 					}
 					mft := mfnt.Type.(*FuncType)
 					mftx := itx.Methods.GetFieldTypeExpr(sx.Sel).Type.(*FuncTypeExpr)
