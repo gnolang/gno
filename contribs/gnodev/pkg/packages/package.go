@@ -36,7 +36,7 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 			// here avoid to potentially parse broken files
 			return nil, ErrResolverPackageSkip
 		}
-	case errors.As(err, &os.ErrNotExist):
+	case errors.Is(err, os.ErrNotExist), errors.Is(err, gnomod.ErrGnoModNotFound):
 		// gno.mod is not present, continue anyway
 	default:
 		return nil, err
@@ -47,6 +47,8 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 	case err == nil: // ok
 	case os.IsNotExist(err):
 		return nil, ErrResolverPackageNotFound
+	case mempkg.IsEmpty(): // XXX: should check an internal error instead
+		return nil, ErrResolverPackageSkip
 	default:
 		return nil, fmt.Errorf("unable to read package %q: %w", dir, err)
 	}
@@ -63,7 +65,7 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 }
 
 func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
-	if mempkg.IsEmpty() {
+	if isMemPackageEmpty(mempkg) {
 		return fmt.Errorf("empty package: %w", ErrResolverPackageSkip)
 	}
 
@@ -85,4 +87,18 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 	}
 
 	return nil
+}
+
+func isMemPackageEmpty(mempkg *std.MemPackage) bool {
+	if mempkg.IsEmpty() {
+		return true
+	}
+
+	for _, file := range mempkg.Files {
+		if isGnoFile(file.Name) || file.Name == "gno.mod" {
+			return false
+		}
+	}
+
+	return true
 }

@@ -3,6 +3,7 @@ package std
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -12,9 +13,11 @@ import (
 
 // XXX rename to mempackage.go
 
-const fileNameLimit = 256
-const pkgNameLimit = 256
-const pkgPathLimit = 256
+const (
+	fileNameLimit = 256
+	pkgNameLimit  = 256
+	pkgPathLimit  = 256
+)
 
 var (
 	// See also gnovm/pkg/gnolang/mempackage.go.
@@ -26,7 +29,7 @@ var (
 )
 
 //----------------------------------------
-// MemPackage
+// MemFile
 
 // A MemFile is the simplest representation of a "file".
 //
@@ -80,6 +83,7 @@ func (mfile *MemFile) Copy() *MemFile {
 // MemPackage represents the information and files of a package which will be
 // stored in memory. It will generally be initialized by package gnolang's
 // ReadMemPackage.
+// Note: a package does not support subfolders.
 //
 // NOTE: in the future, a MemPackage may represent updates/additional-files for
 // an existing package.
@@ -145,7 +149,7 @@ func (mpkg *MemPackage) ValidateBasic() error {
 
 // Returns an error if lowercase(file.Name) are not unique.
 func (mpkg *MemPackage) Uniq() error {
-	var uniq = make(map[string]struct{}, len(mpkg.Files))
+	uniq := make(map[string]struct{}, len(mpkg.Files))
 	for _, mfile := range mpkg.Files {
 		lname := strings.ToLower(mfile.Name)
 		if _, exists := uniq[lname]; exists {
@@ -226,7 +230,7 @@ func (mpkg *MemPackage) WriteTo(dir string) error {
 	for _, mfile := range mpkg.Files {
 		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))
 		fpath := filepath.Join(dir, mfile.Name)
-		err := ioutil.WriteFile(fpath, []byte(mfile.Body), 0644)
+		err := ioutil.WriteFile(fpath, []byte(mfile.Body), 0o644)
 		if err != nil {
 			return err
 		}
@@ -251,32 +255,23 @@ func (mpkg *MemPackage) FileNames() (fnames []string) {
 	return
 }
 
-// Creates a new copy.
-func (mpkg *MemPackage) Copy() *MemPackage {
-	mpkg2 := *mpkg
-	for i, mfile := range mpkg2.Files {
-		mpkg2.Files[i] = mfile.Copy()
-	}
-	return &mpkg2
-}
-
-const licenseName = "LICENSE"
-
 // Splits a path into the dir and filename.
 func SplitFilepath(fpath string) (dir string, filename string) {
-	parts := strings.Split(fpath, "/")
-	if len(parts) == 1 {
-		return parts[0], ""
+	dir, filename = path.Split(fpath)
+	if dir == "" {
+		// assume that filename is actually a directory
+		return filename, ""
 	}
 
-	switch last := parts[len(parts)-1]; {
-	case strings.Contains(last, "."):
-		return strings.Join(parts[:len(parts)-1], "/"), last
-	case last == "":
-		return strings.Join(parts[:len(parts)-1], "/"), ""
-	case last == licenseName:
-		return strings.Join(parts[:len(parts)-1], "/"), licenseName
+	var (
+		isFileWithExtension = strings.Contains(filename, ".")
+		isSpecialFile       = filename == "LICENSE" || filename == "README"
+		noFileSpecified     = filename == ""
+	)
+	if isFileWithExtension || isSpecialFile || noFileSpecified {
+		dir = strings.TrimRight(dir, "/") // gno.land/r/path//a.gno -> dir=gno.land/r/path filename=a.gno
+		return
 	}
 
-	return strings.Join(parts, "/"), ""
+	return dir + filename, ""
 }

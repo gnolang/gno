@@ -508,9 +508,9 @@ func (ftxz FieldTypeExprs) String() string {
 	return str
 }
 
-func (kvs KeyValueExprs) String() string {
+func (kvxs KeyValueExprs) String() string {
 	str := ""
-	for i, x := range kvs {
+	for i, x := range kvxs {
 		if i == 0 {
 			str += x.String()
 		} else {

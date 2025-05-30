@@ -77,15 +77,17 @@ func ParseExpr(expr string) (retx Expr, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if rerr, ok := r.(error); ok {
-				err = rerr
+				err = errors.Wrap(rerr, "parsing expression")
 			} else {
-				err = fmt.Errorf("%v", r)
+				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
 			}
 			return
 		}
 	}()
+	// Use a fset, even if empty, so the spans are set properly.
+	fset := token.NewFileSet()
 	// parse with Go2Gno.
-	return Go2Gno(nil, x).(Expr), nil
+	return Go2Gno(fset, x).(Expr), nil
 }
 
 func MustParseExpr(expr string) Expr {

@@ -60,7 +60,7 @@ func (rx regx) Match(s string) *match {
 func r2s(xx regx) string                         { return string(xx) }                     // regx -> string
 func sj(sz ...string) string                     { return strings.Join(sz, ``) }           // string join
 func sjd(dd string, sz ...string) string         { return strings.Join(sz, dd) }           // string join
-func esc(ch string) string                       { return `\` + string(ch) }               // escape char (string)
+func esc(ch string) string                       { return `\` + ch }               // escape char (string)
 func spl(ss string) []string                     { return strings.Split(ss, ``) }          // split string by char
 func sra(ss string, oo string, nn string) string { return strings.ReplaceAll(ss, oo, nn) } // alias
 

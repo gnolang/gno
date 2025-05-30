@@ -26,6 +26,7 @@ import (
 // they may need to import a central package if they declare any types,
 // otherwise each .gnobuiltins.gno would be declaring their own types.
 var gnoBuiltinsCache = make(map[string]*std.MemPackage) // pkgPath -> mpkg or nil.
+
 func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 	if !strings.HasPrefix(pkgPath, "gnobuiltins/") {
 		panic("expected pkgPath to start with gnobuiltins/")
@@ -330,7 +331,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	for _, gof := range allgofs {
 		err := prepareGoGno0p9(gof)
 		if err != nil {
-			panic(fmt.Sprintf("unexpected error: %w", err))
+			panic(fmt.Sprintf("unexpected error: %v", err))
 		}
 	}
 
@@ -505,8 +506,8 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 			// include all
 		default:
 			panic("should not happen")
-
 		}
+
 		// Go parse file.
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |

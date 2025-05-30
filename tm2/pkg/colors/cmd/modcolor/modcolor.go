@@ -10,8 +10,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/colors"
 )
 
-var order = []colors.Color{colors.None, colors.Gray, colors.Cyan, colors.Blue, colors.Green, colors.Yellow, colors.Red, colors.Magenta}
-var modPtr = flag.Int("mod", 2, "modulo number of lines; maximum 8")
+var (
+	order  = []colors.Color{colors.None, colors.Gray, colors.Cyan, colors.Blue, colors.Green, colors.Yellow, colors.Red, colors.Magenta}
+	modPtr = flag.Int("mod", 2, "modulo number of lines; maximum 8")
+)
 
 func main() {
 	flag.Parse()
@@ -19,8 +21,8 @@ func main() {
 		panic("--mod must be between 2 and 8")
 	}
 
-	var mod = *modPtr
-	var rin = bufio.NewReader(os.Stdin)
+	mod := *modPtr
+	rin := bufio.NewReader(os.Stdin)
 	for i := 0; ; i++ {
 		line, err := rin.ReadString('\n')
 		if err == io.EOF {

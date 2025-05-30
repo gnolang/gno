@@ -148,7 +148,7 @@ const (
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH" // if name expr refers to package.
-	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"
+	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"     // gno fix this version.
 )
 
 // Embedded in each Node.
@@ -1207,8 +1207,9 @@ type FileSet struct {
 	Files []*FileNode
 }
 
-func (fset FileSet) GetFileNames() (fnames []string) {
-	for _, fnode := range fset.Files {
+func (fs FileSet) GetFileNames() (fnames []string) {
+	fnames = make([]string, 0, len(fs.Files))
+	for _, fnode := range fs.Files {
 		fnames = append(fnames, fnode.FileName)
 	}
 	return

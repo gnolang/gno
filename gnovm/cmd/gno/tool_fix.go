@@ -202,7 +202,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 // filetest: if cmd.filetestsOnly, a single filetest to run fixDir on.
 func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, ts gno.Store, filetest string) error {
 	ppkgs := map[string]processedPackage{}
-	var hasError bool = false
+	hasError := false
 	//----------------------------------------
 	// FIX STAGE 1: Type-check and lint.
 	for _, dir := range dirs {
@@ -514,7 +514,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 		if !cmd.filetestsOnly {
 			mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
 			if err != nil {
-				panic(fmt.Sprintf("unhandled error: %w", err))
+				panic(fmt.Sprintf("unhandled error: %v", err))
 			}
 			if mod == nil {
 				modStr := gno.GenGnoModLatest(ppkg.mpkg.Path)

@@ -7,7 +7,7 @@ func (ms MyStruct) Panic() {
 	panic("panic")
 }
 
-func main(cur realm,) {
+func main(cur realm) {
 	ms := MyStruct{}
 	ms.Panic()
 }

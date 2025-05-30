@@ -8,7 +8,6 @@ import (
 	goio "io"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -104,7 +103,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 
 		// Read and parse gno.mod directly.
-		fpath := path.Join(dir, "gno.mod")
+		fpath := filepath.Join(dir, "gno.mod")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
 			if cmd.autoGnomod {

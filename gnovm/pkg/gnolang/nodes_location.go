@@ -1,7 +1,5 @@
 package gnolang
 
-// XXX rename this file to nodes_location.gno
-
 import (
 	"fmt"
 	"go/ast"
@@ -361,15 +359,17 @@ func (loc *Location) SetLocation(loc2 Location) {
 // Usage:
 //   - Re_pos.Match("123:45").Get("LINE")
 //   - Re_location.Match("gno.land/r/some/realm/somefile.gno:123:45").Get("FILE")
-var Re_pos = r.G(r.N("LINE", r.P(r.C_d)), `:`, r.N("COL", r.P(r.C_d)))
-var Re_posish = r.G(r.N("LINE", r.P(r.C_d)), r.M(`:`, r.N("COL", r.P(r.C_d))))
-var Re_end = r.G(r.M(r.N("ENDLINE", r.P(r.C_d)), `:`), r.N("ENDCOL", r.P(r.C_d)))
-var Re_primes = r.N("PRIMES", r.S("`"))
-var Re_span = r.G(r.N("POS", Re_pos), r.G(`-`, r.N("END", Re_end)), Re_primes)
-var Re_spanish = r.G(r.N("POS", Re_posish), r.M(`-`, r.N("END", Re_end), Re_primes))
-var Re_location = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_span))
-var Re_locationish = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_spanish))
-var Re_errorLine = r.L(r.N("LOC", Re_locationish), r.M(`:`), r.S(` `), r.N("MSG", r.S(`.`)))
+var (
+	Re_pos         = r.G(r.N("LINE", r.P(r.C_d)), `:`, r.N("COL", r.P(r.C_d)))
+	Re_posish      = r.G(r.N("LINE", r.P(r.C_d)), r.M(`:`, r.N("COL", r.P(r.C_d))))
+	Re_end         = r.G(r.M(r.N("ENDLINE", r.P(r.C_d)), `:`), r.N("ENDCOL", r.P(r.C_d)))
+	Re_primes      = r.N("PRIMES", r.S("`"))
+	Re_span        = r.G(r.N("POS", Re_pos), r.G(`-`, r.N("END", Re_end)), Re_primes)
+	Re_spanish     = r.G(r.N("POS", Re_posish), r.M(`-`, r.N("END", Re_end), Re_primes))
+	Re_location    = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_span))
+	Re_locationish = r.G(r.N("PATH", r.Pl(r.CN(`:`))), r.M(`/`, r.N("FILE", r.P(r.CN(r.E(`/:`))))), `:`, r.N("SPAN", Re_spanish))
+	Re_errorLine   = r.L(r.N("LOC", Re_locationish), r.M(`:`), r.S(` `), r.N("MSG", r.S(`.`)))
+)
 
 /* Compare to...
 const (
