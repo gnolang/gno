@@ -5,9 +5,9 @@ import (
 )
 
 func main() {
-	println(tests.Counter(cross))
-	tests.IncCounter(cross)
-	println(tests.Counter(cross))
+	println(cross(tests.Counter)())
+	cross(tests.IncCounter)()
+	println(cross(tests.Counter)())
 }
 
 // Output:

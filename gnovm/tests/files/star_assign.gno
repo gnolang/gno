@@ -21,7 +21,9 @@ func init() {
 	New()
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	Delta()
 	println(Values())
 }

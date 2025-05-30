@@ -8,7 +8,9 @@ import (
 // NOTE: it is valid to persist external realm types.
 var somevalue tests.TestRealmObject
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	somevalue.Field = "test"
 	println(somevalue)
 }

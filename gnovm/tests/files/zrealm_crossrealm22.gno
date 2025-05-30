@@ -6,22 +6,24 @@ import (
 	"gno.land/r/demo/tests/crossrealm_b"
 )
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooerGetter(cross, func() crossrealm.Fooer { return f })
-	crossrealm.CallFooerGetterFooSR2(cross)
+	cross(crossrealm.SetFooerGetter)(func() crossrealm.Fooer { return f })
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	f.SetS("B")
-	crossrealm.CallFooerGetterFooSR2(cross)
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	println(".")
 
 	f.SetS("C")
-	crossrealm.SetFooerGetter(cross, crossrealm_b.FooerGetter)
-	crossrealm.CallFooerGetterFooSR2(cross)
+	cross(crossrealm.SetFooerGetter)(crossrealm_b.FooerGetter)
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	println(".")
 
 	f.SetS("D")
-	crossrealm.SetFooerGetter(cross, crossrealm_b.FooerGetterBuilder())
-	crossrealm.CallFooerGetterFooSR2(cross)
+	cross(crossrealm.SetFooerGetter)(crossrealm_b.FooerGetterBuilder())
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	println(".")
 }
 

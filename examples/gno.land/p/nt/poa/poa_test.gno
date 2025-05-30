@@ -153,14 +153,14 @@ func TestPoA_GetValidator(t *testing.T) {
 		t.Parallel()
 
 		var (
-			address_XXX = testutils.TestAddress("caller")
+			address     = testutils.TestAddress("caller")
 			pubKey      = "public-key"
 			votingPower = uint64(10)
 
 			initialSet = generateTestValidators(1)
 		)
 
-		initialSet[0].Address = address_XXX
+		initialSet[0].Address = address
 		initialSet[0].PubKey = pubKey
 		initialSet[0].VotingPower = votingPower
 
@@ -168,11 +168,11 @@ func TestPoA_GetValidator(t *testing.T) {
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Get the validator
-		val, err := p.GetValidator(address_XXX)
+		val, err := p.GetValidator(address)
 		urequire.NoError(t, err)
 
 		// Validate the address
-		if val.Address != address_XXX {
+		if val.Address != address {
 			t.Fatal("invalid address")
 		}
 

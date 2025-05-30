@@ -14,7 +14,9 @@ type InnerNode struct {
 	Right Node
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	key := "somekey"
 	root = InnerNode{
 		Key:   key,

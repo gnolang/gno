@@ -11,13 +11,15 @@ type fooer struct{}
 
 func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
-var f crossrealm.Fooer = crossrealm.SetFooer(cross, &fooer{})
+var f crossrealm.Fooer = cross(crossrealm.SetFooer)(&fooer{})
 
 func init() {
 	crossrealm.CallFooerFoo()
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	crossrealm.CallFooerFoo()
 	print(".")
 }

@@ -14,7 +14,9 @@ func init() {
 	m[s[myStruct.Index]] = "a"
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	println(m[s[myStruct.Index]])
 }
 

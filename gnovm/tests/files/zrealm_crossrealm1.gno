@@ -12,7 +12,9 @@ func init() {
 	somevalue.Field = "test"
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	println(somevalue)
 }
 

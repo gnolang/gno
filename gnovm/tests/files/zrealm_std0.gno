@@ -5,7 +5,9 @@ import (
 	"std"
 )
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	caller := std.OriginCaller()
 	println(caller)
 }

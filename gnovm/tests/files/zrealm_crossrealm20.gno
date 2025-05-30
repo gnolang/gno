@@ -21,13 +21,15 @@ var f *fooer
 func init() {
 	f = &fooer{s: "A"}
 	fg := func() crossrealm.Fooer { return f }
-	crossrealm.SetFooerGetter(cross, fg)
+	cross(crossrealm.SetFooerGetter)(fg)
 	crossrealm.CallFooerGetterFoo()
 	f.s = "C"
 	crossrealm.CallFooerGetterFoo()
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	print(".")
 }
 

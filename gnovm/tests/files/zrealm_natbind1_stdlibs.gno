@@ -5,7 +5,9 @@ import (
 	"std"
 )
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	println(std.ChainDomain())
 }
 

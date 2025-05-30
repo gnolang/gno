@@ -23,7 +23,9 @@ var (
 // end with a minimum of 3 numbers, and be less than 20 chars long.
 // All letters must be lowercase, and the only valid special char is `_`.
 // Only calls from EOAs are supported.
-func Register(cur realm, username string) {
+func Register(username string) {
+	crossing()
+
 	if !std.PreviousRealm().IsUser() {
 		panic(ErrNonUserCall)
 	}
@@ -41,7 +43,7 @@ func Register(cur realm, username string) {
 	}
 
 	registrant := std.PreviousRealm().Address()
-	if err := susers.RegisterUser(cross, username, registrant); err != nil {
+	if err := cross(susers.RegisterUser)(username, registrant); err != nil {
 		panic(err)
 	}
 

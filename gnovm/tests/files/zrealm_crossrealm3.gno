@@ -12,7 +12,9 @@ func init() {
 	somevalue.Field = "test"
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	// NOTE: it is also valid to modify it using an external realm function.
 	somevalue.Modify()
 	println(somevalue)

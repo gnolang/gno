@@ -3,7 +3,9 @@ package test
 
 import "time"
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	println(time.UTC == nil)
 	time.UTC = nil
 	println(time.UTC == nil)

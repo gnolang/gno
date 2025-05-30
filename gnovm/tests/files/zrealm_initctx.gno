@@ -12,10 +12,12 @@ var addrInit = std.Address("addrInit")
 
 func init() {
 	addr = std.OriginCaller()
-	addrInit = tests.InitOriginCaller(cross)
+	addrInit = cross(tests.InitOriginCaller)()
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	// Prints blanks because init's origin caller is blank.
 	// XXX consider panic instead
 	println(addr)

@@ -9,38 +9,54 @@ import (
 
 var counter int
 
-func IncCounter(cur realm) {
+func IncCounter() {
+	crossing()
+
 	counter++
 }
 
-func Counter(cur realm) int {
+func Counter() int {
+	crossing()
+
 	return counter
 }
 
-func CurrentRealmPath(cur realm) string {
+func CurrentRealmPath() string {
+	crossing()
+
 	return std.CurrentRealm().PkgPath()
 }
 
 var initOriginCaller = std.OriginCaller()
 
-func InitOriginCaller(cur realm) std.Address {
+func InitOriginCaller() std.Address {
+	crossing()
+
 	return initOriginCaller
 }
 
-func CallAssertOriginCall(cur realm) {
+func CallAssertOriginCall() {
+	crossing()
+
 	std.AssertOriginCall()
 }
 
-func CallIsOriginCall(cur realm) bool {
+func CallIsOriginCall() bool {
+	crossing()
+
 	return std.PreviousRealm().IsUser()
 }
 
-func CallSubtestsAssertOriginCall(cur realm) {
-	rsubtests.CallAssertOriginCall(cross)
+func CallSubtestsAssertOriginCall() {
+	crossing()
+
+	cross(rsubtests.CallAssertOriginCall)()
 }
 
-func CallSubtestsIsOriginCall(cur realm) bool {
-	return rsubtests.CallIsOriginCall(cross)
+func CallSubtestsIsOriginCall() bool {
+	crossing()
+
+	return cross(rsubtests.CallIsOriginCall)()
 }
 
 //----------------------------------------
@@ -52,7 +68,9 @@ type TestRealmObject struct {
 
 var TestRealmObjectValue TestRealmObject
 
-func ModifyTestRealmObject(cur realm, t *TestRealmObject) {
+func ModifyTestRealmObject(t *TestRealmObject) {
+	crossing()
+
 	t.Field += "_modified"
 }
 
@@ -74,12 +92,16 @@ var (
 	gTestNode3 *TestNode
 )
 
-func InitTestNodes(cur realm) {
+func InitTestNodes() {
+	crossing()
+
 	gTestNode1 = &TestNode{Name: "first"}
 	gTestNode2 = &TestNode{Name: "second", Child: &TestNode{Name: "second's child"}}
 }
 
-func ModTestNodes(cur realm) {
+func ModTestNodes() {
+	crossing()
+
 	tmp := &TestNode{}
 	tmp.Child = gTestNode2.Child
 	gTestNode3 = tmp // set to new-real
@@ -91,12 +113,16 @@ func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
 }
 
-func GetPreviousRealm(cur realm) std.Realm {
+func GetPreviousRealm() std.Realm {
+	crossing()
+
 	return std.PreviousRealm()
 }
 
-func GetRSubtestsPreviousRealm(cur realm) std.Realm {
-	return rsubtests.GetPreviousRealm(cross)
+func GetRSubtestsPreviousRealm() std.Realm {
+	crossing()
+
+	return cross(rsubtests.GetPreviousRealm)()
 }
 
 func Exec(fn func()) {
@@ -104,18 +130,26 @@ func Exec(fn func()) {
 	fn()
 }
 
-func ExecSwitch(cur realm, fn func()) {
+func ExecSwitch(fn func()) {
+	crossing()
+
 	fn()
 }
 
-func IsCallerSubPath(cur realm) bool {
+func IsCallerSubPath() bool {
+	crossing()
+
 	return nestedpkg.IsCallerSubPath()
 }
 
-func IsCallerParentPath(cur realm) bool {
+func IsCallerParentPath() bool {
+	crossing()
+
 	return nestedpkg.IsCallerParentPath()
 }
 
-func HasCallerSameNamespace(cur realm) bool {
+func HasCallerSameNamespace() bool {
+	crossing()
+
 	return nestedpkg.IsSameNamespace()
 }

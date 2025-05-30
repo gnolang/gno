@@ -17,7 +17,9 @@ func Exec(fn func()) {
 	fn()
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	// Create a map of the potential callers, this will give more understandable
 	// output than the bech32 addresses.
 	callersByAddr := make(map[std.Address]string)
@@ -83,7 +85,7 @@ func main(cur realm) {
 		{ // with no Exec
 			var r std.Realm
 			if tt.isSwitch {
-				r = tt.callerFn(cross)
+				r = cross(tt.callerFn)()
 			} else {
 				r = tt.callerFn()
 			}
@@ -93,7 +95,7 @@ func main(cur realm) {
 		Exec(func() {
 			var r std.Realm
 			if tt.isSwitch {
-				r = tt.callerFn(cross)
+				r = cross(tt.callerFn)()
 			} else {
 				r = tt.callerFn()
 			}
@@ -103,17 +105,17 @@ func main(cur realm) {
 		rtests.Exec(func() {
 			var r std.Realm
 			if tt.isSwitch {
-				r = tt.callerFn(cross)
+				r = cross(tt.callerFn)()
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.ExecSwitch(cross, func() {
+		cross(rtests.ExecSwitch)(func() {
 			var r std.Realm
 			if tt.isSwitch {
-				r = tt.callerFn(cross)
+				r = cross(tt.callerFn)()
 			} else {
 				r = tt.callerFn()
 			}
@@ -123,7 +125,7 @@ func main(cur realm) {
 		ptests.Exec(func() {
 			var r std.Realm
 			if tt.isSwitch {
-				r = tt.callerFn(cross)
+				r = cross(tt.callerFn)()
 			} else {
 				r = tt.callerFn()
 			}

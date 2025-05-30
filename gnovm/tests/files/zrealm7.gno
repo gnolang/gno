@@ -14,7 +14,9 @@ func init() {
 	tree, _ = tree.Put(types.String("key2"), "value2")
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	var updated bool
 	tree, updated = tree.Put(types.String("key3"), "value3")
 	println(updated, tree.Size())

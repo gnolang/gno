@@ -11,7 +11,9 @@ func init() {
 	somevalue.Field = "test"
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	// this is OK because the method is declared in a non-realm package.
 	somevalue.Modify()
 	println(somevalue)

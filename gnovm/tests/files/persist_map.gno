@@ -9,7 +9,9 @@ func init() {
 	println("postinit", amap)
 }
 
-func main(cur realm,) {
+func main() {
+	crossing()
+
 	println("premain", amap)
 	amap["c"] = "3"
 	println("postmain", amap)

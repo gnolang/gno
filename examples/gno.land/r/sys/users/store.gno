@@ -52,7 +52,9 @@ func (u UserData) RenderLink(linkText string) string {
 }
 
 // RegisterUser adds a new user to the system.
-func RegisterUser(cur realm, name string, address_XXX std.Address) error {
+func RegisterUser(name string, address std.Address) error {
+	crossing()
+
 	// Validate caller
 	if !controllers.Has(std.PreviousRealm().Address()) {
 		return NewErrNotWhitelisted()
@@ -64,7 +66,7 @@ func RegisterUser(cur realm, name string, address_XXX std.Address) error {
 	}
 
 	// Validate address
-	if !address_XXX.IsValid() {
+	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
 
@@ -73,7 +75,7 @@ func RegisterUser(cur realm, name string, address_XXX std.Address) error {
 		return ErrNameTaken
 	}
 
-	raw, ok := addressStore.Get(address_XXX.String())
+	raw, ok := addressStore.Get(address.String())
 	if ok {
 		// Cannot re-register after deletion
 		if raw.(*UserData).IsDeleted() {
@@ -86,18 +88,18 @@ func RegisterUser(cur realm, name string, address_XXX std.Address) error {
 
 	// Create UserData
 	data := &UserData{
-		addr:     address_XXX,
+		addr:     address,
 		username: name,
 		deleted:  false,
 	}
 
 	// Set corresponding stores
 	nameStore.Set(name, data)
-	addressStore.Set(address_XXX.String(), data)
+	addressStore.Set(address.String(), data)
 
 	std.Emit(RegisterUserEvent,
 		"name", name,
-		"address", address_XXX.String(),
+		"address", address.String(),
 	)
 	return nil
 }

@@ -5,13 +5,15 @@ import (
 	"gno.land/r/demo/tests"
 )
 
-func main(cur realm) {
-	println("test1", tests.CurrentRealmPath(cross))
+func main() {
+	crossing()
+
+	println("test1", cross(tests.CurrentRealmPath)())
 	func() {
-		println("test2", tests.CurrentRealmPath(cross))
+		println("test2", cross(tests.CurrentRealmPath)())
 	}()
 	x := tests.CurrentRealmPath
-	println("test3", x(cross))
+	println("test3", cross(x)())
 }
 
 // Output:

@@ -31,32 +31,40 @@ func Make1() *p_crossrealm.Container {
 	}
 }
 
-type Fooer interface{ Foo(realm) }
+type Fooer interface{ Foo() }
 
 var fooer Fooer
 
-func SetFooer(cur realm, f Fooer) Fooer {
+func SetFooer(f Fooer) Fooer {
+	crossing()
+
 	fooer = f
 	return fooer
 }
 
 func GetFooer() Fooer { return fooer }
 
-func CallFooerFoo(cur realm) { fooer.Foo(cur) }
+func CallFooerFoo() { fooer.Foo() }
 
-func CallFooerFooSR(cur realm) {
-	fooer.Foo(cur)
+func CallFooerFooSR() {
+	crossing()
+
+	fooer.Foo()
 }
 
-func CallFooerFooSR2(cur realm) {
-	fooer.Foo(cross)
+func CallFooerFooSR2() {
+	crossing()
+
+	cross(fooer.Foo)()
 }
 
 type FooerGetter func() Fooer
 
 var fooerGetter FooerGetter
 
-func SetFooerGetter(cur realm, fg FooerGetter) FooerGetter {
+func SetFooerGetter(fg FooerGetter) FooerGetter {
+	crossing()
+
 	fooerGetter = fg
 	return fg
 }
@@ -65,14 +73,18 @@ func GetFooerGetter() FooerGetter {
 	return fooerGetter
 }
 
-func CallFooerGetterFoo(cur realm) { fooerGetter().Foo(cur) }
+func CallFooerGetterFoo() { fooerGetter().Foo() }
 
-func CallFooerGetterFooSR2(cur realm) {
-	fooerGetter().Foo(cross)
+func CallFooerGetterFooSR2() {
+	crossing()
+
+	cross(fooerGetter().Foo)()
 }
 
 // This is a top function that does switch realms.
-func ExecSR(cur realm, cb func() string) string {
+func ExecSR(cb func() string) string {
+	crossing()
+
 	return cb()
 }
 
@@ -83,13 +95,17 @@ func Exec(cb func() string) string {
 
 var Closure func()
 
-func SetClosure(cur realm, f func()) {
+func SetClosure(f func()) {
+	crossing()
+
 	Closure = f
 }
 
 var Object any
 
-func SetObject(cur realm, x any) {
+func SetObject(x any) {
+	crossing()
+
 	Object = x
 }
 
@@ -105,7 +121,7 @@ func EntryPoint() (noCros *ownable.Ownable) {
 }
 
 func EntryPointWithCrossing() (withCros *ownable.Ownable) {
-	return PrevRealmCrossing(cross)
+	return cross(PrevRealmCrossing)()
 }
 
 func PrevRealmNoCrossing() *ownable.Ownable {
@@ -114,7 +130,8 @@ func PrevRealmNoCrossing() *ownable.Ownable {
 	return ownable.New()
 }
 
-func PrevRealmCrossing(cur realm) *ownable.Ownable {
+func PrevRealmCrossing() *ownable.Ownable {
+	crossing()
 	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().PkgPath())
 	println("crossrealm PreviousRealm with crossing: " + std.PreviousRealm().Address())
 	return ownable.New()
@@ -123,7 +140,8 @@ func PrevRealmCrossing(cur realm) *ownable.Ownable {
 func CurRealmNoCrossing() std.Realm {
 	return std.CurrentRealm()
 }
-func CurRealmWithCrossing(cur realm) std.Realm {
+func CurRealmWithCrossing() std.Realm {
+	crossing()
 	return std.CurrentRealm()
 }
 
@@ -133,6 +151,7 @@ func PkgCurRealmNoCrossing() std.Realm {
 }
 
 // call the package that returns current realm
-func PkgCurRealmWithCrossing(cur realm) std.Realm {
+func PkgCurRealmWithCrossing() std.Realm {
+	crossing()
 	return std.CurrentRealm()
 }

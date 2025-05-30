@@ -11,9 +11,9 @@ import (
 )
 
 type Signup struct {
-	address_XXX std.Address
-	ordinal     int
-	timestamp   time.Time
+	address   std.Address
+	ordinal   int
+	timestamp time.Time
 }
 
 var (
@@ -25,10 +25,12 @@ var (
 const signUpEvent = "SignUp"
 
 func init() {
-	SignUp(cross) // Sign up the deployer
+	cross(SignUp)() // Sign up the deployer
 }
 
-func SignUp(cur realm) string {
+func SignUp() string {
+	crossing()
+
 	// Get transaction caller
 	caller := std.PreviousRealm().Address()
 

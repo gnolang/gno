@@ -24,7 +24,9 @@ var (
 	gLimit std.Coin = std.NewCoin("ugnot", 350_000_000)
 )
 
-func Transfer(cur realm, to std.Address, send int64) string {
+func Transfer(to std.Address, send int64) string {
+	crossing()
+
 	if err := assertIsController(); err != nil {
 		return err.Error()
 	}
@@ -52,13 +54,14 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
-func bankerAddr(cur realm) std.Address {
+func bankerAddr() std.Address {
+	crossing()
 	return std.CurrentRealm().Address()
 }
 
 func Render(_ string) string {
 	banker := std.NewBanker(std.BankerTypeReadonly)
-	balance := banker.GetCoins(bankerAddr(cross))
+	balance := banker.GetCoins(cross(bankerAddr)())
 
 	output := gMessage
 	if gInPause {

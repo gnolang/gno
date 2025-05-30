@@ -5,7 +5,9 @@ import (
 	"gno.land/p/demo/tests"
 )
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	tests.ModifyTestRealmObject2b()
 	println("done")
 }

@@ -17,7 +17,9 @@ type StructB struct {
 	B *StructA
 }
 
-func (sb *StructB) Set(cur realm, sa *StructA) struct{} {
+func (sb *StructB) Set(sa *StructA) struct{} {
+	crossing()
+
 	sb.B = sa
 	return struct{}{}
 }
@@ -30,12 +32,12 @@ func init() {
 
 func main() {
 	sa := &StructA{}
-	sb.Set(cross, sa) // attach sa now.
+	cross(sb.Set)(sa) // attach sa now.
 
 	// If sa was attached to sb (this realm),
 	// it would not attach to crossrealm_b below,
 	// so we wouldn't be able to mutate it directly.
-	crossrealm_b.SetObject(cross, sb)
+	cross(crossrealm_b.SetObject)(sb)
 	sa.A = 1 // should succeed
 	if sa.A != 1 {
 		panic("expected sa.A to be 1")

@@ -18,10 +18,12 @@ func init() {
 	// Since s is a 'field' of the package block
 	// the object 's' is not stored in crossrealm_b,
 	// it is lazily attached to this realm!!!
-	crossrealm_b.SetObject(cross, func() { println(&s.A) })
+	cross(crossrealm_b.SetObject)(func() { println(&s.A) })
 }
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	s.A = 123
 	println(s)
 }

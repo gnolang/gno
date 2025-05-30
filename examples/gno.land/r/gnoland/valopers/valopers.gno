@@ -53,22 +53,28 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 	return v.auth
 }
 
-func AddToAuthList(cur realm, address_XXX std.Address, member std.Address) {
-	v := GetByAddr(address_XXX)
+func AddToAuthList(address std.Address, member std.Address) {
+	crossing()
+
+	v := GetByAddr(address)
 	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
-func DeleteFromAuthList(cur realm, address_XXX std.Address, member std.Address) {
-	v := GetByAddr(address_XXX)
+func DeleteFromAuthList(address std.Address, member std.Address) {
+	crossing()
+
+	v := GetByAddr(address)
 	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
 // Register registers a new valoper
-func Register(cur realm, moniker string, description string, address_XXX std.Address, pubKey string) {
+func Register(moniker string, description string, address std.Address, pubKey string) {
+	crossing()
+
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
 		sentCoins := std.OriginSend()
@@ -80,14 +86,14 @@ func Register(cur realm, moniker string, description string, address_XXX std.Add
 	}
 
 	// Check if the valoper is already registered
-	if isValoper(address_XXX) {
+	if isValoper(address) {
 		panic(ErrValoperExists)
 	}
 
 	v := Valoper{
 		Moniker:     moniker,
 		Description: description,
-		Address:     address_XXX,
+		Address:     address,
 		PubKey:      pubKey,
 		KeepRunning: true,
 		auth:        authorizable.NewAuthorizableWithOrigin(),
@@ -105,13 +111,15 @@ func Register(cur realm, moniker string, description string, address_XXX std.Add
 }
 
 // UpdateMoniker updates an existing valoper's moniker
-func UpdateMoniker(cur realm, address_XXX std.Address, moniker string) {
+func UpdateMoniker(address std.Address, moniker string) {
+	crossing()
+
 	// Check that the moniker is not empty
 	if err := validateMoniker(moniker); err != nil {
 		panic(err)
 	}
 
-	v := GetByAddr(address_XXX)
+	v := GetByAddr(address)
 
 	// Check that the caller has permissions
 	v.Auth().AssertPreviousOnAuthList()
@@ -120,17 +128,19 @@ func UpdateMoniker(cur realm, address_XXX std.Address, moniker string) {
 	v.Moniker = moniker
 
 	// Save the valoper info
-	valopers.Set(address_XXX.String(), v)
+	valopers.Set(address.String(), v)
 }
 
 // UpdateDescription updates an existing valoper's description
-func UpdateDescription(cur realm, address_XXX std.Address, description string) {
+func UpdateDescription(address std.Address, description string) {
+	crossing()
+
 	// Check that the description is not empty
 	if err := validateDescription(description); err != nil {
 		panic(err)
 	}
 
-	v := GetByAddr(address_XXX)
+	v := GetByAddr(address)
 
 	// Check that the caller has permissions
 	v.Auth().AssertPreviousOnAuthList()
@@ -139,12 +149,14 @@ func UpdateDescription(cur realm, address_XXX std.Address, description string) {
 	v.Description = description
 
 	// Save the valoper info
-	valopers.Set(address_XXX.String(), v)
+	valopers.Set(address.String(), v)
 }
 
 // UpdateKeepRunning updates an existing valoper's active status
-func UpdateKeepRunning(cur realm, address_XXX std.Address, keepRunning bool) {
-	v := GetByAddr(address_XXX)
+func UpdateKeepRunning(address std.Address, keepRunning bool) {
+	crossing()
+
+	v := GetByAddr(address)
 
 	// Check that the caller has permissions
 	v.Auth().AssertPreviousOnAuthList()
@@ -153,12 +165,12 @@ func UpdateKeepRunning(cur realm, address_XXX std.Address, keepRunning bool) {
 	v.KeepRunning = keepRunning
 
 	// Save the valoper info
-	valopers.Set(address_XXX.String(), v)
+	valopers.Set(address.String(), v)
 }
 
 // GetByAddr fetches the valoper using the address, if present
-func GetByAddr(address_XXX std.Address) Valoper {
-	valoperRaw, exists := valopers.Get(address_XXX.String())
+func GetByAddr(address std.Address) Valoper {
+	valoperRaw, exists := valopers.Get(address.String())
 	if !exists {
 		panic(ErrValoperMissing)
 	}
@@ -245,8 +257,8 @@ func (v Valoper) Render() string {
 }
 
 // isValoper checks if the valoper exists
-func isValoper(address_XXX std.Address) bool {
-	_, exists := valopers.Get(address_XXX.String())
+func isValoper(address std.Address) bool {
+	_, exists := valopers.Get(address.String())
 
 	return exists
 }
@@ -282,8 +294,8 @@ func validateDescription(description string) error {
 }
 
 // validateBech32 checks if the value is a valid bech32 address
-func validateBech32(address_XXX std.Address) error {
-	if !std.Address.IsValid(address_XXX) {
+func validateBech32(address std.Address) error {
+	if !std.Address.IsValid(address) {
 		return ErrInvalidAddress
 	}
 

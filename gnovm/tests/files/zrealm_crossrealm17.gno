@@ -15,12 +15,14 @@ type fooer struct{}
 
 var f *fooer
 
-func main(cur realm) {
+func main() {
+	crossing()
+
 	f = &fooer{}
 	c := &container{f}
-	crossrealm.SetFooer(cross, c)
+	cross(crossrealm.SetFooer)(c)
 	crossrealm.CallFooerFoo()
-	crossrealm.CallFooerFooSR(cross)
+	cross(crossrealm.CallFooerFooSR)()
 	print(".")
 }
 

@@ -7,8 +7,10 @@ import (
 	"gno.land/r/demo/tests/crossrealm"
 )
 
-func main(cur realm) {
-	println(crossrealm.ExecSR(cross, func() string {
+func main() {
+	crossing()
+
+	println(cross(crossrealm.ExecSR)(func() string {
 		rlm1 := std.CurrentRealm()
 		rlm2 := std.PreviousRealm()
 		return string(rlm1.Address()) + " " + rlm1.PkgPath() + "\n" + string(rlm2.Address()) + " " + rlm2.PkgPath()
