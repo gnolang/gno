@@ -239,7 +239,6 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 	// Create a top-level shared event switch
 	evsw := events.NewEventSwitch()
-	minGasPrices := cfg.Application.MinGasPrices
 
 	// Create application and node
 	cfg.LocalApp, err = gnoland.NewApp(
@@ -248,9 +247,9 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 			SkipFailingTxs:      c.skipFailingGenesisTxs,
 			SkipSigVerification: c.skipGenesisSigVerification,
 		},
+		cfg.Application,
 		evsw,
 		logger,
-		minGasPrices,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
@@ -286,6 +285,11 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Gracefully stop the gno node
 	if err := gnoNode.Stop(); err != nil {
 		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
+	}
+
+	// Gracefully stop the app
+	if err = cfg.LocalApp.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close the Gnoland application: %w", err)
 	}
 
 	return nil

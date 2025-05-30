@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -810,6 +811,35 @@ func TestConfig_Set_Mempool(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.Mempool.CacheSize))
+			},
+		},
+	}
+
+	verifySetTestTableCommon(t, testTable)
+}
+
+func TestConfig_Set_Application(t *testing.T) {
+	t.Parallel()
+
+	testTable := []testSetCase{
+		{
+			"min gas prices updated",
+			[]string{
+				"application.min_gas_prices",
+				"10foo/3gas",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, loadedCfg.Application.MinGasPrices)
+			},
+		},
+		{
+			"prune strategy updated",
+			[]string{
+				"application.prune_strategy",
+				"everything",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, types.PruneStrategy(value), loadedCfg.Application.PruneStrategy)
 			},
 		},
 	}
