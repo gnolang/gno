@@ -15,6 +15,7 @@ func ConvertCosmosToGno(addr string) (std.Address, error) {
 	if !ok {
 		return "", ufmt.Errorf("bech32 decode failed")
 	}
+	
 	if prefix != "cosmos" {
 		return "", ufmt.Errorf("expected a cosmos address, got prefix %q", prefix)
 	}
