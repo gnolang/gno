@@ -79,10 +79,10 @@ func (c *Account) Call(env *Env, valueToSend *uint256.Uint, code string, f strin
 	return c.executeCallHex(env, valueToSend, f, byteCode, args...)
 }
 
-func (c *Account) CallContract(env *Env, contractAdress uint64, valueToSend *uint256.Uint, f string, args ...*uint256.Uint) ([]byte, error) {
-	contract := env.Accounts[contractAdress]
+func (c *Account) CallContract(env *Env, contractAddress uint64, valueToSend *uint256.Uint, f string, args ...*uint256.Uint) ([]byte, error) {
+	contract := env.Accounts[contractAddress]
 	if contract.AccountType != ContractAccount {
-		return []byte{}, errors.New("invalid contract adress")
+		return []byte{}, errors.New("invalid contract address")
 	}
 	return c.executeCallHex(env, valueToSend, f, contract.Code, args...)
 }

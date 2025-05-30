@@ -5,7 +5,7 @@ import (
 )
 
 // gasPrice defines the cost of one gas unit in wei.
-const gasPrice = 10 // one gas cost 10 wei
+const GasPrice = 10 // one gas cost 10 wei
 
 // LogEntry represents an event log entry with topics and data.
 type LogEntry struct {

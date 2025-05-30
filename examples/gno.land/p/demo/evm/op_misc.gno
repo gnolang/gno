@@ -279,7 +279,7 @@ func opCallvalue(s *State) error {
 }
 
 func opGasprice(s *State) error {
-	s.stack.Push(uint256.NewUint(gasPrice))
+	s.stack.Push(uint256.NewUint(GasPrice))
 	return nil
 }
 

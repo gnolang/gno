@@ -1,7 +1,6 @@
 package evm
 
 import (
-	"encoding/hex"
 	"net/url"
 	"std"
 	"strconv"
@@ -40,31 +39,60 @@ func assertGetConnectedUserFromRealm() *evm.Account {
 	return caller
 }
 
-// public functions
+func splitCallData(callData string) (string, []*uint256.Uint) {
+	callData, err := url.QueryUnescape(callData)
+	if err != nil {
+		panic("call: cant unescape string, " + err.Error())
+	}
+	callexpr := strings.Split(callData, " ")
 
-func Publish(codeStr string) {
+	list := []*uint256.Uint{}
+	for i := 3; i < len(callexpr); i++ {
+		n, err := uint256.FromHex(callexpr[i])
+		if err != nil {
+			panic("call: invalid parametter, " + err.Error())
+		}
+		list = append(list, n)
+	}
+	return callexpr[0], list
+}
+
+// public functions
+func ExecuteByteCode(codeStr, callData string, valueToSend string) {
 	crossing()
 
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
 
-	// check for bytecode is ok
-	code, err := hex.DecodeString(codeStr)
-	if err != nil {
-		panic("invalid contract: " + err.Error())
-	}
+	// parse args
+	callDataFunc, args := splitCallData(callData)
 
-	// push the contract
-	addr, err := env.Accounts.PushSmartContract(env, code)
+	// execute raw byte code
+	res, err := caller.Call(env, uint256.MustFromDecimal(valueToSend), codeStr, callDataFunc, args...)
 	if err != nil {
-		panic("invalid contract: " + err.Error())
+		panic("execute bytecode runtime error: " + err.Error())
 	}
-	env.Transaction.PushCreation(0, caller, addr)
+	env.Transaction.PushExecution(0, caller, res, 0, true) // TODO: get the execution price
 }
 
-func Faucet(n int) {
+func Faucet(weiToGive uint) {
 	crossing()
-	assertGetConnectedUserFromRealm().Gas += uint(n)
+
+	usr := assertGetConnectedUserFromRealm()
+	usr.Balance.Add(usr.Balance, uint256.NewUint(uint64(weiToGive)))
+}
+
+func BuyGas(nbGasToBuy uint64) {
+	crossing()
+
+	usr := assertGetConnectedUserFromRealm()
+	price := nbGasToBuy * evm.GasPrice
+	if usr.Balance.Lt(uint256.NewUint(uint64(price))) {
+		panic("not enough wei to buy " + strconv.FormatUint(nbGasToBuy, 10) +
+			" gas: " + usr.Balance.String() + " wei on account but it cost " + strconv.FormatUint(price, 10) + " wei")
+	}
+	usr.Balance.Sub(usr.Balance, uint256.NewUint(price))
+	usr.Gas += uint(nbGasToBuy)
 }
 
 func Register() {
@@ -78,46 +106,29 @@ func Register() {
 		panic("invalid contract: " + err.Error())
 	}
 	gnoUserToAccountHelper[gnoAddr] = env.Accounts[addr]
-	env.Transaction.PushCreation(0, env.Accounts[addr], addr)
+	env.Transaction.PushCallerCreation(0, env.Accounts[addr], addr)
 }
 
-func Call(path string, gasLimit uint) {
+func CallContract(contractAddress, callData string, valueToSend string) {
 	crossing()
 
-	// check the args & caller
-	path, err := url.QueryUnescape(path)
-	if err != nil {
-		panic("call: cant unescape string, " + err.Error())
-	}
 	caller := assertGetConnectedUserFromRealm()
-	callexpr := strings.Split(path, " ")
-	if len(callexpr) < 3 {
-		panic("call: invalid number of arguments, expected 'call/address:<int hex>/function(types)/arg1/arg2/...'")
-	}
 
 	// get contract index
 	contractIndex := uint64(0)
-	if contractIndex, err = strconv.ParseUint(callexpr[1], 16, 64); err != nil || env.Accounts[contractIndex] == nil {
-		panic("call: bad address (bad number, or invalid address) or " + err.Error())
+	if contractIndex, err := strconv.ParseUint(contractAddress, 16, 64); err != nil || env.Accounts[contractIndex] == nil {
+		panic("call contract: bad address (bad number, or invalid address) or " + err.Error())
 	}
 
-	// call the contract with parametters
-	list := []*uint256.Uint{}
-	for i := 3; i < len(callexpr); i++ {
-		n, err := strconv.Atoi(callexpr[i])
-		if err != nil {
-			panic("call: invalid parametter, " + err.Error())
-		}
-		list = append(list, uint256.NewUint(uint64(n)))
-	}
+	// parse args
+	callDataFunc, args := splitCallData(callData)
 
-	// make the call
-	funcName := callexpr[2]
-	res, err := caller.RawContractCall(env, gasLimit, funcName, hex.EncodeToString(env.Accounts[contractIndex].Code), list...)
+	// execute contract code
+	res, err := caller.CallContract(env, contractIndex, uint256.MustFromDecimal(valueToSend), callDataFunc, args...)
 	if err != nil {
-		panic("call runtime: " + err.Error())
+		panic("call contract runtime error: " + err.Error())
 	}
-	env.Transaction.PushExecution(0, caller, res, contractIndex) // TODO: get the execution price
+	env.Transaction.PushExecution(0, caller, res, 0, false) // TODO: get the execution price
 }
 
 func Render(path string) string {
@@ -132,12 +143,14 @@ func Render(path string) string {
 
 	// create the action part
 	actionPart := md.H2("Actions") + br
-	publishLnk := txlink.Call("Publish")
-	faucetLnk := txlink.Call("Faucet", "n", "100000")
-	callLnk := txlink.Call("Call", "path", "call 12 foo(uint256,uint256) 42 1", "gasLimit", "100000")
+	executeByteCodeLnk := txlink.Call("ExecuteByteCode", "codeStr", "00", "callData", "foo(uint256,uint256) 42 1", "valueToSend", "10")
+	faucetLnk := txlink.Call("Faucet", "weiToGive", "100000")
+	buyGasLnk := txlink.Call("BuyGas", "nbGasToBuy", "100000")
+	callLnk := txlink.Call("CallContract", "contractAddress", "12", "callData", "foo(uint256,uint256) 42 1", "valueToSend", "10")
 	actionPart += md.BulletList([]string{
-		"Click " + md.Link("here", publishLnk) + " to publish a new contract.",
-		"Click " + md.Link("here", faucetLnk) + " to give gas to your account (faucet).",
+		"Click " + md.Link("here", executeByteCodeLnk) + " to execute raw EVM bytecode.",
+		"Click " + md.Link("here", faucetLnk) + " to give wei to your account (faucet).",
+		"Click " + md.Link("here", buyGasLnk) + " to buy gas from wei.",
 		"Click " + md.Link("here", callLnk) + " to call a contract.",
 	})
 

@@ -25,20 +25,32 @@ type Transaction interface {
 	String() string // string representing the transaction
 }
 
-func (s *Transactions) PushCreation(gasCost uint, caller *Account, newContractAddress uint64) {
+func (s *Transactions) PushCallerCreation(gasCost uint, caller *Account, newContractAddress uint64) {
 	createContract := CreateContractTransaction{
 		gasPrice:        gasCost,
 		caller:          caller,
 		contractAddress: newContractAddress,
+		accountType:     CallerAccount,
 	}
 	*s = append(*s, &createContract)
 }
 
-func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byte, address uint64) {
+func (s *Transactions) PushContractCreation(gasCost uint, caller *Account, newContractAddress uint64) {
+	createContract := CreateContractTransaction{
+		gasPrice:        gasCost,
+		caller:          caller,
+		contractAddress: newContractAddress,
+		accountType:     ContractAccount,
+	}
+	*s = append(*s, &createContract)
+}
+
+func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byte, address uint64, rawCode bool) {
 	createContract := ExecuteContractTransaction{
 		gasPrice:        gasCost,
 		caller:          caller,
 		result:          result,
+		rawCode:         rawCode,
 		contractAddress: address,
 	}
 	*s = append(*s, &createContract)
@@ -46,6 +58,7 @@ func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byt
 
 type CreateContractTransaction struct {
 	gasPrice        uint
+	accountType     accountType
 	caller          *Account
 	contractAddress uint64
 }
@@ -71,13 +84,14 @@ func (t *CreateContractTransaction) getCaller() *Account {
 }
 
 func (t *CreateContractTransaction) String() string {
-	return "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " created an account for a " + t.caller.AccountType.String() + " (to change), costing " + strconv.FormatUint(gasPrice, 10) + " gas"
+	return "0x" + strconv.FormatUint(uint64(t.caller.EvmAddress), 16) + " created an account for a " + t.caller.AccountType.String() + ", costing " + strconv.FormatUint(uint64(t.gasPrice), 10) + " gas"
 }
 
 type ExecuteContractTransaction struct {
 	gasPrice        uint
 	caller          *Account
 	result          []byte
+	rawCode         bool
 	contractAddress uint64
 }
 
@@ -112,8 +126,14 @@ func trimLeadingZeros(data []byte) []byte {
 }
 
 func (t *ExecuteContractTransaction) String() string {
-	x := "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " executed " + "0x" + strconv.FormatInt(int64(t.contractAddress), 16)
-	x += " costing " + strconv.FormatUint(gasPrice, 10)
+	tmp := "string"
+	if t.rawCode {
+		tmp = "raw code"
+	} else {
+		tmp = "contract at 0x" + strconv.FormatInt(int64(t.contractAddress), 16)
+	}
+	x := "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " executed " + tmp
+	x += " costing " + strconv.FormatUint(uint64(t.gasPrice), 10)
 	x += ", resulting with 0x" + hex.EncodeToString(trimLeadingZeros(t.result))
 	x += " (decimal: " + strconv.FormatUint(binary.BigEndian.Uint64(t.result[len(t.result)-8:len(t.result)]), 10) + ")"
 	return x
