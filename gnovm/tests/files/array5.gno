@@ -8,4 +8,4 @@ func main() {
 // duplicate index 1 in array or slice literal
 
 // TypeCheckError:
-// main/files/array5.gno:4:20: duplicate index 1 in array or slice literal; main/files/array5.gno:4:2: declared and not used: a
+// main/array5.gno:4:20: duplicate index 1 in array or slice literal; main/array5.gno:4:2: declared and not used: a

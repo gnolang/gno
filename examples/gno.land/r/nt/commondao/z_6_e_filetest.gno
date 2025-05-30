@@ -15,20 +15,24 @@ const (
 var daoID uint64
 
 func init() {
+	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
 	cross(commondao.Invite)(user)
 
+	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
-	dao.Members().Add(user)
-
 	daoID = dao.ID()
+
+	// Change options to disallow execution
+	options := commondao.GetOptions(daoID)
+	options.SetAllowExecution(false)
 }
 
 func main() {
-	cross(commondao.CreateMembersUpdateProposal)(daoID, "not/found", "", "")
+	cross(commondao.Execute)(daoID, 0)
 }
 
 // Error:
-// subDAO not found
+// proposal execution is not enabled

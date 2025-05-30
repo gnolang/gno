@@ -370,7 +370,6 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	rlm := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
-	timelock := time.Now().Add(defaultTimelockDuration)
 
 	test20.PrivateLedger.Mint(sender, 100_000)
 	test20.PrivateLedger.Approve(sender, rlm, 70_000)

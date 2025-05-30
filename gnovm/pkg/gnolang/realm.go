@@ -1287,6 +1287,8 @@ func copyValueWithRefs(val Value) Value {
 // fillTypes
 
 // (fully) fills the type.
+// The store stores RefTypes, but this function fills it.
+// This lets the store be independent of laziness.
 func fillType(store Store, typ Type) Type {
 	switch ct := typ.(type) {
 	case nil:
