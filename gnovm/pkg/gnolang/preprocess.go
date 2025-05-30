@@ -1387,6 +1387,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// START Check validity of crossing arg n.Args[0].(*NameExpr).
 						// TODO: Refactor this out into a function call.
 						{
+							if len(n.Args) == 0 {
+								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur or cross)", n))
+							}
 							nx, ok := n.Args[0].(*NameExpr)
 							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
 								panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))

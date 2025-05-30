@@ -79,4 +79,9 @@ func main(cur realm) {
 }
 
 // Error:
-// crossing could not find corresponding cross(fn)(...) call
+// gno.land/r/borrow_test/zrealm_borrow0.gno:24:2-17: missing realm argument in calling crossing function call s<VPBlock(1,0)>.printRealms() (expected cur or cross)
+
+// TypeCheckError:
+// gno.land/r/borrow_test/zrealm_borrow0.gno:24:16: not enough arguments in call to s.printRealms
+// 	have ()
+// 	want (realm)
