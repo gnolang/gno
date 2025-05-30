@@ -1313,7 +1313,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return n.Args[0], TRANS_CONTINUE
 					}
 
-					if _, isIface := baseOf(ct).(*InterfaceType); isIface {
+					// XXX, tune the conversion stuff...
+					switch baseOf(ct).(type) {
+					case *InterfaceType, *ArrayType, *MapType, *SliceType:
 						assertAssignableTo(n, at, ct, false)
 					}
 
