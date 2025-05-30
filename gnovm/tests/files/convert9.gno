@@ -19,7 +19,7 @@ func main() {
 }
 
 // Error:
-// main/conv_anon2.gno:13:10-16:8: cannot use [2]main.Foo as [2]struct{age int; name string}
+// main/convert9.gno:13:10-16:8: cannot use [2]main.Foo as [2]struct{age int; name string}
 
 // TypeCheckError:
-// main/conv_anon2.gno:16:4: cannot convert Arr (variable of type [2]Foo) to type [2]struct{age int; name string}
+// main/convert9.gno:16:4: cannot convert Arr (variable of type [2]Foo) to type [2]struct{age int; name string}

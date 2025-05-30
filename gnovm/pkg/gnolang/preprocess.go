@@ -1300,7 +1300,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case *FuncType:
 					ft = cft
 				case *TypeType:
-					//fmt.Println("---CallExpr, TypeType...")
 					if len(n.Args) != 1 {
 						panic("type conversion requires single argument")
 					}
@@ -1308,28 +1307,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
 
-					//fmt.Println("---ct: ", ct, reflect.TypeOf(ct))
-					//if ct != nil {
-					//	fmt.Println("---ct.IsNamed: ", ct.IsNamed())
-					//}
-					//fmt.Println("---at: ", at, reflect.TypeOf(at))
-					//if at != nil {
-					//	fmt.Println("---at.IsNamed: ", at.IsNamed())
-					//	fmt.Println("---at.kind: ", at.Kind())
-					//}
-					//
-					//fmt.Println("---n.Args[0]: ", n.Args[0], reflect.TypeOf(n.Args[0]))
-					//
-					//if _, ok := ct.(*ArrayType); ok {
-					//	assertAssignableTo(n, at, ct, false)
-					//}
-
 					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
 					if at != nil && ct.TypeID() == at.TypeID() && !isUntyped(at) {
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n.Args[0], TRANS_CONTINUE
 					}
 
+					// XXX, tune the conversion stuff...
 					switch baseOf(ct).(type) {
 					case *InterfaceType, *ArrayType, *MapType, *SliceType:
 						assertAssignableTo(n, at, ct, false)
