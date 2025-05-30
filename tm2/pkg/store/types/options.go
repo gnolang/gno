@@ -53,9 +53,9 @@ func (s PruneStrategy) Options() PruningOptions {
 	switch s {
 	case PruneEverythingStrategy:
 		return PruneEverything
-	case PruneSyncableStrategy:
-		return PruneSyncable
-	default:
+	case PruneNothingStrategy:
 		return PruneNothing
+	default:
+		return PruneSyncable
 	}
 }
