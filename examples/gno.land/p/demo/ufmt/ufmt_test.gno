@@ -113,17 +113,17 @@ func TestSprintf(t *testing.T) {
 		{"%.2f", []any{1e6}, "1000000.00"},
 		{"%.2f", []any{1e-6}, "0.00"},
 
-		{"%5s", []any{"Hello World"}, "Hello"},
-		{"%3s", []any{"Hi"}, "Hi"},
-		{"%2s", []any{"Hello"}, "He"},
+		{"%5s", []any{"Hello World"}, "Hello World"},
+		{"%3s", []any{"Hi"}, " Hi"},
+		{"%2s", []any{"Hello"}, "Hello"},
 		{"%1s", []any{"A"}, "A"},
 		{"%0s", []any{"Test"}, "Test"},
-		{"%5s!", []any{"Hello World"}, "Hello!"},
-		{"_%3s_", []any{"abcdef"}, "_abc_"},
-		{"%2s%3s", []any{"ab", "cde"}, "abcde"},
-		{"%5s", []any{""}, ""},
-		{"%3s", []any{nil}, "%!s"},
-		{"%2s", []any{123}, "%!"},
+		{"%5s!", []any{"Hello World"}, "Hello World!"},
+		{"_%5s_", []any{"abc"}, "_  abc_"},
+		{"%2s%4s", []any{"ab", "cde"}, "ab cde"},
+		{"%5s", []any{""}, "     "},
+		{"%3s", []any{nil}, "%!s(<nil>)"},
+		{"%2s", []any{123}, "%!s(int=123)"},
 	}
 
 	for _, tc := range cases {
