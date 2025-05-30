@@ -1,7 +1,5 @@
 package main
 
-func f1() int { return 1 }
-
 func f1() int { return 2 }
 
 func main() {

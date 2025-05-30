@@ -75,8 +75,8 @@ Examples:
 }
 
 func renderAddressBalance(banker std.Banker, denom string, addr string) string {
-	address := std.Address(addr)
-	coins := banker.GetCoins(address)
+	address_XXX := std.Address(addr)
+	coins := banker.GetCoins(address_XXX)
 
 	for _, coin := range coins {
 		if coin.Denom == denom {

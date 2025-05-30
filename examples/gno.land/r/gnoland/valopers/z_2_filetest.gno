@@ -26,12 +26,12 @@ func init() {
 	testing.SetOriginCaller(g1user)
 
 	// Register a validator and add the proposal
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 }
 
 func main() {
 	// Simulate clicking on the validator
-	println(cross(valopers.Render)(validAddress.String()))
+	println(valopers.Render(cross, validAddress.String()))
 }
 
 // Output:

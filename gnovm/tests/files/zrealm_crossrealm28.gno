@@ -13,14 +13,12 @@ var s *Struct
 
 func init() {
 	s = &Struct{A: 100}
-	cross(crossrealm_b.SetObject)(func() { println(&s.A) })
+	crossrealm_b.SetObject(cross, func() { println(&s.A) })
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	//s := &Struct{A: 100}
-	cross(crossrealm_b.SetObject)(123)
+	crossrealm_b.SetObject(cross, 123)
 	s.A = 123
 	println(s)
 }

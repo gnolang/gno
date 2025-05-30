@@ -15,5 +15,5 @@ func (fs *FooStringer) String() string {
 }
 
 func AddFooStringer(fa string) {
-	cross(tests.AddStringer)(&FooStringer{fa})
+	tests.AddStringer(cross, &FooStringer{fa})
 }

@@ -44,9 +44,7 @@ func init() {
 	printVars("postinit")
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	printVars("premain ")
 	mutateVars("C")
 	printVars("postmain")

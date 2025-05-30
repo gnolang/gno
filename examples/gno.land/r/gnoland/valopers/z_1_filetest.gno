@@ -26,11 +26,11 @@ func init() {
 	testing.SetOriginCaller(g1user)
 
 	// Register a validator and add the proposal
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 }
 
 func main() {
-	println(cross(valopers.Render)(""))
+	println(valopers.Render(cross, ""))
 }
 
 // Output:
