@@ -7,11 +7,11 @@ import (
 	"io"
 	"time"
 
+	"github.com/gnolang/gno/contribs/tx-archive/log"
+	"github.com/gnolang/gno/contribs/tx-archive/log/noop"
+	"github.com/gnolang/gno/contribs/tx-archive/restore/client"
+	"github.com/gnolang/gno/contribs/tx-archive/restore/source"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/tx-archive/log"
-	"github.com/gnolang/tx-archive/log/noop"
-	"github.com/gnolang/tx-archive/restore/client"
-	"github.com/gnolang/tx-archive/restore/source"
 )
 
 // Service is the chain restore service

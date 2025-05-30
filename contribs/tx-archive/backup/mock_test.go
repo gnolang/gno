@@ -3,8 +3,8 @@ package backup
 import (
 	"context"
 
+	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/tx-archive/backup/client"
 )
 
 type (

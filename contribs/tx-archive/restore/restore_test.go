@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/tx-archive/log/noop"
+	"github.com/gnolang/gno/contribs/tx-archive/log/noop"
 )
 
 func TestRestore_ExecuteRestore(t *testing.T) {

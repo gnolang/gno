@@ -1,6 +1,6 @@
 package backup
 
-import "github.com/gnolang/tx-archive/log"
+import "github.com/gnolang/gno/contribs/tx-archive/log"
 
 type Option func(s *Service)
 

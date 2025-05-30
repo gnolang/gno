@@ -31,8 +31,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	// backup "github.com/gnolang/tx-archive/backup/client"
-	// restore "github.com/gnolang/tx-archive/restore/client"
 )
 
 type NodeConfig struct {

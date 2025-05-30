@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/tx-archive/backup/client"
-	"github.com/gnolang/tx-archive/backup/writer/standard"
-	"github.com/gnolang/tx-archive/log/noop"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/writer/standard"
+	"github.com/gnolang/gno/contribs/tx-archive/log/noop"
 )
 
 func TestBackup_DetermineRightBound(t *testing.T) {

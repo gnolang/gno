@@ -1,4 +1,11 @@
+rundep := go run -modfile ../../misc/devdeps/go.mod
+golangci_lint := $(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint
+
 all: build
+
+.PHONY: install
+install:
+	go install cmd
 
 .PHONY: build
 build:
@@ -7,7 +14,11 @@ build:
 
 .PHONY: lint
 lint:
-	golangci-lint run --config .github/golangci.yaml
+	$(golangci_lint) --config ../../.github/golangci.yml run ./...
+
+.PHONY: test
+test:
+	go test $(GOTEST_FLAGS) -v ./...
 
 .PHONY: gofumpt
 gofumpt:

@@ -13,7 +13,7 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
-	"github.com/gnolang/tx-archive/backup/client"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
 )
 
 var _ client.Client = &Client{}

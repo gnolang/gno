@@ -9,10 +9,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 
-	"github.com/gnolang/tx-archive/backup/client"
-	"github.com/gnolang/tx-archive/backup/writer"
-	"github.com/gnolang/tx-archive/log"
-	"github.com/gnolang/tx-archive/log/noop"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/writer"
+	"github.com/gnolang/gno/contribs/tx-archive/log"
+	"github.com/gnolang/gno/contribs/tx-archive/log/noop"
 )
 
 const DefaultBatchSize = 1000
