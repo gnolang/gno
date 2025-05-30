@@ -36,13 +36,13 @@ func main() {
 	// Register a validator
 	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 	// Try to make a proposal for a non-existing validator
-	defer func() {
-		r := recover()
-		println("r: ", r)
-	}()
-	pr := valopers_proposal.NewValidatorProposalRequest(otherAddress)
 
-	dao.MustCreateProposal(cross, pr)
+	if err := revive(func() {
+		pr := valopers_proposal.NewValidatorProposalRequest(cross, otherAddress)
+		dao.MustCreateProposal(cross, pr)
+	}); err != nil {
+		println("r: ", err)
+	}
 }
 
 // Output:

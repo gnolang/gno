@@ -1470,6 +1470,7 @@ func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 //----------------------------------------
 // Misc.
 
+// should not be used outside of realm.go
 func toRefNode(bn BlockNode) RefNode {
 	return RefNode{
 		Location:  bn.GetLocation(),
@@ -1477,6 +1478,7 @@ func toRefNode(bn BlockNode) RefNode {
 	}
 }
 
+// should not be used outside of realm.go
 func toRefValue(val Value) RefValue {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {

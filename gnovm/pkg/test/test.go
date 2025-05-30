@@ -516,7 +516,7 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 					tf := testFunc{
 						Package:  pkgName,
 						Name:     fname,
-						Filename: string(tf.Name),
+						Filename: tf.FileName,
 					}
 					rt = append(rt, tf)
 				}

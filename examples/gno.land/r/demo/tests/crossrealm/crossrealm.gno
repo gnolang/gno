@@ -31,7 +31,7 @@ func Make1() *p_crossrealm.Container {
 	}
 }
 
-type Fooer interface{ Foo() }
+type Fooer interface{ Foo(realm) }
 
 var fooer Fooer
 
@@ -42,10 +42,10 @@ func SetFooer(cur realm, f Fooer) Fooer {
 
 func GetFooer() Fooer { return fooer }
 
-func CallFooerFoo() { fooer.Foo() }
+func CallFooerFoo(cur realm) { fooer.Foo(cur) }
 
 func CallFooerFooSR(cur realm) {
-	fooer.Foo()
+	fooer.Foo(cur)
 }
 
 func CallFooerFooSR2(cur realm) {
@@ -65,7 +65,7 @@ func GetFooerGetter() FooerGetter {
 	return fooerGetter
 }
 
-func CallFooerGetterFoo() { fooerGetter().Foo() }
+func CallFooerGetterFoo(cur realm) { fooerGetter().Foo(cur) }
 
 func CallFooerGetterFooSR2(cur realm) {
 	fooerGetter().Foo(cross)

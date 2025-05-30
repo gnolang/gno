@@ -15,8 +15,9 @@ func NewChangeLawRequest(cur realm, newLaw *Law) dao.ProposalRequest {
 	}
 
 	cb := func() error {
-		law = newLaw
-
+		func(cur realm) {
+			law = newLaw
+		}(cross)
 		return nil
 	}
 
@@ -73,9 +74,13 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 	}
 
 	cb := func() error {
-		member.RemoveInvitationPoint()
+		err := error(nil)
+		func(cur realm) {
+			member.RemoveInvitationPoint()
+			err = memberstore.Get().SetMember(tier, addr, memberByTier(tier))
+		}(cross)
 
-		return memberstore.Get().SetMember(tier, addr, memberByTier(tier))
+		return err
 	}
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
@@ -99,8 +104,9 @@ func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.Pr
 	}
 
 	cb := func() error {
-		memberstore.Get().RemoveMember(addr)
-
+		func(cur realm) {
+			memberstore.Get().RemoveMember(addr)
+		}(cross)
 		return nil
 	}
 
@@ -111,16 +117,21 @@ func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.Pr
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func() error {
-		prevTier := memberstore.Get().RemoveMember(addr)
-		if prevTier == "" {
-			panic("member not found, so cannot be promoted")
-		}
+		var err error
+		func(cur realm) {
+			prevTier := memberstore.Get().RemoveMember(addr)
+			if prevTier == "" {
+				panic("member not found, so cannot be promoted")
+			}
 
-		if prevTier != fromTier {
-			panic("previous tier changed from the one indicated in the proposal")
-		}
+			if prevTier != fromTier {
+				panic("previous tier changed from the one indicated in the proposal")
+			}
 
-		return memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+			err = memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+		}(cross)
+
+		return err
 	}
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))

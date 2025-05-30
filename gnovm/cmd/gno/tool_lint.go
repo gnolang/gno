@@ -160,7 +160,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// Memo process results here.
-			var ppkg = processedPackage{mpkg: mpkg, dir: dir}
+			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 
 			// Run type checking
 			// LINT STEP 2: ParseGnoMod()
@@ -215,7 +215,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					cw := bs.CacheWrap()
 					gs := ts.BeginTransaction(cw, cw, nil)
 					tm.Store = gs
-					fname := string(fset.Files[0].Name)
+					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
@@ -269,10 +269,9 @@ func lintTypeCheck(
 	mpkg *std.MemPackage,
 	testStore gno.Store,
 	strict bool) (
-
 	// Results:
-	lerr error) {
-
+	lerr error,
+) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
 	_, tcErrs := gno.TypeCheckMemPackage(mpkg, testStore, strict)
 

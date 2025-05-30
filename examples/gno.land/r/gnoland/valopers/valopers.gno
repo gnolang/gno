@@ -169,7 +169,7 @@ func GetByAddr(address_XXX std.Address) Valoper {
 // Render renders the current valoper set.
 // "/r/gnoland/valopers" lists all valopers, paginated.
 // "/r/gnoland/valopers:addr" shows the detail for the valoper with the addr.
-func Render(fullPath string) string {
+func Render(cur realm, fullPath string) string {
 	req := realmpath.Parse(fullPath)
 	if req.Path == "" {
 		return renderHome(fullPath)

@@ -19,7 +19,7 @@ var (
 	alice = testutils.TestAddress("alice")
 )
 
-func TestProxy_Functions(t *testing.T) {
+func TestProxy_Functions(cur realm, t *testing.T) {
 	// initialize tests
 	UpdateImpl(cross, UpdateRequest{
 		DAO:         &dummyDao{},
@@ -92,7 +92,7 @@ func TestProxy_Functions(t *testing.T) {
 	urequire.Equal(
 		t,
 		"Render: gno.land/r/gov/dao/test",
-		Render("test"),
+		Render(cur, "test"),
 	)
 
 	// reset state

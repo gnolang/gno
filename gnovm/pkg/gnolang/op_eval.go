@@ -315,7 +315,13 @@ func (m *Machine) doOpEval() {
 	case *ConstExpr:
 		m.PopExpr()
 		// push preprocessed value
-		m.PushValue(x.TypedValue)
+		tv := x.TypedValue
+		// see .pkgSelector; const(ref(pkgPath)).  do not fill in;
+		// nodes may be more persistent than values in a tx.
+		// (currently all nodes are cached, but we don't want to cache
+		// all packages too).
+		fillValueTV(m.Store, &tv)
+		m.PushValue(tv)
 	case *constTypeExpr:
 		m.PopExpr()
 		// push preprocessed type as value

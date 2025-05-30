@@ -418,7 +418,6 @@ func fintto64(val int64) (f uint64) {
 	}
 	return fpack64(fs, mant, int(mantbits64), 0)
 }
-
 func fintto32(val int64) (f uint32) {
 	fs := uint64(val) & (1 << 63)
 	mant := uint64(val)

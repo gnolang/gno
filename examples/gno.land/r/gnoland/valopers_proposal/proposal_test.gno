@@ -49,8 +49,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
-			pr := NewValidatorProposalRequest(g1user)
+		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
+			pr := NewValidatorProposalRequest(cur, g1user)
 
 			dao.MustCreateProposal(cross, pr)
 		})
@@ -74,8 +74,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
-		urequire.NotPanics(t, func() {
-			pr := NewValidatorProposalRequest(g1user)
+		urequire.NotPanics(t, func(cur realm) {
+			pr := NewValidatorProposalRequest(cur, g1user)
 
 			pid = dao.MustCreateProposal(cross, pr)
 		})
@@ -115,9 +115,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.PanicsWithMessage(t, ErrSameValues.Error(), func() {
-			pr := NewValidatorProposalRequest(g1user)
-
+		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
+			pr := NewValidatorProposalRequest(cross, g1user)
 			dao.MustCreateProposal(cross, pr)
 		})
 	})
@@ -137,7 +136,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
-		pr := ProposeNewInstructionsProposalRequest(newInstructions)
+		pr := ProposeNewInstructionsProposalRequest(cross, newInstructions)
 
 		pid = dao.MustCreateProposal(cross, pr)
 	})
@@ -165,7 +164,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
-		pr := ProposeNewMinFeeProposalRequest(newMinFee)
+		pr := ProposeNewMinFeeProposalRequest(cross, newMinFee)
 
 		pid = dao.MustCreateProposal(cross, pr)
 	})

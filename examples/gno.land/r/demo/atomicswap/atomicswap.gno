@@ -67,8 +67,7 @@ func NewCoinSwap(cur realm, recipient std.Address, hashlock string) (int, *Swap)
 // It uses gno.land/r/demo/grc20reg to lookup for a registered token.
 func NewGRC20Swap(cur realm, recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
-	tokenGetter := grc20reg.MustGet(tokenRegistryKey)
-	token := tokenGetter()
+	token := grc20reg.MustGet(tokenRegistryKey)
 	return NewCustomGRC20Swap(cur, recipient, hashlock, timelock, token)
 }
 
@@ -136,7 +135,7 @@ func Refund(cur realm, id int) {
 }
 
 // Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.
-func Render(path string) string {
+func Render(cur realm, path string) string {
 	if path == "" { // home
 		output := ""
 		size := swaps.Size()

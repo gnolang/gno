@@ -51,7 +51,6 @@ func (i Kind) String() string {
 	}
 	return _Kind_name[_Kind_index[i]:_Kind_index[i+1]]
 }
-
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -277,7 +276,6 @@ func (i Op) String() string {
 	}
 	return "Op(" + strconv.FormatInt(int64(i), 10) + ")"
 }
-
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -297,7 +295,6 @@ func (i TransCtrl) String() string {
 	}
 	return _TransCtrl_name[_TransCtrl_index[i]:_TransCtrl_index[i+1]]
 }
-
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
@@ -393,46 +390,45 @@ func (i TransField) String() string {
 	}
 	return _TransField_name[_TransField_index[i]:_TransField_index[i+1]]
 }
-
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[VPUverse-0]
-	_ = x[VPBlock-1]
-	_ = x[VPField-2]
-	_ = x[VPValMethod-3]
-	_ = x[VPPtrMethod-4]
-	_ = x[VPInterface-5]
-	_ = x[VPSubrefField-6]
-	_ = x[VPDerefField-18]
-	_ = x[VPDerefValMethod-19]
-	_ = x[VPDerefPtrMethod-20]
-	_ = x[VPDerefInterface-21]
+	_ = x[VPInvalid-0]
+	_ = x[VPUverse-1]
+	_ = x[VPBlock-2]
+	_ = x[VPField-3]
+	_ = x[VPValMethod-4]
+	_ = x[VPPtrMethod-5]
+	_ = x[VPInterface-6]
+	_ = x[VPSubrefField-7]
+	_ = x[VPDerefField-19]
+	_ = x[VPDerefValMethod-20]
+	_ = x[VPDerefPtrMethod-21]
+	_ = x[VPDerefInterface-22]
 }
 
 const (
-	_VPType_name_0 = "VPUverseVPBlockVPFieldVPValMethodVPPtrMethodVPInterfaceVPSubrefField"
+	_VPType_name_0 = "VPInvalidVPUverseVPBlockVPFieldVPValMethodVPPtrMethodVPInterfaceVPSubrefField"
 	_VPType_name_1 = "VPDerefFieldVPDerefValMethodVPDerefPtrMethodVPDerefInterface"
 )
 
 var (
-	_VPType_index_0 = [...]uint8{0, 8, 15, 22, 33, 44, 55, 68}
+	_VPType_index_0 = [...]uint8{0, 9, 17, 24, 31, 42, 53, 64, 77}
 	_VPType_index_1 = [...]uint8{0, 12, 28, 44, 60}
 )
 
 func (i VPType) String() string {
 	switch {
-	case i <= 6:
+	case i <= 7:
 		return _VPType_name_0[_VPType_index_0[i]:_VPType_index_0[i+1]]
-	case 18 <= i && i <= 21:
-		i -= 18
+	case 19 <= i && i <= 22:
+		i -= 19
 		return _VPType_name_1[_VPType_index_1[i]:_VPType_index_1[i+1]]
 	default:
 		return "VPType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
-
 func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.

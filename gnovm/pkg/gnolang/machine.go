@@ -493,7 +493,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.Name, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
 	pn.PrepareNewValues(pv)
@@ -577,7 +577,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.Name, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 
 	// Get new values across all files in package.
@@ -589,7 +589,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
 		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.Name)
+		// fb := pv.GetFileBlock(nil, fn.FileName)
 		// get dependencies of decl.
 		deps := make(map[Name]struct{})
 		findDependentNames(decl, deps)
@@ -610,7 +610,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 				} else { // is an undefined dependency.
 					panic(fmt.Sprintf(
 						"%s/%s:%s: dependency %s not defined in fileset with files %v",
-						pv.PkgPath, fn.Name, decl.GetPos().String(), dep, fs.FileNames()))
+						pv.PkgPath, fn.FileName, decl.GetPos().String(), dep, fs.FileNames()))
 				}
 			}
 			// if dep already in loopfindr, abort.
@@ -622,7 +622,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 				} else {
 					panic(fmt.Sprintf(
 						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
-						pv.PkgPath, fn.Name, decl.GetPos().String(), loopfindr, dep))
+						pv.PkgPath, fn.FileName, decl.GetPos().String(), loopfindr, dep))
 				}
 			}
 			// run dependency declaration
@@ -631,7 +631,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			loopfindr = loopfindr[:len(loopfindr)-1]
 		}
 		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.Name)
+		fb := pv.GetFileBlock(m.Store, fn.FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()

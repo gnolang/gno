@@ -66,6 +66,9 @@ func (w Word) TokenString() string {
 
 func (vp ValuePath) String() string {
 	switch vp.Type {
+	case VPInvalid:
+		// index doesn't matter but useful for debugging.
+		return fmt.Sprintf("VPInvalid(%d)", vp.Index)
 	case VPUverse:
 		return fmt.Sprintf("VPUverse(%d)", vp.Index)
 	case VPBlock:

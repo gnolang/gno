@@ -20,7 +20,7 @@ var gRealm = std.CurrentRealm()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
-func Render(p string) string {
+func Render(cur realm, p string) string {
 	return dao.Render(gRealm.PkgPath(), p)
 }
 

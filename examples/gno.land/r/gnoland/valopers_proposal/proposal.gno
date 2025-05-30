@@ -18,7 +18,7 @@ var (
 
 // NewValidatorProposalRequest creates a proposal request to the GovDAO
 // for adding the given valoper to the validator set.
-func NewValidatorProposalRequest(address_XXX std.Address) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, address_XXX std.Address) dao.ProposalRequest {
 	var (
 		valoper     = valopers.GetByAddr(address_XXX)
 		votingPower = uint64(1)
@@ -69,9 +69,8 @@ func NewValidatorProposalRequest(address_XXX std.Address) dao.ProposalRequest {
 
 // ProposeNewInstructionsProposalRequest creates a proposal to the GovDAO
 // for updating the realm instructions.
-func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalRequest {
+func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
 	cb := valopers.NewInstructionsProposalCallback(newInstructions)
-
 	// Create a proposal
 	title := "/p/gnoland/valopers: Update instructions"
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
@@ -83,9 +82,8 @@ func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalR
 
 // ProposeNewMinFee creates a proposal to the GovDAO
 // for updating the minimum fee to register a new valoper.
-func ProposeNewMinFeeProposalRequest(newMinFee int64) dao.ProposalRequest {
+func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
 	cb := valopers.NewMinFeeProposalCallback(newMinFee)
-
 	// Create a proposal
 	title := "/p/gnoland/valopers: Update minFee"
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)

@@ -35,7 +35,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// preprocessing.
 	for _, fn := range fset.Files {
 		setNodeLines(fn)
-		setNodeLocations(pn.PkgPath, string(fn.Name), fn)
+		setNodeLocations(pn.PkgPath, fn.FileName, fn)
 		initStaticBlocks(store, pn, fn)
 	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
@@ -186,7 +186,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			switch n := n.(type) {
 			case *AssignStmt:
 				if n.Op == DEFINE {
-					for _, lx := range n.Lhs {
+					for i, lx := range n.Lhs {
 						nx := lx.(*NameExpr)
 						ln := nx.Name
 						if ln == blankIdentifier {
@@ -196,7 +196,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
-							last.Reserve(false, nx, n)
+							last.Reserve(false, nx, n, NSDefine, i)
 						}
 					}
 				}
@@ -213,12 +213,21 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							"unknown import path %s",
 							n.PkgPath))
 					}
+					exp, ok := expectedPkgName(pv.PkgPath)
+					if !ok {
+						panic(fmt.Sprintf("invalid pkg path: %q", pv.PkgPath))
+					}
+					if exp != string(pv.PkgName) {
+						panic(fmt.Sprintf(
+							"package name for %q (%q) doesn't match its expected identifier %q; "+
+								"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
+					}
 					nn = pv.PkgName
 					nx.Name = nn
 				}
 				if nn != blankIdentifier {
 					nx.Type = NameExprTypeDefine
-					last.Reserve(false, nx, n)
+					last.Reserve(false, nx, n, NSImportDecl, -1)
 				}
 			case *ValueDecl:
 				last2 := skipFile(last)
@@ -229,13 +238,13 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						continue
 					}
 					nx.Type = NameExprTypeDefine
-					last2.Reserve(n.Const, nx, n)
+					last2.Reserve(n.Const, nx, n, NSValueDecl, i)
 				}
 			case *TypeDecl:
 				last2 := skipFile(last)
 				nx := &n.NameExpr
 				nx.Type = NameExprTypeDefine
-				last2.Reserve(true, nx, n)
+				last2.Reserve(true, nx, n, NSTypeDecl, -1)
 			case *FuncDecl:
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
@@ -259,7 +268,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					}
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
-					pkg.Reserve(false, nx, n)
+					pkg.Reserve(false, nx, n, NSFuncDecl, -1)
 					pkg.UnassignableNames = append(pkg.UnassignableNames, n.Name)
 				}
 			case *FuncTypeExpr:
@@ -294,8 +303,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
-				for _, src := range ifs.GetNameSources() {
-					last.Reserve(false, src, ifs)
+				for _, ns := range ifs.GetNameSources() {
+					last.Reserve(false, ns.NameExpr, ns.Origin, ns.Type, ns.Index)
 				}
 			case *RangeStmt:
 				if n.Op == DEFINE {
@@ -303,14 +312,14 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						nx := n.Key.(*NameExpr)
 						if nx.Name != blankIdentifier {
 							nx.Type = NameExprTypeDefine
-							last.Reserve(false, nx, n)
+							last.Reserve(false, nx, n, NSRangeKey, -1)
 						}
 					}
 					if n.Value != nil {
 						nx := n.Value.(*NameExpr)
 						if nx.Name != blankIdentifier {
 							nx.Type = NameExprTypeDefine
-							last.Reserve(false, nx, n)
+							last.Reserve(false, nx, n, NSRangeValue, -1)
 						}
 					}
 				}
@@ -318,7 +327,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				for i := range n.Type.Params {
 					px := &n.Type.Params[i].NameExpr
 					px.Type = NameExprTypeDefine
-					last.Reserve(false, px, &n.Type)
+					last.Reserve(false, px, &n.Type, NSFuncParam, i)
 				}
 				for i := range n.Type.Results {
 					rx := &n.Type.Results[i].NameExpr
@@ -327,7 +336,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						rx.Name = Name(rn)
 					}
 					rx.Type = NameExprTypeDefine
-					last.Reserve(false, rx, &n.Type)
+					last.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			case *SwitchStmt:
 				// n.Varname is declared in each clause.
@@ -340,8 +349,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss.init are copied.
-				for _, src := range ss.GetNameSources() {
-					last.Reserve(false, src, ss)
+				for _, ns := range ss.GetNameSources() {
+					last.Reserve(false, ns.NameExpr, ns.Origin, ns.Type, ns.Index)
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
@@ -350,7 +359,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						// > Switch varnames cannot be
 						// captured as heap items.
 						// [test](../gnovm/tests/files/closure11_known.gno)
-						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss) // XXX
+						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss, NSTypeSwitch, -1)
 					}
 				} else {
 					if ss.VarName != "" {
@@ -360,7 +369,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			case *FuncDecl:
 				if n.IsMethod {
 					n.Recv.NameExpr.Type = NameExprTypeDefine
-					n.Reserve(false, &n.Recv.NameExpr, n)
+					n.Reserve(false, &n.Recv.NameExpr, n, NSFuncReceiver, -1)
 				}
 				for i := range n.Type.Params {
 					px := &n.Type.Params[i].NameExpr
@@ -368,7 +377,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						panic("should not happen")
 					}
 					px.Type = NameExprTypeDefine
-					n.Reserve(false, px, &n.Type)
+					n.Reserve(false, px, &n.Type, NSFuncParam, i)
 				}
 				for i := range n.Type.Results {
 					rx := &n.Type.Results[i].NameExpr
@@ -377,7 +386,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						rx.Name = Name(rn)
 					}
 					rx.Type = NameExprTypeDefine
-					n.Reserve(false, rx, &n.Type)
+					n.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -537,7 +546,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
-		fileName := string(fn.Name)
+		fileName := fn.FileName
 		setNodeLines(fn)
 		setNodeLocations(pkgPath, fileName, fn)
 	}
@@ -569,7 +578,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
-					for _, lx := range n.Lhs {
+					for i, lx := range n.Lhs {
 						lnx := lx.(*NameExpr)
 						if lnx.Name == blankIdentifier {
 							// ignore.
@@ -577,7 +586,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							_, ok := last.GetLocalIndex(lnx.Name)
 							if !ok {
 								// initial declaration to be re-defined.
-								last.Reserve(false, lnx, n)
+								last.Reserve(false, lnx, n, NSDefine, i)
 							} else {
 								// do not redeclare.
 							}
@@ -671,7 +680,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
 				for _, n := range ifs.GetBlockNames() {
-					tv := ifs.GetValueRef(nil, n, false)
+					tv := ifs.GetSlot(nil, n, false)
 					last.Define(n, *tv)
 				}
 
@@ -808,7 +817,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss.Init are copied.
 				for _, n := range ss.GetBlockNames() {
-					tv := ss.GetValueRef(nil, n, false)
+					tv := ss.GetSlot(nil, n, false)
 					last.Define(n, *tv)
 				}
 				if ss.IsTypeSwitch {
@@ -837,7 +846,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								ct = evalStaticType(store, last, cx)
 							}
-							n.Cases[i] = toConstTypeExpr(cx, ct)
+							n.Cases[i] = toConstTypeExpr(last, cx, ct)
 							// maybe type-switch def.
 							if ss.VarName != "" {
 								if len(n.Cases) == 1 {
@@ -1041,7 +1050,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// get or evaluate composite type.
 					clt := evalStaticType(store, last, n.(Expr))
 					// elide composite lit element (nested) composite types.
-					elideCompositeElements(clx, clt)
+					elideCompositeElements(last, clx, clt)
 				}
 			}()
 
@@ -1153,12 +1162,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								n.Name))
 						}
 						if !cx.IsUndefined() && cx.T.Kind() == TypeKind {
-							return toConstTypeExpr(n, cx.GetType()), TRANS_CONTINUE
+							return toConstTypeExpr(last, n, cx.GetType()), TRANS_CONTINUE
 						}
 						return cx, TRANS_CONTINUE
 					}
+					// Is const decl or type decl. Not (import) packages.
 					if last.GetIsConst(store, n.Name) {
+						// n.Name may refer to either
+						// a value OR a type. But don't change
+						// this behavior, it's reasonable for
+						// a name to be a value by default.
 						cx := evalConst(store, last, n)
+						/*
+							if !cx.IsUndefined() && cx.T.Kind() == TypeKind && ftype == TRANS_TYPE_TYPE {
+								return toConstTypeExpr(last, n, cx.GetType()), TRANS_CONTINUE
+							}
+						*/
 						return cx, TRANS_CONTINUE
 					}
 					// Special handling of packages
@@ -1184,8 +1203,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								"missing package %s",
 								n.String()))
 						}
-						pref := toRefValue(pv)
+						pref := RefValueFromPackage(pv)
 						n.SetAttribute(ATTR_PACKAGE_REF, pref)
+						n.SetAttribute(ATTR_PACKAGE_PATH, pv.PkgPath)
 					}
 				}
 
@@ -1367,6 +1387,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// START Check validity of crossing arg n.Args[0].(*NameExpr).
 						// TODO: Refactor this out into a function call.
 						{
+							if len(n.Args) == 0 {
+								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur or cross)", n))
+							}
 							nx, ok := n.Args[0].(*NameExpr)
 							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
 								panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
@@ -1392,6 +1415,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								ftv, err := tryEvalStatic(store, ctxpn, last, n.Func)
 								if err == nil {
 									// This is fine; e.g. somefunc()(cur,...)
+								} else if ftv.IsUndefined() {
+									// Interface... what can we do?
 								} else {
 									fpp := ftv.GetUnboundFunc().PkgPath
 									if fpp != ctxpn.PkgPath {
@@ -1557,7 +1582,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := toConstTypeExpr(n.Func, gByteSliceType)
+								fn, err := last.GetFuncNodeForExpr(store, n.Func)
+								if err != nil {
+									panic(fmt.Sprintf("unexpected: %w", err))
+								}
+								ftx := fn.GetFuncTypeExpr()
+								etx := ftx.Params[1].Type
+								bsx := toConstTypeExpr(last, etx, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
@@ -1579,7 +1610,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if tx == nil {
 									// Get the array type from the first argument.
 									s0 := evalStaticTypeOf(store, last, n.Args[0])
-									tx = toConstTypeExpr(arg, s0.Elem())
+									tx = toConstTypeExpr(last, arg, s0.Elem())
 								}
 								// Convert to the array type.
 								arg1 := Call(tx, arg)
@@ -1592,13 +1623,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := toConstTypeExpr(args1, gByteSliceType)
+								bsx := toConstTypeExpr(last, args1, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
+						panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
 						if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
 							// This is only backwards compatibility for the gno 0.9
 							// transpiler/fixer.  cross() is no longer used.
@@ -1609,9 +1642,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if !ok {
 								panic("cross(fn) must be followed by a call")
 							}
-							pc.SetWithCross()
+							pc.WithCross = true // bypass method with checks.
 						} else {
-							panic("cross(fn) is reserved and deprecated")
+							// only way _cross_gno0p0 appears is
+							panic("_cross_gno0p0 is reserved")
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
@@ -1840,7 +1874,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *CompositeLitExpr:
 				// Get or evaluate composite type.
 				clt := evalStaticType(store, last, n.Type)
-				n.Type = toConstTypeExpr(n.Type, clt)
+				n.Type = toConstTypeExpr(last, n.Type, clt)
 				// Replace const Elts with default *ConstExpr.
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
@@ -1899,7 +1933,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						at.Len = idx
 						// update node
 						cx := constInt(n, int64(idx))
-						unConstTypeExpr(n.Type).(*ArrayTypeExpr).Len = cx
+						unconst(n.Type).(*ArrayTypeExpr).Len = cx
 					}
 				}
 
@@ -2471,7 +2505,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				//
 				// In short, the relationship between tmp and dst is:
 				//   `type dst tmp`.
-				dst := last.GetValueRef(store, n.Name, true).GetType()
+				dst := last.GetSlot(store, n.Name, true).GetType()
 				switch dst := dst.(type) {
 				case *FuncType:
 					*dst = *(tmp.(*FuncType))
@@ -2517,9 +2551,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type.SetAttribute(ATTR_TYPE_VALUE, dst)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
-				n.Type = toConstTypeExpr(n.Type, dst)
-
-			case *RefExpr:
+				n.Type = toConstTypeExpr(last, n.Type, dst)
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
@@ -2569,9 +2601,13 @@ func defineOrDecl(
 			_, ok := node.GetLocalIndex(nx.Name)
 			if isDefine && ok {
 				// Keep the original nx, this one is fake.
-				node.Define2(isConst, nx.Name, sts[i], tvs[i], nil, nil)
+				node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
 			} else {
-				node.Define2(isConst, nx.Name, sts[i], tvs[i], nx, n)
+				nsType := NSValueDecl
+				if isDefine {
+					nsType = NSDefine
+				}
+				node.Define2(isConst, nx.Name, sts[i], tvs[i], NameSource{nx, n, nsType, i})
 			}
 			nx.Path = bn.GetPathForName(nil, nx.Name)
 		}
@@ -3087,7 +3123,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		panic("~name already defined in fle")
 	}
 
-	tv := dbn.GetValueRef(nil, name, true)
+	tv := dbn.GetSlot(nil, name, true)
 	fle.Define("~"+name, tv.Copy(nil))
 
 	// add name to fle.HeapCaptures.
@@ -3150,8 +3186,8 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 // returns the depth of last function, 1 if last stack item itself is a
 // closure, or 0 if not found.
 func findLastFunction(last BlockNode, stop BlockNode) (fn FuncNode, depth int, found bool) {
-	var faux = 0   // count faux block
-	var depth2 = 0 // working value
+	faux := 0   // count faux block
+	depth2 := 0 // working value
 	for stbn := last; stbn != stop; stbn = stbn.GetParentNode(nil) {
 		depth2 += 1
 		switch stbn := stbn.(type) {
@@ -3349,7 +3385,7 @@ func findPackageSelectors(bn BlockNode) {
 					}
 					pn := packageOf(bn)
 					cx := &ConstExpr{
-						Source: n,
+						Source: Nx(".pkgSelector"),
 						TypedValue: TypedValue{
 							T: gPackageType,
 							V: RefValue{
@@ -3422,7 +3458,7 @@ func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 // anything declared in orig are copied.
 func copyFromFauxBlock(bn BlockNode, orig BlockNode) {
 	for _, n := range orig.GetBlockNames() {
-		tv := orig.GetValueRef(nil, n, false)
+		tv := orig.GetSlot(nil, n, false)
 		bn.Define(n, *tv)
 	}
 }
@@ -3564,7 +3600,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 	pv := pn.NewPackage() // throwaway
 	store = store.BeginTransaction(nil, nil, nil)
 	store.SetCachePackage(pv)
-	var m = NewMachine(pn.PkgPath, store)
+	m := NewMachine(pn.PkgPath, store)
 	defer m.Release()
 	func() {
 		// cannot be resolved statically
@@ -3654,6 +3690,10 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 			Source:     x,
 			TypedValue: cv,
 		}
+	} else {
+		if cx.Source != x {
+			panic(fmt.Sprintf("source si diffenrent? %v, %v", cx.Source, x))
+		}
 	}
 	// cx.SetSpan(x.GetSpan())
 	setPreprocessed(cx)
@@ -3661,33 +3701,11 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	return cx
 }
 
-func toConstTypeExpr(source Expr, t Type) *constTypeExpr {
-	if cx, ok := source.(*constTypeExpr); ok {
-		if cx.Source == nil {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*ConstExpr); ok {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*constTypeExpr); ok {
-			panic("should not happen")
-		}
-		if cx.Span != source.GetSpan() {
-			panic("should not happen")
-		}
-		cx.Type = t
-		// setPreprocessed(cx)
-		return cx
-	}
+func toConstTypeExpr(last BlockNode, source Expr, t Type) *constTypeExpr {
+	source = unconst(source)
 	cx := &constTypeExpr{}
-	// cx.Source = unConstExpr(source)
-	if _, ok := cx.Source.(*ConstExpr); ok {
-		panic("should not happen")
-	}
-	// e.g. TRANS_LEAVE <(type) name>{composite lit}
-	// type name expr replaced w/ &ConstExpr{Source:*NameExpr}
-	// We want &constTypeExpr{Source:*NameExpr} too.
-	cx.Source = unConstExpr(source)
+	cx.Last = last
+	cx.Source = source
 	cx.Type = t
 	cx.SetSpan(source.GetSpan())
 	setPreprocessed(cx)
@@ -3695,23 +3713,7 @@ func toConstTypeExpr(source Expr, t Type) *constTypeExpr {
 }
 
 func toConstExpr(source Expr, tv TypedValue) *ConstExpr {
-	if cx, ok := source.(*ConstExpr); ok {
-		if cx.Source == nil {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*ConstExpr); ok {
-			panic("should not happen")
-		}
-		if _, ok := cx.Source.(*constTypeExpr); ok {
-			panic("should not happen")
-		}
-		if cx.Span != source.GetSpan() {
-			panic("should not happen")
-		}
-		cx.TypedValue = tv
-		// setPreprocessed(cx)
-		return cx
-	}
+	source = unconst(source)
 	cx := &ConstExpr{}
 	cx.Source = source
 	cx.TypedValue = tv
@@ -3720,17 +3722,10 @@ func toConstExpr(source Expr, tv TypedValue) *ConstExpr {
 	return cx
 }
 
-func unConstTypeExpr(cx Expr) Expr {
+func unconst(cx Expr) Expr {
 	switch cx := cx.(type) {
 	case *constTypeExpr:
 		return cx.Source
-	default:
-		return cx
-	}
-}
-
-func unConstExpr(cx Expr) Expr {
-	switch cx := cx.(type) {
 	case *ConstExpr:
 		return cx.Source
 	default:
@@ -3739,6 +3734,7 @@ func unConstExpr(cx Expr) Expr {
 }
 
 func constInt(source Expr, i int64) *ConstExpr {
+	source = unconst(source)
 	cx := &ConstExpr{Source: source}
 	cx.T = IntType
 	cx.SetInt(i)
@@ -3747,6 +3743,7 @@ func constInt(source Expr, i int64) *ConstExpr {
 }
 
 func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
+	source = unconst(source)
 	cx := &ConstExpr{Source: source}
 	cx.T = UntypedBigintType
 	cx.V = BigintValue{big.NewInt(i64)}
@@ -3755,6 +3752,7 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 }
 
 func constNil(source Expr) *ConstExpr {
+	source = unconst(source)
 	cx := &ConstExpr{Source: source}
 	cx.T = nil
 	cx.V = nil
@@ -3773,10 +3771,11 @@ func setConstAttrs(cx *ConstExpr) {
 	}
 }
 
-func setPreprocessed(x Expr) {
+func setPreprocessed(x Expr) Expr {
 	if x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
 		x.SetAttribute(ATTR_PREPROCESSED, true)
 	}
+	return x
 }
 
 func isRealm(ctx BlockNode) bool {
@@ -3795,6 +3794,18 @@ func packageOf(last BlockNode) *PackageNode {
 
 func fileOf(last BlockNode) *FileNode {
 	for {
+		if fn, ok := last.(*FileNode); ok {
+			return fn
+		}
+		last = last.GetParentNode(nil)
+	}
+}
+
+func fileOfSafe(last BlockNode) *FileNode {
+	for {
+		if last == nil {
+			return nil
+		}
 		if fn, ok := last.(*FileNode); ok {
 			return fn
 		}
@@ -4097,8 +4108,7 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 // convert x to destination type t
 func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
-	// XXX
-	cx := Expr(Call(toConstTypeExpr(*x, t), *x))
+	cx := Expr(Call(toConstTypeExpr(last, *x, t), *x))
 	cx = Preprocess(store, last, cx).(Expr)
 	*x = cx
 }
@@ -4227,17 +4237,17 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
 						Names(stack).Join(" -> "), cx.Name))
 				}
-				if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 					return
 				}
 			} else {
-				if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 					return
 				}
 				return cx.Name, direct
 			}
 		} else {
-			if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+			if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 				return
 			}
 		}
@@ -4300,11 +4310,17 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
-			if elide == nil {
-				panic("cannot elide unknown composite type")
-			}
-			ct = elide
-			cx.Type = toConstTypeExpr(cx, elide)
+			panic("should not happen")
+			/*
+				if elide == nil {
+					panic("cannot elide unknown composite type")
+				}
+				ct = elide
+				// When the type expr is elided, .elided is generated.
+				tx := Nx(".elided")
+				tx.SetSpan(Span{Pos: cx.GetPos(), End: cx.GetPos()})
+				cx.Type = toConstTypeExpr(tx, elide)
+			*/
 		} else {
 			un, directR = findUndefinedT(store, last, cx.Type, stack, defining, isalias, astype && direct)
 			if un != "" {
@@ -4318,7 +4334,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			cx.Type = Preprocess(store, last, cx.Type).(Expr) // recursive
 			ct = evalStaticType(store, last, cx.Type)
 			// elide composite lit element (nested) composite types.
-			elideCompositeElements(cx, ct)
+			elideCompositeElements(last, cx, ct)
 		}
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
@@ -4735,7 +4751,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					panic("nil is not a type")
 				}
 				// sanity check.
-				if tv := last.GetValueRef(store, tx.Name, true); tv != nil {
+				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
 						if !dt.sealed {
@@ -4760,7 +4776,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					return
 				}
 				pkgName := tx.X.(*NameExpr).Name
-				tv := last.GetValueRef(store, pkgName, true)
+				tv := last.GetSlot(store, pkgName, true)
 				pv, ok := tv.V.(*PackageValue)
 				if !ok {
 					panic(fmt.Sprintf(
@@ -4788,8 +4804,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				t = dt
 			}
 			// fill in later.
-			// last2.Define(d.Name, asValue(t))
-			last2.Define2(true, d.Name, t, asValue(t), &d.NameExpr, d)
+			last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
 			d.Path = last.GetPathForName(store, d.Name)
 		} // END if !isLocallyDefined(last2, d.Name) {
 		// now it is or was locally defined.
@@ -5045,45 +5060,33 @@ func skipFile(n BlockNode) BlockNode {
 	}
 }
 
-// If n is a *FileNode, return name, otherwise empty.
-func fileNameOf(n BlockNode) Name {
-	if fnode, ok := n.(*FileNode); ok {
-		return fnode.Name
-	} else {
+// returns "" if not in a file node.
+func fileNameOf(n BlockNode) string {
+	if n == nil {
 		return ""
 	}
+	fn := fileOfSafe(n)
+	if fn == nil {
+		return ""
+	}
+	return fn.FileName
 }
 
-func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
+func elideCompositeElements(last BlockNode, clx *CompositeLitExpr, clt Type) {
 	switch clt := baseOf(clt).(type) {
-	/*
-		case *PointerType:
-			det := clt.Elt.Elt
-			for _, ex := range clx.Elts {
-				vx := evx.Value
-				if vclx, ok := vx.(*CompositeLitExpr); ok {
-					if vclx.Type == nil {
-						vclx.Type = &constTypeExpr{
-							Source: vx,
-							Type:   et,
-						}
-					}
-				}
-			}
-	*/
 	case *ArrayType:
 		et := clt.Elt
 		el := len(clx.Elts)
 		for i := range el {
 			kvx := &clx.Elts[i]
-			elideCompositeExpr(&kvx.Value, et)
+			elideCompositeExpr(last, &kvx.Value, et)
 		}
 	case *SliceType:
 		et := clt.Elt
 		el := len(clx.Elts)
 		for i := range el {
 			kvx := &clx.Elts[i]
-			elideCompositeExpr(&kvx.Value, et)
+			elideCompositeExpr(last, &kvx.Value, et)
 		}
 	case *MapType:
 		kt := clt.Key
@@ -5091,8 +5094,8 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 		el := len(clx.Elts)
 		for i := range el {
 			kvx := &clx.Elts[i]
-			elideCompositeExpr(&kvx.Key, kt)
-			elideCompositeExpr(&kvx.Value, vt)
+			elideCompositeExpr(last, &kvx.Key, kt)
+			elideCompositeExpr(last, &kvx.Value, vt)
 		}
 	case *StructType:
 		// Struct fields cannot be elided in Go for
@@ -5117,22 +5120,23 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 // if *vx is composite lit type, fill in elided type.
 // if composite type is pointer type, replace composite
 // expression with ref expr.
-func elideCompositeExpr(vx *Expr, vt Type) {
-	if vclx, ok := (*vx).(*CompositeLitExpr); ok {
-		if vclx.Type == nil {
-			if vt.Kind() == PointerKind {
-				vclx.Type = &constTypeExpr{
-					Source: *vx,
-					Type:   vt.Elem(),
-				}
-				*vx = &RefExpr{
-					X: vclx,
-				}
+func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
+	if clx, ok := (*x).(*CompositeLitExpr); ok {
+		if clx.Type == nil {
+			// Make a placeholder name expr.
+			tx := Nx(".elided")
+			span := Span{Pos: (*x).GetPos(), End: (*x).GetPos()}
+			tx.SetSpan(span)
+			// Handle implicit &{}.
+			if t.Kind() == PointerKind {
+				clx.Type = toConstTypeExpr(last, tx, t.Elem())
+				refx := &RefExpr{X: clx}
+				refx.SetSpan(clx.GetSpan())
+				*x = refx
+				elideCompositeElements(last, clx, t.Elem()) // recurse
 			} else {
-				vclx.Type = &constTypeExpr{
-					Source: *vx,
-					Type:   vt,
-				}
+				clx.Type = toConstTypeExpr(last, tx, t)
+				elideCompositeElements(last, clx, t) // recurse
 			}
 		}
 	}
@@ -5397,7 +5401,7 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 	pn := packageOf(fn)
 	store.SetBlockNode(pn)
 	pkgPath := pn.PkgPath
-	fileName := string(fn.Name)
+	fileName := fn.FileName
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}

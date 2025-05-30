@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/testutils"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/gov/dao"
-	ini "gno.land/r/gov/dao/v3/init"
+	daov3init "gno.land/r/gov/dao/v3/init"
 	susers "gno.land/r/sys/users"
 )
 
@@ -18,7 +18,7 @@ import (
 var c std.Address = std.OriginCaller()
 
 func init() {
-	ini.InitWithUsers(c)
+	daov3init.InitWithUsers(c)
 
 	alice := testutils.TestAddress("alice")
 
@@ -38,9 +38,9 @@ func main() {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(dao.Render(""))
+	println(dao.Render(cross, ""))
 	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross, "0"))
 	println("--")
 
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{
@@ -49,13 +49,13 @@ func main() {
 	})
 
 	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross, "0"))
 	println("--")
 
 	dao.ExecuteProposal(cross, dao.ProposalID(0))
 
 	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross, "0"))
 
 	data, _ := susers.ResolveName("alice123")
 	if data == nil {

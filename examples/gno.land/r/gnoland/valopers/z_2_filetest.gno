@@ -31,7 +31,7 @@ func init() {
 
 func main() {
 	// Simulate clicking on the validator
-	println(valopers.Render(validAddress.String()))
+	println(valopers.Render(cross, validAddress.String()))
 }
 
 // Output:

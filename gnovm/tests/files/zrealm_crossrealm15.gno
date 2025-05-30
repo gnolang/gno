@@ -15,14 +15,12 @@ var f *fooer
 
 func init() {
 	f = &fooer{}
-	cross(crossrealm.SetFooer)(f)
+	crossrealm.SetFooer(cross, f)
 	crossrealm.CallFooerFoo()
-	cross(crossrealm.CallFooerFooSR)()
+	crossrealm.CallFooerFooSR(cross)
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	print(".")
 }
 
