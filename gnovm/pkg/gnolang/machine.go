@@ -18,6 +18,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+const (
+	NoRealmStr = "<no realm>"
+)
+
 //----------------------------------------
 // Machine
 
@@ -1854,7 +1858,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if withCross {
 		if !fv.IsCrossing() {
 			// panic; notcrossing
-			mrpath := "<no realm>"
+			mrpath := NoRealmStr
 			if m.Realm != nil {
 				mrpath = m.Realm.Path
 			}
@@ -1874,11 +1878,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if fv.IsCrossing() {
 		if m.Realm != pv.Realm {
 			// panic; not explicit
-			mrpath := "<no realm>"
+			mrpath := NoRealmStr
 			if m.Realm != nil {
 				mrpath = m.Realm.Path
 			}
-			prpath := "<no realm>"
+			prpath := NoRealmStr
 			if pv.Realm != nil {
 				prpath = pv.Realm.Path
 			}
