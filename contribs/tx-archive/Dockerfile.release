@@ -1,0 +1,4 @@
+FROM scratch
+COPY tx-archive /
+ENTRYPOINT [ "/tx-archive" ]
+CMD [ "backup" ]
