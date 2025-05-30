@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,8 +13,10 @@ import (
 	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -27,6 +30,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1012,4 +1016,73 @@ func newTestHandler(proc func(sdk.Context, sdk.Msg) sdk.Result) sdk.Handler {
 	return testHandler{
 		process: proc,
 	}
+}
+
+func TestPruneStrategyNothing(t *testing.T) {
+	t.Parallel()
+
+	var (
+		chainID = "dev"
+		appDir  = t.TempDir()
+	)
+
+	appCfg := config.DefaultAppConfig()
+	appCfg.PruneStrategy = types.PruneNothingStrategy
+
+	app, err := NewApp(
+		appDir,
+		NewTestGenesisAppConfig(),
+		appCfg,
+		events.NewEventSwitch(),
+		log.NewNoopLogger(),
+	)
+	require.NoError(t, err)
+
+	base := app.(*sdk.BaseApp)
+
+	// Run the genesis initialization, and commit it
+	base.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: 1_000_000},
+		},
+		AppState: DefaultGenState(),
+	})
+	base.Commit()
+
+	// Simulate a few empty blocks being committed
+	startHeight := base.LastBlockHeight() + 1
+	for h := startHeight; h <= startHeight+5; h++ {
+		base.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: chainID, Height: h},
+		})
+
+		base.EndBlock(abci.RequestEndBlock{})
+
+		base.Commit()
+	}
+
+	// Close the app, so it releases the DB
+	require.NoError(t, base.Close())
+
+	// Reopen the same DB
+	db, err := dbm.NewDB(
+		"gnolang",
+		dbm.GoLevelDBBackend,
+		filepath.Join(appDir, bftCfg.DefaultDBDir),
+	)
+	require.NoError(t, err)
+
+	var (
+		mainKey = store.NewStoreKey("main")
+		baseKey = store.NewStoreKey("base")
+	)
+
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+
+	// Make sure loading a past version doesn't fail
+	assert.NoError(t, cms.LoadVersion(1))
 }

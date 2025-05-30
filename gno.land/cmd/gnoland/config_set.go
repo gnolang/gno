@@ -151,9 +151,16 @@ func saveStringToValue(value string, dstValue reflect.Value) error {
 
 		dstValue.Set(reflect.ValueOf(val))
 	case storeTypes.PruneStrategy:
-		val := reflect.ValueOf(value)
+		var (
+			dstType = dstValue.Type()
+			val     = reflect.ValueOf(value)
+		)
 
-		dstValue.Set(val.Convert(dstValue.Type()))
+		if !val.CanConvert(dstType) {
+			return fmt.Errorf("unable to cast to type %q", dstType)
+		}
+
+		dstValue.Set(val.Convert(dstType))
 	default:
 		return fmt.Errorf("unsupported type, %s", dstValue.Type().Name())
 	}
