@@ -38,3 +38,24 @@ var (
 	// PruneSyncable means only those states not needed for state syncing will be deleted (keeps last 100 + every 10000th)
 	PruneSyncable = NewPruningOptions(100, 10000)
 )
+
+type PruneStrategy string
+
+const (
+	PruneEverythingStrategy PruneStrategy = "everything"
+	PruneNothingStrategy    PruneStrategy = "nothing"
+	PruneSyncableStrategy   PruneStrategy = "syncable"
+)
+
+// Options returns the corresponding prune options.
+// If the pruning strategy is invalid, defaults to no pruning.
+func (s PruneStrategy) Options() PruningOptions {
+	switch s {
+	case PruneEverythingStrategy:
+		return PruneEverything
+	case PruneSyncableStrategy:
+		return PruneSyncable
+	default:
+		return PruneNothing
+	}
+}
