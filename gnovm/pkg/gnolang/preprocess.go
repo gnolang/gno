@@ -213,6 +213,15 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							"unknown import path %s",
 							n.PkgPath))
 					}
+					exp, ok := expectedPkgName(pv.PkgPath)
+					if !ok {
+						panic(fmt.Sprintf("invalid pkg path: %q", pv.PkgPath))
+					}
+					if exp != string(pv.PkgName) {
+						panic(fmt.Sprintf(
+							"package name for %q (%q) doesn't match its expected identifier %q; "+
+								"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
+					}
 					nn = pv.PkgName
 					nx.Name = nn
 				}
