@@ -14,8 +14,8 @@ func TestBalanceChecker(t *testing.T) {
 	addr1 := testutils.TestAddress("user1")
 	addr2 := testutils.TestAddress("user2")
 
-	realm := std.NewCodeRealm("gno.land/r/gnoland/coins")
-	testing.SetRealm(realm)
+	coinsRealm := std.NewCodeRealm("gno.land/r/gnoland/coins")
+	testing.SetRealm(coinsRealm)
 
 	testing.IssueCoins(addr1, std.Coins{{denom, 1000000}})
 	testing.IssueCoins(addr2, std.Coins{{denom, 500000}})
