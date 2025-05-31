@@ -29,15 +29,24 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
-					`module foo`,
+					`[module]
+path = "foo"
+[gno]
+version = "0.9"`,
 				},
 				{
 					"bar",
-					`module bar`,
+					`[module]
+path = "bar"
+[gno]
+version = "0.9"`,
 				},
 				{
 					"baz",
-					`module baz`,
+					`[module]
+path = "baz"
+[gno]
+version = "0.9"`,
 				},
 			},
 			outPkgList:      []string{"foo", "bar", "baz"},
@@ -48,17 +57,25 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
-					`module foo`,
+					`[module]
+path = "foo"
+[gno]
+version = "0.9"`,
 				},
 				{
 					"baz",
-					`module baz`,
+					`[module]
+path = "baz"
+[gno]
+version = "0.9"`,
 				},
 				{
 					"qux",
-					`// Draft
-
-					module qux`,
+					`[module]
+path = "qux"
+draft = true
+[gno]
+version = "0.9"`,
 				},
 			},
 			outPkgList:      []string{"foo", "baz", "qux"},
@@ -106,8 +123,12 @@ func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
 	err := os.MkdirAll(pkgDirPath, 0o755)
 	require.NoError(t, err)
 
-	// Create gno.mod
-	err = os.WriteFile(filepath.Join(pkgDirPath, "gno.mod"), []byte(modData), 0o644)
+	// Create gnomod.toml
+	err = os.WriteFile(filepath.Join(pkgDirPath, "gnomod.toml"), []byte(modData), 0o644)
+	require.NoError(t, err)
+
+	// Create a dummy .gno file to ensure the package is recognized
+	err = os.WriteFile(filepath.Join(pkgDirPath, pkgName+".gno"), []byte("package "+pkgName), 0o644)
 	require.NoError(t, err)
 }
 

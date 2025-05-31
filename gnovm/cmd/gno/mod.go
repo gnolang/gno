@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
+	"golang.org/x/mod/module"
 )
 
 // testPackageFetcher allows to override the package fetcher during tests.
@@ -266,13 +267,27 @@ func execModInit(args []string) error {
 	if len(args) == 1 {
 		modPath = args[0]
 	}
-	dir, err := os.Getwd()
+	rootDir, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	if err := gnomod.CreateGnoModFile(dir, modPath); err != nil {
-		return fmt.Errorf("create gno.mod file: %w", err)
+
+	if !filepath.IsAbs(rootDir) {
+		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
 	}
+
+	modFilePath := filepath.Join(rootDir, "gno.mod")
+	if _, err := os.Stat(modFilePath); err == nil {
+		return errors.New("create gnomod.toml: file already exists")
+	}
+
+	if err := module.CheckImportPath(modPath); err != nil {
+		return fmt.Errorf("create gnomod.toml: %w", err)
+	}
+
+	modfile := new(File)
+	modfile.Module.Path = modPath
+	modfile.WriteFile(filepath.Join(rootDir, "gno.mod"))
 
 	return nil
 }

@@ -121,7 +121,7 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 			return nil, fmt.Errorf("files must be .gno files: %s", path)
 		}
 
-		subPkg, err := GnoFileSubPkg(paths)
+		subPkg, err := gnoFileSubPkg(paths)
 		if err != nil {
 			return nil, err
 		}
@@ -157,8 +157,8 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 	return subPkgs, nil
 }
 
-// GnoFileSubPkg returns a subpackage from the given .gno files.
-func GnoFileSubPkg(files []string) (*SubPkg, error) {
+// gnoFileSubPkg returns a subpackage from the given .gno files.
+func gnoFileSubPkg(files []string) (*SubPkg, error) {
 	subPkg := SubPkg{}
 	firstDir := ""
 	for _, file := range files {

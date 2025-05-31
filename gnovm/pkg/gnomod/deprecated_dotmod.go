@@ -1,14 +1,13 @@
+package gnomod
+
+// Some part of file is copied and modified from
+// golang.org/x/mod/modfile/read.go
+//
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in here[1].
 //
 // [1]: https://cs.opensource.google/go/x/mod/+/master:LICENSE
-//
-// Mostly copied and modified from:
-// - golang.org/x/mod/modfile/read.go
-// - golang.org/x/mod/modfile/rule.go
-
-package gnomod
 
 import (
 	"bytes"
@@ -16,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,6 +25,163 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
+
+type deprecatedModFile struct {
+	Draft   bool
+	Module  *modfile.Module
+	Gno     *modfile.Go
+	Replace []*modfile.Replace
+
+	Syntax *modfile.FileSyntax
+}
+
+// ParseDeprecatedDotModBytes parses and returns a gno.mod file.
+//
+// - fname is the name of the file, used in positions and errors.
+// - data is the content of the file.
+func parseDeprecatedDotModBytes(fname string, data []byte) (*deprecatedModFile, error) {
+	fs, err := parse(fname, data)
+	if err != nil {
+		return nil, err
+	}
+	f := &deprecatedModFile{
+		Syntax: fs,
+	}
+	var errs modfile.ErrorList
+
+	for _, x := range fs.Stmt {
+		switch x := x.(type) {
+		case *modfile.Line:
+			f.add(&errs, nil, x, x.Token[0], x.Token[1:])
+		case *modfile.LineBlock:
+			if len(x.Token) > 1 {
+				errs = append(errs, modfile.Error{
+					Filename: fname,
+					Pos:      x.Start,
+					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
+				})
+				continue
+			}
+			switch x.Token[0] {
+			default:
+				errs = append(errs, modfile.Error{
+					Filename: fname,
+					Pos:      x.Start,
+					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
+				})
+				continue
+			case "module", "replace":
+				for _, l := range x.Line {
+					f.add(&errs, x, l, x.Token[0], l.Token)
+				}
+			}
+		case *modfile.CommentBlock:
+			if x.Start.Line == 1 {
+				f.Draft = parseDraft(x)
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	return f, nil
+}
+
+func (d *deprecatedModFile) Migrate() (*File, error) {
+	f := &File{}
+	if d.Module != nil {
+		f.Module.Path = d.Module.Mod.Path
+	}
+	if d.Gno != nil {
+		f.Gno.Version = d.Gno.Version
+	}
+	f.Module.Draft = d.Draft
+
+	// voluntarily not migrating, because not used/working the same way:
+	// - f.Replace
+	// - f.Syntax
+	return f, nil
+}
+
+func (f *deprecatedModFile) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modfile.Line, verb string, args []string) {
+	wrapError := func(err error) {
+		*errs = append(*errs, modfile.Error{
+			Filename: f.Syntax.Name,
+			Pos:      line.Start,
+			Err:      err,
+		})
+	}
+	errorf := func(format string, args ...any) {
+		wrapError(fmt.Errorf(format, args...))
+	}
+
+	switch verb {
+	default:
+		errorf("unknown directive: %s", verb)
+
+	case "gno":
+		if f.Gno != nil {
+			errorf("repeated gno statement")
+			return
+		}
+		if len(args) != 1 {
+			errorf("gno directive expects exactly one argument")
+			return
+		} else if !reGnoVersion.MatchString(args[0]) {
+			fixed := false
+			if !fixed {
+				errorf("invalid gno version %s: must match format 1.23", args[0])
+				return
+			}
+		}
+
+		line := reflect.ValueOf(line).Interface().(*modfile.Line)
+		f.Gno = &modfile.Go{Syntax: line}
+		f.Gno.Version = args[0]
+
+	case "module":
+		if f.Module != nil {
+			errorf("repeated module statement")
+			return
+		}
+		deprecated := parseDeprecation(block, line)
+		f.Module = &modfile.Module{
+			Syntax:     line,
+			Deprecated: deprecated,
+		}
+		if len(args) != 1 {
+			errorf("usage: module module/path")
+			return
+		}
+		s, err := parseString(&args[0])
+		if err != nil {
+			errorf("invalid quoted string: %v", err)
+			return
+		}
+		if err := module.CheckImportPath(s); err != nil {
+			errorf("invalid module path: %v", err)
+			return
+		}
+		f.Module.Mod = module.Version{Path: s}
+
+	case "replace":
+		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args)
+		if wrappederr != nil {
+			*errs = append(*errs, *wrappederr)
+			return
+		}
+		f.Replace = append(f.Replace, replace)
+	}
+}
+
+// Validate validates gno.mod
+func (f *deprecatedModFile) Validate() error {
+	if f.Module == nil {
+		return errors.New("requires module")
+	}
+	return nil
+}
 
 // An input represents a single input file being parsed.
 type input struct {
@@ -627,10 +784,10 @@ var (
 	moduleStr  = []byte("module")
 )
 
-// ModulePath returns the module path from the gomod file text.
+// modulePath returns the module path from the gomod file text.
 // If it cannot find a module path, it returns an empty string.
 // It is tolerant of unrelated problems in the go.mod file.
-func ModulePath(mod []byte) string {
+func modulePath(mod []byte) string {
 	for len(mod) > 0 {
 		line := mod
 		mod = nil
