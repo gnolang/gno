@@ -96,7 +96,7 @@ func execRepl(cfg *replCfg, args []string) error {
 		// (jae) People used to go by the lunar calendar.  Moon seasons
 		// make sense when all you have to go by are seasons and the
 		// phase of the moon. Our own calendar is probably off by about
-		// 3 years; it's defined by the birth of christ, but the
+		// 3 years; it's defined by the birth of Christ, but the
 		// astronomical event that denotes it was in 3BC (the Bethlehem
 		// star was an alignment of the planets). The hebrew calendar
 		// is known to have missing years of 164~168 years (search
