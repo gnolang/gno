@@ -327,7 +327,7 @@ const (
 	numBlocks = 6
 )
 
-var mempool = mock.Mempool{}
+var mempool = &mock.Mempool{}
 
 // ---------------------------------------
 // Test handshake/replay
