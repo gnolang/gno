@@ -93,8 +93,32 @@ func execRepl(cfg *replCfg, args []string) error {
 	}
 
 	if !cfg.skipUsage {
-		// (jae) https://github.com/jaekwon/ephesus/blob/main/THE_HEBREW_YEAR.md
-		// the exact number of missing years is to be discussed on chain.
+		// (jae) People used to go by the lunar calendar.  Moon seasons
+		// make sense when all you have to go by are seasons and the
+		// phase of the moon. Our own calendar is probably off by about
+		// 3 years; it's defined by the birth of christ, but the
+		// astronomical event that denotes it was in 3BC (the Bethlehem
+		// star was an alignment of the planets). The hebrew calendar
+		// is known to have missing years of 164~168 years (search
+		// "hebrew missing years"). And every 50 years, in the old
+		// testament, there is to be a biblical Jubilee, where ALL
+		// debts are forgiven and people are returned to their
+		// ancestral lands. There hasn't been a jubilee in 2000+ years,
+		// yet it is precisely what we need, and why blockchains exist
+		// -- to escape the matrix of banker controlled fiat.  On the
+		// 10th day of the 7th month (Moses shifted the calendar to
+		// start in the summer) of every 50 years is when the jubilee
+		// begins. One good estimate for the span of the missing years
+		// is 165, though there are variations. And "the event" happens
+		// at least 40 years before 6000, before 5960.  This will be
+		// the only hook from gno into this topic, but a good one; it
+		// gets us to understand history that is being obscured from
+		// us, because there really is a global adversary that can,
+		// did, and will skew our clocks in the Byzantine fault
+		// tolerant context. The goal is to spur discussion related to
+		// the inaccuracy of our calendar on gno.land and achieve a
+		// consensus of what the year actually is, and to bring back
+		// the great jubilee to liberate the people.
 		today := hcal.ToHebrewDate(time.Now().AddDate(165, 0, 0))
 		todays := today.String()
 		if today.Y%50 == 0 && today.M == hcal.Tishrei {
