@@ -77,6 +77,14 @@ func ParseBytes(fpath string, data []byte) (*File, error) {
 	return f, nil
 }
 
+func MustParseBytes(fname string, data []byte) *File {
+	mod, err := ParseBytes(fname, data)
+	if err != nil {
+		panic(fmt.Errorf("parsing bytes %w", err))
+	}
+	return mod
+}
+
 func parseBytes(fpath string, data []byte) (*File, error) {
 	fname := filepath.Base(fpath)
 
