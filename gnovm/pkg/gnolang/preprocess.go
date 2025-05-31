@@ -168,14 +168,14 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // Initialize static block info.
 // TODO: ensure and keep idempotent.
 // PrpedefineFileSet may precede Preprocess.
-func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
+func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
 	stack = append(stack, last)
 
 	// iterate over all nodes recursively.
-	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	_ = Transcribe(nn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 		if debug {
 			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
@@ -464,42 +464,23 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	clearSkip := false
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
-	Transcribe(n,
-		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-			if stage != TRANS_ENTER {
-				return n, TRANS_CONTINUE
-			}
-			if _, ok := n.(*FuncLitExpr); ok {
-				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
-					clearSkip = true // clear what preprocess1 will do.
-					return n, TRANS_SKIP
-				}
-			}
-			if bn, ok := n.(BlockNode); ok {
-				initStaticBlocks(store, ctx, bn)
-				return n, TRANS_SKIP
-			}
-			return n, TRANS_CONTINUE
-		})
-	if clearSkip {
-		defer func() {
-			Transcribe(n,
-				func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-					if stage != TRANS_ENTER {
-						return n, TRANS_CONTINUE
-					}
-					n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
-					n.DelAttribute(ATTR_PREPROCESS_INCOMPLETE)
+	initStaticBlocks(store, ctx, n)
+	defer func() {
+		Transcribe(n,
+			func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+				if stage != TRANS_ENTER {
 					return n, TRANS_CONTINUE
-				})
-		}()
-	}
+				}
+				n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
+				n.DelAttribute(ATTR_PREPROCESS_INCOMPLETE)
+				return n, TRANS_CONTINUE
+			})
+	}()
 
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
