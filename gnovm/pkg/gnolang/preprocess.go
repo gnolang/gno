@@ -165,7 +165,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 }
 
-// Initialize static block info.
+// Initialize static blocks, and also reserves all names.
 // TODO: ensure and keep idempotent.
 // PrpedefineFileSet may precede Preprocess.
 func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
@@ -487,10 +487,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
-	// XXX what about the fact that preprocess1 sets the PREPROCESSED attr on all nodes?
-	// XXX do any of the following need the attr, or similar attrs?
-	// XXX well the following may be isn't idempotent,
-	// XXX so it is currently strange.
+
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
 	Transcribe(n,
@@ -3753,7 +3750,11 @@ func setConstAttrs(cx *ConstExpr) {
 	}
 }
 
-func setPreprocessed(x Expr) Expr {
+// This gets set immediately upon preprocess/TRANS_LEAVE.  This means its type
+// can be evaluated during TRANS_LEVE, as the node's attribute
+// ATTR_PREPROCESSED is already set. But it also makes it a bit of misnomer;
+// preprocessing isn't exactly complete.
+func setPreprocessed(x Node) Node {
 	if x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
 		x.SetAttribute(ATTR_PREPROCESSED, true)
 	}

@@ -339,10 +339,26 @@ var (
 // except for channel blocks, type assertions, and panics.
 
 type Expr interface {
+	assertExpr()
 	Node
 }
 
-type Exprs []Expr
+// non-pointer receiver to help make immutable.
+func (*NameExpr) assertExpr()         {}
+func (*BasicLitExpr) assertExpr()     {}
+func (*BinaryExpr) assertExpr()       {}
+func (*CallExpr) assertExpr()         {}
+func (*IndexExpr) assertExpr()        {}
+func (*SelectorExpr) assertExpr()     {}
+func (*SliceExpr) assertExpr()        {}
+func (*StarExpr) assertExpr()         {}
+func (*RefExpr) assertExpr()          {}
+func (*TypeAssertExpr) assertExpr()   {}
+func (*UnaryExpr) assertExpr()        {}
+func (*CompositeLitExpr) assertExpr() {}
+func (*KeyValueExpr) assertExpr()     {}
+func (*FuncLitExpr) assertExpr()      {}
+func (*ConstExpr) assertExpr()        {}
 
 var (
 	_ Expr = &NameExpr{}
@@ -361,6 +377,8 @@ var (
 	_ Expr = &FuncLitExpr{}
 	_ Expr = &ConstExpr{}
 )
+
+type Exprs []Expr
 
 type NameExprType int
 
@@ -612,6 +630,16 @@ func (x *FuncTypeExpr) assertTypeExpr()      {}
 func (x *MapTypeExpr) assertTypeExpr()       {}
 func (x *StructTypeExpr) assertTypeExpr()    {}
 func (x *constTypeExpr) assertTypeExpr()     {}
+
+func (x *FieldTypeExpr) assertExpr()     {}
+func (x *ArrayTypeExpr) assertExpr()     {}
+func (x *SliceTypeExpr) assertExpr()     {}
+func (x *InterfaceTypeExpr) assertExpr() {}
+func (x *ChanTypeExpr) assertExpr()      {}
+func (x *FuncTypeExpr) assertExpr()      {}
+func (x *MapTypeExpr) assertExpr()       {}
+func (x *StructTypeExpr) assertExpr()    {}
+func (x *constTypeExpr) assertExpr()     {}
 
 var (
 	_ TypeExpr = &FieldTypeExpr{}
@@ -1189,11 +1217,13 @@ type SimpleDeclStmt interface {
 // not used to avoid itable costs.
 // type SimpleDeclStmts []SimpleDeclStmt
 
-func (x *ValueDecl) assertSimpleDeclStmt() {}
-func (x *TypeDecl) assertSimpleDeclStmt()  {}
-
+// ValueDecl and TypeDecl are the only decls that are both statements
+// *and* decls.
 func (x *ValueDecl) assertStmt() {}
 func (x *TypeDecl) assertStmt()  {}
+
+func (x *ValueDecl) assertSimpleDeclStmt() {}
+func (x *TypeDecl) assertSimpleDeclStmt()  {}
 
 var (
 	_ SimpleDeclStmt = &ValueDecl{}
@@ -1556,7 +1586,7 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // Prepares new func values (e.g. by attaching the proper file block closure).
 // Returns a slice of new PackageValue.Values.
 // After return, *PackageNode.Values and *PackageValue.Values have the same
-// length.
+// length. The implementation is similar to Block.ExpandWith.
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
 func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
@@ -1655,7 +1685,8 @@ func (x *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, 
 		}
 	}
 	// attach fv to base declared type as method.
-	recv := evalStaticType(nil, x, Preprocess(nil, x, Nx(r))).(*DeclaredType)
+	nx := Preprocess(nil, x, Nx(r)).(Expr)
+	recv := evalStaticType(nil, x, nx).(*DeclaredType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")

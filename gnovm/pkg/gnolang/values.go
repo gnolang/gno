@@ -2274,7 +2274,7 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		if !isHeap {
 			continue
 		}
-		// indicates must always be heap item.
+		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
 			V: &HeapItemValue{},
@@ -2452,45 +2452,37 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 	return &b.bodyStmt
 }
 
-// Used by faux blocks like IfCond and SwitchStmt upon clause match.
+// Used by faux blocks like IfCond and SwitchStmt upon clause match.  e.g.
+// source: IfCond, b.Source: IfStmt.  Also used by repl to expand block size
+// dynamically. In that case source == b.Source.
 func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
-	// XXX make more efficient by only storing new names in source.
-	numNames := source.GetNumNames()
-	if len(b.Values) > int(numNames) {
+	sb := source.GetStaticBlock()
+	numNames := int(sb.GetNumNames())
+	if len(b.Values) > numNames {
 		panic(fmt.Sprintf(
 			"unexpected block size shrinkage: %v vs %v",
 			len(b.Values), numNames))
 	}
-	if debug {
-		if len(b.Values) >= int(numNames) {
-			panic(fmt.Sprintf(
-				"unexpected block size shrinkage: %v vs %v",
-				len(b.Values), numNames))
-		}
-	}
 	if int(numNames) == len(b.Values) {
 		return // nothing to do
 	}
-	alloc.AllocateBlockItems(int64(numNames) - int64(len(b.Values)))
-	values := make([]TypedValue, numNames)
-	copy(values, b.Values)
-	// NOTE this is a bit confusing because of the faux offset.
-	// The heap item values are always false for the old names.
-	// Keep in sync with NewBlock().
-	// XXX pass allocator in for heap items.
+	oldNames := len(b.Values)
+	newNames := numNames - oldNames
+	alloc.AllocateBlockItems(int64(newNames))
 	heapItems := source.GetHeapItems()
-	for i := len(b.Values); i < int(numNames); i++ {
-		isHeap := heapItems[i]
-		if !isHeap {
-			continue
-		}
-		// indicates must always be heap item.
-		values[i] = TypedValue{
-			T: heapItemType{},
-			V: &HeapItemValue{},
+	bvalues := b.Values
+	for i := len(b.Values); i < numNames; i++ {
+		tv := sb.Values[i]
+		if heapItems[i] {
+			bvalues = append(bvalues, TypedValue{
+				T: heapItemType{},
+				V: alloc.NewHeapItem(tv),
+			})
+		} else {
+			bvalues = append(bvalues, tv)
 		}
 	}
-	b.Values = values
+	b.Values = bvalues
 	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 

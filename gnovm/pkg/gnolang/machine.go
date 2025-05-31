@@ -872,21 +872,46 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	return tv.Type
 }
 
+// Runs a statement on a block. The block must not be a package node's block,
+// but it may be a file block or anything else.  New names may be decalred by
+// the statement, so the block is expanded with its own source.
 func (m *Machine) RunStatement(st Stage, s Stmt) {
-	sn := m.LastBlock().GetSource(m.Store)
-	s = Preprocess(m.Store, sn, s).(Stmt)
+	lb := m.LastBlock()
+	last := lb.GetSource(m.Store)
+	switch last.(type) {
+	case *FileNode, *PackageNode:
+		// NOTE: type decls and value decls are also statements, and
+		// they add a name to m.LastBlock, except if last block is a
+		// file/package block it adds to the parent package block.
+		if d, ok := s.(Decl); ok {
+			m.RunDeclaration(d)
+			return // already pn.PrepareNewValues()'d.
+		}
+	}
+	// preprocess s and expand last if needed.
+	func() {
+		oldNames := last.GetNumNames()
+		defer func() {
+			// if preprocess panics during `a := ...`,
+			// the static block will have a new slot but not
+			// the runtime block, causing issues later.
+			newNames := last.GetNumNames()
+			if oldNames != newNames {
+				lb.ExpandWith(m.Alloc, last)
+			}
+		}()
+		s = Preprocess(m.Store, last, s).(Stmt)
+	}()
+	// run s.
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
 	m.Run(st)
 }
 
-// Runs a declaration after preprocessing d.  If d was already
-// preprocessed, call runDeclaration() instead.
-// This function is primarily for testing, so no blocknodes are
-// saved to store, and declarations are not realm compatible.
-// NOTE: to support realm persistence of types, must
-// first require the validation of blocknode locations.
+// Runs a declaration after preprocessing d.  If d was already preprocessed,
+// call runDeclaration() instead.  No blocknodes are saved to store, and
+// declarations are not realm compatible.
 func (m *Machine) RunDeclaration(d Decl) {
 	if fd, ok := d.(*FuncDecl); ok && fd.Name == "init" {
 		// XXX or, consider running it, but why would this be needed?

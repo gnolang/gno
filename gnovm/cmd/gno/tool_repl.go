@@ -3,22 +3,23 @@ package main
 import (
 	"bufio"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
-	"go/scanner"
 	"os"
 	"strings"
+	"time"
 
+	hcal "github.com/bendory/conway-hebrew-calendar"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/repl"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type replCfg struct {
-	rootDir        string
-	initialCommand string
-	skipUsage      bool
+	rootDir   string
+	init      string
+	skipUsage bool
 }
 
 func newReplCmd() *commands.Command {
@@ -46,19 +47,41 @@ func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.initialCommand,
-		"command",
+		&c.init,
+		"init",
 		"",
-		"initial command to run",
+		"initial code or commands to run",
 	)
 
 	fs.BoolVar(
 		&c.skipUsage,
-		"skip-usage",
+		"skip-welcome",
 		false,
-		"do not print usage",
+		"do not print welcome line",
 	)
 }
+
+const gnoHelp = `Usage:
+
+   gno /history                         // print statement history
+   gno /debug                           // activate the GnoVM debugger
+   gno /reset                           // remove all previously inserted code
+   gno println(a())                     // print the result of calling a()
+   gno import "gno.land/p/demo/avl"     // import the p/demo/avl package
+   gno func a() string { return "a" }   // declare a new function named a
+   gno func b() string {\               // multi-line with '\'
+   ...    return "a"\
+   ... }                             
+   gno /editor                          // enter in multi-line mode, end with ';'
+   gno func c() string {                // multi-line with ';'
+   ...    return "a"\
+   ... }                             
+   ... ;
+   gno /exit                            // alternative to <Ctrl-D>
+
+Goto gno.land for more info.`
+
+var bootCode = fmt.Sprintf(`func help() { println(%q)}`, gnoHelp)
 
 func execRepl(cfg *replCfg, args []string) error {
 	if len(args) > 0 {
@@ -70,16 +93,13 @@ func execRepl(cfg *replCfg, args []string) error {
 	}
 
 	if !cfg.skipUsage {
-		fmt.Fprint(os.Stderr, `// Usage:
-//   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
-//   gno> func a() string { return "a" }   // declare a new function named a
-//   gno> /src                             // print current generated source
-//   gno> /debug                           // activate the GnoVM debugger
-//   gno> /editor                          // enter in multi-line mode, end with ';'
-//   gno> /reset                           // remove all previously inserted code
-//   gno> println(a())                     // print the result of calling a()
-//   gno> /exit                            // alternative to <Ctrl-D>
-`)
+		// (jae) https://github.com/jaekwon/ephesus/blob/main/THE_HEBREW_YEAR.md
+		today := hcal.ToHebrewDate(time.Now().AddDate(165, 0, 0))
+		todays := today.String()
+		if today.Y%50 == 0 {
+			todays = todays + " - jubilee!"
+		}
+		fmt.Fprint(os.Stderr, colors.Cyan(fmt.Sprintf("gno v0.9 (it's %s) try \"help()\"\n", todays)))
 	}
 
 	return runRepl(cfg)
@@ -88,51 +108,58 @@ func execRepl(cfg *replCfg, args []string) error {
 func runRepl(cfg *replCfg) error {
 	r := repl.NewRepl()
 
-	if cfg.initialCommand != "" {
-		handleInput(r, cfg.initialCommand)
+	if cfg.init != "" {
+		handleInput(r, cfg.init)
 	}
 
-	fmt.Fprint(os.Stdout, "gno> ")
+	r.Print(colors.Cyan("gno "))
+	err := handleInput(r, bootCode)
+	if err != nil {
+		r.Print("... ")
+	}
 
 	inEdit := false
-	prev := ""
+	code := ""
 	liner := bufio.NewScanner(os.Stdin)
+	addLine := func(line string) {
+		if code != "" {
+			code = code + "\n" + line
+		} else {
+			code = line
+		}
+	}
 
 	for liner.Scan() {
 		line := liner.Text()
 
-		if l := strings.TrimSpace(line); l == ";" {
-			line, inEdit = "", false
-		} else if l == "/editor" {
+		if line == "/editor" {
 			line, inEdit = "", true
-			fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
-		}
-		if prev != "" {
-			line = prev + "\n" + line
-			prev = ""
+			r.Println(colors.Gray("// enter a single ';' to quit and commit"))
 		}
 		if inEdit {
-			fmt.Fprint(os.Stdout, "...  ")
-			prev = line
-			continue
-		}
-
-		if err := handleInput(r, line); err != nil {
-			var goScanError scanner.ErrorList
-			if errors.As(err, &goScanError) {
-				// We assune that a Go scanner error indicates an incomplete Go statement.
-				// Append next line and retry.
-				prev = line
+			if l := strings.TrimSpace(line); l == ";" {
+				// will run statement.
+				line = ""
+				inEdit = false
 			} else {
-				fmt.Fprintln(os.Stderr, err)
+				addLine(line)
+				r.Print(colors.Cyan("... "))
+				continue
 			}
+		} else if strings.HasSuffix(line, `\`) {
+			addLine(line[:len(line)-1])
+			r.Print(colors.Cyan("... "))
+			continue
+		} else {
+			addLine(line)
 		}
 
-		if prev == "" {
-			fmt.Fprint(os.Stdout, "gno> ")
-		} else {
-			fmt.Fprint(os.Stdout, "...  ")
+		if err := handleInput(r, code); err != nil {
+			r.Errorln(err)
 		}
+		code = ""
+
+		r.Print(colors.Cyan("gno "))
 	}
 	return nil
 }
@@ -144,18 +171,17 @@ func handleInput(r *repl.Repl, input string) error {
 		r.Reset()
 	case "/debug":
 		r.Debug()
-	case "/src":
-		fmt.Fprintln(os.Stdout, r.Src())
+	case "/history":
+		panic("not yet implemented")
 	case "/exit":
 		os.Exit(0)
 	case "":
 		// Avoid to increase the repl execution counter if no input.
 	default:
-		out, err := r.Process(input)
+		err := r.RunStatement(input)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(os.Stdout, out)
 	}
 	return nil
 }

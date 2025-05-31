@@ -4,6 +4,9 @@ package gnolang
 
 // XXX finalize should consider hard boundaries only
 
+// XXX types: to support realm persistence of types, must
+// first require the validation of blocknode locations.
+
 import (
 	"encoding/hex"
 	"encoding/json"

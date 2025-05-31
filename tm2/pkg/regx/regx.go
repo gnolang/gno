@@ -39,11 +39,11 @@ func (mm match) Get(name string) string {
 // Matches a string by default, adding ^$ if not already present.
 // If you need to match a part of the string, implement "Find()".
 func (rx regx) Match(s string) *match {
-	if !strings.HasPrefix(s, `^`) {
-		s = `^` + s
+	if !strings.HasPrefix(string(rx), `^`) {
+		rx = `^` + rx
 	}
-	if !strings.HasSuffix(s, `$`) {
-		s = s + `$`
+	if !strings.HasSuffix(string(rx), `$`) {
+		rx = rx + `$`
 	}
 	// s is now canonical w/ ^$.
 	rr, ok := cache[rx]
@@ -60,7 +60,7 @@ func (rx regx) Match(s string) *match {
 func r2s(xx regx) string                         { return string(xx) }                     // regx -> string
 func sj(sz ...string) string                     { return strings.Join(sz, ``) }           // string join
 func sjd(dd string, sz ...string) string         { return strings.Join(sz, dd) }           // string join
-func esc(ch string) string                       { return `\` + ch }               // escape char (string)
+func esc(ch string) string                       { return `\` + ch }                       // escape char (string)
 func spl(ss string) []string                     { return strings.Split(ss, ``) }          // split string by char
 func sra(ss string, oo string, nn string) string { return strings.ReplaceAll(ss, oo, nn) } // alias
 
