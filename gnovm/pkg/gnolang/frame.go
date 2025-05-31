@@ -240,7 +240,7 @@ func toConstExpTrace(cte *ConstExpr) string {
 	} else if tv.IsUndefined() {
 		return "undefined"
 	} else {
-		return tv.V.String()
+		return tv.V.String(nil)
 	}
 }
 
@@ -256,11 +256,11 @@ type Exception struct {
 }
 
 func (e *Exception) StringWithStacktrace(m *Machine) string {
-	return "panic: " + e.Value.Sprint(m) + "\n" + e.Stacktrace.String()
+	return "panic: " + e.Value.Sprint(NewPrinter(m.GasMeter), m) + "\n" + e.Stacktrace.String()
 }
 
 func (e *Exception) Sprint(m *Machine) string {
-	res := e.Value.Sprint(m)
+	res := e.Value.Sprint(NewPrinter(m.GasMeter), m)
 	return res
 }
 
