@@ -18,7 +18,7 @@ func init() {
 
 	// Create a board and a thread
 	boardID := cross(boards2.CreateBoard)(boardName, false)
-	cross(boards2.CreateThread)(boardID, "A", "Body")
+	cross(boards2.CreateThread)(boardID, "A", "Body", false)
 }
 
 func main() {

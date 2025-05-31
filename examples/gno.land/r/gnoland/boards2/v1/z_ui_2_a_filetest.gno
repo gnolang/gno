@@ -20,12 +20,12 @@ func init() {
 	boardID := cross(boards2.CreateBoard)(boardName, false)
 
 	// Create thread "A" with a single comment
-	threadID := cross(boards2.CreateThread)(boardID, "A", "Body")
+	threadID := cross(boards2.CreateThread)(boardID, "A", "Body", false)
 	cross(boards2.CreateReply)(boardID, threadID, 0, "Body")
 
 	// The other 2 threads are created without comments
-	cross(boards2.CreateThread)(boardID, "B", "Body")
-	threadID = cross(boards2.CreateThread)(boardID, "C", "Body")
+	cross(boards2.CreateThread)(boardID, "B", "Body", false)
+	threadID = cross(boards2.CreateThread)(boardID, "C", "Body", false)
 
 	// Repost thread "C" into a different board
 	dstBoardID := cross(boards2.CreateBoard)("Bar", false)

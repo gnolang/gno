@@ -9,18 +9,11 @@ import (
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
-var bid boards2.BoardID
-
-func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test123", false)
-}
-
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.CreateThread)(bid, "", "bar", false)
+	cross(boards2.SetReplyFee)(-1)
 }
 
 // Error:
-// title is empty
+// fee must be greater or equal to 0

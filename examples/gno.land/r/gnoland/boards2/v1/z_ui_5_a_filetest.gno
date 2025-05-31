@@ -23,7 +23,7 @@ func init() {
 
 	// Create a board and a thread
 	boardID := cross(boards2.CreateBoard)(boardName, false)
-	threadID = cross(boards2.CreateThread)(boardID, "Foo", "Body")
+	threadID = cross(boards2.CreateThread)(boardID, "Foo", "Body", false)
 
 	// Create two comments and a reply to a comment
 	cross(boards2.CreateReply)(boardID, threadID, 0, "First comment")

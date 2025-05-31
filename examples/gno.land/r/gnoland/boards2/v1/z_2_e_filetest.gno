@@ -17,7 +17,7 @@ var (
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test123", false)
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar", false)
 
 	// Hide thread by flagging it so reply can't be submitted
 	cross(boards2.FlagThread)(bid, tid, "reason")

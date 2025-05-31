@@ -20,7 +20,7 @@ func init() {
 
 	// Create a board with a thread
 	origBID := cross(boards2.CreateBoard)("origin-board", false)
-	origTID := cross(boards2.CreateThread)(origBID, "title", "text")
+	origTID := cross(boards2.CreateThread)(origBID, "title", "text", false)
 
 	// Create a second board and repost a thread using an empty title
 	srcBID = cross(boards2.CreateBoard)("source-board", false)

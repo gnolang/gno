@@ -22,7 +22,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(boards2.CreateThread)(bid, "Foo", "bar")
+	cross(boards2.CreateThread)(bid, "Foo", "bar", false)
 }
 
 // Error:

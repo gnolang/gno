@@ -1,5 +1,7 @@
 package main
 
+// SEND: 5000000ugnot
+
 import (
 	"std"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 const (
 	owner   = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	user    = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 	path    = "test-board/1/2"
 	comment = "Test comment"
 )
@@ -22,11 +25,13 @@ var (
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test-board", false)
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar", false)
+
+	// Create a public thread to allow uninvited users to add replies
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar", true)
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm(user))
 
 	rid := cross(boards2.CreateReply)(bid, tid, 0, comment)
 

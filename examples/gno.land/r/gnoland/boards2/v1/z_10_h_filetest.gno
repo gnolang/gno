@@ -21,7 +21,7 @@ func init() {
 	cross(boards2.SetFlaggingThreshold)(bid, 2)
 
 	// Create a thread so the realm owner can flag and hide it with a single flag
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	pid = cross(boards2.CreateThread)(bid, "Foo", "bar", false)
 	// Also freeze board to make sure that realm owner can still flag the thread
 	cross(boards2.FreezeBoard)(bid)
 }

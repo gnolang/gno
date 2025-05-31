@@ -28,7 +28,7 @@ func init() {
 
 	// Create a new thread and flag it as a moderator
 	testing.SetRealm(std.NewUserRealm(moderator))
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	pid = cross(boards2.CreateThread)(bid, "Foo", "bar", false)
 	cross(boards2.FlagThread)(bid, pid, "")
 }
 
