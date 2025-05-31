@@ -124,6 +124,15 @@ func ParseBytes(fname string, data []byte) (*File, error) {
 	return f, nil
 }
 
+// Parse gno.mod from bytes or panic.
+func MustParseBytes(fname string, data []byte) *File {
+	mod, err := ParseBytes(fname, data)
+	if err != nil {
+		panic(fmt.Errorf("parsing bytes %w", err))
+	}
+	return mod
+}
+
 // Parse gno.mod from MemPackage, or return nil and error.
 func ParseMemPackage(mpkg *std.MemPackage) (*File, error) {
 	mf := mpkg.GetFile("gno.mod")

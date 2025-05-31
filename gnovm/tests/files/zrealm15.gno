@@ -31,9 +31,7 @@ func init() {
 	a.A = s
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	b[0] = nil
 	b[1] = nil
 	a.A = nil

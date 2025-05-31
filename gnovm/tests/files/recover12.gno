@@ -1,14 +1,13 @@
 package main
 
-
 func main() {
-    defer func() {
-    		r := recover()
-    		println("recover:", r)
-    }()
+	defer func() {
+		r := recover()
+		println("recover:", r)
+	}()
 
-    arr := []int{1, 2, 3}
-    _ = arr[3] // Panics because index 3 is out of bounds
+	arr := []int{1, 2, 3}
+	_ = arr[3] // Panics because index 3 is out of bounds
 }
 
 // Output:

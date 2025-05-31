@@ -1,14 +1,13 @@
 package main
 
-
 func main() {
-    defer func() {
-    		r := recover()
-    		println("recover:", r)
-    }()
+	defer func() {
+		r := recover()
+		println("recover:", r)
+	}()
 
-    var p *int
-    println(*p)
+	var p *int
+	println(*p)
 }
 
 // Output:

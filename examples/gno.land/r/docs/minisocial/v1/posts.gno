@@ -12,8 +12,7 @@ import (
 var posts []*Post // inefficient for large amounts of posts; see v2
 
 // CreatePost creates a new post
-func CreatePost(text string) error {
-	crossing()
+func CreatePost(cur realm, text string) error {
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")
@@ -29,10 +28,8 @@ func CreatePost(text string) error {
 	return nil
 }
 
-func Render(_ string) string {
-	crossing()
+func Render(cur realm, _ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
-
 	// Create a clickable link to create a post
 	output += helplink.Func("Write a post!", "CreatePost", "text", "")
 	output += "\n\n"

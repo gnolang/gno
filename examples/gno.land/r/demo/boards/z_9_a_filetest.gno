@@ -14,13 +14,13 @@ var dstBoard boards.BoardID
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	cross(users.Register)("gnouser123")
+	users.Register(cross, "gnouser123")
 
-	dstBoard = cross(boards.CreateBoard)("dst_board")
+	dstBoard = boards.CreateBoard(cross, "dst_board")
 }
 
 func main() {
-	cross(boards.CreateRepost)(0, 0, "First Post in (title)", "Body of the first post. (body)", dstBoard)
+	boards.CreateRepost(cross, 0, 0, "First Post in (title)", "Body of the first post. (body)", dstBoard)
 }
 
 // Error:

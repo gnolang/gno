@@ -38,7 +38,7 @@ func (c Category) Status() string {
 
 func (c *Category) Tally() {
 	// TODO error handling
-	c.votes.Iterate("", "", func(address string, vote any) bool {
+	c.votes.Iterate("", "", func(address_XXX string, vote any) bool {
 		v := vote.(Vote)
 		value, exists := c.tallyResult.results.Get(v.option)
 		if !exists {

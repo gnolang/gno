@@ -60,8 +60,9 @@ func _() {
 	_ = x[OpNoop-2]
 	_ = x[OpExec-3]
 	_ = x[OpPrecall-4]
-	_ = x[OpCall-5]
-	_ = x[OpCallNativeBody-6]
+	_ = x[OpEnterCrossing-5]
+	_ = x[OpCall-6]
+	_ = x[OpCallNativeBody-7]
 	_ = x[OpDefer-10]
 	_ = x[OpCallDeferNativeBody-11]
 	_ = x[OpGo-12]
@@ -160,7 +161,7 @@ func _() {
 	_ = x[OpVoid-255]
 }
 
-const _Op_name = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchClauseOpSwitchClauseCaseOpTypeSwitchOpIfCondOpPopValueOpPopResultsOpPopBlockOpPopFrameAndResetOpPanic1OpPanic2OpReturnOpReturnAfterCopyOpReturnFromBlockOpReturnToBlockOpUposOpUnegOpUnotOpUxorOpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandnOpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpStaticTypeOfOpCompositeLitOpArrayLitOpSliceLitOpSliceLit2OpMapLitOpStructLitOpFuncLitOpConvertOpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructTypeOpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDecOpValueDeclOpTypeDeclOpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefersOpVoid"
+const _Op_name = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpEnterCrossingOpCallOpCallNativeBodyOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchClauseOpSwitchClauseCaseOpTypeSwitchOpIfCondOpPopValueOpPopResultsOpPopBlockOpPopFrameAndResetOpPanic1OpPanic2OpReturnOpReturnAfterCopyOpReturnFromBlockOpReturnToBlockOpUposOpUnegOpUnotOpUxorOpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandnOpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpStaticTypeOfOpCompositeLitOpArrayLitOpSliceLitOpSliceLit2OpMapLitOpStructLitOpFuncLitOpConvertOpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructTypeOpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDecOpValueDeclOpTypeDeclOpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefersOpVoid"
 
 var _Op_map = map[Op]string{
 	0:   _Op_name[0:9],
@@ -168,104 +169,105 @@ var _Op_map = map[Op]string{
 	2:   _Op_name[15:21],
 	3:   _Op_name[21:27],
 	4:   _Op_name[27:36],
-	5:   _Op_name[36:42],
-	6:   _Op_name[42:58],
-	10:  _Op_name[58:65],
-	11:  _Op_name[65:86],
-	12:  _Op_name[86:90],
-	13:  _Op_name[90:98],
-	14:  _Op_name[98:112],
-	15:  _Op_name[112:130],
-	16:  _Op_name[130:142],
-	17:  _Op_name[142:150],
-	18:  _Op_name[150:160],
-	19:  _Op_name[160:172],
-	20:  _Op_name[172:182],
-	21:  _Op_name[182:200],
-	22:  _Op_name[200:208],
-	23:  _Op_name[208:216],
-	26:  _Op_name[216:224],
-	27:  _Op_name[224:241],
-	28:  _Op_name[241:258],
-	29:  _Op_name[258:273],
-	32:  _Op_name[273:279],
-	33:  _Op_name[279:285],
-	34:  _Op_name[285:291],
-	35:  _Op_name[291:297],
-	37:  _Op_name[297:304],
-	38:  _Op_name[304:309],
-	39:  _Op_name[309:315],
-	40:  _Op_name[315:320],
-	41:  _Op_name[320:325],
-	42:  _Op_name[325:330],
-	43:  _Op_name[330:335],
-	44:  _Op_name[335:340],
-	45:  _Op_name[340:345],
-	46:  _Op_name[345:350],
-	47:  _Op_name[350:355],
-	48:  _Op_name[355:360],
-	49:  _Op_name[360:365],
-	50:  _Op_name[365:370],
-	51:  _Op_name[370:375],
-	52:  _Op_name[375:380],
-	53:  _Op_name[380:385],
-	54:  _Op_name[385:390],
-	55:  _Op_name[390:396],
-	56:  _Op_name[396:403],
-	64:  _Op_name[403:409],
-	65:  _Op_name[409:418],
-	66:  _Op_name[418:426],
-	67:  _Op_name[426:434],
-	68:  _Op_name[434:444],
-	69:  _Op_name[444:451],
-	70:  _Op_name[451:457],
-	71:  _Op_name[457:462],
-	72:  _Op_name[462:475],
-	73:  _Op_name[475:488],
-	74:  _Op_name[488:502],
-	75:  _Op_name[502:516],
-	76:  _Op_name[516:526],
-	77:  _Op_name[526:536],
-	78:  _Op_name[536:547],
-	79:  _Op_name[547:555],
-	80:  _Op_name[555:566],
-	81:  _Op_name[566:575],
-	82:  _Op_name[575:584],
-	112: _Op_name[584:595],
-	113: _Op_name[595:606],
-	114: _Op_name[606:617],
-	115: _Op_name[617:630],
-	116: _Op_name[630:645],
-	117: _Op_name[645:655],
-	118: _Op_name[655:665],
-	119: _Op_name[665:674],
-	120: _Op_name[674:686],
-	128: _Op_name[686:694],
-	129: _Op_name[694:705],
-	130: _Op_name[705:716],
-	131: _Op_name[716:727],
-	132: _Op_name[727:738],
-	133: _Op_name[738:749],
-	134: _Op_name[749:761],
-	135: _Op_name[761:774],
-	136: _Op_name[774:785],
-	137: _Op_name[785:796],
-	138: _Op_name[796:807],
-	139: _Op_name[807:818],
-	140: _Op_name[818:826],
-	141: _Op_name[826:831],
-	142: _Op_name[831:836],
-	144: _Op_name[836:847],
-	145: _Op_name[847:857],
-	208: _Op_name[857:865],
-	209: _Op_name[865:871],
-	210: _Op_name[871:880],
-	211: _Op_name[880:891],
-	212: _Op_name[891:908],
-	213: _Op_name[908:922],
-	214: _Op_name[922:941],
-	215: _Op_name[941:959],
-	255: _Op_name[959:965],
+	5:   _Op_name[36:51],
+	6:   _Op_name[51:57],
+	7:   _Op_name[57:73],
+	10:  _Op_name[73:80],
+	11:  _Op_name[80:101],
+	12:  _Op_name[101:105],
+	13:  _Op_name[105:113],
+	14:  _Op_name[113:127],
+	15:  _Op_name[127:145],
+	16:  _Op_name[145:157],
+	17:  _Op_name[157:165],
+	18:  _Op_name[165:175],
+	19:  _Op_name[175:187],
+	20:  _Op_name[187:197],
+	21:  _Op_name[197:215],
+	22:  _Op_name[215:223],
+	23:  _Op_name[223:231],
+	26:  _Op_name[231:239],
+	27:  _Op_name[239:256],
+	28:  _Op_name[256:273],
+	29:  _Op_name[273:288],
+	32:  _Op_name[288:294],
+	33:  _Op_name[294:300],
+	34:  _Op_name[300:306],
+	35:  _Op_name[306:312],
+	37:  _Op_name[312:319],
+	38:  _Op_name[319:324],
+	39:  _Op_name[324:330],
+	40:  _Op_name[330:335],
+	41:  _Op_name[335:340],
+	42:  _Op_name[340:345],
+	43:  _Op_name[345:350],
+	44:  _Op_name[350:355],
+	45:  _Op_name[355:360],
+	46:  _Op_name[360:365],
+	47:  _Op_name[365:370],
+	48:  _Op_name[370:375],
+	49:  _Op_name[375:380],
+	50:  _Op_name[380:385],
+	51:  _Op_name[385:390],
+	52:  _Op_name[390:395],
+	53:  _Op_name[395:400],
+	54:  _Op_name[400:405],
+	55:  _Op_name[405:411],
+	56:  _Op_name[411:418],
+	64:  _Op_name[418:424],
+	65:  _Op_name[424:433],
+	66:  _Op_name[433:441],
+	67:  _Op_name[441:449],
+	68:  _Op_name[449:459],
+	69:  _Op_name[459:466],
+	70:  _Op_name[466:472],
+	71:  _Op_name[472:477],
+	72:  _Op_name[477:490],
+	73:  _Op_name[490:503],
+	74:  _Op_name[503:517],
+	75:  _Op_name[517:531],
+	76:  _Op_name[531:541],
+	77:  _Op_name[541:551],
+	78:  _Op_name[551:562],
+	79:  _Op_name[562:570],
+	80:  _Op_name[570:581],
+	81:  _Op_name[581:590],
+	82:  _Op_name[590:599],
+	112: _Op_name[599:610],
+	113: _Op_name[610:621],
+	114: _Op_name[621:632],
+	115: _Op_name[632:645],
+	116: _Op_name[645:660],
+	117: _Op_name[660:670],
+	118: _Op_name[670:680],
+	119: _Op_name[680:689],
+	120: _Op_name[689:701],
+	128: _Op_name[701:709],
+	129: _Op_name[709:720],
+	130: _Op_name[720:731],
+	131: _Op_name[731:742],
+	132: _Op_name[742:753],
+	133: _Op_name[753:764],
+	134: _Op_name[764:776],
+	135: _Op_name[776:789],
+	136: _Op_name[789:800],
+	137: _Op_name[800:811],
+	138: _Op_name[811:822],
+	139: _Op_name[822:833],
+	140: _Op_name[833:841],
+	141: _Op_name[841:846],
+	142: _Op_name[846:851],
+	144: _Op_name[851:862],
+	145: _Op_name[862:872],
+	208: _Op_name[872:880],
+	209: _Op_name[880:886],
+	210: _Op_name[886:895],
+	211: _Op_name[895:906],
+	212: _Op_name[906:923],
+	213: _Op_name[923:937],
+	214: _Op_name[937:956],
+	215: _Op_name[956:974],
+	255: _Op_name[974:980],
 }
 
 func (i Op) String() string {
@@ -392,35 +394,36 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[VPUverse-0]
-	_ = x[VPBlock-1]
-	_ = x[VPField-2]
-	_ = x[VPValMethod-3]
-	_ = x[VPPtrMethod-4]
-	_ = x[VPInterface-5]
-	_ = x[VPSubrefField-6]
-	_ = x[VPDerefField-18]
-	_ = x[VPDerefValMethod-19]
-	_ = x[VPDerefPtrMethod-20]
-	_ = x[VPDerefInterface-21]
+	_ = x[VPInvalid-0]
+	_ = x[VPUverse-1]
+	_ = x[VPBlock-2]
+	_ = x[VPField-3]
+	_ = x[VPValMethod-4]
+	_ = x[VPPtrMethod-5]
+	_ = x[VPInterface-6]
+	_ = x[VPSubrefField-7]
+	_ = x[VPDerefField-19]
+	_ = x[VPDerefValMethod-20]
+	_ = x[VPDerefPtrMethod-21]
+	_ = x[VPDerefInterface-22]
 }
 
 const (
-	_VPType_name_0 = "VPUverseVPBlockVPFieldVPValMethodVPPtrMethodVPInterfaceVPSubrefField"
+	_VPType_name_0 = "VPInvalidVPUverseVPBlockVPFieldVPValMethodVPPtrMethodVPInterfaceVPSubrefField"
 	_VPType_name_1 = "VPDerefFieldVPDerefValMethodVPDerefPtrMethodVPDerefInterface"
 )
 
 var (
-	_VPType_index_0 = [...]uint8{0, 8, 15, 22, 33, 44, 55, 68}
+	_VPType_index_0 = [...]uint8{0, 9, 17, 24, 31, 42, 53, 64, 77}
 	_VPType_index_1 = [...]uint8{0, 12, 28, 44, 60}
 )
 
 func (i VPType) String() string {
 	switch {
-	case i <= 6:
+	case i <= 7:
 		return _VPType_name_0[_VPType_index_0[i]:_VPType_index_0[i+1]]
-	case 18 <= i && i <= 21:
-		i -= 18
+	case 19 <= i && i <= 22:
+		i -= 19
 		return _VPType_name_1[_VPType_index_1[i]:_VPType_index_1[i+1]]
 	default:
 		return "VPType(" + strconv.FormatInt(int64(i), 10) + ")"

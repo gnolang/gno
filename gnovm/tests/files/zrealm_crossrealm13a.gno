@@ -6,19 +6,17 @@ import (
 	"testing"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	println("From main:")
-	PrintRealm()
-	cross(PrintRealm)()
+	PrintRealm(cur)
+	PrintRealm(cross)
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
 	println("")
 
 	println("From g1user origin:")
 	testing.SetRealm(std.NewUserRealm("g1user"))
-	cross(PrintRealm)()
+	PrintRealm(cross)
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	func() {
 		defer func() {
@@ -31,7 +29,7 @@ func main() {
 
 	println("From gno.land/r/sys/users realm:")
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
-	cross(PrintRealm)()
+	PrintRealm(cross)
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
 }
@@ -43,9 +41,7 @@ func pad(s string) string {
 	return s
 }
 
-func PrintRealm() {
-	crossing()
-
+func PrintRealm(cur realm) {
 	println(pad("PrintRealm: CurrentRealm:"), std.CurrentRealm())
 	println(pad("PrintRealm: PreviousRealm:"), std.PreviousRealm())
 }

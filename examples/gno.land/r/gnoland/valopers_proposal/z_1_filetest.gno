@@ -30,11 +30,11 @@ func init() {
 	daoinit.InitWithUsers(g1user)
 
 	// Register a validator and add the proposal
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 
 	if err := revive(func() {
-		pr := cross(valopers_proposal.NewValidatorProposalRequest)(validAddress)
-		cross(dao.MustCreateProposal)(pr)
+		pr := valopers_proposal.NewValidatorProposalRequest(cross, validAddress)
+		dao.MustCreateProposal(cross, pr)
 	}); err != nil {
 		println("r: ", err)
 	} else {
@@ -43,7 +43,7 @@ func init() {
 }
 
 func main() {
-	println(cross(dao.Render)(""))
+	println(dao.Render(cross, ""))
 }
 
 // Output:

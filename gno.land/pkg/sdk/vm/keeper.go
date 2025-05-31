@@ -362,7 +362,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, _, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, true)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -592,7 +592,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, _, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, true)
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}

@@ -10,9 +10,7 @@ func Render(path string) string {
 }
 
 // For testing with MsgCall.
-func RenderCrossing(path string) string {
-	crossing()
-
+func RenderCrossing(cur realm, path string) string {
 	if path == "" {
 		return "it works!"
 	} else {

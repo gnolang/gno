@@ -49,6 +49,7 @@ const (
 // ========================================
 // Parses and checks the gno.mod file from mpkg.
 // To generate default ones, GenGnoMod*().
+// Generates the latest default for stdlibs.
 //
 // Results:
 //   - mod: the gno.mod file, or nil if not found.

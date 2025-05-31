@@ -20,17 +20,14 @@ var gRealm = std.CurrentRealm()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
-func Render(p string) string {
-	crossing()
+func Render(cur realm, p string) string {
 	return dao.Render(gRealm.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
 // but instead of erroing if something happens, it panics.
-func MustCreateProposal(r ProposalRequest) ProposalID {
-	crossing()
-
-	pid, err := CreateProposal(r)
+func MustCreateProposal(cur realm, r ProposalRequest) ProposalID {
+	pid, err := CreateProposal(cur, r)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -41,9 +38,7 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 // ExecuteProposal will try to execute the proposal with the provided ProposalID.
 // If the proposal was denied, it will return false. If the proposal is correctly
 // executed, it will return true. If something happens this function will panic.
-func ExecuteProposal(pid ProposalID) bool {
-	crossing()
-
+func ExecuteProposal(cur realm, pid ProposalID) bool {
 	execute, err := dao.PreExecuteProposal(pid)
 	if err != nil {
 		panic(err.Error())
@@ -52,7 +47,7 @@ func ExecuteProposal(pid ProposalID) bool {
 	if !execute {
 		return false
 	}
-	prop, err := GetProposal(pid)
+	prop, err := GetProposal(cur, pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -64,9 +59,7 @@ func ExecuteProposal(pid ProposalID) bool {
 
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
-func CreateProposal(r ProposalRequest) (ProposalID, error) {
-	crossing()
-
+func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	author, err := dao.PreCreateProposal(r)
 	if err != nil {
 		return -1, err
@@ -86,10 +79,8 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	return pid, nil
 }
 
-func MustVoteOnProposal(r VoteRequest) {
-	crossing()
-
-	if err := VoteOnProposal(r); err != nil {
+func MustVoteOnProposal(cur realm, r VoteRequest) {
+	if err := VoteOnProposal(cur, r); err != nil {
 		panic(err.Error())
 	}
 }
@@ -97,26 +88,20 @@ func MustVoteOnProposal(r VoteRequest) {
 // VoteOnProposal sends a vote to the actual govDAO implementation.
 // If the voter cannot vote the specified proposal, this method will return an error
 // with the explanation of why.
-func VoteOnProposal(r VoteRequest) error {
-	crossing()
-
+func VoteOnProposal(cur realm, r VoteRequest) error {
 	return dao.VoteOnProposal(r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
-func MustVoteOnProposalSimple(pid int64, option string) {
-	crossing()
-
-	MustVoteOnProposal(VoteRequest{
+func MustVoteOnProposalSimple(cur realm, pid int64, option string) {
+	MustVoteOnProposal(cur, VoteRequest{
 		Option:     VoteOption(option),
 		ProposalID: ProposalID(pid),
 	})
 }
 
-func MustGetProposal(pid ProposalID) *Proposal {
-	crossing()
-
-	p, err := GetProposal(pid)
+func MustGetProposal(cur realm, pid ProposalID) *Proposal {
+	p, err := GetProposal(cur, pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -125,9 +110,7 @@ func MustGetProposal(pid ProposalID) *Proposal {
 }
 
 // GetProposal gets created proposal by its ID
-func GetProposal(pid ProposalID) (*Proposal, error) {
-	crossing()
-
+func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
 	if err := dao.PreGetProposal(pid); err != nil {
 		return nil, err
 	}
@@ -148,9 +131,7 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // a breaking bug. Any value set as nil will be ignored.
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
-func UpdateImpl(r UpdateRequest) {
-	crossing()
-
+func UpdateImpl(cur realm, r UpdateRequest) {
 	gRealm := std.PreviousRealm().PkgPath()
 
 	if !InAllowedDAOs(gRealm) {

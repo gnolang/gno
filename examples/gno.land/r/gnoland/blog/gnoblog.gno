@@ -11,8 +11,7 @@ var b = &blog.Blog{
 	Prefix: "/r/gnoland/blog:",
 }
 
-func AddComment(postSlug, comment string) {
-	crossing()
+func AddComment(cur realm, postSlug, comment string) {
 	assertIsCommenter()
 	assertNotInPause()
 

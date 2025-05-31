@@ -5,9 +5,7 @@ import "gno.land/p/demo/uassert"
 
 type TestingT = uassert.TestingT
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	println("ok")
 }
 

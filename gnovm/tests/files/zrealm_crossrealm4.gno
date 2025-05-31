@@ -12,9 +12,7 @@ func init() {
 	somevalue = &tests.TestRealmObjectValue
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	// NOTE: it is valid to modify it using the external realm function.
 	somevalue.Modify()
 	println(somevalue)

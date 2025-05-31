@@ -66,6 +66,9 @@ func (w Word) TokenString() string {
 
 func (vp ValuePath) String() string {
 	switch vp.Type {
+	case VPInvalid:
+		// index doesn't matter but useful for debugging.
+		return fmt.Sprintf("VPInvalid(%d)", vp.Index)
 	case VPUverse:
 		return fmt.Sprintf("VPUverse(%d)", vp.Index)
 	case VPBlock:
@@ -505,9 +508,9 @@ func (ftxz FieldTypeExprs) String() string {
 	return str
 }
 
-func (kvs KeyValueExprs) String() string {
+func (kvxs KeyValueExprs) String() string {
 	str := ""
-	for i, x := range kvs {
+	for i, x := range kvxs {
 		if i == 0 {
 			str += x.String()
 		} else {

@@ -24,21 +24,21 @@ func main() {
 		_               = testutils.TestAddress("test2")
 	)
 	testing.SetRealm(std.NewUserRealm(adminaddr))
-	err := cross(faucet.AdminAddController)(controlleraddr1)
+	err := faucet.AdminAddController(cross, controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = cross(faucet.AdminAddController)(controlleraddr2)
+	err = faucet.AdminAddController(cross, controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
 	testing.SetRealm(std.NewUserRealm(controlleraddr1))
-	err = cross(faucet.Transfer)(testaddr1, 1_000_000)
+	err = faucet.Transfer(cross, testaddr1, 1_000_000)
 	if err != "" {
 		panic(err)
 	}
 	testing.SetRealm(std.NewUserRealm(controlleraddr2))
-	err = cross(faucet.Transfer)(testaddr1, 2_000_000)
+	err = faucet.Transfer(cross, testaddr1, 2_000_000)
 	if err != "" {
 		panic(err)
 	}

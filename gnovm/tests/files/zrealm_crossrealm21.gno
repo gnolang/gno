@@ -6,14 +6,12 @@ import (
 	"gno.land/r/demo/tests/crossrealm_b"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	f := crossrealm_b.Fooer
-	cross(crossrealm.SetFooer)(f)
-	cross(crossrealm.CallFooerFooSR2)()
+	crossrealm.SetFooer(cross, f)
+	crossrealm.CallFooerFooSR2(cross)
 	f.SetS("B")
-	cross(crossrealm.CallFooerFooSR2)()
+	crossrealm.CallFooerFooSR2(cross)
 	print(".")
 }
 
@@ -25,7 +23,7 @@ func main() {
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:7]=
-//     @@ -1,9 +1,27 @@
+//     @@ -1,9 +1,28 @@
 //      {
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:7",
@@ -36,6 +34,7 @@ func main() {
 //          },
 //     -    "Value": {}
 //     +    "Value": {
+//     +        "N": "UmVhRG9OTFk=",
 //     +        "T": {
 //     +            "@type": "/gno.PointerType",
 //     +            "Elt": {

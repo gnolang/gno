@@ -11,9 +11,7 @@ func init() {
 	gPlot = &dom.Plot{Name: "First Plot"}
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	gPlot.AddPost("TEST_TITLE", "TEST_BODY")
 	println(gPlot.String())
 }

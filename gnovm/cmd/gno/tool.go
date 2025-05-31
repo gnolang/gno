@@ -29,7 +29,6 @@ func newToolCmd(io commands.IO) *commands.Command {
 		// ast
 		// publish/release
 		// render -- call render()?
-		newReplCmd(),
 		newTranspileCmd(io),
 		// "vm" -- starts an in-memory chain that can be interacted with?
 	)

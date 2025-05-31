@@ -3,9 +3,7 @@ package test
 
 var root any
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	println(root)
 	root = 1
 	println(root)
@@ -14,10 +12,6 @@ func main() {
 // Output:
 // undefined
 // 1
-
-
-
-
 
 // The below tests that the realm's block (of 1 variable) changed.  The first
 // element image in the package (block) is for the "main" function, which

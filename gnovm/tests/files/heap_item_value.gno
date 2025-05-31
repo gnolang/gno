@@ -7,9 +7,7 @@ type S struct {
 
 var a, b *S
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	a = new(S)
 	a.A = 4
 	b = a
