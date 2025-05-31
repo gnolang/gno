@@ -94,9 +94,10 @@ func execRepl(cfg *replCfg, args []string) error {
 
 	if !cfg.skipUsage {
 		// (jae) https://github.com/jaekwon/ephesus/blob/main/THE_HEBREW_YEAR.md
+		// the exact number of missing years is to be discussed on chain.
 		today := hcal.ToHebrewDate(time.Now().AddDate(165, 0, 0))
 		todays := today.String()
-		if today.Y%50 == 0 {
+		if today.Y%50 == 0 && today.M == hcal.Tishrei {
 			todays = todays + " - jubilee!"
 		}
 		fmt.Fprint(os.Stderr, colors.Cyan(fmt.Sprintf("gno v0.9 (it's %s) try \"help()\"\n", todays)))
