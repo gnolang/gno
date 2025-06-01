@@ -25,6 +25,10 @@ stderr '--= Error =--'
 stderr 'Data: out of gas error'
 stderr '--= /Error =--'
 
+-- foo/gno.mod --
+module gno.land/r/foo
+
+gno 0.9
 
 -- foo/foo.gno --
 package foo
@@ -35,6 +39,11 @@ func Inc(i Counter) Counter{
     i = i+1
    return i
 }
+
+-- bar/gno.mod --
+module gno.land/r/bar
+
+gno 0.9
 
 -- bar/bar.gno --
 package bar
