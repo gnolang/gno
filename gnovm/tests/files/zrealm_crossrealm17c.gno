@@ -29,17 +29,9 @@ func main(cur realm) {
 	// external realm function
 	// gno.land/r/demo/tests/crossrealm.crossrealm<VPBlock(2,1)>.CallFooerFooCur
 	// from gno.land/r/crossrealm_test
-	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cross-call to
-	// external realm function gno.land/r/crossrealm_test.Foo from
-	// gno.land/r/demo/tests/crossrealm
-	crossrealm.CallFooerFooCross(cross)
-	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
-	print(".")
+	crossrealm.CallFooerFooCur(cross)
+
 }
 
-// Output:
-// hello container gno.land/r/crossrealm_test
-// hello container gno.land/r/crossrealm_test
-// hello container gno.land/r/demo/tests/crossrealm
-// .
+// Error:
+// cannot cur-call to external realm function gno.land/r/crossrealm_test.Foo from gno.land/r/demo/tests/crossrealm

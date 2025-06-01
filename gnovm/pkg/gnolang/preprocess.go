@@ -1698,8 +1698,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								} else {
 									fpp := ftv.GetUnboundFunc().PkgPath
 									if fpp != ctxpn.PkgPath {
-										panic(fmt.Sprintf("`cur` from %q cannot be passed to external realm %q",
-											ctxpn.PkgPath, fpp))
+										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
+											fpp, n.Func, ctxpn.PkgPath))
 									}
 								}
 								// Check `cur` directly from parent crossing function's argument.

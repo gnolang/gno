@@ -1931,9 +1931,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 
 	// Non-crossing call of a crossing function like Public(cur, ...).
 	if fv.IsCrossing() {
-		// since gno 0.9 cross type-checking makes this impossible.
-		// XXX move this into if debug { ... }
 		if m.Realm != pv.Realm {
+			// Illegal crossing to external realm.
+			// (the function was variable and run-time check was necessary).
 			// panic; not explicit
 			mrpath := "<no realm>"
 			if m.Realm != nil {
@@ -1944,7 +1944,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				prpath = pv.Realm.Path
 			}
 			panic(fmt.Sprintf(
-				"must cross-call like cross(%s.%v)(...) from %s",
+				"cannot cur-call to external realm function %s.%v from %s",
 				prpath,
 				fv.String(),
 				mrpath,

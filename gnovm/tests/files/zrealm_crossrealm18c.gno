@@ -29,11 +29,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	println("main")
-	// crossrealm.CallFooerFooCur(cross) <-- should panic
-	crossrealm.CallFooerFooCross(cross)
-	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
-	print(".")
+	crossrealm.CallFooerFooCur(cross)
 }
 
 // Output:
@@ -42,13 +38,6 @@ func main(cur realm) {
 // hello gno.land/r/crossrealm_test
 // hello gno.land/r/demo/tests/crossrealm
 // main
-// hello gno.land/r/crossrealm_test
-// hello gno.land/r/crossrealm_test
-// hello gno.land/r/demo/tests/crossrealm
-// .
 
-// Realm:
-// finalizerealm["gno.land/r/crossrealm_test"]
-// finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// finalizerealm["gno.land/r/crossrealm_test"]
+// Error:
+// cannot cur-call to external realm function gno.land/r/crossrealm_test.Foo from gno.land/r/demo/tests/crossrealm

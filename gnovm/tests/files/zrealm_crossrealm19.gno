@@ -12,7 +12,7 @@ type fooer struct {
 }
 
 func (f *fooer) Foo(cur realm) {
-	f.s = "Foo"
+	// f.s = "Foo" <-- panics (crossing yet stored in crossrealm)
 	println("hello " + f.s + " " + std.CurrentRealm().PkgPath())
 }
 
@@ -25,14 +25,13 @@ var f *fooer
 
 func init() {
 	f = &fooer{s: "A"}
-	fg := func() crossrealm.Fooer { return f }
-	crossrealm.SetFooerGetter(cross, fg)
-	f.s = "B"
-	crossrealm.CallFooerGetterFooCross(cross)
-	f.s = "C"
-	crossrealm.CallFooerGetterFooCross(cross)
-	f.s = "D"
-	crossrealm.CallFooerGetterBar()
+	crossrealm.SetFooer(cross, f)
+	crossrealm.CallFooerFooCross(cross)
+	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cross-call to
+	// external realm function gno.land/r/crossrealm_test.Foo from
+	// gno.land/r/demo/tests/crossrealm
+	crossrealm.CallFooerBar()
+	crossrealm.CallFooerBarCrossing(cross)
 }
 
 func main(cur realm) {
@@ -40,10 +39,7 @@ func main(cur realm) {
 }
 
 // Output:
-// hello Foo gno.land/r/crossrealm_test
-// hello Foo gno.land/r/crossrealm_test
+// hello A gno.land/r/crossrealm_test
 // hello Bar gno.land/r/crossrealm_test
+// hello Bar gno.land/r/demo/tests/crossrealm
 // .
-
-// Realm:
-// finalizerealm["gno.land/r/crossrealm_test"]

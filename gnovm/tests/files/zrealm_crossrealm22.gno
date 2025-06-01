@@ -9,19 +9,19 @@ import (
 func main(cur realm) {
 	f := crossrealm_b.Fooer
 	crossrealm.SetFooerGetter(cross, func() crossrealm.Fooer { return f })
-	crossrealm.CallFooerGetterFooSR2(cross)
+	crossrealm.CallFooerGetterFooCross(cross)
 	f.SetS("B")
-	crossrealm.CallFooerGetterFooSR2(cross)
+	crossrealm.CallFooerGetterFooCross(cross)
 	println(".")
 
 	f.SetS("C")
 	crossrealm.SetFooerGetter(cross, crossrealm_b.FooerGetter)
-	crossrealm.CallFooerGetterFooSR2(cross)
+	crossrealm.CallFooerGetterFooCross(cross)
 	println(".")
 
 	f.SetS("D")
 	crossrealm.SetFooerGetter(cross, crossrealm_b.FooerGetterBuilder())
-	crossrealm.CallFooerGetterFooSR2(cross)
+	crossrealm.CallFooerGetterFooCross(cross)
 	println(".")
 }
 

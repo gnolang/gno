@@ -18,6 +18,10 @@ func (f *fooer) Foo(cur realm) {
 	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
 }
 
+func (f *fooer) Bar() {
+	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
+}
+
 var (
 	Fooer              = &fooer{s: "A"}
 	FooerGetter        = func() crossrealm.Fooer { return Fooer }

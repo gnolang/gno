@@ -38,39 +38,33 @@ func main(cur realm) {
 	}
 
 	tests := []struct {
-		callStackAdd string
-		callerFn     func() std.Realm
-		isSwitch     bool
+		callStackAdd     string
+		callerFn         func() std.Realm
+		callerFnCrossing func(realm) std.Realm
 	}{
 		{
 			callStackAdd: " -> std.PreviousRealm",
 			callerFn:     std.PreviousRealm,
-			isSwitch:     false,
 		},
 		{
 			callStackAdd: " -> r/crossrealm_test.getPreviousRealm",
 			callerFn:     getPreviousRealm,
-			isSwitch:     false,
 		},
 		{
 			callStackAdd: " -> p/demo/tests",
 			callerFn:     ptests.GetPreviousRealm,
-			isSwitch:     false,
 		},
 		{
 			callStackAdd: " -> p/demo/tests -> p/demo/tests/subtests",
 			callerFn:     ptests.GetPSubtestsPreviousRealm,
-			isSwitch:     false,
 		},
 		{
-			callStackAdd: " !> r/demo/tests",
-			callerFn:     rtests.GetPreviousRealm,
-			isSwitch:     true,
+			callStackAdd:     " !> r/demo/tests",
+			callerFnCrossing: rtests.GetPreviousRealm,
 		},
 		{
-			callStackAdd: " !> r/demo/tests !> r/demo/tests/subtests",
-			callerFn:     rtests.GetRSubtestsPreviousRealm,
-			isSwitch:     true,
+			callStackAdd:     " !> r/demo/tests !> r/demo/tests/subtests",
+			callerFnCrossing: rtests.GetRSubtestsPreviousRealm,
 		},
 	}
 
@@ -82,8 +76,8 @@ func main(cur realm) {
 	for _, tt := range tests {
 		{ // with no Exec
 			var r std.Realm
-			if tt.isSwitch {
-				r = tt.callerFn(cross)
+			if tt.callerFnCrossing != nil {
+				r = tt.callerFnCrossing(cross)
 			} else {
 				r = tt.callerFn()
 			}
@@ -92,8 +86,8 @@ func main(cur realm) {
 		}
 		Exec(func() {
 			var r std.Realm
-			if tt.isSwitch {
-				r = tt.callerFn(cross)
+			if tt.callerFnCrossing != nil {
+				r = tt.callerFnCrossing(cross)
 			} else {
 				r = tt.callerFn()
 			}
@@ -102,8 +96,8 @@ func main(cur realm) {
 		})
 		rtests.Exec(func() {
 			var r std.Realm
-			if tt.isSwitch {
-				r = tt.callerFn(cross)
+			if tt.callerFnCrossing != nil {
+				r = tt.callerFnCrossing(cross)
 			} else {
 				r = tt.callerFn()
 			}
@@ -112,8 +106,8 @@ func main(cur realm) {
 		})
 		rtests.ExecSwitch(cross, func() {
 			var r std.Realm
-			if tt.isSwitch {
-				r = tt.callerFn(cross)
+			if tt.callerFnCrossing != nil {
+				r = tt.callerFnCrossing(cross)
 			} else {
 				r = tt.callerFn()
 			}
@@ -122,8 +116,8 @@ func main(cur realm) {
 		})
 		ptests.Exec(func() {
 			var r std.Realm
-			if tt.isSwitch {
-				r = tt.callerFn(cross)
+			if tt.callerFnCrossing != nil {
+				r = tt.callerFnCrossing(cross)
 			} else {
 				r = tt.callerFn()
 			}
