@@ -161,7 +161,7 @@ func (sv *SliceValue) ProtectedString(printer *Printer, seen *seenValues) string
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
-		return printer.Sprintf("slice[%v]", ref)
+		return printer.Sprintf("slice[%v]", ref.String(printer))
 	}
 
 	seen.Put(sv)
@@ -308,11 +308,11 @@ func (b *Block) StringIndented(printer *Printer, indent string) string {
 			for i, n := range b.Source.GetBlockNames() {
 				if len(b.Values) <= i {
 					lines = append(lines,
-						printer.Sprintf("%s%s: undefined static:%s", indent, n, types[i]))
+						printer.Sprintf("%s%s: undefined static:%s", indent, n, types[i].String(printer)))
 				} else {
 					lines = append(lines,
 						printer.Sprintf("%s%s: %s static:%s",
-							indent, n, b.Values[i].String(printer), types[i]))
+							indent, n, b.Values[i].String(printer), types[i].String(printer)))
 				}
 			}
 		}
@@ -331,7 +331,7 @@ func (rv RefValue) String(printer *Printer) string {
 
 func (hiv *HeapItemValue) String(printer *Printer) string {
 	return printer.Sprintf("heapitem(%v)",
-		hiv.Value)
+		hiv.Value.String(printer))
 }
 
 // ----------------------------------------
