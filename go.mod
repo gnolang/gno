@@ -50,6 +50,7 @@ require (
 )
 
 require (
+	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect

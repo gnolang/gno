@@ -297,6 +297,7 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode, strict bool) (
 	pkg *types.Package, errs error,
 ) {
+
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
