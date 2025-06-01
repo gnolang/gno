@@ -1346,15 +1346,311 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
 				// Func type evaluation.
-				var ft *FuncType
-				ift := evalStaticTypeOf(store, last, n.Func)
-				switch cft := baseOf(ift).(type) {
+				nft := evalStaticTypeOf(store, last, n.Func)
+				switch bnft := baseOf(nft).(type) {
+				case *TypeType:
+					// Not a func type, but a type conversion.
+					if len(n.Args) != 1 {
+						panic("type conversion requires single argument")
+					}
+					n.NumArgs = 1
+					arg0 := n.Args[0]
+					ct := evalStaticType(store, last, n.Func)
+					at := evalStaticTypeOf(store, last, n.Args[0])
+
+					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
+					if at != nil && ct.TypeID() == at.TypeID() && !isUntyped(at) {
+						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+						return n.Args[0], TRANS_CONTINUE
+					}
+
+					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR CONST/BINARY/UNARY CASES:
+					//----------------------------------------
+
+					// Special case for const value conversions.
+					var constConverted bool
+					switch arg0 := arg0.(type) {
+					case *ConstExpr:
+						// As a special case, if a decimal cannot
+						// be represented as an integer, it cannot be converted to one,
+						// and the error is handled here.
+						// Out of bounds errors are usually handled during evalConst().
+						if isIntNum(ct) {
+							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
+								if !isInteger(bd.V) {
+									panic(fmt.Sprintf(
+										"cannot convert %s to integer type",
+										arg0))
+								}
+							}
+							if isNumeric(at) {
+								convertConst(store, last, n, arg0, ct)
+								constConverted = true
+							}
+						} else if ct.Kind() == SliceKind {
+							switch ct.Elem().Kind() {
+							case Uint8Kind, Int32Kind:
+								// The inverse conversion is handled later, see "[]byte/rune CASE".
+								// The conversion is legal, set the target type.
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
+						}
+						// (const) untyped decimal -> float64.
+						// (const) untyped bigint -> int.
+						if !constConverted {
+							convertConst(store, last, n, arg0, nil)
+						}
+
+						// check legal type for nil
+						if arg0.IsUndefined() {
+							switch ct.Kind() { // special case for nil conversion check.
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
+								convertConst(store, last, n, arg0, ct)
+							default:
+								panic(fmt.Sprintf(
+									"cannot convert %v to %v",
+									arg0, ct.Kind()))
+							}
+						}
+
+						// evaluate the new expression.
+						cx := evalConst(store, last, n)
+						// The conversion is legal, set the target type.
+						// Though cx may be undefined if ct is interface,
+						// the ATTR_TYPEOF_VALUE is still interface.
+						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+						return cx, TRANS_CONTINUE
+					case *BinaryExpr:
+						// special case to evaluate type of binaryExpr/UnaryExpr which has untyped shift nested.
+						if isUntyped(at) {
+							switch arg0.Op {
+							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
+								assertAssignableTo(n, at, ct, false)
+								break
+							default:
+								checkOrConvertType(store, last, n, &n.Args[0], ct, false)
+							}
+							// The conversion is legal, set the target type.
+							n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+							return n, TRANS_CONTINUE
+						}
+						// continue...
+					case *UnaryExpr:
+						if isUntyped(at) {
+							checkOrConvertType(store, last, n, &n.Args[0], ct, false)
+							// The conversion is legal, set the target type.
+							n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+							return n, TRANS_CONTINUE
+						}
+						// continue...
+					} // escapes...
+
+					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR INTERFACE CASES:
+					// (when either is an interface)
+					//----------------------------------------
+
+					ctBase := baseOf(ct)
+					atBase := baseOf(at)
+					_, ctIface := ctBase.(*InterfaceType)
+					_, atIface := atBase.(*InterfaceType)
+					if ctIface {
+						// e.g. <iface type>(...)
+						assertAssignableTo(n, at, ct, false)
+						// The conversion is legal, set the target type.
+						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+						return n, TRANS_CONTINUE
+					} else if atIface {
+						// e.g. <concrete type>(<iface type>)
+						panic(fmt.Sprintf("cannot convert %v to %v: need type assertion",
+							at.TypeID(), ct.TypeID()))
+					} // no escape.
+
+					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR NUMERIC CASE:
+					//----------------------------------------
+
+					if ctBase == StringType && isWhole(atBase) {
+						// The conversion is legal, set the target type.
+						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+						return n, TRANS_CONTINUE
+					}
+					if isNumeric(ctBase) {
+						if isNumeric(atBase) {
+							// The conversion is legal, set the target type.
+							n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+							return n, TRANS_CONTINUE
+						} else {
+							panic(fmt.Sprintf("cannot convert %v to %v: non-numeric to numeric",
+								at, ct))
+						}
+					} else {
+						if isNumeric(atBase) {
+							panic(fmt.Sprintf("cannot convert %v to %v: non-numeric to numeric",
+								at, ct))
+						} else {
+							// continue...
+						}
+					} // escapes...
+
+					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR []byte/rune CASE:
+					//----------------------------------------
+
+					if ast, ok := atBase.(*SliceType); ok {
+						switch ast.Elem().Kind() {
+						case Uint8Kind, Int32Kind:
+							if ct.Kind() == StringKind {
+								// The conversion is legal, set the target type.
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
+						default: // continue...
+						}
+					} else if cst, ok := ctBase.(*SliceType); ok {
+						switch cst.Elem().Kind() {
+						case Uint8Kind, Int32Kind:
+							if at.Kind() == StringKind {
+								// The conversion is legal, set the target type.
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
+						default: // continue...
+						}
+					} // escapes...
+
+					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR POINTER CASE:
+					// (*Foo)(&Bar{}} is legal, but only one level.
+					//----------------------------------------
+
+					if apt, ok := atBase.(*PointerType); ok {
+						if cpt, ok := ctBase.(*PointerType); ok {
+							if baseOf(apt.Elem()).TypeID() != baseOf(cpt.Elem()).TypeID() {
+								panic(fmt.Sprintf("cannot convert %v (of type %v) to type %v",
+									arg0, at, ct))
+							} else {
+								// The conversion is legal, set the target type.
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
+						}
+					}
+
+					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR GENERAL CASE:
+					//----------------------------------------
+
+					if ctBase.TypeID() != atBase.TypeID() {
+						panic(fmt.Sprintf("cannot convert %v (of type %v) to type %v",
+							arg0, at, ct))
+					} else {
+						// The conversion is legal, set the target type.
+						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+						return n, TRANS_CONTINUE
+					}
+
+					panic("should not happen") // should be unreachable.
+
 				case *FuncType:
-					ft = cft // used later.
-					// a non-crossing call of a crossing function (passing in `cur`) may
-					// only happen with a `cur` declared as the first realm argument
-					// of a containing function.
-					if cft.IsCrossing() {
+					//----------------------------------------
+					// LEAVE (FUNC) CALL EXPR SPECIAL CASES:
+					//----------------------------------------
+
+					// NOTE: these appear to be actually special cases in go.
+					// In general, a string is not assignable to []bytes
+					// without conversion.
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv := cx.GetFunc()
+						if fv.PkgPath == uversePkgPath && fv.Name == "append" {
+							if n.Varg && len(n.Args) == 2 {
+								// If the second argument is a string,
+								// convert to byteslice.
+								args1 := n.Args[1]
+								if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+									fn, err := last.GetFuncNodeForExpr(store, n.Func)
+									if err != nil {
+										panic(fmt.Sprintf("unexpected: %w", err))
+									}
+									ftx := fn.GetFuncTypeExpr()
+									etx := ftx.Params[1].Type
+									bsx := toConstTypeExpr(last, etx, gByteSliceType)
+									args1 = Call(bsx, args1)
+									args1 = Preprocess(nil, last, args1).(Expr)
+									n.Args[1] = args1
+								}
+							} else {
+								var tx *constTypeExpr // array type expr, lazily initialized
+								// Another special case for append: adding untyped constants.
+								// They must be converted to the array type for consistency.
+								for i, arg := range n.Args[1:] {
+									if _, ok := arg.(*ConstExpr); !ok {
+										// Consider only constant expressions.
+										continue
+									}
+									if t1 := evalStaticTypeOf(store, last, arg); t1 != nil && !isUntyped(t1) {
+										// Consider only untyped values (including nil).
+										continue
+									}
+									if tx == nil {
+										// Get the array type from the first argument.
+										s0 := evalStaticTypeOf(store, last, n.Args[0])
+										tx = toConstTypeExpr(last, arg, s0.Elem())
+									}
+									// Convert to the array type.
+									// NOTE: append([]<iface>{}, nil) remains nil arg.
+									arg1 := Call(tx, arg)
+									n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
+								}
+							}
+						} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
+							if len(n.Args) == 2 {
+								// If the second argument is a string,
+								// convert to byteslice.
+								args1 := n.Args[1]
+								if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
+									bsx := toConstTypeExpr(last, args1, gByteSliceType)
+									args1 = Call(bsx, args1)
+									args1 = Preprocess(nil, last, args1).(Expr)
+									n.Args[1] = args1
+								}
+							}
+						} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
+							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
+						} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
+							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
+								// This is only backwards compatibility for the gno 0.9
+								// transpiler/fixer.  cross() is no longer used.
+								// See adr/pr4264_lint_transpile.md for more info.
+								//
+								// Memoize *CallExpr.WithCross.
+								pc, ok := ns[len(ns)-1].(*CallExpr)
+								if !ok {
+									panic("cross(fn) must be followed by a call")
+								}
+								pc.WithCross = true // bypass method with checks.
+							} else {
+								// only way _cross_gno0p0 appears is
+								panic("_cross_gno0p0 is reserved")
+							}
+						} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
+							if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
+								panic("crossing() is reserved and deprecated")
+							}
+						} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
+							// reserve attach() so we can support it later.
+							panic("attach() not yet supported")
+						}
+					}
+
+					//----------------------------------------
+					// LEAVE (FUNC) CALL EXPR GENERAL CASE:
+					//----------------------------------------
+
+					var ft *FuncType = bnft
+					if ft.IsCrossing() {
 						// Special case when ctxpn.PkgPath is "testing/base",
 						// pkg/test/test.gno will pass toConstExpr(Nx(`.cur`), NewConcreteRealm())
 						// of the callee function's realm. Normally this isn't possible,
@@ -1366,6 +1662,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// START Check validity of crossing arg n.Args[0].(*NameExpr).
 						// TODO: Refactor this out into a function call.
 						{
+							// a non-crossing call of a crossing function (passing in `cur`) may
+							// only happen with a `cur` declared as the first realm argument
+							// of a containing function.
 							if len(n.Args) == 0 {
 								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur or cross)", n))
 							}
@@ -1442,331 +1741,139 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} // END Check validity of crossing arg n.Args[0].(*NameExpr).
 						}
 					LEAVE_CALL_EXPR_END_CHECK_CROSSING:
-					} // END if cft.IsCrossing()
-				case *TypeType:
-					if len(n.Args) != 1 {
-						panic("type conversion requires single argument")
-					}
-					n.NumArgs = 1
-					ct := evalStaticType(store, last, n.Func)
-					at := evalStaticTypeOf(store, last, n.Args[0])
+					} // END if ft.IsCrossing()
 
-					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
-					if at != nil && ct.TypeID() == at.TypeID() && !isUntyped(at) {
-						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-						return n.Args[0], TRANS_CONTINUE
+					hasVarg := ft.HasVarg()
+					isVarg := n.Varg
+					embedded := false
+					argTVs := []TypedValue{}
+					minArgs := len(ft.Params)
+					if hasVarg {
+						minArgs--
 					}
+					numArgs := countNumArgs(store, last, n) // isVarg?
+					n.NumArgs = numArgs
 
-					if _, isIface := baseOf(ct).(*InterfaceType); isIface {
-						assertAssignableTo(n, at, ct, false)
-					}
-
-					var constConverted bool
-					switch arg0 := n.Args[0].(type) {
-					case *ConstExpr:
-						// As a special case, if a decimal cannot
-						// be represented as an integer, it cannot be converted to one,
-						// and the error is handled here.
-						// Out of bounds errors are usually handled during evalConst().
-						if isIntNum(ct) {
-							if bd, ok := arg0.TypedValue.V.(BigdecValue); ok {
-								if !isInteger(bd.V) {
-									panic(fmt.Sprintf(
-										"cannot convert %s to integer type",
-										arg0))
-								}
-							}
-							if isNumeric(at) {
-								convertConst(store, last, n, arg0, ct)
-								constConverted = true
-							}
-						} else if ct.Kind() == SliceKind {
-							if ct.Elem().Kind() == Uint8Kind { // bypass []byte("xxx")
-								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-								return n, TRANS_CONTINUE
-							}
+					// Check input arg count.
+					if len(n.Args) == 1 && numArgs > 1 {
+						// special case of x(f()) form:
+						// use the number of results instead.
+						if isVarg {
+							panic("should not happen")
 						}
-						// (const) untyped decimal -> float64.
-						// (const) untyped bigint -> int.
-						if !constConverted {
-							convertConst(store, last, n, arg0, nil)
-						}
-
-						// check legal type for nil
-						if arg0.IsUndefined() {
-							switch ct.Kind() { // special case for nil conversion check.
-							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
-								convertConst(store, last, n, arg0, ct)
-							default:
+						embedded = true
+						pcx := n.Args[0].(*CallExpr)
+						argTVs = getResultTypedValues(pcx)
+						if !hasVarg {
+							if numArgs != len(ft.Params) {
 								panic(fmt.Sprintf(
-									"cannot convert %v to %v",
-									arg0, ct.Kind()))
+									"wrong argument count in call to %s; want %d got %d (with embedded call expr as arg)",
+									n.Func.String(),
+									len(ft.Params),
+									numArgs,
+								))
+							}
+						} else if hasVarg && !isVarg {
+							if numArgs < len(ft.Params)-1 {
+								panic(fmt.Sprintf(
+									"not enough arguments in call to %s; want %d (besides variadic) got %d (with embedded call expr as arg)",
+									n.Func.String(),
+									len(ft.Params)-1,
+									numArgs))
 							}
 						}
-
-						// evaluate the new expression.
-						cx := evalConst(store, last, n)
-						// Though cx may be undefined if ct is interface,
-						// the ATTR_TYPEOF_VALUE is still interface.
-						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-						return cx, TRANS_CONTINUE
-					case *BinaryExpr: // special case to evaluate type of binaryExpr/UnaryExpr which has untyped shift nested
-						if isUntyped(at) {
-							switch arg0.Op {
-							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
-								assertAssignableTo(n, at, ct, false)
-								break
-							default:
-								checkOrConvertType(store, last, n, &n.Args[0], ct, false)
-							}
-						}
-					case *UnaryExpr:
-						if isUntyped(at) {
-							checkOrConvertType(store, last, n, &n.Args[0], ct, false)
-						}
-					default:
-						ctBase := baseOf(ct)
-						atBase := baseOf(at)
-
-						_, isCTInterface := ctBase.(*InterfaceType)
-						_, isATInterface := atBase.(*InterfaceType)
-
-						if !isCTInterface && isATInterface {
-							panic(fmt.Sprintf("cannot convert %v to %v: need type assertion", at.TypeID(), ct.TypeID()))
-						}
-					}
-					// general case, for non-const untyped && no nested untyped shift
-					// after handling const, and special cases recursively, set the target node type
-					// ct := evalStaticType(store, last, n.Func)
-					n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-					return n, TRANS_CONTINUE
-				default:
-					panic(fmt.Sprintf(
-						"unexpected func type %v (%v)",
-						ift, reflect.TypeOf(ift)))
-				}
-
-				//----------------------------------------
-				// LEAVE CALL EXPR SPECIAL CASES:
-				//----------------------------------------
-
-				// NOTE: these appear to be actually special cases in go.
-				// In general, a string is not assignable to []bytes
-				// without conversion.
-				if cx, ok := n.Func.(*ConstExpr); ok {
-					fv := cx.GetFunc()
-					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
-						if n.Varg && len(n.Args) == 2 {
-							// If the second argument is a string,
-							// convert to byteslice.
-							args1 := n.Args[1]
-							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								fn, err := last.GetFuncNodeForExpr(store, n.Func)
-								if err != nil {
-									panic(fmt.Sprintf("unexpected: %w", err))
-								}
-								ftx := fn.GetFuncTypeExpr()
-								etx := ftx.Params[1].Type
-								bsx := toConstTypeExpr(last, etx, gByteSliceType)
-								args1 = Call(bsx, args1)
-								args1 = Preprocess(nil, last, args1).(Expr)
-								n.Args[1] = args1
-							}
-						} else {
-							var tx *constTypeExpr // array type expr, lazily initialized
-							// Another special case for append: adding untyped constants.
-							// They must be converted to the array type for consistency.
-							for i, arg := range n.Args[1:] {
-								if _, ok := arg.(*ConstExpr); !ok {
-									// Consider only constant expressions.
-									continue
-								}
-								if t1 := evalStaticTypeOf(store, last, arg); t1 != nil && !isUntyped(t1) {
-									// Consider only untyped values (including nil).
-									continue
-								}
-
-								if tx == nil {
-									// Get the array type from the first argument.
-									s0 := evalStaticTypeOf(store, last, n.Args[0])
-									tx = toConstTypeExpr(last, arg, s0.Elem())
-								}
-								// Convert to the array type.
-								arg1 := Call(tx, arg)
-								n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
-							}
-						}
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
-						if len(n.Args) == 2 {
-							// If the second argument is a string,
-							// convert to byteslice.
-							args1 := n.Args[1]
-							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := toConstTypeExpr(last, args1, gByteSliceType)
-								args1 = Call(bsx, args1)
-								args1 = Preprocess(nil, last, args1).(Expr)
-								n.Args[1] = args1
-							}
-						}
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
-						panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "_cross_gno0p0" {
-						if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
-							// This is only backwards compatibility for the gno 0.9
-							// transpiler/fixer.  cross() is no longer used.
-							// See adr/pr4264_lint_transpile.md for more info.
-							//
-							// Memoize *CallExpr.WithCross.
-							pc, ok := ns[len(ns)-1].(*CallExpr)
-							if !ok {
-								panic("cross(fn) must be followed by a call")
-							}
-							pc.WithCross = true // bypass method with checks.
-						} else {
-							// only way _cross_gno0p0 appears is
-							panic("_cross_gno0p0 is reserved")
-						}
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
-						if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
-							panic("crossing() is reserved and deprecated")
-						}
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "attach" {
-						// reserve attach() so we can support it later.
-						panic("attach() not yet supported")
-					}
-				}
-
-				//----------------------------------------
-				// LEAVE CALL EXPR GENERAL CASE:
-				//----------------------------------------
-
-				hasVarg := ft.HasVarg()
-				isVarg := n.Varg
-				embedded := false
-				argTVs := []TypedValue{}
-				minArgs := len(ft.Params)
-				if hasVarg {
-					minArgs--
-				}
-				numArgs := countNumArgs(store, last, n) // isVarg?
-				n.NumArgs = numArgs
-
-				// Check input arg count.
-				if len(n.Args) == 1 && numArgs > 1 {
-					// special case of x(f()) form:
-					// use the number of results instead.
-					if isVarg {
-						panic("should not happen")
-					}
-					embedded = true
-					pcx := n.Args[0].(*CallExpr)
-					argTVs = getResultTypedValues(pcx)
-					if !hasVarg {
-						if numArgs != len(ft.Params) {
+					} else if !hasVarg {
+						argTVs = evalStaticTypedValues(store, last, n.Args...)
+						if len(n.Args) != len(ft.Params) {
 							panic(fmt.Sprintf(
-								"wrong argument count in call to %s; want %d got %d (with embedded call expr as arg)",
+								"wrong argument count in call to %s; want %d got %d",
 								n.Func.String(),
 								len(ft.Params),
-								numArgs,
+								len(n.Args),
 							))
 						}
 					} else if hasVarg && !isVarg {
-						if numArgs < len(ft.Params)-1 {
+						argTVs = evalStaticTypedValues(store, last, n.Args...)
+						if len(n.Args) < len(ft.Params)-1 {
 							panic(fmt.Sprintf(
-								"not enough arguments in call to %s; want %d (besides variadic) got %d (with embedded call expr as arg)",
+								"not enough arguments in call to %s; want %d (besides variadic) got %d",
 								n.Func.String(),
 								len(ft.Params)-1,
-								numArgs))
+								len(n.Args)))
 						}
-					}
-				} else if !hasVarg {
-					argTVs = evalStaticTypedValues(store, last, n.Args...)
-					if len(n.Args) != len(ft.Params) {
-						panic(fmt.Sprintf(
-							"wrong argument count in call to %s; want %d got %d",
-							n.Func.String(),
-							len(ft.Params),
-							len(n.Args),
-						))
-					}
-				} else if hasVarg && !isVarg {
-					argTVs = evalStaticTypedValues(store, last, n.Args...)
-					if len(n.Args) < len(ft.Params)-1 {
-						panic(fmt.Sprintf(
-							"not enough arguments in call to %s; want %d (besides variadic) got %d",
-							n.Func.String(),
-							len(ft.Params)-1,
-							len(n.Args)))
-					}
-				} else if hasVarg && isVarg {
-					argTVs = evalStaticTypedValues(store, last, n.Args...)
-					if len(n.Args) != len(ft.Params) {
-						panic(fmt.Sprintf(
-							"not enough arguments in call to %s; want %d (including variadic) got %d",
-							n.Func.String(),
-							len(ft.Params),
-							len(n.Args)))
-					}
-				} else {
-					panic("should not happen")
-				}
-				// Specify function param/result generics.
-				sft := ft.Specify(store, n, argTVs, isVarg)
-				spts := sft.Params
-				srts := FieldTypeList(sft.Results).Types()
-				// If generics were specified, override attr
-				// and constexpr with specified types.  Also
-				// copy the function value with updated type.
-				n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
-				if cx, ok := n.Func.(*ConstExpr); ok {
-					fv := cx.V.(*FuncValue)
-					fv2 := fv.Copy(nilAllocator)
-					fv2.Type = sft
-					cx.T = sft
-					cx.V = fv2
-				} else if sft.TypeID() != ft.TypeID() {
-					panic("non-const function value should have no generics")
-				}
-				n.SetAttribute(ATTR_TYPEOF_VALUE, &tupleType{Elts: srts})
-				// Check given argument type against required.
-				// Also replace const Args with *ConstExpr unless embedded.
-				if embedded {
-					if isVarg {
+					} else if hasVarg && isVarg {
+						argTVs = evalStaticTypedValues(store, last, n.Args...)
+						if len(n.Args) != len(ft.Params) {
+							panic(fmt.Sprintf(
+								"not enough arguments in call to %s; want %d (including variadic) got %d",
+								n.Func.String(),
+								len(ft.Params),
+								len(n.Args)))
+						}
+					} else {
 						panic("should not happen")
 					}
-					for i, tv := range argTVs {
-						if hasVarg {
-							if (len(spts) - 1) <= i {
-								assertAssignableTo(n, tv.T, spts[len(spts)-1].Type.Elem(), true)
+					// Specify function param/result generics.
+					sft := ft.Specify(store, n, argTVs, isVarg)
+					spts := sft.Params
+					srts := FieldTypeList(sft.Results).Types()
+					// If generics were specified, override attr
+					// and constexpr with specified types.  Also
+					// copy the function value with updated type.
+					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv := cx.V.(*FuncValue)
+						fv2 := fv.Copy(nilAllocator)
+						fv2.Type = sft
+						cx.T = sft
+						cx.V = fv2
+					} else if sft.TypeID() != ft.TypeID() {
+						panic("non-const function value should have no generics")
+					}
+					n.SetAttribute(ATTR_TYPEOF_VALUE, &tupleType{Elts: srts})
+					// Check given argument type against required.
+					// Also replace const Args with *ConstExpr unless embedded.
+					if embedded {
+						if isVarg {
+							panic("should not happen")
+						}
+						for i, tv := range argTVs {
+							if hasVarg {
+								if (len(spts) - 1) <= i {
+									assertAssignableTo(n, tv.T, spts[len(spts)-1].Type.Elem(), true)
+								} else {
+									assertAssignableTo(n, tv.T, spts[i].Type, true)
+								}
 							} else {
 								assertAssignableTo(n, tv.T, spts[i].Type, true)
 							}
-						} else {
-							assertAssignableTo(n, tv.T, spts[i].Type, true)
 						}
-					}
-				} else {
-					for i := range n.Args { // iterate args
-						if hasVarg {
-							if (len(spts) - 1) <= i {
-								if isVarg {
-									if len(spts) <= i {
-										panic("expected final vargs slice but got many")
+					} else {
+						for i := range n.Args { // iterate args
+							if hasVarg {
+								if (len(spts) - 1) <= i {
+									if isVarg {
+										if len(spts) <= i {
+											panic("expected final vargs slice but got many")
+										}
+										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
+									} else {
+										checkOrConvertType(store, last, n, &n.Args[i],
+											spts[len(spts)-1].Type.Elem(), true)
 									}
-									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
 								} else {
-									checkOrConvertType(store, last, n, &n.Args[i],
-										spts[len(spts)-1].Type.Elem(), true)
+									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
 								}
 							} else {
 								checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
 							}
-						} else {
-							checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type, true)
 						}
 					}
+				default:
+					panic(fmt.Sprintf(
+						"unexpected func type %v (%v)",
+						nft, reflect.TypeOf(nft)))
 				}
-				// TODO in the future, pure results
 
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:

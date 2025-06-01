@@ -578,11 +578,8 @@ func (st *SliceType) Kind() Kind {
 
 func (st *SliceType) TypeID() TypeID {
 	if st.typeid.IsZero() {
-		if st.Vrd {
-			st.typeid = typeidf("...%s", st.Elt.TypeID().String())
-		} else {
-			st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
-		}
+		// same whether .Vrd or not.
+		st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
 	}
 	return st.typeid
 }

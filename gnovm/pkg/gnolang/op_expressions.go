@@ -150,6 +150,11 @@ func (m *Machine) doOpStar() {
 		} else {
 			ro := m.IsReadonly(xv)
 			pvtv := (*pv.TV).WithReadonly(ro)
+			if xpt, ok := baseOf(xv.T).(*PointerType); ok {
+				// e.g. type Foo; type Bar;
+				// *((*Foo)(&Bar{})) should be Bar, not Foo.
+				pvtv.T = xpt.Elem()
+			}
 			m.PushValue(pvtv)
 		}
 	case *TypeType:

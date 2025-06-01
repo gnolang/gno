@@ -28,4 +28,7 @@ func main() {
 }
 
 // Error:
-// cannot convert MyFooPointerArray (variable of type [3]*Foo) to type [3]struct{A int; B *Foo}
+// main/anon_convert1.gno:18:7-21:23: cannot convert MyFooPointerArray<VPBlock(3,0)> (of type [3]*main.Foo) to type [3]struct{A int; B *main.Foo}
+
+// TypeCheckError:
+// main/anon_convert1.gno:21:5: cannot convert MyFooPointerArray (variable of type [3]*Foo) to type [3]struct{A int; B *Foo}
