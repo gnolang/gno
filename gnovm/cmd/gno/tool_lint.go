@@ -172,7 +172,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			if !mod.Draft {
+			if !mod.Module.Draft {
 				_, _, errs = lintTypeCheck(io, dir, mpkg, gs)
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.

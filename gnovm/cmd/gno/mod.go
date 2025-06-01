@@ -276,7 +276,7 @@ func execModInit(args []string) error {
 		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
 	}
 
-	modFilePath := filepath.Join(rootDir, "gno.mod")
+	modFilePath := filepath.Join(rootDir, "gnomod.toml")
 	if _, err := os.Stat(modFilePath); err == nil {
 		return errors.New("create gnomod.toml: file already exists")
 	}
@@ -285,9 +285,9 @@ func execModInit(args []string) error {
 		return fmt.Errorf("create gnomod.toml: %w", err)
 	}
 
-	modfile := new(File)
+	modfile := new(gnomod.File)
 	modfile.Module.Path = modPath
-	modfile.WriteFile(filepath.Join(rootDir, "gno.mod"))
+	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
 
 	return nil
 }
@@ -379,7 +379,7 @@ func execModWhy(args []string, io commands.IO) error {
 	}
 
 	// Format and print `gno mod why` output stanzas
-	out := formatModWhyStanzas(gm.Module.Mod.Path, args, importToFilesMap)
+	out := formatModWhyStanzas(gm.Module.Path, args, importToFilesMap)
 	io.Printf(out)
 
 	return nil

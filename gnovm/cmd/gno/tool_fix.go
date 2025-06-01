@@ -203,7 +203,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			hasError = true
 			return commands.ExitCodeError(1)
 		}
-		if mod.Draft {
+		if mod.Module.Draft {
 			cio.ErrPrintfln("%s: module is draft, skipping fix", dir)
 			continue
 		}
@@ -373,7 +373,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 
 		// Sanity check.
 		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
-		if mod.GetGno() != gno.GnoVerMissing {
+		if mod.GetGnoVersion() != gno.GnoVerMissing {
 			panic("should not happen")
 		}
 

@@ -244,7 +244,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if modfile == nil || !modfile.Draft {
+			if modfile == nil || !modfile.Module.Draft {
 				if _, _, errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore); errs != nil {
 					didError = true
 					// already printed in lintTypeCheck.
@@ -284,7 +284,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 func determinePkgPath(modfile *gnomod.File, dir, rootDir string) (string, bool) {
 	if modfile != nil {
-		return modfile.Module.Mod.Path, true
+		return modfile.Module.Path, true
 	}
 	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
 		return pkgPath, true

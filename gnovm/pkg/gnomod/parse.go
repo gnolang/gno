@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	ErrNoModFile = errors.New("gnomod.toml doesn't exist")
+	ErrNoModFile       = errors.New("gnomod.toml doesn't exist")
+	ErrModFileNotFound = errors.New("gnomod.toml file not found in current or any parent directory")
 )
 
 // ParseDir parses, validates and returns a gno.mod or gnomod.toml file located
