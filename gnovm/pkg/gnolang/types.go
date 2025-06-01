@@ -631,7 +631,7 @@ func (pt *PointerType) String(printer *Printer) string {
 	} else if pt.Elt == nil {
 		panic("invalid nil pointer element type")
 	} else {
-		return printer.Sprintf("*%v", pt.Elt)
+		return printer.Sprintf("*%v", pt.Elt.String(printer))
 	}
 }
 
