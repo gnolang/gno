@@ -307,7 +307,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			errs := lintTypeCheck(cio, dir, mpkg, gs, false)
+			errs := lintTypeCheck(cio, dir, mpkg, gs, gno.TCGno0p0)
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true

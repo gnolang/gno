@@ -129,8 +129,8 @@ func (r *Repl) Errorln(args ...any) {
 	fmt.Fprintln(r.errput, args...)
 }
 
-func (r *Repl) RunStatement(code string) (err error) {
-	if code == "a := qwe" || os.Getenv("DEBUG_PANIC") != "1" {
+func (r *Repl) RunStatements(code string) {
+	if os.Getenv("DEBUG_PANIC") != "1" {
 		defer func() {
 			if rec := recover(); rec != nil {
 				r.rec = rec
@@ -160,10 +160,9 @@ func (r *Repl) RunStatement(code string) (err error) {
 	if err != nil {
 		stmts, err2 := gno.ParseStmts(code)
 		if err2 != nil {
-			fmt.Fprintf(r.errput, "could not parse statement: %v", err2)
-			return err2
+			r.Errorln(err2.Error())
+			return
 		}
-		err = nil
 		// e.g. var a = 1; or b := 2
 		for _, stmt := range stmts {
 			r.m.RunStatement(gno.StageRun, stmt)
@@ -176,7 +175,6 @@ func (r *Repl) RunStatement(code string) (err error) {
 			r.rw.Flush()
 		}
 	}
-	return nil
 }
 
 // Reset will reset the actual repl state, restarting the internal VM.

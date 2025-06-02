@@ -582,8 +582,8 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 			return nil
 		}
 		pv := fv.GetPackage(store)
-		fb := pv.fBlocksMap[fv.FileName]
-		if fb == nil {
+		fb, ok := pv.fBlocksMap[fv.FileName]
+		if !ok {
 			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 		}
 		fv.Parent = fb
@@ -795,16 +795,15 @@ func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	return pv.fBlocksMap
 }
 
-// to call after loading *PackageValue.
+// called after loading *PackageValue.
 func (pv *PackageValue) deriveFBlocksMap(store Store) {
-	if pv.fBlocksMap != nil {
-		panic("should not happen")
+	if pv.fBlocksMap == nil {
+		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	}
-	pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	for i := range pv.FNames {
 		fname := pv.FNames[i]
 		fblock := pv.GetFileBlock(store, fname)
-		pv.fBlocksMap[fname] = fblock
+		pv.fBlocksMap[fname] = fblock // idempotent.
 	}
 }
 
@@ -2455,6 +2454,7 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 // Used by faux blocks like IfCond and SwitchStmt upon clause match.  e.g.
 // source: IfCond, b.Source: IfStmt.  Also used by repl to expand block size
 // dynamically. In that case source == b.Source.
+// See also PackageNode.PrepareNewValues().
 func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	sb := source.GetStaticBlock()
 	numNames := int(sb.GetNumNames())

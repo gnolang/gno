@@ -1563,23 +1563,23 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
-func (x *PackageNode) NewPackage() *PackageValue {
+func (pn *PackageNode) NewPackage() *PackageValue {
 	pv := &PackageValue{
 		Block: &Block{
-			Source: x,
+			Source: pn,
 		},
-		PkgName:    x.PkgName,
-		PkgPath:    x.PkgPath,
+		PkgName:    pn.PkgName,
+		PkgPath:    pn.PkgPath,
 		FNames:     nil,
 		FBlocks:    nil,
 		fBlocksMap: make(map[string]*Block),
 	}
-	if IsRealmPath(x.PkgPath) || x.PkgPath == "main" {
-		rlm := NewRealm(x.PkgPath)
+	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
+		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
 	pv.IncRefCount() // all package values have starting ref count of 1.
-	x.PrepareNewValues(pv)
+	pn.PrepareNewValues(pv)
 	return pv
 }
 
@@ -1589,10 +1589,10 @@ func (x *PackageNode) NewPackage() *PackageValue {
 // length. The implementation is similar to Block.ExpandWith.
 // NOTE: declared methods do not get their closures set here. See
 // *DeclaredType.GetValueAt() which returns a filled copy.
-func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
+func (pn *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	// should already exist.
 	block := pv.Block.(*Block)
-	if block.Source != x {
+	if block.Source != pn {
 		// special case if block.Source is ref node
 		if ref, ok := block.Source.(RefNode); ok && ref.Location == PackageNodeLocation(pv.PkgPath) {
 			// this is fine
@@ -1602,29 +1602,39 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 	// The FuncValue Body may have been altered during the preprocessing.
 	// We need to update body field from the source in the FuncValue accordingly.
-	for _, tv := range x.Values {
+	for _, tv := range pn.Values {
 		if fv, ok := tv.V.(*FuncValue); ok {
 			fv.UpdateBodyFromSource()
 		}
 	}
 	pvl := len(block.Values)
-	pnl := len(x.Values)
+	pnl := len(pn.Values)
 	// copy new top-level defined values/types.
 	if pvl < pnl {
 		nvs := make([]TypedValue, pnl-pvl)
-		copy(nvs, x.Values[pvl:pnl])
+		copy(nvs, pn.Values[pvl:pnl])
 		for i, tv := range nvs {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
 				fv = fv.Copy(nilAllocator)
-				fv.Parent = pv.fBlocksMap[fv.FileName]
-				if fv.Parent == nil {
-					panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
+				if fv.FileName == "" {
+					// .uverse functions have no filename,
+					// and repl runs declarations directly
+					// on the package.
+					fv.Parent = block
+				} else {
+					fb, ok := pv.fBlocksMap[fv.FileName]
+					if !ok {
+						// This is fine, it happens during pn.NewPackageValue()
+						// panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
+					} else {
+						fv.Parent = fb
+					}
 				}
 				nvs[i].V = fv
 			}
 		}
-		heapItems := x.GetHeapItems()
+		heapItems := pn.GetHeapItems()
 		for i, tv := range nvs {
 			if _, ok := tv.T.(heapItemType); ok {
 				panic("unexpected heap item")
@@ -1647,7 +1657,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 }
 
 // DefineNative defines a native function.
-func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
@@ -1656,19 +1666,19 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 	}
 
 	fd := FuncD(n, ps, rs, nil)
-	fd = Preprocess(nil, x, fd).(*FuncDecl)
-	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
+	fd = Preprocess(nil, pn, fd).(*FuncDecl)
+	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")
 		}
 	}
-	fv := x.GetSlot(nil, n, true).V.(*FuncValue)
+	fv := pn.GetSlot(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
 // DefineNativeMethod defines a native method.
-func (x *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
@@ -1677,16 +1687,16 @@ func (x *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, 
 	}
 
 	fd := MthdD(n, Fld("_", Nx(r)), ps, rs, nil)
-	fd = Preprocess(nil, x, fd).(*FuncDecl)
-	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
+	fd = Preprocess(nil, pn, fd).(*FuncDecl)
+	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")
 		}
 	}
 	// attach fv to base declared type as method.
-	nx := Preprocess(nil, x, Nx(r)).(Expr)
-	recv := evalStaticType(nil, x, nx).(*DeclaredType)
+	nx := Preprocess(nil, pn, Nx(r)).(Expr)
+	recv := evalStaticType(nil, pn, nx).(*DeclaredType)
 	if debug {
 		if ft == nil {
 			panic("should not happen")
@@ -1701,14 +1711,14 @@ func (x *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, 
 // Same as DefineNative but allow the overriding of previously defined natives.
 // For example, overriding a native function defined in stdlibs/stdlibs for
 // testing. Caller must ensure that the function type is identical.
-func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
+func (pn *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
 	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
-	fv := x.GetSlot(nil, n, true).V.(*FuncValue)
+	fv := pn.GetSlot(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 

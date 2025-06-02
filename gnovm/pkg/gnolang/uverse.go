@@ -261,7 +261,7 @@ func makeUverseNode() {
 
 	// temporary convenience functions.
 	def := func(n Name, tv TypedValue) {
-		uverseNode.Define(n, tv)
+		uverseNode.Define2(true, n, tv.T, tv, NameSource{})
 	}
 	defNative := uverseNode.DefineNative
 	defNativeMethod := uverseNode.DefineNativeMethod

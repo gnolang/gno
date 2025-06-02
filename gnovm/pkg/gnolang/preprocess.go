@@ -1572,7 +1572,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
 									fn, err := last.GetFuncNodeForExpr(store, n.Func)
 									if err != nil {
-										panic(fmt.Sprintf("unexpected: %w", err))
+										panic(fmt.Errorf("unexpected: %w", err))
 									}
 									ftx := fn.GetFuncTypeExpr()
 									etx := ftx.Params[1].Type

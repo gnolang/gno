@@ -125,19 +125,29 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 	}
 }
 
+// mode for both mpkg to type-check, as well as all imports.
+type TypeCheckMode int
+
+const (
+	TCLatestStrict  TypeCheckMode = iota // require latest gno.mod gno version.
+	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
+	TCGno0p0                             // when gno fix'ing from gno 0.0.
+)
+
 // TypeCheckMemPackage performs type validation and checking on the given
 // mpkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
 //
 // Args:
-//   - strict: ensure gno.mod exists and gno version is latest.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, strict bool) (
+//   - tcmode: TypeCheckMode, see comments above.
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
+		tcmode:  tcmode,
 		getter:  gnoBuiltinsGetterWrapper{getter},
 		cache:   map[string]*gnoImporterResult{},
 		cfg: &types.Config{
@@ -150,7 +160,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, strict b
 	gimp.cfg.Importer = gimp
 
 	pmode := ParseModeAll // type check all .gno files
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, pmode, strict)
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, pmode)
 	return
 }
 
@@ -167,6 +177,7 @@ type gnoImporterResult struct {
 type gnoImporter struct {
 	// when importing self (from xxx_test package) include *_test.gno.
 	pkgPath string
+	tcmode  TypeCheckMode
 	getter  MemPackageGetter
 	cache   map[string]*gnoImporterResult
 	cfg     *types.Config
@@ -227,8 +238,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		// file with package name xxx_test.
 		pmode = ParseModeIntegration
 	}
-	strict := false // don't check for gno.mod for imports.
-	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode, strict)
+	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode)
 	if errs != nil {
 		result.err = errs
 		result.pending = false
@@ -293,8 +303,7 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 // Args:
 //   - pmode: ParseModeAll for type-checking all files.
 //     ParseModeProduction when type-checking imports.
-//   - strict: If true errors on gno.mod version mismatch.
-func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode, strict bool) (
+func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 	pkg *types.Package, errs error,
 ) {
 
@@ -305,9 +314,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if err != nil {
 		return nil, err
 	}
-	if strict {
+	if gimp.tcmode == TCLatestStrict {
 		if mod == nil {
-			panic("gno.mod not found")
+			panic(fmt.Sprintf("gno.mod not found for package %q", mpkg.Path))
 		}
 		if mod.GetGno() != GnoVerLatest {
 			panic(fmt.Sprintf("expected gno.mod gno version %v but got %v",
@@ -315,8 +324,17 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		}
 		gnoVersion = mod.GetGno()
 	} else {
-		if mod == nil { // cannot be stdlib.
-			gnoVersion = GnoVerMissing
+		if mod == nil {
+			// cannot be stdlib; ParseCheckGnoMod will generate a
+			// gno.mod with version latest. Sanity check:
+			if IsStdlib(mpkg.Path) {
+				panic("expected ParseCheckGnoMod() to auto-generate a gno.mod for stdlibs")
+			}
+			if gimp.tcmode == TCGno0p0 {
+				gnoVersion = GnoVerMissing
+			} else if gimp.tcmode == TCLatestRelaxed {
+				gnoVersion = GnoVerLatest
+			}
 		} else {
 			gnoVersion = mod.GetGno()
 		}

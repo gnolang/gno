@@ -172,7 +172,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 			if !mod.Draft {
-				errs := lintTypeCheck(io, dir, mpkg, gs, true)
+				tcmode := gno.TCLatestStrict
+				if cmd.autoGnomod {
+					tcmode = gno.TCLatestRelaxed
+				}
+				errs := lintTypeCheck(io, dir, mpkg, gs, tcmode)
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
 					hasError = true
@@ -267,12 +271,12 @@ func lintTypeCheck(
 	dir string,
 	mpkg *std.MemPackage,
 	testStore gno.Store,
-	strict bool) (
+	tcmode gno.TypeCheckMode) (
 	// Results:
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackage(mpkg, testStore, strict)
+	_, tcErrs := gno.TypeCheckMemPackage(mpkg, testStore, tcmode)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)

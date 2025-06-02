@@ -138,10 +138,7 @@ func runRepl(cfg *replCfg) error {
 	}
 
 	r.Print(colors.Cyan("gno "))
-	err := handleInput(r, bootCode)
-	if err != nil {
-		r.Print("... ")
-	}
+	handleInput(r, bootCode)
 
 	inEdit := false
 	code := ""
@@ -179,9 +176,7 @@ func runRepl(cfg *replCfg) error {
 			addLine(line)
 		}
 
-		if err := handleInput(r, code); err != nil {
-			r.Errorln(err)
-		}
+		handleInput(r, code)
 		code = ""
 
 		r.Print(colors.Cyan("gno "))
@@ -190,7 +185,7 @@ func runRepl(cfg *replCfg) error {
 }
 
 // handleInput executes specific "/" commands, or evaluates input as Gno source code.
-func handleInput(r *repl.Repl, input string) error {
+func handleInput(r *repl.Repl, input string) {
 	switch strings.TrimSpace(input) {
 	case "/reset":
 		r.Reset()
@@ -203,10 +198,6 @@ func handleInput(r *repl.Repl, input string) error {
 	case "":
 		// Avoid to increase the repl execution counter if no input.
 	default:
-		err := r.RunStatement(input)
-		if err != nil {
-			return err
-		}
+		r.RunStatements(input)
 	}
-	return nil
 }
