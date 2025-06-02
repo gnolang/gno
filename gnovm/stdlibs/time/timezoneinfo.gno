@@ -63,14 +63,6 @@ const (
 	omega = 1<<63 - 1 // math.MaxInt64
 )
 
-// Local represents the chain's local time zone.
-var Local *Location = &localLoc
-
-// localLoc is kept separate so that Local can always refer to &localLoc,
-// ensuring it never returns a nil *Location, even if a client improperly
-// modifies Local.
-var localLoc Location = LocalChainFromTZData()
-
 // UTC represents Universal Coordinated Time (UTC).
 var UTC *Location = &utcLoc
 
@@ -78,6 +70,14 @@ var UTC *Location = &utcLoc
 // and ensure that it never returns a nil *Location,
 // even if a badly behaved client has changed UTC.
 var utcLoc = Location{name: "UTC"}
+
+// Local represents the chain's local time zone.
+var Local *Location = &localLoc
+
+// localLoc is kept separate so that Local can always refer to &localLoc,
+// ensuring it never returns a nil *Location, even if a client improperly
+// modifies Local.
+var localLoc Location = LocalChainFromTZData()
 
 func localParamData() (data []byte) // injected
 
