@@ -873,7 +873,7 @@ func (t Time) UTC() Time {
 	return t
 }
 
-// Local returns t with the location set to Local time.
+// Local returns t with the location set to local time.
 func (t Time) Local() Time {
 	t.setLoc(Local)
 	return t
