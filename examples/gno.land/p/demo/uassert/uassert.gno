@@ -92,12 +92,11 @@ func AbortsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 	var abortValue any
 	var r any
 
-	switch f := f.(type) {
-	case func():
-		r = revive(f) // revive() captures the value passed to panic()
-	case func(realm):
-		r = revive(func() { f(cross) })
-	default:
+	if fn, ok := f.(func()); ok {
+		r = revive(fn)
+	} else if fn, ok := f.(func(realm)); ok {
+		r = revive(func() { fn(cross) })
+	} else {
 		panic("f must be of type func() or func(realm)")
 	}
 	if r != nil {
@@ -130,12 +129,11 @@ func NotAborts(t TestingT, f any, msgs ...string) bool {
 	var abortValue any
 	var r any
 
-	switch f := f.(type) {
-	case func():
-		r = revive(f) // revive() captures the value passed to panic()
-	case func(realm):
-		r = revive(func() { f(cross) })
-	default:
+	if fn, ok := f.(func()); ok {
+		r = revive(fn) // revive() captures the value passed to panic()
+	} else if fn, ok := f.(func(realm)); ok {
+		r = revive(func() { fn(cross) })
+	} else {
 		panic("f must be of type func() or func(realm)")
 	}
 	if r != nil {
@@ -191,12 +189,11 @@ func NotPanics(t TestingT, f any, msgs ...string) bool {
 			}
 		}()
 		// Execute the function
-		switch f := f.(type) {
-		case func():
-			f()
-		case func(realm):
-			f(cross)
-		default:
+		if fn, ok := f.(func()); ok {
+			fn()
+		} else if fn, ok := f.(func(realm)); ok {
+			fn(cross)
+		} else {
 			panic("f must be of type func() or func(realm)")
 		}
 	})
