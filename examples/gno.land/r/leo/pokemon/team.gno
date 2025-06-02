@@ -56,29 +56,29 @@ func getTeamLink(user, team string) string {
 }
 
 // renderTeam renders the current team with swap options for the team selector page
-func renderTeam(team string, user string, swap int) (rend string) {
+func renderTeam(team string, user string, swap int) string {
 	table := mdtable.Table{Headers: []string{}, Rows: [][]string{[]string{}, []string{}}}
 	for i, p := range team {
-		if p == 'p' {
-			table.Headers = append(table.Headers, "Empty Slot")
-			table.Rows[0] = append(table.Rows[0], " - ")
-		} else {
-			table.Headers = append(table.Headers, pokemonList[p-'0'].name)
-			table.Rows[0] = append(table.Rows[0], md.Image(pokemonList[p-'0'].name, pokemonList[p-'0'].assetPath))
+		header := "Empty Slot"
+		nameContent := " - "
+		swapContent := "Swapping..."
+		if p != 'p' {
+			header = pokemonList[p-'0'].name
+			nameContent = md.Image(pokemonList[p-'0'].name, pokemonList[p-'0'].assetPath)
 		}
-		if i == swap {
-			table.Rows[1] = append(table.Rows[1], "Swapping...")
-		} else {
-			table.Rows[1] = append(table.Rows[1], md.Link("Swap", getTeamLink(user, team)+"&swap="+strconv.Itoa(i)))
+		if i != swap {
+			swapContent = md.Link("Swap", getTeamLink(user, team)+"&swap="+strconv.Itoa(i))
 		}
+		table.Headers = append(table.Headers, header)
+		table.Rows[0] = append(table.Rows[0], nameContent)
+		table.Rows[1] = append(table.Rows[1], swapContent)
 	}
-	rend += table.String()
-	return
+	return table.String()
 }
 
 // renderPokemonList renders a Pokémon's details with a link to select it for the team
-func renderPokemonList(p Pokemon, link string) (rend string) {
-	rend += md.H3(p.name)
+func renderPokemonList(p Pokemon, link string) string {
+	rend := md.H3(p.name)
 
 	rend += md.InlineImageWithLink(p.name, p.assetPath, link) + nl
 	rend += md.Bold(strconv.Itoa(p.pv)) + " HP\n"
@@ -94,8 +94,7 @@ func renderPokemonList(p Pokemon, link string) (rend string) {
 		table.Rows[0] = append(table.Rows[0], strconv.Itoa(attack.damage))
 		table.Rows[1] = append(table.Rows[1], strconv.Itoa(attack.pc))
 	}
-	rend += table.String()
-	return
+	return rend + table.String()
 }
 
 // renderPokemonTeam renders the team selection page with current team and available Pokémon

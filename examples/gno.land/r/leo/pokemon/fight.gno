@@ -27,11 +27,11 @@ var (
 )
 
 func switchAction(game *GameState, me *UserData, actionParam byte) error {
-	if me.team[actionParam].name != "" {
-		game.myPokemon = &me.team[actionParam]
-		return nil
+	if me.team[actionParam].name == "" {
+		return errors.New("invalid swap")
 	}
-	return errors.New("invalid swap")
+	game.myPokemon = &me.team[actionParam]
+	return nil
 }
 
 func attackAction(game *GameState, me *UserData, actionParam byte) error {
@@ -42,6 +42,7 @@ func attackAction(game *GameState, me *UserData, actionParam byte) error {
 	game.myPokemon.attacks[actionParam].pc -= 1
 	game.otherPokemon.pv -= game.myPokemon.attacks[actionParam].damage
 	if game.otherPokemon.pv <= 0 {
+		game.otherPokemon.pv = 0
 		for i := 0; i < teamSize; i++ {
 			if game.otherTeam[i].pv > 0 {
 				game.otherPokemon = &game.otherTeam[i]
@@ -67,6 +68,9 @@ func enemyAttackAction(game *GameState, me *UserData, actionParam byte) error {
 	}
 	game.otherPokemon.attacks[actionParam].pc -= 1
 	game.myPokemon.pv -= game.otherPokemon.attacks[actionParam].damage
+	if game.myPokemon.pv < 0 {
+		game.myPokemon.pv = 0
+	}
 	return nil
 }
 
@@ -174,61 +178,45 @@ func getEnnemyNextAttack(p *Pokemon) string {
 }
 
 // renderTeamSwap renders the team swap interface for the player
-func renderTeamSwap(game GameState, team [teamSize]Pokemon, user, state string) (rend string) {
-	havePokemon := false
+func renderTeamSwap(game GameState, team [teamSize]Pokemon, user, state string) string {
 	table := mdtable.Table{Headers: []string{"Swap for "}, Rows: [][]string{[]string{"HP"}}}
-	for i, p := range team {
-		if p.name == "" {
+	for i, poke := range team {
+		if poke.name == "" {
 			continue
 		}
-		havePokemon = true
+		headerName := ""
 		if &team[i] == game.myPokemon {
-			table.Headers = append(table.Headers, "Selected : "+p.name+md.Image(p.name, p.assetPath))
+			headerName = "Selected : " + poke.name + md.Image(poke.name, poke.assetPath)
 		} else {
 			link := getFightLink(user, state) + "s" + strconv.Itoa(i)
-			table.Headers = append(table.Headers, md.Link(p.name, link)+md.InlineImageWithLink(p.name, p.assetPath, link))
+			headerName = md.Link(poke.name, link) + md.InlineImageWithLink(poke.name, poke.assetPath, link)
 		}
-		if p.pv > 0 {
-			table.Rows[0] = append(table.Rows[0], strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv))
-		} else {
-			table.Rows[0] = append(table.Rows[0], strconv.Itoa(0)+" / "+strconv.Itoa(p.getDefault().pv))
-		}
+		table.Headers = append(table.Headers, headerName)
+		table.Rows[0] = append(table.Rows[0], strconv.Itoa(poke.pv)+" / "+strconv.Itoa(poke.getDefault().pv))
 	}
-	if !havePokemon {
-		rend += "Team : " + md.Bold("None !") + nl
-	} else {
-		rend += nl + table.String()
-	}
-	return
+	return nl + table.String()
 }
 
 // renderInventoryUse renders the player's inventory for item usage
-func renderInventoryUse(inventory []ItemType, user, state string) (rend string) {
-	if len(inventory) != 0 {
-		table := mdtable.Table{Headers: []string{"Item", "Description"}}
-		for i, e := range inventory {
-			table.Append([]string{md.Link("Use "+itemData[e].name, getFightLink(user, state)+"i"+strconv.Itoa(i)), itemData[e].description})
-		}
-		rend += nl + table.String()
-	} else {
-		rend += "Inventory : " + md.Bold("Empty !") + nl
+func renderInventoryUse(inventory []ItemType, user, state string) string {
+	if len(inventory) == 0 {
+		return "Inventory : " + md.Bold("Empty !") + nl
 	}
-	return
+	table := mdtable.Table{Headers: []string{"Item", "Description"}}
+	for i, e := range inventory {
+		table.Append([]string{md.Link("Use "+itemData[e].name, getFightLink(user, state)+"i"+strconv.Itoa(i)), itemData[e].description})
+	}
+	return nl + table.String()
 }
 
 // renderFightPokemon renders a Pokémon's details and attack options for the fight page
-func renderFightPokemon(p *Pokemon, user, state string, canAttack bool, otherP *Pokemon) (rend string) {
+func renderFightPokemon(p *Pokemon, user, state string, canAttack bool, otherP *Pokemon) string {
 	if p == nil {
-		rend = "Pokémon is NULL ??"
-		return
+		return "Pokémon is NULL"
 	}
-	rend += md.H3(p.name)
+	rend := md.H3(p.name)
 	rend += md.Image(p.name, p.assetPath)
-	if p.pv > 0 {
-		rend += md.Bold(strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
-	} else {
-		rend += md.Bold(strconv.Itoa(0)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
-	}
+	rend += md.Bold(strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
 	table := mdtable.Table{Headers: []string{"ATTACK"},
 		Rows: [][]string{
 			[]string{md.Bold("Damage")},
@@ -247,8 +235,7 @@ func renderFightPokemon(p *Pokemon, user, state string, canAttack bool, otherP *
 		table.Rows[0] = append(table.Rows[0], strconv.Itoa(attack.damage))
 		table.Rows[1] = append(table.Rows[1], strconv.Itoa(attack.pc)+" / "+strconv.Itoa(p.getDefault().attacks[i].pc))
 	}
-	rend += table.String()
-	return
+	return rend + table.String()
 }
 
 // renderPokemon1v1 renders a 1v1 battle view with both Pokémon
@@ -312,7 +299,7 @@ func renderEndGame(game GameState, me *UserData, user string, state string) (ren
 		rend += md.Link("Get your reward !", txlink.Call("ApplyGameEnd", "state", state)) + nl
 		rend += md.Link("Go back to lobby", atmPath+":lobby?user="+user) + nl
 	} else {
-		rend += md.H3("You LOOSE...")
+		rend += md.H3("You LOSE...")
 		rend += md.Link("Accept !", txlink.Call("ApplyGameEnd", "state", state)) + nl
 		rend += md.Link("Go back to lobby", atmPath+":lobby?user="+user) + nl
 	}
