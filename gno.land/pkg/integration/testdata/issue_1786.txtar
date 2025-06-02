@@ -45,7 +45,7 @@ stdout '("404" string)'
 -- gno.mod --
 module gno.land/r/demo/proxywugnot
 
-
+gno 0.9
 -- realm.gno --
 package proxywugnot
 

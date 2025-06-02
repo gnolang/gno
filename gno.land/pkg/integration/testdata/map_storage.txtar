@@ -18,7 +18,7 @@ stdout '"three" string'
 -- gno.mod --
 module gno.land/r/demo/mapindex
 
-
+gno 0.9
 -- realm.gno --
 package mapindex
 

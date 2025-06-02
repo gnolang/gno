@@ -24,7 +24,6 @@ stderr '"adduser" error: adduser must be used before starting node'
 module gno.land/r/foobar/bar
 
 gno 0.9
-
 -- bar/bar.gno --
 package bar
 

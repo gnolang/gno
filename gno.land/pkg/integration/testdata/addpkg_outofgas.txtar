@@ -44,7 +44,6 @@ func Inc(i Counter) Counter{
 module gno.land/r/bar
 
 gno 0.9
-
 -- bar/bar.gno --
 package bar
 

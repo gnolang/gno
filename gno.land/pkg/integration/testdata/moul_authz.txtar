@@ -18,6 +18,7 @@ stdout 'edited'
 -- admin/gno.mod --
 module gno.land/r/testing/admin
 
+gno 0.9
 -- admin/admin.gno --
 package admin
 
@@ -59,6 +60,7 @@ func ExecuteAction(index int) {
 -- resource/gno.mod --
 module gno.land/r/testing/resource
 
+gno 0.9
 -- resource/resource.gno --
 package resource
 

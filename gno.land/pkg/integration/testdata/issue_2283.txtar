@@ -119,6 +119,7 @@ func init() {
 -- pusers/gno.mod --
 module gno.land/p/demo/users
 
+gno 0.9
 -- pusers/users.gno --
 package users
 
@@ -168,6 +169,7 @@ func (aon AddressOrName) GetName() (string, bool) {
 -- users/gno.mod --
 module gno.land/r/demo/users
 
+gno 0.9
 -- users/users.gno --
 package users
 
@@ -590,6 +592,7 @@ func init() {
 -- boards/gno.mod --
 module gno.land/r/demo/boards
 
+gno 0.9
 -- boards/boards.gno --
 package boards
 

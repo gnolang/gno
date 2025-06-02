@@ -59,7 +59,7 @@ func main() {
 -- r1/gno.mod --
 module gno.land/r/demo/r1
 
-
+gno 0.9
 -- r1/realm.gno --
 package f1
 
@@ -72,7 +72,7 @@ func main() {}
 -- r2/gno.mod --
 module gno.land/r/demo/r2
 
-
+gno 0.9
 -- r2/realm.gno --
 package r2
 
