@@ -61,8 +61,8 @@ func renderInventory(inventory []ItemType) (rend string) {
 
 // renderMe displays the player's wallet, inventory, and selected Pokémon
 func renderMe(user string) string {
-	me, user_exist := pokemonDAO.Get(user)
-	if !user_exist {
+	me, userExist := pokemonDAO.Get(user)
+	if !userExist {
 		return "Unkown user"
 	}
 	return renderWallet(me.(*UserData).pokedollar) +

@@ -105,8 +105,8 @@ func renderPokemonTeam(rend *mux.ResponseWriter, req *mux.Request) {
 	swapParam := req.Query.Get("swap")
 
 	rend.Write(md.H2("Team selector"))
-	me, user_exist := pokemonDAO.Get(user)
-	if !user_exist {
+	me, userExist := pokemonDAO.Get(user)
+	if !userExist {
 		rend.Write(md.H3("Unkown user"))
 		return
 	}

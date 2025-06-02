@@ -156,13 +156,13 @@ func getFightLink(user, state string) string {
 
 // getEnnemyNextAttack selects a random valid attack for the enemy Pokémon
 func getEnnemyNextAttack(p *Pokemon) string {
-	can_attack := false
+	canAttack := false
 	for _, a := range p.attacks {
 		if a.pc > 0 {
-			can_attack = true
+			canAttack = true
 		}
 	}
-	if !can_attack {
+	if !canAttack {
 		return ""
 	}
 	for {
@@ -175,13 +175,13 @@ func getEnnemyNextAttack(p *Pokemon) string {
 
 // renderTeamSwap renders the team swap interface for the player
 func renderTeamSwap(game GameState, team [teamSize]Pokemon, user, state string) (rend string) {
-	have_pokemon := false
+	havePokemon := false
 	table := mdtable.Table{Headers: []string{"Swap for "}, Rows: [][]string{[]string{"HP"}}}
 	for i, p := range team {
 		if p.name == "" {
 			continue
 		}
-		have_pokemon = true
+		havePokemon = true
 		if &team[i] == game.myPokemon {
 			table.Headers = append(table.Headers, "Selected : "+p.name+md.Image(p.name, p.assetPath))
 		} else {
@@ -194,7 +194,7 @@ func renderTeamSwap(game GameState, team [teamSize]Pokemon, user, state string) 
 			table.Rows[0] = append(table.Rows[0], strconv.Itoa(0)+" / "+strconv.Itoa(p.getDefault().pv))
 		}
 	}
-	if !have_pokemon {
+	if !havePokemon {
 		rend += "Team : " + md.Bold("None !") + nl
 	} else {
 		rend += nl + table.String()
@@ -323,8 +323,8 @@ func renderEndGame(game GameState, me *UserData, user string, state string) (ren
 func renderPokemonFight(rend *mux.ResponseWriter, req *mux.Request) {
 	rend.Write(md.H2("Fight !"))
 	user := req.Query.Get("user")
-	me, user_exist := pokemonDAO.Get(user)
-	if !user_exist {
+	me, userExist := pokemonDAO.Get(user)
+	if !userExist {
 		rend.Write(md.H3("Unkown user"))
 		return
 	}

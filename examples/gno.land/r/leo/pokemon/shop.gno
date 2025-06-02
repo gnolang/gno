@@ -116,8 +116,8 @@ func renderPokemonShop(rend *mux.ResponseWriter, req *mux.Request) {
 	user := req.Query.Get("user")
 	rend.Write(md.H2("Shop"))
 	rend.Write(md.H3("Me"))
-	me, user_exist := pokemonDAO.Get(user)
-	if !user_exist {
+	me, userExist := pokemonDAO.Get(user)
+	if !userExist {
 		rend.Write(md.H3("Unkown user"))
 		return
 	}
