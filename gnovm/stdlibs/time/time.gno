@@ -259,8 +259,9 @@ func (t Time) IsZero() bool {
 // It is called when computing a presentation property like Month or Hour.
 func (t Time) abs() uint64 {
 	l := t.loc
-	if l == nil {
-		l = &utcLoc
+	// Avoid function calls when possible.
+	if l == nil || l == &localLoc {
+		l = l.get()
 	}
 	sec := t.unixSec()
 	if l != &utcLoc {
@@ -278,8 +279,8 @@ func (t Time) abs() uint64 {
 // extracting both return values from a single zone lookup.
 func (t Time) locabs() (name string, offset int, abs uint64) {
 	l := t.loc
-	if l == nil {
-		l = &utcLoc
+	if l == nil || l == &localLoc {
+		l = l.get()
 	}
 	// Avoid function call if we hit the local time cache.
 	sec := t.unixSec()
@@ -872,7 +873,6 @@ func (t Time) UTC() Time {
 	return t
 }
 
-// Replace time.Local()
 // Local returns t with the location set to Local time.
 func (t Time) Local() Time {
 	t.setLoc(Local)

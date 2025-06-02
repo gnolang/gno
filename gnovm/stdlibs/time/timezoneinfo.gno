@@ -76,27 +76,16 @@ var Local *Location = &localLoc
 
 // localLoc is separate so that initLocal can initialize
 // it even if a client has changed Local.
-var localLoc Location = LocalChainFromTZData()
+// read more about this here: https://github.com/gnolang/gno/pull/3193#discussion_r2107604361
+var localLoc Location = Location{name: "UTC"}
 
-func localParamData() (data []byte) // injected
-
-// LocalChainFromTZData returns the Local location from the TZ data injected
-func LocalChainFromTZData() Location {
-	data := localParamData()
-	if len(data) == 0 {
-		return Location{name: "UTC"}
-	}
-
-	loc, err := LoadLocationFromTZData("Chain", data)
-	if err != nil {
-		return Location{name: "UTC"}
-	}
-	return *loc
-}
-
+// XXX var localOnce sync.Once
 func (l *Location) get() *Location {
 	if l == nil {
 		return &utcLoc
+	}
+	if l == &localLoc {
+		// XXX localOnce.Do(initLocal)
 	}
 	return l
 }
