@@ -5,10 +5,12 @@ import (
 	"strconv"
 	"time"
 
+	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/md"
 )
 
 type Comment struct {
+	ID        seqid.ID
 	Author    std.Address
 	Content   string
 	CreatedAt time.Time
