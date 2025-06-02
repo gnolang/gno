@@ -6,6 +6,10 @@
 //
 // The calendrical calculations always assume a Gregorian calendar, with
 // no leap seconds.
+//
+// Note that the Go == operator compares not just the time instant but
+// also the Location. See the documentation for the Time type for a discussion
+// of equality testing for Time values.
 
 package time
 
@@ -56,7 +60,6 @@ type Time struct {
 	// that correspond to this Time.
 	// The nil location means UTC.
 	// All UTC times are represented with loc==nil, never loc==&utcLoc.
-	// default location is Local based on the blockchain's timezone
 	loc *Location
 }
 
