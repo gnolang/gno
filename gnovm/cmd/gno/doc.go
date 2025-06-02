@@ -91,7 +91,7 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 
 	rd, err := gnomod.FindRootDir(wd)
 	if err != nil && !errors.Is(err, gnomod.ErrModFileNotFound) {
-		return fmt.Errorf("error determining root gno.mod file: %w", err)
+		return fmt.Errorf("cannot determine root dir: %w", err)
 	}
 	if !errors.Is(err, gnomod.ErrModFileNotFound) {
 		modDirs = append(modDirs, rd)
@@ -130,7 +130,7 @@ func findGnomodExamples(dir string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if !e.IsDir() && e.Name() == "gno.mod" {
+		if !e.IsDir() && e.Name() == "gnomod.toml" {
 			dirs = append(dirs, filepath.Dir(path))
 		}
 		return nil
