@@ -47,3 +47,4 @@ func main() {
 //
 // > Second reply of the second post
 // > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=4&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=4&threadid=2)]
+//
