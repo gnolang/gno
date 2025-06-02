@@ -36,4 +36,3 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh workflow run rerun-codecov.yml -F run_id=${{ github.run_id }}
-          

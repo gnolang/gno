@@ -26,4 +26,3 @@ jobs:
         run: |
           echo "Rerunning failed jobs for run ${{ inputs.run_id }} ..."
           gh run rerun ${{ inputs.run_id }} --failed
-          
