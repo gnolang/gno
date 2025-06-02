@@ -533,20 +533,20 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 
 		pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 
-		var path, name string
+		var dir, path string
 		switch len(args) {
 		case 2:
-			name = args[0]
-			path = filepath.Clean(args[1])
+			path = args[0]
+			dir = filepath.Clean(args[1])
 		case 1:
-			path = filepath.Clean(args[0])
+			dir = filepath.Clean(args[0])
 		case 0:
 			ts.Fatalf("`loadpkg`: no arguments specified")
 		default:
 			ts.Fatalf("`loadpkg`: too many arguments specified")
 		}
 
-		if path == "all" {
+		if dir == "all" {
 			ts.Logf("warning: loading all packages")
 			if err := pkgs.LoadAllPackagesFromDir(examplesDir); err != nil {
 				ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
@@ -555,11 +555,11 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 			return
 		}
 
-		if !strings.HasPrefix(path, workDir) {
-			path = filepath.Join(examplesDir, path)
+		if !strings.HasPrefix(dir, workDir) {
+			dir = filepath.Join(examplesDir, dir)
 		}
 
-		if err := pkgs.LoadPackage(examplesDir, path, name); err != nil {
+		if err := pkgs.LoadPackage(examplesDir, dir, path); err != nil {
 			ts.Fatalf("`loadpkg` unable to load package(s) from %q: %s", args[0], err)
 		}
 

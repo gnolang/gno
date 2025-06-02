@@ -1,7 +1,9 @@
 package integration
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -47,7 +49,20 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 
 	txs := make([]gnoland.TxWithMetadata, len(pkgslist))
 	for i, pkg := range pkgslist {
-		tx, err := gnoland.LoadPackage(pkg, creatorKey.PubKey().Address(), fee, deposit)
+		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name)
+		file, err := gnomod.ParseMemPackage(mpkg)
+		if os.IsNotExist(err) || errors.Is(err, gnomod.ErrGnoModNotFound) {
+			// generate a gno.mod
+			file = new(gnomod.File)
+			file.SetModule(pkg.Name)
+			file.SetGno(gnolang.GnoVerDefault)
+			mpkg.Files = append(mpkg.Files, &std.MemFile{
+				Name: "gno.mod",
+				Body: file.WriteString(),
+			})
+		}
+
+		tx, err := gnoland.LoadPackage(mpkg, creatorKey.PubKey().Address(), fee, deposit)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
 		}
@@ -100,9 +115,9 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(dir string) error {
 	return nil
 }
 
-func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
+func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 	// Initialize a queue with the root package
-	queue := []gnomod.Pkg{{Dir: path, Name: name}}
+	queue := []gnomod.Pkg{{Dir: dir, Name: name}}
 
 	for len(queue) > 0 {
 		// Dequeue the first package
@@ -130,6 +145,7 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 			if err != nil {
 				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
 			}
+
 			importsMap, err := packages.Imports(pkg, nil)
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
