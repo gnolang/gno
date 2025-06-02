@@ -40,7 +40,7 @@ type deprecatedModFile struct {
 // - fname is the name of the file, used in positions and errors.
 // - data is the content of the file.
 func parseDeprecatedDotModBytes(fname string, data []byte) (*deprecatedModFile, error) {
-	fs, err := parse(fname, data)
+	fs, err := modfileParse(fname, data)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func newInput(filename string, data []byte) *input {
 }
 
 // parse parses the input file.
-func parse(file string, data []byte) (f *modfile.FileSyntax, err error) {
+func modfileParse(file string, data []byte) (f *modfile.FileSyntax, err error) {
 	// The parser panics for both routine errors like syntax errors
 	// and for programmer bugs like array index errors.
 	// Turn both into error returns. Catching bug panics is

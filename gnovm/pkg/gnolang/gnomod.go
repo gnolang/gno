@@ -18,10 +18,10 @@ This is a comment in a Go template in pkg/gnolang/gnomod.go.
 The gnomodTemplate is used with the 'text/template' package
 to generate the final gnomod.toml file. */}}
 [module]
-path = {{.PkgPath}}
+path = "{{.PkgPath}}"
 
 [gno]
-version = {{.GnoVersion}}`
+version = "{{.GnoVersion}}"`
 
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
 func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }
@@ -65,7 +65,7 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 		return nil, nil
 	} else if mod, err = gnomod.ParseMemPackage(mpkg); err != nil {
 		// error parsing gnomod.toml.
-		err = fmt.Errorf("%s: parse error %w", mpkg.Path, err)
+		err = fmt.Errorf("%s/gnomod.toml: parse error: %w", mpkg.Path, err)
 	} else if mod.Gno.Version == "" {
 		// gnomod.toml was never specified; set missing.
 		mod.SetGnoVersion(GnoVerMissing)
