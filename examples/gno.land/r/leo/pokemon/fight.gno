@@ -17,6 +17,59 @@ const (
 	gameLoose               // Player has lost the game
 )
 
+var (
+	stateActions = map[byte](func(game *GameState, me *UserData, actionParam byte) error){
+		's': switchAction,      // switch pokemon
+		'a': attackAction,      // use pc to attack enemy
+		'i': itemUseAction,     // use an item from inventory
+		'e': enemyAttackAction, // enemy attack our pokemon
+	}
+)
+
+func switchAction(game *GameState, me *UserData, actionParam byte) error {
+	if me.team[actionParam].name != "" {
+		game.myPokemon = &me.team[actionParam]
+		return nil
+	}
+	return errors.New("invalid swap")
+}
+
+func attackAction(game *GameState, me *UserData, actionParam byte) error {
+
+	if game.myPokemon == nil || game.myPokemon.pv <= 0 || game.myPokemon.attacks[actionParam].pc <= 0 {
+		return errors.New("invalid ally attack")
+	}
+	game.myPokemon.attacks[actionParam].pc -= 1
+	game.otherPokemon.pv -= game.myPokemon.attacks[actionParam].damage
+	if game.otherPokemon.pv <= 0 {
+		for i := 0; i < teamSize; i++ {
+			if game.otherTeam[i].pv > 0 {
+				game.otherPokemon = &game.otherTeam[i]
+				break
+			}
+		}
+	}
+	return nil
+}
+
+func itemUseAction(game *GameState, me *UserData, actionParam byte) error {
+	if game.myPokemon == nil || len(me.inventory) <= int(actionParam) {
+		return errors.New("invalid item use")
+	}
+	itemData[me.inventory[actionParam]].applyer(game.myPokemon)
+	me.inventory = append(me.inventory[:actionParam], me.inventory[actionParam+1:]...)
+	return nil
+}
+
+func enemyAttackAction(game *GameState, me *UserData, actionParam byte) error {
+	if game.otherPokemon == nil || game.otherPokemon.pv <= 0 || game.otherPokemon.attacks[actionParam].pc <= 0 {
+		return errors.New("invalid enemy attack")
+	}
+	game.otherPokemon.attacks[actionParam].pc -= 1
+	game.myPokemon.pv -= game.otherPokemon.attacks[actionParam].damage
+	return nil
+}
+
 // GameState holds the current state of a Pokémon battle
 type GameState struct {
 	myPokemon    *Pokemon
@@ -80,44 +133,14 @@ func getGameState(state string, me *UserData) (game GameState, err error) {
 	}
 	for i := teamSize; i < len(state); i += 2 {
 		actionParam := state[i+1] - '0'
-		switch state[i] {
-		case 's':
-			if me.team[actionParam].name != "" {
-				game.myPokemon = &me.team[actionParam]
-			} else {
-				err = errors.New("invalid swap : " + string(state[i+1]))
-			}
-		case 'a':
-			if game.myPokemon != nil && game.myPokemon.pv > 0 && game.myPokemon.attacks[actionParam].pc > 0 {
-				game.myPokemon.attacks[actionParam].pc -= 1
-				game.otherPokemon.pv -= game.myPokemon.attacks[actionParam].damage
-				if game.otherPokemon.pv <= 0 {
-					for i := 0; i < teamSize; i++ {
-						if game.otherTeam[i].pv > 0 {
-							game.otherPokemon = &game.otherTeam[i]
-							break
-						}
-					}
-				}
-			} else {
-				err = errors.New("invalid ally attack : " + string(state[i+1]))
-			}
-		case 'i':
-			if game.myPokemon != nil && len(me.inventory) > int(actionParam) {
-				itemData[me.inventory[actionParam]].applyer(game.myPokemon)
-				me.inventory = append(me.inventory[:actionParam], me.inventory[actionParam+1:]...)
-			} else {
-				err = errors.New("invalid item use : " + string(state[i+1]))
-			}
-		case 'e':
-			if game.otherPokemon != nil && game.otherPokemon.pv > 0 && game.otherPokemon.attacks[actionParam].pc > 0 {
-				game.otherPokemon.attacks[actionParam].pc -= 1
-				game.myPokemon.pv -= game.otherPokemon.attacks[actionParam].damage
-			} else {
-				err = errors.New("invalid enemy attack : " + string(state[i+1]))
-			}
-		default:
+		action, action_exist := stateActions[state[i]]
+		if !action_exist {
 			err = errors.New("invalid action : " + string(state[i]))
+		} else {
+			err = action(&game, me, actionParam)
+		}
+		if err != nil {
+			return
 		}
 		if checkGameEnd(me.team, &game) {
 			return
