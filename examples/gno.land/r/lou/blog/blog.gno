@@ -24,17 +24,16 @@ func ToggleList() {
 }
 
 func Render(path string) string {
-	out := md.H1("Blog") + md.HorizontalRule()
+	out := md.H1("Blog")
+	out += md.Link("(toggle grid mode", txlink.Call("ToggleGrid")) + " | "
+	out += md.Link("toggle list mode)", txlink.Call("ToggleList")) + "\n\n"
 
-	out += md.Link("toggle grid mode", txlink.Call("ToggleGrid")) + "\n\n"
-	out += md.Link("toggle list mode", txlink.Call("ToggleList")) + "\n\n"
-
-	myBlog.AddPostToBlog(blog.NewPost("slug", "Titlehere", "Bodyis here now", "28 Oct 2004", []string{std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs").String()}, []string{"me", "myself", "i"}))
-	myBlog.AddPostToBlog(blog.NewPost("slug", "Titlehere", "Bodyis here now", "28 Oct 2004", []string{std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs").String()}, []string{"me", "myself", "i"}))
-	myBlog.AddPostToBlog(blog.NewPost("slug", "Titlehere", "Bodyis here now", "28 Oct 2004", []string{std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs").String()}, []string{"me", "myself", "i"}))
-	myBlog.AddPostToBlog(blog.NewPost("slug", "Titlehere", "Bodyis here now", "28 Oct 2004", []string{std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs").String()}, []string{"me", "myself", "i"}))
-	myBlog.AddPostToBlog(blog.NewPost("slug", "Titlehere", "Bodyis here now", "28 Oct 2004", []string{std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs").String()}, []string{"me", "myself", "i"}))
-
-	out += myBlog.RenderPosts()
+	postone, err := blog.NewPost("slug", "Titlehere", "Bodyis here now", "2004-10-28T00:00:00Z", []string{std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs").String()}, []string{"me", "myself", "i"})
+	if err != nil {
+		out += "Error creating post: " + err.Error()
+	} else {
+		myBlog.AddPostToBlog(postone)
+	}
+	out += myBlog.Render(path)
 	return out
 }
