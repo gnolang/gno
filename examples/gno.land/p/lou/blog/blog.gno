@@ -2,6 +2,7 @@ package blog
 
 import (
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/seqid"
 )
@@ -13,10 +14,11 @@ const (
 
 type Blog struct {
 	Title        string
-	Prefix       string    // e.g. r/gnoland/blog:
-	Posts        *avl.Tree // slug -> *Post
+	Prefix       string
+	Posts        *avl.Tree
 	PostId       seqid.ID
 	DisplayMode  string // Grid or List
+	NewestFirst  bool   // if true, newest posts are shown first
 	NoBreadcrumb bool
 }
 
@@ -31,6 +33,7 @@ func NewBlog(title, prefix string) *Blog {
 }
 
 func (b *Blog) AddPostToBlog(post *Post) {
+	post.ID = b.PostId
 	b.PostId.Next()
 	b.Posts.Set(b.PostId.String(), post)
 }
@@ -46,6 +49,7 @@ func (b *Blog) ToggleListMode() {
 func (b Blog) Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", b.RenderPosts)
+	router.HandleFunc("id/{slug}", b.RenderPost)
 	return router.Render(path)
 }
 
@@ -54,24 +58,43 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("No posts.")
 		return
 	}
-	if b.DisplayMode == Grid {
-		res.Write(b.RenderListGrid(true))
+	pageSize := 9
+	isGrid := b.DisplayMode == Grid
+	if !isGrid {
+		pageSize = 5
 	}
-	if b.DisplayMode == List {
-		res.Write(b.RenderListGrid(false))
-	}
+
+	p := pager.NewPager(b.Posts, pageSize, b.NewestFirst)
+	page := p.MustGetPageByPath(req.RawPath)
+
+	out := "" // header
+	out += b.RenderListGrid(page, isGrid)
+	out += page.Picker(req.Path)
+	res.Write(out)
 }
 
-func (b Blog) RenderListGrid(gridMode bool) string {
+func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
+	id := req.GetVar("slug")
+	post, found := b.Posts.Get(id)
+	if !found {
+		res.Write("Post not found.")
+		return
+	}
+	out := post.(*Post).RenderPost()
+	res.Write(out)
+}
+
+func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
 	colCount := 0
-	out := ""
-	out += "<gno-columns>\n"
-	b.Posts.ReverseIterate("", "", func(key string, value any) bool {
+	out := "<gno-columns>\n"
+
+	for _, item := range page.Items {
 		if colCount%3 == 0 {
 			out += "<gno-columns>\n"
 		}
-		post := value.(*Post)
-		out += post.RenderPreview()
+
+		post := item.Value.(*Post)
+		out += post.RenderPreview(gridMode, b.Prefix)
 
 		colCount++
 		if colCount%3 == 0 {
@@ -79,9 +102,8 @@ func (b Blog) RenderListGrid(gridMode bool) string {
 		} else if gridMode {
 			out += "|||\n"
 		}
+	}
 
-		return false
-	})
 	if colCount%3 != 0 {
 		out += "</gno-columns>\n"
 	}
