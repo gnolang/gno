@@ -15,20 +15,19 @@ import (
 func SwapTeam(team string) {
 	crossing()
 
-	usr := std.PreviousRealm().Address()
-	pokemonDAO.AsserUserIsMember(usr)
-	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return usr == member
-	})
-	me := &pokemonDAO.userData[idx]
+	usr := string(std.PreviousRealm().Address())
+	if !pokemonDAO.Has(usr) {
+		panic("user is not member")
+	}
+	me, _ := pokemonDAO.Get(usr)
 	if len(team) != teamSize {
 		panic("a team contain 6 pokémon or empty slots")
 	}
 	for i := 0; i < len(team); i++ {
 		if team[i] == 'p' {
-			me.team[i] = Pokemon{}
+			me.(*UserData).team[i] = Pokemon{}
 		} else if team[i] >= '0' && team[i] <= '9' {
-			me.team[i] = pokemonList[team[i]-'0'].deepCopy()
+			me.(*UserData).team[i] = pokemonList[team[i]-'0'].deepCopy()
 		} else {
 			panic("team bad format !" + string(team[i]))
 		}
@@ -106,17 +105,18 @@ func renderPokemonTeam(rend *mux.ResponseWriter, req *mux.Request) {
 	swapParam := req.Query.Get("swap")
 
 	rend.Write(md.H2("Team selector"))
-	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return std.Address(user) == member
-	})
-	me := &pokemonDAO.userData[idx]
+	me, user_exist := pokemonDAO.Get(user)
+	if !user_exist {
+		rend.Write(md.H3("Unkown user"))
+		return
+	}
 	err := getTeam(team)
 	if err != nil {
 		if len(err.Error()) != 0 {
 			rend.Write(md.Italic(err.Error()) + nl)
 		}
 		team = ""
-		for _, p := range me.team {
+		for _, p := range me.(*UserData).team {
 			pokeId := p.getId()
 			if pokeId == -1 {
 				team += "p"

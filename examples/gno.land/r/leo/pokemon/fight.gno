@@ -253,13 +253,12 @@ func initEnemy(state string) string {
 // ApplyGameEnd updates user data based on the game outcome
 func ApplyGameEnd(state string) {
 	crossing()
-	usr := std.PreviousRealm().Address()
-	pokemonDAO.AsserUserIsMember(usr)
-	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return usr == member
-	})
-	me := &pokemonDAO.userData[idx]
-	game, err := getGameState(state, me)
+	usr := string(std.PreviousRealm().Address())
+	if !pokemonDAO.Has(usr) {
+		panic("user is not a member")
+	}
+	me, _ := pokemonDAO.Get(usr)
+	game, err := getGameState(state, me.(*UserData))
 	if err != nil {
 		panic("bad state : " + err.Error())
 	}
@@ -267,19 +266,19 @@ func ApplyGameEnd(state string) {
 	case gameContinue:
 		panic("game is not finished yet")
 	case gameLoose:
-		if me.pokedollar >= 200 {
-			me.pokedollar -= 200
+		if me.(*UserData).pokedollar >= 200 {
+			me.(*UserData).pokedollar -= 200
 		} else {
-			me.pokedollar = 0
+			me.(*UserData).pokedollar = 0
 		}
 	case gameWin:
-		me.pokedollar += 1000
+		me.(*UserData).pokedollar += 1000
 	}
-	for i, e := range me.team {
+	for i, e := range me.(*UserData).team {
 		if e.name == "" {
 			continue
 		}
-		me.team[i] = e.getDefault().deepCopy()
+		me.(*UserData).team[i] = e.getDefault().deepCopy()
 	}
 }
 
@@ -289,8 +288,7 @@ func renderEndGame(game GameState, me *UserData, user string, state string) (ren
 		rend += md.H3("You WIN ! GGWP")
 		rend += md.Link("Get your reward !", txlink.Call("ApplyGameEnd", "state", state)) + nl
 		rend += md.Link("Go back to lobby", atmPath+":lobby?user="+user) + nl
-	}
-	if game.state == gameLoose {
+	} else {
 		rend += md.H3("You LOOSE...")
 		rend += md.Link("Accept !", txlink.Call("ApplyGameEnd", "state", state)) + nl
 		rend += md.Link("Go back to lobby", atmPath+":lobby?user="+user) + nl
@@ -302,24 +300,25 @@ func renderEndGame(game GameState, me *UserData, user string, state string) (ren
 func renderPokemonFight(rend *mux.ResponseWriter, req *mux.Request) {
 	rend.Write(md.H2("Fight !"))
 	user := req.Query.Get("user")
-	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return std.Address(user) == member
-	})
-	me := &pokemonDAO.userData[idx]
+	me, user_exist := pokemonDAO.Get(user)
+	if !user_exist {
+		rend.Write(md.H3("Unkown user"))
+		return
+	}
 	req.Query.Set("state", initEnemy(req.Query.Get("state")))
 	state := req.Query.Get("state")
-	game, err := getGameState(state, me)
+	game, err := getGameState(state, me.(*UserData))
 	if err != nil {
 		rend.Write(md.Italic(err.Error()) + nl)
 		rend.Write(md.Link("Go back to lobby", atmPath+":lobby?user="+user))
 		return
 	}
 	if game.state != gameContinue {
-		rend.Write(renderEndGame(game, me, user, state) + nl)
+		rend.Write(renderEndGame(game, me.(*UserData), user, state) + nl)
 		return
 	}
-	rend.Write(renderTeamSwap(game, me.team, user, state) + nl)
-	rend.Write(renderInventoryUse(me.inventory, user, state) + nl)
+	rend.Write(renderTeamSwap(game, me.(*UserData).team, user, state) + nl)
+	rend.Write(renderInventoryUse(me.(*UserData).inventory, user, state) + nl)
 	rend.Write(renderPokemon1v1(game, user, state) + nl)
 	rend.Write(md.Link("Give up and go back to lobby", atmPath+":lobby?user="+user))
 	return

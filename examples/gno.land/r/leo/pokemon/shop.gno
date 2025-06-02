@@ -83,17 +83,16 @@ func applyMaxElixer(p *Pokemon) {
 // BuyItem allows a user to purchase an item and updates their inventory and balance
 func BuyItem(itemId ItemType) {
 	crossing()
-	usr := std.PreviousRealm().Address()
-	pokemonDAO.AsserUserIsMember(usr)
-	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return usr == member
-	})
-	me := &pokemonDAO.userData[idx]
-	if me.pokedollar < uint(itemData[itemId].price) {
+	usr := string(std.PreviousRealm().Address())
+	if !pokemonDAO.Has(usr) {
+		panic("user is not member")
+	}
+	me, _ := pokemonDAO.Get(usr)
+	if me.(*UserData).pokedollar < uint(itemData[itemId].price) {
 		panic("not enough pokedollars")
 	}
-	me.inventory = append(pokemonDAO.userData[idx].inventory, itemId)
-	me.pokedollar -= uint(itemData[itemId].price)
+	me.(*UserData).inventory = append(me.(*UserData).inventory, itemId)
+	me.(*UserData).pokedollar -= uint(itemData[itemId].price)
 }
 
 // renderPokedollar formats a Pokedollar amount with the Pokedollar symbol
@@ -117,12 +116,13 @@ func renderPokemonShop(rend *mux.ResponseWriter, req *mux.Request) {
 	user := req.Query.Get("user")
 	rend.Write(md.H2("Shop"))
 	rend.Write(md.H3("Me"))
-	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return std.Address(user) == member
-	})
-	me := &pokemonDAO.userData[idx]
-	rend.Write(renderWallet(me.pokedollar))
-	rend.Write(renderInventory(me.inventory) + nl)
+	me, user_exist := pokemonDAO.Get(user)
+	if !user_exist {
+		rend.Write(md.H3("Unkown user"))
+		return
+	}
+	rend.Write(renderWallet(me.(*UserData).pokedollar))
+	rend.Write(renderInventory(me.(*UserData).inventory) + nl)
 	rend.Write(renderShop() + nl)
 	rend.Write(md.Link("Go back to lobby", atmPath+":lobby?user="+user))
 	return

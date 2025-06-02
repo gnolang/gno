@@ -49,7 +49,7 @@ func Render(path string) (rend string) {
 	_, rawQuery, _ := strings.Cut(path, "?")
 	query, _ := url.ParseQuery(rawQuery)
 
-	if pokemonDAO.IsMember(std.Address(query.Get("user"))) {
+	if pokemonDAO.Has((query.Get("user"))) {
 		for p, f := range pokemonPath {
 			router.HandleFunc(string(p), f)
 		}

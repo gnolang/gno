@@ -2,15 +2,14 @@ package pokemon
 
 import (
 	"sort"
-	"std"
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/moul/md"
 )
 
 type playerEntry struct {
-	adress     std.Address
-	pokedollar uint
+	adress     string
+	pokedollar int
 }
 
 // playerList is a slice of playerEntry for sorting players by Pokedollars
@@ -33,24 +32,24 @@ func (p playerList) Swap(i, j int) {
 // renderPokemonRank renders the ranking page with players sorted by Pokedollars
 func renderPokemonRank(rend *mux.ResponseWriter, req *mux.Request) {
 	rend.Write(md.H2("Ranking"))
-	membersAddress := pokemonDAO.GetMembers()
 
 	var players playerList
-	for i, u := range pokemonDAO.userData {
+	pokemonDAO.Iterate("", "", func(addr string, user any) bool {
 		players = append(players, playerEntry{
-			adress:     membersAddress[i],
-			pokedollar: u.pokedollar,
+			adress:     addr,
+			pokedollar: int(user.(*UserData).pokedollar),
 		})
-	}
+		return false
+	})
 
 	sort.Sort(players)
 
 	var playerOrdered []string
 	for _, u := range players {
-		if u.adress == std.Address(req.Query.Get("user")) {
-			playerOrdered = append(playerOrdered, "-> You: "+string(u.adress)+" : "+renderPokedollar(int(u.pokedollar)))
+		if u.adress == req.Query.Get("user") {
+			playerOrdered = append(playerOrdered, "-> You: "+u.adress+" : "+renderPokedollar(u.pokedollar))
 		} else {
-			playerOrdered = append(playerOrdered, string(u.adress)+" : "+renderPokedollar(int(u.pokedollar)))
+			playerOrdered = append(playerOrdered, u.adress+" : "+renderPokedollar(u.pokedollar))
 		}
 	}
 	rend.Write(md.OrderedList(playerOrdered) + nl)

@@ -1,8 +1,6 @@
 package pokemon
 
 import (
-	"std"
-
 	"gno.land/p/demo/mux"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -62,15 +60,14 @@ func renderInventory(inventory []ItemType) (rend string) {
 }
 
 // renderMe displays the player's wallet, inventory, and selected Pokémon
-func renderMe(user string) (rend string) {
-	idx := addressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return std.Address(user) == member
-	})
-	me := pokemonDAO.userData[idx]
-	rend += renderWallet(me.pokedollar)
-	rend += renderInventory(me.inventory) + nl
-	rend += renderSelectedPokemon(me.team) + nl
-	return
+func renderMe(user string) string {
+	me, user_exist := pokemonDAO.Get(user)
+	if !user_exist {
+		return "Unkown user"
+	}
+	return renderWallet(me.(*UserData).pokedollar) +
+		renderInventory(me.(*UserData).inventory) + nl +
+		renderSelectedPokemon(me.(*UserData).team) + nl
 }
 
 // renderMap generates navigation links for the game pages
