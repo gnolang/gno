@@ -74,9 +74,8 @@ var utcLoc = Location{name: "UTC"}
 // Local represents the chain's local time zone.
 var Local *Location = &localLoc
 
-// localLoc is kept separate so that Local can always refer to &localLoc,
-// ensuring it never returns a nil *Location, even if a client improperly
-// modifies Local.
+// localLoc is separate so that initLocal can initialize
+// it even if a client has changed Local.
 var localLoc Location = LocalChainFromTZData()
 
 func localParamData() (data []byte) // injected
