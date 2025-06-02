@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"net/url"
 	"strings"
 
 	"gno.land/p/moul/md"
@@ -22,4 +23,12 @@ func renderLinks(prefix, kind string, values []string, labelPrefix string) strin
 		links[i] = md.Link(label, href)
 	}
 	return strings.Join(links, ", ") + "\n"
+}
+
+func parseQueryParams(query, rawPath string) string {
+	u, err := url.Parse(rawPath)
+	if err != nil {
+		return Grid
+	}
+	return u.Query().Get(query)
 }

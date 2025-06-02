@@ -17,18 +17,16 @@ type Blog struct {
 	Prefix       string
 	Posts        *avl.Tree
 	PostId       seqid.ID
-	DisplayMode  string // Grid or List
-	NewestFirst  bool   // if true, newest posts are shown first
+	NewestFirst  bool // if true, newest posts are shown first
 	NoBreadcrumb bool
 }
 
 func NewBlog(title, prefix string) *Blog {
 	return &Blog{
-		Title:       title,
-		Prefix:      prefix,
-		Posts:       avl.NewTree(),
-		PostId:      0,
-		DisplayMode: Grid, // default to grid mode
+		Title:  title,
+		Prefix: prefix,
+		Posts:  avl.NewTree(),
+		PostId: 0,
 	}
 }
 
@@ -36,14 +34,6 @@ func (b *Blog) AddPostToBlog(post *Post) {
 	post.ID = b.PostId
 	b.PostId.Next()
 	b.Posts.Set(b.PostId.String(), post)
-}
-
-func (b *Blog) ToggleGridMode() {
-	b.DisplayMode = Grid
-}
-
-func (b *Blog) ToggleListMode() {
-	b.DisplayMode = List
 }
 
 func (b Blog) Render(path string) string {
@@ -61,8 +51,13 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("No posts.")
 		return
 	}
+
 	pageSize := 9
-	isGrid := b.DisplayMode == Grid
+	mode := parseQueryParams("mode", req.RawPath)
+	if mode == "" {
+		mode = Grid // default to grid mode
+	}
+	isGrid := mode == Grid
 	if !isGrid {
 		pageSize = 5
 	}
