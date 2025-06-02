@@ -13,7 +13,9 @@
 
 package time
 
-import "errors"
+import (
+	"errors"
+)
 
 // A Time represents an instant in time with nanosecond precision.
 //
