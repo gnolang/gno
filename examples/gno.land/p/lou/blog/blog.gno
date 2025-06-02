@@ -2,6 +2,7 @@ package blog
 
 import (
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/mux"
 	"gno.land/p/demo/seqid"
 )
 
@@ -29,36 +30,36 @@ func NewBlog(title, prefix string) *Blog {
 	}
 }
 
-func (b *Blog) AddPostToBlog(post *Post) *Blog {
+func (b *Blog) AddPostToBlog(post *Post) {
 	b.PostId.Next()
 	b.Posts.Set(b.PostId.String(), post)
-	return b
 }
 
-func (b *Blog) ToggleGridMode() *Blog {
+func (b *Blog) ToggleGridMode() {
 	b.DisplayMode = Grid
-	return b
 }
 
-func (b *Blog) ToggleListMode() *Blog {
+func (b *Blog) ToggleListMode() {
 	b.DisplayMode = List
-	return b
 }
 
-func (b Blog) RenderPosts() string {
-	out := ""
+func (b Blog) Render(path string) string {
+	router := mux.NewRouter()
+	router.HandleFunc("", b.RenderPosts)
+	return router.Render(path)
+}
 
+func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 	if b.Posts.Size() == 0 {
-		out += "No posts."
-		return out
+		res.Write("No posts.")
+		return
 	}
 	if b.DisplayMode == Grid {
-		return b.RenderListGrid(true)
+		res.Write(b.RenderListGrid(true))
 	}
 	if b.DisplayMode == List {
-		return b.RenderListGrid(false)
+		res.Write(b.RenderListGrid(false))
 	}
-	return out
 }
 
 func (b Blog) RenderListGrid(gridMode bool) string {
@@ -66,19 +67,24 @@ func (b Blog) RenderListGrid(gridMode bool) string {
 	out := ""
 	out += "<gno-columns>\n"
 	b.Posts.ReverseIterate("", "", func(key string, value any) bool {
+		if colCount%3 == 0 {
+			out += "<gno-columns>\n"
+		}
 		post := value.(*Post)
-		out += post.RenderPost()
+		out += post.RenderPreview()
+
 		colCount++
-		if colCount % 4 == 0 {
+		if colCount%3 == 0 {
 			out += "</gno-columns>\n"
-			if colCount != b.Posts.Size() {
-				out += "<gno-columns>\n"
-			}
 		} else if gridMode {
 			out += "|||\n"
 		}
+
 		return false
 	})
-	out += "</gno-columns>\n"
+	if colCount%3 != 0 {
+		out += "</gno-columns>\n"
+	}
+
 	return out
 }
