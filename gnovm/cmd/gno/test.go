@@ -274,8 +274,9 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Draft {
 				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
-					Mode:  gno.TCLatestRelaxed,
-					Cache: tccache,
+					ParseMode: gno.ParseModeAll,
+					Mode:      gno.TCLatestRelaxed,
+					Cache:     tccache,
 				})
 				if errs != nil {
 					didError = true

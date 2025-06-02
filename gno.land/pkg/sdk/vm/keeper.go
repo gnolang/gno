@@ -362,7 +362,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.TCLatestStrict)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestStrict)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -597,8 +597,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	// Use relaxed as we don't require a gno.mod file for maketx run.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.TCLatestRelaxed)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestRelaxed)
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}

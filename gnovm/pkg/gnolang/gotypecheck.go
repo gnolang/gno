@@ -140,12 +140,14 @@ const (
 // The syntax checking is performed entirely using Go's go/types package.
 //
 // Args:
-//   - tcmode: TypeCheckMode, see comments above.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, tcmode TypeCheckMode) (
+
+// - tcmode: TypeCheckMode, see comments above.
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, pmode ParseMode, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
 	return TypeCheckMemPackageWithOptions(mpkg, getter, TypeCheckOptions{
-		Mode: tcmode,
+		ParseMode: pmode,
+		Mode:      tcmode,
 	})
 }
 
@@ -153,7 +155,8 @@ type TypeCheckCache map[string]*gnoImporterResult
 
 // TypeCheckOptions allows to set custom options in [TypeCheckMemPackageWithOptions].
 type TypeCheckOptions struct {
-	Mode TypeCheckMode
+	Mode      TypeCheckMode
+	ParseMode ParseMode
 	// custom cache, for retaining results across several runs of the type
 	// checker when the packages themselves won't change.
 	Cache TypeCheckCache
@@ -180,9 +183,7 @@ func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGette
 		errors: nil,
 	}
 	gimp.cfg.Importer = gimp
-
-	pmode := ParseModeAll // type check all .gno files
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, pmode)
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, opts.ParseMode)
 	return
 }
 

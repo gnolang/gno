@@ -178,8 +178,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tcmode = gno.TCLatestRelaxed
 				}
 				errs := lintTypeCheck(io, dir, mpkg, gs, gno.TypeCheckOptions{
-					Mode:  tcmode,
-					Cache: tccache,
+					ParseMode: gno.ParseModeAll,
+					Mode:      tcmode,
+					Cache:     tccache,
 				})
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
