@@ -1,0 +1,29 @@
+name: Rerun Codecov Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "The workflow run ID to rerun"
+        required: true
+
+jobs:
+  rerun:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for workflow to finish
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Waiting for workflow run ${{ inputs.run_id }} to finish..."
+          gh run watch ${{ inputs.run_id }} > /dev/null 2>&1
+
+      - name: Rerun failed jobs
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Rerunning failed jobs for run ${{ inputs.run_id }} ..."
+          gh run rerun ${{ inputs.run_id }} --failed
+          

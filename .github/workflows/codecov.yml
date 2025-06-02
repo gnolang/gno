@@ -1,0 +1,39 @@
+name: Codecov Coverage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-and-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: Run tests with coverage
+        run: go test -coverprofile=coverage.out ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          fail_ci_if_error: true # fail-fast
+          verbose: true # verbose logs
+          use_oidc: true   # Use GitHub OIDC for secure, tokenless Codecov uploads
+          
+  re-run:
+    needs: test-and-coverage
+    if: failure() && fromJSON(github.run_attempt) < 3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger rerun for failed codecov job
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run rerun-codecov.yml -F run_id=${{ github.run_id }}
+          
