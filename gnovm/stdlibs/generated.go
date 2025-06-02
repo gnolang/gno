@@ -1329,24 +1329,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"time",
-		"chainTZParamData",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]byte")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0 := libs_time.X_chainTZParamData()
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"time",
 		"loadFromEmbeddedTZData",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
