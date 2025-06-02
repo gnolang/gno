@@ -469,7 +469,7 @@ func Render(path string) string {
 	// Generate view
 	view := strings.Join([]string{
 		"<gno-columns>",
-		renderGrid3D(&p),
+		renderGrid3D(cross, &p),
 		"</gno-columns>",
 	}, "\n\n")
 
