@@ -14,7 +14,7 @@ import (
 const (
 	gameContinue int = iota // Game is ongoing
 	gameWin                 // Player has won the game
-	gameLoose               // Player has lost the game
+	gameLose                // Player has lost the game
 )
 
 var (
@@ -94,14 +94,14 @@ func checkGameEnd(myTeam [teamSize]Pokemon, game *GameState) bool {
 	if game.state == gameWin {
 		return true
 	}
-	game.state = gameLoose
+	game.state = gameLose
 	for j := 0; j < teamSize; j++ {
 		if myTeam[j].pv > 0 {
 			game.state = gameContinue
 			break
 		}
 	}
-	if game.state == gameLoose {
+	if game.state == gameLose {
 		return true
 	}
 	return false
@@ -275,7 +275,7 @@ func ApplyGameEnd(state string) {
 	switch game.state {
 	case gameContinue:
 		panic("game is not finished yet")
-	case gameLoose:
+	case gameLose:
 		if me.(*UserData).pokedollar >= 200 {
 			me.(*UserData).pokedollar -= 200
 		} else {
