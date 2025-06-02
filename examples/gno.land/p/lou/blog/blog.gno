@@ -50,6 +50,9 @@ func (b Blog) Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", b.RenderPosts)
 	router.HandleFunc("id/{slug}", b.RenderPost)
+	router.HandleFunc("tag/{slug}", b.RenderTags)
+	router.HandleFunc("author/{slug}", b.RenderAuthors)
+
 	return router.Render(path)
 }
 
@@ -67,21 +70,7 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 	p := pager.NewPager(b.Posts, pageSize, b.NewestFirst)
 	page := p.MustGetPageByPath(req.RawPath)
 
-	out := "" // header
-	out += b.RenderListGrid(page, isGrid)
-	out += page.Picker(req.Path)
-	res.Write(out)
-}
-
-func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
-	id := req.GetVar("slug")
-	post, found := b.Posts.Get(id)
-	if !found {
-		res.Write("Post not found.")
-		return
-	}
-	out := post.(*Post).RenderPost()
-	res.Write(out)
+	res.Write(b.RenderListGrid(page, isGrid) + page.Picker(req.Path))
 }
 
 func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
@@ -109,4 +98,25 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
 	}
 
 	return out
+}
+
+func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
+	id := req.GetVar("slug")
+	post, found := b.Posts.Get(id)
+	if !found {
+		res.Write("Post not found.")
+		return
+	}
+	out := post.(*Post).RenderPost(b.Prefix)
+	res.Write(out)
+}
+
+func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
+	tag := req.GetVar("slug")
+	res.Write(tag)
+}
+
+func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
+	author := req.GetVar("slug")
+	res.Write(author)
 }

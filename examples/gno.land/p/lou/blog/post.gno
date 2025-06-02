@@ -23,6 +23,7 @@ type Post struct {
 	Authors     []string // list of usernames (resolve via r/sys/users)
 	Publisher   std.Address
 	Comments    *avl.Tree // commentID (string) -> *Comment
+	CommentId   seqid.ID
 	Drafted     bool
 	// PinnedComments avl.Tree
 }
@@ -73,7 +74,7 @@ func (p Post) RenderPreview(gridMode bool, prefix string) string {
 	return out
 }
 
-func (p Post) RenderPost() string {
+func (p Post) RenderPost(prefix string) string {
 	if p.Drafted {
 		// handle drafted posts based on caller's preference in a function?
 		return ""
@@ -82,7 +83,7 @@ func (p Post) RenderPost() string {
 	if p.Comments.Size() > 0 {
 		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comments", "#comments") + "\n\n"
 	}
-	out += md.Italic("Author(s): "+strings.Join(p.Authors, ", ")) + "\n\n" // add links to authors
+	out += md.Italic("Author(s):") + " " + renderAuthorLinks(prefix, p.Authors) + "\n\n"
 	out += p.Body + "\n\n"
 
 	out += md.HorizontalRule()
@@ -91,14 +92,29 @@ func (p Post) RenderPost() string {
 		out += md.Bold("Last updated:") + " " + p.UpdatedAt.Format("02 Jan 2006") + "\n\n"
 	}
 	out += md.Bold("Publisher:") + " " + p.Publisher.String() + "\n\n"
-	out += md.Bold("Tags:") + " `" + strings.Join(p.Tags, "`, `") + "`\n\n" // add links to tags
+	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
 	out += md.HorizontalRule()
 
-	out += md.H2("Comments ("+strconv.Itoa(p.Comments.Size())+")") + "\n\n"
+	out += md.H3("Comments ("+strconv.Itoa(p.Comments.Size())+")") + "\n\n"
 	if p.Comments.Size() == 0 {
 		out += "No comments yet.\n\n"
 		return out
 	}
-	// render comments if any
+	out += p.RenderComments()
 	return out
+}
+
+func (p Post) RenderComments() string {
+	out := ""
+	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
+		comment := value.(*Comment)
+		out += comment.Render()
+		return true
+	})
+	return out
+}
+
+func (p *Post) AddComment(comment *Comment) {
+	p.CommentId.Next()
+	p.Comments.Set(p.CommentId.String(), comment)
 }
