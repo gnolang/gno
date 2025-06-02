@@ -16,7 +16,7 @@ func main() {
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:6358}
+// MemStats:  Allocator{maxBytes:100000000, bytes:6346}
 
 // TypeCheckError:
-// main/files/alloc_0.gno:13:2: declared and not used: f1
+// main/alloc_0.gno:13:2: declared and not used: f1

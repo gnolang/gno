@@ -42,10 +42,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 			cross(valopers.UpdateKeepRunning)(g1user, false)
 		})
 
-		var valoper valopers.Valoper
-
 		urequire.NotPanics(t, func() {
-			valoper = valopers.GetByAddr(g1user)
+			valopers.GetByAddr(g1user)
 		})
 
 		// Send coins to be able to make a proposal
@@ -79,7 +77,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.NotPanics(t, func() {
 			pr := NewValidatorProposalRequest(g1user)
 
-			pid := cross(dao.MustCreateProposal)(pr)
+			pid = cross(dao.MustCreateProposal)(pr)
 		})
 
 		proposal, err := cross(dao.GetProposal)(pid) // index starts from 0
@@ -99,10 +97,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
-		var valoper valopers.Valoper
-
 		urequire.NotPanics(t, func() {
-			valoper = valopers.GetByAddr(g1user)
+			valopers.GetByAddr(g1user)
 		})
 
 		urequire.NotPanics(t, func() {
@@ -119,9 +115,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.PanicsWithMessage(t, ErrSameValues.Error(), func() {
-			pr := NewValidatorProposalRequest(g1user)
-
+		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
+			pr := cross(NewValidatorProposalRequest)(g1user)
 			cross(dao.MustCreateProposal)(pr)
 		})
 	})
@@ -141,7 +136,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
-		pr := ProposeNewInstructionsProposalRequest(newInstructions)
+		pr := cross(ProposeNewInstructionsProposalRequest)(newInstructions)
 
 		pid = cross(dao.MustCreateProposal)(pr)
 	})
@@ -169,7 +164,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
-		pr := ProposeNewMinFeeProposalRequest(newMinFee)
+		pr := cross(ProposeNewMinFeeProposalRequest)(newMinFee)
 
 		pid = cross(dao.MustCreateProposal)(pr)
 	})

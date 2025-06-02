@@ -1869,6 +1869,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		if dtv.IsUndefined() {
 			panic("interface method call on undefined value")
 		}
+		if dtv.T.Kind() == InterfaceKind {
+			panic("cannot resolve an interface path at static time")
+		}
 		callerPath := dtv.T.GetPkgPath()
 		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
 		if len(tr) == 0 {
@@ -2477,6 +2480,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 		}
 	}
 	b.Values = values
+	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
 // NOTE: RefValue Object methods declared in ownership.go

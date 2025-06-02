@@ -1,9 +1,9 @@
-# Test with a valid _test.gno file
+# Test with a valid _test.gno file with invalid file.
 
 ! gno test -v .
 
-stdout 'hello123'
-stderr 'PASS: TestAlwaysValid'
+#stdout 'hello123'
+#stderr 'PASS: TestAlwaysValid'
 stderr 'declared and not used: x'
 stderr 'FAIL'
 

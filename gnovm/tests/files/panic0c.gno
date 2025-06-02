@@ -79,9 +79,9 @@ func main() {
 // Stacktrace:
 // panic: wtf
 // f<VPBlock(3,1)>(a,true,0,1,1,1,1,1,1,1,1,1,1,1,1,strs<VPBlock(1,0)>,st<VPBlock(1,1)>,m<VPBlock(1,2)>,t<VPBlock(1,3)>)
-//     main/files/panic0c.gno:28
+//     main/panic0c.gno:28
 // main<VPBlock(1,2)>()
-//     main/files/panic0c.gno:57
+//     main/panic0c.gno:57
 
 // Error:
 // wtf
