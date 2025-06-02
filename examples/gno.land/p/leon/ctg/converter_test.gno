@@ -116,6 +116,16 @@ func TestConvertGnoToAny(t *testing.T) {
 		}
 	})
 
+	t.Run("g→osmo", func(t *testing.T) {
+		got, err := ConvertGnoToAny("osmo", gno)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != std.EncodeBech32("osmo", payload).String() {
+			t.Fatalf("conversion incorrect: %s", got)
+		}
+	})
+
 	t.Run("wrong source prefix", func(t *testing.T) {
 		cosmos := std.EncodeBech32("cosmos", payload)
 		if _, err := ConvertGnoToAny("g", cosmos); err == nil {

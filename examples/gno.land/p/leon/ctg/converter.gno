@@ -1,5 +1,5 @@
-// Package ctg is a simple utility package that helps convert
-// cosmos-prefixed addresses to gno addresses.
+// Package ctg is a simple utility package with helpers
+// for bech32 address conversions.
 package ctg
 
 import (
@@ -24,7 +24,7 @@ func ConvertCosmosToGno(addr string) (std.Address, error) {
 }
 
 // ConvertAnyToGno converts *any* valid Bech32 address to its gno.land form
-// by preserving the underlying payload but replacing the HRP with "g".
+// by preserving the underlying payload but replacing the prefix with "g".
 // No prefix check is performed; invalid Bech32 input still returns an error.
 func ConvertAnyToGno(addr string) (std.Address, error) {
 	_, decoded, ok := std.DecodeBech32(std.Address(addr))
