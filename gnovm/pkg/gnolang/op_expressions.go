@@ -208,8 +208,8 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"non-concrete %s doesn't implement %s",
-					xt.String(NewPrinter(m.GasMeter)),
-					it.String(NewPrinter(m.GasMeter)))
+					xt.String(NewStringBuilderWithGasMeter(m.GasMeter)),
+					it.String(NewStringBuilderWithGasMeter(m.GasMeter)))
 				m.pushPanic(typedString(ex))
 				return
 			}
@@ -221,8 +221,8 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s (%s)",
-					xt.String(NewPrinter(m.GasMeter)),
-					it.String(NewPrinter(m.GasMeter)),
+					xt.String(NewStringBuilderWithGasMeter(m.GasMeter)),
+					it.String(NewStringBuilderWithGasMeter(m.GasMeter)),
 					err.Error())
 				m.pushPanic(typedString(ex))
 				return
@@ -235,7 +235,7 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 	} else { // is concrete assert
 		if xt == nil {
-			ex := fmt.Sprintf("nil is not of type %s", t.String(NewPrinter(m.GasMeter)))
+			ex := fmt.Sprintf("nil is not of type %s", t.String(NewStringBuilderWithGasMeter(m.GasMeter)))
 			m.pushPanic(typedString(ex))
 			return
 		}
@@ -248,8 +248,8 @@ func (m *Machine) doOpTypeAssert1() {
 			// TODO: default panic type?
 			ex := fmt.Sprintf(
 				"%s is not of type %s",
-				xt.String(NewPrinter(m.GasMeter)),
-				t.String(NewPrinter(m.GasMeter)))
+				xt.String(NewStringBuilderWithGasMeter(m.GasMeter)),
+				t.String(NewStringBuilderWithGasMeter(m.GasMeter)))
 			m.pushPanic(typedString(ex))
 			return
 		}

@@ -11,17 +11,18 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-type Printer struct {
+type StringBuilderWithGasMeter struct {
 	GasMeter store.GasMeter
+	strings.Builder
 }
 
-func NewPrinter(gasMeter store.GasMeter) *Printer {
-	return &Printer{
+func NewStringBuilderWithGasMeter(gasMeter store.GasMeter) *StringBuilderWithGasMeter {
+	return &StringBuilderWithGasMeter{
 		GasMeter: gasMeter,
 	}
 }
 
-func (p *Printer) incrCPU(size int64) {
+func (p *StringBuilderWithGasMeter) incrCPU(size int64) {
 	if p == nil {
 		return
 	}
@@ -32,24 +33,13 @@ func (p *Printer) incrCPU(size int64) {
 	}
 }
 
-func (p *Printer) Sprintf(format string, args ...interface{}) string {
-	ss := fmt.Sprintf(format, args...)
-
-	p.incrCPU(int64(OpCharPrint * len(ss)))
-
-	return ss
-}
-
-func (p *Printer) Sprint(args ...interface{}) string {
-	ss := fmt.Sprint(args...)
-
-	p.incrCPU(int64(OpCharPrint * len(ss)))
-
-	return ss
+func (p *StringBuilderWithGasMeter) WriteString(s string) (int, error) {
+	p.incrCPU(int64(OpCharPrint * len(s)))
+	return p.Builder.WriteString(s)
 }
 
 type protectedStringer interface {
-	ProtectedString(*Printer, *seenValues) string
+	ProtectedString(Builder, *seenValues) string
 }
 
 const (
@@ -99,69 +89,90 @@ func newSeenValues() *seenValues {
 	}
 }
 
-func (sv StringValue) String(printer *Printer) string {
-	return printer.Sprint(strconv.Quote(string(sv)))
+func (sv StringValue) String(builder Builder) Builder {
+	builder.WriteString(strconv.Quote(string(sv)))
+	return builder
 }
 
-func (biv BigintValue) String(printer *Printer) string {
-	return printer.Sprint(biv.V.String())
+func (biv BigintValue) String(builder Builder) Builder {
+	builder.WriteString(biv.V.String())
+	return builder
 }
 
-func (bdv BigdecValue) String(printer *Printer) string {
-	return printer.Sprint(bdv.V.String())
+func (bdv BigdecValue) String(builder Builder) Builder {
+	builder.WriteString(bdv.V.String())
+
+	return builder
 }
 
-func (dbv DataByteValue) String(printer *Printer) string {
-	return printer.Sprintf("(%0X)", (dbv.GetByte()))
+func (dbv DataByteValue) String(builder Builder) Builder {
+	builder.WriteString(fmt.Sprintf("(%0X)", (dbv.GetByte())))
+
+	return builder
 }
 
-func (av *ArrayValue) String(printer *Printer) string {
-	return av.ProtectedString(printer, newSeenValues())
+func (av *ArrayValue) String(builder Builder) Builder {
+	av.ProtectedString(builder, newSeenValues())
+	return builder
 }
 
-func (av *ArrayValue) ProtectedString(printer *Printer, seen *seenValues) string {
+func (av *ArrayValue) ProtectedString(builder Builder, seen *seenValues) Builder {
 	if i := seen.IndexOf(av); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
+		builder.WriteString(fmt.Sprintf("ref@%d", i))
+		return builder
 	}
 
 	seen.nc--
 	if seen.nc < 0 {
-		return "..."
+		builder.WriteString("...")
+		return builder
 	}
 	seen.Put(av)
 	defer seen.Pop()
 
-	ss := make([]string, len(av.List))
 	if av.Data == nil {
+		builder.WriteString("array[")
 		for i, e := range av.List {
-			ss[i] = e.ProtectedString(printer, seen)
+			e.ProtectedString(builder, seen)
+			if i < len(av.List)-1 {
+				builder.WriteString(",")
+			}
 		}
+		builder.WriteString("]")
 		// NOTE: we may want to unify the representation,
 		// but for now tests expect this to be different.
 		// This may be helpful for testing implementation behavior.
-		return printer.Sprint("array[" + strings.Join(ss, ",") + "]")
+		return builder
 	}
 	if len(av.Data) > 256 {
-		return printer.Sprintf("array[0x%X...]", av.Data[:256])
+		builder.WriteString(fmt.Sprintf("array[0x%X...]", av.Data[:256]))
+
+		return builder
 	}
-	return printer.Sprintf("array[0x%X]", av.Data)
+	builder.WriteString(fmt.Sprintf("array[0x%X]", av.Data))
+	return builder
 }
 
-func (sv *SliceValue) String(printer *Printer) string {
-	return sv.ProtectedString(printer, newSeenValues())
+func (sv *SliceValue) String(builder Builder) Builder {
+	return sv.ProtectedString(builder, newSeenValues())
 }
 
-func (sv *SliceValue) ProtectedString(printer *Printer, seen *seenValues) string {
+func (sv *SliceValue) ProtectedString(builder Builder, seen *seenValues) Builder {
 	if sv.Base == nil {
-		return printer.Sprint("nil-slice")
+		builder.WriteString(fmt.Sprint("nil-slice"))
+		return builder
 	}
 
 	if i := seen.IndexOf(sv); i != -1 {
-		return printer.Sprintf("ref@%d", i)
+		builder.WriteString(fmt.Sprintf("ref@%d", i))
+		return builder
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
-		return printer.Sprintf("slice[%v]", ref.String(printer))
+		builder.WriteString("slice[")
+		ref.String(builder)
+		builder.WriteString("]")
+		return builder
 	}
 
 	seen.Put(sv)
@@ -169,25 +180,35 @@ func (sv *SliceValue) ProtectedString(printer *Printer, seen *seenValues) string
 
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
-		ss := make([]string, sv.Length)
+		builder.WriteString("slice[")
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
-			ss[i] = e.ProtectedString(printer, seen)
+			e.ProtectedString(builder, seen)
+			if i < sv.Length-1 {
+				builder.WriteString(",")
+			}
 		}
-		return "slice[" + strings.Join(ss, ",") + "]"
+		builder.WriteString("]")
+
+		return builder
 	}
 	if sv.Length > 256 {
-		return printer.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
+		builder.WriteString(fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length))
+
+		return builder
 	}
-	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
+	builder.WriteString(fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length]))
+
+	return builder
 }
 
-func (pv PointerValue) String(printer *Printer) string {
-	return pv.ProtectedString(printer, newSeenValues())
+func (pv PointerValue) String(builder Builder) Builder {
+	return pv.ProtectedString(builder, newSeenValues())
 }
 
-func (pv PointerValue) ProtectedString(printer *Printer, seen *seenValues) string {
+func (pv PointerValue) ProtectedString(builder Builder, seen *seenValues) Builder {
 	if i := seen.IndexOf(pv); i != -1 {
-		return printer.Sprintf("ref@%d", i)
+		builder.WriteString(fmt.Sprintf("ref@%d", i))
+		return builder
 	}
 
 	seen.Put(pv)
@@ -195,184 +216,223 @@ func (pv PointerValue) ProtectedString(printer *Printer, seen *seenValues) strin
 
 	// Handle nil TV's, avoiding a nil pointer deref below.
 	if pv.TV == nil {
-		return printer.Sprint("&<nil>")
+		builder.WriteString("&<nil>")
+		return builder
 	}
 
-	return printer.Sprintf("&%s", pv.TV.ProtectedString(printer, seen))
+	builder.WriteString("&")
+	pv.TV.ProtectedString(builder, seen)
+	return builder
 }
 
-func (sv *StructValue) String(printer *Printer) string {
-	return sv.ProtectedString(printer, newSeenValues())
+func (sv *StructValue) String(builder Builder) Builder {
+	return sv.ProtectedString(builder, newSeenValues())
 }
 
-func (sv *StructValue) ProtectedString(printer *Printer, seen *seenValues) string {
+func (sv *StructValue) ProtectedString(builder Builder, seen *seenValues) Builder {
 	if i := seen.IndexOf(sv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
+		builder.WriteString(fmt.Sprintf("ref@%d", i))
+
+		return builder
 	}
 
 	seen.Put(sv)
 	defer seen.Pop()
 
-	ss := make([]string, len(sv.Fields))
+	builder.WriteString("struct{")
 	for i, f := range sv.Fields {
-		ss[i] = f.ProtectedString(printer, seen)
-	}
-	return "struct{" + strings.Join(ss, ",") + "}"
-}
-
-func (fv *FuncValue) String(printer *Printer) string {
-	name := string(fv.Name)
-	if fv.Type == nil {
-		return printer.Sprintf("incomplete-func ?%s(?)?", name)
-	}
-	if name == "" {
-		return printer.Sprintf("%s{...}", fv.Type.String(printer))
-	}
-	return name
-}
-
-func (bmv *BoundMethodValue) String(printer *Printer) string {
-	name := bmv.Func.Name
-	var (
-		recvT   string = "?"
-		params  string = "?"
-		results string = "(?)"
-	)
-	if ft, ok := bmv.Func.Type.(*FuncType); ok {
-		recvT = ft.Params[0].Type.String(printer)
-		params = FieldTypeList(ft.Params).StringForFunc(printer)
-		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).StringForFunc(printer)
-			results = "(" + results + ")"
+		f.ProtectedString(builder, seen)
+		if i < len(sv.Fields)-1 {
+			builder.WriteString(",")
 		}
 	}
-	return printer.Sprintf("<%s>.%s(%s)%s",
-		recvT, name, params, results)
+	builder.WriteString("}")
+
+	return builder
 }
 
-func (mv *MapValue) String(printer *Printer) string {
-	return mv.ProtectedString(printer, newSeenValues())
+func (fv *FuncValue) String(builder Builder) Builder {
+	name := string(fv.Name)
+	if fv.Type == nil {
+		builder.WriteString(fmt.Sprintf("incomplete-func ?%s(?)?", name))
+		return builder
+	}
+	if name == "" {
+		fv.Type.String(builder)
+		builder.WriteString("{...}")
+		return builder
+	}
+
+	builder.WriteString(name)
+
+	return builder
 }
 
-func (mv *MapValue) ProtectedString(printer *Printer, seen *seenValues) string {
+func (bmv *BoundMethodValue) String(builder Builder) Builder {
+	name := bmv.Func.Name
+
+	if ft, ok := bmv.Func.Type.(*FuncType); ok {
+		builder.WriteString("<")
+		ft.Params[0].Type.String(builder)
+		builder.WriteString(">.")
+		builder.WriteString(string(name) + "(")
+		FieldTypeList(ft.Params).StringForFunc(builder)
+		builder.WriteString(")")
+
+		builder.WriteString("(")
+		FieldTypeList(ft.Results).StringForFunc(builder)
+		builder.WriteString(")")
+
+		return builder
+	}
+
+	builder.WriteString(fmt.Sprintf("<?>.?%s(?)(?)",
+		name))
+	return builder
+}
+
+func (mv *MapValue) String(builder Builder) Builder {
+	return mv.ProtectedString(builder, newSeenValues())
+}
+
+func (mv *MapValue) ProtectedString(builder Builder, seen *seenValues) Builder {
 	if mv.List == nil {
-		return printer.Sprint("zero-map")
+		builder.WriteString("zero-map")
+		return builder
 	}
 
 	if i := seen.IndexOf(mv); i != -1 {
-		return printer.Sprintf("ref@%d", i)
+		builder.WriteString(fmt.Sprintf("ref@%d", i))
+		return builder
 	}
 
 	seen.Put(mv)
 	defer seen.Pop()
 
-	ss := make([]string, 0, mv.GetLength())
+	builder.WriteString("map{")
 	next := mv.List.Head
 	for next != nil {
-		ss = append(ss,
-			next.Key.ProtectedString(printer, seen)+":"+
-				next.Value.ProtectedString(printer, seen))
+		next.Key.ProtectedString(builder, seen)
+		builder.WriteString(":")
+		next.Value.ProtectedString(builder, seen)
 		next = next.Next
+		if next != nil {
+			builder.WriteString(",")
+		}
 	}
-	return printer.Sprint("map{" + strings.Join(ss, ",") + "}")
+	builder.WriteString("}")
+	return builder
 }
 
-func (tv TypeValue) String(printer *Printer) string {
-	return fmt.Sprintf("typeval{%s}",
-		tv.Type.String(printer))
+func (tv TypeValue) String(builder Builder) Builder {
+	builder.WriteString("typeval{")
+	tv.Type.String(builder)
+	builder.WriteString("}")
+
+	return builder
 }
 
-func (pv *PackageValue) String(printer *Printer) string {
-	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
+func (pv *PackageValue) String(builder Builder) Builder {
+	builder.WriteString(fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath))
+
+	return builder
 }
 
-func (b *Block) String(printer *Printer) string {
-	return b.StringIndented(printer, "    ")
+func (b *Block) String(builder Builder) Builder {
+	return b.StringIndented(builder, "    ")
 }
 
-func (b *Block) StringIndented(printer *Printer, indent string) string {
+func (b *Block) StringIndented(builder Builder, indent string) Builder {
 	source := toString(b.Source)
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
-	lines := make([]string, 0, 3)
-	lines = append(lines,
-		printer.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
-			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
+	builder.WriteString(fmt.Sprintf("%sBlock(ID:%v,Addr:%p,Source:%s,Parent:%p)",
+		indent, b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
 	if b.Source != nil {
 		if _, ok := b.Source.(RefNode); ok {
-			lines = append(lines,
-				printer.Sprintf("%s(RefNode names not shown)", indent))
+			builder.WriteString(fmt.Sprintf("\n%s(RefNode names not shown)", indent))
 		} else {
 			types := b.Source.GetStaticBlock().Types
 			for i, n := range b.Source.GetBlockNames() {
 				if len(b.Values) <= i {
-					lines = append(lines,
-						printer.Sprintf("%s%s: undefined static:%s", indent, n, types[i].String(printer)))
+					builder.WriteString(fmt.Sprintf("\n%s%s: undefined static:%s", indent, n, types[i].String(builder)))
 				} else {
-					lines = append(lines,
-						printer.Sprintf("%s%s: %s static:%s",
-							indent, n, b.Values[i].String(printer), types[i].String(printer)))
+					builder.WriteString(fmt.Sprintf("\n%s%s: %s static:%s",
+						indent, n, b.Values[i].String(builder), types[i].String(builder)))
 				}
 			}
 		}
 	}
-	return strings.Join(lines, "\n")
+	return builder
 }
 
-func (rv RefValue) String(printer *Printer) string {
+func (rv RefValue) String(builder Builder) Builder {
 	if rv.PkgPath == "" {
-		return printer.Sprintf("ref(%v)",
-			rv.ObjectID)
+		builder.WriteString(fmt.Sprintf("ref(%v)",
+			rv.ObjectID))
+
+		return builder
 	}
-	return printer.Sprintf("ref(%s)",
-		rv.PkgPath)
+
+	builder.WriteString(fmt.Sprintf("ref(%s)",
+		rv.PkgPath))
+
+	return builder
 }
 
-func (hiv *HeapItemValue) String(printer *Printer) string {
-	return printer.Sprintf("heapitem(%v)",
-		hiv.Value.String(printer))
+func (hiv *HeapItemValue) String(builder Builder) Builder {
+	builder.WriteString("heapitem(")
+	hiv.Value.String(builder)
+	builder.WriteString(")")
+	return builder
 }
 
 // ----------------------------------------
 // *TypedValue.Sprint
 
 // for print() and println().
-func (tv *TypedValue) Sprint(printer *Printer, m *Machine) string {
+func (tv *TypedValue) Sprint(builder Builder, m *Machine) Builder {
 	// if undefined, just "undefined".
 	if tv == nil || tv.T == nil {
-		return undefinedStr
+		builder.WriteString(undefinedStr)
+		return builder
 	}
 
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
-		return res[0].GetString()
+		builder.WriteString(res[0].GetString())
+
+		return builder
 	}
 	// if implements .Error(), return it.
 	if IsImplementedBy(gErrorType, tv.T) {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
-		return res[0].GetString()
+		builder.WriteString(res[0].GetString())
+		return builder
 	}
 
-	return tv.ProtectedSprint(printer, newSeenValues(), true)
+	return tv.ProtectedSprint(builder, newSeenValues(), true)
 }
 
-func (tv *TypedValue) ProtectedSprint(printer *Printer, seen *seenValues, considerDeclaredType bool) string {
+func (tv *TypedValue) ProtectedSprint(builder Builder, seen *seenValues, considerDeclaredType bool) Builder {
 	if i := seen.IndexOf(tv.V); i != -1 {
-		return printer.Sprintf("ref@%d", i)
+		builder.WriteString(fmt.Sprintf("ref@%d", i))
+		return builder
 	}
 
 	// print declared type
 	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
-		return tv.ProtectedString(printer, seen)
+		return tv.ProtectedString(builder, seen)
 	}
 
 	// This is a special case that became necessary after adding `ProtectedString()` methods to
 	// reliably prevent recursive print loops.
 	if tv.V != nil {
 		if v, ok := tv.V.(RefValue); ok {
-			return v.String(printer)
+			v.String(builder)
+			return builder
 		}
 	}
 
@@ -381,58 +441,96 @@ func (tv *TypedValue) ProtectedSprint(printer *Printer, seen *seenValues, consid
 	case PrimitiveType:
 		switch bt {
 		case UntypedBoolType, BoolType:
-			return fmt.Sprintf("%t", tv.GetBool())
+			builder.WriteString(fmt.Sprintf("%t", tv.GetBool()))
+
+			return builder
 		case UntypedStringType, StringType:
-			return tv.GetString()
+			builder.WriteString(tv.GetString())
+
+			return builder
 		case IntType:
-			return fmt.Sprintf("%d", tv.GetInt())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt()))
+
+			return builder
 		case Int8Type:
-			return fmt.Sprintf("%d", tv.GetInt8())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt8()))
+
+			return builder
 		case Int16Type:
-			return fmt.Sprintf("%d", tv.GetInt16())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt16()))
+
+			return builder
 		case UntypedRuneType, Int32Type:
-			return fmt.Sprintf("%d", tv.GetInt32())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt32()))
+
+			return builder
 		case Int64Type:
-			return fmt.Sprintf("%d", tv.GetInt64())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt64()))
+
+			return builder
 		case UintType:
-			return fmt.Sprintf("%d", tv.GetUint())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint()))
+			return builder
 		case Uint8Type:
-			return fmt.Sprintf("%d", tv.GetUint8())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint8()))
+			return builder
 		case DataByteType:
-			return fmt.Sprintf("%d", tv.GetDataByte())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetDataByte()))
+
+			return builder
 		case Uint16Type:
-			return fmt.Sprintf("%d", tv.GetUint16())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint16()))
+
+			return builder
 		case Uint32Type:
-			return fmt.Sprintf("%d", tv.GetUint32())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint32()))
+
+			return builder
 		case Uint64Type:
-			return fmt.Sprintf("%d", tv.GetUint64())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint64()))
+
+			return builder
 		case Float32Type:
-			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
+			builder.WriteString(fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32())))
+			return builder
 		case Float64Type:
-			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
+			builder.WriteString(fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64())))
+			return builder
 		case UntypedBigintType:
-			return tv.V.(BigintValue).V.String()
+			builder.WriteString(tv.V.(BigintValue).V.String())
+
+			return builder
 		case UntypedBigdecType:
-			return tv.V.(BigdecValue).V.String()
+			builder.WriteString(tv.V.(BigdecValue).V.String())
+
+			return builder
 		default:
 			panic("should not happen")
 		}
 	case *PointerType:
 		if tv.V == nil {
-			return "typed-nil"
+			builder.WriteString("typed-nil")
+
+			return builder
 		}
 		roPre, roPost := "", ""
 		if tv.IsReadonly() {
 			roPre, roPost = "readonly(", ")"
 		}
-		return roPre + tv.V.(PointerValue).ProtectedString(printer, seen) + roPost
+		builder.WriteString(roPre)
+		tv.V.(PointerValue).ProtectedString(builder, seen)
+		builder.WriteString(roPost)
+		return builder
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
-			ft := tv.T.String(printer)
-			return nilStr + " " + ft
+			builder.WriteString(nilStr + " ")
+			tv.T.String(builder)
+			return builder
 		case *FuncValue, *BoundMethodValue:
-			return fv.String(printer)
+			fv.String(builder)
+
+			return builder
 		default:
 			panic(fmt.Sprintf(
 				"unexpected func type %v",
@@ -444,19 +542,28 @@ func (tv *TypedValue) ProtectedSprint(printer *Printer, seen *seenValues, consid
 				panic("should not happen")
 			}
 		}
-		return nilStr
+		builder.WriteString(nilStr)
+
+		return builder
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
-		return tv.V.(*PackageValue).String(printer)
+		tv.V.(*PackageValue).String(builder)
+
+		return builder
 	case *ChanType:
 		panic("not yet implemented")
 	case *TypeType:
-		return tv.V.(TypeValue).String(printer)
+		tv.V.(TypeValue).String(builder)
+
+		return builder
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
-			return "(" + nilStr + " " + tv.T.String(printer) + ")"
+			builder.WriteString("(" + nilStr + " ")
+			tv.T.String(builder)
+			builder.WriteString(")")
+			return builder
 		}
 		// Value may be N_Readonly
 		roPre, roPost := "", ""
@@ -465,11 +572,17 @@ func (tv *TypedValue) ProtectedSprint(printer *Printer, seen *seenValues, consid
 		}
 		// *ArrayType, *SliceType, *StructType, *MapType
 		if ps, ok := tv.V.(protectedStringer); ok {
-			return roPre + ps.ProtectedString(printer, seen) + roPost
+			builder.WriteString(roPre)
+			ps.ProtectedString(builder, seen)
+			builder.WriteString(roPost)
+			return builder
 		}
 
 		// *NativeType
-		return roPre + tv.V.String(printer) + roPost
+		builder.WriteString(roPre)
+		tv.V.String(builder)
+		builder.WriteString(roPost)
+		return builder
 	}
 }
 
@@ -477,58 +590,60 @@ func (tv *TypedValue) ProtectedSprint(printer *Printer, seen *seenValues, consid
 // TypedValue.String()
 
 // For gno debugging/testing.
-func (tv TypedValue) String(printer *Printer) string {
-	return tv.ProtectedString(printer, newSeenValues())
+func (tv TypedValue) String(builder Builder) Builder {
+	return tv.ProtectedString(builder, newSeenValues())
 }
 
-func (tv TypedValue) ProtectedString(printer *Printer, seen *seenValues) string {
+func (tv TypedValue) ProtectedString(builder Builder, seen *seenValues) Builder {
 	if tv.IsUndefined() {
-		return "(undefined)"
+		builder.WriteString("(undefined)")
+		return builder
 	}
-	vs := ""
 	if tv.V == nil {
 		switch baseOf(tv.T) {
 		case BoolType, UntypedBoolType:
-			vs = fmt.Sprintf("%t", tv.GetBool())
+			builder.WriteString(fmt.Sprintf("%t", tv.GetBool()))
 		case StringType, UntypedStringType:
-			vs = fmt.Sprintf("%s", tv.GetString())
+			builder.WriteString(fmt.Sprintf("%s", tv.GetString()))
 		case IntType:
-			vs = fmt.Sprintf("%d", tv.GetInt())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt()))
 		case Int8Type:
-			vs = fmt.Sprintf("%d", tv.GetInt8())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt8()))
 		case Int16Type:
-			vs = fmt.Sprintf("%d", tv.GetInt16())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt16()))
 		case Int32Type, UntypedRuneType:
-			vs = fmt.Sprintf("%d", tv.GetInt32())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt32()))
 		case Int64Type:
-			vs = fmt.Sprintf("%d", tv.GetInt64())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetInt64()))
 		case UintType:
-			vs = fmt.Sprintf("%d", tv.GetUint())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint()))
 		case Uint8Type:
-			vs = fmt.Sprintf("%d", tv.GetUint8())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint8()))
 		case DataByteType:
-			vs = fmt.Sprintf("%d", tv.GetDataByte())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetDataByte()))
 		case Uint16Type:
-			vs = fmt.Sprintf("%d", tv.GetUint16())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint16()))
 		case Uint32Type:
-			vs = fmt.Sprintf("%d", tv.GetUint32())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint32()))
 		case Uint64Type:
-			vs = fmt.Sprintf("%d", tv.GetUint64())
+			builder.WriteString(fmt.Sprintf("%d", tv.GetUint64()))
 		case Float32Type:
-			vs = fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
+			builder.WriteString(fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32())))
 		case Float64Type:
-			vs = fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
+			builder.WriteString(fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64())))
 		// Complex types that require recusion protection.
 		default:
-			vs = nilStr
+			builder.WriteString(nilStr)
 		}
 	} else {
-		vs = tv.ProtectedSprint(printer, seen, false)
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
-			vs = strconv.Quote(vs)
+			tv.ProtectedSprint(builder, seen, false)
+		} else {
+			tv.ProtectedSprint(builder, seen, true)
 		}
 	}
-
-	ts := tv.T.String(printer)
-	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
+	builder.WriteString(" ")
+	tv.T.String(builder)
+	builder.WriteString(")")
+	return builder
 }

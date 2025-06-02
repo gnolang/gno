@@ -15,12 +15,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
+type Builder interface {
+	WriteString(s string) (int, error)
+	String() string
+}
+
 // ----------------------------------------
 // (runtime) Value
 
 type Value interface {
 	assertValue()
-	String(printer *Printer) string // for debugging
+	String(builder Builder) Builder // for debugging
 
 	// DeepFill returns the same value, filled.
 	//

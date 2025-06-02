@@ -2388,7 +2388,7 @@ func (m *Machine) String() string {
 			// print the pkgpath.
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, pv.PkgPath)
 		} else {
-			bsi := b.StringIndented(NewPrinter(m.GasMeter), "            ")
+			bsi := b.StringIndented(NewStringBuilderWithGasMeter(m.GasMeter), "            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 		}
 		// Update b
@@ -2414,7 +2414,7 @@ func (m *Machine) String() string {
 			break // done, skip *PackageNode.
 		} else {
 			fmt.Fprintf(builder, "          #%d %s\n", i,
-				b.StringIndented(NewPrinter(m.GasMeter), "            "))
+				b.StringIndented(NewStringBuilderWithGasMeter(m.GasMeter), "            "))
 		}
 	}
 	builder.WriteString("    Frames:\n")
