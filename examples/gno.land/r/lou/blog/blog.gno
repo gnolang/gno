@@ -10,7 +10,7 @@ import (
 
 var myBlog = blog.NewBlog(
 	"Blog",
-	"r/gnoland/blog:",
+	"/r/lou/blog",
 )
 
 func ToggleGrid() {
@@ -28,12 +28,26 @@ func Render(path string) string {
 	out += md.Link("(toggle grid mode", txlink.Call("ToggleGrid")) + " | "
 	out += md.Link("toggle list mode)", txlink.Call("ToggleList")) + "\n\n"
 
-	postone, err := blog.NewPost("slug", "Titlehere", "Bodyis here now", "2004-10-28T00:00:00Z", []string{std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs").String()}, []string{"me", "myself", "i"})
+	// just to test for now
+	postone, err := blog.NewPost("slug", "Titlehere", "Bodyis here now", "2004-10-28T00:00:00Z", []string{"g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"}, []string{"me", "myself", "i"})
+	postone.AddComment(blog.NewComment(std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"), "This is a comment"))
+	posttwo, err := blog.NewPost("slug2", "Titlehere2", "Bodyis here now2", "2004-10-28T00:00:00Z", []string{"g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"}, []string{"me", "myself", "i"})
 	if err != nil {
 		out += "Error creating post: " + err.Error()
 	} else {
 		myBlog.AddPostToBlog(postone)
+		myBlog.AddPostToBlog(postone)
+		myBlog.AddPostToBlog(postone)
+		myBlog.AddPostToBlog(posttwo)
+		myBlog.AddPostToBlog(postone)
+		myBlog.AddPostToBlog(postone)
+		myBlog.AddPostToBlog(posttwo)
+		myBlog.AddPostToBlog(posttwo)
+		myBlog.AddPostToBlog(posttwo)
+		myBlog.AddPostToBlog(posttwo)
+		myBlog.AddPostToBlog(posttwo)
 	}
+	
 	out += myBlog.Render(path)
 	return out
 }
