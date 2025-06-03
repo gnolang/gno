@@ -1,6 +1,8 @@
 package blog
 
 import (
+	"time"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
@@ -11,9 +13,11 @@ import (
 type Blog struct {
 	Title        string
 	Prefix       string
-	Posts        *avl.Tree
+	Posts        *avl.Tree // id --> *Post
 	PostId       seqid.ID
-	NoBreadcrumb bool
+	PostsBySlug  *avl.Tree // slug --> *Post
+	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
+	DraftedPosts *avl.Tree // id --> *Post
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -24,38 +28,85 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		Title:  title,
 		Prefix: prefix,
 		Posts:  avl.NewTree(),
+		PostsBySlug:  avl.NewTree(),
+		PostsByUpdatedAt: avl.NewTree(),
 		PostId: 0,
 	}, nil
 }
 
-func (b *Blog) AddPostToBlog(post *Post) error {
+func (b *Blog) AddPost(post *Post) error { // drafted posts are also supported
 	b.PostId.Next()
 	post.ID = b.PostId
-	if !b.Posts.Set(b.PostId.String(), post) {
+	var added bool
+	if _, exists := b.PostsBySlug.Get(post.Slug); exists {
+		return ErrPostAlreadyExists
+	}
+	added = b.Posts.Set(b.PostId.String(), post)
+	added = b.PostsBySlug.Set(post.Slug, post)
+	added = b.PostsByUpdatedAt.Set(post.UpdatedAt.String(), post)
+	if !added {
 		return ErrPostAddFailed
 	}
 	return nil
 }
 
-func (b *Blog) UpdatePostById(id seqid.ID, post *Post) error {
+func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
 	existingPost, found := b.Posts.Get(id.String())
 	if !found {
 		return ErrPostNotFound
 	}
-	existingPost.(*Post).Title = post.Title
-	existingPost.(*Post).Body = post.Body
-	existingPost.(*Post).Tags = post.Tags
-	existingPost.(*Post).Authors = post.Authors
-	existingPost.(*Post).UpdatedAt = post.UpdatedAt
+	post := existingPost.(*Post)
+	postBySlug, _ := b.PostsBySlug.Get(post.Slug)
+	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt.String())
+	UpdatePost(post, newPost)
+	UpdatePost(postBySlug.(*Post), newPost)
+	UpdatePost(postByUpdated.(*Post), newPost)
 	return nil
 }
 
-func (b *Blog) DeletePostById(id string) error {
-	_, found := b.Posts.Get(id)
+func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
+	existingPost, found := b.PostsBySlug.Get(slug)
 	if !found {
 		return ErrPostNotFound
 	}
-	_, removed := b.Posts.Remove(id)
+	post := existingPost.(*Post)
+	postById, _ := b.Posts.Get(post.ID.String())
+	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt.String())
+	UpdatePost(post, newPost)
+	UpdatePost(postById.(*Post), newPost)
+	UpdatePost(postByUpdated.(*Post), newPost)
+	return nil
+}
+
+func UpdatePost(existingPost, newPost *Post) {
+	existingPost.Title = newPost.Title
+	existingPost.Body = newPost.Body
+	existingPost.Tags = newPost.Tags
+	existingPost.Authors = newPost.Authors
+	existingPost.UpdatedAt = time.Now()
+}
+
+func (b *Blog) DeletePostById(id string) error {
+	post, found := b.Posts.Get(id)
+	if !found {
+		return ErrPostNotFound
+	}
+	return b.DeletePost(post.(*Post))
+}
+
+func (b *Blog) DeletePostBySlug(slug string) error {
+	post, found := b.PostsBySlug.Get(slug)
+	if !found {
+		return ErrPostNotFound
+	}
+	return b.DeletePost(post.(*Post))
+}
+
+func (b *Blog) DeletePost(post *Post) error {
+	var removed bool
+	_, removed = b.Posts.Remove(post.ID.String())
+	_, removed = b.PostsBySlug.Remove(post.Slug)
+	_, removed = b.PostsByUpdatedAt.Remove(post.UpdatedAt.String())
 	if !removed {
 		return ErrDeleteFailed
 	}
@@ -68,17 +119,21 @@ func (b Blog) Render(path string) string {
 	router.HandleFunc("post/{slug}", b.RenderPost)
 	router.HandleFunc("tag/{slug}", b.RenderTags)
 	router.HandleFunc("author/{slug}", b.RenderAuthors)
+	router.HandleFunc("commenter/{slug}", b.RenderCommenters)
 
 	return router.Render(path)
 }
 
-func renderBlogHeader(prefix, rawPath string) string {
+func RenderBlogHeader(prefix, rawPath string) string {
 	out := md.Link("⊞ grid", updateQuery(rawPath, "mode", "grid")) + " | "
 	out += md.Link("☰ list", updateQuery(rawPath, "mode", "list")) + " | "
 	out += md.Link("▲ recent", updateQuery(rawPath, "sort", "recent")) + " | "
 	out += md.Link("▼ oldest", updateQuery(rawPath, "sort", "oldest")) + " | "
+	// last updated sort=updates order=ascending/descending (toggle between ▲ and ▼)
+	// most popular sort=popular order=ascending/descending (toggle between ▲ and ▼)
+	// alphabetical sort=alpha order=ascending/descending (toggle between ▲ and ▼)
+	// time format
 	out += md.Link("🗘 reset", prefix) + "\n"
-	// time ranges?
 	return out
 }
 
@@ -106,7 +161,7 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 
 	p := pager.NewPager(b.Posts, pageSize, newestFirst)
 	page := p.MustGetPageByPath(req.RawPath)
-	out := renderBlogHeader(b.Prefix, req.RawPath)
+	out := RenderBlogHeader(b.Prefix, req.RawPath)
 	out += b.RenderListGrid(page, isGrid) + page.Picker(req.Path)
 	res.Write(out)
 }
@@ -152,10 +207,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 
 func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	tag := req.GetVar("slug")
-	out := md.H2(md.Link(b.Prefix, b.Prefix)+"/"+req.Path) + "\n"
-	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
-	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
-	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
+	out := b.RenderFilterHeader(req)
 
 	sort := parseQueryParams("sort", req.RawPath)
 	if sort == "" {
@@ -182,10 +234,7 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 
 func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	author := req.GetVar("slug")
-	out := md.H2(md.Link(b.Prefix, b.Prefix)+"/"+req.Path) + "\n"
-	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
-	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
-	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
+	out := b.RenderFilterHeader(req)
 
 	sort := parseQueryParams("sort", req.RawPath)
 	if sort == "" {
@@ -205,6 +254,32 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	out += page.Picker(req.Path)
 	res.Write(out)
+}
+
+func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
+	commenter := req.GetVar("slug")
+	out := b.RenderFilterHeader(req)
+	// TO DO
+	out += commenter
+	res.Write(out)
+}
+
+func (b Blog) RenderFilterHeader(req *mux.Request) string {
+	out := md.H2(md.Link(b.Prefix, b.Prefix)+"/"+req.Path) + "\n"
+	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
+	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
+	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
+	return out
+}
+
+func (b Blog) Mention(role, recipient string) string {
+	if role == "author" {
+		return md.Bold(md.Link("@" + recipient, b.Prefix + "/author:" + recipient))
+	}
+	if role == "commenter" {
+		return md.Bold(md.Link("@" + recipient, b.Prefix + "/commenter:" + recipient))
+	}
+	return ""
 }
 
 func (b Blog) filterPostsByField(field, value string) (*avl.Tree, bool) {

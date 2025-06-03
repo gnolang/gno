@@ -27,8 +27,10 @@ type Post struct {
 	Drafted     bool
 }
 
-func NewPost(slug, title, body, publicationDate string, authors []string, tags []string) (*Post, error) {
+func NewPost(slug, title, body, publicationDate string, authors, tags []string, caller std.Address) (*Post, error) {
 	// handle draft
+	// resolve caller
+
 	var err error
 
 	if slug == "" {
@@ -53,16 +55,17 @@ func NewPost(slug, title, body, publicationDate string, authors []string, tags [
 		Title:       title,
 		Body:        body,
 		CreatedAt:   publishedAt,
-		UpdatedAt:   publishedAt,
-		PublishedAt: publishedAt,
+		UpdatedAt:   time.Now(),
+		PublishedAt: time.Now(),
 		Tags:        tags,
 		Authors:     authors,
+		Publisher:   caller,
 		Comments:    avl.NewTree(),
 		Drafted:     false,
 	}, nil
 }
 
-func (p *Post) AddCommentToPost(comment *Comment) error {
+func (p *Post) AddComment(comment *Comment) error {
 	p.CommentId.Next()
 	if !p.Comments.Set(p.CommentId.String(), comment) {
 		return ErrCommentAddFailed
@@ -70,8 +73,8 @@ func (p *Post) AddCommentToPost(comment *Comment) error {
 	return nil
 }
 
-func (p *Post) EditComment(id seqid.ID, content string) error {
-	comment, exists := p.Comments.Get(id.String())
+func (p *Post) EditComment(id string, content string) error {
+	comment, exists := p.Comments.Get(id)
 	if !exists {
 		return ErrCommentNotFound
 	}
@@ -81,19 +84,19 @@ func (p *Post) EditComment(id seqid.ID, content string) error {
 	return nil
 }
 
-func (p *Post) DeleteCommentById(id seqid.ID) error {
-	if _, exists := p.Comments.Get(id.String()); !exists {
+func (p *Post) DeleteCommentById(id string) error {
+	if _, exists := p.Comments.Get(id); !exists {
 		return ErrCommentNotFound
 	}
-	_, removed := p.Comments.Remove(id.String())
+	_, removed := p.Comments.Remove(id)
 	if !removed {
 		return ErrCommentDeleteFailed
 	}
 	return nil
 }
 
-func (p *Post) PinCommentById(id seqid.ID) error {
-	comment, exists := p.Comments.Get(id.String())
+func (p *Post) PinCommentById(id string) error {
+	comment, exists := p.Comments.Get(id)
 	if !exists {
 		return ErrCommentNotFound
 	}
