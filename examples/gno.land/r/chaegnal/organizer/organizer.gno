@@ -57,8 +57,13 @@ func CreateFriendGroup(title string) {
 		Owner: ownable.NewWithAddress(caller),
 		DAO: commondao.New(
 			commondao.WithName(title),
+			commondao.WithMember(caller),
 		),
+		WaitList: avl.NewTree(),
+		Rank:     avl.NewTree(),
 	}
+
+	newGroup.Rank.Set(caller.String(), adminRank)
 
 	NextGroupId++
 	ListGroups.Groups.Set(strconv.Itoa(newGroup.ID), newGroup)
@@ -108,7 +113,10 @@ func LeaveGroup(groupId string) {
 func NameOrAddress(addr std.Address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
-		return user.Name()
+		name := user.Name()
+		if name != "" {
+			return name
+		}
 	}
 	return addr.String()
 }
