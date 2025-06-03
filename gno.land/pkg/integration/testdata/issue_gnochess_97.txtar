@@ -30,15 +30,11 @@ func NewS() S {
 
 var s S
 
-func RealmCall1() {
-	crossing()
-
+func RealmCall1(cur realm) {
 	s = NewS()
 }
 
-func RealmCall2()  {
-	crossing()
-
+func RealmCall2(cur realm)  {
 	arr2 := s.Arr
 	arr2[0] = 8
 	s = S{Arr: arr2}

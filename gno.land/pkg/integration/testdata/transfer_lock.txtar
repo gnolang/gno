@@ -45,9 +45,7 @@ package bank
 
 import "std"
 
-func Withdraw(denom string, amt int64) string{
-	crossing()
-
+func Withdraw(cur realm, denom string, amt int64) string{
   caller := std.OriginCaller()
   coin := std.Coins{{denom, amt}}
   banker := std.NewBanker(std.BankerTypeOriginSend)

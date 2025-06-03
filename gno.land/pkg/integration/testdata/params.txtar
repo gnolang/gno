@@ -76,35 +76,29 @@ import (
 	"std"
 )
 
-func SetFoo(newFoo string) {
-	crossing()
+func SetFoo(cur realm, newFoo string) {
 	std.SetParamString("foo", newFoo)
 }
 
-func SetBar(newBar bool)   {
-	crossing()
+func SetBar(cur realm, newBar bool)   {
 	std.SetParamBool("bar", newBar)
 }
 
-func SetBaz(newBaz int64)  {
-	crossing()
+func SetBaz(cur realm, newBaz int64)  {
 	std.SetParamInt64("baz", newBaz)
 }
 
 func SetUint64(newBaz uint64)  { std.SetParamUint64("baz", newBaz) }
 func SetBytes()  { std.SetParamBytes("baz", []byte{255,255}) }
 
-func SetLockTransfer(denom string)  {
-	crossing()
+func SetLockTransfer(cur realm, denom string)  {
 	std.SetParamString("bank:p:lockTransfer", denom)
 }
 
-func SetInvalidString(denom string)  {
-	crossing()
+func SetInvalidString(cur realm, denom string)  {
 	std.SetParamString("bank:p:lockTransfer", denom)
 }
 
-func SetValidString(denom string)  {
-	crossing()
+func SetValidString(cur realm, denom string)  {
 	std.SetParamString("bank_lockTransfer", denom)
 }

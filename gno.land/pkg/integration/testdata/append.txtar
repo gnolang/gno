@@ -79,48 +79,34 @@ func init() {
 	a = make([]T, 0, 1)
 }
 
-func Pop() {
-	crossing()
-
+func Pop(cur realm) {
 	a = append(a[:0], a[1:]...)
 }
 
-func Append(i int) {
-	crossing()
-
+func Append(cur realm int) {
 	a = append(a, T{i: i})
 }
 
-func CopyAppend() {
-	crossing()
-
+func CopyAppend(cur realm) {
 	b = append(a, T{i: 50}, T{i: 60})
 }
 
-func PopB() {
-	crossing()
-
+func PopB(cur realm) {
 	b = append(b[:0], b[1:]...)
 }
 
-func AppendMoreAndC() {
-	crossing()
-
+func AppendMoreAndC(cur realm) {
 	// Fill to capacity
 	a = append(a, T{i: 70})
 	// Above capacity; make new array
 	a = append(a, c...)
 }
 
-func ReassignC() {
-	crossing()
-
+func ReassignC(cur realm) {
 	c[0] = T{i: 200}
 }
 
-func AppendNil() {
-	crossing()
-
+func AppendNil(cur realm) {
 	d = append(d, a...)
 }
 

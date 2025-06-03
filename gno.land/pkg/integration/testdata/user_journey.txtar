@@ -208,9 +208,7 @@ import (
 
 var admin = ownable.NewWithOrigin()
 
-func TransferOwnership(newOwner std.Address) {
-	crossing()
-
+func TransferOwnership(cur realm, newOwner std.Address) {
 // Wait for https://github.com/gnolang/gno/pull/4278 to be merged
 //	if err := admin.TransferOwnershipByPrevious(newOwner); err != nil {
 //		panic(err)

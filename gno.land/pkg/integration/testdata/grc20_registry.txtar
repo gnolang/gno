@@ -59,7 +59,7 @@ import "gno.land/r/registry"
 import "gno.land/r/foo20"
 
 func init() {
-	  cross(registry.Register)("foo20", foo20.Transfer)
+	  registry.Register(cross, "foo20", foo20.Transfer)
 }
 
 -- foo20/foo20.gno --
@@ -67,9 +67,7 @@ package foo20
 
 import "std"
 
-func Transfer(to std.Address, amount uint64) string {
-	crossing()
-
+func Transfer(cur realm, to std.Address, amount uint64) string {
 	println("transfer from=" + std.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
 	return std.PreviousRealm().Address().String()
 }
