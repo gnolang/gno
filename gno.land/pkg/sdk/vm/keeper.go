@@ -362,7 +362,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, true)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.TCLatestStrict)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -444,7 +444,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
-	expr := fmt.Sprintf(`cross(pkg.%s)(%s)`, fnc, argslist)
+	var expr string
+	if argslist == "" {
+		expr = fmt.Sprintf(`pkg.%s(cross)`, fnc)
+	} else {
+		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
+	}
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
@@ -459,13 +464,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
-	if len(msg.Args) != len(ft.Params) {
+	if len(msg.Args)+1 != len(ft.Params) {
 		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
 	}
 	for i, arg := range msg.Args {
-		argType := ft.Params[i].Type
+		argType := ft.Params[i+1].Type
 		atv := convertArgToGno(arg, argType)
-		cx.Args[i] = &gno.ConstExpr{
+		cx.Args[i+1] = &gno.ConstExpr{
 			TypedValue: atv,
 		}
 	}
@@ -592,7 +597,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, false)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.TCLatestRelaxed)
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}

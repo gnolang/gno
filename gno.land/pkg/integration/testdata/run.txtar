@@ -13,6 +13,11 @@ stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
 stdout 'TX HASH: '
 
+-- bar/gno.mod --
+module gno.land/r/foobar/bar
+
+gno 0.9
+
 -- bar/bar.gno --
 package bar
 
@@ -24,7 +29,5 @@ func Render(path string) string {
 package main
 import "gno.land/r/foobar/bar"
 func main() {
-	crossing()
-
 	println("main: ---", bar.Render(""), "---")
 }
