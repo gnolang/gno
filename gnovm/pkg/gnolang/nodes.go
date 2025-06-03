@@ -1282,12 +1282,11 @@ func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 		return nil, err
 	}
 	// exceptions to allowedMemPackageFileExtensions
-	var badFileExtensions []string
+	badFileExtensions := []string{".gen.go"}
 
 	if IsStdlib(pkgPath) {
 		// Allows transpilation to work on stdlibs with native fns.
 		allowedMemPackageFileExtensions = append(allowedMemPackageFileExtensions, ".go")
-		badFileExtensions = []string{".gen.go"}
 	}
 
 	list := make([]string, 0, len(files))
