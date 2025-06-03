@@ -7,14 +7,6 @@ import (
 	"gno.land/p/moul/md"
 )
 
-func renderTagLinks(prefix string, tags []string) string {
-	return renderLinks(prefix, "tag", tags, "#")
-}
-
-func renderAuthorLinks(prefix string, authors []string) string {
-	return renderLinks(prefix, "author", authors, "")
-}
-
 func renderLinks(prefix, kind string, values []string, labelPrefix string) string {
 	links := make([]string, len(values))
 	for i, val := range values {

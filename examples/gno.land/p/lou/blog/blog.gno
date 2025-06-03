@@ -26,8 +26,8 @@ func NewBlog(title, prefix string) *Blog {
 }
 
 func (b *Blog) AddPostToBlog(post *Post) { // add error
-	post.ID = b.PostId
 	b.PostId.Next()
+	post.ID = b.PostId
 	b.Posts.Set(b.PostId.String(), post)
 }
 
@@ -55,7 +55,7 @@ func (b *Blog) DeletePostById(id seqid.ID) bool { // add error
 func (b Blog) Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", b.RenderPosts)
-	router.HandleFunc("id/{slug}", b.RenderPost)
+	router.HandleFunc("post/{slug}", b.RenderPost)
 	router.HandleFunc("tag/{slug}", b.RenderTags)
 	router.HandleFunc("author/{slug}", b.RenderAuthors)
 
@@ -126,12 +126,18 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
 }
 
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
-	id := req.GetVar("slug")
-	post, found := b.Posts.Get(id)
+	postSlug := req.GetVar("slug")
+	if postSlug == "" {
+		res.Write("Post slug is required.")
+		return
+	}
+
+	foundKey, found := b.findPostByField("slug", postSlug)
 	if !found {
 		res.Write("Post not found.")
 		return
 	}
+	post, found := b.Posts.Get(foundKey)
 	out := post.(*Post).RenderPost(b.Prefix)
 	res.Write(out)
 }
@@ -205,4 +211,21 @@ func (b Blog) filterPostsByField(field, value string) (*avl.Tree, bool) {
 		return false
 	})
 	return filteredPosts, filteredPosts.Size() > 0
+}
+
+func (b Blog) findPostByField(field, value string) (string, bool) {
+	var foundKey string
+	var found bool
+	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
+		post := v.(*Post)
+		switch field {
+		case "slug":
+			if post.Slug == value {
+				foundKey = k
+				found = true
+			}
+		}
+		return found
+	})
+	return foundKey, found
 }

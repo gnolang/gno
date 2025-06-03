@@ -12,7 +12,7 @@ import (
 )
 
 type Post struct {
-	Slug        string // is it better than id?
+	Slug        string
 	ID          seqid.ID
 	Title       string
 	Body        string
@@ -28,7 +28,18 @@ type Post struct {
 }
 
 func NewPost(slug, title, body, publicationDate string, authors []string, tags []string) (*Post, error) {
+	// handle draft
 	var err error
+
+	if slug == "" {
+		return nil, ErrEmptySlug
+	}
+	if title == "" {
+		return nil, ErrEmptyTitle
+	}
+	if body == "" {
+		return nil, ErrEmptyBody
+	}
 	publishedAt := time.Now()
 	if publicationDate != "" {
 		publishedAt, err = time.Parse(time.RFC3339, publicationDate)
@@ -90,7 +101,7 @@ func (p Post) RenderPreview(gridMode bool, prefix string) string {
 		// handle drafted posts based on caller's preference in a function?
 		return ""
 	}
-	out := md.H2(md.Link(p.Title, prefix+":id/"+p.ID.String())) + "\n\n"
+	out := md.H2(md.Link(p.Title, prefix+":post/"+p.Slug)) + "\n\n"
 	if p.UpdatedAt != p.PublishedAt {
 		out += p.UpdatedAt.Format("02 Jan 2006") + " (updated)\n\n"
 	} else {
@@ -99,7 +110,9 @@ func (p Post) RenderPreview(gridMode bool, prefix string) string {
 	if !gridMode {
 		out += md.Bold("author(s):") + " " + strings.Join(p.Authors, ", ") + "\n\n"
 	}
-	out += md.Bold("tags:") + " `" + strings.Join(p.Tags, "`, `") + "`\n\n"
+	if len(p.Tags) > 0 {
+		out += md.Bold("tags:") + " `" + strings.Join(p.Tags, "`, `") + "`\n\n"
+	}
 	if p.Comments.Size() > 0 {
 		out += md.Bold("comments:") + " " + strconv.Itoa(p.Comments.Size()) + "\n\n"
 	}
@@ -156,4 +169,12 @@ func (p Post) RenderComments() string {
 		return false
 	})
 	return out
+}
+
+func renderTagLinks(prefix string, tags []string) string {
+	return renderLinks(prefix, "tag", tags, "#")
+}
+
+func renderAuthorLinks(prefix string, authors []string) string {
+	return renderLinks(prefix, "author", authors, "")
 }
