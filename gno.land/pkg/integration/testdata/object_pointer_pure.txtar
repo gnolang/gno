@@ -3,10 +3,11 @@ loadpkg gno.land/p/testing/pure_package $WORK/pure_package
 loadpkg gno.land/r/testing/realm_caller $WORK/realm_caller
 gnoland start
 
-# 1. (Working) Init the object, Set a value and Get the value
-! gnokey maketx call -pkgpath gno.land/r/testing/realm_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: cannot directly modify readonly tainted object \(w\/o method\): Fo<~VPBlock\(3,0\)>\.value'
+gnokey maketx call -pkgpath gno.land/r/testing/realm_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK'
 
+gnokey query vm/qeval --data "gno.land/r/testing/realm_caller.Get()"
+stdout '0 int' # Works as expected
 
 -- pure_package/pure_package.gno --
 package pure_package
@@ -17,12 +18,12 @@ type FooObject struct {
 	value int
 }
 
-func Set(value int) {
-	Fo.value = value
+func (fo *FooObject) Set(value int) {
+	fo.value = value
 }
 
-func Get() int {
-	return Fo.value
+func (fo *FooObject) Get() int {
+	return fo.value
 }
 
 
@@ -36,9 +37,9 @@ import (
 func Set(value int) {
 	crossing()
 
-	pkg.Set(value)
+	pkg.Fo.Set(value)
 }
 
 func Get() int {
-	return pkg.Get()
+	return pkg.Fo.Get()
 }
