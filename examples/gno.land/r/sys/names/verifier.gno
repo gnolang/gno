@@ -33,7 +33,7 @@ func Enable(cur realm) {
 	enabled = true
 }
 
-func IsEnabled(cur realm) bool {
+func IsEnabled() bool {
 	return enabled
 }
 
