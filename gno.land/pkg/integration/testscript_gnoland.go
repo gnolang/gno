@@ -280,7 +280,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 			defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-			pkgsTxs, err := pkgs.LoadPackages(defaultPK, defaultFee, nil)
+			pkgsTxs, err := pkgs.GenerateTxs(defaultPK, defaultFee, nil)
 			if err != nil {
 				ts.Fatalf("unable to load packages txs: %s", err)
 			}

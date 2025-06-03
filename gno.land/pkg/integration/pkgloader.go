@@ -41,13 +41,13 @@ func (pl *PkgsLoader) SetPatch(replace, with string) {
 	pl.patchs[replace] = with
 }
 
-func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+func (pl *PkgsLoader) LoadPackages() ([]*std.MemPackage, error) {
 	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
 	if err != nil {
 		return nil, fmt.Errorf("unable to sort packages: %w", err)
 	}
 
-	txs := make([]gnoland.TxWithMetadata, len(pkgslist))
+	mpkgs := make([]*std.MemPackage, len(pkgslist))
 	for i, pkg := range pkgslist {
 		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name)
 		file, err := gnomod.ParseMemPackage(mpkg)
@@ -55,16 +55,27 @@ func (pl *PkgsLoader) LoadPackages(creatorKey crypto.PrivKey, fee std.Fee, depos
 			// generate a gno.mod
 			file = new(gnomod.File)
 			file.SetModule(pkg.Name)
-			file.SetGno(gnolang.GnoVerDefault)
-			mpkg.Files = append(mpkg.Files, &std.MemFile{
-				Name: "gno.mod",
-				Body: file.WriteString(),
-			})
 		}
+		file.SetGno(gnolang.GnoVerLatest)
+		mpkg.SetFile("gno.mod", file.WriteString())
 
+		mpkg.Sort()
+		mpkgs[i] = mpkg
+	}
+	return mpkgs, nil
+}
+
+func (pl *PkgsLoader) GenerateTxs(creatorKey crypto.PrivKey, fee std.Fee, deposit std.Coins) ([]gnoland.TxWithMetadata, error) {
+	mpkgs, err := pl.LoadPackages()
+	if err != nil {
+		return nil, err
+	}
+
+	txs := make([]gnoland.TxWithMetadata, len(mpkgs))
+	for i, mpkg := range mpkgs {
 		tx, err := gnoland.LoadPackage(mpkg, creatorKey.PubKey().Address(), fee, deposit)
 		if err != nil {
-			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
+			return nil, fmt.Errorf("unable to load pkg %q: %w", mpkg.Name, err)
 		}
 
 		// If any replace value is specified, apply them
