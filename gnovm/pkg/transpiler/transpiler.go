@@ -222,6 +222,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 			case *ast.Ident:
 				switch node.Name {
 				case "cross":
+					// it's a realm; we don't have much to add aside from this, for now.
 					node.Name = "nil"
 				}
 			case *ast.CallExpr:
@@ -329,18 +330,6 @@ func convertBuiltinType(ide ast.Expr, fset *token.FileSet, f *ast.File) ast.Expr
 		}
 	}
 	return nil
-}
-
-func isBuiltinCallExpr(x ast.Expr, name string) bool {
-	cx, ok := x.(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	fnName, ok := cx.Fun.(*ast.Ident)
-	if ok && fnName.Name == name {
-		return true
-	}
-	return false
 }
 
 func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) bool {
