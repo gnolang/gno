@@ -38,9 +38,9 @@ func main() {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(dao.Render(cross, ""))
+	println(dao.Render(""))
 	println("--")
-	println(dao.Render(cross, "0"))
+	println(dao.Render("0"))
 	println("--")
 
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{
@@ -49,13 +49,13 @@ func main() {
 	})
 
 	println("--")
-	println(dao.Render(cross, "0"))
+	println(dao.Render("0"))
 	println("--")
 
 	dao.ExecuteProposal(cross, dao.ProposalID(0))
 
 	println("--")
-	println(dao.Render(cross, "0"))
+	println(dao.Render("0"))
 
 	data, _ := susers.ResolveName("alice123")
 	if data == nil {
