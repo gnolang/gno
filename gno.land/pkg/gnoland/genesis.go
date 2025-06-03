@@ -175,7 +175,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 // It creates and returns a list of transactions based on these packages.
 func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
-	pkgs, err := gnomod.ListPkgs(dir)
+	pkgs, err := gno.ReadPkgListFromDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
@@ -208,8 +208,8 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
-	err := memPkg.Validate()
+	mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
+	err := gno.ValidateMemPackage(mpkg)
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}
@@ -219,7 +219,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Msgs = []std.Msg{
 		vmm.MsgAddPackage{
 			Creator: creator,
-			Package: memPkg,
+			Package: mpkg,
 			Deposit: deposit,
 		},
 	}
