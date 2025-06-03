@@ -1,0 +1,44 @@
+# Load the packages and start the node
+loadpkg gno.land/p/testing/pure_package $WORK/pure_package
+loadpkg gno.land/r/testing/realm_caller $WORK/realm_caller
+gnoland start
+
+# 1. (Working) Init the object, Set a value and Get the value
+! gnokey maketx call -pkgpath gno.land/r/testing/realm_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+stderr 'Data: cannot directly modify readonly tainted object \(w\/o method\): Fo<~VPBlock\(3,0\)>\.value'
+
+
+-- pure_package/pure_package.gno --
+package pure_package
+
+var Fo = &FooObject{value: 0}
+
+type FooObject struct {
+	value int
+}
+
+func Set(value int) {
+	Fo.value = value
+}
+
+func Get() int {
+	return Fo.value
+}
+
+
+-- realm_caller/realm_caller.gno --
+package realm_caller
+
+import (
+	pkg "gno.land/p/testing/pure_package"
+)
+
+func Set(value int) {
+	crossing()
+
+	pkg.Set(value)
+}
+
+func Get() int {
+	return pkg.Get()
+}

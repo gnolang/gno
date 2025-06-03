@@ -1917,7 +1917,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				if objpv.IsRealm() && objpv.Realm == nil {
 					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
 				} else {
-					rlm = objpv.Realm
+					rlm = objpv.GetRealm()
 				}
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
