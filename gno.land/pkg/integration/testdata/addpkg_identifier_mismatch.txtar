@@ -15,15 +15,12 @@ stderr 'match its expected identifier'
 module gno.land/p/demo/hello
 
 gno 0.9
-
 -- hello/hello.gno --
 package hello123
 
 func SayHello() string {
- 	return "hello world!"
+	return "hello world!"
 }
-
-
 -- bye/gno.mod --
 module gno.land/p/demo/bye
 

@@ -97,32 +97,24 @@ package myrlm
 
 import "std"
 
-func A() string {
-	crossing()
-
+func A(cur realm) string {
 	return std.PreviousRealm().Address().String()
 }
 
-func B() string {
-	crossing()
-
-	return A()
+func B(cur realm) string {
+	return A(cur)
 }
 -- r/foo/foo.gno --
 package foo
 
 import "gno.land/r/myrlm"
 
-func A() string {
-	crossing()
-
-	return cross(myrlm.A)()
+func A(cur realm) string {
+	return myrlm.A(cross)
 }
 
-func B() string {
-	crossing()
-
-	return cross(myrlm.B)()
+func B(cur realm) string {
+	return myrlm.B(cross)
 }
 -- p/demo/bar/bar.gno --
 package bar
@@ -134,7 +126,7 @@ func A() string {
 }
 
 func B() string {
-	return cross(A)()
+	return A(cross)
 }
 -- run/myrlm-a.gno --
 package main

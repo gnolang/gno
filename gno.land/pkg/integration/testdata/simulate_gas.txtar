@@ -23,8 +23,6 @@ func Render() string {
 -- simulate/simulate.gno --
 package simulate
 
-func Hello() string {
-	crossing()
-
- 	return "Hello"
+func Hello(cur realm) string {
+	return "Hello"
 }

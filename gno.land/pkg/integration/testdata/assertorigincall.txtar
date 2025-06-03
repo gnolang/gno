@@ -123,23 +123,17 @@ package myrlm
 
 import "std"
 
-func A() {
-	crossing()
-
-	C()
+func A(cur realm) {
+	C(cur)
 }
 
-func B() {
-	crossing()
-
+func B(cur realm) {
 	if false {
-		C()
+		C(cur)
 	}
 }
 
-func C() {
-	crossing()
-
+func C(cur realm) {
 	std.AssertOriginCall()
 }
 -- r/foo/foo.gno --
@@ -147,22 +141,16 @@ package foo
 
 import "gno.land/r/myrlm"
 
-func A() {
-	crossing()
-
-	cross(myrlm.A)()
+func A(cur realm) {
+	myrlm.A(cross)
 }
 
-func B() {
-	crossing()
-
-	cross(myrlm.B)()
+func B(cur realm) {
+	myrlm.B(cross)
 }
 
-func C() {
-	crossing()
-
-	cross(myrlm.C)()
+func C(cur realm) {
+	myrlm.C(cross)
 }
 -- p/demo/bar/bar.gno --
 package bar

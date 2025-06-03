@@ -15,11 +15,9 @@ func gen() {
 	_ = make([]byte, 250*1024*1024)
 }
 
-func Alloc() {
-	crossing()
-
+func Alloc(cur realm) {
 	for i := 0; i < 100; i++ {
 		gen()
-	    gen()
+		gen()
 	}
 }

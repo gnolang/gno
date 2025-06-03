@@ -29,12 +29,11 @@ stdout 'ok'
 package call_pure
 
 func Hello() string {
- 	return "notok"
+	return "notok"
 }
-
 -- realm/realm.gno --
 package call_realm
 
 func Render() string {
- 	return "ok"
+	return "ok"
 }

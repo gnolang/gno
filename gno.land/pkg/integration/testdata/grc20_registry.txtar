@@ -33,21 +33,17 @@ type pair struct {
 
 var registry = []pair{}
 
-func Register(name string, cb transferCb) {
-	crossing()
-
+func Register(cur realm, name string, cb transferCb) {
 	registry = append(registry, pair{name: name, cb: cb})
 }
 
-func TransferByName(name string, to string, amount uint64) string {
-	crossing()
-
+func TransferByName(cur realm, name string, to string, amount uint64) string {
 	for _, pair := range registry {
 		if pair.name != name {
 			continue
 		}
 
-		if std.CurrentRealm().Address().String() != cross(pair.cb)(std.Address(to), amount) {
+		if std.CurrentRealm().Address().String() != pair.cb(cross, std.Address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 
@@ -56,7 +52,6 @@ func TransferByName(name string, to string, amount uint64) string {
 
 	return "not found"
 }
-
 -- foo20wrapper/foo20wrapper.gno --
 package foo20wrapper
 

@@ -17,12 +17,10 @@ stderr 'gno.land/r/demo/panic/panic.gno:11'
 package main
 
 func p() {
-   i := "here"
+	i := "here"
 	panic(i)
 }
 
-func Trigger() {
-	crossing()
-
+func Trigger(cur realm) {
 	p()
 }
