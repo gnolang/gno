@@ -464,8 +464,8 @@ func (x PackageNode) String() string {
 	return fmt.Sprintf("package(%s %s)", x.PkgName, x.PkgPath)
 }
 
-func (rn RefNode) String() string {
-	return fmt.Sprintf("ref(%s)", rn.Location.String())
+func (ref RefNode) String() string {
+	return fmt.Sprintf("ref(%s)", ref.Location.String())
 }
 
 // ----------------------------------------

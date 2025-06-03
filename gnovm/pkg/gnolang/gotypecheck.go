@@ -306,7 +306,6 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 	pkg *types.Package, errs error,
 ) {
-
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
@@ -446,7 +445,6 @@ func deleteOldIdents(idents map[string]func(), gof *ast.File) {
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods and init functions
-		//nolint:goconst
 		if !ok ||
 			fd.Recv != nil ||
 			fd.Name.Name == "init" {

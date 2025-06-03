@@ -74,7 +74,6 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
 	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 
-
 	expected = `- status: claimed
 - sender: g1wdjkuer9wgc47h6lta047h6lta047h6l56jtjc
 - recipient: g1wfjkx6tsd9jkuap3ta047h6lta047h6lkk20gv
