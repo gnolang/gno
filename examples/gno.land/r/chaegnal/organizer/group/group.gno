@@ -36,15 +36,15 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOn
 
 // displayMembers displays the group current members
 // It lets the admin promote / demote / remove member
-func displayMembers(group organizer.FriendGroup, whitelist rotree.IReadOnlyTree, logged string) string {
+func displayMembers(group organizer.FriendGroup, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Rank", "Action"},
 	}
 
-	whitelist.Iterate("", "", func(indexStr string, val any) bool {
+	members := group.DAO.Members()
+	members.IterateByOffset(0, members.Size(), func(adr std.Address) bool {
 		var actionAdmin string
 
-		adr := std.Address(indexStr)
 		if adr == std.Address(logged) {
 			return false
 		}
@@ -53,14 +53,14 @@ func displayMembers(group organizer.FriendGroup, whitelist rotree.IReadOnlyTree,
 		switch {
 		case adr == group.Owner.Owner():
 			rank = "Owner"
-		case group.DAO.IsAdmin(adr):
+		case isAdmin(strconv.Itoa(group.ID), std.Address(adr)):
 			rank = "Admin"
 		default:
 			rank = "Member"
 		}
 
 		if rank != "Owner" {
-			if group.DAO.IsAdmin(adr) {
+			if isAdmin(strconv.Itoa(group.ID), std.Address(adr)) {
 				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
 			} else {
 				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
@@ -94,9 +94,8 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 
 	out += md.H3("Approval Waitlist") + "\n"
 
-	awaiting := group.DAO.GetAwaiting()
-	if awaiting.Size() > 0 {
-		out += displayPendingApproval(group, awaiting, logged)
+	if group.WaitList.Size() > 0 {
+		out += displayPendingApproval(group, group.WaitList, logged)
 	} else {
 		out += md.Paragraph("No member waiting for approval") + "\n"
 	}
@@ -104,9 +103,8 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 
 	out += md.H3("Members") + "\n"
 
-	whitelist := group.DAO.GetWhitelisted()
-	if whitelist.Size() > 1 {
-		out += displayMembers(group, whitelist, logged)
+	if group.DAO.Members().Size() > 1 {
+		out += displayMembers(group, logged)
 	} else {
 		out += md.Paragraph("You're the only member for now.") + "\n"
 	}
@@ -188,7 +186,7 @@ func displayProposals(group organizer.FriendGroup, activeOnly bool, logged strin
 						"vote", strconv.Itoa(organizer.VoteNay),
 						"logged", logged))
 
-			if group.DAO.IsAdmin(std.Address(logged)) {
+			if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
 				closeLink := md.Link("Close", txlink.Call("AdminCloseProposal",
 					"groupId", strconv.Itoa(group.ID), "voteId", index, "logged", logged))
 				if voteActions == "-" {
@@ -225,7 +223,7 @@ func Render(url string) string {
 	out += md.Paragraph("Number of friends: "+strconv.Itoa(group.DAO.Whitelist.Size())) + "\n"
 	out += md.HorizontalRule()
 
-	if group.DAO.IsAdmin(std.Address(logged)) {
+	if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
 		out += displayAdminBoard(group, logged)
 	}
 

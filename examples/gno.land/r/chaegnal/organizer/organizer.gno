@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/chaegnal/dao"
+	"gno.land/p/nt/commondao"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
@@ -15,6 +15,9 @@ import (
 const (
 	VoteYay = 1 // VoteYay represented yes votes
 	VoteNay = 0 // VoteNay represented no votes
+
+	memberRank = iota // memberRank represents the basic right of user
+	adminRank         // adminRank represents the rank of admin with heightened rights
 )
 
 var (
@@ -30,10 +33,12 @@ type AllGroups struct {
 
 // FriendGroup is a struc for created groups with their ID, Title, Owner and DAO
 type FriendGroup struct {
-	ID    int
-	Title string
-	Owner *ownable.Ownable
-	DAO   *dao.DAO
+	ID       int
+	Title    string
+	Owner    *ownable.Ownable
+	DAO      *commondao.CommonDAO
+	WaitList *avl.Tree
+	Rank     *avl.Tree
 }
 
 func init() {
@@ -46,12 +51,13 @@ func CreateFriendGroup(title string) {
 	crossing()
 	caller := std.PreviousRealm().Address()
 
-	newDao := dao.NewDAO(caller)
 	newGroup := FriendGroup{
 		ID:    NextGroupId,
 		Title: title,
 		Owner: ownable.NewWithAddress(caller),
-		DAO:   newDao,
+		DAO: commondao.New(
+			commondao.WithName(title),
+		),
 	}
 
 	NextGroupId++
@@ -70,13 +76,17 @@ func AskJoinFriendGroup(groupId int) {
 	}
 
 	group := raw.(FriendGroup)
+	memberSet := commondao.NewMemberSet(group.DAO.Members())
 
-	_, ok := group.DAO.IsMember(caller)
-	if ok {
+	if memberSet.Has(caller) {
 		panic("you are already part of this friend group")
 	}
 
-	group.DAO.PendingApproval(caller)
+	if group.WaitList.Has(caller.String()) {
+		panic("already whitelisted")
+	}
+
+	group.WaitList.Set(caller.String(), true)
 	ListGroups.Groups.Set(strconv.Itoa(groupId), group)
 }
 
@@ -89,7 +99,7 @@ func LeaveGroup(groupId string) {
 		panic("owner cannot leave the group")
 	}
 
-	group.DAO.LeaveDao(std.PreviousRealm().Address())
+	group.DAO.Members().Remove(std.PreviousRealm().Address())
 }
 
 // Helpers

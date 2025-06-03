@@ -32,7 +32,7 @@ func SwitchOwner(groupId, logged string, adr std.Address) {
 		panic("only the owner give ownership away")
 	}
 
-	ok := group.DAO.IsAdmin(adr)
+	ok := isAdmin(groupId, adr)
 	if !ok {
 		panic("the new owner must be an admin")
 	}

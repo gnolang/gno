@@ -8,6 +8,7 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/commondao"
 )
 
 const (
@@ -19,10 +20,11 @@ func displayJoiningStatus(group FriendGroup, address std.Address) string {
 	var out string
 
 	if address != "" {
-		_, ok := group.DAO.IsMember(address)
-		if ok {
+		memberSet := commondao.NewMemberSet(group.DAO.Members())
+
+		if memberSet.Has(address) {
 			out += md.Paragraph("You already are part of this group")
-		} else if group.DAO.IsPending(address) {
+		} else if group.WaitList.Has(address.String()) {
 			out += md.Paragraph("You are awaiting approval for this group")
 		} else {
 			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", "groupId", strconv.Itoa(group.ID))) + "\n\n"
@@ -55,7 +57,7 @@ func displayAllExistingGroups(pageNumber, pageSize int, address std.Address) str
 		author := NameOrAddress(group.Owner.Owner())
 
 		out += md.H3("Group: "+group.Title+" - By: "+author) + "\n"
-		out += md.Paragraph("Number of friends in the group: "+strconv.Itoa(group.DAO.Whitelist.Size())) + "\n"
+		out += md.Paragraph("Number of friends in the group: "+strconv.Itoa(group.DAO.Members().Size())) + "\n"
 
 		out += displayJoiningStatus(group, address)
 
@@ -83,7 +85,7 @@ func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool, a
 		view = "You cannot view group yet"
 	}
 
-	table.Append([]string{group.Title, author, strconv.Itoa(group.DAO.Whitelist.Size()), view})
+	table.Append([]string{group.Title, author, strconv.Itoa(group.DAO.Members().Size()), view})
 }
 
 // displayJoinedGroups displays the group joined by the logged in user
@@ -98,9 +100,8 @@ func displayJoinedGroups(address std.Address) string {
 
 	ListGroups.Groups.Iterate("", "", func(key string, val any) bool {
 		group := val.(FriendGroup)
-		//
-		_, ok := group.DAO.IsMember(address)
-		if ok {
+
+		if group.DAO.Members().Has(address) {
 			displayGroupInfo(group, table, true, address)
 			found = true
 		}
@@ -128,8 +129,8 @@ func displayPendingApproval(address std.Address) string {
 
 	ListGroups.Groups.Iterate("", "", func(key string, val any) bool {
 		group := val.(FriendGroup)
-		//
-		if group.DAO.IsPending(address) {
+
+		if group.WaitList.Has(string(address)) {
 			displayGroupInfo(group, table, false, address)
 			found = true
 		}
