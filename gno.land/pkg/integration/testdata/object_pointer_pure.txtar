@@ -34,9 +34,7 @@ import (
 	pkg "gno.land/p/testing/pure_package"
 )
 
-func Set(value int) {
-	crossing()
-
+func Set(cur realm,value int) {
 	pkg.Fo.Set(value)
 }
 
