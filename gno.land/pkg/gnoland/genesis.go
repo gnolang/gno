@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -191,7 +190,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
 	for _, pkg := range nonDraftPkgs {
 		// XXX: as addpkg require gno.mod, we should probably check this here
-		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name)
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
 		tx, err := LoadPackage(mpkg, creator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
