@@ -50,6 +50,11 @@ stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[\]'
 stdout 'TX HASH:    '
 
+##  get previous realm
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -chainid=tendermint_test -func PreviousRealm  -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast test1
+
+stdout 'UserRealm{ g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 }'
+
 -- gno.mod --
 module hello
 
@@ -57,6 +62,10 @@ gno 0.9
 
 -- hello.gno --
 package hello
+
+import(
+  "std"
+)
 
 func SayHello(cur realm) string {
  	return "hello world!"
@@ -67,4 +76,8 @@ func SayHello1(cur realm, s string) string {
 }
 func SayHello2(cur realm, s1, s2 string) string {
  	return s1 + " " +s2 + "!"
+}
+
+func PreviousRealm(cur realm) string{
+  return std.PreviousRealm().String()
 }
