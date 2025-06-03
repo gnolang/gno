@@ -92,7 +92,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	urequire.Equal(
 		t,
 		"Render: gno.land/r/gov/dao/test",
-		Render(cur, "test"),
+		Render("test"),
 	)
 
 	// reset state
