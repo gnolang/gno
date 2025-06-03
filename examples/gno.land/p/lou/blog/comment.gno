@@ -10,13 +10,14 @@ import (
 )
 
 type Comment struct {
-	ID        seqid.ID
-	Author    std.Address
-	Content   string
-	CreatedAt time.Time
-	EditedAt  *time.Time
-	Pinned    bool
-	Likes     int
+	ID           seqid.ID
+	Author       std.Address
+	Content      string
+	CreatedAt    time.Time
+	EditedAt     *time.Time
+	Pinned       bool
+	Likes        int
+	DisableLikes bool
 }
 
 func NewComment(author std.Address, content string) *Comment {
@@ -30,7 +31,7 @@ func NewComment(author std.Address, content string) *Comment {
 	}
 }
 
-func (c *Comment) Edit(content string) {
+func (c *Comment) Edit(content string) { // add error
 	c.Content = content
 	now := time.Now()
 	c.EditedAt = &now
@@ -50,12 +51,14 @@ func (c Comment) Render() string {
 		out += "📌 "
 	}
 	if c.EditedAt != nil {
-		out += md.Italic("edited at "+c.EditedAt.Format("2nd Jan 2006")) + "\n"
+		out += md.Italic(c.EditedAt.Format("02 Jan 2006")) + " (edited)\n"
 	} else {
-		out += md.Italic("on "+c.CreatedAt.Format("2nd Jan 2006")) + "\n"
+		out += md.Italic(c.CreatedAt.Format("02 Jan 2006")) + "\n"
 	}
 	out += "> " + c.Content + "\n\n"
-	out += "❤️" + " " + strconv.Itoa(c.Likes) + "\n\n" // like action here
-	// reply actions could be added here
+	if !c.DisableLikes {
+		out += "❤️" + " " + strconv.Itoa(c.Likes) + " | " // like action here
+	}
+	out += "reply" // reply action here
 	return out
 }

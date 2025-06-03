@@ -12,7 +12,7 @@ import (
 )
 
 type Post struct {
-	Slug        string
+	Slug        string // is it better than id?
 	ID          seqid.ID
 	Title       string
 	Body        string
@@ -20,12 +20,11 @@ type Post struct {
 	UpdatedAt   time.Time
 	PublishedAt time.Time
 	Tags        []string
-	Authors     []string // list of usernames (resolve via r/sys/users)
+	Authors     []string
 	Publisher   std.Address
-	Comments    *avl.Tree // commentID (string) -> *Comment
+	Comments    *avl.Tree
 	CommentId   seqid.ID
 	Drafted     bool
-	// PinnedComments avl.Tree
 }
 
 func NewPost(slug, title, body, publicationDate string, authors []string, tags []string) (*Post, error) {
@@ -50,6 +49,40 @@ func NewPost(slug, title, body, publicationDate string, authors []string, tags [
 		Comments:    avl.NewTree(),
 		Drafted:     false,
 	}, nil
+}
+
+func (p *Post) AddCommentToPost(comment *Comment) { // add error
+	p.CommentId.Next()
+	p.Comments.Set(p.CommentId.String(), comment)
+}
+
+func (p *Post) EditComment(id seqid.ID, content string) bool { // add error
+	comment, exists := p.Comments.Get(id.String())
+	if !exists {
+		return false
+	}
+	comment.(*Comment).Edit(content)
+	return true
+}
+
+func (p *Post) DeleteCommentById(id seqid.ID) bool { // add error
+	if _, exists := p.Comments.Get(id.String()); !exists {
+		return false
+	}
+	_, removed := p.Comments.Remove(id.String())
+	if !removed {
+		return false
+	}
+	return true
+}
+
+func (p *Post) PinCommentById(id seqid.ID) bool { // add error
+	comment, exists := p.Comments.Get(id.String())
+	if !exists {
+		return false
+	}
+	comment.(*Comment).Pin()
+	return true
 }
 
 func (p Post) RenderPreview(gridMode bool, prefix string) string {
@@ -81,7 +114,7 @@ func (p Post) RenderPost(prefix string) string {
 	}
 	out := md.H1(p.Title) + "\n\n"
 	if p.Comments.Size() > 0 {
-		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comments", "#comments") + "\n\n"
+		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comment(s)", "#comments") + "\n\n"
 	}
 	out += md.Italic("Author(s):") + " " + renderAuthorLinks(prefix, p.Authors) + "\n\n"
 	out += p.Body + "\n\n"
@@ -105,16 +138,22 @@ func (p Post) RenderPost(prefix string) string {
 }
 
 func (p Post) RenderComments() string {
+	// add sorting options
+	// recent, oldest, most liked, least liked
 	out := ""
-	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
-		comment := value.(*Comment)
-		out += comment.Render()
-		return true
+	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
+		comment := v.(*Comment)
+		if comment.Pinned {
+			out += comment.Render()
+		}
+		return false
+	})
+	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
+		comment := v.(*Comment)
+		if !comment.Pinned {
+			out += comment.Render()
+		}
+		return false
 	})
 	return out
-}
-
-func (p *Post) AddComment(comment *Comment) {
-	p.CommentId.Next()
-	p.Comments.Set(p.CommentId.String(), comment)
 }
