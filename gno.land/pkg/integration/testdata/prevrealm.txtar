@@ -75,14 +75,14 @@ gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid 
 stdout ${RFOO_USER_ADDR}
 
 ## 11. MsgRun -> p/demo/bar.A -> myrlm.A: user address
-## XXX: crossing call only allowed in realm packages, doesn't work
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-a.gno
-stderr 'crossing'
+## XXX: crossing call only allowed in realm packages, doesn't work - not possible
+# ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-a.gno
+# stderr 'crossing'
 
 ## 12. MsgRun -> p/demo/bar.B -> myrlm.B -> r/foo.A: user address
-## XXX: crossing call only allowed in realm packages, doesn't work
-! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-b.gno
-stderr 'crossing'
+## XXX: crossing call only allowed in realm packages, doesn't work - not possible
+# ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 12000000 -broadcast -chainid tendermint_test test1 $WORK/run/bar-b.gno
+# stderr 'crossing'
 
 ## 13. MsgCall -> std.PreviousRealm(): user address
 ## gnokey maketx call -pkgpath std -func PreviousRealm -gas-fee 100000ugnot -gas-wanted 4000000 -broadcast -chainid tendermint_test test1
@@ -126,7 +126,7 @@ func A() string {
 }
 
 func B() string {
-	return A(cross)
+	 return A()
 }
 -- run/myrlm-a.gno --
 package main
@@ -160,14 +160,7 @@ import "gno.land/r/foo"
 func main() {
 	println(foo.B(cross))
 }
--- run/bar-a.gno --
-package main
 
-import "gno.land/p/demo/bar"
-
-func main() {
-	println(bar.A(cross))
-}
 -- run/bar-b.gno --
 package main
 

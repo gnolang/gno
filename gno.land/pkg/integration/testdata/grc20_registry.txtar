@@ -24,7 +24,7 @@ package registry
 
 import "std"
 
-type transferCb func(to std.Address, amount uint64) string
+type transferCb func(cur realm, to std.Address, amount uint64) string
 
 type pair struct {
 	name string
