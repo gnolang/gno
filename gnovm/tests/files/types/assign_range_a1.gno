@@ -19,7 +19,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_range_a1.gno:16:2: cannot assign to (const (6 <untyped> bigint))
+// main/assign_range_a1.gno:16:2-18:3: cannot assign to (const (6 <untyped> bigint))
 
 // TypeCheckError:
-// main/files/types/assign_range_a1.gno:16:6: cannot assign to 6 (neither addressable nor a map index expression)
+// main/assign_range_a1.gno:16:6: cannot assign to 6 (neither addressable nor a map index expression)

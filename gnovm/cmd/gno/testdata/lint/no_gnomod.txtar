@@ -1,6 +1,6 @@
 # gno lint: no gnomod
 
-! gno lint .
+gno lint .
 
 cmp stdout stdout.golden
 cmp stderr stderr.golden
@@ -14,4 +14,4 @@ func main() {
 
 -- stdout.golden --
 -- stderr.golden --
-./.: parsing gno.mod at ./.: gno.mod file not found in current or any parent directory (code=1)
+auto-generated "gno.mod"

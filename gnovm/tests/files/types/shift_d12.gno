@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_d12.gno:12:2: operator >> not defined on: Float32Kind
+// main/shift_d12.gno:12:2-17: operator >> not defined on: Float32Kind
 
 // TypeCheckError:
-// main/files/types/shift_d12.gno:12:12: invalid operation: shifted operand 1 (type float32) must be integer
+// main/shift_d12.gno:12:12: invalid operation: shifted operand 1 (type float32) must be integer
