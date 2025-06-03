@@ -653,7 +653,7 @@ func (m *Machine) doOpFuncLit() {
 	var captures []TypedValue
 	if m.Stage == StagePre {
 		// TODO static block items aren't heap items.
-		captures = make([]TypedValue, len(x.HeapCaptures))
+		captures = append(captures, make([]TypedValue, len(x.HeapCaptures))...)
 	} else {
 		for _, nx := range x.HeapCaptures {
 			ptr := lb.GetPointerToDirect(m.Store, nx.Path)

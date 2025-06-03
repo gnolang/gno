@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	initFunc                  = "init"
 	blankIdentifier           = "_"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
@@ -1546,13 +1547,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if ctBase.TypeID() != atBase.TypeID() {
 						panic(fmt.Sprintf("cannot convert %v (of type %v) to type %v",
 							arg0, at, ct))
-					} else {
-						// The conversion is legal, set the target type.
-						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-						return n, TRANS_CONTINUE
 					}
 
-					panic("should not happen") // should be unreachable.
+					// The conversion is legal, set the target type.
+					n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+					return n, TRANS_CONTINUE
 
 				case *FuncType:
 					//----------------------------------------
@@ -3877,15 +3876,6 @@ func packageOf(last BlockNode) *PackageNode {
 	for {
 		if pn, ok := last.(*PackageNode); ok {
 			return pn
-		}
-		last = last.GetParentNode(nil)
-	}
-}
-
-func fileOf(last BlockNode) *FileNode {
-	for {
-		if fn, ok := last.(*FileNode); ok {
-			return fn
 		}
 		last = last.GetParentNode(nil)
 	}

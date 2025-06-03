@@ -873,7 +873,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 }
 
 // Runs a statement on a block. The block must not be a package node's block,
-// but it may be a file block or anything else.  New names may be decalred by
+// but it may be a file block or anything else.  New names may be declared by
 // the statement, so the block is expanded with its own source.
 func (m *Machine) RunStatement(st Stage, s Stmt) {
 	lb := m.LastBlock()
