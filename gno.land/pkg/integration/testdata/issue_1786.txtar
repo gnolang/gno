@@ -55,9 +55,7 @@ import (
 	"gno.land/r/demo/wugnot"
 )
 
-func ProxyWrap() {
-	crossing()
-
+func ProxyWrap(cur realm) {
 	sent := std.OriginSend()
 	ugnotSent := int64(sent.AmountOf("ugnot"))
 
@@ -75,9 +73,7 @@ func ProxyWrap() {
 	wugnot.Transfer(cross, std.OriginCaller(), ugnotSent)
 }
 
-func ProxyUnwrap(wugnotAmount int64) {
-	crossing()
-
+func ProxyUnwrap(cur realm, wugnotAmount int64) {
 	if wugnotAmount == 0 {
 		return
 	}

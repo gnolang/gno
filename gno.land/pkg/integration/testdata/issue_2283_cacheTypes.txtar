@@ -96,7 +96,10 @@ stdout OK!
   ],
   "memo": ""
 }
+-- bye/gno.mod --
+module gno.land/r/demo/bye
 
+gno 0.9
 -- bye/bye.gno --
 package bye
 

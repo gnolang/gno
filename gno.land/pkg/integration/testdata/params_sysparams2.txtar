@@ -69,6 +69,10 @@ gnokey query params/bank:p:baz
 stdout 'data: \n'
 
 
+-- params/gno.mod --
+module gno.land/r/myrealm
+
+gno 0.9
 -- params/setter.gno --
 package params
 
