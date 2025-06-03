@@ -17,9 +17,9 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"github.com/gnolang/tx-archive/backup"
-	"github.com/gnolang/tx-archive/backup/client/rpc"
-	"github.com/gnolang/tx-archive/backup/writer/standard"
+	"github.com/gnolang/gno/contribs/tx-archive/backup"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/client/rpc"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/writer/standard"
 )
 
 const (
