@@ -20,7 +20,11 @@ type Comment struct {
 	DisableLikes bool
 }
 
-func NewComment(author std.Address, content string) *Comment {
+func NewComment(author std.Address, content string) (*Comment, error) {
+	// author resolve
+	if content == "" {
+		return nil, ErrEmptyComment
+	}
 	return &Comment{
 		Author:    author,
 		Content:   content,
@@ -28,13 +32,17 @@ func NewComment(author std.Address, content string) *Comment {
 		EditedAt:  nil,
 		Pinned:    false,
 		Likes:     0,
-	}
+	}, nil
 }
 
-func (c *Comment) Edit(content string) { // add error
+func (c *Comment) Edit(content string) error {
+	if content == "" {
+		return ErrEmptyComment
+	}
 	c.Content = content
 	now := time.Now()
 	c.EditedAt = &now
+	return nil
 }
 
 func (c *Comment) Pin() {

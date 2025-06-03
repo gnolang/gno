@@ -8,8 +8,10 @@ import (
 )
 
 func CreateSampleBlog() *blog.Blog {
-	myBlog := blog.NewBlog("Tech Thoughts", "/r/lou/blog")
-
+	myBlog, err := blog.NewBlog("Tech Thoughts", "/r/lou/blog")
+	if err != nil {
+		panic(err)
+	}
 	post1, _ := blog.NewPost(
 		"ai-future",
 		"The Future of AI",
@@ -18,10 +20,14 @@ func CreateSampleBlog() *blog.Blog {
 		[]string{"g1abcde12345"},
 		[]string{"ai", "technology", "future"},
 	)
-	post1.AddCommentToPost(blog.NewComment(
+	comm, err := blog.NewComment(
 		std.Address("g1abcde12345"),
 		"Exciting times ahead!",
-	))
+	)
+	if err != nil {
+		panic(err)
+	}
+	post1.AddCommentToPost(comm)
 
 	post2, _ := blog.NewPost(
 		"blockchain-real-world",
@@ -31,10 +37,14 @@ func CreateSampleBlog() *blog.Blog {
 		[]string{"g1xyz987654"},
 		[]string{"blockchain", "tech", "supplychain"},
 	)
-	post2.AddCommentToPost(blog.NewComment(
+	comm2, err := blog.NewComment(
 		std.Address("g1xyz987654"),
 		"This tech still needs better UX.",
-	))
+	)
+	if err != nil {
+		panic(err)
+	}
+	post2.AddCommentToPost(comm2)
 
 	post3, _ := blog.NewPost(
 		"getting-things-done",
@@ -44,11 +54,9 @@ func CreateSampleBlog() *blog.Blog {
 		[]string{"g1produser1"},
 		[]string{"productivity", "lifehacks", "focus"},
 	)
-
 	myBlog.AddPostToBlog(post1)
 	myBlog.AddPostToBlog(post2)
 	myBlog.AddPostToBlog(post3)
-
 	return myBlog
 }
 

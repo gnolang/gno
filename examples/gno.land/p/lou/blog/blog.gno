@@ -16,40 +16,50 @@ type Blog struct {
 	NoBreadcrumb bool
 }
 
-func NewBlog(title, prefix string) *Blog {
+func NewBlog(title, prefix string) (*Blog, error) {
+	if prefix == "" {
+		return nil, ErrEmptyPrefix
+	}
 	return &Blog{
 		Title:  title,
 		Prefix: prefix,
 		Posts:  avl.NewTree(),
 		PostId: 0,
-	}
+	}, nil
 }
 
-func (b *Blog) AddPostToBlog(post *Post) { // add error
+func (b *Blog) AddPostToBlog(post *Post) error {
 	b.PostId.Next()
 	post.ID = b.PostId
-	b.Posts.Set(b.PostId.String(), post)
+	if !b.Posts.Set(b.PostId.String(), post) {
+		return ErrPostAddFailed
+	}
+	return nil
 }
 
-func (b *Blog) UpdatePostById(id seqid.ID, post *Post) bool { // add error
+func (b *Blog) UpdatePostById(id seqid.ID, post *Post) error {
 	existingPost, found := b.Posts.Get(id.String())
 	if !found {
-		return false
+		return ErrPostNotFound
 	}
 	existingPost.(*Post).Title = post.Title
 	existingPost.(*Post).Body = post.Body
 	existingPost.(*Post).Tags = post.Tags
 	existingPost.(*Post).Authors = post.Authors
 	existingPost.(*Post).UpdatedAt = post.UpdatedAt
-	return true
+	return nil
 }
 
-func (b *Blog) DeletePostById(id seqid.ID) bool { // add error
-	_, removed := b.Posts.Remove(id.String())
-	if !removed {
-		return false
+func (b *Blog) DeletePostById(id string) error {
+	_, found := b.Posts.Get(id)
+	if !found {
+		return ErrPostNotFound
 	}
-	return true
+	_, removed := b.Posts.Remove(id)
+	if !removed {
+		return ErrDeleteFailed
+	}
+	return nil
 }
 
 func (b Blog) Render(path string) string {
@@ -108,10 +118,8 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
 		if colCount%3 == 0 {
 			out += "<gno-columns>\n"
 		}
-
 		post := item.Value.(*Post)
 		out += post.RenderPreview(gridMode, b.Prefix)
-
 		colCount++
 		if colCount%3 == 0 {
 			out += "</gno-columns>\n"

@@ -62,38 +62,43 @@ func NewPost(slug, title, body, publicationDate string, authors []string, tags [
 	}, nil
 }
 
-func (p *Post) AddCommentToPost(comment *Comment) { // add error
+func (p *Post) AddCommentToPost(comment *Comment) error {
 	p.CommentId.Next()
-	p.Comments.Set(p.CommentId.String(), comment)
+	if !p.Comments.Set(p.CommentId.String(), comment) {
+		return ErrCommentAddFailed
+	}
+	return nil
 }
 
-func (p *Post) EditComment(id seqid.ID, content string) bool { // add error
+func (p *Post) EditComment(id seqid.ID, content string) error {
 	comment, exists := p.Comments.Get(id.String())
 	if !exists {
-		return false
+		return ErrCommentNotFound
 	}
-	comment.(*Comment).Edit(content)
-	return true
+	if err := comment.(*Comment).Edit(content); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (p *Post) DeleteCommentById(id seqid.ID) bool { // add error
+func (p *Post) DeleteCommentById(id seqid.ID) error {
 	if _, exists := p.Comments.Get(id.String()); !exists {
-		return false
+		return ErrCommentNotFound
 	}
 	_, removed := p.Comments.Remove(id.String())
 	if !removed {
-		return false
+		return ErrCommentDeleteFailed
 	}
-	return true
+	return nil
 }
 
-func (p *Post) PinCommentById(id seqid.ID) bool { // add error
+func (p *Post) PinCommentById(id seqid.ID) error {
 	comment, exists := p.Comments.Get(id.String())
 	if !exists {
-		return false
+		return ErrCommentNotFound
 	}
 	comment.(*Comment).Pin()
-	return true
+	return nil
 }
 
 func (p Post) RenderPreview(gridMode bool, prefix string) string {
