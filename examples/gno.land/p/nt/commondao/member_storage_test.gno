@@ -1,4 +1,4 @@
-package commondao
+package commondao_test
 
 import (
 	"std"
@@ -6,6 +6,8 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+
+	"gno.land/p/nt/commondao"
 )
 
 func TestMemberStorageWithGrouping(t *testing.T) {
@@ -32,7 +34,7 @@ func TestMemberStorageWithGrouping(t *testing.T) {
 		},
 	}
 
-	storage := NewMemberStorageWithGrouping()
+	storage := commondao.NewMemberStorageWithGrouping()
 	for _, tier := range tiers {
 		mg, err := storage.Grouping().Add(tier.Name)
 		urequire.NoError(t, err, "expect no error adding tier")
@@ -68,4 +70,22 @@ func TestMemberStorageWithGrouping(t *testing.T) {
 
 		uassert.Equal(t, len(tier.Members), i, "expect all tier members to be iterated")
 	}
+}
+
+func TestCountStorageMembers(t *testing.T) {
+	storage := commondao.NewMemberStorageWithGrouping()
+	storage.Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+
+	g, err := storage.Grouping().Add("A")
+	urequire.NoError(t, err, "expect no error creating member group A")
+
+	g.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	g.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+
+	g, err = storage.Grouping().Add("B")
+	urequire.NoError(t, err, "expect no error creating member group B")
+
+	g.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // Add a member that exists in other group
+
+	uassert.Equal(t, 4, commondao.CountStorageMembers(storage))
 }

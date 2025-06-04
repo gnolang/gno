@@ -57,3 +57,18 @@ type memberStorage struct {
 func (s memberStorage) Grouping() MemberGrouping {
 	return s.grouping
 }
+
+// CountStorageMembers returns the total number of members in the storage.
+// It counts all members in each group and the ones without group.
+func CountStorageMembers(s MemberStorage) int {
+	if s == nil {
+		return 0
+	}
+
+	c := s.Size()
+	s.Grouping().IterateByOffset(0, s.Grouping().Size(), func(g MemberGroup) bool {
+		c += g.Members().Size()
+		return false
+	})
+	return c
+}
