@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-MONIKER=${MONIKER:-"gnode"}
+MONIKER=${MONIKER:-"the-staging-chain"}
 P2P_LADDR=${P2P_LADDR:-"tcp://0.0.0.0:26656"}
 RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
 

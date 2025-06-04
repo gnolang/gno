@@ -44,7 +44,7 @@ services:
       - gnoweb
       - --bind=0.0.0.0:8888
       - --remote=traefik:26657
-      - --chainid=portal-loop
+      - --chainid=staging
       - --with-analytics
       - --faucet-url=https://faucet-api.gno.land
       - --help-remote=https://rpc.gno.land:443
@@ -64,7 +64,7 @@ services:
       - serve
       - captcha
       - --listen-address=0.0.0.0:5050
-      - --chain-id=portal-loop
+      - --chain-id=staging
       - --is-behind-proxy=true
       - --mnemonic=${FAUCET_MNEMONIC}
       - --num-accounts=1
