@@ -149,9 +149,6 @@ const (
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
-	fmt.Println("TYPECHECKMEMPACKAGE SHOULD NOT BE CALLED MORE THAN ONCE", mpkg.Path)
-	fmt.Println("mpkg.Type", mpkg.Type)
-
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
@@ -209,12 +206,7 @@ func (gimp *gnoImporter) Error(err error) {
 // ImportFrom returns the imported package for the given import
 // pkgPath when imported by a package file located in dir.
 func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopkg *types.Package, err error) {
-	fmt.Println("IMPORT FROM", "pkgPath", pkgPath, "gimp.testing", gimp.testing)
-	defer func() {
-		fmt.Println("DID IMPORT FROM", "pkgPath", pkgPath, "gimp.testing", gimp.testing, "err", err)
-	}()
 	if result, ok := gimp.cache[pkgPath]; ok {
-		fmt.Println("cache result", result, "pkgPath", pkgPath)
 		if result.pending {
 			idx := slices.Index(gimp.stack, pkgPath)
 			cycle := gimp.stack[idx:]
@@ -236,10 +228,9 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	var mpkg *std.MemPackage
 	if gimp.testing && IsStdlib(pkgPath) {
 		// XXX was never here.
-		fmt.Println("gimp.Tgetter", "gimp.pkgPath", gimp.pkgPath, pkgPath, gimp.testing)
+		panic("does it come here?")
 		mpkg = gimp.tgetter.GetMemPackage(pkgPath)
 	} else {
-		fmt.Println("gimp.getter", "gimp.pkgPath", gimp.pkgPath, pkgPath, gimp.testing)
 		mpkg = gimp.getter.GetMemPackage(pkgPath)
 	}
 	if mpkg == nil {
@@ -369,8 +360,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if errs != nil {
 		return nil, errs
 	}
-
-	fmt.Println("GOPARSED", "pmode", pmode, "path", mpkg.Path, "len(allgofs)", len(allgofs), "_gofs", _gofs, "tgofs", tgofs)
 
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {

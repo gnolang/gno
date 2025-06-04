@@ -240,7 +240,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
 	abortOnError := true
-	fmt.Println("TESTOPTIONS.runTest(){LoadImports(...")
 	if err := LoadImports(opts.TestStore, &std.MemPackage{
 		Type: gno.MPFiletests,
 		Name: string(pkgName),
@@ -256,7 +255,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		return runResult{Error: err.Error()}
 	}
-	fmt.Println("TESTOPTIONS.runTest(){LoadImports()")
 
 	// Reset and start capturing stdout.
 	opts.filetestBuffer.Reset()

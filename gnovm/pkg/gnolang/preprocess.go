@@ -4671,7 +4671,6 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 				}
 			}
 			// look up dependency declaration from fileset.
-			fmt.Println(">>> GETDECLFOR", pkg.PkgPath, "un", un)
 			file, unDecl := pkg.FileSet.GetDeclFor(un)
 			// preprocess if not already preprocessed.
 			if !file.IsInitialized() {
