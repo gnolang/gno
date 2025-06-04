@@ -17,9 +17,9 @@ import (
 	"github.com/gnolang/misc/loop/cmd/docker"
 
 	dockerClient "github.com/docker/docker/client"
-	"github.com/gnolang/tx-archive/backup"
-	"github.com/gnolang/tx-archive/backup/client/rpc"
-	"github.com/gnolang/tx-archive/backup/writer/standard"
+	"github.com/gnolang/gno/contribs/tx-archive/backup"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/client/rpc"
+	"github.com/gnolang/gno/contribs/tx-archive/backup/writer/standard"
 )
 
 type TraefikMode string
