@@ -229,7 +229,7 @@ func init() {
 		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", opReturnDataSize, 2},
 		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", opReturnDataCopy, 3}, // can change
 		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", notImplemented, 100},       // can change
-		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", notImplemented, 20},
+		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", opBlockHash, 20},
 		COINBASE:       {COINBASE, "COINBASE", opCoinbase, 2},
 		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", opTimestamp, 2},
 		NUMBER:         {NUMBER, "NUMBER", opNumber, 2},

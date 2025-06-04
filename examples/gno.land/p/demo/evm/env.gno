@@ -16,6 +16,8 @@ type Env struct {
 	Transaction     Transactions             	   // Current transaction context
 	ChainID         *uint256.Uint            	   // Chain ID for replay protection (EIP-155)
 	BlockDifficulty *uint256.Uint            	   // Block difficulty (used in PoW, ignored in PoS)
+	BlockNumber     *uint256.Uint                  // Current block number
+	BlockHashes     map[uint64]*uint256.Uint       // Map block number -> block hash
 	BlobHashes      []*uint256.Uint          	   // Hashes of blob data (EIP-4844)
 	BlobBaseFee     *uint256.Uint            	   // Base fee for blob transactions (EIP-4844)
 	PrevBaseFee     uint64                   	   // Previous block's base fee (EIP-1559)
@@ -33,6 +35,8 @@ func NewEnv() *Env {
 		Transaction:     Transactions{},
 		ChainID:         uint256.Zero(),
 		BlockDifficulty: uint256.Zero(),
+		BlockNumber:     uint256.Zero(),
+		BlockHashes:     make(map[uint64]*uint256.Uint),
 		BlobHashes:      []*uint256.Uint{},
 		BlobBaseFee: 	 uint256.Zero(),
 		PrevBaseFee:     0,

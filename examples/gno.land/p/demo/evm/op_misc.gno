@@ -364,3 +364,28 @@ func opCoinbase(s *State) error {
     }
     return nil
 }
+
+func opBlockHash(s *State) error {
+	blockNumber, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	if s.env == nil || s.env.BlockNumber == nil {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	currentBlock := s.env.BlockNumber.Uint64()
+	blockNb := blockNumber.Uint64()
+	// valid block numbers range -> [currentBlock-256, currentBlock-1]
+	if blockNb >= currentBlock || blockNb < currentBlock-256 {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	hash, ok := s.env.BlockHashes[blockNb]
+	if !ok {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	s.stack.Push(hash.Clone())
+	return nil
+}

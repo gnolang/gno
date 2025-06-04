@@ -1444,7 +1444,43 @@ func TestExecuteEvm(t *testing.T) {
 				}),
 			},
 			expectedGasConsumed: 2,
-		},		
+		},
+		{
+			name: "valid blockhash",
+			code: []byte{
+				byte(PUSH1), 247, // currentBlock=500, 500-256=244, 247 -> valid
+				byte(BLOCKHASH), 
+				byte(STOP),
+			},
+			env: Env{
+				BlockNumber: uint256.NewUint(500),
+				BlockHashes: map[uint64]*uint256.Uint{
+					247: uint256.NewUint(0xdeadbeef), // (dummy) hash value for testing
+				},
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(0xdeadbeef),
+			},
+			expectedGasConsumed: 23,
+		},
+		{
+			name: "blockhash out of accessible range",
+			code: []byte{
+				byte(PUSH1), 243, // out of bounds (500-256 = 244)
+				byte(BLOCKHASH),
+				byte(STOP),
+			},
+			env: Env{
+				BlockNumber: uint256.NewUint(500),
+				BlockHashes: map[uint64]*uint256.Uint{
+					243: uint256.NewUint(0xdeadbeef),
+				},
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero(),
+			},
+			expectedGasConsumed: 23,
+		},
 	}
 
 	for _, tc := range testCases {
