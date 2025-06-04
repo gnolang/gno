@@ -101,6 +101,7 @@ func TestFiles(t *testing.T) {
 
 		var criticalError error
 		t.Run(subTestName, func(t *testing.T) {
+			fmt.Println("subtest", subTestName)
 			opts := sharedOpts
 			if isLong {
 				// Long tests are run in parallel, and with their own store.

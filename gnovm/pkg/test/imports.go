@@ -107,6 +107,7 @@ func StoreWithOptions(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
 		pn *gno.PackageNode, pv *gno.PackageValue,
 	) {
+		fmt.Println("pkg/test/imports:PROCESSMEMPACKAGE", mpkg.Path, mpkg.Type, "preprocessonly", opts.PreprocessOnly)
 		if opts.PreprocessOnly {
 			// Check the gno.mod gno version.
 			mod, err := gno.ParseCheckGnoMod(mpkg)
@@ -119,8 +120,7 @@ func StoreWithOptions(
 				// AST. This needs to happen even for imports, because
 				// the preprocessor requires imports also preprocessed.
 				// This is because the linter uses pkg/test/imports.go.
-				gofset, _, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(
-					mpkg, gno.ParseModeAll)
+				gofset, _, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(mpkg)
 				if errs != nil {
 					panic(fmt.Errorf("test store parsing: %w", errs))
 				}

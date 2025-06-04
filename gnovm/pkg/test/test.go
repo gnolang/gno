@@ -264,6 +264,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
 			itPkg := &std.MemPackage{
+				Type:  gno.MPProd, // treated as a third-party prod package. (MPTest is for MPProd+*_test.gno)
 				Name:  mpkg.Name + "_test",
 				Path:  mpkg.Path + "_test",
 				Files: itfiles,

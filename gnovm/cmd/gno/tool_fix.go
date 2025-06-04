@@ -319,8 +319,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			tm := test.Machine(newTestGnoStore(), io.Discard, pkgPath, false)
 			defer tm.Release()
 			// FIX STEP 4.b: Re-parse the mem package to Go AST.
-			pmode := gno.ParseModeAll
-			gofset, allgofs, _, _, _, errs := gno.GoParseMemPackage(mpkg, pmode)
+			gofset, allgofs, _, _, _, errs := gno.GoParseMemPackage(mpkg)
 			if errs != nil {
 				cio.ErrPrintln(errs)
 				hasError = true

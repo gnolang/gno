@@ -37,7 +37,7 @@ func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 	}
 	switch pkgPath {
 	case "gnobuiltins/gno0p9": // 0.9
-		mpkg = &std.MemPackage{Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+		mpkg = &std.MemPackage{Type: MPStdlib, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
 		mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
@@ -145,10 +145,11 @@ const (
 // Args:
 //   - tcmode: TypeCheckMode, see comments above.
 //   - getter: the normal package import getter without test stdlibs.
-//   - tgetter: the getter with test stdlibs.
+//   - tgetter: getter for test stdlibs with overrides when gimp.testing (importing from *_test.gno|*_filetest.gno).
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
+	fmt.Println("TypeCheckMemPackage(", mpkg.Path, ")")
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
@@ -165,8 +166,8 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter,
 	}
 	gimp.cfg.Importer = gimp
 
-	pmode := ParseModeAll // type check all .gno files
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, pmode)
+	// pmode := ParseModeAll // type check all .gno files
+	pkg, errs = gimp.typeCheckMemPackage(mpkg) //, pmode)
 	return
 }
 
@@ -184,7 +185,7 @@ type gnoImporter struct {
 	// when importing self (from xxx_test package) include *_test.gno.
 	pkgPath string
 	tcmode  TypeCheckMode
-	testing bool
+	testing bool             // if true, use tgetter for stdlibs & use ParseModeIntegration for type-checking pkgPath during import.
 	getter  MemPackageGetter // used for stdlbis if !.testing, and everything else.
 	tgetter MemPackageGetter // used for stdlibs if .testing
 	cache   map[string]*gnoImporterResult
@@ -206,6 +207,10 @@ func (gimp *gnoImporter) Error(err error) {
 // ImportFrom returns the imported package for the given import
 // pkgPath when imported by a package file located in dir.
 func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopkg *types.Package, err error) {
+	fmt.Println("gimp.ImportFrom", "pkgPath:", pkgPath)
+	defer func() {
+		fmt.Println("gimp.ImportFrom", "pkgPath:", pkgPath, "--->", err)
+	}()
 	if result, ok := gimp.cache[pkgPath]; ok {
 		if result.pending {
 			idx := slices.Index(gimp.stack, pkgPath)
@@ -227,11 +232,16 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	}()
 	var mpkg *std.MemPackage
 	if gimp.testing && IsStdlib(pkgPath) {
-		// XXX was never here.
-		panic("does it come here?")
 		mpkg = gimp.tgetter.GetMemPackage(pkgPath)
+		if gimp.pkgPath == pkgPath {
+			// xxx_test importing xxx for integration testing.
+			mpkg = MPFTest.FilterMemPackage(mpkg)
+		} else {
+			mpkg = MPFProd.FilterMemPackage(mpkg)
+		}
 	} else {
 		mpkg = gimp.getter.GetMemPackage(pkgPath)
+		mpkg = MPFProd.FilterMemPackage(mpkg)
 	}
 	if mpkg == nil {
 		err := ImportNotFoundError{PkgPath: pkgPath}
@@ -247,13 +257,15 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
+	/* so do we need gimp.testing?
 	pmode := ParseModeProduction // don't parse test files for imports...
 	if gimp.testing && gimp.pkgPath == pkgPath {
 		// ...unless importing self from a *_test.gno
 		// file with package name xxx_test.
 		pmode = ParseModeIntegration
 	}
-	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode)
+	*/
+	pkg, errs := gimp.typeCheckMemPackage(mpkg) //, pmode)
 	if errs != nil {
 		result.err = errs
 		result.pending = false
@@ -314,11 +326,7 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 // Assumes that the code is Gno 0.9.
 // If not, first use `gno lint` to transpile the code.
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
-//
-// Args:
-//   - pmode: ParseModeAll for type-checking all files.
-//     ParseModeProduction when type-checking imports.
-func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
+func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
 	pkg *types.Package, errs error,
 ) {
 
@@ -356,7 +364,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	}
 
 	// STEP 3: Parse the mem package to Go AST.
-	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg, pmode)
+	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg)
 	if errs != nil {
 		return nil, errs
 	}
@@ -429,6 +437,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		_gofs2 = append(_gofs, gmgof)
 	}
 	gimp.testing = true // use tgetter for stdlibs, default to getter.
+	fmt.Println("typeCheckMemPackage... xxx_test", mpkg.Path, mpkg.Type)
 	_, _ = gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
 	/* NOTE: Uncomment to fail earlier.
 	if len(gimp.errors) != numErrs {
@@ -443,17 +452,18 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		// XXX If we're re-parsing the filetest anyways,
 		// change GoParseMemPackage to not parse into tgofs.
 		tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
+		fmt.Println("typeCheckMemPackage... filetest", tfname)
 		tpname := tgof.Name.String()
 		tfile := mpkg.GetFile(tfname)
 		// XXX If filetest are having issues, consider this:
 		// pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 		pkgPath := mpkg.Path
-		tmpkg := &std.MemPackage{Name: tpname, Path: pkgPath}
+		tmpkg := &std.MemPackage{Type: MPFiletests, Name: tpname, Path: pkgPath}
 		tmpkg.NewFile(tfname, tfile.Body)
 		// NOTE: not gnobuiltins/*; gnobuiltins/* don't have filetests.
 		bfile := makeGnoBuiltins(tpname, gnoVersion)
 		tmpkg.AddFile(bfile)
-		gofset2, _, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg, ParseModeAll)
+		gofset2, _, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg) //, ParseModeAll)
 		if len(gimp.errors) != numErrs {
 			/* NOTE: Uncomment to fail earlier.
 			errs = multierr.Combine(gimp.errors...)
@@ -499,34 +509,15 @@ func deleteOldIdents(idents map[string]func(), gof *ast.File) {
 	}
 }
 
-//----------------------------------------
-// GoParseMemPackage
-
-type ParseMode int
-
-const (
-	// no test files.
-	ParseModeProduction ParseMode = iota
-	// production and non-xxx_test pkg test files when xxx_test imports xxx.
-	ParseModeIntegration
-	// all files even including *_filetest.gno; for linting and testing.
-	ParseModeAll
-	// a directory of file tests. consider all to be filetests.
-	ParseModeOnlyFiletests
-)
-
 // ========================================
 // Go parse the Gno source in mpkg to Go's *token.FileSet and
 // []ast.File with `go/parser`.
-//
-// Args:
-//   - pmode: see documentation for ParseMode.
 //
 // Results:
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
 //   - _gofs: all xxx_test package _test.gno files if wtests.
 //   - tgofs: all _testfile.gno test files.
-func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
+func GoParseMemPackage(mpkg *std.MemPackage) (
 	gofset *token.FileSet, allgofs, gofs, _gofs, tgofs []*ast.File, errs error,
 ) {
 	gofset = token.NewFileSet()
@@ -544,19 +535,19 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 			continue
 		}
 		// Ignore _test/_filetest.gno files depending.
-		switch pmode {
-		case ParseModeProduction:
+		switch mpkg.Type {
+		case MPAny, MPAll, MPStdlib, MPFiletests: // parse all.
+		case MPProd: // ignore test files.
 			if strings.HasSuffix(file.Name, "_test.gno") ||
 				strings.HasSuffix(file.Name, "_filetest.gno") {
 				continue
 			}
-		case ParseModeIntegration:
+		case MPTest: // TODO: rename to MPIntegration.
 			if strings.HasSuffix(file.Name, "_filetest.gno") {
 				continue
 			}
-		case ParseModeAll, ParseModeOnlyFiletests:
-			// include all
 		default:
+			fmt.Println("!!!", mpkg.Type)
 			panic("should not happen")
 		}
 
@@ -574,16 +565,19 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 		}
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") ||
-			pmode == ParseModeOnlyFiletests {
+			mpkg.Type == MPFiletests {
 			tgofs = append(tgofs, gof)
 			allgofs = append(allgofs, gof)
 		} else if strings.HasSuffix(file.Name, "_test.gno") &&
 			strings.HasSuffix(gof.Name.String(), "_test") {
-			switch pmode {
-			case ParseModeIntegration:
-				// xxx_test imports normal and non-xxx_test
-				// *test.go files from xxx.
-			case ParseModeProduction, ParseModeAll:
+			switch mpkg.Type {
+			case MPProd:
+				panic("should not happen")
+			case MPTest:
+				// Do not include xxx_test.
+				// xxx_test imports normal and only
+				// non-xxx_test *test.go files from xxx.
+			case MPAny, MPAll, MPStdlib, MPFiletests:
 				deleteOldIdents(delFunc, gof)
 				_gofs = append(_gofs, gof)
 				allgofs = append(allgofs, gof)
@@ -601,10 +595,14 @@ func GoParseMemPackage(mpkg *std.MemPackage, pmode ParseMode) (
 	}
 	// END processing all files.
 	// Sanity check before returning.
-	if pmode == ParseModeProduction && (len(_gofs) > 0 || len(tgofs) > 0) {
+	if mpkg.Type == MPProd && (len(_gofs) > 0 || len(tgofs) > 0) {
 		panic("unexpected test files from GoParseMemPackage()")
 	}
-	if pmode == ParseModeIntegration && (len(_gofs) > 0 || len(tgofs) > 0) {
+	if mpkg.Type == MPTest && (len(_gofs) > 0 || len(tgofs) > 0) {
+		// same as above, because the non-xxx_test *_test.gno files are
+		// part of gofs, not _gofs; for testing purposes those test
+		// files extend the original pacakge when imported by xxx_test
+		// *_test.gno files.
 		panic("unexpected xxx_test and *_filetest.gno tests")
 	}
 	return

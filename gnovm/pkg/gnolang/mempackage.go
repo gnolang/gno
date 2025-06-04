@@ -63,9 +63,6 @@ var (
 //  * MPFProd: When running a mempackage in production mode, use MPFProd to
 //  filter out all *_tests.gno and *_filetests.gno files. No test extension
 //  overrides are present.
-//
-// XXX not actually used yet; make it more accessible, and look for places it
-// can be used.
 
 type MemPackageFilter string
 
@@ -98,6 +95,58 @@ func (mpfilter MemPackageFilter) FilterGno(fname string) bool {
 	default:
 		panic("should not happen")
 	}
+}
+
+func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageType {
+	switch mpfilter {
+	case MPFNone:
+		return mptype
+	case MPFProd:
+		switch mptype {
+		case MPAny, MPProd, MPTest, MPAll:
+			return MPProd
+		case MPStdlib:
+			return MPStdlib
+		case MPFiletests:
+			panic("should not happen")
+		}
+	case MPFTest:
+		switch mptype {
+		case MPTest, MPAny, MPAll:
+			return MPTest
+		case MPProd:
+			return MPProd
+		case MPStdlib:
+			return MPStdlib
+		case MPFiletests:
+			panic("should not happen")
+		}
+	default:
+		panic("should not happen")
+	}
+	panic("should not happen")
+}
+
+// NOTE: only filters .gno files.
+func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.MemPackage {
+	mpkg2 := &std.MemPackage{
+		Name:  mpkg.Name,
+		Path:  mpkg.Path,
+		Files: nil,
+		Type:  mpfilter.FilterType(mpkg.Type.(MemPackageType)),
+		Info:  mpkg.Info,
+	}
+	for _, mfile := range mpkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
+			// just copy non-gno files.
+			mpkg2.Files = append(mpkg2.Files, mfile.Copy())
+		} else if mpfilter.FilterGno(mfile.Name) {
+			continue
+		} else {
+			mpkg2.Files = append(mpkg2.Files, mfile.Copy())
+		}
+	}
+	return mpkg2
 }
 
 // While std.MemPackage can contain any data, gnolang/mempackage.go expects
@@ -142,7 +191,7 @@ func (mpfilter MemPackageFilter) FilterGno(fname string) bool {
 type MemPackageType string
 
 const (
-	MPAny       MemPackageType = "MPAny"       // anything (but not MPFiletests).
+	MPAny       MemPackageType = "MPAny"       // anything (but not MPStdlib nor MPFiletests).
 	MPStdlib    MemPackageType = "MPStdlib"    // stdlibs only.
 	MPProd      MemPackageType = "MPProd"      // no stdlibs, valid gno pkg path, no tests/filetests.
 	MPTest      MemPackageType = "MPTest"      // no stdlibs, valid gno pkg path, w/ tests, w/o filetests.

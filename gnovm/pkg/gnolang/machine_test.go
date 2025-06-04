@@ -28,6 +28,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	store := NewStore(nil, baseStore, iavlStore)
 	m := NewMachine("std", store)
 	m.RunMemPackageWithOverrides(&std.MemPackage{
+		Type: MPProd,
 		Name: "std",
 		Path: "std",
 		Files: []*std.MemFile{
@@ -39,6 +40,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 			p = fmt.Sprint(recover())
 		}()
 		m.RunMemPackageWithOverrides(&std.MemPackage{
+			Type: MPProd,
 			Name: "std",
 			Path: "std",
 			Files: []*std.MemFile{
