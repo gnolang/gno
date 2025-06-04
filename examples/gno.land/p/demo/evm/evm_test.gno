@@ -1348,6 +1348,32 @@ func TestExecuteEvm(t *testing.T) {
 			ignoreTransientStorage: true,
 			ignoreStack:            true,
 		},
+		{
+			name: "blobbasefee basic",
+			code: []byte{
+				byte(BLOBBASEFEE),
+				byte(STOP)},
+			env: Env{
+				BlobBaseFee: uint256.NewUint(12345),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(12345),
+			},
+			expectedGasConsumed: 2,
+		},
+		{
+			name: "blobbasefee blob base fee nil",
+			code: []byte{
+				byte(BLOBBASEFEE),
+				byte(STOP)},
+			env: Env{
+				BlobBaseFee: nil,
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero(),
+			},
+			expectedGasConsumed: 2,
+		},
 	}
 
 	for _, tc := range testCases {

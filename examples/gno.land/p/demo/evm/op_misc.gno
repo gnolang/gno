@@ -319,3 +319,12 @@ func opBaseFee(s *State) error {
 	s.stack.Push(uint256.NewUint(feeResult))
 	return nil
 }
+
+func opBlobbasefee(s *State) error {
+    if s.env != nil && s.env.BlobBaseFee != nil {
+        s.stack.Push(s.env.BlobBaseFee.Clone())
+    } else {
+        s.stack.Push(uint256.Zero())
+    }
+	return nil
+}

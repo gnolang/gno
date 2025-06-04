@@ -239,7 +239,7 @@ func init() {
 		SELFBALANCE:    {SELFBALANCE, "SELFBALANCE", opSelfBalance, 5},
 		BASEFEE:        {BASEFEE, "BASEFEE", opBaseFee, 2},
 		BLOBHASH:       {BLOBHASH, "BLOBHASH", notImplemented, 3},
-		BLOBBASEFEE:    {BLOBBASEFEE, "BLOBBASEFEE", notImplemented, 2},
+		BLOBBASEFEE:    {BLOBBASEFEE, "BLOBBASEFEE", opBlobbasefee, 2},
 		POP:            {POP, "POP", opPop, 2},
 		MLOAD:          {MLOAD, "MLOAD", opMload, 3},       // can change
 		MSTORE:         {MSTORE, "MSTORE", opMstore, 3},    // can change
