@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"loop/cmd/cfg"
-	"loop/cmd/docker"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gnolang/misc/loop/cmd/cfg"
+	"github.com/gnolang/misc/loop/cmd/docker"
 
 	dockerClient "github.com/docker/docker/client"
 	"github.com/gnolang/tx-archive/backup"
@@ -49,6 +50,8 @@ func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *slog.Logger) (*PortalLoopHand
 		return nil, err
 	}
 
+	// The master backup file will contain the ultimate txs backup
+	// that the portal loop use when looping, generating the genesis.
 	backupFile, err := filepath.Abs(cfg.MasterBackupFile)
 	if err != nil {
 		return nil, err

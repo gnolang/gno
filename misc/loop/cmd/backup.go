@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"loop/cmd/cfg"
-	"loop/cmd/portalloop"
+
+	"github.com/gnolang/misc/loop/cmd/cfg"
+	"github.com/gnolang/misc/loop/cmd/portalloop"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/log"

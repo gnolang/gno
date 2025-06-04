@@ -1,4 +1,4 @@
-module loop
+module github.com/gnolang/misc/loop
 
 go 1.23.6
 
