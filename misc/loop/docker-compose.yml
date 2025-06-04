@@ -53,7 +53,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.gnoweb.entrypoints=web,websecure
-      - traefik.http.routers.gnoweb.rule=Host(`gno.land`) || Host(`www.gno.land`) || Host(`portal-loop.gnoteam.com`) || Host(`private-loop.gnoteam.com`)
+      - traefik.http.routers.gnoweb.rule=Host(`gno.land`) || Host(`www.gno.land`) || Host(`staging.gno.land`)
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
       - com.centurylinklabs.watchtower.enable=true
@@ -75,8 +75,8 @@ services:
       - portal-loop
     labels:
       - traefik.enable=true
-      - traefik.http.routers.gnofaucet-api.entrypoints=websecure
-      - traefik.http.routers.gnofaucet-api.rule=Host(`faucet-api.gno.land`) || Host(`faucet-api.portal-loop.gnoteam.com`) || Host(`faucet-api.private-loop.gnoteam.com`)
+      - traefik.http.routers.gnofaucet-api.entrypoints=web,websecure
+      - traefik.http.routers.gnofaucet-api.rule=Host(`faucet-api.staging.gno.land`)
       - traefik.http.routers.gnofaucet-api.tls=true
       - traefik.http.routers.gnofaucet-api.tls.certresolver=le
       - traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.average=6
@@ -95,8 +95,8 @@ services:
       - portal-loop
     labels:
       - traefik.enable=true
-      - traefik.http.routers.tx-indexer.entrypoints=websecure
-      - traefik.http.routers.tx-indexer.rule=Host(`indexer.gno.land`) || Host(`indexer.portal-loop.gnoteam.com`) || Host(`indexer.private-loop.gnoteam.com`)
+      - traefik.http.routers.tx-indexer.entrypoints=web,websecure
+      - traefik.http.routers.tx-indexer.rule=Host(`indexer.staging.gno.land`)
       - traefik.http.routers.tx-indexer.tls=true
       - traefik.http.routers.tx-indexer.tls.certresolver=le
       - traefik.http.services.tx-indexer.loadbalancer.server.port=8546
