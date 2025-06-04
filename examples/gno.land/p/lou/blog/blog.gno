@@ -11,13 +11,13 @@ import (
 )
 
 type Blog struct {
-	Title        string
-	Prefix       string
-	Posts        *avl.Tree // id --> *Post
-	PostId       seqid.ID
-	PostsBySlug  *avl.Tree // slug --> *Post
+	Title            string
+	Prefix           string
+	Posts            *avl.Tree // id --> *Post
+	PostId           seqid.ID
+	PostsBySlug      *avl.Tree // slug --> *Post
 	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
-	DraftedPosts *avl.Tree // id --> *Post
+	DraftedPosts     *avl.Tree // id --> *Post
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -25,16 +25,16 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		return nil, ErrEmptyPrefix
 	}
 	return &Blog{
-		Title:  title,
-		Prefix: prefix,
-		Posts:  avl.NewTree(),
-		PostsBySlug:  avl.NewTree(),
+		Title:            title,
+		Prefix:           prefix,
+		Posts:            avl.NewTree(),
+		PostsBySlug:      avl.NewTree(),
 		PostsByUpdatedAt: avl.NewTree(),
-		PostId: 0,
+		PostId:           0,
 	}, nil
 }
 
-func (b *Blog) AddPost(post *Post) error { // drafted posts are also supported
+func (b *Blog) AddPost(post *Post) error {
 	b.PostId.Next()
 	post.ID = b.PostId
 	var added bool
@@ -120,7 +120,6 @@ func (b Blog) Render(path string) string {
 	router.HandleFunc("tag/{slug}", b.RenderTags)
 	router.HandleFunc("author/{slug}", b.RenderAuthors)
 	router.HandleFunc("commenter/{slug}", b.RenderCommenters)
-
 	return router.Render(path)
 }
 
@@ -129,10 +128,31 @@ func RenderBlogHeader(prefix, rawPath string) string {
 	out += md.Link("☰ list", updateQuery(rawPath, "mode", "list")) + " | "
 	out += md.Link("▲ recent", updateQuery(rawPath, "sort", "recent")) + " | "
 	out += md.Link("▼ oldest", updateQuery(rawPath, "sort", "oldest")) + " | "
-	// last updated sort=updates order=ascending/descending (toggle between ▲ and ▼)
+
+	sort := parseQueryParams("sort", rawPath)
+	order := parseQueryParams("order", rawPath)
+	toggle := func(current string) string {
+		if current == "asc" {
+			return "desc"
+		}
+		return "asc"
+	}
+	if order == "" {
+		order = "desc"
+	}
+	out += md.Link(orderArrow("update", sort, order)+" last updated",
+		updateQueryMulti(rawPath, map[string]string{
+			"sort":  "update",
+			"order": toggle(order),
+		})) + " | "
+	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical",
+		updateQueryMulti(rawPath, map[string]string{
+			"sort":  "alpha",
+			"order": toggle(order),
+		})) + " | "
 	// most popular sort=popular order=ascending/descending (toggle between ▲ and ▼)
-	// alphabetical sort=alpha order=ascending/descending (toggle between ▲ and ▼)
 	// time format
+
 	out += md.Link("🗘 reset", prefix) + "\n"
 	return out
 }
@@ -144,22 +164,28 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	sort := parseQueryParams("sort", req.RawPath)
-	if sort == "" {
-		sort = "recent" // default to recent posts
-	}
-	newestFirst := sort == "recent"
+	newestFirst := sort == "recent" || sort == "" // default to recent posts
+
+	order := parseQueryParams("order", req.RawPath)
+	lastUpdated := sort == "update"
+	alphabetical := sort == "alpha"
+	ascending := order == "asc" || order == "" // default to ascending order
 
 	pageSize := 9
 	mode := parseQueryParams("mode", req.RawPath)
-	if mode == "" {
-		mode = "grid" // default to grid mode
-	}
-	isGrid := mode == "grid"
+	isGrid := mode == "grid" || mode == "" // default to grid mode
 	if !isGrid {
 		pageSize = 5
 	}
 
-	p := pager.NewPager(b.Posts, pageSize, newestFirst)
+	var p *pager.Pager
+	if lastUpdated {
+		p = pager.NewPager(b.PostsByUpdatedAt, pageSize, ascending)
+	} else if alphabetical {
+		p = pager.NewPager(b.PostsBySlug, pageSize, ascending)
+	} else {
+		p = pager.NewPager(b.Posts, pageSize, newestFirst)
+	}
 	page := p.MustGetPageByPath(req.RawPath)
 	out := RenderBlogHeader(b.Prefix, req.RawPath)
 	out += b.RenderListGrid(page, isGrid) + page.Picker(req.Path)
@@ -195,13 +221,14 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	foundKey, found := b.findPostByField("slug", postSlug)
+	foundKey, found := b.findPostBySlug(postSlug)
 	if !found {
 		res.Write("Post not found.")
 		return
 	}
 	post, found := b.Posts.Get(foundKey)
 	out := post.(*Post).RenderPost(b.Prefix)
+
 	res.Write(out)
 }
 
@@ -210,10 +237,7 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	out := b.RenderFilterHeader(req)
 
 	sort := parseQueryParams("sort", req.RawPath)
-	if sort == "" {
-		sort = "recent" // default to recent posts
-	}
-	newestFirst := sort == "recent"
+	newestFirst := sort == "recent" || sort == "" // default to recent posts
 
 	filteredPosts, exists := b.filterPostsByField("tag", tag)
 	p := pager.NewPager(filteredPosts, 4, newestFirst)
@@ -237,10 +261,7 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	out := b.RenderFilterHeader(req)
 
 	sort := parseQueryParams("sort", req.RawPath)
-	if sort == "" {
-		sort = "recent" // default to recent posts
-	}
-	newestFirst := sort == "recent"
+	newestFirst := sort == "recent" || sort == "" // default to recent posts
 
 	filteredPosts, exists := b.filterPostsByField("author", author)
 	p := pager.NewPager(filteredPosts, 4, newestFirst)
@@ -274,10 +295,10 @@ func (b Blog) RenderFilterHeader(req *mux.Request) string {
 
 func (b Blog) Mention(role, recipient string) string {
 	if role == "author" {
-		return md.Bold(md.Link("@" + recipient, b.Prefix + "/author:" + recipient))
+		return md.Bold(md.Link("@"+recipient, b.Prefix+"/author:"+recipient))
 	}
 	if role == "commenter" {
-		return md.Bold(md.Link("@" + recipient, b.Prefix + "/commenter:" + recipient))
+		return md.Bold(md.Link("@"+recipient, b.Prefix+"/commenter:"+recipient))
 	}
 	return ""
 }
@@ -296,17 +317,14 @@ func (b Blog) filterPostsByField(field, value string) (*avl.Tree, bool) {
 	return filteredPosts, filteredPosts.Size() > 0
 }
 
-func (b Blog) findPostByField(field, value string) (string, bool) {
+func (b Blog) findPostBySlug(value string) (string, bool) {
 	var foundKey string
 	var found bool
 	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
 		post := v.(*Post)
-		switch field {
-		case "slug":
-			if post.Slug == value {
-				foundKey = k
-				found = true
-			}
+		if post.Slug == value {
+			foundKey = k
+			found = true
 		}
 		return found
 	})

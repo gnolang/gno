@@ -22,19 +22,18 @@ type Post struct {
 	Tags        []string
 	Authors     []string
 	Publisher   std.Address
-	Comments    *avl.Tree
+	Comments    *avl.Tree // id --> *Comment
 	CommentId   seqid.ID
 	Drafted     bool
 }
 
 func NewPost(slug, title, body, publicationDate string, authors, tags []string, caller std.Address) (*Post, error) {
 	// handle draft
-	// resolve caller
-
 	var err error
 
 	if slug == "" {
 		return nil, ErrEmptySlug
+		// or titleToSlug(title)
 	}
 	if title == "" {
 		return nil, ErrEmptyTitle
@@ -110,6 +109,7 @@ func (p Post) RenderPreview(gridMode bool, prefix string) string {
 		return ""
 	}
 	out := md.H2(md.Link(p.Title, prefix+":post/"+p.Slug)) + "\n\n"
+	out += md.H5(md.Italic("/"+p.Slug)) + "\n\n"
 	if p.UpdatedAt != p.PublishedAt {
 		out += p.UpdatedAt.Format("02 Jan 2006") + " (updated)\n\n"
 	} else {
@@ -122,7 +122,7 @@ func (p Post) RenderPreview(gridMode bool, prefix string) string {
 		out += md.Bold("tags:") + " `" + strings.Join(p.Tags, "`, `") + "`\n\n"
 	}
 	if p.Comments.Size() > 0 {
-		out += md.Bold("comments:") + " " + strconv.Itoa(p.Comments.Size()) + "\n\n"
+		out += md.Bold(md.Link("comments: "+strconv.Itoa(p.Comments.Size()), prefix+":post/"+p.Slug+"#comments")) + "\n\n"
 	}
 	out += md.HorizontalRule()
 	return out
@@ -141,6 +141,7 @@ func (p Post) RenderPost(prefix string) string {
 	out += p.Body + "\n\n"
 
 	out += md.HorizontalRule()
+	out += md.Bold("Created on:") + " " + p.CreatedAt.Format("02 Jan 2006") + "\n\n"
 	out += md.Bold("Published on:") + " " + p.PublishedAt.Format("02 Jan 2006") + "\n\n"
 	if p.UpdatedAt != p.PublishedAt {
 		out += md.Bold("Last updated:") + " " + p.UpdatedAt.Format("02 Jan 2006") + "\n\n"

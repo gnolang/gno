@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/md"
 )
@@ -17,6 +18,7 @@ type Comment struct {
 	EditedAt     *time.Time
 	Pinned       bool
 	Likes        int
+	Replies      *avl.Tree // id --> *Comment
 	DisableLikes bool
 }
 
@@ -32,6 +34,7 @@ func NewComment(author std.Address, content string) (*Comment, error) {
 		EditedAt:  nil,
 		Pinned:    false,
 		Likes:     0,
+		Replies:   avl.NewTree(),
 	}, nil
 }
 
