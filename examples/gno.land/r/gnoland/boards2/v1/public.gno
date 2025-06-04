@@ -193,8 +193,29 @@ func RenameBoard(name, newName string) {
 	})
 }
 
+// SetReplyFee sets the fee in ugnots charged to uninvited users when replying in public threads.
+func SetReplyFee(fee int64) {
+	crossing()
+
+	if fee < 0 {
+		panic("fee must be greater or equal to 0")
+	}
+
+	if !gPerms.HasRole(std.OriginCaller(), RoleOwner) {
+		panic("only owners are allowed to change reply fee value")
+	}
+
+	gReplyFee = fee
+}
+
+// GetReplyFee returns the current fee in ugnots charged to uninvited users
+// when replying in public threads.
+func GetReplyFee() int64 {
+	return gReplyFee
+}
+
 // CreateThread creates a new thread within a board.
-func CreateThread(boardID BoardID, title, body string) PostID {
+func CreateThread(boardID BoardID, title, body string, public bool) PostID {
 	crossing()
 
 	assertRealmIsNotLocked()
@@ -212,6 +233,9 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	assertHasPermission(board.perms, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
+	if public {
+		thread.SetPublic(public)
+	}
 
 	std.Emit(
 		"ThreadCreated",
@@ -238,12 +262,21 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.PreviousRealm().Address()
-	assertHasPermission(board.perms, caller, PermissionReplyCreate)
-
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
 	assertThreadIsNotFrozen(thread)
+
+	caller := std.PreviousRealm().Address()
+	if thread.IsPublic() {
+		// Check that public reply fee has been sent when user is not an invited one
+		isMember := board.perms.HasUser(caller)
+		if !isMember && gReplyFee != 0 && std.OriginSend().AmountOf("ugnot") != gReplyFee {
+			panic("public replies require an exact fee of " + strconv.Itoa(int(gReplyFee)) + " ugnot")
+		}
+	} else {
+		// Check reply permission when thread is not public
+		assertHasPermission(board.perms, caller, PermissionReplyCreate)
+	}
 
 	var reply *Post
 	if replyID == 0 {

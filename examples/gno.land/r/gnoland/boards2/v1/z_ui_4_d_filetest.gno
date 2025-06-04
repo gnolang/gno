@@ -21,7 +21,7 @@ func init() {
 
 	// Create a readonly board and then add a thread
 	boardID := cross(boards2.CreateBoard)(boardName, false)
-	threadID = cross(boards2.CreateThread)(boardID, "Foo", "Body")
+	threadID = cross(boards2.CreateThread)(boardID, "Foo", "Body", false)
 	cross(boards2.FreezeBoard)(boardID)
 }
 

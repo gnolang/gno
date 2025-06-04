@@ -22,7 +22,7 @@ var (
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test-board", false)
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar", false)
 
 	// Create a reply and a sub reply
 	parentRID := cross(boards2.CreateReply)(bid, tid, 0, "Parent")

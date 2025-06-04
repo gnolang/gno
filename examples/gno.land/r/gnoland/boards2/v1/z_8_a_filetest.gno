@@ -25,7 +25,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	tid := cross(boards2.CreateThread)(bid, title, body)
+	tid := cross(boards2.CreateThread)(bid, title, body, false)
 
 	// Ensure that returned ID is right
 	println(tid == 1)

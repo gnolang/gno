@@ -24,7 +24,7 @@ func init() {
 
 	// Create a board and a thread
 	boardID := cross(boards2.CreateBoard)(srcBoardName, false)
-	threadID = cross(boards2.CreateThread)(boardID, "Foo", "Body")
+	threadID = cross(boards2.CreateThread)(boardID, "Foo", "Body", false)
 
 	// Repost thread into a different board
 	dstBoardID := cross(boards2.CreateBoard)(dstBoardName, false)

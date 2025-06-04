@@ -14,9 +14,10 @@ var (
 	gNotice           string
 	gHelp             string
 	gLastReservedID   BoardID
-	gBoardsByID       avl.Tree // string(id) -> *Board
-	gPublicBoardsByID avl.Tree // string(id) -> *Board
-	gBoardsByName     avl.Tree // string(name) -> *Board
+	gBoardsByID       avl.Tree                 // string(id) -> *Board
+	gPublicBoardsByID avl.Tree                 // string(id) -> *Board
+	gBoardsByName     avl.Tree                 // string(name) -> *Board
+	gReplyFee         int64    = 5 * 1_000_000 // Public reply fee in ugnot
 	gLocked           struct {
 		realm        bool
 		realmMembers bool

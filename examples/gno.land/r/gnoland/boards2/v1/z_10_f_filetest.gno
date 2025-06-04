@@ -20,7 +20,7 @@ var (
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	pid = cross(boards2.CreateThread)(bid, "Foo", "bar", false)
 
 	// Invite a member using a role with permission to flag threads
 	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)

@@ -19,9 +19,9 @@ func init() {
 	// Create a board and then add 3 threads
 	boardID := cross(boards2.CreateBoard)(boardName, false)
 
-	cross(boards2.CreateThread)(boardID, "A", "Body")
-	cross(boards2.CreateThread)(boardID, "B", "Body")
-	cross(boards2.CreateThread)(boardID, "C", "Body")
+	cross(boards2.CreateThread)(boardID, "A", "Body", false)
+	cross(boards2.CreateThread)(boardID, "B", "Body", false)
+	cross(boards2.CreateThread)(boardID, "C", "Body", false)
 }
 
 func main() {

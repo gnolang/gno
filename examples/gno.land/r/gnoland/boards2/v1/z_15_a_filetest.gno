@@ -20,7 +20,7 @@ func init() {
 	srcBID = cross(boards2.CreateBoard)("src-board", false)
 	dstBID = cross(boards2.CreateBoard)("dst-board", false)
 
-	srcTID = cross(boards2.CreateThread)(srcBID, "Foo", "bar")
+	srcTID = cross(boards2.CreateThread)(srcBID, "Foo", "bar", false)
 	cross(boards2.FlagThread)(srcBID, srcTID, "idk")
 }
 

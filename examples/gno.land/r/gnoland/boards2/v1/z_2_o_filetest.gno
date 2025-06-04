@@ -14,20 +14,22 @@ const (
 
 var (
 	bid boards2.BoardID
-	pid boards2.PostID
+	tid boards2.PostID
 )
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar", false)
+	bid = cross(boards2.CreateBoard)("test123", false)
+
+	// Create a public thread to allow uninvited users to add replies
+	tid = cross(boards2.CreateThread)(bid, "Foo", "bar", true)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(boards2.EditThread)(bid, pid, "Foo", "bar")
+	cross(boards2.CreateReply)(bid, tid, 0, "Test reply")
 }
 
 // Error:
-// unauthorized
+// public replies require an exact fee of 5000000 ugnot
