@@ -137,9 +137,11 @@ func opCallCode(s *State) error {
 
 	// check for precompiled
 	var res []byte
-	if address.Uint64() < 0x10 {
-		f := precompiled[address.Uint64()]
-		err = f(tmpState)
+	if address.Uint64() <= nbPrecompiledContract {
+		f, ok := precompiled[address.Uint64()]
+		if ok {
+			err = f(tmpState)
+		}
 	} else {
 		// get the contrat code
 		contract := tmpState.tmp.accounts[address.Uint64()]
@@ -154,11 +156,13 @@ func opCallCode(s *State) error {
 		err = tmpState.executeByteCode()
 	}
 	s.gasConsumed += tmpState.gasConsumed
+
 	// check for error, and push 1 or 0 if success
 	if err != nil {
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
+
 	s.stack.Push(uint256.One())
 	res = tmpState.getResult()
 
@@ -166,15 +170,19 @@ func opCallCode(s *State) error {
 	// also change storages, gas consumed and stuff like that
 	extendMemory(s, retOffset, retSize, &memoryCost)
 	copy(s.memory[retOffset.Uint64():retOffset.Uint64()+retSize.Uint64()], res)
+
 	s.gasConsumed += uint(memoryCost)
 	s.lastCallState = tmpState
 	s.tmp.storage = tmpState.tmp.storage
 	s.tmp.logs = tmpState.tmp.logs
 	s.tmp.accounts = tmpState.tmp.accounts
 	s.tmp.warmStorage = tmpState.tmp.warmStorage
-	s.transientStorage = tmpState.transientStorage
-	s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, moneyToGive)
-	s.tmp.accounts[address.Uint64()].Balance.Add(s.tmp.accounts[address.Uint64()].Balance, moneyToGive)
+	if s.tmp.accounts[s.callerAddress] != nil && s.tmp.accounts[s.callerAddress].Balance != nil {
+		s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, moneyToGive)
+	}
+	if s.tmp.accounts[address.Uint64()] != nil && s.tmp.accounts[address.Uint64()].Balance != nil {
+		s.tmp.accounts[address.Uint64()].Balance.Add(s.tmp.accounts[address.Uint64()].Balance, moneyToGive)
+	}
 	return nil
 }
 
