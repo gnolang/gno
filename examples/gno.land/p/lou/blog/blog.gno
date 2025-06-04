@@ -119,6 +119,7 @@ func (b Blog) Render(path string) string {
 	router.HandleFunc("post/{slug}", b.RenderPost)
 	router.HandleFunc("tag", b.RenderTags)
 	router.HandleFunc("tag/{slug}", b.RenderTags)
+	router.HandleFunc("author", b.RenderAuthors)
 	router.HandleFunc("author/{slug}", b.RenderAuthors)
 	router.HandleFunc("commenter/{slug}", b.RenderCommenters)
 	return router.Render(path)
@@ -242,7 +243,7 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 
 	if tag == "" {
 		out += "Available tags:\n"
-		tags := b.AllTags()
+		tags := b.FetchTags()
 		for _, t := range tags {
 			out += md.Link(t, b.Prefix+":tag/"+t) + "\n"
 		}
@@ -273,6 +274,22 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
 
+	if author == "" {
+		out += "Available authors:\n"
+		authors := make(map[string]struct{})
+		b.Posts.Iterate("", "", func(k string, v interface{}) bool {
+			post := v.(*Post)
+			for _, a := range post.Authors {
+				authors[a] = struct{}{}
+			}
+			return false
+		})
+		for a := range authors {
+			out += md.Link(a, b.Prefix+":author/"+a) + "\n"
+		}
+		res.Write(out)
+		return
+	}
 	filteredPosts, exists := b.filterPostsByField("author", author)
 	p := pager.NewPager(filteredPosts, 4, newestFirst)
 	page := p.MustGetPageByPath(req.RawPath)
@@ -341,7 +358,7 @@ func (b Blog) findPostBySlug(value string) (string, bool) {
 	return foundKey, found
 }
 
-func (b Blog) AllTags() []string {
+func (b Blog) FetchTags() []string {
 	tagSet := make(map[string]struct{})
 	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
 		post := v.(*Post)
@@ -356,4 +373,21 @@ func (b Blog) AllTags() []string {
 		tags = append(tags, tag)
 	}
 	return tags
+}
+
+func (b Blog) FetchAuthors() []string {
+	authorSet := make(map[string]struct{})
+	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
+		post := v.(*Post)
+		for _, author := range post.Authors {
+			authorSet[author] = struct{}{}
+		}
+		return false
+	})
+
+	var authors []string
+	for author := range authorSet {
+		authors = append(authors, author)
+	}
+	return authors
 }
