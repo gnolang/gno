@@ -121,7 +121,7 @@ type gnoBuiltinsGetterWrapper struct {
 func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 	if strings.HasPrefix(pkgPath, "gnobuiltins/") {
 		return gnoBuiltinsMemPackage(pkgPath)
-	} else if pkgPath == gw.mpkg.Path {
+	} else if gw.mpkg.Type != MPFiletests && gw.mpkg.Path == pkgPath {
 		return gw.mpkg
 	} else {
 		return gw.getter.GetMemPackage(pkgPath)
@@ -149,13 +149,15 @@ const (
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
+	fmt.Println("TYPECHECKMEMPACKAGE SHOULD NOT BE CALLED MORE THAN ONCE", mpkg.Path)
+	fmt.Println("mpkg.Type", mpkg.Type)
 
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
 		tcmode:  tcmode,
 		getter:  gnoBuiltinsGetterWrapper{mpkg, getter},
-		tgetter: gnoBuiltinsGetterWrapper{mpkg, tgetter},
+		tgetter: tgetter,
 		cache:   map[string]*gnoImporterResult{},
 		cfg: &types.Config{
 			Error: func(err error) {
@@ -233,8 +235,11 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	}()
 	var mpkg *std.MemPackage
 	if gimp.testing && IsStdlib(pkgPath) {
+		// XXX was never here.
+		fmt.Println("gimp.Tgetter", "gimp.pkgPath", gimp.pkgPath, pkgPath, gimp.testing)
 		mpkg = gimp.tgetter.GetMemPackage(pkgPath)
 	} else {
+		fmt.Println("gimp.getter", "gimp.pkgPath", gimp.pkgPath, pkgPath, gimp.testing)
 		mpkg = gimp.getter.GetMemPackage(pkgPath)
 	}
 	if mpkg == nil {
@@ -365,7 +370,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		return nil, errs
 	}
 
-	fmt.Println("GOPARSED", "pmode", pmode, "path", mpkg.Path, "_gofs", _gofs, "tgofs", tgofs)
+	fmt.Println("GOPARSED", "pmode", pmode, "path", mpkg.Path, "len(allgofs)", len(allgofs), "_gofs", _gofs, "tgofs", tgofs)
 
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {

@@ -240,7 +240,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
 	abortOnError := true
+	fmt.Println("TESTOPTIONS.runTest(){LoadImports(...")
 	if err := LoadImports(opts.TestStore, &std.MemPackage{
+		Type: gno.MPFiletests,
 		Name: string(pkgName),
 		Path: pkgPath,
 		Files: []*std.MemFile{
@@ -254,6 +256,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		return runResult{Error: err.Error()}
 	}
+	fmt.Println("TESTOPTIONS.runTest(){LoadImports()")
 
 	// Reset and start capturing stdout.
 	opts.filetestBuffer.Reset()
@@ -284,6 +287,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	if !gno.IsRealmPath(pkgPath) { // Simple case - pure package.
 		// Construct mem package for single filetest.
 		mpkg := &std.MemPackage{
+			Type: gno.MPFiletests,
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -313,6 +317,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		fname = strings.ReplaceAll(fname, "_filetest", "")
 		// Save package using realm crawl procedure.
 		mpkg := &std.MemPackage{
+			Type: gno.MPFiletests,
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
