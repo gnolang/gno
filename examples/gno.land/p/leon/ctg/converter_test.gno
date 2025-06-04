@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+func TestConvertKnownAddress(t *testing.T) {
+	const (
+		cosmosAddr = "cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs"
+		gnoAddr    = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	)
+	got, err := ConvertCosmosToGno(cosmosAddr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != gnoAddr {
+		t.Fatalf("got %s, want %s", got, gnoAddr)
+	}
+}
+
 func TestConvertCosmosToGno(t *testing.T) {
 	decoded := [20]byte{
 		0x01, 0x02, 0x03, 0x04, 0x05,
