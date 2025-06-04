@@ -8,18 +8,18 @@ const nbPrecompiledContract = 0x0a
 
 // Env is a global environnement to evaluate your EVM state
 type Env struct {
-	Logs            []LogEntry
-	Storage         map[uint256.Uint]*uint256.Uint
-	Accounts        Accounts
-	NextAccountId   uint64
-	Transaction     Transactions
-	ChainID         *uint256.Uint
-	BlockDifficulty *uint256.Uint
-	BlobHashes      []*uint256.Uint
-	BlobBaseFee		*uint256.Uint
-	PrevBaseFee     uint64
-	IncludedGas     uint64
-	TargetGas       uint64
+	Logs            []LogEntry                     // Logs emitted during execution (for events)
+	Storage         map[uint256.Uint]*uint256.Uint // Global storage (key-value store per contract)
+	Accounts        Accounts               		   // List of accounts (EOA and contracts)
+	NextAccountId   uint64                   	   // Next account ID for contract creation
+	Transaction     Transactions             	   // Current transaction context
+	ChainID         *uint256.Uint            	   // Chain ID for replay protection (EIP-155)
+	BlockDifficulty *uint256.Uint            	   // Block difficulty (used in PoW, ignored in PoS)
+	BlobHashes      []*uint256.Uint          	   // Hashes of blob data (EIP-4844)
+	BlobBaseFee     *uint256.Uint            	   // Base fee for blob transactions (EIP-4844)
+	PrevBaseFee     uint64                   	   // Previous block's base fee (EIP-1559)
+	IncludedGas     uint64                   	   // Gas used in the current block (EIP-1559)
+	TargetGas       uint64                   	   // Target gas limit per block (EIP-1559)
 }
 
 func NewEnv() *Env {
