@@ -328,7 +328,7 @@ func opBaseFee(s *State) error {
     return nil
 }
 
-func opBlobbasefee(s *State) error {
+func opBlobBaseFee(s *State) error {
     if s.env != nil && s.env.BlobBaseFee != nil {
         s.stack.Push(s.env.BlobBaseFee.Clone())
     } else {
