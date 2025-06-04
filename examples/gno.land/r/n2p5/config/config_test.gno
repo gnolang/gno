@@ -59,7 +59,6 @@ func TestRemoveBackupOwner(t *testing.T) {
 func TestClaimOwnership(t *testing.T) {
 	owner := std.Address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
-	u2 := testutils.TestAddress("u2")
 
 	if owner != Owner() {
 		t.Errorf("expected: %v, got: %v", owner, Owner())
