@@ -79,6 +79,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		test.StoreOptions{PreprocessOnly: true},
 	)
 	ppkgs := map[string]processedPackage{}
+	tccache := gno.TypeCheckCache{}
 
 	if cmd.verbose {
 		io.ErrPrintfln("linting directories: %v", dirs)
@@ -176,7 +177,10 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				if cmd.autoGnomod {
 					tcmode = gno.TCLatestRelaxed
 				}
-				errs := lintTypeCheck(io, dir, mpkg, gs, tcmode)
+				errs := lintTypeCheck(io, dir, mpkg, gs, gno.TypeCheckOptions{
+					Mode:  tcmode,
+					Cache: tccache,
+				})
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
 					hasError = true
@@ -271,12 +275,12 @@ func lintTypeCheck(
 	dir string,
 	mpkg *std.MemPackage,
 	testStore gno.Store,
-	tcmode gno.TypeCheckMode) (
+	tcopts gno.TypeCheckOptions) (
 	// Results:
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackage(mpkg, testStore, tcmode)
+	_, tcErrs := gno.TypeCheckMemPackageWithOptions(mpkg, testStore, tcopts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)

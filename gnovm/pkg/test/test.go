@@ -127,6 +127,8 @@ type TestOptions struct {
 	Error io.Writer
 	// Debug enables the interactive debugger on gno tests.
 	Debug bool
+	// Set a Cache to enable faster type checking in filetests, for known packages.
+	Cache gno.TypeCheckCache
 
 	// Not set by NewTestOptions:
 
@@ -160,6 +162,7 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 		RootDir: rootDir,
 		Output:  stdout,
 		Error:   stderr,
+		Cache:   gno.TypeCheckCache{},
 	}
 	opts.BaseStore, opts.TestStore = Store(rootDir, opts.WriterForStore())
 	return opts

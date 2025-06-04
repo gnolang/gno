@@ -231,6 +231,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
+	tccache := gno.TypeCheckCache{}
 
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
@@ -272,7 +273,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Draft {
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TCLatestRelaxed)
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
+					Mode:  gno.TCLatestRelaxed,
+					Cache: tccache,
+				})
 				if errs != nil {
 					didError = true
 					// already printed in lintTypeCheck.

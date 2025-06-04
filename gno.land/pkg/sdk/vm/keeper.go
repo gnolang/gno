@@ -597,6 +597,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
+	// Use relaxed as we don't require a gno.mod file for maketx run.
 	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.TCLatestRelaxed)
 	if err != nil {
 		return "", ErrTypeCheck(err)

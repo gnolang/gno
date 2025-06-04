@@ -202,6 +202,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 // filetest: if cmd.filetestsOnly, a single filetest to run fixDir on.
 func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, ts gno.Store, filetest string) error {
 	ppkgs := map[string]processedPackage{}
+	tccache := gno.TypeCheckCache{}
 	hasError := false
 	//----------------------------------------
 	// FIX STAGE 1: Type-check and lint.
@@ -307,7 +308,10 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			errs := lintTypeCheck(cio, dir, mpkg, gs, gno.TCGno0p0)
+			errs := lintTypeCheck(cio, dir, mpkg, gs, gno.TypeCheckOptions{
+				Mode:  gno.TCGno0p0,
+				Cache: tccache,
+			})
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true

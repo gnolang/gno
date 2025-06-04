@@ -144,12 +144,34 @@ const (
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
+	return TypeCheckMemPackageWithOptions(mpkg, getter, TypeCheckOptions{
+		Mode: tcmode,
+	})
+}
+
+type TypeCheckCache map[string]*gnoImporterResult
+
+// TypeCheckOptions allows to set custom options in [TypeCheckMemPackageWithOptions].
+type TypeCheckOptions struct {
+	Mode TypeCheckMode
+	// custom cache, for retaining results across several runs of the type
+	// checker when the packages themselves won't change.
+	Cache TypeCheckCache
+}
+
+// TypeCheckMemPackageWithOptions checks the given mpkg, configured using opts.
+func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGetter, opts TypeCheckOptions) (
+	pkg *types.Package, errs error,
+) {
+	if opts.Cache == nil {
+		opts.Cache = TypeCheckCache{}
+	}
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
-		tcmode:  tcmode,
+		tcmode:  opts.Mode,
 		getter:  gnoBuiltinsGetterWrapper{getter},
-		cache:   map[string]*gnoImporterResult{},
+		cache:   opts.Cache,
 		cfg: &types.Config{
 			Error: func(err error) {
 				gimp.Error(err)
@@ -179,7 +201,7 @@ type gnoImporter struct {
 	pkgPath string
 	tcmode  TypeCheckMode
 	getter  MemPackageGetter
-	cache   map[string]*gnoImporterResult
+	cache   TypeCheckCache
 	cfg     *types.Config
 	errors  []error  // there may be many for a single import
 	stack   []string // stack of pkgpaths for cyclic import detection
