@@ -336,3 +336,22 @@ func opBlobBaseFee(s *State) error {
     }
 	return nil
 }
+
+func opBlobHash(s *State) error {
+	index, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	if s.env == nil || s.env.BlobHashes == nil {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	i := index.Uint64()
+	if i >= uint64(len(s.env.BlobHashes)) {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	blobHash := s.env.BlobHashes[i]
+	s.stack.Push(blobHash.Clone())
+	return nil
+}

@@ -1389,6 +1389,41 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 2,
 		},
+		{
+			name: "valid blobhash",
+			code: []byte{
+				byte(PUSH1), 0x00,
+				byte(BLOBHASH),
+				byte(STOP),
+			},
+			env: Env{
+				BlobHashes: []*uint256.Uint{
+					uint256.Zero().SetBytes([]byte{0x01, 0x02, 0x03}), // hash
+				},
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero().SetBytes([]byte{0x01, 0x02, 0x03}),
+			},
+			expectedGasConsumed: 6,
+		},
+		{
+			name: "invalid blobhash",
+			code: []byte{
+				byte(PUSH1), 0x01,
+				byte(BLOBHASH),
+				byte(STOP),
+			},
+			env: Env{
+				BlobHashes: []*uint256.Uint{
+					uint256.Zero().SetBytes([]byte{0x01, 0x02, 0x03}), // only one blobhash at index 0
+				},
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero(),
+			},
+			expectedGasConsumed: 6,
+		},
+		
 	}
 
 	for _, tc := range testCases {

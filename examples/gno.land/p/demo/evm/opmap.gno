@@ -238,7 +238,7 @@ func init() {
 		CHAINID:        {CHAINID, "CHAINID", opChainId, 2},
 		SELFBALANCE:    {SELFBALANCE, "SELFBALANCE", opSelfBalance, 5},
 		BASEFEE:        {BASEFEE, "BASEFEE", opBaseFee, 2},
-		BLOBHASH:       {BLOBHASH, "BLOBHASH", notImplemented, 3},
+		BLOBHASH:       {BLOBHASH, "BLOBHASH", opBlobHash, 3},
 		BLOBBASEFEE:    {BLOBBASEFEE, "BLOBBASEFEE", opBlobBaseFee, 2},
 		POP:            {POP, "POP", opPop, 2},
 		MLOAD:          {MLOAD, "MLOAD", opMload, 3},       // can change

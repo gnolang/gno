@@ -15,6 +15,7 @@ type Env struct {
 	Transaction     Transactions
 	ChainID         *uint256.Uint
 	BlockDifficulty *uint256.Uint
+	BlobHashes      []*uint256.Uint
 	BlobBaseFee		*uint256.Uint
 	PrevBaseFee     uint64
 	IncludedGas     uint64
@@ -30,6 +31,7 @@ func NewEnv() *Env {
 		Transaction:     Transactions{},
 		ChainID:         uint256.Zero(),
 		BlockDifficulty: uint256.Zero(),
+		BlobHashes:      []*uint256.Uint{},
 		BlobBaseFee: 	 uint256.Zero(),
 		PrevBaseFee:     0,
 		IncludedGas:     0,
