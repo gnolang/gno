@@ -1374,6 +1374,21 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 2,
 		},
+		{
+			name: "basefee with env",
+			code: []byte{
+				byte(BASEFEE),
+				byte(STOP)},
+			env: Env{
+				PrevBaseFee: 100_000_000_000,
+				IncludedGas: 30_000_000,
+				TargetGas:   15_000_000,
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.NewUint(112_500_000_000),
+			},
+			expectedGasConsumed: 2,
+		},
 	}
 
 	for _, tc := range testCases {

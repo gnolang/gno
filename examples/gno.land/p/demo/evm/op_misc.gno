@@ -306,18 +306,26 @@ func opNumber(s *State) error {
 	return nil
 }
 
-// TODO: fix + tests
 func opBaseFee(s *State) error {
-	prevBaseFee := uint64(202700000000) // wei
-	includedGas := uint64(30000000)     // in millions
-	targetGas := uint64(15000000)
-
-	delta := float64(int64(includedGas)-int64(targetGas)) / float64(targetGas)
-	adjustment := delta * float64(prevBaseFee) / 8.0
-	newBaseFee := float64(prevBaseFee) + adjustment
-	feeResult := uint64(newBaseFee + 0.5)
-	s.stack.Push(uint256.NewUint(feeResult))
-	return nil
+    prevBaseFee := uint64(202700000000) // wei
+    includedGas := uint64(30000000)
+    targetGas := uint64(15000000)
+    if env := s.env; env != nil {
+        if env.PrevBaseFee != 0 {
+            prevBaseFee = env.PrevBaseFee
+        }
+        if env.IncludedGas != 0 {
+            includedGas = env.IncludedGas
+        }
+        if env.TargetGas != 0 {
+            targetGas = env.TargetGas
+        }
+    }
+    delta := float64(int64(includedGas) - int64(targetGas)) / float64(targetGas)
+    adjustment := delta * float64(prevBaseFee) / 8 // adjust base fee (12.5% limit)
+    feeResult := uint64(float64(prevBaseFee) + adjustment + 0.5) // rounded
+    s.stack.Push(uint256.NewUint(feeResult))
+    return nil
 }
 
 func opBlobbasefee(s *State) error {

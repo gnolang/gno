@@ -16,6 +16,9 @@ type Env struct {
 	ChainID         *uint256.Uint
 	BlockDifficulty *uint256.Uint
 	BlobBaseFee		*uint256.Uint
+	PrevBaseFee     uint64
+	IncludedGas     uint64
+	TargetGas       uint64
 }
 
 func NewEnv() *Env {
@@ -28,5 +31,8 @@ func NewEnv() *Env {
 		ChainID:         uint256.Zero(),
 		BlockDifficulty: uint256.Zero(),
 		BlobBaseFee: 	 uint256.Zero(),
+		PrevBaseFee:     0,
+		IncludedGas:     0,
+		TargetGas:       0, 
 	}
 }
