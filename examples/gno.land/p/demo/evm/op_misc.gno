@@ -355,3 +355,12 @@ func opBlobHash(s *State) error {
 	s.stack.Push(blobHash.Clone())
 	return nil
 }
+
+func opCoinbase(s *State) error {
+    if s.env != nil && s.env.Coinbase != nil {
+        s.stack.Push(s.env.Coinbase.Clone()) // miner address -> coinbase
+    } else {
+        s.stack.Push(uint256.Zero())
+    }
+    return nil
+}

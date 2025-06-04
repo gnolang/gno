@@ -12,6 +12,7 @@ type Env struct {
 	Storage         map[uint256.Uint]*uint256.Uint // Global storage (key-value store per contract)
 	Accounts        Accounts               		   // List of accounts (EOA and contracts)
 	NextAccountId   uint64                   	   // Next account ID for contract creation
+	Coinbase        *uint256.Uint                  // Miner address
 	Transaction     Transactions             	   // Current transaction context
 	ChainID         *uint256.Uint            	   // Chain ID for replay protection (EIP-155)
 	BlockDifficulty *uint256.Uint            	   // Block difficulty (used in PoW, ignored in PoS)
@@ -28,6 +29,7 @@ func NewEnv() *Env {
 		Storage:         map[uint256.Uint]*uint256.Uint{},
 		Accounts:        Accounts{},
 		NextAccountId:   nbPrecompiledContract + 1,
+		Coinbase:        uint256.Zero(),
 		Transaction:     Transactions{},
 		ChainID:         uint256.Zero(),
 		BlockDifficulty: uint256.Zero(),
