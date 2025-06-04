@@ -151,7 +151,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetFloat64(math.Float64bits(value))
 			return
 		default:
-			panic(fmt.Sprintf("unexpected primitive type %s", bt.String()))
+			panic(fmt.Sprintf("unexpected primitive type %s", bt.String(nil)))
 		}
 	case *gno.ArrayType:
 		if bt.Elt == gno.Uint8Type {

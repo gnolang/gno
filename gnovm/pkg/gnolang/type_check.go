@@ -208,7 +208,7 @@ func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) 
 	if n.Type != nil {
 		nt := evalStaticType(store, last, n.Type)
 		if _, ok := baseOf(nt).(PrimitiveType); !ok {
-			panic(fmt.Sprintf("invalid constant type %s", nt.String()))
+			panic(fmt.Sprintf("invalid constant type %s", nt.String(nil)))
 		}
 	}
 
@@ -445,8 +445,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 			} else {
 				return errors.New(
 					"%s does not implement %s (%s)",
-					xt.String(),
-					dt.String(),
+					xt.String(nil),
+					dt.String(nil),
 					err.Error())
 			}
 		} else {
@@ -469,8 +469,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 			} else {
 				return errors.New(
 					"cannot use %s as %s without explicit conversion",
-					dxt.String(),
-					ddt.String())
+					dxt.String(nil),
+					ddt.String(nil))
 			}
 		} else {
 			// special case if implicitly named primitive type.
@@ -478,8 +478,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 			if _, ok := dt.(PrimitiveType); ok {
 				return errors.New(
 					"cannot use %s as %s without explicit conversion",
-					dxt.String(),
-					dt.String())
+					dxt.String(nil),
+					dt.String(nil))
 			} else {
 				// carry on with baseOf(dxt)
 				xt = dxt.Base // set as base to do the rest check
@@ -496,8 +496,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 			if !isUntyped(xt) {
 				return errors.New(
 					"cannot use %s as %s without explicit conversion",
-					xt.String(),
-					ddt.String())
+					xt.String(nil),
+					ddt.String(nil))
 			} else { // xt untyped, carry on with check below
 				dt = ddt.Base
 			}
@@ -583,15 +583,15 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 			if at.Len != cdt.Len {
 				return errors.New(
 					"cannot use %s as %s",
-					at.String(),
-					cdt.String())
+					at.String(nil),
+					cdt.String(nil))
 			}
 			err := checkSame(at.Elt, cdt.Elt, "")
 			if err != nil {
 				return errors.New(
 					"cannot use %s as %s",
-					at.String(),
-					cdt.String())
+					at.String(nil),
+					cdt.String(nil))
 			}
 			return nil
 		}
@@ -604,8 +604,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 				if err != nil {
 					return errors.New(
 						"cannot use %s as %s",
-						st.String(),
-						cdt.String())
+						st.String(nil),
+						cdt.String(nil))
 				}
 				return nil
 			}
@@ -616,8 +616,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 			if err != nil {
 				return errors.New(
 					"cannot use %s as %s",
-					mt.String(),
-					cdt.String()).Stacktrace()
+					mt.String(nil),
+					cdt.String(nil)).Stacktrace()
 			}
 			return nil
 		}
@@ -632,12 +632,12 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) (err error) {
 	default:
 		return errors.New(
 			"unexpected type %s",
-			dt.String())
+			dt.String(nil))
 	}
 	return errors.New(
 		"cannot use %s as %s",
-		xt.String(),
-		dt.String()).Stacktrace()
+		xt.String(nil),
+		dt.String(nil)).Stacktrace()
 }
 
 // ===========================================================
@@ -781,7 +781,7 @@ func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type
 		if t == nil {
 			return "untyped nil"
 		} else {
-			return t.String()
+			return t.String(nil)
 		}
 	}
 
@@ -1066,7 +1066,7 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 		}
 		if _, ok := tt.(*TypeType); ok {
 			tt = evalStaticType(store, last, exp)
-			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+			panic(fmt.Sprintf("%s (type) is not an expression", tt.String(nil)))
 		}
 
 		// Ensures that function used in ValueDecl or AssignStmt must return at least 1 value.

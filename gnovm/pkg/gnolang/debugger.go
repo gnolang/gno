@@ -635,7 +635,7 @@ func debugPrint(m *Machine, arg string) (err error) {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(m.Debugger.out, tv)
+	fmt.Fprintln(m.Debugger.out, tv.String(nil))
 	return nil
 }
 
