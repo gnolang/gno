@@ -117,6 +117,7 @@ func (b Blog) Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", b.RenderPosts)
 	router.HandleFunc("post/{slug}", b.RenderPost)
+	router.HandleFunc("tag", b.RenderTags)
 	router.HandleFunc("tag/{slug}", b.RenderTags)
 	router.HandleFunc("author/{slug}", b.RenderAuthors)
 	router.HandleFunc("commenter/{slug}", b.RenderCommenters)
@@ -239,6 +240,15 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
 
+	if tag == "" {
+		out += "Available tags:\n"
+		tags := b.AllTags()
+		for _, t := range tags {
+			out += md.Link(t, b.Prefix+":tag/"+t) + "\n"
+		}
+		res.Write(out)
+		return
+	}
 	filteredPosts, exists := b.filterPostsByField("tag", tag)
 	p := pager.NewPager(filteredPosts, 4, newestFirst)
 	page := p.MustGetPageByPath(req.RawPath)
@@ -329,4 +339,21 @@ func (b Blog) findPostBySlug(value string) (string, bool) {
 		return found
 	})
 	return foundKey, found
+}
+
+func (b Blog) AllTags() []string {
+	tagSet := make(map[string]struct{})
+	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
+		post := v.(*Post)
+		for _, tag := range post.Tags {
+			tagSet[tag] = struct{}{}
+		}
+		return false
+	})
+
+	var tags []string
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+	return tags
 }
