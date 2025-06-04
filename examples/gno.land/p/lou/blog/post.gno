@@ -163,14 +163,14 @@ func (p Post) RenderComments() string {
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
 		if comment.Pinned {
-			out += comment.Render()
+			out += comment.Render(0) + "\n\n"
 		}
 		return false
 	})
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
 		if !comment.Pinned {
-			out += comment.Render()
+			out += comment.Render(0) + "\n\n"
 		}
 		return false
 	})

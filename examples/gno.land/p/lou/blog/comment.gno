@@ -23,7 +23,6 @@ type Comment struct {
 }
 
 func NewComment(author std.Address, content string) (*Comment, error) {
-	// author resolve
 	if content == "" {
 		return nil, ErrEmptyComment
 	}
@@ -56,20 +55,55 @@ func (c *Comment) Unpin() {
 	c.Pinned = false
 }
 
-func (c Comment) Render() string {
-	out := md.Bold(c.Author.String()) + " "
+func (c *Comment) AddLike() {
+	c.Likes++
+}
+
+func (c *Comment) RemoveLike() {
+	if c.Likes > 0 {
+		c.Likes--
+	}
+}
+
+func (c *Comment) AddReply(reply *Comment) error {
+	if reply == nil {
+		return ErrEmptyComment
+	}
+	if c.Replies == nil {
+		c.Replies = avl.NewTree()
+	}
+	reply.ID.Next()
+	c.Replies.Set(reply.ID.String(), reply)
+	return nil
+}
+
+func (c *Comment) Render(depth int) string {
+	prefix := ""
+	for i := 0; i < depth; i++ {
+		prefix += "> "
+	}
+
+	out := prefix + md.Bold(c.Author.String()) + " " // add link to :commenter/
 	if c.Pinned {
 		out += "📌 "
 	}
 	if c.EditedAt != nil {
-		out += md.Italic(c.EditedAt.Format("02 Jan 2006")) + " (edited)\n"
+		out += md.Italic(formatTime(*c.EditedAt, "relative")) + " (edited)\n"
 	} else {
-		out += md.Italic(c.CreatedAt.Format("02 Jan 2006")) + "\n"
+		out += md.Italic(formatTime(c.CreatedAt, "relative")) + "\n"
 	}
-	out += "> " + c.Content + "\n\n"
+	out += prefix + c.Content + "\n"
 	if !c.DisableLikes {
-		out += "❤️" + " " + strconv.Itoa(c.Likes) + " | " // like action here
+		out += prefix + "❤️ " + strconv.Itoa(c.Likes) + " | " // like actions?
 	}
-	out += "reply" // reply action here
+	out += "reply\n\n" // reply actions
+
+	if c.Replies != nil && c.Replies.Size() > 0 {
+		c.Replies.Iterate("", "", func(key string, value any) bool {
+			reply := value.(*Comment)
+			out += reply.Render(depth + 1)
+			return false
+		})
+	}
 	return out
 }
