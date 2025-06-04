@@ -116,7 +116,8 @@ func (b *Blog) DeletePost(post *Post) error {
 func (b Blog) Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", b.RenderPosts)
-	router.HandleFunc("post/{slug}", b.RenderPost)
+	router.HandleFunc("posts", b.RenderPosts)
+	router.HandleFunc("posts/{slug}", b.RenderPost)
 	router.HandleFunc("tags", b.RenderTags)
 	router.HandleFunc("tags/{slug}", b.RenderTags)
 	router.HandleFunc("authors", b.RenderAuthors)
@@ -130,36 +131,43 @@ func RenderBlogHeader(prefix, rawPath string) string {
 	out += md.Link("☰ list", updateQuery(rawPath, "mode", "list")) + " | "
 	out += md.Link("▲ recent", updateQuery(rawPath, "sort", "recent")) + " | "
 	out += md.Link("▼ oldest", updateQuery(rawPath, "sort", "oldest")) + " | "
+	out += "⏱ " + md.Link("short", updateQuery(rawPath, "time", "short")) + ", "
+	out += md.Link("full", updateQuery(rawPath, "time", "full")) + ", "
+	out += md.Link("relative", updateQuery(rawPath, "time", "relative")) + " |"
 
 	sort := parseQueryParams("sort", rawPath)
 	order := parseQueryParams("order", rawPath)
-	toggle := func(current string) string {
-		if current == "asc" {
-			return "desc"
-		}
-		return "asc"
-	}
 	if order == "" {
-		order = "desc"
+		order = "asc"
+	}
+	toggle := func(current string) string {
+		if current == "desc" {
+			return "asc"
+		}
+		return "desc"
 	}
 	out += md.Link(orderArrow("update", sort, order)+" last updated",
 		updateQueryMulti(rawPath, map[string]string{
 			"sort":  "update",
 			"order": toggle(order),
 		})) + " | "
-	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical",
+
+	ordering := "(A-Z)"
+	if order == "desc" && sort == "alpha" {
+		ordering = "(Z-A)"
+	}
+	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical "+ordering,
 		updateQueryMulti(rawPath, map[string]string{
 			"sort":  "alpha",
 			"order": toggle(order),
 		})) + " | "
-	// most popular sort=popular order=ascending/descending (toggle between ▲ and ▼)
-	// time format
 
 	out += md.Link("🗘 reset", prefix) + "\n"
 	return out
 }
 
 func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
+	out := md.H1(b.Title) + "\n"
 	if b.Posts.Size() == 0 {
 		res.Write("No posts found.")
 		return
@@ -169,11 +177,12 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
 
 	order := parseQueryParams("order", req.RawPath)
+	ascending := order == "asc" || order == "" // default to ascending order
 	lastUpdated := sort == "update"
 	alphabetical := sort == "alpha"
-	ascending := order == "asc" || order == "" // default to ascending order
 
 	pageSize := 9
+	timeFmt := parseQueryParams("time", req.RawPath)
 	mode := parseQueryParams("mode", req.RawPath)
 	isGrid := mode == "grid" || mode == "" // default to grid mode
 	if !isGrid {
@@ -189,12 +198,12 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 		p = pager.NewPager(b.Posts, pageSize, newestFirst)
 	}
 	page := p.MustGetPageByPath(req.RawPath)
-	out := RenderBlogHeader(b.Prefix, req.RawPath)
-	out += b.RenderListGrid(page, isGrid) + page.Picker(req.Path)
+	out += RenderBlogHeader(b.Prefix, req.RawPath)
+	out += b.RenderListGrid(page, isGrid, timeFmt) + page.Picker(req.Path)
 	res.Write(out)
 }
 
-func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
+func (b Blog) RenderListGrid(page *pager.Page, gridMode bool, timeFmt string) string {
 	colCount := 0
 	out := "<gno-columns>\n"
 	for _, item := range page.Items {
@@ -202,7 +211,7 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
 			out += "<gno-columns>\n"
 		}
 		post := item.Value.(*Post)
-		out += post.RenderPreview(gridMode, b.Prefix)
+		out += post.RenderPreview(gridMode, timeFmt, b.Prefix)
 		colCount++
 		if colCount%3 == 0 {
 			out += "</gno-columns>\n"
@@ -239,7 +248,29 @@ func (b Blog) RenderFilterHeader(req *mux.Request) string {
 	out := md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
 	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
 	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
-	// add alphabetical sorting
+	// out += md.Link("▲ most common", b.Prefix+":"+updateQuery(req.RawPath, "sort", "common")) + " | "
+	// out += md.Link("▼ least common", b.Prefix+":"+updateQuery(req.RawPath, "sort", "least")) + " | "
+
+	sort := parseQueryParams("sort", req.RawPath)
+	order := parseQueryParams("order", req.RawPath)
+	if order == "" {
+		order = "asc"
+	}
+	toggle := func(current string) string {
+		if current == "desc" {
+			return "asc"
+		}
+		return "desc"
+	}
+	ordering := "(A-Z)"
+	if order == "desc" && sort == "alpha" {
+		ordering = "(Z-A)"
+	}
+	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical "+ordering,
+		b.Prefix+":"+updateQueryMulti(req.RawPath, map[string]string{
+			"sort":  "alpha",
+			"order": toggle(order),
+		})) + " | "
 	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
 	return out
 }
@@ -248,26 +279,37 @@ func (b Blog) RenderFilterHeader(req *mux.Request) string {
 func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	tag := req.GetVar("slug")
 	out := b.RenderFilterHeader(req)
-
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
-	// add alphabetical sorting
+	order := parseQueryParams("order", req.RawPath)
+	ascending := order == "asc" || order == "" // default to ascending order
 
+	var p *pager.Pager
+	var page *pager.Page
 	if tag == "" {
 		tags := b.FetchTags()
-		for _, t := range tags {
-			out += md.H3(md.Link("#"+t, b.Prefix+":tags/"+t)) + "\n"
+		treeTags := fieldsToTree(sortFields(tags, sort))
+		if ascending {
+			p = pager.NewPager(treeTags, 12, ascending)
+		} else {
+			p = pager.NewPager(treeTags, 12, newestFirst)
 		}
+		page = p.MustGetPageByPath(req.RawPath)
+		for _, item := range page.Items {
+			out += md.H3(md.Link(item.Key, b.Prefix+":tags/"+item.Key)) + "\n"
+		}
+		out += page.Picker(req.Path) + "\n\n"
 		res.Write(out)
 		return
 	}
+
 	filteredPosts, exists := b.filterPostsByField("tag", tag)
-	p := pager.NewPager(filteredPosts, 4, newestFirst)
-	page := p.MustGetPageByPath(req.RawPath)
+	p = pager.NewPager(filteredPosts, 4, newestFirst)
+	page = p.MustGetPageByPath(req.RawPath)
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
 		if hasField(post.Tags, tag) {
-			out += post.RenderPreview(false, b.Prefix) + "\n"
+			out += post.RenderPreview(false, "short", b.Prefix) + "\n"
 			exists = true
 		}
 	}
@@ -299,7 +341,7 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	page := p.MustGetPageByPath(req.RawPath)
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
-		out += post.RenderPreview(false, b.Prefix) + "\n"
+		out += post.RenderPreview(false, "short", b.Prefix) + "\n"
 	}
 	if !exists {
 		out += "No posts found for this author."

@@ -2,8 +2,13 @@ package blog
 
 import (
 	"net/url"
+	"sort"
 	"strings"
+	"time"
 
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
 
@@ -125,4 +130,55 @@ func renderBreadcrumb(prefix, path string) string {
 		parts = append(parts, md.Link(label, base))
 	}
 	return strings.Join(parts, "/")
+}
+
+func formatTime(t time.Time, format string) string {
+	switch format {
+	case "relative":
+		return calculateTimeSince(t)
+	case "short":
+		return t.Format("02 Jan 2006")
+	case "full":
+		return t.Format("January 02, 2006 at 3:04 PM")
+	default:
+		return t.Format("January 02 2006")
+	}
+}
+
+func calculateTimeSince(t time.Time) string {
+	duration := time.Since(t)
+	if duration < time.Minute {
+		return "just now"
+	} else if duration < time.Hour {
+		return ufmt.Sprintf("%d minutes ago", int(duration.Minutes()))
+	} else if duration < 24*time.Hour {
+		return ufmt.Sprintf("%d hours ago", int(duration.Hours()))
+	} else if duration < 7*24*time.Hour {
+		return ufmt.Sprintf("%d days ago", int(duration.Hours()/24))
+	} else if duration < 30*24*time.Hour {
+		return ufmt.Sprintf("%d weeks ago", int(duration.Hours()/(7*24)))
+	} else {
+		return ufmt.Sprintf("%d months ago", int(duration.Hours()/(30*24)))
+	}
+}
+
+func sortFields(fields []string, sortBy string) []string {
+	if sortBy == "recent" || sortBy == "oldest" || sortBy == "" {
+		return fields
+	}
+	if sortBy == "alpha" {
+		sort.Strings(fields)
+		return fields
+	}
+	return fields
+}
+
+func fieldsToTree(fields []string) *avl.Tree {
+	var id seqid.ID = 0
+	tree := avl.NewTree()
+	for _, field := range fields {
+		id.Next()
+		tree.Set(field, nil)
+	}
+	return tree
 }

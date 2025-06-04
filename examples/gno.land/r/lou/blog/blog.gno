@@ -4,7 +4,6 @@ import (
 	"std"
 
 	"gno.land/p/lou/blog"
-	"gno.land/p/moul/md"
 )
 
 func CreateSampleBlog() *blog.Blog {
@@ -73,7 +72,7 @@ func CreateSampleBlog() *blog.Blog {
 }
 
 func Render(path string) string {
-	out := md.H1("Blog")
+	out := ""
 	myBlog := CreateSampleBlog()
 	out += myBlog.Render(path)
 	return out
