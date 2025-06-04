@@ -101,3 +101,28 @@ func titleToSlug(title string) string {
 	}, slug)
 	return slug
 }
+
+func renderBreadcrumb(prefix, path string) string {
+	segments := strings.Split(path, "/")
+	base := prefix
+	var parts []string
+
+	if prefix != "" {
+		parts = append(parts, md.Link(prefix, prefix))
+	}
+
+	for i, seg := range segments {
+		if seg == "" {
+			continue
+		}
+		base += ":" + seg
+		label := seg
+		if i == len(segments)-1 {
+			label = seg
+			parts = append(parts, label)
+			break
+		}
+		parts = append(parts, md.Link(label, base))
+	}
+	return strings.Join(parts, "/")
+}

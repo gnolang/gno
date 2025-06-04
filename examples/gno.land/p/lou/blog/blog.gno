@@ -117,10 +117,10 @@ func (b Blog) Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", b.RenderPosts)
 	router.HandleFunc("post/{slug}", b.RenderPost)
-	router.HandleFunc("tag", b.RenderTags)
-	router.HandleFunc("tag/{slug}", b.RenderTags)
-	router.HandleFunc("author", b.RenderAuthors)
-	router.HandleFunc("author/{slug}", b.RenderAuthors)
+	router.HandleFunc("tags", b.RenderTags)
+	router.HandleFunc("tags/{slug}", b.RenderTags)
+	router.HandleFunc("authors", b.RenderAuthors)
+	router.HandleFunc("authors/{slug}", b.RenderAuthors)
 	router.HandleFunc("commenter/{slug}", b.RenderCommenters)
 	return router.Render(path)
 }
@@ -240,12 +240,12 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
+	// add alphabetical sorting
 
 	if tag == "" {
-		out += "Available tags:\n"
 		tags := b.FetchTags()
 		for _, t := range tags {
-			out += md.Link(t, b.Prefix+":tag/"+t) + "\n"
+			out += md.H3(md.Link("#"+t, b.Prefix+":tags/"+t)) + "\n"
 		}
 		res.Write(out)
 		return
@@ -275,17 +275,9 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
 
 	if author == "" {
-		out += "Available authors:\n"
-		authors := make(map[string]struct{})
-		b.Posts.Iterate("", "", func(k string, v interface{}) bool {
-			post := v.(*Post)
-			for _, a := range post.Authors {
-				authors[a] = struct{}{}
-			}
-			return false
-		})
-		for a := range authors {
-			out += md.Link(a, b.Prefix+":author/"+a) + "\n"
+		authors := b.FetchAuthors()
+		for _, a := range authors {
+			out += md.H3(md.Link(a, b.Prefix+":authors/"+a)) + "\n"
 		}
 		res.Write(out)
 		return
@@ -313,9 +305,10 @@ func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func (b Blog) RenderFilterHeader(req *mux.Request) string {
-	out := md.H2(md.Link(b.Prefix, b.Prefix)+"/"+req.Path) + "\n"
+	out := md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
 	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
 	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
+	// add alphabetical sorting
 	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
 	return out
 }

@@ -181,9 +181,9 @@ func (p Post) RenderComments() string {
 }
 
 func renderTagLinks(prefix string, tags []string) string {
-	return renderLinks(prefix, "tag", tags, "#")
+	return renderLinks(prefix, "tags", tags, "#")
 }
 
 func renderAuthorLinks(prefix string, authors []string) string {
-	return renderLinks(prefix, "author", authors, "")
+	return renderLinks(prefix, "authors", authors, "")
 }
