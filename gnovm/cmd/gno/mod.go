@@ -180,7 +180,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 
 	stdout := io.Out()
 
-	pkgs, err := gno.ReadPkgListFromDir(args[0])
+	pkgs, err := gno.ReadPkgListFromDir(args[0], gno.MPAll)
 	if err != nil {
 		return err
 	}
@@ -308,7 +308,7 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		pkgs, err := gno.ReadPkgListFromDir(wd)
+		pkgs, err := gno.ReadPkgListFromDir(wd, gno.MPAll)
 		if err != nil {
 			return err
 		}

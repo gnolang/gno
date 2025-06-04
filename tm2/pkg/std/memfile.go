@@ -91,6 +91,8 @@ type MemPackage struct {
 	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
 	Path  string     `json:"path" yaml:"path"`   // import path
 	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
+	Type  any        `json:"type" yaml:"type"`   // (user defined) package type.
+	Info  any        `json:"info" yaml:"info"`   // (user defined) extra information.
 }
 
 // Package Name must be lower_case, can have digits & underscores.

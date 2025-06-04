@@ -161,7 +161,12 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 		Output:  stdout,
 		Error:   stderr,
 	}
-	opts.BaseStore, opts.TestStore = Store(rootDir, opts.WriterForStore())
+	opts.BaseStore, opts.TestStore = StoreWithOptions(
+		rootDir, opts.WriterForStore(), StoreOptions{
+			WithExtern:   false,
+			WithExamples: true,
+			Testing:      true,
+		})
 	return opts
 }
 
@@ -216,6 +221,18 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.errW = opts.Error
 
 	var errs error
+
+	// Let opts.TestStore load itself.
+	// This needs to happen before LoadImports, as LoadImports will
+	// otherwise only load without *_test.gno files (but we want them for
+	// mpkg since we're running tests on them).
+	opts.TestStore.AddMemPackage(mpkg, gno.MPAny)
+	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: mpkg.Path,
+		Output:  os.Stdout,
+		Store:   opts.TestStore,
+	})
+	_, _ = m2.RunMemPackageWithOverrides(mpkg, true)
 
 	// Eagerly load imports.
 	abortOnError := true

@@ -807,8 +807,7 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType
 			bm.StopStore(size)
 		}()
 	}
-	err := ValidateMemPackageWithOptions(mpkg,
-		ValidateMemPackageOptions{Type: mtype})
+	err := ValidateMemPackageForType(mpkg, mtype)
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}

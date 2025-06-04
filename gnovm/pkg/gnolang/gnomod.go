@@ -78,7 +78,8 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 
 // ========================================
 // ReadPkgListFromDir() lists all gno packages in the given dir directory.
-func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
+// `mptype` determines what subset of files are considered to read from.
+func ReadPkgListFromDir(dir string, mptype MemPackageType) (gnomod.PkgList, error) {
 	var pkgs []gnomod.Pkg
 
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -106,7 +107,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 			return fmt.Errorf("failed to validate gno.mod in %s: %w", modPath, err)
 		}
 
-		pkg, err := ReadMemPackage(path, mod.Module.Mod.Path)
+		pkg, err := ReadMemPackage(path, mod.Module.Mod.Path, mptype)
 		if err != nil {
 			// ignore package files on error
 			pkg = &std.MemPackage{}

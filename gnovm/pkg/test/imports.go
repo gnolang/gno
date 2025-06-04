@@ -12,6 +12,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -21,8 +22,14 @@ import (
 )
 
 type StoreOptions struct {
-	// WithExtern interprets imports of packages under "github.com/gnolang/gno/_test/"
-	// as imports under the directory in gnovm/tests/files/extern.
+	// WithExamples if true includes the examples/ folder in the gno project.
+	WithExamples bool
+
+	// Testing if true includes tests/stdlibs. If false, WithExtern omitted.
+	Testing bool
+
+	// WithExtern lets imports of packages "github.com/gnolang/gno/_test/"
+	// as imports under the directory in "gnovm/tests/files/extern".
 	// This should only be used for GnoVM internal filetests (gnovm/tests/files).
 	WithExtern bool
 
@@ -39,18 +46,45 @@ type StoreOptions struct {
 	FixFrom string
 }
 
-// NOTE: this isn't safe, should only be used for testing.
-func Store(
+// This store without options supports stdlibs without test/stdlibs overrides.
+// It is used for type-checking gno files without any test files.
+// NOTE: It's called "Prod*" because it's suitable for type-checking non-test
+// (production) files of a mem package, but it shouldn't be used for production
+// systems.
+func ProdStore(
 	rootDir string,
 	output io.Writer,
 ) (
 	baseStore storetypes.CommitStore,
-	resStore gno.Store,
+	gnoStore gno.Store,
 ) {
 	return StoreWithOptions(
 		rootDir,
 		output,
-		StoreOptions{},
+		StoreOptions{
+			WithExamples: true,
+			Testing:      false,
+		},
+	)
+}
+
+// This store without options supports stdlibs with test/stdlibs overrides.  It
+// is used for type-checking normal + non-xxx_test *_test.gno files, as well as
+// xxx_test integrataion files, and filetest files.
+func TestStore(
+	rootDir string,
+	output io.Writer,
+) (
+	baseStore storetypes.CommitStore,
+	gnoStore gno.Store,
+) {
+	return StoreWithOptions(
+		rootDir,
+		output,
+		StoreOptions{
+			WithExamples: true,
+			Testing:      true,
+		},
 	)
 }
 
@@ -63,7 +97,7 @@ func StoreWithOptions(
 	opts StoreOptions,
 ) (
 	baseStore storetypes.CommitStore,
-	resStore gno.Store,
+	gnoStore gno.Store,
 ) {
 	//----------------------------------------
 	// process the mempackage after gno.MustReadMemPackage().
@@ -97,7 +131,7 @@ func StoreWithOptions(
 					panic(fmt.Errorf("test store preparing AST: %w", errs))
 				}
 			}
-			m.Store.AddMemPackage(mpkg, gno.MemPackageTypeAny)
+			m.Store.AddMemPackage(mpkg, gno.MPAny)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
 				gno.ParseMemPackage(mpkg),
@@ -118,7 +152,7 @@ func StoreWithOptions(
 			const testPath = "github.com/gnolang/gno/_test/"
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
-				mpkg := gno.MustReadMemPackage(baseDir, pkgPath)
+				mpkg := gno.MustReadMemPackage(baseDir, pkgPath, gno.MPProd)
 				send := std.Coins{}
 				ctx := Context("", pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -133,31 +167,32 @@ func StoreWithOptions(
 		}
 
 		// Load normal stdlib.
-		pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly)
+		pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly, opts.Testing)
 		if pn != nil {
 			return
 		}
 
 		// if examples package...
-		examplePath := filepath.Join(rootDir, "examples", pkgPath)
-		if osm.DirExists(examplePath) {
-			mpkg := gno.MustReadMemPackage(examplePath, pkgPath)
-			if mpkg.IsEmpty() {
-				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+		if opts.WithExamples {
+			examplePath := filepath.Join(rootDir, "examples", pkgPath)
+			if osm.DirExists(examplePath) {
+				mpkg := gno.MustReadMemPackage(examplePath, pkgPath, gno.MPProd)
+				if mpkg.IsEmpty() {
+					panic(fmt.Sprintf("found an empty package %q", pkgPath))
+				}
+
+				send := std.Coins{}
+				ctx := Context("", pkgPath, send)
+				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+					PkgPath:       "test",
+					Output:        output,
+					Store:         store,
+					Context:       ctx,
+					ReviveEnabled: true,
+				})
+				return _processMemPackage(m2, mpkg, true)
 			}
-
-			send := std.Coins{}
-			ctx := Context("", pkgPath, send)
-			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				PkgPath:       "test",
-				Output:        output,
-				Store:         store,
-				Context:       ctx,
-				ReviveEnabled: true,
-			})
-			return _processMemPackage(m2, mpkg, true)
 		}
-
 		return nil, nil
 	}
 
@@ -165,19 +200,26 @@ func StoreWithOptions(
 	// Construct new stores
 	db := memdb.NewMemDB()
 	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
-	// Make a new store.
-	resStore = gno.NewStore(nil, baseStore, baseStore)
-	resStore.SetPackageGetter(getPackage)
-	resStore.SetNativeResolver(teststdlibs.NativeResolver)
+	// Make a new gno store.
+	gnoStore = gno.NewStore(nil, baseStore, baseStore)
+	gnoStore.SetPackageGetter(getPackage)
+	if opts.Testing {
+		gnoStore.SetNativeResolver(teststdlibs.NativeResolver)
+	} else {
+		gnoStore.SetNativeResolver(gnostdlibs.NativeResolver)
+	}
 	return
 }
 
-func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool) (*gno.PackageNode, *gno.PackageValue) {
-	dirs := [...]string{
+// if !testing, result must be safe for production type-checking.
+func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool, testing bool) (*gno.PackageNode, *gno.PackageValue) {
+	dirs := []string{
 		// Normal stdlib path.
 		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
+	}
+	if testing {
 		// Override path. Definitions here override the previous if duplicate.
-		filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath),
+		dirs = append(dirs, filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath))
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for _, path := range dirs {
@@ -201,7 +243,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		return nil, nil
 	}
 
-	mpkg := gno.MustReadMemPackageFromList(files, pkgPath, gno.MemPackageTypeStdlib)
+	mpkg := gno.MustReadMemPackageFromList(files, pkgPath, gno.MPStdlib)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
@@ -212,7 +254,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		ReviveEnabled: true,
 	})
 	if preprocessOnly {
-		m2.Store.AddMemPackage(mpkg, gno.MemPackageTypeStdlib)
+		m2.Store.AddMemPackage(mpkg, gno.MPStdlib)
 		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true, "")
 	}
 	// TODO: make this work when using gno lint.

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	goio "io"
 	"io/fs"
 	"os"
 	"path"
@@ -143,13 +144,9 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		}
 	}
 
-	bs, ts := test.StoreWithOptions(
-		cmd.rootDir, io.Discard,
-		test.StoreOptions{
-			PreprocessOnly: true,
-			FixFrom:        gno.GnoVerMissing,
-			WithExtern:     true,
-		},
+	testbs, testgs := test.StoreWithOptions(
+		cmd.rootDir, goio.Discard,
+		test.StoreOptions{PreprocessOnly: true, WithExtern: true, WithExamples: true, Testing: true, FixFrom: gno.GnoVerMissing},
 	)
 
 	if cmd.verbose {
@@ -157,7 +154,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	}
 
 	if !cmd.filetestsOnly {
-		return fixDir(cmd, cio, dirs, bs, ts, "")
+		return fixDir(cmd, cio, dirs, testbs, testgs, "")
 	} else {
 		if len(dirs) != 1 {
 			return fmt.Errorf("must specify one dir")
@@ -188,7 +185,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			if cmd.verbose {
 				fmt.Printf("fixing %q\n", fname)
 			}
-			err2 := fixDir(cmd, cio, dirs, bs, ts, fname)
+			err2 := fixDir(cmd, cio, dirs, testbs, testgs, fname)
 			if err2 != nil {
 				fmt.Printf("error fixing file %q: %v\n",
 					fname, err2)
@@ -200,7 +197,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 }
 
 // filetest: if cmd.filetestsOnly, a single filetest to run fixDir on.
-func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, ts gno.Store, filetest string) error {
+func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitStore, testgs gno.Store, filetest string) error {
 	ppkgs := map[string]processedPackage{}
 	hasError := false
 	//----------------------------------------
@@ -264,9 +261,9 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
 		if cmd.filetestsOnly {
 			mpkg, err = gno.ReadMemPackageFromList(
-				[]string{filetest}, pkgPath, gno.MemPackageTypeFiletests)
+				[]string{filetest}, pkgPath, gno.MPFiletests)
 		} else {
-			mpkg, err = gno.ReadMemPackage(dir, pkgPath)
+			mpkg, err = gno.ReadMemPackage(dir, pkgPath, gno.MPAll)
 		}
 		if err != nil {
 			printError(cio.Err(), dir, pkgPath, err)
@@ -281,18 +278,22 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 
 		// Perform imports using the parent store.
 		abortOnError := !cmd.filetestsOnly
-		if err := test.LoadImports(ts, mpkg, abortOnError); err != nil {
+		if err := test.LoadImports(testgs, mpkg, abortOnError); err != nil {
 			printError(cio.Err(), dir, pkgPath, err)
 			hasError = true
 			continue
 		}
 
+		// Wrap in cache wrap so execution of the linter
+		// doesn't impact other packages.
+		newTestGnoStore := func() gno.Store {
+			tcw := testbs.CacheWrap()
+			tgs := testgs.BeginTransaction(tcw, tcw, nil)
+			return tgs
+		}
+
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, cio.Err(), func() {
-			// Wrap in cache wrap so execution of the fixer
-			// doesn't impact other packages.
-			cw := bs.CacheWrap()
-			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// Memo process results here.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
@@ -307,7 +308,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			errs := lintTypeCheck(cio, dir, mpkg, gs, gno.TCGno0p0)
+			errs := lintTypeCheck(cio, dir, mpkg, newTestGnoStore(), newTestGnoStore(), gno.TCGno0p0)
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true
@@ -315,7 +316,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			}
 
 			// FIX STEP 4.a: Prepare*()
-			tm := test.Machine(gs, io.Discard, pkgPath, false)
+			tm := test.Machine(newTestGnoStore(), io.Discard, pkgPath, false)
 			defer tm.Release()
 			// FIX STEP 4.b: Re-parse the mem package to Go AST.
 			pmode := gno.ParseModeAll
@@ -339,10 +340,8 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 
 			{
 				// FIX STEP 6: PreprocessFiles()
-				// Preprocess fset files (w/ some _test.gno).
-				cw := bs.CacheWrap()
-				gs := ts.BeginTransaction(cw, cw, nil)
-				tm.Store = gs
+				// Preprocess fset files (w/ some *_test.gno).
+				tm.Store = newTestGnoStore()
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false, gno.GnoVerMissing)
 				ppkg.AddNormal(pn, fset)
@@ -354,13 +353,13 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 				// They are collected in
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range fset.Files {
-					gno.FindXformsGno0p9(gs, pn, fn)
-					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+					gno.FindXformsGno0p9(tm.Store, pn, fn)
+					gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 				}
 				for { // continue to find more until exhausted.
 					xnewSum := 0
 					for _, fn := range fset.Files {
-						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+						xnew := gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 						xnewSum += xnew
 					}
 					if xnewSum == 0 {
@@ -370,10 +369,8 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			}
 			{
 				// FIX STEP 6: PreprocessFiles()
-				// Preprocess xxx_test files (some _test.gno).
-				cw := bs.CacheWrap()
-				gs := ts.BeginTransaction(cw, cw, nil)
-				tm.Store = gs
+				// Preprocess xxx_test files (all xxx_test *_test.gno).
+				tm.Store = newTestGnoStore()
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, gno.GnoVerMissing)
 				ppkg.AddUnderscoreTests(pn, _tests)
@@ -385,13 +382,13 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 				// They are collected in
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range _tests.Files {
-					gno.FindXformsGno0p9(gs, pn, fn)
-					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+					gno.FindXformsGno0p9(tm.Store, pn, fn)
+					gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 				}
 				for { // continue to find more until exhausted.
 					xnewSum := 0
 					for _, fn := range _tests.Files {
-						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+						xnew := gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 						xnewSum += xnew
 					}
 					if xnewSum == 0 {
@@ -403,9 +400,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 				// FIX STEP 6: PreprocessFiles()
 				// Preprocess _filetest.gno files.
 				for i, fset := range ftests {
-					cw := bs.CacheWrap()
-					gs := ts.BeginTransaction(cw, cw, nil)
-					tm.Store = gs
+					tm.Store = newTestGnoStore()
 					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
@@ -428,13 +423,13 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 					// They are collected in
 					// pn.GetAttribute("XREALMFORM")
 					for _, fn := range fset.Files {
-						gno.FindXformsGno0p9(gs, pn, fn)
-						gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+						gno.FindXformsGno0p9(tm.Store, pn, fn)
+						gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 					}
 					for { // continue to find more until exhausted.
 						xnewSum := 0
 						for _, fn := range fset.Files {
-							xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+							xnew := gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 							xnewSum += xnew
 						}
 						if xnewSum == 0 {

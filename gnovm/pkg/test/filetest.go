@@ -65,6 +65,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error
 		ReviveEnabled: true,
 	})
 	defer m.Release()
+
+	// RUN THE FILETEST /////////////////////////////////////
 	result := opts.runTest(m, pkgPath, fname, source, opslog)
 
 	// updated tells whether the directives have been updated, and as such
@@ -279,8 +281,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	}()
 
 	// Use last element after / (works also if slash is missing).
-	if !gno.IsRealmPath(pkgPath) {
-		// Type check.
+	if !gno.IsRealmPath(pkgPath) { // Simple case - pure package.
+		// Construct mem package for single filetest.
 		mpkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
@@ -290,29 +292,25 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.TCLatestRelaxed); err != nil {
+		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
-
-		// Simple case - pure package.
+		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
 		pv := pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
-		n := gno.MustParseFile(fname, string(content))
-
-		m.RunFiles(n)
+		fn := gno.MustParseFile(fname, string(content))
+		// Run (add) file, and then run main().
+		m.RunFiles(fn)
 		m.RunMain()
-	} else {
-		// Realm case.
+	} else { // Realm case.
 		gno.DisableDebug() // until main call.
-
 		// Remove filetest from name, as that can lead to the package not being
 		// parsed correctly when using RunMemPackage.
 		fname = strings.ReplaceAll(fname, "_filetest", "")
-
 		// Save package using realm crawl procedure.
 		mpkg := &std.MemPackage{
 			Name: string(pkgName),
@@ -322,31 +320,28 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				{Name: fname, Body: string(content)},
 			},
 		}
-		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
-		m.Store = tx
-
+		// Start transaction store.
+		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil)
+		m.Store = txs
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.TCLatestRelaxed); err != nil {
+		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
-
 		// Run decls and init functions.
 		m.RunMemPackage(mpkg, true)
-
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
-		tx.Write()
+		// (jae) why is this needed?
+		txs.Write()
 		m.Store = orig
 		pv2 := m.Store.GetPackage(pkgPath, false)
-		m.SetActivePackage(pv2) // XXX should it set the realm?
+		m.SetActivePackage(pv2)
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
-
 		// Clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
 		m.RunMainMaybeCrossing()
 	}
-
 	return runResult{
 		Output:         opts.filetestBuffer.String(),
 		GnoStacktrace:  m.Stacktrace().String(),

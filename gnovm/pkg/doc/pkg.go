@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -38,7 +38,7 @@ type symbolData struct {
 }
 
 func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
-	mpkg, err := gnolang.ReadMemPackage(dir.dir, dir.importPath)
+	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, gno.MPProd)
 	if err != nil {
 		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
 	}

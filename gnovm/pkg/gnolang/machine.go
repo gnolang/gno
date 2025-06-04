@@ -242,7 +242,7 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // declarations are filtered removing duplicate declarations.  To control which
 // declaration overrides which, use [ReadMemPackageFromList], putting the
 // overrides at the top of the list.  NOTE: Does not validate the mpkg, except
-// when saving validates with type MemPackageTypeAny.
+// when saving validates with type MPAny.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(mpkg, save, true)
 }
@@ -268,6 +268,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	m.SetActivePackage(pv)
 	// run files.
 	updates := m.runFileDecls(overrides, files.Files...)
+	// populate pv.fBlocksMap.
+	pv.deriveFBlocksMap(m.Store)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -284,7 +286,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	if save {
 		m.resavePackageValues(throwaway)
 		// store mempackage
-		m.Store.AddMemPackage(mpkg, MemPackageTypeAny)
+		m.Store.AddMemPackage(mpkg, MPAny)
 		if throwaway != nil {
 			m.Realm = nil
 		}
