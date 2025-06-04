@@ -216,6 +216,7 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool) string {
 	return out
 }
 
+// :post
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	postSlug := req.GetVar("slug")
 	if postSlug == "" {
@@ -234,6 +235,16 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
+func (b Blog) RenderFilterHeader(req *mux.Request) string {
+	out := md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
+	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
+	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
+	// add alphabetical sorting
+	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
+	return out
+}
+
+// :tags
 func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	tag := req.GetVar("slug")
 	out := b.RenderFilterHeader(req)
@@ -267,6 +278,7 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
+// :authors
 func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	author := req.GetVar("slug")
 	out := b.RenderFilterHeader(req)
@@ -296,6 +308,7 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
+// :commenter
 func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 	commenter := req.GetVar("slug")
 	out := b.RenderFilterHeader(req)
@@ -304,13 +317,38 @@ func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
-func (b Blog) RenderFilterHeader(req *mux.Request) string {
-	out := md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
-	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
-	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
-	// add alphabetical sorting
-	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
-	return out
+func (b Blog) FetchTags() []string {
+	tagSet := make(map[string]struct{})
+	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
+		post := v.(*Post)
+		for _, tag := range post.Tags {
+			tagSet[tag] = struct{}{}
+		}
+		return false
+	})
+
+	var tags []string
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+	return tags
+}
+
+func (b Blog) FetchAuthors() []string {
+	authorSet := make(map[string]struct{})
+	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
+		post := v.(*Post)
+		for _, author := range post.Authors {
+			authorSet[author] = struct{}{}
+		}
+		return false
+	})
+
+	var authors []string
+	for author := range authorSet {
+		authors = append(authors, author)
+	}
+	return authors
 }
 
 func (b Blog) Mention(role, recipient string) string {
@@ -349,38 +387,4 @@ func (b Blog) findPostBySlug(value string) (string, bool) {
 		return found
 	})
 	return foundKey, found
-}
-
-func (b Blog) FetchTags() []string {
-	tagSet := make(map[string]struct{})
-	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
-		post := v.(*Post)
-		for _, tag := range post.Tags {
-			tagSet[tag] = struct{}{}
-		}
-		return false
-	})
-
-	var tags []string
-	for tag := range tagSet {
-		tags = append(tags, tag)
-	}
-	return tags
-}
-
-func (b Blog) FetchAuthors() []string {
-	authorSet := make(map[string]struct{})
-	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
-		post := v.(*Post)
-		for _, author := range post.Authors {
-			authorSet[author] = struct{}{}
-		}
-		return false
-	})
-
-	var authors []string
-	for author := range authorSet {
-		authors = append(authors, author)
-	}
-	return authors
 }
