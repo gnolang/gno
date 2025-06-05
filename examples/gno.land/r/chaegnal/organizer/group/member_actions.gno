@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	memberRank = iota
-	adminRank
+	memberRank = 0
+	adminRank  = 1
 )
 
 // AcceptAwaitingMember is a wrapper to accept new members into friendgroup and DAO

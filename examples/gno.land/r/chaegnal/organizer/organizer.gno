@@ -5,10 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/nt/commondao"
-
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/nt/commondao"
 	"gno.land/r/sys/users"
 )
 
@@ -16,8 +15,8 @@ const (
 	VoteYay = 1 // VoteYay represented yes votes
 	VoteNay = 0 // VoteNay represented no votes
 
-	memberRank = iota // memberRank represents the basic right of user
-	adminRank         // adminRank represents the rank of admin with heightened rights
+	memberRank = 0 // memberRank represents the basic right of user
+	adminRank  = 1 // adminRank represents the rank of admin with heightened rights
 )
 
 var (
@@ -63,6 +62,7 @@ func CreateFriendGroup(title string) {
 		Rank:     avl.NewTree(),
 	}
 
+	newGroup.DAO.Members().Add(caller)
 	newGroup.Rank.Set(caller.String(), adminRank)
 
 	NextGroupId++
