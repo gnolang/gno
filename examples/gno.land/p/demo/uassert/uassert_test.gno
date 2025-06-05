@@ -105,7 +105,7 @@ func TestPanicsWithMessage(t *testing.T) {
 func TestAbortsWithMessage(t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.AbortsWithMessage(mockT, "abort message", func() {
-		cross(tests.ExecSwitch)(func() {
+		tests.ExecSwitch(cross, func() {
 			panic("abort message")
 		})
 		panic("dontcare")
@@ -122,7 +122,7 @@ func TestAbortsWithMessage(t *testing.T) {
 	mockT.equals(t, "error: func should abort")
 
 	if uassert.AbortsWithMessage(mockT, "at the disco", func() {
-		cross(tests.ExecSwitch)(func() {
+		tests.ExecSwitch(cross, func() {
 			panic("abort message")
 		})
 		panic("dontcare")
@@ -142,7 +142,7 @@ func TestAbortsWithMessage(t *testing.T) {
 
 	// Test case where abort value is not a string
 	if uassert.AbortsWithMessage(mockT, "doesn't matter", func() {
-		cross(tests.ExecSwitch)(func() {
+		tests.ExecSwitch(cross, func() {
 			panic(123) // abort with an integer
 		})
 		panic("dontcare")
@@ -165,7 +165,7 @@ func TestNotAborts(t *testing.T) {
 	mockT.empty(t)
 
 	if uassert.NotPanics(mockT, func() {
-		cross(tests.ExecSwitch)(func() {
+		tests.ExecSwitch(cross, func() {
 			panic("Abort!")
 		})
 		panic("dontcare")

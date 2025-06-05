@@ -728,7 +728,7 @@ func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMet
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
-	meta, err := loader.LoadPackages(privKey, defaultFee, nil)
+	meta, err := loader.GenerateTxs(privKey, defaultFee, nil)
 	require.NoError(t, err)
 	return meta
 }

@@ -13,17 +13,14 @@ stdout 'EVENTS:     \[{\"type\":\"ForLoopEvent\",\"attrs\":\[{\"key\":\"iteratio
 stdout 'TX HASH:    '
 
 -- edcl.gno --
-
 package edcl
 
 import (
 	"std"
-    "strconv"
+	"strconv"
 )
 
-func Main() {
-	crossing()
-
+func Main(cur realm) {
 	deferEmitExample()
 }
 
@@ -35,7 +32,7 @@ func deferEmitExample() {
 
 	forLoopEmitExample(3, func(i int) {
 		std.Emit("ForLoopEvent", "iteration", strconv.Itoa(i), "key", "value")
-	    println("For loop emit executed: iteration ", i)
+		println("For loop emit executed: iteration ", i)
 	})
 
 	callbackEmitExample(func() {

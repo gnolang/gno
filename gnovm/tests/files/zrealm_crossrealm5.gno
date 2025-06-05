@@ -12,9 +12,7 @@ func init() {
 	somevalue = &tests.TestRealmObjectValue
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	// NOTE: but it is invalid to modify it directly.
 	somevalue.Field = "test"
 	println(somevalue)

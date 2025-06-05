@@ -17,9 +17,7 @@ func init() {
 	}
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	root = &Node{
 		Key: "new",
 	}

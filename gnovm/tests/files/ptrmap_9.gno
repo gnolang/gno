@@ -15,9 +15,7 @@ func init() {
 	s2 = append(s[:1], s[1:]...)
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	println(m[s[m2[0]]])
 	println(s[m2[0]] == s2[m2[0]])
 	println(m[s[m2[0]]] == m[s2[m2[0]]])

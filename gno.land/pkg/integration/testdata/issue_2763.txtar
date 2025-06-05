@@ -6,6 +6,10 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/demo/foo -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
+-- foo/gno.mod --
+module gno.land/r/demo/foo
+
+gno 0.9
 -- foo/foo.gno --
 package foo
 

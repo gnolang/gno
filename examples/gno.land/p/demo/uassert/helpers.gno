@@ -14,7 +14,7 @@ func fail(t TestingT, customMsgs []string, failureMessage string, args ...any) b
 	return false
 }
 
-func checkDidPanic(f func()) (didPanic bool, message string) {
+func checkDidPanic(f any) (didPanic bool, message string) {
 	didPanic = true
 	defer func() {
 		r := recover()
@@ -38,7 +38,14 @@ func checkDidPanic(f func()) (didPanic bool, message string) {
 
 		message = "recover: unsupported type"
 	}()
-	f()
+
+	if fn, ok := f.(func()); ok {
+		fn()
+	} else if fn, ok := f.(func(realm)); ok {
+		fn(cross)
+	} else {
+		panic("f must be of type func() or func(realm)")
+	}
 	didPanic = false
 	return
 }

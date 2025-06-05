@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	r "github.com/gnolang/gno/tm2/pkg/regx"
 )
 
 // NOTE: TypeID() implementations are currently
@@ -333,7 +335,7 @@ func (pt PrimitiveType) Elem() Type {
 }
 
 func (pt PrimitiveType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (pt PrimitiveType) IsNamed() bool {
@@ -548,7 +550,7 @@ func (at *ArrayType) Elem() Type {
 }
 
 func (at *ArrayType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (at *ArrayType) IsNamed() bool {
@@ -576,11 +578,8 @@ func (st *SliceType) Kind() Kind {
 
 func (st *SliceType) TypeID() TypeID {
 	if st.typeid.IsZero() {
-		if st.Vrd {
-			st.typeid = typeidf("...%s", st.Elt.TypeID().String())
-		} else {
-			st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
-		}
+		// same whether .Vrd or not.
+		st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
 	}
 	return st.typeid
 }
@@ -598,7 +597,7 @@ func (st *SliceType) Elem() Type {
 }
 
 func (st *SliceType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (st *SliceType) IsNamed() bool {
@@ -941,6 +940,16 @@ func (it *InterfaceType) TypeID() TypeID {
 	return it.typeid
 }
 
+func (it *InterfaceType) GetMethodFieldType(mname Name) *FieldType {
+	for i := range it.Methods {
+		im := &it.Methods[i]
+		if im.Name == mname {
+			return im
+		}
+	}
+	return nil
+}
+
 func (it *InterfaceType) String() string {
 	if it.Generic != "" {
 		return fmt.Sprintf("<%s>{%s}",
@@ -1102,7 +1111,7 @@ func (ct *ChanType) Elem() Type {
 }
 
 func (ct *ChanType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (ct *ChanType) IsNamed() bool {
@@ -1322,6 +1331,15 @@ func (ft *FuncType) HasVarg() bool {
 	}
 }
 
+func (ft *FuncType) IsCrossing() bool {
+	if numParams := len(ft.Params); numParams == 0 {
+		return false
+	} else {
+		fpt := ft.Params[0].Type
+		return fpt == gRealmType
+	}
+}
+
 // ----------------------------------------
 // Map type
 
@@ -1358,7 +1376,7 @@ func (mt *MapType) Elem() Type {
 }
 
 func (mt *MapType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (mt *MapType) IsNamed() bool {
@@ -1403,35 +1421,34 @@ func (tt *TypeType) IsNamed() bool {
 // and associated methods.
 
 type DeclaredType struct {
-	PkgPath string
-	Name    Name         // name of declaration
-	Loc     Location     // declaration location for disambiguation
-	Base    Type         // not a DeclaredType
-	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
+	PkgPath   string
+	Name      Name         // name of declaration
+	ParentLoc Location     // for disambiguation
+	Base      Type         // not a DeclaredType
+	Methods   []TypedValue // {T:*FuncType,V:*FuncValue}...
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
 }
 
 // Returns an unsealed *DeclaredType.
-// parent is the block node in which it is declared.
 // Do not use for aliases.
 func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredType {
-	loc := Location{}
+	ploc := Location{}
 	switch parent.(type) {
 	case *PackageNode, *FileNode:
-		// leave aero
+		// keep blank.
 	case *FuncDecl, *FuncLitExpr:
-		loc = parent.GetLocation()
+		ploc = parent.GetLocation()
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("expected type expr but got %T", parent))
 	}
 	dt := &DeclaredType{
-		PkgPath: pkgPath,
-		Name:    name,
-		Loc:     loc,
-		Base:    baseOf(b),
-		sealed:  false,
+		PkgPath:   pkgPath,
+		Name:      name,
+		ParentLoc: ploc,
+		Base:      baseOf(b),
+		sealed:    false,
 	}
 	return dt
 }
@@ -1479,14 +1496,28 @@ func (dt *DeclaredType) checkSeal() {
 
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
-		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Loc, dt.Name)
+		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.ParentLoc, dt.Name)
 	} else {
 		// XXX delete this if tests pass.
-		if dt.typeid != DeclaredTypeID(dt.PkgPath, dt.Loc, dt.Name) {
+		if dt.typeid != DeclaredTypeID(dt.PkgPath, dt.ParentLoc, dt.Name) {
 			panic("should not happen")
 		}
 	}
 	return dt.typeid
+}
+
+var Re_declaredTypeID = r.G(
+	r.N("PATH", r.P(r.CN(r.E(`[.`)))),
+	r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
+	r.E(`.`),
+	r.N("NAME", r.P(`.`)))
+
+func ParseDeclaredTypeID(tid string) (pkgPath string, loc string, name string, ok bool) {
+	match := Re_declaredTypeID.Match(tid)
+	if match == nil {
+		return
+	}
+	return match.Get("PATH"), match.Get("LOC"), match.Get("NAME"), true
 }
 
 func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
@@ -1498,10 +1529,10 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 }
 
 func (dt *DeclaredType) String() string {
-	if dt.Loc.IsZero() {
+	if dt.ParentLoc.IsZero() {
 		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
 	} else {
-		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.Loc.String(), dt.Name)
+		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name)
 	}
 }
 
@@ -1675,7 +1706,6 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 // The Preprocesses uses *DT.FindEmbeddedFieldType() to set the path.
 // OpSelector uses *TV.GetPointerTo(path), and for declared types, in turn
 // uses *DT.GetValueAt(path) to find any methods (see values.go).
-//
 // i.e.,
 //
 //	preprocessor: *DT.FindEmbeddedFieldType(name)
@@ -1683,6 +1713,9 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 //
 //	     runtime: *TV.GetPointerTo(path)
 //	               -> *DT.GetValueAt(path)
+//
+// NOTE: You cannot use the result to modify the method value as they will be
+// copied.
 func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:

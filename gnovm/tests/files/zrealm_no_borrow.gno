@@ -27,13 +27,11 @@ func (p *Passthrough) Mutate() {
 	p.S.Mutate()
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	s := &Struct{A: 100}
 	p := &Passthrough{S: s}
 
-	cross(crossrealm.SetObject)(p) // saved in crossrealm.
+	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
 	p.Mutate()
 }

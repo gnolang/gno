@@ -17,9 +17,7 @@ package counter
 
 var counter int
 
-func Incr() int {
-	crossing()
-
+func Incr(cur realm) int {
 	counter++
 	return counter
 }

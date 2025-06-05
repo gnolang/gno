@@ -7,7 +7,6 @@ import (
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -190,7 +189,9 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
 	for _, pkg := range nonDraftPkgs {
-		tx, err := LoadPackage(pkg, creator, fee, nil)
+		// XXX: as addpkg require gno.mod, we should probably check this here
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
+		tx, err := LoadPackage(mpkg, creator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
@@ -204,11 +205,10 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 }
 
 // LoadPackage loads a single package into a `std.Tx`
-func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
+func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
 	err := gno.ValidateMemPackage(mpkg)
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)

@@ -9,13 +9,11 @@ type Struct struct {
 	A int
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	a := 1
 	s := &Struct{A: 100}
-	cross(crossrealm_b.SetClosure)(func() {})
-	cross(crossrealm_b.SetObject)(&a)
+	crossrealm_b.SetClosure(cross, func() {})
+	crossrealm_b.SetObject(cross, &a)
 	//cross(crossrealm_b.SetObject)(&s.A)
 	//cross(crossrealm_b.SetObject)(func() { &s.A })
 	s.A = 123

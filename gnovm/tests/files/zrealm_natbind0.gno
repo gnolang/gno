@@ -11,9 +11,7 @@ func init() {
 	node = std.ChainHeight
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	// NOTE: this test uses ChainHeight and ChainID, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).

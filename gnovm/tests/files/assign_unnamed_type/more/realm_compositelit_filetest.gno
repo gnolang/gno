@@ -14,8 +14,6 @@ type Int struct {
 }
 
 func main() {
-	crossing()
-
 	zero = &Int{
 		abs: []word{0},
 	}

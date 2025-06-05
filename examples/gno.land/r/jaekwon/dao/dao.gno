@@ -60,6 +60,7 @@ func (*TopDAO) ParamQualFn() ProposalActivator {
 		// must pass proposal.
 		// must pass quorum.
 		// change status
+		return nil
 	}
 }
 

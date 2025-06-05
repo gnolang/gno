@@ -12,9 +12,7 @@ func init() {
 	tree, _ = tree.Put(types.String("key0"), "value0")
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	var updated bool
 	tree, updated = tree.Put(types.String("key1"), "value1")
 	println(updated, tree.Size())

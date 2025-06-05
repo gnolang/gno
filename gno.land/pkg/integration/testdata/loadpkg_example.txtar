@@ -14,6 +14,7 @@ stdout '92054'
 -- gno.mod --
 module gno.land/r/importtest
 
+gno 0.9
 -- import.gno --
 package importtest
 

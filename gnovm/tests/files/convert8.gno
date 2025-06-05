@@ -1,32 +1,25 @@
 package main
 
+// This filetest tests that dereferencing after converting to a pointer type of
+// a re-declared type results in the conversion elem type.
+
 import "fmt"
 
-type Foo struct {
-	age  int
-	name string
-}
+type Foo struct{ A int }
+
+func (f Foo) String() string { return "foo" }
+
+type Bar Foo
+
+func (b Bar) String() string { return "bar" }
 
 func main() {
-	f := Foo{age: 1, name: "a"}
-	fmt.Printf("f: %v\n", f)
-
-	f2 := struct {
-		age  int
-		name string
-	}(f)
-
-	fmt.Printf("f2: %v\n", f2)
-
-	f11 := Foo(struct {
-		age  int
-		name string
-	}{age: 1, name: "b"})
-
-	fmt.Printf("f11: %v\n", f11)
+	a := &Foo{A: 1}
+	b := (*Bar)(a)
+	c := any(nil)
+	c = *b
+	fmt.Println("should be bar:", c)
 }
 
 // Output:
-// f: {1 a}
-// f2: {1 a}
-// f11: {1 b}
+// should be bar: bar

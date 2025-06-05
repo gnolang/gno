@@ -67,6 +67,7 @@ const (
 	IsBigDec
 
 	IsNumeric = IsInteger | IsFloat | IsBigInt | IsBigDec
+	IsWhole   = IsInteger | IsBigInt
 	IsOrdered = IsNumeric | IsString
 )
 
@@ -130,6 +131,15 @@ func isNumericOrString(t Type) bool {
 	switch t := baseOf(t).(type) {
 	case PrimitiveType:
 		return t.category()&IsNumeric != 0 || t.category()&IsString != 0
+	default:
+		return false
+	}
+}
+
+func isWhole(t Type) bool {
+	switch t := baseOf(t).(type) {
+	case PrimitiveType:
+		return t.category()&IsWhole != 0
 	default:
 		return false
 	}

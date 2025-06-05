@@ -42,8 +42,8 @@ func addValidator(validator validators.Validator) {
 
 // removeValidator removes the given validator from the set.
 // If the validator is not present in the set, the method errors out
-func removeValidator(address std.Address) {
-	val, err := vp.RemoveValidator(address)
+func removeValidator(address_XXX std.Address) {
+	val, err := vp.RemoveValidator(address_XXX)
 	if err != nil {
 		panic(err)
 	}

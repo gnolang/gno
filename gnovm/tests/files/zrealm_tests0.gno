@@ -11,9 +11,7 @@ func init() {
 	tests_foo.AddFooStringer("two")
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	tests_foo.AddFooStringer("three")
 	println(tests.Render(""))
 	println("end")

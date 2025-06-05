@@ -14,9 +14,7 @@ import (
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
-var (
-	g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
-)
+var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 
 const (
 	validMoniker     = "test-1"
@@ -30,11 +28,11 @@ func init() {
 	daoinit.InitWithUsers(g1user)
 
 	// Register a validator and add the proposal
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 
 	if err := revive(func() {
-		pr := cross(valopers_proposal.NewValidatorProposalRequest)(validAddress)
-		cross(dao.MustCreateProposal)(pr)
+		pr := valopers_proposal.NewValidatorProposalRequest(cross, validAddress)
+		dao.MustCreateProposal(cross, pr)
 	}); err != nil {
 		println("r: ", err)
 	} else {
@@ -43,7 +41,7 @@ func init() {
 }
 
 func main() {
-	println(cross(dao.Render)(""))
+	println(dao.Render(""))
 }
 
 // Output:

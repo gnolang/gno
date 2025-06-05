@@ -17,7 +17,7 @@ var parentID uint64
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	// The origin must be the invited user
 	testing.SetRealm(std.NewUserRealm(user))

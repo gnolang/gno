@@ -10,9 +10,7 @@ package alloc
 
 var buffer []int
 
-func DoAlloc() {
-	crossing()
-
- 	buffer := make([]int, 1_000_000_000_000)
-  buffer[1] = 1
+func DoAlloc(cur realm) {
+	buffer := make([]int, 1_000_000_000_000)
+	buffer[1] = 1
 }

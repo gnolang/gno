@@ -17,9 +17,7 @@ func init() {
 	println(&b == sArr[1])
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	// Create a new slice without reallocating memory for existing elements
 	newArr := append(sArr[:1], sArr[2:]...)
 
