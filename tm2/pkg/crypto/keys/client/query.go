@@ -13,8 +13,10 @@ import (
 type QueryCfg struct {
 	RootCfg *BaseCfg
 
-	Data string
-	Path string
+	Data   string
+	Path   string
+	Height int64
+	Prove  bool
 }
 
 func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -41,6 +43,18 @@ func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 		"data",
 		"",
 		"query data bytes",
+	)
+	fs.Int64Var(
+		&c.Height,
+		"height",
+		0,
+		"height to query (0 means latest)",
+	)
+	fs.BoolVar(
+		&c.Prove,
+		"prove",
+		false,
+		"include proofs of the transactions inclusion in the block",
 	)
 }
 
@@ -69,6 +83,11 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 	io.Printf("height: %d\ndata: %s\n",
 		height,
 		string(resdata))
+	if cfg.Prove {
+		io.Printf("proof: %x\n",
+			qres.Response.Proof,
+		)
+	}
 	return nil
 }
 
@@ -80,8 +99,8 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 
 	data := []byte(cfg.Data)
 	opts2 := client.ABCIQueryOptions{
-		// Height: height, XXX
-		// Prove: false, XXX
+		Height: cfg.Height,
+		Prove:  cfg.Prove,
 	}
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
