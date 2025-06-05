@@ -322,13 +322,11 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
-	crossing()
-
-	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
 	for i := 0; i < 10; i++ {
-		cross(tests.IncCounter)()
+		tests.IncCounter(cross)
 	}
-	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross)))
 }`
 
 	caller, err := client.Signer.Info()
@@ -404,13 +402,11 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
-	crossing()
-
-	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross)))
 	for i := 0; i < 10; i++ {
-		cross(tests.IncCounter)()
+		tests.IncCounter(cross)
 	}
-	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross)))
 }`
 
 	fileBody2 := `package main
@@ -419,8 +415,6 @@ import (
 	"gno.land/r/demo/deep/very/deep"
 )
 func main() {
-	crossing()
-
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
@@ -523,6 +517,10 @@ func Echo(str string) string {
 					Name: fileName,
 					Body: body,
 				},
+				{
+					Name: "gno.mod",
+					Body: gnolang.GenGnoModLatest(deploymentPath),
+				},
 			},
 		},
 		Deposit: deposit,
@@ -538,7 +536,7 @@ func Echo(str string) string {
 		Data: []byte(deploymentPath),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(query.Response.Data), fileName)
+	assert.Equal(t, fileName+"\ngno.mod", string(query.Response.Data))
 
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
@@ -555,7 +553,7 @@ func Echo(str string) string {
 		Data: []byte(deploymentPathB),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(query.Response.Data), fileName)
+	assert.Equal(t, fileName+"\ngno.mod", string(query.Response.Data))
 }
 
 func TestAddPackageMultiple_Integration(t *testing.T) {
@@ -613,6 +611,10 @@ func Hello(str string) string {
 					Name: "echo.gno",
 					Body: body1,
 				},
+				{
+					Name: "gno.mod",
+					Body: gnolang.GenGnoModLatest(deploymentPath1),
+				},
 			},
 		},
 		Deposit: nil,
@@ -626,7 +628,7 @@ func Hello(str string) string {
 			Files: []*std.MemFile{
 				{
 					Name: "gno.mod",
-					Body: "module gno.land/p/demo/integration/test/hello",
+					Body: gnolang.GenGnoModLatest(deploymentPath2),
 				},
 				{
 					Name: "hello.gno",
@@ -647,7 +649,7 @@ func Hello(str string) string {
 		Data: []byte(deploymentPath1),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(query.Response.Data), "echo.gno")
+	assert.Equal(t, string(query.Response.Data), "echo.gno\ngno.mod")
 
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath1))
@@ -680,7 +682,7 @@ func Hello(str string) string {
 		Data: []byte(deploymentPath1B),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(query.Response.Data), "echo.gno")
+	assert.Equal(t, string(query.Response.Data), "echo.gno\ngno.mod")
 	query, err = client.Query(QueryCfg{
 		Path: "vm/qfile",
 		Data: []byte(deploymentPath2B),
