@@ -327,6 +327,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = txs
 		// Validate Gno syntax and type check.
+
 		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}

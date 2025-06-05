@@ -1,6 +1,7 @@
 # Load the packages and start the node
 loadpkg gno.land/p/testing/pure_package $WORK/pure_package
 loadpkg gno.land/r/testing/realm_caller $WORK/realm_caller
+
 gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/testing/realm_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
@@ -34,7 +35,7 @@ import (
 	pkg "gno.land/p/testing/pure_package"
 )
 
-func Set(cur realm,value int) {
+func Set(cur realm, value int) {
 	pkg.Fo.Set(value)
 }
 

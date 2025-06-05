@@ -149,28 +149,6 @@ const (
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
-	return TypeCheckMemPackageWithOptions(mpkg, getter, TypeCheckOptions{
-		Mode: tcmode,
-	})
-}
-
-type TypeCheckCache map[string]*gnoImporterResult
-
-// TypeCheckOptions allows to set custom options in [TypeCheckMemPackageWithOptions].
-type TypeCheckOptions struct {
-	Mode TypeCheckMode
-	// custom cache, for retaining results across several runs of the type
-	// checker when the packages themselves won't change.
-	Cache TypeCheckCache
-}
-
-// TypeCheckMemPackageWithOptions checks the given mpkg, configured using opts.
-func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGetter, opts TypeCheckOptions) (
-	pkg *types.Package, errs error,
-) {
-	if opts.Cache == nil {
-		opts.Cache = TypeCheckCache{}
-	}
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
