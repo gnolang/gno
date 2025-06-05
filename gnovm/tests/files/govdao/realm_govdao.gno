@@ -24,8 +24,8 @@ func init() {
 		DAO: govDAO,
 	})
 }
-func main() {
 
+func main() {
 	// run the test as end user instead of the testing realm
 	testing.SetRealm(std.NewUserRealm(user1))
 	pid := CreateProposal()
@@ -34,12 +34,12 @@ func main() {
 	func() {
 		testing.SetRealm(std.NewUserRealm(user2))
 		VoteProposal(pid)
-
 	}()
 	accepted := ExecuteProposal(pid)
 	println(accepted)
 	Render()
 }
+
 func CreateProposal() dao.ProposalID {
 	e := dao.NewSimpleExecutor(
 		func() error {
@@ -51,25 +51,22 @@ func CreateProposal() dao.ProposalID {
 		dao.NewProposalRequest("Proposal Title: Dummy proposal", "Description: Do nothing", e),
 	)
 	return pid
-
 }
 
 func VoteProposal(pid dao.ProposalID) {
-
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: pid,
 	})
-
 }
+
 func ExecuteProposal(pid dao.ProposalID) bool {
 	accepted := dao.ExecuteProposal(cross, pid)
 	return accepted
-
 }
 
 func Render() {
-	println(dao.Render(cross, ""))
+	println(dao.Render(""))
 }
 
 // Output:

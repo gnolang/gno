@@ -199,6 +199,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 // filetest: if cmd.filetestsOnly, a single filetest to run fixDir on.
 func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitStore, testgs gno.Store, filetest string) error {
 	ppkgs := map[string]processedPackage{}
+	tccache := gno.TypeCheckCache{}
 	hasError := false
 	//----------------------------------------
 	// FIX STAGE 1: Type-check and lint.

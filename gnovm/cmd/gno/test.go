@@ -234,6 +234,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
+	tccache := gno.TypeCheckCache{}
 
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {

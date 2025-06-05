@@ -83,6 +83,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: true},
 	)
 	ppkgs := map[string]processedPackage{}
+	tccache := gno.TypeCheckCache{}
 
 	if cmd.verbose {
 		io.ErrPrintfln("linting directories: %v", dirs)

@@ -2463,7 +2463,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 			"unexpected block size shrinkage: %v vs %v",
 			len(b.Values), numNames))
 	}
-	if int(numNames) == len(b.Values) {
+	if numNames == len(b.Values) {
 		return // nothing to do
 	}
 	oldNames := len(b.Values)

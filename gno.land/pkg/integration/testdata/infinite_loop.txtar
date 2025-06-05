@@ -49,8 +49,6 @@ stderr 'out of gas.* location: CPUCycles'
 package main
 
 func main() {
-	crossing()
-
 	for {}
 
 	println("hey")

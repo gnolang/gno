@@ -183,12 +183,12 @@ func (x CompositeLitExpr) String() string {
 	return fmt.Sprintf("%s{%s}", x.Type.String(), x.Elts.String())
 }
 
-func (x FuncLitExpr) String() string {
+func (fle FuncLitExpr) String() string {
 	heapCaptures := ""
-	if len(x.HeapCaptures) > 0 {
-		heapCaptures = "<" + x.HeapCaptures.String() + ">"
+	if len(fle.HeapCaptures) > 0 {
+		heapCaptures = "<" + fle.HeapCaptures.String() + ">"
 	}
-	return fmt.Sprintf("func %s{ %s }%s", x.Type, x.Body.String(), heapCaptures)
+	return fmt.Sprintf("func %s{ %s }%s", fle.Type, fle.Body.String(), heapCaptures)
 }
 
 func (x KeyValueExpr) String() string {
@@ -460,12 +460,12 @@ func (x FileNode) String() string {
 	return fmt.Sprintf("file{ package %s; %s }", x.PkgName, x.Decls.String())
 }
 
-func (x PackageNode) String() string {
-	return fmt.Sprintf("package(%s %s)", x.PkgName, x.PkgPath)
+func (pn PackageNode) String() string {
+	return fmt.Sprintf("package(%s %s)", pn.PkgName, pn.PkgPath)
 }
 
-func (rn RefNode) String() string {
-	return fmt.Sprintf("ref(%s)", rn.Location.String())
+func (ref RefNode) String() string {
+	return fmt.Sprintf("ref(%s)", ref.Location.String())
 }
 
 // ----------------------------------------

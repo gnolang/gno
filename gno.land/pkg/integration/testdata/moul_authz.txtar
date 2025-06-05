@@ -23,40 +23,37 @@ gno 0.9
 package admin
 
 import (
-    "std"
-    "errors"
-    "gno.land/p/moul/authz"
+	"errors"
+	"std"
+
+	"gno.land/p/moul/authz"
 )
 
 type prop struct {
-    title string
-    action authz.PrivilegedAction
+	title  string
+	action authz.PrivilegedAction
 }
 
 var props []*prop
 
 func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
-    if std.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
-        return errors.New("unauthorized proposer")
-    }
-    cross(func() {
-    	crossing()
-	    props = append(props, &prop{title: title, action: action})
-	})()
-    return nil
+	if std.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
+		return errors.New("unauthorized proposer")
+	}
+	func(cur realm) {
+		props = append(props, &prop{title: title, action: action})
+	}(cross)
+	return nil
 }
 
-func ExecuteAction(index int) {
-	crossing()
-
-    if std.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
-        panic(errors.New("not alice"))
-    }
-    if err := props[index].action(); err != nil {
-        panic(err)
-    }
+func ExecuteAction(cur realm, index int) {
+	if std.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
+		panic(errors.New("not alice"))
+	}
+	if err := props[index].action(); err != nil {
+		panic(err)
+	}
 }
-
 -- resource/gno.mod --
 module gno.land/r/testing/resource
 
@@ -73,20 +70,15 @@ var a *authz.Authorizer = authz.NewWithAuthority(authz.NewContractAuthority("gno
 
 var value = "init"
 
-func Value() string {
-	crossing()
-
+func Value(cur realm) string {
 	return value
 }
 
-func Edit(newValue string) {
-	crossing()
-
+func Edit(cur realm, newValue string) {
 	doEdit := func() error {
-		cross(func() {
-			crossing()
+		func(cur realm) {
 			value = newValue
-		})()
+		}(cross)
 		return nil
 	}
 	if err := a.DoByPrevious("Edit", doEdit); err != nil {

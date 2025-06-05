@@ -12,9 +12,7 @@ import (
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
-var (
-	g1user = testutils.TestAddress("g1user")
-)
+var g1user = testutils.TestAddress("g1user")
 
 func init() {
 	daoinit.InitWithUsers(g1user)
@@ -49,7 +47,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
+		urequire.AbortsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
 			pr := NewValidatorProposalRequest(cur, g1user)
 
 			dao.MustCreateProposal(cross, pr)
@@ -75,6 +73,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func(cur realm) {
+			testing.SetRealm(std.NewUserRealm(g1user))
 			pr := NewValidatorProposalRequest(cur, g1user)
 
 			pid = dao.MustCreateProposal(cross, pr)

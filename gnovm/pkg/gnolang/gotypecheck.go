@@ -149,6 +149,28 @@ const (
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
+	return TypeCheckMemPackageWithOptions(mpkg, getter, TypeCheckOptions{
+		Mode: tcmode,
+	})
+}
+
+type TypeCheckCache map[string]*gnoImporterResult
+
+// TypeCheckOptions allows to set custom options in [TypeCheckMemPackageWithOptions].
+type TypeCheckOptions struct {
+	Mode TypeCheckMode
+	// custom cache, for retaining results across several runs of the type
+	// checker when the packages themselves won't change.
+	Cache TypeCheckCache
+}
+
+// TypeCheckMemPackageWithOptions checks the given mpkg, configured using opts.
+func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGetter, opts TypeCheckOptions) (
+	pkg *types.Package, errs error,
+) {
+	if opts.Cache == nil {
+		opts.Cache = TypeCheckCache{}
+	}
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
@@ -324,7 +346,6 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
 	pkg *types.Package, errs error,
 ) {
-
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
@@ -482,7 +503,6 @@ func deleteOldIdents(idents map[string]func(), gof *ast.File) {
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods and init functions
-		//nolint:goconst
 		if !ok ||
 			fd.Recv != nil ||
 			fd.Name.Name == "init" {
