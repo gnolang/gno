@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -20,8 +21,10 @@ type Blog struct {
 	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
 	DraftedPosts     *avl.Tree // id --> *Post
 
-	TagsIndex    *avl.Tree // tagName -> int
-	AuthorsIndex *avl.Tree // authorAddress -> int
+	TagsIndex     *avl.Tree // tagName -> int
+	TagsSorted    *avl.Tree // "<count>::tag" => tag
+	AuthorsIndex  *avl.Tree // authorAddress -> int
+	AuthorsSorted *avl.Tree // "<count>::author" => author
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -36,7 +39,9 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		PostsByUpdatedAt: avl.NewTree(),
 		PostId:           0,
 		TagsIndex:        avl.NewTree(),
+		TagsSorted:       avl.NewTree(),
 		AuthorsIndex:     avl.NewTree(),
+		AuthorsSorted:    avl.NewTree(),
 	}, nil
 }
 
@@ -256,8 +261,14 @@ func (b Blog) RenderFilterHeader(req *mux.Request) string {
 	out := md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
 	out += md.Link("▲ recent", b.Prefix+":"+updateQuery(req.RawPath, "sort", "recent")) + " | "
 	out += md.Link("▼ oldest", b.Prefix+":"+updateQuery(req.RawPath, "sort", "oldest")) + " | "
-	// out += md.Link("▲ most common", b.Prefix+":"+updateQuery(req.RawPath, "sort", "common")) + " | "
-	// out += md.Link("▼ least common", b.Prefix+":"+updateQuery(req.RawPath, "sort", "least")) + " | "
+	out += md.Link("▲ most common", b.Prefix+":"+updateQueryMulti(req.RawPath, map[string]string{
+		"sort":  "common",
+		"order": "asc",
+	})) + " | "
+	out += md.Link("▼ least common", b.Prefix+":"+updateQueryMulti(req.RawPath, map[string]string{
+		"sort":  "common",
+		"order": "desc",
+	})) + " | "
 
 	sort := parseQueryParams("sort", req.RawPath)
 	order := parseQueryParams("order", req.RawPath)
@@ -279,7 +290,7 @@ func (b Blog) RenderFilterHeader(req *mux.Request) string {
 			"sort":  "alpha",
 			"order": toggle(order),
 		})) + " | "
-	out += md.Link("🗘 reset", b.Prefix) + "\n\n"
+	out += md.Link("🗘 reset", b.Prefix+":"+req.Path) + "\n\n"
 	return out
 }
 
@@ -291,18 +302,25 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
 	order := parseQueryParams("order", req.RawPath)
-	ascending := order == "asc" || order == "" // default to ascending order
+	hasOrder := order == "asc" || order == "desc"
 
 	var p *pager.Pager
 	var page *pager.Page
 	if tag == "" {
-		if ascending {
-			p = pager.NewPager(b.TagsIndex, 12, ascending)
+		if sort == "alpha" && hasOrder {
+			p = pager.NewPager(b.TagsIndex, 12, order == "asc")
+		} else if sort == "common" && hasOrder {
+			p = pager.NewPager(b.TagsSorted, 12, order == "asc")
 		} else {
 			p = pager.NewPager(b.TagsIndex, 12, newestFirst)
 		}
 		page = p.MustGetPageByPath(req.RawPath)
 		for _, t := range page.Items {
+			split := strings.Split(t.Key, "::")
+			if len(split) > 1 {
+				out += md.H3(md.Link(split[1], b.Prefix+":tags/"+split[1])+" ("+split[0]+")") + "\n\n"
+				continue
+			}
 			out += md.H3(md.Link(t.Key, b.Prefix+":tags/"+t.Key)+" ("+ufmt.Sprintf("%d", t.Value)+")") + "\n\n"
 		}
 		out += page.Picker(req.Path) + "\n\n"
@@ -335,18 +353,25 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
 	order := parseQueryParams("order", req.RawPath)
-	ascending := order == "asc" || order == "" // default to ascending order
+	hasOrder := order == "asc" || order == "desc"
 
 	var p *pager.Pager
 	var page *pager.Page
 	if author == "" {
-		if ascending {
-			p = pager.NewPager(b.AuthorsIndex, 12, ascending)
+		if sort == "alpha" && hasOrder {
+			p = pager.NewPager(b.AuthorsIndex, 12, order == "asc")
+		} else if sort == "common" && hasOrder {
+			p = pager.NewPager(b.AuthorsSorted, 12, order == "asc")
 		} else {
 			p = pager.NewPager(b.AuthorsIndex, 12, newestFirst)
 		}
 		page = p.MustGetPageByPath(req.RawPath)
 		for _, a := range page.Items {
+			split := strings.Split(a.Key, "::")
+			if len(split) > 1 {
+				out += md.H3(md.Link(split[1], b.Prefix+":authors/"+split[1])+" ("+split[0]+")") + "\n\n"
+				continue
+			}
 			out += md.H3(md.Link(a.Key, b.Prefix+":authors/"+a.Key)+" ("+ufmt.Sprintf("%d", a.Value)+")") + "\n\n"
 		}
 		out += page.Picker(req.Path) + "\n\n"
@@ -391,25 +416,45 @@ func (b Blog) Mention(role, recipient string) string {
 }
 
 func (b *Blog) addToIndex(post *Post) {
+	// for _, tag := range post.Tags {
+	// 	foundTag, exists := b.TagsIndex.Get(tag)
+	// 	if !exists {
+	// 		b.TagsIndex.Set(tag, 1)
+	// 	} else {
+	// 		tagChange := foundTag.(int)
+	// 		tagChange++
+	// 		b.TagsIndex.Set(tag, tagChange)
+	// 	}
+	// }
+	// for _, author := range post.Authors {
+	// 	foundAuthor, exists := b.AuthorsIndex.Get(author)
+	// 	if !exists {
+	// 		b.AuthorsIndex.Set(author, 1)
+	// 	} else {
+	// 		authorChange := foundAuthor.(int)
+	// 		authorChange++
+	// 		b.AuthorsIndex.Set(author, authorChange)
+	// 	}
+	// }
 	for _, tag := range post.Tags {
-		foundTag, exists := b.TagsIndex.Get(tag)
-		if !exists {
-			b.TagsIndex.Set(tag, 1)
-		} else {
-			tagChange := foundTag.(int)
-			tagChange++
-			b.TagsIndex.Set(tag, tagChange)
+		oldCount := 0
+		if val, found := b.TagsIndex.Get(tag); found {
+			oldCount = val.(int)
+			b.TagsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, tag))
 		}
+		newCount := oldCount + 1
+		b.TagsIndex.Set(tag, newCount)
+		b.TagsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, tag), tag)
 	}
 	for _, author := range post.Authors {
-		foundAuthor, exists := b.AuthorsIndex.Get(author)
-		if !exists {
-			b.AuthorsIndex.Set(author, 1)
-		} else {
-			authorChange := foundAuthor.(int)
-			authorChange++
-			b.AuthorsIndex.Set(author, authorChange)
+		oldCount := 0
+		if val, found := b.AuthorsIndex.Get(author); found {
+			oldCount = val.(int)
+			b.AuthorsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, author))
 		}
+		newCount := oldCount + 1
+		b.AuthorsIndex.Set(author, newCount)
+		b.AuthorsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, author), author)
 	}
 }
 

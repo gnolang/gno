@@ -2,7 +2,6 @@ package blog
 
 import (
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 
@@ -158,15 +157,4 @@ func calculateTimeSince(t time.Time) string {
 	} else {
 		return ufmt.Sprintf("%d months ago", int(duration.Hours()/(30*24)))
 	}
-}
-
-func sortFields(fields []string, sortBy string) []string {
-	if sortBy == "recent" || sortBy == "oldest" || sortBy == "" {
-		return fields
-	}
-	if sortBy == "alpha" {
-		sort.Strings(fields)
-		return fields
-	}
-	return fields
 }
