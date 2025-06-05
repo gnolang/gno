@@ -23,6 +23,9 @@ import (
 // RunFiletest executes the program in source as a filetest.
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
+//
+// While runFiletest() is used in production, RunFiletest() is used
+// exclusively for unit tests.
 func (opts *TestOptions) RunFiletest(fname string, source []byte) (string, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error

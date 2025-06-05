@@ -83,20 +83,13 @@ func TestLoadImports_RecoveryPreprocessError(t *testing.T) {
 func TestLoadImports_RecoveryUnhandledPanicError(t *testing.T) {
 	expectedErrDescriptor := "oops!"
 	errVal := gno.UnhandledPanicError{Descriptor: expectedErrDescriptor}
-	store := makeStoreThatPanics(&errVal)
+	store := makeStoreThatPanics(errVal)
 	err := testpkg.LoadImports(store, makeMemPkg())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-
-	var typedErr *gno.UnhandledPanicError
-
-	if errors.As(err, &typedErr) {
-		if typedErr.Descriptor != expectedErrDescriptor {
-			t.Errorf("got %T (%#v); want gno.UnhandledPanicError{Descriptor:%#v}", err, err.Error(), expectedErrDescriptor)
-		}
-	} else {
-		t.Errorf("got %T (%#v); want gno.UnhandledPanicError{}", err, err.Error())
+	if !errors.Is(err, errVal) {
+		t.Errorf("expected error to be %#v; got %#v", errVal, err)
 	}
 }
 
