@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
 
@@ -18,6 +19,9 @@ type Blog struct {
 	PostsBySlug      *avl.Tree // slug --> *Post
 	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
 	DraftedPosts     *avl.Tree // id --> *Post
+
+	TagsIndex    *avl.Tree // tagName -> int
+	AuthorsIndex *avl.Tree // authorAddress -> int
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -31,6 +35,8 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		PostsBySlug:      avl.NewTree(),
 		PostsByUpdatedAt: avl.NewTree(),
 		PostId:           0,
+		TagsIndex:        avl.NewTree(),
+		AuthorsIndex:     avl.NewTree(),
 	}, nil
 }
 
@@ -41,6 +47,8 @@ func (b *Blog) AddPost(post *Post) error {
 	if _, exists := b.PostsBySlug.Get(post.Slug); exists {
 		return ErrPostAlreadyExists
 	}
+
+	b.addToIndex(post)
 	added = b.Posts.Set(b.PostId.String(), post)
 	added = b.PostsBySlug.Set(post.Slug, post)
 	added = b.PostsByUpdatedAt.Set(post.UpdatedAt.String(), post)
@@ -279,6 +287,7 @@ func (b Blog) RenderFilterHeader(req *mux.Request) string {
 func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	tag := req.GetVar("slug")
 	out := b.RenderFilterHeader(req)
+
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
 	order := parseQueryParams("order", req.RawPath)
@@ -287,16 +296,14 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	var p *pager.Pager
 	var page *pager.Page
 	if tag == "" {
-		tags := b.FetchTags()
-		treeTags := fieldsToTree(sortFields(tags, sort))
 		if ascending {
-			p = pager.NewPager(treeTags, 12, ascending)
+			p = pager.NewPager(b.TagsIndex, 12, ascending)
 		} else {
-			p = pager.NewPager(treeTags, 12, newestFirst)
+			p = pager.NewPager(b.TagsIndex, 12, newestFirst)
 		}
 		page = p.MustGetPageByPath(req.RawPath)
-		for _, item := range page.Items {
-			out += md.H3(md.Link(item.Key, b.Prefix+":tags/"+item.Key)) + "\n"
+		for _, t := range page.Items {
+			out += md.H3(md.Link(t.Key, b.Prefix+":tags/"+t.Key)+" ("+ufmt.Sprintf("%d", t.Value)+")") + "\n\n"
 		}
 		out += page.Picker(req.Path) + "\n\n"
 		res.Write(out)
@@ -327,18 +334,29 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 
 	sort := parseQueryParams("sort", req.RawPath)
 	newestFirst := sort == "recent" || sort == "" // default to recent posts
+	order := parseQueryParams("order", req.RawPath)
+	ascending := order == "asc" || order == "" // default to ascending order
 
+	var p *pager.Pager
+	var page *pager.Page
 	if author == "" {
-		authors := b.FetchAuthors()
-		for _, a := range authors {
-			out += md.H3(md.Link(a, b.Prefix+":authors/"+a)) + "\n"
+		if ascending {
+			p = pager.NewPager(b.AuthorsIndex, 12, ascending)
+		} else {
+			p = pager.NewPager(b.AuthorsIndex, 12, newestFirst)
 		}
+		page = p.MustGetPageByPath(req.RawPath)
+		for _, a := range page.Items {
+			out += md.H3(md.Link(a.Key, b.Prefix+":authors/"+a.Key)+" ("+ufmt.Sprintf("%d", a.Value)+")") + "\n\n"
+		}
+		out += page.Picker(req.Path) + "\n\n"
 		res.Write(out)
 		return
 	}
+
 	filteredPosts, exists := b.filterPostsByField("author", author)
-	p := pager.NewPager(filteredPosts, 4, newestFirst)
-	page := p.MustGetPageByPath(req.RawPath)
+	p = pager.NewPager(filteredPosts, 4, newestFirst)
+	page = p.MustGetPageByPath(req.RawPath)
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
 		out += post.RenderPreview(false, "short", b.Prefix) + "\n"
@@ -359,40 +377,6 @@ func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
-func (b Blog) FetchTags() []string {
-	tagSet := make(map[string]struct{})
-	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
-		post := v.(*Post)
-		for _, tag := range post.Tags {
-			tagSet[tag] = struct{}{}
-		}
-		return false
-	})
-
-	var tags []string
-	for tag := range tagSet {
-		tags = append(tags, tag)
-	}
-	return tags
-}
-
-func (b Blog) FetchAuthors() []string {
-	authorSet := make(map[string]struct{})
-	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
-		post := v.(*Post)
-		for _, author := range post.Authors {
-			authorSet[author] = struct{}{}
-		}
-		return false
-	})
-
-	var authors []string
-	for author := range authorSet {
-		authors = append(authors, author)
-	}
-	return authors
-}
-
 func (b Blog) Mention(role, recipient string) string {
 	if role == "author" {
 		return md.Bold(md.Link("@"+recipient, b.Prefix+"/author:"+recipient))
@@ -400,7 +384,33 @@ func (b Blog) Mention(role, recipient string) string {
 	if role == "commenter" {
 		return md.Bold(md.Link("@"+recipient, b.Prefix+"/commenter:"+recipient))
 	}
+	if role == "tag" {
+		return md.Bold(md.Link("#"+recipient, b.Prefix+"/tag:"+recipient))
+	}
 	return ""
+}
+
+func (b *Blog) addToIndex(post *Post) {
+	for _, tag := range post.Tags {
+		foundTag, exists := b.TagsIndex.Get(tag)
+		if !exists {
+			b.TagsIndex.Set(tag, 1)
+		} else {
+			tagChange := foundTag.(int)
+			tagChange++
+			b.TagsIndex.Set(tag, tagChange)
+		}
+	}
+	for _, author := range post.Authors {
+		foundAuthor, exists := b.AuthorsIndex.Get(author)
+		if !exists {
+			b.AuthorsIndex.Set(author, 1)
+		} else {
+			authorChange := foundAuthor.(int)
+			authorChange++
+			b.AuthorsIndex.Set(author, authorChange)
+		}
+	}
 }
 
 func (b Blog) filterPostsByField(field, value string) (*avl.Tree, bool) {

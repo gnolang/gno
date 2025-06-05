@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
@@ -171,14 +169,4 @@ func sortFields(fields []string, sortBy string) []string {
 		return fields
 	}
 	return fields
-}
-
-func fieldsToTree(fields []string) *avl.Tree {
-	var id seqid.ID = 0
-	tree := avl.NewTree()
-	for _, field := range fields {
-		id.Next()
-		tree.Set(field, nil)
-	}
-	return tree
 }
