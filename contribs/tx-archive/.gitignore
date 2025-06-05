@@ -1,0 +1,16 @@
+# MacOS Leftovers
+.DS_Store
+
+# Editor Leftovers
+.vscode
+.idea
+
+# Log files
+*.log
+
+# Build Leftovers
+build/*
+dist/
+
+# Configuration files
+*.jsonl
