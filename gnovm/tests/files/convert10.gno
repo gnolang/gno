@@ -2,27 +2,27 @@ package main
 
 import "fmt"
 
-func main() {
-	// Create a slice
-	s := []int{1, 2, 3, 4, 5}
-
-	// Convert slice to array pointer (length must match)
-	var arrPtr *[5]int
-	arrPtr = (*[5]int)(s) // Valid conversion
-
-	fmt.Println("Original slice:", s)
-	fmt.Println("Array pointer:", *arrPtr)
-
-	// // Modify through the array pointer
-	// arrPtr[0] = 100
-	// fmt.Println("Modified slice:", s) // Underlying storage is shared!
-
-	// // Convert back to slice (just for demonstration)
-	// s2 := arrPtr[:]
-	// fmt.Println("Converted back to slice:", s2)
+type Foo struct {
+	age  int
+	name string
 }
 
-// TODO: fix this
+var Arr = [2]interface{}{struct {
+	age  int
+	name string
+}{age: 1, name: "a"}, struct {
+	age  int
+	name string
+}{age: 2, name: "b"}}
+
+func main() {
+	Arr2 := [2]Foo(Arr)
+
+	fmt.Println("Arr2: ", Arr2)
+}
 
 // Error:
-// cannot convert []int to PointerKind
+// main/convert10.gno:19:10-21: cannot convert Arr<VPBlock(3,1)> (of type [2]interface {}) to type [2]main.Foo
+
+// TypeCheckError:
+// main/convert10.gno:19:17: cannot convert Arr (variable of type [2]interface{}) to type [2]Foo

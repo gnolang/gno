@@ -1195,6 +1195,48 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				panic("should not happen")
 			}
 			// TODO: fix slice to arrray pointer
+		} else if at, ok := unwrapPointerType(t).(*ArrayType); ok {
+			// slice -> array or *array
+			// fmt.Println("===at: ", at, at.Len)
+			// fmt.Println("===t: ", t, reflect.TypeOf(t))
+			if t.Kind() == PointerKind {
+				tv.T = t
+				switch sv := tv.V.(type) {
+				case nil:
+					if at.Len > 0 {
+						panic(fmt.Sprintf("runtime error: cannot convert slice with length 0 to array or pointer to array with length %d", at.Len))
+					}
+					tv.V = &ArrayValue{}
+				case *SliceValue:
+					tv2 := TypedValue{T: &ArrayType{
+						Len: at.Len,
+						Elt: at.Elt,
+						Vrd: at.Vrd,
+					}, V: sv.Base}
+
+					fmt.Println("===sv.Base.(*ArrayValue).Len: ", len(sv.Base.(*ArrayValue).List), len(sv.Base.(*ArrayValue).Data))
+
+					hiv := alloc.NewHeapItem(tv2)
+
+					tv.V = PointerValue{
+						TV:    &hiv.Value,
+						Base:  hiv,
+						Index: 0,
+					}
+				}
+			} else {
+				tv.T = t
+				switch sv := tv.V.(type) {
+				case nil:
+					if at.Len > 0 {
+						panic(fmt.Sprintf("runtime error: cannot convert slice with length 0 to array or pointer to array with length %d", at.Len))
+					}
+					tv.V = &ArrayValue{}
+				case *SliceValue:
+					newArr := sv.Base.(*ArrayValue).Copy(alloc)
+					tv.V = newArr
+				}
+			}
 		} else {
 			panic(fmt.Sprintf(
 				"cannot convert %s to %s",
