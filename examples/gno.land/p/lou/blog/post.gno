@@ -26,16 +26,14 @@ type Post struct {
 	Comments    *avl.Tree // id --> *Comment
 	CommentId   seqid.ID
 	Likes       uint64
-	Drafted     bool
 }
 
 func NewPost(slug, title, body, publicationDate string, authors, tags []string, caller std.Address) (*Post, error) {
-	// handle draft
-	var err error
-
+	if !caller.IsValid() {
+		return nil, ErrInvalidCaller
+	}
 	if slug == "" {
-		return nil, ErrEmptySlug
-		// or titleToSlug(title)
+		title = titleToSlug(title) // ok?
 	}
 	if title == "" {
 		return nil, ErrEmptyTitle
@@ -43,6 +41,8 @@ func NewPost(slug, title, body, publicationDate string, authors, tags []string, 
 	if body == "" {
 		return nil, ErrEmptyBody
 	}
+
+	var err error
 	publishedAt := time.Now()
 	if publicationDate != "" {
 		publishedAt, err = time.Parse(time.RFC3339, publicationDate)
@@ -62,7 +62,6 @@ func NewPost(slug, title, body, publicationDate string, authors, tags []string, 
 		Authors:     authors,
 		Publisher:   caller,
 		Comments:    avl.NewTree(),
-		Drafted:     false,
 	}, nil
 }
 
@@ -106,16 +105,12 @@ func (p *Post) PinCommentById(id string) error {
 }
 
 func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
-	if p.Drafted {
-		// handle drafted posts based on caller's preference in a function?
-		return ""
-	}
 	out := md.H2(md.Link(p.Title, prefix+":posts/"+p.Slug)) + "\n\n"
 	out += md.H5(md.Italic("/"+p.Slug)) + "\n\n"
-	if p.UpdatedAt != p.PublishedAt {
+	if p.UpdatedAt != p.CreatedAt {
 		out += formatTime(p.UpdatedAt, timeFmt) + " (updated)\n\n"
 	} else {
-		out += formatTime(p.PublishedAt, timeFmt) + "\n\n"
+		out += formatTime(p.CreatedAt, timeFmt) + "\n\n"
 	}
 	if !gridMode {
 		out += md.Bold("author(s):") + " " + strings.Join(p.Authors, ", ") + "\n\n"
@@ -129,10 +124,6 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 }
 
 func (p Post) RenderPost(prefix string) string {
-	if p.Drafted {
-		// handle drafted posts based on caller's preference in a function?
-		return ""
-	}
 	out := md.H1(p.Title) + "\n\n"
 	if p.Comments.Size() > 0 {
 		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comment(s)", "#comments") + "\n\n"
@@ -142,7 +133,7 @@ func (p Post) RenderPost(prefix string) string {
 	out += md.HorizontalRule()
 	out += md.Bold("Created on:") + " " + formatTime(p.CreatedAt, "full") + "\n\n"
 	out += md.Bold("Published on:") + " " + formatTime(p.PublishedAt, "full") + "\n\n"
-	if p.UpdatedAt != p.PublishedAt {
+	if p.UpdatedAt != p.CreatedAt {
 		out += md.Bold("Last updated:") + " " + formatTime(p.UpdatedAt, "full") + "\n\n"
 	}
 	out += md.Bold("Publisher:") + " " + p.Publisher.String() + "\n\n"

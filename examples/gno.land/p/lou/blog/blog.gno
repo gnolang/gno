@@ -19,12 +19,10 @@ type Blog struct {
 	PostId           seqid.ID
 	PostsBySlug      *avl.Tree // slug --> *Post
 	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
-	DraftedPosts     *avl.Tree // id --> *Post
-
-	TagsIndex     *avl.Tree // tagName -> int
-	TagsSorted    *avl.Tree // "<count>::tag" => tag
-	AuthorsIndex  *avl.Tree // authorAddress -> int
-	AuthorsSorted *avl.Tree // "<count>::author" => author
+	TagsIndex        *avl.Tree // tagName -> int
+	TagsSorted       *avl.Tree // "<count>::tag" => tag
+	AuthorsIndex     *avl.Tree // authorAddress -> int
+	AuthorsSorted    *avl.Tree // "<count>::author" => author
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {

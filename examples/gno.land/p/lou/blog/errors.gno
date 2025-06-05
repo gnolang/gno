@@ -21,4 +21,6 @@ var (
 	ErrPostAddFailed       = errors.New("failed to add post")
 	ErrCommentDeleteFailed = errors.New("failed to delete comment")
 	ErrCommentAddFailed    = errors.New("failed to add comment")
+
+	ErrInvalidCaller = errors.New("invalid caller address")
 )
