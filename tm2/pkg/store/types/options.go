@@ -35,8 +35,9 @@ var (
 	PruneEverything = NewPruningOptions(0, 0)
 	// PruneNothing means all historic states will be saved, nothing will be deleted
 	PruneNothing = NewPruningOptions(0, 1)
-	// PruneSyncable means only those states not needed for state syncing will be deleted (keeps last 100 + every 10000th)
-	PruneSyncable = NewPruningOptions(100, 10000)
+	// PruneSyncable means only those states not needed for state syncing will be deleted.
+	// Assuming 3s block times, and a span of 3.5w, ~705600 blocks should be kept.
+	PruneSyncable = NewPruningOptions(705600, 10)
 )
 
 type PruneStrategy string

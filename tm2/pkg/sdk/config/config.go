@@ -29,7 +29,7 @@ type AppConfig struct {
 func DefaultAppConfig() *AppConfig {
 	return &AppConfig{
 		MinGasPrices:  "",
-		PruneStrategy: types.PruneNothingStrategy,
+		PruneStrategy: types.PruneSyncableStrategy,
 	}
 }
 
