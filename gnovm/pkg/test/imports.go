@@ -107,7 +107,6 @@ func StoreWithOptions(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
 		pn *gno.PackageNode, pv *gno.PackageValue,
 	) {
-		fmt.Println("pkg/test/imports:PROCESSMEMPACKAGE", mpkg.Path, mpkg.Type, "preprocessonly", opts.PreprocessOnly)
 		if opts.PreprocessOnly {
 			// Check the gno.mod gno version.
 			mod, err := gno.ParseCheckGnoMod(mpkg)

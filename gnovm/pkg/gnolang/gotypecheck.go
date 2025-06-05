@@ -149,7 +149,6 @@ const (
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
-	fmt.Println("TypeCheckMemPackage(", mpkg.Path, ")")
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
@@ -207,10 +206,6 @@ func (gimp *gnoImporter) Error(err error) {
 // ImportFrom returns the imported package for the given import
 // pkgPath when imported by a package file located in dir.
 func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopkg *types.Package, err error) {
-	fmt.Println("gimp.ImportFrom", "pkgPath:", pkgPath)
-	defer func() {
-		fmt.Println("gimp.ImportFrom", "pkgPath:", pkgPath, "--->", err)
-	}()
 	if result, ok := gimp.cache[pkgPath]; ok {
 		if result.pending {
 			idx := slices.Index(gimp.stack, pkgPath)
@@ -437,7 +432,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
 		_gofs2 = append(_gofs, gmgof)
 	}
 	gimp.testing = true // use tgetter for stdlibs, default to getter.
-	fmt.Println("typeCheckMemPackage... xxx_test", mpkg.Path, mpkg.Type)
 	_, _ = gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
 	/* NOTE: Uncomment to fail earlier.
 	if len(gimp.errors) != numErrs {
@@ -452,7 +446,6 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
 		// XXX If we're re-parsing the filetest anyways,
 		// change GoParseMemPackage to not parse into tgofs.
 		tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
-		fmt.Println("typeCheckMemPackage... filetest", tfname)
 		tpname := tgof.Name.String()
 		tfile := mpkg.GetFile(tfname)
 		// XXX If filetest are having issues, consider this:
@@ -547,7 +540,6 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 				continue
 			}
 		default:
-			fmt.Println("!!!", mpkg.Type)
 			panic("should not happen")
 		}
 
