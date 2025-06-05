@@ -55,7 +55,8 @@ type Debugger struct {
 	nextLoc     Location                    // source location at the 'next' command
 	breakpoints []Location                  // list of breakpoints set by user, as source locations
 	call        []Location                  // for function tracking, ideally should be provided by machine frame
-	frameLevel  int                         // frame level of the current machine instruction
+	blocks      []*Block                    // machine last blocks depth at each call level (for up & down)
+	frameLevel  int                         //
 	nextDepth   int                         // function call depth at the 'next' command
 	getSrc      func(string, string) string // helper to access source from repl or others
 	rootDir     string
@@ -195,8 +196,10 @@ loop:
 	switch op {
 	case OpCall:
 		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)
+		m.Debugger.blocks = append(m.Debugger.blocks, m.LastBlock())
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
+		m.Debugger.blocks = m.Debugger.blocks[:len(m.Debugger.blocks)-1]
 	}
 }
 
@@ -677,10 +680,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		}
 		return tv, fmt.Errorf("invalid basic literal value: %s", n.Value)
 	case *ast.Ident:
-		if tv, ok := debugLookup(m, n.Name); ok {
-			return tv, nil
-		}
-		return tv, fmt.Errorf("could not find symbol value for %s", n.Name)
+		return debugLookup(m, n.Name)
 	case *ast.ParenExpr:
 		return debugEvalExpr(m, n.X)
 	case *ast.StarExpr:
@@ -731,103 +731,21 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 // debugLookup returns the current VM value corresponding to name ident in
 // the current function call frame, or the global frame if not found.
 // Note: the commands 'up' and 'down' change the frame level to start from.
-func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
-	// Position to the right frame.
-	ncall := 0
-	var i int
-	var fblocks []BlockNode
-	var funBlock BlockNode
-	for i = len(m.Frames) - 1; i >= 0; i-- {
-		if m.Frames[i].Func != nil {
-			funBlock = m.Frames[i].Func.Source
+func debugLookup(m *Machine, name string) (tv TypedValue, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
 		}
-		if ncall == m.Debugger.frameLevel {
-			break
-		}
-		if m.Frames[i].Func != nil {
-			fblocks = append(fblocks, m.Frames[i].Func.Source)
-			ncall++
-		}
-	}
-	if i < 0 {
-		return tv, false
-	}
+	}()
 
-	// XXX The following logic isn't necessary and it isn't correct either.
-	// XXX See `GetPathForName(Store, Name) ValuePath` in node.go,
-	// XXX get the path and pass it into the last block.GetPointerTo().
-	// XXX That function will find the correct block by depth etc.
-	// XXX There was some latent bug for case:
-	// XXX '{in: "b 37\nc\np b\n", out: "(3 int)"},' (debugger test case #51)
-	// XXX which was revealed by some earlier commits regarding lines
-	// XXX (Node now has not just the starting .Pos but also .End.)
-	// XXX and is resolved by the following diff to values.go:
-	// XXX The exact bug probably doesn't matter, as the logic
-	// XXX should be replaced by the aforementioned block.GetPointerTo().
-	//
-	// --- a/gnovm/pkg/gnolang/values.go
-	// +++ b/gnovm/pkg/gnolang/values.go
-	// @@ -2480,6 +2480,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
-	//                 }
-	//         }
-	//         b.Values = values
-	// +       b.Source = source // otherwise new variables won't show in print or debugger.
-	//  }
-
-	// Position to the right block, i.e the first after the last fblock (if any).
-	for i = len(m.Blocks) - 1; i >= 0; i-- {
-		if len(fblocks) == 0 {
-			break
-		}
-		if m.Blocks[i].Source == fblocks[0] {
-			fblocks = fblocks[1:]
-		}
+	block := m.LastBlock()
+	if m.Debugger.frameLevel > 0 {
+		block = m.Debugger.blocks[len(m.Debugger.blocks)-m.Debugger.frameLevel]
 	}
-	if i < 0 {
-		return tv, false
-	}
-
-	// get SourceBlocks in the same frame level.
-	var sblocks []*Block
-	for ; i >= 0; i-- {
-		sblocks = append(sblocks, m.Blocks[i])
-		if m.Blocks[i].Source == funBlock {
-			break
-		}
-	}
-	if i > 0 {
-		sblocks = append(sblocks, m.Blocks[0]) // Add global block
-	}
-
-	// Search value in current frame level blocks, or main scope.
-	for _, b := range sblocks {
-		switch t := b.Source.(type) {
-		case *IfStmt:
-			for i, s := range ifBody(m, t).Source.GetBlockNames() {
-				if string(s) == name {
-					return b.Values[i], true
-				}
-			}
-		}
-		for i, s := range b.Source.GetBlockNames() {
-			if string(s) == name {
-				return b.Values[i], true
-			}
-		}
-	}
-	// Fallback: search a global value.
-	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name), true); v != nil {
-		return *v, true
-	}
-	return tv, false
-}
-
-// ifBody returns the Then or Else body corresponding to the current location.
-func ifBody(m *Machine, ifStmt *IfStmt) IfCaseStmt {
-	if l := ifStmt.Else.GetLocation().Line; l > 0 && debugFrameLoc(m, m.Debugger.frameLevel).Line > l {
-		return ifStmt.Else
-	}
-	return ifStmt.Then
+	// A failure in GetPathForName() or GetPointerTo() will result in a recovered panic error.
+	vp := block.GetSource(m.Store).GetPathForName(m.Store, Name(name))
+	tv = block.GetPointerTo(m.Store, vp).Deref()
+	return tv, err
 }
 
 // ---------------------------------------
