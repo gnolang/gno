@@ -55,8 +55,7 @@ func (pv *mockPV) PubKey() crypto.PubKey {
 
 // SignVote implements PrivValidator.
 func (pv *mockPV) SignVote(chainID string, vote *Vote) error {
-	useChainID := chainID
-	signBytes := vote.SignBytes(useChainID)
+	signBytes := vote.SignBytes(chainID)
 	sig, err := pv.signer.Sign(signBytes)
 	if err != nil {
 		return err
@@ -67,8 +66,7 @@ func (pv *mockPV) SignVote(chainID string, vote *Vote) error {
 
 // SignProposal implements PrivValidator.
 func (pv *mockPV) SignProposal(chainID string, proposal *Proposal) error {
-	useChainID := chainID
-	signBytes := proposal.SignBytes(useChainID)
+	signBytes := proposal.SignBytes(chainID)
 	sig, err := pv.signer.Sign(signBytes)
 	if err != nil {
 		return err
