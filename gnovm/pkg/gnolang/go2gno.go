@@ -77,15 +77,17 @@ func ParseExpr(expr string) (retx Expr, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if rerr, ok := r.(error); ok {
-				err = rerr
+				err = errors.Wrap(rerr, "parsing expression")
 			} else {
-				err = fmt.Errorf("%v", r)
+				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
 			}
 			return
 		}
 	}()
+	// Use a fset, even if empty, so the spans are set properly.
+	fset := token.NewFileSet()
 	// parse with Go2Gno.
-	return Go2Gno(nil, x).(Expr), nil
+	return Go2Gno(fset, x).(Expr), nil
 }
 
 func MustParseExpr(expr string) Expr {
@@ -105,35 +107,41 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	f, err := parser.ParseFile(fs, filename, body, parseOpts)
+	astf, err := parser.ParseFile(fs, filename, body, parseOpts)
 	if err != nil {
 		return nil, err
 	}
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
 
-	// recover from Go2Gno.
-	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
-	defer func() {
-		if r := recover(); r != nil {
-			if rerr, ok := r.(error); ok {
-				err = errors.Wrap(rerr, "parsing file")
-			} else {
-				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
+	// XXX Disable this when running with -debug or similar.
+	if true {
+		// Recover from Go2Gno.
+		// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
+		defer func() {
+			if r := recover(); r != nil {
+				if rerr, ok := r.(error); ok {
+					err = errors.Wrap(rerr, "parsing file")
+				} else {
+					err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
+				}
+				return
 			}
-			return
-		}
-	}()
-	// parse with Go2Gno.
-	fn = Go2Gno(fs, f).(*FileNode)
+		}()
+	}
+	// Parse with Go2Gno.
+	fn = Go2Gno(fs, astf).(*FileNode)
 	fn.Name = Name(filename)
 	return fn, nil
 }
 
-func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
-	posn := fs.Position(pos)
-	n.SetLine(posn.Line)
-	n.SetColumn(posn.Column)
+// setSpan() will not attempt to overwrite an existing span.
+// This usually happens when an inner node is passed outward,
+// in which case we want to keep the original specificity.
+func setSpan(fs *token.FileSet, gon ast.Node, n Node) Node {
+	if n.GetSpan().IsZero() {
+		n.SetSpan(SpanFromGo(fs, gon))
+	}
 	return n
 }
 
@@ -145,7 +153,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	if fs != nil {
 		defer func() {
 			if n != nil {
-				setLoc(fs, gon.Pos(), n)
+				setSpan(fs, gon, n)
 			}
 		}()
 	}
@@ -316,7 +324,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.BlockStmt:
 		return &BlockStmt{
-			Body: toStmts(fs, gon.List),
+			Body: toBody(fs, gon),
 		}
 	case *ast.BranchStmt:
 		return &BranchStmt{
@@ -341,13 +349,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Init: toSimp(fs, gon.Init),
 			Cond: toExpr(fs, gon.Cond),
 			Post: toSimp(fs, gon.Post),
-			Body: toStmts(fs, gon.Body.List),
+			Body: toBody(fs, gon.Body),
 		}
 	case *ast.IfStmt:
 		thenStmt := IfCaseStmt{
-			Body: toStmts(fs, gon.Body.List),
+			Body: toBody(fs, gon.Body),
 		}
-		setLoc(fs, gon.Body.Pos(), &thenStmt)
+		setSpan(fs, gon.Body, &thenStmt)
 		ess := []Stmt(nil)
 		if gon.Else != nil {
 			if _, ok := gon.Else.(*ast.BlockStmt); ok {
@@ -360,7 +368,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body: ess,
 		}
 		if gon.Else != nil {
-			setLoc(fs, gon.Else.Pos(), &elseStmt)
+			setSpan(fs, gon.Else, &elseStmt)
 		}
 		return &IfStmt{
 			Init: toSimp(fs, gon.Init),
@@ -392,21 +400,23 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.TypeSwitchStmt:
 		switch as := gon.Assign.(type) {
 		case *ast.AssignStmt:
-			return &SwitchStmt{
+			stmt := &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
+			return stmt
 		case *ast.ExprStmt:
-			return &SwitchStmt{
+			stmt := &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      "",
 			}
+			return stmt
 		default:
 			panicWithPos("unexpected *ast.TypeSwitchStmt.Assign type %s",
 				reflect.TypeOf(gon.Assign).String())
@@ -650,7 +660,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				Type:     tipe,
 				IsAlias:  alias,
 			}
-			setLoc(fs, s.Pos(), td)
+			setSpan(fs, s, td)
 			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
@@ -683,7 +693,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Const:     true,
 				}
 				cd.SetAttribute(ATTR_IOTA, si)
-				setLoc(fs, s.Pos(), cd)
+				setSpan(fs, s, cd)
 				ds = append(ds, cd)
 			} else {
 				var names []NameExpr
@@ -702,7 +712,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     false,
 				}
-				setLoc(fs, s.Pos(), vd)
+				setSpan(fs, s, vd)
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
@@ -714,7 +724,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
 			}
-			setLoc(fs, s.Pos(), im)
+			setSpan(fs, s, im)
 			ds = append(ds, im)
 		default:
 			panic(fmt.Sprintf(
@@ -752,19 +762,23 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 	for _, f := range fields {
 		if len(f.Names) == 0 {
 			// a single unnamed field w/ type
-			ftxs = append(ftxs, FieldTypeExpr{
+			ftx := FieldTypeExpr{
 				NameExpr: *Nx(""),
 				Type:     toExpr(fs, f.Type),
 				Tag:      toExpr(fs, f.Tag),
-			})
+			}
+			setSpan(fs, f, &ftx)
+			ftxs = append(ftxs, ftx)
 		} else {
 			// one or more named fields
 			for _, n := range f.Names {
-				ftxs = append(ftxs, FieldTypeExpr{
+				ftx := FieldTypeExpr{
 					NameExpr: *Nx(toName(n)),
 					Type:     toExpr(fs, f.Type),
 					Tag:      toExpr(fs, f.Tag),
-				})
+				}
+				setSpan(fs, f, &ftx)
+				ftxs = append(ftxs, ftx)
 			}
 		}
 	}
@@ -777,10 +791,12 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 		if kvx, ok := x.(*ast.KeyValueExpr); ok {
 			kvxs[i] = *Go2Gno(fs, kvx).(*KeyValueExpr)
 		} else {
-			kvxs[i] = KeyValueExpr{
+			kvx := KeyValueExpr{
 				Key:   nil,
 				Value: toExpr(fs, x),
 			}
+			setSpan(fs, x, &kvx)
+			kvxs[i] = kvx
 		}
 	}
 	return
@@ -811,8 +827,10 @@ func toClauses(fs *token.FileSet, csz []ast.Stmt) []SwitchClauseStmt {
 }
 
 func toSwitchClauseStmt(fs *token.FileSet, cc *ast.CaseClause) SwitchClauseStmt {
-	return SwitchClauseStmt{
+	scs := SwitchClauseStmt{
 		Cases: toExprs(fs, cc.List),
 		Body:  toStmts(fs, cc.Body),
 	}
+	setSpan(fs, cc, &scs)
+	return scs
 }

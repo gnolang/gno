@@ -397,4 +397,4 @@ func (_ Z) manip2(xs ...X) {
 // 0
 
 // TypeCheckError:
-// main/files/issue_1096.gno:134:2: cannot assign to xm[1].Array[1] (neither addressable nor a map index expression)
+// main/issue_1096.gno:134:2: cannot assign to xm[1].Array[1] (neither addressable nor a map index expression)

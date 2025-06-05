@@ -261,9 +261,9 @@ func TestJSONDocumentation(t *testing.T) {
 	}
 
 	// Get the JSONDocumentation similar to VMKeeper.QueryDoc
-	memPkg, err := gnolang.ReadMemPackage(dir, pkgPath)
+	mpkg, err := gnolang.ReadMemPackage(dir, pkgPath)
 	require.NoError(t, err)
-	d, err := NewDocumentableFromMemPkg(memPkg, true, "", "")
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
 	require.NoError(t, err)
 	jdoc, err := d.WriteJSONDocumentation(nil)
 	require.NoError(t, err)

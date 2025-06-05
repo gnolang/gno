@@ -59,6 +59,45 @@ var gStringerType = &DeclaredType{
 	sealed: true,
 }
 
+var gRealmType = &DeclaredType{
+	PkgPath: uversePkgPath,
+	Name:    "realm",
+	Base: &InterfaceType{
+		PkgPath: uversePkgPath,
+		Methods: []FieldType{
+			{
+				Name: "Addr",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{
+						{
+							// Name: "",
+							Type: StringType, // NOT std.Address.
+						},
+					},
+				},
+			},
+			{
+				Name: "Prev",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{
+						{
+							// Name: "",
+							Type: nil, // gets filled in init() below.
+						},
+					},
+				},
+			},
+		},
+	},
+	sealed: true,
+}
+
+func init() {
+	gRealmType.Base.(*InterfaceType).Methods[1].Type.(*FuncType).Results[0].Type = gRealmType
+}
+
 // ----------------------------------------
 // Uverse package
 
@@ -752,6 +791,10 @@ func makeUverseNode() {
 			}
 		},
 	)
+
+	//----------------------------------------
+	// Gno2 types
+	def("realm", asValue(gRealmType))
 	defNative("crossing",
 		nil, // params
 		nil, // results
@@ -843,6 +886,7 @@ func makeUverseNode() {
 	// implementing istypednil() is annoying, while istypednil() shouldn't
 	// require reflect, Gno should therefore offer istypednil() as a uverse
 	// function.
+	// XXX REMOVE, move to std function.
 	defNative("istypednil",
 		Flds( // params
 			"x", AnyT(),
