@@ -35,7 +35,7 @@ func NewMultisignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "multisign",
 			ShortUsage: "multisign [flags] <multisig key-name or address>",
-			ShortHelp:  "aggregates the multiple signatures, signs the given tx document and saves it to disk",
+			ShortHelp:  "combines the multisigs for the tx document and saves it to disk",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
