@@ -170,6 +170,13 @@ func Flds(args ...any) FieldTypeExprs {
 	return list
 }
 
+func Fld(n, t any) FieldTypeExpr {
+	return FieldTypeExpr{
+		NameExpr: *Nx(n),
+		Type:     X(t),
+	}
+}
+
 func Recv(n, t any) FieldTypeExpr {
 	if n == "" {
 		n = blankIdentifier

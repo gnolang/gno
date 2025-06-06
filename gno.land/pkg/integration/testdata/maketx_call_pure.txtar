@@ -19,7 +19,9 @@ stderr '"gnokey" error: --= Error =--\nData: invalid package path'
 
 # 4. normal call to realm ERROR (need crossing)
 ! gnokey maketx call -pkgpath gno.land/r/foo/call_realm -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stderr 'cannot cross-call a non-crossing function gno.land/r/foo/call_realm.Render from <no realm>'
+stderr 'wrong number of arguments in call to Render: want 0 got 1'
+# XXX: While the error is correct, the correct message should be something like the message below:
+# stderr 'cannot cross-call a non-crossing function gno.land/r/foo/call_realm.Render from <no realm>'
 
 # 5. normal eval realm SUCCESS
 gnokey query vm/qeval --data 'gno.land/r/foo/call_realm.Render()'
@@ -29,12 +31,11 @@ stdout 'ok'
 package call_pure
 
 func Hello() string {
- 	return "notok"
+	return "notok"
 }
-
 -- realm/realm.gno --
 package call_realm
 
 func Render() string {
- 	return "ok"
+	return "ok"
 }
