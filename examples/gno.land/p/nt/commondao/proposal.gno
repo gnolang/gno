@@ -94,7 +94,7 @@ type (
 	Executable interface {
 		// Execute executes the proposal.
 		// This method must allow crossing.
-		Execute() error
+		Execute(realm) error
 	}
 
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
