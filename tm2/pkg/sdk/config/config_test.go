@@ -3,34 +3,73 @@ package config
 import (
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidateAppConfig(t *testing.T) {
-	c := DefaultAppConfig()
-	c.MinGasPrices = "" // empty
+func TestConfig_ValidateBasic(t *testing.T) {
+	t.Parallel()
 
-	testCases := []struct {
-		testName     string
-		minGasPrices string
-		expectErr    bool
-	}{
-		{"invalid min gas prices invalid gas", "10token/1", true},
-		{"invalid min gas prices invalid gas denom", "9token/0gs", true},
-		{"invalid min gas prices zero gas", "10token/0gas", true},
-		{"invalid min gas prices no gas", "10token/gas", true},
-		{"invalid min gas prices negtive gas", "10token/-1gas", true},
-		{"invalid min gas prices invalid denom", "10$token/2gas", true},
-		{"invalid min gas prices invalid second denom", "10token/2gas;10/3gas", true},
-		{"valid min gas prices", "10foo/3gas;5bar/3gas", false},
-	}
+	t.Run("invalid min gas prices", func(t *testing.T) {
+		t.Parallel()
 
-	cfg := DefaultAppConfig()
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.testName, func(t *testing.T) {
-			cfg.MinGasPrices = tc.minGasPrices
-			assert.Equal(t, tc.expectErr, cfg.ValidateBasic() != nil)
-		})
-	}
+		testTable := []struct {
+			name   string
+			prices string
+		}{
+			{"invalid gas", "10token/1"},
+			{"invalid min gas prices invalid gas denom", "9token/0gs"},
+			{"invalid min gas prices zero gas", "10token/0gas"},
+			{"invalid min gas prices no gas", "10token/gas"},
+			{"invalid min gas prices negtive gas", "10token/-1gas"},
+			{"invalid min gas prices invalid denom", "10$token/2gas"},
+			{"invalid min gas prices invalid second denom", "10token/2gas;10/3gas"},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				cfg := DefaultAppConfig()
+				cfg.MinGasPrices = testCase.prices
+
+				assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidMinGasPrices)
+			})
+		}
+	})
+
+	t.Run("valid min gas prices", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultAppConfig()
+		cfg.MinGasPrices = "10foo/3gas;5bar/3gas"
+
+		assert.NoError(t, cfg.ValidateBasic())
+	})
+
+	t.Run("invalid prune strategy", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultAppConfig()
+		cfg.PruneStrategy = "best-effort"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidPruneStrategy)
+	})
+
+	t.Run("valid prune strategy", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultAppConfig()
+		cfg.PruneStrategy = types.PruneEverythingStrategy
+
+		assert.NoError(t, cfg.ValidateBasic())
+	})
+
+	t.Run("valid default config", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultAppConfig()
+
+		assert.NoError(t, cfg.ValidateBasic())
+	})
 }

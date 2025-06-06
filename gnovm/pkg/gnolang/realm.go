@@ -4,6 +4,9 @@ package gnolang
 
 // XXX finalize should consider hard boundaries only
 
+// XXX types: to support realm persistence of types, must
+// first require the validation of blocknode locations.
+
 import (
 	"encoding/hex"
 	"encoding/json"
@@ -1081,6 +1084,10 @@ func copyTypeWithRefs(typ Type) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
+		if ct.PkgPath == uversePkgPath {
+			// This happens with a type alias to a uverse type.
+			return RefType{ID: ct.TypeID()}
+		}
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -1488,6 +1495,7 @@ func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 //----------------------------------------
 // Misc.
 
+// should not be used outside of realm.go
 func toRefNode(bn BlockNode) RefNode {
 	return RefNode{
 		Location:  bn.GetLocation(),
@@ -1495,6 +1503,7 @@ func toRefNode(bn BlockNode) RefNode {
 	}
 }
 
+// should not be used outside of realm.go
 func toRefValue(val Value) RefValue {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {

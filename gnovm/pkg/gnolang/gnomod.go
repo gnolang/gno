@@ -51,6 +51,7 @@ const (
 // ========================================
 // Parses and checks the gnomod.toml file from mpkg.
 // To generate default ones, GenGnoMod*().
+// Generates the latest default for stdlibs.
 //
 // Results:
 //   - mod: the gnomod.toml file, or nil if not found.

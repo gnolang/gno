@@ -53,7 +53,7 @@ func ParseFilepath(fpath string) (*File, error) {
 
 	file, err := os.Stat(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read file %q: %w",filename, err)
+		return nil, fmt.Errorf("could not read file %q: %w", filename, err)
 	}
 	if file.IsDir() {
 		return nil, fmt.Errorf("invalid file at %q: is a directory", fpath)
@@ -67,6 +67,15 @@ func ParseFilepath(fpath string) (*File, error) {
 	return ParseBytes(fpath, b)
 }
 
+// MustParseBytes parses a gnomod.toml or gno.mod file from bytes or panic.
+func MustParseBytes(fname string, data []byte) *File {
+	mod, err := ParseBytes(fname, data)
+	if err != nil {
+		panic(fmt.Errorf("parsing bytes %w", err))
+	}
+	return mod
+}
+
 // ParseBytes parses a gnomod.toml or gno.mod file from bytes.
 func ParseBytes(fpath string, data []byte) (*File, error) {
 	f, err := parseBytes(fpath, data)
@@ -77,14 +86,6 @@ func ParseBytes(fpath string, data []byte) (*File, error) {
 		return nil, err
 	}
 	return f, nil
-}
-
-func MustParseBytes(fname string, data []byte) *File {
-	mod, err := ParseBytes(fname, data)
-	if err != nil {
-		panic(fmt.Errorf("parsing bytes %w", err))
-	}
-	return mod
 }
 
 func parseBytes(fpath string, data []byte) (*File, error) {

@@ -27,12 +27,12 @@ func TestParsePunctuation(t *testing.T) {
 		{"interval", "require [v1.0.0, v1.1.0)", "require [ v1.0.0 , v1.1.0 )"},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			f, err := parse("gno.mod", []byte(test.src))
+			f, err := parseDeprecatedDotModBytes("gno.mod", []byte(test.src))
 			if err != nil {
 				t.Fatalf("parsing %q: %v", test.src, err)
 			}
 			var tokens []string
-			for _, stmt := range f.Stmt {
+			for _, stmt := range f.Syntax.Stmt {
 				switch stmt := stmt.(type) {
 				case *modfile.Line:
 					tokens = append(tokens, stmt.Token...)

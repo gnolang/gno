@@ -6,11 +6,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	goio "io"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -18,6 +18,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
+	"go.uber.org/multierr"
 )
 
 /*
@@ -84,9 +86,10 @@ Also refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
 type fixCmd struct {
-	verbose       bool
-	rootDir       string
-	filetestsOnly bool
+	verbose        bool
+	rootDir        string
+	filetestsOnly  bool
+	filetestsMatch string
 	// min_confidence: minimum confidence of a problem to print it
 	// (default 0.8) auto-fix: apply suggested fixes automatically.
 }
@@ -110,9 +113,10 @@ func newFixCmd(cio commands.IO) *commands.Command {
 func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
 	rootdir := gnoenv.RootDir()
 
-	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixning")
+	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixing")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
-	fs.BoolVar(&c.filetestsOnly, "only-filetests", false, "dir only contains filetests. not recursive.")
+	fs.BoolVar(&c.filetestsOnly, "filetests-only", false, "dir only contains filetests. not recursive.")
+	fs.StringVar(&c.filetestsMatch, "filetests-match", "", "if --filetests-only=true, filters by substring match.")
 }
 
 func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
@@ -126,12 +130,11 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
-	var dirs []string
-	var hasError bool
+	var dirs []string = nil
 	var err error
 
 	if cmd.filetestsOnly {
-		dirs = slices.Clone(args)
+		dirs = append([]string(nil), args...)
 	} else {
 		dirs, err = gnoPackagesFromArgsRecursively(args)
 		if err != nil {
@@ -140,18 +143,70 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	}
 
 	bs, ts := test.StoreWithOptions(
-		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true, FixFrom: gno.GnoVerMissing},
+		cmd.rootDir, io.Discard,
+		test.StoreOptions{
+			PreprocessOnly: true,
+			FixFrom:        gno.GnoVerMissing,
+			WithExtern:     true,
+		},
 	)
-	ppkgs := map[string]processedPackage{}
 
 	if cmd.verbose {
-		cio.ErrPrintfln("flinting directories: %v", dirs)
+		cio.ErrPrintfln("fixing directories: %v", dirs)
 	}
+
+	if !cmd.filetestsOnly {
+		return fixDir(cmd, cio, dirs, bs, ts, "")
+	} else {
+		if len(dirs) != 1 {
+			return fmt.Errorf("must specify one dir")
+		}
+		files, err := os.ReadDir(dirs[0])
+		if err != nil {
+			return fmt.Errorf("reading directory: %w", err)
+		}
+		fnames := make([]string, 0, len(files))
+		for _, file := range files {
+			// Ignore directories and hidden files, only include
+			// allowed files & extensions, then exclude files that
+			// are of the bad extensions.
+			if file.IsDir() ||
+				strings.HasPrefix(file.Name(), ".") ||
+				!strings.HasSuffix(file.Name(), ".gno") {
+				continue
+			}
+			fpath := filepath.Join(dirs[0], file.Name())
+			if cmd.filetestsMatch != "" {
+				if !strings.Contains(fpath, cmd.filetestsMatch) {
+					continue
+				}
+			}
+			fnames = append(fnames, filepath.Join(dirs[0], file.Name()))
+		}
+		for _, fname := range fnames {
+			if cmd.verbose {
+				fmt.Printf("fixing %q\n", fname)
+			}
+			err2 := fixDir(cmd, cio, dirs, bs, ts, fname)
+			if err2 != nil {
+				fmt.Printf("error fixing file %q: %v\n",
+					fname, err2)
+				err = multierr.Append(err, err2)
+			}
+		}
+	}
+	return err
+}
+
+// filetest: if cmd.filetestsOnly, a single filetest to run fixDir on.
+func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, ts gno.Store, filetest string) error {
+	ppkgs := map[string]processedPackage{}
+	tccache := gno.TypeCheckCache{}
+	hasError := false
 	//----------------------------------------
 	// FIX STAGE 1: Type-check and lint.
 	for _, dir := range dirs {
-		if cmd.verbose {
+		if cmd.verbose && !cmd.filetestsOnly {
 			cio.ErrPrintfln("fixing %q", dir)
 		}
 
@@ -211,8 +266,14 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		// See adr/pr4264_fix_transpile.md
 		// FIX STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
+		var mpkg *std.MemPackage
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
-		mpkg, err := gno.ReadMemPackage(dir, pkgPath)
+		if cmd.filetestsOnly {
+			mpkg, err = gno.ReadMemPackageFromList(
+				[]string{filetest}, pkgPath, gno.MemPackageTypeFiletests)
+		} else {
+			mpkg, err = gno.ReadMemPackage(dir, pkgPath)
+		}
 		if err != nil {
 			printError(cio.Err(), dir, pkgPath, err)
 			hasError = true
@@ -220,12 +281,13 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		}
 
 		// Filter out filetests that fail type-check.
-		if cmd.filetestsOnly {
-			filterInvalidFiletests(cio, mpkg)
+		if cmd.filetestsOnly && filterInvalidFiletest(cio, mpkg) {
+			return nil // done
 		}
 
 		// Perform imports using the parent store.
-		if err := test.LoadImports(ts, mpkg); err != nil {
+		abortOnError := !cmd.filetestsOnly
+		if err := test.LoadImports(ts, mpkg, abortOnError); err != nil {
 			printError(cio.Err(), dir, pkgPath, err)
 			hasError = true
 			continue
@@ -238,8 +300,9 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			cw := bs.CacheWrap()
 			gs := ts.BeginTransaction(cw, cw, nil)
 
-			// These are Go types.
+			// Memo process results here.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
+
 			// Run type checking
 			// FIX STEP 2: ParseGnoMod()
 			// FIX STEP 3: GoParse*()
@@ -250,23 +313,30 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-
-			_, tfiles, errs := lintTypeCheck(cio, dir, mpkg, gs)
+			errs := lintTypeCheck(cio, dir, mpkg, gs, gno.TypeCheckOptions{
+				ParseMode: gno.ParseModeAll,
+				Mode:      gno.TCGno0p0,
+				Cache:     tccache,
+			})
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true
 				return
 			}
 
-			// FIX STEP 4: Prepare*()
-			// Construct machine for preprocessing.
-			tm := test.Machine(gs, goio.Discard, pkgPath, false)
+			// FIX STEP 4.a: Prepare*()
+			tm := test.Machine(gs, io.Discard, pkgPath, false)
 			defer tm.Release()
-
-			// Prepare Go AST for preprocessing.
-			allgofs := append(tfiles.SourceFiles, tfiles.TestPackageFiles...)
-			allgofs = append(allgofs, tfiles.TestFiles...)
-			errs = gno.PrepareGno0p9(tfiles.FileSet, allgofs, mpkg)
+			// FIX STEP 4.b: Re-parse the mem package to Go AST.
+			pmode := gno.ParseModeAll
+			gofset, allgofs, _, _, _, errs := gno.GoParseMemPackage(mpkg, pmode)
+			if errs != nil {
+				cio.ErrPrintln(errs)
+				hasError = true
+				return // Go parse must succeed.
+			}
+			// FIX STEP 4.c: PrepareGno0p9() for Gno preprocessing.
+			errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
 			if errs != nil {
 				cio.ErrPrintln(errs)
 				hasError = true
@@ -275,7 +345,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 
 			// FIX STEP 5: re-parse
 			// Gno parse source fileset and test filesets.
-			_, fset, _tests, ftests := sourceAndTestFileset(mpkg) // , cmd.filetestsOnly)
+			_, fset, _tests, ftests := sourceAndTestFileset(mpkg, cmd.filetestsOnly)
 
 			{
 				// FIX STEP 6: PreprocessFiles()
@@ -295,6 +365,17 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range fset.Files {
 					gno.FindXformsGno0p9(gs, pn, fn)
+					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+				}
+				for { // continue to find more until exhausted.
+					xnewSum := 0
+					for _, fn := range fset.Files {
+						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+						xnewSum += xnew
+					}
+					if xnewSum == 0 {
+						break // done
+					}
 				}
 			}
 			{
@@ -315,6 +396,17 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 				// pn.GetAttribute("XREALMFORM")
 				for _, fn := range _tests.Files {
 					gno.FindXformsGno0p9(gs, pn, fn)
+					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+				}
+				for { // continue to find more until exhausted.
+					xnewSum := 0
+					for _, fn := range _tests.Files {
+						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+						xnewSum += xnew
+					}
+					if xnewSum == 0 {
+						break // done
+					}
 				}
 			}
 			{
@@ -324,7 +416,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 					cw := bs.CacheWrap()
 					gs := ts.BeginTransaction(cw, cw, nil)
 					tm.Store = gs
-					fname := string(fset.Files[0].Name)
+					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
@@ -334,7 +426,9 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 						continue
 					}
 					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false, gno.GnoVerMissing)
+					pn, _ := tm.PreprocessFiles(
+						pkgName, pkgPath, fset,
+						false, false, gno.GnoVerMissing)
 					ppkg.AddFileTest(pn, fset)
 
 					// FIX STEP 7: FindXforms():
@@ -345,6 +439,17 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 					// pn.GetAttribute("XREALMFORM")
 					for _, fn := range fset.Files {
 						gno.FindXformsGno0p9(gs, pn, fn)
+						gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+					}
+					for { // continue to find more until exhausted.
+						xnewSum := 0
+						for _, fn := range fset.Files {
+							xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
+							xnewSum += xnew
+						}
+						if xnewSum == 0 {
+							break // done
+						}
 					}
 				}
 			}
@@ -373,7 +478,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 
 		// Sanity check.
 		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
-		if mod.GetGnoVersion() != gno.GnoVerMissing {
+		if mod != nil && mod.GetGnoVersion() != gno.GnoVerMissing {
 			panic("should not happen")
 		}
 
@@ -381,7 +486,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		mpkg := ppkg.mpkg
 		transpileProcessedFileSet := func(pfs processedFileSet) error {
 			pn, fset := pfs.pn, pfs.fset
-			xforms1, _ := pn.GetAttribute(gno.ATTR_GNO0P9_XFORMS).(map[string]struct{})
+			xforms1, _ := pn.GetAttribute(gno.ATTR_PN_XFORMS).(map[string]struct{})
 			err = gno.TranspileGno0p9(mpkg, dir, pn, fset.GetFileNames(), xforms1)
 			return err
 		}
@@ -418,8 +523,10 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		// Write version to gnomod.toml.
 		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
 		if err != nil {
-			// should have been auto-generated.
-			panic("missing gnomod.toml")
+			panic(fmt.Sprintf("unhandled error: %v", err))
+		}
+		if mod == nil {
+			panic("XXX: generate default gnomod.toml")
 		}
 		mod.SetGnoVersion(gno.GnoVerLatest)
 		ppkg.mpkg.SetFile("gnomod.toml", mod.WriteString())
@@ -436,21 +543,38 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	return nil
 }
 
-// When in filetestsOnly mode, filter out files that are known to have a
-// type-check error. These files will be deleted from the mpkg.
-// They are only deleted from mpkg; gno fix will not affect the files
-// already on disk.
-func filterInvalidFiletests(cio commands.IO, mpkg *std.MemPackage) {
-	for _, mfile := range mpkg.Files {
-		dirs, err := test.ParseDirectives(bytes.NewReader([]byte(mfile.Body)))
-		if err != nil {
-			panic(fmt.Errorf("error parsing directives: %w", err))
-		}
-		tcErr := dirs.FirstDefault(test.DirectiveTypeCheckError, "")
-		if tcErr != "" {
-			cio.Printfln("skipping invalid filetest %q", mfile.Name)
-			mpkg.DeleteFile(mfile.Name)
-			continue
-		}
+// Returns true if mpkg has a filetest that has a TypeCheckError directive,
+// or has a type-check-like Error directive. Panics if it has anything
+// but one testfile.
+func filterInvalidFiletest(cio commands.IO, mpkg *std.MemPackage) bool {
+	if len(mpkg.Files) != 1 {
+		panic("expected 1 filetest but got something else")
 	}
+	mfile := mpkg.Files[0]
+	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(mfile.Body)))
+	if err != nil {
+		panic(fmt.Errorf("error parsing directives: %w", err))
+	}
+	// Filter filetests with Go type-check error.
+	tcErr := dirs.FirstDefault(test.DirectiveTypeCheckError, "")
+	if tcErr != "" {
+		cio.Printfln("skipping filetest with type-check error %q", mfile.Name)
+		return true
+	}
+	// Filter filetests with type-check-ish Error directives.
+	// (most Error directives are fine).
+	// Not sure why Go type-check doesn't catch this.
+	dErr := dirs.FirstDefault(test.DirectiveError, "")
+	if dErr != "" && strings.Contains(dErr, "import cycle detected") ||
+		strings.Contains(dErr, "exceeded maximum VPBlock depth") ||
+		strings.Contains(dErr, "cannot import realm path") ||
+		strings.Contains(dErr, "cannot import stdlib internal") ||
+		strings.Contains(dErr, "internal/ packages can only be") ||
+		strings.Contains(dErr, "cannot find branch label") ||
+		strings.Contains(dErr, "but is not natively defined") ||
+		strings.Contains(dErr, "goroutines are not permitted") {
+		cio.Printfln("skipping filetest with type-check-ish error %q", mfile.Name)
+		return true
+	}
+	return false
 }
