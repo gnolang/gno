@@ -274,7 +274,6 @@ func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
 
 	// Create a top-level shared event switch
 	evsw := events.NewEventSwitch()
-	minGasPrices := cfg.Application.MinGasPrices
 
 	// Create application and node
 	cfg.LocalApp, err = gnoland.NewApp(
@@ -283,9 +282,9 @@ func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
 			SkipFailingTxs:      c.skipFailingGenesisTxs,
 			SkipSigVerification: c.skipGenesisSigVerification,
 		},
+		cfg.Application,
 		evsw,
 		logger,
-		minGasPrices,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the Gnoland app, %w", err)

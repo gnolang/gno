@@ -8,6 +8,7 @@ require (
 	connectrpc.com/connect v1.18.1
 	dario.cat/mergo v1.0.1
 	github.com/alecthomas/chroma/v2 v2.15.0
+	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cockroachdb/apd/v3 v3.2.1
