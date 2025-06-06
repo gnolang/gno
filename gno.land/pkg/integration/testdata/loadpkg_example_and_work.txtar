@@ -17,5 +17,5 @@ import (
 )
 
 func Render(_ string) string {
- 	return ufmt.Sprintf("%d", 92054)
+	return ufmt.Sprintf("%d", 92054)
 }
