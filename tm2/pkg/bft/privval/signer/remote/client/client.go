@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -61,7 +62,9 @@ func (rsc *RemoteSignerClient) cachePubKey() error {
 	response, err := rsc.send(&r.PubKeyRequest{})
 	if err != nil {
 		err := fmt.Errorf("%w: %w", ErrSendingRequestFailed, err)
-		rsc.logger.Error("PubKey request failed", "error", err)
+		if !errors.Is(err, ErrClientAlreadyClosed) {
+			rsc.logger.Error("PubKey request failed", "error", err)
+		}
 		return err
 	}
 
@@ -83,7 +86,9 @@ func (rsc *RemoteSignerClient) Sign(signBytes []byte) ([]byte, error) {
 	response, err := rsc.send(&r.SignRequest{SignBytes: signBytes})
 	if err != nil {
 		err := fmt.Errorf("%w: %w", ErrSendingRequestFailed, err)
-		rsc.logger.Error("Sign request failed", "error", err)
+		if !errors.Is(err, ErrClientAlreadyClosed) {
+			rsc.logger.Error("Sign request failed", "error", err)
+		}
 		return nil, err
 	}
 
@@ -128,7 +133,9 @@ func (rsc *RemoteSignerClient) Ping() error {
 	response, err := rsc.send(&r.PingRequest{})
 	if err != nil {
 		err = fmt.Errorf("%w: %w", ErrSendingRequestFailed, err)
-		rsc.logger.Error("Ping request failed", "error", err)
+		if !errors.Is(err, ErrClientAlreadyClosed) {
+			rsc.logger.Error("Ping request failed", "error", err)
+		}
 		return err
 	}
 
