@@ -50,5 +50,5 @@ func FindRootDir(absPath string) (string, error) {
 		curPath = parent
 	}
 
-	return "", ErrNoModFile
+	return "", ErrModFileNotFound
 }
