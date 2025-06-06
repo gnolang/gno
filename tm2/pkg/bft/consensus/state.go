@@ -137,9 +137,8 @@ type ConsensusState struct {
 	doPrevote      func(height int64, round int)
 	setProposal    func(proposal *types.Proposal) error
 
-	// closing state
-	closing bool          // set to true when we are shutting down
-	done    chan struct{} // closed when we finish shutting down
+	// closed when we finish shutting down
+	done chan struct{}
 }
 
 // StateOption sets an optional parameter on the ConsensusState.
@@ -364,11 +363,6 @@ func (cs *ConsensusState) StartWithoutWALCatchup() {
 
 // OnStop implements service.Service.
 func (cs *ConsensusState) OnStop() {
-	cs.closing = true
-
-	if cs.privValidator != nil {
-		cs.privValidator.Close()
-	}
 	cs.evsw.Stop()
 	cs.timeoutTicker.Stop()
 	// WAL is stopped in receiveRoutine.
@@ -603,6 +597,7 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		// NOTE: the internalMsgQueue may have signed messages from our
 		// priv_val that haven't hit the WAL, but its ok because
 		// priv_val tracks LastSig
+
 		// close wal now that we're done writing to it
 		cs.wal.Stop()
 		cs.wal.Wait()
@@ -963,7 +958,7 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 			"proposal round", proposal.POLRound,
 			"proposal timestamp", proposal.Timestamp.Unix(),
 		)
-	} else if !cs.closing && !cs.replayMode {
+	} else if !cs.replayMode {
 		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
 	}
 }
@@ -1769,10 +1764,13 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 			"validator address", vote.ValidatorAddress,
 			"validator index", vote.ValidatorIndex,
 		)
+
+		return
 	}
-	if !cs.closing { // && !cs.replayMode {
-		cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
-	}
+	// if !cs.replayMode {
+	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+	// }
+	return
 }
 
 // logTelemetry logs the consensus state telemetry

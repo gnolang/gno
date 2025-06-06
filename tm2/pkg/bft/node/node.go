@@ -642,7 +642,12 @@ func (n *Node) OnStop() {
 
 	n.Logger.Info("Stopping Node")
 
-	// first stop the non-reactor services
+	// Fist close the private validator
+	if err := n.privValidator.Close(); err != nil {
+		n.Logger.Error("Error closing private validator", "err", err)
+	}
+
+	// Stop the non-reactor services
 	n.evsw.Stop()
 	n.eventStoreService.Stop()
 
