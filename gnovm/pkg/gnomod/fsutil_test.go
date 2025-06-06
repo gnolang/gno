@@ -71,7 +71,7 @@ func TestFindRootDir(t *testing.T) {
 		{
 			name:        "no mod file found",
 			path:        subdir5,
-			expectedErr: ErrNoModFile.Error(),
+			expectedErr: ErrModFileNotFound.Error(),
 		},
 		{
 			name:        "non-absolute path",
@@ -86,7 +86,7 @@ func TestFindRootDir(t *testing.T) {
 		{
 			name:        "root directory",
 			path:        "/",
-			expectedErr: ErrNoModFile.Error(),
+			expectedErr: ErrModFileNotFound.Error(),
 		},
 		{
 			name:        "current directory with dot",
@@ -170,7 +170,7 @@ func TestFindRootDir(t *testing.T) {
 			// Try to find root from the symlink directory
 			_, err = FindRootDir(symlinkDir)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "gnomod.toml doesn't exist")
+			assert.Contains(t, err.Error(), ErrModFileNotFound.Error())
 		})
 	})
 }

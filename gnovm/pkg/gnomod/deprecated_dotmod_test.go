@@ -17,6 +17,7 @@ import (
 // (brackets, commas) are lexed as separate tokens, even when they're
 // surrounded by identifier characters.
 func TestParsePunctuation(t *testing.T) {
+	t.Skip("we're not using the require statement anymore with gno.mod files.")
 	for _, test := range []struct {
 		desc, src, want string
 	}{
