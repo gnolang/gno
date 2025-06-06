@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/p/leon/pkgerr"
-  private = false
 
 [gno]
   version = "0.9"

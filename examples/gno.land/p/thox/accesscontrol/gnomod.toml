@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/p/thox/accesscontrol"
-  private = false
 
 [gno]
   version = "0.9"

@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/p/demo/gnorkle/ingesters/single"
-  private = false
 
 [gno]
   version = "0.9"

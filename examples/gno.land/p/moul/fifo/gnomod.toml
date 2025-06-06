@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/p/moul/fifo"
-  private = false
 
 [gno]
   version = "0.9"

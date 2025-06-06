@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/r/demo/emit"
-  private = false
 
 [gno]
   version = "0.9"

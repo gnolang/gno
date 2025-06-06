@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/r/x/nir1218_evaluation_proposal"
-  private = false
 
 [gno]
   version = "0.9"

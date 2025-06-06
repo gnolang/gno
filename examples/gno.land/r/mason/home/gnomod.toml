@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/r/mason/home"
-  private = false
 
 [gno]
   version = "0.9"

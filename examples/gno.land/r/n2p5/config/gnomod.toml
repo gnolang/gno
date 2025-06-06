@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/r/n2p5/config"
-  private = false
 
 [gno]
   version = "0.9"

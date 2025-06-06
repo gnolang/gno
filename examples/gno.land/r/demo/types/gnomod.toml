@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/r/demo/types"
-  private = false
 
 [gno]
   version = "0.9"

@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/r/gnoland/ghverify"
-  private = false
 
 [gno]
   version = "0.9"

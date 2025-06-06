@@ -2,7 +2,6 @@
 [module]
   path = "gno.land/r/x/manfred_outfmt"
   draft = true
-  private = false
 
 [gno]
   version = ""

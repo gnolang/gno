@@ -1,7 +1,6 @@
 
 [module]
   path = "gno.land/r/sunspirit/home"
-  private = false
 
 [gno]
   version = "0.9"
