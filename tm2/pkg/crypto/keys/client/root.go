@@ -63,6 +63,14 @@ func (c *BaseCfg) RegisterFlags(fs *flag.FlagSet) {
 		"home directory",
 	)
 
+	// Base options
+	fs.BoolVar(
+		&c.Json,
+		"json",
+		c.Json,
+		"enable json marshaling",
+	)
+
 	fs.StringVar(
 		&c.Remote,
 		"remote",

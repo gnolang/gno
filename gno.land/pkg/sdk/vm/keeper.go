@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,8 +47,8 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
-	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
+	QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
@@ -427,15 +428,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
 	gnostore := vm.getGnoTransactionStore(ctx)
+
 	// Get the package and function type.
 	pv := gnostore.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
+
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
+
 	// Parse expression.
 	argslist := ""
 	for i := range msg.Args {
@@ -451,6 +455,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
 	}
 	xn := gno.MustParseExpr(expr)
+
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
 	caller := msg.Caller
@@ -459,6 +464,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
+
 	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
 	if cx.Varg {
@@ -474,6 +480,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			TypedValue: atv,
 		}
 	}
+
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
@@ -490,6 +497,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
+
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -502,14 +510,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		})
 	defer m.Release()
 	m.SetActivePackage(mpv)
+
 	defer doRecover(m, &err)
+
 	rtvs := m.Eval(xn)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
+	res = stringifyResultValues(m, QueryFormatMachine, rtvs)
+
+	// Use `\n\n` as separator to separate results for single tx with multi msgs
+	res += "\n\n"
 
 	// Log the telemetry
 	logTelemetry(
@@ -519,9 +527,11 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Key:   "operation",
 			Value: attribute.StringValue("m_call"),
 		},
+		attribute.KeyValue{
+			Key:   "func",
+			Value: attribute.StringValue(msg.Func),
+		},
 	)
-
-	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
 
 	return res, nil
 	// TODO pay for gas? TODO see context?
@@ -813,52 +823,22 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 }
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
-	if err != nil {
-		return "", err
-	}
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
-	return res, nil
-}
-
-// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
-// The result is expected to be a single string (not a tuple).
-func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
-	if err != nil {
-		return "", err
-	}
-	if len(rtvs) != 1 {
-		return "", errors.New("expected 1 string result, got %d", len(rtvs))
-	} else if rtvs[0].T.Kind() != gno.StringKind {
-		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
-	}
-	res = rtvs[0].GetString()
-	return res, nil
-}
-
-func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
 	// Get Package.
-	pv := gnostore.GetPackage(pkgPath, false)
+	pv := gnostore.GetPackage(msg.PkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", pkgPath))
-		return nil, err
+			"package not found: %s", msg.PkgPath))
+		return "", err
 	}
 	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
+	xx, err := gno.ParseExpr(msg.Expr)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -876,16 +856,19 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  pkgPath,
+			PkgPath:  msg.PkgPath,
 			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
 			Alloc:    alloc,
 			GasMeter: ctx.GasMeter(),
 		})
+
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
-	return m.Eval(xx), err
+
+	rtvs := m.Eval(xx)
+	return stringifyResultValues(m, msg.Format, rtvs), nil
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
@@ -896,19 +879,66 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		if memFile == nil {
 			return "", fmt.Errorf("file %q is not available", filepath) // TODO: XSS protection
 		}
+
 		return memFile.Body, nil
-	} else {
-		memPkg := store.GetMemPackage(dirpath)
-		if memPkg == nil {
-			return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+	}
+
+	memPkg := store.GetMemPackage(dirpath)
+	if memPkg == nil {
+		return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+	}
+
+	for i, memfile := range memPkg.Files {
+		if i > 0 {
+			res += "\n"
 		}
-		for i, memfile := range memPkg.Files {
-			if i > 0 {
-				res += "\n"
+		res += memfile.Name
+	}
+
+	return res, nil
+}
+
+func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.TypedValue) string {
+	if format == "" {
+		format = QueryFormatDefault
+	}
+
+	switch format {
+	case QueryFormatString:
+		if len(values) != 1 {
+			panic(fmt.Errorf("expected 1 string result, got %d", len(values)))
+		}
+
+		tv := values[0]
+		switch bt := gno.BaseOf(tv.T).(type) {
+		case gno.PrimitiveType:
+			if bt.Kind() == gno.StringKind {
+				return tv.GetString()
 			}
-			res += memfile.Name
+		case *gno.PointerType:
+			if tv.ImplStringer() {
+				res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "String")))
+				return strconv.Quote(res[0].GetString())
+			}
 		}
-		return res, nil
+
+		panic(fmt.Errorf("expected 1 `string` or `Stringer` result, got %v", tv.T.Kind()))
+
+	case QueryFormatJSON:
+		return stringifyJSONPrimitiveValues(m, values)
+	case QueryFormatDefault, "":
+		var res strings.Builder
+
+		for i, v := range values {
+			if i > 0 {
+				res.WriteRune('\n')
+			}
+			res.WriteString(v.String())
+		}
+
+		return res.String()
+	default:
+		panic("unsuported stringify format ")
 	}
 }
 
