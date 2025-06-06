@@ -229,20 +229,9 @@ func generateSignature(
 	}, nil
 }
 
-// signTx generates the transaction signature,
+// addSignature generates the transaction signature,
 // and saves it to the given transaction
-func signTx(
-	tx *std.Tx,
-	kb keys.Keybase,
-	signOpts signOpts,
-	keyOpts keyOpts,
-) error {
-	// Sign the transaction data
-	sig, err := generateSignature(tx, kb, signOpts, keyOpts)
-	if err != nil {
-		return fmt.Errorf("unable to sign tx: %w", err)
-	}
-
+func addSignature(tx *std.Tx, sig *std.Signature) error {
 	// Save the signature
 	if tx.Signatures == nil {
 		tx.Signatures = make([]std.Signature, 0, 1)

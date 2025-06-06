@@ -4,11 +4,20 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var errInvalidMultisigKey = errors.New("provided key is not a multisig reference")
+var (
+	errInvalidMultisigKey   = errors.New("provided key is not a multisig reference")
+	errNoSignaturesProvided = errors.New("no signatures provided")
+)
 
 type MultisignCfg struct {
 	RootCfg *BaseCfg
@@ -51,5 +60,100 @@ func (c *MultisignCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
-	return nil // TODO
+	// Make sure the multisig key name is provided
+	if len(args) != 1 {
+		return flag.ErrHelp
+	}
+
+	// Make sure at least one signature is provided
+	if len(cfg.Signatures) == 0 {
+		return errNoSignaturesProvided
+	}
+
+	// saveTx saves the given transaction to the given path (Amino-encoded JSON)
+	saveTx := func(tx *std.Tx, path string) error {
+		// Encode the transaction
+		encodedTx, err := amino.MarshalJSON(tx)
+		if err != nil {
+			return fmt.Errorf("unable ot marshal tx to JSON, %w", err)
+		}
+
+		// Save the transaction
+		if err := os.WriteFile(path, encodedTx, 0o644); err != nil {
+			return fmt.Errorf("unable to write tx to %s, %w", path, err)
+		}
+
+		io.Printf("\nTx successfully signed and saved to %s\n", path)
+
+		return nil
+	}
+
+	// Load the keybase
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
+	if err != nil {
+		return fmt.Errorf("unable to load keybase, %w", err)
+	}
+
+	// Fetch the key info from the keybase
+	info, err := kb.GetByNameOrAddress(args[0])
+	if err != nil {
+		return fmt.Errorf("unable to get key from keybase, %w", err)
+	}
+
+	// Make sure the key is referencing a multisig key
+	if info.GetType() != keys.TypeMulti {
+		return fmt.Errorf("%w: %q", errInvalidMultisigKey, args[0])
+	}
+
+	// Get the transaction bytes
+	txRaw, err := os.ReadFile(cfg.TxPath)
+	if err != nil {
+		return fmt.Errorf("unable to read transaction file")
+	}
+
+	// Make sure there is something to actually sign
+	if len(txRaw) == 0 {
+		return errInvalidTxFile
+	}
+
+	// Make sure the tx is valid Amino JSON
+	var tx std.Tx
+	if err := amino.UnmarshalJSON(txRaw, &tx); err != nil {
+		return fmt.Errorf("unable to unmarshal transaction, %w", err)
+	}
+
+	multisignature := multisig.NewMultisig(len(cfg.Signatures))
+
+	for index, sigPath := range cfg.Signatures {
+		// Load the signature
+		sigRaw, err := os.ReadFile(sigPath)
+		if err != nil {
+			return fmt.Errorf("unable to read signature file %q: %w", sigPath, err)
+		}
+
+		var sig std.Signature
+		if err = amino.UnmarshalJSON(sigRaw, &sig); err != nil {
+			return fmt.Errorf("unable to parse signature file %q: %w", sigPath, err)
+		}
+
+		// Add it to the multisig
+		multisignature.AddSignature(sig.Signature, index)
+	}
+
+	var (
+		pubKey = info.GetPubKey()
+		sigBz  = multisignature.Marshal()
+
+		sig = &std.Signature{
+			PubKey:    pubKey,
+			Signature: sigBz,
+		}
+	)
+
+	// Add the multisig signature
+	if err = addSignature(&tx, sig); err != nil {
+		return fmt.Errorf("unable to add signature: %w", err)
+	}
+
+	return saveTx(&tx, cfg.TxPath)
 }
