@@ -14,8 +14,8 @@ func TestAssertOriginCall(t *testing.T) {
 	// CallAssertOriginCall(): no panic
 	caller := testutils.TestAddress("caller")
 	testing.SetRealm(std.NewUserRealm(caller))
-	cross(tests.CallAssertOriginCall)()
-	if !cross(tests.CallIsOriginCall)() {
+	tests.CallAssertOriginCall(cross)
+	if !tests.CallIsOriginCall(cross) {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
@@ -24,19 +24,19 @@ func TestAssertOriginCall(t *testing.T) {
 	uassert.AbortsWithMessage(t, "invalid non-origin call", func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal block).
-		if cross(tests.CallIsOriginCall)() {
+		if tests.CallIsOriginCall(cross) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
-		cross(tests.CallAssertOriginCall)() // <---
+		tests.CallAssertOriginCall(cross) // <---
 	})
 	// CallSubtestsAssertOriginCall(): abort
 	uassert.AbortsWithMessage(t, "invalid non-origin call", func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal block).
-		if cross(tests.CallSubtestsIsOriginCall)() {
+		if tests.CallSubtestsIsOriginCall(cross) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
-		cross(tests.CallSubtestsAssertOriginCall)()
+		tests.CallSubtestsAssertOriginCall(cross)
 	})
 }
 
@@ -46,12 +46,12 @@ func TestPreviousRealm(t *testing.T) {
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	// When only one realm in the frames, PreviousRealm returns the same realm
-	if addr := cross(tests.GetPreviousRealm)().Address(); addr != firstRealm {
-		println(cross(tests.GetPreviousRealm)())
+	if addr := tests.GetPreviousRealm(cross).Address(); addr != firstRealm {
+		println(tests.GetPreviousRealm(cross))
 		t.Errorf("want GetPreviousRealm().Address==%s, got %s", firstRealm, addr)
 	}
 	// When 2 or more realms in the frames, PreviousRealm returns the second to last
-	if addr := cross(tests.GetRSubtestsPreviousRealm)().Address(); addr != rTestsAddr {
+	if addr := tests.GetRSubtestsPreviousRealm(cross).Address(); addr != rTestsAddr {
 		t.Errorf("want GetRSubtestsPreviousRealm().Address==%s, got %s", rTestsAddr, addr)
 	}
 }
