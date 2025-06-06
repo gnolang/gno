@@ -16,17 +16,17 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test123", false)
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross, "test123", false)
+	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Hide thread by flagging it so reply can't be submitted
-	cross(boards2.FlagThread)(bid, tid, "reason")
+	boards2.FlagThread(cross, bid, tid, "reason")
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.CreateReply)(bid, tid, 0, "Test reply")
+	boards2.CreateReply(cross, bid, tid, 0, "Test reply")
 }
 
 // Error:

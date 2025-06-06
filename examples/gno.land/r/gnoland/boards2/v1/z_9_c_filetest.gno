@@ -13,13 +13,13 @@ var bid boards2.BoardID
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.DeleteThread)(bid, 404)
+	boards2.DeleteThread(cross, bid, 404)
 }
 
 // Error:

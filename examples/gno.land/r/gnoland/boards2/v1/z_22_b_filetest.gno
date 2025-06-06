@@ -11,14 +11,14 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(boards2.LockRealm)(false)
+	boards2.LockRealm(cross, false)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Should fail because realm is already locked
-	cross(boards2.LockRealm)(false)
+	boards2.LockRealm(cross, false)
 }
 
 // Error:

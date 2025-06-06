@@ -12,7 +12,7 @@ const owner = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.InviteMember)(0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", boards2.RoleGuest)
+	boards2.InviteMember(cross, 0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", boards2.RoleGuest)
 }
 
 // Error:

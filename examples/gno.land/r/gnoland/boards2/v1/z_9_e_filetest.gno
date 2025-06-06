@@ -19,17 +19,17 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to delete threads
-	cross(boards2.InviteMember)(bid, member, boards2.RoleAdmin)
+	boards2.InviteMember(cross, bid, member, boards2.RoleAdmin)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(member))
 
-	cross(boards2.DeleteThread)(bid, pid)
+	boards2.DeleteThread(cross, bid, pid)
 
 	// Ensure thread doesn't exist
 	println(boards2.Render("test-board/1"))

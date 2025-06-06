@@ -21,13 +21,13 @@ func init() {
 	perms = boards2.NewBasicPermissions(commondao.New())
 
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("foobar", false)
+	bid = boards2.CreateBoard(cross, "foobar", false)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.SetPermissions)(bid, perms)
+	boards2.SetPermissions(cross, bid, perms)
 
 	// Owner that setted new board permissions is not a member of the new permissions
 	println(boards2.IsMember(bid, owner))

@@ -13,7 +13,7 @@ func main() {
 	// Call realm with a user that has not permission to lock the realm
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.LockRealm)(false)
+	boards2.LockRealm(cross, false)
 }
 
 // Error:

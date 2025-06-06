@@ -24,7 +24,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(boards2.SetPermissions)(bid, perms)
+	boards2.SetPermissions(cross, bid, perms)
 }
 
 // Error:

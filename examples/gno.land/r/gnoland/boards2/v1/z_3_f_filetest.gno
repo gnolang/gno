@@ -22,22 +22,22 @@ var bid boards2.BoardID // Operate on board DAO
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	bid = cross(boards2.CreateBoard)(name, false)
-	cross(boards2.InviteMember)(bid, member, boards2.RoleOwner)
+	bid = boards2.CreateBoard(cross, name, false)
+	boards2.InviteMember(cross, bid, member, boards2.RoleOwner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
 	testing.SetRealm(std.NewUserRealm(member))
-	cross(users.Register)(newName)
+	users.Register(cross, newName)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(member))
 
-	cross(boards2.RenameBoard)(name, newName)
+	boards2.RenameBoard(cross, name, newName)
 
 	// Ensure board is renamed by another board owner
-	bid2, _ := cross(boards2.GetBoardIDFromName)(newName)
+	bid2, _ := boards2.GetBoardIDFromName(cross, newName)
 	println("IDs match =", bid == bid2)
 }
 

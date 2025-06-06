@@ -8,9 +8,7 @@ import (
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
 //
 // Threshold is only applicable within the board where it's setted.
-func SetFlaggingThreshold(boardID BoardID, threshold int) {
-	crossing()
-
+func SetFlaggingThreshold(_ realm, boardID BoardID, threshold int) {
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
@@ -48,9 +46,7 @@ func GetFlaggingThreshold(boardID BoardID) int {
 //
 // Flagging requires special permissions and hides the thread when
 // the number of flags reaches a pre-defined flagging threshold.
-func FlagThread(boardID BoardID, threadID PostID, reason string) {
-	crossing()
-
+func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
@@ -92,9 +88,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 //
 // Flagging requires special permissions and hides the comment or reply
 // when the number of flags reaches a pre-defined flagging threshold.
-func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
-	crossing()
-
+func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen

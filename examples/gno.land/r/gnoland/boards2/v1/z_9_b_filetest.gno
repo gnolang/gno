@@ -12,7 +12,7 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.DeleteThread)(404, 1)
+	boards2.DeleteThread(cross, 404, 1)
 }
 
 // Error:

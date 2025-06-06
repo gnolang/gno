@@ -13,9 +13,9 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.CreateBoard)("AAA", false)
-	cross(boards2.CreateBoard)("BBB", false)
-	cross(boards2.CreateBoard)("CCC", false)
+	boards2.CreateBoard(cross, "AAA", false)
+	boards2.CreateBoard(cross, "BBB", false)
+	boards2.CreateBoard(cross, "CCC", false)
 }
 
 func main() {

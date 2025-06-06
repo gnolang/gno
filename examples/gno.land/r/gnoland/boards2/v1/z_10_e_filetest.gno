@@ -16,15 +16,15 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-	cross(boards2.FlagThread)(bid, pid, "")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	boards2.FlagThread(cross, bid, pid, "")
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.FlagThread)(bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "")
 }
 
 // Error:

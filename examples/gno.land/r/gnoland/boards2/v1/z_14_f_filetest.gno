@@ -19,16 +19,16 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
 }
 
 func main() {
 	// Call using a user that has not permission to delete replies
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(boards2.DeleteReply)(bid, tid, rid)
+	boards2.DeleteReply(cross, bid, tid, rid)
 }
 
 // Error:

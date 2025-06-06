@@ -17,20 +17,20 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test123", false)
-	tid = cross(boards2.CreateThread)(bid, "foo", "bar")
-	rid = cross(boards2.CreateReply)(bid, tid, 0, "reply")
+	bid = boards2.CreateBoard(cross, "test123", false)
+	tid = boards2.CreateThread(cross, bid, "foo", "bar")
+	rid = boards2.CreateReply(cross, bid, tid, 0, "reply")
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	// unfrozen thread - should work
-	cross(boards2.CreateReply)(bid, tid, rid, "child 1")
+	boards2.CreateReply(cross, bid, tid, rid, "child 1")
 
 	// frozen thread - can't reply
-	cross(boards2.FreezeReply)(bid, tid, rid)
-	cross(boards2.CreateReply)(bid, tid, rid, "child 2")
+	boards2.FreezeReply(cross, bid, tid, rid)
+	boards2.CreateReply(cross, bid, tid, rid, "child 2")
 }
 
 // Error:

@@ -19,17 +19,17 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to flag threads
-	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)
+	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(moderator))
 
-	cross(boards2.FlagThread)(bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "")
 
 	// Ensure that original thread content not visible
 	println(boards2.Render("test-board/1"))

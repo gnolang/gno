@@ -20,22 +20,22 @@ var (
 func init() {
 	// Created a board with a specific flagging threshold
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	cross(boards2.SetFlaggingThreshold)(bid, 2)
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	boards2.SetFlaggingThreshold(cross, bid, 2)
 
 	// Invite a moderator to the new board
-	cross(boards2.InviteMember)(bid, moderator, boards2.RoleModerator)
+	boards2.InviteMember(cross, bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread and flag it as a moderator
 	testing.SetRealm(std.NewUserRealm(moderator))
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-	cross(boards2.FlagThread)(bid, pid, "")
+	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	boards2.FlagThread(cross, bid, pid, "")
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(moderator))
 
-	cross(boards2.FlagThread)(bid, pid, "")
+	boards2.FlagThread(cross, bid, pid, "")
 }
 
 // Error:

@@ -19,13 +19,13 @@ func init() {
 	newName = strings.Repeat("A", boards2.MaxBoardNameLength+1)
 
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(boards2.CreateBoard)(name, false)
+	boards2.CreateBoard(cross, name, false)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.RenameBoard)(name, newName)
+	boards2.RenameBoard(cross, name, newName)
 }
 
 // Error:

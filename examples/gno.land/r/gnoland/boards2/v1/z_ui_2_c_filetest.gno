@@ -17,8 +17,8 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := cross(boards2.CreateBoard)(boardName, false)
-	cross(boards2.CreateThread)(boardID, "A", "Body")
+	boardID := boards2.CreateBoard(cross, boardName, false)
+	boards2.CreateThread(cross, boardID, "A", "Body")
 }
 
 func main() {
