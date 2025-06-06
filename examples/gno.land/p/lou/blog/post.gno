@@ -25,7 +25,7 @@ type Post struct {
 	Publisher   std.Address
 	Comments    *avl.Tree // id --> *Comment
 	CommentId   seqid.ID
-	Likes       uint64
+	Likes       uint64 // to implement later
 }
 
 func NewPost(slug, title, body, publicationDate string, authors, tags []string, caller std.Address) (*Post, error) {
@@ -33,7 +33,7 @@ func NewPost(slug, title, body, publicationDate string, authors, tags []string, 
 		return nil, ErrInvalidCaller
 	}
 	if slug == "" {
-		title = titleToSlug(title) // ok?
+		title = titleToSlug(title) // is this ok?
 	}
 	if title == "" {
 		return nil, ErrEmptyTitle

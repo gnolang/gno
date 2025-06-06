@@ -18,11 +18,13 @@ type Blog struct {
 	Posts            *avl.Tree // id --> *Post
 	PostId           seqid.ID
 	PostsBySlug      *avl.Tree // slug --> *Post
+	PostsByCreatedAt *avl.Tree // createdAt --> *Post
 	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
-	TagsIndex        *avl.Tree // tagName --> int
-	TagsSorted       *avl.Tree // "<count>::tag" --> tag
-	AuthorsIndex     *avl.Tree // authorAddress --> int
-	AuthorsSorted    *avl.Tree // "<count>::author" --> author
+
+	TagsIndex     *avl.Tree // tagName --> int
+	TagsSorted    *avl.Tree // "<count>::tag" --> tag
+	AuthorsIndex  *avl.Tree // authorAddress --> int
+	AuthorsSorted *avl.Tree // "<count>::author" --> author
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -34,6 +36,7 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		Prefix:           prefix,
 		Posts:            avl.NewTree(),
 		PostsBySlug:      avl.NewTree(),
+		PostsByCreatedAt: avl.NewTree(),
 		PostsByUpdatedAt: avl.NewTree(),
 		PostId:           0,
 		TagsIndex:        avl.NewTree(),
@@ -54,6 +57,7 @@ func (b *Blog) AddPost(post *Post) error {
 	b.addToIndex(post)
 	added = b.Posts.Set(b.PostId.String(), post)
 	added = b.PostsBySlug.Set(post.Slug, post)
+	added = b.PostsByCreatedAt.Set(post.CreatedAt.String(), post)
 	added = b.PostsByUpdatedAt.Set(post.UpdatedAt.String(), post)
 	if !added {
 		return ErrPostAddFailed
@@ -68,9 +72,11 @@ func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
 	}
 	post := existingPost.(*Post)
 	postBySlug, _ := b.PostsBySlug.Get(post.Slug)
+	postByCreated, _ := b.PostsByCreatedAt.Get(post.CreatedAt.String())
 	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt.String())
 	UpdatePost(post, newPost)
 	UpdatePost(postBySlug.(*Post), newPost)
+	UpdatePost(postByCreated.(*Post), newPost)
 	UpdatePost(postByUpdated.(*Post), newPost)
 	return nil
 }
@@ -82,19 +88,23 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 	}
 	post := existingPost.(*Post)
 	postById, _ := b.Posts.Get(post.ID.String())
+	postByCreated, _ := b.PostsByCreatedAt.Get(post.CreatedAt.String())
 	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt.String())
 	UpdatePost(post, newPost)
 	UpdatePost(postById.(*Post), newPost)
 	UpdatePost(postByUpdated.(*Post), newPost)
+	UpdatePost(postByCreated.(*Post), newPost)
 	return nil
 }
 
 func UpdatePost(existingPost, newPost *Post) {
+	existingPost.Slug = newPost.Slug
 	existingPost.Title = newPost.Title
 	existingPost.Body = newPost.Body
 	existingPost.Tags = newPost.Tags
 	existingPost.Authors = newPost.Authors
 	existingPost.UpdatedAt = time.Now()
+	// likes later
 }
 
 func (b *Blog) DeletePostById(id string) error {
@@ -117,6 +127,7 @@ func (b *Blog) DeletePost(post *Post) error {
 	var removed bool
 	_, removed = b.Posts.Remove(post.ID.String())
 	_, removed = b.PostsBySlug.Remove(post.Slug)
+	_, removed = b.PostsByCreatedAt.Remove(post.CreatedAt.String())
 	_, removed = b.PostsByUpdatedAt.Remove(post.UpdatedAt.String())
 	if !removed {
 		return ErrDeleteFailed
@@ -177,7 +188,6 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 	if !options.IsGrid {
 		pageSize = 5
 	}
-
 	var p *pager.Pager
 	if options.IsLastUpdated {
 		p = pager.NewPager(b.PostsByUpdatedAt, pageSize, options.Ascending)
@@ -233,23 +243,32 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
-func (b Blog) RenderFilterHeader(req *mux.Request) string {
+func (b Blog) RenderFilterHeader(req *mux.Request) string { // different for listing and lookup
 	out := md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
 	out += md.Link("▲ recent", GetSortByPublishedPath(b.Prefix+":"+req.RawPath, "asc")) + " | "
 	out += md.Link("▼ oldest", GetSortByPublishedPath(b.Prefix+":"+req.RawPath, "desc")) + " | "
-	out += md.Link("▲ most common", GetSortByCommonPath(b.Prefix+":"+req.RawPath, "asc")) + " | "
-	out += md.Link("▼ least common", GetSortByCommonPath(b.Prefix+":"+req.RawPath, "desc")) + " | "
+	// sort by last updated
+	// add time format options
+	// add time range options
 
 	sort := parseQueryParams("sort", req.RawPath)
 	order := parseQueryParams("order", req.RawPath)
 	if order == "" {
 		order = "asc"
 	}
-	alphaOrder := "(A-Z)"
-	if order == "desc" && sort == "alpha" {
-		alphaOrder = "(Z-A)"
+
+	commonOrder := " most common"
+	if order == "desc" && sort == "common" {
+		commonOrder = " least common"
 	}
-	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical "+alphaOrder,
+	out += md.Link(orderArrow("common", sort, order)+commonOrder,
+		GetSortByCommonPath(b.Prefix+":"+req.RawPath, order)) + " | "
+
+	alphaOrder := " (A-Z)"
+	if order == "desc" && sort == "alpha" {
+		alphaOrder = " (Z-A)"
+	}
+	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical"+alphaOrder,
 		GetSortByAlphabeticalPath(b.Prefix+":"+req.RawPath, order)) + " | "
 	out += md.Link("🗘 reset", b.Prefix+":"+req.Path) + "\n\n"
 	return out
@@ -262,21 +281,22 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	options := parseRenderOptions(req.RawPath)
 
 	var p *pager.Pager
-	var page *pager.Page
 	if tag == "" {
 		if options.IsAlphabetical && options.HasOrder {
-			p = pager.NewPager(b.TagsIndex, 12, options.Ascending)
+			p = pager.NewPager(b.TagsIndex, 12, !options.Ascending)
 		} else if options.IsCommon && options.HasOrder {
 			p = pager.NewPager(b.TagsSorted, 12, options.Ascending)
 		} else {
 			p = pager.NewPager(b.TagsIndex, 12, options.NewestFirst)
 		}
-		page = p.MustGetPageByPath(req.RawPath)
+		page := p.MustGetPageByPath(req.RawPath)
 		for _, t := range page.Items {
-			split := strings.Split(t.Key, "::")
-			if len(split) > 1 {
-				out += md.H3(md.Link(split[1], b.Prefix+":tags/"+split[1])+" ("+split[0]+")") + "\n\n"
-				continue
+			if strings.Contains(t.Key, "::") {
+				split := strings.Split(t.Key, "::")
+				if len(split) > 1 {
+					out += md.H3(md.Link(split[1], b.Prefix+":tags/"+split[1])+" ("+ufmt.Sprintf("%d", t.Value)+")") + "\n\n"
+					continue
+				}
 			}
 			out += md.H3(md.Link(t.Key, b.Prefix+":tags/"+t.Key)+" ("+ufmt.Sprintf("%d", t.Value)+")") + "\n\n"
 		}
@@ -287,7 +307,7 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 
 	filteredPosts, exists := b.filterPostsByField("tag", tag)
 	p = pager.NewPager(filteredPosts, 4, options.NewestFirst)
-	page = p.MustGetPageByPath(req.RawPath)
+	page := p.MustGetPageByPath(req.RawPath)
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
 		if hasField(post.Tags, tag) {
@@ -309,20 +329,19 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	options := parseRenderOptions(req.RawPath)
 
 	var p *pager.Pager
-	var page *pager.Page
 	if author == "" {
 		if options.IsAlphabetical && options.HasOrder {
-			p = pager.NewPager(b.AuthorsIndex, 12, options.Ascending)
+			p = pager.NewPager(b.AuthorsIndex, 12, !options.Ascending)
 		} else if options.IsCommon && options.HasOrder {
 			p = pager.NewPager(b.AuthorsSorted, 12, options.Ascending)
 		} else {
 			p = pager.NewPager(b.AuthorsIndex, 12, options.NewestFirst)
 		}
-		page = p.MustGetPageByPath(req.RawPath)
+		page := p.MustGetPageByPath(req.RawPath)
 		for _, a := range page.Items {
 			split := strings.Split(a.Key, "::")
 			if len(split) > 1 {
-				out += md.H3(md.Link(split[1], b.Prefix+":authors/"+split[1])+" ("+split[0]+")") + "\n\n"
+				out += md.H3(md.Link(split[1], b.Prefix+":authors/"+split[1])+" ("+ufmt.Sprintf("%d", a.Value)+")") + "\n\n"
 				continue
 			}
 			out += md.H3(md.Link(a.Key, b.Prefix+":authors/"+a.Key)+" ("+ufmt.Sprintf("%d", a.Value)+")") + "\n\n"
@@ -334,7 +353,7 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 
 	filteredPosts, exists := b.filterPostsByField("author", author)
 	p = pager.NewPager(filteredPosts, 4, options.NewestFirst)
-	page = p.MustGetPageByPath(req.RawPath)
+	page := p.MustGetPageByPath(req.RawPath)
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
 		out += post.RenderPreview(false, options.TimeFormat, b.Prefix) + "\n"
@@ -377,7 +396,7 @@ func (b *Blog) addToIndex(post *Post) {
 		}
 		newCount := oldCount + 1
 		b.TagsIndex.Set(tag, newCount)
-		b.TagsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, tag), tag)
+		b.TagsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, tag), newCount)
 	}
 	for _, author := range post.Authors {
 		oldCount := 0
@@ -387,8 +406,21 @@ func (b *Blog) addToIndex(post *Post) {
 		}
 		newCount := oldCount + 1
 		b.AuthorsIndex.Set(author, newCount)
-		b.AuthorsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, author), author)
+		b.AuthorsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, author), newCount)
 	}
+}
+
+func (b Blog) filterPostsStartEnd(tree *avl.Tree, start, end *time.Time) *avl.Tree {
+	filtered := avl.NewTree()
+	tree.Iterate("", "", func(k string, v interface{}) bool {
+		post := v.(*Post)
+		if (start == nil || post.CreatedAt.After(*start)) &&
+			(end == nil || post.CreatedAt.Before(*end)) {
+			filtered.Set(k, post)
+		}
+		return false
+	})
+	return filtered
 }
 
 func (b Blog) filterPostsByField(field, value string) (*avl.Tree, bool) {

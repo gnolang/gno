@@ -3,9 +3,10 @@ package blog
 import "net/url"
 
 type RenderOptions struct {
-	Sort       string
-	TimeFormat string
-	// add start and current time to options
+	Sort           string
+	TimeFormat     string
+	StartTime      string // start time for filtering
+	EndTime        string // end time for filtering
 	Ascending      bool
 	NewestFirst    bool
 	IsGrid         bool
@@ -20,10 +21,14 @@ func parseRenderOptions(rawPath string) RenderOptions {
 	order := parseQueryParams("order", rawPath)
 	mode := parseQueryParams("mode", rawPath)
 	timeFmt := parseQueryParams("time", rawPath)
+	startTime := parseQueryParams("start", rawPath)
+	endTime := parseQueryParams("end", rawPath)
 
 	return RenderOptions{
 		Sort:           sort,
 		TimeFormat:     timeFmt,
+		StartTime:      startTime,
+		EndTime:        endTime,
 		NewestFirst:    sort == "recent" || sort == "",
 		Ascending:      order == "asc" || order == "",
 		IsGrid:         mode == "grid" || mode == "",
@@ -53,6 +58,14 @@ func GetTimeFmtPath(rawPath, timeFormat string) string {
 	return updateQuery(rawPath, "time", timeFormat)
 }
 
+func GetTimeStartPath(rawPath, startTime string) string {
+	return updateQuery(rawPath, "start", startTime)
+}
+
+func GetTimeEndPath(rawPath, endTime string) string {
+	return updateQuery(rawPath, "end", endTime)
+}
+
 func GetSortByUpdatedPath(rawPath, order string) string {
 	return updateQueryMulti(rawPath, map[string]string{
 		"sort":  "update",
@@ -67,10 +80,10 @@ func GetSortByAlphabeticalPath(rawPath, order string) string {
 	})
 }
 
-func GetSortByCommonPath(rawPath, order string) string { // change to use toggle?
+func GetSortByCommonPath(rawPath, order string) string {
 	return updateQueryMulti(rawPath, map[string]string{
 		"sort":  "common",
-		"order": order,
+		"order": toggle(order),
 	})
 }
 
