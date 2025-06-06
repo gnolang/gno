@@ -345,6 +345,19 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := gno.ValidateMemPackage(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+
+	// XXX: MANFRED
+	/*
+		// extra gnomod validation
+		gm, err := gnomod.ParseMemPackage(memPkg)
+		if err != nil {
+			return ErrInvalidGnomod(err.Error())
+		}
+		if gm.Module.Path != pkgPath {
+			return ErrInvalidPkgPath("package path must match gnomod.toml path")
+		}
+	*/
+
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}

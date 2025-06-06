@@ -37,7 +37,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 	// Create test package.
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -87,7 +87,7 @@ func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 	// Create test package.
 	const pkgPath = "anotherdomain.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -129,7 +129,7 @@ func TestVMKeeperOriginSend1(t *testing.T) {
 	// Create test package.
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -175,7 +175,7 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 	// Create test package.
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -230,7 +230,7 @@ func TestVMKeeperOriginSend3(t *testing.T) {
 	// Create test package.
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -275,7 +275,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -320,7 +320,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -366,7 +366,7 @@ func TestVMKeeperParams(t *testing.T) {
 
 	const pkgPath = "gno.land/r/myuser/myrealm"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package params
 
@@ -420,7 +420,7 @@ func TestVMKeeperOriginCallerInit(t *testing.T) {
 
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -473,7 +473,7 @@ func TestVMKeeperRunSimple(t *testing.T) {
 
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "script.gno", Body: `
 package main
 
@@ -514,7 +514,7 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "script.gno", Body: `
 package main
 
@@ -549,7 +549,7 @@ func TestNumberOfArgsError(t *testing.T) {
 	// Create test package.
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{
 			Name: "test.gno",
 			Body: `package test
@@ -590,7 +590,7 @@ func TestVMKeeperReinitialize(t *testing.T) {
 	// Create test package.
 	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
-		{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
