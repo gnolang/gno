@@ -228,7 +228,7 @@ func init() {
 		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", opExtCodeCopy, 100}, // can change
 		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", opReturnDataSize, 2},
 		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", opReturnDataCopy, 3}, // can change
-		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", notImplemented, 100},       // can change
+		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", opExtCodeHash, 100},       // can change
 		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", opBlockHash, 20},
 		COINBASE:       {COINBASE, "COINBASE", opCoinbase, 2},
 		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", opTimestamp, 2},

@@ -389,3 +389,30 @@ func opBlockHash(s *State) error {
 	s.stack.Push(hash.Clone())
 	return nil
 }
+
+func opExtCodeHash(s *State) error {
+	address, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	if s.env == nil {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	addr := address.Uint64()
+	account, ok := s.env.Accounts[addr]
+	if !ok {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	if len(account.Code) == 0 { 
+		emptyHash := keccak256.Keccak256(nil) // if the account has no code -> return keccak256("")
+		emptyHash256 := uint256.Zero().SetBytes(emptyHash)
+		s.stack.Push(emptyHash256)
+		return nil
+	}
+	codeHash := keccak256.Keccak256(account.Code)
+	codeHash256 := uint256.Zero().SetBytes(codeHash)
+	s.stack.Push(codeHash256)
+	return nil
+}

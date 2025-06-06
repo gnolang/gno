@@ -1481,6 +1481,63 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 23,
 		},
+		{
+			name: "extcodehash with no code",
+			code: []byte{
+				byte(PUSH1), 0x43, // addr
+				byte(EXTCODEHASH),
+				byte(STOP),
+			},
+			env: Env{
+				Accounts: Accounts{
+					0x43: &Account{
+						Code: []byte{}, // empty code
+					},
+				},
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero().SetBytes(
+					[]byte{
+						0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c,
+						0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0,
+						0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b,
+						0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70,
+					}, // empty code returns keccak256("")
+				),
+			},
+			expectedGasConsumed: 103,
+		},
+		{
+			name: "extcodehash on non-existing account",
+			code: []byte{
+				byte(PUSH1), 0x99, // addr not in accounts
+				byte(EXTCODEHASH),
+				byte(STOP),
+			},
+			env: Env{
+				Accounts: Accounts{}, // empty accounts
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero(),
+			},
+			expectedGasConsumed: 103,
+		},
+		{
+			name: "extcodehash with no env",
+			code: []byte{
+				byte(PUSH1), 0x99,
+				byte(EXTCODEHASH),
+				byte(STOP),
+			},
+			env: Env{
+				Accounts: nil, // nil -> no accounts context
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.Zero(),
+			},
+			expectedGasConsumed: 103,
+		},
+		
 	}
 
 	for _, tc := range testCases {
