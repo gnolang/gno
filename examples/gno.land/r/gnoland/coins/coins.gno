@@ -69,7 +69,7 @@ func Render(path string) string {
 func renderHomepage() string {
 	return strings.Replace(`# Gno.land Coins Explorer
 
-This is a simple, readonly realm that allows users to browse native coin balances.   
+This is a simple, readonly realm that allows users to browse native coin balances.
 Here are a few examples on how to use it:
 
 - ~/r/gnoland/coins:balances/<address>~ - show full list of coin balances of an address
@@ -78,7 +78,7 @@ Here are a few examples on how to use it:
 	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5?coin=ugnot)
 - ~/r/gnoland/coins:convert/<cosmos_address>~ - convert Cosmos address to Gno address
 	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
-- ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom 
+- ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom
 	- Coming soon!
 `, "~", "`", -1)
 }

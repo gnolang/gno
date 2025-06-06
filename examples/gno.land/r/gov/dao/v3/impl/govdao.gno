@@ -44,11 +44,10 @@ func NewGovDAO() *GovDAO {
 	//     XXX g.test = 1 fails, owned by gov/dao.
 	//
 	//
-	cross(func() {
-		crossing()
+	func(cur realm) {
 		// TODO: replace with future attach()
 		_govdao = d
-	})()
+	}(cross)
 
 	return d
 }
@@ -91,7 +90,7 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	}
 
 	caller := std.OriginCaller()
-	mem, tie := cross(getMembers)().GetMember(caller)
+	mem, tie := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
 	}

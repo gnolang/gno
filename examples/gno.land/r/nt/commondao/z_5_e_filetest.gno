@@ -32,7 +32,7 @@ var (
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetRealm(std.NewUserRealm(user))
@@ -50,7 +50,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(commondao.Vote)(daoID, proposal.ID(), "invalid", "")
+	commondao.Vote(cross, daoID, proposal.ID(), "invalid", "")
 }
 
 // Error:

@@ -3,9 +3,7 @@ package test
 
 var root any
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	println(root)
 	root = 1
 	println(root)
