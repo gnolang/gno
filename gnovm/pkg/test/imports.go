@@ -133,7 +133,7 @@ func StoreWithOptions(
 			m.Store.AddMemPackage(mpkg, gno.MPAny)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
-				gno.ParseMemPackage(mpkg),
+				gno.ParseMemPackage(mpkg, gno.MPProd),
 				save, false, opts.FixFrom)
 		} else {
 			return m.RunMemPackage(mpkg, save)
@@ -155,11 +155,12 @@ func StoreWithOptions(
 				send := std.Coins{}
 				ctx := Context("", pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath:       "test",
+					PkgPath:       pkgPath,
 					Output:        output,
 					Store:         store,
 					Context:       ctx,
 					ReviveEnabled: true,
+					SkipPackage:   true,
 				})
 				return _processMemPackage(m2, mpkg, true)
 			}
@@ -183,11 +184,12 @@ func StoreWithOptions(
 				send := std.Coins{}
 				ctx := Context("", pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath:       "test",
+					PkgPath:       pkgPath,
 					Output:        output,
 					Store:         store,
 					Context:       ctx,
 					ReviveEnabled: true,
+					SkipPackage:   true,
 				})
 				return _processMemPackage(m2, mpkg, true)
 			}
@@ -244,17 +246,15 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 
 	mpkg := gno.MustReadMemPackageFromList(files, pkgPath, gno.MPStdlib)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-		// NOTE: see also pkgs/sdk/vm/builtins.go
-		// Needs PkgPath != its name because TestStore.getPackage is the package
-		// getter for the store, which calls loadStdlib, so it would be recursively called.
-		PkgPath:       "stdlibload",
+		PkgPath:       pkgPath,
 		Output:        stdout,
 		Store:         store,
 		ReviveEnabled: true,
+		SkipPackage:   true, // will PreprocessFiles() or RunMemPackage() after.
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(mpkg, gno.MPStdlib)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true, "")
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg, gno.MPProd), true, true, "")
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)
@@ -322,6 +322,7 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 				}
 			}()
 		}
+		// Get package from store, recursively as necessary.
 		pkg := store.GetPackage(imp.PkgPath, true)
 		if abortOnError && pkg == nil {
 			return gno.ImportNotFoundError{Location: fset.Position(imp.Spec.Pos()).String(), PkgPath: imp.PkgPath}

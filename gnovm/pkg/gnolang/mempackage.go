@@ -84,7 +84,9 @@ func (mpfilter MemPackageFilter) Validate() {
 	}
 }
 
-func (mpfilter MemPackageFilter) FilterGno(fname string) bool {
+func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool {
+	fname := mfile.Name
+	fbody := mfile.Body
 	if !strings.HasSuffix(fname, ".gno") {
 		panic("should not happen")
 	}
@@ -94,7 +96,14 @@ func (mpfilter MemPackageFilter) FilterGno(fname string) bool {
 	case MPFProd:
 		return endsWithAny(fname, []string{"_test.gno", "_filetest.gno"})
 	case MPFTest:
-		return endsWithAny(fname, []string{"_test.gno"})
+		if endsWithAny(fname, []string{"_filetest.gno"}) {
+			return true
+		}
+		pname2, err := PackageNameFromFileBody(fname, fbody)
+		if err != nil {
+			panic(err)
+		}
+		return pname2 != pname
 	default:
 		panic("should not happen")
 	}
@@ -132,6 +141,9 @@ func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageTyp
 
 // NOTE: only filters .gno files.
 func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.MemPackage {
+	if mpkg == nil {
+		return nil
+	}
 	mpkg2 := &std.MemPackage{
 		Name:  mpkg.Name,
 		Path:  mpkg.Path,
@@ -143,7 +155,7 @@ func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.Mem
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			// just copy non-gno files.
 			mpkg2.Files = append(mpkg2.Files, mfile.Copy())
-		} else if mpfilter.FilterGno(mfile.Name) {
+		} else if mpfilter.FilterGno(mfile, Name(mpkg.Name)) {
 			continue
 		} else {
 			mpkg2.Files = append(mpkg2.Files, mfile.Copy())
@@ -226,7 +238,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 		return endsWithAny(fname, []string{"_test.gno", "_filetest.gno"})
 	case MPTest:
 		// exclude filetest files, and xxx_test package names.
-		return endsWithAny(fname, []string{"_test.gno"}) ||
+		return endsWithAny(fname, []string{"_filetest.gno"}) ||
 			endsWithAny(string(pname), []string{"_test"})
 	default:
 		panic("should not happen")
@@ -437,17 +449,13 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 	return pkg
 }
 
-// ParseMemPackage executes [ParseFile] on each file of the mpkg, excluding
-// test and spurious (non-gno) files. The resulting *FileSet is returned.
+// ParseMemPackage executes [ParseFile] on each file of the mpkg, with files
+// filtered based on mptype (regardless of mpkg.Type).  The resulting *FileSet
+// is returned.
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	return ParseMemPackageAsType(mpkg, MPProd)
-}
-
-// Regardless of mpkg.Type, mptype dictates what files are parsed of mpkg.
-func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
+func ParseMemPackage(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate()
 	fset = &FileSet{}
