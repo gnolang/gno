@@ -19,15 +19,11 @@ var (
 	t      = expect.MockTestingT(&output)
 )
 
-func Fail() {
-	crossing()
-
+func Fail(realm) {
 	panic(msg)
 }
 
-func Success() {
-	crossing()
-
+func Success(realm) {
 	// No panic
 }
 
@@ -36,17 +32,17 @@ func main() {
 
 	testing.SetRealm(std.NewUserRealm(caller))
 
-	expect.Func(t, func() { cross(Success)() }).ToCrossPanic()
-	expect.Func(t, func() { cross(Fail)() }).ToCrossPanic().WithMessage(wantMsg)
+	expect.Func(t, func() { Success(cross) }).ToCrossPanic()
+	expect.Func(t, func() { Fail(cross) }).ToCrossPanic().WithMessage(wantMsg)
 
-	expect.Func(t, func() error { cross(Success)(); return nil }).ToCrossPanic()
-	expect.Func(t, func() error { cross(Fail)(); return nil }).ToCrossPanic().WithMessage(wantMsg)
+	expect.Func(t, func() error { Success(cross); return nil }).ToCrossPanic()
+	expect.Func(t, func() error { Fail(cross); return nil }).ToCrossPanic().WithMessage(wantMsg)
 
-	expect.Func(t, func() any { cross(Success)(); return nil }).ToCrossPanic()
-	expect.Func(t, func() any { cross(Fail)(); return nil }).ToCrossPanic().WithMessage(wantMsg)
+	expect.Func(t, func() any { Success(cross); return nil }).ToCrossPanic()
+	expect.Func(t, func() any { Fail(cross); return nil }).ToCrossPanic().WithMessage(wantMsg)
 
-	expect.Func(t, func() (any, error) { cross(Success)(); return nil, nil }).ToCrossPanic()
-	expect.Func(t, func() (any, error) { cross(Fail)(); return nil, nil }).ToCrossPanic().WithMessage(wantMsg)
+	expect.Func(t, func() (any, error) { Success(cross); return nil, nil }).ToCrossPanic()
+	expect.Func(t, func() (any, error) { Fail(cross); return nil, nil }).ToCrossPanic().WithMessage(wantMsg)
 
 	println(output.String())
 }

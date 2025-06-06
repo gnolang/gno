@@ -71,6 +71,14 @@ func (c FuncChecker) ToFail() ErrorChecker {
 // ToPanic return an message checker to assert if current function panicked.
 // This assertion is handled within the same realm, to assert panics when crossing
 // to another realm use the `ToAbort()` assertion.
+//
+// Example usage:
+//
+//	  func TestFoo(t *testing.T) {
+//		   expect.Func(t, func() {
+//	      Foo(cross)
+//	    }).Not().ToCrossPanic()
+//	  }
 func (c FuncChecker) ToPanic() MessageChecker {
 	c.ctx.t().Helper()
 

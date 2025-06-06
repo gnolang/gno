@@ -1,1 +1,3 @@
 module gno.land/p/jeronimoalbi/expect
+
+gno 0.9
