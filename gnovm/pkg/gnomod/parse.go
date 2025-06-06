@@ -49,15 +49,16 @@ func ParseDir(dir string) (*File, error) {
 
 // ParseFilepath tries to parse gno.mod or gnomod.toml file given the file path.
 func ParseFilepath(fpath string) (*File, error) {
+	filename := filepath.Base(fpath)
+
 	file, err := os.Stat(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read file: %w", err)
+		return nil, fmt.Errorf("could not read file %q: %w",filename, err)
 	}
 	if file.IsDir() {
 		return nil, fmt.Errorf("invalid file at %q: is a directory", fpath)
 	}
 
-	filename := filepath.Base(fpath)
 	b, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read %s file: %w", filename, err)
