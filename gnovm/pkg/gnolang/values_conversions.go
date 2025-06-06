@@ -1194,11 +1194,8 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			default:
 				panic("should not happen")
 			}
-			// TODO: fix slice to arrray pointer
 		} else if at, ok := unwrapPointerType(t).(*ArrayType); ok {
 			// slice -> array or *array
-			// fmt.Println("===at: ", at, at.Len)
-			// fmt.Println("===t: ", t, reflect.TypeOf(t))
 			if t.Kind() == PointerKind {
 				tv.T = t
 				switch sv := tv.V.(type) {
@@ -1208,16 +1205,8 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 					}
 					tv.V = &ArrayValue{}
 				case *SliceValue:
-					tv2 := TypedValue{T: &ArrayType{
-						Len: at.Len,
-						Elt: at.Elt,
-						Vrd: at.Vrd,
-					}, V: sv.Base}
-
-					fmt.Println("===sv.Base.(*ArrayValue).Len: ", len(sv.Base.(*ArrayValue).List), len(sv.Base.(*ArrayValue).Data))
-
+					tv2 := TypedValue{T: at, V: sv.Base}
 					hiv := alloc.NewHeapItem(tv2)
-
 					tv.V = PointerValue{
 						TV:    &hiv.Value,
 						Base:  hiv,
