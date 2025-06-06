@@ -15,6 +15,7 @@ import (
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/fail"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
@@ -607,19 +608,20 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			cs.Logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
-			// stop gracefully
-			//
-			// NOTE: We most probably shouldn't be running any further when there is
-			// some unexpected panic. Some unknown error happened, and so we don't
-			// know if that will result in the validator signing an invalid thing. It
-			// might be worthwhile to explore a mechanism for manual resuming via
-			// some console or secure RPC system, but for now, halting the chain upon
-			// unexpected consensus bugs sounds like the better option.
-			onExit()
-		} else {
-			onExit()
+			// Log the panic if it's not due to the remote signer client being closed.
+			if err, ok := r.(error); !ok || !goerrors.Is(err, client.ErrClientAlreadyClosed) {
+				cs.Logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
+				// stop gracefully
+				//
+				// NOTE: We most probably shouldn't be running any further when there is
+				// some unexpected panic. Some unknown error happened, and so we don't
+				// know if that will result in the validator signing an invalid thing. It
+				// might be worthwhile to explore a mechanism for manual resuming via
+				// some console or secure RPC system, but for now, halting the chain upon
+				// unexpected consensus bugs sounds like the better option.
+			}
 		}
+		onExit()
 	}()
 
 	for {
@@ -958,6 +960,10 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 			"proposal round", proposal.POLRound,
 			"proposal timestamp", proposal.Timestamp.Unix(),
 		)
+	} else if goerrors.Is(err, client.ErrClientAlreadyClosed) {
+		// The remote signer client was closed by the node,
+		// so we panic to stop the receiveRoutine loop.
+		panic(err)
 	} else if !cs.replayMode {
 		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
 	}
@@ -1764,13 +1770,13 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 			"validator address", vote.ValidatorAddress,
 			"validator index", vote.ValidatorIndex,
 		)
-
-		return
+	} else if goerrors.Is(err, client.ErrClientAlreadyClosed) {
+		// The remote signer client was closed by the node,
+		// so we panic to stop the receiveRoutine loop.
+		panic(err)
+	} else /* if !cs.replayMode */ {
+		cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 	}
-	// if !cs.replayMode {
-	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
-	// }
-	return
 }
 
 // logTelemetry logs the consensus state telemetry
