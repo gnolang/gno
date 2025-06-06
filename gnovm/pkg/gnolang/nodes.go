@@ -220,56 +220,56 @@ type Node interface {
 }
 
 // non-pointer receiver to help make immutable.
-func (x *NameExpr) assertNode()          {}
-func (x *BasicLitExpr) assertNode()      {}
-func (x *BinaryExpr) assertNode()        {}
-func (x *CallExpr) assertNode()          {}
-func (x *IndexExpr) assertNode()         {}
-func (x *SelectorExpr) assertNode()      {}
-func (x *SliceExpr) assertNode()         {}
-func (x *StarExpr) assertNode()          {}
-func (x *RefExpr) assertNode()           {}
-func (x *TypeAssertExpr) assertNode()    {}
-func (x *UnaryExpr) assertNode()         {}
-func (x *CompositeLitExpr) assertNode()  {}
-func (x *KeyValueExpr) assertNode()      {}
-func (x *FuncLitExpr) assertNode()       {}
-func (x *ConstExpr) assertNode()         {}
-func (x *FieldTypeExpr) assertNode()     {}
-func (x *ArrayTypeExpr) assertNode()     {}
-func (x *SliceTypeExpr) assertNode()     {}
-func (x *InterfaceTypeExpr) assertNode() {}
-func (x *ChanTypeExpr) assertNode()      {}
-func (x *FuncTypeExpr) assertNode()      {}
-func (x *MapTypeExpr) assertNode()       {}
-func (x *StructTypeExpr) assertNode()    {}
-func (x *constTypeExpr) assertNode()     {}
-func (x *AssignStmt) assertNode()        {}
-func (x *BlockStmt) assertNode()         {}
-func (x *BranchStmt) assertNode()        {}
-func (x *DeclStmt) assertNode()          {}
-func (x *DeferStmt) assertNode()         {}
-func (x *ExprStmt) assertNode()          {}
-func (x *ForStmt) assertNode()           {}
-func (x *GoStmt) assertNode()            {}
-func (x *IfStmt) assertNode()            {}
-func (x *IfCaseStmt) assertNode()        {}
-func (x *IncDecStmt) assertNode()        {}
-func (x *RangeStmt) assertNode()         {}
-func (x *ReturnStmt) assertNode()        {}
-func (x *SelectStmt) assertNode()        {}
-func (x *SelectCaseStmt) assertNode()    {}
-func (x *SendStmt) assertNode()          {}
-func (x *SwitchStmt) assertNode()        {}
-func (x *SwitchClauseStmt) assertNode()  {}
-func (x *EmptyStmt) assertNode()         {}
-func (x *bodyStmt) assertNode()          {}
-func (x *FuncDecl) assertNode()          {}
-func (x *ImportDecl) assertNode()        {}
-func (x *ValueDecl) assertNode()         {}
-func (x *TypeDecl) assertNode()          {}
-func (x *FileNode) assertNode()          {}
-func (x *PackageNode) assertNode()       {}
+func (*NameExpr) assertNode()          {}
+func (*BasicLitExpr) assertNode()      {}
+func (*BinaryExpr) assertNode()        {}
+func (*CallExpr) assertNode()          {}
+func (*IndexExpr) assertNode()         {}
+func (*SelectorExpr) assertNode()      {}
+func (*SliceExpr) assertNode()         {}
+func (*StarExpr) assertNode()          {}
+func (*RefExpr) assertNode()           {}
+func (*TypeAssertExpr) assertNode()    {}
+func (*UnaryExpr) assertNode()         {}
+func (*CompositeLitExpr) assertNode()  {}
+func (*KeyValueExpr) assertNode()      {}
+func (*FuncLitExpr) assertNode()       {}
+func (*ConstExpr) assertNode()         {}
+func (*FieldTypeExpr) assertNode()     {}
+func (*ArrayTypeExpr) assertNode()     {}
+func (*SliceTypeExpr) assertNode()     {}
+func (*InterfaceTypeExpr) assertNode() {}
+func (*ChanTypeExpr) assertNode()      {}
+func (*FuncTypeExpr) assertNode()      {}
+func (*MapTypeExpr) assertNode()       {}
+func (*StructTypeExpr) assertNode()    {}
+func (*constTypeExpr) assertNode()     {}
+func (*AssignStmt) assertNode()        {}
+func (*BlockStmt) assertNode()         {}
+func (*BranchStmt) assertNode()        {}
+func (*DeclStmt) assertNode()          {}
+func (*DeferStmt) assertNode()         {}
+func (*ExprStmt) assertNode()          {}
+func (*ForStmt) assertNode()           {}
+func (*GoStmt) assertNode()            {}
+func (*IfStmt) assertNode()            {}
+func (*IfCaseStmt) assertNode()        {}
+func (*IncDecStmt) assertNode()        {}
+func (*RangeStmt) assertNode()         {}
+func (*ReturnStmt) assertNode()        {}
+func (*SelectStmt) assertNode()        {}
+func (*SelectCaseStmt) assertNode()    {}
+func (*SendStmt) assertNode()          {}
+func (*SwitchStmt) assertNode()        {}
+func (*SwitchClauseStmt) assertNode()  {}
+func (*EmptyStmt) assertNode()         {}
+func (*bodyStmt) assertNode()          {}
+func (*FuncDecl) assertNode()          {}
+func (*ImportDecl) assertNode()        {}
+func (*ValueDecl) assertNode()         {}
+func (*TypeDecl) assertNode()          {}
+func (*FileNode) assertNode()          {}
+func (*PackageNode) assertNode()       {}
 
 var (
 	_ Node = &NameExpr{}
@@ -568,7 +568,7 @@ type FuncLitExpr struct {
 	HeapCaptures NameExprs    // filled in findLoopUses1
 }
 
-func (fle *FuncLitExpr) GetName() Name {
+func (*FuncLitExpr) GetName() Name {
 	return Name("")
 }
 
@@ -576,7 +576,7 @@ func (fle *FuncLitExpr) GetFuncTypeExpr() *FuncTypeExpr {
 	return &fle.Type
 }
 
-func (fle *FuncLitExpr) GetIsMethod() bool {
+func (*FuncLitExpr) GetIsMethod() bool {
 	return false
 }
 
@@ -2338,11 +2338,11 @@ func (x *FileNode) SetBody(b Body) {
 	panic("FileNode has no body (but it does have .Decls)")
 }
 
-func (x *PackageNode) GetBody() Body {
+func (*PackageNode) GetBody() Body {
 	panic("PackageNode has no body")
 }
 
-func (x *PackageNode) SetBody(b Body) {
+func (*PackageNode) SetBody(b Body) {
 	panic("PackageNode has no body")
 }
 

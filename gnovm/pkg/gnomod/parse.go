@@ -1,7 +1,6 @@
 package gnomod
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,8 +12,6 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
-
-var ErrNoModFile = errors.New("gno.mod doesn't exist")
 
 // ParseDir parses, validates and returns a gno.mod file located at dir or at
 // dir's parents.
@@ -139,7 +136,7 @@ func ParseMemPackage(mpkg *std.MemPackage) (*File, error) {
 	if mf == nil {
 		return nil, fmt.Errorf(
 			"gno.mod not in mem package %s (name=%s): %w",
-			mpkg.Path, mpkg.Name, os.ErrNotExist,
+			mpkg.Path, mpkg.Name, ErrGnoModNotFound,
 		)
 	}
 	mod, err := ParseBytes(mf.Name, []byte(mf.Body))

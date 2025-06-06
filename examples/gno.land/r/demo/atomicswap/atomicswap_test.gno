@@ -82,7 +82,7 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 }
 
 func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
@@ -132,7 +132,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 - timelock: 2009-02-13T22:31:30Z
 - remaining: 0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 }
 
 func TestNewCustomGRC20Swap_Claim(t *testing.T) {
@@ -163,7 +163,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 - remaining: 1h0m0s`
 
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
@@ -212,7 +212,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 }
 
 func TestNewCustomGRC20Swap_Refund(t *testing.T) {
@@ -243,7 +243,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
@@ -282,7 +282,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 - timelock: 2009-02-13T22:31:30Z
 - remaining: 0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 }
 
 func TestNewGRC20Swap_Claim(t *testing.T) {
@@ -312,7 +312,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 - timelock: 2009-02-20T23:31:30Z
 - remaining: 168h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
@@ -357,7 +357,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 - timelock: 2009-02-20T23:31:30Z
 - remaining: 168h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 }
 
 func TestNewGRC20Swap_Refund(t *testing.T) {
@@ -387,7 +387,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 - timelock: 2009-02-20T23:31:30Z
 - remaining: 168h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
@@ -426,7 +426,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 - timelock: 2009-02-13T22:31:30Z
 - remaining: 0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cross, "1"))
+	uassert.Equal(t, expected, Render("1"))
 }
 
 func TestRender(t *testing.T) {
@@ -457,7 +457,7 @@ func TestRender(t *testing.T) {
 		expected := `- 2: g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh -(20000TST)> g1vd5xzunv09047h6lta047h6lta047h6lhsyveh - active
 - 1: g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh -(10000TST)> g1vfhkyh6lta047h6lta047h6lta047h6l03vdhu - claimed
 `
-		uassert.Equal(t, expected, Render(cross, ""))
+		uassert.Equal(t, expected, Render(""))
 	})
 }
 

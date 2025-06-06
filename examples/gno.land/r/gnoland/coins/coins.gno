@@ -23,6 +23,7 @@ package coins
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/mux"
 )
@@ -59,19 +60,20 @@ func Render(path string) string {
 }
 
 func renderHomepage() string {
-	return `# gno.land Coins Explorer
+	return strings.Replace(`# Gno.land Coins Explorer
 
-## Usage
+This is a simple, readonly realm that allows users to browse native coin balances.
+Here are a few examples on how to use it:
 
-- /r/gnoland/coins:<denom> - shows the total supply of denom (coming soon)
-- /r/gnoland/coins:<denom>/<address> - shows the denom balance of a specific address
-
-Examples:
-
-- /r/gnoland/coins:ugnot - shows the total supply of ` + "`ugnot`" + ` (coming soon)
-- /r/gnoland/coins:ugnot/g1... - shows the ` + "`ugnot`" + ` balance of a specific address
-
-`
+- ~/r/gnoland/coins:balances/<address>~ - show full list of coin balances of an address
+	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
+- ~/r/gnoland/coins:balances/<address>?coin=ugnot~ - shows the balance of an address for a specific coin
+	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5?coin=ugnot)
+- ~/r/gnoland/coins:convert/<cosmos_address>~ - convert Cosmos address to Gno address
+	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
+- ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom
+	- Coming soon!
+`, "~", "`", -1)
 }
 
 func renderAddressBalance(banker std.Banker, denom string, addr string) string {

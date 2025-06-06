@@ -74,18 +74,14 @@ var games avl.Tree // id -> *Game
 
 var counter byte
 
-func New(s string) string {
-	crossing()
-
+func New(cur realm, s string) string {
 	// Bug shows if Moves has a cap > 0 when initialised.
 	el := &Game{Position: Position{Moves: make([]Move, 0, 2)}}
 	games.Set(s, el)
 	return values(el.Position)
 }
 
-func Delta(s string) string {
-	crossing()
-
+func Delta(cur realm, s string) string {
 	v, _ := games.Get(s)
 	g, ok := v.(*Game)
 	if !ok {

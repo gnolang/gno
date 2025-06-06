@@ -23,7 +23,6 @@ func WithStore(s gno.Store) ReplOption {
 
 func WithIO(input io.Reader, output, errput io.Writer) ReplOption {
 	return func(r *Repl) {
-
 		r.input = input
 		r.output = output
 		r.errput = errput

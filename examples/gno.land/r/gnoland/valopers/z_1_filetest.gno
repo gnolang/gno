@@ -11,9 +11,7 @@ import (
 	"gno.land/r/gnoland/valopers"
 )
 
-var (
-	g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
-)
+var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 
 const (
 	validMoniker     = "test-1"
@@ -30,7 +28,7 @@ func init() {
 }
 
 func main() {
-	println(valopers.Render(cross, ""))
+	println(valopers.Render(""))
 }
 
 // Output:

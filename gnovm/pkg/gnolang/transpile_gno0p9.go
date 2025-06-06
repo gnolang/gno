@@ -682,10 +682,10 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	var xall int = 0 // number translated from part 1
 	var xforms12 = make(map[string]struct{})
 	for _, fname := range fnames {
-		if !strings.HasSuffix(string(fname), ".gno") {
+		if !strings.HasSuffix(fname, ".gno") {
 			panic(fmt.Sprintf("expected a .gno file but got %q", fname))
 		}
-		mfile := mpkg.GetFile(string(fname))
+		mfile := mpkg.GetFile(fname)
 		// Go parse file.
 		const parseOpts = parser.ParseComments |
 			parser.DeclarationErrors |
@@ -729,7 +729,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	// END processing all memfiles.
 
 	// Ensure that all xforms were translated.
-	var checkMismatch = func(xforms1, xforms12 map[string]struct{}, verbose bool) (mismatch bool) {
+	checkMismatch := func(xforms1, xforms12 map[string]struct{}, verbose bool) (mismatch bool) {
 		// this is likely some bug in find* or part 1.
 		for xform1 := range xforms1 {
 			_, seen := xforms12[xform1]

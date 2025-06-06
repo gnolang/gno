@@ -259,7 +259,7 @@ type testCommandColorID struct {
 	addr std.Address
 }
 
-func newTestCommandColorID(fn func(string) string, s string, addr string) testCommandRunner {
+func newTestCommandColorID(fn func(realm, string) string, s string, addr string) testCommandRunner {
 	return &testCommandColorID{fn, std.Address("g1" + addr)}
 }
 

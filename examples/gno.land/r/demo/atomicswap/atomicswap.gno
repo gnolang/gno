@@ -135,7 +135,7 @@ func Refund(cur realm, id int) {
 }
 
 // Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.
-func Render(cur realm, path string) string {
+func Render(path string) string {
 	if path == "" { // home
 		output := ""
 		size := swaps.Size()

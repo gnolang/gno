@@ -1513,7 +1513,7 @@ var Re_declaredTypeID = r.G(
 	r.N("NAME", r.P(`.`)))
 
 func ParseDeclaredTypeID(tid string) (pkgPath string, loc string, name string, ok bool) {
-	match := Re_declaredTypeID.Match(string(tid))
+	match := Re_declaredTypeID.Match(tid)
 	if match == nil {
 		return
 	}

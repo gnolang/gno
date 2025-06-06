@@ -45,7 +45,7 @@ func Withdraw(cur realm, amount int64) {
 	checkErr(adm.Burn(caller, amount))
 }
 
-func Render(cur realm, path string) string {
+func Render(path string) string {
 	parts := strings.Split(path, "/")
 	c := len(parts)
 
@@ -61,15 +61,15 @@ func Render(cur realm, path string) string {
 	}
 }
 
-func TotalSupply(cur realm) int64 {
+func TotalSupply() int64 {
 	return Token.TotalSupply()
 }
 
-func BalanceOf(cur realm, owner std.Address) int64 {
+func BalanceOf(owner std.Address) int64 {
 	return Token.BalanceOf(owner)
 }
 
-func Allowance(cur realm, owner, spender std.Address) int64 {
+func Allowance(owner, spender std.Address) int64 {
 	return Token.Allowance(owner, spender)
 }
 
