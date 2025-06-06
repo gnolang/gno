@@ -47,7 +47,7 @@ func init() {
 	memberstore.Get().SetMember(memberstore.T3, std.Address("g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm"), &memberstore.Member{InvitationPoints: 1}) // Rémi
 	memberstore.Get().SetMember(memberstore.T3, std.Address("g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3"), &memberstore.Member{InvitationPoints: 1}) // Dragos
 
-	cross(dao.UpdateImpl)(dao.UpdateRequest{
+	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
