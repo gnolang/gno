@@ -16,7 +16,7 @@ type File struct {
 	Module struct {
 		// Path is the path of the module.
 		// Like `gno.land/r/path/to/module`.
-		Path string `toml:"path" json:"path"`
+		Path string `toml:"path,commented" json:"path,commented"`
 
 		// Draft indicates that the module isn't ready for production use.
 		//
@@ -30,10 +30,10 @@ type File struct {
 		// Private modules:
 		// - cannot be imported by other modules.
 		// -
-		Private bool `toml:"private" json:"private"`
+		Private bool `toml:"private,omitempty,commented" json:"private,omitempty,commented"`
 
 		// XXX: Version // version of the module?
-	} `toml:"module" json:"module"`
+	} `toml:"module,commented" json:"module,commented"`
 
 	// Develop is the develop section of the gnomod.toml file.
 	//
@@ -43,8 +43,8 @@ type File struct {
 		//
 		// It can link to a different online module path, or a local path.
 		// If this value is set, the module cannot be added to the chain.
-		Replace []Replace `toml:"replace" json:"replace"`
-	} `toml:"develop,omitempty" json:"develop,omitempty"`
+		Replace []Replace `toml:"replace,commented" json:"replace,commented"`
+	} `toml:"develop,omitempty,commented" json:"develop,omitempty,commented"`
 
 	// Gno is the gno section of the gnomod.toml file.
 	//
@@ -53,19 +53,19 @@ type File struct {
 	// It is intended to be set by the `gno` cli when initializing or upgrading
 	// a module.
 	Gno struct {
-		Version string `toml:"version" json:"version"`
-	} `toml:"gno" json:"gno"`
+		Version string `toml:"version,commented" json:"version,commented"`
+	} `toml:"gno,commented" json:"gno,commented"`
 
 	// UploadMetadata is the upload metadata section of the gnomod.toml file.
 	//
 	// Is it filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
 	UploadMetadata struct {
-		Uploader string `toml:"uploader" json:"uploader"` // address
-		Height   int    `toml:"uploaded_at" json:"uploaded_at"`
+		Uploader string `toml:"uploader,omitempty,commented" json:"uploader,omitempty,commented"` // address
+		Height   int    `toml:"height,omitempty,commented" json:"height,omitempty,commented"`
 		// XXX: GnoVersion // gno version at upload time?
 		// XXX: Consider things like IsUsingBanker or other security-awareness flags
-	} `toml:"upload_metadata,omitempty" json:"upload_metadata,omitempty"`
+	} `toml:"upload_metadata,omitempty,commented" json:"upload_metadata,omitempty,commented"`
 }
 
 // Replace is a replace directive for one of the module's dependencies.

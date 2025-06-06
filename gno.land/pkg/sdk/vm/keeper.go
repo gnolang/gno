@@ -19,6 +19,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -346,17 +347,27 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath(err.Error())
 	}
 
-	// XXX: MANFRED
-	/*
-		// extra gnomod validation
-		gm, err := gnomod.ParseMemPackage(memPkg)
-		if err != nil {
-			return ErrInvalidGnomod(err.Error())
+	// --- EXTRA VM-ONLY CHECKS ---
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+	// XXX:
+	/*if gm.Develop != nil {
+		return ErrInvalidPackage("development packages are not allowed")
+	}*/
+	// XXX: get by name
+	for _, f := range memPkg.Files {
+		if f.Name == "gno.mod" {
+			return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
 		}
-		if gm.Module.Path != pkgPath {
-			return ErrInvalidPkgPath("package path must match gnomod.toml path")
-		}
-	*/
+	}
+	// Patch gnomod.toml metadata
+	gm.UploadMetadata.Uploader = creator.String()
+	// XXX: gm.UploadMetadata.Height = ctx.BlockHeight()
+	// Re-encode gnomod.toml in memPkg
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
+	// --- END EXTRA CHECKS ---
 
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)

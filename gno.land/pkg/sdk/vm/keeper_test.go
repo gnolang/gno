@@ -13,6 +13,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -632,4 +633,81 @@ func Test_loadStdlibPackage(t *testing.T) {
 	assert.PanicsWithError(t, `failed loading stdlib "emptystdlib": package has no files`, func() {
 		loadStdlibPackage("emptystdlib", "./testdata", gs)
 	})
+}
+
+func TestVMKeeperAddPackage_DevelopmentModeFails(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+
+	const pkgPath = "gno.land/r/testdev"
+	// gnomod.toml with develop = 1
+	gnomodToml := `[module]
+path = "gno.land/r/testdev"
+
+[gno]
+version = "0.9"
+
+[develop]
+[develop.replace]
+old = "foo"
+new = "bar"
+`
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnomodToml},
+		{Name: "test.gno", Body: `package testdev
+func Echo(cur realm) string { return "dev" }`},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	assert.Error(t, err, ErrInvalidPackage("test"))
+}
+
+func TestVMKeeperAddPackage_PatchGnomodToml(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr2"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+
+	const pkgPath = "gno.land/r/testpatch"
+	gnomodToml := `[module]
+path = "gno.land/r/testpatch"
+
+[gno]
+version = "0.9"
+`
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnomodToml},
+		{Name: "test.gno", Body: `package testpatch
+func Echo(cur realm) string { return "patched" }`},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+
+	// Check that gnomod.toml was patched
+	store := env.vmk.getGnoTransactionStore(ctx)
+
+	memFile := store.GetMemFile(pkgPath, "gnomod.toml")
+	mpkg, err := gnomod.ParseBytes("gnomod.toml", []byte(memFile.Body))
+	require.NoError(t, err)
+	expected := `
+[module]
+  path = "gno.land/r/testpatch"
+
+[gno]
+  version = "0.9"
+
+[upload_metadata]
+  uploader = "g1cq2j7y4utseeatek2alfy5ttaphjrtdx67mg8v"
+`
+	// XXX: custom height
+	assert.Equal(t, expected, mpkg.WriteString())
 }
