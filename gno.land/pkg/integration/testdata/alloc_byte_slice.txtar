@@ -10,9 +10,7 @@ package alloc
 
 var buffer []byte
 
-func DoAlloc() {
-	crossing()
-
- 	buffer := make([]byte, 1_000_000_000_000)
-  buffer[1] = 'a'
+func DoAlloc(cur realm) {
+	buffer := make([]byte, 1_000_000_000_000)
+	buffer[1] = 'a'
 }
