@@ -68,7 +68,7 @@ func WithMemberStorage(s MemberStorage) Option {
 }
 
 // WithActiveProposalStorage assigns a custom storage for active proposals.
-// A default empty proposal storage is used when the custopm storage is nil.
+// A default empty proposal storage is used when the custom storage is nil.
 // Custom storage implementations can be used to store proposals in a different location.
 func WithActiveProposalStorage(s ProposalStorage) Option {
 	return func(dao *CommonDAO) {
