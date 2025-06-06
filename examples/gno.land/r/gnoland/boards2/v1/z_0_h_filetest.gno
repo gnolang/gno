@@ -21,16 +21,16 @@ func init() {
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
-	cross(boards2.InviteMember)(0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
+	boards2.InviteMember(cross, 0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
 
 	testing.SetRealm(std.NewUserRealm(member))
-	cross(users.Register)(name)
+	users.Register(cross, name)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(member))
 
-	bid := cross(boards2.CreateBoard)(name, false)
+	bid := boards2.CreateBoard(cross, name, false)
 	println("ID =", bid)
 }
 

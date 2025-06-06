@@ -19,15 +19,15 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 }
 
 func main() {
 	// Call using a user that has not permission to delete threads
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(boards2.DeleteThread)(bid, pid)
+	boards2.DeleteThread(cross, bid, pid)
 }
 
 // Error:

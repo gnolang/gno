@@ -22,14 +22,14 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := cross(boards2.CreateBoard)(boardName, false)
-	threadID = cross(boards2.CreateThread)(boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross, boardName, false)
+	threadID = boards2.CreateThread(cross, boardID, "Foo", "Body")
 
 	// Create two comments and a reply to a comment
-	cross(boards2.CreateReply)(boardID, threadID, 0, "First comment")
+	boards2.CreateReply(cross, boardID, threadID, 0, "First comment")
 
-	replyID = cross(boards2.CreateReply)(boardID, threadID, 0, "Second comment")
-	cross(boards2.CreateReply)(boardID, threadID, replyID, "Third comment")
+	replyID = boards2.CreateReply(cross, boardID, threadID, 0, "Second comment")
+	boards2.CreateReply(cross, boardID, threadID, replyID, "Third comment")
 }
 
 func main() {

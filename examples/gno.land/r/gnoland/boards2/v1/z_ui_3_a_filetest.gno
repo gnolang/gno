@@ -16,7 +16,7 @@ const (
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.CreateBoard)(boardName, false)
+	boards2.CreateBoard(cross, boardName, false)
 }
 
 func main() {

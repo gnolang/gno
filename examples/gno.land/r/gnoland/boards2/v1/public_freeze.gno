@@ -6,16 +6,12 @@ import (
 )
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.
-func FreezeBoard(boardID BoardID) {
-	crossing()
-
+func FreezeBoard(_ realm, boardID BoardID) {
 	setBoardReadonly(boardID, true)
 }
 
 // UnfreezeBoard removes frozen status from a board.
-func UnfreezeBoard(boardID BoardID) {
-	crossing()
-
+func UnfreezeBoard(_ realm, boardID BoardID) {
 	setBoardReadonly(boardID, false)
 }
 
@@ -28,18 +24,14 @@ func IsBoardFrozen(boardID BoardID) bool {
 // FreezeThread freezes a thread so thread cannot be replied, modified or deleted.
 //
 // Fails if board is frozen.
-func FreezeThread(boardID BoardID, threadID PostID) {
-	crossing()
-
+func FreezeThread(_ realm, boardID BoardID, threadID PostID) {
 	setThreadReadonly(boardID, threadID, true)
 }
 
 // UnfreezeThread removes frozen status from a thread.
 //
 // Fails if board is frozen.
-func UnfreezeThread(boardID BoardID, threadID PostID) {
-	crossing()
-
+func UnfreezeThread(_ realm, boardID BoardID, threadID PostID) {
 	setThreadReadonly(boardID, threadID, false)
 }
 
@@ -57,9 +49,7 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 // UnfreezeReply removes frozen status from a reply.
 //
 // Fails when parent thread or board are frozen.
-func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
-	crossing()
-
+func UnfreezeReply(_ realm, boardID BoardID, threadID, replyID PostID) {
 	// XXX: Is there a use case for also freezing replies?
 	setReplyReadonly(boardID, threadID, replyID, false)
 }
@@ -67,9 +57,7 @@ func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
 // FreezeReply freezes a thread reply so it cannot be modified or deleted.
 //
 // Fails when parent thread or board are frozen.
-func FreezeReply(boardID BoardID, threadID, replyID PostID) {
-	crossing()
-
+func FreezeReply(_ realm, boardID BoardID, threadID, replyID PostID) {
 	setReplyReadonly(boardID, threadID, replyID, true)
 }
 

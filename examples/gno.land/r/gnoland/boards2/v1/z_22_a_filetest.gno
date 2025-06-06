@@ -12,7 +12,7 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.LockRealm)(false)
+	boards2.LockRealm(cross, false)
 
 	println(boards2.IsRealmLocked())
 	println(boards2.AreRealmMembersLocked())

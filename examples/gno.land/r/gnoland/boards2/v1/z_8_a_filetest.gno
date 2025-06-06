@@ -19,13 +19,13 @@ var bid boards2.BoardID
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
+	bid = boards2.CreateBoard(cross, "test-board", false)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	tid := cross(boards2.CreateThread)(bid, title, body)
+	tid := boards2.CreateThread(cross, bid, title, body)
 
 	// Ensure that returned ID is right
 	println(tid == 1)

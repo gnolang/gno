@@ -21,15 +21,15 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-	rid = cross(boards2.CreateReply)(bid, tid, 0, "First comment")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross, bid, tid, 0, "First comment")
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	rid2 := cross(boards2.CreateReply)(bid, tid, rid, comment)
+	rid2 := boards2.CreateReply(cross, bid, tid, rid, comment)
 
 	// Ensure that returned ID is right
 	println(rid2 == 3)

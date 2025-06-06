@@ -16,13 +16,13 @@ const (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(boards2.InviteMember)(bid, member, boards2.RoleAdmin)
+	boards2.InviteMember(cross, bid, member, boards2.RoleAdmin)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.ChangeMemberRole)(bid, member, newRole) // Owner can promote other members to Owner
+	boards2.ChangeMemberRole(cross, bid, member, newRole) // Owner can promote other members to Owner
 
 	// Ensure that new role has been changed to owner
 	println(boards2.HasMemberRole(bid, member, newRole))

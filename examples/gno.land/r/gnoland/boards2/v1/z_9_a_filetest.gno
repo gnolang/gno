@@ -20,14 +20,14 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, title, body)
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	pid = boards2.CreateThread(cross, bid, title, body)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.DeleteThread)(bid, pid)
+	boards2.DeleteThread(cross, bid, pid)
 
 	// Ensure thread doesn't exist
 	println(boards2.Render("test-board/1"))

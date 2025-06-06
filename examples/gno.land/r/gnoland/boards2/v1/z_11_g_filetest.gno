@@ -23,17 +23,17 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	pid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to edit threads
-	cross(boards2.InviteMember)(bid, admin, boards2.RoleAdmin)
+	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(admin))
 
-	cross(boards2.EditThread)(bid, pid, title, body)
+	boards2.EditThread(cross, bid, pid, title, body)
 
 	// Render content must contains thread's title and body
 	content := boards2.Render(path)

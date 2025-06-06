@@ -12,7 +12,7 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	bid := cross(boards2.CreateBoard)("test123", false)
+	bid := boards2.CreateBoard(cross, "test123", false)
 	println("ID =", bid)
 }
 

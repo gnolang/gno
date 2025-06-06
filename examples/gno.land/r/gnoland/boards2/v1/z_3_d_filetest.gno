@@ -12,7 +12,7 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.RenameBoard)("unexisting", "foo")
+	boards2.RenameBoard(cross, "unexisting", "foo")
 }
 
 // Error:

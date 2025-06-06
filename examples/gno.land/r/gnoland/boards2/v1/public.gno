@@ -28,9 +28,7 @@ var (
 )
 
 // SetHelp sets or updates boards realm help content.
-func SetHelp(content string) {
-	crossing()
-
+func SetHelp(_ realm, content string) {
 	content = strings.TrimSpace(content)
 	caller := std.PreviousRealm().Address()
 	args := Args{content}
@@ -40,9 +38,7 @@ func SetHelp(content string) {
 }
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
-func SetPermissions(bid BoardID, p Permissions) {
-	crossing()
-
+func SetPermissions(_ realm, bid BoardID, p Permissions) {
 	assertRealmIsNotLocked()
 
 	if p == nil {
@@ -83,9 +79,7 @@ func SetPermissions(bid BoardID, p Permissions) {
 
 // SetRealmNotice sets a notice to be displayed globally by the realm.
 // An empty message removes the realm notice.
-func SetRealmNotice(message string) {
-	crossing()
-
+func SetRealmNotice(_ realm, message string) {
 	caller := std.PreviousRealm().Address()
 	assertHasPermission(gPerms, caller, PermissionThreadCreate)
 
@@ -99,9 +93,7 @@ func SetRealmNotice(message string) {
 }
 
 // GetBoardIDFromName searches a board by name and returns it's ID.
-func GetBoardIDFromName(name string) (_ BoardID, found bool) {
-	crossing()
-
+func GetBoardIDFromName(_ realm, name string) (_ BoardID, found bool) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		return 0, false
@@ -112,9 +104,7 @@ func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 // CreateBoard creates a new board.
 //
 // Private boards are not included in the list of boards.
-func CreateBoard(name string, private bool) BoardID {
-	crossing()
-
+func CreateBoard(_ realm, name string, private bool) BoardID {
 	assertRealmIsNotLocked()
 
 	name = strings.TrimSpace(name)
@@ -157,9 +147,7 @@ func CreateBoard(name string, private bool) BoardID {
 //
 // A history of previous board names is kept when boards are renamed.
 // Because of that boards are also accesible using previous name(s).
-func RenameBoard(name, newName string) {
-	crossing()
-
+func RenameBoard(_ realm, name, newName string) {
 	assertRealmIsNotLocked()
 
 	newName = strings.TrimSpace(newName)
@@ -194,9 +182,7 @@ func RenameBoard(name, newName string) {
 }
 
 // CreateThread creates a new thread within a board.
-func CreateThread(boardID BoardID, title, body string) PostID {
-	crossing()
-
+func CreateThread(_ realm, boardID BoardID, title, body string) PostID {
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
@@ -227,9 +213,7 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 // CreateReply creates a new comment or reply within a thread.
 //
 // The value of `replyID` is only required when creating a reply of another reply.
-func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
-	crossing()
-
+func CreateReply(_ realm, boardID BoardID, threadID, replyID PostID, body string) PostID {
 	assertRealmIsNotLocked()
 
 	body = strings.TrimSpace(body)
@@ -271,9 +255,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 }
 
 // CreateRepost reposts a thread into another board.
-func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinationBoardID BoardID) PostID {
-	crossing()
-
+func CreateRepost(_ realm, boardID BoardID, threadID PostID, title, body string, destinationBoardID BoardID) PostID {
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
@@ -312,9 +294,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinat
 // DeleteThread deletes a thread from a board.
 //
 // Threads can be deleted by the users who created them or otherwise by users with special permissions.
-func DeleteThread(boardID BoardID, threadID PostID) {
-	crossing()
-
+func DeleteThread(_ realm, boardID BoardID, threadID PostID) {
 	// Council members should always be able to delete
 	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner) // TODO: Add DeleteThread filetest cases for realm owners
@@ -350,9 +330,7 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 // Replies can be deleted by the users who created them or otherwise by users with special permissions.
 // Soft deletion is used when the deleted reply contains sub replies, in which case the reply content
 // is replaced by a text informing that reply has been deleted to avoid deleting sub-replies.
-func DeleteReply(boardID BoardID, threadID, replyID PostID) {
-	crossing()
-
+func DeleteReply(_ realm, boardID BoardID, threadID, replyID PostID) {
 	// Council members should always be able to delete
 	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner) // TODO: Add DeleteReply filetest cases for realm owners
@@ -395,9 +373,7 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 // EditThread updates the title and body of thread.
 //
 // Threads can be updated by the users who created them or otherwise by users with special permissions.
-func EditThread(boardID BoardID, threadID PostID, title, body string) {
-	crossing()
-
+func EditThread(_ realm, boardID BoardID, threadID PostID, title, body string) {
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
@@ -433,9 +409,7 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 // EditReply updates the body of comment or reply.
 //
 // Replies can be updated only by the users who created them.
-func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
-	crossing()
-
+func EditReply(_ realm, boardID BoardID, threadID, replyID PostID, body string) {
 	assertRealmIsNotLocked()
 
 	body = strings.TrimSpace(body)
@@ -472,9 +446,7 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 //
 // A role can optionally be specified to be assigned to the new member.
 // Board ID is only required when inviting a member to a board.
-func InviteMember(boardID BoardID, user std.Address, role Role) {
-	crossing()
-
+func InviteMember(_ realm, boardID BoardID, user std.Address, role Role) {
 	assertUserAddressIsValid(user)
 	assertMembersUpdateIsEnabled(boardID)
 
@@ -501,9 +473,7 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 // RemoveMember removes a member from the realm or a boards.
 //
 // Board ID is only required when removing a member from board.
-func RemoveMember(boardID BoardID, member std.Address) {
-	crossing()
-
+func RemoveMember(_ realm, boardID BoardID, member std.Address) {
 	assertMembersUpdateIsEnabled(boardID)
 	assertMemberAddressIsValid(member)
 
@@ -558,9 +528,7 @@ func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 // ChangeMemberRole changes the role of a realm or board member.
 //
 // Board ID is only required when changing the role for a member of a board.
-func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
-	crossing()
-
+func ChangeMemberRole(_ realm, boardID BoardID, member std.Address, role Role) {
 	assertMemberAddressIsValid(member)
 	assertMembersUpdateIsEnabled(boardID)
 

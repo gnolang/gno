@@ -17,19 +17,19 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Create a board and then add 3 threads
-	boardID := cross(boards2.CreateBoard)(boardName, false)
+	boardID := boards2.CreateBoard(cross, boardName, false)
 
 	// Create thread "A" with a single comment
-	threadID := cross(boards2.CreateThread)(boardID, "A", "Body")
-	cross(boards2.CreateReply)(boardID, threadID, 0, "Body")
+	threadID := boards2.CreateThread(cross, boardID, "A", "Body")
+	boards2.CreateReply(cross, boardID, threadID, 0, "Body")
 
 	// The other 2 threads are created without comments
-	cross(boards2.CreateThread)(boardID, "B", "Body")
-	threadID = cross(boards2.CreateThread)(boardID, "C", "Body")
+	boards2.CreateThread(cross, boardID, "B", "Body")
+	threadID = boards2.CreateThread(cross, boardID, "C", "Body")
 
 	// Repost thread "C" into a different board
-	dstBoardID := cross(boards2.CreateBoard)("Bar", false)
-	cross(boards2.CreateRepost)(boardID, threadID, "Title", "Body", dstBoardID)
+	dstBoardID := boards2.CreateBoard(cross, "Bar", false)
+	boards2.CreateRepost(cross, boardID, threadID, "Title", "Body", dstBoardID)
 }
 
 func main() {

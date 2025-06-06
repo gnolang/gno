@@ -21,18 +21,18 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
 
 	// Create a reply and a sub reply
-	parentRID := cross(boards2.CreateReply)(bid, tid, 0, "Parent")
-	rid = cross(boards2.CreateReply)(bid, tid, parentRID, "Child")
+	parentRID := boards2.CreateReply(cross, bid, tid, 0, "Parent")
+	rid = boards2.CreateReply(cross, bid, tid, parentRID, "Child")
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.EditReply)(bid, tid, rid, body)
+	boards2.EditReply(cross, bid, tid, rid, body)
 
 	// Render content must contain the modified reply
 	content := boards2.Render(path)

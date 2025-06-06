@@ -15,7 +15,7 @@ const (
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.CreateBoard)(name, true)
+	boards2.CreateBoard(cross, name, true)
 
 	// Private board should not be listed
 	println(boards2.Render(""))

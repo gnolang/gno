@@ -21,20 +21,20 @@ var (
 func init() {
 	// Created a board with flagging threshold greater than 1
 	testing.SetRealm(std.NewUserRealm(owner))
-	bid = cross(boards2.CreateBoard)("test-board", false)
-	cross(boards2.SetFlaggingThreshold)(bid, 2)
+	bid = boards2.CreateBoard(cross, "test-board", false)
+	boards2.SetFlaggingThreshold(cross, bid, 2)
 
 	// Create a reply so the realm owner can flag and hide it with a single flag
-	tid = cross(boards2.CreateThread)(bid, "Foo", "bar")
-	rid = cross(boards2.CreateReply)(bid, tid, 0, "body")
+	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
 	// Also freeze board to make sure that realm owner can still flag the reply
-	cross(boards2.FreezeBoard)(bid)
+	boards2.FreezeBoard(cross, bid)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(boards2.FlagReply)(bid, tid, rid, "")
+	boards2.FlagReply(cross, bid, tid, rid, "")
 
 	// Render content must contain a message about the hidden reply
 	content := boards2.Render("test-board/1/2")
