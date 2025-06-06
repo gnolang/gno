@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"strings"
 )
 
 // OpBinary1 defined in op_binary.go
@@ -703,7 +704,22 @@ func (m *Machine) doOpConvert() {
 			// Except allow if xv.T is m.Realm.
 			// XXX do we need/want this?
 		} else {
-			panic("illegal conversion of readonly or externally stored value")
+			// Format map values in a more readable way
+			var valueStr string
+			if mv, ok := xv.V.(*MapValue); ok {
+				valueStr = formatMapValue(mv)
+			} else {
+				valueStr = fmt.Sprintf("%v", xv.V)
+			}
+
+			panic(fmt.Sprintf(
+				"illegal conversion of readonly or externally stored value\n"+
+					"  value: %s\n"+
+					"  type: %s\n"+
+					"  realm: %s\n",
+				valueStr,
+				xv.T,
+				m.Realm.Path))
 		}
 	}
 
@@ -716,11 +732,33 @@ func (m *Machine) doOpConvert() {
 	// a hostile construction converted to look safe.
 	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
 		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
-			panic("illegal conversion to external realm type")
+			panic(fmt.Sprintf(
+				"illegal conversion to external realm type\n"+
+					"  from: %s\n"+
+					"  to: %s\n"+
+					"  current realm: %s\n",
+				xv.T,
+				t,
+				m.Realm.Path))
 		}
 	}
 	// END conversion checks
 
 	ConvertTo(m.Alloc, m.Store, &xv, t, false)
 	m.PushValue(xv)
+}
+
+// Helper function to format map values in a readable way
+func formatMapValue(mv *MapValue) string {
+	if mv == nil {
+		return nilStr
+	}
+
+	var pairs []string
+	// Get all keys and values from the map
+	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		pairs = append(pairs, fmt.Sprintf("  %v: %v", cur.Key, cur.Value))
+	}
+
+	return "{\n" + strings.Join(pairs, ",\n") + "\n}"
 }
