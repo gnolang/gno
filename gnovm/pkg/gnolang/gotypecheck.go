@@ -454,32 +454,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// STEP 4: Type-check Gno0.9 AST in Go (_filetest.gno).
 	for _, tgof := range tgofs {
 		// Each filetest is its own package.
-		// XXX If we're re-parsing the filetest anyways,
-		// change GoParseMemPackage to not parse into tgofs.
-		// tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
 		tpname := tgof.Name.String()
-		pkgPath := mpkg.Path
-		// Construct singleton mempackage for running filetest.
-		tmpkg := &std.MemPackage{Type: MPFiletests, Name: tpname, Path: pkgPath}
-		err := WriteToMemPackage(gofset, []*ast.File{tgof}, tmpkg, true)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error %w", err))
-		}
-		// NOTE: not gnobuiltins/*; gnobuiltins/* don't have filetests.
-		bfile := makeGnoBuiltins(tpname, gnoVersion)
-		tmpkg.AddFile(bfile)
-		gofset2, _, gofs2, _, tgofs2, _ := GoParseMemPackage(tmpkg)
-		if len(gimp.errors) != numErrs {
-			/* NOTE: Uncomment to fail earlier.
-			errs = multierr.Combine(gimp.errors[numErrs:]...)
-			return
-			*/
-			continue
-		}
-		// gofs2 (.gnobuiltins.gno), tgofs2 (*_testfile.gno)
-		gofs2 = append(gofs2, tgofs2...)
+		gmgof.Name = ast.NewIdent(tpname)
+		tgofs2 := []*ast.File{gmgof, tgof}
 		gimp.testing = true // use tgetter for stdlibs, default to tgetter.
-		_, _ = gimp.cfg.Check(tmpkg.Path, gofset2, gofs2, nil)
+		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgofs2, nil)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)

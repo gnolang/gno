@@ -9,7 +9,5 @@ import (
 func TestWhatever(t *testing.T) {
 	whatever := Whatever{}
 	uassert.Equal(t, "whatever", whatever.Whatever())
+	println("whatever")
 }
-
-// Output:
-// whatever
