@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/demo/grc20factory"
+  private = false
+
+[gno]
+  version = "0.9"

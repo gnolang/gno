@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/matijamarjanovic/tokenhub"
+  private = false
+
+[gno]
+  version = "0.9"

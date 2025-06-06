@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/demo/urequire"
+  private = false
+
+[gno]
+  version = "0.9"

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/demo/art/gnoface"
+  private = false
+
+[gno]
+  version = "0.9"

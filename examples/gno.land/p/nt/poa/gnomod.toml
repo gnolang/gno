@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/nt/poa"
+  private = false
+
+[gno]
+  version = "0.9"

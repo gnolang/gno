@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/thox/snowflake"
+  private = false
+
+[gno]
+  version = "0.9"

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/gnoland/faucet"
+  private = false
+
+[gno]
+  version = "0.9"

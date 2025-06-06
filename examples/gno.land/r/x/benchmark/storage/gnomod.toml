@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/x/benchmark/storage"
+  private = false
+
+[gno]
+  version = "0.9"

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/matijamarjanovic/charts"
+  private = false
+
+[gno]
+  version = "0.9"

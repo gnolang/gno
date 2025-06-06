@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/sunspirit/table"
+  private = false
+
+[gno]
+  version = "0.9"

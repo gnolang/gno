@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/gnoland/pages"
+  private = false
+
+[gno]
+  version = "0.9"

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/sys/users"
+  private = false
+
+[gno]
+  version = "0.9"

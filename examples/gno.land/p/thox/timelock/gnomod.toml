@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/thox/timelock"
+  private = false
+
+[gno]
+  version = "0.9"

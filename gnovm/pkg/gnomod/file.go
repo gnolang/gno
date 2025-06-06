@@ -23,7 +23,7 @@ type File struct {
 		// Draft modules:
 		// - are added to the chain at genesis time and cannot be added after.
 		// - cannot be imported by other newly added modules.
-		Draft bool `toml:"draft" json:"draft"`
+		Draft bool `toml:"draft,omitempty,commented" json:"draft,omitempty,commented"`
 
 		// Private indicates that the module is private.
 		//
@@ -44,7 +44,7 @@ type File struct {
 		// It can link to a different online module path, or a local path.
 		// If this value is set, the module cannot be added to the chain.
 		Replace []Replace `toml:"replace" json:"replace"`
-	} `toml:"develop" json:"develop"`
+	} `toml:"develop,omitempty" json:"develop,omitempty"`
 
 	// Gno is the gno section of the gnomod.toml file.
 	//
@@ -65,7 +65,7 @@ type File struct {
 		Height   int    `toml:"uploaded_at" json:"uploaded_at"`
 		// XXX: GnoVersion // gno version at upload time?
 		// XXX: Consider things like IsUsingBanker or other security-awareness flags
-	} `toml:"upload_metadata" json:"upload_metadata"`
+	} `toml:"upload_metadata,omitempty" json:"upload_metadata,omitempty"`
 }
 
 // Replace is a replace directive for one of the module's dependencies.

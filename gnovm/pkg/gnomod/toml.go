@@ -1,6 +1,7 @@
 package gnomod
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/pelletier/go-toml"
@@ -17,9 +18,15 @@ func parseTomlBytes(fname string, data []byte) (*File, error) {
 
 // WriteTomlString writes the gnomod.toml file to a string.
 func (f *File) WriteString() string {
-	buf, err := toml.Marshal(f)
+	buf := bytes.NewBuffer(nil)
+	encoder := toml.NewEncoder(buf)
+	encoder.Order(toml.OrderPreserve)
+	// encoder.PromoteAnonymous(true)
+
+	err := encoder.Encode(f)
 	if err != nil {
 		panic(err)
 	}
-	return string(buf)
+
+	return buf.String()
 }

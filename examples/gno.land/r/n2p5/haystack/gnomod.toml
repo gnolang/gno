@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/n2p5/haystack"
+  private = false
+
+[gno]
+  version = "0.9"

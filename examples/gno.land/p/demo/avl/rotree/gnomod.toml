@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/demo/avl/rotree"
+  private = false
+
+[gno]
+  version = "0.9"

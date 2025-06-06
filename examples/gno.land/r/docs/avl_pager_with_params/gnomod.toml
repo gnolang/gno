@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/docs/avl_pager_params"
+  private = false
+
+[gno]
+  version = "0.9"

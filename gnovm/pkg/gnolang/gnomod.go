@@ -90,52 +90,54 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 		if !d.IsDir() {
 			return nil
 		}
-		modPath := filepath.Join(path, "gnomod.toml")
-		data, err := os.ReadFile(modPath)
-		if os.IsNotExist(err) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		mod, err := gnomod.ParseBytes(modPath, data)
-		if err != nil {
-			return fmt.Errorf("parse: %w", err)
-		}
-		mod.Sanitize()
-		if err := mod.Validate(); err != nil {
-			return fmt.Errorf("failed to validate gnomod.toml in %s: %w", modPath, err)
-		}
-
-		pkg, err := ReadMemPackage(path, mod.Module.Path)
-		if err != nil {
-			// ignore package files on error
-			pkg = &std.MemPackage{}
-		}
-
-		importsMap, err := packages.Imports(pkg, nil)
-		if err != nil {
-			// ignore imports on error
-			importsMap = nil
-		}
-		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
-
-		imports := make([]string, 0, len(importsRaw))
-		for _, imp := range importsRaw {
-			// remove self and standard libraries from imports
-			if imp.PkgPath != mod.Module.Path &&
-				!IsStdlib(imp.PkgPath) {
-				imports = append(imports, imp.PkgPath)
+		for _, fname := range []string{"gnomod.toml", "gno.mod"} {
+			modPath := filepath.Join(path, fname)
+			data, err := os.ReadFile(modPath)
+			if os.IsNotExist(err) {
+				continue
 			}
-		}
+			if err != nil {
+				return err
+			}
 
-		pkgs = append(pkgs, gnomod.Pkg{
-			Dir:     path,
-			Name:    mod.Module.Path,
-			Draft:   mod.Module.Draft,
-			Imports: imports,
-		})
+			mod, err := gnomod.ParseBytes(modPath, data)
+			if err != nil {
+				return fmt.Errorf("parse: %w", err)
+			}
+			mod.Sanitize()
+			if err := mod.Validate(); err != nil {
+				return fmt.Errorf("failed to validate gnomod.toml in %s: %w", modPath, err)
+			}
+
+			pkg, err := ReadMemPackage(path, mod.Module.Path)
+			if err != nil {
+				// ignore package files on error
+				pkg = &std.MemPackage{}
+			}
+
+			importsMap, err := packages.Imports(pkg, nil)
+			if err != nil {
+				// ignore imports on error
+				importsMap = nil
+			}
+			importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+
+			imports := make([]string, 0, len(importsRaw))
+			for _, imp := range importsRaw {
+				// remove self and standard libraries from imports
+				if imp.PkgPath != mod.Module.Path &&
+					!IsStdlib(imp.PkgPath) {
+					imports = append(imports, imp.PkgPath)
+				}
+			}
+
+			pkgs = append(pkgs, gnomod.Pkg{
+				Dir:     path,
+				Name:    mod.Module.Path,
+				Draft:   mod.Module.Draft,
+				Imports: imports,
+			})
+		}
 		return nil
 	})
 	if err != nil {

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/moul/microposts"
+  private = false
+
+[gno]
+  version = "0.9"

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/demo/math_eval"
+  private = false
+
+[gno]
+  version = "0.9"

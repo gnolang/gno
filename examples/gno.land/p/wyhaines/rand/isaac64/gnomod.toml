@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/wyhaines/rand/isaac64"
+  private = false
+
+[gno]
+  version = "0.9"

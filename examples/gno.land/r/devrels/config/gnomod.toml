@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/devrels/config"
+  private = false
+
+[gno]
+  version = "0.9"

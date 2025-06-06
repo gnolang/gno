@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/sys/genesis"
+  private = false
+
+[gno]
+  version = "0.9"

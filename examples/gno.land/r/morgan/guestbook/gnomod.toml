@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/morgan/guestbook"
+  private = false
+
+[gno]
+  version = "0.9"

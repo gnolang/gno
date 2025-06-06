@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/nt/commondao"
+  private = false
+
+[gno]
+  version = "0.9"

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/moul/ulist/lplist"
+  private = false
+
+[gno]
+  version = "0.9"

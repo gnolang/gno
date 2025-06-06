@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/demo/entropy"
+  private = false
+
+[gno]
+  version = "0.9"

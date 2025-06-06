@@ -1,0 +1,8 @@
+
+[module]
+  path = "gno.land/r/jaekwon/dao"
+  draft = true
+  private = false
+
+[gno]
+  version = ""

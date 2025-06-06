@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/sys/validators/v2"
+  private = false
+
+[gno]
+  version = "0.9"

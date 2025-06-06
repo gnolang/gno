@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/demo/microblog"
+  private = false
+
+[gno]
+  version = "0.9"

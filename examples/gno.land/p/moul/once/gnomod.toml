@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/moul/once"
+  private = false
+
+[gno]
+  version = "0.9"

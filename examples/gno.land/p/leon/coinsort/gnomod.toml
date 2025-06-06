@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/leon/coinsort"
+  private = false
+
+[gno]
+  version = "0.9"

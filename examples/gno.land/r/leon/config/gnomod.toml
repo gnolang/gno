@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/leon/config"
+  private = false
+
+[gno]
+  version = "0.9"

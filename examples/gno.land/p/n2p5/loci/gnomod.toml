@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/n2p5/loci"
+  private = false
+
+[gno]
+  version = "0.9"

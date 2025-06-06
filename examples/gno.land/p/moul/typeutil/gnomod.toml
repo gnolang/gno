@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/moul/typeutil"
+  private = false
+
+[gno]
+  version = "0.9"

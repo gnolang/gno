@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/demo/deep/very/deep"
+  private = false
+
+[gno]
+  version = "0.9"

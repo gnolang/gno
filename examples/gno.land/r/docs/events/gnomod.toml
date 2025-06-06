@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/docs/events"
+  private = false
+
+[gno]
+  version = "0.9"

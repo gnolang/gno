@@ -340,21 +340,38 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 }
 
 func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
-	fpath := filepath.Join(pkgdir, "gno.mod")
-	relpath, err := filepath.Rel(wd, fpath)
-	if err != nil {
-		return err
-	}
-	if cfg.verbose {
-		io.ErrPrintfln("%s", relpath)
+	for _, fname := range []string{"gnomod.toml", "gno.mod"} {
+		fpath := filepath.Join(pkgdir, fname)
+		if !isFileExist(fpath) {
+			continue
+		}
+
+		relpath, err := filepath.Rel(wd, fpath)
+		if err != nil {
+			return err
+		}
+		if cfg.verbose {
+			io.ErrPrintfln("%s", relpath)
+		}
+
+		gm, err := gnomod.ParseFilepath(fpath)
+		if err != nil {
+			return err
+		}
+
+		if fname == "gno.mod" {
+			// migrate from gno.mod to gnomod.toml
+			newPath := filepath.Join(pkgdir, "gnomod.toml")
+			gm.WriteFile(newPath) // gnomod.toml
+		} else {
+			gm.WriteFile(fpath) // gnomod.toml
+		}
 	}
 
-	gm, err := gnomod.ParseFilepath(fpath)
-	if err != nil {
-		return err
-	}
+	// remove gno.mod if it exists.
+	oldpath := filepath.Join(pkgdir, "gno.mod")
+	os.Remove(oldpath)
 
-	gm.WriteFile(fpath)
 	return nil
 }
 

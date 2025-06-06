@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/demo/boards"
+  private = false
+
+[gno]
+  version = "0.9"

@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/gov/dao/v3/init"
+  private = false
+
+[gno]
+  version = "0.9"

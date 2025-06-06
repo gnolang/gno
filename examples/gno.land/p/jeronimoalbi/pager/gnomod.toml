@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/jeronimoalbi/pager"
+  private = false
+
+[gno]
+  version = "0.9"

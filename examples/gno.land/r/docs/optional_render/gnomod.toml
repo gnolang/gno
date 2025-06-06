@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/docs/optional_render"
+  private = false
+
+[gno]
+  version = "0.9"

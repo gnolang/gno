@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/r/x/skip_height_to_skip_time"
+  private = false
+
+[gno]
+  version = "0.9"

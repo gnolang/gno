@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/demo/todolist"
+  private = false
+
+[gno]
+  version = "0.9"

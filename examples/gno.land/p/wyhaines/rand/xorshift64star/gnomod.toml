@@ -1,0 +1,7 @@
+
+[module]
+  path = "gno.land/p/wyhaines/rand/xorshift64star"
+  private = false
+
+[gno]
+  version = "0.9"
