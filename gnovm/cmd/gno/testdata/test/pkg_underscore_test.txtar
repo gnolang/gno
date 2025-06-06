@@ -20,7 +20,8 @@ stderr '=== RUN   ./examples/gno.land/p/demo/hello/z0_filetest.*'
 [module]
 path = "gno.land/p/demo/hello"
 
-gno 0.9
+[gno]
+version = "0.9"
 -- examples/gno.land/p/demo/hello/hello.gno --
 package hello
 
