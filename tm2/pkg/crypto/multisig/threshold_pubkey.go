@@ -34,7 +34,7 @@ func NewPubKeyMultisigThreshold(k int, pubkeys []crypto.PubKey) crypto.PubKey {
 }
 
 func (pk PubKeyMultisigThreshold) String() string {
-	var pubKeys []string
+	pubKeys := make([]string, 0, len(pk.PubKeys))
 	for _, key := range pk.PubKeys {
 		pubKeys = append(pubKeys, key.String())
 	}
