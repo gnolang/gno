@@ -285,6 +285,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			}
+			///////////////////////////////////
 			// Run the tests found in the mpkg.
 			errs := test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {

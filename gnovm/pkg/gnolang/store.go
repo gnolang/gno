@@ -330,6 +330,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 }
 
 // Used to set throwaway packages.
+// NOTE: To check whether a mem package has been run, use GetMemPackage()
+// instead of implementing HasCachePackage().
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	oid := ObjectIDFromPkgPath(pv.PkgPath)
 	if _, exists := ds.cacheObjects[oid]; exists {

@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"go/types"
 	"path"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -445,14 +444,15 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage) (
 		// Each filetest is its own package.
 		// XXX If we're re-parsing the filetest anyways,
 		// change GoParseMemPackage to not parse into tgofs.
-		tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
+		// tfname := filepath.Base(gofset.File(tgof.Pos()).Name())
 		tpname := tgof.Name.String()
-		tfile := mpkg.GetFile(tfname)
-		// XXX If filetest are having issues, consider this:
-		// pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 		pkgPath := mpkg.Path
+		// Construct singleton mempackage for running filetest.
 		tmpkg := &std.MemPackage{Type: MPFiletests, Name: tpname, Path: pkgPath}
-		tmpkg.NewFile(tfname, tfile.Body)
+		err := WriteToMemPackage(gofset, []*ast.File{tgof}, tmpkg, true)
+		if err != nil {
+			panic(fmt.Sprintf("unexpected error %w", err))
+		}
 		// NOTE: not gnobuiltins/*; gnobuiltins/* don't have filetests.
 		bfile := makeGnoBuiltins(tpname, gnoVersion)
 		tmpkg.AddFile(bfile)

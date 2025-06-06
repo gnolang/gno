@@ -222,21 +222,35 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	// Create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
+	// tests. This allows us to "export" symbols from the pkg tests and
+	// import them from the `pkg_test` tests.
+	cw := opts.BaseStore.CacheWrap()
+	gs := opts.TestStore.BeginTransaction(cw, cw, nil)
+
 	// Let opts.TestStore load itself.
 	// This needs to happen before LoadImports, as LoadImports will
 	// otherwise only load without *_test.gno files (but we want them for
 	// mpkg since we're running tests on them).
-	opts.TestStore.AddMemPackage(mpkg, gno.MPAny)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: mpkg.Path,
 		Output:  os.Stdout,
-		Store:   opts.TestStore,
+		Store:   gs,
+		Context: Context("", mpkg.Path, nil),
+		// When testing examples we will find them, so pv, pn, file
+		// block nodes would otherwise become set, but for running
+		// tests on packages not known by the store, it will construct
+		// new packages by default, which we don't want.  Instead we
+		// will run the mempackage ourselves in the next line.
+		SkipPackage: true,
 	})
-	_, _ = m2.RunMemPackageWithOverrides(mpkg, true)
+	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
+	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
+	_, _ = m2.RunMemPackageWithOverrides(tmpkg, true)
 
 	// Eagerly load imports.
 	abortOnError := true
-	if err := LoadImports(opts.TestStore, mpkg, abortOnError); err != nil {
+	if err := LoadImports(gs, mpkg, abortOnError); err != nil {
 		return err
 	}
 
@@ -247,11 +261,6 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
-		// Create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
-		// tests. This allows us to "export" symbols from the pkg tests and
-		// import them from the `pkg_test` tests.
-		cw := opts.BaseStore.CacheWrap()
-		gs := opts.TestStore.BeginTransaction(cw, cw, nil)
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
