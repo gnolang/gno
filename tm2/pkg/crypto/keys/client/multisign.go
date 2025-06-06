@@ -122,7 +122,18 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to unmarshal transaction, %w", err)
 	}
 
-	multisignature := multisig.NewMultisig(len(cfg.Signatures))
+	var (
+		pubKey = info.GetPubKey()
+
+		// TODO add comment
+		multisigPub = pubKey.(multisig.PubKeyMultisigThreshold)
+		multisigSig = multisig.NewMultisig(len(multisigPub.PubKeys))
+
+		sig = &std.Signature{
+			PubKey:    pubKey,
+			Signature: multisigSig.Marshal(),
+		}
+	)
 
 	for index, sigPath := range cfg.Signatures {
 		// Load the signature
@@ -137,18 +148,8 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 		}
 
 		// Add it to the multisig
-		multisignature.AddSignature(sig.Signature, index)
+		multisigSig.AddSignature(sig.Signature, index)
 	}
-
-	var (
-		pubKey = info.GetPubKey()
-		sigBz  = multisignature.Marshal()
-
-		sig = &std.Signature{
-			PubKey:    pubKey,
-			Signature: sigBz,
-		}
-	)
 
 	// Add the multisig signature
 	if err = addSignature(&tx, sig); err != nil {
