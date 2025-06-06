@@ -18,18 +18,18 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	cross(users.Register)("gnouser123")
+	users.Register(cross, "gnouser123")
 
-	bid = cross(boards.CreateBoard)("test_board")
-	cross(boards.CreateThread)(bid, "First Post (title)", "Body of the first post. (body)")
-	pid = cross(boards.CreateThread)(bid, "Second Post (title)", "Body of the second post. (body)")
-	rid := cross(boards.CreateReply)(bid, pid, pid, "Reply of the second post")
+	bid = boards.CreateBoard(cross, "test_board")
+	boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
+	pid = boards.CreateThread(cross, bid, "Second Post (title)", "Body of the second post. (body)")
+	rid := boards.CreateReply(cross, bid, pid, pid, "Reply of the second post")
 	println(rid)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
-	rid2 := cross(boards.CreateReply)(bid, pid, pid, "Second reply of the second post")
+	rid2 := boards.CreateReply(cross, bid, pid, pid, "Second reply of the second post")
 	println(rid2)
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }

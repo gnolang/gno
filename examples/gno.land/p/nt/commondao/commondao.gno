@@ -235,7 +235,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	if err == nil {
 		// Execute proposal only if it's executable
 		if e, ok := p.Definition().(Executable); ok {
-			err = cross(e.Execute)()
+			err = e.Execute(cross)
 		}
 	}
 
