@@ -56,7 +56,7 @@ type Debugger struct {
 	breakpoints []Location                  // list of breakpoints set by user, as source locations
 	call        []Location                  // for function tracking, ideally should be provided by machine frame
 	blocks      []*Block                    // machine last blocks depth at each call level (for up & down)
-	frameLevel  int                         //
+	frameLevel  int                         // frame level of the current machine instruction
 	nextDepth   int                         // function call depth at the 'next' command
 	getSrc      func(string, string) string // helper to access source from repl or others
 	rootDir     string
@@ -351,7 +351,7 @@ func debugBreak(m *Machine, arg string) error {
 
 func printBreakpoint(m *Machine, i int) {
 	b := m.Debugger.breakpoints[i]
-	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s\n", i, b.PkgPath, b)
+	fmt.Fprintf(m.Debugger.out, "Breakpoint %d at %s %s\n", i, b.PkgPath, locString(b))
 }
 
 func parseLocSpec(m *Machine, arg string) (loc Location, err error) {
@@ -549,14 +549,14 @@ func debugList(m *Machine, arg string) (err error) {
 		debugLineInfo(m)
 		if m.Debugger.lastCmd == "up" || m.Debugger.lastCmd == "down" {
 			loc = debugFrameLoc(m, m.Debugger.frameLevel)
-			fmt.Fprintf(m.Debugger.out, "Frame %d: %s\n", m.Debugger.frameLevel, loc)
+			fmt.Fprintf(m.Debugger.out, "Frame %d: %s\n", m.Debugger.frameLevel, locString(loc))
 		}
 	} else {
 		if loc, err = parseLocSpec(m, arg); err != nil {
 			return err
 		}
 		hideCursor = true
-		fmt.Fprintf(m.Debugger.out, "Showing %s\n", loc)
+		fmt.Fprintf(m.Debugger.out, "Showing %s\n", locString(loc))
 	}
 	if loc.File == "" && (m.Debugger.lastCmd == "list" || m.Debugger.lastCmd == "l") {
 		return errors.New("unknown source file")
@@ -593,7 +593,7 @@ func debugLineInfo(m *Machine) {
 			line += "." + string(f.Func.Name) + "()"
 		}
 	}
-	fmt.Fprintf(m.Debugger.out, "> %s %s\n  %s\n", line, m.Debugger.loc, m.Realm)
+	fmt.Fprintf(m.Debugger.out, "> %s %s\n  Realm: %q\n", line, locString(m.Debugger.loc), m.Realm.Path)
 }
 
 func isMemPackage(st Store, pkgPath string) bool {
@@ -740,9 +740,10 @@ func debugLookup(m *Machine, name string) (tv TypedValue, err error) {
 
 	block := m.LastBlock()
 	if m.Debugger.frameLevel > 0 {
+		// Adjust block to the frameLevel set by 'up' or 'down' command.
 		block = m.Debugger.blocks[len(m.Debugger.blocks)-m.Debugger.frameLevel]
 	}
-	// A failure in GetPathForName() or GetPointerTo() will result in a recovered panic error.
+	// In case of failure, GetPathForName() or GetPointerTo() will panic (recovered above).
 	vp := block.GetSource(m.Store).GetPathForName(m.Store, Name(name))
 	tv = block.GetPointerTo(m.Store, vp).Deref()
 	return tv, err
@@ -768,10 +769,17 @@ func debugStack(m *Machine, arg string) error {
 		} else {
 			fname = fmt.Sprintf("%v.%v", ff.PkgPath, ff.Name)
 		}
-		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s\n\t%s\n", i, fname, loc, realm)
+		fmt.Fprintf(m.Debugger.out, "%d\tin %s\n\tat %s\n\tRealm: %q\n", i, fname, locString(loc), realm.Path)
 		i++
 	}
 	return nil
+}
+
+func locString(loc Location) string {
+	if loc.File == "" {
+		return fmt.Sprintf("%s:%s", loc.PkgPath, loc.Pos)
+	}
+	return fmt.Sprintf("%s/%s:%s", loc.PkgPath, loc.File, loc.Pos)
 }
 
 func debugFrameFunc(m *Machine, n int) (*FuncValue, *Realm) {
