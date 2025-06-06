@@ -1,7 +1,6 @@
 package multisig
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -34,12 +33,12 @@ func NewPubKeyMultisigThreshold(k int, pubkeys []crypto.PubKey) crypto.PubKey {
 }
 
 func (pk PubKeyMultisigThreshold) String() string {
-	pubKeys := make([]string, 0, len(pk.PubKeys))
-	for _, key := range pk.PubKeys {
-		pubKeys = append(pubKeys, key.String())
+	pubKeys := make([]string, len(pk.PubKeys))
+	for i, key := range pk.PubKeys {
+		pubKeys[i] = key.String()
 	}
 
-	return fmt.Sprintf("[%s]", strings.Join(pubKeys, ", "))
+	return "[" + strings.Join(pubKeys, ", ") + "]"
 }
 
 // VerifyBytes expects sig to be an amino encoded version of a MultiSignature.
