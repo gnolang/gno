@@ -16,7 +16,7 @@ var daoID uint64
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
@@ -33,7 +33,7 @@ func main() {
 	// Call with a user that is not a member of the DAO
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(commondao.CreateSubDAOProposal)(daoID, "", "")
+	commondao.CreateSubDAOProposal(cross, daoID, "", "")
 }
 
 // Error:

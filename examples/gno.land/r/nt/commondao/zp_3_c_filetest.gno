@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	cross(commondao.CreateDissolutionProposal)(404)
+	commondao.CreateDissolutionProposal(cross, 404)
 }
 
 // Error:

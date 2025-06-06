@@ -115,9 +115,7 @@ func (membersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members com
 	return false, nil
 }
 
-func (p membersPropDefinition) Execute() error {
-	crossing()
-
+func (p membersPropDefinition) Execute(realm) error {
 	members := p.dao.Members()
 
 	p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {

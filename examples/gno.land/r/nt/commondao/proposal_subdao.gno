@@ -92,9 +92,7 @@ func (subDAOPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members comm
 	return false, nil
 }
 
-func (p subDAOPropDefinition) Execute() error {
-	crossing()
-
+func (p subDAOPropDefinition) Execute(realm) error {
 	subDAO := createSubDAO(p.parent, p.name)
 
 	if p.members != nil {
@@ -153,9 +151,7 @@ func (dissolvePropDefinition) Tally(r commondao.ReadonlyVotingRecord, members co
 	return false, nil
 }
 
-func (p dissolvePropDefinition) Execute() error {
-	crossing()
-
+func (p dissolvePropDefinition) Execute(realm) error {
 	p.dao.SetDeleted(true)
 	return nil
 }

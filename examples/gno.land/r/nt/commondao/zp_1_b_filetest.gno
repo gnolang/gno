@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	cross(commondao.CreateTextProposal)(404, "", "", 0)
+	commondao.CreateTextProposal(cross, 404, "", "", 0)
 }
 
 // Error:

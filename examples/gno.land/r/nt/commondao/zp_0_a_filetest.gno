@@ -20,7 +20,7 @@ var dao *pcommondao.CommonDAO
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
@@ -34,7 +34,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	pID := cross(commondao.CreateMembersUpdateProposal)(dao.ID(), newMembers, removeMembers)
+	pID := commondao.CreateMembersUpdateProposal(cross, dao.ID(), newMembers, removeMembers)
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {
