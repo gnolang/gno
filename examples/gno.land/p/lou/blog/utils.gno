@@ -138,7 +138,7 @@ func formatTime(t time.Time, format string) string {
 	case "full":
 		return t.Format("January 02, 2006 at 3:04 PM")
 	default:
-		return t.Format("January 02 2006")
+		return calculateTimeSince(t)
 	}
 }
 
@@ -147,14 +147,29 @@ func calculateTimeSince(t time.Time) string {
 	if duration < time.Minute {
 		return "just now"
 	} else if duration < time.Hour {
+		if duration < 2*time.Minute {
+			return "a minute ago"
+		}
 		return ufmt.Sprintf("%d minutes ago", int(duration.Minutes()))
 	} else if duration < 24*time.Hour {
+		if duration < 2*time.Hour {
+			return "an hour ago"
+		}
 		return ufmt.Sprintf("%d hours ago", int(duration.Hours()))
 	} else if duration < 7*24*time.Hour {
+		if duration < 2*24*time.Hour {
+			return "a day ago"
+		}
 		return ufmt.Sprintf("%d days ago", int(duration.Hours()/24))
 	} else if duration < 30*24*time.Hour {
+		if duration < 2*7*24*time.Hour {
+			return "a week ago"
+		}
 		return ufmt.Sprintf("%d weeks ago", int(duration.Hours()/(7*24)))
 	} else {
+		if duration < 2*30*24*time.Hour {
+			return "a month ago"
+		}
 		return ufmt.Sprintf("%d months ago", int(duration.Hours()/(30*24)))
 	}
 }

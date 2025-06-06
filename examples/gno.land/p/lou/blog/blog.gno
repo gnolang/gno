@@ -19,10 +19,10 @@ type Blog struct {
 	PostId           seqid.ID
 	PostsBySlug      *avl.Tree // slug --> *Post
 	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
-	TagsIndex        *avl.Tree // tagName -> int
-	TagsSorted       *avl.Tree // "<count>::tag" => tag
-	AuthorsIndex     *avl.Tree // authorAddress -> int
-	AuthorsSorted    *avl.Tree // "<count>::author" => author
+	TagsIndex        *avl.Tree // tagName --> int
+	TagsSorted       *avl.Tree // "<count>::tag" --> tag
+	AuthorsIndex     *avl.Tree // authorAddress --> int
+	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -332,7 +332,7 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
 		if hasField(post.Tags, tag) {
-			out += post.RenderPreview(false, "short", b.Prefix) + "\n"
+			out += post.RenderPreview(false, "relative", b.Prefix) + "\n"
 			exists = true
 		}
 	}
@@ -382,7 +382,7 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	page = p.MustGetPageByPath(req.RawPath)
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
-		out += post.RenderPreview(false, "short", b.Prefix) + "\n"
+		out += post.RenderPreview(false, "relative", b.Prefix) + "\n"
 	}
 	if !exists {
 		out += "No posts found for this author."
@@ -414,26 +414,6 @@ func (b Blog) Mention(role, recipient string) string {
 }
 
 func (b *Blog) addToIndex(post *Post) {
-	// for _, tag := range post.Tags {
-	// 	foundTag, exists := b.TagsIndex.Get(tag)
-	// 	if !exists {
-	// 		b.TagsIndex.Set(tag, 1)
-	// 	} else {
-	// 		tagChange := foundTag.(int)
-	// 		tagChange++
-	// 		b.TagsIndex.Set(tag, tagChange)
-	// 	}
-	// }
-	// for _, author := range post.Authors {
-	// 	foundAuthor, exists := b.AuthorsIndex.Get(author)
-	// 	if !exists {
-	// 		b.AuthorsIndex.Set(author, 1)
-	// 	} else {
-	// 		authorChange := foundAuthor.(int)
-	// 		authorChange++
-	// 		b.AuthorsIndex.Set(author, authorChange)
-	// 	}
-	// }
 	for _, tag := range post.Tags {
 		oldCount := 0
 		if val, found := b.TagsIndex.Get(tag); found {
