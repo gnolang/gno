@@ -229,7 +229,13 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// Stands for "test", "integration test", and "filetest".
 	// "integration test" are the test files with `package xxx_test` (they are
 	// not necessarily integration tests, it's just for our internal reference.)
+
+	// (Losborn) Just an idea: maybe we should change these to:
+	// whiteBoxParsed, blackBoxParsed, blackBoxFiles, fileTestFiles?
+	// (not the classical definition of "black box testing," but it is
+	// the terminology Golang uses.)
 	tset, itset, itfiles, ftfiles := parseMemPackageTests(mpkg)
+	totalTestsFound := len(ftfiles)
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
@@ -241,7 +247,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(mpkg, tset, gs)
+			testsFound, err := opts.runTestFiles(mpkg, tset, gs)
+			totalTestsFound += testsFound
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -255,7 +262,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, gs)
+			testsFound, err := opts.runTestFiles(itPkg, itset, gs)
+			totalTestsFound += testsFound
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -263,44 +271,47 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	}
 
 	// Testing with *_filetest.gno.
-	if len(ftfiles) > 0 {
-		filter := splitRegexp(opts.RunFlag)
-		for _, testFile := range ftfiles {
-			testFileName := testFile.Name
-			testFilePath := filepath.Join(fsDir, testFileName)
-			// XXX consider this
-			testName := fsDir + "/" + testFileName
-			// testName := "file/" + testFileName
-			if !shouldRun(filter, testName) {
-				continue
-			}
-
-			startedAt := time.Now()
-			if opts.Verbose {
-				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
-			}
-
-			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
-			if changed != "" {
-				// Note: changed always == "" if opts.Sync == false.
-				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
-				if err != nil {
-					panic(fmt.Errorf("could not fix golden file: %w", err))
-				}
-			}
-
-			duration := time.Since(startedAt)
-			dstr := fmtDuration(duration)
-			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
-				fmt.Fprintln(opts.Error, err.Error())
-				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
-			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
-			}
-
-			// XXX: add per-test metrics
+	filter := splitRegexp(opts.RunFlag)
+	for _, testFile := range ftfiles {
+		testFileName := testFile.Name
+		testFilePath := filepath.Join(fsDir, testFileName)
+		// XXX consider this
+		testName := fsDir + "/" + testFileName
+		// testName := "file/" + testFileName
+		if !shouldRun(filter, testName) {
+			continue
 		}
+
+		startedAt := time.Now()
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
+		}
+
+		changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
+		if changed != "" {
+			// Note: changed always == "" if opts.Sync == false.
+			err = os.WriteFile(testFilePath, []byte(changed), 0o644)
+			if err != nil {
+				panic(fmt.Errorf("could not fix golden file: %w", err))
+			}
+		}
+
+		duration := time.Since(startedAt)
+		dstr := fmtDuration(duration)
+		if err != nil {
+			fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
+			fmt.Fprintln(opts.Error, err.Error())
+			errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
+		} else if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
+		}
+
+		// XXX: add per-test metrics
+	}
+
+	if totalTestsFound < 1 { // This is wrong... need to only print warning if no tests were already run.
+		fmt.Fprintln(opts.Error, "testing: warning: no tests to run")
+		fmt.Fprintln(opts.Error, "PASS")
 	}
 
 	return errs
@@ -310,7 +321,7 @@ func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,
 	gs gno.TransactionStore,
-) (errs error) {
+) (testsFound int, errs error) {
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
@@ -326,6 +337,7 @@ func (opts *TestOptions) runTestFiles(
 	}()
 
 	tests := loadTestFuncs(mpkg.Name, files)
+	testsFound = len(tests)
 
 	var alloc *gno.Allocator
 	if opts.Metrics {
@@ -470,7 +482,7 @@ func (opts *TestOptions) runTestFiles(
 			err := fmt.Errorf("failed: %q", tf.Name)
 			errs = multierr.Append(errs, err)
 			if opts.FailfastFlag {
-				return errs
+				return testsFound, errs
 			}
 		}
 
@@ -492,7 +504,7 @@ func (opts *TestOptions) runTestFiles(
 		}
 	}
 
-	return errs
+	return testsFound, errs
 }
 
 // report is a mirror of Gno's stdlibs/testing.Report.
