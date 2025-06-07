@@ -362,6 +362,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
+	// _, ts := test.TestStore(gnoenv.RootDir(), io.Discard)
 	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gnostore, gno.TCLatestStrict)
 	if err != nil {
 		return ErrTypeCheck(err)

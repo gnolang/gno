@@ -210,7 +210,7 @@ func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	err := gno.ValidateMemPackage(mpkg)
+	err := gno.ValidateMemPackageForType(mpkg, gno.MPAll)
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}
