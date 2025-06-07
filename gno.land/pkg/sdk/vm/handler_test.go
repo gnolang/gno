@@ -67,7 +67,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		// valid queries
 		{input: []byte(`gno.land/r/hello.Echo("hello")`), expectedResult: `("echo:hello" string)`},
 		{input: []byte(`gno.land/r/hello.caller()`), expectedResult: `("" .uverse.address)`}, // FIXME?
-		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(0 int64)`},
+		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(42 int64)`},
 		// {input: []byte(`gno.land/r/hello.time.RFC3339`), expectedResult: `test`}, // not working, but should we care?
 		{input: []byte(`gno.land/r/hello.PubString`), expectedResult: `("public string" string)`},
 		{input: []byte(`gno.land/r/hello.ConstString`), expectedResult: `("const string" string)`},

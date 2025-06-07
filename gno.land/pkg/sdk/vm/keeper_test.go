@@ -653,7 +653,7 @@ path = "gno.land/r/testdev"
 version = "0.9"
 
 [develop]
-[develop.replace]
+[[develop.replace]]
 old = "foo"
 new = "bar"
 `
@@ -664,7 +664,7 @@ func Echo(cur realm) string { return "dev" }`},
 	}
 	msg := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg)
-	assert.Error(t, err, ErrInvalidPackage("test"))
+	assert.Error(t, err, ErrInvalidPackage(""))
 }
 
 func TestVMKeeperAddPackage_PatchGnomodToml(t *testing.T) {
@@ -707,6 +707,7 @@ func Echo(cur realm) string { return "patched" }`},
 
 [upload_metadata]
   uploader = "g1cq2j7y4utseeatek2alfy5ttaphjrtdx67mg8v"
+  height = 42
 `
 	// XXX: custom height
 	assert.Equal(t, expected, mpkg.WriteString())

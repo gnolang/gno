@@ -347,28 +347,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath(err.Error())
 	}
 
-	// --- EXTRA VM-ONLY CHECKS ---
-	gm, err := gnomod.ParseMemPackage(memPkg)
-	if err != nil {
-		return ErrInvalidPackage(err.Error())
-	}
-	// XXX:
-	/*if gm.Develop != nil {
-		return ErrInvalidPackage("development packages are not allowed")
-	}*/
-	// XXX: get by name
-	for _, f := range memPkg.Files {
-		if f.Name == "gno.mod" {
-			return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
-		}
-	}
-	// Patch gnomod.toml metadata
-	gm.UploadMetadata.Uploader = creator.String()
-	// XXX: gm.UploadMetadata.Height = ctx.BlockHeight()
-	// Re-encode gnomod.toml in memPkg
-	memPkg.SetFile("gnomod.toml", gm.WriteString())
-	// --- END EXTRA CHECKS ---
-
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
@@ -390,6 +368,26 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
+
+	// Extra keeper-only checks.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+	// no development packages.
+	if gm.Develop.Replace != nil {
+		return ErrInvalidPackage("development packages are not allowed")
+	}
+	// no gno.mod file.
+	if memPkg.GetFile("gno.mod") != nil {
+		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+
+	// Patch gnomod.toml metadata
+	gm.UploadMetadata.Uploader = creator.String()
+	gm.UploadMetadata.Height = int(ctx.BlockHeight())
+	// Re-encode gnomod.toml in memPkg
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)

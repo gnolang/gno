@@ -70,8 +70,8 @@ func TestAddPkgDeliverTx(t *testing.T) {
 
 	assert.True(t, res.IsOK())
 
-	// NOTE: let's try to keep this bellow 150_000 :)
-	assert.Equal(t, int64(140989), gasDeliver)
+	// NOTE: let's try to keep this below 150_000 :)
+	assert.Equal(t, int64(141093), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
