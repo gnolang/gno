@@ -23,14 +23,13 @@ import (
 // RunFiletest executes the program in source as a filetest.
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
-func (opts *TestOptions) RunFiletest(fname string, source []byte) (string, error) {
+func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
-
-	return opts.runFiletest(fname, source)
+	return opts.runFiletest(fname, source, tgs)
 }
 
-func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error) {
+func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
@@ -55,10 +54,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error
 	}
 
 	// Create machine for execution and run test
-	cw := opts.BaseStore.CacheWrap()
+	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         opts.TestStore.BeginTransaction(cw, cw, nil),
+		Store:         tgs.BeginTransaction(tcw, tcw, nil),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		Debug:         opts.Debug,
