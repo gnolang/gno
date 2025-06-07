@@ -174,7 +174,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 // It creates and returns a list of transactions based on these packages.
 func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
-	pkgs, err := gno.ReadPkgListFromDir(dir)
+	pkgs, err := gno.ReadPkgListFromDir(dir, gno.MPAll)
 	if err != nil {
 		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
@@ -191,7 +191,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 
 	for _, pkg := range nonDraftPkgs {
 		// XXX: as addpkg require gno.mod, we should probably check this here
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name, gno.MPAll)
 		tx, err := LoadPackage(mpkg, creator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)

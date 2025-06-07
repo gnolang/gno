@@ -49,7 +49,7 @@ func (pl *PkgsLoader) LoadPackages() ([]*std.MemPackage, error) {
 
 	mpkgs := make([]*std.MemPackage, len(pkgslist))
 	for i, pkg := range pkgslist {
-		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name)
+		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name, gnolang.MPAll)
 		file, err := gnomod.ParseMemPackage(mpkg)
 		if os.IsNotExist(err) || errors.Is(err, gnomod.ErrGnoModNotFound) {
 			// generate a gno.mod
@@ -112,7 +112,7 @@ func (pl *PkgsLoader) GenerateTxs(creatorKey crypto.PrivKey, fee std.Fee, deposi
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(dir string) error {
 	// list all packages from target path
-	pkglist, err := gnolang.ReadPkgListFromDir(dir)
+	pkglist, err := gnolang.ReadPkgListFromDir(dir, gnolang.MPAll)
 	if err != nil {
 		return fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
@@ -152,7 +152,7 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 			currentPkg.Name = gm.Module.Mod.Path
 			currentPkg.Draft = gm.Draft
 
-			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name, gnolang.MPAll)
 			if err != nil {
 				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
 			}

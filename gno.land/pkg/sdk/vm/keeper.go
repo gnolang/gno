@@ -342,7 +342,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := gno.ValidateMemPackage(msg.Package); err != nil {
+	if err := gno.ValidateMemPackageForType(msg.Package, gno.MPAll); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
@@ -362,7 +362,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestStrict)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gnostore, gno.TCLatestStrict)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -597,7 +597,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestRelaxed)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gnostore, gno.TCLatestRelaxed)
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
