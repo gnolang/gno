@@ -32,7 +32,7 @@ func Render(_ string) string {
 }
 
 func init() {
-	cross(hor.Register)("Leon's Home Realm", "")
+	hor.Register(cross, "Leon's Home Realm", "")
 	mirror.Register(std.CurrentRealm().PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"

@@ -5,9 +5,7 @@ import (
 	"gno.land/p/demo/tests"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	tests.SomeValue2.Field = "modified"
 	println("done")
 }
