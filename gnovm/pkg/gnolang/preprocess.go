@@ -355,16 +355,18 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 					last.Reserve(false, ns.NameExpr, ns.Origin, ns.Type, ns.Index)
 				}
 				if ss.IsTypeSwitch {
-					if ss.VarName != "" {
+					if ss.VarName != nil && ss.VarName.Name != "" {
+						// fmt.Println("---type switch varName define, ss.VarName: ", ss.VarName)
 						// XXX NameExprTypeDefine in NameExpr?
 						// See known issues in README.nd:
 						// > Switch varnames cannot be
 						// captured as heap items.
 						// [test](../gnovm/tests/files/closure11_known.gno)
-						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss, NSTypeSwitch, -1)
+						ss.VarName.Type = NameExprTypeDefine
+						last.Reserve(false, ss.VarName, ss, NSTypeSwitch, -1)
 					}
 				} else {
-					if ss.VarName != "" {
+					if ss.VarName != nil {
 						panic("should not happen")
 					}
 				}
@@ -803,11 +805,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if ss.IsTypeSwitch {
 					if len(n.Cases) == 0 {
 						// evaluate default case.
-						if ss.VarName != "" {
+						if ss.VarName != nil && ss.VarName.Name != "" {
 							// The type is the tag type.
 							tt := evalStaticTypeOf(store, last, ss.X)
 							last.Define(
-								ss.VarName, anyValue(tt))
+								ss.VarName.Name, anyValue(tt))
 						}
 					} else {
 						// evaluate case types.
@@ -828,19 +830,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 							n.Cases[i] = toConstTypeExpr(last, cx, ct)
 							// maybe type-switch def.
-							if ss.VarName != "" {
+							if ss.VarName != nil && ss.VarName.Name != "" {
 								if len(n.Cases) == 1 {
 									// If there is only 1 case, the
 									// define applies with type.
 									// (re-definition).
 									last.Define(
-										ss.VarName, anyValue(ct))
+										ss.VarName.Name, anyValue(ct))
 								} else {
 									// If there are 2 or more
 									// cases, the type is the tag type.
 									tt := evalStaticTypeOf(store, last, ss.X)
 									last.Define(
-										ss.VarName, anyValue(tt))
+										ss.VarName.Name, anyValue(tt))
 								}
 							}
 						}
@@ -3186,6 +3188,8 @@ func hasAttrHeapUse(bn BlockNode, name Name) bool {
 
 // adds ~name to func lit static block and to heap captures atomically.
 func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16) {
+	// fmt.Println("===addHeapCapture, dbn: ", dbn)
+	// fmt.Println("===addHeapCapture, nx: ", nx)
 	if depth <= 0 {
 		panic("invalid depth")
 	}
@@ -3321,6 +3325,22 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			case *SwitchClauseStmt:
+				// parent switch statement.
+				ss := ns[len(ns)-1].(*SwitchStmt)
+				// fmt.Println("===n: ", n)
+				// fmt.Println("===ss: ", ss)
+				// fmt.Println("===ss.VarName: ", ss.VarName)
+				// fmt.Println("===ss.VarName.Type: ", ss.VarName.Type)
+				if ss.VarName != nil && (ss.VarName.Type == NameExprTypeDefine || ss.VarName.Type == NameExprTypeHeapDefine) {
+					// XXX?
+					// ss.VarName.Type = NameExprTypeHeapDefine
+
+					// If the name is actually heap used:
+					if hasAttrHeapUse(n, ss.VarName.Name) {
+						n.SetIsHeapItem(ss.VarName.Name)
+					}
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -3341,6 +3361,7 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 					// If the name is actually heap used:
 					if hasAttrHeapUse(dbn, n.Name) {
 						// Promote type to heap define.
+						// fmt.Println("===promote to heap define, n.Name: ", n.Name)
 						n.Type = NameExprTypeHeapDefine
 						// Make record in static block.
 						dbn.SetIsHeapItem(n.Name)
