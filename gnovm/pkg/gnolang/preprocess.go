@@ -3148,7 +3148,6 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 						return n, TRANS_CONTINUE
 					}
 
-					// fmt.Println("---Found a heap item closure capture, n.Name: ", n.Name, n.Type)
 					// Found a heap item closure capture.
 					addAttrHeapUse(dbn, n.Name)
 					// The path must stay same for now,
