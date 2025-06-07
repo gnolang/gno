@@ -193,7 +193,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 		// does not exist.
 		panic(fmt.Errorf("failed loading stdlib %q: does not exist", pkgPath))
 	}
-	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath)
+	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath, gno.MPStdlib)
 	if err != nil {
 		// no gno files are present
 		panic(fmt.Errorf("failed loading stdlib %q: %w", pkgPath, err))
@@ -201,9 +201,9 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		// XXX: gno.land, vm.domain, other?
-		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-		// PkgPath: pkgPath, XXX why?
-		Store: store,
+		PkgPath:     pkgPath,
+		Store:       store,
+		SkipPackage: true,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
