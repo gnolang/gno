@@ -3334,7 +3334,9 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 				// fmt.Println("===ss.VarName: ", ss.VarName)
 				// fmt.Println("===ss.VarName.Type: ", ss.VarName.Type)
 				if ss.VarName != nil && (ss.VarName.Type == NameExprTypeDefine || ss.VarName.Type == NameExprTypeHeapDefine) {
-					ss.VarName.Type = NameExprTypeHeapDefine
+					// XXX?
+					// ss.VarName.Type = NameExprTypeHeapDefine
+
 					// If the name is actually heap used:
 					if hasAttrHeapUse(n, ss.VarName.Name) {
 						n.SetIsHeapItem(ss.VarName.Name)
