@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/p/moul/mdtable"
+
+[gno]
+  version = "0.9"

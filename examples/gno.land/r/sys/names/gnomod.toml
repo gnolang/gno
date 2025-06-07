@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/sys/names"
+
+[gno]
+  version = "0.9"

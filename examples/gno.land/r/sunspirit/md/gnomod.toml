@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/sunspirit/md"
+
+[gno]
+  version = "0.9"

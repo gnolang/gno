@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/gnoland/valopers"
+
+[gno]
+  version = "0.9"

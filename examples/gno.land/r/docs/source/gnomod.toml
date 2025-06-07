@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/docs/source"
+
+[gno]
+  version = "0.9"

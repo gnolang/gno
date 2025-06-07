@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/p/leon/ctg"
+
+[gno]
+  version = "0.9"

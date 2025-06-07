@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/p/jeronimoalbi/datasource"
+
+[gno]
+  version = "0.9"

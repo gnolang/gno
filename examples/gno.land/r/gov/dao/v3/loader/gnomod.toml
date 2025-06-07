@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/gov/dao/v3/loader"
+
+[gno]
+  version = "0.9"

@@ -19,4 +19,5 @@ module gno.land/p/test
 
 -- stdout.golden --
 -- stderr.golden --
+auto-generated "gnomod.toml"
 bad_file.gno:3:8: unknown import path "python" (code=gnoImportError)

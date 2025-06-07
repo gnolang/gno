@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
+	"golang.org/x/mod/module"
 )
 
 // testPackageFetcher allows to override the package fetcher during tests.
@@ -266,13 +267,27 @@ func execModInit(args []string) error {
 	if len(args) == 1 {
 		modPath = args[0]
 	}
-	dir, err := os.Getwd()
+	rootDir, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	if err := gnomod.CreateGnoModFile(dir, modPath); err != nil {
-		return fmt.Errorf("create gno.mod file: %w", err)
+
+	if !filepath.IsAbs(rootDir) {
+		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
 	}
+
+	modFilePath := filepath.Join(rootDir, "gnomod.toml")
+	if _, err := os.Stat(modFilePath); err == nil {
+		return errors.New("create gnomod.toml: file already exists")
+	}
+
+	if err := module.CheckImportPath(modPath); err != nil {
+		return fmt.Errorf("create gnomod.toml: %w", err)
+	}
+
+	modfile := new(gnomod.File)
+	modfile.Module.Path = modPath
+	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
 
 	return nil
 }
@@ -325,21 +340,38 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 }
 
 func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
-	fpath := filepath.Join(pkgdir, "gno.mod")
-	relpath, err := filepath.Rel(wd, fpath)
-	if err != nil {
-		return err
-	}
-	if cfg.verbose {
-		io.ErrPrintfln("%s", relpath)
+	for _, fname := range []string{"gnomod.toml", "gno.mod"} {
+		fpath := filepath.Join(pkgdir, fname)
+		if !isFileExist(fpath) {
+			continue
+		}
+
+		relpath, err := filepath.Rel(wd, fpath)
+		if err != nil {
+			return err
+		}
+		if cfg.verbose {
+			io.ErrPrintfln("%s", relpath)
+		}
+
+		gm, err := gnomod.ParseFilepath(fpath)
+		if err != nil {
+			return err
+		}
+
+		if fname == "gno.mod" {
+			// migrate from gno.mod to gnomod.toml
+			newPath := filepath.Join(pkgdir, "gnomod.toml")
+			gm.WriteFile(newPath) // gnomod.toml
+		} else {
+			gm.WriteFile(fpath) // gnomod.toml
+		}
 	}
 
-	gm, err := gnomod.ParseFilepath(fpath)
-	if err != nil {
-		return err
-	}
+	// remove gno.mod if it exists.
+	oldpath := filepath.Join(pkgdir, "gno.mod")
+	os.Remove(oldpath)
 
-	gm.WriteFile(fpath)
 	return nil
 }
 
@@ -364,7 +396,7 @@ func execModWhy(args []string, io commands.IO) error {
 	}
 
 	// Format and print `gno mod why` output stanzas
-	out := formatModWhyStanzas(gm.Module.Mod.Path, args, importToFilesMap)
+	out := formatModWhyStanzas(gm.Module.Path, args, importToFilesMap)
 	io.Printf(out)
 
 	return nil

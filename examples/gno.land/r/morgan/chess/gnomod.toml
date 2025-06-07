@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/morgan/chess"
+
+[gno]
+  version = "0.9"

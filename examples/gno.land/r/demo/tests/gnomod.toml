@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/demo/tests"
+
+[gno]
+  version = "0.9"

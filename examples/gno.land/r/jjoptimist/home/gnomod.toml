@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/jjoptimist/home"
+
+[gno]
+  version = "0.9"

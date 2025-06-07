@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/p/mason/md"
+
+[gno]
+  version = "0.9"

@@ -21,7 +21,9 @@ type (
 	InvalidStmtError      struct{ abciError }
 	InvalidExprError      struct{ abciError }
 	UnauthorizedUserError struct{ abciError }
-	TypeCheckError        struct {
+	InvalidPackageError   struct{ abciError }
+
+	TypeCheckError struct {
 		abciError
 		Errors []string `json:"errors"`
 	}
@@ -33,6 +35,7 @@ func (e PkgExistError) Error() string         { return "package already exists" 
 func (e InvalidStmtError) Error() string      { return "invalid statement" }
 func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
+func (e InvalidPackageError) Error() string   { return "invalid package" }
 func (e TypeCheckError) Error() string {
 	var bld strings.Builder
 	bld.WriteString("invalid gno package; type check errors:\n")
@@ -58,6 +61,10 @@ func ErrInvalidStmt(msg string) error {
 
 func ErrInvalidExpr(msg string) error {
 	return errors.Wrap(InvalidExprError{}, msg)
+}
+
+func ErrInvalidPackage(msg string) error {
+	return errors.Wrap(InvalidPackageError{}, msg)
 }
 
 func ErrTypeCheck(err error) error {

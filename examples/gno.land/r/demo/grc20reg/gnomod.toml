@@ -1,0 +1,6 @@
+
+[module]
+  path = "gno.land/r/demo/grc20reg"
+
+[gno]
+  version = "0.9"
