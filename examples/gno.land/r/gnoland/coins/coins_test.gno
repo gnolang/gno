@@ -29,7 +29,7 @@ func TestBalanceChecker(t *testing.T) {
 		{
 			name:     "homepage",
 			path:     "",
-			expected: "# gno.land Coins Explorer",
+			expected: "# Gno.land Coins Explorer",
 		},
 		// TODO: not supported yet
 		// {

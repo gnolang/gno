@@ -47,7 +47,7 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cur, "1"))
+	uassert.Equal(t, expected, Render("1"))
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
@@ -111,7 +111,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 - timelock: 2009-02-14T00:31:30Z
 - remaining: 1h0m0s`
 	uassert.Equal(t, expected, swap.String())
-	uassert.Equal(t, expected, Render(cur, "1"))
+	uassert.Equal(t, expected, Render("1"))
 
 	// Test Refund
 	//testing.SetRealm(std.NewUserRealm(recipient))
