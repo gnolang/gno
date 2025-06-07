@@ -154,7 +154,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter,
 		tcmode:  tcmode,
 		testing: false, // only true for imports from testing files.
 		getter:  gnoBuiltinsGetterWrapper{mpkg, getter},
-		tgetter: tgetter,
+		tgetter: gnoBuiltinsGetterWrapper{mpkg, tgetter},
 		cache:   map[string]*gnoImporterResult{},
 		cfg: &types.Config{
 			Error: func(err error) {
@@ -202,10 +202,18 @@ func (gimp *gnoImporter) Error(err error) {
 	gimp.errors = append(gimp.errors, err)
 }
 
+func cacheKey(pkgPath string, testing bool) string {
+	if testing {
+		return pkgPath + ":testing"
+	} else {
+		return pkgPath
+	}
+}
+
 // ImportFrom returns the imported package for the given import
 // pkgPath when imported by a package file located in dir.
 func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopkg *types.Package, err error) {
-	if result, ok := gimp.cache[pkgPath]; ok {
+	if result, ok := gimp.cache[cacheKey(pkgPath, gimp.testing)]; ok {
 		if result.pending {
 			idx := slices.Index(gimp.stack, pkgPath)
 			cycle := gimp.stack[idx:]
@@ -219,7 +227,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		}
 	}
 	result := &gnoImporterResult{pending: true}
-	gimp.cache[pkgPath] = result
+	gimp.cache[cacheKey(pkgPath, gimp.testing)] = result
 	gimp.stack = append(gimp.stack, pkgPath)
 	defer func() {
 		gimp.stack = gimp.stack[:len(gimp.stack)-1]

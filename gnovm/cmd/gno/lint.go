@@ -162,32 +162,35 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			pgs := prodgs.BeginTransaction(pcw, pcw, nil)
 			return pgs
 		}
-		newTestGnoStore := func(wmpkg bool) gno.Store {
+		injectTmpkg := func(tgs gno.Store) {
+			// NOTE: if we don't do it lazily like this, otherwise there
+			// needs to be a hook from original store creation
+			// (complicated), or, if not done lazily we won't get the Go
+			// typecheck error we prefer.
+			tgetter := tgs.GetPackageGetter()
+			tgs.SetPackageGetter(func(pkgPath string, store gno.Store) (
+				*gno.PackageNode, *gno.PackageValue) {
+				if pkgPath == mpkg.Path {
+					tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
+					m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+						PkgPath:     pkgPath,
+						Output:      goio.Discard,
+						Store:       tgs,
+						SkipPackage: true,
+					})
+					m2.Store.AddMemPackage(tmpkg, gno.MPAny)
+					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
+						gno.ParseMemPackage(tmpkg, gno.MPTest), true, true, "")
+				} else {
+					return tgetter(pkgPath, store)
+				}
+			})
+		}
+		newTestGnoStore := func(withTmpkg bool) gno.Store {
 			tcw := testbs.CacheWrap()
 			tgs := testgs.BeginTransaction(tcw, tcw, nil)
-			if wmpkg { // otherwise shouldn't be needed.
-				// NOTE: if we don't do it lazily like this, otherwise there
-				// needs to be a hook from original store creation
-				// (complicated), or, if not done lazily we won't get the Go
-				// typecheck error we prefer.
-				getter := tgs.GetPackageGetter()
-				tgs.SetPackageGetter(func(pkgPath string, store gno.Store) (
-					*gno.PackageNode, *gno.PackageValue) {
-					if pkgPath == mpkg.Path {
-						tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
-						m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-							PkgPath:     pkgPath,
-							Output:      goio.Discard,
-							Store:       tgs,
-							SkipPackage: true,
-						})
-						m2.Store.AddMemPackage(tmpkg, gno.MPAny)
-						return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
-							gno.ParseMemPackage(tmpkg, gno.MPTest), true, true, "")
-					} else {
-						return getter(pkgPath, store)
-					}
-				})
+			if withTmpkg {
+				injectTmpkg(tgs)
 			}
 			return tgs
 		}

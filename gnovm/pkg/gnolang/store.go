@@ -209,15 +209,13 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 	return transactionStore{ds2}
 }
 
-type transactionStore struct{ *defaultStore }
+type transactionStore struct {
+	*defaultStore
+}
 
 func (t transactionStore) Write() {
 	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
-}
-
-func (transactionStore) SetPackageGetter(pg PackageGetter) {
-	panic("SetPackageGetter may not be called in a transaction store")
 }
 
 // XXX: we should block Go2GnoType, because it uses a global cache map;
