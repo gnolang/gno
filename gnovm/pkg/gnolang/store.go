@@ -38,6 +38,7 @@ type NativeResolver func(pkgName string, name Name) func(m *Machine)
 type Store interface {
 	// STABLE
 	BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore
+	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
@@ -256,6 +257,11 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
+}
+
+// Used by cmd/gno (e.g. lint) to inject target package as MPTest.
+func (ds *defaultStore) GetPackageGetter() (pg PackageGetter) {
+	return ds.pkgGetter
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {

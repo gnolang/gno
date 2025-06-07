@@ -398,12 +398,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
-	/* NOTE: Uncomment to fail earlier.
+	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
 		return
 	}
-	*/
 	if wtests != nil && !*wtests {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
 		if errs != nil {
@@ -416,12 +415,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	if len(pgofs) < len(gofs) {
 		gimp.testing = true // use tgetter for stdlibs, default to getter.
 		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
-		/* NOTE: Uncomment to fail earlier.
+		// Fail early: there's no point checking the others.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
 			return
 		}
-		*/
 	}
 	if wtests != nil { // *wtests is true.
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
