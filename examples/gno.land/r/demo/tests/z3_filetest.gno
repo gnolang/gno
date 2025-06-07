@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/test_test
-package test_test
+package tests
 
 import (
 	"std"
@@ -26,5 +26,8 @@ func main() {
 	println("Done.")
 }
 
-// Output:
-// Done.
+// Error:
+// expected package name [test_test] but got [tests]
+
+// TypeCheckError:
+// gno.land/r/demo/test_test/.gnobuiltins.gno:1:1: package test_test; expected package tests; gno.land/r/demo/test_test/z3.gno:19:36: undefined: cross; gno.land/r/demo/test_test/z3.gno:23:45: undefined: cross
