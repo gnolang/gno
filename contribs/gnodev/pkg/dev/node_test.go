@@ -577,7 +577,7 @@ func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
 
-	// ensure a gno.mod exist
+	// Ensure that a gno.mod exists
 	for _, pkg := range pkgs {
 		if mod := pkg.GetFile("gno.mod"); mod != nil {
 			continue
