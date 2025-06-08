@@ -65,11 +65,11 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 
 	nm1 := testutils.TestAddress("nm1")
 
-	urequire.PanicsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func(cur realm) {
+	urequire.AbortsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func(cur realm) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
-	urequire.PanicsWithMessage(t, "proposer is not a member", func(cur realm) {
+	urequire.AbortsWithMessage(t, "proposer is not a member", func(cur realm) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
 	})
 
