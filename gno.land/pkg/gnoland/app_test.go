@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -60,7 +61,11 @@ func TestNewAppWithOptions(t *testing.T) {
 				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
 					{
 						Name: "demo.gno",
-						Body: "package demo; func Hello() string { crossing(); return `hello`; }",
+						Body: "package demo; func Hello(cur realm) string { return `hello`; }",
+					},
+					{
+						Name: "gno.mod",
+						Body: gnolang.GenGnoModLatest("gno.land/r/demo"),
 					},
 				})},
 				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
@@ -377,7 +382,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	var t time.Time = time.Now()
 
 	// GetT returns the time that was saved from genesis
-	func GetT() int64 { crossing(); return t.Unix() }
+	func GetT(cur realm) int64 { return t.Unix() }
 `
 			)
 
@@ -395,6 +400,10 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 						{
 							Name: "file.gno",
 							Body: body,
+						},
+						{
+							Name: "gno.mod",
+							Body: gnolang.GenGnoModLatest(path),
 						},
 					},
 				},
