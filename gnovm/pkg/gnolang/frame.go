@@ -240,7 +240,7 @@ func toConstExpTrace(cte *ConstExpr) string {
 	} else if tv.IsUndefined() {
 		return "undefined"
 	} else {
-		return tv.V.String(nil).String()
+		return tv.V.String()
 	}
 }
 

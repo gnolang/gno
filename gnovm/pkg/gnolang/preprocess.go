@@ -1896,7 +1896,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
-						dt.String(nil)))
+						dt.String()))
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -1939,7 +1939,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						fmt.Sprintf(
 							"invalid operation: %s (variable of type %s) is not an interface",
 							n.X.String(),
-							t.String(nil),
+							t.String(),
 						),
 					)
 				}
@@ -1994,7 +1994,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				default:
 					panic(fmt.Sprintf(
 						"unexpected composite type %s",
-						clt.String(nil)))
+						clt.String()))
 				}
 				// If variadic array lit, measure.
 				if at, ok := clt.(*ArrayType); ok {
@@ -2033,7 +2033,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf("invalid operation: cannot indirect nil"))
 				}
 				if xt.Kind() != PointerKind && xt.Kind() != TypeKind {
-					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String(nil)))
+					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
 				}
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
@@ -2048,7 +2048,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							cxt.String(), n.Sel, ctxpn.PkgPath))
 					} else if tr == nil {
 						panic(fmt.Sprintf("missing field %s in %s",
-							n.Sel, cxt.String(nil)))
+							n.Sel, cxt.String()))
 					}
 
 					if len(tr) > 1 {
@@ -2172,7 +2172,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					default:
 						panic(fmt.Sprintf(
 							"unexpected selector expression type value %s",
-							xt.String(nil)))
+							xt.String()))
 					}
 				default:
 					panic(fmt.Sprintf(
@@ -2528,7 +2528,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if ctype == nil {
 								ctstr = nilStr
 							} else {
-								ctstr = casetype.(*constTypeExpr).Type.String(nil)
+								ctstr = casetype.(*constTypeExpr).Type.String()
 							}
 							if _, exists := types[ctstr]; exists {
 								panic(fmt.Sprintf(
@@ -2856,8 +2856,8 @@ func parseMultipleAssignFromOneExpr(
 					fmt.Sprintf(
 						"cannot use %v (value of type %s) as %s value in assignment",
 						valueExpr.String(),
-						tt.String(nil),
-						st.String(nil),
+						tt.String(),
+						st.String(),
 					),
 				)
 			}
@@ -3639,7 +3639,7 @@ func getTypeOf(x Expr) Type {
 			if len(tt.Elts) != 1 {
 				panic(fmt.Sprintf(
 					"getTypeOf() only supports *CallExpr with 1 result, got %s",
-					tt.String(nil),
+					tt.String(),
 				))
 			} else {
 				return tt.Elts[0]
@@ -4438,7 +4438,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		default:
 			panic(fmt.Sprintf(
 				"unexpected composite lit type %s",
-				ct.String(nil)))
+				ct.String()))
 		}
 	case *FuncLitExpr:
 		un, directR = findUndefinedT(store, last, &cx.Type, stack, defining, isalias, astype && isalias)
@@ -5193,7 +5193,7 @@ func elideCompositeElements(last BlockNode, clx *CompositeLitExpr, clt Type) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected composite lit type %s",
-			clt.String(nil)))
+			clt.String()))
 	}
 }
 
@@ -5292,7 +5292,7 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 		default:
 			panic(fmt.Sprintf(
 				"unexpected composite lit type %s",
-				ct.String(nil)))
+				ct.String()))
 		}
 	case *FieldTypeExpr:
 		findDependentNames(cn.Type, dst)

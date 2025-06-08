@@ -94,7 +94,7 @@ func X_getRealm(m *gno.Machine, height int) (addr, pkgPath string) {
 		if !fr.DidCrossing {
 			panic(fmt.Sprintf(
 				"call to cross(fn) did not call crossing : %s",
-				fr.Func.String(nil)))
+				fr.Func.String()))
 		}
 
 		crosses++

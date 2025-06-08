@@ -164,7 +164,7 @@ func (m *Machine) doOpStar() {
 	default:
 		panic(fmt.Sprintf(
 			"illegal star expression x type %s",
-			xv.T.String(nil)))
+			xv.T.String()))
 	}
 }
 
@@ -201,7 +201,7 @@ func (m *Machine) doOpTypeAssert1() {
 	if t.Kind() == InterfaceKind { // is interface assert
 		if xt == nil || xv.IsNilInterface() {
 			// TODO: default panic type?
-			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String(nil))
+			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
 			m.pushPanic(typedString(ex))
 			return
 		}
@@ -213,8 +213,8 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"non-concrete %s doesn't implement %s",
-					xt.String(NewStringBuilderWithGasMeter(m.GasMeter)),
-					it.String(NewStringBuilderWithGasMeter(m.GasMeter)))
+					xt.WriteString(NewStringBuilderWithGasMeter(m.GasMeter)),
+					it.WriteString(NewStringBuilderWithGasMeter(m.GasMeter)))
 				m.pushPanic(typedString(ex))
 				return
 			}
@@ -226,8 +226,8 @@ func (m *Machine) doOpTypeAssert1() {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
 					"%s doesn't implement %s (%s)",
-					xt.String(NewStringBuilderWithGasMeter(m.GasMeter)),
-					it.String(NewStringBuilderWithGasMeter(m.GasMeter)),
+					xt.WriteString(NewStringBuilderWithGasMeter(m.GasMeter)),
+					it.WriteString(NewStringBuilderWithGasMeter(m.GasMeter)),
 					err.Error())
 				m.pushPanic(typedString(ex))
 				return
@@ -240,7 +240,7 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 	} else { // is concrete assert
 		if xt == nil {
-			ex := fmt.Sprintf("nil is not of type %s", t.String(NewStringBuilderWithGasMeter(m.GasMeter)))
+			ex := fmt.Sprintf("nil is not of type %s", t.WriteString(NewStringBuilderWithGasMeter(m.GasMeter)))
 			m.pushPanic(typedString(ex))
 			return
 		}
@@ -253,8 +253,8 @@ func (m *Machine) doOpTypeAssert1() {
 			// TODO: default panic type?
 			ex := fmt.Sprintf(
 				"%s is not of type %s",
-				xt.String(NewStringBuilderWithGasMeter(m.GasMeter)),
-				t.String(NewStringBuilderWithGasMeter(m.GasMeter)))
+				xt.WriteString(NewStringBuilderWithGasMeter(m.GasMeter)),
+				t.WriteString(NewStringBuilderWithGasMeter(m.GasMeter)))
 			m.pushPanic(typedString(ex))
 			return
 		}
@@ -600,7 +600,7 @@ func (m *Machine) doOpStructLit() {
 					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
-						st.PkgPath, st.String(nil), m.Package.PkgPath))
+						st.PkgPath, st.String(), m.Package.PkgPath))
 				} else {
 					// this is fine.
 				}

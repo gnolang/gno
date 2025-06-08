@@ -13,7 +13,7 @@ func X_typeString(m *gnolang.Machine, v gnolang.TypedValue) string {
 	if v.IsUndefined() {
 		return "<nil>"
 	}
-	return v.T.String(gnolang.NewPrinter(m.GasMeter))
+	return v.T.WriteString(gnolang.NewStringBuilderWithGasMeter(m.GasMeter)).String()
 }
 
 func X_valueOfInternal(m *gnolang.Machine, v gnolang.TypedValue) (
@@ -27,7 +27,7 @@ func X_valueOfInternal(m *gnolang.Machine, v gnolang.TypedValue) (
 		return
 	}
 	if dt, ok := v.T.(*gnolang.DeclaredType); ok {
-		declaredName = dt.String(gnolang.NewPrinter(m.GasMeter))
+		declaredName = dt.WriteString(gnolang.NewStringBuilderWithGasMeter(m.GasMeter)).String()
 	}
 	baseT := gnolang.BaseOf(v.T)
 	base = gnolang.TypedValue{

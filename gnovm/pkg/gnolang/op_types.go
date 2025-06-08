@@ -333,13 +333,13 @@ func (m *Machine) doOpStaticTypeOf() {
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector base typeval: %s of kind %s",
-						xt.String(nil),
+						xt.String(),
 						xt.Kind().String())) // XXX kind?
 				}
 			default:
 				panic(fmt.Sprintf(
 					"unexpected selector base type: %s (%s) of kind %s",
-					dxt.String(nil),
+					dxt.String(),
 					reflect.TypeOf(dxt),
 					dxt.Kind().String()))
 			}
@@ -359,7 +359,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			default:
 				panic(fmt.Sprintf(
 					"unexpected (subref) selector base type: %s (%s) of kind %s",
-					dxt.String(nil),
+					dxt.String(),
 					reflect.TypeOf(dxt),
 					dxt.Kind().String()))
 			}

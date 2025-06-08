@@ -39,7 +39,7 @@ func (p *StringBuilderWithGasMeter) WriteString(s string) (int, error) {
 }
 
 type protectedStringer interface {
-	ProtectedString(Builder, *seenValues) string
+	ProtectedString(Builder, *seenValues) Builder
 }
 
 const (
@@ -89,31 +89,58 @@ func newSeenValues() *seenValues {
 	}
 }
 
-func (sv StringValue) String(builder Builder) Builder {
+func (sv StringValue) String() string {
+	builder := strings.Builder{}
+	sv.WriteString(&builder)
+	return builder.String()
+}
+
+func (sv StringValue) WriteString(builder Builder) Builder {
 	builder.WriteString(strconv.Quote(string(sv)))
 	return builder
 }
 
-func (biv BigintValue) String(builder Builder) Builder {
+func (biv BigintValue) String() string {
+	builder := strings.Builder{}
+	biv.WriteString(&builder)
+	return builder.String()
+}
+
+func (biv BigintValue) WriteString(builder Builder) Builder {
 	builder.WriteString(biv.V.String())
 	return builder
 }
 
-func (bdv BigdecValue) String(builder Builder) Builder {
+func (bdv BigdecValue) String() string {
+	builder := strings.Builder{}
+	bdv.WriteString(&builder)
+	return builder.String()
+}
+
+func (bdv BigdecValue) WriteString(builder Builder) Builder {
 	builder.WriteString(bdv.V.String())
-
 	return builder
 }
 
-func (dbv DataByteValue) String(builder Builder) Builder {
+func (dbv DataByteValue) String() string {
+	builder := strings.Builder{}
+	dbv.WriteString(&builder)
+	return builder.String()
+}
+
+func (dbv DataByteValue) WriteString(builder Builder) Builder {
 	builder.WriteString(fmt.Sprintf("(%0X)", (dbv.GetByte())))
-
 	return builder
 }
 
-func (av *ArrayValue) String(builder Builder) Builder {
-	av.ProtectedString(builder, newSeenValues())
-	return builder
+func (av *ArrayValue) String() string {
+	builder := strings.Builder{}
+	av.WriteString(&builder)
+	return builder.String()
+}
+
+func (av *ArrayValue) WriteString(builder Builder) Builder {
+	return av.ProtectedString(builder, newSeenValues())
 }
 
 func (av *ArrayValue) ProtectedString(builder Builder, seen *seenValues) Builder {
@@ -153,7 +180,13 @@ func (av *ArrayValue) ProtectedString(builder Builder, seen *seenValues) Builder
 	return builder
 }
 
-func (sv *SliceValue) String(builder Builder) Builder {
+func (sv *SliceValue) String() string {
+	builder := strings.Builder{}
+	sv.WriteString(&builder)
+	return builder.String()
+}
+
+func (sv *SliceValue) WriteString(builder Builder) Builder {
 	return sv.ProtectedString(builder, newSeenValues())
 }
 
@@ -170,7 +203,7 @@ func (sv *SliceValue) ProtectedString(builder Builder, seen *seenValues) Builder
 
 	if ref, ok := sv.Base.(RefValue); ok {
 		builder.WriteString("slice[")
-		ref.String(builder)
+		ref.WriteString(builder)
 		builder.WriteString("]")
 		return builder
 	}
@@ -201,7 +234,13 @@ func (sv *SliceValue) ProtectedString(builder Builder, seen *seenValues) Builder
 	return builder
 }
 
-func (pv PointerValue) String(builder Builder) Builder {
+func (pv PointerValue) String() string {
+	builder := strings.Builder{}
+	pv.WriteString(&builder)
+	return builder.String()
+}
+
+func (pv PointerValue) WriteString(builder Builder) Builder {
 	return pv.ProtectedString(builder, newSeenValues())
 }
 
@@ -225,7 +264,13 @@ func (pv PointerValue) ProtectedString(builder Builder, seen *seenValues) Builde
 	return builder
 }
 
-func (sv *StructValue) String(builder Builder) Builder {
+func (sv *StructValue) String() string {
+	builder := strings.Builder{}
+	sv.WriteString(&builder)
+	return builder.String()
+}
+
+func (sv *StructValue) WriteString(builder Builder) Builder {
 	return sv.ProtectedString(builder, newSeenValues())
 }
 
@@ -251,14 +296,20 @@ func (sv *StructValue) ProtectedString(builder Builder, seen *seenValues) Builde
 	return builder
 }
 
-func (fv *FuncValue) String(builder Builder) Builder {
+func (fv *FuncValue) String() string {
+	builder := strings.Builder{}
+	fv.WriteString(&builder)
+	return builder.String()
+}
+
+func (fv *FuncValue) WriteString(builder Builder) Builder {
 	name := string(fv.Name)
 	if fv.Type == nil {
 		builder.WriteString(fmt.Sprintf("incomplete-func ?%s(?)?", name))
 		return builder
 	}
 	if name == "" {
-		fv.Type.String(builder)
+		fv.Type.WriteString(builder)
 		builder.WriteString("{...}")
 		return builder
 	}
@@ -268,19 +319,24 @@ func (fv *FuncValue) String(builder Builder) Builder {
 	return builder
 }
 
-func (bmv *BoundMethodValue) String(builder Builder) Builder {
+func (bmv *BoundMethodValue) String() string {
+	var builder strings.Builder
+	return bmv.WriteString(&builder).String()
+}
+
+func (bmv *BoundMethodValue) WriteString(builder Builder) Builder {
 	name := bmv.Func.Name
 
 	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		builder.WriteString("<")
-		ft.Params[0].Type.String(builder)
+		ft.Params[0].Type.WriteString(builder)
 		builder.WriteString(">.")
 		builder.WriteString(string(name) + "(")
-		FieldTypeList(ft.Params).StringForFunc(builder)
+		FieldTypeList(ft.Params).WriteStringForFunc(builder)
 		builder.WriteString(")")
 
 		builder.WriteString("(")
-		FieldTypeList(ft.Results).StringForFunc(builder)
+		FieldTypeList(ft.Results).WriteStringForFunc(builder)
 		builder.WriteString(")")
 
 		return builder
@@ -291,7 +347,13 @@ func (bmv *BoundMethodValue) String(builder Builder) Builder {
 	return builder
 }
 
-func (mv *MapValue) String(builder Builder) Builder {
+func (mv *MapValue) String() string {
+	builder := strings.Builder{}
+	mv.WriteString(&builder)
+	return builder.String()
+}
+
+func (mv *MapValue) WriteString(builder Builder) Builder {
 	return mv.ProtectedString(builder, newSeenValues())
 }
 
@@ -324,21 +386,39 @@ func (mv *MapValue) ProtectedString(builder Builder, seen *seenValues) Builder {
 	return builder
 }
 
-func (tv TypeValue) String(builder Builder) Builder {
+func (tv TypeValue) String() string {
+	builder := strings.Builder{}
+	tv.WriteString(&builder)
+	return builder.String()
+}
+
+func (tv TypeValue) WriteString(builder Builder) Builder {
 	builder.WriteString("typeval{")
-	tv.Type.String(builder)
+	tv.Type.WriteString(builder)
 	builder.WriteString("}")
 
 	return builder
 }
 
-func (pv *PackageValue) String(builder Builder) Builder {
+func (pv *PackageValue) String() string {
+	builder := strings.Builder{}
+	pv.WriteString(&builder)
+	return builder.String()
+}
+
+func (pv *PackageValue) WriteString(builder Builder) Builder {
 	builder.WriteString(fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath))
 
 	return builder
 }
 
-func (b *Block) String(builder Builder) Builder {
+func (b *Block) String() string {
+	builder := strings.Builder{}
+	b.WriteString(&builder)
+	return builder.String()
+}
+
+func (b *Block) WriteString(builder Builder) Builder {
 	return b.StringIndented(builder, "    ")
 }
 
@@ -356,10 +436,10 @@ func (b *Block) StringIndented(builder Builder, indent string) Builder {
 			types := b.Source.GetStaticBlock().Types
 			for i, n := range b.Source.GetBlockNames() {
 				if len(b.Values) <= i {
-					builder.WriteString(fmt.Sprintf("\n%s%s: undefined static:%s", indent, n, types[i].String(builder)))
+					builder.WriteString(fmt.Sprintf("\n%s%s: undefined static:%s", indent, n, types[i].WriteString(builder)))
 				} else {
 					builder.WriteString(fmt.Sprintf("\n%s%s: %s static:%s",
-						indent, n, b.Values[i].String(builder), types[i].String(builder)))
+						indent, n, b.Values[i].WriteString(builder), types[i].WriteString(builder)))
 				}
 			}
 		}
@@ -367,7 +447,13 @@ func (b *Block) StringIndented(builder Builder, indent string) Builder {
 	return builder
 }
 
-func (rv RefValue) String(builder Builder) Builder {
+func (rv RefValue) String() string {
+	builder := strings.Builder{}
+	rv.WriteString(&builder)
+	return builder.String()
+}
+
+func (rv RefValue) WriteString(builder Builder) Builder {
 	if rv.PkgPath == "" {
 		builder.WriteString(fmt.Sprintf("ref(%v)",
 			rv.ObjectID))
@@ -381,9 +467,15 @@ func (rv RefValue) String(builder Builder) Builder {
 	return builder
 }
 
-func (hiv *HeapItemValue) String(builder Builder) Builder {
+func (hiv *HeapItemValue) String() string {
+	builder := strings.Builder{}
+	hiv.WriteString(&builder)
+	return builder.String()
+}
+
+func (hiv *HeapItemValue) WriteString(builder Builder) Builder {
 	builder.WriteString("heapitem(")
-	hiv.Value.String(builder)
+	hiv.Value.WriteString(builder)
 	builder.WriteString(")")
 	return builder
 }
@@ -431,7 +523,7 @@ func (tv *TypedValue) ProtectedSprint(builder Builder, seen *seenValues, conside
 	// reliably prevent recursive print loops.
 	if tv.V != nil {
 		if v, ok := tv.V.(RefValue); ok {
-			v.String(builder)
+			v.WriteString(builder)
 			return builder
 		}
 	}
@@ -525,10 +617,10 @@ func (tv *TypedValue) ProtectedSprint(builder Builder, seen *seenValues, conside
 		switch fv := tv.V.(type) {
 		case nil:
 			builder.WriteString(nilStr + " ")
-			tv.T.String(builder)
+			tv.T.WriteString(builder)
 			return builder
 		case *FuncValue, *BoundMethodValue:
-			fv.String(builder)
+			fv.WriteString(builder)
 
 			return builder
 		default:
@@ -548,20 +640,20 @@ func (tv *TypedValue) ProtectedSprint(builder Builder, seen *seenValues, conside
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
-		tv.V.(*PackageValue).String(builder)
+		tv.V.(*PackageValue).WriteString(builder)
 
 		return builder
 	case *ChanType:
 		panic("not yet implemented")
 	case *TypeType:
-		tv.V.(TypeValue).String(builder)
+		tv.V.(TypeValue).WriteString(builder)
 
 		return builder
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
 			builder.WriteString("(" + nilStr + " ")
-			tv.T.String(builder)
+			tv.T.WriteString(builder)
 			builder.WriteString(")")
 			return builder
 		}
@@ -580,7 +672,7 @@ func (tv *TypedValue) ProtectedSprint(builder Builder, seen *seenValues, conside
 
 		// *NativeType
 		builder.WriteString(roPre)
-		tv.V.String(builder)
+		tv.V.WriteString(builder)
 		builder.WriteString(roPost)
 		return builder
 	}
@@ -590,7 +682,13 @@ func (tv *TypedValue) ProtectedSprint(builder Builder, seen *seenValues, conside
 // TypedValue.String()
 
 // For gno debugging/testing.
-func (tv TypedValue) String(builder Builder) Builder {
+func (tv TypedValue) String() string {
+	builder := strings.Builder{}
+	tv.WriteString(&builder)
+	return builder.String()
+}
+
+func (tv TypedValue) WriteString(builder Builder) Builder {
 	return tv.ProtectedString(builder, newSeenValues())
 }
 
@@ -599,6 +697,7 @@ func (tv TypedValue) ProtectedString(builder Builder, seen *seenValues) Builder 
 		builder.WriteString("(undefined)")
 		return builder
 	}
+	builder.WriteByte('(')
 	if tv.V == nil {
 		switch baseOf(tv.T) {
 		case BoolType, UntypedBoolType:
@@ -637,13 +736,13 @@ func (tv TypedValue) ProtectedString(builder Builder, seen *seenValues) Builder 
 		}
 	} else {
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
-			tv.ProtectedSprint(builder, seen, false)
+			builder.WriteString(tv.V.String())
 		} else {
-			tv.ProtectedSprint(builder, seen, true)
+			tv.ProtectedSprint(builder, seen, false)
 		}
 	}
 	builder.WriteString(" ")
-	tv.T.String(builder)
+	tv.T.WriteString(builder)
 	builder.WriteString(")")
 	return builder
 }

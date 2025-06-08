@@ -20,10 +20,11 @@ import (
 type Type interface {
 	assertType()
 
-	Kind() Kind                     // penetrates *DeclaredType
-	TypeID() TypeID                 // deterministic
-	String(printer *Printer) string // for dev/debugging
-	Elem() Type                     // for TODO... types
+	Kind() Kind     // penetrates *DeclaredType
+	TypeID() TypeID // deterministic
+	String() string // for dev/debugging
+	WriteString(builder Builder) Builder
+	Elem() Type // for TODO... types
 	GetPkgPath() string
 	IsNamed() bool     // named vs unname type. property as a method
 	IsImmutable() bool // immutable types
@@ -275,51 +276,76 @@ func (pt PrimitiveType) TypeID() TypeID {
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
 }
+func (pt PrimitiveType) String() string {
+	builder := strings.Builder{}
+	return pt.WriteString(&builder).String()
+}
 
-func (pt PrimitiveType) String(printer *Printer) string {
+func (pt PrimitiveType) WriteString(builder Builder) Builder {
 	switch pt {
 	case InvalidType:
-		return printer.Sprint("<invalid type>")
+		builder.WriteString("<invalid type>")
+		return builder
 	case UntypedBoolType:
-		return printer.Sprint("<untyped> bool")
+		builder.WriteString("<untyped> bool")
+		return builder
 	case BoolType:
-		return printer.Sprint("bool")
+		builder.WriteString("bool")
+		return builder
 	case UntypedStringType:
-		return printer.Sprint("<untyped> string")
+		builder.WriteString("<untyped> string")
+		return builder
 	case StringType:
-		return printer.Sprint("string")
+		builder.WriteString("string")
+		return builder
 	case IntType:
-		return printer.Sprint("int")
+		builder.WriteString("int")
+		return builder
 	case Int8Type:
-		return printer.Sprint("int8")
+		builder.WriteString("int8")
+		return builder
 	case Int16Type:
-		return printer.Sprint("int16")
+		builder.WriteString("int16")
+		return builder
 	case UntypedRuneType:
-		return printer.Sprint("<untyped> int32")
+		builder.WriteString("<untyped> int32")
+		return builder
 	case Int32Type:
-		return printer.Sprint("int32")
+		builder.WriteString("int32")
+		return builder
 	case Int64Type:
-		return printer.Sprint("int64")
+		builder.WriteString("int64")
+		return builder
 	case UintType:
-		return printer.Sprint("uint")
+		builder.WriteString("uint")
+		return builder
 	case Uint8Type:
-		return printer.Sprint("uint8")
+		builder.WriteString("uint8")
+		return builder
 	case DataByteType:
-		return printer.Sprint("<databyte> uint8")
+		builder.WriteString("<databyte> uint8")
+		return builder
 	case Uint16Type:
-		return printer.Sprint("uint16")
+		builder.WriteString("uint16")
+		return builder
 	case Uint32Type:
-		return printer.Sprint("uint32")
+		builder.WriteString("uint32")
+		return builder
 	case Uint64Type:
-		return printer.Sprint("uint64")
+		builder.WriteString("uint64")
+		return builder
 	case Float32Type:
-		return printer.Sprint("float32")
+		builder.WriteString("float32")
+		return builder
 	case Float64Type:
-		return printer.Sprint("float64")
+		builder.WriteString("float64")
+		return builder
 	case UntypedBigintType:
-		return printer.Sprint("<untyped> bigint")
+		builder.WriteString("<untyped> bigint")
+		return builder
 	case UntypedBigdecType:
-		return printer.Sprint("<untyped> bigdec")
+		builder.WriteString("<untyped> bigdec")
+		return builder
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
 	}
@@ -368,15 +394,27 @@ func (ft FieldType) TypeID() TypeID {
 	return typeid(s)
 }
 
-func (ft FieldType) String(printer *Printer) string {
+func (ft FieldType) String() string {
+	builder := strings.Builder{}
+	return ft.WriteString(&builder).String()
+}
+
+func (ft FieldType) WriteString(builder Builder) Builder {
 	tag := ""
 	if ft.Tag != "" {
 		tag = " " + strconv.Quote(string(ft.Tag))
 	}
 	if ft.Name == "" {
-		return printer.Sprintf("(embedded) %s%s", ft.Type.String(printer), tag)
+		builder.WriteString("(embedded) ")
+		ft.Type.WriteString(builder)
+		builder.WriteString(tag)
+		return builder
 	} else {
-		return printer.Sprintf("%s %s%s", ft.Name, ft.Type.String(printer), tag)
+		builder.WriteString(string(ft.Name))
+		builder.WriteString(" ")
+		ft.Type.WriteString(builder)
+		builder.WriteString(tag)
+		return builder
 	}
 }
 
@@ -471,30 +509,34 @@ func (l FieldTypeList) HasUnexported() bool {
 	return false
 }
 
-func (l FieldTypeList) String(printer *Printer) string {
-	return l.string(printer, true, "; ")
+func (l FieldTypeList) String() string {
+	var builder strings.Builder
+	return l.WriteString(&builder).String()
 }
 
-// StringForFunc returns a list of the fields, suitable for functions.
+func (l FieldTypeList) WriteString(builder Builder) Builder {
+	return l.string(builder, true, "; ")
+}
+
+// WriteStringForFunc returns a list of the fields, suitable for functions.
 // Compared to [FieldTypeList.String], this method does not return field names,
 // and separates the fields using ", ".
-func (l FieldTypeList) StringForFunc(printer *Printer) string {
-	return l.string(printer, false, ", ")
+func (l FieldTypeList) WriteStringForFunc(builder Builder) Builder {
+	return l.string(builder, false, ", ")
 }
 
-func (l FieldTypeList) string(printer *Printer, withName bool, sep string) string {
-	var bld strings.Builder
+func (l FieldTypeList) string(builder Builder, withName bool, sep string) Builder {
 	for i, ft := range l {
 		if i != 0 {
-			bld.WriteString(sep)
+			builder.WriteString(sep)
 		}
 		if withName {
-			bld.WriteString(string(ft.Name))
-			bld.WriteByte(' ')
+			builder.WriteString(string(ft.Name))
+			builder.WriteByte(' ')
 		}
-		bld.WriteString(ft.Type.String(printer))
+		ft.Type.WriteString(builder)
 	}
-	return bld.String()
+	return builder
 }
 
 // Like TypeID() but without considering field names;
@@ -541,8 +583,17 @@ func (at *ArrayType) TypeID() TypeID {
 	return at.typeid
 }
 
-func (at *ArrayType) String(printer *Printer) string {
-	return printer.Sprintf("[%d]%s", at.Len, at.Elt.String(printer))
+func (at *ArrayType) String() string {
+	builder := strings.Builder{}
+	return at.WriteString(&builder).String()
+}
+
+func (at *ArrayType) WriteString(builder Builder) Builder {
+	builder.WriteString("[")
+	builder.WriteString(strconv.Itoa(at.Len))
+	builder.WriteByte(']')
+	at.Elt.WriteString(builder)
+	return builder
 }
 
 func (at *ArrayType) Elem() Type {
@@ -583,12 +634,20 @@ func (st *SliceType) TypeID() TypeID {
 	}
 	return st.typeid
 }
+func (st *SliceType) String() string {
+	builder := strings.Builder{}
+	return st.WriteString(&builder).String()
+}
 
-func (st *SliceType) String(printer *Printer) string {
+func (st *SliceType) WriteString(builder Builder) Builder {
 	if st.Vrd {
-		return fmt.Sprintf("...%s", st.Elt.String(printer))
+		builder.WriteString("...")
+		st.Elt.WriteString(builder)
+		return builder
 	} else {
-		return fmt.Sprintf("[]%s", st.Elt.String(printer))
+		builder.WriteString("[]")
+		st.Elt.WriteString(builder)
+		return builder
 	}
 }
 
@@ -624,13 +683,19 @@ func (pt *PointerType) TypeID() TypeID {
 	return pt.typeid
 }
 
-func (pt *PointerType) String(printer *Printer) string {
+func (pt *PointerType) String() string {
+	builder := strings.Builder{}
+	return pt.WriteString(&builder).String()
+}
+func (pt *PointerType) WriteString(builder Builder) Builder {
 	if pt == nil {
 		panic("invalid nil pointer type")
 	} else if pt.Elt == nil {
 		panic("invalid nil pointer element type")
 	} else {
-		return printer.Sprintf("*%v", pt.Elt.String(printer))
+		builder.WriteByte('*')
+		pt.Elt.WriteString(builder)
+		return builder
 	}
 }
 
@@ -763,9 +828,16 @@ func (st *StructType) TypeID() TypeID {
 	return st.typeid
 }
 
-func (st *StructType) String(printer *Printer) string {
-	return printer.Sprintf("struct{%s}",
-		FieldTypeList(st.Fields).String(printer))
+func (st *StructType) String() string {
+	builder := strings.Builder{}
+	return st.WriteString(&builder).String()
+}
+
+func (st *StructType) WriteString(builder Builder) Builder {
+	builder.WriteString("struct{")
+	FieldTypeList(st.Fields).WriteString(builder)
+	builder.WriteByte('}')
+	return builder
 }
 
 func (st *StructType) Elem() Type {
@@ -798,7 +870,7 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 		}
 	}
 	panic(fmt.Sprintf("struct type %s has no field %s",
-		st.String(nil), n))
+		st.String(), n))
 }
 
 func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
@@ -884,8 +956,15 @@ func (pt *PackageType) TypeID() TypeID {
 	return pt.typeid
 }
 
-func (pt *PackageType) String(printer *Printer) string {
-	return printer.Sprint("package{}")
+func (pt *PackageType) String() string {
+	builder := strings.Builder{}
+	return pt.WriteString(&builder).String()
+}
+
+func (pt *PackageType) WriteString(builder Builder) Builder {
+	builder.WriteString("package{}")
+
+	return builder
 }
 
 func (pt *PackageType) Elem() Type {
@@ -951,13 +1030,22 @@ func (it *InterfaceType) GetMethodFieldType(mname Name) *FieldType {
 }
 
 func (it *InterfaceType) String() string {
+	builder := strings.Builder{}
+	return it.WriteString(&builder).String()
+}
+
+func (it *InterfaceType) WriteString(builder Builder) Builder {
 	if it.Generic != "" {
-		return fmt.Sprintf("<%s>{%s}",
-			it.Generic,
-			FieldTypeList(it.Methods).String(printer))
+		builder.WriteString("<")
+		builder.WriteString(string(it.Generic))
+		builder.WriteString(">{")
+		FieldTypeList(it.Methods).WriteString(builder)
+		return builder
 	} else {
-		return fmt.Sprintf("interface {%s}",
-			FieldTypeList(it.Methods).String(printer))
+		builder.WriteString("interface {")
+		FieldTypeList(it.Methods).WriteString(builder)
+		builder.WriteByte('}')
+		return builder
 	}
 }
 
@@ -1093,14 +1181,25 @@ func (ct *ChanType) TypeID() TypeID {
 	return ct.typeid
 }
 
-func (ct *ChanType) String(printer *Printer) string {
+func (ct *ChanType) String() string {
+	builder := strings.Builder{}
+	return ct.WriteString(&builder).String()
+}
+
+func (ct *ChanType) WriteString(builder Builder) Builder {
 	switch ct.Dir {
 	case SEND | RECV:
-		return "chan " + ct.Elt.String(printer)
+		builder.WriteString("chan ")
+		ct.Elt.WriteString(builder)
+		return builder
 	case SEND:
-		return "<-chan " + ct.Elt.String(printer)
+		builder.WriteString("<-chan ")
+		ct.Elt.WriteString(builder)
+		return builder
 	case RECV:
-		return "chan<- " + ct.Elt.String(printer)
+		builder.WriteString("chan<- ")
+		ct.Elt.WriteString(builder)
+		return builder
 	default:
 		panic("should not happen")
 	}
@@ -1216,14 +1315,14 @@ func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg boo
 				} else if vargt.TypeID() != varg.T.TypeID() {
 					panic(fmt.Sprintf(
 						"incompatible varg types: expected %v, got %s",
-						vargt.String(nil),
-						varg.T.String(nil)))
+						vargt.String(),
+						varg.T.String()))
 				}
 			}
 			if nvarg > 0 && vargt == nil {
 				panic(fmt.Sprintf(
 					"unspecified generic varg %s",
-					ft.Params[len(ft.Params)-1].String(nil)))
+					ft.Params[len(ft.Params)-1].String()))
 			}
 			argTVs = argTVs[:len(ft.Params)-1]
 			argTVs = append(argTVs, TypedValue{
@@ -1288,19 +1387,32 @@ func (ft *FuncType) TypeID() TypeID {
 	return ft.typeid
 }
 
-func (ft *FuncType) String(printer *Printer) string {
+func (ft *FuncType) String() string {
+	builder := strings.Builder{}
+	return ft.WriteString(&builder).String()
+}
+
+func (ft *FuncType) WriteString(builder Builder) Builder {
 	switch len(ft.Results) {
 	case 0:
 		// XXX add ->()
-		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc(printer))
+		builder.WriteString("func(")
+		FieldTypeList(ft.Params).WriteStringForFunc(builder)
+		builder.WriteByte(')')
+		return builder
 	case 1:
-		return fmt.Sprintf("func(%s) %s",
-			FieldTypeList(ft.Params).StringForFunc(printer),
-			ft.Results[0].Type.String(printer))
+		builder.WriteString("func(")
+		FieldTypeList(ft.Params).WriteStringForFunc(builder)
+		builder.WriteString(") ")
+		ft.Results[0].Type.WriteString(builder)
+		return builder
 	default:
-		return fmt.Sprintf("func(%s) (%s)",
-			FieldTypeList(ft.Params).StringForFunc(printer),
-			FieldTypeList(ft.Results).StringForFunc(printer))
+		builder.WriteString("func(")
+		FieldTypeList(ft.Params).WriteStringForFunc(builder)
+		builder.WriteString(") (")
+		FieldTypeList(ft.Results).WriteStringForFunc(builder)
+		builder.WriteByte(')')
+		return builder
 	}
 }
 
@@ -1363,10 +1475,17 @@ func (mt *MapType) TypeID() TypeID {
 	return mt.typeid
 }
 
-func (mt *MapType) String(printer *Printer) string {
-	return fmt.Sprintf("map[%s]%s",
-		mt.Key.String(printer),
-		mt.Value.String(printer))
+func (mt *MapType) String() string {
+	builder := strings.Builder{}
+	return mt.WriteString(&builder).String()
+}
+
+func (mt *MapType) WriteString(builder Builder) Builder {
+	builder.WriteString("map[")
+	mt.Key.WriteString(builder)
+	builder.WriteByte(']')
+	mt.Value.WriteString(builder)
+	return builder
 }
 
 func (mt *MapType) Elem() Type {
@@ -1397,8 +1516,14 @@ func (tt *TypeType) TypeID() TypeID {
 	return typeid("type{}")
 }
 
-func (tt *TypeType) String(printer *Printer) string {
-	return printer.Sprint("type{}")
+func (tt *TypeType) String() string {
+	builder := strings.Builder{}
+	return tt.WriteString(&builder).String()
+}
+
+func (tt *TypeType) WriteString(builder Builder) Builder {
+	builder.WriteString("type{}")
+	return builder
 }
 
 func (tt *TypeType) Elem() Type {
@@ -1527,10 +1652,17 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 }
 
 func (dt *DeclaredType) String() string {
+	builder := strings.Builder{}
+	return dt.WriteString(&builder).String()
+}
+
+func (dt *DeclaredType) WriteString(builder Builder) Builder {
 	if dt.ParentLoc.IsZero() {
-		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+		builder.WriteString(fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name))
+		return builder
 	} else {
-		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name)
+		builder.WriteString(fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name))
+		return builder
 	}
 }
 
@@ -1771,8 +1903,14 @@ func (bt blockType) TypeID() TypeID {
 	return typeid("block")
 }
 
-func (bt blockType) String(printer *Printer) string {
-	return printer.Sprint("block")
+func (bt blockType) String() string {
+	builder := strings.Builder{}
+	return bt.WriteString(&builder).String()
+}
+
+func (bt blockType) WriteString(builder Builder) Builder {
+	builder.WriteString("block")
+	return builder
 }
 
 func (bt blockType) Elem() Type {
@@ -1800,8 +1938,15 @@ func (bt heapItemType) TypeID() TypeID {
 	return typeid("heapitem")
 }
 
-func (bt heapItemType) String(printer *Printer) string {
-	return printer.Sprint("heapitem")
+func (bt heapItemType) String() string {
+	builder := strings.Builder{}
+	return bt.WriteString(&builder).String()
+}
+
+func (bt heapItemType) WriteString(builder Builder) Builder {
+	builder.WriteString("heapitem")
+
+	return builder
 }
 
 func (bt heapItemType) Elem() Type {
@@ -1845,17 +1990,23 @@ func (tt *tupleType) TypeID() TypeID {
 	return tt.typeid
 }
 
-func (tt *tupleType) String(printer *Printer) string {
+func (tt *tupleType) String() string {
+	builder := strings.Builder{}
+	return tt.WriteString(&builder).String()
+}
+
+func (tt *tupleType) WriteString(builder Builder) Builder {
 	ell := len(tt.Elts)
-	s := "("
+
+	builder.WriteByte('(')
 	for i, et := range tt.Elts {
-		s += et.String(printer)
+		et.WriteString(builder)
 		if i != ell-1 {
-			s += ","
+			builder.WriteByte(',')
 		}
 	}
-	s += ")"
-	return s
+	builder.WriteByte(')')
+	return builder
 }
 
 func (tt *tupleType) Elem() Type {
@@ -1885,8 +2036,15 @@ func (rt RefType) TypeID() TypeID {
 	return rt.ID
 }
 
-func (rt RefType) String(printer *Printer) string {
-	return printer.Sprintf("RefType{%v}", rt.ID)
+func (rt RefType) String() string {
+	builder := strings.Builder{}
+	return rt.WriteString(&builder).String()
+}
+
+func (rt RefType) WriteString(builder Builder) Builder {
+	builder.WriteString(fmt.Sprintf("RefType{%v}", rt.ID))
+
+	return builder
 }
 
 func (rt RefType) Elem() Type {
@@ -1982,7 +2140,7 @@ func KindOf(t Type) Kind {
 		case UntypedBigdecType:
 			return BigdecKind
 		default:
-			panic(fmt.Sprintf("unexpected primitive type %s", t.String(nil)))
+			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
 		}
 	case *DeclaredType:
 		panic("unexpected nested DeclaredType")
@@ -2047,8 +2205,8 @@ func debugAssertSameTypes(lt, rt Type) {
 	} else {
 		debug.Errorf(
 			"incompatible operands in binary expression: %s and %s",
-			lt.String(nil),
-			rt.String(nil),
+			lt.String(),
+			rt.String(),
 		)
 	}
 }
@@ -2075,8 +2233,8 @@ func debugAssertEqualityTypes(lt, rt Type) {
 	} else {
 		debug.Errorf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
-			lt.String(nil),
-			rt.String(nil),
+			lt.String(),
+			rt.String(),
 		)
 	}
 }
@@ -2171,7 +2329,7 @@ func fillEmbeddedName(ft *FieldType) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected field type %s",
-			ft.Type.String(nil)))
+			ft.Type.String()))
 	}
 	ft.Embedded = true
 }
@@ -2274,9 +2432,9 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 					if match.TypeID() != specTypeval.TypeID() {
 						panic(fmt.Sprintf(
 							"expected %s for <%s> but got %s",
-							match.String(nil),
+							match.String(),
 							ct.Generic,
-							specTypeval.String(nil)))
+							specTypeval.String()))
 					} else {
 						return // ok
 					}

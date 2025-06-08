@@ -15,8 +15,12 @@ func (m *mockTypedValueStruct) VisitAssociated(vis Visitor) (stop bool) {
 	return true
 }
 
-func (m *mockTypedValueStruct) String(printer *Printer) string {
+func (m *mockTypedValueStruct) String() string {
 	return fmt.Sprintf("MockTypedValueStruct(%d)", m.field)
+}
+func (m *mockTypedValueStruct) WriteString(builder Builder) Builder {
+	builder.WriteString(m.String())
+	return builder
 }
 
 func (m *mockTypedValueStruct) DeepFill(store Store) Value {

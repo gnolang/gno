@@ -572,7 +572,7 @@ func makeUverseNode() {
 				switch bst := baseOf(src.TV.T).(type) {
 				case PrimitiveType:
 					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(nil), bst.String(nil))
+						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
 					}
 					if bst.Kind() != StringKind {
 						panic("should not happen")
@@ -670,7 +670,7 @@ func makeUverseNode() {
 			default:
 				panic(fmt.Sprintf(
 					"unexpected map type %s",
-					arg0.TV.T.String(nil)))
+					arg0.TV.T.String()))
 			}
 		},
 	)
@@ -812,7 +812,7 @@ func makeUverseNode() {
 			default:
 				panic(fmt.Sprintf(
 					"cannot make type %s kind %v",
-					tt.String(nil), tt.Kind()))
+					tt.String(), tt.Kind()))
 			}
 		},
 	)

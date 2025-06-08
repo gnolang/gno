@@ -1924,7 +1924,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			panic(fmt.Sprintf(
 				"cannot cross-call a non-crossing function %s.%v from %s",
 				prpath,
-				fv.String(nil),
+				fv.String(),
 				mrpath,
 			))
 		}
@@ -1949,7 +1949,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			panic(fmt.Sprintf(
 				"cannot cur-call to external realm function %s.%v from %s",
 				prpath,
-				fv.String(nil),
+				fv.String(),
 				mrpath,
 			))
 		}

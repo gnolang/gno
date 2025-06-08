@@ -569,7 +569,7 @@ func TestDoOpEvalBaseConversion(t *testing.T) {
 		} else {
 			m.doOpEval()
 			v := m.PopValue()
-			assert.Equal(t, tc.expect, v.V.String(nil))
+			assert.Equal(t, tc.expect, v.V.String())
 		}
 	}
 }

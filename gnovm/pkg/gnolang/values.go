@@ -17,6 +17,7 @@ import (
 
 type Builder interface {
 	WriteString(s string) (int, error)
+	WriteByte(c byte) error
 	String() string
 }
 
@@ -25,7 +26,8 @@ type Builder interface {
 
 type Value interface {
 	assertValue()
-	String(builder Builder) Builder // for debugging
+	String() string // for debugging
+	WriteString(builder Builder) Builder
 
 	// DeepFill returns the same value, filled.
 	//
@@ -1118,7 +1120,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
-			bt.String(nil)))
+			bt.String()))
 	}
 }
 
@@ -1131,7 +1133,7 @@ func (tv *TypedValue) SetBool(b bool) {
 		if tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetBool() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*bool)(unsafe.Pointer(&tv.N)) = b
@@ -1142,7 +1144,7 @@ func (tv *TypedValue) GetBool() bool {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBool() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*bool)(unsafe.Pointer(&tv.N))
@@ -1153,7 +1155,7 @@ func (tv *TypedValue) SetString(s StringValue) {
 		if tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetString() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	tv.V = s
@@ -1164,7 +1166,7 @@ func (tv *TypedValue) GetString() string {
 		if tv.T != nil && tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetString() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	if tv.V == nil {
@@ -1178,7 +1180,7 @@ func (tv *TypedValue) SetInt(n int64) {
 		if tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*int64)(unsafe.Pointer(&tv.N)) = n
@@ -1195,7 +1197,7 @@ func (tv *TypedValue) GetInt() int64 {
 		if tv.T != nil && tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*int64)(unsafe.Pointer(&tv.N))
@@ -1206,7 +1208,7 @@ func (tv *TypedValue) SetInt8(n int8) {
 		if tv.T.Kind() != Int8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt8() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*int8)(unsafe.Pointer(&tv.N)) = n
@@ -1217,7 +1219,7 @@ func (tv *TypedValue) GetInt8() int8 {
 		if tv.T != nil && tv.T.Kind() != Int8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt8() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*int8)(unsafe.Pointer(&tv.N))
@@ -1228,7 +1230,7 @@ func (tv *TypedValue) SetInt16(n int16) {
 		if tv.T.Kind() != Int16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt16() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*int16)(unsafe.Pointer(&tv.N)) = n
@@ -1239,7 +1241,7 @@ func (tv *TypedValue) GetInt16() int16 {
 		if tv.T != nil && tv.T.Kind() != Int16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt16() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*int16)(unsafe.Pointer(&tv.N))
@@ -1250,7 +1252,7 @@ func (tv *TypedValue) SetInt32(n int32) {
 		if tv.T.Kind() != Int32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt32() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*int32)(unsafe.Pointer(&tv.N)) = n
@@ -1261,7 +1263,7 @@ func (tv *TypedValue) GetInt32() int32 {
 		if tv.T != nil && tv.T.Kind() != Int32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt32() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*int32)(unsafe.Pointer(&tv.N))
@@ -1272,7 +1274,7 @@ func (tv *TypedValue) SetInt64(n int64) {
 		if tv.T.Kind() != Int64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt64() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*int64)(unsafe.Pointer(&tv.N)) = n
@@ -1283,7 +1285,7 @@ func (tv *TypedValue) GetInt64() int64 {
 		if tv.T != nil && tv.T.Kind() != Int64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt64() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*int64)(unsafe.Pointer(&tv.N))
@@ -1294,7 +1296,7 @@ func (tv *TypedValue) SetUint(n uint64) {
 		if tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*uint64)(unsafe.Pointer(&tv.N)) = n
@@ -1305,7 +1307,7 @@ func (tv *TypedValue) GetUint() uint64 {
 		if tv.T != nil && tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*uint64)(unsafe.Pointer(&tv.N))
@@ -1316,7 +1318,7 @@ func (tv *TypedValue) SetUint8(n uint8) {
 		if tv.T.Kind() != Uint8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint8() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 		if tv.T == DataByteType {
 			panic("DataByteType should call SetDataByte")
@@ -1330,7 +1332,7 @@ func (tv *TypedValue) GetUint8() uint8 {
 		if tv.T != nil && tv.T.Kind() != Uint8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint8() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 		if tv.T == DataByteType {
 			panic("DataByteType should call GetDataByte or GetUint8OrDataByte")
@@ -1344,7 +1346,7 @@ func (tv *TypedValue) SetDataByte(n uint8) {
 		if tv.T != DataByteType {
 			panic(fmt.Sprintf(
 				"TypedValue.SetDataByte() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	dbv := tv.V.(DataByteValue)
@@ -1356,7 +1358,7 @@ func (tv *TypedValue) GetDataByte() uint8 {
 		if tv.T != nil && tv.T != DataByteType {
 			panic(fmt.Sprintf(
 				"TypedValue.GetDataByte() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	dbv := tv.V.(DataByteValue)
@@ -1368,7 +1370,7 @@ func (tv *TypedValue) SetUint16(n uint16) {
 		if tv.T.Kind() != Uint16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint16() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*uint16)(unsafe.Pointer(&tv.N)) = n
@@ -1379,7 +1381,7 @@ func (tv *TypedValue) GetUint16() uint16 {
 		if tv.T != nil && tv.T.Kind() != Uint16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint16() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*uint16)(unsafe.Pointer(&tv.N))
@@ -1390,7 +1392,7 @@ func (tv *TypedValue) SetUint32(n uint32) {
 		if tv.T.Kind() != Uint32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint32() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*uint32)(unsafe.Pointer(&tv.N)) = n
@@ -1401,7 +1403,7 @@ func (tv *TypedValue) GetUint32() uint32 {
 		if tv.T != nil && tv.T.Kind() != Uint32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint32() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*uint32)(unsafe.Pointer(&tv.N))
@@ -1412,7 +1414,7 @@ func (tv *TypedValue) SetUint64(n uint64) {
 		if tv.T.Kind() != Uint64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint64() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*uint64)(unsafe.Pointer(&tv.N)) = n
@@ -1423,7 +1425,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 		if tv.T != nil && tv.T.Kind() != Uint64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint64() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*uint64)(unsafe.Pointer(&tv.N))
@@ -1434,7 +1436,7 @@ func (tv *TypedValue) SetFloat32(n uint32) {
 		if tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat32() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*uint32)(unsafe.Pointer(&tv.N)) = n
@@ -1445,7 +1447,7 @@ func (tv *TypedValue) GetFloat32() uint32 {
 		if tv.T != nil && tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetFloat32() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*uint32)(unsafe.Pointer(&tv.N))
@@ -1456,7 +1458,7 @@ func (tv *TypedValue) SetFloat64(n uint64) {
 		if tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat64() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	*(*uint64)(unsafe.Pointer(&tv.N)) = n
@@ -1467,7 +1469,7 @@ func (tv *TypedValue) GetFloat64() uint64 {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetFloat64() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return *(*uint64)(unsafe.Pointer(&tv.N))
@@ -1478,7 +1480,7 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 		if tv.T != nil && tv.T.Kind() != BigintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBigInt() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return tv.V.(BigintValue).V
@@ -1489,7 +1491,7 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBigDec() on type %s",
-				tv.T.String(nil)))
+				tv.T.String()))
 		}
 	}
 	return tv.V.(BigdecValue).V
@@ -1594,7 +1596,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected map key type %s",
-			tv.T.String(nil)))
+			tv.T.String()))
 	}
 	return MapKey(bz)
 }
@@ -1793,7 +1795,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			}
 		default:
 			panic(fmt.Sprintf("unexpected selector base type %s (%s)",
-				dtv.T.String(nil), reflect.TypeOf(dtv.T)))
+				dtv.T.String(), reflect.TypeOf(dtv.T)))
 		}
 	case VPSubrefField:
 		switch ct := baseOf(dtv.T).(type) {
@@ -1801,7 +1803,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			return dtv.V.(*StructValue).GetSubrefPointerTo(store, ct, path)
 		default:
 			panic(fmt.Sprintf("unexpected (subref) selector base type %s (%s)",
-				dtv.T.String(nil), reflect.TypeOf(dtv.T)))
+				dtv.T.String(), reflect.TypeOf(dtv.T)))
 		}
 	case VPValMethod:
 		dt := dtv.T.(*DeclaredType)
@@ -1880,7 +1882,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		tr, _, _, _, _ := findEmbeddedFieldType(callerPath, dtv.T, path.Name, nil)
 		if len(tr) == 0 {
 			panic(fmt.Sprintf("method %s not found in type %s",
-				path.Name, dtv.T.String(nil)))
+				path.Name, dtv.T.String()))
 		}
 		btv := *dtv
 		for i, path := range tr {
@@ -1928,7 +1930,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		}
 		panic(fmt.Sprintf(
 			"primitive type %s cannot be indexed",
-			tv.T.String(nil)))
+			tv.T.String()))
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		ii := int(iv.ConvertGetInt())
@@ -1957,7 +1959,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 	default:
 		panic(fmt.Sprintf(
 			"unexpected index base type %s (%v base %v)",
-			tv.T.String(nil),
+			tv.T.String(),
 			reflect.TypeOf(tv.T),
 			reflect.TypeOf(baseOf(tv.T))))
 	}
@@ -1993,7 +1995,7 @@ func (tv *TypedValue) GetLength() int {
 		switch bt := baseOf(tv.T).(type) {
 		case PrimitiveType:
 			if bt != StringType {
-				panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String(nil)))
+				panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 			}
 			return 0
 		case *ArrayType:
@@ -2006,11 +2008,11 @@ func (tv *TypedValue) GetLength() int {
 			if at, ok := bt.Elt.(*ArrayType); ok {
 				return at.Len
 			}
-			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String(nil)))
+			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type for len(): %s",
-				bt.String(nil)))
+				bt.String()))
 		}
 	}
 	switch cv := tv.V.(type) {
@@ -2026,10 +2028,10 @@ func (tv *TypedValue) GetLength() int {
 		if av, ok := cv.TV.V.(*ArrayValue); ok {
 			return av.GetLength()
 		}
-		panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String(nil)))
+		panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
-			tv.T.String(nil)))
+			tv.T.String()))
 	}
 }
 
@@ -2046,9 +2048,9 @@ func (tv *TypedValue) GetCapacity() int {
 			if at, ok := bt.Elt.(*ArrayType); ok {
 				return at.Len
 			}
-			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String(nil)))
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 		default:
-			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String(nil)))
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 		}
 	}
 	switch cv := tv.V.(type) {
@@ -2060,10 +2062,10 @@ func (tv *TypedValue) GetCapacity() int {
 		if av, ok := cv.TV.V.(*ArrayValue); ok {
 			return av.GetCapacity()
 		}
-		panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String(nil)))
+		panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for cap(): %s",
-			tv.T.String(nil)))
+			tv.T.String()))
 	}
 }
 
@@ -2148,7 +2150,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice(): %s",
-			tv.T.String(nil)))
+			tv.T.String()))
 	}
 }
 
@@ -2227,7 +2229,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
-			tv.T.String(nil)))
+			tv.T.String()))
 	}
 }
 
