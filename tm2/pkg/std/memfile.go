@@ -221,6 +221,18 @@ func (mpkg *MemPackage) IsEmpty() bool {
 	return len(mpkg.Files) == 0
 }
 
+// Returns true if it has no files ending in `xtn`.  xtn should start with a
+// dot to check extensions, but need not start with one, e.g. to test for
+// _test.gno.
+func (mpkg *MemPackage) IsEmptyOf(xtn string) bool {
+	for _, mfile := range mpkg.Files {
+		if strings.HasSuffix(mfile.Name, xtn) {
+			return false
+		}
+	}
+	return true
+}
+
 // Returns true if zero.
 func (mpkg *MemPackage) IsZero() bool {
 	return mpkg.Name == "" && len(mpkg.Files) == 0

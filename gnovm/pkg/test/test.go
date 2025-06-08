@@ -245,8 +245,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		SkipPackage: true,
 	})
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
+	// If testing with only filetests, there will be no files.
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
-	_, _ = m2.RunMemPackageWithOverrides(tmpkg, true)
+	if !tmpkg.IsEmptyOf(".gno") {
+		_, _ = m2.RunMemPackageWithOverrides(tmpkg, true)
+	}
 
 	// Eagerly load imports.
 	abortOnError := true

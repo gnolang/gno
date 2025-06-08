@@ -413,7 +413,7 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 	}
 	// Verify/derive package name.
 	switch mptype {
-	case MPFiletests:
+	case MPFiletests, MPAll: // MPAll from Test_Scripts gno test.
 		// If only filetests with the same name, its package name is used.
 		if pkgName == "" && !pkgNameDiffers && !pkgNameFTDiffers {
 			pkgName = pkgNameFT
