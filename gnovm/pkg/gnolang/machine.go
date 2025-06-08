@@ -466,6 +466,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // compile-time errors in the package. It is also usde to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
+//   - fixFrom: the version of gno to fix from.
 func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
@@ -492,7 +493,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.Name, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
 	pn.PrepareNewValues(pv)
@@ -576,7 +577,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.Name, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 
 	// Get new values across all files in package.
@@ -588,7 +589,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
 		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.Name)
+		// fb := pv.GetFileBlock(nil, fn.FileName)
 		// get dependencies of decl.
 		deps := make(map[Name]struct{})
 		findDependentNames(decl, deps)
@@ -609,7 +610,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 				} else { // is an undefined dependency.
 					panic(fmt.Sprintf(
 						"%s/%s:%s: dependency %s not defined in fileset with files %v",
-						pv.PkgPath, fn.Name, decl.GetPos().String(), dep, fs.FileNames()))
+						pv.PkgPath, fn.FileName, decl.GetPos().String(), dep, fs.FileNames()))
 				}
 			}
 			// if dep already in loopfindr, abort.
@@ -621,7 +622,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 				} else {
 					panic(fmt.Sprintf(
 						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
-						pv.PkgPath, fn.Name, decl.GetPos().String(), loopfindr, dep))
+						pv.PkgPath, fn.FileName, decl.GetPos().String(), loopfindr, dep))
 				}
 			}
 			// run dependency declaration
@@ -630,7 +631,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			loopfindr = loopfindr[:len(loopfindr)-1]
 		}
 		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.Name)
+		fb := pv.GetFileBlock(m.Store, fn.FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()
@@ -658,6 +659,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 // behavior, build systems are encouraged to present
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
+// If m.Realm is set `init(cur realm)` works too.
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	// Only for the init functions make the origin caller
 	// the package addr.
@@ -670,7 +672,8 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.runFunc(StageAdd, fv.Name)
+				maybeCrossing := m.Realm != nil
+				m.runFunc(StageAdd, fv.Name, maybeCrossing)
 				m.PopBlock()
 			}
 		}
@@ -728,12 +731,36 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) runFunc(st Stage, fn Name) {
+func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
+	if maybeCrossing {
+		pv := m.Package
+		pb := pv.GetBlock(m.Store)
+		pn := pb.GetSource(m.Store).(*PackageNode)
+		ft := pn.GetStaticTypeOf(m.Store, fn).(*FuncType)
+		if ft.IsCrossing() {
+			// .cur is a special keyword for non-crossing calls of
+			// a crossing function where `cur` is not available
+			// from m.RunFuncMaybeCrossing().
+			//
+			// `main(cur realm)` and `init(cur realm)` are
+			// considered to have already crossed at "frame -1", so
+			// we do not want to cross-call main, and the behavior
+			// is identical to main(), like wise init().
+			m.RunStatement(st, S(Call(Nx(fn), Nx(".cur"))))
+			return
+		}
+	}
 	m.RunStatement(st, S(Call(Nx(fn))))
 }
 
 func (m *Machine) RunMain() {
-	m.runFunc(StageRun, "main")
+	m.runFunc(StageRun, "main", false)
+}
+
+// This is used for realm filetests which may declare
+// either main() or main(cur crossing).
+func (m *Machine) RunMainMaybeCrossing() {
+	m.runFunc(StageRun, "main", true)
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -845,21 +872,46 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	return tv.Type
 }
 
+// Runs a statement on a block. The block must not be a package node's block,
+// but it may be a file block or anything else.  New names may be declared by
+// the statement, so the block is expanded with its own source.
 func (m *Machine) RunStatement(st Stage, s Stmt) {
-	sn := m.LastBlock().GetSource(m.Store)
-	s = Preprocess(m.Store, sn, s).(Stmt)
+	lb := m.LastBlock()
+	last := lb.GetSource(m.Store)
+	switch last.(type) {
+	case *FileNode, *PackageNode:
+		// NOTE: type decls and value decls are also statements, and
+		// they add a name to m.LastBlock, except if last block is a
+		// file/package block it adds to the parent package block.
+		if d, ok := s.(Decl); ok {
+			m.RunDeclaration(d)
+			return // already pn.PrepareNewValues()'d.
+		}
+	}
+	// preprocess s and expand last if needed.
+	func() {
+		oldNames := last.GetNumNames()
+		defer func() {
+			// if preprocess panics during `a := ...`,
+			// the static block will have a new slot but not
+			// the runtime block, causing issues later.
+			newNames := last.GetNumNames()
+			if oldNames != newNames {
+				lb.ExpandWith(m.Alloc, last)
+			}
+		}()
+		s = Preprocess(m.Store, last, s).(Stmt)
+	}()
+	// run s.
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
 	m.Run(st)
 }
 
-// Runs a declaration after preprocessing d.  If d was already
-// preprocessed, call runDeclaration() instead.
-// This function is primarily for testing, so no blocknodes are
-// saved to store, and declarations are not realm compatible.
-// NOTE: to support realm persistence of types, must
-// first require the validation of blocknode locations.
+// Runs a declaration after preprocessing d.  If d was already preprocessed,
+// call runDeclaration() instead.  No blocknodes are saved to store, and
+// declarations are not realm compatible.
 func (m *Machine) RunDeclaration(d Decl) {
 	if fd, ok := d.(*FuncDecl); ok && fd.Name == "init" {
 		// XXX or, consider running it, but why would this be needed?
@@ -919,8 +971,9 @@ const (
 	OpNoop                Op = 0x02 // no-op
 	OpExec                Op = 0x03 // exec next statement
 	OpPrecall             Op = 0x04 // sets X (func) to frame
-	OpCall                Op = 0x05 // call(Frame.Func, [...])
-	OpCallNativeBody      Op = 0x06 // call body is native
+	OpEnterCrossing       Op = 0x05 // before OpCall of a crossing function
+	OpCall                Op = 0x06 // call(Frame.Func, [...])
+	OpCallNativeBody      Op = 0x07 // call body is native
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
@@ -1053,6 +1106,7 @@ const (
 	OpCPUNoop                = 1
 	OpCPUExec                = 25
 	OpCPUPrecall             = 207
+	OpCPUEnterCrossing       = 100 // XXX
 	OpCPUCall                = 256
 	OpCPUCallNativeBody      = 424
 	OpCPUDefer               = 64
@@ -1228,6 +1282,9 @@ func (m *Machine) Run(st Stage) {
 		case OpPrecall:
 			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
+		case OpEnterCrossing:
+			m.incrCPU(OpCPUEnterCrossing)
+			m.doOpEnterCrossing()
 		case OpCall:
 			m.incrCPU(OpCPUCall)
 			m.doOpCall()
@@ -1851,10 +1908,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	m.Package = pv
 
-	// If cross, always switch to pv.Realm.
+	// If with cross, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
 	if withCross {
+		// since gno 0.9 cross type-checking makes this impossible.
+		// XXX move this into if debug { ... }
 		if !fv.IsCrossing() {
 			// panic; notcrossing
 			mrpath := "<no realm>"
@@ -1873,9 +1932,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not called like cross(fn)(...).
+	// Non-crossing call of a crossing function like Public(cur, ...).
 	if fv.IsCrossing() {
 		if m.Realm != pv.Realm {
+			// Illegal crossing to external realm.
+			// (the function was variable and run-time check was necessary).
 			// panic; not explicit
 			mrpath := "<no realm>"
 			if m.Realm != nil {
@@ -1886,16 +1947,14 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				prpath = pv.Realm.Path
 			}
 			panic(fmt.Sprintf(
-				"must cross-call like cross(%s.%v)(...) from %s",
+				"cannot cur-call to external realm function %s.%v from %s",
 				prpath,
 				fv.String(nil),
 				mrpath,
 			))
-		} else {
-			// ok
-			// Technically OK even if recv.Realm is different.
-			return
 		}
+		// OK even if recv.Realm is different.
+		return
 	}
 
 	// Not cross nor crossing.
@@ -1917,7 +1976,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = objpv.GetRealm()
+				if objpv.IsRealm() && objpv.Realm == nil {
+					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
+				} else {
+					rlm = objpv.GetRealm()
+				}
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit
