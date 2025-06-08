@@ -412,19 +412,21 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 		return nil, fmt.Errorf("package has no files")
 	}
 	// Verify/derive package name.
-	switch mptype {
-	case MPFiletests, MPAll: // MPAll from Test_Scripts gno test.
-		// If only filetests with the same name, its package name is used.
-		if pkgName == "" && !pkgNameDiffers && !pkgNameFTDiffers {
-			pkgName = pkgNameFT
-		} else {
-			// Otherwie, set a default one. It doesn't matter.
-			pkgName = "filetests"
-		}
-	default:
-		// If pkgNameDiffers, return mpkg and the errors.
-		if mptype != MPFiletests && pkgNameDiffers {
-			return nil, errs
+	if pkgName == "" {
+		switch mptype {
+		case MPFiletests, MPAll: // MPAll from Test_Scripts gno test.
+			// If only filetests with the same name, its package name is used.
+			if !pkgNameDiffers && !pkgNameFTDiffers {
+				pkgName = pkgNameFT
+			} else {
+				// Otherwie, set a default one. It doesn't matter.
+				pkgName = "filetests"
+			}
+		default:
+			// If pkgNameDiffers, return mpkg and the errors.
+			if mptype != MPFiletests && pkgNameDiffers {
+				return nil, errs
+			}
 		}
 	}
 	// Still no pkgName or invalid; ensure error.

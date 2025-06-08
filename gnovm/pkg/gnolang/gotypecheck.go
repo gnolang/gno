@@ -475,7 +475,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	return pkg, multierr.Combine(gimp.errors[numErrs:]...)
 }
 
-func deleteOldIdents(idents map[string]func(), gof *ast.File) {
+// Ensure uniqueness of declarations,
+// e.g. test/stdlibs overriding stdlibs.
+func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
+	dupes := []ast.Decl{}
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods and init functions
@@ -484,18 +487,19 @@ func deleteOldIdents(idents map[string]func(), gof *ast.File) {
 			fd.Name.Name == "init" {
 			continue
 		}
-		if del := idents[fd.Name.Name]; del != nil {
-			del()
-		}
-		decl := decl
-		idents[fd.Name.Name] = func() {
-			// NOTE: cannot use the index as a file may contain
-			// multiple decls to be removed, so removing one would
-			// make all "later" indexes wrong.
-			gof.Decls = slices.DeleteFunc(gof.Decls,
-				func(d ast.Decl) bool { return decl == d })
+		// if declaration is duplicate, delete this one.
+		_, exists := decls[fd.Name.Name]
+		if exists {
+			// delete this one. doesn't matter which one (whether
+			// Go native or gno) for type-checking.
+			dupes = append(dupes, decl)
+		} else {
+			decls[fd.Name.Name] = struct{}{}
 		}
 	}
+	// actually delete.
+	gof.Decls = slices.DeleteFunc(gof.Decls,
+		func(d ast.Decl) bool { return slices.Contains(dupes, d) })
 }
 
 // ========================================
@@ -511,11 +515,8 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 ) {
 	gofset = token.NewFileSet()
 
-	// This map is used to allow for function re-definitions, which are
-	// allowed in Gno (testing context) but not in Go.  This map links
-	// each function identifier with a closure to remove its associated
-	// declaration.
-	delFunc := make(map[string]func())
+	// This map is used to allow for Go native overrides/redeclarations.
+	decls := make(map[string]struct{}) // (func) decl name
 
 	// Go parse and collect files from mpkg.
 	for _, file := range mpkg.Files {
@@ -566,14 +567,18 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 				// xxx_test imports normal and only
 				// non-xxx_test *test.go files from xxx.
 			case MPAny, MPAll, MPStdlib, MPFiletests:
-				deleteOldIdents(delFunc, gof)
 				_gofs = append(_gofs, gof)
 				allgofs = append(allgofs, gof)
 			default:
 				panic("should not happen")
 			}
-		} else { // normal *_test.gno here for integration testing.
-			deleteOldIdents(delFunc, gof)
+		} else if strings.HasSuffix(file.Name, "_test.gno") {
+			// !strings.HasSuffix(gof.Name.String(), "_test")
+			// + non-xxx_test *_test.gno here for integration testing.
+			gofs = append(gofs, gof)
+			allgofs = append(allgofs, gof)
+		} else { // prod files
+			uniqueDecls(decls, gof)
 			gofs = append(gofs, gof)
 			allgofs = append(allgofs, gof)
 		}
