@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -70,6 +72,8 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
+	// used for typechecking
+	gnoTestStore gno.Store
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -106,6 +110,10 @@ func (vm *VMKeeper) Initialize(
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
+
+	// Initialize a basic test store for type checking test files.
+	// XXX: It should be better initlized elsewhere above.
+	_, vm.gnoTestStore = test.TestStore(gnoenv.RootDir(), io.Discard)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -334,6 +342,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
 
+	memPkg.Type = gno.MPAll
+
 	// Validate arguments.
 	if creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
@@ -362,8 +372,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	// _, ts := test.TestStore(gnoenv.RootDir(), io.Discard)
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gnostore, gno.TCLatestStrict)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, gno.TCLatestStrict)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -583,6 +592,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	memPkg := msg.Package
 	chainDomain := vm.getChainDomainParam(ctx)
 
+	memPkg.Type = gno.MPAll
+
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
@@ -593,7 +604,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
-	if err := gno.ValidateMemPackage(msg.Package); err != nil {
+	if err := gno.ValidateMemPackage(memPkg); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
