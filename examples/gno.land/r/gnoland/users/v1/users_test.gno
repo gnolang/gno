@@ -23,7 +23,7 @@ func TestRegister_Valid(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	uassert.NotPanics(t, func() {
-		cross(Register)(alice)
+		Register(cross, alice)
 	})
 
 	res, latest := susers.ResolveName(alice)
@@ -42,44 +42,44 @@ func TestRegister_Invalid(t *testing.T) {
 
 	// Invalid usernames
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("alice") // vanity
+		Register(cross, "alice") // vanity
 	})
 
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("") // empty
+		Register(cross, "") // empty
 	})
 
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("    ") // empty
+		Register(cross, "    ") // empty
 	})
 
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("123") // empty
+		Register(cross, "123") // empty
 	})
 
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("123") // only numbers
+		Register(cross, "123") // only numbers
 	})
 
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("alice&#($)") // non-allowed chars
+		Register(cross, "alice&#($)") // non-allowed chars
 	})
 
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("Alice123") // upper-case
+		Register(cross, "Alice123") // upper-case
 	})
 
 	uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-		cross(Register)("toolongusernametoolongusernametoolongusername123") // too long
+		Register(cross, "toolongusernametoolongusernametoolongusername123") // too long
 	})
 
 	// Name taken
 	urequire.NotPanics(t, func() {
-		cross(Register)(bob)
+		Register(cross, bob)
 	})
 
 	uassert.AbortsWithMessage(t, susers.ErrNameTaken.Error(), func() {
-		cross(Register)(bob) // already registered
+		Register(cross, bob) // already registered
 	})
 }
 
@@ -90,7 +90,7 @@ func TestRegister_InvalidPayment(t *testing.T) {
 	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
 
 	uassert.AbortsWithMessage(t, ErrInvalidPayment.Error(), func() {
-		cross(Register)(alice)
+		Register(cross, alice)
 	})
 }
 

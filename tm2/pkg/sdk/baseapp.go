@@ -972,9 +972,18 @@ func (app *BaseApp) halt() {
 	os.Exit(0)
 }
 
-// TODO implement cleanup
 func (app *BaseApp) Close() error {
-	return nil // XXX
+	if app.db == nil {
+		return nil
+	}
+
+	app.logger.Info("Closing application.db")
+
+	if err := app.db.Close(); err != nil {
+		return fmt.Errorf("unable to gracefully close DB: %w", err)
+	}
+
+	return nil
 }
 
 // ----------------------------------------------------------------------------
