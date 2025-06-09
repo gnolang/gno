@@ -107,6 +107,28 @@ type (
 	}
 )
 
+// MustValidate validates that a proposal is valid for the current state or panics on error.
+func MustValidate(v Validable) {
+	if v == nil {
+		panic("validable proposal definition is nil")
+	}
+
+	if err := v.Validate(); err != nil {
+		panic(err)
+	}
+}
+
+// MustExecute executes an executable proposal or panics on error.
+func MustExecute(e Executable) {
+	if e == nil {
+		panic("executable proposal definition is nil")
+	}
+
+	if err := e.Execute(cross); err != nil {
+		panic(err)
+	}
+}
+
 // NewProposal creates a new DAO proposal.
 func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposal, error) {
 	if d == nil {
