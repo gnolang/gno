@@ -108,7 +108,7 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 	// Get the transaction bytes
 	txRaw, err := os.ReadFile(cfg.TxPath)
 	if err != nil {
-		return fmt.Errorf("unable to read transaction file")
+		return fmt.Errorf("unable to read transaction file: %w", err)
 	}
 
 	// Make sure there is something to actually sign
