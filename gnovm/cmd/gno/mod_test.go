@@ -112,7 +112,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "tidy"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldContain:     "could not read file \"gno.mod\"",
+			errShouldContain:     "gnomod.toml doesn't exist",
 		},
 		{
 			args:                 []string{"mod", "tidy"},
