@@ -22,7 +22,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: start.gnoland
-start.gnoland:  # Start the gnoland node with lazy loading enabled
+start.gnoland:  # Start the gno.land node with lazy loading enabled
 	go run ./cmd/gnoland start -lazy
 
 .PHONY: start.gnoweb
