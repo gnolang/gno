@@ -125,17 +125,22 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 	var (
 		pubKey = info.GetPubKey()
 
-		// TODO add comment
+		// The code below perfectly highlights the overengineering of the SDK.
+		// The keybase works exclusively with an abstraction of a public key (crypto.PubKey),
+		// so even if the key type is multisig (multiple public keys), there is no way
+		// to access the crypto.PubKey's internal fields (nor should there be, as this is an abstraction).
+		//
+		// This becomes a problem when we need to create a multisig, since to initialize
+		// the multisig object, we need to specify _the exact number of keys in the multisig_ (N),
+		// even though we just want to aggregate a few signatures together (K).
+		// As there is no way to extract this information from a crypto.PubKey, we need to _cast_
+		// the public key to a multisig one, and access its fields, in order to find N.
+		// So much for the abstraction dance.
 		multisigPub = pubKey.(multisig.PubKeyMultisigThreshold)
 		multisigSig = multisig.NewMultisig(len(multisigPub.PubKeys))
-
-		sig = &std.Signature{
-			PubKey:    pubKey,
-			Signature: multisigSig.Marshal(),
-		}
 	)
 
-	for index, sigPath := range cfg.Signatures {
+	for _, sigPath := range cfg.Signatures {
 		// Load the signature
 		sigRaw, err := os.ReadFile(sigPath)
 		if err != nil {
@@ -148,10 +153,22 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 		}
 
 		// Add it to the multisig
-		multisigSig.AddSignature(sig.Signature, index)
+		if err = multisigSig.AddSignatureFromPubKey(
+			sig.Signature,
+			sig.PubKey,
+			multisigPub.PubKeys,
+		); err != nil {
+			return fmt.Errorf("unable to addd signature: %w", err)
+		}
 	}
 
-	// Add the multisig signature
+	// Construct the signature
+	sig := &std.Signature{
+		PubKey:    pubKey,
+		Signature: multisigSig.Marshal(),
+	}
+
+	// Save the signature to the tx
 	if err = addSignature(&tx, sig); err != nil {
 		return fmt.Errorf("unable to add signature: %w", err)
 	}
