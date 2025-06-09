@@ -230,7 +230,7 @@ func TestSign_SignTx(t *testing.T) {
 			"unable to unmarshal transaction",
 		)
 	})
-	
+
 	t.Run("no output path", func(t *testing.T) {
 		t.Parallel()
 
