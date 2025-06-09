@@ -393,8 +393,8 @@ func (x SwitchStmt) String() string {
 		init = x.Init.String() + "; "
 	}
 	varName := ""
-	if x.VarName != "" {
-		varName = string(x.VarName) + ":="
+	if x.VarName.Name != "" {
+		varName = string(x.VarName.Name) + ":="
 	}
 	cases := ""
 	for i, s := range x.Clauses {

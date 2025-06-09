@@ -473,7 +473,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				X:            toExpr(fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
-				VarName:      toName(as.Lhs[0].(*ast.Ident)),
+				VarName:      *Nx(toName(as.Lhs[0].(*ast.Ident))),
 			}
 			return stmt
 		case *ast.ExprStmt:
@@ -482,7 +482,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
-				VarName:      "",
+				VarName:      NameExpr{},
 			}
 			return stmt
 		default:
