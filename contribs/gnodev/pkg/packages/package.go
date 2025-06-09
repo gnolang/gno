@@ -97,7 +97,7 @@ func isMemPackageEmpty(mempkg *std.MemPackage) bool {
 	}
 
 	for _, file := range mempkg.Files {
-		if isGnoFile(file.Name) || file.Name == "gno.mod" {
+		if isGnoFile(file.Name) {
 			return false
 		}
 	}

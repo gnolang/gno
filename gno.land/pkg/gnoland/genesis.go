@@ -191,7 +191,11 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 
 	for _, pkg := range nonDraftPkgs {
 		// XXX: as addpkg require gno.mod, we should probably check this here
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name, gno.MPAll)
+		mpkg, err := gno.ReadMemPackage(pkg.Dir, pkg.Name, gno.MPAll)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
+		}
+
 		tx, err := LoadPackage(mpkg, creator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)

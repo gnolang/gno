@@ -29,12 +29,10 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 		expectErr       error
 	}{
 		{
-			name: "valid message",
-			msg:  NewMsgAddPackage(creator, pkgPath, files),
-			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"",` +
-				`"package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}",` +
-				`"name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test"}}`,
-			expectErr: nil,
+			name:            "valid message",
+			msg:             NewMsgAddPackage(creator, pkgPath, files),
+			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}","name":"test.gno"}],"info":null,"name":"test","path":"gno.land/r/namespace/test","type":null}}`,
+			expectErr:       nil,
 		},
 		{
 			name: "missing creator address",

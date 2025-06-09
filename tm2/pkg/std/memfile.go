@@ -218,7 +218,7 @@ func (mpkg *MemPackage) DeleteFile(name string) *MemFile {
 
 // Returns true if it has no files.
 func (mpkg *MemPackage) IsEmpty() bool {
-	return len(mpkg.Files) == 0
+	return mpkg.IsEmptyOf(".gno")
 }
 
 // Returns true if it has no files ending in `xtn`.  xtn should start with a
