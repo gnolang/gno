@@ -27,7 +27,7 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnokey install.gno install.gnodev  # Install GnoKey, Gno and GnoDev
+install: install.gnokey install.gno install.gnodev  # Install gnokey, gno and gnodev
 
 # shortcuts to frequently used commands from sub-components.
 .PHONY: install.gnokey
