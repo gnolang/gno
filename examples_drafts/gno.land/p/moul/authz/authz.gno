@@ -40,8 +40,8 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/rotree"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/rotree"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/once"

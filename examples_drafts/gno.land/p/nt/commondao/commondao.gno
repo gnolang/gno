@@ -5,7 +5,7 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/avl/list"
+	"gno.land/p/nt/avl/list"
 	"gno.land/p/demo/seqid"
 )
 

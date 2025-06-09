@@ -3,8 +3,8 @@ package grc20reg
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/rotree"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/rotree"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"

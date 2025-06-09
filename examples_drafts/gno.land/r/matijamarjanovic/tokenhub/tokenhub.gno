@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/r/demo/grc20reg"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/grc/grc721"
 

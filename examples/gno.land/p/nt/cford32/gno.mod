@@ -1,0 +1,3 @@
+module gno.land/p/nt/cford32
+
+gno 0.9

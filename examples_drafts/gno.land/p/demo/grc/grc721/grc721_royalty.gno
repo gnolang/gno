@@ -4,7 +4,7 @@ import (
 	"math/overflow"
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // royaltyNFT represents a non-fungible token (NFT) with royalty functionality.

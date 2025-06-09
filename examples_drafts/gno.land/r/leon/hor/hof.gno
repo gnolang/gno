@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"

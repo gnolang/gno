@@ -3,7 +3,7 @@ package datastore
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/collection"
 )

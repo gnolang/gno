@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"std"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
 	"gno.land/p/demo/combinederr"
 	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/ufmt"

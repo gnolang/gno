@@ -3,7 +3,7 @@ package datastore
 import (
 	"errors"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 )
 
 // ErrStorageExists indicates that a storage exists with the same name.

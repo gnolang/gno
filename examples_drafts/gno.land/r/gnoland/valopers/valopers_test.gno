@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"

@@ -1,0 +1,3 @@
+module gno.land/p/nt/urequire
+
+gno 0.9

@@ -4,8 +4,8 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
+	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"

@@ -3,7 +3,7 @@ package profile
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 )

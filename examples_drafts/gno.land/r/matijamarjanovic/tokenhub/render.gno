@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gno.land/p/demo/avl/pager"
+	"gno.land/p/nt/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"

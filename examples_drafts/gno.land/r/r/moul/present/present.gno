@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/avl/pager"
+	"gno.land/p/nt/avl/pager"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"

@@ -1,0 +1,3 @@
+module gno.land/p/nt/avl
+
+gno 0.9

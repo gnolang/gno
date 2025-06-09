@@ -134,7 +134,7 @@ Experience the convenience of code sharing and rapid experimentation with
 
 ### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
 
-- [p/demo/avl](/p/demo/avl)
+- [p/demo/avl](/p/nt/avl)
 - [p/demo/blog](/p/demo/blog)
 - [p/demo/ui](/p/demo/ui)
 - [p/demo/ufmt](/p/demo/ufmt)

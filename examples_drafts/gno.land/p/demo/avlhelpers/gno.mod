@@ -1,3 +1,3 @@
-module gno.land/p/demo/avlhelpers
+module gno.land/p/nt/avlhelpers
 
 gno 0.9

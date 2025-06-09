@@ -1,0 +1,3 @@
+module gno.land/p/nt/avl/rolist
+
+gno 0.9

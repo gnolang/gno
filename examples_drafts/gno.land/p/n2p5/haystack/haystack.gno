@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/n2p5/haystack/needle"
 )
 

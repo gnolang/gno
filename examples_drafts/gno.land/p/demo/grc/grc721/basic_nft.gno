@@ -5,7 +5,7 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/nt/avl"
 	"gno.land/p/demo/ufmt"
 )
 
