@@ -1,9 +1,10 @@
 package params
 
 import (
-	"gno.land/r/gov/dao"
 	"std"
 	"sys/params"
+
+	"gno.land/r/gov/dao"
 )
 
 const (
