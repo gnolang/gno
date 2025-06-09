@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	goio "io"
 	"io/fs"
 	"os"
 	"path"
@@ -145,8 +144,14 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	}
 
 	testbs, testgs := test.StoreWithOptions(
-		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true, WithExtern: true, WithExamples: true, Testing: true, FixFrom: gno.GnoVerMissing},
+		cmd.rootDir, io.Discard,
+		test.StoreOptions{
+			PreprocessOnly: true,
+			WithExtern:     true,
+			WithExamples:   true,
+			Testing:        true,
+			FixFrom:        gno.GnoVerMissing,
+		},
 	)
 
 	if cmd.verbose {
@@ -295,7 +300,6 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, cio.Err(), func() {
-
 			// Memo process results here.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 
@@ -309,7 +313,10 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
-			errs := lintTypeCheck(cio, dir, mpkg, newTestGnoStore(), newTestGnoStore(), gno.TCGno0p0)
+			errs := lintTypeCheck(cio, dir, mpkg, newTestGnoStore(), newTestGnoStore(), gno.TypeCheckOptions{
+				Mode:  gno.TCGno0p0,
+				Cache: tccache,
+			})
 			if errs != nil {
 				// cio.ErrPrintln(errs) already printed.
 				hasError = true

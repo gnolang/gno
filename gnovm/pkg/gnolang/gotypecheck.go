@@ -143,19 +143,41 @@ const (
 // The syntax checking is performed entirely using Go's go/types package.
 //
 // Args:
-//   - tcmode: TypeCheckMode, see comments above.
 //   - getter: the normal package import getter without test stdlibs.
 //   - tgetter: getter for test stdlibs with overrides when gimp.testing (importing from *_test.gno|*_filetest.gno).
+//   - tcmode: TypeCheckMode, see comments above.
 func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
+	return TypeCheckMemPackageWithOptions(mpkg, getter, tgetter, TypeCheckOptions{
+		Mode: tcmode,
+	})
+}
+
+type TypeCheckCache map[string]*gnoImporterResult
+
+// TypeCheckOptions allows to set custom options in [TypeCheckMemPackageWithOptions].
+type TypeCheckOptions struct {
+	Mode TypeCheckMode
+	// custom cache, for retaining results across several runs of the type
+	// checker when the packages themselves won't change.
+	Cache TypeCheckCache
+}
+
+// TypeCheckMemPackageWithOptions checks the given mpkg, configured using opts.
+func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, opts TypeCheckOptions) (
+	pkg *types.Package, errs error,
+) {
+	if opts.Cache == nil {
+		opts.Cache = TypeCheckCache{}
+	}
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
-		tcmode:  tcmode,
+		tcmode:  opts.Mode,
 		getter:  gnoBuiltinsGetterWrapper{mpkg, getter},
 		tgetter: tgetter,
-		cache:   map[string]*gnoImporterResult{},
+		cache:   opts.Cache,
 		cfg: &types.Config{
 			Error: func(err error) {
 				gimp.Error(err)
@@ -187,7 +209,7 @@ type gnoImporter struct {
 	testing bool             // if true, use tgetter for stdlibs & use ParseModeIntegration for type-checking pkgPath during import.
 	getter  MemPackageGetter // used for stdlbis if !.testing, and everything else.
 	tgetter MemPackageGetter // used for stdlibs if .testing
-	cache   map[string]*gnoImporterResult
+	cache   TypeCheckCache
 	cfg     *types.Config
 	errors  []error  // there may be many for a single import
 	stack   []string // stack of pkgpaths for cyclic import detection

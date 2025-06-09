@@ -248,8 +248,8 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	if err != nil {
 		return nil, err
 	}
-	// shadow defense.
-	goodFiles := goodFiles
+	// shadow defense. cap on its length ensures "copy-on-append"
+	goodFileXtns := goodFileXtns[:len(goodFileXtns):len(goodFileXtns)]
 	// Special stdlib validation.
 	if mptype != MPStdlib && IsStdlib(pkgPath) {
 		panic(fmt.Sprintf("unexpected stdlib package path %q", pkgPath))
@@ -258,7 +258,7 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	}
 	// Allows transpilation to work on stdlibs with native fns.
 	if IsStdlib(pkgPath) {
-		goodFiles = append(goodFiles, ".go")
+		goodFileXtns = append(goodFileXtns, ".go")
 	}
 	// Construct list of files to add to mpkg.
 	list := make([]string, 0, len(files))

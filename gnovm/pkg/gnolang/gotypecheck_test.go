@@ -379,7 +379,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := TypeCheckMemPackage(tc.pkg, tc.getter, ParseModeAll, TCLatestRelaxed)
+			_, err := TypeCheckMemPackage(tc.pkg, tc.getter, tc.getter, TCLatestRelaxed)
 			if tc.check == nil {
 				assert.NoError(t, err)
 			} else {
@@ -387,48 +387,4 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestTypeCheckMemPackage_format(t *testing.T) {
-	t.Parallel()
-
-	input := `
-	package hello
-		func Hello(name string) string   {return "hello"  + name
-}
-
-
-
-`
-
-	pkg := &std.MemPackage{
-		Type: MPProd,
-		Name: "hello",
-		Path: "gno.land/p/demo/hello",
-		Files: []*std.MemFile{
-			{
-				Name: "hello.gno",
-				Body: input,
-			},
-		},
-	}
-
-	mpkgGetter := mockPackageGetter{}
-	_, err := TypeCheckMemPackage(pkg, mpkgGetter, TCLatestRelaxed)
-	assert.NoError(t, err)
-	assert.Equal(t, input, pkg.Files[0].Body) // unchanged
-
-	/* XXX TypeChecker no longer does the formatting.
-		expected := `package hello
-
-	func Hello(name string) string {
-		return "hello" + name
-	}
-	`
-
-		_, _, err = TypeCheckMemPackage(pkg, mpkgGetter, TCLatestRelaxed)
-		assert.NoError(t, err)
-		assert.NotEqual(t, input, pkg.Files[0].Body)
-		assert.Equal(t, expected, pkg.Files[0].Body)
-	*/
 }

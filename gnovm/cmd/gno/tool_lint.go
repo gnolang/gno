@@ -171,7 +171,6 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
-
 			// Memo process results here.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 
@@ -190,7 +189,10 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				if cmd.autoGnomod {
 					tcmode = gno.TCLatestRelaxed
 				}
-				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(), tcmode)
+				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(), gno.TypeCheckOptions{
+					Mode:  tcmode,
+					Cache: tccache,
+				})
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
 					hasError = true
@@ -291,12 +293,12 @@ func lintTypeCheck(
 	mpkg *std.MemPackage,
 	prodStore gno.Store,
 	testStore gno.Store,
-	tcmode gno.TypeCheckMode) (
+	tcopts gno.TypeCheckOptions) (
 	// Results:
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackage(mpkg, prodStore, testStore, tcmode)
+	_, tcErrs := gno.TypeCheckMemPackageWithOptions(mpkg, prodStore, testStore, tcopts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)

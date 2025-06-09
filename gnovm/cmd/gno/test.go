@@ -276,7 +276,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			if mod == nil || !mod.Draft {
 				// Lint/typecheck/format.
 				// (gno.mod will be read again).
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, opts.TestStore, gno.TCLatestRelaxed)
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, opts.TestStore, gno.TypeCheckOptions{
+					Mode:  gno.TCLatestRelaxed,
+					Cache: tccache,
+				})
 				if errs != nil {
 					didError = true
 					// already printed in lintTypeCheck.

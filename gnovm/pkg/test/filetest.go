@@ -294,7 +294,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
+		if _, err := gno.TypeCheckMemPackageWithOptions(mpkg, m.Store, m.Store, gno.TypeCheckOptions{
+			Mode:  gno.TCLatestRelaxed,
+			Cache: opts.Cache,
+		}); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 		// Construct throwaway package and parse file.
@@ -313,6 +316,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// Remove filetest from name, as that can lead to the package not being
 		// parsed correctly when using RunMemPackage.
 		fname = strings.ReplaceAll(fname, "_filetest", "")
+
 		// Save package using realm crawl procedure.
 		mpkg := &std.MemPackage{
 			Type: gno.MPFiletests,
@@ -333,6 +337,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Run decls and init functions.
 		m.RunMemPackage(mpkg, true)
+
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		// (jae) why is this needed?
@@ -342,6 +347,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.SetActivePackage(pv2)
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
+
 		// Clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
 		m.RunMainMaybeCrossing()
