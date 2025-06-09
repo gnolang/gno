@@ -43,6 +43,12 @@ func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []
 	std.GetContext(m).Params.SetStrings(pk, val)
 }
 
+func X_getSysParamStrings(m *gno.Machine, module, submodule, name string) []string {
+
+	pk := prmkey(module, submodule, name)
+	return std.GetContext(m).Params.GetStrings(pk)
+}
+
 func assertSysParamsRealm(m *gno.Machine) {
 	// XXX improve
 	if len(m.Frames) < 2 {

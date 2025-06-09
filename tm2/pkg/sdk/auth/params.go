@@ -151,6 +151,68 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	return params
 }
 
+// WillSetParam defines what needs to be done when the parameter is set.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	// XXX validate input?
+	switch key {
+	case "p:unrestricted_addrs":
+		addrs, ok := value.([]string)
+		if !ok {
+			return
+		}
+		ak.applyUnrestrictedAddrsChange(ctx, addrs)
+	default:
+		// No-op for unrecognized keys
+	}
+}
+
+func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs []string) {
+	params, ok := ctx.Value(AuthParamsContextKey{}).(Params)
+	if !ok {
+		panic("missing or invalid AuthParams in context")
+	}
+
+	oldSet := make(map[string]struct{}, len(params.UnrestrictedAddrs))
+	for _, addr := range params.UnrestrictedAddrs {
+		oldSet[addr.String()] = struct{}{}
+	}
+
+	newSet := make(map[string]struct{}, len(newAddrs))
+	for _, a := range newAddrs {
+		newSet[a] = struct{}{}
+	}
+
+	unionSet := make(map[string]struct{}, len(oldSet)+len(newSet))
+	for k := range oldSet {
+		unionSet[k] = struct{}{}
+	}
+	for k := range newSet {
+		unionSet[k] = struct{}{}
+	}
+
+	for addrStr := range unionSet {
+		_, wasUnrestricted := oldSet[addrStr]
+		_, shouldBeUnrestricted := newSet[addrStr]
+
+		if wasUnrestricted == shouldBeUnrestricted {
+			continue
+		}
+
+		addr, err := crypto.AddressFromString(addrStr)
+		if err != nil {
+			panic(fmt.Sprintf("invalid address: %v", err))
+		}
+
+		acc := ak.GetAccount(ctx, addr)
+		uacc, ok := acc.(std.AccountUnrestricter)
+		if !ok {
+			continue
+		}
+
+		if shouldBeUnrestricted {
+			uacc.SetUnrestricted()
+		} else {
+			uacc.SetRestricted()
+		}
+		ak.SetAccount(ctx, acc)
+	}
 }

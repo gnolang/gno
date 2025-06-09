@@ -85,6 +85,11 @@ func (ga *GnoAccount) SetUnrestricted() {
 	ga.setFlag(flagUnrestricted)
 }
 
+// SetRestricted, accounts are restricted when global transfer locking is enabled.
+func (ga *GnoAccount) SetRestricted() {
+	ga.clearFlag(flagUnrestricted)
+}
+
 // IsUnrestricted checks whether the account is flagUnrestricted.
 func (ga *GnoAccount) IsUnrestricted() bool {
 	return ga.hasFlag(flagUnrestricted)
