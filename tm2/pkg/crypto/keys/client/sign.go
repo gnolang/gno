@@ -184,15 +184,21 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.OutputDocument != "" {
+		// Don't save the signature in-place, separate it
 		return saveSignature(signature, cfg.OutputDocument)
 	}
 
-	output, err := amino.MarshalJSONIndent(signature, "", "  ")
-	if err != nil {
-		return fmt.Errorf("unable to marshal signature to JSON: %w", err)
+	// Add the signature to the tx
+	if err = addSignature(&tx, signature); err != nil {
+		return fmt.Errorf("unable to add signature: %w", err)
 	}
 
-	io.Println(string(output))
+	// Save the tx to disk
+	if err = saveTx(&tx, cfg.TxPath); err != nil {
+		return fmt.Errorf("unable to save tx: %w", err)
+	}
+
+	io.Printf("\nTx successfully signed and saved to %s\n", cfg.TxPath)
 
 	return nil
 }

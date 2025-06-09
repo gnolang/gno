@@ -70,24 +70,6 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 		return errNoSignaturesProvided
 	}
 
-	// saveTx saves the given transaction to the given path (Amino-encoded JSON)
-	saveTx := func(tx *std.Tx, path string) error {
-		// Encode the transaction
-		encodedTx, err := amino.MarshalJSON(tx)
-		if err != nil {
-			return fmt.Errorf("unable ot marshal tx to JSON, %w", err)
-		}
-
-		// Save the transaction
-		if err := os.WriteFile(path, encodedTx, 0o644); err != nil {
-			return fmt.Errorf("unable to write tx to %s, %w", path, err)
-		}
-
-		io.Printf("\nTx successfully signed and saved to %s\n", path)
-
-		return nil
-	}
-
 	// Load the keybase
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
@@ -173,5 +155,28 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to add signature: %w", err)
 	}
 
-	return saveTx(&tx, cfg.TxPath)
+	// Save the tx to disk
+	if err = saveTx(&tx, cfg.TxPath); err != nil {
+		return fmt.Errorf("unable to save tx: %w", err)
+	}
+
+	io.Printf("\nTx successfully signed and saved to %s\n", cfg.TxPath)
+
+	return nil
+}
+
+// saveTx saves the given transaction to the given path (Amino-encoded JSON)
+func saveTx(tx *std.Tx, path string) error {
+	// Encode the transaction
+	encodedTx, err := amino.MarshalJSON(tx)
+	if err != nil {
+		return fmt.Errorf("unable ot marshal tx to JSON, %w", err)
+	}
+
+	// Save the transaction
+	if err := os.WriteFile(path, encodedTx, 0o644); err != nil {
+		return fmt.Errorf("unable to write tx to %s, %w", path, err)
+	}
+
+	return nil
 }
