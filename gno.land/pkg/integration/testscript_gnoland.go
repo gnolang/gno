@@ -311,6 +311,8 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
 			ts.Defer(cancel)
 
+			start := time.Now()
+
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 			nodep := setupNode(ts, ctx, &ProcessNodeConfig{
@@ -328,7 +330,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			// Load user infos
 			loadUserEnv(ts, nodep.Address())
 
-			fmt.Fprintln(ts.Stdout(), "node started successfully")
+			fmt.Fprintf(ts.Stdout(), "node started successfully, took %s\n", time.Since(start).String())
 
 		case "restart":
 			node, exists := nodesManager.Get(sid)
