@@ -43,7 +43,7 @@ var (
 )
 
 func init() {
-	cross(hor.Register)("Miko's calculator", "Let's do maths")
+	hor.Register(cross, "Miko's calculator", "")
 }
 
 func evaluateValidity(line string) (bool, string) {
