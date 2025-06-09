@@ -1,0 +1,3 @@
+module gno.land/p/nt/ufmt
+
+gno 0.9

@@ -1,0 +1,3 @@
+module gno.land/p/nt/seqid
+
+gno 0.9

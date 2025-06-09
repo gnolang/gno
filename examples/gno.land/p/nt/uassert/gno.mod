@@ -1,0 +1,3 @@
+module gno.land/p/nt/uassert
+
+gno 0.9

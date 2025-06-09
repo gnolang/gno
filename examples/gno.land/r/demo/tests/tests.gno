@@ -3,7 +3,7 @@ package tests
 import (
 	"std"
 
-	"gno.land/p/demo/nestedpkg"
+	"gno.land/p/nt/nestedpkg"
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
