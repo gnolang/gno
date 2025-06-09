@@ -22,3 +22,7 @@ If you're thinking of adding something to this folder, ask yourself:
 
 "Would this package be considered long-term as part of the chain’s identity or stability?
 Is the core team expected to maintain and provide support for it?" 
+
+If yes, place the package here. 
+If not, it's place-to-be is somewhere else; `examples-gno/`, Gnoverse org, 
+personal repository, etc.
