@@ -63,9 +63,18 @@ func (mfile *MemFile) ValidateBasic() error {
 
 // Print file to stdout.
 func (mfile *MemFile) Print() error {
+	if mfile == nil {
+		return fmt.Errorf("file not found")
+	}
 	fmt.Printf("MemFile[%q]:\n", mfile.Name)
 	fmt.Println(mfile.Body)
 	return nil
+}
+
+// Creates a new copy.
+func (mfile *MemFile) Copy() *MemFile {
+	mfile2 := *mfile
+	return &mfile2
 }
 
 //----------------------------------------
@@ -130,6 +139,9 @@ func (mpkg *MemPackage) ValidateBasic() error {
 	for _, mfile := range mpkg.Files {
 		if err := mfile.ValidateBasic(); err != nil {
 			return fmt.Errorf("invalid file in package: %w", err)
+		}
+		if !reFileName.MatchString(mfile.Name) {
+			return fmt.Errorf("invalid file name %q, failed to match %q", mfile.Name, reFileName)
 		}
 	}
 	return nil
