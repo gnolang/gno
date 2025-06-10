@@ -178,7 +178,9 @@ func isInvited(addr std.Address) bool {
 // isOwner checks if addr owns dao with id daoID
 func isOwner(addr std.Address, daoID uint64) bool {
 	// Make sure to check the root DAO ID, in case daoID belongs to a SubDAO.
-	// This is required because daoOwnerships is assigned to the root DAO.
+	// This is required because ownership is assigned to the root DAO.
+
+	// so the whole dao tree has one owner? why?
 	daoID = mustGetDAO(daoID).TopParent().ID()
 
 	for _, id := range getOwnership(addr) {
