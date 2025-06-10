@@ -31,8 +31,7 @@ type Config struct {
 	updated time.Time
 }
 
-func AddConfig(name, lines string) {
-	crossing()
+func AddConfig(cur realm, name, lines string) {
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
@@ -46,8 +45,7 @@ func AddConfig(name, lines string) {
 	})
 }
 
-func EditConfig(id string, name, lines string) {
-	crossing()
+func EditConfig(cur realm, id string, name, lines string) {
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
@@ -64,8 +62,7 @@ func EditConfig(id string, name, lines string) {
 	conf.updated = time.Now()
 }
 
-func RemoveConfig(id string) {
-	crossing()
+func RemoveConfig(cur realm, id string) {
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
@@ -75,8 +72,7 @@ func RemoveConfig(id string) {
 	}
 }
 
-func UpdateBanner(newBanner string) {
-	crossing()
+func UpdateBanner(cur realm, newBanner string) {
 	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}

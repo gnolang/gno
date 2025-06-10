@@ -49,8 +49,7 @@ TODO import r/gh`,
 	}
 }
 
-func UpdatePFP(url, caption string) {
-	crossing()
+func UpdatePFP(cur realm, url, caption string) {
 	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
