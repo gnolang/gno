@@ -58,8 +58,7 @@ func UpdatePFP(cur realm, url, caption string) {
 	pfpCaption = caption
 }
 
-func UpdateAboutMe(col1, col2 string) {
-	crossing()
+func UpdateAboutMe(cur realm, col1, col2 string) {
 	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
