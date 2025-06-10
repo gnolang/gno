@@ -30,7 +30,7 @@ func (s *Transactions) PushCallerCreation(gasCost uint, caller *Account, newCont
 		gasPrice:        gasCost,
 		caller:          caller,
 		contractAddress: newContractAddress,
-		accountType:     CallerAccount,
+		AccountType:     CallerAccount,
 	}
 	*s = append(*s, &createContract)
 }
@@ -40,7 +40,7 @@ func (s *Transactions) PushContractCreation(gasCost uint, caller *Account, newCo
 		gasPrice:        gasCost,
 		caller:          caller,
 		contractAddress: newContractAddress,
-		accountType:     ContractAccount,
+		AccountType:     ContractAccount,
 	}
 	*s = append(*s, &createContract)
 }
@@ -58,7 +58,7 @@ func (s *Transactions) PushExecution(gasCost uint, caller *Account, result []byt
 
 type CreateContractTransaction struct {
 	gasPrice        uint
-	accountType     accountType
+	AccountType     AccountType
 	caller          *Account
 	contractAddress uint64
 }
