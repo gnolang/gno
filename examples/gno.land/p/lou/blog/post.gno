@@ -23,7 +23,7 @@ type Post struct {
 	Tags          []string
 	Authors       []string
 	Publisher     std.Address
-	Likes         uint64 // to implement later
+	Likes         uint64
 	DisableLikes  bool
 	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
 
@@ -36,7 +36,7 @@ func NewPost(slug, title, body, publicationDate string, authors, tags []string, 
 		return nil, ErrInvalidCaller
 	}
 	if slug == "" {
-		title = titleToSlug(title) // is this ok?
+		title = titleToSlug(title)
 	}
 	if title == "" {
 		return nil, ErrEmptyTitle
@@ -170,6 +170,7 @@ func (p Post) RenderPost(prefix string) string {
 	}
 	out += md.Bold("Publisher:") + " " + p.Publisher.String() + "\n\n"
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
+	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes)
 	out += md.HorizontalRule()
 	out += p.RenderComments(prefix)
 	return out
@@ -181,8 +182,6 @@ func (p Post) RenderComments(prefix string) string {
 		out += "No comments yet.\n\n"
 		return out
 	}
-	// add sorting options
-	// recent, oldest, most liked, least liked
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
 		if comment.Pinned {

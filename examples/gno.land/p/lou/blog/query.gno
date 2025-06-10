@@ -11,7 +11,6 @@ type RenderOptions struct {
 	StartTime      time.Time // start time for filtering
 	EndTime        time.Time // end time for filtering
 	Ascending      bool
-	NewestFirst    bool
 	IsGrid         bool
 	IsAlphabetical bool
 	IsLastUpdated  bool
@@ -31,7 +30,6 @@ func ParseRenderOptions(rawPath string) RenderOptions {
 		TimeFormat:     timeFmt,
 		StartTime:      startTime,
 		EndTime:        endTime,
-		NewestFirst:    sort == "recent" || sort == "",
 		Ascending:      order == "asc" || order == "",
 		IsGrid:         mode == "grid" || mode == "",
 		IsAlphabetical: sort == "alpha",
@@ -49,11 +47,11 @@ func GetListFmtPath(rawPath string) string {
 	return updateQuery(rawPath, "mode", "list")
 }
 
-func GetSortByPublishedPath(rawPath, order string) string { // change to use toggle?
-	if order == "asc" {
-		return updateQuery(rawPath, "sort", "recent")
-	}
-	return updateQuery(rawPath, "sort", "oldest")
+func GetSortByPublishedPath(rawPath, order string) string {
+	return updateQueryMulti(rawPath, map[string]string{
+		"sort":  "recent",
+		"order": toggle(order),
+	})
 }
 
 func GetTimeFmtPath(rawPath, timeFormat string) string {

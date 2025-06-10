@@ -118,3 +118,13 @@ func calculateTimeSince(t time.Time) string {
 		return ufmt.Sprintf("%d months ago", int(duration.Hours()/(30*24)))
 	}
 }
+
+func extractListingDisplay(key string, value interface{}) (label string, count int) {
+	if strings.Contains(key, "::") {
+		parts := strings.Split(key, "::")
+		if len(parts) > 1 {
+			return parts[1], value.(int)
+		}
+	}
+	return key, value.(int)
+}

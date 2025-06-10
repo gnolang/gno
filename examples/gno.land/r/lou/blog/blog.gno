@@ -51,7 +51,15 @@ func CreateSampleBlog() *blog.Blog {
 	if err != nil {
 		panic(err)
 	}
+	comm3, err := blog.NewComment(
+		std.Address("g1xyz987654"),
+		"Absolutely, usability is key for adoption.",
+	)
+	if err != nil {
+		panic(err)
+	}
 	post2.AddComment(comm2)
+	post2.AddComment(comm3)
 
 	post3, err := blog.NewPost(
 		"getting-things-done",
@@ -59,7 +67,7 @@ func CreateSampleBlog() *blog.Blog {
 		"With distractions everywhere, productivity tools are more essential than ever.",
 		"2025-01-10T09:15:00Z",
 		[]string{"g1produser1"},
-		[]string{"productivity", "lifehacks", "focus"},
+		[]string{"productivity", "lifehacks", "focus", "ai"},
 		std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"),
 	)
 	if err != nil {
