@@ -197,7 +197,6 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
-
 			// Memo process results here.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 

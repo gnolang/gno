@@ -293,7 +293,6 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, cio.Err(), func() {
-
 			// Memo process results here.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 
@@ -337,7 +336,6 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			// The second result `fset` is ignored because we're
 			// not interested in type-check veracity (but lint is).
 			_, _, tfset, _tests, ftests := sourceAndTestFileset(mpkg, cmd.filetestsOnly)
-
 			{
 				// FIX STEP 6: PreprocessFiles()
 				// Preprocess tfset files (w/ some *_test.gno).

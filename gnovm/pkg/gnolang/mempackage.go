@@ -250,7 +250,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // MemPackage will contain the names and content of all *.gno files, and
 // additionally README.md, LICENSE.
 //
-// ReadMemPackage only reads good file extentions or whitelisted good files,
+// ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
 // are found, but otherwise new files may be added by various logic. It also
 // ignores and does not include files that wouldn't pass validation before any
@@ -311,7 +311,7 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 // pkgPath, containing the contents of all the files provided in the list
 // slice.
 //
-// ReadMemPackageFromList only reads good file extentions or whitelisted good
+// ReadMemPackageFromList only reads good file extensions or whitelisted good
 // files, and ignores bad file extensions. Validation will fail if any bad
 // extensions are found, but otherwise new files may be added by various logic.
 // It also ignores and does not include files that wouldn't pass validation

@@ -264,7 +264,6 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
-
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
 			err := opts.runTestFiles(mpkg, tset, tgs)

@@ -329,7 +329,6 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool) (
 	pkg *types.Package, errs error,
 ) {
-
 	// See adr/pr4264_lint_transpile.md
 	// STEP 2: Check gno.mod version.
 	var gnoVersion string
@@ -594,7 +593,7 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 	if mpkg.Type == MPTest && (len(_gofs) > 0 || len(tgofs) > 0) {
 		// same as above, because the non-xxx_test *_test.gno files are
 		// part of gofs, not _gofs; for testing purposes those test
-		// files extend the original pacakge when imported by xxx_test
+		// files extend the original package when imported by xxx_test
 		// *_test.gno files.
 		panic("unexpected xxx_test and *_filetest.gno tests")
 	}
