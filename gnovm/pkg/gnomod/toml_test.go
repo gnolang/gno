@@ -16,12 +16,12 @@ func TestUnmarshalTomlHelper(t *testing.T) {
 		{
 			name: "valid",
 			tomlStr: `
-[module]
 path = "gno.land/r/test"
 develop = 0
-[UploadMetadata]
-Uploader = "addr1"
-Height = 42
+UploadMetadata = {
+  Uploader = "addr1"
+  Height = 42
+}
 `,
 			expectErr: false,
 		},
@@ -52,90 +52,46 @@ func TestMarshalTomlHelper(t *testing.T) {
 			name: "minimal",
 			file: func() *File {
 				file := File{}
-				file.Module.Path = "gno.land/r/test"
-				file.Gno.Version = "0.9"
+				file.Path = "gno.land/r/test"
+				file.Gno = "0.9"
 				return &file
 			}(),
-			expected: `
-[module]
-  path = "gno.land/r/test"
-
-[gno]
-  version = "0.9"
-`,
+			expected: "path = \"gno.land/r/test\"\ngno = \"0.9\"\n",
 		},
 		{
 			name: "post upload",
 			file: func() *File {
 				file := File{}
-				file.Module.Path = "gno.land/r/test"
-				file.Gno.Version = "0.9"
+				file.Path = "gno.land/r/test"
+				file.Gno = "0.9"
 				file.UploadMetadata.Uploader = "addr1"
 				file.UploadMetadata.Height = 42
 				return &file
 			}(),
-			expected: `
-[module]
-  path = "gno.land/r/test"
-
-[gno]
-  version = "0.9"
-
-[upload_metadata]
-  uploader = "addr1"
-  height = 42
-`,
+			expected: "path = \"gno.land/r/test\"\ngno = \"0.9\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
 		},
 		{
 			name: "full",
 			file: func() *File {
 				file := File{}
-				file.Module.Path = "gno.land/r/test"
-				file.Module.Draft = true
-				file.Module.Private = true
-				file.Develop.Replace = []Replace{
+				file.Path = "gno.land/r/test"
+				file.Draft = true
+				file.Private = true
+				file.Replace = []Replace{
 					{Old: "gno.land/r/test", New: "gno.land/r/test/v2"},
 					{Old: "gno.land/r/test/v3", New: "../.."},
 				}
-				file.Gno.Version = "0.9"
+				file.Gno = "0.9"
 				file.UploadMetadata.Uploader = "addr1"
 				file.UploadMetadata.Height = 42
 				return &file
 			}(),
-			expected: `
-[module]
-  path = "gno.land/r/test"
-  draft = true
-  private = true
-
-[develop]
-
-  [[develop.replace]]
-    old = "gno.land/r/test"
-    new = "gno.land/r/test/v2"
-
-  [[develop.replace]]
-    old = "gno.land/r/test/v3"
-    new = "../.."
-
-[gno]
-  version = "0.9"
-
-[upload_metadata]
-  uploader = "addr1"
-  height = 42
-`,
+			expected: "path = \"gno.land/r/test\"\ngno = \"0.9\"\ndraft = true\nprivate = true\n\n[[replace]]\n  old = \"gno.land/r/test\"\n  new = \"gno.land/r/test/v2\"\n\n[[replace]]\n  old = \"gno.land/r/test/v3\"\n  new = \"../..\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
 		},
 		{
-			name: "empty",
-			file: &File{},
-			expected: `
-[module]
-  path = ""
-
-[gno]
-  version = ""
-`,
+			name:     "empty",
+			file:     &File{},
+			expected: "path = \"\"\ngno = \"\"\n",
 		},
 	}
 

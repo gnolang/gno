@@ -340,11 +340,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
 		}
-		if mod.GetGnoVersion() != GnoVerLatest {
+		if mod.GetGno() != GnoVerLatest {
 			panic(fmt.Sprintf("expected gnomod.toml gno version %v but got %v",
-				GnoVerLatest, mod.GetGnoVersion()))
+				GnoVerLatest, mod.GetGno()))
 		}
-		gnoVersion = mod.GetGnoVersion()
+		gnoVersion = mod.GetGno()
 	} else {
 		if mod == nil {
 			// cannot be stdlib; ParseCheckGnoMod will generate a
@@ -358,7 +358,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 				gnoVersion = GnoVerLatest
 			}
 		} else {
-			gnoVersion = mod.GetGnoVersion()
+			gnoVersion = mod.GetGno()
 		}
 	}
 

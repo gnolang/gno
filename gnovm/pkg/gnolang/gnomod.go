@@ -67,13 +67,13 @@ func ParseCheckGnoMod(mpkg *std.MemPackage) (mod *gnomod.File, err error) {
 	} else if mod, err = gnomod.ParseMemPackage(mpkg); err != nil {
 		// error parsing gnomod.toml.
 		err = fmt.Errorf("%s/gnomod.toml: parse error: %w", mpkg.Path, err)
-	} else if mod.Gno.Version == "" {
+	} else if mod.Gno == "" {
 		// gnomod.toml was never specified; set missing.
-		mod.SetGnoVersion(GnoVerMissing)
-	} else if mod.Gno.Version == GnoVerLatest {
+		mod.SetGno(GnoVerMissing)
+	} else if mod.Gno == GnoVerLatest {
 		// current version, nothing to do.
 	} else {
-		panic("unsupported gno version " + mod.Gno.Version)
+		panic("unsupported gno version " + mod.Gno)
 	}
 	return
 }
@@ -109,7 +109,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 				return fmt.Errorf("failed to validate gnomod.toml in %s: %w", modPath, err)
 			}
 
-			pkg, err := ReadMemPackage(path, mod.Module.Path)
+			pkg, err := ReadMemPackage(path, mod.Path)
 			if err != nil {
 				// ignore package files on error
 				pkg = &std.MemPackage{}
@@ -125,7 +125,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 			imports := make([]string, 0, len(importsRaw))
 			for _, imp := range importsRaw {
 				// remove self and standard libraries from imports
-				if imp.PkgPath != mod.Module.Path &&
+				if imp.PkgPath != mod.Path &&
 					!IsStdlib(imp.PkgPath) {
 					imports = append(imports, imp.PkgPath)
 				}
@@ -133,8 +133,8 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 
 			pkgs = append(pkgs, gnomod.Pkg{
 				Dir:     path,
-				Name:    mod.Module.Path,
-				Draft:   mod.Module.Draft,
+				Name:    mod.Path,
+				Draft:   mod.Draft,
 				Imports: imports,
 			})
 		}

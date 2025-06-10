@@ -674,9 +674,9 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	if err != nil {
 		panic(fmt.Errorf("unhandled error %w", err))
 	}
-	if mod != nil && mod.GetGnoVersion() != GnoVerMissing {
+	if mod != nil && mod.GetGno() != GnoVerMissing {
 		return fmt.Errorf("cannot transpile to gno 0.9: expected gno 0.0 but got %s",
-			mod.GetGnoVersion())
+			mod.GetGno())
 	}
 
 	// Go parse and collect files from mpkg.
