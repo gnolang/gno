@@ -10,7 +10,7 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## add realm_banker with long package_name
-gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## add invalid realm_denom
 gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
@@ -72,12 +72,12 @@ stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
 -- short/gnomod.toml --
-module = "gno.land/r/demo/short"
+module = "gno.land/r/test/realm_banker"
+gno = "0.9"
 
--- short/gno.mod --
-module gno.land/r/test/realm_banker
+-- short/gnomod.toml --
+module "gno.land/r/test/realm_banker"
 
-gno "0.9"
 -- short/realm_banker.gno --
 package realm_banker
 
@@ -96,12 +96,12 @@ func Burn(cur realm, addr std.Address, denom string, amount int64) {
 }
 
 -- long/gnomod.toml --
-module = "gno.land/r/demo/long"
+module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
+gno = "0.9"
 
--- long/gno.mod --
-module gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
+-- long/gnomod.toml --
+module "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
 
-gno "0.9"
 -- long/realm_banker.gno --
 // package name is 130 characters long
 package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
@@ -121,12 +121,9 @@ func Burn(cur realm, addr std.Address, denom string, amount int64) {
 }
 
 -- invalid_realm_denom/gnomod.toml --
-module = "gno.land/r/demo/invalid_realm_denom"
+module = "gno.land/r/test/invalid_realm_denom"
+gno = "0.9"
 
--- invalid_realm_denom/gno.mod --
-module gno.land/r/test/invalid_realm_denom
-
-gno "0.9"
 -- invalid_realm_denom/realm_banker.gno --
 package invalid_realm_denom
 
