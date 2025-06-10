@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
@@ -37,13 +38,12 @@ func Render(_ string) string { return "foo" }
 
 var i int
 
-func Incr() {
-        crossing()
+func Incr(cur realm) {
         i++
 }
 `,
 			},
-			{Name: "gno.mod", Body: `module ` + targetPath},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(targetPath)},
 		},
 	}
 
@@ -163,7 +163,7 @@ import foo "` + targetPath + `"
 
 func Render(_ string) string { return foo.Render("bar") }`,
 			},
-			{Name: "gno.mod", Body: `module ` + barPath},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(barPath)},
 		}
 
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())

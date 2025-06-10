@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -90,6 +91,10 @@ func TestNodeAddPackage(t *testing.T) {
 func Render(_ string) string { return "foo" }
 `,
 			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
+			},
 		},
 	}
 
@@ -102,6 +107,10 @@ func Render(_ string) string { return "foo" }
 				Body: `package bar
 func Render(_ string) string { return "bar" }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/bar"),
 			},
 		},
 	}
@@ -148,6 +157,10 @@ func TestNodeUpdatePackage(t *testing.T) {
 func Render(_ string) string { return "foo" }
 `,
 		},
+		{
+			Name: "gnomod.toml",
+			Body: gnolang.GenGnoModLatest("gno.land/r/dev/foobar"),
+		},
 	}
 
 	barFiles := []*std.MemFile{
@@ -156,6 +169,10 @@ func Render(_ string) string { return "foo" }
 			Body: `package foobar
 func Render(_ string) string { return "bar" }
 `,
+		},
+		{
+			Name: "gnomod.toml",
+			Body: gnolang.GenGnoModLatest("gno.land/r/dev/foobar"),
 		},
 	}
 
@@ -204,6 +221,10 @@ func UpdateStr(newStr string) { // method to update 'str' variable
 
 func Render(_ string) string { return str }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
 			},
 		},
 	}
@@ -259,13 +280,16 @@ import "strconv"
 
 var i int
 
-func Inc() {  // method to increment i
-        crossing()
+func Inc(cur realm) {  // method to increment i
         i++
 }
 
 func Render(_ string) string { return strconv.Itoa(i) }
 `,
+			},
+			{
+				Name: "gnomod.toml",
+				Body: gnolang.GenGnoModLatest("gno.land/r/dev/foo"),
 			},
 		},
 	}
@@ -342,8 +366,7 @@ var times = []time.Time{
 	time.Now(), // Evaluate at genesis
 }
 
-func SpanTime() {
-        crossing()
+func SpanTime(cur realm) {
 	times = append(times, time.Now())
 }
 
