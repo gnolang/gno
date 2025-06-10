@@ -1,11 +1,5 @@
 package components
 
-// Layout
-const (
-	SidebarLayout = "sidebar"
-	FullLayout    = "full"
-)
-
 // ViewMode represents the current view mode of the application
 // It affects the layout, navigation, and display of content
 type ViewMode int
@@ -24,17 +18,6 @@ func (m ViewMode) IsRealm() bool    { return m == ViewModeRealm }
 func (m ViewMode) IsPackage() bool  { return m == ViewModePackage }
 func (m ViewMode) IsUser() bool     { return m == ViewModeUser }
 func (m ViewMode) IsHome() bool     { return m == ViewModeHome }
-
-// GetLayoutType returns the appropriate layout type for the view mode
-// TODO: remove to get css instead?
-func (m ViewMode) GetLayoutType() string {
-	switch m {
-	case ViewModeRealm, ViewModeHome, ViewModePackage, ViewModeExplorer, ViewModeUser:
-		return SidebarLayout
-	default:
-		return FullLayout
-	}
-}
 
 // ShouldShowDevTools returns whether dev tools should be shown for this mode
 func (m ViewMode) ShouldShowDevTools() bool {
@@ -72,7 +55,6 @@ type indexLayoutParams struct {
 
 	// Additional data
 	IsDevmodView bool
-	Layout       string
 	ViewType     string
 }
 
@@ -84,9 +66,6 @@ func IndexLayout(data IndexData) Component {
 		IndexData: data,
 		ViewType:  data.BodyView.String(),
 	}
-
-	// Set layout based on view type and mode
-	dataLayout.Layout = data.Mode.GetLayoutType()
 
 	// Set dev mode based on view type and mode
 	switch data.BodyView.Type {
