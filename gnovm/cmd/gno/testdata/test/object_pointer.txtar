@@ -40,9 +40,7 @@ import (
 
 var calleePtr *pkg.PkgObject
 
-func Register(callerPtr *pkg.PkgObject) {
-	crossing()
-
+func Register(cur realm,callerPtr *pkg.PkgObject) {
 	calleePtr = callerPtr
 }
 
@@ -57,23 +55,17 @@ import (
 
 var callerPtr *pkg.PkgObject
 
-func WorkingNew() {
-	crossing()
-
+func WorkingNew(cur realm) {
 	callerPtr = pkg.New()
 }
 
-func BuggedNew() {
-	crossing()
-
+func BuggedNew(cur realm) {
 	callerPtr = pkg.New()
 
-	cross(callee.Register)(callerPtr)
+	callee.Register(cross,callerPtr)
 }
 
-func Set(value int) {
-	crossing()
-
+func Set(cur realm,value int) {
 	callerPtr.Set(value)
 }
 
@@ -92,12 +84,12 @@ import (
 )
 
 func main() {
-	cross(caller.WorkingNew)()
-	cross(caller.Set)(42)
+	caller.WorkingNew(cross)
+	caller.Set(cross,42)
 	println("With WorkingNew:", caller.Get())
 
-	cross(caller.BuggedNew)()
-	cross(caller.Set)(42)
+	caller.BuggedNew(cross)
+	caller.Set(cross,42)
 	println("With BuggedNew:", caller.Get())
 }
 

@@ -1,6 +1,6 @@
 package main
 
-type SecretProvider func(user, realm string) string
+type SecretProvider func(user, realm_XXX string) string
 
 type BasicAuth struct {
 	Realm   string
@@ -9,7 +9,9 @@ type BasicAuth struct {
 
 func (a *BasicAuth) CheckAuth() string { return a.Secrets("me", a.Realm) }
 
-func (a *BasicAuth) secretBasic(user, realm string) string { return a.Realm + "-" + user + "-" + realm }
+func (a *BasicAuth) secretBasic(user, realm_XXX string) string {
+	return a.Realm + "-" + user + "-" + realm_XXX
+}
 
 func main() {
 	b := &BasicAuth{Realm: "test"}
