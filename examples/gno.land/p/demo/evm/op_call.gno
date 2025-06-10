@@ -7,18 +7,19 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-func getVariables(stack *evmStack) (*uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, *uint256.Uint, error) {
+func getVariables(stack *evmStack) (gas *uint256.Uint, address *uint256.Uint, moneyToGive *uint256.Uint, argsOffset *uint256.Uint, argsSize *uint256.Uint, retOffset *uint256.Uint, retSize *uint256.Uint, err error) {
 	if stack.length < 7 {
-		return nil, nil, nil, nil, nil, nil, nil, tooFewStack
+		err = tooFewStack
+		return
 	}
-	gas, _ := stack.Pop()
-	address, _ := stack.Pop()
-	moneyToGive, _ := stack.Pop()
-	argsOffset, _ := stack.Pop()
-	argsSize, _ := stack.Pop()
-	retOffset, _ := stack.Pop()
-	retSize, _ := stack.Pop()
-	return gas, address, moneyToGive, argsOffset, argsSize, retOffset, retSize, nil
+	gas, _ = stack.Pop()
+	address, _ = stack.Pop()
+	moneyToGive, _ = stack.Pop()
+	argsOffset, _ = stack.Pop()
+	argsSize, _ = stack.Pop()
+	retOffset, _ = stack.Pop()
+	retSize, _ = stack.Pop()
+	return
 }
 
 func getCallData(argsOffset *uint256.Uint, s *State, argsSize *uint256.Uint) []byte {
