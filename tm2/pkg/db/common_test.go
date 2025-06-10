@@ -152,8 +152,10 @@ func (mdb *mockDB) ReverseIterator(start, end []byte) db.Iterator {
 	return &internal.MockIterator{}
 }
 
-func (mdb *mockDB) Close() {
+func (mdb *mockDB) Close() error {
 	mdb.calls["Close"]++
+
+	return nil
 }
 
 func (mdb *mockDB) NewBatch() db.Batch {
