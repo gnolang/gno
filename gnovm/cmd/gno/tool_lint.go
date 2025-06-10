@@ -175,7 +175,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 
-			if !mod.Module.Draft {
+			if !mod.Draft {
 				tcmode := gno.TCLatestStrict
 				if cmd.autoGnomod {
 					tcmode = gno.TCLatestRelaxed

@@ -1,7 +1,2 @@
-
-[module]
-  path = "gno.land/r/x/manfred_outfmt"
-  draft = true
-
-[gno]
-  version = ""
+path = "gno.land/r/x/manfred_outfmt"
+gno = ""

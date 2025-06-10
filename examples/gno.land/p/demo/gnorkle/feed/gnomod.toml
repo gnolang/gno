@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/demo/gnorkle/feed"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/demo/gnorkle/feed"
+gno = ""

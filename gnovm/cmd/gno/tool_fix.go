@@ -234,7 +234,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 				}
 			}
 		} else {
-			switch mod.GetGnoVersion() {
+			switch mod.GetGno() {
 			case gno.GnoVerLatest:
 				if cmd.verbose {
 					cio.ErrPrintfln("%s: module is up to date, skipping fix", dir)
@@ -243,7 +243,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			case gno.GnoVerMissing:
 				// good, fix it.
 			default:
-				cio.ErrPrintfln("%s: unrecognized gnomod.toml version %q, skipping fix", dir, mod.GetGnoVersion())
+				cio.ErrPrintfln("%s: unrecognized gnomod.toml version %q, skipping fix", dir, mod.GetGno())
 				continue // skip it.
 			}
 		}
@@ -258,7 +258,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 			hasError = true
 			return commands.ExitCodeError(1)
 		}
-		if mod.Module.Draft {
+		if mod.Draft {
 			cio.ErrPrintfln("%s: module is draft, skipping fix", dir)
 			continue
 		}
@@ -478,7 +478,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 
 		// Sanity check.
 		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
-		if mod != nil && mod.GetGnoVersion() != gno.GnoVerMissing {
+		if mod != nil && mod.GetGno() != gno.GnoVerMissing {
 			panic("should not happen")
 		}
 
@@ -528,7 +528,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 		if mod == nil {
 			panic("XXX: generate default gnomod.toml")
 		}
-		mod.SetGnoVersion(gno.GnoVerLatest)
+		mod.SetGno(gno.GnoVerLatest)
 		ppkg.mpkg.SetFile("gnomod.toml", mod.WriteString())
 		// Cleanup gno.mod if it exists.
 		ppkg.mpkg.DeleteFile("gno.mod")

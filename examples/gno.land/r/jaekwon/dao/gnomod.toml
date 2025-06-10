@@ -1,7 +1,2 @@
-
-[module]
-  path = "gno.land/r/jaekwon/dao"
-  draft = true
-
-[gno]
-  version = ""
+path = "gno.land/r/jaekwon/dao"
+gno = ""

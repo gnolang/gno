@@ -273,7 +273,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if mod == nil || !mod.Module.Draft {
+			if mod == nil || !mod.Draft {
 				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
 					ParseMode: gno.ParseModeAll,
 					Mode:      gno.TCLatestRelaxed,
@@ -318,7 +318,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 func determinePkgPath(mod *gnomod.File, dir, rootDir string) (string, bool) {
 	if mod != nil {
-		return mod.Module.Path, true
+		return mod.Path, true
 	}
 	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
 		return pkgPath, true

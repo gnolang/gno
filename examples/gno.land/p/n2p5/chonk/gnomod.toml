@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/n2p5/chonk"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/n2p5/chonk"
+gno = ""

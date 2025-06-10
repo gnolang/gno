@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/demo/bank"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/archives/bank"
+gno = ""

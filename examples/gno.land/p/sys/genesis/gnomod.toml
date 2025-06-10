@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/sys/genesis"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/sys/genesis"
+gno = ""

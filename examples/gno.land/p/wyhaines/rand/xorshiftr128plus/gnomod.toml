@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/wyhaines/rand/xorshiftr128plus"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/wyhaines/rand/xorshiftr128plus"
+gno = ""

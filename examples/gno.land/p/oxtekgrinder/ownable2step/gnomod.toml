@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/oxtekgrinder/ownable2step"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/oxtekgrinder/ownable2step"
+gno = ""

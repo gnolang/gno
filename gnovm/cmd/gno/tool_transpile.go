@@ -209,7 +209,7 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	if err != nil && !errors.Is(err, gnomod.ErrModFileNotFound) {
 		return err
 	}
-	if err == nil && gmod.Module.Draft {
+	if err == nil && gmod.Draft {
 		if opts.cfg.verbose {
 			opts.io.ErrPrintfln("%s (skipped, gno.mod marks module as draft)", filepath.Clean(dirPath))
 		}

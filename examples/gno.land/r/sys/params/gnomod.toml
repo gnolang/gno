@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/r/sys/params"
-
-[gno]
-  version = "0.9"
+path = "gno.land/r/sys/params"
+gno = ""

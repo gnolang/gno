@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/r/gov/dao/v3/impl"
-
-[gno]
-  version = "0.9"
+path = "gno.land/r/gov/dao/v3/impl"
+gno = ""

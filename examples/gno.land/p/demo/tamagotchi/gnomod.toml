@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/demo/tamagotchi"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/demo/tamagotchi"
+gno = ""

@@ -17,10 +17,7 @@ const gnomodTemplate = `{{/*
 This is a comment in a Go template in pkg/gnolang/gnomod.go.
 The gnomodTemplate is used with the 'text/template' package
 to generate the final gnomod.toml file. */}}
-[module]
 path = "{{.PkgPath}}"
-
-[gno]
 version = "{{.GnoVersion}}"`
 
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }

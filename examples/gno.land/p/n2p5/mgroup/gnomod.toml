@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/n2p5/mgroup"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/n2p5/mgroup"
+gno = ""

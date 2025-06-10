@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/r/demo/btree_dao"
-
-[gno]
-  version = "0.9"
+path = "gno.land/r/demo/btree_dao"
+gno = ""

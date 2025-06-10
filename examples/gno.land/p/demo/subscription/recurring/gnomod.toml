@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/p/demo/subscription/recurring"
-
-[gno]
-  version = "0.9"
+path = "gno.land/p/demo/subscription/recurring"
+gno = ""

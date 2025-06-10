@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/r/nt/commondao"
-
-[gno]
-  version = "0.9"
+path = "gno.land/r/nt/commondao"
+gno = ""

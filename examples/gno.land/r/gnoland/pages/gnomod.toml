@@ -1,6 +1,2 @@
-
-[module]
-  path = "gno.land/r/gnoland/pages"
-
-[gno]
-  version = "0.9"
+path = "gno.land/r/gnoland/pages"
+gno = ""
