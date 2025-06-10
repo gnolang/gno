@@ -677,11 +677,8 @@ func TestVMKeeperAddPackage_PatchGnomodToml(t *testing.T) {
 	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 
 	const pkgPath = "gno.land/r/testpatch"
-	gnomodToml := `[module]
-path = "gno.land/r/testpatch"
-
-[gno]
-version = "0.9"
+	gnomodToml := `module = "gno.land/r/testpatch"
+gno = "0.9"
 `
 	files := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gnomodToml},
@@ -698,12 +695,8 @@ func Echo(cur realm) string { return "patched" }`},
 	memFile := store.GetMemFile(pkgPath, "gnomod.toml")
 	mpkg, err := gnomod.ParseBytes("gnomod.toml", []byte(memFile.Body))
 	require.NoError(t, err)
-	expected := `
-[module]
-  path = "gno.land/r/testpatch"
-
-[gno]
-  version = "0.9"
+	expected := `module = "gno.land/r/testpatch"
+gno = "0.9"
 
 [upload_metadata]
   uploader = "g1cq2j7y4utseeatek2alfy5ttaphjrtdx67mg8v"
