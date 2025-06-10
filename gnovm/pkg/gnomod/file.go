@@ -8,127 +8,101 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// Parsed gnomod.toml file.
+// Parsed gnomod.toml file (flattened version).
 type File struct {
-	// Module is the module section of the gnomod.toml file.
-	// It is intended to be the main place for manual customization by the
-	// author of the module.
-	Module Module `toml:"module,commented" json:"module,commented"`
-
-	// Develop is the develop section of the gnomod.toml file.
-	//
-	// It is wiped out by the vmkeeper when a module is added.
-	Develop Develop `toml:"develop,omitempty,commented" json:"develop,omitempty,commented"`
-
-	// Gno is the gno section of the gnomod.toml file.
-	//
-	// It is used to specify the compatibility of the module within the gno
-	// toolchain.
-	// It is intended to be set by the `gno` cli when initializing or upgrading
-	// a module.
-	Gno Gno `toml:"gno,commented" json:"gno,commented"`
-
-	// UploadMetadata is the upload metadata section of the gnomod.toml file.
-	//
-	// Is it filled by the vmkeeper when a module is added.
-	// It is not intended to be used offchain.
-	UploadMetadata UploadMetadata `toml:"upload_metadata,omitempty,commented" json:"upload_metadata,omitempty,commented"`
-}
-
-type Develop struct {
-	// Replace allows specifying a replacement for a module.
-	//
-	// It can link to a different online module path, or a local path.
-	// If this value is set, the module cannot be added to the chain.
-	Replace []Replace `toml:"replace,commented" json:"replace,commented"`
-}
-type UploadMetadata struct {
-	Uploader string `toml:"uploader,omitempty,commented" json:"uploader,omitempty,commented"` // address
-	Height   int    `toml:"height,omitempty,commented" json:"height,omitempty,commented"`
-	// XXX: GnoVersion // gno version at upload time?
-	// XXX: Consider things like IsUsingBanker or other security-awareness flags
-}
-type Gno struct {
-	Version string `toml:"version,commented" json:"version,commented"`
-}
-type Module struct {
 	// Path is the path of the module.
 	// Like `gno.land/r/path/to/module`.
-	Path string `toml:"path,commented" json:"path,commented"`
+	Path string `toml:"path" json:"path"`
+
+	// Gno is the gno version string for compatibility within the gno toolchain.
+	// It is intended to be set by the `gno` cli when initializing or upgrading a module.
+	Gno string `toml:"gno" json:"gno"`
 
 	// Draft indicates that the module isn't ready for production use.
-	//
 	// Draft modules:
 	// - are added to the chain at genesis time and cannot be added after.
 	// - cannot be imported by other newly added modules.
-	Draft bool `toml:"draft,omitempty,commented" json:"draft,omitempty,commented"`
+	Draft bool `toml:"draft,omitempty" json:"draft,omitempty"`
 
 	// Private indicates that the module is private.
-	//
 	// Private modules:
 	// - cannot be imported by other modules.
-	// -
-	Private bool `toml:"private,omitempty,commented" json:"private,omitempty,commented"`
+	Private bool `toml:"private,omitempty" json:"private,omitempty"`
 
-	// XXX: Version // version of the module?
+	// Replace is a list of replace directives for the module's dependencies.
+	// Each replace can link to a different online module path, or a local path.
+	// If this value is set, the module cannot be added to the chain.
+	Replace []Replace `toml:"replace" json:"replace"`
+
+	// UploadMetadata is the upload metadata section of the gnomod.toml file.
+	// It is filled by the vmkeeper when a module is added.
+	// It is not intended to be used offchain.
+	UploadMetadata UploadMetadata `toml:"upload_metadata,omitempty" json:"upload_metadata,omitempty"`
 }
 
-// Replace is a replace directive for one of the module's dependencies.
+type UploadMetadata struct {
+	// Uploader is the address of the uploader.
+	Uploader string `toml:"uploader,omitempty" json:"uploader,omitempty"`
+	// Height is the block height at which the module was uploaded.
+	Height int `toml:"height,omitempty" json:"height,omitempty"`
+	// XXX: GnoVersion // gno version at upload time?
+	// XXX: Consider things like IsUsingBanker or other security-awareness flags
+}
+
 type Replace struct {
 	// Old is the old module path of the dependency, i.e.,
 	// `gno.land/r/path/to/module`.
 	Old string `toml:"old" json:"old"`
-
 	// New is the new module path of the dependency, i.e.,
 	// `gno.land/r/path/to/module/v2` or a local path, i.e.,
 	// `../path/to/module`.
 	New string `toml:"new" json:"new"`
 }
 
-// GetGnoVersion returns the current gno version or the default one.
-func (f *File) GetGnoVersion() (version string) {
-	if f.Gno.Version == "" {
+// GetGno returns the current gno version or the default one.
+func (f *File) GetGno() (version string) {
+	if f.Gno == "" {
 		return "0.0"
 	}
-	return f.Gno.Version
+	return f.Gno
 }
 
-// SetGnoVersion sets the gno version.
-func (f *File) SetGnoVersion(version string) {
-	f.Gno.Version = version
+// SetGno sets the gno version.
+func (f *File) SetGno(version string) {
+	f.Gno = version
 }
 
 // AddReplace adds a replace directive or replaces an existing one.
 func (f *File) AddReplace(oldPath, newPath string) {
-	for i, r := range f.Develop.Replace {
+	for i, r := range f.Replace {
 		if r.Old == oldPath {
-			f.Develop.Replace[i].New = newPath
+			f.Replace[i].New = newPath
 			return
 		}
 	}
 	newReplace := Replace{Old: oldPath, New: newPath}
-	f.Develop.Replace = append(f.Develop.Replace, newReplace)
+	f.Replace = append(f.Replace, newReplace)
 }
 
 // DropReplace drops a replace directive.
 func (f *File) DropReplace(oldPath string) {
-	for i, r := range f.Develop.Replace {
+	for i, r := range f.Replace {
 		if r.Old == oldPath {
-			f.Develop.Replace = append(f.Develop.Replace[:i], f.Develop.Replace[i+1:]...)
+			f.Replace = append(f.Replace[:i], f.Replace[i+1:]...)
 		}
 	}
 }
 
 // Validate validates gnomod.toml.
 func (f *File) Validate() error {
-	modPath := f.Module.Path
+	modPath := f.Path
 
-	// module.path is required.
+	// path is required.
 	if modPath == "" {
 		return errors.New("requires module path")
 	}
 
-	// module.path is a valid import path.
+	// path is a valid import path.
 	err := module.CheckImportPath(modPath)
 	if err != nil {
 		return err
@@ -140,7 +114,7 @@ func (f *File) Validate() error {
 // Resolve takes a module path and returns any adequate replacement following
 // the Replace directives.
 func (f *File) Resolve(target string) string {
-	for _, r := range f.Develop.Replace {
+	for _, r := range f.Replace {
 		if r.Old == target {
 			return r.New
 		}
@@ -161,12 +135,12 @@ func (f *File) WriteFile(fpath string) error {
 // Sanitize sanitizes the gnomod.toml file.
 func (f *File) Sanitize() {
 	// set default version if missing.
-	f.Gno.Version = f.GetGnoVersion()
+	f.Gno = f.GetGno()
 
-	// sanitize develop.replaces.
-	replaces := make([]Replace, 0, len(f.Develop.Replace))
+	// sanitize replaces.
+	replaces := make([]Replace, 0, len(f.Replace))
 	seen := make(map[string]bool)
-	for _, r := range f.Develop.Replace {
+	for _, r := range f.Replace {
 		// empty replaces.
 		if r.Old == "" || r.New == "" || r.Old == r.New {
 			continue
@@ -180,5 +154,5 @@ func (f *File) Sanitize() {
 
 		replaces = append(replaces, r)
 	}
-	f.Develop.Replace = replaces
+	f.Replace = replaces
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFile_GetGnoVersion(t *testing.T) {
+func TestFile_GetGno(t *testing.T) {
 	testCases := []struct {
 		name     string
 		file     *File
@@ -25,7 +25,7 @@ func TestFile_GetGnoVersion(t *testing.T) {
 			name: "custom version",
 			file: func() *File {
 				f := &File{}
-				f.Gno.Version = "0.9"
+				f.Gno = "0.9"
 				return f
 			}(),
 			expected: "0.9",
@@ -34,16 +34,16 @@ func TestFile_GetGnoVersion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			version := tc.file.GetGnoVersion()
+			version := tc.file.GetGno()
 			assert.Equal(t, tc.expected, version)
 		})
 	}
 }
 
-func TestFile_SetGnoVersion(t *testing.T) {
+func TestFile_SetGno(t *testing.T) {
 	file := &File{}
-	file.SetGnoVersion("0.9")
-	assert.Equal(t, "0.9", file.Gno.Version)
+	file.SetGno("0.9")
+	assert.Equal(t, "0.9", file.Gno)
 }
 
 func TestFile_AddReplace(t *testing.T) {
@@ -71,7 +71,7 @@ func TestFile_AddReplace(t *testing.T) {
 			name: "update existing replace",
 			initialFile: func() *File {
 				f := &File{}
-				f.Develop.Replace = []Replace{
+				f.Replace = []Replace{
 					{
 						Old: "gno.land/p/demo/foo",
 						New: "gno.land/p/demo/old",
@@ -91,7 +91,7 @@ func TestFile_AddReplace(t *testing.T) {
 			name: "add second replace",
 			initialFile: func() *File {
 				f := &File{}
-				f.Develop.Replace = []Replace{
+				f.Replace = []Replace{
 					{
 						Old: "gno.land/p/demo/foo",
 						New: "gno.land/p/demo/bar",
@@ -116,12 +116,12 @@ func TestFile_AddReplace(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.initialFile.AddReplace(tc.oldPath, tc.newPath)
-			assert.Equal(t, tc.expectedCount, len(tc.initialFile.Develop.Replace))
+			assert.Equal(t, tc.expectedCount, len(tc.initialFile.Replace))
 			if tc.expectedCount > 0 {
-				assert.Equal(t, tc.expectedFirst, tc.initialFile.Develop.Replace[0])
+				assert.Equal(t, tc.expectedFirst, tc.initialFile.Replace[0])
 			}
 			if tc.expectedCount > 1 {
-				assert.Equal(t, tc.expectedSecond, tc.initialFile.Develop.Replace[1])
+				assert.Equal(t, tc.expectedSecond, tc.initialFile.Replace[1])
 			}
 		})
 	}
@@ -139,7 +139,7 @@ func TestFile_DropReplace(t *testing.T) {
 			name: "drop existing replace",
 			initialFile: func() *File {
 				f := &File{}
-				f.Develop.Replace = []Replace{
+				f.Replace = []Replace{
 					{
 						Old: "gno.land/p/demo/foo",
 						New: "gno.land/p/demo/bar",
@@ -162,7 +162,7 @@ func TestFile_DropReplace(t *testing.T) {
 			name: "drop non-existent replace",
 			initialFile: func() *File {
 				f := &File{}
-				f.Develop.Replace = []Replace{
+				f.Replace = []Replace{
 					{
 						Old: "gno.land/p/demo/foo",
 						New: "gno.land/p/demo/bar",
@@ -182,9 +182,9 @@ func TestFile_DropReplace(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.initialFile.DropReplace(tc.oldPath)
-			assert.Equal(t, tc.expectedCount, len(tc.initialFile.Develop.Replace))
+			assert.Equal(t, tc.expectedCount, len(tc.initialFile.Replace))
 			if tc.expectedCount > 0 {
-				assert.Equal(t, tc.expectedFirst, tc.initialFile.Develop.Replace[0])
+				assert.Equal(t, tc.expectedFirst, tc.initialFile.Replace[0])
 			}
 		})
 	}
@@ -200,7 +200,7 @@ func TestFile_Validate(t *testing.T) {
 			name: "valid module path",
 			file: func() *File {
 				f := &File{}
-				f.Module.Path = "gno.land/p/demo/foo"
+				f.Path = "gno.land/p/demo/foo"
 				return f
 			}(),
 		},
@@ -213,7 +213,7 @@ func TestFile_Validate(t *testing.T) {
 			name: "invalid module path with space",
 			file: func() *File {
 				f := &File{}
-				f.Module.Path = "gno.land/p/demo/ foo"
+				f.Path = "gno.land/p/demo/ foo"
 				return f
 			}(),
 			expectedErr: "malformed import path",
@@ -222,7 +222,7 @@ func TestFile_Validate(t *testing.T) {
 			name: "invalid module path with Unicode",
 			file: func() *File {
 				f := &File{}
-				f.Module.Path = "gno.land/p/demo/한글"
+				f.Path = "gno.land/p/demo/한글"
 				return f
 			}(),
 			expectedErr: "malformed import path",
@@ -253,7 +253,7 @@ func TestFile_Resolve(t *testing.T) {
 			name: "resolve with replace",
 			file: func() *File {
 				f := &File{}
-				f.Develop.Replace = []Replace{
+				f.Replace = []Replace{
 					{
 						Old: "gno.land/p/demo/foo",
 						New: "gno.land/p/demo/bar",
@@ -295,7 +295,7 @@ func TestFile_WriteFile(t *testing.T) {
 			name: "write valid file",
 			file: func() *File {
 				f := &File{}
-				f.Module.Path = "gno.land/p/demo/foo"
+				f.Path = "gno.land/p/demo/foo"
 				return f
 			}(),
 		},
@@ -303,7 +303,7 @@ func TestFile_WriteFile(t *testing.T) {
 			name: "write to non-existent directory",
 			file: func() *File {
 				f := &File{}
-				f.Module.Path = "gno.land/p/demo/foo"
+				f.Path = "gno.land/p/demo/foo"
 				return f
 			}(),
 			expectedErr: "no such file or directory",
@@ -344,8 +344,8 @@ func TestFile_Sanitize(t *testing.T) {
 			file: &File{},
 			expected: func() *File {
 				f := &File{}
-				f.Gno.Version = "0.0"
-				f.Develop.Replace = []Replace{}
+				f.Gno = "0.0"
+				f.Replace = []Replace{}
 				return f
 			}(),
 		},
@@ -353,7 +353,7 @@ func TestFile_Sanitize(t *testing.T) {
 			name: "sanitize empty replaces",
 			file: func() *File {
 				f := &File{}
-				f.Develop.Replace = []Replace{
+				f.Replace = []Replace{
 					{Old: "", New: "bar"},
 					{Old: "foo", New: ""},
 					{Old: "baz", New: "baz"},
@@ -362,8 +362,8 @@ func TestFile_Sanitize(t *testing.T) {
 			}(),
 			expected: func() *File {
 				f := &File{}
-				f.Gno.Version = "0.0"
-				f.Develop.Replace = []Replace{}
+				f.Gno = "0.0"
+				f.Replace = []Replace{}
 				return f
 			}(),
 		},
@@ -371,7 +371,7 @@ func TestFile_Sanitize(t *testing.T) {
 			name: "sanitize duplicate replaces",
 			file: func() *File {
 				f := &File{}
-				f.Develop.Replace = []Replace{
+				f.Replace = []Replace{
 					{Old: "foo", New: "bar"},
 					{Old: "foo", New: "baz"},
 				}
@@ -379,8 +379,8 @@ func TestFile_Sanitize(t *testing.T) {
 			}(),
 			expected: func() *File {
 				f := &File{}
-				f.Gno.Version = "0.0"
-				f.Develop.Replace = []Replace{
+				f.Gno = "0.0"
+				f.Replace = []Replace{
 					{Old: "foo", New: "bar"},
 				}
 				return f
@@ -391,8 +391,8 @@ func TestFile_Sanitize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.file.Sanitize()
-			assert.Equal(t, tc.expected.Gno.Version, tc.file.Gno.Version)
-			assert.Equal(t, tc.expected.Develop.Replace, tc.file.Develop.Replace)
+			assert.Equal(t, tc.expected.Gno, tc.file.Gno)
+			assert.Equal(t, tc.expected.Replace, tc.file.Replace)
 		})
 	}
 }
