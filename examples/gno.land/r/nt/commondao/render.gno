@@ -31,11 +31,10 @@ func Render(path string) string {
 }
 
 func renderHome(res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(md.H1("Common DAO"))
-	res.Write(md.HorizontalRule())
+	res.Write(md.H1("Common DAO Factory"))
 	res.Write(ufmt.Sprintf(
 		md.Paragraph("This realm can be used to create CommonDAO instances based on the %s package."),
-		md.Link("`commondao`", "/p/nt/commondao/"),
+		md.Link("commondao", "/p/nt/commondao/"),
 	))
 
 	pages, err := pager.New(req.RawPath, daos.Size(), pager.WithPageSize(10))
