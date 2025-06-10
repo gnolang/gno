@@ -191,20 +191,20 @@ valid.gno
 			stdoutShouldBe:       ``,
 		},
 		// TODO: gno mod graph should disappear?
-// 		{
-// 			args:                 []string{"mod", "graph"},
-// 			testDir:              "../../tests/integ/valid2",
-// 			simulateExternalRepo: true,
-// 			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/demo/avl
-// `,
-// 		},
-// 		{
-// 			args:                 []string{"mod", "graph"},
-// 			testDir:              "../../tests/integ/require_remote_module",
-// 			simulateExternalRepo: true,
-// 			stdoutShouldBe: `gno.land/tests/importavl gno.land/p/demo/avl
-// `,
-// 		},
+		// 		{
+		// 			args:                 []string{"mod", "graph"},
+		// 			testDir:              "../../tests/integ/valid2",
+		// 			simulateExternalRepo: true,
+		// 			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/demo/avl
+		// `,
+		// 		},
+		// 		{
+		// 			args:                 []string{"mod", "graph"},
+		// 			testDir:              "../../tests/integ/require_remote_module",
+		// 			simulateExternalRepo: true,
+		// 			stdoutShouldBe: `gno.land/tests/importavl gno.land/p/demo/avl
+		// `,
+		// 		},
 	}
 
 	testMainCaseRun(t, tc)

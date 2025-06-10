@@ -88,20 +88,20 @@ func parseDeprecatedDotModBytes(fname string, data []byte) (*deprecatedModFile, 
 	return f, nil
 }
 
-func (d *deprecatedModFile) Migrate() (*File, error) {
-	f := &File{}
-	if d.Module != nil {
-		f.Module.Path = d.Module.Mod.Path
+func (f *deprecatedModFile) Migrate() (*File, error) {
+	fi := &File{}
+	if f.Module != nil {
+		fi.Module.Path = f.Module.Mod.Path
 	}
-	if d.Gno != nil {
-		f.Gno.Version = d.Gno.Version
+	if f.Gno != nil {
+		fi.Gno.Version = f.Gno.Version
 	}
-	f.Module.Draft = d.Draft
+	fi.Module.Draft = f.Draft
 
 	// voluntarily not migrating, because not used/working the same way:
 	// - f.Replace
 	// - f.Syntax
-	return f, nil
+	return fi, nil
 }
 
 func (f *deprecatedModFile) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modfile.Line, verb string, args []string) {
@@ -997,153 +997,4 @@ func parseDraft(block *modfile.CommentBlock) bool {
 		return false
 	}
 	return true
-}
-
-// markLineAsRemoved modifies line so that it (and its end-of-line comment, if any)
-// will be dropped by (*FileSyntax).Cleanup.
-func markLineAsRemoved(line *modfile.Line) {
-	line.Token = nil
-	line.Comments.Suffix = nil
-}
-
-func updateLine(line *modfile.Line, tokens ...string) {
-	if line.InBlock {
-		tokens = tokens[1:]
-	}
-	line.Token = tokens
-}
-
-// addLine adds a line containing the given tokens to the file.
-//
-// If the first token of the hint matches the first token of the
-// line, the new line is added at the end of the block containing hint,
-// extracting hint into a new block if it is not yet in one.
-//
-// If the hint is non-nil buts its first token does not match,
-// the new line is added after the block containing hint
-// (or hint itself, if not in a block).
-//
-// If no hint is provided, addLine appends the line to the end of
-// the last block with a matching first token,
-// or to the end of the file if no such block exists.
-func addLine(x *modfile.FileSyntax, hint modfile.Expr, tokens ...string) *modfile.Line {
-	if hint == nil {
-		// If no hint given, add to the last statement of the given type.
-	Loop:
-		for i := len(x.Stmt) - 1; i >= 0; i-- {
-			stmt := x.Stmt[i]
-			switch stmt := stmt.(type) {
-			case *modfile.Line:
-				if stmt.Token != nil && stmt.Token[0] == tokens[0] {
-					hint = stmt
-					break Loop
-				}
-			case *modfile.LineBlock:
-				if stmt.Token[0] == tokens[0] {
-					hint = stmt
-					break Loop
-				}
-			}
-		}
-	}
-
-	newLineAfter := func(i int) *modfile.Line {
-		newl := &modfile.Line{Token: tokens}
-		if i == len(x.Stmt) {
-			x.Stmt = append(x.Stmt, newl)
-		} else {
-			x.Stmt = append(x.Stmt, nil)
-			copy(x.Stmt[i+2:], x.Stmt[i+1:])
-			x.Stmt[i+1] = newl
-		}
-		return newl
-	}
-
-	if hint != nil {
-		for i, stmt := range x.Stmt {
-			switch stmt := stmt.(type) {
-			case *modfile.Line:
-				if stmt == hint {
-					if stmt.Token == nil || stmt.Token[0] != tokens[0] {
-						return newLineAfter(i)
-					}
-
-					// Convert line to line block.
-					stmt.InBlock = true
-					block := &modfile.LineBlock{Token: stmt.Token[:1], Line: []*modfile.Line{stmt}}
-					stmt.Token = stmt.Token[1:]
-					x.Stmt[i] = block
-					newl := &modfile.Line{Token: tokens[1:], InBlock: true}
-					block.Line = append(block.Line, newl)
-					return newl
-				}
-
-			case *modfile.LineBlock:
-				if stmt == hint {
-					if stmt.Token[0] != tokens[0] {
-						return newLineAfter(i)
-					}
-
-					newl := &modfile.Line{Token: tokens[1:], InBlock: true}
-					stmt.Line = append(stmt.Line, newl)
-					return newl
-				}
-
-				for j, line := range stmt.Line {
-					if line == hint {
-						if stmt.Token[0] != tokens[0] {
-							return newLineAfter(i)
-						}
-
-						// Add new line after hint within the block.
-						stmt.Line = append(stmt.Line, nil)
-						copy(stmt.Line[j+2:], stmt.Line[j+1:])
-						newl := &modfile.Line{Token: tokens[1:], InBlock: true}
-						stmt.Line[j+1] = newl
-						return newl
-					}
-				}
-			}
-		}
-	}
-
-	newl := &modfile.Line{Token: tokens}
-	x.Stmt = append(x.Stmt, newl)
-	return newl
-}
-
-func addReplace(syntax *modfile.FileSyntax, replace *[]*modfile.Replace, oldPath, oldVers, newPath, newVers string) {
-	need := true
-	oldv := module.Version{Path: oldPath, Version: oldVers}
-	newv := module.Version{Path: newPath, Version: newVers}
-	tokens := []string{"replace", modfile.AutoQuote(oldPath)}
-	if oldVers != "" {
-		tokens = append(tokens, oldVers)
-	}
-	tokens = append(tokens, "=>", modfile.AutoQuote(newPath))
-	if newVers != "" {
-		tokens = append(tokens, newVers)
-	}
-
-	var hint *modfile.Line
-	for _, r := range *replace {
-		if r.Old.Path == oldPath && (oldVers == "" || r.Old.Version == oldVers) {
-			if need {
-				// Found replacement for old; update to use new.
-				r.New = newv
-				updateLine(r.Syntax, tokens...)
-				need = false
-				continue
-			}
-			// Already added; delete other replacements for same.
-			markLineAsRemoved(r.Syntax)
-			*r = modfile.Replace{}
-		}
-		if r.Old.Path == oldPath {
-			hint = r.Syntax
-		}
-	}
-	if need {
-		*replace = append(*replace, &modfile.Replace{Old: oldv, New: newv, Syntax: addLine(syntax, hint, tokens...)})
-	}
 }

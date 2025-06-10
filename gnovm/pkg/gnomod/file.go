@@ -13,38 +13,12 @@ type File struct {
 	// Module is the module section of the gnomod.toml file.
 	// It is intended to be the main place for manual customization by the
 	// author of the module.
-	Module struct {
-		// Path is the path of the module.
-		// Like `gno.land/r/path/to/module`.
-		Path string `toml:"path,commented" json:"path,commented"`
-
-		// Draft indicates that the module isn't ready for production use.
-		//
-		// Draft modules:
-		// - are added to the chain at genesis time and cannot be added after.
-		// - cannot be imported by other newly added modules.
-		Draft bool `toml:"draft,omitempty,commented" json:"draft,omitempty,commented"`
-
-		// Private indicates that the module is private.
-		//
-		// Private modules:
-		// - cannot be imported by other modules.
-		// -
-		Private bool `toml:"private,omitempty,commented" json:"private,omitempty,commented"`
-
-		// XXX: Version // version of the module?
-	} `toml:"module,commented" json:"module,commented"`
+	Module Module `toml:"module,commented" json:"module,commented"`
 
 	// Develop is the develop section of the gnomod.toml file.
 	//
 	// It is wiped out by the vmkeeper when a module is added.
-	Develop struct {
-		// Replace allows specifying a replacement for a module.
-		//
-		// It can link to a different online module path, or a local path.
-		// If this value is set, the module cannot be added to the chain.
-		Replace []Replace `toml:"replace,commented" json:"replace,commented"`
-	} `toml:"develop,omitempty,commented" json:"develop,omitempty,commented"`
+	Develop Develop `toml:"develop,omitempty,commented" json:"develop,omitempty,commented"`
 
 	// Gno is the gno section of the gnomod.toml file.
 	//
@@ -52,20 +26,51 @@ type File struct {
 	// toolchain.
 	// It is intended to be set by the `gno` cli when initializing or upgrading
 	// a module.
-	Gno struct {
-		Version string `toml:"version,commented" json:"version,commented"`
-	} `toml:"gno,commented" json:"gno,commented"`
+	Gno Gno `toml:"gno,commented" json:"gno,commented"`
 
 	// UploadMetadata is the upload metadata section of the gnomod.toml file.
 	//
 	// Is it filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
-	UploadMetadata struct {
-		Uploader string `toml:"uploader,omitempty,commented" json:"uploader,omitempty,commented"` // address
-		Height   int    `toml:"height,omitempty,commented" json:"height,omitempty,commented"`
-		// XXX: GnoVersion // gno version at upload time?
-		// XXX: Consider things like IsUsingBanker or other security-awareness flags
-	} `toml:"upload_metadata,omitempty,commented" json:"upload_metadata,omitempty,commented"`
+	UploadMetadata UploadMetadata `toml:"upload_metadata,omitempty,commented" json:"upload_metadata,omitempty,commented"`
+}
+
+type Develop struct {
+	// Replace allows specifying a replacement for a module.
+	//
+	// It can link to a different online module path, or a local path.
+	// If this value is set, the module cannot be added to the chain.
+	Replace []Replace `toml:"replace,commented" json:"replace,commented"`
+}
+type UploadMetadata struct {
+	Uploader string `toml:"uploader,omitempty,commented" json:"uploader,omitempty,commented"` // address
+	Height   int    `toml:"height,omitempty,commented" json:"height,omitempty,commented"`
+	// XXX: GnoVersion // gno version at upload time?
+	// XXX: Consider things like IsUsingBanker or other security-awareness flags
+}
+type Gno struct {
+	Version string `toml:"version,commented" json:"version,commented"`
+}
+type Module struct {
+	// Path is the path of the module.
+	// Like `gno.land/r/path/to/module`.
+	Path string `toml:"path,commented" json:"path,commented"`
+
+	// Draft indicates that the module isn't ready for production use.
+	//
+	// Draft modules:
+	// - are added to the chain at genesis time and cannot be added after.
+	// - cannot be imported by other newly added modules.
+	Draft bool `toml:"draft,omitempty,commented" json:"draft,omitempty,commented"`
+
+	// Private indicates that the module is private.
+	//
+	// Private modules:
+	// - cannot be imported by other modules.
+	// -
+	Private bool `toml:"private,omitempty,commented" json:"private,omitempty,commented"`
+
+	// XXX: Version // version of the module?
 }
 
 // Replace is a replace directive for one of the module's dependencies.

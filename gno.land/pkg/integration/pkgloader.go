@@ -51,13 +51,18 @@ func (pl *PkgsLoader) LoadPackages() ([]*std.MemPackage, error) {
 	for i, pkg := range pkgslist {
 		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name)
 		file, err := gnomod.ParseMemPackage(mpkg)
-		if os.IsNotExist(err) || errors.Is(err, gnomod.ErrGnoModNotFound) {
-			// generate a gno.mod
-			file = new(gnomod.File)
-			file.SetModule(pkg.Name)
+		if os.IsNotExist(err) || errors.Is(err, gnomod.ErrModFileNotFound) {
+			// generate a gnomod.toml
+			file = &gnomod.File{
+				Module: gnomod.Module{
+					Path: pkg.Name,
+				},
+				Gno: gnomod.Gno{
+					Version: gnolang.GnoVerLatest,
+				},
+			}
 		}
-		file.SetGno(gnolang.GnoVerLatest)
-		mpkg.SetFile("gno.mod", file.WriteString())
+		mpkg.SetFile("gnomod.toml", file.WriteString())
 
 		mpkg.Sort()
 		mpkgs[i] = mpkg
@@ -149,8 +154,8 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 			gm.Sanitize()
 
 			// Override package info with mod infos
-			currentPkg.Name = gm.Module.Mod.Path
-			currentPkg.Draft = gm.Draft
+			currentPkg.Name = gm.Module.Path
+			currentPkg.Draft = gm.Module.Draft
 
 			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
 			if err != nil {

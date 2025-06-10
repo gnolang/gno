@@ -341,15 +341,15 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 }
 
 func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
-	modExists :=false
+	modExists := false
 	for _, fname := range []string{"gnomod.toml", "gno.mod"} {
 		fpath := filepath.Join(pkgdir, fname)
 		if !isFileExist(fpath) {
 			continue
 		}
-		
+
 		modExists = true
-		
+
 		relpath, err := filepath.Rel(wd, fpath)
 		if err != nil {
 			return err
