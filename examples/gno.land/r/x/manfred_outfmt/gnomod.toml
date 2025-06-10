@@ -1,2 +1,3 @@
 path = "gno.land/r/x/manfred_outfmt"
-gno = ""
+gno = "0.9"
+draft = true

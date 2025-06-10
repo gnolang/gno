@@ -1,2 +1,3 @@
 path = "gno.land/r/jaekwon/dao"
-gno = ""
+gno = "0.9"
+draft = true
