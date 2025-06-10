@@ -147,9 +147,7 @@ import "strconv"
 
 var value int = 0
 
-func Inc(v int) {  // method to increment value
-        crossing()
-
+func Inc(cur realm, v int) {  // method to increment value
         value += v
 }
 
