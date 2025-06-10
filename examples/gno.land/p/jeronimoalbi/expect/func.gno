@@ -74,11 +74,11 @@ func (c FuncChecker) ToFail() ErrorChecker {
 //
 // Example usage:
 //
-//	  func TestFoo(t *testing.T) {
-//		   expect.Func(t, func() {
-//	      Foo(cross)
-//	    }).Not().ToCrossPanic()
-//	  }
+//	func TestFoo(t *testing.T) {
+//	  expect.Func(t, func() {
+//	    Foo(cross)
+//	  }).Not().ToCrossPanic()
+//	}
 func (c FuncChecker) ToPanic() MessageChecker {
 	c.ctx.t().Helper()
 
