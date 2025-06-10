@@ -116,7 +116,7 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 			return nil, fmt.Errorf("unable to validate gnomod.toml %q: %w", modpath, err)
 		}
 
-		pkgpath = mod.Path
+		pkgpath = mod.Module
 	default:
 		return nil, fmt.Errorf("unable to read %q: %w", modpath, err)
 	}

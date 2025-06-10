@@ -287,7 +287,7 @@ func execModInit(args []string) error {
 	}
 
 	modfile := new(gnomod.File)
-	modfile.Path = modPath
+	modfile.Module = modPath
 	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
 
 	return nil
@@ -405,7 +405,7 @@ func execModWhy(args []string, io commands.IO) error {
 	}
 
 	// Format and print `gno mod why` output stanzas
-	out := formatModWhyStanzas(gm.Path, args, importToFilesMap)
+	out := formatModWhyStanzas(gm.Module, args, importToFilesMap)
 	io.Printf(out)
 
 	return nil

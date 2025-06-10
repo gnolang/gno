@@ -318,7 +318,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 func determinePkgPath(mod *gnomod.File, dir, rootDir string) (string, bool) {
 	if mod != nil {
-		return mod.Path, true
+		return mod.Module, true
 	}
 	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
 		return pkgPath, true
