@@ -1,2 +1,2 @@
-module = "gnovm/tests/integ/several-lint-errors"
+module = "gno.land/tests/severalerrors"
 gno = "0.9"
