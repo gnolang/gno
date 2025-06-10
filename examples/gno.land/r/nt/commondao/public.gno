@@ -4,10 +4,11 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/nt/commondao"
 )
 
-// TODO: Limit the number of DAOs per address, maybe discuss fees ranges to avoid spaming
+// TODO: Limit the number of DAOs per address, maybe discuss fees ranges to avoid spam
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
@@ -37,7 +38,12 @@ func New(cur realm, name string) *commondao.CommonDAO {
 	assertDAONameIsValid(name)
 
 	caller := std.CurrentRealm().Address()
+
+	// If caller doesn't own a DAO already
+	// Add them to the dao owners list
+	// Then use up their invite
 	if !hasOwnership(caller) {
+		// why make the distinction here?
 		orig := std.OriginCaller()
 		assertIsInvited(orig)
 		invites.Remove(orig.String())
@@ -75,12 +81,12 @@ func GetOptions(daoID uint64) *Options {
 	return getOptions(daoID)
 }
 
-// IsOwner checks if an address has ownership of a DAO.
+// IsOwner checks if addr is the owner of the specified DAO.
 func IsOwner(addr std.Address, daoID uint64) bool {
 	return isOwner(addr, daoID)
 }
 
-// TransferOwnership transfers DAO ownership to a different address.
+// TransferOwnership transfers ownership of a DAO to a different address.
 func TransferOwnership(cur realm, daoID uint64, newOwner std.Address) {
 	assertIsOwner(std.PreviousRealm().Address(), daoID)
 
@@ -90,10 +96,11 @@ func TransferOwnership(cur realm, daoID uint64, newOwner std.Address) {
 
 	caller := std.PreviousRealm().Address()
 	ids := getOwnership(caller)
+
 	for i, id := range ids {
 		if id == daoID {
-			ownership.Set(caller.String(), append(ids[:i], ids[i+1:]...))
-			ownership.Set(newOwner.String(), append(getOwnership(newOwner), id))
+			daoOwnerships.Set(caller.String(), append(ids[:i], ids[i+1:]...))
+			daoOwnerships.Set(newOwner.String(), append(getOwnership(newOwner), id))
 
 			break
 		}
@@ -101,14 +108,15 @@ func TransferOwnership(cur realm, daoID uint64, newOwner std.Address) {
 }
 
 // Get returns a common DAO searched by ID.
-// It panics if caller doesn't have ownership of the DAO instance.
+// It panics if caller doesn't have daoOwnerships of the DAO instance.
 // Only toplevel DAOs are returned, to get SubDAOs use `GetSubDAO()`.
 func Get(daoID uint64) *commondao.CommonDAO {
 	assertIsOwner(std.CurrentRealm().Address(), daoID)
 	return mustGetDAO(daoID)
 }
 
-// GetSize returns the number of SubDAOs under a specified root DAO.
+// GetSize returns the number of SubDAOs under a specified root DAO,
+// including the root DAO.
 func GetSize(rootID uint64) int {
 	assertIsOwner(std.CurrentRealm().Address(), rootID)
 
@@ -116,6 +124,7 @@ func GetSize(rootID uint64) int {
 	if tree == nil {
 		return 0
 	}
+
 	return tree.Size()
 }
 
@@ -124,7 +133,7 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowVoting {
-		panic("voting is not enabled")
+		panic(ufmt.Sprintf("voting in DAO `%s` (ID:%d) is not enabled", dao.Name(), dao.ID()))
 	}
 
 	caller := std.PreviousRealm().Address()
@@ -137,11 +146,12 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 }
 
 // Execute executes a DAO proposal.
+// This function is callable by any DAO member
 func Execute(cur realm, daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowExecution {
-		panic("proposal execution is not enabled")
+		panic(ufmt.Sprintf("proposal execution in DAO `%s` (ID:%d) is not enabled", dao.Name(), dao.ID()))
 	}
 
 	caller := std.PreviousRealm().Address()
@@ -153,19 +163,22 @@ func Execute(cur realm, daoID, proposalID uint64) {
 	}
 }
 
+// hasOwnership checks if addr is an owner of a DAO
 func hasOwnership(addr std.Address) bool {
-	_, found := ownership.Get(addr.String())
+	_, found := daoOwnerships.Get(addr.String())
 	return found
 }
 
+// isInvited checks if addr has been invited to use the CommonDAO realm
 func isInvited(addr std.Address) bool {
 	_, found := invites.Get(addr.String())
 	return found
 }
 
+// isOwner checks if addr owns dao with id daoID
 func isOwner(addr std.Address, daoID uint64) bool {
 	// Make sure to check the root DAO ID, in case daoID belongs to a SubDAO.
-	// This is required because ownership is assigned to the root DAO.
+	// This is required because daoOwnerships is assigned to the root DAO.
 	daoID = mustGetDAO(daoID).TopParent().ID()
 
 	for _, id := range getOwnership(addr) {
@@ -198,6 +211,7 @@ func assertDAONameIsValid(name string) {
 	}
 }
 
+// assertCallerIsMember asserts that the caller is part of the specified dao
 func assertCallerIsMember(caller std.Address, dao *commondao.CommonDAO) {
 	if !dao.Members().Has(caller) {
 		panic("caller is not a DAO member")

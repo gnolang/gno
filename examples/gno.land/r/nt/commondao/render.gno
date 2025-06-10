@@ -34,8 +34,8 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H1("Common DAO"))
 	res.Write(md.HorizontalRule())
 	res.Write(ufmt.Sprintf(
-		md.Paragraph("This realm can be used to create CommonDAO instances based on %s package."),
-		md.Link("commondao", "/p/nt/commondao/"),
+		md.Paragraph("This realm can be used to create CommonDAO instances based on the %s package."),
+		md.Link("`commondao`", "/p/nt/commondao/"),
 	))
 
 	pages, err := pager.New(req.RawPath, daos.Size(), pager.WithPageSize(10))
@@ -54,16 +54,13 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 		return false
 	})
 
-	if len(items) == 0 {
-		return
-	}
-
 	res.Write(md.Paragraph("Here is a list of some of the DAOs that were created:"))
 	res.Write(md.Paragraph(md.BulletList(items)))
 
 	if pages.HasPages() {
 		res.Write(md.Paragraph(pager.Picker(pages)))
 	}
+	/// add some instructions on how to browse daos? something to do from the home page?
 }
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {

@@ -13,13 +13,13 @@ import (
 const CommonDAOID uint64 = 1
 
 var (
-	daoID     seqid.ID
-	realmLink txlink.Realm
-	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
-	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
-	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
-	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(DAO ID) -> *commondao.CommonDAO)
-	options   = avl.NewTree() // string(root ID) -> *Options
+	daoID         seqid.ID
+	realmLink     txlink.Realm
+	daos          = avl.NewTree() // string(ID) -> *commondao.CommonDAO
+	daoOwnerships = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
+	invites       = avl.NewTree() // string(std.Address) -> std.Address(inviter)
+	trees         = avl.NewTree() // string(root ID) -> avl.Tree(string(DAO ID) -> *commondao.CommonDAO)
+	options       = avl.NewTree() // string(root ID) -> *Options
 )
 
 func init() {
@@ -52,7 +52,7 @@ func getTree(rootID uint64) *avl.Tree {
 }
 
 func getOwnership(addr std.Address) []uint64 {
-	if v, ok := ownership.Get(addr.String()); ok {
+	if v, ok := daoOwnerships.Get(addr.String()); ok {
 		return v.([]uint64)
 	}
 	return nil
@@ -76,10 +76,11 @@ func createDAO(name string, owner std.Address) *commondao.CommonDAO {
 		commondao.WithID(uint64(id)),
 		commondao.WithName(name),
 	)
+
 	ids := append(getOwnership(owner), uint64(id))
 	daoOptions := defaultOptions
 
-	ownership.Set(owner.String(), ids)
+	daoOwnerships.Set(owner.String(), ids)
 	daos.Set(id.String(), dao)
 	options.Set(id.String(), &daoOptions)
 	return dao

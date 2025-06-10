@@ -24,13 +24,15 @@ func init() {
 	// Index DAO
 	daos.Set(id.String(), dao)
 
-	// Make commondao realm the owner of Common DAO
+	// Make the commondao realm the owner of Common DAO
 	commonRealm := std.CurrentRealm()
-	ownership.Set(commonRealm.Address().String(), []uint64{CommonDAOID})
+	daoOwnerships.Set(commonRealm.Address().String(), []uint64{CommonDAOID})
 
 	// Save DAO configuration
 	options.Set(id.String(), &Options{
 		AllowVoting:    true,
 		AllowExecution: true,
+		AllowListing:   true,
+		AllowRender:    true,
 	})
 }
