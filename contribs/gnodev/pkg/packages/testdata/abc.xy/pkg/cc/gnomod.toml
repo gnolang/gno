@@ -1,1 +1,2 @@
-module = "abc.xy/pkg/cc" 
+module = "abc.xy/pkg/cc"
+gno = "0.9" 

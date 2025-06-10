@@ -92,7 +92,7 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 	if err != nil {
 		return "", false
 	}
-	return modfile.Module.Mod.Path, true
+	return modfile.Module, true
 }
 
 var reInvalidChar = regexp.MustCompile(`[^\w_-]`)

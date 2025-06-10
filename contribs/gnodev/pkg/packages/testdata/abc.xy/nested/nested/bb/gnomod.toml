@@ -1,1 +1,2 @@
-module = "abc.xy/nested/nested/bb" 
+module = "abc.xy/nested/nested/bb"
+gno = "0.9" 

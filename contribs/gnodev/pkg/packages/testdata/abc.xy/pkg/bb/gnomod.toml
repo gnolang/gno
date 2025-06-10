@@ -1,1 +1,2 @@
-module = "abc.xy/pkg/bb" 
+module = "abc.xy/pkg/bb"
+gno = "0.9" 
