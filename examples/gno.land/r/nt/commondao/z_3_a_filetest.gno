@@ -26,7 +26,7 @@ func init() {
 	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	daoID = commondao.New("Foo").ID()
+	daoID = commondao.New(cross, "Foo").ID()
 }
 
 func main() {
@@ -38,6 +38,5 @@ func main() {
 	println(commondao.IsOwner(newRealm, daoID))
 }
 
-// Output:
-// false
-// true
+// Error:
+// unauthorized
