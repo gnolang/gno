@@ -1,2 +1,2 @@
-path = "gno.land/p/leon/coinsort"
+module = "gno.land/p/leon/coinsort"
 gno = "0.9"

@@ -1,2 +1,2 @@
-path = "gnovm/tests/integ/init"
+module = "gnovm/tests/integ/init"
 gno = "0.9"

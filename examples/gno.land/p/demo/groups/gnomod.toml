@@ -1,2 +1,2 @@
-path = "gno.land/p/demo/groups"
+module = "gno.land/p/demo/groups"
 gno = "0.9"

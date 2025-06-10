@@ -1,2 +1,2 @@
-path = "gnovm/tests/integ/package_not_declared"
+module = "gnovm/tests/integ/package_not_declared"
 gno = "0.9"

@@ -1,2 +1,2 @@
-path = "gno.land/r/gfanton/gnomaze"
+module = "gno.land/r/gfanton/gnomaze"
 gno = "0.9"

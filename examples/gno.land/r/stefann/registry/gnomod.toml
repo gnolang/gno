@@ -1,2 +1,2 @@
-path = "gno.land/r/stefann/registry"
+module = "gno.land/r/stefann/registry"
 gno = "0.9"

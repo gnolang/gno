@@ -1,2 +1,2 @@
-path = "gno.land/p/lou/ascii"
+module = "gno.land/p/lou/ascii"
 gno = "0.9"

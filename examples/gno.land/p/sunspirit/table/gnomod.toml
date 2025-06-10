@@ -1,2 +1,2 @@
-path = "gno.land/p/sunspirit/table"
+module = "gno.land/p/sunspirit/table"
 gno = "0.9"

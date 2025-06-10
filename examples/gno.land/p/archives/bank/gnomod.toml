@@ -1,2 +1,2 @@
-path = "gno.land/p/archives/bank"
+module = "gno.land/p/archives/bank"
 gno = "0.9"

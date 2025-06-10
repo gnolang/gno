@@ -1,2 +1,2 @@
-path = "gno.land/r/moul/microposts"
+module = "gno.land/r/moul/microposts"
 gno = "0.9"

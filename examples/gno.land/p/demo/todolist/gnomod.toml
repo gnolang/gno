@@ -1,2 +1,2 @@
-path = "gno.land/p/demo/todolist"
+module = "gno.land/p/demo/todolist"
 gno = "0.9"

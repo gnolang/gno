@@ -1,2 +1,2 @@
-path = "gno.land/p/moul/realmpath"
+module = "gno.land/p/moul/realmpath"
 gno = "0.9"

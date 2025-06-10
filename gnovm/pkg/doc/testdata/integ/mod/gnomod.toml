@@ -1,2 +1,2 @@
-path = "gnovm/pkg/doc/testdata/integ/mod"
+module = "gnovm/pkg/doc/testdata/integ/mod"
 gno = "0.9"

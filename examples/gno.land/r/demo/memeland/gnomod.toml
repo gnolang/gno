@@ -1,2 +1,2 @@
-path = "gno.land/r/demo/memeland"
+module = "gno.land/r/demo/memeland"
 gno = "0.9"

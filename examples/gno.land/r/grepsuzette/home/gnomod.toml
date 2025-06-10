@@ -1,2 +1,2 @@
-path = "gno.land/r/grepsuzette/home"
+module = "gno.land/r/grepsuzette/home"
 gno = "0.9"

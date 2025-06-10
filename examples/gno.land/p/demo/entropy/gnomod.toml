@@ -1,2 +1,2 @@
-path = "gno.land/p/demo/entropy"
+module = "gno.land/p/demo/entropy"
 gno = "0.9"

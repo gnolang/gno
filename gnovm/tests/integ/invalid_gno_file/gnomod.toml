@@ -1,2 +1,2 @@
-path = "gnovm/tests/integ/invalid_gno_file"
+module = "gnovm/tests/integ/invalid_gno_file"
 gno = "0.9"

@@ -1,2 +1,2 @@
-path = "gno.land/p/n2p5/brainfuck"
+module = "gno.land/p/n2p5/brainfuck"
 gno = "0.9"

@@ -1,2 +1,2 @@
-path = "gno.land/p/agherasie/forms"
+module = "gno.land/p/agherasie/forms"
 gno = "0.9"

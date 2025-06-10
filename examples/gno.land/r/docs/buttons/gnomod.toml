@@ -1,2 +1,2 @@
-path = "gno.land/r/docs/buttons"
+module = "gno.land/r/docs/buttons"
 gno = "0.9"

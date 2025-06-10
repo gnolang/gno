@@ -1,2 +1,2 @@
-path = "gno.land/r/sys/rewards"
+module = "gno.land/r/sys/rewards"
 gno = "0.9"

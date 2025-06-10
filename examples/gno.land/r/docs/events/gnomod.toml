@@ -1,2 +1,2 @@
-path = "gno.land/r/docs/events"
+module = "gno.land/r/docs/events"
 gno = "0.9"

@@ -1,2 +1,2 @@
-path = "gno.land/p/thox/accesscontrol"
+module = "gno.land/p/thox/accesscontrol"
 gno = "0.9"

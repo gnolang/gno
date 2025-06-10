@@ -1,2 +1,2 @@
-path = "gno.land/r/docs/avl_pager_with_params"
+module = "gno.land/r/docs/avl_pager_with_params"
 gno = "0.9"

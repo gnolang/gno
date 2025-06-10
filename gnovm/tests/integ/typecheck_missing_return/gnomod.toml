@@ -1,13 +1,2 @@
-path = "gnovm/tests/integ/typecheck_missing_return"
+module = "gnovm/tests/integ/typecheck_missing_return"
 gno = "0.9"
-
-[develop]
-
-[module]
-  draft = false
-  path = "gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx"
-  private = false
-
-[upload_metadata]
-  uploaded_at = 0
-  uploader = ""

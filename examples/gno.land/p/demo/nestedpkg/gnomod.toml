@@ -1,2 +1,2 @@
-path = "gno.land/p/demo/nestedpkg"
+module = "gno.land/p/demo/nestedpkg"
 gno = "0.9"
