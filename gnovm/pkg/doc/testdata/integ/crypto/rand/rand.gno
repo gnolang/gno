@@ -52,7 +52,6 @@ var ExportedVar = true
 
 var unexp = 1
 
-func SetUnexp(val int) {
-	crossing()
+func SetUnexp(cur realm, val int) {
 	unexp = val
 }

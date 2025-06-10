@@ -141,12 +141,13 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	}
 
 	for _, fun := range pkg.Funcs {
+		params := d.extractJSONFields(fun.Decl.Type.Params)
 		jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 			Name:      fun.Name,
-			Crossing:  isCrossing(fun),
+			Crossing:  isCrossing(params),
 			Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source, file),
 			Doc:       string(pkg.Markdown(fun.Doc)),
-			Params:    d.extractJSONFields(fun.Decl.Type.Params),
+			Params:    params,
 			Results:   d.extractJSONFields(fun.Decl.Type.Results),
 		})
 	}
@@ -262,24 +263,26 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 
 		// constructors for this type
 		for _, fun := range typ.Funcs {
+			params := d.extractJSONFields(fun.Decl.Type.Params)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Name:      fun.Name,
-				Crossing:  isCrossing(fun),
+				Crossing:  isCrossing(params),
 				Signature: mustFormatNode(d.pkgData.fset, fun.Decl, opt.Source, file),
 				Doc:       string(pkg.Markdown(fun.Doc)),
-				Params:    d.extractJSONFields(fun.Decl.Type.Params),
+				Params:    params,
 				Results:   d.extractJSONFields(fun.Decl.Type.Results),
 			})
 		}
 
 		for _, meth := range typ.Methods {
+			params := d.extractJSONFields(meth.Decl.Type.Params)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Type:      typ.Name,
 				Name:      meth.Name,
-				Crossing:  isCrossing(meth),
+				Crossing:  isCrossing(params),
 				Signature: mustFormatNode(d.pkgData.fset, meth.Decl, opt.Source, file),
 				Doc:       string(pkg.Markdown(meth.Doc)),
-				Params:    d.extractJSONFields(meth.Decl.Type.Params),
+				Params:    params,
 				Results:   d.extractJSONFields(meth.Decl.Type.Results),
 			})
 		}
@@ -402,28 +405,13 @@ func mustFormatNode(fset *token.FileSet, node any, source bool, file *ast.File) 
 	return buf.String()
 }
 
-func isCrossing(fun *doc.Func) bool {
-	// Imitate isCrossing in gnovm/pkg/gnolang
-	if fun.Decl.Body == nil || len(fun.Decl.Body.List) == 0 {
+// isCrossing returns true if the first param is "cur realm"
+func isCrossing(params []*JSONField) bool {
+	if len(params) < 1 {
 		return false
 	}
-	fs := fun.Decl.Body.List[0]
-	xs, ok := fs.(*ast.ExprStmt)
-	if !ok {
-		return false
-	}
-	cx, ok := xs.X.(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	if len(cx.Args) != 0 {
-		return false
-	}
-	name, ok := cx.Fun.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	return name.Name == "crossing"
+
+	return params[0].Name == "cur" && params[0].Type == "realm"
 }
 
 // Return the expression inside the parentheses
