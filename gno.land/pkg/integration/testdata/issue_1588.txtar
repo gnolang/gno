@@ -14,9 +14,8 @@ stdout OK!
 stdout '(10 int)'
 
 -- gnomod.toml --
-module gno.land/r/demo/xx
-
-gno "0.9"
+module = "gno.land/r/demo/xx"
+gno = "0.9"
 -- realm.gno --
 package xx
 

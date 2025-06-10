@@ -12,7 +12,7 @@ stdout OK!
 stderr 'match its expected identifier'
 
 -- hello/gnomod.toml --
-module = "hello"
+module = "gno.land/p/demo/hello"
 gno = "0.9"
 
 -- hello/hello.gno --
@@ -23,7 +23,7 @@ func SayHello() string {
 }
 
 -- bye/gnomod.toml --
-module = "bye"
+module = "gno.land/p/demo/bye"
 gno = "0.9"
 
 -- bye/bye.gno --

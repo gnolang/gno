@@ -33,7 +33,7 @@ stdout '1,1,1;2,2,2;3,3,3;'
 -- gnomod.toml --
 module = "gno.land/r/demo/xx"
 
-gno "0.9"
+gno = "0.9"
 -- realm.gno --
 package xx
 
