@@ -45,6 +45,7 @@ func TestFiles(t *testing.T) {
 			Output:  io.Discard,
 			Error:   io.Discard,
 			Sync:    *withSync,
+			Cache:   gnolang.TypeCheckCache{},
 		}
 		o.BaseStore, o.TestStore = test.StoreWithOptions(
 			rootDir, o.WriterForStore(),

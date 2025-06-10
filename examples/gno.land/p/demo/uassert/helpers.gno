@@ -38,6 +38,7 @@ func checkDidPanic(f any) (didPanic bool, message string) {
 
 		message = "recover: unsupported type"
 	}()
+
 	if fn, ok := f.(func()); ok {
 		fn()
 	} else if fn, ok := f.(func(realm)); ok {

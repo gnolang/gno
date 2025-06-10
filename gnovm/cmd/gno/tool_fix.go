@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	goio "io"
 	"io/fs"
 	"os"
@@ -316,7 +315,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			}
 
 			// FIX STEP 4.a: Prepare*()
-			tm := test.Machine(newTestGnoStore(), io.Discard, pkgPath, false)
+			tm := test.Machine(newTestGnoStore(), goio.Discard, pkgPath, false)
 			defer tm.Release()
 			// FIX STEP 4.b: Re-parse the mem package to Go AST.
 			gofset, allgofs, _, _, _, errs := gno.GoParseMemPackage(mpkg)
