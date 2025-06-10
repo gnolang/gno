@@ -30,8 +30,8 @@ stdout '1,1,1;2,2,2;3,3,3;'
 gnokey query vm/qrender --data "gno.land/r/demo/xx:X"
 stdout '1,1,1;2,2,2;3,3,3;'
 
--- gno.mod --
-module gno.land/r/demo/xx
+-- gnomod.toml --
+module = "gno.land/r/demo/xx"
 
 gno 0.9
 -- realm.gno --

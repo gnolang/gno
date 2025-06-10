@@ -13,7 +13,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/xx -func GetOutcastChildAge -gas-fee
 stdout OK!
 stdout '(10 int)'
 
--- gno.mod --
+-- gnomod.toml --
 module gno.land/r/demo/xx
 
 gno 0.9
