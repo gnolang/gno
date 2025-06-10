@@ -35,4 +35,3 @@ func main() {
 
 	commondao.NewSubDAO(cross, "Foo", parentID)
 }
-

@@ -15,4 +15,3 @@ func main() {
 
 	commondao.New(cross, "Foo")
 }
-
