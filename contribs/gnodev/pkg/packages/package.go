@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -73,7 +74,7 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 
 	// Validate package name
 	for _, file := range mempkg.Files {
-		if !isGnoFile(file.Name) || isTestFile(file.Name) {
+		if !isGnoFile(file.Name) {
 			continue
 		}
 
@@ -82,7 +83,12 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 			return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
 
-		if f.Name.Name != mempkg.Name {
+		if strings.HasSuffix(file.Name, "_filetest.gno") {
+			continue
+		}
+
+		pname := strings.TrimSuffix(f.Name.Name, "_test")
+		if pname != mempkg.Name {
 			return fmt.Errorf("%q package name conflict, expected %q found %q",
 				mempkg.Path, mempkg.Name, f.Name.Name)
 		}
