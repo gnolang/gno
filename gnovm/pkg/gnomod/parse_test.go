@@ -58,21 +58,21 @@ func TestParseBytes(t *testing.T) {
 		// Valid gnomod.toml cases
 		{
 			name:            "valid gnomod.toml with module",
-			content:         "path = \"gno.land/p/demo/foo\"",
+			content:         "module = \"gno.land/p/demo/foo\"",
 			fileType:        "gnomod.toml",
 			expectedModule:  "gno.land/p/demo/foo",
 			expectedVersion: "0.0",
 		},
 		{
 			name:            "valid gnomod.toml with module and gno version",
-			content:         "path = \"gno.land/p/demo/foo\"\ngno = \"0.9\"",
+			content:         "module = \"gno.land/p/demo/foo\"\ngno = \"0.9\"",
 			fileType:        "gnomod.toml",
 			expectedModule:  "gno.land/p/demo/foo",
 			expectedVersion: "0.9",
 		},
 		{
 			name:            "valid gnomod.toml with module and replace",
-			content:         "path = \"gno.land/p/demo/foo\"\ndraft = true",
+			content:         "module = \"gno.land/p/demo/foo\"\ndraft = true",
 			fileType:        "gnomod.toml",
 			expectedModule:  "gno.land/p/demo/foo",
 			expectedVersion: "0.0",
@@ -80,7 +80,7 @@ func TestParseBytes(t *testing.T) {
 		},
 		{
 			name:           "gnomod.toml with draft flag",
-			content:        "path = \"gno.land/p/demo/foo\"\ndraft = true",
+			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true",
 			fileType:       "gnomod.toml",
 			expectedModule: "gno.land/p/demo/foo",
 			expectedDraft:  true,
@@ -137,7 +137,7 @@ func TestParseBytes(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedModule, file.Path)
+			assert.Equal(t, tc.expectedModule, file.Module)
 			if tc.expectedVersion != "" {
 				assert.Equal(t, tc.expectedVersion, file.GetGno())
 			}
@@ -167,7 +167,7 @@ func TestParseMemPackage(t *testing.T) {
 		{
 			name: "valid gnomod.toml in mem package",
 			files: []*std.MemFile{
-				{Name: "gnomod.toml", Body: "path = \"gno.land/p/demo/foo\""},
+				{Name: "gnomod.toml", Body: "module = \"gno.land/p/demo/foo\""},
 			},
 			expectedModule:  "gno.land/p/demo/foo",
 			expectedVersion: "0.0",
@@ -176,7 +176,7 @@ func TestParseMemPackage(t *testing.T) {
 			name: "both files present, prefers gnomod.toml",
 			files: []*std.MemFile{
 				{Name: "gno.mod", Body: "module gno.land/p/demo/old"},
-				{Name: "gnomod.toml", Body: "path = \"gno.land/p/demo/new\""},
+				{Name: "gnomod.toml", Body: "module = \"gno.land/p/demo/new\""},
 			},
 			expectedModule:  "gno.land/p/demo/new",
 			expectedVersion: "0.0",
@@ -210,7 +210,7 @@ func TestParseMemPackage(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedModule, file.Path)
+			assert.Equal(t, tc.expectedModule, file.Module)
 			assert.Equal(t, tc.expectedVersion, file.GetGno())
 		})
 	}

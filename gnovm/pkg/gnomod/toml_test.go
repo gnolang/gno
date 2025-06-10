@@ -16,7 +16,7 @@ func TestUnmarshalTomlHelper(t *testing.T) {
 		{
 			name: "valid",
 			tomlStr: `
-path = "gno.land/r/test"
+module = "gno.land/r/test"
 develop = 0
 UploadMetadata = {
   Uploader = "addr1"
@@ -52,29 +52,29 @@ func TestMarshalTomlHelper(t *testing.T) {
 			name: "minimal",
 			file: func() *File {
 				file := File{}
-				file.Path = "gno.land/r/test"
+				file.Module = "gno.land/r/test"
 				file.Gno = "0.9"
 				return &file
 			}(),
-			expected: "path = \"gno.land/r/test\"\ngno = \"0.9\"\n",
+			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\n",
 		},
 		{
 			name: "post upload",
 			file: func() *File {
 				file := File{}
-				file.Path = "gno.land/r/test"
+				file.Module = "gno.land/r/test"
 				file.Gno = "0.9"
 				file.UploadMetadata.Uploader = "addr1"
 				file.UploadMetadata.Height = 42
 				return &file
 			}(),
-			expected: "path = \"gno.land/r/test\"\ngno = \"0.9\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
+			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
 		},
 		{
 			name: "full",
 			file: func() *File {
 				file := File{}
-				file.Path = "gno.land/r/test"
+				file.Module = "gno.land/r/test"
 				file.Draft = true
 				file.Private = true
 				file.Replace = []Replace{
@@ -86,12 +86,12 @@ func TestMarshalTomlHelper(t *testing.T) {
 				file.UploadMetadata.Height = 42
 				return &file
 			}(),
-			expected: "path = \"gno.land/r/test\"\ngno = \"0.9\"\ndraft = true\nprivate = true\n\n[[replace]]\n  old = \"gno.land/r/test\"\n  new = \"gno.land/r/test/v2\"\n\n[[replace]]\n  old = \"gno.land/r/test/v3\"\n  new = \"../..\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
+			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\ndraft = true\nprivate = true\n\n[[replace]]\n  old = \"gno.land/r/test\"\n  new = \"gno.land/r/test/v2\"\n\n[[replace]]\n  old = \"gno.land/r/test/v3\"\n  new = \"../..\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
 		},
 		{
 			name:     "empty",
 			file:     &File{},
-			expected: "path = \"\"\ngno = \"\"\n",
+			expected: "module = \"\"\ngno = \"\"\n",
 		},
 	}
 

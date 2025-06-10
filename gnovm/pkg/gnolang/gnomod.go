@@ -17,7 +17,7 @@ const gnomodTemplate = `{{/*
 This is a comment in a Go template in pkg/gnolang/gnomod.go.
 The gnomodTemplate is used with the 'text/template' package
 to generate the final gnomod.toml file. */}}
-path = "{{.PkgPath}}"
+module = "{{.PkgPath}}"
 gno = "{{.GnoVersion}}"`
 
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
@@ -106,7 +106,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 				return fmt.Errorf("failed to validate gnomod.toml in %s: %w", modPath, err)
 			}
 
-			pkg, err := ReadMemPackage(path, mod.Path)
+			pkg, err := ReadMemPackage(path, mod.Module)
 			if err != nil {
 				// ignore package files on error
 				pkg = &std.MemPackage{}
@@ -122,7 +122,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 			imports := make([]string, 0, len(importsRaw))
 			for _, imp := range importsRaw {
 				// remove self and standard libraries from imports
-				if imp.PkgPath != mod.Path &&
+				if imp.PkgPath != mod.Module &&
 					!IsStdlib(imp.PkgPath) {
 					imports = append(imports, imp.PkgPath)
 				}
@@ -130,7 +130,7 @@ func ReadPkgListFromDir(dir string) (gnomod.PkgList, error) {
 
 			pkgs = append(pkgs, gnomod.Pkg{
 				Dir:     path,
-				Name:    mod.Path,
+				Name:    mod.Module,
 				Draft:   mod.Draft,
 				Imports: imports,
 			})

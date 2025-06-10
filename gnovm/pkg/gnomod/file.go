@@ -10,9 +10,9 @@ import (
 
 // Parsed gnomod.toml file.
 type File struct {
-	// Path is the path of the module.
+	// Module is the path of the module.
 	// Like `gno.land/r/path/to/module`.
-	Path string `toml:"path" json:"path"`
+	Module string `toml:"module" json:"module"`
 
 	// Gno is the gno version string for compatibility within the gno toolchain.
 	// It is intended to be set by the `gno` cli when initializing or upgrading a module.
@@ -95,14 +95,14 @@ func (f *File) DropReplace(oldPath string) {
 
 // Validate validates gnomod.toml.
 func (f *File) Validate() error {
-	modPath := f.Path
+	modPath := f.Module
 
-	// path is required.
+	// module is required.
 	if modPath == "" {
 		return errors.New("requires module path")
 	}
 
-	// path is a valid import path.
+	// module is a valid import path.
 	err := module.CheckImportPath(modPath)
 	if err != nil {
 		return err

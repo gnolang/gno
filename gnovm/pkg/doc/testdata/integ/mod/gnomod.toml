@@ -1,9 +1,2 @@
 path = "gnovm/pkg/doc/testdata/integ/mod"
 gno = "0.9"
-
-[develop]
-
-[module]
-  draft = false
-  path = "gno.land/mod"
-  private = false

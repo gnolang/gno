@@ -29,17 +29,17 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
-					`path = "foo"
+					`module = "foo"
 gno = "0.9"`,
 				},
 				{
 					"bar",
-					`path = "bar"
+					`module = "bar"
 gno = "0.9"`,
 				},
 				{
 					"baz",
-					`path = "baz"
+					`module = "baz"
 gno = "0.9"`,
 				},
 			},
@@ -51,17 +51,17 @@ gno = "0.9"`,
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
-					`path = "foo"
+					`module = "foo"
 gno = "0.9"`,
 				},
 				{
 					"baz",
-					`path = "baz"
+					`module = "baz"
 gno = "0.9"`,
 				},
 				{
 					"qux",
-					`path = "qux"
+					`module = "qux"
 draft = true
 gno = "0.9"`,
 				},

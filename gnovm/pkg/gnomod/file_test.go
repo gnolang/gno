@@ -200,7 +200,7 @@ func TestFile_Validate(t *testing.T) {
 			name: "valid module path",
 			file: func() *File {
 				f := &File{}
-				f.Path = "gno.land/p/demo/foo"
+				f.Module = "gno.land/p/demo/foo"
 				return f
 			}(),
 		},
@@ -213,7 +213,7 @@ func TestFile_Validate(t *testing.T) {
 			name: "invalid module path with space",
 			file: func() *File {
 				f := &File{}
-				f.Path = "gno.land/p/demo/ foo"
+				f.Module = "gno.land/p/demo/ foo"
 				return f
 			}(),
 			expectedErr: "malformed import path",
@@ -222,7 +222,7 @@ func TestFile_Validate(t *testing.T) {
 			name: "invalid module path with Unicode",
 			file: func() *File {
 				f := &File{}
-				f.Path = "gno.land/p/demo/한글"
+				f.Module = "gno.land/p/demo/한글"
 				return f
 			}(),
 			expectedErr: "malformed import path",
@@ -295,7 +295,7 @@ func TestFile_WriteFile(t *testing.T) {
 			name: "write valid file",
 			file: func() *File {
 				f := &File{}
-				f.Path = "gno.land/p/demo/foo"
+				f.Module = "gno.land/p/demo/foo"
 				return f
 			}(),
 		},
@@ -303,7 +303,7 @@ func TestFile_WriteFile(t *testing.T) {
 			name: "write to non-existent directory",
 			file: func() *File {
 				f := &File{}
-				f.Path = "gno.land/p/demo/foo"
+				f.Module = "gno.land/p/demo/foo"
 				return f
 			}(),
 			expectedErr: "no such file or directory",

@@ -91,7 +91,7 @@ func parseDeprecatedDotModBytes(fname string, data []byte) (*deprecatedModFile, 
 func (f *deprecatedModFile) Migrate() (*File, error) {
 	fi := &File{}
 	if f.Module != nil {
-		fi.Path = f.Module.Mod.Path
+		fi.Module = f.Module.Mod.Path
 	}
 	if f.Gno != nil {
 		fi.Gno = f.Gno.Version
