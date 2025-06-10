@@ -1,0 +1,10 @@
+
+[develop]
+
+[gno]
+  version = "0.9"
+
+[module]
+  draft = false
+  path = "gno.land/mod"
+  private = false
