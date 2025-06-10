@@ -63,7 +63,7 @@ gnoland restart
           },
           {
             "name": "gnomod.toml",
-            "body": "module \"gno.land/p/g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3/zentasktic\"\n\n\ngno \"0.9\"\n"
+            "body": "module = \"gno.land/p/g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3/zentasktic\"\n\n\ngno = \"0.9\"\n"
           },
           {
             "name": "marshals.gno",
@@ -193,7 +193,7 @@ gnoland restart
         "files": [
           {
             "name": "gnomod.toml",
-            "body": "module \"gno.land/r/g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3/zentasktic_core\"\n\n\ngno \"0.9\"\n"
+            "body": "module = \"gno.land/r/g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3/zentasktic_core\"\n\n\ngno = \"0.9\"\n"
           },
           {
             "name": "workable.gno",

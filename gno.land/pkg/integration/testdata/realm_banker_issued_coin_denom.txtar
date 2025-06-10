@@ -75,9 +75,6 @@ stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 module = "gno.land/r/test/realm_banker"
 gno = "0.9"
 
--- short/gnomod.toml --
-module "gno.land/r/test/realm_banker"
-
 -- short/realm_banker.gno --
 package realm_banker
 
@@ -98,9 +95,6 @@ func Burn(cur realm, addr std.Address, denom string, amount int64) {
 -- long/gnomod.toml --
 module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
 gno = "0.9"
-
--- long/gnomod.toml --
-module "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
 
 -- long/realm_banker.gno --
 // package name is 130 characters long
