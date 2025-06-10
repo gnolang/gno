@@ -24,7 +24,7 @@ stderr '--= /Error =--'
 -- invalid/gno.mod --
 module gno.land/r/invalid
 
-gno 0.9
+gno "0.9"
 -- invalid/invalid.gno --
 package invalid
 var Foo =

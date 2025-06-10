@@ -50,7 +50,7 @@ stdout '"coins": "9999999999686ugnot"'
 -- hello/gno.mod --
 module gno.land/r/hello
 
-gno 0.9
+gno "0.9"
 -- hello/hello.gno --
 package hello
 

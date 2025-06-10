@@ -14,7 +14,7 @@ stderr '"std" imported and not used'
 -- gno.mod --
 module gno.land/r/foobar/bar
 
-gno 0.9
+gno "0.9"
 
 -- bar.gno --
 package bar

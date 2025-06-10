@@ -200,7 +200,7 @@ stdout 'OK!'
 -- gno.mod --
 module gno.land/r/user222/home
 
-gno 0.9
+gno "0.9"
 -- home.gno --
 package home
 

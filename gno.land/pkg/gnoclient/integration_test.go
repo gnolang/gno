@@ -518,7 +518,7 @@ func Echo(str string) string {
 					Body: body,
 				},
 				{
-					Name: "gno.mod",
+					Name: "gnomod.toml",
 					Body: gnolang.GenGnoModLatest(deploymentPath),
 				},
 			},
@@ -536,7 +536,7 @@ func Echo(str string) string {
 		Data: []byte(deploymentPath),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, fileName+"\ngno.mod", string(query.Response.Data))
+	assert.Equal(t, fileName+"\ngnomod.toml", string(query.Response.Data))
 
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
@@ -553,7 +553,7 @@ func Echo(str string) string {
 		Data: []byte(deploymentPathB),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, fileName+"\ngno.mod", string(query.Response.Data))
+	assert.Equal(t, fileName+"\ngnomod.toml", string(query.Response.Data))
 }
 
 func TestAddPackageMultiple_Integration(t *testing.T) {
@@ -612,7 +612,7 @@ func Hello(str string) string {
 					Body: body1,
 				},
 				{
-					Name: "gno.mod",
+					Name: "gnomod.toml",
 					Body: gnolang.GenGnoModLatest(deploymentPath1),
 				},
 			},
@@ -627,7 +627,7 @@ func Hello(str string) string {
 			Path: deploymentPath2,
 			Files: []*std.MemFile{
 				{
-					Name: "gno.mod",
+					Name: "gnomod.toml",
 					Body: gnolang.GenGnoModLatest(deploymentPath2),
 				},
 				{
@@ -682,7 +682,7 @@ func Hello(str string) string {
 		Data: []byte(deploymentPath1B),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(query.Response.Data), "echo.gno\ngno.mod")
+	assert.Equal(t, string(query.Response.Data), "echo.gno\ngnomod.toml")
 	query, err = client.Query(QueryCfg{
 		Path: "vm/qfile",
 		Data: []byte(deploymentPath2B),

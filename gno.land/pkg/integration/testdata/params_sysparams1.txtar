@@ -32,7 +32,7 @@ stdout 'data: "7"\n'
 -- params/gno.mod --
 module gno.land/r/sys/params
 
-gno 0.9
+gno "0.9"
 -- params/setter.gno --
 package params
 

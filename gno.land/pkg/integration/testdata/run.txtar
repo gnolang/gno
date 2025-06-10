@@ -16,7 +16,7 @@ stdout 'TX HASH: '
 -- bar/gno.mod --
 module gno.land/r/foobar/bar
 
-gno 0.9
+gno "0.9"
 
 -- bar/bar.gno --
 package bar

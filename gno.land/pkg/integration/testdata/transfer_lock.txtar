@@ -43,7 +43,7 @@ stdout 'Hello!'
 -- gnomod.toml --
 module = "gno.land/r/demo/lock"
 
-gno 0.9
+gno "0.9"
 -- bank.gno --
 package bank
 

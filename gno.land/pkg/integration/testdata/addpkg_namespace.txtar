@@ -72,7 +72,7 @@ stderr 'is not authorized to deploy packages to namespace'
 -- gno.mod --
 module gno.land/r/mypkg
 
-gno 0.9
+gno "0.9"
 -- one.gno --
 package one
 

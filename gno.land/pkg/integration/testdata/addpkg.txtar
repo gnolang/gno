@@ -58,7 +58,7 @@ stdout 'UserRealm{ g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 }'
 -- gno.mod --
 module hello
 
-gno 0.9
+gno "0.9"
 
 -- hello.gno --
 package hello

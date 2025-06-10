@@ -55,7 +55,7 @@ func TransferByName(cur realm, name string, to string, amount uint64) string {
 -- foo20wrapper/gno.mod --
 module gno.land/r/foo20wrapper
 
-gno 0.9
+gno "0.9"
 -- foo20wrapper/foo20wrapper.gno --
 package foo20wrapper
 
@@ -69,7 +69,7 @@ func init() {
 -- foo20/gno.mod --
 module gno.land/r/foo20
 
-gno 0.9
+gno "0.9"
 -- foo20/foo20.gno --
 package foo20
 

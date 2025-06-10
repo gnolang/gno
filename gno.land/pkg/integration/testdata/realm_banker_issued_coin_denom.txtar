@@ -77,7 +77,7 @@ module = "gno.land/r/demo/short"
 -- short/gno.mod --
 module gno.land/r/test/realm_banker
 
-gno 0.9
+gno "0.9"
 -- short/realm_banker.gno --
 package realm_banker
 
@@ -101,7 +101,7 @@ module = "gno.land/r/demo/long"
 -- long/gno.mod --
 module gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
 
-gno 0.9
+gno "0.9"
 -- long/realm_banker.gno --
 // package name is 130 characters long
 package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
@@ -126,7 +126,7 @@ module = "gno.land/r/demo/invalid_realm_denom"
 -- invalid_realm_denom/gno.mod --
 module gno.land/r/test/invalid_realm_denom
 
-gno 0.9
+gno "0.9"
 -- invalid_realm_denom/realm_banker.gno --
 package invalid_realm_denom
 

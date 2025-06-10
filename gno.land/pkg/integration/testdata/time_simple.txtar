@@ -9,7 +9,7 @@ stdout OK!
 -- gno.mod --
 module gno.land/r/time_simple
 
-gno 0.9
+gno "0.9"
 -- time_simple.gno --
 package time_simple
 
