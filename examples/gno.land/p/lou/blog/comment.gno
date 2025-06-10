@@ -20,6 +20,7 @@ type Comment struct {
 	Likes        int
 	Replies      *avl.Tree // id --> *Comment
 	DisableLikes bool
+	Footer       string // additional text, e.g. "via @lou" or txlink calls
 }
 
 func NewComment(author std.Address, content string) (*Comment, error) {
@@ -27,13 +28,15 @@ func NewComment(author std.Address, content string) (*Comment, error) {
 		return nil, ErrEmptyComment
 	}
 	return &Comment{
-		Author:    author,
-		Content:   content,
-		CreatedAt: time.Now(),
-		EditedAt:  nil,
-		Pinned:    false,
-		Likes:     0,
-		Replies:   avl.NewTree(),
+		Author:       author,
+		Content:      content,
+		CreatedAt:    time.Now(),
+		EditedAt:     nil,
+		Pinned:       false,
+		Likes:        0,
+		Replies:      avl.NewTree(),
+		Footer:       "",
+		DisableLikes: false,
 	}, nil
 }
 
@@ -77,26 +80,35 @@ func (c *Comment) AddReply(reply *Comment) error {
 	return nil
 }
 
+func (c *Comment) SetFooter(footer string) {
+	c.Footer = footer
+}
+
+func (c *Comment) SetDisableLikes(disable bool) {
+	c.DisableLikes = disable
+}
+
 func (c *Comment) Render(blogPrefix string, depth int) string {
 	prefix := ""
 	for i := 0; i < depth; i++ {
 		prefix += "> "
 	}
-
-	out := prefix + md.Bold(md.Link(c.Author.String(), blogPrefix+":commenter/"+c.Author.String())) + " "
+	out := prefix + md.Bold(md.Link(c.Author.String(), blogPrefix+":commenters/"+c.Author.String())) + " "
 	if c.Pinned {
 		out += "📌 "
 	}
 	if c.EditedAt != nil {
-		out += md.Italic(formatTime(*c.EditedAt, "relative")) + " (edited)\n"
+		out += md.Italic(formatTime(*c.EditedAt, "relative")+" (edited)") + "\n"
 	} else {
 		out += md.Italic(formatTime(c.CreatedAt, "relative")) + "\n"
 	}
 	out += prefix + c.Content + "\n"
 	if !c.DisableLikes {
-		out += prefix + "❤️ " + strconv.Itoa(c.Likes) + " | " // like actions?
+		out += prefix + "❤️ " + strconv.Itoa(c.Likes) + " \n\n"
 	}
-	out += "reply\n\n" // reply actions
+	if c.Footer != "" {
+		out += prefix + c.Footer + "\n\n"
+	}
 
 	if c.Replies != nil && c.Replies.Size() > 0 {
 		c.Replies.Iterate("", "", func(key string, value any) bool {

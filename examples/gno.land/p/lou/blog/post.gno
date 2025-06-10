@@ -13,17 +13,19 @@ import (
 )
 
 type Post struct {
-	Slug        string
-	ID          seqid.ID
-	Title       string
-	Body        string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	PublishedAt time.Time
-	Tags        []string
-	Authors     []string
-	Publisher   std.Address
-	Likes       uint64 // to implement later
+	Slug          string
+	ID            seqid.ID
+	Title         string
+	Body          string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	PublishedAt   time.Time
+	Tags          []string
+	Authors       []string
+	Publisher     std.Address
+	Likes         uint64 // to implement later
+	DisableLikes  bool
+	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
 
 	CommentId seqid.ID
 	Comments  *avl.Tree // id --> *Comment
@@ -105,6 +107,14 @@ func (p *Post) PinCommentById(id string) error {
 	return nil
 }
 
+func (p *Post) SetPreviewFooter(footer string) {
+	p.PreviewFooter = footer
+}
+
+func (p *Post) SetDisableLikes(disable bool) {
+	p.DisableLikes = disable
+}
+
 func (p Post) GetCommentsByAuthor(author std.Address) []*Comment {
 	var comments []*Comment = nil
 	p.Comments.ReverseIterate("", "", func(_ string, comment interface{}) bool {
@@ -133,7 +143,15 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 		out += md.Bold("tags:") + " `" + strings.Join(p.Tags, "`, `") + "`\n\n"
 	}
 	out += md.Bold(md.Link("comments ("+strconv.Itoa(p.Comments.Size()), prefix+":posts/"+p.Slug+"#comments"))
-	out += ufmt.Sprintf(") | ❤️ (%d)\n\n", p.Likes) + md.HorizontalRule() // like action here
+	if p.DisableLikes {
+		out += ") "
+	} else {
+		out += ufmt.Sprintf(") | ❤️ (%d)\n\n", p.Likes)
+	}
+	if p.PreviewFooter != "" {
+		out += p.PreviewFooter + "\n\n"
+	}
+	out += md.HorizontalRule()
 	return out
 }
 

@@ -16,16 +16,18 @@ import (
 type Blog struct {
 	Title            string
 	Prefix           string
-	Posts            *avl.Tree // id --> *Post
 	PostId           seqid.ID
+	Posts            *avl.Tree // id --> *Post
 	PostsBySlug      *avl.Tree // slug --> *Post
 	PostsByCreatedAt *avl.Tree // createdAt --> *Post
 	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
+	TagsIndex        *avl.Tree // tagName --> int
+	TagsSorted       *avl.Tree // "<count>::tag" --> tag
+	AuthorsIndex     *avl.Tree // authorAddress --> int
+	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
-	TagsIndex     *avl.Tree // tagName --> int
-	TagsSorted    *avl.Tree // "<count>::tag" --> tag
-	AuthorsIndex  *avl.Tree // authorAddress --> int
-	AuthorsSorted *avl.Tree // "<count>::author" --> author
+	DisableLikes  bool
+	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -44,6 +46,8 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		TagsSorted:       avl.NewTree(),
 		AuthorsIndex:     avl.NewTree(),
 		AuthorsSorted:    avl.NewTree(),
+		DisableLikes:     false,
+		PreviewFooter:    "",
 	}, nil
 }
 
@@ -54,6 +58,7 @@ func (b *Blog) AddPost(post *Post) error {
 	if _, exists := b.PostsBySlug.Get(post.Slug); exists {
 		return ErrPostAlreadyExists
 	}
+	post.SetDisableLikes(b.DisableLikes)
 
 	b.addToIndex(post)
 	added = b.Posts.Set(b.PostId.String(), post)
@@ -136,6 +141,30 @@ func (b *Blog) DeletePost(post *Post) error {
 	return nil
 }
 
+func (b *Blog) SetDisablePostLikes(disable bool) {
+	b.DisableLikes = disable
+	b.Posts.ReverseIterate("", "", func(_ string, value any) bool {
+		post := value.(*Post)
+		post.SetDisableLikes(disable)
+		return false
+	})
+	b.PostsBySlug.ReverseIterate("", "", func(_ string, value any) bool {
+		post := value.(*Post)
+		post.SetDisableLikes(disable)
+		return false
+	})
+	b.PostsByCreatedAt.ReverseIterate("", "", func(_ string, value any) bool {
+		post := value.(*Post)
+		post.SetDisableLikes(disable)
+		return false
+	})
+	b.PostsByUpdatedAt.ReverseIterate("", "", func(_ string, value any) bool {
+		post := value.(*Post)
+		post.SetDisableLikes(disable)
+		return false
+	})
+}
+
 func (b Blog) Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", b.RenderPosts)
@@ -145,7 +174,8 @@ func (b Blog) Render(path string) string {
 	router.HandleFunc("tags/{slug}", b.RenderTags)
 	router.HandleFunc("authors", b.RenderAuthors)
 	router.HandleFunc("authors/{slug}", b.RenderAuthors)
-	router.HandleFunc("commenter/{slug}", b.RenderCommenters)
+	router.HandleFunc("commenters", b.RenderCommenters) // TODO
+	router.HandleFunc("commenters/{slug}", b.RenderCommenters)
 	return router.Render(path)
 }
 
@@ -358,7 +388,7 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
-// :commenter
+// :commenters
 func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 	commenter := req.GetVar("slug")
 	out := b.RenderFilterHeader(req, false)
@@ -385,13 +415,13 @@ func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 
 func (b Blog) Mention(role, recipient string) string {
 	if role == "author" {
-		return md.Bold(md.Link("@"+recipient, b.Prefix+"/author:"+recipient))
+		return md.Bold(md.Link("@"+recipient, b.Prefix+"/authors:"+recipient))
 	}
 	if role == "commenter" {
-		return md.Bold(md.Link("@"+recipient, b.Prefix+"/commenter:"+recipient))
+		return md.Bold(md.Link("@"+recipient, b.Prefix+"/commenters:"+recipient))
 	}
 	if role == "tag" {
-		return md.Bold(md.Link("#"+recipient, b.Prefix+"/tag:"+recipient))
+		return md.Bold(md.Link("#"+recipient, b.Prefix+"/tags:"+recipient))
 	}
 	return ""
 }
