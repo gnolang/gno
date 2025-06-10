@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -146,11 +147,14 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the header mode based on the URL type and context
-	if IsHomePath(r.RequestURI) {
+	switch {
+	case IsHomePath(r.RequestURI):
 		indexData.Mode = components.ViewModeHome
-	} else if gnourl.IsPure() {
+	case gnourl.IsPure():
 		indexData.Mode = components.ViewModePackage
-	} else {
+	case gnourl.IsUser():
+		indexData.Mode = components.ViewModeUser
+	default:
 		indexData.Mode = components.ViewModeRealm
 	}
 
@@ -233,6 +237,7 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components
 		return h.GetDirectoryView(gnourl, indexData)
 	}
 
+	// Handle User page
 	if gnourl.IsUser() {
 		return h.GetUserView(gnourl)
 	}
@@ -255,19 +260,7 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 		return h.GetPathsListView(gnourl, indexData)
 	default:
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-
-		paths, qerr := h.Client.QueryPaths(path.Join(h.Static.Domain, gnourl.Path)+"/", 101)
-		if qerr != nil {
-			h.Logger.Error("unable to query path", "error", err, "path", gnourl.EncodeURL())
-
-			return GetClientErrorStatusPage(gnourl, err)
-		}
-
-		return http.StatusOK, components.DirectoryView(components.DirData{
-			PkgPath:     gnourl.Path,
-			Files:       paths,
-			FileCounter: len(paths),
-		})
+		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -283,97 +276,62 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 // GetUserView returns the user profile view for a given GnoURL.
 func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
 	username := strings.TrimPrefix(gnourl.Path, "/u/")
-	handlename := username
+	var content bytes.Buffer
 
-	contributions := []components.UserContribution{
-		{
-			Title:       "gno-blogpost",
-			Description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-			URL:         "/r/blog/posts/example",
-			Type:        components.UserContributionTypeRealm,
-			Date:        time.Now().Add(-18 * time.Hour),
-			Size:        120,
-		},
-		{
-			Title:       "gno-utils",
-			Description: "A collection of utility functions for Gno development.",
-			URL:         "/p/utils",
-			Type:        components.UserContributionTypePackage,
-			Date:        time.Now().Add(-27 * time.Hour),
-			Size:        79,
-		},
-		{
-			Title:       "gno-pizza",
-			Description: "A pizza delivery service.",
-			URL:         "/p/pizza",
-			Type:        components.UserContributionTypeRealm,
-			Date:        time.Now().Add(-14 * 24 * time.Hour),
-			Size:        100,
-		},
-		{
-			Title:       "gno-trading",
-			Description: "A trading service.",
-			URL:         "/p/trading",
-			Type:        components.UserContributionTypePackage,
-			Date:        time.Now().Add(-3 * 30 * 24 * time.Hour),
-			Size:        37,
-		},
-		{
-			Title:       "gno-orders",
-			Description: "An order management system.",
-			URL:         "/p/orders",
-			Type:        components.UserContributionTypePackage,
-			Date:        time.Now().Add(-2 * 365 * 24 * time.Hour),
-			Size:        23,
-		},
-		{
-			Title:       "gno-payments",
-			Description: "A payment processing system.",
-			URL:         "/p/payments",
-			Type:        components.UserContributionTypePackage,
-			Date:        time.Now().Add(-5 * 365 * 24 * time.Hour),
-			Size:        17,
-		},
+	// Get user content from user realm on r/[username]
+	_, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer)
+	if err != nil {
+		h.Logger.Debug("unable to render user realm", "error", err)
 	}
 
-	// Trier les contributions par date décroissante
-	slices.SortFunc(contributions, func(a, b components.UserContribution) int {
-		return b.Date.Compare(a.Date)
+	prefix := "@" + username
+
+	// Get user Package and Realm
+	paths, qerr := h.Client.QueryPaths(prefix, 10000)
+	if qerr != nil {
+		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
+	} else {
+		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
+	}
+
+	contributions := make([]components.UserContribution, 0, len(paths))
+	for _, p := range paths {
+		packageType := components.UserContributionTypePackage
+
+		trimmedPackageUrl := strings.TrimPrefix(p, h.Static.Domain)
+		packageGnoUrl, err := weburl.Parse(trimmedPackageUrl)
+		if err != nil {
+			h.Logger.Error("unable to parse path", "path", p, "error", err)
+			continue
+		}
+		if packageGnoUrl.IsRealm() {
+			packageType = components.UserContributionTypeRealm
+		}
+
+		contributions = append(contributions, components.UserContribution{
+			Title:       path.Base(p),
+			URL:         p,
+			Type:        packageType,
+			Size:        0,            // TODO: get size from chain
+			Description: "",           // TODO: get description from chain
+			Date:        &time.Time{}, // TODO: get date from chain
+		})
+	}
+
+	// Tri des contributions par titre en ordre descendant
+	sort.Slice(contributions, func(i, j int) bool {
+		return contributions[i].Title < contributions[j].Title
 	})
 
 	// TODO: get user data from chain
 	return http.StatusOK, components.UserView(components.UserData{
 		Username:      username,
-		Handlename:    handlename,
-		Bio:           "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque vehicula a lectus ac porta. Pellentesque nunc massa, ultricies vitae nunc a, vulputate malesuada justo.",
+		Handlename:    "", // TODO: get handlename from chain
+		Bio:           "", // TODO: get bio from chain
 		Contributions: contributions,
-		Teams:         make([]struct{}, 8),
-		Links: []components.UserLink{
-			{
-				Type: components.UserLinkTypeGithub,
-				URL:  "https://github.com/" + username,
-			},
-			{
-				Type: components.UserLinkTypeTwitter,
-				URL:  "https://twitter.com/" + username,
-			},
-			{
-				Type: components.UserLinkTypeDiscord,
-				URL:  "https://discord.com/" + username,
-			},
-			{
-				Type: components.UserLinkTypeTelegram,
-				URL:  "https://t.me/" + username,
-			},
-			{
-				Type: components.UserLinkTypeLinkedin,
-				URL:  "https://linkedin.com/" + username,
-			},
-			{
-				Type: components.UserLinkTypeLink,
-				URL:  "https://example.com/" + username,
-			},
-		},
+		Teams:         nil,                     // TODO: get teams from chain
+		Links:         []components.UserLink{}, // TODO: get links from chain
+		Content:       components.NewReaderComponent(&content),
 	})
 }
 

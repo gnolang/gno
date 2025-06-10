@@ -15,7 +15,6 @@ const (
 	UserLinkTypeTwitter  UserLinkType = "twitter"
 	UserLinkTypeDiscord  UserLinkType = "discord"
 	UserLinkTypeTelegram UserLinkType = "telegram"
-	UserLinkTypeLinkedin UserLinkType = "linkedin"
 	UserLinkTypeLink     UserLinkType = "link"
 )
 
@@ -48,7 +47,8 @@ type UserContribution struct {
 	Size        int
 	Stars       int // TODO: would be great to have this
 	Type        UserContributionType
-	Date        time.Time
+	Date        *time.Time
+	Content     Component
 }
 
 // UserData contains data for the user view
@@ -62,6 +62,7 @@ type UserData struct {
 	PackageCount  int
 	RealmCount    int
 	PureCount     int
+	Content       Component
 }
 
 // FormatRelativeTime formats a time into a relative string (e.g. "1 month ago")

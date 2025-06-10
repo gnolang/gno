@@ -15,18 +15,21 @@ const (
 	ViewModeRealm                    // For realm content display
 	ViewModePackage                  // For package content display
 	ViewModeHome                     // For home page display
+	ViewModeUser                     // For user page display
 )
 
 // View mode predicates
 func (m ViewMode) IsExplorer() bool { return m == ViewModeExplorer }
 func (m ViewMode) IsRealm() bool    { return m == ViewModeRealm }
 func (m ViewMode) IsPackage() bool  { return m == ViewModePackage }
+func (m ViewMode) IsUser() bool     { return m == ViewModeUser }
 func (m ViewMode) IsHome() bool     { return m == ViewModeHome }
 
 // GetLayoutType returns the appropriate layout type for the view mode
+// TODO: remove to get css instead?
 func (m ViewMode) GetLayoutType() string {
 	switch m {
-	case ViewModeRealm, ViewModeHome, ViewModePackage:
+	case ViewModeRealm, ViewModeHome, ViewModePackage, ViewModeExplorer, ViewModeUser:
 		return SidebarLayout
 	default:
 		return FullLayout
@@ -83,11 +86,7 @@ func IndexLayout(data IndexData) Component {
 	}
 
 	// Set layout based on view type and mode
-	if data.BodyView.Type == DirectoryViewType || data.Mode == ViewModeExplorer {
-		dataLayout.Layout = FullLayout
-	} else {
-		dataLayout.Layout = data.Mode.GetLayoutType()
-	}
+	dataLayout.Layout = data.Mode.GetLayoutType()
 
 	// Set dev mode based on view type and mode
 	switch data.BodyView.Type {

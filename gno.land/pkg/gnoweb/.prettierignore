@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+vendor
+
+# Build outputs
+dist
+build
+.next
+out
+
+# Generated files
+*.generated.*
+*.min.*
+
+# Misc
+.DS_Store
+.env*
+coverage
+*.log
+
+# Go specific
+*.go
+go.mod
+go.sum
+
+# Binary files
+*.exe
+*.dll
+*.so
+*.dylib 
