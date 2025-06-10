@@ -230,11 +230,10 @@ func TestResolver_ResolveRemote(t *testing.T) {
 				Name: "foo.gno",
 				Body: `package foo; func Render(_ string) string { return "bar" }`,
 			},
-			{
-				Name: "gnomod.toml",
-				Body: gnolang.GenGnoModLatest(targetPath),
 		},
 	}
+	mempkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(mempkg.Path))
+	mempkg.Sort()
 
 	rootdir := gnoenv.RootDir()
 	cfg := integration.TestingMinimalNodeConfig(rootdir)

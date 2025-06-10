@@ -43,9 +43,10 @@ func Incr(cur realm) {
 }
 `,
 			},
-			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(targetPath)},
 		},
 	}
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.Sort()
 
 	rootdir := gnoenv.RootDir()
 	cfg := integration.TestingMinimalNodeConfig(rootdir)

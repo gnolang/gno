@@ -61,6 +61,9 @@ func Render(_ string) string { return "foo" }
 		},
 	}
 
+	pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+	pkg.Sort()
+
 	logger := log.NewTestingLogger(t)
 
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
@@ -149,6 +152,7 @@ func TestNodeUpdatePackage(t *testing.T) {
 		Name: "foobar",
 		Path: "gno.land/r/dev/foobar",
 	}
+	modfile := &std.MemFile{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(foorbarPkg.Path)}
 
 	fooFiles := []*std.MemFile{
 		{
@@ -156,10 +160,6 @@ func TestNodeUpdatePackage(t *testing.T) {
 			Body: `package foobar
 func Render(_ string) string { return "foo" }
 `,
-		},
-		{
-			Name: "gnomod.toml",
-			Body: gnolang.GenGnoModLatest("gno.land/r/dev/foobar"),
 		},
 	}
 
@@ -170,14 +170,11 @@ func Render(_ string) string { return "foo" }
 func Render(_ string) string { return "bar" }
 `,
 		},
-		{
-			Name: "gnomod.toml",
-			Body: gnolang.GenGnoModLatest("gno.land/r/dev/foobar"),
-		},
 	}
 
 	// Update foobar content with bar content
-	foorbarPkg.Files = fooFiles
+	foorbarPkg.Files = append(fooFiles, modfile)
+	foorbarPkg.Sort()
 
 	node, emitter := newTestingDevNode(t, &foorbarPkg)
 	assert.Len(t, node.ListPkgs(), 1)
@@ -188,7 +185,8 @@ func Render(_ string) string { return "bar" }
 	require.Equal(t, render, "foo")
 
 	// Update foobar content with bar content
-	foorbarPkg.Files = barFiles
+	foorbarPkg.Files = append(barFiles, modfile)
+	foorbarPkg.Sort()
 
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
@@ -214,8 +212,7 @@ func TestNodeReset(t *testing.T) {
 				Body: `package foo
 var str string = "foo"
 
-func UpdateStr(newStr string) { // method to update 'str' variable
-        crossing()
+func UpdateStr(cur realm, newStr string) { // method to update 'str' variable
         str = newStr
 }
 
@@ -595,6 +592,16 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 	var loader packages.BaseLoader
 	gnoroot := gnoenv.RootDir()
+
+	// Ensure that a gnomod.toml exists
+	for _, pkg := range pkgs {
+		if mod := pkg.GetFile("gnomod.toml"); mod != nil {
+			continue
+		}
+
+		pkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(pkg.Path))
+		pkg.Sort()
+	}
 
 	loader.Resolver = packages.MiddlewareResolver(
 		packages.NewMockResolver(pkgs...),
