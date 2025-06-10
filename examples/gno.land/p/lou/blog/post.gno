@@ -23,9 +23,10 @@ type Post struct {
 	Tags        []string
 	Authors     []string
 	Publisher   std.Address
-	Comments    *avl.Tree // id --> *Comment
-	CommentId   seqid.ID
 	Likes       uint64 // to implement later
+
+	CommentId seqid.ID
+	Comments  *avl.Tree // id --> *Comment
 }
 
 func NewPost(slug, title, body, publicationDate string, authors, tags []string, caller std.Address) (*Post, error) {
@@ -102,6 +103,32 @@ func (p *Post) PinCommentById(id string) error {
 	}
 	comment.(*Comment).Pin()
 	return nil
+}
+
+func (p Post) HasCommented(author string) bool {
+	found := false
+	if author == "" {
+		return false
+	}
+	p.Comments.Iterate("", "", func(_ string, comment interface{}) bool {
+		if c, ok := comment.(*Comment); ok && c.Author == std.Address(author) {
+			found = true
+			return true
+		}
+		return false
+	})
+	return found
+}
+
+func (p Post) GetCommentsByAuthor(author std.Address) []*Comment {
+	var comments []*Comment = nil
+	p.Comments.Iterate("", "", func(_ string, comment interface{}) bool {
+		if c, ok := comment.(*Comment); ok && c.Author == author {
+			comments = append(comments, c)
+		}
+		return false
+	})
+	return comments
 }
 
 func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {

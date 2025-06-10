@@ -1,12 +1,15 @@
 package blog
 
-import "net/url"
+import (
+	"net/url"
+	"time"
+)
 
 type RenderOptions struct {
 	Sort           string
 	TimeFormat     string
-	StartTime      string // start time for filtering
-	EndTime        string // end time for filtering
+	StartTime      time.Time // start time for filtering
+	EndTime        time.Time // end time for filtering
 	Ascending      bool
 	NewestFirst    bool
 	IsGrid         bool
@@ -21,8 +24,7 @@ func parseRenderOptions(rawPath string) RenderOptions {
 	order := parseQueryParams("order", rawPath)
 	mode := parseQueryParams("mode", rawPath)
 	timeFmt := parseQueryParams("time", rawPath)
-	startTime := parseQueryParams("start", rawPath)
-	endTime := parseQueryParams("end", rawPath)
+	startTime, endTime := parseTimeRange(rawPath)
 
 	return RenderOptions{
 		Sort:           sort,
@@ -92,6 +94,24 @@ func toggle(current string) string {
 		return "asc"
 	}
 	return "desc"
+}
+
+func parseTimeRange(rawPath string) (time.Time, time.Time) {
+	startStr := parseQueryParams("start", rawPath)
+	endStr := parseQueryParams("end", rawPath)
+
+	var start, end time.Time
+	if startStr != "" {
+		if t, err := time.Parse(time.RFC3339, startStr); err == nil {
+			start = t
+		}
+	}
+	if endStr != "" {
+		if t, err := time.Parse(time.RFC3339, endStr); err == nil {
+			end = t
+		}
+	}
+	return start, end
 }
 
 func parseQueryParams(query, rawPath string) string {
