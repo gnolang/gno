@@ -13,8 +13,7 @@ stderr '=== RUN   ./examples/gno.land/r/demo/realm2/realm2_filetest.gno'
 stderr '--- PASS: ./examples/gno.land/r/demo/realm2/realm2_filetest.*'
 
 -- examples/gno.land/p/demo/counter/gnomod.toml --
-[module]
-path = "gno.land/p/demo/counter"
+module = "gno.land/p/demo/counter"
 
 -- examples/gno.land/p/demo/counter/counter.gno --
 package counter

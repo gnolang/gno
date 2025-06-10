@@ -13,10 +13,10 @@ func main() {
 	println("Hello", 42)
 }
 
--- gnomod.toml --
-[module]
-path = "gno.land/p/demo/hello"
+-- examples/gno.land/p/demo/hello/gnomod.toml --
+module = "gno.land/p/demo/hello"
 
 -- stdout.golden --
 -- stderr.golden --
+auto-generated "gnomod.toml"
 bad_file.gno:4:2: undefined: hello (code=gnoTypeCheckError)

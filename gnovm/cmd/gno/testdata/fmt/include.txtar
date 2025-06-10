@@ -11,8 +11,7 @@ func HelloFromMyPkg() string {
 }
 
 -- pkg/mypkg/gnomod.toml --
-[module]
-path = "gno.land/r/test/mypkg"
+module = "gno.land/r/test/mypkg"
                     
 -- file.gno --
 package testdata
@@ -20,8 +19,7 @@ package testdata
 var myVar = mypkg.HelloFromMyPkg()
 
 -- gnomod.toml --
-[module]
-path = "gno.land/r/test/mypkg2"
+module = "gno.land/r/test/mypkg2"
 
 -- stdout.golden --
 package testdata

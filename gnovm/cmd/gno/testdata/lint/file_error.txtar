@@ -16,8 +16,7 @@ func TestIHaveSomeError() {
 }
 
 -- gnomod.toml --
-[module]
-path = "gno.land/p/test"
+module = "gno.land/p/test"
 
 -- stdout.golden --
 -- stderr.golden --

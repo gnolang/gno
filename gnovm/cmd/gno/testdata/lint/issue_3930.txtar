@@ -20,9 +20,9 @@ func init() {
 }
 
 func Get(){}
--- gnomod.toml --
-[module]
-path = "gno.land/r/demo/hello"
+-- examples/gno.land/r/demo/hello/gnomod.toml --
+module = "gno.land/r/demo/hello"
 
 -- stdout.golden --
 -- stderr.golden --
+auto-generated "gnomod.toml"

@@ -12,8 +12,7 @@ func Get(v string) string {
 }
 
 -- v1/gnomod.toml --
-[module]
-path = "gno.land/r/dev/shadow/v1"
+module = "gno.land/r/dev/shadow/v1"
 
 -- v2/file.gno --
 package v1
@@ -36,8 +35,7 @@ func main() {
 }
 
 -- v2/gnomod.toml --
-[module]
-path = "gno.land/r/dev/shadow/v2"
+module = "gno.land/r/dev/shadow/v2"
 
 -- stdout.golden --
 package main
