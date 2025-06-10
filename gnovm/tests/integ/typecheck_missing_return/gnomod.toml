@@ -1,8 +1,7 @@
+path = "gnovm/tests/integ/typecheck_missing_return"
+gno = "0.9"
 
 [develop]
-
-[gno]
-  version = "0.9"
 
 [module]
   draft = false

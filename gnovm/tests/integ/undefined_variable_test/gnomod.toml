@@ -1,8 +1,7 @@
+path = "gnovm/tests/integ/undefined_variable_test"
+gno = "0.9"
 
 [develop]
-
-[gno]
-  version = "0.9"
 
 [module]
   draft = false

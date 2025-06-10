@@ -18,7 +18,7 @@ This is a comment in a Go template in pkg/gnolang/gnomod.go.
 The gnomodTemplate is used with the 'text/template' package
 to generate the final gnomod.toml file. */}}
 path = "{{.PkgPath}}"
-version = "{{.GnoVersion}}"`
+gno = "{{.GnoVersion}}"`
 
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
 func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }

@@ -1,8 +1,7 @@
+path = "gnovm/pkg/doc/testdata/integ/mod"
+gno = "0.9"
 
 [develop]
-
-[gno]
-  version = "0.9"
 
 [module]
   draft = false

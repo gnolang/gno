@@ -1,14 +1,2 @@
-
-[develop]
-
-[gno]
-  version = "0.9"
-
-[module]
-  draft = false
-  path = "gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx"
-  private = false
-
-[upload_metadata]
-  uploaded_at = 0
-  uploader = ""
+path = "gnovm/tests/integ/several-files-multiple-errors"
+gno = "0.9"
