@@ -1449,7 +1449,7 @@ func TestExecuteEvm(t *testing.T) {
 			name: "valid blockhash",
 			code: []byte{
 				byte(PUSH1), 247, // currentBlock=500, 500-256=244, 247 -> valid
-				byte(BLOCKHASH), 
+				byte(BLOCKHASH),
 				byte(STOP),
 			},
 			env: Env{
@@ -1537,7 +1537,6 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 103,
 		},
-		
 	}
 
 	for _, tc := range testCases {
@@ -1703,9 +1702,6 @@ func TestCallEvm(t *testing.T) {
 			byte(PUSH1), 31, // offset
 			byte(RETURN),
 		},
-	}
-	if err != nil {
-		t.Error(err)
 	}
 
 	// call code to test

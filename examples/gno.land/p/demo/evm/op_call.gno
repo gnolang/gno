@@ -63,7 +63,7 @@ func opCall(s *State) error {
 	// check for precompiled
 	var res []byte
 	if address.Uint64() <= nbPrecompiledContract {
-		f, ok := precompiled[address.Uint64()]
+		f, ok := precompiled[precompiledAddress(address.Uint64())]
 		if ok {
 			err = f(tmpState)
 		}
@@ -139,7 +139,7 @@ func opCallCode(s *State) error {
 	// check for precompiled
 	var res []byte
 	if address.Uint64() <= nbPrecompiledContract {
-		f, ok := precompiled[address.Uint64()]
+		f, ok := precompiled[precompiledAddress(address.Uint64())]
 		if ok {
 			err = f(tmpState)
 		}
