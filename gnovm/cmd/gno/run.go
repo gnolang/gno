@@ -165,7 +165,8 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 		m.SetActivePackage(pv2) // XXX should it set the realm?
 		m.Context.(*teststd.TestExecContext).OriginCaller = test.DefaultCaller
 		// return runExpr(m, cfg.expr)
-		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main")))))
+		// m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main")))))
+		m.RunMainMaybeCrossing()
 		return nil
 	}
 
