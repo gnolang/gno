@@ -77,13 +77,13 @@ func (c *Comment) AddReply(reply *Comment) error {
 	return nil
 }
 
-func (c *Comment) Render(depth int) string {
+func (c *Comment) Render(blogPrefix string, depth int) string {
 	prefix := ""
 	for i := 0; i < depth; i++ {
 		prefix += "> "
 	}
 
-	out := prefix + md.Bold(c.Author.String()) + " " // add link to :commenter/
+	out := prefix + md.Bold(md.Link(c.Author.String(), blogPrefix+":commenter/"+c.Author.String())) + " "
 	if c.Pinned {
 		out += "📌 "
 	}
@@ -101,7 +101,7 @@ func (c *Comment) Render(depth int) string {
 	if c.Replies != nil && c.Replies.Size() > 0 {
 		c.Replies.Iterate("", "", func(key string, value any) bool {
 			reply := value.(*Comment)
-			out += reply.Render(depth + 1)
+			out += reply.Render(blogPrefix, depth+1)
 			return false
 		})
 	}

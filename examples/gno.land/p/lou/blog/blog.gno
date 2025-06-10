@@ -184,7 +184,7 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	options := parseRenderOptions(req.RawPath)
+	options := ParseRenderOptions(req.RawPath)
 	pageSize := 9
 	if !options.IsGrid {
 		pageSize = 5
@@ -287,7 +287,7 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 	tag := req.GetVar("slug")
 	out := b.RenderFilterHeader(req, false)
-	options := parseRenderOptions(req.RawPath)
+	options := ParseRenderOptions(req.RawPath)
 
 	if tag == "" {
 		p, _ := b.determinePager(options, "tag", tag)
@@ -327,7 +327,7 @@ func (b Blog) RenderTags(res *mux.ResponseWriter, req *mux.Request) {
 func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 	author := req.GetVar("slug")
 	out := b.RenderFilterHeader(req, false)
-	options := parseRenderOptions(req.RawPath)
+	options := ParseRenderOptions(req.RawPath)
 
 	if author == "" {
 		p, _ := b.determinePager(options, "author", author)
@@ -368,15 +368,16 @@ func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(out)
 		return
 	}
-	p := pager.NewPager(comments, 4, true) // for now TO DO
+	p := pager.NewPager(comments, 4, true) // TO DO
 	page := p.MustGetPageByPath(req.RawPath)
 	for _, comment := range page.Items {
 		c := comment.Value.(*Comment)
 		k := strings.Split(comment.Key, "::")[1]
 		post, _ := b.Posts.Get(k)
-		out += md.H3(md.Link(post.(*Post).Title, b.Prefix+":posts/"+post.(*Post).Slug)) + "\n\n"
 		out += c.Content + "\n\n"
 		out += md.Italic(formatTime(c.CreatedAt, "relative")) + "\n\n"
+		out += "in " + (md.Link(post.(*Post).Title, b.Prefix+":posts/"+post.(*Post).Slug)) + "\n\n"
+		out += md.HorizontalRule()
 	}
 	out += page.Picker(req.Path) + "\n\n"
 	res.Write(out)
@@ -470,8 +471,11 @@ func (b Blog) filterPostsByField(field, value string) (*avl.Tree, bool) {
 			filteredPosts.Set(k, post)
 		} else if field == "author" && hasField(post.Authors, value) {
 			filteredPosts.Set(k, post)
-		} else if field == "commenter" && post.HasCommented(value) {
+		} else if field == "commenter" {
 			comments := post.GetCommentsByAuthor(std.Address(value))
+			if len(comments) == 0 {
+				return false
+			}
 			for _, comment := range comments {
 				commenterId.Next()
 				filteredPosts.Set(commenterId.String()+"::"+post.ID.String(), comment)

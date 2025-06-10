@@ -19,7 +19,7 @@ type RenderOptions struct {
 	HasOrder       bool
 }
 
-func parseRenderOptions(rawPath string) RenderOptions {
+func ParseRenderOptions(rawPath string) RenderOptions {
 	sort := parseQueryParams("sort", rawPath)
 	order := parseQueryParams("order", rawPath)
 	mode := parseQueryParams("mode", rawPath)

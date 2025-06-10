@@ -105,27 +105,14 @@ func (p *Post) PinCommentById(id string) error {
 	return nil
 }
 
-func (p Post) HasCommented(author string) bool {
-	found := false
-	if author == "" {
-		return false
-	}
-	p.Comments.Iterate("", "", func(_ string, comment interface{}) bool {
-		if c, ok := comment.(*Comment); ok && c.Author == std.Address(author) {
-			found = true
-			return true
-		}
-		return false
-	})
-	return found
-}
-
 func (p Post) GetCommentsByAuthor(author std.Address) []*Comment {
 	var comments []*Comment = nil
-	p.Comments.Iterate("", "", func(_ string, comment interface{}) bool {
-		if c, ok := comment.(*Comment); ok && c.Author == author {
+	p.Comments.ReverseIterate("", "", func(_ string, comment interface{}) bool {
+		c := comment.(*Comment)
+		if c.Author == author {
 			comments = append(comments, c)
 		}
+		comments = append(comments, getReplies(c.Replies, author)...)
 		return false
 	})
 	return comments
@@ -166,11 +153,11 @@ func (p Post) RenderPost(prefix string) string {
 	out += md.Bold("Publisher:") + " " + p.Publisher.String() + "\n\n"
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
 	out += md.HorizontalRule()
-	out += p.RenderComments()
+	out += p.RenderComments(prefix)
 	return out
 }
 
-func (p Post) RenderComments() string {
+func (p Post) RenderComments(prefix string) string {
 	out := md.H3("Comments ("+strconv.Itoa(p.Comments.Size())+")") + "\n\n"
 	if p.Comments.Size() == 0 {
 		out += "No comments yet.\n\n"
@@ -181,14 +168,14 @@ func (p Post) RenderComments() string {
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
 		if comment.Pinned {
-			out += comment.Render(0) + "\n\n"
+			out += comment.Render(prefix, 0) + "\n\n"
 		}
 		return false
 	})
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
 		if !comment.Pinned {
-			out += comment.Render(0) + "\n\n"
+			out += comment.Render(prefix, 0) + "\n\n"
 		}
 		return false
 	})
@@ -201,4 +188,22 @@ func renderTagLinks(prefix string, tags []string) string {
 
 func renderAuthorLinks(prefix string, authors []string) string {
 	return renderLinks(prefix, "authors", authors, "")
+}
+
+func getReplies(replies *avl.Tree, author std.Address) []*Comment {
+	var comments []*Comment
+	if replies == nil {
+		return comments
+	}
+	replies.ReverseIterate("", "", func(_ string, value any) bool {
+		comment := value.(*Comment)
+		if comment.Author == author {
+			comments = append(comments, comment)
+		}
+		if comment.Replies.Size() > 0 {
+			comments = append(comments, getReplies(comment.Replies, author)...)
+		}
+		return false
+	})
+	return comments
 }
