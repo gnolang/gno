@@ -226,13 +226,10 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 		expectErr       error
 	}{
 		{
-			name: "valid message",
-			msg:  NewMsgRun(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgFiles),
-			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
-				`"package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}",` +
-				`"name":"main.gno"}],"name":"main","path":""},` +
-				`"send":"1000ugnot"}`,
-			expectErr: nil,
+			name:            "valid message",
+			msg:             NewMsgRun(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgFiles),
+			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}","name":"main.gno"}],"info":null,"name":"main","path":"","type":null},"send":"1000ugnot"}`,
+			expectErr:       nil,
 		},
 		{
 			name: "invalid caller address",
