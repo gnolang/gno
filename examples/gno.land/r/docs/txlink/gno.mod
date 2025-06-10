@@ -1,0 +1,3 @@
+module gno.land/r/docs/txlink
+
+gno 0.9
