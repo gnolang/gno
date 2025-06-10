@@ -375,7 +375,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPackage(err.Error())
 	}
 	// no development packages.
-	if gm.Develop.Replace != nil {
+	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
 	// no gno.mod file.

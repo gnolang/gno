@@ -8,7 +8,7 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// Parsed gnomod.toml file (flattened version).
+// Parsed gnomod.toml file.
 type File struct {
 	// Path is the path of the module.
 	// Like `gno.land/r/path/to/module`.
@@ -32,7 +32,7 @@ type File struct {
 	// Replace is a list of replace directives for the module's dependencies.
 	// Each replace can link to a different online module path, or a local path.
 	// If this value is set, the module cannot be added to the chain.
-	Replace []Replace `toml:"replace" json:"replace"`
+	Replace []Replace `toml:"replace,omitempty" json:"replace,omitempty"`
 
 	// UploadMetadata is the upload metadata section of the gnomod.toml file.
 	// It is filled by the vmkeeper when a module is added.
@@ -155,4 +155,9 @@ func (f *File) Sanitize() {
 		replaces = append(replaces, r)
 	}
 	f.Replace = replaces
+}
+
+// HasReplaces returns true if the module has any replace directives.
+func (f *File) HasReplaces() bool {
+	return len(f.Replace) > 0
 }

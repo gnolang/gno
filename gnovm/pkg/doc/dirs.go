@@ -62,7 +62,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 		}
 		roots = append(roots, bfsDir{
 			dir:        mdir,
-			importPath: gm.Module.Path,
+			importPath: gm.Path,
 		})
 		roots = append(roots, getGnoModDirs(gm, mdir)...)
 	}
@@ -74,7 +74,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 	// cmd/go makes use of the go list command, we don't have that here.
 
-	imports := packageImportsRecursive(root, gm.Module.Path)
+	imports := packageImportsRecursive(root, gm.Path)
 
 	dirs := make([]bfsDir, 0, len(imports))
 	for _, r := range imports {
