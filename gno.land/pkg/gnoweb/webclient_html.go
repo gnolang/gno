@@ -233,7 +233,7 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 	case ".md":
 		lexer = lexers.Get("markdown")
 	case ".mod":
-		lexer = lexers.Get("gomod")
+		fallthrough // there is no lexer for (gno).mod
 	default:
 		lexer = lexers.Get("txt") // Unsupported file type, default to plain text.
 	}
