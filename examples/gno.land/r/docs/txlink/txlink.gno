@@ -1,4 +1,4 @@
-package messageboard
+package txlink
 
 import (
 	"std"
