@@ -122,15 +122,15 @@ func (pkg *pkgPrinter) emit(comment string, node string) {
 	}
 }
 
-// oneLineNode returns a one-line summary of the given input node.
-func (pkg *pkgPrinter) oneLineNode(node any) string {
+// oneLineNodeJSON returns a one-line summary of the given input node.
+func (pkg *pkgPrinter) oneLineNodeJSON(node any) string {
 	const maxDepth = 10
-	return pkg.oneLineNodeDepth(node, maxDepth)
+	return pkg.oneLineNodeDepthJSON(node, maxDepth)
 }
 
-// oneLineNodeDepth returns a one-line summary of the given input node.
+// oneLineNodeDepthJSON returns a one-line summary of the given input node.
 // The depth specifies the maximum depth when traversing.
-func (pkg *pkgPrinter) oneLineNodeDepth(node any, depth int) string {
+func (pkg *pkgPrinter) oneLineNodeDepthJSON(node any, depth int) string {
 	const dotDotDot = "..."
 	if depth == 0 {
 		return dotDotDot
@@ -353,12 +353,12 @@ func (pkg *pkgPrinter) valueSummary(values []*JSONValueDecl, showGrouped bool, t
 				if typeName != "" && strings.Replace(v.Type, "*", "", -1) != typeName {
 					break
 				}
-				// Make a singleton for oneLineNode
+				// Make a singleton for oneLineNodeJSON
 				oneValue := &JSONValueDecl{
 					Const:  value.Const,
 					Values: []*JSONValue{v},
 				}
-				if decl := pkg.oneLineNode(oneValue); decl != "" {
+				if decl := pkg.oneLineNodeJSON(oneValue); decl != "" {
 					pkg.Printf("%s\n", decl)
 					break
 				}
@@ -387,17 +387,17 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 func (pkg *pkgPrinter) typeSummary() {
 	for _, typ := range pkg.doc.Types {
 		if pkg.isExported(typ.Name) {
-			pkg.Printf("%s\n", pkg.oneLineNode(typ))
+			pkg.Printf("%s\n", pkg.oneLineNodeJSON(typ))
 			// Now print the consts, vars, and constructors.
 			for _, value := range pkg.doc.Values {
 				for _, v := range value.Values {
 					if pkg.isExported(v.Name) && pkg.typedValue[v.Name] == typ.Name {
-						// Make a singleton for oneLineNode
+						// Make a singleton for oneLineNodeJSON
 						oneValue := &JSONValueDecl{
 							Const:  value.Const,
 							Values: []*JSONValue{v},
 						}
-						if decl := pkg.oneLineNode(oneValue); decl != "" {
+						if decl := pkg.oneLineNodeJSON(oneValue); decl != "" {
 							pkg.Printf(indent+"%s\n", decl)
 							break
 						}
