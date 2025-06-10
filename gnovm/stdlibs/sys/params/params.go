@@ -44,7 +44,6 @@ func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []
 }
 
 func X_getSysParamStrings(m *gno.Machine, module, submodule, name string) []string {
-
 	pk := prmkey(module, submodule, name)
 	return std.GetContext(m).Params.GetStrings(pk)
 }
