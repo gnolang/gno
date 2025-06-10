@@ -11,9 +11,7 @@ import (
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
-func Invite(invitee std.Address) {
-	crossing()
-
+func Invite(cur realm, invitee std.Address) {
 	if !invitee.IsValid() {
 		panic("invalid address")
 	}
@@ -83,9 +81,7 @@ func IsOwner(addr std.Address, daoID uint64) bool {
 }
 
 // TransferOwnership transfers DAO ownership to a different address.
-func TransferOwnership(daoID uint64, newOwner std.Address) {
-	crossing()
-
+func TransferOwnership(cur realm, daoID uint64, newOwner std.Address) {
 	assertIsOwner(std.PreviousRealm().Address(), daoID)
 
 	if !newOwner.IsValid() {
@@ -124,9 +120,7 @@ func GetSize(rootID uint64) int {
 }
 
 // Vote submits a vote for a DAO proposal.
-func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
-	crossing()
-
+func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowVoting {
@@ -143,9 +137,7 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 }
 
 // Execute executes a DAO proposal.
-func Execute(daoID, proposalID uint64) {
-	crossing()
-
+func Execute(cur realm, daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowExecution {
