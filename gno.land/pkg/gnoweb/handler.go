@@ -273,66 +273,76 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 	})
 }
 
+// buildContributions returns the sorted list of contributions (packages and realms) for a user.
+func (h *WebHandler) buildContributions(username string) []components.UserContribution {
+	prefix := "@" + username
+	paths, err := h.Client.QueryPaths(prefix, 10000)
+	if err != nil {
+		h.Logger.Error("unable to query contributions", "user", username, "error", err)
+		return nil
+	}
+
+	contribs := make([]components.UserContribution, 0, len(paths))
+	for _, raw := range paths {
+		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
+		u, err := weburl.Parse(trimmed)
+		if err != nil {
+			h.Logger.Error("bad contribution URL", "path", raw, "error", err)
+			continue
+		}
+		ctype := components.UserContributionTypePackage
+		if u.IsRealm() {
+			ctype = components.UserContributionTypeRealm
+		}
+		contribs = append(contribs, components.UserContribution{
+			Title: path.Base(raw),
+			URL:   raw,
+			Type:  ctype,
+			// TODO: size, description, date...
+		})
+	}
+
+	sort.Slice(contribs, func(i, j int) bool {
+		return contribs[i].Title < contribs[j].Title
+	})
+	return contribs
+}
+
 // GetUserView returns the user profile view for a given GnoURL.
 func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
 	username := strings.TrimPrefix(gnourl.Path, "/u/")
 	var content bytes.Buffer
 
-	// Get user content from user realm on r/[username]
-	_, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer)
-	if err != nil {
+	// Render user profile realm
+	// TODO: render user profile realm instead of home realm
+	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer); err != nil {
 		h.Logger.Debug("unable to render user realm", "error", err)
 	}
 
-	prefix := "@" + username
+	// Build contributions
+	contribs := h.buildContributions(username)
 
-	// Get user Package and Realm
-	paths, qerr := h.Client.QueryPaths(prefix, 10000)
-	if qerr != nil {
-		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
-	} else {
-		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
-	}
-
-	contributions := make([]components.UserContribution, 0, len(paths))
-	for _, p := range paths {
-		packageType := components.UserContributionTypePackage
-
-		trimmedPackageUrl := strings.TrimPrefix(p, h.Static.Domain)
-		packageGnoUrl, err := weburl.Parse(trimmedPackageUrl)
-		if err != nil {
-			h.Logger.Error("unable to parse path", "path", p, "error", err)
-			continue
+	// Compute package counts
+	pkgCount := len(contribs)
+	realmCount := 0
+	for _, c := range contribs {
+		if c.Type.Id == components.UserContributionTypeRealm.Id {
+			realmCount++
 		}
-		if packageGnoUrl.IsRealm() {
-			packageType = components.UserContributionTypeRealm
-		}
-
-		contributions = append(contributions, components.UserContribution{
-			Title:       path.Base(p),
-			URL:         p,
-			Type:        packageType,
-			Size:        0,            // TODO: get size from chain
-			Description: "",           // TODO: get description from chain
-			Date:        &time.Time{}, // TODO: get date from chain
-		})
 	}
+	pureCount := pkgCount - realmCount
 
-	// Tri des contributions par titre en ordre descendant
-	sort.Slice(contributions, func(i, j int) bool {
-		return contributions[i].Title < contributions[j].Title
-	})
-
-	// TODO: get user data from chain
-	return http.StatusOK, components.UserView(components.UserData{
+	data := components.UserData{
 		Username:      username,
-		Handlename:    "", // TODO: get handlename from chain
-		Bio:           "", // TODO: get bio from chain
-		Contributions: contributions,
-		Teams:         nil,                     // TODO: get teams from chain
-		Links:         []components.UserLink{}, // TODO: get links from chain
+		Contributions: contribs,
+		PackageCount:  pkgCount,
+		RealmCount:    realmCount,
+		PureCount:     pureCount,
 		Content:       components.NewReaderComponent(&content),
-	})
+		// TODO: add bio, pic, links, teams, etc.
+	}
+
+	return http.StatusOK, components.UserView(data)
 }
 
 func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
