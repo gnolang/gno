@@ -312,6 +312,53 @@ func (h *WebHandler) buildContributions(username string) ([]components.UserContr
 	return slices.Clip(contribs), realmCount, nil
 }
 
+var adjectives = []string{
+	"Wandering", "Nameless", "Curious", "Silent", "Ancient", "Young", "Elder", "Mighty", "Tiny", "Bold", "Mystic", "Hidden", "Brave",
+}
+
+var nouns = []string{
+	"Explorer", "Forager", "Runesmith", "Guardian", "Scribe", "Tinkerer", "Alchemist", "Cartographer", "Miner", "Scholar", "Builder", "Crafter",
+}
+
+var suffixes = []string{
+	"", "of Gno", "of Realms", "of Blocks", "of the Chain", "of Forgotten Lands",
+}
+
+// GenerateTitle generates a title for a user based on their username.
+// GenerateTitle generates a title for a user based on their username.
+func GenerateTitle(username string) string {
+	// 1. Hash = sum des runes
+	sum := 0
+	for _, r := range username {
+		sum += int(r)
+	}
+
+	// 2. On tire une fois l’adjectif, le nom et le suffixe
+	adj := adjectives[sum%len(adjectives)]
+	noun := nouns[(sum>>2)%len(nouns)]
+	suffix := suffixes[(sum>>4)%len(suffixes)]
+
+	// 3. On choisit le pattern
+	switch sum % 3 {
+	case 0:
+		// [Adjective] Username
+		return fmt.Sprintf("%s %s", adj, username)
+
+	case 1:
+		// Username the [Noun]
+		return fmt.Sprintf("%s the %s", username, noun)
+
+	default:
+		// Pattern combiné : toujours inclure username
+		if suffix != "" {
+			// [Adjective] Username [Suffix]
+			return fmt.Sprintf("%s %s %s", adj, username, suffix)
+		}
+		// [Adjective] [Noun] Username
+		return fmt.Sprintf("%s %s %s", adj, noun, username)
+	}
+}
+
 // GetUserView returns the user profile view for a given GnoURL.
 func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
 	username := strings.TrimPrefix(gnourl.Path, "/u/")
@@ -336,6 +383,7 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 
 	data := components.UserData{
 		Username:      username,
+		Handlename:    GenerateTitle(username), // TODO: use generateTitle if no handlename is set
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,

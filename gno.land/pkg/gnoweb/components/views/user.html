@@ -11,11 +11,11 @@
         </div>
         <div class="self-end lg:self-start">
           <h1
-            class="block font-bold text-700 md:text-800 text-gray-900 leading-[1.1] word-break">
-            {{ .Username }}
+            class="block font-bold text-700 md:text-800 text-gray-900 leading-[1.1] word-break capitalize">
+            {{ with .Handlename }}{{ . }}{{ else }}{{ .Username }}{{ end }}
           </h1>
           <p class="block text-gray-600 text-100 leading-none mt-3">
-            {{ with .Handlename }}{{ . }}{{ else }}{{ .Username }}{{ end }}
+            {{ .Username }}
           </p>
         </div>
       </div>
@@ -117,7 +117,7 @@
       </h2>
       <nav class="grid grid-cols-4 gap-3 mb-6 md:pb-2 md:border-b">
         <div
-          class="col-span-4 md:col-span-2 flex gap-3 xl:gap-6 font-semibold text-gray-400 text-200 md:text-100 w-auto xl:w-full xl:ml-0 pb-2 border-b md:border-b-0 md:pb-0">
+          class="col-span-4 md:col-span-2 flex gap-4 xl:gap-6 font-semibold text-gray-400 text-200 md:text-100 w-auto xl:w-full xl:ml-0 pb-2 border-b md:border-b-0 md:pb-0">
           <label
             class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
             <input
@@ -127,10 +127,10 @@
               value="packages"
               checked
               class="peer hidden" />
-            <span class="js-list-packages-count hidden sm:inline"
-              >{{ .PackageCount }}</span
-            >
-            Packages
+            All&nbsp;Packages
+            <span class="js-list-packages-count hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
+              {{ .PackageCount }}
+            </span>
           </label>
           <label
             class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
@@ -144,10 +144,10 @@
               class="w-5 h-5 text-gray-300 group-hover:text-gray-600 peer-checked:text-gray-600">
               <use href="#ico-realm"></use>
             </svg>
-            <span class="js-list-realms-count hidden sm:inline"
-              >{{ .RealmCount }}</span
-            >
             Realms
+            <span class="js-list-realms-count hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
+              {{ .RealmCount }}
+            </span>
           </label>
           <label
             class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 group">
@@ -162,10 +162,10 @@
               class="w-5 h-5 text-gray-300 group-hover:text-gray-600 peer-checked:text-gray-600">
               <use href="#ico-pure"></use>
             </svg>
-            <span class="js-list-pure-count hidden sm:inline"
-              >{{ .PureCount }}</span
-            >
             Pures
+            <span class="js-list-pure-count hidden sm:inline text-gray-600 text-50 font-normal sm:font-semibold rounded-full bg-gray-50 sm:px-2 sm:py-0.5 px-1.5 py-px">
+              {{ .PureCount }}
+            </span>
           </label>
         </div>
         <div
@@ -186,7 +186,7 @@
                 <title>Descending Order</title>
                 <use href="#ico-order-desc"></use>
               </svg>
-              <span class="md:hidden xl:inline">Order</span>
+              <span class="md:hidden xxl:inline">Order</span>
              </label>
 
             <input
@@ -203,7 +203,7 @@
                 <title>Ascending Order</title>
                 <use href="#ico-order-asc"></use>
               </svg>
-              <span class="md:hidden xl:inline">Order</span>
+              <span class="md:hidden xxl:inline">Order</span>
             </label>
           </div>
 
@@ -223,7 +223,7 @@
                 <title>Grid Display</title>
                 <use href="#ico-grid"></use>
               </svg>
-              <span class="md:hidden xl:inline">Grid</span>
+              <span class="md:hidden xxl:inline">Grid</span>
             </label>
 
             <input
@@ -240,7 +240,7 @@
                 <title>List Display</title>
                 <use href="#ico-list"></use>
               </svg>
-              <span class="md:hidden xl:inline">List</span>
+              <span class="md:hidden xxl:inline">List</span>
             </label>
           </div>
         </div>
