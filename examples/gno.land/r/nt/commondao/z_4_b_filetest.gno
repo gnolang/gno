@@ -17,7 +17,7 @@ var daoID uint64
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	// Create a DAO
 	testing.SetRealm(std.NewUserRealm(user))
@@ -26,10 +26,11 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(user))
+	// Use a caller that is not the owner of the DAO
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 
 	commondao.Get(daoID)
 }
 
 // Error:
-// caller is not a realm
+// unauthorized

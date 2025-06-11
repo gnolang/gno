@@ -138,7 +138,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			errContains("assignment mismatch", "too many return values"),
 		},
 		{
-			"TestsIgnored",
+			"TestsAlso",
 			&std.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
@@ -151,13 +151,12 @@ func TestTypeCheckMemPackage(t *testing.T) {
 					},
 					{
 						Name: "hello_test.gno",
-						Body: `This is not valid Gno code, but it doesn't matter because test
-				files are not checked.`,
+						Body: `This is not valid Gno code, and it matters.`,
 					},
 				},
 			},
 			nil,
-			nil,
+			errContains("gno.land/p/demo/hello/hello_test.gno:1:1: expected 'package', found This"),
 		},
 		{
 			"ImportFailed",
@@ -175,7 +174,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 				},
 			},
 			mockPackageGetter{},
-			errContains("import not found: std"),
+			errContains("unknown import path \"std\""),
 		},
 		{
 			"ImportSucceeded",
@@ -364,8 +363,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			format := false
-			err := TypeCheckMemPackage(tc.pkg, tc.getter, format)
+			_, err := TypeCheckMemPackage(tc.pkg, tc.getter, ParseModeAll, TCLatestRelaxed)
 			if tc.check == nil {
 				assert.NoError(t, err)
 			} else {
@@ -373,47 +371,4 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestTypeCheckMemPackage_format(t *testing.T) {
-	t.Parallel()
-
-	input := `
-	package hello
-		func Hello(name string) string   {return "hello"  + name
-}
-
-
-
-`
-
-	pkg := &std.MemPackage{
-		Name: "hello",
-		Path: "gno.land/p/demo/hello",
-		Files: []*std.MemFile{
-			{
-				Name: "hello.gno",
-				Body: input,
-			},
-		},
-	}
-
-	mpkgGetter := mockPackageGetter{}
-	format := false
-	err := TypeCheckMemPackage(pkg, mpkgGetter, format)
-	assert.NoError(t, err)
-	assert.Equal(t, input, pkg.Files[0].Body) // unchanged
-
-	expected := `package hello
-
-func Hello(name string) string {
-	return "hello" + name
-}
-`
-
-	format = true
-	err = TypeCheckMemPackage(pkg, mpkgGetter, format)
-	assert.NoError(t, err)
-	assert.NotEqual(t, input, pkg.Files[0].Body)
-	assert.Equal(t, expected, pkg.Files[0].Body)
 }

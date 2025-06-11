@@ -154,32 +154,30 @@ func (p *printer) doPrintf(format string, args []any) {
 		precision := -1
 		i++ // skip '%'
 
-		if i < end && sTor[i] >= '0' && sTor[i] <= '9' {
+		digits := func() string {
 			start := i
 			for i < end && sTor[i] >= '0' && sTor[i] <= '9' {
 				i++
 			}
 			if i > start {
-				var n int64
-				var err error
-				n, err = strconv.ParseInt(string(sTor[start:i]), 10, 0)
-				if err != nil {
-					panic("ufmt: invalid length specification")
-				}
-				length = int(n)
+				return string(sTor[start:i])
+			}
+			return ""
+		}
+
+		if l := digits(); l != "" {
+			var err error
+			length, err = strconv.Atoi(l)
+			if err != nil {
+				panic("ufmt: invalid length specification")
 			}
 		}
 
 		if i < end && sTor[i] == '.' {
 			i++ // skip '.'
-			start := i
-			for i < end && sTor[i] >= '0' && sTor[i] <= '9' {
-				i++
-			}
-			if i > start {
-				precStr := string(sTor[start:i])
+			if l := digits(); l != "" {
 				var err error
-				precision, err = strconv.Atoi(precStr)
+				precision, err = strconv.Atoi(l)
 				if err != nil {
 					panic("ufmt: invalid precision specification")
 				}
@@ -293,8 +291,8 @@ func writeStringWithLength(p *printer, verb rune, arg any, length int) {
 		s = fallback(verb, v)
 	}
 
-	if length > 0 && len(s) > length {
-		s = s[:length]
+	if length > 0 && len(s) < length {
+		s = strings.Repeat(" ", length-len(s)) + s
 	}
 	p.buf.writeString(s)
 }

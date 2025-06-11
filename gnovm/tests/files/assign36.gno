@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func f() (int) {
+func f() int {
 	return 2
 }
 
