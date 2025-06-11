@@ -42,7 +42,7 @@ func UpdateCollection(id, title, description string, tags []string) string {
 	val, removed := collections.Remove(id)
 	old := val.(*curator.Collection)
 	if !removed {
-		panic("Update failed; couldn't remove old collection")
+		panic("update failed; couldn't remove old collection")
 	}
 
 	newCollection, err := curator.CreateCollection(old.ID(), title, description, tags, caller)
@@ -58,7 +58,7 @@ func DeleteCollection() string {
 	caller := std.PreviousRealm().Address()
 
 	if _, removed := collections.Remove(caller.String()); !removed {
-		panic("Couldn't delete collection.")
+		panic("couldn't delete collection.")
 	}
 	return "Collection deleted."
 }
@@ -66,12 +66,12 @@ func DeleteCollection() string {
 func AddToCollection(id, title, path string, tags string) string {
 	splitTags := strings.Fields(tags)
 	if !strings.Contains(path, "gno.land") {
-		panic("Please format with \"gno.land/\"<...>")
+		panic("please format with \"gno.land/\"<...>")
 	}
 
 	val, exists := collections.Get(id)
 	if !exists {
-		panic("Collection is unrecognisable.")
+		panic("collection is unrecognisable.")
 	}
 	collection := val.(*curator.Collection)
 
@@ -80,7 +80,7 @@ func AddToCollection(id, title, path string, tags string) string {
 		panic(err)
 	}
 	if _, removed := collections.Remove(c.ID().String()); !removed {
-		panic("Adding of collection failed; couldn't remove current collection")
+		panic("adding of collection failed; couldn't remove current collection")
 	}
 	collections.Set(c.ID().String(), c)
 	return title + " successfully added to collection."
@@ -95,7 +95,7 @@ func ToggleGridModeByID(id string) {
 		c := collection.(*curator.Collection)
 		c.ToggleGridMode()
 	} else {
-		panic("Collection is unrecognisable.")
+		panic("collection is unrecognisable.")
 	}
 }
 
