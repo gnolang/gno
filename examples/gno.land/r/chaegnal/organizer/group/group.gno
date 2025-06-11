@@ -137,10 +137,8 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 				"logged", logged))
 
 		if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
-			closeLink := md.Link("Close", txlink.Call("AdminCloseProposal",
-				"groupId", strconv.Itoa(group.ID),
-				"voteId", proposalID,
-				"logged", logged))
+			closeLink := md.Link("Check", txlink.Call("ExecuteExpiredProposals",
+				"groupId", strconv.Itoa(group.ID)))
 			voteActions += " | " + closeLink
 		}
 
@@ -217,6 +215,7 @@ func Render(url string) string {
 		out += md.Paragraph(" | " + md.Link("Delete Group", txlink.Call("DeleteFriendGroup", "groupId", strconv.Itoa(group.ID), "logged", logged)))
 		out += md.Paragraph(" | " + md.Link("Give ownership", txlink.Call("SwitchOwner", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", "default")))
 	}
+
 	return out
 }
 

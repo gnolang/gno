@@ -38,6 +38,7 @@ type FriendGroup struct {
 	DAO      *commondao.CommonDAO
 	WaitList *avl.Tree
 	Rank     *avl.Tree
+	Hangout  *avl.Tree
 }
 
 func init() {
@@ -60,6 +61,7 @@ func CreateFriendGroup(title string) {
 		),
 		WaitList: avl.NewTree(),
 		Rank:     avl.NewTree(),
+		Hangout:  avl.NewTree(),
 	}
 
 	newGroup.DAO.Members().Add(caller)
@@ -149,4 +151,27 @@ func parseQuery(url string) string {
 	}
 
 	return keyValue[1]
+}
+
+type HangoutInfo struct {
+	Id          int
+	Date        string
+	Time        string
+	Place       string
+	Description string
+	Active      bool
+}
+
+func (g *FriendGroup) SetHangoutTimeAndPlace(date, time, place, desc string) error {
+	id := g.Hangout.Size() + 1
+	hangout := HangoutInfo{
+		Id:          id,
+		Date:        date,
+		Time:        time,
+		Place:       place,
+		Description: desc,
+		Active:      true,
+	}
+	g.Hangout.Set(strconv.Itoa(id), hangout)
+	return nil
 }
