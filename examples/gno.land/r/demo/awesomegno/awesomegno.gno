@@ -29,13 +29,12 @@ var (
 	authority = authz.NewMemberAuthority(
 		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
 		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
-		std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), // leon
 	)
 	Auth = authz.NewWithAuthority(authority)
 )
 
 func init() {
-	cross(hor.Register)("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps, tools and resources on gno.land")
+	hor.Register(cross, "AwesomeGno", "Awesome Gno is a registry for gnowesome dApps, tools and resources on gno.land")
 }
 
 func AddItem(title, description, url, authorAddress string) {
