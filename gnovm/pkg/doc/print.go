@@ -250,7 +250,7 @@ func (pkg *pkgPrinter) allDoc() {
 	for _, fun := range pkg.doc.Funcs {
 		if fun.Type == "" && pkg.isExported(fun.Name) && pkg.constructor[fun.Name] == "" {
 			printHdr("FUNCTIONS")
-			pkg.emit(fun.Doc, pkg.crossingSignature(fun))
+			pkg.emit(fun.Doc, fun.Signature)
 		}
 	}
 
@@ -377,7 +377,7 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 		}
 		if pkg.isExported(fun.Name) {
 			if showConstructors || pkg.constructor[fun.Name] == "" {
-				pkg.Printf("%s\n", pkg.crossingSignature(fun))
+				pkg.Printf("%s\n", fun.Signature)
 			}
 		}
 	}
@@ -413,7 +413,7 @@ func (pkg *pkgPrinter) typeSummary() {
 					continue
 				}
 				if pkg.isExported(constructor.Name) {
-					ToText(&pkg.buf, pkg.crossingSignature(constructor), indent, "")
+					ToText(&pkg.buf, constructor.Signature, indent, "")
 				}
 			}
 		}
@@ -477,7 +477,7 @@ func (pkg *pkgPrinter) symbolDoc(symbol string) {
 		}
 
 		// Symbol is a function.
-		pkg.emit(fun.Doc, pkg.crossingSignature(fun))
+		pkg.emit(fun.Doc, fun.Signature)
 		found = true
 	}
 	// Constants and variables behave the same.
@@ -578,7 +578,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 				continue
 			}
 			if pkg.isExported(constructor.Name) {
-				pkg.emit(constructor.Doc, pkg.crossingSignature(constructor))
+				pkg.emit(constructor.Doc, constructor.Signature)
 			}
 		}
 		for _, meth := range pkg.doc.Funcs {
@@ -586,7 +586,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 				continue
 			}
 			if pkg.isExported(meth.Name) {
-				pkg.Printf("%s\n", pkg.crossingSignature(meth))
+				pkg.Printf("%s\n", meth.Signature)
 				if pkg.opt.ShowAll && meth.Doc != "" {
 					pkg.Printf("    %s\n", meth.Doc)
 				}
@@ -691,7 +691,7 @@ func (pkg *pkgPrinter) printMethodDoc(symbol, method string) bool {
 			}
 			hasMethods = true
 			if pkg.match(method, meth.Name) {
-				pkg.emit(meth.Doc, pkg.crossingSignature(meth))
+				pkg.emit(meth.Doc, meth.Signature)
 				found = true
 			}
 		}
@@ -798,17 +798,6 @@ func (pkg *pkgPrinter) match(user, program string) bool {
 		return false
 	}
 	return symbolMatch(user, program)
-}
-
-// Return the function signature, appended with " // crossing" if it's crossing.
-// However, don't append if pkg.opt.Source because the param "cur realm" can be seen, and
-// " // crossing" would appear at the end of the function body.
-func (pkg *pkgPrinter) crossingSignature(fun *JSONFunc) string {
-	if fun.Crossing && !pkg.opt.Source {
-		return fun.Signature + " // crossing"
-	} else {
-		return fun.Signature
-	}
 }
 
 // match reports whether the user's symbol matches the program's.
