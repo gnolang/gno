@@ -48,8 +48,6 @@ import (
 )
 
 func main() {
-    crossing()
-
     utils.AssertPreviousRealmPkgPath("")
     utils.AssertCurrentRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 
@@ -62,9 +60,7 @@ package main
 import "gno.land/r/test/borrowrealm"
 
 func main() {
-    crossing()
-
-    cross(borrowrealm.MutateCrossing)()
+    borrowrealm.MutateCrossing(cross)
 }
 
 -- run/borrowed_object_mutation.gno --
@@ -74,8 +70,6 @@ import "gno.land/r/test/borrowrealm"
 
 
 func main() {
-    crossing()
-
  	borrowrealm.Object.Mutate()
 }
 
@@ -87,8 +81,6 @@ import "gno.land/r/test/borrowrealm"
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
 
 func main() {
-    crossing()
-
  	obj.Mutate()
 }
 
@@ -98,8 +90,6 @@ package main
 import "gno.land/r/test/borrowrealm"
 
 func main() {
-    crossing()
-
     borrowrealm.MutateObject()
 }
 
@@ -109,9 +99,7 @@ package main
 import "gno.land/r/test/borrowrealm"
 
 func main() {
-    crossing()
-
-    cross(borrowrealm.InspectRealmsCrossing)()
+    borrowrealm.InspectRealmsCrossing(cross)
 }
 
 -- run/inspect_realms_non_crossing.gno --
@@ -120,8 +108,6 @@ package main
 import "gno.land/r/test/borrowrealm"
 
 func main() {
-    crossing()
-
     borrowrealm.InspectRealmsNonCrossing()
 }
 
@@ -131,9 +117,7 @@ package main
 import "gno.land/r/test/borrowrealm"
 
 func main() {
-    crossing()
-
-    cross(borrowrealm.MutateObjectWithBorrowCrossing)()
+    borrowrealm.MutateObjectWithBorrowCrossing(cross)
 }
 
 -- run/mutate_crossing_object.gno --
@@ -142,9 +126,7 @@ package main
 import "gno.land/r/test/borrowrealm"
 
 func main() {
-    crossing()
-
-    cross(borrowrealm.Object.MutateCrossing)()
+    borrowrealm.Object.MutateCrossing(cross)
 }
 
 -- run/mutate_crossing_object_rooted_at_caller.gno --
@@ -155,13 +137,13 @@ import "gno.land/r/test/borrowrealm"
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
 
 func main() {
-    crossing()
-
-    cross(obj.MutateCrossingObjectRootedAtCaller)()
+    obj.MutateCrossingObjectRootedAtCaller(cross)
 }
 
 -- borrowrealm/gno.mod --
 module gno.land/r/test/borrowrealm
+
+gno 0.9
 
 -- borrowrealm/main.gno --
 package borrowrealm
@@ -192,18 +174,14 @@ func (o *ObjectImplem) Mutate() {
     o.value++
 }
 
-func (o *ObjectImplem) MutateCrossing() {
-    crossing()
-
+func (o *ObjectImplem) MutateCrossing(cur realm) {
     utils.AssertPreviousRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
     o.value++
 }
 
-func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller() {
-    crossing()
-
+func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller(cur realm) {
     utils.AssertPreviousRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
@@ -222,9 +200,7 @@ func InspectRealmsNonCrossing() {
     utils.AssertCurrentRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 }
 
-func InspectRealmsCrossing() {
-    crossing()
-
+func InspectRealmsCrossing(cur realm) {
     utils.AssertPreviousRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 }
@@ -233,9 +209,7 @@ func Mutate() {
     value++
 }
 
-func MutateCrossing() {
-    crossing()
-
+func MutateCrossing(cur realm) {
     value++
 }
 
@@ -243,11 +217,14 @@ func MutateObject() {
     Object.Mutate()
 }
 
-func MutateObjectWithBorrowCrossing() {
-    crossing()
-
+func MutateObjectWithBorrowCrossing(cur realm) {
     Object.MutateWithBorrowCrossing()
 }
+
+-- utils/gno.mod --
+module gno.land/p/test/utils
+
+gno 0.9
 
 -- utils/utils.gno --
 package utils

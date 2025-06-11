@@ -40,6 +40,8 @@ stderr 'cannot directly modify readonly tainted object'
 -- callerrealm/gno.mod --
 module gno.land/r/test/callerrealm
 
+gno 0.9
+
 -- callerrealm/main.gno --
 package callerrealm
 
@@ -50,71 +52,53 @@ import (
 
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
 
-func NonCrossingMutation() {
-    crossing()
-
+func NonCrossingMutation(cur realm) {
     utils.AssertPreviousRealmPkgPath("")
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 
     borrowrealm.Mutate()
 }
 
-func CrossingMutation() {
-    crossing()
-
-    cross(borrowrealm.MutateCrossing)()
+func CrossingMutation(cur realm) {
+    borrowrealm.MutateCrossing(cross)
 }
 
-func BorrowedObjectMutation() {
-    crossing()
-
+func BorrowedObjectMutation(cur realm) {
  	borrowrealm.Object.Mutate()
 }
 
-func ObjectMutationRootedAtCaller() {
-    crossing()
-
+func ObjectMutationRootedAtCaller(cur realm) {
  	obj.Mutate()
 }
 
-func CallMutateObject() {
-    crossing()
-
+func CallMutateObject(cur realm) {
     borrowrealm.MutateObject()
 }
 
-func InspectRealmsCrossing() {
-    crossing()
-
-    cross(borrowrealm.InspectRealmsCrossing)()
+func InspectRealmsCrossing(cur realm) {
+    borrowrealm.InspectRealmsCrossing(cross)
 }
 
-func InspectRealmsNonCrossing() {
-    crossing()
-
+func InspectRealmsNonCrossing(cur realm) {
     borrowrealm.InspectRealmsNonCrossing()
 }
 
-func MutateObjectWithBorrowCrossing() {
-    crossing()
-
-    cross(borrowrealm.MutateObjectWithBorrowCrossing)()
+func MutateObjectWithBorrowCrossing(cur realm) {
+    borrowrealm.MutateObjectWithBorrowCrossing(cross)
 }
 
-func MutateCrossingObject() {
-    crossing()
-
-    cross(borrowrealm.Object.MutateCrossing)()
+func MutateCrossingObject(cur realm) {
+    borrowrealm.Object.MutateCrossing(cross)
 }
 
-func MutateCrossingObjectRootedAtCaller() {
-    crossing()
-
-    cross(obj.MutateCrossingObjectRootedAtCaller)()
+func MutateCrossingObjectRootedAtCaller(cur realm) {
+    obj.MutateCrossingObjectRootedAtCaller(cross)
 }
 
 -- borrowrealm/gno.mod --
 module gno.land/r/test/borrowrealm
+
+gno 0.9
 
 -- borrowrealm/main.gno --
 package borrowrealm
@@ -145,18 +129,14 @@ func (o *ObjectImplem) Mutate() {
     o.value++
 }
 
-func (o *ObjectImplem) MutateCrossing() {
-    crossing()
-
+func (o *ObjectImplem) MutateCrossing(cur realm) {
     utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
     o.value++
 }
 
-func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller() {
-    crossing()
-
+func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller(cur realm) {
     utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
@@ -175,9 +155,7 @@ func InspectRealmsNonCrossing() {
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
 }
 
-func InspectRealmsCrossing() {
-    crossing()
-
+func InspectRealmsCrossing(cur realm) {
     utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
     utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 }
@@ -186,9 +164,7 @@ func Mutate() {
     value++
 }
 
-func MutateCrossing() {
-    crossing()
-
+func MutateCrossing(cur realm) {
     value++
 }
 
@@ -196,11 +172,14 @@ func MutateObject() {
     Object.Mutate()
 }
 
-func MutateObjectWithBorrowCrossing() {
-    crossing()
-
+func MutateObjectWithBorrowCrossing(cur realm) {
     Object.MutateWithBorrowCrossing()
 }
+
+-- utils/gno.mod --
+module gno.land/p/test/utils
+
+gno 0.9
 
 -- utils/utils.gno --
 package utils
