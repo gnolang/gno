@@ -350,7 +350,7 @@ func (pkg *pkgPrinter) valueSummary(values []*JSONValueDecl, showGrouped bool, t
 	for _, value := range values {
 		for _, v := range value.Values {
 			if !isGrouped[v] {
-				if typeName != "" && strings.Replace(v.Type, "*", "", -1) != typeName {
+				if typeName != "" && strings.TrimPrefix(v.Type, "*") != typeName {
 					break
 				}
 				// Make a singleton for oneLineNodeJSON
@@ -627,7 +627,7 @@ func (pkg *pkgPrinter) trimUnexportedFields(fields []*JSONField) []*JSONField {
 		name := field.Name
 		if name == "" {
 			// Embedded type. Use the name of the type.
-			name = strings.Replace(field.Type, "*", "", -1)
+			name = strings.TrimPrefix(field.Type, "*")
 		}
 		// Trims if any is unexported. Good enough in practice.
 		ok := true
@@ -653,7 +653,7 @@ func (pkg *pkgPrinter) trimUnexportedMethods(methods []*JSONFunc) []*JSONFunc {
 		name := meth.Name
 		if name == "" {
 			// Embedded type. Use the name of the type.
-			name = strings.Replace(meth.Type, "*", "", -1)
+			name = strings.TrimPrefix(meth.Type, "*")
 		}
 		// Trims if any is unexported. Good enough in practice.
 		ok := true
