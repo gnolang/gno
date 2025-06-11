@@ -49,7 +49,7 @@ type JSONField struct {
 type JSONFunc struct {
 	Type      string       `json:"type"` // if this is a method
 	Name      string       `json:"name"`
-	Crossing  bool         `json:"crossing"` // true if the first statement is crossing()
+	Crossing  bool         `json:"crossing"` // true if the first param is "cur realm"
 	Signature string       `json:"signature"`
 	Doc       string       `json:"doc"` // markdown
 	Params    []*JSONField `json:"params"`

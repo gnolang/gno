@@ -801,7 +801,8 @@ func (pkg *pkgPrinter) match(user, program string) bool {
 }
 
 // Return the function signature, appended with " // crossing" if it's crossing.
-// However, don't append if pkg.opt.Source because the signature contains the body with crossing().
+// However, don't append if pkg.opt.Source because the param "cur realm" can be seen, and
+// " // crossing" would appear at the end of the function body.
 func (pkg *pkgPrinter) crossingSignature(fun *JSONFunc) string {
 	if fun.Crossing && !pkg.opt.Source {
 		return fun.Signature + " // crossing"
