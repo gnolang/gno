@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	ErrCollectionExists   = errors.New("Collection already exists")
-	ErrNotCollectionOwner = errors.New("Only the owner can modify this collection")
-	ErrCollectionMissing  = errors.New("Collection not found")
-	ErrItemAlrExists      = errors.New("An item with this title already exists in the collection")
-	ErrItemAlrLinked      = errors.New("An item with this path already exists in the collection")
+	ErrCollectionExists   = errors.New("collection already exists")
+	ErrNotCollectionOwner = errors.New("only the owner can modify this collection")
+	ErrCollectionMissing  = errors.New("collection not found")
+	ErrItemAlrExists      = errors.New("an item with this title already exists in the collection")
+	ErrItemAlrLinked      = errors.New("an item with this path already exists in the collection")
 )
 
 type Collection struct {
