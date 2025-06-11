@@ -15,9 +15,7 @@ func init() {
 	aset.AddAddress(caller)
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	println(*aset)
 	caller := std.OriginCaller()
 	err := aset.AddAddress(caller)

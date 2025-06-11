@@ -11,10 +11,10 @@ func TestCall(t *testing.T) {
 	cd := std.ChainDomain()
 
 	tests := []struct {
-		fn    string
-		args  []string
-		want  string
-		realm Realm
+		fn        string
+		args      []string
+		want      string
+		realm_XXX Realm
 	}{
 		{"foo", []string{"bar", "1", "baz", "2"}, "/p/moul/txlink$help&func=foo&bar=1&baz=2", ""},
 		{"testFunc", []string{"key", "value"}, "/p/moul/txlink$help&func=testFunc&key=value", ""},
@@ -35,7 +35,7 @@ func TestCall(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		title := string(tt.realm) + "_" + tt.fn
+		title := string(tt.realm_XXX) + "_" + tt.fn
 		t.Run(title, func(t *testing.T) {
 			if tt.fn == "oddArgsFunc" {
 				defer func() {
@@ -48,7 +48,7 @@ func TestCall(t *testing.T) {
 					}
 				}()
 			}
-			got := tt.realm.Call(tt.fn, tt.args...)
+			got := tt.realm_XXX.Call(tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
 		})
 	}

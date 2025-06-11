@@ -15,9 +15,7 @@ package xx
 
 var x int
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	x = 1
 }
 
@@ -29,9 +27,7 @@ package xx
 
 var x int
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	x = 1
 }
 
