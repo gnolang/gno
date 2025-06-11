@@ -124,7 +124,7 @@
               type="radio"
               id="contributions-filter-packages"
               name="contributions-filter"
-              value="0"
+              value="packages"
               checked
               class="peer hidden" />
             <span class="js-list-packages-count hidden sm:inline"
@@ -138,7 +138,7 @@
               type="radio"
               id="contributions-filter-realms"
               name="contributions-filter"
-              value="1"
+              value="realms"
               class="peer hidden" />
             <svg
               class="w-5 h-5 text-gray-300 group-hover:text-gray-600 peer-checked:text-gray-600">
@@ -155,7 +155,7 @@
               type="radio"
               id="contributions-filter-pures"
               name="contributions-filter"
-              value="2"
+              value="pures"
               class="peer hidden" />
 
             <svg
@@ -187,7 +187,7 @@
                 <use href="#ico-order-desc"></use>
               </svg>
               <span class="md:hidden xl:inline">Order</span>
-            </label>
+             </label>
 
             <input
               type="radio"
@@ -251,7 +251,7 @@
             type="text"
             id="packages-search"
             name="packages-search"
-            class="js-list-searchbar peer w-full rounded-sm border p-1 outline-none w-full border-l lg:px-2 xl:py-1.5 text-gray-600 focus:border-gray-300 hover:border-gray-300"
+            class="js-list-searchbar peer rounded-sm border p-1 outline-none w-full border-l lg:px-2 xl:py-1.5 text-gray-600 focus:border-gray-300 hover:border-gray-300"
             placeholder=""
             aria-label="Search packages" />
           <span
@@ -272,10 +272,10 @@
       </nav>
       <div class="js-list-range range text-100 text-gray-600">
         {{ range .Contributions }}
-          <article data-type="{{ .Type.Id }}" class="list-item">
+          <article data-type="{{ .Type }}" class="list-item">
             <div class="list-item__content">
               <span class="list-item__title">
-                {{ if eq .Type.Name "package" }}
+                {{ if eq .Type.String "pure" }}
                   <svg class="w-5 h-5 text-gray-600">
                     <use href="#ico-pure"></use>
                   </svg>
@@ -297,7 +297,7 @@
                 {{ else }}
                   Open the
                   {{ .Title }}
-                  {{ .Type.Name }}
+                  {{ .Type.String }}
                 {{ end }}
               </p>
             </div>

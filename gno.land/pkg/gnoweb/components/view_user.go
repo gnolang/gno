@@ -17,21 +17,22 @@ const (
 	UserLinkTypeLink     UserLinkType = "link"
 )
 
-type UserContributionType struct {
-	Id   int
-	Name string
-}
+type UserContributionType int
 
-var (
-	UserContributionTypeRealm = UserContributionType{
-		Id:   1,
-		Name: "realm",
-	}
-	UserContributionTypePackage = UserContributionType{
-		Id:   2,
-		Name: "pure",
-	}
+const (
+	UserContributionTypeRealm = iota
+	UserContributionTypePackage
 )
+
+func (typ UserContributionType) String() string {
+	switch typ {
+	case UserContributionTypeRealm:
+		return "realm"
+	case UserContributionTypePackage:
+		return "pure"
+	}
+	return ""
+}
 
 type UserLink struct {
 	Type  UserLinkType

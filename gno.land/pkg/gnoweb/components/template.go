@@ -41,7 +41,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 
 		return vals.Has(key)
 	}
-	funcs["FormatRelativeTime"] = FormatRelativeTime
+	funcs["FormatRelativeTime"] = FormatRelativeTimeSince
 }
 
 func init() {

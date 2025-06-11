@@ -155,8 +155,8 @@ class List {
       {} as Record<string, number>
     );
 
-    const realmCountValue = counts["1"] || 0;
-    const pureCountValue = counts["2"] || 0;
+    const realmCountValue = counts["realm"] || 0;
+    const pureCountValue = counts["pure"] || 0;
     const totalPackages = realmCountValue + pureCountValue;
 
     if (packagesCount) {

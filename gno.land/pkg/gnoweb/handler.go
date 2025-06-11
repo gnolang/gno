@@ -274,30 +274,34 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 }
 
 // buildContributions returns the sorted list of contributions (packages and realms) for a user.
-func (h *WebHandler) buildContributions(username string) []components.UserContribution {
+func (h *WebHandler) buildContributions(username string) ([]components.UserContribution, int, error) {
 	prefix := "@" + username
 	paths, err := h.Client.QueryPaths(prefix, 10000)
 	if err != nil {
 		h.Logger.Error("unable to query contributions", "user", username, "error", err)
-		return nil
+		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
 	}
 
 	contribs := make([]components.UserContribution, 0, len(paths))
+	realmCount := 0
 	for _, raw := range paths {
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
-			h.Logger.Error("bad contribution URL", "path", raw, "error", err)
+			h.Logger.Warn("bad contribution URL", "path", raw, "error", err)
 			continue
 		}
 		ctype := components.UserContributionTypePackage
 		if u.IsRealm() {
 			ctype = components.UserContributionTypeRealm
 		}
+		if ctype == components.UserContributionTypeRealm {
+			realmCount++
+		}
 		contribs = append(contribs, components.UserContribution{
 			Title: path.Base(raw),
 			URL:   raw,
-			Type:  ctype,
+			Type:  components.UserContributionType(ctype),
 			// TODO: size, description, date...
 		})
 	}
@@ -305,7 +309,7 @@ func (h *WebHandler) buildContributions(username string) []components.UserContri
 	sort.Slice(contribs, func(i, j int) bool {
 		return contribs[i].Title < contribs[j].Title
 	})
-	return contribs
+	return slices.Clip(contribs), realmCount, nil
 }
 
 // GetUserView returns the user profile view for a given GnoURL.
@@ -320,16 +324,14 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 	}
 
 	// Build contributions
-	contribs := h.buildContributions(username)
+	contribs, realmCount, err := h.buildContributions(username)
+	if err != nil {
+		h.Logger.Error("unable to build contributions", "error", err)
+		return http.StatusInternalServerError, components.StatusErrorComponent(err.Error())
+	}
 
 	// Compute package counts
 	pkgCount := len(contribs)
-	realmCount := 0
-	for _, c := range contribs {
-		if c.Type.Id == components.UserContributionTypeRealm.Id {
-			realmCount++
-		}
-	}
 	pureCount := pkgCount - realmCount
 
 	data := components.UserData{

@@ -36,9 +36,8 @@ func (c *readerComponent) Render(w io.Writer) (err error) {
 	return err
 }
 
-func FormatRelativeTime(t time.Time) string {
-	now := time.Now()
-	diff := now.Sub(t)
+func FormatRelativeTimeSince(t time.Time) string {
+	diff := time.Since(t)
 
 	units := []struct {
 		unit  time.Duration
