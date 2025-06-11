@@ -1,3 +1,0 @@
-module gno.land/r/lou/blog
-
-gno 0.9
