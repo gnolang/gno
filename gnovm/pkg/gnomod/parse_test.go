@@ -92,7 +92,7 @@ func TestParseBytes(t *testing.T) {
 			name:          "invalid gno.mod without module",
 			content:       "replace bar => ../bar",
 			fileType:      "gno.mod",
-			expectedError: "requires module",
+			expectedError: "invalid gnomod.toml: 'module' is required",
 		},
 		{
 			name:          "invalid gno.mod with require",
