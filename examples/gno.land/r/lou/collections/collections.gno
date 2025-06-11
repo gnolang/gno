@@ -14,20 +14,14 @@ import (
 )
 
 var (
-	collections        *avl.Tree
-	collectionsByTag   *avl.Tree
+	gridMode           bool = false
+	collectionID       seqid.ID = seqid.ID(0)
+	collections        *avl.Tree = avl.NewTree()
+	collectionsByTag   *avl.Tree = avl.NewTree()
+	selectedCollection *avl.Tree = avl.NewTree()
 	selectedTag        string
-	selectedCollection *avl.Tree
 	tag                string
-	collectionID       seqid.ID
-	gridMode           bool
 )
-
-func init() {
-	gridMode = false
-	collections = avl.NewTree()
-	collectionID = seqid.ID(0)
-}
 
 func NewCollection(title, description string, tags string) string {
 	caller := std.PreviousRealm().Address()
