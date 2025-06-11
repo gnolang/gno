@@ -611,3 +611,63 @@ func TestGetClientErrorStatusPage(t *testing.T) {
 		})
 	}
 }
+
+func TestWebHandler_GetUserView(t *testing.T) {
+	t.Parallel()
+
+	// Prepare stub client that always writes the expected message
+	client := &userProfileTestClient{
+		stubDirectoryClient{
+			queryPaths: []string{
+				"/r/testuser/pkg1",
+				"/r/testuser/pkg2",
+			},
+			queryPathsErr: nil,
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/testuser/home",
+		Files:  map[string]string{},
+	})
+	cfg.WebClient = client
+
+	handler, err := gnoweb.NewWebHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/u/testuser", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+
+	// The content from RenderRealm
+	assert.Contains(t, body, "Welcome to testuser's profile")
+	// The contributions
+	assert.Contains(t, body, "pkg1")
+	assert.Contains(t, body, "pkg2")
+	// The username should be visible
+	assert.Contains(t, body, "testuser")
+}
+
+// userProfileTestClient overrides RenderRealm to write a welcome message for user profiles.
+// TODO: this is a hack to get the test to pass. We should find a better way to test this.
+type userProfileTestClient struct {
+	stubDirectoryClient
+}
+
+func (c *userProfileTestClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
+	// Simulate user profile content
+	username := strings.TrimPrefix(u.Path, "/r/")
+	username = strings.TrimSuffix(username, "/home")
+	if username == "" {
+		username = "unknown"
+	}
+	w.Write([]byte("Welcome to " + username + "'s profile"))
+	return &gnoweb.RealmMeta{}, nil
+}

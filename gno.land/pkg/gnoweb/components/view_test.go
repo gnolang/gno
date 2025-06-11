@@ -300,3 +300,46 @@ func TestGetFullLinks(t *testing.T) {
 		})
 	}
 }
+
+func TestUserView(t *testing.T) {
+	data := UserData{
+		Username:   "testuser",
+		Handlename: "Test User",
+		Bio:        "This is a test user.",
+		Links: []UserLink{
+			{Type: UserLinkTypeLink, URL: "https://example.com"},
+			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
+		},
+		Contributions: []UserContribution{
+			{
+				Title: "Realm Contribution",
+				Type:  UserContributionTypeRealm,
+			},
+			{
+				Title: "Package Contribution",
+				Type:  UserContributionTypePackage,
+			},
+		},
+		Content: NewReaderComponent(strings.NewReader("Test content")),
+	}
+
+	view := UserView(data)
+
+	assert.NotNil(t, view, "expected view to be non-nil")
+
+	templateComponent, ok := view.Component.(*TemplateComponent)
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
+
+	userData, ok := templateComponent.data.(UserData)
+	assert.True(t, ok, "expected UserData type in component data")
+
+	// Assert that link title for UserLinkTypeLink was set to the host
+	assert.Equal(t, "example.com", userData.Links[0].Title, "expected link title to be host")
+
+	// Assert counts
+	assert.Equal(t, 1, userData.RealmCount, "expected 1 realm")
+	assert.Equal(t, 2, userData.PackageCount, "expected 2 packages")
+	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
+
+	assert.NoError(t, view.Render(io.Discard))
+}

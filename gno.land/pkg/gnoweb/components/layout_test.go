@@ -247,6 +247,7 @@ func TestViewModePredicates(t *testing.T) {
 		wantRealm    bool
 		wantPackage  bool
 		wantHome     bool
+		wantUser     bool
 	}{
 		{
 			mode:         ViewModeExplorer,
@@ -268,6 +269,11 @@ func TestViewModePredicates(t *testing.T) {
 			name:     "Home",
 			wantHome: true,
 		},
+		{
+			mode:     ViewModeUser,
+			name:     "User",
+			wantUser: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -277,6 +283,7 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantRealm, tc.mode.IsRealm(), "IsRealm")
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
+			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
 		})
 	}
 }
