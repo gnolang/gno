@@ -61,4 +61,3 @@ _test.pkg.db:;      go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/.
 generate:
 	go generate -x ./...
 	$(MAKE) fmt
-	$(MAKE) imports
