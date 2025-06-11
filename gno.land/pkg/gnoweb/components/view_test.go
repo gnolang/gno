@@ -320,7 +320,10 @@ func TestUserView(t *testing.T) {
 				Type:  UserContributionTypePackage,
 			},
 		},
-		Content: NewReaderComponent(strings.NewReader("Test content")),
+		PackageCount: 2,
+		RealmCount:   1,
+		PureCount:    1,
+		Content:      NewReaderComponent(strings.NewReader("Test content")),
 	}
 
 	view := UserView(data)
