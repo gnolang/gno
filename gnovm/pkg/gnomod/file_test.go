@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 func TestFile_GetGno(t *testing.T) {
@@ -207,7 +208,7 @@ func TestFile_Validate(t *testing.T) {
 		{
 			name:        "empty module path",
 			file:        &File{},
-			expectedErr: "requires module path",
+			expectedErr: "invalid gnomod.toml: 'module' is required",
 		},
 		{
 			name: "invalid module path with space",

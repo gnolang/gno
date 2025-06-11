@@ -3,9 +3,10 @@ package gnomod
 import (
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // TestParseBytes tests parsing of both gno.mod and gnomod.toml files
@@ -103,7 +104,7 @@ func TestParseBytes(t *testing.T) {
 			name:          "invalid gnomod.toml without module",
 			content:       "gno = \"0.9\"",
 			fileType:      "gnomod.toml",
-			expectedError: "requires module path",
+			expectedError: "invalid gnomod.toml: 'module' is required",
 		},
 		{
 			name:          "invalid gnomod.toml with invalid toml",
