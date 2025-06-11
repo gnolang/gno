@@ -1,7 +1,6 @@
 package gnomod
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -99,13 +98,13 @@ func (f *File) Validate() error {
 
 	// module is required.
 	if modPath == "" {
-		return errors.New("requires module path")
+		return fmt.Errorf("invalid gnomod.toml: 'module' is required")
 	}
 
 	// module is a valid import path.
 	err := module.CheckImportPath(modPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid gnomod.toml: %w", err)
 	}
 
 	return nil

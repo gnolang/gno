@@ -16,13 +16,13 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldBe:          "gno.mod not found",
+			errShouldContain:     "gnomod.toml file not found in current or any parent directory",
 		},
 		{
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/empty_gnomod",
 			simulateExternalRepo: true,
-			errShouldBe:          "gno.mod not found",
+			errShouldBe:          "invalid gnomod.toml: 'module' is required",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -141,7 +141,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "why", "std"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldContain:     "could not read file \"gno.mod\"",
+			errShouldContain:     "gnomod.toml file not found in current or any parent director",
 		},
 		{
 			args:                 []string{"mod", "why", "std"},

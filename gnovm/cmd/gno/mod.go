@@ -214,22 +214,12 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	modPath := filepath.Join(path, "gno.mod")
-	if !isFileExist(modPath) {
-		return errors.New("gno.mod not found")
+
+	gnoMod, err := gnomod.ParseDir(path)
+	if err != nil {
+		return err
 	}
 
-	// read gno.mod
-	data, err := os.ReadFile(modPath)
-	if err != nil {
-		return fmt.Errorf("readfile %q: %w", modPath, err)
-	}
-
-	// parse gno.mod
-	gnoMod, err := gnomod.ParseBytes(modPath, data)
-	if err != nil {
-		return fmt.Errorf("parse: %w", err)
-	}
 	// sanitize gno.mod
 	gnoMod.Sanitize()
 
@@ -393,8 +383,7 @@ func execModWhy(args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	fpath := filepath.Join(wd, "gno.mod")
-	gm, err := gnomod.ParseFilepath(fpath)
+	gm, err := gnomod.ParseDir(wd)
 	if err != nil {
 		return err
 	}
