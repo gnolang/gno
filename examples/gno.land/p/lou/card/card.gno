@@ -55,21 +55,15 @@ func (card *Card) SetWidth(width uint64) {
 	card.width = width
 }
 
-func (card *Card) SetHeaderAlignmentW(
-	width ascii.WAlignment,
-) {
+func (card *Card) SetHeaderAlignmentW(width ascii.WAlignment) {
 	card.hWidthAlignment = width
 }
 
-func (card *Card) SetContentAlignmentW(
-	width ascii.WAlignment,
-) {
+func (card *Card) SetContentAlignmentW(width ascii.WAlignment) {
 	card.cWidthAlignment = width
 }
 
-func (card *Card) SetContentAlignmentH(
-	height ascii.HAlignment,
-) {
+func (card *Card) SetContentAlignmentH(height ascii.HAlignment) {
 	card.cHeightAlignment = height
 }
 
