@@ -160,7 +160,6 @@ func TestDocument(t *testing.T) {
 		{"tp", &Documentable{bfsDir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
 		{"inter", &Documentable{bfsDir: dir, symbol: "Rander"}, nil, []string{"type Rander", "generate", "!unexp  ", "!comment1", "Has unexported"}},
 		{"tpField", &Documentable{bfsDir: dir, symbol: "Rand", accessible: "Value"}, nil, []string{"type Rand", "!comment1", "comment2", "!func Crypto", "!unexp", "elided"}},
-		{"crossing", &Documentable{bfsDir: dir, symbol: "SetUnexp"}, nil, []string{"SetUnexp", "// crossing"}},
 		{
 			"tpUnexp",
 			&Documentable{bfsDir: dir, symbol: "Rand"},
