@@ -350,7 +350,7 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 			GetSortByUpdatedPath(b.Prefix+":"+req.RawPath, order)) + " | "
 	}
 	// ?start=<date>&end=<date>
-	out += renderTimeRangeLinks(req.RawPath) + " | "
+	out += renderTimeRangeLinks(b.Prefix+":"+req.RawPath) + " | "
 	out += md.Link("🗘 reset", b.Prefix+":"+req.Path) + "\n\n"
 	return out
 }
