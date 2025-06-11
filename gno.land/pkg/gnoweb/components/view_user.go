@@ -29,7 +29,7 @@ var (
 	}
 	UserContributionTypePackage = UserContributionType{
 		Id:   2,
-		Name: "package",
+		Name: "pure",
 	}
 )
 
