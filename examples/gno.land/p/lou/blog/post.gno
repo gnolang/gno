@@ -22,17 +22,16 @@ type Post struct {
 	PublishedAt   time.Time
 	Tags          []string
 	Authors       []string
-	Publisher     std.Address
+	Publisher     string
 	Likes         uint64
+	CommentId     seqid.ID
+	Comments      *avl.Tree // id --> *Comment
 	DisableLikes  bool
 	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
-
-	CommentId seqid.ID
-	Comments  *avl.Tree // id --> *Comment
 }
 
-func NewPost(slug, title, body, publicationDate string, authors, tags []string, caller std.Address) (*Post, error) {
-	if !caller.IsValid() {
+func NewPost(slug, title, body, publicationDate, caller string, authors, tags []string) (*Post, error) {
+	if !std.Address(caller).IsValid() {
 		return nil, ErrInvalidCaller
 	}
 	if slug == "" {
@@ -115,7 +114,7 @@ func (p *Post) SetDisableLikes(disable bool) {
 	p.DisableLikes = disable
 }
 
-func (p Post) GetCommentsByAuthor(author std.Address) []*Comment {
+func (p Post) GetCommentsByAuthor(author string) []*Comment {
 	var comments []*Comment = nil
 	p.Comments.ReverseIterate("", "", func(_ string, comment interface{}) bool {
 		c := comment.(*Comment)
@@ -168,7 +167,7 @@ func (p Post) RenderPost(prefix string) string {
 	if p.UpdatedAt != p.CreatedAt {
 		out += md.Bold("Last updated:") + " " + formatTime(p.UpdatedAt, "full") + "\n\n"
 	}
-	out += md.Bold("Publisher:") + " " + p.Publisher.String() + "\n\n"
+	out += md.Bold("Publisher:") + " " + p.Publisher + "\n\n"
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
 	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes)
 	out += md.HorizontalRule()
@@ -207,7 +206,7 @@ func renderAuthorLinks(prefix string, authors []string) string {
 	return renderLinks(prefix, "authors", authors, "")
 }
 
-func getReplies(replies *avl.Tree, author std.Address) []*Comment {
+func getReplies(replies *avl.Tree, author string) []*Comment {
 	var comments []*Comment
 	if replies == nil {
 		return comments

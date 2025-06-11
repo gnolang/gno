@@ -8,8 +8,8 @@ import (
 type RenderOptions struct {
 	Sort           string
 	TimeFormat     string
-	StartTime      time.Time // start time for filtering
-	EndTime        time.Time // end time for filtering
+	StartTime      *time.Time
+	EndTime        *time.Time
 	Ascending      bool
 	IsGrid         bool
 	IsAlphabetical bool
@@ -94,18 +94,31 @@ func toggle(current string) string {
 	return "desc"
 }
 
-func parseTimeRange(rawPath string) (time.Time, time.Time) {
+func toggleTimeFormat(current string) string {
+	if current == "relative" {
+		return "short"
+	}
+	if current == "short" {
+		return "full"
+	}
+	if current == "full" {
+		return "relative"
+	}
+	return "short"
+}
+
+func parseTimeRange(rawPath string) (*time.Time, *time.Time) {
 	startStr := parseQueryParams("start", rawPath)
 	endStr := parseQueryParams("end", rawPath)
+	var start, end *time.Time
 
-	var start, end time.Time
 	if startStr != "" {
-		if t, err := time.Parse(time.RFC3339, startStr); err == nil {
+		if t := tryParseFlexibleDate(startStr); t != nil {
 			start = t
 		}
 	}
 	if endStr != "" {
-		if t, err := time.Parse(time.RFC3339, endStr); err == nil {
+		if t := tryParseFlexibleDate(endStr); t != nil {
 			end = t
 		}
 	}

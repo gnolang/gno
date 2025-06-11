@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"std"
 	"strconv"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 
 type Comment struct {
 	ID           seqid.ID
-	Author       std.Address
+	Author       string
 	Content      string
 	CreatedAt    time.Time
 	EditedAt     *time.Time
@@ -23,7 +22,7 @@ type Comment struct {
 	Footer       string // additional text, e.g. "via @lou" or txlink calls
 }
 
-func NewComment(author std.Address, content string) (*Comment, error) {
+func NewComment(author string, content string) (*Comment, error) {
 	if content == "" {
 		return nil, ErrEmptyComment
 	}
@@ -93,7 +92,7 @@ func (c *Comment) Render(blogPrefix string, depth int) string {
 	for i := 0; i < depth; i++ {
 		prefix += "> "
 	}
-	out := prefix + md.Bold(md.Link(c.Author.String(), blogPrefix+":commenters/"+c.Author.String())) + " "
+	out := prefix + md.Bold(md.Link(c.Author, blogPrefix+":commenters/"+c.Author)) + " "
 	if c.Pinned {
 		out += "📌 "
 	}

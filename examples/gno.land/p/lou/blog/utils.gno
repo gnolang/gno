@@ -49,6 +49,16 @@ func titleToSlug(title string) string {
 	return slug
 }
 
+func extractListingDisplay(key string, value interface{}) (label string, count int) {
+	if strings.Contains(key, "::") {
+		parts := strings.Split(key, "::")
+		if len(parts) > 1 {
+			return parts[1], value.(int)
+		}
+	}
+	return key, value.(int)
+}
+
 func renderBreadcrumb(prefix, path string) string {
 	segments := strings.Split(path, "/")
 	base := prefix
@@ -89,29 +99,30 @@ func formatTime(t time.Time, format string) string {
 
 func calculateTimeSince(t time.Time) string {
 	duration := time.Since(t)
-	if duration < time.Minute {
+	switch {
+	case duration < time.Minute:
 		return "just now"
-	} else if duration < time.Hour {
+	case duration < time.Hour:
 		if duration < 2*time.Minute {
 			return "a minute ago"
 		}
 		return ufmt.Sprintf("%d minutes ago", int(duration.Minutes()))
-	} else if duration < 24*time.Hour {
+	case duration < 24*time.Hour:
 		if duration < 2*time.Hour {
 			return "an hour ago"
 		}
 		return ufmt.Sprintf("%d hours ago", int(duration.Hours()))
-	} else if duration < 7*24*time.Hour {
+	case duration < 7*24*time.Hour:
 		if duration < 2*24*time.Hour {
 			return "a day ago"
 		}
 		return ufmt.Sprintf("%d days ago", int(duration.Hours()/24))
-	} else if duration < 30*24*time.Hour {
+	case duration < 30*24*time.Hour:
 		if duration < 2*7*24*time.Hour {
 			return "a week ago"
 		}
 		return ufmt.Sprintf("%d weeks ago", int(duration.Hours()/(7*24)))
-	} else {
+	default:
 		if duration < 2*30*24*time.Hour {
 			return "a month ago"
 		}
@@ -119,12 +130,43 @@ func calculateTimeSince(t time.Time) string {
 	}
 }
 
-func extractListingDisplay(key string, value interface{}) (label string, count int) {
-	if strings.Contains(key, "::") {
-		parts := strings.Split(key, "::")
-		if len(parts) > 1 {
-			return parts[1], value.(int)
+func tryParseFlexibleDate(s string) *time.Time {
+	formats := []string{
+		time.RFC3339, // rfc3339 format
+		"2006-01-02", // date only
+		"2006-01",    // year and month
+		"2006",       // year only
+	}
+	for _, format := range formats {
+		if t, err := time.Parse(format, s); err == nil {
+			return &t
 		}
 	}
-	return key, value.(int)
+	return nil
+}
+
+type TimeRangePreset struct {
+	Label string
+	Start string
+	End   string
+}
+
+var TimeRangePresets = []TimeRangePreset{
+	{"past year", "2024-01-01", "2024-12-31"},
+	{"this year", "2025-01-01", "2025-12-31"},
+	{"last 30 days", time.Now().AddDate(0, 0, -30).Format("2006-01-02"), time.Now().Format("2006-01-02")},
+}
+
+func renderTimeRangeLinks(rawPath string) string {
+	var out string
+	for i, r := range TimeRangePresets {
+		out += md.Link(r.Label, updateQueryMulti(rawPath, map[string]string{
+			"start": r.Start,
+			"end":   r.End,
+		}))
+		if i < len(TimeRangePresets)-1 {
+			out += ", "
+		}
+	}
+	return out
 }

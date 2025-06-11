@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"std"
 	"strings"
 	"time"
 
@@ -100,10 +99,14 @@ func UpdatePost(existingPost, newPost *Post) {
 	existingPost.Slug = newPost.Slug
 	existingPost.Title = newPost.Title
 	existingPost.Body = newPost.Body
-	existingPost.Tags = newPost.Tags
 	existingPost.Authors = newPost.Authors
+	existingPost.Tags = newPost.Tags
+	existingPost.CommentId = newPost.CommentId
+	existingPost.Comments = newPost.Comments
+	existingPost.Likes = newPost.Likes
+	existingPost.DisableLikes = newPost.DisableLikes
+	existingPost.PreviewFooter = newPost.PreviewFooter
 	existingPost.UpdatedAt = time.Now()
-	// likes later
 }
 
 func (b *Blog) DeletePostById(id string) error {
@@ -174,7 +177,7 @@ func (b Blog) Render(path string) string {
 	router.HandleFunc("tags/{slug}", b.RenderTags)
 	router.HandleFunc("authors", b.RenderAuthors)
 	router.HandleFunc("authors/{slug}", b.RenderAuthors)
-	router.HandleFunc("commenters", b.RenderCommenters) // TODO
+	router.HandleFunc("commenters", b.RenderCommenters)
 	router.HandleFunc("commenters/{slug}", b.RenderCommenters)
 	return router.Render(path)
 }
@@ -182,15 +185,26 @@ func (b Blog) Render(path string) string {
 func RenderBlogHeader(prefix, rawPath string) string {
 	out := md.Link("⊞ grid", GetGridFmtPath(rawPath)) + " | "
 	out += md.Link("☰ list", GetListFmtPath(rawPath)) + " | "
-	out += "⏱ " + md.Link("short", GetTimeFmtPath(rawPath, "short")) + ", "
-	out += md.Link("full", GetTimeFmtPath(rawPath, "full")) + ", "
-	out += md.Link("relative", GetTimeFmtPath(rawPath, "relative")) + " |"
+
+	// ?time=relative
+	time := parseQueryParams("time", rawPath)
+	if time == "" {
+		time = "relative"
+	}
+	out += md.Link("⏱ "+time, GetTimeFmtPath(rawPath, toggleTimeFormat(time))) + " | "
 
 	sort := parseQueryParams("sort", rawPath)
 	order := parseQueryParams("order", rawPath)
 	if order == "" {
 		order = "desc"
 	}
+	// ?sort=alpha
+	alphaOrder := "(A-Z)"
+	if order == "desc" && sort == "alpha" {
+		alphaOrder = "(Z-A)"
+	}
+	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical "+alphaOrder,
+		GetSortByAlphabeticalPath(rawPath, order)) + " | "
 	// ?sort=recent
 	publishedOrder := " recent"
 	if order == "desc" && sort == "recent" {
@@ -201,15 +215,10 @@ func RenderBlogHeader(prefix, rawPath string) string {
 	// ?sort=update
 	out += md.Link(orderArrow("update", sort, order)+" last updated",
 		GetSortByUpdatedPath(rawPath, order)) + " | "
-	// ?sort=alpha
-	alphaOrder := "(A-Z)"
-	if order == "desc" && sort == "alpha" {
-		alphaOrder = "(Z-A)"
-	}
-	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical "+alphaOrder,
-		GetSortByAlphabeticalPath(rawPath, order)) + " | "
+	// ?start=<date>&end=<date>
+	out += renderTimeRangeLinks(rawPath) + " | "
 
-	out += md.Link("🗘 reset", prefix) + "\n"
+	out += md.Link("🗘 reset", prefix) + "\n\n"
 	return out
 }
 
@@ -219,20 +228,30 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("No posts found.")
 		return
 	}
-
 	options := ParseRenderOptions(req.RawPath)
 	pageSize := 9
 	if !options.IsGrid {
 		pageSize = 3
 	}
-	var p *pager.Pager
-	if options.IsLastUpdated {
-		p = pager.NewPager(b.PostsByUpdatedAt, pageSize, options.Ascending)
-	} else if options.IsAlphabetical {
-		p = pager.NewPager(b.PostsBySlug, pageSize, !options.Ascending)
-	} else {
-		p = pager.NewPager(b.Posts, pageSize, options.Ascending)
+	order := options.Ascending
+	if options.IsAlphabetical {
+		order = !order
 	}
+
+	var tree *avl.Tree
+	switch {
+	case options.IsLastUpdated:
+		tree = b.PostsByUpdatedAt
+	case options.IsAlphabetical:
+		tree = b.PostsBySlug
+	default:
+		tree = b.Posts
+	}
+	if options.StartTime != nil || options.EndTime != nil {
+		tree = b.filterPostsStartEnd(tree, options.StartTime, options.EndTime)
+	}
+
+	p := pager.NewPager(tree, pageSize, order)
 	page := p.MustGetPageByPath(req.RawPath)
 	out += RenderBlogHeader(b.Prefix, req.RawPath)
 	out += b.RenderListGrid(page, options.IsGrid, options.TimeFormat) + page.Picker(req.Path)
@@ -281,13 +300,23 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
-	out := md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
+	out := ""
+	if strings.Split(req.RawPath, "/")[0] == "commenters" {
+		out += md.H2(md.Link(b.Prefix, b.Prefix) + "/commenters/" + strings.Split(req.RawPath, "/")[1])
+	} else {
+		out += md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
+	}
 	if !isListing {
-		out += md.Link("⊞ grid", GetGridFmtPath(b.Prefix+":"+req.RawPath)) + " | "               // TODO
-		out += md.Link("☰ list", GetListFmtPath(b.Prefix+":"+req.RawPath)) + " | "               // TODO
-		out += "⏱ " + md.Link("short", GetTimeFmtPath(b.Prefix+":"+req.RawPath, "short")) + ", " // TODO
-		out += md.Link("full", GetTimeFmtPath(b.Prefix+":"+req.RawPath, "full")) + ", "          // TODO
-		out += md.Link("relative", GetTimeFmtPath(b.Prefix+":"+req.RawPath, "relative")) + " | " // TODO
+		out += md.Link("⊞ grid", GetGridFmtPath(b.Prefix+":"+req.RawPath)) + " | "
+		out += md.Link("☰ list", GetListFmtPath(b.Prefix+":"+req.RawPath)) + " | "
+
+		// ?time=relative
+		time := parseQueryParams("time", req.RawPath)
+		if time == "" {
+			time = "relative"
+		}
+		out += md.Link("⏱ "+time, GetTimeFmtPath(b.Prefix+":"+req.RawPath, toggleTimeFormat(time))) + " | "
+
 	}
 
 	sort := parseQueryParams("sort", req.RawPath)
@@ -295,13 +324,6 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 	if order == "" {
 		order = "desc"
 	}
-	// ?sort=recent
-	publishedOrder := " recent"
-	if order == "desc" && sort == "recent" {
-		publishedOrder = " oldest"
-	}
-	out += md.Link(orderArrow("recent", sort, order)+publishedOrder,
-		GetSortByPublishedPath(b.Prefix+":"+req.RawPath, order)) + " | "
 	// ?sort=alpha
 	alphaOrder := " (A-Z)"
 	if order == "desc" && sort == "alpha" {
@@ -309,6 +331,13 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 	}
 	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical"+alphaOrder,
 		GetSortByAlphabeticalPath(b.Prefix+":"+req.RawPath, order)) + " | "
+	// ?sort=recent
+	publishedOrder := " recent"
+	if order == "desc" && sort == "recent" {
+		publishedOrder = " oldest"
+	}
+	out += md.Link(orderArrow("recent", sort, order)+publishedOrder,
+		GetSortByPublishedPath(b.Prefix+":"+req.RawPath, order)) + " | "
 
 	if isListing {
 		// ?sort=common
@@ -323,7 +352,8 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 		out += md.Link(orderArrow("update", sort, order)+" last updated",
 			GetSortByUpdatedPath(b.Prefix+":"+req.RawPath, order)) + " | "
 	}
-
+	// ?start=<date>&end=<date>
+	out += renderTimeRangeLinks(req.RawPath) + " | "
 	out += md.Link("🗘 reset", b.Prefix+":"+req.Path) + "\n\n"
 	return out
 }
@@ -342,12 +372,17 @@ func (b Blog) RenderAuthors(res *mux.ResponseWriter, req *mux.Request) {
 
 // :commenters
 func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
+	if req.GetVar("slug") == "" {
+		res.Write("Commenter slug is required.")
+		return
+	}
 	out := b.RenderListings("commenter", req.GetVar("slug"), req)
 	res.Write(out)
 }
 
 func (b Blog) RenderListings(field, value string, req *mux.Request) string {
 	options := ParseRenderOptions(req.RawPath)
+	options.IsGrid = false
 	if value == "" {
 		return b.renderListingIndex(field, options, req)
 	}
@@ -371,15 +406,14 @@ func (b Blog) renderListingIndex(field string, options RenderOptions, req *mux.R
 }
 
 func (b Blog) renderFilteredListing(field, value string, options RenderOptions, req *mux.Request) string {
+	out := b.RenderFilterHeader(req, false)
 	p, exists := b.determinePager(options, field, value)
 	if !exists {
-		return "No posts found for this " + field + "."
+		out += "No posts found for this " + field + "."
 	}
 	page := p.MustGetPageByPath(req.RawPath)
-
-	out := b.RenderFilterHeader(req, false)
-	colCount := 0
 	out += "<gno-columns>\n"
+	colCount := 0
 	for _, item := range page.Items {
 		if colCount%3 == 0 {
 			out += "<gno-columns>\n"
@@ -424,7 +458,7 @@ func (b Blog) renderCommenterItem(item pager.Item, options RenderOptions) string
 	}
 	p := post.(*Post)
 
-	out := md.H4(b.Mention("commenter", comment.Author.String())) + "\n\n"
+	out := md.H4(b.Mention("commenter", comment.Author)) + "\n\n"
 	out += comment.Content + "\n\n"
 	out += md.Italic(formatTime(comment.CreatedAt, options.TimeFormat)) + "\n\n"
 	out += "in " + md.Link(p.Title, b.Prefix+":posts/"+p.Slug) + "\n\n"
@@ -447,21 +481,20 @@ func (b Blog) determinePager(options RenderOptions, field, value string) (*pager
 		} else if field == "tag" {
 			return pager.NewPager(b.TagsIndex, 12, options.Ascending), true
 		}
-		// else if field == "commenter" {
-		// return pager.NewPager(b.Posts, 12, options.Ascending), true
-		// }
-	} else {
-		filteredPosts, exists := b.filterPostsByField(field, value, options.Sort)
-		pageSize := 9
-		if !options.IsGrid {
-			pageSize = 3
-		}
-		if options.Sort == "alpha" {
-			return pager.NewPager(filteredPosts, pageSize, !options.Ascending), exists
-		}
-		return pager.NewPager(filteredPosts, pageSize, options.Ascending), exists
 	}
-	return nil, false
+	pageSize := 9
+	if !options.IsGrid {
+		pageSize = 3
+	}
+
+	filteredPosts, exists := b.filterPostsByField(field, value, options.Sort)
+	if options.StartTime != nil || options.EndTime != nil {
+		filteredPosts = b.filterPostsStartEnd(filteredPosts, options.StartTime, options.EndTime)
+	}
+	if options.Sort == "alpha" {
+		return pager.NewPager(filteredPosts, pageSize, !options.Ascending), exists
+	}
+	return pager.NewPager(filteredPosts, pageSize, options.Ascending), exists
 }
 
 func (b Blog) filterPostsStartEnd(tree *avl.Tree, start, end *time.Time) *avl.Tree {
@@ -504,7 +537,7 @@ func (b Blog) filterPostsByField(field, value, sort string) (*avl.Tree, bool) {
 	case "commenter":
 		b.Posts.ReverseIterate("", "", func(k string, v interface{}) bool {
 			post := v.(*Post)
-			comments := post.GetCommentsByAuthor(std.Address(value))
+			comments := post.GetCommentsByAuthor(value)
 			for _, comment := range comments {
 				commenterId.Next()
 				keyPrefix := commenterId.String() + "::"
