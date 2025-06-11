@@ -1,4 +1,4 @@
-import { debounce } from './utils';
+import { debounce } from "./utils";
 
 type ListItem = {
   element: HTMLElement;
@@ -18,24 +18,27 @@ class List {
   };
 
   private static SELECTORS = {
-    range: '.js-list-range',
-    searchBar: '.js-list-searchbar',
-    orderOption: '.js-list-order-filter',
-    itemTitle: '.js-list-range-title',
-    packagesCount: '.js-list-packages-count',
-    realmsCount: '.js-list-realms-count',
-    pureCount: '.js-list-pure-count',
+    range: ".js-list-range",
+    searchBar: ".js-list-searchbar",
+    orderOption: ".js-list-order-filter",
+    itemTitle: ".js-list-range-title",
+    packagesCount: ".js-list-packages-count",
+    realmsCount: ".js-list-realms-count",
+    pureCount: ".js-list-pure-count",
   };
+
+  private static STORAGE_KEY = "gno_display_mode";
+  private static LOADING_CLASS = "is-loading";
 
   private items: Array<ListItem> = [];
 
   // Cache
-  private currentFilter: string = '';
+  private currentFilter: string = "";
   private sortedItems: Array<ListItem> = [];
 
   constructor(el: Element | null) {
     if (!el) {
-      console.warn('No element provided');
+      console.warn("No element provided");
       return;
     }
 
@@ -52,7 +55,7 @@ class List {
     };
 
     if (!this.DOM.range) {
-      console.warn('Range element not found');
+      console.warn("Range element not found");
       return;
     }
 
@@ -61,24 +64,30 @@ class List {
       const titleElement = (element as HTMLElement).querySelector(
         List.SELECTORS.itemTitle
       );
-      const type = (element as HTMLElement).dataset.type || '';
+      const type = (element as HTMLElement).dataset.type || "";
 
       return {
         element: element as HTMLElement,
-        title: (titleElement?.textContent || '').toLowerCase(),
+        title: (titleElement?.textContent || "").toLowerCase(),
         type,
       };
     });
 
     this.sortedItems = [...this.items];
+    this.restoreDisplayMode();
     this.bindEvents();
+
+    // Remove loading state after a small delay to ensure styles are applied
+    requestAnimationFrame(() => {
+      el.classList.remove(List.LOADING_CLASS);
+    });
   }
 
   private bindEvents(): void {
     const { searchBar, orderOption } = this.DOM;
 
     // Handle order change
-    orderOption?.addEventListener('change', e => {
+    orderOption?.addEventListener("change", e => {
       const target = e.target as HTMLInputElement;
 
       // event delegation
@@ -88,10 +97,30 @@ class List {
       }
     });
 
-    searchBar?.addEventListener('input', e => {
+    // Handle display mode change
+    this.DOM.el?.addEventListener("change", e => {
+      const target = e.target as HTMLInputElement;
+      if (target.matches('input[name="display-mode"]')) {
+        localStorage.setItem(List.STORAGE_KEY, target.value);
+      }
+    });
+
+    searchBar?.addEventListener("input", e => {
       const target = e.target as HTMLInputElement;
       this.debouncedSearch(target.value);
     });
+  }
+
+  private restoreDisplayMode(): void {
+    const savedMode = localStorage.getItem(List.STORAGE_KEY);
+    if (!savedMode) return;
+
+    const input = this.DOM.el?.querySelector<HTMLInputElement>(
+      `input[name="display-mode"][value="${savedMode}"]`
+    );
+    if (input && !input.checked) {
+      input.checked = true;
+    }
   }
 
   // Debounce search to avoid too many calls
@@ -126,8 +155,8 @@ class List {
       {} as Record<string, number>
     );
 
-    const realmCountValue = counts['1'] || 0;
-    const pureCountValue = counts['2'] || 0;
+    const realmCountValue = counts["1"] || 0;
+    const pureCountValue = counts["2"] || 0;
     const totalPackages = realmCountValue + pureCountValue;
 
     if (packagesCount) {
@@ -153,7 +182,7 @@ class List {
     filteredItems.forEach(item => fragment.appendChild(item.element));
 
     // Clear and update range with a single reflow
-    range.textContent = '';
+    range.textContent = "";
     range.appendChild(fragment);
 
     // Update counts based on filtered items

@@ -621,6 +621,10 @@
     scrollbar-width: none;
   }
 
+  .is-loading {
+    @apply opacity-0;
+  }
+
   .link-external {
     @apply text-[.7em];
   }
