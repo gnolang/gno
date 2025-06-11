@@ -186,7 +186,7 @@ func RenderBlogHeader(prefix, rawPath string) string {
 	out := md.Link("⊞ grid", GetGridFmtPath(rawPath)) + " | "
 	out += md.Link("☰ list", GetListFmtPath(rawPath)) + " | "
 
-	// ?time=relative
+	// ?time=relative | full | short
 	time := parseQueryParams("time", rawPath)
 	if time == "" {
 		time = "relative"
@@ -310,7 +310,7 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 		out += md.Link("⊞ grid", GetGridFmtPath(b.Prefix+":"+req.RawPath)) + " | "
 		out += md.Link("☰ list", GetListFmtPath(b.Prefix+":"+req.RawPath)) + " | "
 
-		// ?time=relative
+		// ?time=relative | short | full
 		time := parseQueryParams("time", req.RawPath)
 		if time == "" {
 			time = "relative"
