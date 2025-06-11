@@ -222,6 +222,7 @@ func RenderBlogHeader(prefix, rawPath string) string {
 	return out
 }
 
+// :posts
 func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 	out := md.H1(b.Title) + "\n"
 	if b.Posts.Size() == 0 {
@@ -280,13 +281,9 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool, timeFmt string) st
 	return out
 }
 
-// :post
+// :posts/{slug}
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	postSlug := req.GetVar("slug")
-	if postSlug == "" {
-		res.Write("Post slug is required.")
-		return
-	}
 
 	foundKey, found := b.findPostBySlug(postSlug)
 	if !found {
