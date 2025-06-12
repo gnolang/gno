@@ -14,26 +14,19 @@ var (
 	ErrNoModFile = errors.New("gnomod.toml doesn't exist")
 )
 
-// ParseDir parses, validates and returns a gno.mod or gnomod.toml file located
-// at dir or at dir's parents.
+// ParseDir parses, validates and returns a gno.mod or gnomod.toml file located at dir (does not search parents).
 func ParseDir(dir string) (*File, error) {
 	ferr := func(err error) (*File, error) {
 		return nil, fmt.Errorf("parsing gno.mod/gnomod.toml at %s: %w", dir, err)
 	}
 
-	// FindRootDir requires absolute path, make sure its the case
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return ferr(err)
 	}
-	rd, err := FindRootDir(absDir)
-	if err != nil {
-		return ferr(err)
-	}
 
-	// Try gnomod.toml first, then gno.mod.
 	for _, fname := range []string{"gnomod.toml", "gno.mod"} {
-		fpath := filepath.Join(rd, fname)
+		fpath := filepath.Join(absDir, fname)
 		if _, err := os.Stat(fpath); err == nil {
 			b, err := os.ReadFile(fpath)
 			if err != nil {
@@ -48,21 +41,10 @@ func ParseDir(dir string) (*File, error) {
 
 // ParseFilepath tries to parse gno.mod or gnomod.toml file given the file path.
 func ParseFilepath(fpath string) (*File, error) {
-	filename := filepath.Base(fpath)
-
-	file, err := os.Stat(fpath)
-	if err != nil {
-		return nil, fmt.Errorf("could not read file %q: %w", filename, err)
-	}
-	if file.IsDir() {
-		return nil, fmt.Errorf("invalid file at %q: is a directory", fpath)
-	}
-
 	b, err := os.ReadFile(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read %s file: %w", filename, err)
+		return nil, fmt.Errorf("could not read file %q: %w", fpath, err)
 	}
-
 	return ParseBytes(fpath, b)
 }
 
