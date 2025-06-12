@@ -10,7 +10,7 @@ import (
 func Test_CreateFriendGroup(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 
-	uassert.NotPanics(t, func() { CreateFriendGroup("Test") })
+	uassert.NotPanics(t, func() { CreateFriendGroup(cross, "Test") })
 
 	raw, found := ListGroups.Groups.Get("1")
 	if !found {
@@ -34,10 +34,10 @@ func Test_CreateFriendGroup(t *testing.T) {
 // Test AskJoinFriendGroup
 func Test_AskJoinFriendGroup_Success(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
-	CreateFriendGroup("Chaegnal's group")
+	CreateFriendGroup(cross, "Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	uassert.NotPanics(t, func() { AskJoinFriendGroup(2) })
+	uassert.NotPanics(t, func() { AskJoinFriendGroup(cross, 2) })
 
 	group := GetGroupFromId("2")
 	if !group.DAO.IsPending("Ghhv") {
@@ -46,28 +46,28 @@ func Test_AskJoinFriendGroup_Success(t *testing.T) {
 }
 
 func Test_AskJoinFriendGroup_GroupFail(t *testing.T) {
-	uassert.PanicsWithMessage(t, "group does not exist", func() { AskJoinFriendGroup(100) })
+	uassert.PanicsWithMessage(t, "group does not exist", func() { AskJoinFriendGroup(cross, 100) })
 }
 
 func Test_AskJoinFriendGroup_AlreadyPart(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
-	CreateFriendGroup("Chaegnal's Already In")
+	CreateFriendGroup(cross, "Chaegnal's Already In")
 
-	uassert.PanicsWithMessage(t, "you are already part of this friend group", func() { AskJoinFriendGroup(3) })
+	uassert.PanicsWithMessage(t, "you are already part of this friend group", func() { AskJoinFriendGroup(cross, 3) })
 }
 
 // Test LeaveGroup
 func Test_LeaveGroup_Success(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
-	CreateFriendGroup("Chaegnal's Leave Ghhv")
+	CreateFriendGroup(cross, "Chaegnal's Leave Ghhv")
 
 	testing.SetOriginCaller("Ghhv")
-	AskJoinFriendGroup(4)
+	AskJoinFriendGroup(cross, 4)
 
 	group := GetGroupFromId("4")
 	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
 
-	uassert.NotPanics(t, func() { LeaveGroup("4") })
+	uassert.NotPanics(t, func() { LeaveGroup(cross, "4") })
 
 	if group.DAO.Whitelist.Has("Ghhv") {
 		t.Errorf("'Ghhv' still in whitelist")
@@ -76,9 +76,9 @@ func Test_LeaveGroup_Success(t *testing.T) {
 
 func Test_LeaveGroup_Failure(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
-	CreateFriendGroup("Chaegnal's Leave")
+	CreateFriendGroup(cross, "Chaegnal's Leave")
 
-	uassert.PanicsWithMessage(t, "owner cannot leave the group", func() { LeaveGroup("4") })
+	uassert.PanicsWithMessage(t, "owner cannot leave the group", func() { LeaveGroup(cross, "4") })
 }
 
 // Helpers
@@ -93,7 +93,7 @@ func Test_getGroupFromId_notFound(t *testing.T) {
 }
 
 func TestGetGroupFromId_Success(t *testing.T) {
-	uassert.NotPanics(t, func() { CreateFriendGroup("Test") })
+	uassert.NotPanics(t, func() { CreateFriendGroup(cross, "Test") })
 
 	group := GetGroupFromId("1")
 

@@ -40,7 +40,7 @@ func Test_ParseQueryKeyword(t *testing.T) {
 // Test getGroupFromUrl
 func Test_getGroupFromUrl_Success(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
-	cross(organizer.CreateFriendGroup)("Chaegnal's group")
+	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
 	uassert.NotPanics(t, func() { getGroupFromUrl("http://test.com?groupId=2") })
 }
