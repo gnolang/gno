@@ -18,6 +18,7 @@ examples/gno.land/r/question (skipped, gnomod.toml marks module as draft)
 -- examples/gno.land/r/question/gnomod.toml --
 module = "examples/gno.land/r/question"
 gno = "0.9"
+draft = true
 
 -- examples/gno.land/r/question/question.gno --
 package question
