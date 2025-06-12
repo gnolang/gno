@@ -164,7 +164,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte) (string, error
 			evtstr := string(evtjson)
 			match(dir, evtstr)
 		case DirectivePreprocessed:
-			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
+			pn := m.Store.GetBlockNodeSafe(gno.PackageNodeLocation(pkgPath))
+			if pn == nil {
+				return "", fmt.Errorf("package %q not preprocessed: %s", pkgPath, result.Error)
+			}
 			pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
 			match(dir, pre)
 		case DirectiveStacktrace:
@@ -237,6 +240,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// it allows us to only have to load the imports once (and re-use the cached
 	// versions). Running the tests in separate "transactions" means that they
 	// don't get the parent store dirty.
+	abortOnError := true
 	if err := LoadImports(opts.TestStore, &std.MemPackage{
 		Name: string(pkgName),
 		Path: pkgPath,
@@ -244,7 +248,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			{Name: "gno.mod", Body: gno.GenGnoModLatest(pkgPath)},
 			{Name: fname, Body: string(content)},
 		},
-	}); err != nil {
+	}, abortOnError); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
 		if swe, ok := err.(*stackWrappedError); ok {
 			return runResult{Error: err.Error(), GoPanicStack: swe.stack}
@@ -289,7 +293,11 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Validate Gno syntax and type check.
-		if _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
+		if _, err := gno.TypeCheckMemPackageWithOptions(mpkg, m.Store, gno.TypeCheckOptions{
+			ParseMode: gno.ParseModeAll,
+			Mode:      gno.TCLatestRelaxed,
+			Cache:     opts.Cache,
+		}); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
@@ -312,7 +320,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// parsed correctly when using RunMemPackage.
 		fname = strings.ReplaceAll(fname, "_filetest", "")
 
-		// save package using realm crawl procedure.
+		// Save package using realm crawl procedure.
 		mpkg := &std.MemPackage{
 			Name: string(pkgName),
 			Path: pkgPath,
@@ -325,24 +333,25 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = tx
 
 		// Validate Gno syntax and type check.
-		if _, _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll); err != nil {
+		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll, gno.TCLatestRelaxed); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
 		// Run decls and init functions.
 		m.RunMemPackage(mpkg, true)
+
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
 		m.Store = orig
-
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2) // XXX should it set the realm?
 		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
-		// clear store.opslog from init function(s).
+
+		// Clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
-		m.RunMain()
+		m.RunMainMaybeCrossing()
 	}
 
 	return runResult{

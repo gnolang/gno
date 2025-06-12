@@ -64,9 +64,7 @@ func init() {
 
 // Register registers your realm to the Hall of Fame
 // Should be called from within code
-func Register(title, description string) {
-	crossing()
-
+func Register(cur realm, title, description string) {
 	if Pausable.IsPaused() {
 		return
 	}
@@ -113,9 +111,7 @@ func Register(title, description string) {
 	std.Emit("Registration")
 }
 
-func Upvote(pkgpath string) {
-	crossing()
-
+func Upvote(cur realm, pkgpath string) {
 	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
 		panic(ErrNoSuchItem)
@@ -137,9 +133,7 @@ func Upvote(pkgpath string) {
 	exhibition.itemsSortedByUpvotes.Set(getVoteSortKey(item.upvote.Size(), item.id), item)
 }
 
-func Downvote(pkgpath string) {
-	crossing()
-
+func Downvote(cur realm, pkgpath string) {
 	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
 		panic(ErrNoSuchItem)
@@ -162,9 +156,7 @@ func Downvote(pkgpath string) {
 	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(item.downvote.Size(), item.id), item)
 }
 
-func Delete(pkgpath string) {
-	crossing()
-
+func Delete(cur realm, pkgpath string) {
 	if !Ownable.OwnedByPrevious() {
 		panic(ownable.ErrUnauthorized)
 	}

@@ -127,6 +127,8 @@ type TestOptions struct {
 	Error io.Writer
 	// Debug enables the interactive debugger on gno tests.
 	Debug bool
+	// Set a Cache to enable faster type checking in filetests, for known packages.
+	Cache gno.TypeCheckCache
 
 	// Not set by NewTestOptions:
 
@@ -160,6 +162,7 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 		RootDir: rootDir,
 		Output:  stdout,
 		Error:   stderr,
+		Cache:   gno.TypeCheckCache{},
 	}
 	opts.BaseStore, opts.TestStore = Store(rootDir, opts.WriterForStore())
 	return opts
@@ -218,7 +221,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	var errs error
 
 	// Eagerly load imports.
-	if err := LoadImports(opts.TestStore, mpkg); err != nil {
+	abortOnError := true
+	if err := LoadImports(opts.TestStore, mpkg, abortOnError); err != nil {
 		return err
 	}
 
@@ -368,9 +372,49 @@ func (opts *TestOptions) runTestFiles(
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage("testing", false)
+		testingpv := m.Store.GetPackage("testing/base", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
+		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
+
+		var runTestX gno.Expr
+		var runTest gno.TypedValue
+		var runTestF string
+		var runTestCur gno.Expr
+		if testfv.IsCrossing() {
+			// Run a test with cur passed a special way.
+			//
+			// > TestSomething(cur realm, t *testing.T) {...}
+			//
+			// Normally this isn't possible because
+			// stdlibs/testing/base is a non-realm, so it cannot
+			// have `cur`. And while a realm could call `func(cur
+			// realm){...}(cross)`, some *_test.gno test cases want
+			// `cur` to refer to the realm package, while
+			// `cur.Previous()` to refer to no realm--while the
+			// `func(cur realm){...}(cross)` method would have both
+			// previous to be the current realm.
+
+			// Extract unexposed testing.runTestWithRealm.
+			m.SetActivePackage(testingpv)
+			runTestX = gno.Nx("runTest_cur")
+			runTest = m.Eval(runTestX)[0]
+			runTestF = "F_cur"
+			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(mpkg.Path))
+			m.SetActivePackage(pv)
+		} else {
+			// The normal way to test if `cur` isn't needed such as
+			// in p package tests, or in realm package tests where
+			// no non-crossing calls are made directly in the body
+			// of the test func decl.
+			//
+			// > TestSomething(t *testing.T) {...}
+			runTestX = gno.Sel(testingcx, "RunTest")
+			runTest = m.Eval(runTestX)[0]
+			runTestF = "F"
+			runTestCur = gno.Nx("nil")
+		}
+		runTestCX := gno.NewConstExpr(runTestX, runTest)
 
 		if opts.Debug {
 			fileContent := func(ppath, name string) string {
@@ -390,7 +434,7 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),                 // Call testing.RunTest
+			runTestCX,                                     // Call testing.RunTest
 			gno.Str(opts.RunFlag),                         // run flag
 			gno.Nx(strconv.FormatBool(opts.Verbose)),      // is verbose?
 			gno.Nx(strconv.FormatBool(opts.FailfastFlag)), // stop as soon as a test fails
@@ -400,7 +444,8 @@ func (opts *TestOptions) runTestFiles(
 					// XXX Consider this.
 					// {Key: gno.X("Name"), Value: gno.Str(mpkg.Path + "/" + tf.Filename + "." + tf.Name)},
 					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
-					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
+					{Key: gno.X(runTestF), Value: gno.Nx(tf.Name)},
+					{Key: gno.X("Cur"), Value: runTestCur},
 				},
 			},
 		))
@@ -478,12 +523,15 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 	for _, tf := range tfiles.Files {
 		for _, d := range tf.Decls {
 			if fd, ok := d.(*gno.FuncDecl); ok {
+				if fd.IsMethod {
+					continue
+				}
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
 					tf := testFunc{
 						Package:  pkgName,
 						Name:     fname,
-						Filename: string(tf.Name),
+						Filename: tf.FileName,
 					}
 					rt = append(rt, tf)
 				}
