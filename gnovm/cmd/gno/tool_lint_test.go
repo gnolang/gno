@@ -13,7 +13,7 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/run_main/", "-auto-gnomod=false"},
-			stderrShouldContain: "../../tests/integ/run_main/gnomod.toml: could not read file \"gnomod.toml\": stat ../../tests/integ/run_main/gnomod.toml: no such file or directory (code=gnoGnoModError)",
+			stderrShouldContain: "./../tests/integ/run_main/gnomod.toml: could not read file \"../../tests/integ/run_main/gnomod.toml\": open ../../tests/integ/run_main/gnomod.toml: no such file or directory (code=gnoGnoModError)\n",
 			errShouldBe:         "exit code: 1",
 		},
 		{
