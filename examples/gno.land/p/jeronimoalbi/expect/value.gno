@@ -1,5 +1,7 @@
 package expect
 
+import "gno.land/p/demo/ufmt"
+
 // Value creates a new checker values of different types.
 func Value(t TestingT, value any) ValueChecker {
 	return ValueChecker{
@@ -29,15 +31,12 @@ func (c ValueChecker) Not() ValueChecker {
 // ToBeNil asserts that current value is nil.
 func (c ValueChecker) ToBeNil() {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value == nil,
-		func() {
-			c.ctx.Fail("Expected value to be nil\nGot: %v", c.value)
-		},
-		func() {
-			c.ctx.Fail("Expected a non nil value")
-		},
-	)
+	c.ctx.CheckExpectation(c.value == nil, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected value to be nil\nGot: %v", c.value)
+		}
+		return "Expected a non nil value"
+	})
 }
 
 // ToEqual asserts that current value is equal to an expected value.

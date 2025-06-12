@@ -1,5 +1,7 @@
 package expect
 
+import "gno.land/p/demo/ufmt"
+
 const (
 	MessageTypeCrossPanic MessageType = "cross panic"
 	MessageTypeError                  = "error"
@@ -30,13 +32,10 @@ func (c MessageChecker) Not() MessageChecker {
 // WithMessage asserts that a message is equal to an expected message.
 func (c MessageChecker) WithMessage(msg string) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.msg == msg,
-		func() {
-			c.ctx.Fail("Expected %s message to match\nGot: %s\nWant: %s", string(c.msgType), c.msg, msg)
-		},
-		func() {
-			c.ctx.Fail("Expected %s message to be different\nGot: %s", string(c.msgType), c.msg)
-		},
-	)
+	c.ctx.CheckExpectation(c.msg == msg, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected %s message to match\nGot: %s\nWant: %s", string(c.msgType), c.msg, msg)
+		}
+		return ufmt.Sprintf("Expected %s message to be different\nGot: %s", string(c.msgType), c.msg)
+	})
 }

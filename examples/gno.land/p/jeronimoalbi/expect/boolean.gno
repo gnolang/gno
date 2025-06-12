@@ -1,6 +1,10 @@
 package expect
 
-import "strconv"
+import (
+	"strconv"
+
+	"gno.land/p/demo/ufmt"
+)
 
 // NewBooleanChecker creates a new checker of boolean values
 func NewBooleanChecker(ctx Context, value bool) BooleanChecker {
@@ -22,45 +26,35 @@ func (c BooleanChecker) Not() BooleanChecker {
 // ToEqual asserts that current value is equal to an expected value.
 func (c BooleanChecker) ToEqual(v bool) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value == v,
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected values to match\nGot: %s\nWant: %s", got, strconv.FormatBool(v))
-		},
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be different\nGot: %s", got)
-		},
-	)
+	c.ctx.CheckExpectation(c.value == v, func(ctx Context) string {
+		got := c.format(c.value)
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected values to match\nGot: %s\nWant: %s", got, strconv.FormatBool(v))
+		}
+		return ufmt.Sprintf("Expected values to be different\nGot: %s", got)
+	})
 }
 
 // ToBeFalsy asserts that current value is falsy.
 func (c BooleanChecker) ToBeFalsy() {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		!c.value,
-		func() {
-			c.ctx.Fail("Expected value to be falsy")
-		},
-		func() {
-			c.ctx.Fail("Expected value not to be falsy")
-		},
-	)
+	c.ctx.CheckExpectation(!c.value, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return "Expected value to be falsy"
+		}
+		return "Expected value not to be falsy"
+	})
 }
 
 // ToBeTruthy asserts that current value is truthy.
 func (c BooleanChecker) ToBeTruthy() {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value,
-		func() {
-			c.ctx.Fail("Expected value to be truthy")
-		},
-		func() {
-			c.ctx.Fail("Expected value not to be truthy")
-		},
-	)
+	c.ctx.CheckExpectation(c.value, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return "Expected value to be truthy"
+		}
+		return "Expected value not to be truthy"
+	})
 }
 
 func (BooleanChecker) format(value bool) string {

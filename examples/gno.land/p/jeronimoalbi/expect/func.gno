@@ -1,5 +1,7 @@
 package expect
 
+import "gno.land/p/demo/ufmt"
+
 type (
 	// Fn defines a type for generic functions.
 	Fn = func()
@@ -55,15 +57,12 @@ func (c FuncChecker) ToFail() ErrorChecker {
 		return ErrorChecker{}
 	}
 
-	c.ctx.CheckExpectation(
-		err != nil,
-		func() {
-			c.ctx.Fail("Expected func to return an error")
-		},
-		func() {
-			c.ctx.Fail("Func failed with error\nGot: %s", err.Error())
-		},
-	)
+	c.ctx.CheckExpectation(err != nil, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return "Expected func to return an error"
+		}
+		return ufmt.Sprintf("Func failed with error\nGot: %s", err.Error())
+	})
 
 	return NewErrorChecker(c.ctx, err)
 }
@@ -117,15 +116,12 @@ func (c FuncChecker) ToPanic() MessageChecker {
 		return MessageChecker{}
 	}
 
-	c.ctx.CheckExpectation(
-		panicked,
-		func() {
-			c.ctx.Fail("Expected function to panic")
-		},
-		func() {
-			c.ctx.Fail("Expected func not to panic\nGot: %s", msg)
-		},
-	)
+	c.ctx.CheckExpectation(panicked, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return "Expected function to panic"
+		}
+		return ufmt.Sprintf("Expected func not to panic\nGot: %s", msg)
+	})
 
 	return NewMessageChecker(c.ctx, msg, MessageTypePanic)
 }
@@ -171,15 +167,12 @@ func (c FuncChecker) ToCrossPanic() MessageChecker {
 		return MessageChecker{}
 	}
 
-	c.ctx.CheckExpectation(
-		panicked,
-		func() {
-			c.ctx.Fail("Expected function to cross panic")
-		},
-		func() {
-			c.ctx.Fail("Expected func not to cross panic\nGot: %s", msg)
-		},
-	)
+	c.ctx.CheckExpectation(panicked, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return "Expected function to cross panic"
+		}
+		return ufmt.Sprintf("Expected func not to cross panic\nGot: %s", msg)
+	})
 
 	return NewMessageChecker(c.ctx, msg, MessageTypeCrossPanic)
 }

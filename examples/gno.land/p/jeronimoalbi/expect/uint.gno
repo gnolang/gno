@@ -1,6 +1,10 @@
 package expect
 
-import "strconv"
+import (
+	"strconv"
+
+	"gno.land/p/demo/ufmt"
+)
 
 // NewUintChecker creates a new checker of uint64 values.
 func NewUintChecker(ctx Context, value uint64) UintChecker {
@@ -22,80 +26,61 @@ func (c UintChecker) Not() UintChecker {
 // ToEqual asserts that current value is equal to an expected value.
 func (c UintChecker) ToEqual(value uint64) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value == value,
-		func() {
+	c.ctx.CheckExpectation(c.value == value, func(ctx Context) string {
+		if !ctx.IsNegated() {
 			got := c.format(c.value)
-			c.ctx.Fail("Expected values to match\nGot: %s\nWant: %s", got, c.format(value))
-		},
-		func() {
-			c.ctx.Fail("Expected value to be different\nGot: %s", c.format(c.value))
-		},
-	)
+			return ufmt.Sprintf("Expected values to match\nGot: %s\nWant: %s", got, c.format(value))
+		}
+		return ufmt.Sprintf("Expected value to be different\nGot: %s", c.format(c.value))
+	})
 }
 
 // ToBeGreaterThan asserts that current value is greater than an expected value.
 func (c UintChecker) ToBeGreaterThan(value uint64) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value > value,
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be gerater than %s\nGot: %s", c.format(value), got)
-		},
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be greater than %s\nGot: %s", c.format(value), got)
-		},
-	)
+	c.ctx.CheckExpectation(c.value > value, func(ctx Context) string {
+		got := c.format(c.value)
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected values to be gerater than %s\nGot: %s", c.format(value), got)
+		}
+		return ufmt.Sprintf("Expected value to not to be greater than %s\nGot: %s", c.format(value), got)
+	})
 }
 
 // ToBeGreaterOrEqualThan asserts that current value is greater or equal than an expected value.
 func (c UintChecker) ToBeGreaterOrEqualThan(value uint64) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value >= value,
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be greater or equal than %s\nGot: %s", c.format(value), got)
-		},
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be greater or equal than %s\nGot: %s", c.format(value), got)
-		},
-	)
+	c.ctx.CheckExpectation(c.value >= value, func(ctx Context) string {
+		got := c.format(c.value)
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected values to be greater or equal than %s\nGot: %s", c.format(value), got)
+		}
+		return ufmt.Sprintf("Expected value to not to be greater or equal than %s\nGot: %s", c.format(value), got)
+	})
 }
 
 // ToBeLowerThan asserts that current value is lower than an expected value.
 func (c UintChecker) ToBeLowerThan(value uint64) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value < value,
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be lower than %s\nGot: %s", c.format(value), got)
-		},
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be lower than %s\nGot: %s", c.format(value), got)
-		},
-	)
+	c.ctx.CheckExpectation(c.value < value, func(ctx Context) string {
+		got := c.format(c.value)
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected values to be lower than %s\nGot: %s", c.format(value), got)
+		}
+		return ufmt.Sprintf("Expected value to not to be lower than %s\nGot: %s", c.format(value), got)
+	})
 }
 
 // ToBeLowerOrEqualThan asserts that current value is lower or equal than an expected value.
 func (c UintChecker) ToBeLowerOrEqualThan(value uint64) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value <= value,
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected values to be lower or equal than %s\nGot: %s", c.format(value), got)
-		},
-		func() {
-			got := c.format(c.value)
-			c.ctx.Fail("Expected value to not to be lower or equal than %s\nGot: %s", c.format(value), got)
-		},
-	)
+	c.ctx.CheckExpectation(c.value <= value, func(ctx Context) string {
+		got := c.format(c.value)
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected values to be lower or equal than %s\nGot: %s", c.format(value), got)
+		}
+		return ufmt.Sprintf("Expected value to not to be lower or equal than %s\nGot: %s", c.format(value), got)
+	})
 }
 
 func (UintChecker) format(value uint64) string {

@@ -3,7 +3,8 @@ package expect
 import (
 	"errors"
 	"std"
-	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
 // ErrIncompatibleType indicates that a value can't be casted to a different type.
@@ -29,47 +30,35 @@ func (c StringChecker) Not() StringChecker {
 // ToEqual asserts that current value is equal to an expected value.
 func (c StringChecker) ToEqual(v string) {
 	c.ctx.t().Helper()
-	c.ctx.CheckExpectation(
-		c.value == v,
-		func() {
-			c.ctx.Fail("Expected values to match\nGot: %s\nWant: %s", c.value, v)
-		},
-		func() {
-			c.ctx.Fail("Expected values to be different\nGot: %s", c.value)
-		},
-	)
+	c.ctx.CheckExpectation(c.value == v, func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected values to match\nGot: %s\nWant: %s", c.value, v)
+		}
+		return ufmt.Sprintf("Expected values to be different\nGot: %s", c.value)
+	})
 }
 
 // ToBeEmpty asserts that current value is an empty string.
 func (c StringChecker) ToBeEmpty() {
 	c.ctx.t().Helper()
-
-	got := strings.TrimSpace(c.value)
-	c.ctx.CheckExpectation(
-		got == "",
-		func() {
-			c.ctx.Fail("Expected string to be empty\nGot: %s", got)
-		},
-		func() {
-			c.ctx.Fail("Unexpected empty string")
-		},
-	)
+	c.ctx.CheckExpectation(c.value == "", func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected string to be empty\nGot: %s", c.value)
+		}
+		return ufmt.Sprintf("Unexpected empty string")
+	})
 }
 
 // ToHaveLength asserts that current value has an expected length.
 func (c StringChecker) ToHaveLength(length int) {
 	c.ctx.t().Helper()
-
-	got := len(c.value)
-	c.ctx.CheckExpectation(
-		got == length,
-		func() {
-			c.ctx.Fail("Expected string length to match\nGot: %d\nWant: %d", got, length)
-		},
-		func() {
-			c.ctx.Fail("Expected string lengths to be different\nGot: %d", got)
-		},
-	)
+	c.ctx.CheckExpectation(len(c.value) == length, func(ctx Context) string {
+		got := len(c.value)
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected string length to match\nGot: %d\nWant: %d", got, length)
+		}
+		return ufmt.Sprintf("Expected string lengths to be different\nGot: %d", got)
+	})
 }
 
 // Stringer defines an interface for values that has a String method.

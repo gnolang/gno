@@ -1,5 +1,7 @@
 package expect
 
+import "gno.land/p/demo/ufmt"
+
 // NewErrorChecker creates a new checker of errors.
 func NewErrorChecker(ctx Context, err error) ErrorChecker {
 	return ErrorChecker{ctx, err}
@@ -41,13 +43,10 @@ func (c ErrorChecker) WithError(err error) {
 	}
 
 	got := c.err.Error()
-	c.ctx.CheckExpectation(
-		got == err.Error(),
-		func() {
-			c.ctx.Fail("Expected errors to match\nGot: %s\nWant: %s", got, err.Error())
-		},
-		func() {
-			c.ctx.Fail("Expected errors to be different\nGot: %s", got)
-		},
-	)
+	c.ctx.CheckExpectation(got == err.Error(), func(ctx Context) string {
+		if !ctx.IsNegated() {
+			return ufmt.Sprintf("Expected errors to match\nGot: %s\nWant: %s", got, err.Error())
+		}
+		return ufmt.Sprintf("Expected errors to be different\nGot: %s", got)
+	})
 }

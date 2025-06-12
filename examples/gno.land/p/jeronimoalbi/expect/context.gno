@@ -6,6 +6,8 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+const defaultAssertFailMsg = "assert expectation failed"
+
 // NewContext creates a new testing context.
 func NewContext(t TestingT) Context {
 	return Context{tt: t}
@@ -18,16 +20,21 @@ type Context struct {
 	prefix  string
 }
 
-// CheckExpectation checks an assert expectation and calls one callback on fail.
-// First callback is called when a non negated expectation fails.
-// Otherwise second callback is called when a negated one fails.
-func (c Context) CheckExpectation(success bool, fn, fnNot func()) {
-	if !success && !c.negated {
-		//  Expectation failed
-		fn()
-	} else if success && c.negated {
-		// Negated expectation failed
-		fnNot()
+// IsNegated checks if current context negates current assert expectations.
+func (c Context) IsNegated() bool {
+	return c.negated
+}
+
+// CheckExpectation checks an assert expectation and calls a callback on fail.
+// Callback is called when a negated assertion succeeds or when non negated assertion fails.
+func (c Context) CheckExpectation(success bool, cb func(Context) string) {
+	if failed := (c.negated && success) || (!c.negated && !success); failed {
+		msg := cb(c)
+		if strings.TrimSpace(msg) == "" {
+			msg = defaultAssertFailMsg
+		}
+
+		c.Fail(msg)
 	}
 }
 
