@@ -13,49 +13,6 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-// TestParsePunctuation verifies that certain ASCII punctuation characters
-// (brackets, commas) are lexed as separate tokens, even when they're
-// surrounded by identifier characters.
-func TestParsePunctuation(t *testing.T) {
-	t.Skip("we're not using the require statement anymore with gno.mod files.")
-	for _, test := range []struct {
-		desc, src, want string
-	}{
-		{"paren", "require ()", "require ( )"},
-		{"brackets", "require []{},", "require [ ] { } ,"},
-		{"mix", "require a[b]c{d}e,", "require a [ b ] c { d } e ,"},
-		{"block_mix", "require (\n\ta[b]\n)", "require ( a [ b ] )"},
-		{"interval", "require [v1.0.0, v1.1.0)", "require [ v1.0.0 , v1.1.0 )"},
-	} {
-		t.Run(test.desc, func(t *testing.T) {
-			f, err := parseDeprecatedDotModBytes("gno.mod", []byte(test.src))
-			if err != nil {
-				t.Fatalf("parsing %q: %v", test.src, err)
-			}
-			var tokens []string
-			for _, stmt := range f.Syntax.Stmt {
-				switch stmt := stmt.(type) {
-				case *modfile.Line:
-					tokens = append(tokens, stmt.Token...)
-				case *modfile.LineBlock:
-					tokens = append(tokens, stmt.Token...)
-					tokens = append(tokens, "(")
-					for _, line := range stmt.Line {
-						tokens = append(tokens, line.Token...)
-					}
-					tokens = append(tokens, ")")
-				default:
-					t.Fatalf("parsing %q: unexpected statement of type %T", test.src, stmt)
-				}
-			}
-			got := strings.Join(tokens, " ")
-			if got != test.want {
-				t.Errorf("parsing %q: got %q, want %q", test.src, got, test.want)
-			}
-		})
-	}
-}
-
 var modulePathTests = []struct {
 	input    []byte
 	expected string
