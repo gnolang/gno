@@ -127,11 +127,8 @@ func parseConfig(args []string) (*Config, *flag.FlagSet, error) {
 	fs := flag.NewFlagSet("makefile-help", flag.ContinueOnError)
 
 	fs.StringVar(&cfg.RelativeTo, "relative-to", "", "base path for sub‑directory commands")
-	fs.StringVar(&cfg.RelativeTo, "r", "", "shorthand for --relative-to")
 	fs.Var(&cfg.Dirs, "dir", "directory to scan for Makefiles (repeatable)")
-	fs.Var(&cfg.Dirs, "d", "shorthand for --dir")
 	fs.Var(&cfg.Wildcards, "wildcard", "value to substitute for '%' in targets (repeatable)")
-	fs.Var(&cfg.Wildcards, "w", "shorthand for --wildcard")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, fs, err

@@ -43,7 +43,7 @@ DIR_OFFSET_OPT    = $(if $(filter $(PWD),$(CURDIR)),,$(patsubst $(patsubst %/,%,
 ##   $(call RUN_MAKEFILE_HELP, ../, foo bar)
 RUN_MAKEFILE_HELP = \
     go run $(if $(filter-out . ./,$(1)),$(patsubst %/,%,$(1))/,)misc/makehelp/makefile_help.go \
-        $(if $(DIR_OFFSET_OPT),-r "$(DIR_OFFSET_OPT)",) \
-        $(foreach makeDir,$(patsubst %/Makefile,%,$(wildcard */Makefile)),-d "$(makeDir)") \
-        $(foreach wildCardValue,$(2),-w "$(wildCardValue)") \
+        $(if $(DIR_OFFSET_OPT),-relative-to "$(DIR_OFFSET_OPT)",) \
+        $(foreach makeDir,$(patsubst %/Makefile,%,$(wildcard */Makefile)),-dir "$(makeDir)") \
+        $(foreach wildCardValue,$(2),-wildcard "$(wildCardValue)") \
         Makefile
