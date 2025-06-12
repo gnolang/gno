@@ -90,10 +90,10 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 	var modDirs []string
 
 	rd, err := gnomod.FindRootDir(wd)
-	if err != nil && !errors.Is(err, gnomod.ErrModFileNotFound) {
+	if err != nil && !errors.Is(err, gnomod.ErrNoModFile) {
 		return fmt.Errorf("cannot determine root dir: %w", err)
 	}
-	if !errors.Is(err, gnomod.ErrModFileNotFound) {
+	if !errors.Is(err, gnomod.ErrNoModFile) {
 		modDirs = append(modDirs, rd)
 	}
 

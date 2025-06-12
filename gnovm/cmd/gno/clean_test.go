@@ -25,7 +25,7 @@ func TestCleanApp(t *testing.T) {
 			args:                 []string{"clean"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldBe:          "not a gno module: gnomod.toml file not found in current or any parent directory",
+			errShouldBe:          "not a gno module: gnomod.toml doesn't exist",
 		},
 		{
 			args:                 []string{"clean"},

@@ -71,7 +71,7 @@ func TestFindRootDir(t *testing.T) {
 		{
 			name:        "no mod file found",
 			path:        subdir5,
-			expectedErr: ErrModFileNotFound.Error(),
+			expectedErr: ErrNoModFile.Error(),
 		},
 		{
 			name:        "non-absolute path",
@@ -86,7 +86,7 @@ func TestFindRootDir(t *testing.T) {
 		{
 			name:        "root directory",
 			path:        "/",
-			expectedErr: ErrModFileNotFound.Error(),
+			expectedErr: ErrNoModFile.Error(),
 		},
 		{
 			name:        "current directory with dot",
@@ -170,7 +170,7 @@ func TestFindRootDir(t *testing.T) {
 			// Try to find root from the symlink directory
 			_, err = FindRootDir(symlinkDir)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), ErrModFileNotFound.Error())
+			assert.Contains(t, err.Error(), ErrNoModFile.Error())
 		})
 	})
 }
