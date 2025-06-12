@@ -10,22 +10,27 @@ const defaultAssertFailMsg = "assert expectation failed"
 
 // NewContext creates a new testing context.
 func NewContext(t TestingT) Context {
-	return Context{tt: t}
+	return Context{t: t}
 }
 
 // Context preserves the current testing context.
 type Context struct {
-	tt      TestingT
+	t       TestingT
 	negated bool
 	prefix  string
 }
 
 // T returns context's testing T instance.
 func (c Context) T() TestingT {
-	if c.tt == nil {
+	if c.t == nil {
 		panic("expect: context is not initialized")
 	}
-	return c.tt
+	return c.t
+}
+
+// Prefix returns context's error prefix.
+func (c Context) Prefix() string {
+	return c.prefix
 }
 
 // IsNegated checks if current context negates current assert expectations.
@@ -34,9 +39,11 @@ func (c Context) IsNegated() bool {
 }
 
 // CheckExpectation checks an assert expectation and calls a callback on fail.
+// It returns true when the asserted expectation fails.
 // Callback is called when a negated assertion succeeds or when non negated assertion fails.
-func (c Context) CheckExpectation(success bool, cb func(Context) string) {
-	if failed := (c.negated && success) || (!c.negated && !success); failed {
+func (c Context) CheckExpectation(success bool, cb func(Context) string) bool {
+	failed := (c.negated && success) || (!c.negated && !success)
+	if failed {
 		msg := cb(c)
 		if strings.TrimSpace(msg) == "" {
 			msg = defaultAssertFailMsg
@@ -44,6 +51,7 @@ func (c Context) CheckExpectation(success bool, cb func(Context) string) {
 
 		c.Fail(msg)
 	}
+	return failed
 }
 
 // Fail makes the current test fail with a custom message.
@@ -52,7 +60,7 @@ func (c Context) Fail(msg string, args ...any) {
 		msg = c.prefix + " - " + msg
 	}
 
-	c.tt.Fatalf(msg, args...)
+	c.t.Fatalf(msg, args...)
 }
 
 // TestingT defines a minimal interface for `testing.T` instances.
