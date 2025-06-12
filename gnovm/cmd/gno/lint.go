@@ -163,9 +163,37 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			pgs := prodgs.BeginTransaction(pcw, pcw, nil)
 			return pgs
 		}
-		newTestGnoStore := func() gno.Store {
+		injectTmpkg := func(tgs gno.Store) {
+			// NOTE: if we don't do it lazily like this, otherwise there
+			// needs to be a hook from original store creation
+			// (complicated), or, if not done lazily we won't get the Go
+			// typecheck error we prefer.
+			tgetter := tgs.GetPackageGetter()
+			tgs.SetPackageGetter(func(pkgPath string, store gno.Store) (
+				*gno.PackageNode, *gno.PackageValue,
+			) {
+				if pkgPath == mpkg.Path {
+					tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
+					m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+						PkgPath:     pkgPath,
+						Output:      goio.Discard,
+						Store:       tgs,
+						SkipPackage: true,
+					})
+					m2.Store.AddMemPackage(tmpkg, gno.MPAny)
+					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
+						gno.ParseMemPackage(tmpkg, gno.MPTest), true, true, "")
+				} else {
+					return tgetter(pkgPath, store)
+				}
+			})
+		}
+		newTestGnoStore := func(withTmpkg bool) gno.Store {
 			tcw := testbs.CacheWrap()
 			tgs := testgs.BeginTransaction(tcw, tcw, nil)
+			if withTmpkg {
+				injectTmpkg(tgs)
+			}
 			return tgs
 		}
 
@@ -189,7 +217,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				if cmd.autoGnomod {
 					tcmode = gno.TCLatestRelaxed
 				}
-				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(), gno.TypeCheckOptions{
+				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(true), gno.TypeCheckOptions{
 					Mode:  tcmode,
 					Cache: tccache,
 				})
@@ -206,9 +234,12 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false)
 			defer tm.Release()
 
-			// LINT STEP 4: re-parse
+			// LINT STEP 4: re-parse for preprocessor.
+			// While lintTypeCheck > TypeCheckMemPackage will find
+			// most issues, the preprocessor may have additional
+			// checks.
 			// Gno parse source fileset and test filesets.
-			_, fset, _tests, ftests := sourceAndTestFileset(mpkg, false)
+			_, fset, tfset, _tests, ftests := sourceAndTestFileset(mpkg, false)
 
 			{
 				// LINT STEP 5: PreprocessFiles()
@@ -216,20 +247,20 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tm.Store = newProdGnoStore()
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false, "")
-				ppkg.AddNormal(pn, fset)
+				ppkg.AddProd(pn, fset)
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
 				// Preprocess fset files (w/ some *_test.gno).
-				tm.Store = newTestGnoStore()
+				tm.Store = newTestGnoStore(false)
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false, "")
-				ppkg.AddNormal(pn, fset)
+					mpkg.Name, mpkg.Path, tfset, false, false, "")
+				ppkg.AddTest(pn, fset)
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
 				// Preprocess _test files (all xxx_test *_test.gno).
-				tm.Store = newTestGnoStore()
+				tm.Store = newTestGnoStore(true)
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, "")
 				ppkg.AddUnderscoreTests(pn, _tests)
@@ -238,7 +269,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// LINT STEP 5: PreprocessFiles()
 				// Preprocess _filetest.gno files.
 				for i, fset := range ftests {
-					tm.Store = newTestGnoStore()
+					tm.Store = newTestGnoStore(true)
 					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)

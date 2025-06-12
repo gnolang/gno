@@ -118,7 +118,12 @@ func ReadPkgListFromDir(dir string, mptype MemPackageType) (gnomod.PkgList, erro
 			// ignore imports on error
 			importsMap = nil
 		}
-		importsRaw := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+		importsRaw := importsMap.Merge(
+			packages.FileKindFiletest,
+			packages.FileKindPackageSource,
+			packages.FileKindTest,
+			packages.FileKindXTest,
+		)
 
 		imports := make([]string, 0, len(importsRaw))
 		for _, imp := range importsRaw {

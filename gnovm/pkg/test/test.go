@@ -162,7 +162,6 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 		RootDir: rootDir,
 		Output:  stdout,
 		Error:   stderr,
-		Cache:   gno.TypeCheckCache{},
 	}
 	opts.BaseStore, opts.TestStore = StoreWithOptions(
 		rootDir, opts.WriterForStore(), StoreOptions{
@@ -225,21 +224,38 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	// Create a common tcw/tgs for both the `pkg` tests as well as the
+	// `pkg_test` tests. This allows us to "export" symbols from the pkg
+	// tests and import them from the `pkg_test` tests.
+	tcw := opts.BaseStore.CacheWrap()
+	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil)
+
 	// Let opts.TestStore load itself.
 	// This needs to happen before LoadImports, as LoadImports will
 	// otherwise only load without *_test.gno files (but we want them for
 	// mpkg since we're running tests on them).
-	opts.TestStore.AddMemPackage(mpkg, gno.MPAny)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: mpkg.Path,
 		Output:  os.Stdout,
-		Store:   opts.TestStore,
+		Store:   tgs,
+		Context: Context("", mpkg.Path, nil),
+		// When testing examples we will find them, so pv, pn, file
+		// block nodes would otherwise become set, but for running
+		// tests on packages not known by the store, it will construct
+		// new packages by default, which we don't want.  Instead we
+		// will run the mempackage ourselves in the next line.
+		SkipPackage: true,
 	})
-	_, _ = m2.RunMemPackageWithOverrides(mpkg, true)
+	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
+	// If testing with only filetests, there will be no files.
+	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
+	if !tmpkg.IsEmptyOf(".gno") {
+		_, _ = m2.RunMemPackageWithOverrides(tmpkg, true)
+	}
 
 	// Eagerly load imports.
 	abortOnError := true
-	if err := LoadImports(opts.TestStore, mpkg, abortOnError); err != nil {
+	if err := LoadImports(tgs, mpkg, abortOnError); err != nil {
 		return err
 	}
 
@@ -250,15 +266,9 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
-		// Create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
-		// tests. This allows us to "export" symbols from the pkg tests and
-		// import them from the `pkg_test` tests.
-		cw := opts.BaseStore.CacheWrap()
-		gs := opts.TestStore.BeginTransaction(cw, cw, nil)
-
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(mpkg, tset, gs)
+			err := opts.runTestFiles(mpkg, tset, tgs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -273,7 +283,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, gs)
+			err := opts.runTestFiles(itPkg, itset, tgs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -298,7 +308,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
 			}
 
-			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
+			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body), tgs)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
 				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
@@ -324,10 +334,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	return errs
 }
 
+// Not the same as pkg/test/filetest runFiletests().
 func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,
-	gs gno.TransactionStore,
+	tgs gno.TransactionStore,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -353,12 +364,12 @@ func (opts *TestOptions) runTestFiles(
 	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(gs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
-	if gs.GetMemPackage(mpkg.Path) == nil {
+	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, true)
 	} else {
-		m.SetActivePackage(gs.GetPackage(mpkg.Path, false))
+		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))
 	}
 	pv := m.Package
 
@@ -374,7 +385,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(gs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 

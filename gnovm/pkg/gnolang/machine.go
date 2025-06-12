@@ -80,6 +80,7 @@ type MachineOptions struct {
 	MaxAllocBytes int64      // or 0 for no limit.
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
+	SkipPackage   bool // don't get/set package or realm.
 }
 
 // the machine constructor gets spammed
@@ -116,8 +117,23 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		// bare store, no stdlibs.
 		store = NewStore(alloc, nil, nil)
 	}
-	pv := (*PackageValue)(nil)
-	if opts.PkgPath != "" {
+	// Get machine from pool.
+	mm := machinePool.Get().(*Machine)
+	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+	}
+	mm.Output = output
+	mm.Store = store
+	mm.Context = opts.Context
+	mm.GasMeter = vmGasMeter
+	mm.Debugger.enabled = opts.Debug
+	mm.Debugger.in = opts.Input
+	mm.Debugger.out = output
+	mm.ReviveEnabled = opts.ReviveEnabled
+	// Maybe get/set package and realm.
+	if !opts.SkipPackage && opts.PkgPath != "" {
+		pv := (*PackageValue)(nil)
 		pv = store.GetPackage(opts.PkgPath, false)
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
@@ -126,25 +142,10 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
-	}
-	context := opts.Context
-	mm := machinePool.Get().(*Machine)
-	mm.Package = pv
-	mm.Alloc = alloc
-	if mm.Alloc != nil {
-		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
-	}
-	mm.Output = output
-	mm.Store = store
-	mm.Context = context
-	mm.GasMeter = vmGasMeter
-	mm.Debugger.enabled = opts.Debug
-	mm.Debugger.in = opts.Input
-	mm.Debugger.out = output
-	mm.ReviveEnabled = opts.ReviveEnabled
-
-	if pv != nil {
-		mm.SetActivePackage(pv)
+		mm.Package = pv
+		if pv != nil {
+			mm.SetActivePackage(pv)
+		}
 	}
 	return mm
 }
@@ -197,7 +198,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
-		fset := ParseMemPackage(mpkg)
+		fset := ParseMemPackage(mpkg, MPProd)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -251,7 +252,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// sort mpkg.
 	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackage(mpkg)
+	files := ParseMemPackage(mpkg, MPProd)
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)

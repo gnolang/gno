@@ -343,15 +343,16 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 
 			// FIX STEP 5: re-parse
 			// Gno parse source fileset and test filesets.
-			_, fset, _tests, ftests := sourceAndTestFileset(mpkg, cmd.filetestsOnly)
-
+			// The second result `fset` is ignored because we're
+			// not interested in type-check veracity (but lint is).
+			_, _, tfset, _tests, ftests := sourceAndTestFileset(mpkg, cmd.filetestsOnly)
 			{
 				// FIX STEP 6: PreprocessFiles()
-				// Preprocess fset files (w/ some *_test.gno).
+				// Preprocess tfset files (w/ some *_test.gno).
 				tm.Store = newTestGnoStore()
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false, gno.GnoVerMissing)
-				ppkg.AddNormal(pn, fset)
+					mpkg.Name, mpkg.Path, tfset, false, false, gno.GnoVerMissing)
+				ppkg.AddTest(pn, tfset)
 
 				// FIX STEP 7: FindXforms():
 				// FindXforms for all files if outdated.
@@ -359,13 +360,13 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 				// transformations needed to be done.
 				// They are collected in
 				// pn.GetAttribute("XREALMFORM")
-				for _, fn := range fset.Files {
+				for _, fn := range tfset.Files {
 					gno.FindXformsGno0p9(tm.Store, pn, fn)
 					gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 				}
 				for { // continue to find more until exhausted.
 					xnewSum := 0
-					for _, fn := range fset.Files {
+					for _, fn := range tfset.Files {
 						xnew := gno.FindMoreXformsGno0p9(tm.Store, pn, pn, fn)
 						xnewSum += xnew
 					}
@@ -482,7 +483,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			err = gno.TranspileGno0p9(mpkg, dir, pn, fset.GetFileNames(), xforms1)
 			return err
 		}
-		err = transpileProcessedFileSet(ppkg.normal)
+		err = transpileProcessedFileSet(ppkg.test)
 		if err != nil {
 			return err
 		}

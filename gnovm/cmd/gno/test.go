@@ -267,8 +267,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
-		// Read MemPackage with all *_test.gno files.
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPTest)
+		// Read MemPackage with all files.
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAll)
 
 		var didPanic, didError bool
 		startedAt := time.Now()
@@ -289,6 +289,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			}
+			///////////////////////////////////
 			// Run the tests found in the mpkg.
 			errs := test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {

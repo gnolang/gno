@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -42,15 +43,17 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 		return nil, err
 	}
 
-	mempkg, err := gnolang.ReadMemPackage(dir, path)
+	mempkg, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAll)
 	switch {
 	case err == nil: // ok
 	case os.IsNotExist(err):
 		return nil, ErrResolverPackageNotFound
-	case mempkg.IsEmpty(): // XXX: should check an internal error instead
-		return nil, ErrResolverPackageSkip
 	default:
 		return nil, fmt.Errorf("unable to read package %q: %w", dir, err)
+	}
+
+	if mempkg == nil || mempkg.IsEmpty() { // XXX: should check an internal error instead
+		return nil, ErrResolverPackageSkip
 	}
 
 	if err := validateMemPackage(fset, mempkg); err != nil {
@@ -71,7 +74,7 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 
 	// Validate package name
 	for _, file := range mempkg.Files {
-		if !isGnoFile(file.Name) || isTestFile(file.Name) {
+		if !isGnoFile(file.Name) {
 			continue
 		}
 
@@ -80,7 +83,12 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 			return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
 
-		if f.Name.Name != mempkg.Name {
+		if strings.HasSuffix(file.Name, "_filetest.gno") {
+			continue
+		}
+
+		pname := strings.TrimSuffix(f.Name.Name, "_test")
+		if pname != mempkg.Name {
 			return fmt.Errorf("%q package name conflict, expected %q found %q",
 				mempkg.Path, mempkg.Name, f.Name.Name)
 		}
@@ -95,7 +103,7 @@ func isMemPackageEmpty(mempkg *std.MemPackage) bool {
 	}
 
 	for _, file := range mempkg.Files {
-		if isGnoFile(file.Name) || file.Name == "gno.mod" {
+		if isGnoFile(file.Name) {
 			return false
 		}
 	}

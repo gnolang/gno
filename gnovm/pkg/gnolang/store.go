@@ -38,6 +38,7 @@ type NativeResolver func(pkgName string, name Name) func(m *Machine)
 type Store interface {
 	// STABLE
 	BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore
+	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
@@ -208,15 +209,13 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 	return transactionStore{ds2}
 }
 
-type transactionStore struct{ *defaultStore }
+type transactionStore struct {
+	*defaultStore
+}
 
 func (t transactionStore) Write() {
 	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
-}
-
-func (transactionStore) SetPackageGetter(pg PackageGetter) {
-	panic("SetPackageGetter may not be called in a transaction store")
 }
 
 // XXX: we should block Go2GnoType, because it uses a global cache map;
@@ -256,6 +255,11 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
+}
+
+// Used by cmd/gno (e.g. lint) to inject target package as MPTest.
+func (ds *defaultStore) GetPackageGetter() (pg PackageGetter) {
+	return ds.pkgGetter
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
@@ -330,6 +334,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 }
 
 // Used to set throwaway packages.
+// NOTE: To check whether a mem package has been run, use GetMemPackage()
+// instead of implementing HasCachePackage().
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	oid := ObjectIDFromPkgPath(pv.PkgPath)
 	if _, exists := ds.cacheObjects[oid]; exists {

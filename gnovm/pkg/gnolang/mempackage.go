@@ -1,7 +1,10 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
+	"go/ast"
+	gofmt "go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -81,7 +84,9 @@ func (mpfilter MemPackageFilter) Validate() {
 	}
 }
 
-func (mpfilter MemPackageFilter) FilterGno(fname string) bool {
+func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool {
+	fname := mfile.Name
+	fbody := mfile.Body
 	if !strings.HasSuffix(fname, ".gno") {
 		panic("should not happen")
 	}
@@ -91,7 +96,14 @@ func (mpfilter MemPackageFilter) FilterGno(fname string) bool {
 	case MPFProd:
 		return endsWithAny(fname, []string{"_test.gno", "_filetest.gno"})
 	case MPFTest:
-		return endsWithAny(fname, []string{"_test.gno"})
+		if endsWithAny(fname, []string{"_filetest.gno"}) {
+			return true
+		}
+		pname2, err := PackageNameFromFileBody(fname, fbody)
+		if err != nil {
+			panic(err)
+		}
+		return pname2 != pname
 	default:
 		panic("should not happen")
 	}
@@ -129,6 +141,9 @@ func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageTyp
 
 // NOTE: only filters .gno files.
 func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.MemPackage {
+	if mpkg == nil {
+		return nil
+	}
 	mpkg2 := &std.MemPackage{
 		Name:  mpkg.Name,
 		Path:  mpkg.Path,
@@ -140,7 +155,7 @@ func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.Mem
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			// just copy non-gno files.
 			mpkg2.Files = append(mpkg2.Files, mfile.Copy())
-		} else if mpfilter.FilterGno(mfile.Name) {
+		} else if mpfilter.FilterGno(mfile, Name(mpkg.Name)) {
 			continue
 		} else {
 			mpkg2.Files = append(mpkg2.Files, mfile.Copy())
@@ -223,7 +238,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 		return endsWithAny(fname, []string{"_test.gno", "_filetest.gno"})
 	case MPTest:
 		// exclude filetest files, and xxx_test package names.
-		return endsWithAny(fname, []string{"_test.gno"}) ||
+		return endsWithAny(fname, []string{"_filetest.gno"}) ||
 			endsWithAny(string(pname), []string{"_test"})
 	default:
 		panic("should not happen")
@@ -235,7 +250,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // MemPackage will contain the names and content of all *.gno files, and
 // additionally README.md, LICENSE.
 //
-// ReadMemPackage only reads good file extentions or whitelisted good files,
+// ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
 // are found, but otherwise new files may be added by various logic. It also
 // ignores and does not include files that wouldn't pass validation before any
@@ -296,7 +311,7 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 // pkgPath, containing the contents of all the files provided in the list
 // slice.
 //
-// ReadMemPackageFromList only reads good file extentions or whitelisted good
+// ReadMemPackageFromList only reads good file extensions or whitelisted good
 // files, and ignores bad file extensions. Validation will fail if any bad
 // extensions are found, but otherwise new files may be added by various logic.
 // It also ignores and does not include files that wouldn't pass validation
@@ -397,19 +412,21 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 		return nil, fmt.Errorf("package has no files")
 	}
 	// Verify/derive package name.
-	switch mptype {
-	case MPFiletests:
-		// If only filetests with the same name, its package name is used.
-		if pkgName == "" && !pkgNameDiffers && !pkgNameFTDiffers {
-			pkgName = pkgNameFT
-		} else {
-			// Otherwie, set a default one. It doesn't matter.
-			pkgName = "filetests"
-		}
-	default:
-		// If pkgNameDiffers, return mpkg and the errors.
-		if mptype != MPFiletests && pkgNameDiffers {
-			return nil, errs
+	if pkgName == "" {
+		switch mptype {
+		case MPFiletests, MPAll: // MPAll from Test_Scripts gno test.
+			// If only filetests with the same name, its package name is used.
+			if !pkgNameDiffers && !pkgNameFTDiffers {
+				pkgName = pkgNameFT
+			} else {
+				// Otherwie, set a default one. It doesn't matter.
+				pkgName = "filetests"
+			}
+		default:
+			// If pkgNameDiffers, return mpkg and the errors.
+			if mptype != MPFiletests && pkgNameDiffers {
+				return nil, errs
+			}
 		}
 	}
 	// Still no pkgName or invalid; ensure error.
@@ -434,17 +451,13 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 	return pkg
 }
 
-// ParseMemPackage executes [ParseFile] on each file of the mpkg, excluding
-// test and spurious (non-gno) files. The resulting *FileSet is returned.
+// ParseMemPackage executes [ParseFile] on each file of the mpkg, with files
+// filtered based on mptype (regardless of mpkg.Type).  The resulting *FileSet
+// is returned.
 //
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	return ParseMemPackageAsType(mpkg, MPProd)
-}
-
-// Regardless of mpkg.Type, mptype dictates what files are parsed of mpkg.
-func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
+func ParseMemPackage(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate()
 	fset = &FileSet{}
@@ -675,4 +688,45 @@ func MustPackageNameFromFileBody(name, body string) Name {
 		panic(err)
 	}
 	return pkgName
+}
+
+// ========================================
+// WriteToMemPackage writes Go AST to a mempackage
+// This is useful for preparing prior version code for the preprocessor.
+func WriteToMemPackage(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage, create bool) error {
+	for _, gof := range gofs {
+		fpath := gofset.File(gof.Pos()).Name()
+		_, fname := filepath.Split(fpath)
+		if strings.HasPrefix(fname, ".") {
+			// Hidden files like .gnobuiltins.gno that
+			// start with a dot should not get written to
+			// the mempackage.
+			continue
+		}
+		mfile := mpkg.GetFile(fname)
+		if mfile == nil {
+			if create {
+				mfile = mpkg.NewFile(fname, "")
+			} else {
+				return fmt.Errorf("missing memfile %q", mfile)
+			}
+		}
+		err := WriteToMemFile(gofset, gof, mfile)
+		if err != nil {
+			return fmt.Errorf("writing to mempackage %q: %w",
+				mpkg.Path, err)
+		}
+	}
+	return nil
+}
+
+func WriteToMemFile(gofset *token.FileSet, gof *ast.File, mfile *std.MemFile) error {
+	var buf bytes.Buffer
+	err := gofmt.Node(&buf, gofset, gof)
+	if err != nil {
+		return fmt.Errorf("writing to memfile %q: %w",
+			mfile.Name, err)
+	}
+	mfile.Body = buf.String()
+	return nil
 }

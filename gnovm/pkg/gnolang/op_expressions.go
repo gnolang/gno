@@ -650,10 +650,9 @@ func (m *Machine) doOpFuncLit() {
 	// to *FuncValue. Later during doOpCall a block
 	// will be created that copies these values for
 	// every invocation of the function.
-	var captures []TypedValue
+	captures := make([]TypedValue, 0, len(x.HeapCaptures))
 	if m.Stage == StagePre {
 		// TODO static block items aren't heap items.
-		captures = append(captures, make([]TypedValue, len(x.HeapCaptures))...)
 	} else {
 		for _, nx := range x.HeapCaptures {
 			ptr := lb.GetPointerToDirect(m.Store, nx.Path)
