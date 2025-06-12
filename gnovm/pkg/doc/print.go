@@ -184,7 +184,7 @@ func (pkg *pkgPrinter) oneLineNodeDepthJSON(node any, depth int) string {
 				typ = "struct{ ... }"
 			}
 		} else if n.Kind == interfaceKind {
-			if len(n.Methods) == 0 {
+			if len(n.InterElems) == 0 {
 				typ = "interface{}"
 			} else {
 				typ = "interface{ ... }"
@@ -515,18 +515,23 @@ func (pkg *pkgPrinter) valueDoc(value *JSONValueDecl, printed map[*JSONValueDecl
 // related to it.
 func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 	if typ.Kind == interfaceKind {
-		saveMethodCount := len(typ.Methods)
+		saveInterElemsCount := len(typ.InterElems)
 		pkg.trimUnexportedElems(typ)
-		if len(typ.Methods) == saveMethodCount {
+		if len(typ.InterElems) == saveInterElemsCount {
 			pkg.emit(typ.Doc, "type "+typ.Name+" "+typ.Type)
 		} else {
 			pkg.Printf("type %s interface {\n", typ.Name)
-			for _, meth := range typ.Methods {
-				lineComment := ""
-				if meth.Doc != "" {
-					lineComment = fmt.Sprintf("  %s", meth.Doc)
+			for _, interElem := range typ.InterElems {
+				if interElem.Type != "" {
+					// Embedded type
+					pkg.Printf("%s%s\n", indent, interElem.Type)
+				} else {
+					lineComment := ""
+					if interElem.Method.Doc != "" {
+						lineComment = fmt.Sprintf("  %s", interElem.Method.Doc)
+					}
+					pkg.Printf("%s%s%s\n", indent, interElem.Method.Signature, lineComment)
 				}
-				pkg.Printf("%s%s%s\n", indent, meth.Signature, lineComment)
 			}
 			pkg.Printf("%s// Has unexported methods.\n", indent)
 			pkg.Printf("}\n")
@@ -613,7 +618,7 @@ func (pkg *pkgPrinter) trimUnexportedElems(typ *JSONType) {
 		return
 	}
 	if typ.Kind == interfaceKind {
-		typ.Methods = pkg.trimUnexportedMethods(typ.Methods)
+		typ.InterElems = pkg.trimUnexportedMethods(typ.InterElems)
 	} else {
 		typ.Fields = pkg.trimUnexportedFields(typ.Fields)
 	}
@@ -645,15 +650,17 @@ func (pkg *pkgPrinter) trimUnexportedFields(fields []*JSONField) []*JSONField {
 	return list
 }
 
-// trimUnexportedMethods returns the method list trimmed of unexported methods.
-func (pkg *pkgPrinter) trimUnexportedMethods(methods []*JSONFunc) []*JSONFunc {
+// trimUnexportedMethods returns the method list trimmed of unexported methods and embedded types.
+func (pkg *pkgPrinter) trimUnexportedMethods(interElems []*JSONInterfaceElement) []*JSONInterfaceElement {
 	trimmed := false
-	list := make([]*JSONFunc, 0, len(methods))
-	for _, meth := range methods {
-		name := meth.Name
-		if name == "" {
+	list := make([]*JSONInterfaceElement, 0, len(interElems))
+	for _, interElem := range interElems {
+		var name string
+		if interElem.Type != "" {
 			// Embedded type. Use the name of the type.
-			name = strings.TrimPrefix(meth.Type, "*")
+			name = strings.TrimPrefix(interElem.Type, "*")
+		} else {
+			name = interElem.Method.Name
 		}
 		// Trims if any is unexported. Good enough in practice.
 		ok := true
@@ -662,11 +669,11 @@ func (pkg *pkgPrinter) trimUnexportedMethods(methods []*JSONFunc) []*JSONFunc {
 			ok = false
 		}
 		if ok {
-			list = append(list, meth)
+			list = append(list, interElem)
 		}
 	}
 	if !trimmed {
-		return methods
+		return interElems
 	}
 	return list
 }
@@ -758,8 +765,8 @@ func (pkg *pkgPrinter) printInterfaceMethodDoc(symbol, methodName string) bool {
 	found := false
 	numUnmatched := 0
 	for _, typ := range types {
-		for _, meth := range typ.Methods {
-			if !pkg.match(methodName, meth.Name) {
+		for _, interElem := range typ.InterElems {
+			if interElem.Method == nil || !pkg.match(methodName, interElem.Method.Name) {
 				numUnmatched++
 				continue
 			}
@@ -767,10 +774,10 @@ func (pkg *pkgPrinter) printInterfaceMethodDoc(symbol, methodName string) bool {
 				pkg.Printf("type %s interface {\n", typ.Name)
 			}
 			lineComment := ""
-			if meth.Doc != "" {
-				lineComment = fmt.Sprintf("  %s", strings.TrimSpace(meth.Doc))
+			if interElem.Method.Doc != "" {
+				lineComment = fmt.Sprintf("  %s", strings.TrimSpace(interElem.Method.Doc))
 			}
-			pkg.Printf("%s%s%s\n", indent, meth.Signature, lineComment)
+			pkg.Printf("%s%s%s\n", indent, interElem.Method.Signature, lineComment)
 			found = true
 		}
 	}

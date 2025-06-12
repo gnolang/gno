@@ -214,20 +214,23 @@ func TestJSONDocumentation(t *testing.T) {
 			},
 			{
 				Name: "myInterface",
-				Type: "interface {\n\t// Bar is for testing\n\tBar(x int) string // Bar line comment\n}",
+				Type: "interface {\n\terror\n\t// Bar is for testing\n\tBar(x int) string // Bar line comment\n}",
 				Doc:  "myInterface is an interface for testing\n",
 				Kind: "interface",
-				Methods: []*JSONFunc{
+				InterElems: []*JSONInterfaceElement{
+					{Type: "error"},
 					{
-						Type:      "myInterface",
-						Name:      "Bar",
-						Signature: "Bar(x int) string",
-						Doc:       "// Bar is for testing // Bar line comment\n",
-						Params: []*JSONField{
-							{Name: "x", Type: "int"},
-						},
-						Results: []*JSONField{
-							{Name: "", Type: "string"},
+						Method: &JSONFunc{
+							Type:      "myInterface",
+							Name:      "Bar",
+							Signature: "Bar(x int) string",
+							Doc:       "// Bar is for testing // Bar line comment\n",
+							Params: []*JSONField{
+								{Name: "x", Type: "int"},
+							},
+							Results: []*JSONField{
+								{Name: "", Type: "string"},
+							},
 						},
 					},
 				},

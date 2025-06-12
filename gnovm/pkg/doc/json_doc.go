@@ -68,6 +68,11 @@ const (
 	identKind     = "ident"
 )
 
+type JSONInterfaceElement struct {
+	Method *JSONFunc `json:"method,omitempty"` // Normal interface method
+	Type   string    `json:"type,omitempty"`   // Embedded type
+}
+
 type JSONType struct {
 	Name  string `json:"name"`  // "MyType"
 	Type  string `json:"type"`  // "struct { ... }"
@@ -75,8 +80,8 @@ type JSONType struct {
 	Alias bool   `json:"alias"` // if an alias like `type A = B`
 	Kind  string `json:"kind"`  // struct | interface | array | slice | map | channel | func | pointer | ident
 	// TODO: Use omitzero when upgraded to Go 1.24
-	Methods []*JSONFunc  `json:"methods,omitempty"` // interface methods (Kind == "interface") (struct methods are in JSONDocumentation.Funcs)
-	Fields  []*JSONField `json:"fields,omitempty"`  // struct fields (Kind == "struct")
+	InterElems []*JSONInterfaceElement `json:"inter_elems,omitempty"` // interface methods or embedded types (Kind == "interface") (struct methods are in JSONDocumentation.Funcs)
+	Fields     []*JSONField            `json:"fields,omitempty"`      // struct fields (Kind == "struct")
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from mpkg and returns a Documentable
@@ -169,7 +174,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		typeExpr := deparenthesize(typeSpec.Type)
 
 		kind := ""
-		var methods []*JSONFunc
+		var interElems []*JSONInterfaceElement
 		var fields []*JSONField
 
 		switch t := typeExpr.(type) {
@@ -180,6 +185,15 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		case *ast.InterfaceType:
 			kind = interfaceKind
 			for _, iMethod := range t.Methods.List {
+				if len(iMethod.Names) == 0 {
+					// Embedded type
+					interElems = append(interElems, &JSONInterfaceElement{
+						Type: mustFormatNode(d.pkgData.fset, iMethod.Type, false, nil),
+					})
+					continue
+				}
+
+				// Method
 				fun, ok := iMethod.Type.(*ast.FuncType)
 				if !ok {
 					// We don't expect this
@@ -205,13 +219,15 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 					}
 				}
 
-				methods = append(methods, &JSONFunc{
-					Type:      typ.Name,
-					Name:      name,
-					Signature: name + strings.TrimPrefix(mustFormatNode(d.pkgData.fset, fun, false, file), "func"),
-					Doc:       string(pkg.Markdown(docBuf.String())),
-					Params:    d.extractJSONFields(fun.Params),
-					Results:   d.extractJSONFields(fun.Results),
+				interElems = append(interElems, &JSONInterfaceElement{
+					Method: &JSONFunc{
+						Type:      typ.Name,
+						Name:      name,
+						Signature: name + strings.TrimPrefix(mustFormatNode(d.pkgData.fset, fun, false, file), "func"),
+						Doc:       string(pkg.Markdown(docBuf.String())),
+						Params:    d.extractJSONFields(fun.Params),
+						Results:   d.extractJSONFields(fun.Results),
+					},
 				})
 			}
 		case *ast.ArrayType:
@@ -234,13 +250,13 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		}
 
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
-			Name:    typ.Name,
-			Type:    mustFormatNode(d.pkgData.fset, typeExpr, false, file),
-			Doc:     string(pkg.Markdown(typ.Doc)),
-			Alias:   typeSpec.Assign != 0,
-			Kind:    kind,
-			Methods: methods,
-			Fields:  fields,
+			Name:       typ.Name,
+			Type:       mustFormatNode(d.pkgData.fset, typeExpr, false, file),
+			Doc:        string(pkg.Markdown(typ.Doc)),
+			Alias:      typeSpec.Assign != 0,
+			Kind:       kind,
+			InterElems: interElems,
+			Fields:     fields,
 		})
 
 		// values of this type

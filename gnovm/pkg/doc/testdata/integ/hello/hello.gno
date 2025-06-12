@@ -51,6 +51,7 @@ func Panic() { panic("foo") }
 
 // myInterface is an interface for testing
 type myInterface interface {
+	error
 	// Bar is for testing
 	Bar(x int) string // Bar line comment
 }
