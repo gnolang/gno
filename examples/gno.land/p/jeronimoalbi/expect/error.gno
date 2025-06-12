@@ -21,7 +21,7 @@ func (c ErrorChecker) Not() ErrorChecker {
 
 // WithMessage asserts that current error contains an expected message.
 func (c ErrorChecker) WithMessage(msg string) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	if c.err == nil {
 		c.ctx.Fail("Expected an error with message\nGot: nil\nWant: %s", msg)
@@ -33,7 +33,7 @@ func (c ErrorChecker) WithMessage(msg string) {
 
 // WithError asserts that current error message is the same as an expected error.
 func (c ErrorChecker) WithError(err error) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	if c.err == nil {
 		if err != nil {

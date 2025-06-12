@@ -44,7 +44,7 @@ func (c FuncChecker) Not() FuncChecker {
 
 // ToFail return an error checker to assert if current function returns an error.
 func (c FuncChecker) ToFail() ErrorChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	var err error
 	switch fn := c.fn.(type) {
@@ -79,7 +79,7 @@ func (c FuncChecker) ToFail() ErrorChecker {
 //	  }).Not().ToCrossPanic()
 //	}
 func (c FuncChecker) ToPanic() MessageChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	var (
 		msg      string
@@ -130,7 +130,7 @@ func (c FuncChecker) ToPanic() MessageChecker {
 // This assertion is handled only when making a crossing call to another realm, when asserting
 // within the same realm use `ToPanic()`.
 func (c FuncChecker) ToCrossPanic() MessageChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	var (
 		msg      string
@@ -179,7 +179,7 @@ func (c FuncChecker) ToCrossPanic() MessageChecker {
 
 // ToReturn asserts that current function returned a value equal to an expected value.
 func (c FuncChecker) ToReturn(value any) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	var (
 		err error
@@ -201,9 +201,9 @@ func (c FuncChecker) ToReturn(value any) {
 	}
 
 	if c.ctx.negated {
-		Value(c.ctx.t(), v).Not().ToEqual(value)
+		Value(c.ctx.T(), v).Not().ToEqual(value)
 	} else {
-		Value(c.ctx.t(), v).ToEqual(value)
+		Value(c.ctx.T(), v).ToEqual(value)
 	}
 }
 

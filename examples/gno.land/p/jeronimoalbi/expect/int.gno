@@ -25,7 +25,7 @@ func (c IntChecker) Not() IntChecker {
 
 // ToEqual asserts that current value is equal to an expected value.
 func (c IntChecker) ToEqual(value int64) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value == value, func(ctx Context) string {
 		got := c.format(c.value)
 		if !ctx.IsNegated() {
@@ -37,7 +37,7 @@ func (c IntChecker) ToEqual(value int64) {
 
 // ToBeGreaterThan asserts that current value is greater than an expected value.
 func (c IntChecker) ToBeGreaterThan(value int64) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value > value, func(ctx Context) string {
 		got := c.format(c.value)
 		if !ctx.IsNegated() {
@@ -49,7 +49,7 @@ func (c IntChecker) ToBeGreaterThan(value int64) {
 
 // ToBeGreaterOrEqualThan asserts that current value is greater or equal than an expected value.
 func (c IntChecker) ToBeGreaterOrEqualThan(value int64) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value >= value, func(ctx Context) string {
 		got := c.format(c.value)
 		if !ctx.IsNegated() {
@@ -61,7 +61,7 @@ func (c IntChecker) ToBeGreaterOrEqualThan(value int64) {
 
 // ToBeLowerThan asserts that current value is lower than an expected value.
 func (c IntChecker) ToBeLowerThan(value int64) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value < value, func(ctx Context) string {
 		got := c.format(c.value)
 		if !ctx.IsNegated() {
@@ -73,7 +73,7 @@ func (c IntChecker) ToBeLowerThan(value int64) {
 
 // ToBeLowerOrEqualThan asserts that current value is lower or equal than an expected value.
 func (c IntChecker) ToBeLowerOrEqualThan(value int64) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value <= value, func(ctx Context) string {
 		got := c.format(c.value)
 		if !ctx.IsNegated() {

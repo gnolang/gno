@@ -20,6 +20,14 @@ type Context struct {
 	prefix  string
 }
 
+// T returns context's testing T instance.
+func (c Context) T() TestingT {
+	if c.tt == nil {
+		panic("expect: context is not initialized")
+	}
+	return c.tt
+}
+
 // IsNegated checks if current context negates current assert expectations.
 func (c Context) IsNegated() bool {
 	return c.negated
@@ -45,13 +53,6 @@ func (c Context) Fail(msg string, args ...any) {
 	}
 
 	c.tt.Fatalf(msg, args...)
-}
-
-func (c Context) t() TestingT {
-	if c.tt == nil {
-		panic("expect: context is not initialized")
-	}
-	return c.tt
 }
 
 // TestingT defines a minimal interface for `testing.T` instances.

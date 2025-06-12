@@ -25,7 +25,7 @@ func (c BooleanChecker) Not() BooleanChecker {
 
 // ToEqual asserts that current value is equal to an expected value.
 func (c BooleanChecker) ToEqual(v bool) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value == v, func(ctx Context) string {
 		got := c.format(c.value)
 		if !ctx.IsNegated() {
@@ -37,7 +37,7 @@ func (c BooleanChecker) ToEqual(v bool) {
 
 // ToBeFalsy asserts that current value is falsy.
 func (c BooleanChecker) ToBeFalsy() {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(!c.value, func(ctx Context) string {
 		if !ctx.IsNegated() {
 			return "Expected value to be falsy"
@@ -48,7 +48,7 @@ func (c BooleanChecker) ToBeFalsy() {
 
 // ToBeTruthy asserts that current value is truthy.
 func (c BooleanChecker) ToBeTruthy() {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value, func(ctx Context) string {
 		if !ctx.IsNegated() {
 			return "Expected value to be truthy"

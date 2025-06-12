@@ -30,7 +30,7 @@ func (c ValueChecker) Not() ValueChecker {
 
 // ToBeNil asserts that current value is nil.
 func (c ValueChecker) ToBeNil() {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value == nil, func(ctx Context) string {
 		if !ctx.IsNegated() {
 			return ufmt.Sprintf("Expected value to be nil\nGot: %v", c.value)
@@ -41,7 +41,7 @@ func (c ValueChecker) ToBeNil() {
 
 // ToEqual asserts that current value is equal to an expected value.
 func (c ValueChecker) ToEqual(value any) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	switch v := value.(type) {
 	case string:
@@ -81,7 +81,7 @@ func (c ValueChecker) ToEqual(value any) {
 
 // AsString returns a checker to assert current value as a string.
 func (c ValueChecker) AsString() StringChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	v, err := asString(c.value)
 	if err != nil {
@@ -94,7 +94,7 @@ func (c ValueChecker) AsString() StringChecker {
 
 // AsBoolean returns a checker to assert current value as a boolean.
 func (c ValueChecker) AsBoolean() BooleanChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	v, err := asBoolean(c.value)
 	if err != nil {
@@ -107,7 +107,7 @@ func (c ValueChecker) AsBoolean() BooleanChecker {
 
 // AsFloat returns a checker to assert current value as a float64.
 func (c ValueChecker) AsFloat() FloatChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	v, err := asFloat(c.value)
 	if err != nil {
@@ -120,7 +120,7 @@ func (c ValueChecker) AsFloat() FloatChecker {
 
 // AsUint returns a checker to assert current value as a uint64.
 func (c ValueChecker) AsUint() UintChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	v, err := asUint(c.value)
 	if err != nil {
@@ -133,7 +133,7 @@ func (c ValueChecker) AsUint() UintChecker {
 
 // AsInt returns a checker to assert current value as a int64.
 func (c ValueChecker) AsInt() IntChecker {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 
 	v, err := asInt(c.value)
 	if err != nil {

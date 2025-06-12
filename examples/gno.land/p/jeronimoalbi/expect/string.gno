@@ -29,7 +29,7 @@ func (c StringChecker) Not() StringChecker {
 
 // ToEqual asserts that current value is equal to an expected value.
 func (c StringChecker) ToEqual(v string) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value == v, func(ctx Context) string {
 		if !ctx.IsNegated() {
 			return ufmt.Sprintf("Expected values to match\nGot: %s\nWant: %s", c.value, v)
@@ -40,7 +40,7 @@ func (c StringChecker) ToEqual(v string) {
 
 // ToBeEmpty asserts that current value is an empty string.
 func (c StringChecker) ToBeEmpty() {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value == "", func(ctx Context) string {
 		if !ctx.IsNegated() {
 			return ufmt.Sprintf("Expected string to be empty\nGot: %s", c.value)
@@ -51,7 +51,7 @@ func (c StringChecker) ToBeEmpty() {
 
 // ToHaveLength asserts that current value has an expected length.
 func (c StringChecker) ToHaveLength(length int) {
-	c.ctx.t().Helper()
+	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(len(c.value) == length, func(ctx Context) string {
 		got := len(c.value)
 		if !ctx.IsNegated() {
