@@ -1,4 +1,4 @@
-include ../misc/makeHelpMsgs.mk
+include ../misc/makehelp/makeHelpMsgs.mk
 
 progs_with_generate := $(patsubst %/Makefile,%,$(shell grep -l '^generate:' */Makefile))
 

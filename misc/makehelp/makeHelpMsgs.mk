@@ -24,14 +24,14 @@ DIR_OFFSET_OPT    = $(if $(filter $(PWD),$(CURDIR)),,$(patsubst $(patsubst %/,%,
 ##
 ## @param repo_root_relpath
 ##   The relative path  from the current working directory to the git
-##   repository root. This prefix is used to locate `misc/makefile_help.go`.
+##   repository root. This prefix is used to locate `misc/makehelp/makefile_help.go`.
 ##
 ## @param wildcard_values
 ##   A space-separated list of values to substitute for `%` targets
 ##   when expanding wildcard rules.
 ##
 ## @details
-##   1. Runs the helper via `go run $(1)/misc/makefile_help.go`.
+##   1. Runs the helper via `go run $(1)/misc/makehelp/makefile_help.go`.
 ##   2. Adds `-r DIR_OFFSET_OPT` if `DIR_OFFSET_OPT` is non-empty.
 ##   3. Scans all subdirectories for `Makefile` and passes each one with `-d`.
 ##   4. For each wildcard value, adds a `-w "VALUE"` flag.
@@ -42,7 +42,7 @@ DIR_OFFSET_OPT    = $(if $(filter $(PWD),$(CURDIR)),,$(patsubst $(patsubst %/,%,
 ##   # Run helper from a subdir, relative to the repo root, with wildcards:
 ##   $(call RUN_MAKEFILE_HELP, ../, foo bar)
 RUN_MAKEFILE_HELP = \
-    go run $(if $(filter-out . ./,$(1)),$(patsubst %/,%,$(1))/,)misc/makefile_help.go \
+    go run $(if $(filter-out . ./,$(1)),$(patsubst %/,%,$(1))/,)misc/makehelp/makefile_help.go \
         $(if $(DIR_OFFSET_OPT),-r "$(DIR_OFFSET_OPT)",) \
         $(foreach makeDir,$(patsubst %/Makefile,%,$(wildcard */Makefile)),-d "$(makeDir)") \
         $(foreach wildCardValue,$(2),-w "$(wildCardValue)") \

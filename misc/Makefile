@@ -1,4 +1,4 @@
-include ../misc/makeHelpMsgs.mk
+include ../misc/makehelp/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
@@ -43,7 +43,7 @@ test: _test.makefile_help _test.genstd # Run the genstd and makefile_help test s
 
 .PHONY: _test.makefile_help
 _test.makefile_help:
-	go test makefile_help.go makefile_help_test.go $(GOTEST_FLAGS)
+	go test makehelp/makefile_help.go makehelp/makefile_help_test.go $(GOTEST_FLAGS)
 
 .PHONY: _test.genstd
 _test.genstd:

@@ -1,4 +1,4 @@
-include ../misc/makeHelpMsgs.mk
+include ../misc/makehelp/makeHelpMsgs.mk
 
 .PHONY: help
 help: # Print this help message
