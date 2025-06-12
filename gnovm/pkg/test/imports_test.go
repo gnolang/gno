@@ -58,7 +58,7 @@ func newPreprocessError(inner error) *gno.PreprocessError {
 func TestLoadImports_RecoveryTypedValue(t *testing.T) {
 	val := &gno.TypedValue{T: nil, V: gno.BigintValue{V: big.NewInt(7)}}
 	store := makeStoreThatPanics(val)
-	err := testpkg.LoadImports(store, makeMemPkg())
+	err := testpkg.LoadImports(store, makeMemPkg(), true)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -71,7 +71,7 @@ func TestLoadImports_RecoveryPreprocessError(t *testing.T) {
 	inner := errors.New("bad preprocess")
 	val := newPreprocessError(inner)
 	store := makeStoreThatPanics(val)
-	err := testpkg.LoadImports(store, makeMemPkg())
+	err := testpkg.LoadImports(store, makeMemPkg(), true)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -84,7 +84,7 @@ func TestLoadImports_RecoveryUnhandledPanicError(t *testing.T) {
 	expectedErrDescriptor := "oops!"
 	errVal := gno.UnhandledPanicError{Descriptor: expectedErrDescriptor}
 	store := makeStoreThatPanics(errVal)
-	err := testpkg.LoadImports(store, makeMemPkg())
+	err := testpkg.LoadImports(store, makeMemPkg(), true)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -96,7 +96,7 @@ func TestLoadImports_RecoveryUnhandledPanicError(t *testing.T) {
 func TestLoadImports_RecoveryGenericError(t *testing.T) {
 	expectedErrString := "generic error"
 	store := makeStoreThatPanics(errors.New(expectedErrString))
-	err := testpkg.LoadImports(store, makeMemPkg())
+	err := testpkg.LoadImports(store, makeMemPkg(), true)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -108,7 +108,7 @@ func TestLoadImports_RecoveryGenericError(t *testing.T) {
 func TestLoadImports_RecoveryDefaultPanic(t *testing.T) {
 	val := 12345
 	store := makeStoreThatPanics(val)
-	err := testpkg.LoadImports(store, makeMemPkg())
+	err := testpkg.LoadImports(store, makeMemPkg(), true)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
