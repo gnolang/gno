@@ -27,9 +27,10 @@ func (c BooleanChecker) Not() BooleanChecker {
 func (c BooleanChecker) ToEqual(v bool) {
 	c.ctx.T().Helper()
 	c.ctx.CheckExpectation(c.value == v, func(ctx Context) string {
-		got := c.format(c.value)
+		got := formatBoolean(c.value)
 		if !ctx.IsNegated() {
-			return ufmt.Sprintf("Expected values to match\nGot: %s\nWant: %s", got, strconv.FormatBool(v))
+			want := formatBoolean(v)
+			return ufmt.Sprintf("Expected values to match\nGot: %s\nWant: %s", got, want)
 		}
 		return ufmt.Sprintf("Expected values to be different\nGot: %s", got)
 	})
@@ -57,7 +58,7 @@ func (c BooleanChecker) ToBeTruthy() {
 	})
 }
 
-func (BooleanChecker) format(value bool) string {
+func formatBoolean(value bool) string {
 	return strconv.FormatBool(value)
 }
 
