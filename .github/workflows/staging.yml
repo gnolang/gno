@@ -48,7 +48,6 @@ jobs:
   test-staging-running-in-compose:
     runs-on: ubuntu-latest 
     timeout-minutes: 10
-    if: ${{ false }} # Disable this job temporarily
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
