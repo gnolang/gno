@@ -3,9 +3,13 @@ package impl
 import (
 	"std"
 
+	"gno.land/p/aeddi/utils"
+	trs_pkg "gno.land/p/demo/treasury"
 	"gno.land/p/demo/ufmt"
+
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v3/treasury"
 )
 
 func NewChangeLawRequest(cur realm, newLaw *Law) dao.ProposalRequest {
@@ -38,7 +42,8 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 		// therefore we must cross back into v3/impl and then
 		// cross call dao.UpdateRequest().
 		func(cur realm) {
-			dao.UpdateImpl(cross, dao.UpdateRequest{DAO: newDao,
+			dao.UpdateImpl(cross, dao.UpdateRequest{
+				DAO:         newDao,
 				AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
 			})
 		}(cross)
@@ -141,6 +146,44 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 		"This proposal is looking to promote a member to an upper tier.",
 		e,
 		FilterByTier{Tier: toTier},
+	)
+}
+
+func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+	if treasury.HasBanker(payment.BankerID()) {
+		panic("banker not registered in treasury with ID: " + payment.BankerID())
+	}
+
+	if reason == "" {
+		panic("treasury payment request requires a reason")
+	}
+
+	cb := func() error {
+		err := error(nil)
+		func(cur realm) {
+			err = utils.PanicToError(func() {
+				treasury.Send(cross, payment)
+			})
+		}(cross)
+
+		return err
+	}
+
+	// NOTE: Should this be a NewSafeExecutor instead?
+	e := dao.NewSimpleExecutor(
+		cb,
+		ufmt.Sprintf(
+			"A payment will be sent by the GovDAO treasury.\n\nReason: %s\n\nPayment: %s.",
+			reason,
+			payment.String(),
+		),
+	)
+
+	// NOTE: Should this be filtered by tier?
+	return dao.NewProposalRequest(
+		"Treasury Payment",
+		"This proposal is looking to send a payment using the treasury.",
+		e,
 	)
 }
 

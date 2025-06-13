@@ -1,0 +1,3 @@
+module gno.land/r/gov/dao/v3/treasury
+
+gno 0.9
