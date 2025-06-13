@@ -286,12 +286,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			pv := oo.(*PackageValue)
 			_ = pv.GetBlock(ds) // preload
 			// get package associated realm if nil.
-			if pv.IsRealm() && pv.Realm == nil {
-				rlm := ds.GetPackageRealm(pkgPath)
-				pv.Realm = rlm
-			}
-			// Rederive pv.fBlocksMap.
-			pv.deriveFBlocksMap(ds)
+			ds.fillPackageRealm(pv)
 			return pv
 		}
 	}
@@ -459,11 +454,25 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+
+		if pv, ok := oo.(*PackageValue); ok {
+			ds.fillPackageRealm(pv)
+		}
+
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
 	return nil
+}
+
+func (ds *defaultStore) fillPackageRealm(pv *PackageValue) {
+	if pv.IsRealm() && pv.Realm == nil {
+		rlm := ds.GetPackageRealm(pv.PkgPath)
+		pv.Realm = rlm
+	}
+	// Rederive pv.fBlocksMap.
+	pv.deriveFBlocksMap(ds)
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
