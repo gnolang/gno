@@ -59,7 +59,7 @@ import (
           },
           {
             "Name": "gnomod.toml",
-            "Body": "module = \"gno.land/r/demo/teritori/social_feeds\"\n\nrequire (\n\tgno.land/p/demo/avl v0.0.0-latest\n\tgno.land/p/demo/teritori/dao_interfaces v0.0.0-latest\n\tgno.land/p/demo/teritori/flags_index v0.0.0-latest\n\tgno.land/p/demo/teritori/ujson v0.0.0-latest\n\tgno.land/p/demo/testutils v0.0.0-latest\n\tgno.land/p/demo/ufmt v0.0.0-latest\n\tgno.land/r/demo/boards v0.0.0-latest\n\tgno.land/r/demo/users v0.0.0-latest\n)\n"
+            "Body": "module = \"gno.land/r/demo/teritori/social_feeds\"\ngno = \"0.9\"\n"
           },
           {
             "Name": "messages.gno",
