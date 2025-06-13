@@ -277,6 +277,10 @@ func execModInit(args []string) error {
 		return fmt.Errorf("create gnomod.toml: %w", err)
 	}
 
+	if !gnolang.IsValidPackagePathURL(modPath) {
+		return fmt.Errorf("create gnomod.toml: %q is not a valid package path URL", modPath)
+	}
+
 	modfile := new(gnomod.File)
 	modfile.Module = modPath
 	modfile.Gno = gnolang.GnoVerLatest
