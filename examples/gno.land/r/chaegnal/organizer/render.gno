@@ -27,7 +27,7 @@ func displayJoiningStatus(group FriendGroup, adr std.Address) string {
 		} else if group.WaitList.Has(adr.String()) {
 			out += md.Paragraph("You are awaiting approval for this group")
 		} else {
-			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", cross, "groupId", strconv.Itoa(group.ID))) + "\n\n"
+			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", "groupId", strconv.Itoa(group.ID))) + "\n\n"
 		}
 	}
 
@@ -158,7 +158,7 @@ func Render(rawURL string) string {
 	out += md.Paragraph("Here you can join and create FriendGroups to organize your next hangout")
 
 	out += md.HorizontalRule()
-	out += md.H2(md.Link("Create New FriendGroup", txlink.Call("CreateFriendGroup", cross, "title", "default")) + "\n\n")
+	out += md.H2(md.Link("Create New FriendGroup", txlink.Call("CreateFriendGroup", "title", "default")) + "\n\n")
 	out += md.HorizontalRule()
 
 	addressStr := parseQuery(rawURL)

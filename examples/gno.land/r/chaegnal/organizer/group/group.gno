@@ -86,7 +86,6 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 	out += md.H2("Admin Board") + "\n"
 
 	out += md.Link("Create Proposal", txlink.Call("CreateProposals",
-		"cur", cross,
 		"groupId", strconv.Itoa(group.ID), "title", "Default Title",
 		"desc", "Default Desc",
 		"callback", "Default Callback",
@@ -127,13 +126,11 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 		proposalID := strconv.FormatUint(p.ID(), 10)
 
 		voteActions := md.Link("Yay", txlink.Call("VoteOnProposal",
-			"cur", cross,
 			"groupId", strconv.Itoa(group.ID),
 			"index", proposalID,
 			"vote", strconv.Itoa(organizer.VoteYay),
 			"logged", logged)) + " | " +
 			md.Link("Nay", txlink.Call("VoteOnProposal",
-				"cur", cross,
 				"groupId", strconv.Itoa(group.ID),
 				"index", proposalID,
 				"vote", strconv.Itoa(organizer.VoteNay),
@@ -141,7 +138,6 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 
 		if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
 			closeLink := md.Link("Check", txlink.Call("ExecuteExpiredProposals",
-				"cur", cross,
 				"groupId", strconv.Itoa(group.ID)))
 			voteActions += " | " + closeLink
 		}

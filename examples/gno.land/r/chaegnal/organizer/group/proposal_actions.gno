@@ -124,16 +124,15 @@ func AdminCloseProposal(groupId, voteIdStr, logged string) {
 	// }
 }
 
-func (p *CallbackProposalDefinition) Execute() error {
+func (p *CallbackProposalDefinition) Execute(cur realm) error {
 	switch p.Callback {
 	case "SetHangout":
-		if len(p.CallbackArgs) < 3 {
+		if len(p.CallbackArgs) < 4 {
 			return errors.New("not enough arguments")
 		}
 
 		group := organizer.GetGroupFromId(p.GroupId)
 		return group.SetHangoutTimeAndPlace(p.CallbackArgs[0], p.CallbackArgs[1], p.CallbackArgs[2], p.CallbackArgs[3])
-
 	default:
 		return errors.New("unknown callback: " + p.Callback)
 	}
