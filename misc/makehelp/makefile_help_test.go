@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -390,9 +391,9 @@ func TestRun_Success(t *testing.T) {
 	os.WriteFile(mf, []byte("a:\n"), 0o644)
 
 	var out, errb bytes.Buffer
-	code := run([]string{mf}, &out, &errb)
-	if code != 0 {
-		t.Fatalf("exit code = %d; want 0", code)
+	err := run([]string{mf}, &out, &errb)
+	if err != nil {
+		t.Fatalf("error = %#v; want nil", err)
 	}
 	if !strings.Contains(out.String(), "Available make targets:") {
 		t.Errorf("stdout missing header: %q", out.String())
@@ -404,11 +405,45 @@ func TestRun_Success(t *testing.T) {
 
 func TestRun_ParseError(t *testing.T) {
 	var out, errb bytes.Buffer
-	code := run([]string{}, &out, &errb)
-	if code == 0 {
-		t.Fatal("expected non-zero exit code on parse error")
+	err := run([]string{}, &out, &errb)
+	if err == nil {
+		t.Fatal("expected non-nil error on parse error")
 	}
-	if !strings.Contains(errb.String(), "must specify exactly one Makefile") {
-		t.Errorf("stderr = %q", errb.String())
+	if !strings.Contains(err.Error(), "must specify exactly one Makefile") {
+		t.Errorf("wrong error: err = %#v", err)
+	}
+}
+
+func Test_ErrorToExitCode(t *testing.T) {
+	cases := []struct {
+		name             string
+		errIn            error
+		expectedStderr   string
+		expectedExitCode int
+	}{
+		{
+			name:             "no error",
+			errIn:            nil,
+			expectedStderr:   "",
+			expectedExitCode: 0,
+		},
+		{
+			name:             "string error",
+			errIn:            errors.New("Some error"),
+			expectedStderr:   "Error: Some error\n",
+			expectedExitCode: 1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var errb bytes.Buffer
+			code := ErrorToExitCode(tc.errIn, &errb)
+			if code != tc.expectedExitCode {
+				t.Errorf("Expected %#v exit code, got %#v", tc.expectedExitCode, code)
+			}
+			if errb.String() != tc.expectedStderr {
+				t.Errorf("Expected %#v stderr; stderr was %#v", tc.expectedStderr, errb.String())
+			}
+		})
 	}
 }

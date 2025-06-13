@@ -346,15 +346,14 @@ func printSubdirs(w io.Writer, relativeTo string, dirs []string, banners map[str
 	}
 }
 
-func run(args []string, stdout, stderr io.Writer) int {
+func run(args []string, stdout, stderr io.Writer) error {
 	cfg, fs, err := parseConfig(args)
+	flag.CommandLine = fs
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			return 0
+			return nil
 		}
-		fmt.Fprintln(stderr, "Error:", err)
-		fs.PrintDefaults()
-		return 1
+		return err
 	}
 
 	if len(cfg.Wildcards) < 1 {
@@ -365,14 +364,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "Available make targets:")
 	tMap, err := extractMakefileTargets(cfg.Makefile)
 	if err != nil {
-		fmt.Fprintln(stderr, "Failed to parse Makefile:", err)
-		return 2
+		return fmt.Errorf("failed to parse Makefile: %w", err)
 	}
 	printTargets(stdout, tMap, cfg.Wildcards, banners)
 	printSubdirs(stdout, cfg.RelativeTo, cfg.Dirs, banners)
+	return nil
+}
+
+func ErrorToExitCode(err error, stderr io.Writer) int {
+	if err != nil {
+		fmt.Fprintln(stderr, "Error:", err.Error())
+		flag.PrintDefaults()
+		return 1
+	}
 	return 0
 }
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(ErrorToExitCode(run(os.Args[1:], os.Stdout, os.Stderr), os.Stderr))
 }
