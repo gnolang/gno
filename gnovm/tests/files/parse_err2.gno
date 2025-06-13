@@ -2,7 +2,7 @@
 // https://github.com/gnolang/gno/issues/3751
 package math
 
-import "testing"
+import testing "testing/base"
 
 func Add(a, b int) int {
 	return a + b

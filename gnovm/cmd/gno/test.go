@@ -225,6 +225,9 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 
+	// test.ProdStore() is suitable for type-checking prod (non-test) files.
+	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
+
 	buildErrCount := 0
 	testErrCount := 0
 	fail := func() error {
@@ -264,19 +267,18 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
-		// Read MemPackage.
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
+		// Read MemPackage with all files.
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAll)
 
-		// Lint/typecheck/format.
-		// (gno.mod will be read again).
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Draft {
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
-					ParseMode: gno.ParseModeAll,
-					Mode:      gno.TCLatestRelaxed,
-					Cache:     tccache,
+				// Lint/typecheck/format.
+				// (gno.mod will be read again).
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, opts.TestStore, gno.TypeCheckOptions{
+					Mode:  gno.TCLatestRelaxed,
+					Cache: tccache,
 				})
 				if errs != nil {
 					didError = true
@@ -287,6 +289,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			}
+			///////////////////////////////////
+			// Run the tests found in the mpkg.
 			errs := test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {
 				didError = true

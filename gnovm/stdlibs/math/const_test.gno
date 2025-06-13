@@ -6,7 +6,7 @@ package math_test
 
 import (
 	"math"
-	"testing"
+	testing "testing/base"
 )
 
 func TestMaxUint(t *testing.T) {

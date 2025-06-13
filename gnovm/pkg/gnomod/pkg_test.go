@@ -77,7 +77,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			}
 
 			// List packages
-			pkgs, err := gno.ReadPkgListFromDir(dirPath)
+			pkgs, err := gno.ReadPkgListFromDir(dirPath, gno.MPAll)
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outPkgList), len(pkgs))
 			for _, p := range pkgs {

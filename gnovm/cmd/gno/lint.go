@@ -74,9 +74,13 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 	hasError := false
 
-	bs, ts := test.StoreWithOptions(
+	prodbs, prodgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true},
+		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: false},
+	)
+	testbs, testgs := test.StoreWithOptions(
+		cmd.rootDir, goio.Discard,
+		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: true},
 	)
 	ppkgs := map[string]processedPackage{}
 	tccache := gno.TypeCheckCache{}
@@ -137,7 +141,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
-		mpkg, err := gno.ReadMemPackage(dir, pkgPath)
+		mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPAll)
 		if err != nil {
 			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
@@ -146,19 +150,55 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 		// Perform imports using the parent store.
 		abortOnError := true
-		if err := test.LoadImports(ts, mpkg, abortOnError); err != nil {
+		if err := test.LoadImports(testgs, mpkg, abortOnError); err != nil {
 			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
 			continue
 		}
 
+		// Wrap in cache wrap so execution of the linter
+		// doesn't impact other packages.
+		newProdGnoStore := func() gno.Store {
+			pcw := prodbs.CacheWrap()
+			pgs := prodgs.BeginTransaction(pcw, pcw, nil)
+			return pgs
+		}
+		injectTmpkg := func(tgs gno.Store) {
+			// NOTE: if we don't do it lazily like this, otherwise there
+			// needs to be a hook from original store creation
+			// (complicated), or, if not done lazily we won't get the Go
+			// typecheck error we prefer.
+			tgetter := tgs.GetPackageGetter()
+			tgs.SetPackageGetter(func(pkgPath string, store gno.Store) (
+				*gno.PackageNode, *gno.PackageValue,
+			) {
+				if pkgPath == mpkg.Path {
+					tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
+					m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+						PkgPath:     pkgPath,
+						Output:      goio.Discard,
+						Store:       tgs,
+						SkipPackage: true,
+					})
+					m2.Store.AddMemPackage(tmpkg, gno.MPAny)
+					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
+						gno.ParseMemPackage(tmpkg, gno.MPTest), true, true, "")
+				} else {
+					return tgetter(pkgPath, store)
+				}
+			})
+		}
+		newTestGnoStore := func(withTmpkg bool) gno.Store {
+			tcw := testbs.CacheWrap()
+			tgs := testgs.BeginTransaction(tcw, tcw, nil)
+			if withTmpkg {
+				injectTmpkg(tgs)
+			}
+			return tgs
+		}
+
 		// Handle runtime errors
 		didPanic := catchPanic(dir, pkgPath, io.Err(), func() {
-			// Wrap in cache wrap so execution of the linter
-			// doesn't impact other packages.
-			cw := bs.CacheWrap()
-			gs := ts.BeginTransaction(cw, cw, nil)
-
 			// Memo process results here.
 			ppkg := processedPackage{mpkg: mpkg, dir: dir}
 
@@ -177,10 +217,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				if cmd.autoGnomod {
 					tcmode = gno.TCLatestRelaxed
 				}
-				errs := lintTypeCheck(io, dir, mpkg, gs, gno.TypeCheckOptions{
-					ParseMode: gno.ParseModeAll,
-					Mode:      tcmode,
-					Cache:     tccache,
+				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(true), gno.TypeCheckOptions{
+					Mode:  tcmode,
+					Cache: tccache,
 				})
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
@@ -192,26 +231,36 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 
 			// Construct machine for testing.
-			tm := test.Machine(gs, goio.Discard, pkgPath, false)
+			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false)
 			defer tm.Release()
 
-			// LINT STEP 4: re-parse
+			// LINT STEP 4: re-parse for preprocessor.
+			// While lintTypeCheck > TypeCheckMemPackage will find
+			// most issues, the preprocessor may have additional
+			// checks.
 			// Gno parse source fileset and test filesets.
-			_, fset, _tests, ftests := sourceAndTestFileset(mpkg, false)
+			_, fset, tfset, _tests, ftests := sourceAndTestFileset(mpkg, false)
 
 			{
 				// LINT STEP 5: PreprocessFiles()
-				// Preprocess fset files (w/ some *_test.gno).
+				// Preprocess fset files (no test files)
+				tm.Store = newProdGnoStore()
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false, "")
-				ppkg.AddNormal(pn, fset)
+				ppkg.AddProd(pn, fset)
+			}
+			{
+				// LINT STEP 5: PreprocessFiles()
+				// Preprocess fset files (w/ some *_test.gno).
+				tm.Store = newTestGnoStore(false)
+				pn, _ := tm.PreprocessFiles(
+					mpkg.Name, mpkg.Path, tfset, false, false, "")
+				ppkg.AddTest(pn, fset)
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
 				// Preprocess _test files (all xxx_test *_test.gno).
-				cw := bs.CacheWrap()
-				gs := ts.BeginTransaction(cw, cw, nil)
-				tm.Store = gs
+				tm.Store = newTestGnoStore(true)
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, "")
 				ppkg.AddUnderscoreTests(pn, _tests)
@@ -220,9 +269,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// LINT STEP 5: PreprocessFiles()
 				// Preprocess _filetest.gno files.
 				for i, fset := range ftests {
-					cw := bs.CacheWrap()
-					gs := ts.BeginTransaction(cw, cw, nil)
-					tm.Store = gs
+					tm.Store = newTestGnoStore(true)
 					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
@@ -275,13 +322,14 @@ func lintTypeCheck(
 	io commands.IO,
 	dir string,
 	mpkg *std.MemPackage,
+	prodStore gno.Store,
 	testStore gno.Store,
 	tcopts gno.TypeCheckOptions) (
 	// Results:
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackageWithOptions(mpkg, testStore, tcopts)
+	_, tcErrs := gno.TypeCheckMemPackageWithOptions(mpkg, prodStore, testStore, tcopts)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)

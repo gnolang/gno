@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"testing"
+	testing "testing/base"
 )
 
 const (

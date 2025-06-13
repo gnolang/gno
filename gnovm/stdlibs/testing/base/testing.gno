@@ -1,5 +1,5 @@
 // Shim for Go's "testing" package to support minimal testing types.
-package base
+package testing
 
 import (
 	"fmt"

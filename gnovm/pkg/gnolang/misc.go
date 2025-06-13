@@ -143,6 +143,28 @@ var reservedNames = map[Name]struct{}{
 	"continue": {}, "for": {}, "import": {}, "return": {}, "var": {},
 }
 
+var ( // gno2: invar
+	// These are extra special reserved keywords that cannot be used in gno code.
+	// This set may be reduced in the future.
+	reservedNames2 = []string{"go", "gno", // XXX merge these.
+		"invar",                                             // e.g. invar x []*Foo{}; cannot replace, but can modify elements.
+		"undefined", "typed", "untyped", "typednil", "null", // types
+		"across",     // related to cross
+		"the", "THE", // definite article
+		"pure", "perfect", "constant", // const/pure
+		"beginning", "ending", "since", "till", "present", "current", "forever", "always", "never", // time & spatial (not included: past, history, future)
+		"inside", "outside", "around", "through", "toward", "almost", "beyond", "across", "between", "where", "enter", "leave", "exit", // spatial
+		"equals", "exactly", // equality
+		"but", "despite", "except", "exception", "opposite", "than", "versus", "against", // difference
+		"and", "nand", "or", "nor", "plus", "minus", "not", // binary (times?) & unary
+		"set", "unset", "get", "put", "replace", "swap", "delete", "create", "construct", "destroy", // CRUD
+		"map", "reduce", "join", "union", "constraint", "exists", "notexists", "unique", "nothing", "everything", "all", "any", "only", // set & operations & db
+		"about", "and", "nor", "from", "amid", "into", "outof", "onto", "unto", "upon", "along", "via", "per", "regarding", "following", "within", "without", // relationship
+		"would", "should", "could", "might", "must", "maybe", "definitely", "imagine", "pretend", // others
+		"abort", "exit", "quit", "die", "kill", // execution
+	}
+)
+
 // if true, caller should generally panic.
 func isReservedName(n Name) bool {
 	_, ok := reservedNames[n]

@@ -255,7 +255,6 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "YES PERCENT: 68.42105263157895%"))
-
 }
 
 func contains(s, substr string) bool {

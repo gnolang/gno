@@ -27,6 +27,7 @@ func TestTransactionStore(t *testing.T) {
 		Output:  io.Discard,
 	})
 	_, pv := m.RunMemPackage(&std.MemPackage{
+		Type: MPProd,
 		Name: "hello",
 		Path: "hello",
 		Files: []*std.MemFile{
@@ -77,12 +78,13 @@ func TestCopyFromCachedStore(t *testing.T) {
 		Base:    BoolType,
 	})
 	cachedStore.AddMemPackage(&std.MemPackage{
+		Type: MPProd,
 		Name: "math",
 		Path: "math",
 		Files: []*std.MemFile{
 			{Name: "math.gno", Body: "package math"},
 		},
-	}, MemPackageTypeAny)
+	}, MPAny)
 
 	// Create dest store and copy.
 	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
@@ -139,24 +141,26 @@ func TestFindByPrefix(t *testing.T) {
 	// Add stdlibs
 	for _, lib := range stdlibs {
 		store.AddMemPackage(&std.MemPackage{
+			Type: MPStdlib,
 			Name: lib,
 			Path: lib,
 			Files: []*std.MemFile{
 				{Name: lib + ".gno", Body: "package " + lib},
 			},
-		}, MemPackageTypeAny)
+		}, MPAny)
 	}
 
 	// Add pkgs
 	for _, pkg := range pkgs {
 		name := path.Base(pkg)
 		store.AddMemPackage(&std.MemPackage{
+			Type: MPProd,
 			Name: name,
 			Path: pkg,
 			Files: []*std.MemFile{
 				{Name: name + ".gno", Body: "package " + name},
 			},
-		}, MemPackageTypeAny)
+		}, MPAny)
 	}
 
 	for _, tc := range cases {

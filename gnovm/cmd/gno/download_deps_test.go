@@ -31,7 +31,7 @@ func TestDownloadDeps(t *testing.T) {
 			modFile: gnomod.File{
 				Module: &modfile.Module{
 					Mod: module.Version{
-						Path: "testFetchDeps",
+						Path: "gno.land/p/demo/does_not_exists",
 					},
 				},
 			},
@@ -42,7 +42,7 @@ func TestDownloadDeps(t *testing.T) {
 			modFile: gnomod.File{
 				Module: &modfile.Module{
 					Mod: module.Version{
-						Path: "testFetchDeps",
+						Path: "gno.land/p/demo/avl",
 					},
 				},
 			},
@@ -57,7 +57,7 @@ func TestDownloadDeps(t *testing.T) {
 			modFile: gnomod.File{
 				Module: &modfile.Module{
 					Mod: module.Version{
-						Path: "testFetchDeps",
+						Path: "gno.land/p/demo/blog",
 					},
 				},
 			},
@@ -73,7 +73,7 @@ func TestDownloadDeps(t *testing.T) {
 			modFile: gnomod.File{
 				Module: &modfile.Module{
 					Mod: module.Version{
-						Path: "testFetchDeps",
+						Path: "gno.land/p/demo/replaced_avl",
 					},
 				},
 				Replace: []*modfile.Replace{{
@@ -92,7 +92,7 @@ func TestDownloadDeps(t *testing.T) {
 			modFile: gnomod.File{
 				Module: &modfile.Module{
 					Mod: module.Version{
-						Path: "testFetchDeps",
+						Path: "gno.land/p/demo/foo",
 					},
 				},
 				Replace: []*modfile.Replace{{
