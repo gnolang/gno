@@ -505,7 +505,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer doRecover(m, &err)
 	rtvs := m.Eval(xn)
 	for i, rtv := range rtvs {
-		res = res + rtv.String()
+		res = res + rtv.WriteString(gno.NewStringBuilderWithGasMeter(m.GasMeter)).String()
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
@@ -820,7 +820,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	res = ""
 	for i, rtv := range rtvs {
-		res += rtv.String()
+		res += rtv.WriteString(gno.NewStringBuilderWithGasMeter(ctx.GasMeter())).String()
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}

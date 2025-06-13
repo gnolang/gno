@@ -1082,6 +1082,7 @@ const (
 	OpRangeIterArrayPtr Op = 0xD6
 	OpReturnCallDefers  Op = 0xD7 // XXX rename to OpCallDefers
 	OpVoid              Op = 0xFF // For profiling simple operation
+
 )
 
 const GasFactorCPU int64 = 1
@@ -1217,6 +1218,8 @@ const (
 	OpCPURangeIterMap      = 48
 	OpCPURangeIterArrayPtr = 46
 	OpCPUReturnCallDefers  = 78
+
+	OpCharPrint = 100
 )
 
 //----------------------------------------
@@ -2448,7 +2451,7 @@ func (m *Machine) String() string {
 			// print the pkgpath.
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, pv.PkgPath)
 		} else {
-			bsi := b.StringIndented("            ")
+			bsi := b.StringIndented(NewStringBuilderWithGasMeter(m.GasMeter), "            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 		}
 		// Update b
@@ -2474,7 +2477,7 @@ func (m *Machine) String() string {
 			break // done, skip *PackageNode.
 		} else {
 			fmt.Fprintf(builder, "          #%d %s\n", i,
-				b.StringIndented("            "))
+				b.StringIndented(NewStringBuilderWithGasMeter(m.GasMeter), "            "))
 		}
 	}
 	builder.WriteString("    Frames:\n")

@@ -1132,7 +1132,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 		}
 	case 1:
 		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-		res := ev.Sprint(m)
+		res := ev.Sprint(NewStringBuilderWithGasMeter(m.GasMeter), m).String()
 		io.WriteString(m.Output, res)
 		if newline {
 			m.Output.Write(bNewline)
@@ -1144,7 +1144,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 				buf.WriteByte(' ')
 			}
 			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-			buf.WriteString(ev.Sprint(m))
+			buf.WriteString(ev.Sprint(NewStringBuilderWithGasMeter(m.GasMeter), m).String())
 		}
 		if newline {
 			buf.WriteByte('\n')

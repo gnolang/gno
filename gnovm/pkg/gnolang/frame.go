@@ -256,11 +256,11 @@ type Exception struct {
 }
 
 func (e *Exception) StringWithStacktrace(m *Machine) string {
-	return "panic: " + e.Value.Sprint(m) + "\n" + e.Stacktrace.String()
+	return "panic: " + e.Value.Sprint(NewStringBuilderWithGasMeter(m.GasMeter), m).String() + "\n" + e.Stacktrace.String()
 }
 
 func (e *Exception) Sprint(m *Machine) string {
-	res := e.Value.Sprint(m)
+	res := e.Value.Sprint(NewStringBuilderWithGasMeter(m.GasMeter), m).String()
 	return res
 }
 

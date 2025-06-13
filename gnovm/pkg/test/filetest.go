@@ -265,7 +265,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			rr.TypeCheckError = tcError
 			switch v := r.(type) {
 			case *gno.TypedValue:
-				rr.Error = v.Sprint(m)
+				rr.Error = v.Sprint(gno.NewStringBuilderWithGasMeter(m.GasMeter), m).String()
 			case *gno.PreprocessError:
 				rr.Error = v.Unwrap().Error()
 			case gno.UnhandledPanicError:

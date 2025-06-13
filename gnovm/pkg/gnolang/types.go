@@ -23,7 +23,8 @@ type Type interface {
 	Kind() Kind     // penetrates *DeclaredType
 	TypeID() TypeID // deterministic
 	String() string // for dev/debugging
-	Elem() Type     // for TODO... types
+	WriteString(builder Builder) Builder
+	Elem() Type // for TODO... types
 	GetPkgPath() string
 	IsNamed() bool     // named vs unname type. property as a method
 	IsImmutable() bool // immutable types
@@ -275,51 +276,76 @@ func (pt PrimitiveType) TypeID() TypeID {
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
 }
-
 func (pt PrimitiveType) String() string {
+	builder := strings.Builder{}
+	return pt.WriteString(&builder).String()
+}
+
+func (pt PrimitiveType) WriteString(builder Builder) Builder {
 	switch pt {
 	case InvalidType:
-		return string("<invalid type>")
+		builder.WriteString("<invalid type>")
+		return builder
 	case UntypedBoolType:
-		return string("<untyped> bool")
+		builder.WriteString("<untyped> bool")
+		return builder
 	case BoolType:
-		return string("bool")
+		builder.WriteString("bool")
+		return builder
 	case UntypedStringType:
-		return string("<untyped> string")
+		builder.WriteString("<untyped> string")
+		return builder
 	case StringType:
-		return string("string")
+		builder.WriteString("string")
+		return builder
 	case IntType:
-		return string("int")
+		builder.WriteString("int")
+		return builder
 	case Int8Type:
-		return string("int8")
+		builder.WriteString("int8")
+		return builder
 	case Int16Type:
-		return string("int16")
+		builder.WriteString("int16")
+		return builder
 	case UntypedRuneType:
-		return string("<untyped> int32")
+		builder.WriteString("<untyped> int32")
+		return builder
 	case Int32Type:
-		return string("int32")
+		builder.WriteString("int32")
+		return builder
 	case Int64Type:
-		return string("int64")
+		builder.WriteString("int64")
+		return builder
 	case UintType:
-		return string("uint")
+		builder.WriteString("uint")
+		return builder
 	case Uint8Type:
-		return string("uint8")
+		builder.WriteString("uint8")
+		return builder
 	case DataByteType:
-		return string("<databyte> uint8")
+		builder.WriteString("<databyte> uint8")
+		return builder
 	case Uint16Type:
-		return string("uint16")
+		builder.WriteString("uint16")
+		return builder
 	case Uint32Type:
-		return string("uint32")
+		builder.WriteString("uint32")
+		return builder
 	case Uint64Type:
-		return string("uint64")
+		builder.WriteString("uint64")
+		return builder
 	case Float32Type:
-		return string("float32")
+		builder.WriteString("float32")
+		return builder
 	case Float64Type:
-		return string("float64")
+		builder.WriteString("float64")
+		return builder
 	case UntypedBigintType:
-		return string("<untyped> bigint")
+		builder.WriteString("<untyped> bigint")
+		return builder
 	case UntypedBigdecType:
-		return string("<untyped> bigdec")
+		builder.WriteString("<untyped> bigdec")
+		return builder
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
 	}
@@ -369,14 +395,26 @@ func (ft FieldType) TypeID() TypeID {
 }
 
 func (ft FieldType) String() string {
+	builder := strings.Builder{}
+	return ft.WriteString(&builder).String()
+}
+
+func (ft FieldType) WriteString(builder Builder) Builder {
 	tag := ""
 	if ft.Tag != "" {
 		tag = " " + strconv.Quote(string(ft.Tag))
 	}
 	if ft.Name == "" {
-		return fmt.Sprintf("(embedded) %s%s", ft.Type.String(), tag)
+		builder.WriteString("(embedded) ")
+		ft.Type.WriteString(builder)
+		builder.WriteString(tag)
+		return builder
 	} else {
-		return fmt.Sprintf("%s %s%s", ft.Name, ft.Type.String(), tag)
+		builder.WriteString(string(ft.Name))
+		builder.WriteString(" ")
+		ft.Type.WriteString(builder)
+		builder.WriteString(tag)
+		return builder
 	}
 }
 
@@ -472,29 +510,33 @@ func (l FieldTypeList) HasUnexported() bool {
 }
 
 func (l FieldTypeList) String() string {
-	return l.string(true, "; ")
+	var builder strings.Builder
+	return l.WriteString(&builder).String()
 }
 
-// StringForFunc returns a list of the fields, suitable for functions.
+func (l FieldTypeList) WriteString(builder Builder) Builder {
+	return l.string(builder, true, "; ")
+}
+
+// WriteStringForFunc returns a list of the fields, suitable for functions.
 // Compared to [FieldTypeList.String], this method does not return field names,
 // and separates the fields using ", ".
-func (l FieldTypeList) StringForFunc() string {
-	return l.string(false, ", ")
+func (l FieldTypeList) WriteStringForFunc(builder Builder) Builder {
+	return l.string(builder, false, ", ")
 }
 
-func (l FieldTypeList) string(withName bool, sep string) string {
-	var bld strings.Builder
+func (l FieldTypeList) string(builder Builder, withName bool, sep string) Builder {
 	for i, ft := range l {
 		if i != 0 {
-			bld.WriteString(sep)
+			builder.WriteString(sep)
 		}
 		if withName {
-			bld.WriteString(string(ft.Name))
-			bld.WriteByte(' ')
+			builder.WriteString(string(ft.Name))
+			builder.WriteByte(' ')
 		}
-		bld.WriteString(ft.Type.String())
+		ft.Type.WriteString(builder)
 	}
-	return bld.String()
+	return builder
 }
 
 // Like TypeID() but without considering field names;
@@ -542,7 +584,16 @@ func (at *ArrayType) TypeID() TypeID {
 }
 
 func (at *ArrayType) String() string {
-	return fmt.Sprintf("[%d]%s", at.Len, at.Elt.String())
+	builder := strings.Builder{}
+	return at.WriteString(&builder).String()
+}
+
+func (at *ArrayType) WriteString(builder Builder) Builder {
+	builder.WriteString("[")
+	builder.WriteString(strconv.Itoa(at.Len))
+	builder.WriteByte(']')
+	at.Elt.WriteString(builder)
+	return builder
 }
 
 func (at *ArrayType) Elem() Type {
@@ -583,12 +634,20 @@ func (st *SliceType) TypeID() TypeID {
 	}
 	return st.typeid
 }
-
 func (st *SliceType) String() string {
+	builder := strings.Builder{}
+	return st.WriteString(&builder).String()
+}
+
+func (st *SliceType) WriteString(builder Builder) Builder {
 	if st.Vrd {
-		return fmt.Sprintf("...%s", st.Elt.String())
+		builder.WriteString("...")
+		st.Elt.WriteString(builder)
+		return builder
 	} else {
-		return fmt.Sprintf("[]%s", st.Elt.String())
+		builder.WriteString("[]")
+		st.Elt.WriteString(builder)
+		return builder
 	}
 }
 
@@ -625,12 +684,18 @@ func (pt *PointerType) TypeID() TypeID {
 }
 
 func (pt *PointerType) String() string {
+	builder := strings.Builder{}
+	return pt.WriteString(&builder).String()
+}
+func (pt *PointerType) WriteString(builder Builder) Builder {
 	if pt == nil {
 		panic("invalid nil pointer type")
 	} else if pt.Elt == nil {
 		panic("invalid nil pointer element type")
 	} else {
-		return fmt.Sprintf("*%v", pt.Elt)
+		builder.WriteByte('*')
+		pt.Elt.WriteString(builder)
+		return builder
 	}
 }
 
@@ -764,8 +829,15 @@ func (st *StructType) TypeID() TypeID {
 }
 
 func (st *StructType) String() string {
-	return fmt.Sprintf("struct{%s}",
-		FieldTypeList(st.Fields).String())
+	builder := strings.Builder{}
+	return st.WriteString(&builder).String()
+}
+
+func (st *StructType) WriteString(builder Builder) Builder {
+	builder.WriteString("struct{")
+	FieldTypeList(st.Fields).WriteString(builder)
+	builder.WriteByte('}')
+	return builder
 }
 
 func (st *StructType) Elem() Type {
@@ -885,7 +957,14 @@ func (pt *PackageType) TypeID() TypeID {
 }
 
 func (pt *PackageType) String() string {
-	return "package{}"
+	builder := strings.Builder{}
+	return pt.WriteString(&builder).String()
+}
+
+func (pt *PackageType) WriteString(builder Builder) Builder {
+	builder.WriteString("package{}")
+
+	return builder
 }
 
 func (pt *PackageType) Elem() Type {
@@ -951,13 +1030,22 @@ func (it *InterfaceType) GetMethodFieldType(mname Name) *FieldType {
 }
 
 func (it *InterfaceType) String() string {
+	builder := strings.Builder{}
+	return it.WriteString(&builder).String()
+}
+
+func (it *InterfaceType) WriteString(builder Builder) Builder {
 	if it.Generic != "" {
-		return fmt.Sprintf("<%s>{%s}",
-			it.Generic,
-			FieldTypeList(it.Methods).String())
+		builder.WriteString("<")
+		builder.WriteString(string(it.Generic))
+		builder.WriteString(">{")
+		FieldTypeList(it.Methods).WriteString(builder)
+		return builder
 	} else {
-		return fmt.Sprintf("interface {%s}",
-			FieldTypeList(it.Methods).String())
+		builder.WriteString("interface {")
+		FieldTypeList(it.Methods).WriteString(builder)
+		builder.WriteByte('}')
+		return builder
 	}
 }
 
@@ -1094,13 +1182,24 @@ func (ct *ChanType) TypeID() TypeID {
 }
 
 func (ct *ChanType) String() string {
+	builder := strings.Builder{}
+	return ct.WriteString(&builder).String()
+}
+
+func (ct *ChanType) WriteString(builder Builder) Builder {
 	switch ct.Dir {
 	case SEND | RECV:
-		return "chan " + ct.Elt.String()
+		builder.WriteString("chan ")
+		ct.Elt.WriteString(builder)
+		return builder
 	case SEND:
-		return "<-chan " + ct.Elt.String()
+		builder.WriteString("<-chan ")
+		ct.Elt.WriteString(builder)
+		return builder
 	case RECV:
-		return "chan<- " + ct.Elt.String()
+		builder.WriteString("chan<- ")
+		ct.Elt.WriteString(builder)
+		return builder
 	default:
 		panic("should not happen")
 	}
@@ -1289,20 +1388,31 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
+	builder := strings.Builder{}
+	return ft.WriteString(&builder).String()
+}
+
+func (ft *FuncType) WriteString(builder Builder) Builder {
 	switch len(ft.Results) {
 	case 0:
 		// XXX add ->()
-		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc())
+		builder.WriteString("func(")
+		FieldTypeList(ft.Params).WriteStringForFunc(builder)
+		builder.WriteByte(')')
+		return builder
 	case 1:
-		// XXX add ->()
-		return fmt.Sprintf("func(%s) %s",
-			FieldTypeList(ft.Params).StringForFunc(),
-			ft.Results[0].Type.String())
+		builder.WriteString("func(")
+		FieldTypeList(ft.Params).WriteStringForFunc(builder)
+		builder.WriteString(") ")
+		ft.Results[0].Type.WriteString(builder)
+		return builder
 	default:
-		// XXX make ()->()
-		return fmt.Sprintf("func(%s) (%s)",
-			FieldTypeList(ft.Params).StringForFunc(),
-			FieldTypeList(ft.Results).StringForFunc())
+		builder.WriteString("func(")
+		FieldTypeList(ft.Params).WriteStringForFunc(builder)
+		builder.WriteString(") (")
+		FieldTypeList(ft.Results).WriteStringForFunc(builder)
+		builder.WriteByte(')')
+		return builder
 	}
 }
 
@@ -1366,9 +1476,16 @@ func (mt *MapType) TypeID() TypeID {
 }
 
 func (mt *MapType) String() string {
-	return fmt.Sprintf("map[%s]%s",
-		mt.Key.String(),
-		mt.Value.String())
+	builder := strings.Builder{}
+	return mt.WriteString(&builder).String()
+}
+
+func (mt *MapType) WriteString(builder Builder) Builder {
+	builder.WriteString("map[")
+	mt.Key.WriteString(builder)
+	builder.WriteByte(']')
+	mt.Value.WriteString(builder)
+	return builder
 }
 
 func (mt *MapType) Elem() Type {
@@ -1400,7 +1517,13 @@ func (tt *TypeType) TypeID() TypeID {
 }
 
 func (tt *TypeType) String() string {
-	return string("type{}")
+	builder := strings.Builder{}
+	return tt.WriteString(&builder).String()
+}
+
+func (tt *TypeType) WriteString(builder Builder) Builder {
+	builder.WriteString("type{}")
+	return builder
 }
 
 func (tt *TypeType) Elem() Type {
@@ -1529,10 +1652,17 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 }
 
 func (dt *DeclaredType) String() string {
+	builder := strings.Builder{}
+	return dt.WriteString(&builder).String()
+}
+
+func (dt *DeclaredType) WriteString(builder Builder) Builder {
 	if dt.ParentLoc.IsZero() {
-		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+		builder.WriteString(fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name))
+		return builder
 	} else {
-		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name)
+		builder.WriteString(fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name))
+		return builder
 	}
 }
 
@@ -1774,7 +1904,13 @@ func (bt blockType) TypeID() TypeID {
 }
 
 func (bt blockType) String() string {
-	return "block"
+	builder := strings.Builder{}
+	return bt.WriteString(&builder).String()
+}
+
+func (bt blockType) WriteString(builder Builder) Builder {
+	builder.WriteString("block")
+	return builder
 }
 
 func (bt blockType) Elem() Type {
@@ -1803,7 +1939,14 @@ func (bt heapItemType) TypeID() TypeID {
 }
 
 func (bt heapItemType) String() string {
-	return "heapitem"
+	builder := strings.Builder{}
+	return bt.WriteString(&builder).String()
+}
+
+func (bt heapItemType) WriteString(builder Builder) Builder {
+	builder.WriteString("heapitem")
+
+	return builder
 }
 
 func (bt heapItemType) Elem() Type {
@@ -1848,16 +1991,22 @@ func (tt *tupleType) TypeID() TypeID {
 }
 
 func (tt *tupleType) String() string {
+	builder := strings.Builder{}
+	return tt.WriteString(&builder).String()
+}
+
+func (tt *tupleType) WriteString(builder Builder) Builder {
 	ell := len(tt.Elts)
-	s := "("
+
+	builder.WriteByte('(')
 	for i, et := range tt.Elts {
-		s += et.String()
+		et.WriteString(builder)
 		if i != ell-1 {
-			s += ","
+			builder.WriteByte(',')
 		}
 	}
-	s += ")"
-	return s
+	builder.WriteByte(')')
+	return builder
 }
 
 func (tt *tupleType) Elem() Type {
@@ -1888,7 +2037,14 @@ func (rt RefType) TypeID() TypeID {
 }
 
 func (rt RefType) String() string {
-	return fmt.Sprintf("RefType{%v}", rt.ID)
+	builder := strings.Builder{}
+	return rt.WriteString(&builder).String()
+}
+
+func (rt RefType) WriteString(builder Builder) Builder {
+	builder.WriteString(fmt.Sprintf("RefType{%v}", rt.ID))
+
+	return builder
 }
 
 func (rt RefType) Elem() Type {
