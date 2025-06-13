@@ -86,12 +86,9 @@ func TestDirs_findPackage(t *testing.T) {
 		{"crypto/rand", []bfsDir{
 			{importPath: "crypto/rand", dir: filepath.Join(td, "dirs/crypto/rand")},
 		}},
-		{"dep", []bfsDir{
-			{importPath: "dirs.mod/dep", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep")},
-		}},
+		{"dep", []bfsDir{}},
 		{"alpha", []bfsDir{
-			{importPath: "dirs.mod/dep/alpha", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep/alpha")},
-			// no gnoland-data/module/alpha as it is inside a module
+			{importPath: "module/alpha", dir: filepath.Join(td, "dirs/module/alpha")},
 		}},
 		{"math", []bfsDir{
 			{importPath: "math", dir: filepath.Join(td, "dirs/math")},

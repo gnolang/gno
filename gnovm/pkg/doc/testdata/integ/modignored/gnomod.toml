@@ -1,1 +1,2 @@
-module = "gno.land/modignored" 
+module = "gno.land/modignored"
+gno = "0.9"
