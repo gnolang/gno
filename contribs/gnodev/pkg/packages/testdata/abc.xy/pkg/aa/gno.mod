@@ -1,1 +1,0 @@
-module abc.xy/pkg/aa

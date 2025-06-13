@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -76,24 +75,12 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	path, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	modDir, err := gnomod.FindRootDir(path)
-	if err != nil {
-		return fmt.Errorf("not a gno module: %w", err)
-	}
-
-	if path != modDir && (cfg.dryRun || cfg.verbose) {
-		io.Println("cd", modDir)
-	}
-	err = clean(modDir, cfg, io)
+	wd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return clean(wd, cfg, io)
 }
 
 // clean removes generated files from a directory.

@@ -51,8 +51,8 @@ type fsPackage struct {
 
 // ParsePackage parses package from the given directory.
 // It will return a nil package if no gno files are found.
-// If a gno.mod is found, it will be used to determine the pkg path.
-// If root is specified, it will be trimmed from the actual given dir to create the pkgpath if no gno.mod is found.
+// If a gnomod.toml is found, it will be used to determine the pkg path.
+// If root is specified, it will be trimmed from the actual given dir to create the pkgpath if no gnomod.toml is found.
 func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
@@ -94,8 +94,8 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 
 	var pkgpath string
 
-	// Check for a gno.mod, in which case it will define the module path
-	modpath := filepath.Join(dir, "gno.mod")
+	// Check for a gnomod.toml, in which case it will define the module path
+	modpath := filepath.Join(dir, "gnomod.toml")
 	data, err := os.ReadFile(modpath)
 	switch {
 	case os.IsNotExist(err):
@@ -108,15 +108,15 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 	case err == nil:
 		mod, err := gnomod.ParseBytes(modpath, data)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse gnomod %q: %w", modpath, err)
+			return nil, fmt.Errorf("unable to parse gnomod.toml %q: %w", modpath, err)
 		}
 
 		mod.Sanitize()
 		if err := mod.Validate(); err != nil {
-			return nil, fmt.Errorf("unable to validate gnomod %q: %w", modpath, err)
+			return nil, fmt.Errorf("unable to validate gnomod.toml %q: %w", modpath, err)
 		}
 
-		pkgpath = mod.Module.Mod.Path
+		pkgpath = mod.Module
 	default:
 		return nil, fmt.Errorf("unable to read %q: %w", modpath, err)
 	}

@@ -8,22 +8,22 @@ package packages
 // ├── abc.xy
 // ├── nested
 // │   ├── aa
-// │   │   └── gno.mod
+// │   │   └── gnomod.toml
 // │   └── nested
 // │       ├── bb
-// │       │   └── gno.mod
+// │       │   └── gnomod.toml
 // │       └── cc
-// │           └── gno.mod
+// │           └── gnomod.toml
 // └── pkg
 //     ├── aa
 //     │   ├── file1.gno
-//     │   └── gno.mod
+//     │   └── gnomod.toml
 //     ├── bb // depends on aa
 //     │   ├── file1.gno
-//     │   └── gno.mod
+//     │   └── gnomod.toml
 //     └── cc // depends on bb
 //         ├── file1.gno
-//         └── gno.mod
+//         └── gnomod.toml
 
 const (
 	TestdataPkgA = "abc.xy/pkg/aa"

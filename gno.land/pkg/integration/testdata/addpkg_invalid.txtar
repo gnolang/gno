@@ -11,10 +11,9 @@ stdout 'TX HASH:    '
 stderr 'as string value in return statement'
 stderr '"std" imported and not used'
 
--- gno.mod --
-module gno.land/r/foobar/bar
-
-gno 0.9
+-- gnomod.toml --
+module = "invalid"
+gno = "0.9"
 
 -- bar.gno --
 package bar

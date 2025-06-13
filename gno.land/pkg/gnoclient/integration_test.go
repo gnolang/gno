@@ -4,6 +4,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -16,8 +19,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCallSingle_Integration(t *testing.T) {
@@ -518,7 +519,7 @@ func Echo(str string) string {
 					Body: body,
 				},
 				{
-					Name: "gno.mod",
+					Name: "gnomod.toml",
 					Body: gnolang.GenGnoModLatest(deploymentPath),
 				},
 			},
@@ -536,7 +537,7 @@ func Echo(str string) string {
 		Data: []byte(deploymentPath),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, fileName+"\ngno.mod", string(query.Response.Data))
+	assert.Equal(t, fileName+"\ngnomod.toml", string(query.Response.Data))
 
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
@@ -553,7 +554,7 @@ func Echo(str string) string {
 		Data: []byte(deploymentPathB),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, fileName+"\ngno.mod", string(query.Response.Data))
+	assert.Equal(t, fileName+"\ngnomod.toml", string(query.Response.Data))
 }
 
 func TestAddPackageMultiple_Integration(t *testing.T) {
@@ -612,7 +613,7 @@ func Hello(str string) string {
 					Body: body1,
 				},
 				{
-					Name: "gno.mod",
+					Name: "gnomod.toml",
 					Body: gnolang.GenGnoModLatest(deploymentPath1),
 				},
 			},
@@ -627,7 +628,7 @@ func Hello(str string) string {
 			Path: deploymentPath2,
 			Files: []*std.MemFile{
 				{
-					Name: "gno.mod",
+					Name: "gnomod.toml",
 					Body: gnolang.GenGnoModLatest(deploymentPath2),
 				},
 				{
@@ -649,7 +650,7 @@ func Hello(str string) string {
 		Data: []byte(deploymentPath1),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(query.Response.Data), "echo.gno\ngno.mod")
+	assert.Equal(t, string(query.Response.Data), "echo.gno\ngnomod.toml")
 
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath1))
@@ -663,7 +664,7 @@ func Hello(str string) string {
 	})
 	require.NoError(t, err)
 	assert.Contains(t, string(query.Response.Data), "hello.gno")
-	assert.Contains(t, string(query.Response.Data), "gno.mod")
+	assert.Contains(t, string(query.Response.Data), "gnomod.toml")
 
 	// Query balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
@@ -682,14 +683,14 @@ func Hello(str string) string {
 		Data: []byte(deploymentPath1B),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(query.Response.Data), "echo.gno\ngno.mod")
+	assert.Equal(t, string(query.Response.Data), "echo.gno\ngnomod.toml")
 	query, err = client.Query(QueryCfg{
 		Path: "vm/qfile",
 		Data: []byte(deploymentPath2B),
 	})
 	require.NoError(t, err)
 	assert.Contains(t, string(query.Response.Data), "hello.gno")
-	assert.Contains(t, string(query.Response.Data), "gno.mod")
+	assert.Contains(t, string(query.Response.Data), "gnomod.toml")
 }
 
 // todo add more integration tests:

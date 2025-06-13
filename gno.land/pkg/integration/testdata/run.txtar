@@ -13,10 +13,9 @@ stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
 stdout 'TX HASH: '
 
--- bar/gno.mod --
-module gno.land/r/foobar/bar
-
-gno 0.9
+-- bar/gnomod.toml --
+module = "gno.land/r/foobar/bar"
+gno = "0.9"
 
 -- bar/bar.gno --
 package bar

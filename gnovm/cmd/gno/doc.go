@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -89,12 +88,8 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 
 	var modDirs []string
 
-	rd, err := gnomod.FindRootDir(wd)
-	if err != nil && !errors.Is(err, gnomod.ErrGnoModNotFound) {
-		return fmt.Errorf("error determining root gno.mod file: %w", err)
-	}
-	if !errors.Is(err, gnomod.ErrGnoModNotFound) {
-		modDirs = append(modDirs, rd)
+	if gnomod.IsGnomodRoot(wd) {
+		modDirs = append(modDirs, wd)
 	}
 
 	examplesModules, err := findGnomodExamples(filepath.Join(cfg.rootDir, "examples"))
@@ -130,7 +125,7 @@ func findGnomodExamples(dir string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if !e.IsDir() && e.Name() == "gno.mod" {
+		if !e.IsDir() && e.Name() == "gnomod.toml" {
 			dirs = append(dirs, filepath.Dir(path))
 		}
 		return nil
