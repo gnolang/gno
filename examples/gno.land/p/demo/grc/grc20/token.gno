@@ -47,6 +47,11 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
+// IsKnownAccount checks if the specified address is a known account in the bank.
+func (tok Token) IsKnownAccount(address_XXX std.Address) bool {
+	return tok.ledger.isKnownAccount(address_XXX)
+}
+
 // BalanceOf returns the balance of the specified address.
 func (tok Token) BalanceOf(address_XXX std.Address) int64 {
 	return tok.ledger.balanceOf(address_XXX)
@@ -57,7 +62,7 @@ func (tok Token) Allowance(owner, spender std.Address) int64 {
 	return tok.ledger.allowance(owner, spender)
 }
 
-func (tok *Token) RenderHome() string {
+func (tok Token) RenderHome() string {
 	str := ""
 	str += ufmt.Sprintf("# %s ($%s)\n\n", tok.name, tok.symbol)
 	str += ufmt.Sprintf("* **Decimals**: %d\n", tok.decimals)
@@ -248,6 +253,12 @@ func (led *PrivateLedger) Burn(address_XXX std.Address, amount int64) error {
 	)
 
 	return nil
+}
+
+// isKnownAccount checks if the specified address is a known account in the ledger.
+func (led PrivateLedger) isKnownAccount(address_XXX std.Address) bool {
+	_, found := led.balances.Get(address_XXX.String())
+	return found
 }
 
 // balanceOf returns the balance of the specified address.
