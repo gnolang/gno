@@ -2590,6 +2590,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				//
 				// In short, the relationship between tmp and dst is:
 				//   `type dst tmp`.
+				if n.Name == blankIdentifier {
+					return n, TRANS_CONTINUE
+				}
 				dst := last.GetSlot(store, n.Name, true).GetType()
 				switch dst := dst.(type) {
 				case *FuncType:
