@@ -136,6 +136,18 @@ func TransferInstanceOwnership(cur realm, symbol string, newOwner std.Address) {
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
 
+func ListTokens() []*grc20.Token {
+	tokens := make([]*grc20.Token, 0, instances.Size())
+
+	instances.Iterate("", "", func(_ string, instI any) bool {
+		inst := instI.(*instance)
+		tokens = append(tokens, inst.token)
+		return false
+	})
+
+	return tokens
+}
+
 func Render(path string) string {
 	parts := strings.Split(path, "/")
 	c := len(parts)
