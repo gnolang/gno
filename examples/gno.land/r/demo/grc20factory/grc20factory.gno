@@ -42,13 +42,7 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 		admin:  ownable.NewWithAddress(admin),
 		faucet: faucet,
 	}
-
-	// XXX: Workaround to keep ownership of the token in the current Realm
-	// before passing a pointer to the grc20reg.Register function.
-	// See #4274.
-	func(cur realm) {
-		instances.Set(symbol, &inst)
-	}(cross)
+	instances.Set(symbol, &inst)
 
 	grc20reg.Register(cross, token, symbol)
 }
