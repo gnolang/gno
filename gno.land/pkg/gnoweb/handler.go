@@ -317,7 +317,7 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 	var content bytes.Buffer
 
 	// Render user profile realm
-	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/profile"}, h.MarkdownRenderer); err != nil {
+	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer); err != nil {
 		h.Logger.Debug("unable to render user realm", "error", err)
 	}
 

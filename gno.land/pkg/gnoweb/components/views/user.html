@@ -98,12 +98,12 @@
     <md-renderer class="realm-view block w-full mb-20 empty:hidden">
       <div class="realm-view__btns float-right lg:mt-2 ml-6 mb-1">
         <a
-          href="../r/{{ .Username }}/profile"
+          href="../r/{{ .Username }}/home"
           class="flex sm:gap-1.5 gap-2 items-center !no-underline rounded border !text-gray-600 py-1.5 px-2 hover:bg-gray-100 !font-semibold text-50 sm:text-100">
           <svg class="w-5 h-5 text-gray-600">
             <use href="#ico-realm"></use>
           </svg>
-          {{ .Username }}/profile
+          {{ .Username }}/home
         </a>
       </div>
       {{ render .Content }}
