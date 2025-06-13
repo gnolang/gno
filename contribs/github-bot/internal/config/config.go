@@ -148,7 +148,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 					c.FileChanged(gh, `^misc/deployments`),
 					c.FileChanged(gh, `^misc/docker-`),
 					c.FileChanged(gh, `^.github/workflows/releaser.*\.yml$`),
-					c.FileChanged(gh, `^.github/workflows/portal-loop\.yml$`),
+					c.FileChanged(gh, `^.github/workflows/staging\.yml$`),
 				),
 			),
 			Teams: Teams{"devops"},

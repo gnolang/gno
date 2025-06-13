@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 
-MONIKER=${MONIKER:-"gnode"}
+MONIKER=${MONIKER:-"the-staging-chain"}
 P2P_LADDR=${P2P_LADDR:-"tcp://0.0.0.0:26656"}
 RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
 
-CHAIN_ID=${CHAIN_ID:-"portal-loop"}
+CHAIN_ID=${CHAIN_ID:-"staging"}
 
 GENESIS_BACKUP_FILE=${GENESIS_BACKUP_FILE:-""}
 GENESIS_BALANCES_FILE=${GENESIS_BALANCES_FILE:-""}

@@ -68,7 +68,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
 
 # Misc build
 FROM        build-gno AS build-misc
-## Portal Loop
+## Staging
 WORKDIR     /gnoroot/misc/loop
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=pl-buildcache \
