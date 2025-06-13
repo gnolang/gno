@@ -11,7 +11,7 @@ import (
 	"gno.land/r/demo/grc20reg"
 )
 
-var instances avl.Tree // symbol -> instance
+var instances avl.Tree // symbol -> *instance
 
 type instance struct {
 	token  *grc20.Token
