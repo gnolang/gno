@@ -5,41 +5,60 @@ package telemetry
 
 import (
 	"fmt"
-	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-)
-
-var (
-	globalConfig         config.Config
-	telemetryInitialized atomic.Bool
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
+	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
+	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // MetricsEnabled returns true if metrics have been initialized
 func MetricsEnabled() bool {
-	return globalConfig.MetricsEnabled
+	return config.GetGlobalConfig().MetricsEnabled
 }
 
-// Init initializes the global telemetry
-func Init(c config.Config) error {
-	// Check if the metrics are enabled at all
+// TracesEnabled returns true if traces have been initialized
+func TracesEnabled() bool {
+	return config.GetGlobalConfig().TracesEnabled
+}
+
+func InitMetrics(c config.Config) (*sdkMetric.MeterProvider, error) {
 	if !c.MetricsEnabled {
-		return nil
+		return nil, nil
 	}
 
 	// Validate the configuration
 	if err := c.ValidateBasic(); err != nil {
-		return fmt.Errorf("unable to validate config, %w", err)
+		return nil, fmt.Errorf("unable to validate config, %w", err)
 	}
 
 	// Check if it's been enabled already
-	if !telemetryInitialized.CompareAndSwap(false, true) {
-		return nil
+	if !config.SetMetricsInitialized() {
+		return nil, nil
 	}
 
-	// Update the global configuration
-	globalConfig = c
+	config.SetGlobalConfig(c)
 
 	return metrics.Init(c)
+}
+
+func InitTraces(c config.Config) (*sdkTrace.TracerProvider, error) {
+	if !c.TracesEnabled {
+		return nil, nil
+	}
+
+	// Validate the configuration
+	if err := c.ValidateBasic(); err != nil {
+		return nil, fmt.Errorf("unable to validate config, %w", err)
+	}
+
+	// Check if it's been enabled already
+	if !config.SetTracesInitialized() {
+		return nil, nil
+	}
+
+	config.SetGlobalConfig(c)
+
+	return traces.Init(c)
 }
