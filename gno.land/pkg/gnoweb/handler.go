@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
 // StaticMetadata holds static configuration for a web handler.
@@ -312,48 +313,6 @@ func (h *WebHandler) buildContributions(username string) ([]components.UserContr
 	return slices.Clip(contribs), realmCount, nil
 }
 
-var adjectives = []string{
-	"Wandering", "Nameless", "Curious", "Silent", "Ancient", "Young", "Elder", "Mighty", "Tiny", "Bold", "Mystic", "Hidden", "Brave",
-}
-
-var nouns = []string{
-	"Explorer", "Forager", "Runesmith", "Guardian", "Scribe", "Tinkerer", "Alchemist", "Cartographer", "Miner", "Scholar", "Builder", "Crafter",
-}
-
-var suffixes = []string{
-	"", "of Gno", "of Realms", "of Blocks", "of the Chain", "of Forgotten Lands",
-}
-
-// GenerateTitle generates a title for a user based on their username.
-func GenerateTitle(username string) string {
-	sum := 0
-	for _, r := range username {
-		sum += int(r)
-	}
-
-	adj := adjectives[sum%len(adjectives)]
-	noun := nouns[(sum>>2)%len(nouns)]
-	suffix := suffixes[(sum>>4)%len(suffixes)]
-
-	switch sum % 3 {
-	case 0:
-		// [Adjective] Username
-		return fmt.Sprintf("%s %s", adj, username)
-
-	case 1:
-		// Username the [Noun]
-		return fmt.Sprintf("%s the %s", username, noun)
-
-	default:
-		if suffix != "" {
-			// [Adjective] Username [Suffix]
-			return fmt.Sprintf("%s %s %s", adj, username, suffix)
-		}
-		// [Adjective] [Noun] Username
-		return fmt.Sprintf("%s %s %s", adj, noun, username)
-	}
-}
-
 // GetUserView returns the user profile view for a given GnoURL.
 func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
 	username := strings.TrimPrefix(gnourl.Path, "/u/")
@@ -376,9 +335,20 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
+	// Try to decode the bech32 address
+	_, _, err = bech32.Decode(username)
+	if err == nil {
+		// If it's a valid bech32 address, create a shortened version
+		shortAddr := username[:4] + "..." + username[len(username)-4:]
+		username = shortAddr
+	}
+
+	//TODO: get from user r/profile and use placeholder if not set
+	handlename := "Gnome " + username
+
 	data := components.UserData{
 		Username:      username,
-		Handlename:    GenerateTitle(username), // TODO: use generateTitle if no handlename is set
+		Handlename:    handlename,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,
