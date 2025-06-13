@@ -10,7 +10,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/ast"
 	"go/doc/comment"
+	"go/format"
+	"go/parser"
 	"go/token"
 	"io"
 	"strings"
@@ -122,15 +125,20 @@ func (pkg *pkgPrinter) emit(comment string, node string) {
 	}
 }
 
-// oneLineNodeJSON returns a one-line summary of the given input node.
-func (pkg *pkgPrinter) oneLineNodeJSON(node any) string {
+// oneLineType parses the expression and returns a one-line summary of the node.
+func (pkg *pkgPrinter) oneLineType(expression string) string {
+	node, err := parser.ParseExpr(expression)
+	if err != nil {
+		// Panic on error, which shouldn't happen since it should be a valid expression from JSONDocumentation
+		pkg.Fatalf("Error %s on parsing type expression: %s", err.Error(), expression)
+	}
 	const maxDepth = 10
-	return pkg.oneLineNodeDepthJSON(node, maxDepth)
+	return pkg.oneLineNodeDepth(node, maxDepth)
 }
 
-// oneLineNodeDepthJSON returns a one-line summary of the given input node.
-// The depth specifies the maximum depth when traversing.
-func (pkg *pkgPrinter) oneLineNodeDepthJSON(node any, depth int) string {
+// oneLineNodeDepth returns a one-line summary of the given input node.
+// The depth specifies the maximum depth when traversing the AST.
+func (pkg *pkgPrinter) oneLineNodeDepth(node ast.Node, depth int) string {
 	const dotDotDot = "..."
 	if depth == 0 {
 		return dotDotDot
@@ -141,61 +149,193 @@ func (pkg *pkgPrinter) oneLineNodeDepthJSON(node any, depth int) string {
 	case nil:
 		return ""
 
-	case *JSONValueDecl:
-		// Formats const and var declarations.
-		trailer := ""
-		if len(n.Values) > 1 {
-			trailer = " " + dotDotDot
+	case *ast.FuncDecl:
+		// Formats func declarations.
+		name := n.Name.Name
+		recv := pkg.oneLineNodeDepth(n.Recv, depth)
+		if len(recv) > 0 {
+			recv = "(" + recv + ") "
 		}
+		fnc := pkg.oneLineNodeDepth(n.Type, depth)
+		fnc = strings.TrimPrefix(fnc, "func")
+		return fmt.Sprintf("func %s%s%s", recv, name, fnc)
 
-		// Find the first relevant spec.
-		typ := n.Values[0].Type
-		for _, spec := range n.Values {
-			// The type name may carry over from a previous specification in the
-			// case of constants and iota.
-			if spec.Type != "" {
-				typ = spec.Type
-			}
-
-			if !pkg.isExported(spec.Name) {
-				continue
-			}
-			var token string
-			if n.Const {
-				token = "const"
-			} else {
-				token = "var"
-			}
-			return fmt.Sprintf("%s %s %s%s", token, spec.Name, typ, trailer)
-		}
-		return ""
-
-	case *JSONType:
+	case *ast.TypeSpec:
 		sep := " "
-		if n.Alias {
+		if n.Assign.IsValid() {
 			sep = " = "
 		}
+		tparams := pkg.formatTypeParams(n.TypeParams, depth)
+		return fmt.Sprintf("type %s%s%s%s", n.Name.Name, tparams, sep, pkg.oneLineNodeDepth(n.Type, depth))
 
-		typ := n.Type
-		if n.Kind == structKind {
-			if len(n.Fields) == 0 {
-				typ = "struct{}"
-			} else {
-				typ = "struct{ ... }"
+	case *ast.FuncType:
+		var params []string
+		if n.Params != nil {
+			for _, field := range n.Params.List {
+				params = append(params, pkg.oneLineField(field, depth))
 			}
-		} else if n.Kind == interfaceKind {
-			if len(n.InterElems) == 0 {
-				typ = "interface{}"
-			} else {
-				typ = "interface{ ... }"
+		}
+		needParens := false
+		var results []string
+		if n.Results != nil {
+			needParens = needParens || len(n.Results.List) > 1
+			for _, field := range n.Results.List {
+				needParens = needParens || len(field.Names) > 0
+				results = append(results, pkg.oneLineField(field, depth))
 			}
 		}
 
-		return fmt.Sprintf("type %s%s%s", n.Name, sep, typ)
+		tparam := pkg.formatTypeParams(n.TypeParams, depth)
+		param := joinStrings(params)
+		if len(results) == 0 {
+			return fmt.Sprintf("func%s(%s)", tparam, param)
+		}
+		result := joinStrings(results)
+		if !needParens {
+			return fmt.Sprintf("func%s(%s) %s", tparam, param, result)
+		}
+		return fmt.Sprintf("func%s(%s) (%s)", tparam, param, result)
+
+	case *ast.StructType:
+		if n.Fields == nil || len(n.Fields.List) == 0 {
+			return "struct{}"
+		}
+		return "struct{ ... }"
+
+	case *ast.InterfaceType:
+		if n.Methods == nil || len(n.Methods.List) == 0 {
+			return "interface{}"
+		}
+		return "interface{ ... }"
+
+	case *ast.FieldList:
+		if n == nil || len(n.List) == 0 {
+			return ""
+		}
+		if len(n.List) == 1 {
+			return pkg.oneLineField(n.List[0], depth)
+		}
+		return dotDotDot
+
+	case *ast.FuncLit:
+		return pkg.oneLineNodeDepth(n.Type, depth) + " { ... }"
+
+	case *ast.CompositeLit:
+		typ := pkg.oneLineNodeDepth(n.Type, depth)
+		if len(n.Elts) == 0 {
+			return fmt.Sprintf("%s{}", typ)
+		}
+		return fmt.Sprintf("%s{ %s }", typ, dotDotDot)
+
+	case *ast.ArrayType:
+		length := pkg.oneLineNodeDepth(n.Len, depth)
+		element := pkg.oneLineNodeDepth(n.Elt, depth)
+		return fmt.Sprintf("[%s]%s", length, element)
+
+	case *ast.MapType:
+		key := pkg.oneLineNodeDepth(n.Key, depth)
+		value := pkg.oneLineNodeDepth(n.Value, depth)
+		return fmt.Sprintf("map[%s]%s", key, value)
+
+	case *ast.CallExpr:
+		fnc := pkg.oneLineNodeDepth(n.Fun, depth)
+		var args []string
+		for _, arg := range n.Args {
+			args = append(args, pkg.oneLineNodeDepth(arg, depth))
+		}
+		return fmt.Sprintf("%s(%s)", fnc, joinStrings(args))
+
+	case *ast.UnaryExpr:
+		return fmt.Sprintf("%s%s", n.Op, pkg.oneLineNodeDepth(n.X, depth))
+
+	case *ast.Ident:
+		return n.Name
 
 	default:
+		// As a fallback, use default formatter for all unknown node types.
+		buf := new(strings.Builder)
+		format.Node(buf, token.NewFileSet(), node)
+		s := buf.String()
+		if strings.Contains(s, "\n") {
+			return dotDotDot
+		}
+		return s
+	}
+}
+
+func (pkg *pkgPrinter) formatTypeParams(list *ast.FieldList, depth int) string {
+	if list.NumFields() == 0 {
 		return ""
 	}
+	tparams := make([]string, 0, len(list.List))
+	for _, field := range list.List {
+		tparams = append(tparams, pkg.oneLineField(field, depth))
+	}
+	return "[" + joinStrings(tparams) + "]"
+}
+
+// oneLineField returns a one-line summary of the field.
+func (pkg *pkgPrinter) oneLineField(field *ast.Field, depth int) string {
+	names := make([]string, 0, len(field.Names))
+	for _, name := range field.Names {
+		names = append(names, name.Name)
+	}
+	if len(names) == 0 {
+		return pkg.oneLineNodeDepth(field.Type, depth)
+	}
+	return joinStrings(names) + " " + pkg.oneLineNodeDepth(field.Type, depth)
+}
+
+// joinStrings formats the input as a comma-separated list,
+// but truncates the list at some reasonable length if necessary.
+func joinStrings(ss []string) string {
+	var n int
+	for i, s := range ss {
+		n += len(s) + len(", ")
+		if n > punchedCardWidth {
+			ss = append(ss[:i:i], "...")
+			break
+		}
+	}
+	return strings.Join(ss, ", ")
+}
+
+// oneLineDecl returns a one-line summary of the given input value.
+func (pkg *pkgPrinter) oneLineDecl(value *JSONValueDecl) string {
+	const dotDotDot = "..."
+
+	// Formats const and var declarations.
+	trailer := ""
+	if len(value.Values) > 1 {
+		trailer = " " + dotDotDot
+	}
+
+	// Find the first relevant spec.
+	typ := value.Values[0].Type
+	for _, spec := range value.Values {
+		// The type name may carry over from a previous specification in the
+		// case of constants and iota.
+		if spec.Type != "" {
+			typ = spec.Type
+		}
+
+		if !pkg.isExported(spec.Name) {
+			continue
+		}
+		var token string
+		if value.Const {
+			token = "const"
+		} else {
+			token = "var"
+		}
+
+		typeString := typ
+		if typ != "" {
+			typeString = pkg.oneLineType(typ)
+		}
+		return fmt.Sprintf("%s %s %s%s", token, spec.Name, typeString, trailer)
+	}
+	return ""
 }
 
 // allDoc prints all the docs for the package.
@@ -353,12 +493,12 @@ func (pkg *pkgPrinter) valueSummary(values []*JSONValueDecl, showGrouped bool, t
 				if typeName != "" && strings.TrimPrefix(v.Type, "*") != typeName {
 					break
 				}
-				// Make a singleton for oneLineNodeJSON
+				// Make a singleton for oneLineDecl
 				oneValue := &JSONValueDecl{
 					Const:  value.Const,
 					Values: []*JSONValue{v},
 				}
-				if decl := pkg.oneLineNodeJSON(oneValue); decl != "" {
+				if decl := pkg.oneLineDecl(oneValue); decl != "" {
 					pkg.Printf("%s\n", decl)
 					break
 				}
@@ -387,17 +527,17 @@ func (pkg *pkgPrinter) funcSummary(funcs []*JSONFunc, showConstructors bool, typ
 func (pkg *pkgPrinter) typeSummary() {
 	for _, typ := range pkg.doc.Types {
 		if pkg.isExported(typ.Name) {
-			pkg.Printf("%s\n", pkg.oneLineNodeJSON(typ))
+			pkg.Printf("type %s %s\n", typ.Name, pkg.oneLineType(typ.Type))
 			// Now print the consts, vars, and constructors.
 			for _, value := range pkg.doc.Values {
 				for _, v := range value.Values {
 					if pkg.isExported(v.Name) && pkg.typedValue[v.Name] == typ.Name {
-						// Make a singleton for oneLineNodeJSON
+						// Make a singleton for oneLineDecl
 						oneValue := &JSONValueDecl{
 							Const:  value.Const,
 							Values: []*JSONValue{v},
 						}
-						if decl := pkg.oneLineNodeJSON(oneValue); decl != "" {
+						if decl := pkg.oneLineDecl(oneValue); decl != "" {
 							pkg.Printf(indent+"%s\n", decl)
 							break
 						}
@@ -656,15 +796,21 @@ func (pkg *pkgPrinter) trimUnexportedMethods(interElems []*JSONInterfaceElement)
 	list := make([]*JSONInterfaceElement, 0, len(interElems))
 	for _, interElem := range interElems {
 		var name string
+		constraint := false
 		if interElem.Type != "" {
 			// Embedded type. Use the name of the type.
-			name = strings.TrimPrefix(interElem.Type, "*")
+			if strings.Contains(interElem.Type, " ") {
+				// Assume this is a constraint or an interface literals like "interface { A() }"
+				constraint = true
+			} else {
+				name = strings.TrimPrefix(interElem.Type, "*")
+			}
 		} else {
 			name = interElem.Method.Name
 		}
 		// Trims if any is unexported. Good enough in practice.
 		ok := true
-		if !pkg.isExported(name) {
+		if !constraint && !pkg.isExported(name) {
 			trimmed = true
 			ok = false
 		}
@@ -734,11 +880,12 @@ func (pkg *pkgPrinter) printFieldDoc(symbol, fieldName string) bool {
 			if !found {
 				pkg.Printf("type %s struct {\n", typ.Name)
 			}
+			s := pkg.oneLineType(field.Type)
 			lineComment := ""
 			if field.Doc != "" {
 				lineComment = fmt.Sprintf("  %s", strings.TrimSpace(field.Doc))
 			}
-			pkg.Printf("%s%s %s%s\n", indent, field.Name, field.Type, lineComment)
+			pkg.Printf("%s%s %s%s\n", indent, field.Name, s, lineComment)
 			found = true
 		}
 	}
