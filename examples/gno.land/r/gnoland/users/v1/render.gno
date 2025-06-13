@@ -45,7 +45,7 @@ func renderHomePage() string {
 
 	for i := len(entries) - 1; i >= 0; i-- {
 		user := entries[i].(string)
-		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Bold(user), user)
+		out += ufmt.Sprintf("- User [%s](/u/%s)\n", md.Bold(user), user)
 	}
 
 	return out
@@ -108,7 +108,7 @@ func renderUserPage(path string) string {
 
 	if isName && !isLatest {
 		out += md.Paragraph(ufmt.Sprintf(
-			"Note: You searched for `%s`, which is a previous name of [`%s`](/r/gnoland/users/v1:%s).",
+			"Note: You searched for `%s`, which is a previous name of [`%s`](/u/%s).",
 			path, data.Name(), data.Name()))
 	} else {
 		out += ufmt.Sprintf("Address: %s\n\n", data.Addr().String())
