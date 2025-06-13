@@ -13,6 +13,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -278,6 +279,7 @@ func execModInit(args []string) error {
 
 	modfile := new(gnomod.File)
 	modfile.Module = modPath
+	modfile.Gno = gnolang.GnoVerLatest
 	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
 
 	return nil
