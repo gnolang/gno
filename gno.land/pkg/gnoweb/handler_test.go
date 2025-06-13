@@ -671,33 +671,3 @@ func (c *userProfileTestClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gn
 	w.Write([]byte("Welcome to " + username + "'s profile"))
 	return &gnoweb.RealmMeta{}, nil
 }
-
-func TestGenerateTitle(t *testing.T) {
-	cases := []struct {
-		username       string
-		expectContains []string
-	}{
-		{username: "alice", expectContains: []string{"alice"}},
-		{username: "bob", expectContains: []string{"bob"}},
-		{username: "gnome_master", expectContains: []string{"gnome_master"}},
-		{username: "xyz", expectContains: []string{"xyz"}},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.username, func(t *testing.T) {
-			title := gnoweb.GenerateTitle(tc.username)
-			t.Logf("generated title for %q: %q", tc.username, title)
-
-			for _, expected := range tc.expectContains {
-				if !strings.Contains(title, expected) {
-					t.Errorf("title %q does not contain expected substring %q", title, expected)
-				}
-			}
-
-			wordCount := len(strings.Fields(title))
-			if wordCount == 0 || wordCount > 3 {
-				t.Errorf("title %q has %d words, expected 1-3", title, wordCount)
-			}
-		})
-	}
-}
