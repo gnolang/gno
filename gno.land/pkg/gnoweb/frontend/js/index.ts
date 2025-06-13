@@ -22,12 +22,15 @@
       path: "/public/js/tooltip.js",
     },
     breadcrumb: {
-      selector: "[data-role='header-breadcrumb-search']",
+      selector: ".js-breadcrumb",
       path: "/public/js/breadcrumb.js",
     },
   };
 
-  const loadModuleIfExists = async ({ selector, path }: Module): Promise<void> => {
+  const loadModuleIfExists = async ({
+    selector,
+    path,
+  }: Module): Promise<void> => {
     const element = document.querySelector(selector);
     if (element) {
       try {
@@ -40,7 +43,9 @@
   };
 
   const initModules = async (): Promise<void> => {
-    const promises = Object.values(modules).map((module) => loadModuleIfExists(module));
+    const promises = Object.values(modules).map((module) =>
+      loadModuleIfExists(module)
+    );
     await Promise.all(promises);
   };
 
