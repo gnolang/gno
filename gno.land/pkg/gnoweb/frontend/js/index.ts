@@ -1,5 +1,3 @@
-import initTooltip from './tooltip';
-
 (() => {
   interface Module {
     selector: string;
@@ -27,6 +25,10 @@ import initTooltip from './tooltip';
       selector: '.js-list',
       path: '/public/js/list.js',
     },
+    breadcrumb: {
+      selector: ".js-breadcrumb",
+      path: "/public/js/breadcrumb.js",
+    },
   };
 
   const loadModuleIfExists = async ({
@@ -49,9 +51,7 @@ import initTooltip from './tooltip';
   };
 
   const initModules = async (): Promise<void> => {
-    const promises = Object.values(modules).map(module =>
-      loadModuleIfExists(module)
-    );
+    const promises = Object.values(modules).map(module => loadModuleIfExists(module));
     await Promise.all(promises);
   };
 
