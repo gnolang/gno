@@ -286,8 +286,6 @@ func (h *WebHandler) buildContributions(username string) ([]components.UserContr
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
-		//log.Println("raw", raw)
-		h.Logger.Error("raw", "raw", raw)
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
@@ -319,8 +317,7 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 	var content bytes.Buffer
 
 	// Render user profile realm
-	// TODO: render user profile realm instead of home realm
-	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer); err != nil {
+	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/profile"}, h.MarkdownRenderer); err != nil {
 		h.Logger.Debug("unable to render user realm", "error", err)
 	}
 
