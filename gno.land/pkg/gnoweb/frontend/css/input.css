@@ -421,7 +421,7 @@
   .filter-list:has(input[value="realms"]:checked)
     .range:not(:has(> [data-type="realm"])),
   .filter-list:has(input[value="pures"]:checked)
-    .range:not(:has(> [data-type="pures"])),
+    .range:not(:has(> [data-type="pure"])),
   .range:empty {
     @apply block;
   }
