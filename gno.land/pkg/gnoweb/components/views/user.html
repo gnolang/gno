@@ -111,7 +111,7 @@
 
     <div
       id="user-contributions-packages"
-      class="js-list is-loading lg:col-span-7 pb-24 scroll-mt-24 filter-list">
+      class="js-list is-loading lg:col-span-7 pb-24 scroll-mt-24 min-h-96 filter-list">
       <h2 class="block text-gray-900 text-700 md:text-800 font-bold mb-6">
         Contributions
       </h2>
@@ -270,8 +270,7 @@
           </div>
         </div>
       </nav>
-      <div class="js-list-range range text-100 text-gray-600">
-        {{ range .Contributions }}
+      <div class="js-list-range range text-100 text-gray-600">{{- range .Contributions -}}
           <article data-type="{{ .Type }}" class="list-item">
             <div class="list-item__content">
               <span class="list-item__title">
@@ -316,8 +315,7 @@
               </div>
             {{ end }}
           </article>
-        {{ end }}
-      </div>
+        {{ end }}</div>
     </div>
   </div>
 {{ end }}

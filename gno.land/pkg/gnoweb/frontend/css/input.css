@@ -3,8 +3,7 @@
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src:
-    url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
     url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
@@ -24,16 +23,8 @@
 @layer base {
   html {
     @apply font-interVar text-gray-600 bg-light text-200;
-    font-feature-settings:
-      "kern" on,
-      "liga" on,
-      "calt" off,
-      "zero" on;
-    -webkit-font-feature-settings:
-      "kern" on,
-      "liga" on,
-      "calt" off,
-      "zero" on;
+    font-feature-settings: "kern" on, "liga" on, "calt" off, "zero" on;
+    -webkit-font-feature-settings: "kern" on, "liga" on, "calt" off, "zero" on;
     text-size-adjust: 100%;
     -moz-osx-font-smoothing: grayscale;
     font-smoothing: antialiased;
@@ -395,6 +386,56 @@
 
   .range {
     @apply grid grid-cols-1 gap-2;
+  }
+
+  .range::before {
+    @apply hidden col-span-full text-200 font-bold text-gray-600 pt-2 pb-2 w-full text-center;
+  }
+  .range::after {
+    @apply hidden col-span-full text-100 pb-2 w-full text-center;
+    content: "Add a package to your namespace to get started";
+  }
+
+  .range:empty::before {
+    @apply block;
+    content: "No packages found";
+  }
+
+  .range:empty::after {
+    @apply block;
+    content: "Add a package to your namespace to get started";
+  }
+
+  .filter-list:has(input[value="realms"]:checked)
+    .range:not(:has(> [data-type="realm"]))::before {
+    @apply block;
+    content: "No realms found";
+  }
+
+  .filter-list:has(input[value="realms"]:checked)
+    .range:not(:has(> [data-type="realm"]))::after {
+    @apply block;
+    content: "Add a realm to your namespace to get started";
+  }
+
+  .filter-list:has(input[value="realms"]:checked)
+    .range:not(:has(> [data-type="realm"])),
+  .filter-list:has(input[value="pures"]:checked)
+    .range:not(:has(> [data-type="pures"])),
+  .range:empty {
+    @apply block;
+  }
+
+  .filter-list:has(input[value="pures"]:checked)
+    .range:not(:has(> [data-type="pure"]))::before {
+    @apply block;
+    content: "No pures found";
+  }
+
+  .filter-list:has(input[value="pures"]:checked)
+    .range:not(:has(> [data-type="pure"]))::after {
+    @apply block;
+    content: "Add a pure to your namespace to get started";
   }
 
   .filter-list:has(input[value="display-grid"]:checked) .range {
