@@ -47,8 +47,7 @@ func init() {
 
 // CreateFriendGroup creates a new group with the chosen title
 // The caller is set as the first admin and the owner
-func CreateFriendGroup(title string) {
-	crossing()
+func CreateFriendGroup(cur realm, title string) {
 	caller := std.PreviousRealm().Address()
 
 	newGroup := FriendGroup{
@@ -73,8 +72,7 @@ func CreateFriendGroup(title string) {
 
 // JoinFriendGroup puts the caller in a waitlist for the specified group
 // The caller is in the waitlist until an admin of the group approves
-func AskJoinFriendGroup(groupId int) {
-	crossing()
+func AskJoinFriendGroup(cur realm, groupId int) {
 	caller := std.PreviousRealm().Address()
 
 	raw, exists := ListGroups.Groups.Get(strconv.Itoa(groupId))
@@ -98,8 +96,7 @@ func AskJoinFriendGroup(groupId int) {
 }
 
 // LeaveGroup is a wrapper to leave a group and DAO
-func LeaveGroup(groupId string) {
-	crossing()
+func LeaveGroup(cur realm, groupId string) {
 	group := GetGroupFromId(groupId)
 
 	if std.PreviousRealm().Address() == group.Owner.Owner() {
@@ -112,15 +109,15 @@ func LeaveGroup(groupId string) {
 // Helpers
 
 // NameOrAddress returns the user's registered name if available
-func NameOrAddress(addr std.Address) string {
-	user := users.ResolveAddress(addr)
+func NameOrAddress(adr std.Address) string {
+	user := users.ResolveAddress(adr)
 	if user != nil {
 		name := user.Name()
 		if name != "" {
 			return name
 		}
 	}
-	return addr.String()
+	return adr.String()
 }
 
 // GetGroupFromId retrieves a group from a given ID

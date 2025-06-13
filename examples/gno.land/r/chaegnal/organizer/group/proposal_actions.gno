@@ -48,9 +48,7 @@ func (c *CallbackProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m c
 
 // CreateProposals is a wrapper to create a proposal
 // It sanitizes the arguments given
-func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged string) {
-	crossing()
-
+func CreateProposals(cur realm, groupId, title, desc, callback, callbackArgsStr, logged string) {
 	if !isAdmin(groupId, std.PreviousRealm().Address()) {
 		panic("only admin can create proposals")
 	}
@@ -74,9 +72,7 @@ func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged str
 	}
 }
 
-func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
-	crossing()
-
+func VoteOnProposal(cur realm, groupId, voteIdStr, voteStr, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
 	voteId, err := strconv.ParseUint(voteIdStr, 10, 64)
@@ -103,7 +99,7 @@ func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
 	if err != nil {
 		panic("failed to vote: " + err.Error())
 	}
-	ExecuteExpiredProposals(groupId)
+	ExecuteExpiredProposals(cross, groupId)
 }
 
 // AdminCloseProposal is a wrapper for admin to close proposal forcefully
@@ -128,23 +124,21 @@ func AdminCloseProposal(groupId, voteIdStr, logged string) {
 	// }
 }
 
-func (p *CallbackProposalDefinition) Execute() error {
+func (p *CallbackProposalDefinition) Execute(cur realm) error {
 	switch p.Callback {
 	case "SetHangout":
-		if len(p.CallbackArgs) < 3 {
+		if len(p.CallbackArgs) < 4 {
 			return errors.New("not enough arguments")
 		}
 
 		group := organizer.GetGroupFromId(p.GroupId)
 		return group.SetHangoutTimeAndPlace(p.CallbackArgs[0], p.CallbackArgs[1], p.CallbackArgs[2], p.CallbackArgs[3])
-
 	default:
 		return errors.New("unknown callback: " + p.Callback)
 	}
 }
 
-func ExecuteExpiredProposals(groupId string) {
-	crossing()
+func ExecuteExpiredProposals(cur realm, groupId string) {
 	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.ActiveProposals().Iterate(0, group.DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
