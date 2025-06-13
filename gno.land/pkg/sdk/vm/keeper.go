@@ -374,11 +374,15 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err != nil {
 		return ErrInvalidPackage(err.Error())
 	}
+	// check if the package path matches the gnomod.toml module path.
+	if gm.Module != msg.Package.Path {
+		return ErrInvalidPkgPath("-pkgpath does not match gnomod.toml module path")
+	}
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
-	// no gno.mod file.
+	// no (deprecated) gno.mod file.
 	if memPkg.GetFile("gno.mod") != nil {
 		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
 	}
