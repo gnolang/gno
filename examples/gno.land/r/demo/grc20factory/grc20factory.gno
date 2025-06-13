@@ -65,6 +65,11 @@ func TotalSupply(symbol string) int64 {
 	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
+func IsKnownAccount(symbol string, owner std.Address) bool {
+	inst := mustGetInstance(symbol)
+	return inst.token.IsKnownAccount(owner)
+}
+
 func BalanceOf(symbol string, owner std.Address) int64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().BalanceOf(owner)
