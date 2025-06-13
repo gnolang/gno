@@ -311,6 +311,18 @@ func (h *WebHandler) buildContributions(username string) ([]components.UserContr
 	return slices.Clip(contribs), realmCount, nil
 }
 
+// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+// createUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address
+func CreateUsernameFromBech32(username string) string {
+	_, _, err := bech32.Decode(username)
+	if err == nil {
+		// If it's a valid bech32 address, create a shortened version
+		username = username[:4] + "..." + username[len(username)-4:]
+	}
+
+	return username
+}
+
 // GetUserView returns the user profile view for a given GnoURL.
 func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
 	username := strings.TrimPrefix(gnourl.Path, "/u/")
@@ -334,11 +346,7 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 
 	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
 	// Try to decode the bech32 address
-	if _, _, err = bech32.Decode(username); err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		shortAddr := username[:4] + "..." + username[len(username)-4:]
-		username = shortAddr
-	}
+	username = CreateUsernameFromBech32(username)
 
 	//TODO: get from user r/profile and use placeholder if not set
 	handlename := "Gnome " + username

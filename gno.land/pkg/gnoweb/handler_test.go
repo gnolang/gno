@@ -671,3 +671,72 @@ func (c *userProfileTestClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gn
 	w.Write([]byte("Welcome to " + username + "'s profile"))
 	return &gnoweb.RealmMeta{}, nil
 }
+
+func TestWebHandler_GetUserView_QueryPathsError(t *testing.T) {
+	t.Parallel()
+
+	client := &userProfileTestClient{
+		stubDirectoryClient{
+			queryPaths:    nil,
+			queryPathsErr: errors.New("simulated QueryPaths error"),
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/testuser/home",
+		Files:  map[string]string{},
+	})
+	cfg.WebClient = client
+
+	handler, err := gnoweb.NewWebHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/u/testuser", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	body := rr.Body.String()
+
+	assert.Contains(t, body, "simulated QueryPaths error")
+}
+
+func TestCreateUsernameFromBech32(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "valid bech32 address",
+			input:    "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p",
+			expected: "g1ed...uc8p",
+		},
+		{
+			name:     "invalid bech32 address",
+			input:    "invalid-address",
+			expected: "invalid-address",
+		},
+		{
+			name:     "empty address",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := gnoweb.CreateUsernameFromBech32(tt.input)
+			assert.Equal(t, tt.expected, result, "CreateUsernameFromBech32(%q) = %q, want %q", tt.input, result, tt.expected)
+		})
+	}
+}
