@@ -47,14 +47,6 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 	grc20reg.Register(cross, token, symbol)
 }
 
-func (inst instance) Token() *grc20.Token {
-	return inst.token
-}
-
-func (inst instance) CallerTeller() grc20.Teller {
-	return inst.token.CallerTeller()
-}
-
 func Bank(symbol string) *grc20.Token {
 	inst := mustGetInstance(symbol)
 	return inst.token
@@ -154,11 +146,22 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return "TODO: list existing tokens and admins"
+		tokens := ListTokens()
+		if len(tokens) == 0 {
+			return "No registered tokens."
+		}
+		out := ufmt.Sprintf("# GRC20 Tokens (%d)\n\n", len(tokens))
+		for _, token := range tokens {
+			infoLink := "/r/demo/grc20factory:" + token.GetSymbol()
+			out += ufmt.Sprintf("- [%s ($%s)](%s)\n", token.GetName(), token.GetSymbol(), infoLink)
+		}
+		return out
 	case c == 1:
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
-		return inst.token.RenderHome()
+		out := inst.token.RenderHome()
+		out += ufmt.Sprintf("* **Admin**: %s\n", inst.admin.Owner())
+		return out
 	case c == 3 && parts[1] == "balance":
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
