@@ -22,12 +22,8 @@ func init() {
 	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	dao := commondao.New("Foo")
+	dao := commondao.New("Foo", commondao.AllowVoting(false)) // Disallow voting
 	daoID = dao.ID()
-
-	// Change options to disallow voting
-	options := commondao.GetOptions(dao.ID())
-	options.SetAllowVoting(false)
 }
 
 func main() {
