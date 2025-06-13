@@ -677,7 +677,7 @@ func TestVMKeeperAddPackage_PatchGnomodToml(t *testing.T) {
 	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 
 	const pkgPath = "gno.land/r/testpatch"
-	gnomodToml := `module = "gno.land/r/testpatch"
+	gnomodToml := `module = "gno.land/r/anothername"
 gno = "0.9"
 `
 	files := []*std.MemFile{

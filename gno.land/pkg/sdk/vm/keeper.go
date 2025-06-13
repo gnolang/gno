@@ -374,10 +374,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err != nil {
 		return ErrInvalidPackage(err.Error())
 	}
-	// check if the package path matches the gnomod.toml module path.
-	if gm.Module != msg.Package.Path {
-		return ErrInvalidPkgPath("-pkgpath does not match gnomod.toml module path")
-	}
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
@@ -388,6 +384,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Patch gnomod.toml metadata
+	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
 	gm.UploadMetadata.Uploader = creator.String()
 	gm.UploadMetadata.Height = int(ctx.BlockHeight())
 	// Re-encode gnomod.toml in memPkg
