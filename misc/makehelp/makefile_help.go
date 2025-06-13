@@ -19,6 +19,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -42,18 +43,13 @@ type flagList []string
 
 // String returns the comma‑separated flag values.
 func (f *flagList) String() string {
-	var b strings.Builder
-	b.WriteByte('[')
-
-	for i, s := range *f {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(strconv.Quote(s))
+	strArrVal := []string(*f)
+	byteArr, err := json.Marshal(strArrVal)
+	if err != nil {
+		// This shouldn't be possible
+		panic(err)
 	}
-
-	b.WriteByte(']')
-	return b.String()
+	return string(byteArr)
 }
 
 // Set appends a new value to the flag list.
@@ -67,25 +63,13 @@ type nestedFlagList [][]string
 
 // String returns the comma‑separated flag values.
 func (nf *nestedFlagList) String() string {
-	var b strings.Builder
-	b.WriteByte('[')
-
-	for i, inner := range *nf {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteByte('[')
-		for j, s := range inner {
-			if j > 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(strconv.Quote(s))
-		}
-		b.WriteByte(']')
+	strArrArrVal := [][]string(*nf)
+	byteArr, err := json.Marshal(strArrArrVal)
+	if err != nil {
+		// This shouldn't be possible
+		panic(err)
 	}
-
-	b.WriteByte(']')
-	return b.String()
+	return string(byteArr)
 }
 
 // Set appends a new value to the flag list.
