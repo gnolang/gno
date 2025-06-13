@@ -11,7 +11,7 @@ import (
 	"gno.land/r/demo/grc20reg"
 )
 
-var instances avl.Tree // symbol -> instance
+var instances avl.Tree // symbol -> *instance
 
 type instance struct {
 	token  *grc20.Token
@@ -42,23 +42,9 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 		admin:  ownable.NewWithAddress(admin),
 		faucet: faucet,
 	}
-
-	// XXX: Workaround to keep ownership of the token in the current Realm
-	// before passing a pointer to the grc20reg.Register function.
-	// See #4274.
-	func(cur realm) {
-		instances.Set(symbol, &inst)
-	}(cross)
+	instances.Set(symbol, &inst)
 
 	grc20reg.Register(cross, token, symbol)
-}
-
-func (inst instance) Token() *grc20.Token {
-	return inst.token
-}
-
-func (inst instance) CallerTeller() grc20.Teller {
-	return inst.token.CallerTeller()
 }
 
 func Bank(symbol string) *grc20.Token {
@@ -69,6 +55,11 @@ func Bank(symbol string) *grc20.Token {
 func TotalSupply(symbol string) int64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().TotalSupply()
+}
+
+func IsKnownAccount(symbol string, owner std.Address) bool {
+	inst := mustGetInstance(symbol)
+	return inst.token.IsKnownAccount(owner)
 }
 
 func BalanceOf(symbol string, owner std.Address) int64 {
@@ -137,17 +128,40 @@ func TransferInstanceOwnership(cur realm, symbol string, newOwner std.Address) {
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
 
+func ListTokens() []*grc20.Token {
+	tokens := make([]*grc20.Token, 0, instances.Size())
+
+	instances.Iterate("", "", func(_ string, instI any) bool {
+		inst := instI.(*instance)
+		tokens = append(tokens, inst.token)
+		return false
+	})
+
+	return tokens
+}
+
 func Render(path string) string {
 	parts := strings.Split(path, "/")
 	c := len(parts)
 
 	switch {
 	case path == "":
-		return "TODO: list existing tokens and admins"
+		tokens := ListTokens()
+		if len(tokens) == 0 {
+			return "No registered tokens."
+		}
+		out := ufmt.Sprintf("# GRC20 Tokens (%d)\n\n", len(tokens))
+		for _, token := range tokens {
+			infoLink := "/r/demo/grc20factory:" + token.GetSymbol()
+			out += ufmt.Sprintf("- [%s ($%s)](%s)\n", token.GetName(), token.GetSymbol(), infoLink)
+		}
+		return out
 	case c == 1:
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
-		return inst.token.RenderHome()
+		out := inst.token.RenderHome()
+		out += ufmt.Sprintf("* **Admin**: %s\n", inst.admin.Owner())
+		return out
 	case c == 3 && parts[1] == "balance":
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
