@@ -43,7 +43,6 @@ func (u UserData) IsDeleted() bool {
 // RenderLink provides a render link to the user page on gnoweb
 // `linkText` is optional
 func (u UserData) RenderLink(linkText string) string {
-	// TODO switch to /u/username once the gnoweb page is ready.
 	if linkText == "" {
 		return ufmt.Sprintf("[@%s](/u/%s)", u.username, u.username)
 	}

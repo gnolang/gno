@@ -286,6 +286,8 @@ func (h *WebHandler) buildContributions(username string) ([]components.UserContr
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
+		//log.Println("raw", raw)
+		h.Logger.Error("raw", "raw", raw)
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
@@ -295,8 +297,6 @@ func (h *WebHandler) buildContributions(username string) ([]components.UserContr
 		ctype := components.UserContributionTypePackage
 		if u.IsRealm() {
 			ctype = components.UserContributionTypeRealm
-		}
-		if ctype == components.UserContributionTypeRealm {
 			realmCount++
 		}
 		contribs = append(contribs, components.UserContribution{
@@ -335,9 +335,9 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
+	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
 	// Try to decode the bech32 address
-	_, _, err = bech32.Decode(username)
-	if err == nil {
+	if _, _, err = bech32.Decode(username); err == nil {
 		// If it's a valid bech32 address, create a shortened version
 		shortAddr := username[:4] + "..." + username[len(username)-4:]
 		username = shortAddr
