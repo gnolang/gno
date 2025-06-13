@@ -90,6 +90,7 @@ const (
 	TRANS_SEND_VALUE
 	TRANS_SWITCH_INIT
 	TRANS_SWITCH_X
+	TRANS_SWITCH_VarName
 	TRANS_SWITCH_CASE
 	TRANS_SWITCHCASE_CASE
 	TRANS_SWITCHCASE_BODY
@@ -579,6 +580,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if stopOrSkip(nc, c) {
 			return
 		}
+
+		cnn.VarName = *transcribe(t, nns, TRANS_SWITCH_VarName, 0, &cnn.VarName, &c).(*NameExpr)
+		if stopOrSkip(nc, c) {
+			return
+		}
+
 		// NOTE: special block case for after .Init and .X.
 		cnn2, c2 = t(ns, ftype, index, cnn, TRANS_BLOCK2)
 		if stopOrSkip(nc, c2) {

@@ -973,7 +973,7 @@ type SwitchStmt struct {
 	X            Expr               // tag or _.(type) expr; or nil
 	IsTypeSwitch bool               // true iff X is .(type) expr
 	Clauses      []SwitchClauseStmt // case clauses
-	VarName      Name               // type-switched value; or ""
+	VarName      NameExpr           // type-switched value; or ""
 }
 
 type SwitchClauseStmt struct {
