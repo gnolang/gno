@@ -140,35 +140,43 @@ func parseConfig(args []string) (*Config, *flag.FlagSet, error) {
 // It ignores lines not starting with a letter, without ':', or marked @LEGACY.
 // Inline comments after one or more '#'s become descriptions.
 func extractMakefileTargets(filePath string) (map[string]string, error) {
-	legacyRe := regexp.MustCompile(`#.*@LEGACY\b`)
-
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
 	targets := make(map[string]string)
+	scanner := bufio.NewScanner(f)
 
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimRightFunc(scanner.Text(), unicode.IsSpace)
+
+		// Skip empty lines, non-letter starts, lines without ':', legacy lines, or variable assignments
 		if len(line) == 0 || !unicode.IsLetter(rune(line[0])) {
 			continue
 		}
-		colon := strings.IndexRune(line, ':')
-		if colon < 0 || legacyRe.MatchString(line) || (colon+1 < len(line) && line[colon+1] == '=') {
+
+		colon := strings.IndexByte(line, ':')
+		if colon == -1 || (colon+1 < len(line) && line[colon+1] == '=') {
 			continue
 		}
 
 		name := line[:colon]
 		desc := ""
-		for i := colon + 1; i < len(line); i++ {
-			if line[i] == '#' && (i+1 < len(line) && line[i+1] != '#') {
-				desc = strings.TrimSpace(line[i+1:])
-				break
+
+		// Find description after first single '#'.
+		// Skip lines marked @LEGACY.
+		if hashPos := strings.IndexByte(line, '#'); hashPos > colon {
+			for (hashPos+1 < len(line)) && (line[hashPos+1] == '#') {
+				hashPos += 1
+			}
+			desc = strings.TrimSpace(line[hashPos+1:])
+			if strings.Contains(desc, "@LEGACY") {
+				continue
 			}
 		}
+
 		targets[name] = desc
 	}
 	if err := scanner.Err(); err != nil {
