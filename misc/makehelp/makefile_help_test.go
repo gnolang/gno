@@ -219,13 +219,41 @@ func TestReadReadmeBanner_Table(t *testing.T) {
 		content string // raw README.md content; may include <NAME> placeholder
 		want    string
 	}{
-		{"empty readme", "", ""},
-		{"simple header", "# Hello World\nSecond line", " (Hello World)"},
-		{"no leading hash", "Just text title\nmore", " (Just text title)"},
-		{"strip dirname prefix", "# <NAME>: Important", " (Important)"},
-		{"strip backtick dirname", "# `<NAME>` -- Note", " (Note)"},
-		{"case‑insensitive prefix", "# <NAME>: MixedCase", " (MixedCase)"},
-		{"only prefix yields empty", "#<NAME>", ""},
+		{
+			name:    "empty readme",
+			content: "",
+			want:    "",
+		},
+		{
+			name:    "simple header",
+			content: "# Hello World\nSecond line",
+			want:    " (Hello World)",
+		},
+		{
+			name:    "no leading hash",
+			content: "Just text title\nmore",
+			want:    " (Just text title)",
+		},
+		{
+			name:    "strip dirname prefix",
+			content: "# <NAME>: Important",
+			want:    " (Important)",
+		},
+		{
+			name:    "strip backtick dirname",
+			content: "# `<NAME>` -- Note",
+			want:    " (Note)",
+		},
+		{
+			name:    "case‑insensitive prefix",
+			content: "# <NAME>: MixedCase",
+			want:    " (MixedCase)",
+		},
+		{
+			name:    "only prefix yields empty",
+			content: "#<NAME>",
+			want:    "",
+		},
 	}
 
 	for _, tc := range cases {
@@ -278,11 +306,36 @@ func TestMaxKeyLength_Table(t *testing.T) {
 		wildcards [][]string
 		want      int
 	}{
-		{"no wildcards", []string{"a", "bb", "ccc"}, nil, 3},
-		{"single wildcard shorter", []string{"p%t", "xx"}, [][]string{{"Z"}}, 3},
-		{"wildcard longer than key", []string{"p%t"}, [][]string{{"YY"}}, 4},
-		{"multiple wildcards, picks longest", []string{"p%t"}, [][]string{{"X", "WWW"}}, 5},
-		{"mix wild and non‑wild", []string{"long", "m%x"}, [][]string{{"ZZZ"}}, 5},
+		{
+			name:      "no wildcards",
+			keys:      []string{"a", "bb", "ccc"},
+			wildcards: nil,
+			want:      3,
+		},
+		{
+			name:      "single wildcard shorter",
+			keys:      []string{"p%t", "xx"},
+			wildcards: [][]string{{"Z"}},
+			want:      3,
+		},
+		{
+			name:      "wildcard longer than key",
+			keys:      []string{"p%t"},
+			wildcards: [][]string{{"YY"}},
+			want:      4,
+		},
+		{
+			name:      "multiple wildcards, picks longest",
+			keys:      []string{"p%t"},
+			wildcards: [][]string{{"X", "WWW"}},
+			want:      5,
+		},
+		{
+			name:      "mix wild and non‑wild",
+			keys:      []string{"long", "m%x"},
+			wildcards: [][]string{{"ZZZ"}},
+			want:      5,
+		},
 	}
 
 	for _, tc := range cases {
