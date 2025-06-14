@@ -1,3 +1,5 @@
+loadpkg gno.land/r/dev/silo $WORK/silo
+
 # test basic gnokey integrations commands
 # golden files have been generated using UPDATE_SCRIPTS=true
 
@@ -7,6 +9,9 @@ adduser user1
 # start gnoland
 gnoland start
 
+# query
+
+## auth
 ## test1 account should be available on default
 gnokey query auth/accounts/$user1_user_addr
 stdout 'height: 0'
@@ -25,3 +30,186 @@ stdout '}'
 ! gnokey query foo/bar
 stdout 'Log:'
 stderr '"gnokey" error: unknown request error'
+
+## succeed json call: string
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"juliette\")"
+cmp stdout gnokey-json-call-string.stdout.golden
+cmp stderr gnokey-json-call-string.stderr.golden
+
+
+## succeed json call: error
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"bernard\")"
+cmp stdout gnokey-json-call-error.stdout.golden
+cmp stderr gnokey-json-call-error.stderr.golden
+
+
+## success json call: object
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSilo()"
+cmp stdout gnokey-json-call-object.stdout.golden
+cmp stderr gnokey-json-call-object.stderr.golden
+
+
+## success json call: []byte
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSiloData()"
+cmp stdout gnokey-json-call-bytes.stdout.golden
+cmp stderr gnokey-json-call-bytes.stderr.golden
+
+-- silo/silo.gno --
+package silo
+
+import "errors"
+
+type Silo struct {
+	Data string
+}
+
+var mysilo = Silo{
+	Data: "secret message",
+}
+
+func Hello(name string) (string, error) {
+	if name == "bernard" {
+		return "", errors.New("not for you bernard!")
+	}
+
+	return "Hello "+name, nil
+}
+
+func GetSilo() *Silo {
+	return &mysilo
+}
+
+func GetSiloData() []byte {
+	return []byte(mysilo.Data)
+}
+
+-- gnokey-json-call-string.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "W3siVCI6InN0cmluZyIsIlYiOiJIZWxsbyBqdWxpZXR0ZSJ9LHsiVCI6bnVsbCwiViI6bnVsbH1d",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		{
+			"T": "string",
+			"V": "Hello juliette"
+		},
+		{
+			"T": null,
+			"V": null
+		}
+	]
+}
+
+-- gnokey-json-call-string.stderr.golden --
+-- gnokey-json-call-error.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "W3siVCI6InN0cmluZyIsIlYiOiIifSx7IkBlcnJvciI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn1d",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		{
+			"T": "string",
+			"V": ""
+		},
+		{
+			"@error": "not for you bernard!"
+		}
+	]
+}
+
+-- gnokey-json-call-error.stderr.golden --
+-- gnokey-json-call-error.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "W3siVCI6InN0cmluZyIsIlYiOiIifSx7IkBlcnJvciI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn1d",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		{
+			"T": "string",
+			"V": ""
+		},
+		{
+			"@error": "not for you bernard!"
+		}
+	]
+}
+
+-- gnokey-json-call-error.stderr.golden --
+-- gnokey-json-call-object.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "W3siVCI6Iipnbm8ubGFuZC9yL2Rldi9zaWxvLlNpbG8iLCJWIjoiNmFlZDJlZGE3MmM3OWU0MTFlZWMxZWE3ZjY2MWM1ZTMwMzgzZmI1OToyIn1d",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		{
+			"T": "*gno.land/r/dev/silo.Silo",
+			"V": "6aed2eda72c79e411eec1ea7f661c5e30383fb59:2"
+		}
+	]
+}
+
+-- gnokey-json-call-object.stderr.golden --
+-- gnokey-json-call-bytes.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "W3siVCI6IltddWludDgiLCJWIjoiYzJWamNtVjBJRzFsYzNOaFoyVT0ifV0=",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		{
+			"T": "[]uint8",
+			"V": "c2VjcmV0IG1lc3NhZ2U="
+		}
+	]
+}
+
+-- gnokey-json-call-bytes.stderr.golden --

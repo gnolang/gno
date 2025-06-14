@@ -151,11 +151,6 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 			assert.NoError(t, err)
 			env.vmk.CommitGnoTransactionStore(ctx)
 
-			req := abci.RequestQuery{
-				Path: "vm/qeval",
-				Data: tc.input,
-			}
-
 			defer func() {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
@@ -164,7 +159,13 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 					assert.Equal(t, tc.expectedPanicMatch, "", "should not panic")
 				}
 			}()
+
+			req := abci.RequestQuery{
+				Path: "vm/qeval",
+				Data: tc.input,
+			}
 			res := vmHandler.Query(env.ctx, req)
+
 			if tc.expectedPanicMatch == "" {
 				if tc.expectedErrorMatch == "" {
 					assert.True(t, res.IsOK(), "should not have error")
