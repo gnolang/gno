@@ -8,11 +8,11 @@ var defaultOptions = Options{
 	AllowExecution: true,
 }
 
-// Options configures DAO behavior within CommonDAO realm.
-// These options are only valid for the CommonDAO ream, dApps that
-// own a DAO can implement these features by themselves.
+// Options configures the behavior of DAOs created within the CommonDAO realm.
+// These options are only valid for the CommonDAO realm. Other dApps that
+// own a *commondao.DAO object can implement these features by themselves.
 type Options struct {
-	// AllowListing adds the DAO to the public list of realm DAOs.
+	// AllowListing allows the DAO to be listed on the CommonDAO realm home page.
 	AllowListing bool
 
 	// AllowRender enables support for rendering the DAO within the CommonDAO realm.
@@ -21,10 +21,10 @@ type Options struct {
 	// AllowChildren enables hierarchical DAOs by allowing the creation of SubDAOs.
 	AllowChildren bool
 
-	// AllowVoting enables proposal voting support.
+	// AllowVoting enables proposal voting.
 	AllowVoting bool
 
-	// AllowExecution enables proposal execution support.
+	// AllowExecution enables proposal execution.
 	AllowExecution bool
 }
 
