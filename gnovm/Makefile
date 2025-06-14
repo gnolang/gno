@@ -111,7 +111,7 @@ _test.pkg:
 .PHONY: _test.stdlibs
 _test.stdlibs:
 	go test -v ./stdlibs/...
-	go run ./cmd/gno test -v ./stdlibs/...
+	# Stdlibs are already tested in pkg/gnolang.
 
 .PHONY: _test.filetest
 _test.filetest:
