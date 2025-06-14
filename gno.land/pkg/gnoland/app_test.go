@@ -407,7 +407,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 						},
 					},
 				},
-				Deposit: nil,
+				MaxDeposit: nil,
 			}
 
 			// Create the initial genesis tx
