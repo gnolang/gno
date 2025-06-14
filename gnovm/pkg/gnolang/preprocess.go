@@ -3321,6 +3321,24 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			case *SwitchClauseStmt:
+				// parent switch statement.
+				ss := ns[len(ns)-1].(*SwitchStmt)
+				// fmt.Println("===n: ", n)
+				// fmt.Println("===ss: ", ss)
+				// fmt.Println("===ss.VarName: ", ss.VarName)
+				// fmt.Println("===ss.VarName.Type: ", ss.VarName.Type)
+				// if ss.VarName != nil && (ss.VarName.Type == NameExprTypeDefine || ss.VarName.Type == NameExprTypeHeapDefine) {
+
+				if ss.VarName != "" {
+					// XXX?
+					// ss.VarName.Type = NameExprTypeHeapDefine
+
+					// If the name is actually heap used:
+					if hasAttrHeapUse(n, ss.VarName) {
+						n.SetIsHeapItem(ss.VarName)
+					}
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
