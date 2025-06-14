@@ -5,16 +5,22 @@
 // for Makefiles, flags those with a "help" target, and reads the first line of
 // any README.md there as a banner.
 //
+// The --invocation-dir-prefix option is used solely to improve help output clarity
+// when Make is invoked with -C, since subshell execution resets PWD and otherwise
+// loses this context.
+//
 // Usage:
 //
 //	go run main.go [OPTIONS] <Makefile>
 //
 // Options:
 //
-//	-r, --relative-to PATH    Treat PATH as the relative invocation path
-//	-d, --dirs DIR [...]      List of directories to scan for Makefiles
-//	-w, --wildcard WILD [...] List of wildcard substitutions for '%' targets
-//	-h, --help                Show usage and exit
+//	--invocation-dir-prefix PATH  Path prefix to reflect use of `make -C DIR`. Used
+//			                      only to adjust help output paths so they match
+//			                      how Make was originally invoked by the user.
+//	--dirs DIR [...]              List of directories to scan for Makefiles
+//	--wildcard WILD [...]         List of wildcard substitutions for '%' targets
+//	-h, --help                    Show usage and exit
 package main
 
 import (
@@ -110,7 +116,8 @@ func parseConfig(args []string) (*Config, *flag.FlagSet, error) {
 	cfg := &Config{}
 	fs := flag.NewFlagSet("makefile-help", flag.ContinueOnError)
 
-	fs.StringVar(&cfg.RelativeTo, "relative-to", "", "base path for sub‑directory commands")
+	fs.StringVar(&cfg.RelativeTo, "invocation-dir-prefix", "",
+		"path prefix to reflect use of `make -C DIR`. Used only to adjust help output paths to match how Make was originally invoked by the user.")
 	fs.Var(&cfg.Dirs, "dir", "directory to scan for Makefiles (repeatable)")
 	fs.Var(&cfg.Wildcards, "wildcard", "value to substitute for '%' in targets (repeatable)")
 

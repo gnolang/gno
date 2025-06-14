@@ -26,7 +26,7 @@ func TestParseConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, _, err := parseConfig([]string{"-relative-to", "base", "-dir", "sub", "-wildcard", "X", "-wildcard", "Y", "-wildcard", "2:Z", mf})
+	cfg, _, err := parseConfig([]string{"--invocation-dir-prefix", "base", "--dir", "sub", "--wildcard", "X", "--wildcard", "Y", "--wildcard", "2:Z", mf})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
