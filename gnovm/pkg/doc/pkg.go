@@ -38,7 +38,8 @@ type symbolData struct {
 }
 
 func newPkgData(dir bfsDir, unexported bool) (*pkgData, error) {
-	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, gno.MPProd)
+	mptype := gno.MPAnyProd
+	mpkg, err := gno.ReadMemPackage(dir.dir, dir.importPath, mptype)
 	if err != nil {
 		return nil, fmt.Errorf("commands/doc: read files %q: %w", dir.dir, err)
 	}

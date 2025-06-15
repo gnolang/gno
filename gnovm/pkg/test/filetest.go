@@ -20,19 +20,31 @@ import (
 	"go.uber.org/multierr"
 )
 
-// RunFiletest executes the program in source as a filetest.
+// RunFiletest executes a gnovm internal filetest in test/files.
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
+// Before the filetest is run it will be type-checked.
 func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
-	return opts.runFiletest(fname, source, tgs)
+	tcheck := true // Go type-check filetests in test/files.
+	return opts.runFiletest(fname, source, tgs, tcheck)
 }
 
-func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store) (string, error) {
+// tcheck: only set to false pkg/test.Test(), since `gno test`
+// (cmd/gno/test.go) already type-checked the whole package.
+// Go type-checking in filetests is only available for gnovm internal filetests
+// in test/files.
+func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("error parsing directives: %w", err)
+	}
+
+	// Sanity check: type-check directives are not available
+	// with `gno test` of user packages.
+	if !tcheck && dirs.FirstDefault(DirectiveTypeCheckError, "") != "" {
+		panic("type-check error directive is only available for gnovm internal test files")
 	}
 
 	// Initialize Machine.Context and Machine.Alloc according to the input directives.
@@ -66,7 +78,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store)
 	defer m.Release()
 
 	// RUN THE FILETEST /////////////////////////////////////
-	result := opts.runTest(m, pkgPath, fname, source, opslog)
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -228,7 +240,7 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer) (rr runResult) {
+func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	tcError := ""
 	fname = filepath.Base(fname)
@@ -280,11 +292,15 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 	}()
 
+	// Remove filetest from name, as that can lead to the package not being
+	// parsed correctly when using RunMemPackage.
+	fname = strings.ReplaceAll(fname, "_filetest", "")
+
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) { // Simple case - pure package.
 		// Construct mem package for single filetest.
 		mpkg := &std.MemPackage{
-			Type: gno.MPFiletests,
+			Type: gno.MPUserProd, // run as prod
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -293,8 +309,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
-			tcError = fmt.Sprintf("%v", err.Error())
+		if tcheck {
+			if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
+				tcError = fmt.Sprintf("%v", err.Error())
+			}
 		}
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
@@ -309,13 +327,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.RunMain()
 	} else { // Realm case.
 		gno.DisableDebug() // until main call.
-		// Remove filetest from name, as that can lead to the package not being
-		// parsed correctly when using RunMemPackage.
-		fname = strings.ReplaceAll(fname, "_filetest", "")
 
 		// Save package using realm crawl procedure.
 		mpkg := &std.MemPackage{
-			Type: gno.MPFiletests,
+			Type: gno.MPUserProd, // run as prod
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -327,8 +342,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = txs
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
-			tcError = fmt.Sprintf("%v", err.Error())
+		if tcheck {
+			if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
+				tcError = fmt.Sprintf("%v", err.Error())
+			}
 		}
 		// Run decls and init functions.
 		m.RunMemPackage(mpkg, true)

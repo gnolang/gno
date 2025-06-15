@@ -262,7 +262,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			mpkg, err = gno.ReadMemPackageFromList(
 				[]string{filetest}, pkgPath, gno.MPFiletests)
 		} else {
-			mpkg, err = gno.ReadMemPackage(dir, pkgPath, gno.MPAll)
+			mpkg, err = gno.ReadMemPackage(dir, pkgPath, gno.MPUserAll) // stdlib not supported
 		}
 		if err != nil {
 			printError(cio.Err(), dir, pkgPath, err)

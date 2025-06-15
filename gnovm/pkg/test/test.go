@@ -216,6 +216,7 @@ func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
 // are to be updated.
 // opts is a required set of options, which is often shared among different
 // tests; you can use [NewTestOptions] for a common base configuration.
+// It is assumed that mpkg is already type-checked, even filetests.
 func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
@@ -275,7 +276,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
 			itPkg := &std.MemPackage{
-				Type:  gno.MPProd, // treated as a third-party prod package. (MPTest is for MPProd+*_test.gno)
+				Type:  gno.MPUserProd, // treated as a third-party prod package.
 				Name:  mpkg.Name + "_test",
 				Path:  mpkg.Path + "_test",
 				Files: itfiles,
@@ -306,7 +307,9 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
 			}
 
-			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body), tgs)
+			tcheck := false // already type-checked e.g. by cmd/gno/test.go
+			changed, err := opts.runFiletest(
+				testFileName, []byte(testFile.Body), tgs, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
 				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
@@ -332,7 +335,9 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	return errs
 }
 
-// Not the same as pkg/test/filetest runFiletests().
+// Runs *_test.go tests.
+// Not the same as pkg/test/filetest runFiletests()
+// whcih runs *_filetest.go tests.
 func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,

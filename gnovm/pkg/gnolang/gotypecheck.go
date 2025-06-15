@@ -36,7 +36,7 @@ func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 	}
 	switch pkgPath {
 	case "gnobuiltins/gno0p9": // 0.9
-		mpkg = &std.MemPackage{Type: MPStdlib, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+		mpkg = &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
 		mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
@@ -111,16 +111,17 @@ type MemPackageGetter interface {
 }
 
 // Wrap the getter and intercept "gnobuiltins/*" paths, which is only used for
-// type-checking.
-type gnoBuiltinsGetterWrapper struct {
+// type-checking. Also intercept mpkg namely for integration
+// xxx_test *_test.gno files to import the target package.
+type gimpGetterWrapper struct {
 	mpkg   *std.MemPackage
 	getter MemPackageGetter
 }
 
-func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
+func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 	if strings.HasPrefix(pkgPath, "gnobuiltins/") {
 		return gnoBuiltinsMemPackage(pkgPath)
-	} else if gw.mpkg.Type != MPFiletests && gw.mpkg.Path == pkgPath {
+	} else if gw.mpkg != nil && gw.mpkg.Type != MPFiletests && gw.mpkg.Path == pkgPath {
 		return gw.mpkg
 	} else {
 		return gw.getter.GetMemPackage(pkgPath)
@@ -153,8 +154,8 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter,
 		pkgPath: mpkg.Path,
 		tcmode:  tcmode,
 		testing: false, // only true for imports from testing files.
-		getter:  gnoBuiltinsGetterWrapper{mpkg, getter},
-		tgetter: gnoBuiltinsGetterWrapper{mpkg, tgetter},
+		getter:  gimpGetterWrapper{nil, getter},
+		tgetter: gimpGetterWrapper{mpkg, tgetter},
 		cache:   map[string]*gnoImporterResult{},
 		cfg: &types.Config{
 			Error: func(err error) {
@@ -239,13 +240,28 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		mpkg = gimp.getter.GetMemPackage(pkgPath)
 	}
 	if gimp.pkgPath == pkgPath {
-		if !gimp.testing {
-			// the only time gimp.pkgPath == pkgPath is
-			// for importing from test files from the package.
-			panic("expected gimp.testing")
+		if gimp.testing {
+			// xxx_test importing xxx for integration testing
+			mpkg = MPFTest.FilterMemPackage(mpkg)
+		} else {
+			// This happens when type-checking from
+			// pkg/test.runFiletest().  Normally when
+			// gno.TypeCheckMemPackage() is called for a normal
+			// user package which happens to include *_filetest.go
+			// file tests gimp.testing will be set to true, but
+			// when running the filetests each filetest is run as
+			// its own mempackage (with no other files).
+			// Furthermore, gnovm internal test/files filetests are
+			// type-checked individually (since these testfiles are
+			// not part of any package) each as a prod file, so
+			// gimp.testing is false, but with gimp.getter and
+			// gimp.tgetter set to the same teststore except only
+			// tgetter is injected with mpkg being tested.  In
+			// order to allow testfiles to have stdlib package
+			// paths without overwriting existing stdlibs, in this
+			// case we simply fetch it from gimp.getter above.
+			mpkg = MPFProd.FilterMemPackage(mpkg)
 		}
-		// xxx_test importing xxx for integration testing
-		mpkg = MPFTest.FilterMemPackage(mpkg)
 	} else {
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 	}
@@ -525,13 +541,18 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 		}
 		// Ignore _test/_filetest.gno files depending.
 		switch mpkg.Type {
-		case MPAny, MPAll, MPStdlib, MPFiletests: // parse all.
-		case MPProd: // ignore test files.
+		case MPAnyAll:
+			panic("undefined MPAnyAll")
+		case MPUserAll, MPStdlibAll, MPFiletests:
+			// parse all.
+		case MPUserProd, MPStdlibProd:
+			// ignore test files.
 			if strings.HasSuffix(file.Name, "_test.gno") ||
 				strings.HasSuffix(file.Name, "_filetest.gno") {
 				continue
 			}
-		case MPTest: // TODO: rename to MPIntegration.
+		case MPUserTest, MPStdlibTest:
+			// TODO: rename to MPIntegration?
 			if strings.HasSuffix(file.Name, "_filetest.gno") {
 				continue
 			}
@@ -559,13 +580,15 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 		} else if strings.HasSuffix(file.Name, "_test.gno") &&
 			strings.HasSuffix(gof.Name.String(), "_test") {
 			switch mpkg.Type {
-			case MPProd:
+			case MPAnyAll:
+				panic("undefined MPAnyAll")
+			case MPUserProd, MPStdlibProd:
 				panic("should not happen")
-			case MPTest:
+			case MPUserTest, MPStdlibTest:
 				// Do not include xxx_test.
 				// xxx_test imports normal and only
 				// non-xxx_test *test.go files from xxx.
-			case MPAny, MPAll, MPStdlib, MPFiletests:
+			case MPUserAll, MPStdlibAll, MPFiletests:
 				_gofs = append(_gofs, gof)
 				allgofs = append(allgofs, gof)
 			default:
@@ -587,10 +610,10 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 	}
 	// END processing all files.
 	// Sanity check before returning.
-	if mpkg.Type == MPProd && (len(_gofs) > 0 || len(tgofs) > 0) {
+	if mpkg.Type.(MemPackageType).IsProd() && (len(_gofs) > 0 || len(tgofs) > 0) {
 		panic("unexpected test files from GoParseMemPackage()")
 	}
-	if mpkg.Type == MPTest && (len(_gofs) > 0 || len(tgofs) > 0) {
+	if mpkg.Type.(MemPackageType).IsTest() && (len(_gofs) > 0 || len(tgofs) > 0) {
 		// same as above, because the non-xxx_test *_test.gno files are
 		// part of gofs, not _gofs; for testing purposes those test
 		// files extend the original package when imported by xxx_test

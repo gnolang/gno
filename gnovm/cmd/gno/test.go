@@ -267,7 +267,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}
 
 		// Read MemPackage with all files.
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAll)
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
 
 		var didPanic, didError bool
 		startedAt := time.Now()

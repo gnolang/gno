@@ -99,7 +99,7 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 }
 
 func packageImportsRecursive(root string, pkgPath string) []string {
-	pkg, err := gno.ReadMemPackage(root, pkgPath, gno.MPProd)
+	pkg, err := gno.ReadMemPackage(root, pkgPath, gno.MPAnyProd)
 	if err != nil {
 		// ignore invalid packages
 		pkg = &std.MemPackage{}

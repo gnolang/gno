@@ -28,7 +28,7 @@ type StoreOptions struct {
 	// Testing if true includes tests/stdlibs. If false, WithExtern omitted.
 	Testing bool
 
-	// WithExtern lets imports of packages "github.com/gnolang/gno/_test/"
+	// WithExtern lets imports of packages "filetests/extern/"
 	// as imports under the directory in "gnovm/tests/files/extern".
 	// This should only be used for GnoVM internal filetests (gnovm/tests/files).
 	WithExtern bool
@@ -100,13 +100,23 @@ func StoreWithOptions(
 	gnoStore gno.Store,
 ) {
 	//----------------------------------------
-	// process the mempackage after gno.MustReadMemPackage().
+	// process the non-stdlib mempackage after gno.MustReadMemPackage().
 	// * m.PreprocessFiles() if opts.PreprocessOnly.
 	// * m.RunMemPackage() otherwise.
 	_processMemPackage := func(
 		m *gno.Machine, mpkg *std.MemPackage, save bool) (
 		pn *gno.PackageNode, pv *gno.PackageValue,
 	) {
+		// _processMemPackage should only be called for "prod" packages.
+		// filetests/extern are MPStdlibProd, and examples are MPUserProd.
+		// (pkg/test/test.go Test() will filter for MPFTest and store
+		// the MP*Test mpkg in the store before running tests, so
+		// MPUserProd is all we need here.)
+		mptype := mpkg.Type.(gno.MemPackageType)
+		if !mptype.IsProd() {
+			panic(fmt.Sprintf("unexpected mempackage type, expected prod but got %v",
+				mptype))
+		}
 		if opts.PreprocessOnly {
 			// Check the gno.mod gno version.
 			mod, err := gno.ParseCheckGnoMod(mpkg)
@@ -130,10 +140,10 @@ func StoreWithOptions(
 					panic(fmt.Errorf("test store preparing AST: %w", errs))
 				}
 			}
-			m.Store.AddMemPackage(mpkg, gno.MPAny)
+			m.Store.AddMemPackage(mpkg, mptype)
 			return m.PreprocessFiles(
 				mpkg.Name, mpkg.Path,
-				gno.ParseMemPackage(mpkg, gno.MPProd),
+				gno.ParseMemPackageAsType(mpkg, mptype),
 				save, false, opts.FixFrom)
 		} else {
 			return m.RunMemPackage(mpkg, save)
@@ -147,11 +157,11 @@ func StoreWithOptions(
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
 		if opts.WithExtern {
-			// if _test package...
-			const testPath = "github.com/gnolang/gno/_test/"
+			// if _test package... pretend stdlib.
+			const testPath = "filetests/extern/"
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
-				mpkg := gno.MustReadMemPackage(baseDir, pkgPath, gno.MPProd)
+				mpkg := gno.MustReadMemPackage(baseDir, pkgPath, gno.MPStdlibProd)
 				send := std.Coins{}
 				ctx := Context("", pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -176,7 +186,7 @@ func StoreWithOptions(
 		if opts.WithExamples {
 			examplePath := filepath.Join(rootDir, "examples", pkgPath)
 			if osm.DirExists(examplePath) {
-				mpkg := gno.MustReadMemPackage(examplePath, pkgPath, gno.MPProd)
+				mpkg := gno.MustReadMemPackage(examplePath, pkgPath, gno.MPUserProd)
 				if mpkg.IsEmpty() {
 					panic(fmt.Sprintf("found an empty package %q", pkgPath))
 				}
@@ -244,7 +254,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		return nil, nil
 	}
 
-	mpkg := gno.MustReadMemPackageFromList(files, pkgPath, gno.MPStdlib)
+	mpkg := gno.MustReadMemPackageFromList(files, pkgPath, gno.MPStdlibAll)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       pkgPath,
 		Output:        stdout,
@@ -253,8 +263,8 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		SkipPackage:   true, // will PreprocessFiles() or RunMemPackage() after.
 	})
 	if preprocessOnly {
-		m2.Store.AddMemPackage(mpkg, gno.MPStdlib)
-		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg, gno.MPProd), true, true, "")
+		m2.Store.AddMemPackage(mpkg, gno.MPStdlibAll)
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackageAsType(mpkg, gno.MPStdlibProd), true, true, "")
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(mpkg, true)

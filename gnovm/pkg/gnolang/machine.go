@@ -198,7 +198,8 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
-		fset := ParseMemPackage(mpkg, MPProd)
+		mpkg = MPFProd.FilterMemPackage(mpkg)
+		fset := ParseMemPackageAsType(mpkg, MPAnyProd)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -227,8 +228,12 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 
 // Sorts the package, then sets the package if doesn't exist, runs files, saves
 // mpkg and corresponding package node, package value, and types to store. Save
-// is set to false for tests where package values may be native.  NOTE: Does
-// not validate the mpkg. Caller must validate the mpkg before calling.
+// is set to false for tests where package values may be native.
+// If save is true, mpkg must be of type.IsStorable().
+// NOTE: Production systems must separately check mpkg.type if save, typically
+// you will want to ensure that it is MPUserAll, not MPUserProd or MPUserTest.
+// NOTE: Does not validate the mpkg. Caller must validate the mpkg before
+// calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	if bm.OpsEnabled || bm.StorageEnabled {
 		bm.InitMeasure()
@@ -242,17 +247,30 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
 // declarations are filtered removing duplicate declarations.  To control which
 // declaration overrides which, use [ReadMemPackageFromList], putting the
-// overrides at the top of the list.  NOTE: Does not validate the mpkg, except
-// when saving validates with type MPAny.
+// overrides at the top of the list.
+// If save is true, mpkg must be of type.IsStorable().
+// NOTE: Production systems must separately check mpkg.type if save, typically
+// you will want to ensure that it is MPUserAll, not MPUserProd or MPUserTest.
+// NOTE: Does not validate the mpkg, except when saving validates a mpkg with
+// its type.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(mpkg, save, true)
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+	// validate mpkg.Type.
+	mptype := mpkg.Type.(MemPackageType)
+	if save && !mptype.IsStorable() {
+		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
+	}
+	// If All, demote to Prod when parsing,
+	// if Test, keep it as is,
+	// but in any case save everything if save.
+	mptype = mptype.AsRunnable()
 	// sort mpkg.
 	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackage(mpkg, MPProd)
+	files := ParseMemPackageAsType(mpkg, mptype)
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -286,8 +304,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// save again after init.
 	if save {
 		m.resavePackageValues(throwaway)
-		// store mempackage
-		m.Store.AddMemPackage(mpkg, MPAny)
+		// store mempackage; we already validated type.
+		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
 		if throwaway != nil {
 			m.Realm = nil
 		}

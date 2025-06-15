@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	gofmt "go/format"
@@ -115,21 +116,25 @@ func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageTyp
 		return mptype
 	case MPFProd:
 		switch mptype {
-		case MPAny, MPProd, MPTest, MPAll:
-			return MPProd
-		case MPStdlib:
-			return MPStdlib
+		case MPAnyAll, MPAnyTest, MPAnyProd:
+			panic("undecided MPAny*")
+		case MPUserAll, MPUserTest, MPUserProd:
+			return MPUserProd
+		case MPStdlibAll, MPStdlibTest, MPStdlibProd:
+			return MPStdlibProd
 		case MPFiletests:
 			panic("should not happen")
 		}
 	case MPFTest:
 		switch mptype {
-		case MPTest, MPAny, MPAll:
-			return MPTest
-		case MPProd:
-			return MPProd
-		case MPStdlib:
-			return MPStdlib
+		case MPAnyAll, MPAnyTest, MPAnyProd:
+			panic("undecided MPAny*")
+		case MPUserAll, MPUserTest:
+			return MPUserTest
+		case MPStdlibAll, MPStdlibTest:
+			return MPStdlibTest
+		case MPUserProd, MPStdlibProd:
+			panic("cannot filter for MPFTest on MP*Prod (no tests files)")
 		case MPFiletests:
 			panic("should not happen")
 		}
@@ -165,32 +170,37 @@ func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.Mem
 }
 
 // While std.MemPackage can contain any data, gnolang/mempackage.go expects
-// these to be of a certain form. Except for MPAny, which is a union of a
-// subset of the other types (notably excluding MPFileTests), they each
-// represent different classes of mempackages.
+// these to be of a certain form. Except for MPAny*, which is not a valid
+// mempackage type but a convenience argument value that must resolve either to
+// MPStdlibAll, MPUserAll, or MPFiletesst; the mempackage types represent
+// different classes of mempackages.
 //
-//  * MPStdlib: mpkg is a stdlib library. These are only handled by the gnolang
-//  project and is declared as such separately. This is handled separately for
-//  defensive purposes and convenience, so that validation may fail if a
-//  mempackage declares itself to be IsStdlib yet a stdlib wasn't expected.
-//  Only MPStdlib can include native .go files.
-//
-//  * MPProd: mpkg is a non-stdlib library of the form <domain>/<letter>/...
-//  MPFProd filter was already applied, and no tests (*_test.gno or
-//  *_filetest.gno) are present. Validation will fail if any test files are
-//  present at all. This is what gets m.RunMemPackage()'d when a package is
-//  imported by the `import` statement.
-//
-//  * MPTest: mpkg is a non-stdlib library of the form <domain>/<letter>/...
-//  MPFTest filter was already applied, and no *_filetest.gno are present.
-//  Validation will fail if any *_filetests.gno files are present. *_test.gno
-//  files may declare themselves to be of the same package name as non-test
-//  files, or have "_test" appended, and are referred to as "xxx_test" package
-//  *_test.gno files.
-//
-//  * MPAll: mpkg is a non-stdlib library of the form <domain>/<letter>/...  No
-//  filter was applied, and even *_filetest.gno files are present, so the
+//  * MPUserAll: mpkg is a non-stdlib library of the form <domain>/<letter>/...
+//  No filter was applied, and even *_filetest.gno files are present, so the
 //  package is suitable for saving, but not running.
+//
+//  * MPUserTest: mpkg is a non-stdlib library of the form
+//  <domain>/<letter>/...  MPFTest filter was already applied, and no
+//  *_filetest.gno are present.  Validation will fail if any *_filetests.gno
+//  files are present. *_test.gno files may declare themselves to be of the
+//  same package name as non-test files, or have "_test" appended, and are
+//  referred to as "xxx_test" package *_test.gno files.
+//
+//  * MPUserProd: mpkg is a non-stdlib library of the form
+//  <domain>/<letter>/...  MPFProd filter was already applied, and no tests
+//  (*_test.gno or *_filetest.gno) are present. Validation will fail if any
+//  test files are present at all. This is what gets m.RunMemPackage()'d when a
+//  package is imported by the `import` statement.
+//
+//  * MPStdlibAll: mpkg is a stdlib library. These are only handled by the
+//  gnolang project and is declared as such separately. This is handled
+//  separately for defensive purposes and convenience, so that validation may
+//  fail if a mempackage declares itself to be IsStdlib yet a stdlib wasn't
+//  expected.  Only MPStdlib* can include native .go files.
+//
+//  *MPStdlibTest: like MPUserTest, is for testing.
+//
+//  *MPStdlibProd: like MPUserTest, is for prod; for user/stdlib to import.
 //
 //  * MPFiletests: mpkg is a special kind of mempackage that contains only
 //  filetests, and does not represent a package otherwise: it does not make
@@ -199,6 +209,15 @@ func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.Mem
 //  "_filetest.gno" in the file name, but that rule does not apply to files in
 //  this type of mempackage.
 //
+//  *MPAnyAll: is not a valid type but can be used in liue of MPStdlibAll or
+//  MPUserAll for Read and Validate commands. It is only recommended for
+//  testing purposes; in production logic you wouldn't want to validate and
+//  save with this value because user package submission should not share the
+//  same code path as for stdlib package registrations.
+//
+//  *MPAnyProd: similar to MPAnyAll, but for MPStdlibProd or MPUserProd.
+//  *MPAnyTest: similar to MPAnyAll, but for MPStdlibTest or MPUserTest.
+//
 // All of the above concrete types except for MPFiletests must have consistent
 // package names in all of the .gno files, otherwise the package fails
 // validation.
@@ -206,17 +225,149 @@ func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.Mem
 type MemPackageType string
 
 const (
-	MPAny       MemPackageType = "MPAny"       // anything (but not MPStdlib nor MPFiletests).
-	MPStdlib    MemPackageType = "MPStdlib"    // stdlibs only.
-	MPProd      MemPackageType = "MPProd"      // no stdlibs, valid gno pkg path, no tests/filetests.
-	MPTest      MemPackageType = "MPTest"      // no stdlibs, valid gno pkg path, w/ tests, w/o filetests.
-	MPAll       MemPackageType = "MPAll"       // no stdlibs, valid gno pkg path, w/ tests/filetests.
-	MPFiletests MemPackageType = "MPFiletests" // filetests only, regardless of file name (tests/files).
+	MPAnyAll     MemPackageType = "MPAnyAll"     // MPUserAll or MPStdlibAll.
+	MPAnyTest    MemPackageType = "MPAnyTest"    // MPUserTest or MPStdlibTest.
+	MPAnyProd    MemPackageType = "MPAnyProd"    // MPUserProd or MPStdlibProd.
+	MPStdlibAll  MemPackageType = "MPStdlibAll"  // stdlibs only, all files.
+	MPStdlibTest MemPackageType = "MPStdlibTest" // stdlibs only, w/ tests, w/o integration/filetests
+	MPStdlibProd MemPackageType = "MPStdlibProd" // stdlibs only, no tests/filetests
+	MPUserAll    MemPackageType = "MPUserAll"    // no stdlibs, gno pkg path, w/ tests/filetests.
+	MPUserTest   MemPackageType = "MPUserTest"   // no stdlibs, gno pkg path, w/ tests, w/o integration/filetests.
+	MPUserProd   MemPackageType = "MPUserProd"   // no stdlibs, gno pkg path, no tests/filetests.
+	MPFiletests  MemPackageType = "MPFiletests"  // filetests only, regardless of file name (tests/files).
 )
 
+// NOTE: MPAnyAll, MPAnyTest, MPAnyProd are meant to be decided as MPStdlib* or MPUser*.
+func (mptype MemPackageType) IsAny() bool {
+	return mptype == MPAnyAll || mptype == MPAnyTest || mptype == MPAnyProd
+}
+func (mptype MemPackageType) AssertNotAny() {
+	if mptype.IsAny() {
+		panic("undefined MPAny*")
+	}
+}
+func (mptype MemPackageType) Decide(pkgPath string) MemPackageType {
+	switch mptype {
+	case MPAnyAll:
+		if IsStdlib(pkgPath) {
+			return MPStdlibAll
+		} else { // XXX IsUserPath(), and default panic.
+			return MPUserAll
+		}
+	case MPAnyTest:
+		if IsStdlib(pkgPath) {
+			return MPStdlibTest
+		} else { // XXX IsUserPath(), and default panic.
+			return MPUserTest
+		}
+	case MPAnyProd:
+		if IsStdlib(pkgPath) {
+			return MPStdlibProd
+		} else { // XXX IsUserPath(), and default panic.
+			return MPUserProd
+		}
+	case MPStdlibAll, MPStdlibTest, MPStdlibProd,
+		MPUserAll, MPUserTest, MPUserProd:
+		return mptype
+	default:
+		// e.g. doesn't make sense to decide for MPFiletests.
+		panic("unexpected mptype")
+	}
+}
+func (mptype MemPackageType) IsStdlib() bool {
+	mptype.AssertNotAny()
+	return mptype == MPStdlibAll || mptype == MPStdlibTest || mptype == MPStdlibProd
+}
+func (mptype MemPackageType) IsUser() bool {
+	mptype.AssertNotAny()
+	return mptype == MPUserAll || mptype == MPUserTest || mptype == MPUserProd
+}
+func (mptype MemPackageType) IsAll() bool {
+	mptype.AssertNotAny()
+	return mptype == MPUserAll || mptype == MPStdlibAll
+}
+func (mptype MemPackageType) IsTest() bool {
+	mptype.AssertNotAny()
+	return mptype == MPUserTest || mptype == MPStdlibTest
+}
+func (mptype MemPackageType) IsProd() bool {
+	mptype.AssertNotAny()
+	return mptype == MPUserProd || mptype == MPStdlibProd
+}
+func (mptype MemPackageType) IsFiletests() bool {
+	mptype.AssertNotAny()
+	return mptype == MPFiletests
+}
+func (mptype MemPackageType) IsRunnable() bool {
+	mptype.AssertNotAny()
+	return mptype.IsTest() || mptype.IsProd()
+}
+func (mptype MemPackageType) IsStorable() bool {
+	// MPAny* is not a valid mpkg type for storage,
+	// e.g. mpkg.Type should never be MPAnyAll.
+	mptype.AssertNotAny()
+	// MP*Prod is stored by pkg/test/imports.go.
+	// MP*Test is stored by pkg/test/tests.go.
+	return mptype.IsAll() || mptype.IsProd() || mptype.IsTest()
+}
+func (mptype MemPackageType) AsRunnable() MemPackageType {
+	// If All, demote to Prod.
+	// If Test, keep as is.
+	if mptype.IsAll() {
+		switch mptype {
+		case MPStdlibAll:
+			return MPStdlibProd
+		case MPUserAll:
+			return MPUserProd
+		default:
+			panic("should not happen")
+		}
+	} else if mptype.IsProd() {
+		return mptype
+	} else if mptype.IsTest() {
+		return mptype
+	} else {
+		panic(fmt.Sprintf("mempackage type is not runnable: %v", mptype))
+	}
+}
+
+// Validates that mptype is a valid MemPackageType; includes MPAny*, MPFiletests, etc.
 func (mptype MemPackageType) Validate() {
-	if !slices.Contains([]MemPackageType{MPAny, MPStdlib, MPProd, MPTest, MPAll, MPFiletests}, mptype) {
+	if !slices.Contains([]MemPackageType{
+		MPAnyAll, MPAnyTest, MPAnyProd,
+		MPStdlibAll, MPStdlibTest, MPStdlibProd,
+		MPUserAll, MPUserTest, MPUserProd, MPFiletests,
+	}, mptype) {
 		panic(fmt.Sprintf("invalid mem package type %q", mptype))
+	}
+}
+
+// Given mpkg.Type (mptype), ensures that pkgPath matches mptype, and also that
+// mptype2 is a compatible sub-type, or any.  This function is used by
+// ParseMemPackageAsType to parse a subset of files in mpkg.
+//   - if mpkg.Type .IsFiletests(), mptype2 MUST be MPFiletests.
+//   - If mpkg.Type .IsAll(), mptype2 can be .IsAll(), .IsTest(), or .IsProd().
+//   - if mpkg.Type .IsTest(), mptype2 can be .IsTest() or .IsProd().
+//   - if mpkg.Type .IsProd(), mptype2 MUST be .IsProd().
+//   - if mpkg.Type .IsStdlib(), mptype2 MUST be .IsAny() or .IsStdlib(), and pkgPath too.
+//   - if mpkg.Type .IsUser(), mptype2 MUST be .IsAny() or .IsUser(), and pkgPath too.
+func (mptype MemPackageType) AssertCompatible(pkgPath string, mptype2 MemPackageType) {
+	mptype.Validate()
+	mptype2.Validate()
+	if mptype.IsStdlib() && !IsStdlib(pkgPath) {
+		panic(fmt.Sprintf("%v does not match non-stdlib %q", mptype, pkgPath))
+	}
+	if mptype.IsUser() && IsStdlib(pkgPath) {
+		panic(fmt.Sprintf("%v does not match stdlib %q", mptype, pkgPath))
+	}
+	mptype2 = mptype2.Decide(pkgPath)
+	if mptype.IsFiletests() && !mptype2.IsFiletests() ||
+		mptype.IsAll() && !mptype2.IsAll() && !mptype2.IsTest() && !mptype2.IsProd() ||
+		mptype.IsTest() && !mptype2.IsTest() && !mptype2.IsProd() ||
+		mptype.IsProd() && !mptype2.IsProd() ||
+		mptype.IsStdlib() && !mptype2.IsStdlib() ||
+		mptype.IsUser() && !mptype2.IsUser() {
+		panic(fmt.Sprintf("%v does not match %v", mptype, mptype2))
 	}
 }
 
@@ -227,16 +378,15 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 		panic("should not happen")
 	}
 	switch mptype {
-	case MPAny, MPAll, MPFiletests:
+	case MPAnyAll, MPAnyTest, MPAnyProd:
+		panic("unresolved MPAny*")
+	case MPStdlibAll, MPUserAll, MPFiletests:
 		// include all files.
 		return false
-	case MPStdlib:
-		// may include test files, up to project.
-		return false
-	case MPProd:
+	case MPStdlibProd, MPUserProd:
 		// exclude all test files.
 		return endsWithAny(fname, []string{"_test.gno", "_filetest.gno"})
-	case MPTest:
+	case MPStdlibTest, MPUserTest:
 		// exclude filetest files, and xxx_test package names.
 		return endsWithAny(fname, []string{"_filetest.gno"}) ||
 			endsWithAny(string(pname), []string{"_test"})
@@ -259,6 +409,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 //
 // Filtering, parsing, and validation is performed separately.
 func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	mptype = mptype.Decide(pkgPath)
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -266,9 +417,9 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	// shadow defense.
 	goodFiles := goodFiles
 	// Special stdlib validation.
-	if mptype != MPStdlib && IsStdlib(pkgPath) {
-		panic(fmt.Sprintf("unexpected stdlib package path %q", pkgPath))
-	} else if mptype == MPStdlib && !IsStdlib(pkgPath) {
+	if !mptype.IsStdlib() && IsStdlib(pkgPath) {
+		panic(fmt.Sprintf("unexpected stdlib package path %q for mempackage type %q", pkgPath, mptype))
+	} else if mptype.IsStdlib() && !IsStdlib(pkgPath) {
 		panic(fmt.Sprintf("unexpected non-stdlib package path %q", pkgPath))
 	}
 	// Allows transpilation to work on stdlibs with native fns.
@@ -316,8 +467,7 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 // extensions are found, but otherwise new files may be added by various logic.
 // It also ignores and does not include files that wouldn't pass validation
 // before any filters applied. Unless MPFiletests, the package name declared in
-// each file must be consistent with others, or no name will be set for this
-// mem package, and both the mpkg and an err will be returned.
+// each file must be consistent with others, an err will be returned.
 //
 // Filtering, parsing, and validation is performed separately.
 //
@@ -325,6 +475,7 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 // _, lowercase, and must start with a letter).
 func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
 	mptype.Validate()
+	mptype = mptype.Decide(pkgPath)
 	mpkg := &std.MemPackage{
 		Type: mptype,
 		Path: pkgPath,
@@ -345,14 +496,14 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 		// for gno.ValidateMemPackage().
 		if strings.HasSuffix(fname, ".gno") {
 			//--------------------------------------------------------------------------------
-			// NOTE: the below is (almost) duplicated in ParseMemPackageForType().
+			// NOTE: the below is (almost) duplicated in ParseMemPackageAsType().
 			// If MPProd, don't even try to read _test.gno and _filetest.gno files.
-			if mptype == MPProd &&
+			if mptype.IsProd() &&
 				endsWithAny(fname, []string{"_test.gno", "_filetest.gno"}) {
 				continue
 			}
 			// If MPTest, don't even try to read _filetest.gno files.
-			if mptype == MPTest &&
+			if mptype.IsTest() &&
 				endsWithAny(fname, []string{"_filetest.gno"}) {
 				continue
 			}
@@ -367,10 +518,10 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 			if mptype.ExcludeGno(fname, pname2) {
 				continue
 			}
-			// NOTE: the above is (almost) duplicated in ParseMemPackageForType().
+			// NOTE: the above is (almost) duplicated in ParseMemPackageAsType().
 			//--------------------------------------------------------------------------------
 			// Try to derive the mem package name from suitable files.
-			if mptype == MPFiletests || strings.HasSuffix(fname, "_filetest.gno") {
+			if mptype.IsFiletests() || strings.HasSuffix(fname, "_filetest.gno") {
 				// Filetests may have arbitrary package names.
 				// pname2 (of this file) may be unrelated to
 				// pkgName of the mem package.
@@ -384,15 +535,11 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 				if strings.HasSuffix(string(pname2), "_test") {
 					pname2 = pname2[:len(pname2)-len("_test")]
 				}
-				if !pkgNameDiffers && pkgName == "" {
+				if pkgName == "" {
 					pkgName = pname2
-				} else if !pkgNameDiffers && pkgName != pname2 {
-					// This happens when transpiling
-					// tests/files; both mpkg and errors
-					// will be returned.
+				} else if pkgName != pname2 {
 					errs = multierr.Append(errs, fmt.Errorf("%s:0: expected package name %q but got %q", fpath, pkgName, pname2))
-					pkgName = ""
-					pkgNameDiffers = true
+					return nil, errs
 				}
 			}
 		}
@@ -413,20 +560,16 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 	}
 	// Verify/derive package name.
 	if pkgName == "" {
-		switch mptype {
-		case MPFiletests, MPAll: // MPAll from Test_Scripts gno test.
+		if mptype.IsFiletests() {
 			// If only filetests with the same name, its package name is used.
-			if !pkgNameDiffers && !pkgNameFTDiffers {
+			if !pkgNameFTDiffers {
 				pkgName = pkgNameFT
 			} else {
 				// Otherwie, set a default one. It doesn't matter.
 				pkgName = "filetests"
 			}
-		default:
-			// If pkgNameDiffers, return mpkg and the errors.
-			if mptype != MPFiletests && pkgNameDiffers {
-				return nil, errs
-			}
+		} else if pkgNameDiffers {
+			return nil, errs
 		}
 	}
 	// Still no pkgName or invalid; ensure error.
@@ -451,15 +594,16 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 	return pkg
 }
 
-// ParseMemPackage executes [ParseFile] on each file of the mpkg, with files
-// filtered based on mptype (regardless of mpkg.Type).  The resulting *FileSet
-// is returned.
+// ParseMemPackageAsType executes [ParseFile] on each file of the mpkg, with
+// files filtered based on mptype, which must match mpkg.Type. See also
+// MemPackageType.Matches() for details.
 //
 // If one of the files has a different package name than mpkg.Name,
-// or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
+// or [ParseFile] returns an error, ParseMemPackageAsType panics.
+func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate()
+	mpkg.Type.(MemPackageType).AssertCompatible(mpkg.Path, mptype)
 	fset = &FileSet{}
 	var errs error
 	for _, mfile := range mpkg.Files {
@@ -471,13 +615,13 @@ func ParseMemPackage(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet
 		}
 		//--------------------------------------------------------------------------------
 		// NOTE: the below is (almost) duplicated in ReadMemPackageFromList().
-		// If MPProd, don't even try to read _test.gno and _filetest.gno files.
-		if mptype == MPProd &&
+		// If MP*Prod, don't even try to read _test.gno and _filetest.gno files.
+		if mptype.IsProd() &&
 			endsWithAny(fname, []string{"_test.gno", "_filetest.gno"}) {
 			continue
 		}
-		// If MPTest, don't even try to read _filetest.gno files.
-		if mptype == MPTest &&
+		// If MP*Test, don't even try to read _filetest.gno files.
+		if mptype.IsTest() &&
 			endsWithAny(fname, []string{"_filetest.gno"}) {
 			continue
 		}
@@ -557,11 +701,24 @@ func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, 
 
 // Validates a non-stdlib production mempackage with no tests.
 func ValidateMemPackage(mpkg *std.MemPackage) error {
-	return ValidateMemPackageForType(mpkg, MPProd)
+	mptype := mpkg.Type.(MemPackageType)
+	mptype.Validate()
+	if mptype.IsAny() {
+		return errors.New("undecided mptype")
+	}
+	if !mptype.IsProd() {
+		return errors.New("expected prod")
+	}
+	if mptype.IsStdlib() {
+		return errors.New("unexpected stdlib")
+	}
+	return ValidateMemPackageAny(mpkg)
 }
 
-func ValidateMemPackageForType(mpkg *std.MemPackage, mptype MemPackageType) (errs error) {
-	mptype.Validate()
+// Validates everything about mpkg, including that all files are within the
+// scope of its type.  It does not validate whether mpkg is runnable or
+// storable.
+func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
 	if err != nil {
@@ -570,20 +727,17 @@ func ValidateMemPackageForType(mpkg *std.MemPackage, mptype MemPackageType) (err
 	// Validate mpkg path.
 	if true && // none of these match...
 		!reGnoPkgPathURL.MatchString(mpkg.Path) &&
-		!reGnoPkgPathStd.MatchString(mpkg.Path) &&
-		mptype != MPAny { // .ValidateBasic() ensured rePkgPathRUL
+		!reGnoPkgPathStd.MatchString(mpkg.Path) {
+		// .ValidateBasic() ensured rePkgPathURL or stdlib path,
+		// but reGnoPkgPathStd is more restrictive.
 		return fmt.Errorf("invalid package/realm path %q", mpkg.Path)
 	}
-	// Check stdlib.
-	isStdlib := IsStdlib(mpkg.Path)
-	if isStdlib && !(mptype == MPStdlib || mptype == MPAny) {
-		return fmt.Errorf("invalid package path %q: unexpected stdlib-type path", mpkg.Path)
-	}
-	if !isStdlib && mptype == MPStdlib {
-		return fmt.Errorf("invalid package path %q: expected stdlib-type path", mpkg.Path)
-	}
+	// Check mpkg.Type/mptype.
+	mptype := mpkg.Type.(MemPackageType)
+	mptype.Validate()
+	// ...
 	goodFileXtns := goodFileXtns
-	if isStdlib { // Allow transpilation to work on stdlib with native functions.
+	if mptype.IsStdlib() { // Allow transpilation to work on stdlib with native functions.
 		goodFileXtns = append(goodFileXtns, ".go")
 	}
 	// Validate package name.
@@ -636,7 +790,7 @@ func ValidateMemPackageForType(mpkg *std.MemPackage, mptype MemPackageType) (err
 				// Panic on unexpected files.
 				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: unexpected file given type %v", fname, mptype))
 				continue
-			} else if mptype == MPFiletests || strings.HasSuffix(fname, "_filetest.gno") {
+			} else if mptype.IsFiletests() || strings.HasSuffix(fname, "_filetest.gno") {
 				// Any valid package name is OK for filetests.
 				if pkgName == Name(mpkg.Name) {
 					pkgNameFound = true
@@ -663,7 +817,7 @@ func ValidateMemPackageForType(mpkg *std.MemPackage, mptype MemPackageType) (err
 	if numGnoFiles == 0 { // something else is probably wrong.
 		errs = multierr.Append(errs, fmt.Errorf("package has no .gno files"))
 	}
-	if (mptype != MPFiletests) && !pkgNameFound { // strange.
+	if !mptype.IsFiletests() && !pkgNameFound { // strange.
 		errs = multierr.Append(errs, fmt.Errorf("package name %q not found in files", mpkg.Name))
 	}
 	return errs

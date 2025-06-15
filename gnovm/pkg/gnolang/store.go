@@ -63,7 +63,7 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType)
+	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
@@ -800,7 +800,13 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType) {
+// mptype is passed in as a redundant parameter as convenience to assert that
+// mpkg.Type is what is expected.
+// If MPAnyAll, mpkg may be either MPStdlibAll or MPProdAll, and likewise for
+// MPAnyProd and MPAnyTest.
+// MPFiletests are not allowed, as they are currently only read from disk (e.g.
+// test/files). However, MP*All may include filetests files.
+func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -813,7 +819,15 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType
 			bm.StopStore(size)
 		}()
 	}
-	err := ValidateMemPackageForType(mpkg, mtype)
+	mpkgtype := mpkg.Type.(MemPackageType)
+	if !mpkgtype.IsStorable() {
+		panic(fmt.Sprintf("mempackage type is not storable: %v", mpkgtype))
+	}
+	mptype = mptype.Decide(mpkg.Path)
+	if mpkgtype != mptype {
+		panic(fmt.Sprintf("expected %v but got %v", mptype, mpkgtype))
+	}
+	err := ValidateMemPackageAny(mpkg)
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}

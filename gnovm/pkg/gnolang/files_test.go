@@ -176,7 +176,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		// Read and run tests.
-		mpkg := gnolang.MustReadMemPackage(fp, path, gnolang.MPStdlib)
+		mpkg := gnolang.MustReadMemPackage(fp, path, gnolang.MPStdlibAll)
 		t.Run(strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
 			switch mpkg.Path {
@@ -234,7 +234,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(testDir, path)
-		mpkg := gnolang.MustReadMemPackage(fp, path, gnolang.MPStdlib)
+		mpkg := gnolang.MustReadMemPackage(fp, path, gnolang.MPStdlibAll)
 		t.Run("test-"+strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
 			if sharedCapture != nil {
 				sharedCapture.Reset()

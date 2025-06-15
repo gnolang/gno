@@ -140,7 +140,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// LINT STEP 1: ReadMemPackage()
 		// Read MemPackage with pkgPath.
 		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
-		mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPAll)
+		mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPAnyAll)
 		if err != nil {
 			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
@@ -178,9 +178,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 						Store:       tgs,
 						SkipPackage: true,
 					})
-					m2.Store.AddMemPackage(tmpkg, gno.MPAny)
+					m2.Store.AddMemPackage(tmpkg, gno.MPAnyAll)
 					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
-						gno.ParseMemPackage(tmpkg, gno.MPTest), true, true, "")
+						gno.ParseMemPackageAsType(tmpkg, gno.MPAnyTest), true, true, "")
 				} else {
 					return tgetter(pkgPath, store)
 				}
