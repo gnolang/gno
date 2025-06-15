@@ -43,63 +43,30 @@ func TestCombine(t *testing.T) {
 			errors:   []error{nil, newError("error1"), nil, newError("error2")},
 			expected: "error1; error2",
 		},
-	}
-
-	for _, tt := range tests {
-		err := Combine(tt.errors...)
-		if tt.expected == "" {
-			if err != nil {
-				t.Errorf("%s: expected nil error, got %v", tt.name, err)
-			}
-			continue
-		}
-
-		if err == nil {
-			t.Errorf("%s: expected non-nil error", tt.name)
-			continue
-		}
-
-		if got := err.Error(); got != tt.expected {
-			t.Errorf("%s: expected %q, got %q", tt.name, tt.expected, got)
-		}
-	}
-}
-
-func TestAppend(t *testing.T) {
-	tests := []struct {
-		name     string
-		err1     error
-		err2     error
-		expected string
-	}{
 		{
-			name:     "both nil",
-			err1:     nil,
-			err2:     nil,
+			name:     "both nil (2)",
+			errors:   []error{nil, nil},
 			expected: "",
 		},
 		{
-			name:     "first nil",
-			err1:     nil,
-			err2:     newError("error2"),
+			name:     "first nil (2)",
+			errors:   []error{nil, newError("error2")},
 			expected: "error2",
 		},
 		{
-			name:     "second nil",
-			err1:     newError("error1"),
-			err2:     nil,
+			name:     "second nil (2)",
+			errors:   []error{newError("error1"), nil},
 			expected: "error1",
 		},
 		{
-			name:     "both non-nil",
-			err1:     newError("error1"),
-			err2:     newError("error2"),
+			name:     "both non-nil (2)",
+			errors:   []error{newError("error1"), newError("error2")},
 			expected: "error1; error2",
 		},
 	}
 
 	for _, tt := range tests {
-		err := Append(tt.err1, tt.err2)
+		err := Combine(tt.errors...)
 		if tt.expected == "" {
 			if err != nil {
 				t.Errorf("%s: expected nil error, got %v", tt.name, err)
@@ -191,39 +158,35 @@ func TestMultiErrorString(t *testing.T) {
 	}
 }
 
-func TestAppendEdgeCases(t *testing.T) {
+func TestCombineEdgeCases(t *testing.T) {
 	err1 := newError("error1")
 	err2 := newError("error2")
 	err3 := newError("error3")
 
-	// Create a multiError
 	merr := Combine(err1, err2)
 
 	tests := []struct {
 		name     string
-		err1     error
-		err2     error
+		errors   []error
 		expected string
 	}{
 		{
 			name:     "append to multiError",
-			err1:     merr,
-			err2:     err3,
+			errors:   []error{merr, err3},
 			expected: "error1; error2; error3",
 		},
 		{
 			name:     "prepend to multiError",
-			err1:     err3,
-			err2:     merr,
+			errors:   []error{err3, merr},
 			expected: "error3; error1; error2",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := Append(tt.err1, tt.err2)
+			err := Combine(tt.errors...)
 			if got := err.Error(); got != tt.expected {
-				t.Errorf("Append() = %q, want %q", got, tt.expected)
+				t.Errorf("Combine() = %q, want %q", got, tt.expected)
 			}
 		})
 	}

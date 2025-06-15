@@ -86,10 +86,16 @@ func Errors(err error) []error {
 //   - If all input errors are nil, returns nil
 //   - If there's exactly one non-nil error, returns that error directly
 //   - If there are multiple non-nil errors, returns a multiError containing them
+//   - Flattens any *multiError in the input
 func Combine(errs ...error) error {
 	nonNil := make([]error, 0, len(errs))
 	for _, err := range errs {
-		if err != nil {
+		if err == nil {
+			continue
+		}
+		if m, ok := err.(*multiError); ok && m != nil {
+			nonNil = append(nonNil, m.Unwrap()...)
+		} else {
 			nonNil = append(nonNil, err)
 		}
 	}
@@ -102,38 +108,4 @@ func Combine(errs ...error) error {
 	default:
 		return &multiError{errors: nonNil}
 	}
-}
-
-// Append combines two errors into a single error while preserving order.
-// It handles several cases efficiently:
-//   - If both errors are nil, returns nil
-//   - If one error is nil, returns the non-nil error
-//   - If either error is a multiError, properly combines them
-//   - If both are regular errors, creates a new multiError
-func Append(err1, err2 error) error {
-	switch {
-	case err1 == nil:
-		return err2
-	case err2 == nil:
-		return err1
-	}
-
-	// If err1 is already a multiError, append to it
-	if m, ok := err1.(*multiError); ok {
-		newErrs := make([]error, len(m.errors), len(m.errors)+1)
-		copy(newErrs, m.errors)
-		newErrs = append(newErrs, err2)
-		return &multiError{errors: newErrs}
-	}
-
-	// If err2 is a multiError, prepend err1 to it
-	if m, ok := err2.(*multiError); ok {
-		newErrs := make([]error, 1, len(m.errors)+1)
-		newErrs[0] = err1
-		newErrs = append(newErrs, m.errors...)
-		return &multiError{errors: newErrs}
-	}
-
-	// Neither is a multiError
-	return &multiError{errors: []error{err1, err2}}
 }
