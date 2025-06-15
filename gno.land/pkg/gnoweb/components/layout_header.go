@@ -13,16 +13,40 @@ type HeaderLink struct {
 	IsActive bool
 }
 
+type HeaderLinks struct {
+	General []HeaderLink
+	Dev     []HeaderLink
+}
+
 type HeaderData struct {
 	RealmPath  string
 	RealmURL   weburl.GnoURL
 	Breadcrumb BreadcrumbData
-	Links      []HeaderLink
+	Links      HeaderLinks
 	ChainId    string
 	Remote     string
+	Mode       ViewMode
 }
 
-func StaticHeaderLinks(u weburl.GnoURL, handle string) []HeaderLink {
+func StaticHeaderGeneralLinks() []HeaderLink {
+	links := []HeaderLink{
+		{
+			Label: "About",
+			URL:   "https://gno.land/about",
+		},
+		{
+			Label: "Docs",
+			URL:   "https://docs.gno.land/",
+		},
+		{
+			Label: "GitHub",
+			URL:   "https://github.com/gnolang",
+		},
+	}
+	return links
+}
+
+func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
@@ -43,33 +67,32 @@ func StaticHeaderLinks(u weburl.GnoURL, handle string) []HeaderLink {
 		},
 	}
 
-	switch handle {
-	case "p":
-		// Will have docs soon
-
+	switch mode {
+	case ViewModeExplorer:
+		// no links - full width breadcrumb
+		return []HeaderLink{}
+	case ViewModePackage:
+		// links
+		return links
 	default:
-		links = append(links, HeaderLink{
+		// links + Actions
+		return append(links, HeaderLink{
 			Label:    "Actions",
 			URL:      helpURL.EncodeWebURL(),
 			Icon:     "ico-helper",
 			IsActive: isActive(u.WebQuery, "Actions"),
 		})
 	}
-
-	return links
 }
 
-func EnrichHeaderData(data HeaderData) HeaderData {
+func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
+	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode)
+	data.Links.General = nil
 
-	var handle string
-	if len(data.Breadcrumb.Parts) > 0 {
-		handle = data.Breadcrumb.Parts[0].Name
-	} else {
-		handle = ""
+	if mode.ShouldShowGeneralLinks() {
+		data.Links.General = StaticHeaderGeneralLinks()
 	}
-
-	data.Links = StaticHeaderLinks(data.RealmURL, handle)
 
 	return data
 }

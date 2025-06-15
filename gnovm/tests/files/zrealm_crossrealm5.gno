@@ -12,11 +12,11 @@ func init() {
 	somevalue = &tests.TestRealmObjectValue
 }
 
-func main() {
+func main(cur realm) {
 	// NOTE: but it is invalid to modify it directly.
 	somevalue.Field = "test"
 	println(somevalue)
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): somevalue<~VPBlock(3,0)>.Field

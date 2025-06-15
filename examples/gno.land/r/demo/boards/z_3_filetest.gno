@@ -1,11 +1,11 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
 // SEND: 1000000ugnot
 
 import (
 	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/r/demo/boards"
 	users "gno.land/r/gnoland/users/v1"
@@ -17,17 +17,17 @@ var (
 )
 
 func init() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register("gnouser123")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
 
-	bid = boards.CreateBoard("test_board")
-	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
-	pid = boards.CreateThread(bid, "Second Post (title)", "Body of the second post. (body)")
+	bid = boards.CreateBoard(cross, "test_board")
+	boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
+	pid = boards.CreateThread(cross, bid, "Second Post (title)", "Body of the second post. (body)")
 }
 
 func main() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
-	rid := boards.CreateReply(bid, pid, pid, "Reply of the second post")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
+	rid := boards.CreateReply(cross, bid, pid, pid, "Reply of the second post")
 	println(rid)
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }

@@ -567,7 +567,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	typ3 := einfo.GetTyp3(fopts)
 	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Read elements in packed form.
-		for i := 0; i < length; i++ {
+		for i := range length {
 			erv := rv.Index(i)
 			var _n int
 			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions)
@@ -589,7 +589,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
 
 		// Read elements in unpacked form.
-		for i := 0; i < length; i++ {
+		for i := range length {
 			// Read field key (number and type).
 			var (
 				fnum uint32

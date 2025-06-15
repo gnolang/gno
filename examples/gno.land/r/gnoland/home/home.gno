@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
 	"gno.land/r/gnoland/events"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -26,8 +26,8 @@ func Render(_ string) string {
 		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 		return out
 	})
-	r.RegisterCallback(":latest-hof:", func() string {
-		return hof.RenderExhibWidget(5)
+	r.RegisterCallback(":latest-hor:", func() string {
+		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":chain-height:", func() string {
@@ -72,8 +72,9 @@ the foundations of a fairer and freer world, join us today.
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
-- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- [Testnet 4](https://test4.gno.land/)
+- [Staging chain](https://docs.gno.land/concepts/portal-loop)
+- [Testnet 6](https://test6.gno.land/)
+- [Testnet 5](https://test5.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
 ## [Latest Blogposts](/r/gnoland/blog)
@@ -84,9 +85,9 @@ the foundations of a fairer and freer world, join us today.
 
 :upcoming-events:
 
-## [Hall of Fame](/r/leon/hof)
+## [Hall of Realms](/r/leon/hor)
 
-:latest-hof:
+:latest-hor:
 
 ---
 
@@ -106,7 +107,7 @@ Experience the convenience of code sharing and rapid experimentation with
 ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
 
 - [r/gnoland/blog](/r/gnoland/blog)
-- [r/gnoland/blog](/r/gnoland/users)
+- [r/gnoland/users](/r/gnoland/users)
 - [r/gnoland/home](/r/gnoland/home)
 - [r/gnoland/pages](/r/gnoland/pages)
 
@@ -119,30 +120,30 @@ Experience the convenience of code sharing and rapid experimentation with
 
 ### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
 
-- [r/demo/boards](r/demo/boards)
-- [r/demo/banktest](r/demo/banktest)
-- [r/demo/foo20](r/demo/foo20)
-- [r/demo/foo721](r/demo/foo721)
-- [r/demo/microblog](r/demo/microblog)
-- [r/demo/nft](r/demo/nft)
-- [r/demo/types](r/demo/types)
-- [r/demo/art/gnoface](r/demo/art/gnoface)
-- [r/demo/art/millipede](r/demo/art/millipede)
-- [r/demo/groups](r/demo/groups)
+- [r/demo/boards](/r/demo/boards)
+- [r/demo/banktest](/r/demo/banktest)
+- [r/demo/foo20](/r/demo/foo20)
+- [r/demo/foo721](/r/demo/foo721)
+- [r/demo/microblog](/r/demo/microblog)
+- [r/demo/nft](/r/demo/nft)
+- [r/demo/types](/r/demo/types)
+- [r/demo/art/gnoface](/r/demo/art/gnoface)
+- [r/demo/art/millipede](/r/demo/art/millipede)
+- [r/demo/groups](/r/demo/groups)
 - ...
 
 ### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
 
-- [p/demo/avl](p/demo/avl)
-- [p/demo/blog](p/demo/blog)
-- [p/demo/ui](p/demo/ui)
-- [p/demo/ufmt](p/demo/ufmt)
-- [p/demo/merkle](p/demo/merkle)
-- [p/demo/bf](p/demo/bf)
-- [p/demo/flow](p/demo/flow)
-- [p/demo/gnode](p/demo/gnode)
-- [p/demo/grc/grc20](p/demo/grc/grc20)
-- [p/demo/grc/grc721](p/demo/grc/grc721)
+- [p/demo/avl](/p/demo/avl)
+- [p/demo/blog](/p/demo/blog)
+- [p/demo/ui](/p/demo/ui)
+- [p/demo/ufmt](/p/demo/ufmt)
+- [p/demo/merkle](/p/demo/merkle)
+- [p/demo/bf](/p/demo/bf)
+- [p/demo/flow](/p/demo/flow)
+- [p/demo/gnode](/p/demo/gnode)
+- [p/demo/grc/grc20](/p/demo/grc/grc20)
+- [p/demo/grc/grc721](/p/demo/grc/grc721)
 - ...
 
 ---
@@ -173,10 +174,10 @@ Package names are not guaranteed to be available for production.
 }
 
 func latestHOFItems(num int) ui.Element {
-	submissions := hof.RenderExhibWidget(num)
+	submissions := hor.RenderExhibWidget(num)
 
 	return ui.Element{
-		ui.H2("[Hall of Fame](/r/leon/hof)"),
+		ui.H2("[Hall of Realms](/r/leon/hor)"),
 		ui.Text(submissions),
 	}
 }
@@ -195,7 +196,7 @@ func quoteOfTheBlock() string {
 	return qotb
 }
 
-func AdminSetOverride(content string) {
-	Admin.AssertCallerIsOwner()
+func AdminSetOverride(cur realm, content string) {
+	Admin.AssertOwnedByPrevious()
 	override = content
 }

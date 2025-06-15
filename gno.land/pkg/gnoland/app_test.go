@@ -4,29 +4,34 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
-	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/config"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,10 +58,14 @@ func TestNewAppWithOptions(t *testing.T) {
 	appState.Txs = []TxWithMetadata{
 		{
 			Tx: std.Tx{
-				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
+				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
 					{
 						Name: "demo.gno",
-						Body: "package demo; func Hello() string { return `hello`; }",
+						Body: "package demo; func Hello(cur realm) string { return `hello`; }",
+					},
+					{
+						Name: "gnomod.toml",
+						Body: gnolang.GenGnoModLatest("gno.land/r/demo"),
 					},
 				})},
 				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
@@ -137,7 +146,7 @@ func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, NewTestGenesisAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), "")
+	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger())
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{
@@ -248,7 +257,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	validators := make([]abci.ValidatorUpdate, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		// Generate a random private key
 		key := getDummyKey(t).PubKey()
 
@@ -373,7 +382,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	var t time.Time = time.Now()
 
 	// GetT returns the time that was saved from genesis
-	func GetT() int64 { return t.Unix() }
+	func GetT(cur realm) int64 { return t.Unix() }
 `
 			)
 
@@ -384,13 +393,17 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			// Prepare the deploy transaction
 			msg := vm.MsgAddPackage{
 				Creator: key.PubKey().Address(),
-				Package: &gnovm.MemPackage{
+				Package: &std.MemPackage{
 					Name: "metadatatx",
 					Path: path,
-					Files: []*gnovm.MemFile{
+					Files: []*std.MemFile{
 						{
 							Name: "file.gno",
 							Body: body,
+						},
+						{
+							Name: "gnomod.toml",
+							Body: gnolang.GenGnoModLatest(path),
 						},
 					},
 				},
@@ -542,7 +555,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -585,7 +598,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
@@ -624,7 +637,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := gnostdlibs.GnoEvent{
+			event := gnostd.GnoEvent{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -633,7 +646,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = gnostdlibs.GnoEvent{
+				event = gnostd.GnoEvent{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}
@@ -895,7 +908,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
@@ -957,7 +970,8 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
         "sig_verify_cost_secp256k1": "1000",
         "target_gas_ratio": "60",
         "tx_sig_limit": "7",
-        "tx_size_cost_per_byte": "10"
+        "tx_size_cost_per_byte": "10",
+        "fee_collector": "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy"
       }
     }
   }`)
@@ -1011,4 +1025,73 @@ func newTestHandler(proc func(sdk.Context, sdk.Msg) sdk.Result) sdk.Handler {
 	return testHandler{
 		process: proc,
 	}
+}
+
+func TestPruneStrategyNothing(t *testing.T) {
+	t.Parallel()
+
+	var (
+		chainID = "dev"
+		appDir  = t.TempDir()
+	)
+
+	appCfg := config.DefaultAppConfig()
+	appCfg.PruneStrategy = types.PruneNothingStrategy
+
+	app, err := NewApp(
+		appDir,
+		NewTestGenesisAppConfig(),
+		appCfg,
+		events.NewEventSwitch(),
+		log.NewNoopLogger(),
+	)
+	require.NoError(t, err)
+
+	base := app.(*sdk.BaseApp)
+
+	// Run the genesis initialization, and commit it
+	base.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{MaxGas: 1_000_000},
+		},
+		AppState: DefaultGenState(),
+	})
+	base.Commit()
+
+	// Simulate a few empty blocks being committed
+	startHeight := base.LastBlockHeight() + 1
+	for h := startHeight; h <= startHeight+5; h++ {
+		base.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: chainID, Height: h},
+		})
+
+		base.EndBlock(abci.RequestEndBlock{})
+
+		base.Commit()
+	}
+
+	// Close the app, so it releases the DB
+	require.NoError(t, base.Close())
+
+	// Reopen the same DB
+	db, err := dbm.NewDB(
+		"gnolang",
+		dbm.GoLevelDBBackend,
+		filepath.Join(appDir, bftCfg.DefaultDBDir),
+	)
+	require.NoError(t, err)
+
+	var (
+		mainKey = store.NewStoreKey("main")
+		baseKey = store.NewStoreKey("base")
+	)
+
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	cms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+
+	// Make sure loading a past version doesn't fail
+	assert.NoError(t, cms.LoadVersion(1))
 }

@@ -24,9 +24,9 @@ func Render(path string) string {
 
 	for _, item := range page.Items {
 		signup := item.Value.(*Signup)
-		user := signup.address.String()
+		user := signup.address_XXX.String()
 
-		if data := users.ResolveAddress(signup.address); data != nil {
+		if data := users.ResolveAddress(signup.address_XXX); data != nil {
 			user = ufmt.Sprintf("[%s](%s:%s)", data.Name(), usersLink, data.Name())
 		}
 
@@ -35,6 +35,6 @@ func Render(path string) string {
 
 	out += "---\n\n"
 	out += "**Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "**\n\n"
-	out += page.Picker()
+	out += page.Picker(path)
 	return out
 }

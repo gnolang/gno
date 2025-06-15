@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/n2p5/chonk"
 
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/n2p5/config"
 )
 
@@ -16,24 +16,25 @@ var (
 )
 
 func init() {
-	hof.Register()
+	hor.Register(cross, "n2p5's Home Realm", "")
+
 }
 
 // Add appends a string to the preview Chonk.
-func Add(chunk string) {
+func Add(cur realm, chunk string) {
 	assertAdmin()
 	preview.Add(chunk)
 }
 
 // Flush clears the preview Chonk.
-func Flush() {
+func Flush(cur realm) {
 	assertAdmin()
 	preview.Flush()
 }
 
 // Promote promotes the preview Chonk to the active Chonk
 // and creates a new preview Chonk.
-func Promote() {
+func Promote(cur realm) {
 	assertAdmin()
 	active = preview
 	preview = chonk.New()

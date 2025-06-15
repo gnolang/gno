@@ -48,11 +48,11 @@ You can format text using the following syntax:
 ***All bold and italic***
 ±±±
 
-**Bold text**  
-*Italic text*  
-~~Strikethrough text~~  
-**Bold and _nested italic_**  
-***All bold and italic***  
+**Bold text**
+*Italic text*
+~~Strikethrough text~~
+**Bold and _nested italic_**
+***All bold and italic***
 
 ### Links
 
@@ -63,7 +63,7 @@ Links can be created using the following syntax:
 [Link with title](https://example.com "Link title")
 ±±±
 
-[Link text](https://example.com)  
+[Link text](https://example.com)
 [Link with title](https://example.com "Link title")
 
 XXX: custom CSS for internal/external links and if possible for "in the same realm/namespace".
@@ -104,12 +104,12 @@ Blockquotes are created using the > character:
 
 ±±±markdown
 > This is a blockquote
-> 
+>
 > It can span multiple lines
 ±±±
 
 > This is a blockquote
-> 
+>
 > It can span multiple lines
 
 ### Code
@@ -194,6 +194,32 @@ Images can be included using the following syntax:
 
 ![Alt text](/public/imgs/gnoland.svg "Optional title")
 
+Currently, only a short list of content providers are supported:
+
+±±±markdown
+// Gno-related hosts
+"https://gnolang.github.io"
+"https://assets.gnoteam.com"
+"https://sa.gno.services"
+
+// Other providers should respect DMCA guidelines
+// NOTE: Feel free to open a PR to add more providers here :)
+
+// imgur
+"https://imgur.com"
+"https://*.imgur.com"
+
+// GitHub
+"https://*.github.io"
+"https://github.com"
+"https://*.githubusercontent.com"
+
+// IPFS
+"https://ipfs.io"
+"https://cloudflare-ipfs.com"
+±±±
+
+
 ## Gno-Specific Features
 
 ### HTML Support
@@ -212,7 +238,227 @@ This approach allows for a more consistent rendering experience across different
 
 ### Columns
 
-XXX: in progress in https://github.com/gnolang/gno/pull/3763
+Gno-Flavored Markdown introduces a column layout system that uses special tags. You can create columns with
+±<gno-columns>± blocks and separate the content with ±|||±.
+
+#### Basic Syntax
+±±±markdown
+<gno-columns>
+Left content
+
+|||
+
+Right content
+</gno-columns>
+±±±
+
+- Renders as:
+
+---
+
+<gno-columns>
+Left content
+
+|||
+
+Right content
+</gno-columns>
+
+---
+
+#### Key Features
+
+1. **Multiple Columns**:
+
+Depending on the screen size. A maximum of four rows can be displayed in
+one row.
+
+***Note**: Any overflow will result in items being displayed in the next row. Also, keep in mind that on smaller screens
+(e.g., phones), this overflow may occur with fewer elements.*
+
+±±±markdown
+<gno-columns>
+First column
+
+|||
+
+Second column
+
+|||
+
+Third column
+
+|||
+
+Fourth column
+
+|||
+
+Fifth column
+</gno-columns>
+±±±
+
+- Renders as:
+
+---
+
+<gno-columns>
+First column
+
+|||
+
+Second column
+
+|||
+
+Third column
+
+|||
+
+Fourth column
+
+|||
+
+Fifth column
+</gno-columns>
+
+---
+
+2. **Mixed Content**:
+
+Columns can be mixed with any markdown content
+
+***Note**: Nested columns are currently not possible*
+
+±±±markdown
+<gno-columns>
+### Text Section
+Paragraph with _formatting_
+
+|||
+
+My Image ![Alt](/public/imgs/gnoland.svg)
+</gno-columns>
+±±±
+
+- Renders as:
+
+---
+
+<gno-columns>
+### Text Section
+Paragraph with _formatting_
+
+|||
+
+My Image ![Alt](/public/imgs/gnoland.svg)
+</gno-columns>
+
+---
+
+### Alerts
+
+Alerts are a way to highlight important information in your markdown.
+
+There are five types of alerts:
+
+- INFO
+- NOTE
+- TIP
+- SUCCESS
+- WARNING
+- CAUTION
+
+**NOTE**: The default alert type is INFO (if a wrong alert type is used).
+
+The alert boxes are expandable/collapsible and can have a title. 
+By default, the alert boxes are opened. The title is optional and if not provided, the alert type will be used as the title.
+
+±±±markdown
+> [!NOTE]
+> This is a note
+±±±
+
+> [!NOTE]
+> This is a note
+
+±±±markdown
+> [!NOTE]-
+> This is a closed note
+±±±
+
+> [!NOTE]-
+> This is a closed note
+
+±±±markdown
+> [!NOTE] This is a note with title
+> This is a note with title
+±±±
+
+> [!NOTE] This is a note with title
+> This is a note with title
+
+±±±markdown
+> [!INFO]
+> This is an info
+±±±
+
+> [!INFO]
+> This is an info
+
+±±±markdown
+> [!TIP]
+> This is a tip
+±±±
+
+> [!TIP]
+> This is a tip
+
+±±±
+> [!SUCCESS]
+> This is a success
+±±±
+
+> [!SUCCESS]
+> This is a success
+
+±±±
+> [!WARNING]
+> This is a warning
+±±±
+
+> [!WARNING]
+> This is a warning
+
+±±±
+> [!CAUTION]
+> This is a caution
+±±±
+
+> [!CAUTION]
+> This is a caution
+
+±±±markdown
+> [!FOO]
+> The default alert if a wrong alert type is used
+±±±
+
+> [!FOO]
+> This is the default alert
+
+±±±markdown
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+±±±
+
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+
+---
 
 ### Usernames
 

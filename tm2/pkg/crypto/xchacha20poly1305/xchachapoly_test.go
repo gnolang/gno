@@ -17,7 +17,7 @@ func TestRandom(t *testing.T) {
 	t.Parallel()
 
 	// Some random tests to verify Open(Seal) == Plaintext
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		var nonce [24]byte
 		var key [32]byte
 
