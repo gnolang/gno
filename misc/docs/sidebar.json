@@ -42,6 +42,7 @@
           "resources/gno-memory-model",
           "resources/glossary",
           "resources/go-gno-compatibility",
+          "resources/gnoconnect",
           {
             "type": "link",
             "label": "Gno Examples",
