@@ -1284,10 +1284,17 @@ func ReadMemPackage(dir string, pkgPath string) (*std.MemPackage, error) {
 	// exceptions to allowedMemPackageFileExtensions
 	badFileExtensions := []string{".gen.go"}
 
+	// I (Loren) think there's a subtle potential bug here that the filter lets
+	// rejectedFileExtensions affect allowedFiles in addition to allowedFileExtensions
+	// when the comments don't indicate that... because none of these can be dynamically
+	// changed by the caller this bug isn't actually ever exposed.
+
 	if IsStdlib(pkgPath) {
 		// Allows transpilation to work on stdlibs with native fns.
 		allowedMemPackageFileExtensions = append(allowedMemPackageFileExtensions, ".go")
 	}
+
+	// Should we also filter out "hidden" files according to non-POSIX OSs?
 
 	list := make([]string, 0, len(files))
 	for _, file := range files {

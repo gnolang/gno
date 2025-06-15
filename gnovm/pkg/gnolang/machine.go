@@ -18,6 +18,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+const (
+	NoRealmStr = "<no realm>"
+)
+
 //----------------------------------------
 // Machine
 
@@ -1913,7 +1917,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		// XXX move this into if debug { ... }
 		if !fv.IsCrossing() {
 			// panic; notcrossing
-			mrpath := "<no realm>"
+			mrpath := NoRealmStr
 			if m.Realm != nil {
 				mrpath = m.Realm.Path
 			}
@@ -1935,11 +1939,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			// Illegal crossing to external realm.
 			// (the function was variable and run-time check was necessary).
 			// panic; not explicit
-			mrpath := "<no realm>"
+			mrpath := NoRealmStr
 			if m.Realm != nil {
 				mrpath = m.Realm.Path
 			}
-			prpath := "<no realm>"
+			prpath := NoRealmStr
 			if pv.Realm != nil {
 				prpath = pv.Realm.Path
 			}
