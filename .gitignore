@@ -39,3 +39,6 @@ coverage.out
 
 .tmp/
 wal/
+
+# Gnoweb frontend
+node_modules/

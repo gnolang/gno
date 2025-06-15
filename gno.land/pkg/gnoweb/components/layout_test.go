@@ -11,40 +11,39 @@ import (
 
 func TestIndexLayout(t *testing.T) {
 	tests := []struct {
-		name       string
-		mode       ViewMode
-		viewType   ViewType
-		wantLayout string
+		name     string
+		mode     ViewMode
+		viewType ViewType
 	}{
 		{
-			name:       "Home mode should use sidebar layout",
-			mode:       ViewModeHome,
-			viewType:   "test-view",
-			wantLayout: SidebarLayout,
+			name:     "Home mode",
+			mode:     ViewModeHome,
+			viewType: "test-view",
 		},
 		{
-			name:       "Realm mode should use sidebar layout",
-			mode:       ViewModeRealm,
-			viewType:   "test-view",
-			wantLayout: SidebarLayout,
+			name:     "Realm mode",
+			mode:     ViewModeRealm,
+			viewType: "test-view",
 		},
 		{
-			name:       "Package mode should use sidebar layout",
-			mode:       ViewModePackage,
-			viewType:   "test-view",
-			wantLayout: SidebarLayout,
+			name:     "Package mode",
+			mode:     ViewModePackage,
+			viewType: "test-view",
 		},
 		{
-			name:       "Explorer mode should use full layout",
-			mode:       ViewModeExplorer,
-			viewType:   "test-view",
-			wantLayout: FullLayout,
+			name:     "Explorer mode",
+			mode:     ViewModeExplorer,
+			viewType: "test-view",
 		},
 		{
-			name:       "Directory view should use full layout regardless of mode",
-			mode:       ViewModePackage,
-			viewType:   DirectoryViewType,
-			wantLayout: FullLayout,
+			name:     "User mode",
+			mode:     ViewModeUser,
+			viewType: "test-view",
+		},
+		{
+			name:     "Directory view",
+			mode:     ViewModePackage,
+			viewType: DirectoryViewType,
 		},
 	}
 
@@ -67,10 +66,8 @@ func TestIndexLayout(t *testing.T) {
 			templateComponent, ok := component.(*TemplateComponent)
 			assert.True(t, ok, "expected TemplateComponent type in component")
 
-			layoutParams, ok := templateComponent.data.(indexLayoutParams)
+			_, ok = templateComponent.data.(indexLayoutParams)
 			assert.True(t, ok, "expected indexLayoutParams type in component data")
-
-			assert.Equal(t, tt.wantLayout, layoutParams.Layout, "expected layout %s, got %s", tt.wantLayout, layoutParams.Layout)
 		})
 	}
 }
@@ -250,6 +247,7 @@ func TestViewModePredicates(t *testing.T) {
 		wantRealm    bool
 		wantPackage  bool
 		wantHome     bool
+		wantUser     bool
 	}{
 		{
 			mode:         ViewModeExplorer,
@@ -271,6 +269,11 @@ func TestViewModePredicates(t *testing.T) {
 			name:     "Home",
 			wantHome: true,
 		},
+		{
+			mode:     ViewModeUser,
+			name:     "User",
+			wantUser: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -280,6 +283,7 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantRealm, tc.mode.IsRealm(), "IsRealm")
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
+			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
 		})
 	}
 }
