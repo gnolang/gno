@@ -1,3 +1,7 @@
+// Package mdlist is a proof-of-concept for composable UIs patterns.
+//
+// It allows specifying a data source and then dynamically rendering it as
+// a list or a grid.
 package mdlist
 
 import (
@@ -8,6 +12,7 @@ import (
 
 // XXX: configurable length UL
 // XXX: moul/pager.Pager-powered auto mdlist
+// XXX: func (l List) Render(path string) string {
 
 type List []Entry
 
