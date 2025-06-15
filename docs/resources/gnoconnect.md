@@ -44,7 +44,7 @@ Without arguments:
 ```
 $help&func=Foo
 /r/path/to/realm$help&func=Foo
-https://domain/r/path/to/realm$help&func=Foo
+https://example.land/r/path/to/realm$help&func=Foo
 ```
 
 With arguments:
@@ -52,7 +52,7 @@ With arguments:
 ```
 $help&func=Foo&arg1=value1&arg2=value2
 /r/path/to/realm$help&func=Foo&arg1=value1&arg2=value2
-https://domain/r/path/to/realm$help&func=Foo&arg1=value1&arg2=value2
+https://example.land/r/path/to/realm$help&func=Foo&arg1=value1&arg2=value2
 ```
 
 Links can be relative or absolute but must match one of the domains listed in
