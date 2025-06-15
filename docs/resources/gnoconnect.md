@@ -1,11 +1,15 @@
-# GnoConnect Specification
+# GnoConnect: Wallet & Client Integration Standard
 
-GnoConnect is a standard enabling wallets, clients, and SDKs such as Adena
-Wallet, Gnoweb, and Gnobro to interact seamlessly with Gnoland blockchains. It
-revolves around HTML/HTTP metadata and formatted links, providing a
-straightforward user experience.
+GnoConnect is a standard for enabling wallets, clients, and SDKs (such as Adena
+Wallet, Gnoweb, and Gnobro) to interact seamlessly with Gnoland blockchains. It
+defines how applications can discover connection details and construct
+transaction links, making integration straightforward for both users and
+developers.
 
-## Page Metadata
+## How GnoConnect Works
+
+GnoConnect uses HTML/HTTP metadata to provide connection details for clients and
+wallets.
 
 ### HTML Metadata
 
@@ -17,8 +21,9 @@ straightforward user experience.
 
 - `gnoconnect:rpc`: RPC URL.
 - `gnoconnect:chainid`: Chain ID.
-- `gnoconnect:txdomains`: Domains treated as transaction sources. The value
-  `auto` includes the current domain in addition to any specified domains. 
+- `gnoconnect:txdomains`: Domains treated as transaction sources.
+  The value `auto` includes the current domain in addition to any specified
+  domains.
 
 ### HTTP Headers
 
@@ -30,11 +35,9 @@ Gnoconnect-ChainID: dev
 Gnoconnect-TXDomains: auto,example.com
 ```
 
-## TxLink
+## Transaction Links (TxLink)
 
-Transaction links define blockchain calls and can include optional arguments:
-
-### Format
+Transaction links define blockchain calls and can include optional arguments.
 
 Without arguments:
 
@@ -57,25 +60,24 @@ Links can be relative or absolute but must match one of the domains listed in
 
 TxLinks only prefill specified arguments. For non-specified arguments, clients
 can call `vm/qdoc` to retrieve the remaining fields
-(related discussion: [PR #3459](https://github.com/gnolang/gno/pull/3459)).
+(see [PR #3459](https://github.com/gnolang/gno/pull/3459)).
 
-TODO: Propose a standard in doc comments to define advanced rules for fields
-such as limits, format, default values, etc.
+> **Note:** A future standard may define advanced rules for fields such as
+> limits, format, and default values.
 
 ### Run Calls
 
-`run` transactions enable advanced logic.
-
-TODO: Define `run` calls ([discussion](https://github.com/gnolang/gno/issues/3283)).
+TODO ([discussion](https://github.com/gnolang/gno/issues/3283)).
 
 ## Supported Clients
 
-1. **Gnoweb** (provider)
-2. **Adena Wallet** (coming soon)
-3. **Gnobro** (coming soon)
-4. _Add your clients here_
+- **Gnoweb** (provider)
+- **Adena Wallet** (client)
+- **Gnobro** (coming soon)
+- _Add your clients here_
 
-## Related Resources
+## Further Reading
+
 - [Issue #2602](https://github.com/gnolang/gno/issues/2602)
 - [Issue #3283](https://github.com/gnolang/gno/issues/3283)
 - [PR #3609](https://github.com/gnolang/gno/pull/3609)
