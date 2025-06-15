@@ -6,48 +6,57 @@ import (
 	"gno.land/p/moul/md"
 )
 
+// XXX: configurable length UL
+// XXX: moul/pager.Pager-powered auto mdlist
+
 type List []Entry
 
 type Entry struct {
+	// Title is the title of the entry. Required.
 	Title string
-	Body  string
+	// Body is the body of the entry. Required.
+	Body string
+	// Link is the URL of the entry. Optional.
+	Link string
+	// Links is a list of additional URLs of the entry. Optional.
 	Links []string
 }
 
 func (l List) UL() string {
-	return l.ULPager(1, len(l))
-}
-
-func (l List) Grid() string {
-	return l.GridPager(1, len(l))
-}
-
-func (l List) ULPager(page, limit int) string {
-	// XXX: add pager API
 	items := make([]string, len(l))
 	for i, entry := range l {
-		title := truncateText(entry.Title, 42)
-		body := truncateText(entry.Body, 30)
-		items[i] = md.Bold(title) + ": " + md.Italic(body) + " " + strings.Join(entry.Links, " ")
+		title := truncateText(entry.Title, 40, false)
+		if entry.Link != "" {
+			title = md.Link(title, entry.Link)
+		}
+		body := truncateText(entry.Body, 80, true)
+		links := strings.Join(entry.Links, " ")
+		item := md.Bold(title) + ": " + md.Italic(body) + " " + links
+		items[i] = strings.TrimSpace(item)
 	}
 	return md.BulletList(items)
 }
 
-func (l List) GridPager(page, limit int) string {
-	// XXX: add pager API
+func (l List) Grid() string {
 	columns := make([]string, len(l))
 	for i, entry := range l {
-		title := md.H2(entry.Title)
-		body := md.Paragraph(entry.Body)
-		links := md.Paragraph(strings.Join(entry.Links, " "))
-		columns[i] = title + body + links
+		title := entry.Title
+		if entry.Link != "" {
+			title = md.Link(title, entry.Link)
+		}
+		body := entry.Body
+		links := strings.Join(entry.Links, " ")
+		columns[i] = md.H2(title) + md.Paragraph(body) + md.Paragraph(links)
 	}
 	return md.Columns(columns)
 }
 
-func truncateText(content string, maxLength int) string {
+func truncateText(content string, maxLength int, withNewLines bool) string {
+	if !withNewLines {
+		content = strings.ReplaceAll(content, "\n", " ")
+	}
 	if len(content) > maxLength {
-		return content[:maxLength] + "..."
+		return content[:maxLength-3] + "..."
 	}
 	return content
 }

@@ -1,42 +1,48 @@
 package mdlist
 
 import (
+	"strings"
 	"testing"
+
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 func TestUL(t *testing.T) {
 	list := List{
 		{Title: "First", Body: "Body1", Links: []string{"[link1](url1)"}},
 		{Title: "Second", Body: "Body2", Links: []string{"[link2](url2)", "[link3](url3)"}},
+		{Title: "Third", Body: "Body3", Link: "https://example.com"},
+		{Title: "Fourth", Body: "Body4", Link: "https://example.com", Links: []string{"[link4](url4)", "[link5](url5)"}},
 	}
-	expected := "- **First**: *Body1* [link1](url1)\n- **Second**: *Body2* [link2](url2) [link3](url3)\n"
-	got := list.UL()
-	if got != expected {
-		t.Errorf("UL() = %q, want %q", got, expected)
-	}
+	col1 := "- **First**: *Body1* [link1](url1)"
+	col2 := "- **Second**: *Body2* [link2](url2) [link3](url3)"
+	col3 := "- **[Third](https://example.com)**: *Body3*"
+	col4 := "- **[Fourth](https://example.com)**: *Body4* [link4](url4) [link5](url5)"
+	expected := strings.Join([]string{col1, col2, col3, col4}, "\n") + "\n"
+	uassert.Equal(t, expected, list.UL())
 }
 
 func TestGrid(t *testing.T) {
 	list := List{
 		{Title: "First", Body: "Body1", Links: []string{"[link1](url1)"}},
 		{Title: "Second", Body: "Body2", Links: []string{"[link2](url2)", "[link3](url3)"}},
+		{Title: "Third", Body: "Body3", Link: "https://example.com"},
+		{Title: "Fourth", Body: "Body4", Link: "https://example.com", Links: []string{"[link4](url4)", "[link5](url5)"}},
 	}
 	col1 := "## First\nBody1\n\n[link1](url1)\n"
 	col2 := "## Second\nBody2\n\n[link2](url2) [link3](url3)\n"
-	expected := "<gno-columns>\n" + col1 + "|||\n" + col2 + "</gno-columns>\n"
-	got := list.Grid()
-	if got != expected {
-		t.Errorf("Grid() = %q, want %q", got, expected)
-	}
+	col3 := "## [Third](https://example.com)\nBody3\n"
+	col4 := "## [Fourth](https://example.com)\nBody4\n\n[link4](url4) [link5](url5)\n"
+	expected := "<gno-columns>\n" + col1 + "|||\n" + col2 + "|||\n" + col3 + "|||\n" + col4 + "</gno-columns>\n"
+	uassert.Equal(t, expected, list.Grid())
 }
 
 func TestTruncateText(t *testing.T) {
-	long := "abcdefghijklmnopqrstuvwxyz0123456789"
+	long := "abcd\nefghijklmnopqrs\ntuvwxyz01\n23456789"
 	short := "short"
-	if got := truncateText(long, 10); got != "abcdefghij..." {
-		t.Errorf("truncateText(long, 10) = %q, want %q", got, "abcdefghij...")
-	}
-	if got := truncateText(short, 10); got != short {
-		t.Errorf("truncateText(short, 10) = %q, want %q", got, short)
-	}
+	urequire.Equal(t, "abcd ef...", truncateText(long, 10, false))
+	urequire.Equal(t, short, truncateText(short, 10, false))
+	urequire.Equal(t, "abcd\nef...", truncateText(long, 10, true))
+	urequire.Equal(t, "short", truncateText(short, 10, true))
 }
