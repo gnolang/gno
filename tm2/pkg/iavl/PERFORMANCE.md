@@ -74,7 +74,7 @@ Some guides:
 
   * [Profiling benchmarks locally](https://medium.com/@hackintoshrao/daily-code-optimization-using-benchmarks-and-profiling-in-golang-gophercon-india-2016-talk-874c8b4dc3c5#.jmnd8w2qr)
   * [On optimizing memory](https://signalfx.com/blog/a-pattern-for-optimizing-go-2/)
-  * [Profiling running programs](http://blog.ralch.com/tutorial/golang-performance-and-memory-analysis/)
+  * [Profiling running programs](https://blog.ralch.com/articles/golang-performance-and-memory-analysis/)
   * [Dave Chenny's profiler pkg](https://github.com/pkg/profile)
 
 Some ideas for speedups:

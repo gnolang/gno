@@ -6,4 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/var25.gno:5:6: assignment mismatch: 3 variable(s) but 1 value(s)
+// main/var25.gno:5:6-20: assignment mismatch: 3 variable(s) but 1 value(s)
+
+// TypeCheckError:
+// main/var25.gno:5:16: assignment mismatch: 3 variables but 1 value; main/var25.gno:5:6: declared and not used: a; main/var25.gno:5:9: declared and not used: b; main/var25.gno:5:12: declared and not used: c

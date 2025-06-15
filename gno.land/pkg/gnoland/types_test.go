@@ -24,7 +24,7 @@ func generateTxs(t *testing.T, count int) []TxWithMetadata {
 
 	txs := make([]TxWithMetadata, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = TxWithMetadata{
 			Tx: std.Tx{
 				Msgs: []std.Msg{

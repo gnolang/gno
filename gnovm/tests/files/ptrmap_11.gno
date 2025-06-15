@@ -12,7 +12,7 @@ func init() {
 	m[S[index]] = "first key"
 }
 
-func main() {
+func main(cur realm,) {
 	println(m[S[index]]) // Output: first key
 	println(m[S[1]] == "")
 }

@@ -31,7 +31,7 @@ func TestResolveDocumentable(t *testing.T) {
 		errContains string
 	}{
 		{"package", []string{"crypto/rand"}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
-		{"packageMod", []string{"gno.land/mod"}, false, &Documentable{bfsDir: getDir("mod")}, ""},
+		{"packageMod", []string{"gno.land/mod"}, false, nil, `package not found`},
 		{"dir", []string{"./testdata/integ/crypto/rand"}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
 		{"dirMod", []string{"./testdata/integ/mod"}, false, &Documentable{bfsDir: getDir("mod")}, ""},
 		{"dirAbs", []string{path("crypto/rand")}, false, &Documentable{bfsDir: getDir("crypto/rand")}, ""},
@@ -98,8 +98,8 @@ func TestResolveDocumentable(t *testing.T) {
 		{"errNoCandidates2", []string{"LocalSymbol"}, false, nil, `package not found`},
 		{"errNoCandidates3", []string{"Symbol.Accessible"}, false, nil, `package not found`},
 		{"errNonExisting", []string{"rand.NotExisting"}, false, nil, `could not resolve arguments`},
-		{"errIgnoredMod", []string{"modignored"}, false, nil, `package not found`},
-		{"errIgnoredMod2", []string{"./testdata/integ/modignored"}, false, nil, `package not found`},
+		{"errIgnoredMod", []string{"modignored"}, false, &Documentable{bfsDir: getDir("modignored")}, ""},
+		{"errIgnoredMod2", []string{"./testdata/integ/modignored"}, false, &Documentable{bfsDir: getDir("modignored")}, ""},
 		{"errUnexp", []string{"crypto/rand.unexp"}, false, nil, "could not resolve arguments"},
 		{"errDirNotapkg", []string{"./test_notapkg"}, false, nil, `package not found: "./test_notapkg"`},
 	}

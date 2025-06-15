@@ -19,14 +19,14 @@ var (
 	counter          int
 	lastUpdate       time.Time
 	lastCaller       std.Address
-	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
-	Ownable          = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
 	watchdogDuration = 5 * time.Minute
+	wd               = watchdog.Watchdog{Duration: watchdogDuration}
+	Ownable          = ownable.NewWithOrigin()
 )
 
 // Incr increments the counter and informs the watchdog that we're alive.
 // This function can be called by anyone.
-func Incr() int {
+func Incr(cur realm) int {
 	counter++
 	lastUpdate = time.Now()
 	lastCaller = std.PreviousRealm().Address()
@@ -36,13 +36,12 @@ func Incr() int {
 
 // Reset resets the realm state.
 // This function can only be called by the admin.
-func Reset() {
-	Ownable.AssertCallerIsOwner()
-
+func Reset(cur realm) {
+	Ownable.AssertOwnedByPrevious()
 	counter = 0
 	lastCaller = std.PreviousRealm().Address()
 	lastUpdate = time.Now()
-	wd = watchdog.Watchdog{Duration: 5 * time.Minute}
+	wd = watchdog.Watchdog{Duration: watchdogDuration}
 }
 
 func Render(_ string) string {

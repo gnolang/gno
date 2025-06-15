@@ -103,7 +103,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 	parts := make([]*Part, total)
 	partsBytes := make([][]byte, total)
 	partsBitArray := bitarray.NewBitArray(total)
-	for i := 0; i < total; i++ {
+	for i := range total {
 		part := &Part{
 			Index: i,
 			Bytes: data[i*partSize : min(len(data), (i+1)*partSize)],
@@ -114,7 +114,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 	}
 	// Compute merkle proofs
 	root, proofs := merkle.SimpleProofsFromByteSlices(partsBytes)
-	for i := 0; i < total; i++ {
+	for i := range total {
 		parts[i].Proof = *proofs[i]
 	}
 	return &PartSet{

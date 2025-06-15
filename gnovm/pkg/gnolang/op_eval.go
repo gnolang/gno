@@ -21,7 +21,6 @@ func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
-		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
@@ -36,7 +35,7 @@ func (m *Machine) doOpEval() {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
+			ptr := lb.GetPointerTo(m.Store, nx.Path)
 			m.PushValue(ptr.Deref())
 			return
 		}
@@ -135,7 +134,7 @@ func (m *Machine) doOpEval() {
 				// Step 2 adjust exp from dot.
 				pIndex := -1
 				vLen := len(value)
-				for i := 0; i < vLen; i++ {
+				for i := range vLen {
 					if value[i] == '.' {
 						if pIndex > -1 {
 							panic(fmt.Sprintf(
@@ -316,7 +315,13 @@ func (m *Machine) doOpEval() {
 	case *ConstExpr:
 		m.PopExpr()
 		// push preprocessed value
-		m.PushValue(x.TypedValue)
+		tv := x.TypedValue
+		// see .pkgSelector; const(ref(pkgPath)).  do not fill in;
+		// nodes may be more persistent than values in a tx.
+		// (currently all nodes are cached, but we don't want to cache
+		// all packages too).
+		fillValueTV(m.Store, &tv)
+		m.PushValue(tv)
 	case *constTypeExpr:
 		m.PopExpr()
 		// push preprocessed type as value

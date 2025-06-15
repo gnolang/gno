@@ -20,4 +20,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_f0.gno:19:10: operator + not defined on: InterfaceKind
+// main/add_f0.gno:19:10-20: operator + not defined on: InterfaceKind
+
+// TypeCheckError:
+// main/add_f0.gno:19:10: cannot convert 1 (untyped int constant) to type interface{Error() string}

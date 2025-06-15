@@ -197,7 +197,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 }
 
 // transpilePkg transpiles all non-test files at the given location.
-// Additionally, it checks the gno.mod in said location, and skips it if it is
+// Additionally, it checks the gnomod.toml in said location, and skips it if it is
 // a draft module
 func transpilePkg(dirPath string, opts *transpileOptions) error {
 	if opts.isTranspiled(dirPath) {
@@ -205,13 +205,13 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	}
 	opts.markAsTranspiled(dirPath)
 
-	gmod, err := gnomod.ParseAt(dirPath)
-	if err != nil && !errors.Is(err, gnomod.ErrGnoModNotFound) {
+	gmod, err := gnomod.ParseDir(dirPath)
+	if err != nil && !errors.Is(err, gnomod.ErrNoModFile) {
 		return err
 	}
 	if err == nil && gmod.Draft {
 		if opts.cfg.verbose {
-			opts.io.ErrPrintfln("%s (skipped, gno.mod marks module as draft)", filepath.Clean(dirPath))
+			opts.io.ErrPrintfln("%s (skipped, gnomod.toml marks module as draft)", filepath.Clean(dirPath))
 		}
 		opts.skipped = append(opts.skipped, dirPath)
 		return nil

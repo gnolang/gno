@@ -1,6 +1,7 @@
 package users
 
 import (
+	"std"
 	"strconv"
 	"testing"
 
@@ -9,12 +10,12 @@ import (
 )
 
 func TestResolveName(t *testing.T) {
-	testing.SetOriginCaller(whitelistedCallerAddr)
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
@@ -25,7 +26,7 @@ func TestResolveName(t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -40,7 +41,7 @@ func TestResolveName(t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -64,12 +65,12 @@ func TestResolveName(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	testing.SetOriginCaller(whitelistedCallerAddr)
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
 
@@ -80,7 +81,7 @@ func TestResolveAddress(t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -94,7 +95,7 @@ func TestResolveAddress(t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -114,10 +115,10 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestROStores(t *testing.T) {
-	testing.SetOriginCaller(whitelistedCallerAddr)
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 	cleanStore(t)
 
-	urequire.NoError(t, RegisterUser(alice, aliceAddr))
+	urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 	roNS := GetReadOnlyNameStore()
 	roAS := GetReadonlyAddrStore()
 
@@ -158,12 +159,46 @@ func TestROStores(t *testing.T) {
 		rawRoData, ok := roNS.Get(alice)
 		// uassert.False(t, ok)
 		// XXX: not sure what to do here, as the tree technically has the data so returns ok
-		// However the data is intercepted and something else (nilin this case) is returned.
+		// However the data is intercepted and something else (nil in this case) is returned.
 		// should we handle this somehow?
 
 		uassert.Equal(t, rawRoData, nil)
 		_, ok = rawRoData.(*UserData) // shouldn't be castable
 		uassert.False(t, ok)
+	})
+}
+
+func TestResolveAny(t *testing.T) {
+	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
+
+	t.Run("name", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+
+		res, _ := ResolveAny(alice)
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("address", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+
+		res, _ := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("not_registered", func(t *testing.T) {
+		cleanStore(t)
+
+		res, _ := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, nil, res)
 	})
 }
 

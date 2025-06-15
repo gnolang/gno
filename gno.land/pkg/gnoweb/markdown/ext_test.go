@@ -6,8 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -26,11 +28,23 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	name := nameIn[:len(nameIn)-3]
 	require.Greater(t, len(name), 0, "txtar file name cannot be empty")
 
-	m := goldmark.New()
-	GnoExtension.Extend(m)
+	// Create a test URL for the context
+	gnourl, err := weburl.Parse("https://gno.land/r/test")
+	require.NoError(t, err)
 
-	// Parse markdown input
-	node := m.Parser().Parse(text.NewReader(input))
+	// Create parser context with the test URL
+	ctxOpts := parser.WithContext(NewGnoParserContext(gnourl))
+
+	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {
+		return !strings.HasPrefix(uri, "https://") // disallow https
+	}))
+
+	// Create markdown processor with extensions and renderer options
+	m := goldmark.New()
+	ext.Extend(m)
+
+	// Parse markdown input with context
+	node := m.Parser().Parse(text.NewReader(input), ctxOpts)
 
 	// Dump ast to stdout if requested
 	if *dump {
