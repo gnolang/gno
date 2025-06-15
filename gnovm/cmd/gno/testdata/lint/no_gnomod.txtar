@@ -14,4 +14,4 @@ func main() {
 
 -- stdout.golden --
 -- stderr.golden --
-auto-generated "gno.mod"
+auto-generated "gnomod.toml"
