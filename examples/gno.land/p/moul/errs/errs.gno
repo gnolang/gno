@@ -56,9 +56,9 @@ func (m *multiError) String() string {
 	return b.String()
 }
 
-// Errors returns the slice of underlying errors contained in this multiError.
+// Unwrap returns the slice of underlying errors contained in this multiError.
 // Returns nil if the receiver is nil.
-func (m *multiError) Errors() []error {
+func (m *multiError) Unwrap() []error {
 	if m == nil {
 		return nil
 	}
@@ -75,7 +75,7 @@ func Errors(err error) []error {
 	}
 
 	if merr, ok := err.(*multiError); ok {
-		return merr.Errors()
+		return merr.Unwrap()
 	}
 
 	return []error{err}

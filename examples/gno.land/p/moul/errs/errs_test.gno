@@ -229,10 +229,34 @@ func TestAppendEdgeCases(t *testing.T) {
 	}
 }
 
-func TestErrorsNilReceiver(t *testing.T) {
+func TestUnwrapNilReceiver(t *testing.T) {
 	var merr *multiError
-	errs := merr.Errors()
+	errs := merr.Unwrap()
 	if errs != nil {
 		t.Errorf("Expected nil slice for nil receiver, got %v", errs)
+	}
+}
+
+func TestMultiErrorUnwrap(t *testing.T) {
+	var nilMulti *multiError
+	if got := nilMulti.Unwrap(); got != nil {
+		t.Errorf("Unwrap on nil receiver: expected nil, got %v", got)
+	}
+
+	empty := &multiError{errors: nil}
+	if got := empty.Unwrap(); got != nil {
+		t.Errorf("Unwrap on empty: expected nil, got %v", got)
+	}
+
+	single := &multiError{errors: []error{newError("foo")}}
+	got := single.Unwrap()
+	if len(got) != 1 || got[0].Error() != "foo" {
+		t.Errorf("Unwrap on single: expected [foo], got %v", got)
+	}
+
+	multi := &multiError{errors: []error{newError("foo"), newError("bar")}}
+	got = multi.Unwrap()
+	if len(got) != 2 || got[0].Error() != "foo" || got[1].Error() != "bar" {
+		t.Errorf("Unwrap on multi: expected [foo bar], got %v", got)
 	}
 }
