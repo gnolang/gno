@@ -15,7 +15,7 @@ func BenchmarkReap(b *testing.B) {
 	defer cleanup()
 
 	size := 10000
-	for i := 0; i < size; i++ {
+	for i := range size {
 		tx := make([]byte, 8)
 		binary.BigEndian.PutUint64(tx, uint64(i))
 		mempool.CheckTx(tx, nil)

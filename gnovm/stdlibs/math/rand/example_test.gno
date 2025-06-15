@@ -48,7 +48,7 @@ func Example_rand() {
 	r := rand.New(rand.NewPCG(1, 2))
 
 	// XXX: Go uses tabwriter; we don't have it, so use stdout directly.
-	show := func(name string, v1, v2, v3 interface{}) {
+	show := func(name string, v1, v2, v3 any) {
 		fmt.Printf("%s\t%v\t%v\t%v\n", name, v1, v2, v3)
 	}
 

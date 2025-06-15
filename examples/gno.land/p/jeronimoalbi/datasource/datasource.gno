@@ -20,7 +20,7 @@ type (
 		Has(name string) bool
 
 		// Get retrieves the value associated with the given field.
-		Get(name string) (value interface{}, found bool)
+		Get(name string) (value any, found bool)
 	}
 
 	// Record defines a datasource record.

@@ -11,9 +11,9 @@ import (
 )
 
 type Signup struct {
-	address   std.Address
-	ordinal   int
-	timestamp time.Time
+	address_XXX std.Address
+	ordinal     int
+	timestamp   time.Time
 }
 
 var (
@@ -25,12 +25,12 @@ var (
 const signUpEvent = "SignUp"
 
 func init() {
-	SignUp() // Sign up the deployer
+	SignUp(cross) // Sign up the deployer
 }
 
-func SignUp() string {
+func SignUp(cur realm) string {
 	// Get transaction caller
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	// Check if the user is already signed up
 	if _, exists := tracker.Get(caller.String()); exists {

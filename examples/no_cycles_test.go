@@ -10,16 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
-
-// XXX: move this into `gno lint`
-
-var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
 
 // TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
 func TestNoCycles(t *testing.T) {
@@ -32,7 +29,7 @@ func TestNoCycles(t *testing.T) {
 	require.NoError(t, err)
 
 	// find examples
-	examples, err := gnomod.ListPkgs(filepath.Join(gnoRoot, "examples"))
+	examples, err := gnolang.ReadPkgListFromDir(filepath.Join(gnoRoot, "examples"))
 	require.NoError(t, err)
 	for _, example := range examples {
 		if example.Draft {
@@ -101,9 +98,6 @@ func detectCycles(root testPkg, pkgs []testPkg, visited map[string]bool) error {
 // visitImports resolves and visits imports by kinds
 func visitImports(kinds []packages.FileKind, root testPkg, pkgs []testPkg, visited map[string]bool, stack []string) error {
 	for _, imp := range root.Imports.Merge(kinds...) {
-		if slices.Contains(injectedTestingLibs, imp.PkgPath) {
-			continue
-		}
 		idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
 		if idx == -1 {
 			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
@@ -188,12 +182,12 @@ func listPkgs(rootMod gnomod.Pkg) ([]testPkg, error) {
 }
 
 // readPkg reads the sources of a package. It includes all .gno files but ignores the package name
-func readPkg(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+func readPkg(dir string, pkgPath string) (*std.MemPackage, error) {
 	list, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
-	memPkg := &gnovm.MemPackage{Path: pkgPath}
+	memPkg := &std.MemPackage{Path: pkgPath}
 	for _, entry := range list {
 		fpath := filepath.Join(dir, entry.Name())
 		if !strings.HasSuffix(fpath, ".gno") {
@@ -205,7 +199,7 @@ func readPkg(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 			return nil, err
 		}
 		memPkg.Files = append(memPkg.Files,
-			&gnovm.MemFile{
+			&std.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})

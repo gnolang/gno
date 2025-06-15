@@ -66,7 +66,7 @@ func TestVersionedRandomTree(t *testing.T) {
 
 	// Create a tree of size 1000 with 100 versions.
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			k := []byte(rnd.Str(8))
 			v := []byte(rnd.Str(8))
 			tree.Set(k, v)
@@ -121,7 +121,7 @@ func TestVersionedRandomTreeSmallKeys(t *testing.T) {
 	keysPerVersion := 50
 
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			// Keys of size one are likely to be overwritten.
 			k := []byte(rnd.Str(1))
 			v := []byte(rnd.Str(8))
@@ -144,7 +144,7 @@ func TestVersionedRandomTreeSmallKeys(t *testing.T) {
 	require.Len(tree.ndb.nodes(), singleVersionTree.nodeSize())
 
 	// Try getting random keys.
-	for i := 0; i < keysPerVersion; i++ {
+	for range keysPerVersion {
 		_, val := tree.Get([]byte(rnd.Str(1)))
 		require.NotNil(val)
 		require.NotEmpty(val)
@@ -164,7 +164,7 @@ func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
 	keysPerVersion := 50
 
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			// Keys of size one are likely to be overwritten.
 			k := []byte(rnd.Str(1))
 			v := []byte(rnd.Str(8))
@@ -187,7 +187,7 @@ func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
 	require.Len(tree.ndb.nodes(), singleVersionTree.nodeSize())
 
 	// Try getting random keys.
-	for i := 0; i < keysPerVersion; i++ {
+	for range keysPerVersion {
 		_, val := tree.Get([]byte(rnd.Str(1)))
 		require.NotNil(val)
 		require.NotEmpty(val)
@@ -749,7 +749,7 @@ func TestVersionedCheckpoints(t *testing.T) {
 	keys := map[int64]([][]byte){}
 
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			k := []byte(rnd.Str(1))
 			v := []byte(rnd.Str(8))
 			keys[int64(i)] = append(keys[int64(i)], k)
@@ -998,7 +998,7 @@ func TestVersionedTreeEfficiency(t *testing.T) {
 
 	keysAdded := 0
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			// Keys of size one are likely to be overwritten.
 			tree.Set([]byte(rnd.Str(1)), []byte(rnd.Str(8)))
 		}
@@ -1108,7 +1108,7 @@ func TestOrphans(t *testing.T) {
 	NUMVERSIONS := 100
 	NUMUPDATES := 100
 
-	for i := 0; i < NUMVERSIONS; i++ {
+	for range NUMVERSIONS {
 		for j := 1; j < NUMUPDATES; j++ {
 			tree.Set(randBytes(2), randBytes(2))
 		}
@@ -1226,8 +1226,8 @@ func TestLazyLoadVersion(t *testing.T) {
 	require.NoError(t, err, "unexpected error")
 	require.Equal(t, version, int64(0), "expected latest version to be zero")
 
-	for i := 0; i < maxVersions; i++ {
-		tree.Set([]byte(fmt.Sprintf("key_%d", i+1)), []byte(fmt.Sprintf("value_%d", i+1)))
+	for i := range maxVersions {
+		tree.Set(fmt.Appendf(nil, "key_%d", i+1), fmt.Appendf(nil, "value_%d", i+1))
 
 		_, _, err := tree.SaveVersion()
 		require.NoError(t, err, "SaveVersion should not fail")
@@ -1238,16 +1238,16 @@ func TestLazyLoadVersion(t *testing.T) {
 	require.NoError(t, err, "unexpected error when lazy loading version")
 	require.Equal(t, version, int64(maxVersions))
 
-	_, value := tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions)))
-	require.Equal(t, value, []byte(fmt.Sprintf("value_%d", maxVersions)), "unexpected value")
+	_, value := tree.Get(fmt.Appendf(nil, "key_%d", maxVersions))
+	require.Equal(t, value, fmt.Appendf(nil, "value_%d", maxVersions), "unexpected value")
 
 	// require the ability to lazy load an older version
 	version, err = tree.LazyLoadVersion(int64(maxVersions - 1))
 	require.NoError(t, err, "unexpected error when lazy loading version")
 	require.Equal(t, version, int64(maxVersions-1))
 
-	_, value = tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions-1)))
-	require.Equal(t, value, []byte(fmt.Sprintf("value_%d", maxVersions-1)), "unexpected value")
+	_, value = tree.Get(fmt.Appendf(nil, "key_%d", maxVersions-1))
+	require.Equal(t, value, fmt.Appendf(nil, "value_%d", maxVersions-1), "unexpected value")
 
 	// require the inability to lazy load a non-valid version
 	version, err = tree.LazyLoadVersion(int64(maxVersions + 1))
@@ -1375,7 +1375,7 @@ func BenchmarkTreeLoadAndDelete(b *testing.B) {
 
 	tree := NewMutableTree(d, 0)
 	for v := 1; v < numVersions; v++ {
-		for i := 0; i < numKeysPerVersion; i++ {
+		for range numKeysPerVersion {
 			tree.Set([]byte(rnd.Str(16)), rnd.Bytes(32))
 		}
 		tree.SaveVersion()
@@ -1396,7 +1396,7 @@ func BenchmarkTreeLoadAndDelete(b *testing.B) {
 			// efficiency, which is why we do both in this benchmark.
 			// If we can load quickly into a data-structure that allows for
 			// efficient deletes, we are golden.
-			for v := 0; v < numVersions/10; v++ {
+			for range numVersions / 10 {
 				version := (rnd.Int() % numVersions) + 1
 				tree.DeleteVersion(int64(version))
 			}

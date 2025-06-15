@@ -1,6 +1,6 @@
 # stdlibs_diff
 
-stdlibs_diff is a tool that generates an html report indicating differences between gno standard libraries and go standrad libraries
+stdlibs_diff is a tool that generates an html report indicating differences between gno standard libraries and go standard libraries.
 
 ## Usage
 

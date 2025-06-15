@@ -4,13 +4,15 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
 	"gno.land/r/demo/mirror"
 	"gno.land/r/leon/config"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -19,7 +21,20 @@ var (
 	abtMe      [2]string
 )
 
+func Render(_ string) string {
+	out := "# Leon's Homepage\n\n"
+
+	out += renderAboutMe()
+	out += renderArt()
+	out += config.Banner()
+
+	return out
+}
+
 func init() {
+	hor.Register(cross, "Leon's Home Realm", "")
+	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
 	abtMe = [2]string{
@@ -30,16 +45,12 @@ life-long learner, and sharer of knowledge.`,
 My contributions to gno.land can mainly be found 
 [here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
 
-TODO import r/gh
-`,
+TODO import r/gh`,
 	}
-
-	hof.Register()
-	mirror.Register(std.CurrentRealm().PkgPath(), Render)
 }
 
-func UpdatePFP(url, caption string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+func UpdatePFP(cur realm, url, caption string) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -47,8 +58,8 @@ func UpdatePFP(url, caption string) {
 	pfpCaption = caption
 }
 
-func UpdateAboutMe(col1, col2 string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+func UpdateAboutMe(cur realm, col1, col2 string) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -56,81 +67,83 @@ func UpdateAboutMe(col1, col2 string) {
 	abtMe[1] = col2
 }
 
-func Render(path string) string {
-	out := "# Leon's Homepage\n\n"
+func renderAboutMe() string {
+	return md.Columns([]string{
+		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
+		abtMe[0],
+		abtMe[1],
+	})
+}
 
-	out += renderAboutMe()
-	out += renderBlogPosts()
-	out += "\n\n"
-	out += renderArt()
+func renderArt() string {
+	out := "# Gno Art\n"
 
+	out += md.Columns([]string{
+		gnoface.Render(strconv.Itoa(int(std.ChainHeight()))),
+		renderMillipede(),
+		"SVG Gnome\n" + RenderSVGGnome(),
+	})
+
+	out += "This art is dynamic; it will change with every new block.\n\n"
+
+	return out
+}
+
+func renderMillipede() string {
+	out := "Millipede\n\n"
+	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
 	return out
 }
 
 func renderBlogPosts() string {
 	out := ""
-	//out += "## Leon's Blog Posts"
+	// out += "## Leon's Blog Posts"
 
 	// todo fetch blog posts authored by @leohhhn
 	// and render them
 	return out
 }
 
-func renderAboutMe() string {
-	out := "<div class='columns-3'>"
+func RenderSVGGnome() string { // exported for your pleasure :)
+	c := svg.NewCanvas(430, 430).WithViewBox(13, 25, 75, 75)
 
-	out += "<div>\n\n"
-	out += ufmt.Sprintf("![my profile pic](%s)\n\n%s\n\n", pfp, pfpCaption)
-	out += "</div>\n\n"
+	// Body: blue triangle
+	body := svg.NewPolygon("50,50 30,100 70,100", gnomeBodyColors[int(std.ChainHeight())%len(gnomeBodyColors)])
 
-	out += "<div>\n\n"
-	out += abtMe[0] + "\n\n"
-	out += "</div>\n\n"
+	// Head: peach circle (overlaps body)
+	head := svg.NewCircle(50, 60, 10, "#FAD7B6")
 
-	out += "<div>\n\n"
-	out += abtMe[1] + "\n\n"
-	out += "</div>\n\n"
+	// Hat: red triangle on top of head
+	hat := svg.NewPolygon("50,30 35,55 65,55", "#E53935")
 
-	out += "</div><!-- /columns-3 -->\n\n"
+	// Eyes: two small black dots
+	leftEye := svg.NewCircle(46, 59, 1, "#000")
+	rightEye := svg.NewCircle(54, 59, 1, "#000")
 
-	return out
+	// Beard: small white triangle under head
+	beard := svg.NewPolygon("50,85 42,63 58,63", "#FFF")
+
+	// Layering order matters (bottom to top)
+	c.Append(body, head, beard, hat, leftEye, rightEye)
+
+	return c.Render("svg gnome")
 }
 
-func renderArt() string {
-	out := `<div class="jumbotron">` + "\n\n"
-	out += "# Gno Art\n\n"
-
-	out += "<div class='columns-3'>"
-
-	out += renderGnoFace()
-	out += renderMillipede()
-	out += "Empty spot :/"
-
-	out += "</div><!-- /columns-3 -->\n\n"
-
-	out += "This art is dynamic; it will change with every new block.\n\n"
-	out += `</div><!-- /jumbotron -->` + "\n"
-
-	return out
-}
-
-func renderGnoFace() string {
-	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.GetHeight())))
-	out += "</div>\n\n"
-
-	return out
-}
-
-func renderMillipede() string {
-	out := "<div>\n\n"
-	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.GetHeight())%10+1) + "```\n"
-	out += "</div>\n\n"
-
-	return out
-}
-
-func isAuthorized(addr std.Address) bool {
-	return addr == config.Address() || addr == config.Backup()
+var gnomeBodyColors = []string{
+	"#4CAF50", // Green
+	"#2196F3", // Blue
+	"#9C27B0", // Purple
+	"#FF5722", // Orange
+	"#795548", // Brown
+	"#607D8B", // Grayish Blue
+	"#E91E63", // Pink
+	"#FFC107", // Amber
+	"#00BCD4", // Cyan
+	"#8BC34A", // Light Green
+	"#FF9800", // Deep Orange
+	"#3F51B5", // Indigo
+	"#673AB7", // Deep Purple
+	"#009688", // Teal
+	"#F44336", // Red
+	"#CDDC39", // Lime
 }

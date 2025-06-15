@@ -11,7 +11,7 @@ import (
 
 // Helper function to set up test environment
 func setupTest() {
-	std.TestSetOrigCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 }
 
 func TestUpdatePFP(t *testing.T) {
@@ -41,7 +41,8 @@ func TestVoteModern(t *testing.T) {
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
 	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
-	std.TestSetOrigSend(coinsSent, coinsSpent)
+	testing.SetOriginSend(coinsSent)
+	testing.SetOriginSpend(coinsSpent)
 	VoteModern()
 
 	uassert.Equal(t, int64(75000000), modernVotes, "Modern votes should be calculated correctly")
@@ -55,7 +56,8 @@ func TestVoteClassic(t *testing.T) {
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
 	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
-	std.TestSetOrigSend(coinsSent, coinsSpent)
+	testing.SetOriginSend(coinsSent)
+	testing.SetOriginSpend(coinsSpent)
 	VoteClassic()
 
 	uassert.Equal(t, int64(75000000), classicVotes, "Classic votes should be calculated correctly")
@@ -69,7 +71,8 @@ func TestVoteMinimal(t *testing.T) {
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
 	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
 
-	std.TestSetOrigSend(coinsSent, coinsSpent)
+	testing.SetOriginSend(coinsSent)
+	testing.SetOriginSpend(coinsSpent)
 	VoteMinimal()
 
 	uassert.Equal(t, int64(75000000), minimalVotes, "Minimal votes should be calculated correctly")

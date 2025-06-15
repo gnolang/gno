@@ -21,10 +21,10 @@ var (
 	gTotalTransfers   = uint(0)
 
 	// per request limit, 350 gnot
-	gLimit std.Coin = std.NewCoin("ugnot", 350000000)
+	gLimit std.Coin = std.NewCoin("ugnot", 350_000_000)
 )
 
-func Transfer(to std.Address, send int64) string {
+func Transfer(cur realm, to std.Address, send int64) string {
 	if err := assertIsController(); err != nil {
 		return err.Error()
 	}
@@ -42,8 +42,8 @@ func Transfer(to std.Address, send int64) string {
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgaddr := std.CurrentRealm().Addr()
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	pkgaddr := std.CurrentRealm().Address()
 	banker.SendCoins(pkgaddr, to, sendCoins)
 	return ""
 }
@@ -52,9 +52,13 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
+func bankerAddr(cur realm) std.Address {
+	return std.CurrentRealm().Address()
+}
+
 func Render(_ string) string {
-	banker := std.GetBanker(std.BankerTypeRealmSend)
-	balance := banker.GetCoins(std.CurrentRealm().Addr())
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	balance := banker.GetCoins(bankerAddr(cross))
 
 	output := gMessage
 	if gInPause {
@@ -65,7 +69,7 @@ func Render(_ string) string {
 	output += ufmt.Sprintf("Balance: %s.\n", balance.String())
 	output += ufmt.Sprintf("Total transfers: %s (in %d times).\n\n", gTotalTransferred.String(), gTotalTransfers)
 
-	output += "Package address: " + std.CurrentRealm().Addr().String() + "\n\n"
+	output += "Package address: " + std.CurrentRealm().Address().String() + "\n\n"
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
@@ -81,8 +85,7 @@ func Render(_ string) string {
 }
 
 func assertIsController() error {
-	caller := std.GetOrigCaller()
-
+	caller := std.PreviousRealm().Address()
 	ok := gControllers.Has(caller.String())
 	if !ok {
 		return errors.New(caller.String() + " is not on the controller list")

@@ -14,6 +14,5 @@ func main() {
 	fmt.Println(http.DefaultClient)
 }
 
-// Output:
-// &{<nil> <nil> 10000000000}
-// &{<nil> <nil> 0}
+// Error:
+// cannot directly modify readonly tainted object (w/o method): (const (ref(github.com/gnolang/gno/_test/net/http) package{})).DefaultClient.Timeout

@@ -1,15 +1,17 @@
 package browser
 
 import (
-	"path/filepath"
+	gopath "path"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 )
 
 func redirectWebPath(path string) string {
-	if alias, ok := gnoweb.Aliases[path]; ok {
-		return alias
+	if alias, ok := gnoweb.DefaultAliases[path]; ok {
+		if alias.Kind == gnoweb.GnowebPath { // Ignore static files
+			return alias.Value
+		}
 	}
 
 	if redirect, ok := gnoweb.Redirects[path]; ok {
@@ -27,7 +29,7 @@ func cleanupRealmPath(prefix, realm string) string {
 	// trim any slash
 	path = strings.TrimPrefix(path, "/")
 	// clean up path
-	path = filepath.Clean(path)
+	path = gopath.Clean(path)
 
 	return path
 }

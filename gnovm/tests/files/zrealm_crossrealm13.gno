@@ -2,20 +2,33 @@ package main
 
 import (
 	"std"
+	"testing"
 )
 
 func main() {
+	println("From main:")
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PrevRealm:"), std.PrevRealm())
-	std.TestSetRealm(std.NewUserRealm("g1user"))
+	println(pad("PreviousRealm:"), std.PreviousRealm())
+	println("")
+
+	println("From g1user origin:")
+	testing.SetRealm(std.NewUserRealm("g1user"))
+	println(pad("CurrentRealm:"), std.CurrentRealm())
+	func() {
+		defer func() {
+			r := recover()
+			println(pad("PreviousRealm:"), r)
+		}()
+		println(pad("PreviousRealm:"), std.PreviousRealm())
+	}()
+	println("")
+
+	println("From gno.land/r/sys/users realm:")
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PrevRealm:"), std.PrevRealm())
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
-	PrintRealm()
-	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PrevRealm:"), std.PrevRealm())
+	println(pad("PreviousRealm:"), std.PreviousRealm())
 }
 
 func pad(s string) string {
@@ -26,23 +39,23 @@ func pad(s string) string {
 }
 
 func PrintRealm() {
-	println(pad("PrintRealm: CurrentRealm:"), std.CurrentRealm())
-	println(pad("PrintRealm: PrevRealm:"), std.PrevRealm())
+	println(pad("PR() CurrentRealm:"), std.CurrentRealm())
+	println(pad("PR() PreviousRealm:"), std.PreviousRealm())
 }
 
-// Because this is the context of a package, using PrintRealm()
-// should not change the output of the main function.
-
 // Output:
-// PrintRealm: CurrentRealm:  (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// PrintRealm: PrevRealm:     (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// CurrentRealm:              (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// PrevRealm:                 (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// PrintRealm: CurrentRealm:  (struct{("g1user" std.Address),("" string)} std.Realm)
-// PrintRealm: PrevRealm:     (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// CurrentRealm:              (struct{("g1user" std.Address),("" string)} std.Realm)
-// PrevRealm:                 (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// PrintRealm: CurrentRealm:  (struct{("g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s" std.Address),("gno.land/r/demo/users" string)} std.Realm)
-// PrintRealm: PrevRealm:     (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
-// CurrentRealm:              (struct{("g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s" std.Address),("gno.land/r/demo/users" string)} std.Realm)
-// PrevRealm:                 (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)
+// From main:
+// PR() CurrentRealm:         CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// PR() PreviousRealm:        UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// CurrentRealm:              CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// PreviousRealm:             UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+//
+// From g1user origin:
+// CurrentRealm:              UserRealm{ g1user }
+// PreviousRealm:             frame not found: cannot seek beyond origin caller override
+//
+// From gno.land/r/sys/users realm:
+// PR() CurrentRealm:         CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// PR() PreviousRealm:        CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }
+// CurrentRealm:              CodeRealm{ g1njxh4leja7h52ea0lnq9crx3j6782g77nc7yd4, gno.land/r/sys/users }
+// PreviousRealm:             CodeRealm{ g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4, main }

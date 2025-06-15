@@ -11,4 +11,7 @@ func main() {
 }
 
 // Error:
-// main/files/var22.gno:8:6: missing init expr for c<!VPUverse(0)>
+// main/var22.gno:8:6-24: missing init expr for c<!VPInvalid(0)>
+
+// TypeCheckError:
+// main/var22.gno:8:12: missing init expr for c; main/var22.gno:8:19: multiple-value foo() (value of type (int, bool)) in single-value context

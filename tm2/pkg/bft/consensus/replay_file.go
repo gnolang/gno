@@ -126,7 +126,7 @@ func (pb *playback) replayReset(count int, newStepSub <-chan events.Event) error
 	pb.cs = newCS
 	var msg *walm.TimedWALMessage
 	var meta *walm.MetaMessage
-	for i := 0; i < count; i++ {
+	for range count {
 		msg, meta, err = pb.dec.ReadMessage()
 		if goerrors.Is(err, io.EOF) {
 			return nil

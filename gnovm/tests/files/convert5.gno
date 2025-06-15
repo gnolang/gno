@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/convert5.gno:3:1: cannot convert (undefined) to int
+// main/convert5.gno:3:1-7:2: cannot convert (const (undefined)) to IntKind
+
+// TypeCheckError:
+// main/convert5.gno:5:22: cannot use nil as int value in argument to append; main/convert5.gno:5:27: cannot use nil as int value in argument to append

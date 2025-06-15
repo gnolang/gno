@@ -1,7 +1,6 @@
 package amino
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -113,25 +112,27 @@ func (info *TypeInfo) String() string {
 		// before it's fully populated.
 		return "<new TypeInfo>"
 	}
-	buf := new(bytes.Buffer)
-	buf.Write([]byte("TypeInfo{"))
-	buf.Write([]byte(fmt.Sprintf("Type:%v,", info.Type)))
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
+	buf.WriteString("TypeInfo{")
+	fmt.Fprintf(buf, "Type:%v,", info.Type)
 	if info.ConcreteInfo.Registered {
-		buf.Write([]byte("Registered:true,"))
-		buf.Write([]byte(fmt.Sprintf("PointerPreferred:%v,", info.PointerPreferred)))
-		buf.Write([]byte(fmt.Sprintf("TypeURL:\"%v\",", info.TypeURL)))
+		buf.WriteString("Registered:true,")
+		fmt.Fprintf(buf, "PointerPreferred:%v,", info.PointerPreferred)
+		fmt.Fprintf(buf, "TypeURL:\"%v\",", info.TypeURL)
 	} else {
-		buf.Write([]byte("Registered:false,"))
+		buf.WriteString("Registered:false,")
 	}
 	if info.ReprType == info {
-		buf.Write([]byte(fmt.Sprintf("ReprType:<self>,")))
+		buf.WriteString("ReprType:<self>,")
 	} else {
-		buf.Write([]byte(fmt.Sprintf("ReprType:\"%v\",", info.ReprType)))
+		fmt.Fprintf(buf, "ReprType:\"%v\",", info.ReprType)
 	}
 	if info.Type.Kind() == reflect.Struct {
-		buf.Write([]byte(fmt.Sprintf("Fields:%v,", info.Fields)))
+		fmt.Fprintf(buf, "Fields:%v,", info.Fields)
 	}
-	buf.Write([]byte("}"))
+	buf.WriteByte('}')
 	return buf.String()
 }
 
@@ -670,7 +671,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	}
 
 	infos := make([]FieldInfo, 0, rt.NumField())
-	for i := 0; i < rt.NumField(); i++ {
+	for i := range rt.NumField() {
 		field := rt.Field(i)
 		ftype := field.Type
 		if !isExported(field) {

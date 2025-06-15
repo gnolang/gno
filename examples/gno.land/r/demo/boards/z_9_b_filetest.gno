@@ -1,11 +1,13 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
+	"std"
+	"testing"
+
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var (
@@ -14,16 +16,16 @@ var (
 )
 
 func init() {
-	users.Register("", "gnouser", "my profile")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
 
-	srcBoard = boards.CreateBoard("first_board")
-	pid = boards.CreateThread(srcBoard, "First Post in (title)", "Body of the first post. (body)")
-
-	boards.CreateRepost(srcBoard, pid, "First Post in (title)", "Body of the first post. (body)", 0)
+	srcBoard = boards.CreateBoard(cross, "first_board")
+	pid = boards.CreateThread(cross, srcBoard, "First Post in (title)", "Body of the first post. (body)")
 }
 
 func main() {
+	boards.CreateRepost(cross, srcBoard, pid, "First Post in (title)", "Body of the first post. (body)", 0)
 }
 
 // Error:
-// dst board not exist
+// invalid non-user call
