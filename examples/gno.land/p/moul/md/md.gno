@@ -252,7 +252,7 @@ func Columns(contentByColumn []string) string {
 		if i > 0 {
 			sb.WriteString("|||\n")
 		}
-		sb.WriteString(column + "\n")
+		sb.WriteString(strings.TrimSpace(column) + "\n")
 	}
 
 	sb.WriteString("</gno-columns>\n")

@@ -1,63 +1,53 @@
 package mdlist
 
-import "gno.land/p/demo/ufmt"
+import (
+	"strings"
+
+	"gno.land/p/moul/md"
+)
 
 type List []Entry
 
 type Entry struct {
 	Title string
 	Body  string
-	Links []Link
+	Links []string
 }
 
 func (l List) UL() string {
-	output := ""
-	// XXX: add pager API
-	for _, entry := range l {
-		output += ufmt.Sprintf("- **%s** _%s_",
-			safeLimitLength(entry.Title, 42),
-			safeLimitLenth(entry.Body, 30),
-		)
-	}
-	return output
+	return l.ULPager(1, len(l))
 }
 
 func (l List) Grid() string {
+	return l.GridPager(1, len(l))
+}
+
+func (l List) ULPager(page, limit int) string {
 	// XXX: add pager API
-	output := "---"
-	/*
-		for _, entry := range l {
-			output += ufmt.Sprintf(
-				"## %s\n\b%s\n\n%s\n",
-				entry.Title,
-				entry.Body,
-				entry.RenderLinks(),
-			)
-		}
-	*/
-	for _, entry := range l {
-		output += ufmt.Sprintf(
-			"## %s\n\b%s\n\n%s\n",
-			entry.Title,
-			entry.Body,
-			entry.RenderLinks(),
-		)
+	items := make([]string, len(l))
+	for i, entry := range l {
+		title := truncateText(entry.Title, 42)
+		body := truncateText(entry.Body, 30)
+		items[i] = md.Bold(title) + ": " + md.Italic(body) + " " + strings.Join(entry.Links, " ")
 	}
-	output += "---"
-	return output
+	return md.BulletList(items)
 }
 
-func (e Entry) RenderLinks() string {
-	output += ""
-	for _, link := range e.Links {
-		output += link
+func (l List) GridPager(page, limit int) string {
+	// XXX: add pager API
+	columns := make([]string, len(l))
+	for i, entry := range l {
+		title := md.H2(entry.Title)
+		body := md.Paragraph(entry.Body)
+		links := md.Paragraph(strings.Join(entry.Links, " "))
+		columns[i] = title + body + links
 	}
-	return output
+	return md.Columns(columns)
 }
 
-func safeLimitLenth(content string, maxLength int) string {
-	// remove HTML links (safe)
-	// check length; if long -> shorten + ellipsis
-	// else -> return content
+func truncateText(content string, maxLength int) string {
+	if len(content) > maxLength {
+		return content[:maxLength] + "..."
+	}
 	return content
 }
