@@ -13,6 +13,9 @@ import (
 // XXX: configurable length UL
 // XXX: moul/pager.Pager-powered auto mdlist
 // XXX: func (l List) Render(path string) string {
+// XXX: add .Table()
+
+var defaultEncoder = NewEncoder()
 
 type List []Entry
 
@@ -64,4 +67,17 @@ func truncateText(content string, maxLength int, withNewLines bool) string {
 		return content[:maxLength-3] + "..."
 	}
 	return content
+}
+
+type Encoder struct {
+	MaxWidth int
+	Mode     string
+	Page     int
+	Limit    int
+}
+
+func NewEncoder() *Encoder {
+	return &Encoder{
+		MaxWidth: 80,
+	}
 }
