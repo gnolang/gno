@@ -16,10 +16,10 @@ type Color struct {
 }
 
 const (
-	rows uint64 = 40
-	cols uint64 = 40
+	rows = 40
+	cols = 40
 
-	white string = "rgb(250,250,250)"
+	white = "rgb(250,250,250)"
 
 	chaeWallet = "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g"
 	ghhvWallet = "g1d2hvkqhqckhzpaum09c002fesdw89qrcg9zqws"

@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	users  *avl.Tree = avl.NewTree()
-	banned *avl.Tree = avl.NewTree()
+	users	= avl.NewTree()
+	banned	= avl.NewTree()
 )
 
 // Register a new user when clicking submit for the first time
