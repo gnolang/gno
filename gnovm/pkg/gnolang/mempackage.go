@@ -34,6 +34,8 @@ var (
 	}
 	allowedMemPackageFileExtensions = []string{
 		".gno",
+		".toml",
+		// ".txtar", // XXX: to be considered
 	}
 	badMemPackageFileExtensions = []string{
 		".gen.go",
@@ -58,6 +60,10 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 	return ValidateMemPackageWithOptions(mpkg, ValidateMemPackageOptions{
 		Type: MemPackageTypeNormal, // Keep this for defensiveness.
 	})
+}
+
+func IsValidPackagePathURL(path string) bool {
+	return reGnoPkgPathURL.MatchString(path)
 }
 
 func ValidateMemPackageWithOptions(mpkg *std.MemPackage, opts ValidateMemPackageOptions) (errs error) {
