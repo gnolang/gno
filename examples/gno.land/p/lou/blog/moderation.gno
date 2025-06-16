@@ -18,13 +18,10 @@ func (u User) renderLink() string {
 }
 
 func CheckUser(addr string, resolver UserResolver) (*User, error) {
-	println("(here " + addr + ")")
-
-	// if std.Address(addr).IsValid() {
-	// 	return nil, ErrInvalidCaller
-	// }
+	if std.Address(addr).IsValid() {
+		return nil, ErrInvalidCaller
+	}
 	userData, _ := resolver(addr)
-	println("res [" + userData + "]")
 	return &User{
 		Addr:     std.Address(addr),
 		Username: userData,

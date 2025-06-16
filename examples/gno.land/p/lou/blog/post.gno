@@ -179,7 +179,6 @@ func (p Post) RenderPost(prefix string) string {
 	if err != nil || p.UserResolver == nil {
 		out += p.Publisher + "\n\n"
 	} else {
-		// println(user.renderLink())
 		out += user.Username + "\n\n"
 	}
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
