@@ -264,7 +264,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
 	}
 	// If All, demote to Prod when parsing,
-	// if Test, keep it as is,
+	// if Test or Integration, keep it as is,
 	// but in any case save everything if save.
 	mptype = mptype.AsRunnable()
 	// sort mpkg.
@@ -457,6 +457,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
 // m.Package must match fns's package path.
+// XXX delete?
 func (m *Machine) RunFiles(fns ...*FileNode) {
 	pv := m.Package
 	if pv == nil {

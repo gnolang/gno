@@ -215,7 +215,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				if cmd.autoGnomod {
 					tcmode = gno.TCLatestRelaxed
 				}
-				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(false), tcmode)
+				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(true), tcmode)
 				if errs != nil {
 					// io.ErrPrintln(errs) printed above.
 					hasError = true

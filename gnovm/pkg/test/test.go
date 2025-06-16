@@ -275,14 +275,14 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
-			itPkg := &std.MemPackage{
-				Type:  gno.MPUserProd, // treated as a third-party prod package.
+			itmpkg := &std.MemPackage{
+				Type:  gno.MPUserIntegration,
 				Name:  mpkg.Name + "_test",
 				Path:  mpkg.Path + "_test",
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, tgs)
+			err := opts.runTestFiles(itmpkg, itset, tgs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -370,14 +370,14 @@ func (opts *TestOptions) runTestFiles(
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
 	if tgs.GetMemPackage(mpkg.Path) == nil {
-		m.RunMemPackage(mpkg, true)
+		m.RunMemPackage(mpkg, false)
 	} else {
 		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))
 	}
 	pv := m.Package
 
 	// Load the test files into package and save.
-	m.RunFiles(files.Files...)
+	// m.RunFiles(files.Files...)
 
 	for _, tf := range tests {
 		// TODO(morgan): we could theoretically use wrapping on the baseStore

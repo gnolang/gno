@@ -234,7 +234,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		gimp.stack = gimp.stack[:len(gimp.stack)-1]
 	}()
 	var mpkg *std.MemPackage
-	if gimp.testing && IsStdlib(pkgPath) {
+	if gimp.testing && (IsStdlib(pkgPath) || pkgPath == gimp.pkgPath) {
 		mpkg = gimp.tgetter.GetMemPackage(pkgPath)
 	} else {
 		mpkg = gimp.getter.GetMemPackage(pkgPath)
