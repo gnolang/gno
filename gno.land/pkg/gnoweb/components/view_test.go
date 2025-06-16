@@ -236,7 +236,7 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 			name:     "File link type",
 			linkType: DirLinkTypeFile,
 			pkgPath:  "/r/test/pkg",
-			expected: "https://",
+			expected: "",
 		},
 		{
 			name:     "Invalid link type",
@@ -279,8 +279,8 @@ func TestGetFullLinks(t *testing.T) {
 			linkType: DirLinkTypeFile,
 			pkgPath:  "/r/test/pkg",
 			expected: FilesLinks{
-				{Link: "https://file1.gno", Name: "file1.gno"},
-				{Link: "https://file2.gno", Name: "file2.gno"},
+				{Link: "file1.gno", Name: "file1.gno"},
+				{Link: "file2.gno", Name: "file2.gno"},
 			},
 		},
 		{

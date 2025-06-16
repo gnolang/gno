@@ -171,7 +171,13 @@ func (s *HTMLWebClient) QueryPaths(prefix string, limit int) ([]string, error) {
 		return nil, err
 	}
 
-	return strings.Split(strings.TrimSpace(string(res)), "\n"), nil
+	// update the paths to be relative to the root instead of the domain
+	paths := strings.Split(strings.TrimSpace(string(res)), "\n")
+	for i, path := range paths {
+		paths[i] = strings.TrimPrefix(path, s.domain)
+	}
+
+	return paths, nil
 }
 
 // RenderRealm renders the content of a realm from a given path

@@ -285,7 +285,7 @@
                 {{ end }}
                 <h3
                   class="js-list-range-title font-bold text-200 overflow-hidden text-ellipsis whitespace-nowrap">
-                  <a href="https://{{ .URL }}" class="hover:underline text-green-600">
+                  <a href="{{ .URL }}" class="hover:underline text-green-600">
                     {{ .Title }}
                   </a>
                 </h3>
@@ -294,7 +294,7 @@
                 {{ with .Description }}
                   {{ . }}
                 {{ else }}
-                  <a href="https://{{ .URL }}" class="hover:underline">
+                  <a href="{{ .URL }}" class="hover:underline">
                     Explore
                     {{ .Title }}
                     {{ .Type.String }}
