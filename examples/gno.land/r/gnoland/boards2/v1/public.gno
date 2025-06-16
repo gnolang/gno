@@ -451,12 +451,20 @@ func InviteMember(_ realm, boardID BoardID, user std.Address, role Role) {
 	assertMembersUpdateIsEnabled(boardID)
 
 	perms := mustGetPermissions(boardID)
+	if perms.HasUser(user) {
+		panic("user is already a member")
+	}
+
 	caller := std.PreviousRealm().Address()
 	args := Args{user, role}
 	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
 		assertMembersUpdateIsEnabled(boardID)
 
-		if err := perms.AddUser(user, role); err != nil {
+		if perms.HasUser(user) {
+			panic("user is already a member")
+		}
+
+		if err := perms.SetUserRoles(user, role); err != nil {
 			panic(err)
 		}
 

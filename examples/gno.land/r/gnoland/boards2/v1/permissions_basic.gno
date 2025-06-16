@@ -89,22 +89,22 @@ func (bp BasicPermissions) HasPermission(user std.Address, perm Permission) bool
 	return false
 }
 
-// AddUser adds a new user to permissions.
-func (bp *BasicPermissions) AddUser(user std.Address, roles ...Role) error {
-	if bp.dao.Members().Has(user) {
-		return errors.New("user already exists")
-	}
-
-	bp.dao.Members().Add(user)
-	return bp.setUserRoles(user, roles...)
-}
-
-// SetUserRoles sets the roles of a user.
+// SetUserRoles adds a new user when it doesn't exist and sets its roles.
+// Method can also be called to change the roles of an existing user.
+// All user's roles can be removed by calling this method without roles.
 func (bp *BasicPermissions) SetUserRoles(user std.Address, roles ...Role) error {
 	if !bp.HasUser(user) {
-		return errors.New("user not found")
+		bp.dao.Members().Add(user)
 	}
-	return bp.setUserRoles(user, roles...)
+
+	for _, r := range roles {
+		if !bp.RoleExists(r) {
+			return errors.New("invalid role: " + string(r))
+		}
+	}
+
+	bp.users.Set(user.String(), append([]Role(nil), roles...))
+	return nil
 }
 
 // RemoveUser removes a user from permissions.
@@ -157,17 +157,6 @@ func (bp *BasicPermissions) WithPermission(user std.Address, perm Permission, ar
 	default:
 		cb(args)
 	}
-}
-
-func (bp *BasicPermissions) setUserRoles(user std.Address, roles ...Role) error {
-	for _, r := range roles {
-		if !bp.RoleExists(r) {
-			return errors.New("invalid role: " + string(r))
-		}
-	}
-
-	bp.users.Set(user.String(), append([]Role(nil), roles...))
-	return nil
 }
 
 func (BasicPermissions) handleBoardCreate(args Args, cb func(Args)) {
@@ -241,7 +230,7 @@ func createBasicPermissions(owners ...std.Address) *BasicPermissions {
 	perms.SetSuperRole(RoleOwner)
 	perms.AddRole(RoleAdmin, PermissionBoardCreate)
 	for _, owner := range owners {
-		perms.AddUser(owner, RoleOwner)
+		perms.SetUserRoles(owner, RoleOwner)
 	}
 	return perms
 }

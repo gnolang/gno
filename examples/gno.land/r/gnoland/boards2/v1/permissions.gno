@@ -65,10 +65,8 @@ type (
 		// It panics on error.
 		WithPermission(std.Address, Permission, Args, func(Args))
 
-		// AddUser adds a new user to the permissioner.
-		AddUser(std.Address, ...Role) error
-
-		// SetUserRoles sets the roles of a user.
+		// SetUserRoles adds a new user when it doesn't exist and sets its roles.
+		// Method can also be called to change the roles of an existing user.
 		SetUserRoles(std.Address, ...Role) error
 
 		// RemoveUser removes a user from the permissioner.
