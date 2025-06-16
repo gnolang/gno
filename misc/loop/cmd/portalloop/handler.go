@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/misc/loop/cmd/cfg"
-	"github.com/gnolang/misc/loop/cmd/docker"
+	"github.com/gnolang/gno/misc/loop/cmd/cfg"
+	"github.com/gnolang/gno/misc/loop/cmd/docker"
 
 	dockerClient "github.com/docker/docker/client"
 	"github.com/gnolang/gno/contribs/tx-archive/backup"
