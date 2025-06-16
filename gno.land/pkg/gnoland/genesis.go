@@ -7,6 +7,7 @@ import (
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -174,7 +175,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 // It creates and returns a list of transactions based on these packages.
 func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
-	pkgs, err := gno.ReadPkgListFromDir(dir)
+	pkgs, err := packages.ReadPkgListFromDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}

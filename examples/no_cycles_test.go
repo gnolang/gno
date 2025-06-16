@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -29,7 +28,7 @@ func TestNoCycles(t *testing.T) {
 	require.NoError(t, err)
 
 	// find examples
-	examples, err := gnolang.ReadPkgListFromDir(filepath.Join(gnoRoot, "examples"))
+	examples, err := packages.ReadPkgListFromDir(filepath.Join(gnoRoot, "examples"))
 	require.NoError(t, err)
 	for _, example := range examples {
 		if example.Draft {

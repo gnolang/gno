@@ -1,0 +1,5 @@
+package avl
+
+func NewTree() {
+
+}

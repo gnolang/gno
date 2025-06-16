@@ -26,6 +26,12 @@ func TestGetFileKind(t *testing.T) {
 			fileKind: FileKindTest,
 		},
 		{
+			name:     "test_badpkgclause",
+			filename: "foo_test.gno",
+			body:     "pakage foo",
+			fileKind: FileKindTest,
+		},
+		{
 			name:     "xtest",
 			filename: "foo_test.gno",
 			body:     "package foo_test",
@@ -35,12 +41,6 @@ func TestGetFileKind(t *testing.T) {
 			name:     "filetest",
 			filename: "foo_filetest.gno",
 			fileKind: FileKindFiletest,
-		},
-		{
-			name:          "err_badpkgclause",
-			filename:      "foo_test.gno",
-			body:          "pakage foo",
-			errorContains: "foo_test.gno:1:1: expected 'package', found pakage",
 		},
 		{
 			name:          "err_notgnofile",
