@@ -50,8 +50,7 @@ func NewBlog(title, prefix string) (*Blog, error) {
 }
 
 func (b *Blog) AddPost(post *Post) error {
-	b.PostId.Next()
-	post.ID = b.PostId
+	post.ID = b.PostId.Next()
 	if _, exists := b.PostsBySlug.Get(post.Slug); exists {
 		return ErrPostAlreadyExists
 	}
