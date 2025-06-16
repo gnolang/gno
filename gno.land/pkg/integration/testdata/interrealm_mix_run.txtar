@@ -140,10 +140,9 @@ func main() {
     obj.MutateCrossingObjectRootedAtCaller(cross)
 }
 
--- borrowrealm/gno.mod --
-module gno.land/r/test/borrowrealm
-
-gno 0.9
+-- borrowrealm/gnomod.toml --
+module = "gno.land/r/test/borrowrealm"
+gno = "0.9"
 
 -- borrowrealm/main.gno --
 package borrowrealm
@@ -221,10 +220,9 @@ func MutateObjectWithBorrowCrossing(cur realm) {
     Object.MutateWithBorrowCrossing()
 }
 
--- utils/gno.mod --
-module gno.land/p/test/utils
-
-gno 0.9
+-- utils/gnomod.toml --
+module = "gno.land/p/test/utils"
+gno = "0.9"
 
 -- utils/utils.gno --
 package utils

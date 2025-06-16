@@ -37,10 +37,9 @@ gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBo
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 stderr 'cannot directly modify readonly tainted object'
 
--- callerrealm/gno.mod --
-module gno.land/r/test/callerrealm
-
-gno 0.9
+-- callerrealm/gnomod.toml --
+module = "gno.land/r/test/callerrealm"
+gno = "0.9"
 
 -- callerrealm/main.gno --
 package callerrealm
@@ -95,10 +94,9 @@ func MutateCrossingObjectRootedAtCaller(cur realm) {
     obj.MutateCrossingObjectRootedAtCaller(cross)
 }
 
--- borrowrealm/gno.mod --
-module gno.land/r/test/borrowrealm
-
-gno 0.9
+-- borrowrealm/gnomod.toml --
+module = "gno.land/r/test/borrowrealm"
+gno = "0.9"
 
 -- borrowrealm/main.gno --
 package borrowrealm
@@ -176,10 +174,9 @@ func MutateObjectWithBorrowCrossing(cur realm) {
     Object.MutateWithBorrowCrossing()
 }
 
--- utils/gno.mod --
-module gno.land/p/test/utils
-
-gno 0.9
+-- utils/gnomod.toml --
+module = "gno.land/p/test/utils"
+gno = "0.9"
 
 -- utils/utils.gno --
 package utils
