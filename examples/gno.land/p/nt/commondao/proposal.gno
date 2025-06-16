@@ -94,7 +94,7 @@ type (
 	Executable interface {
 		// Execute executes the proposal.
 		// This method must allow crossing.
-		Execute() error
+		Execute(realm) error
 	}
 
 	// CustomizableVoteChoices defines an interface for proposal definitions that want
@@ -106,6 +106,28 @@ type (
 		CustomVoteChoices() []VoteChoice
 	}
 )
+
+// MustValidate validates that a proposal is valid for the current state or panics on error.
+func MustValidate(v Validable) {
+	if v == nil {
+		panic("validable proposal definition is nil")
+	}
+
+	if err := v.Validate(); err != nil {
+		panic(err)
+	}
+}
+
+// MustExecute executes an executable proposal or panics on error.
+func MustExecute(e Executable) {
+	if e == nil {
+		panic("executable proposal definition is nil")
+	}
+
+	if err := e.Execute(cross); err != nil {
+		panic(err)
+	}
+}
 
 // NewProposal creates a new DAO proposal.
 func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposal, error) {
@@ -225,16 +247,15 @@ func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) 
 		return false
 	}
 
-	var votesCount int
-	for _, c := range r.Choices() {
+	var totalCount int
+	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
 		// Don't count explicit abstentions or invalid votes
-		if c == ChoiceNone || c == ChoiceAbstain {
-			continue
+		if c != ChoiceNone && c != ChoiceAbstain {
+			totalCount += r.VoteCount(c)
 		}
+		return false
+	})
 
-		votesCount += r.VoteCount(c)
-	}
-
-	percentage := float64(votesCount) / float64(members.Size())
+	percentage := float64(totalCount) / float64(members.Size())
 	return percentage >= quorum
 }

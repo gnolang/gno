@@ -216,7 +216,7 @@ func isAuthorized(addr std.Address) bool {
 }
 
 func SponsorGnoProject(projectName string) {
-	address := std.OriginCaller()
+	address_XXX := std.OriginCaller()
 	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
@@ -228,9 +228,9 @@ func SponsorGnoProject(projectName string) {
 		panic("Gno project not found")
 	}
 
-	project.Sponsors[address] = Sponsor{
-		Address: address,
-		Amount:  project.Sponsors[address].Amount.Add(amount),
+	project.Sponsors[address_XXX] = Sponsor{
+		Address: address_XXX,
+		Amount:  project.Sponsors[address_XXX].Amount.Add(amount),
 	}
 
 	totalDonations = totalDonations.Add(amount)
@@ -239,7 +239,7 @@ func SponsorGnoProject(projectName string) {
 }
 
 func SponsorOtherProject(projectName string) {
-	address := std.OriginCaller()
+	address_XXX := std.OriginCaller()
 	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
@@ -251,9 +251,9 @@ func SponsorOtherProject(projectName string) {
 		panic("Other project not found")
 	}
 
-	project.Sponsors[address] = Sponsor{
-		Address: address,
-		Amount:  project.Sponsors[address].Amount.Add(amount),
+	project.Sponsors[address_XXX] = Sponsor{
+		Address: address_XXX,
+		Amount:  project.Sponsors[address_XXX].Amount.Add(amount),
 	}
 
 	totalDonations = totalDonations.Add(amount)
