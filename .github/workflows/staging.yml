@@ -53,7 +53,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: "Setup The staging docker compose"
-        run: |
+        # Pull the current Docker image of Gnoland to allow the loop application
+        # finding already the image in the local registry when booting.
+        run: | 
           docker pull ghcr.io/gnolang/gno/gnoland:master
           cd misc/loop
           echo "Making docker compose happy"
