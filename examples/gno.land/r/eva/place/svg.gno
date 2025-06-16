@@ -25,7 +25,7 @@ func generateSVG() string {
 
 // Submit places a tile on the tile of choice with the selected color
 // Panics if the user's cooldown timer is not 0
-func Submit(x, y uint64, colorName string) {
+func Submit(cur realm, x uint64, y uint64, colorName string) {
 	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {
 		Register()

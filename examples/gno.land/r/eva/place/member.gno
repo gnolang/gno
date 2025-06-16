@@ -81,17 +81,17 @@ func SetNewAdmin(address std.Address) {
 // DeleteYourself removes the callers from the list of registered users
 // Panics if caller is the last admin of the board
 func DeleteYourself() {
-	address := std.PreviousRealm().Address()
+	addr := std.PreviousRealm().Address()
 
-	if users.Has(address.String()) {
+	if users.Has(addr.String()) {
 		panic("user not registered")
 	}
 
-	if isAdmin(address) && countAdmins() <= 1 {
+	if isAdmin(addr) && countAdmins() <= 1 {
 		panic("you are the last admin. you cannot delete yourself until more admins are nominated")
 	}
 
-	users.Remove(address.String())
+	users.Remove(addr.String())
 }
 
 // BanMembers removes users from the users list and adds them to a blacklist
