@@ -24,8 +24,10 @@ type Blog struct {
 	AuthorsIndex     *avl.Tree // authorAddress --> int
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
-	DisableLikes  bool
+	// CustomHeader
 	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
+	DisableLikes  bool
+	UserResolver  *UserResolver
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
@@ -35,33 +37,36 @@ func NewBlog(title, prefix string) (*Blog, error) {
 	return &Blog{
 		Title:            title,
 		Prefix:           prefix,
+		PostId:           seqid.ID(0),
 		Posts:            avl.NewTree(),
 		PostsBySlug:      avl.NewTree(),
 		PostsByUpdatedAt: avl.NewTree(),
-		PostId:           0,
 		TagsIndex:        avl.NewTree(),
 		TagsSorted:       avl.NewTree(),
 		AuthorsIndex:     avl.NewTree(),
 		AuthorsSorted:    avl.NewTree(),
-		DisableLikes:     false,
 		PreviewFooter:    "",
+		DisableLikes:     false,
+		UserResolver:     nil,
 	}, nil
 }
 
 func (b *Blog) AddPost(post *Post) error {
 	b.PostId.Next()
 	post.ID = b.PostId
-	var added bool
 	if _, exists := b.PostsBySlug.Get(post.Slug); exists {
 		return ErrPostAlreadyExists
 	}
 	post.SetDisableLikes(b.DisableLikes)
+	if b.UserResolver != nil {
+		post.SetUserResolver(*b.UserResolver)
+	}
 
 	b.addToIndex(post)
-	added = b.Posts.Set(b.PostId.String(), post)
-	added = b.PostsBySlug.Set(post.Slug, post)
-	added = b.PostsByUpdatedAt.Set(post.UpdatedAt.String(), post)
-	if !added {
+	added := b.Posts.Set(b.PostId.String(), post)
+	addedSlug := b.PostsBySlug.Set(post.Slug, post)
+	addedUpdated := b.PostsByUpdatedAt.Set(post.UpdatedAt.String(), post)
+	if !added || !addedSlug || !addedUpdated {
 		return ErrPostAddFailed
 	}
 	return nil
@@ -126,11 +131,10 @@ func (b *Blog) DeletePostBySlug(slug string) error {
 }
 
 func (b *Blog) DeletePost(post *Post) error {
-	var removed bool
-	_, removed = b.Posts.Remove(post.ID.String())
-	_, removed = b.PostsBySlug.Remove(post.Slug)
-	_, removed = b.PostsByUpdatedAt.Remove(post.UpdatedAt.String())
-	if !removed {
+	_, removed := b.Posts.Remove(post.ID.String())
+	_, removedSlug := b.PostsBySlug.Remove(post.Slug)
+	_, removedUpdated := b.PostsByUpdatedAt.Remove(post.UpdatedAt.String())
+	if !removed || !removedSlug || !removedUpdated {
 		return ErrDeleteFailed
 	}
 	return nil
@@ -153,6 +157,10 @@ func (b *Blog) SetDisablePostLikes(disable bool) {
 		post.SetDisableLikes(disable)
 		return false
 	})
+}
+
+func (b *Blog) SetUserResolver(resolver UserResolver) {
+	b.UserResolver = &resolver
 }
 
 func (b Blog) Mention(role, recipient string) string {

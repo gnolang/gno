@@ -12,6 +12,7 @@ import (
 type Comment struct {
 	ID           seqid.ID
 	Author       string
+	User         *User
 	Content      string
 	CreatedAt    time.Time
 	EditedAt     *time.Time
@@ -22,7 +23,7 @@ type Comment struct {
 	Footer       string // additional text, e.g. "via @lou" or txlink calls
 }
 
-func NewComment(author string, content string) (*Comment, error) {
+func NewComment(author, content string) (*Comment, error) {
 	if content == "" {
 		return nil, ErrEmptyComment
 	}
@@ -87,12 +88,18 @@ func (c *Comment) SetDisableLikes(disable bool) {
 	c.DisableLikes = disable
 }
 
-func (c *Comment) Render(blogPrefix string, depth int) string {
+func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) string {
 	prefix := ""
 	for i := 0; i < depth; i++ {
 		prefix += "> "
 	}
-	out := prefix + md.Bold(md.Link(c.Author, blogPrefix+":commenters/"+c.Author)) + " "
+	out := ""
+	user, err := CheckUser(c.Author, *resolver)
+	if err != nil || resolver == nil || user.Username == "" {
+		out += prefix + md.Bold(md.Link(c.Author, blogPrefix+":commenters/"+c.Author)) + " "
+	} else {
+		out += prefix + md.Bold(md.Link(user.Username, blogPrefix+":commenters/"+c.Author)) + " "
+	}
 	if c.Pinned {
 		out += "📌 "
 	}
@@ -101,7 +108,7 @@ func (c *Comment) Render(blogPrefix string, depth int) string {
 	} else {
 		out += md.Italic(formatTime(c.CreatedAt, "relative")) + "\n"
 	}
-	out += prefix + c.Content + "\n"
+	out += "\n" + prefix + c.Content + "\n"
 	if !c.DisableLikes {
 		out += prefix + "❤️ " + strconv.Itoa(c.Likes) + " \n\n"
 	}
@@ -112,7 +119,7 @@ func (c *Comment) Render(blogPrefix string, depth int) string {
 	if c.Replies != nil && c.Replies.Size() > 0 {
 		c.Replies.Iterate("", "", func(key string, value any) bool {
 			reply := value.(*Comment)
-			out += reply.Render(blogPrefix, depth+1)
+			out += reply.Render(blogPrefix, depth+1, resolver)
 			return false
 		})
 	}

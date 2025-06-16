@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -13,27 +12,26 @@ import (
 )
 
 type Post struct {
-	Slug          string
-	ID            seqid.ID
-	Title         string
-	Body          string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	PublishedAt   time.Time
-	Tags          []string
-	Authors       []string
-	Publisher     string
-	Likes         uint64
-	CommentId     seqid.ID
-	Comments      *avl.Tree // id --> *Comment
-	DisableLikes  bool
+	ID          seqid.ID
+	Slug        string
+	Title       string
+	Body        string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	PublishedAt time.Time
+	Tags        []string
+	Authors     []string
+	Publisher   string
+	Likes       uint64
+	CommentId   seqid.ID
+	Comments    *avl.Tree // id --> *Comment
+
 	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
+	DisableLikes  bool
+	UserResolver  *UserResolver
 }
 
 func NewPost(slug, title, body, publicationDate, caller string, authors, tags []string) (*Post, error) {
-	if !std.Address(caller).IsValid() {
-		return nil, ErrInvalidCaller
-	}
 	if slug == "" {
 		title = titleToSlug(title)
 	}
@@ -54,16 +52,21 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 	}
 
 	return &Post{
-		Slug:        slug,
-		Title:       title,
-		Body:        body,
-		CreatedAt:   publishedAt,
-		UpdatedAt:   publishedAt,
-		PublishedAt: time.Now(),
-		Tags:        tags,
-		Authors:     authors,
-		Publisher:   caller,
-		Comments:    avl.NewTree(),
+		Slug:          slug,
+		Title:         title,
+		Body:          body,
+		CreatedAt:     publishedAt,
+		UpdatedAt:     publishedAt,
+		PublishedAt:   time.Now(),
+		Tags:          tags,
+		Authors:       authors,
+		Publisher:     caller,
+		Likes:         0,
+		CommentId:     seqid.ID(0),
+		Comments:      avl.NewTree(),
+		PreviewFooter: "",
+		DisableLikes:  false,
+		UserResolver:  nil,
 	}, nil
 }
 
@@ -112,6 +115,10 @@ func (p *Post) SetPreviewFooter(footer string) {
 
 func (p *Post) SetDisableLikes(disable bool) {
 	p.DisableLikes = disable
+}
+
+func (p *Post) SetUserResolver(resolver UserResolver) {
+	p.UserResolver = &resolver
 }
 
 func (p Post) GetCommentsByAuthor(author string) []*Comment {
@@ -167,7 +174,14 @@ func (p Post) RenderPost(prefix string) string {
 	if p.UpdatedAt != p.CreatedAt {
 		out += md.Bold("Last updated:") + " " + formatTime(p.UpdatedAt, "full") + "\n\n"
 	}
-	out += md.Bold("Publisher:") + " " + p.Publisher + "\n\n"
+	out += md.Bold("Publisher:") + " "
+	user, err := CheckUser(p.Publisher, *p.UserResolver)
+	if err != nil || p.UserResolver == nil {
+		out += p.Publisher + "\n\n"
+	} else {
+		// println(user.renderLink())
+		out += user.Username + "\n\n"
+	}
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
 	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes)
 	out += md.HorizontalRule()
@@ -184,14 +198,14 @@ func (p Post) RenderComments(prefix string) string {
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
 		if comment.Pinned {
-			out += comment.Render(prefix, 0) + "\n\n"
+			out += comment.Render(prefix, 0, p.UserResolver) + "\n\n"
 		}
 		return false
 	})
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
 		if !comment.Pinned {
-			out += comment.Render(prefix, 0) + "\n\n"
+			out += comment.Render(prefix, 0, p.UserResolver) + "\n\n"
 		}
 		return false
 	})
