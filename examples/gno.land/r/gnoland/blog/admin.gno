@@ -21,27 +21,27 @@ func init() {
 	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
-func AdminSetAdminAddr(cur realm, addr std.Address) {
+func AdminSetAdminAddr(_ realm, addr std.Address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
 
-func AdminSetInPause(state bool) {
+func AdminSetInPause(_ realm, state bool) {
 	assertIsAdmin()
 	inPause = state
 }
 
-func AdminAddModerator(addr std.Address) {
+func AdminAddModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(addr std.Address) {
+func AdminRemoveModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
 	caller := std.PreviousRealm().Address()
 	e := dao.NewSimpleExecutor(
 		func() error {
@@ -59,7 +59,7 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 	)
 }
 
-func ModAddPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
+func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 	caller := std.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
@@ -80,7 +80,7 @@ func addPost(caller std.Address, slug, title, body, publicationDate, authors, ta
 	checkErr(err)
 }
 
-func ModEditPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
+func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
@@ -89,22 +89,22 @@ func ModEditPost(cur realm, slug, title, body, publicationDate, authors, tags st
 	checkErr(err)
 }
 
-func ModRemovePost(cur realm, slug string) {
+func ModRemovePost(_ realm, slug string) {
 	assertIsModerator()
 	b.RemovePost(slug)
 }
 
-func ModAddCommenter(cur realm, addr std.Address) {
+func ModAddCommenter(_ realm, addr std.Address) {
 	assertIsModerator()
 	commenterList.Set(addr.String(), true)
 }
 
-func ModDelCommenter(cur realm, addr std.Address) {
+func ModDelCommenter(_ realm, addr std.Address) {
 	assertIsModerator()
 	commenterList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func ModDelComment(cur realm, slug string, index int) {
+func ModDelComment(_ realm, slug string, index int) {
 	assertIsModerator()
 	err := b.GetPost(slug).DeleteComment(index)
 	checkErr(err)
