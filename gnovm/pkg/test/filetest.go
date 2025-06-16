@@ -245,7 +245,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		Name: string(pkgName),
 		Path: pkgPath,
 		Files: []*std.MemFile{
-			{Name: "gno.mod", Body: gno.GenGnoModLatest(pkgPath)},
+			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
 			{Name: fname, Body: string(content)},
 		},
 	}, abortOnError); err != nil {
@@ -288,7 +288,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
-				{Name: "gno.mod", Body: "gno 0.9"},
+				{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
 				{Name: fname, Body: string(content)},
 			},
 		}
@@ -325,7 +325,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
-				{Name: "gno.mod", Body: "gno 0.9"},
+				{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
 				{Name: fname, Body: string(content)},
 			},
 		}

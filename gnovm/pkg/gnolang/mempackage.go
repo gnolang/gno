@@ -62,6 +62,10 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 	})
 }
 
+func IsValidPackagePathURL(path string) bool {
+	return reGnoPkgPathURL.MatchString(path)
+}
+
 func ValidateMemPackageWithOptions(mpkg *std.MemPackage, opts ValidateMemPackageOptions) (errs error) {
 	// Check for file sorting, string lengths, uniqueness...
 	err := mpkg.ValidateBasic()
