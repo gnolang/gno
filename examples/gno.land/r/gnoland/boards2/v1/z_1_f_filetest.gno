@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// user already exists
+// user is already a member
