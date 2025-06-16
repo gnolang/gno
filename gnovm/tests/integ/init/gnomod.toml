@@ -1,0 +1,2 @@
+module = "gnovm/tests/integ/init"
+gno = "0.9"

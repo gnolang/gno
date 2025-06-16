@@ -11,8 +11,8 @@ stdout '"coins": "10000000000000ugnot"'
 
 # Tx add package -simulate only, estimate gas used and gas fee
 gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
-stdout 'GAS USED:   267506'
-stdout 'INFO:       estimated gas usage: 267506, gas fee: 281ugnot, current gas price: 1000gas/1ugnot'
+stdout 'GAS USED:   268442'
+stdout 'INFO:       estimated gas usage: 268442, gas fee: 282ugnot, current gas price: 1000gas/1ugnot'
 
 ## No fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr
@@ -20,14 +20,14 @@ stdout '"sequence": "0"'
 stdout '"coins": "10000000000000ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted  267336 -gas-fee 268ugnot -broadcast -chainid tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted  297336 -gas-fee 298ugnot -broadcast -chainid tendermint_test test1
 stdout 'OK'
 stdout 'EVENTS:     \[.*\{"key":"Deposit","value":"207700ugnot"\}.*\]'
 
 ## fee is charged and sequence number increased
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "1"'
-stdout '"coins": "9999999792032ugnot"'
+stdout '"coins": "9999999792002ugnot"'
 
 # Tx Call -simulate only, estimate gas used and gas fee
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
@@ -37,7 +37,7 @@ stdout 'INFO:       estimated gas usage: 112750, gas fee: 118ugnot, current gas 
 ## No fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "1"'
-stdout '"coins": "9999999792032ugnot"'
+stdout '"coins": "9999999792002ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 112750 -gas-fee 118ugnot -broadcast -chainid tendermint_test test1
@@ -46,12 +46,12 @@ stdout 'OK'
 ## fee is charged and sequence number increased
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "2"'
-stdout '"coins": "9999999791914ugnot"'
+stdout '"coins": "9999999791884ugnot"'
 
--- hello/gno.mod --
-module gno.land/r/hello
+-- hello/gnomod.toml --
+module = "gno.land/r/hello"
+gno = "0.9"
 
-gno 0.9
 -- hello/hello.gno --
 package hello
 

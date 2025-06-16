@@ -64,7 +64,7 @@ func TestNewAppWithOptions(t *testing.T) {
 						Body: "package demo; func Hello(cur realm) string { return `hello`; }",
 					},
 					{
-						Name: "gno.mod",
+						Name: "gnomod.toml",
 						Body: gnolang.GenGnoModLatest("gno.land/r/demo"),
 					},
 				})},
@@ -402,7 +402,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 							Body: body,
 						},
 						{
-							Name: "gno.mod",
+							Name: "gnomod.toml",
 							Body: gnolang.GenGnoModLatest(path),
 						},
 					},
