@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	goio "io"
+	"io/fs"
 	"log"
 	"path/filepath"
 	"strings"
@@ -21,6 +23,7 @@ type testCmd struct {
 	verbose             bool
 	failfast            bool
 	rootDir             string
+	autoGnomod          bool
 	run                 string
 	timeout             time.Duration
 	updateGoldenTests   bool
@@ -125,6 +128,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"clone location of github.com/gnolang/gno (gno tries to guess it)",
 	)
 
+	fs.BoolVar(
+		&c.autoGnomod,
+		"auto-gnomod",
+		true,
+		"auto-generate gno.mod file if not already present.",
+	)
+
 	fs.StringVar(
 		&c.run,
 		"run",
@@ -221,6 +231,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
+	tccache := gno.TypeCheckCache{}
 
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
@@ -228,10 +239,28 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Determine pkgPath by reading gno.mod from disk.
-		// TODO: Have ReadMemPackage handle it.
-		modfile, _ := gnomod.ParseDir(pkg.Dir)
-		pkgPath, ok := determinePkgPath(modfile, pkg.Dir, cmd.rootDir)
+		// Read and parse gno.mod directly.
+		fpath := filepath.Join(pkg.Dir, "gnomod.toml")
+		mod, err := gnomod.ParseFilepath(fpath)
+		if errors.Is(err, fs.ErrNotExist) {
+			if cmd.autoGnomod {
+				modstr := gno.GenGnoModLatest("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
+				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
+
+				if err != nil {
+					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
+				}
+				io.ErrPrintfln("auto-generated %q", fpath)
+				err = mod.WriteFile(fpath)
+				if err != nil {
+					panic(fmt.Errorf("unexpected panic writing to %q: %w", fpath, err))
+				}
+				// err == nil.
+			}
+		}
+
+		// Determine pkgPath from gno.mod.
+		pkgPath, ok := determinePkgPath(mod, pkg.Dir, cmd.rootDir)
 		if !ok {
 			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
@@ -244,8 +273,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if modfile == nil || !modfile.Draft {
-				if _, _, errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore); errs != nil {
+			if mod == nil || !mod.Draft {
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
+					ParseMode: gno.ParseModeAll,
+					Mode:      gno.TCLatestRelaxed,
+					Cache:     tccache,
+				})
+				if errs != nil {
 					didError = true
 					// already printed in lintTypeCheck.
 					// io.ErrPrintln(errs)
@@ -282,9 +316,9 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	return nil
 }
 
-func determinePkgPath(modfile *gnomod.File, dir, rootDir string) (string, bool) {
-	if modfile != nil {
-		return modfile.Module.Mod.Path, true
+func determinePkgPath(mod *gnomod.File, dir, rootDir string) (string, bool) {
+	if mod != nil {
+		return mod.Module, true
 	}
 	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
 		return pkgPath, true

@@ -12,8 +12,7 @@ var Authorizer = authz.NewWithOrigin()
 // AddManager adds a new address to the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
-func AddManager(addr std.Address) error {
-	crossing()
+func AddManager(cur realm, addr std.Address) error {
 	caller := std.PreviousRealm().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
@@ -27,8 +26,7 @@ func AddManager(addr std.Address) error {
 // RemoveManager removes an address from the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
-func RemoveManager(addr std.Address) error {
-	crossing()
+func RemoveManager(cur realm, addr std.Address) error {
 	caller := std.PreviousRealm().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
@@ -41,8 +39,7 @@ func RemoveManager(addr std.Address) error {
 
 // TransferManagement transfers the authority to manage keys to a new authority.
 // The caller must be authorized by the current authority.
-func TransferManagement(newAuthority authz.Authority) error {
-	crossing()
+func TransferManagement(cur realm, newAuthority authz.Authority) error {
 	caller := std.PreviousRealm().Address()
 	if newAuthority == nil {
 		return errors.New("new authority cannot be nil")
@@ -52,10 +49,8 @@ func TransferManagement(newAuthority authz.Authority) error {
 }
 
 // ListManagers returns a slice of all managed keys.
-func ListManagers() []std.Address {
-	crossing()
+func ListManagers(cur realm) []std.Address {
 	var keyList []std.Address
-
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return keyList
@@ -71,8 +66,7 @@ func ListManagers() []std.Address {
 	return keyList
 }
 
-func HasManager(addr std.Address) bool {
-	crossing()
+func HasManager(cur realm, addr std.Address) bool {
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return false // Return false if not a MemberAuthority or doesn't exist
