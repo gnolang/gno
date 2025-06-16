@@ -182,6 +182,31 @@ func displayClosedProposals(group organizer.FriendGroup) string {
 	return table.String()
 }
 
+func displayHangouts(group organizer.FriendGroup) string {
+	table := mdtable.Table{
+		Headers: []string{"ID", "Date", "Time", "Place", "Description"},
+	}
+
+	group.Hangout.Iterate("", "", func(indexStr string, val any) bool {
+		hangout, ok := val.(organizer.HangoutInfo)
+		if !ok {
+			return false
+		}
+
+		table.Append([]string{
+			indexStr,
+			hangout.Date,
+			hangout.Time,
+			hangout.Place,
+			hangout.Description,
+		})
+
+		return false
+	})
+
+	return table.String()
+}
+
 func Render(url string) string {
 	var out string
 
@@ -197,9 +222,9 @@ func Render(url string) string {
 		out += displayAdminBoard(group, logged)
 	}
 
-	// out += md.H2("Hangouts")
-	// out += displayHangouts(group)
-	// out += md.HorizontalRule()
+	out += md.H2("Hangouts")
+	out += displayHangouts(group)
+	out += md.HorizontalRule()
 
 	out += md.H2("Active DAOs")
 	out += displayActiveProposals(group, logged)
