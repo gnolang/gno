@@ -14,8 +14,16 @@ func (f *fooer) SetS(newVal string) {
 	f.s = newVal
 }
 
+func New(cur realm) *fooer {
+	return &fooer{s: "A"}
+}
+
 func (f *fooer) Foo(cur realm) {
 	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
+}
+
+func Foo2(cur realm) {
+	println("hello " + Fooer.s)
 }
 
 func (f *fooer) Bar() {

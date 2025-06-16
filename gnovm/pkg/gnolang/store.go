@@ -264,7 +264,6 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
-	fmt.Println("===GetPackage...")
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -279,8 +278,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	oid := ObjectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		pv := oo.(*PackageValue)
-		fmt.Println("===GetPackage, return from cache..., pv: ", pv)
-		fmt.Println("===pv.fBlocksMap: ", pv.fBlocksMap)
 		return pv
 	}
 	// else, load package.
@@ -408,11 +405,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			// if debug {
-			// 	if _, ok := oo.(*PackageValue); ok {
-			// 		panic("packages must be fetched with GetPackage()")
-			// 	}
-			// }
 			return oo
 		}
 	}
