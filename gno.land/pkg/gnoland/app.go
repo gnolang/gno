@@ -21,11 +21,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	sdkCfg "github.com/gnolang/gno/tm2/pkg/sdk/config"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 
 	// Only goleveldb is supported for now.
 	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
@@ -41,6 +43,7 @@ type AppOptions struct {
 	SkipGenesisVerification bool               // default to verify genesis transactions
 	InitChainerConfig                          // options related to InitChainer
 	MinGasPrices            string             // optional
+	PruneStrategy           types.PruneStrategy
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -56,6 +59,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			CacheStdlibLoad:        true,
 		},
 		SkipGenesisVerification: true,
+		PruneStrategy:           types.PruneNothingStrategy,
 	}
 }
 
@@ -87,6 +91,9 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if cfg.MinGasPrices != "" {
 		appOpts = append(appOpts, sdk.SetMinGasPrices(cfg.MinGasPrices))
 	}
+
+	appOpts = append(appOpts, sdk.SetPruningOptions(cfg.PruneStrategy.Options()))
+
 	// Create BaseApp.
 	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
@@ -167,7 +174,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute("params", params.NewHandler(prmk))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
@@ -204,9 +211,9 @@ func NewTestGenesisAppConfig() GenesisAppConfig {
 func NewApp(
 	dataRootDir string,
 	genesisCfg GenesisAppConfig,
+	appCfg *sdkCfg.AppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
-	minGasPrices string,
 ) (abci.Application, error) {
 	var err error
 
@@ -217,8 +224,9 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
-		MinGasPrices:            minGasPrices,
+		MinGasPrices:            appCfg.MinGasPrices,
 		SkipGenesisVerification: genesisCfg.SkipSigVerification,
+		PruneStrategy:           appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler

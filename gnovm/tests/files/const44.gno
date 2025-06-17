@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/const44.gno:3:7: (const (undefined)) (variable of type interface {}) is not constant
+// main/const44.gno:3:7-19: (const (undefined)) (variable of type interface {}) is not constant
+
+// TypeCheckError:
+// main/const44.gno:3:11: any(nil) (value of interface type any) is not constant

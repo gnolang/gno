@@ -72,8 +72,8 @@ the foundations of a fairer and freer world, join us today.
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
-- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- Testnet 6 (upcoming)
+- [Staging chain](https://docs.gno.land/concepts/portal-loop)
+- [Testnet 6](https://test6.gno.land/)
 - [Testnet 5](https://test5.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
@@ -196,7 +196,7 @@ func quoteOfTheBlock() string {
 	return qotb
 }
 
-func AdminSetOverride(content string) {
-	Admin.AssertCallerIsOwner()
+func AdminSetOverride(cur realm, content string) {
+	Admin.AssertOwnedByPrevious()
 	override = content
 }

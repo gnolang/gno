@@ -364,18 +364,24 @@ func writeValue(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeString handles %s formatting
+// writeString handles %s formatting without length specification (its in p)
 func writeString(p *printer, verb rune, arg any) {
+	var s string
 	switch v := arg.(type) {
 	case (interface{ String() string }):
-		p.buf.writeString(v.String())
+		s = v.String()
 	case error:
-		p.buf.writeString(v.Error())
+		s = v.Error()
 	case string:
-		p.buf.writeString(v)
+		s = v
 	default:
-		p.buf.writeString(fallback(verb, v))
+		s = fallback(verb, v)
 	}
+
+	if p.meta.padding > 0 && len(s) < int(p.meta.padding) {
+		s = strings.Repeat(" ", int(p.meta.padding)-len(s)) + s
+	}
+	p.buf.writeString(s)
 }
 
 // writeChar handles %c formatting
