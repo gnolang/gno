@@ -18,8 +18,8 @@ var (
 
 var (
 	adminAddr     = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // FIXME: find a way to use this from the main's genesis.
-	moderatorList *avl.Tree
-	commenterList *avl.Tree
+	moderatorList = avl.NewTree()
+	commenterList = avl.NewTree()
 	inPause       bool
 )
 
