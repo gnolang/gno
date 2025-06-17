@@ -568,11 +568,11 @@ func IterateRealmMembers(offset int, fn UsersIterFn) (halted bool) {
 }
 
 // IterateBoards iterates realm boards.
-func IterateBoards(offset int, fn func(ReadonlyBoard) bool) (halted bool) {
+func IterateBoards(offset int, fn func(*Board) bool) (halted bool) {
 	count := gBoardsByID.Size() - offset
 	return gBoardsByID.IterateByOffset(offset, count, func(_ string, v any) bool {
 		board, _ := v.(*Board)
-		return fn(readonlyBoard{board})
+		return fn(board)
 	})
 }
 
