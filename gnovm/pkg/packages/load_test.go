@@ -432,6 +432,8 @@ func (wc *writeCloser) Close() error {
 
 // port of go1.24 T.Chdir
 func testChdir(t *testing.T, dir string) {
+	t.Helper()
+
 	oldwd, err := os.Open(".")
 	if err != nil {
 		t.Fatal(err)
