@@ -307,5 +307,8 @@ func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
 		PermissionReplyCreate,
 	)
 	perms.SetUserRoles(owner, RoleOwner)
+	perms.ValidateFunc(PermissionBoardRename, validateBoardRename)
+	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateRoleChange)
 	return perms
 }
