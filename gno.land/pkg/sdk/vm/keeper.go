@@ -202,7 +202,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 		// does not exist.
 		panic(fmt.Errorf("failed loading stdlib %q: does not exist", pkgPath))
 	}
-	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath, gno.MPStdlib)
+	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath, gno.MPStdlibAll)
 	if err != nil {
 		// no gno files are present
 		panic(fmt.Errorf("failed loading stdlib %q: %w", pkgPath, err))
@@ -343,7 +343,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
 
-	memPkg.Type = gno.MPAnyAll
+	memPkg.Type = gno.MPUserAll
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -353,7 +353,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := gno.ValidateMemPackage(msg.Package); err != nil {
+	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
 
@@ -369,9 +369,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if strings.HasSuffix(pkgPath, "_test") || strings.HasSuffix(pkgPath, "_filetest") {
 		return ErrInvalidPkgPath("package path must not end with _test or _filetest")
 	}
-	// if gno.ReGnoRunPath.MatchString(pkgPath) {
-	// 	return ErrInvalidPkgPath("reserved package name: " + pkgPath)
-	// }
+	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
+		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
+	}
 
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, gno.TCLatestStrict)
@@ -615,7 +615,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	memPkg := msg.Package
 	chainDomain := vm.getChainDomainParam(ctx)
 
-	memPkg.Type = gno.MPAll
+	memPkg.Type = gno.MPUserProd
 
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
