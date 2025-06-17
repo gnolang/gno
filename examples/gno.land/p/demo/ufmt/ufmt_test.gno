@@ -63,8 +63,8 @@ func TestSprintf(t *testing.T) {
 		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
 
 		// floats
-		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.41e+01]"},
-		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.41E+01]"},
+		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.410000e+01]"},
+		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.410000E+01]"},
 		{"float64 [%f]", []any{float64(64.1)}, "float64 [64.100000]"},
 		{"float64 [%.2f]", []any{float64(64.1)}, "float64 [64.10]"},
 		{"float32 [%.1f]", []any{float32(64.1)}, "float32 [64.1]"},
