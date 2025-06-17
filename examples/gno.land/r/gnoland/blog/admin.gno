@@ -1,6 +1,7 @@
 package gnoblog
 
 import (
+	"errors"
 	"std"
 	"strings"
 
@@ -10,16 +11,17 @@ import (
 )
 
 var (
-	adminAddr     std.Address
+	errNotAdmin     = errors.New("access restricted: not admin")
+	errNotModerator = errors.New("access restricted: not moderator")
+	errNotCommenter = errors.New("access restricted: not commenter")
+)
+
+var (
+	adminAddr     = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // FIXME: find a way to use this from the main's genesis.
 	moderatorList avl.Tree
 	commenterList avl.Tree
 	inPause       bool
 )
-
-func init() {
-	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
-}
 
 func AdminSetAdminAddr(_ realm, addr std.Address) {
 	assertIsAdmin()
@@ -127,7 +129,7 @@ func isCommenter(addr std.Address) bool {
 func assertIsAdmin() {
 	caller := std.OriginCaller()
 	if !isAdmin(caller) {
-		panic("access restricted.")
+		panic(errNotAdmin.Error())
 	}
 }
 
@@ -136,7 +138,7 @@ func assertIsModerator() {
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
-	panic("access restricted")
+	panic(errNotModerator.Error())
 }
 
 func assertIsCommenter() {
@@ -144,7 +146,7 @@ func assertIsCommenter() {
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}
-	panic("access restricted")
+	panic(errNotCommenter.Error())
 }
 
 func assertNotInPause() {
