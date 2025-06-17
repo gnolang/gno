@@ -9,7 +9,6 @@ import (
 	goio "io"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -213,15 +212,21 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			dir = filepath.Dir(dir)
 		}
 
-		// Read and parse gno.mod directly.
-		fpath := path.Join(dir, "gno.mod")
+		// Read and parse gnomod.toml directly.
+		fpath := filepath.Join(dir, "gnomod.toml")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
-			// Make a temporary gno.mod (but don't write it yet)
-			modstr := gno.GenGnoModMissing("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
-			mod, err = gnomod.ParseBytes("gno.mod", []byte(modstr))
+			// We try a lazy migration from gno.mod if it exists and is valid.
+			deprecatedDotmod := filepath.Join(dir, "gno.mod")
+			mod, err = gnomod.ParseFilepath(deprecatedDotmod)
 			if err != nil {
-				panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
+				// It doesn't exist or we can't parse it.
+				// Make a temporary gnomod.toml (but don't write it yet)
+				modstr := gno.GenGnoModMissing("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
+				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
+				if err != nil {
+					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
+				}
 			}
 		} else {
 			switch mod.GetGno() {
@@ -233,7 +238,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			case gno.GnoVerMissing:
 				// good, fix it.
 			default:
-				cio.ErrPrintfln("%s: unrecognized gno.mod version %q, skipping fix", dir, mod.GetGno())
+				cio.ErrPrintfln("%s: unrecognized gnomod.toml version %q, skipping fix", dir, mod.GetGno())
 				continue // skip it.
 			}
 		}
@@ -503,24 +508,21 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			continue
 		}
 
-		// Write version to gno.mod.
-		if !cmd.filetestsOnly {
-			mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
-			if err != nil {
-				panic(fmt.Sprintf("unhandled error: %v", err))
-			}
-			if mod == nil {
-				modStr := gno.GenGnoModLatest(ppkg.mpkg.Path)
-				mod = gnomod.MustParseBytes(
-					"gno.mod (generated)", []byte(modStr))
-			} else {
-				mod.SetGno(gno.GnoVerLatest)
-			}
-			ppkg.mpkg.SetFile("gno.mod", mod.WriteString())
+		// Write version to gnomod.toml.
+		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
+		if err != nil {
+			panic(fmt.Sprintf("unhandled error: %v", err))
 		}
+		if mod == nil {
+			panic("XXX: generate default gnomod.toml")
+		}
+		mod.SetGno(gno.GnoVerLatest)
+		ppkg.mpkg.SetFile("gnomod.toml", mod.WriteString())
+		// Cleanup gno.mod if it exists.
+		ppkg.mpkg.DeleteFile("gno.mod")
 
 		// FIX STEP 10: mpkg.WriteTo():
-		err := ppkg.mpkg.WriteTo(dir)
+		err = ppkg.mpkg.WriteTo(dir)
 		if err != nil {
 			return err
 		}

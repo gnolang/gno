@@ -1,9 +1,7 @@
 package integration
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -50,14 +48,15 @@ func (pl *PkgsLoader) LoadPackages() ([]*std.MemPackage, error) {
 	mpkgs := make([]*std.MemPackage, len(pkgslist))
 	for i, pkg := range pkgslist {
 		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name, gnolang.MPAll)
-		file, err := gnomod.ParseMemPackage(mpkg)
-		if os.IsNotExist(err) || errors.Is(err, gnomod.ErrGnoModNotFound) {
-			// generate a gno.mod
-			file = new(gnomod.File)
-			file.SetModule(pkg.Name)
+		file, _ := gnomod.ParseMemPackage(mpkg)
+		if file == nil {
+			// generate a gnomod.toml
+			file = &gnomod.File{
+				Module: pkg.Name,
+				Gno:    gnolang.GnoVerLatest,
+			}
 		}
-		file.SetGno(gnolang.GnoVerLatest)
-		mpkg.SetFile("gno.mod", file.WriteString())
+		mpkg.SetFile("gnomod.toml", file.WriteString())
 
 		mpkg.Sort()
 		mpkgs[i] = mpkg
@@ -149,7 +148,7 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 			gm.Sanitize()
 
 			// Override package info with mod infos
-			currentPkg.Name = gm.Module.Mod.Path
+			currentPkg.Name = gm.Module
 			currentPkg.Draft = gm.Draft
 
 			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name, gnolang.MPAll)

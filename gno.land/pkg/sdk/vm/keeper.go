@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -342,7 +343,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
 
-	memPkg.Type = gno.MPAll
+	memPkg.Type = gno.MPAnyAll
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -352,9 +353,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := gno.ValidateMemPackageForType(msg.Package, gno.MPAll); err != nil {
+	if err := gno.ValidateMemPackage(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
@@ -367,15 +369,36 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if strings.HasSuffix(pkgPath, "_test") || strings.HasSuffix(pkgPath, "_filetest") {
 		return ErrInvalidPkgPath("package path must not end with _test or _filetest")
 	}
-	if gno.ReGnoRunPath.MatchString(pkgPath) {
-		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
-	}
+	// if gno.ReGnoRunPath.MatchString(pkgPath) {
+	// 	return ErrInvalidPkgPath("reserved package name: " + pkgPath)
+	// }
 
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, gno.TCLatestStrict)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
+
+	// Extra keeper-only checks.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+	// no development packages.
+	if gm.HasReplaces() {
+		return ErrInvalidPackage("development packages are not allowed")
+	}
+	// no (deprecated) gno.mod file.
+	if memPkg.GetFile("gno.mod") != nil {
+		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+
+	// Patch gnomod.toml metadata
+	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
+	gm.UploadMetadata.Uploader = creator.String()
+	gm.UploadMetadata.Height = int(ctx.BlockHeight())
+	// Re-encode gnomod.toml in memPkg
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)

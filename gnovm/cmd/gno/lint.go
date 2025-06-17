@@ -53,7 +53,7 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
-	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gno.mod file if not already present.")
+	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
 }
 
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
@@ -106,15 +106,17 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			dir = filepath.Dir(dir)
 		}
 
-		// Read and parse gno.mod directly.
-		fpath := filepath.Join(dir, "gno.mod")
+		// Read and parse gnomod.toml directly.
+		fpath := filepath.Join(dir, "gnomod.toml")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
+			// TODO: gno.mod is deprecated, but we still support it for now.
+			// if gno.mod exists -> port
 			if cmd.autoGnomod {
 				modstr := gno.GenGnoModDefault("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
-				mod, err = gnomod.ParseBytes("gno.mod", []byte(modstr))
+				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
 				if err != nil {
-					panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
+					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
 				}
 				io.ErrPrintfln("auto-generated %q", fpath)
 				err = mod.WriteFile(fpath)
@@ -210,6 +212,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       ParseGnoMod(mpkg);
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
+
 			if !mod.Draft {
 				tcmode := gno.TCLatestStrict
 				if cmd.autoGnomod {

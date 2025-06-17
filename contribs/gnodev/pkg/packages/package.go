@@ -37,8 +37,8 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 			// here avoid to potentially parse broken files
 			return nil, ErrResolverPackageSkip
 		}
-	case errors.Is(err, os.ErrNotExist), errors.Is(err, gnomod.ErrGnoModNotFound):
-		// gno.mod is not present, continue anyway
+	case errors.Is(err, os.ErrNotExist) || errors.Is(err, gnomod.ErrNoModFile) || mod == nil:
+		// gnomod.toml is not present, continue anyway
 	default:
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func isMemPackageEmpty(mempkg *std.MemPackage) bool {
 	}
 
 	for _, file := range mempkg.Files {
-		if isGnoFile(file.Name) {
+		if isGnoFile(file.Name) || file.Name == "gnomod.toml" {
 			return false
 		}
 	}
