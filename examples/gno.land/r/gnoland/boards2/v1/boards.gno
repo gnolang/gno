@@ -28,10 +28,19 @@ func init() {
 	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
 
 	// Initialize default realm permissions
-	gPerms = createBasicPermissions(
+	gPerms = initRealmPermissions(
 		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
 		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
 	)
+}
+
+// initRealmPermissions returns the default realm permissions.
+func initRealmPermissions(owners ...std.Address) *BasicPermissions {
+	perms := createBasicPermissions(owners...)
+	perms.ValidateFunc(PermissionBoardCreate, validateBoardCreate)
+	perms.ValidateFunc(PermissionMemberInvite, validateMemberInvite)
+	perms.ValidateFunc(PermissionRoleChange, validateRoleChange)
+	return perms
 }
 
 // reserveBoardID returns a new board ID which won't be used by another board.

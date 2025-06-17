@@ -10,12 +10,16 @@ import (
 	"gno.land/r/sys/users"
 )
 
+// ValidatorFunc defines a function type for permissions validators.
+type ValidatorFunc func(Permissions, Args) error
+
 // BasicPermissions manages users, roles and permissions.
 type BasicPermissions struct {
-	superRole Role
-	dao       *commondao.CommonDAO
-	users     *avl.Tree // string(std.Address) -> []Role
-	roles     *avl.Tree // string(role) -> []Permission
+	superRole  Role
+	dao        *commondao.CommonDAO
+	users      *avl.Tree // string(std.Address) -> []Role
+	roles      *avl.Tree // string(role) -> []Permission
+	validators *avl.Tree // string(Permission) -> BasicPermissionValidator
 }
 
 // NewBasicPermissions creates a new permissions type.
@@ -26,10 +30,16 @@ func NewBasicPermissions(dao *commondao.CommonDAO) *BasicPermissions {
 	}
 
 	return &BasicPermissions{
-		dao:   dao,
-		roles: avl.NewTree(),
-		users: avl.NewTree(),
+		dao:        dao,
+		roles:      avl.NewTree(),
+		users:      avl.NewTree(),
+		validators: avl.NewTree(),
 	}
+}
+
+// ValidateFunc add a validator function for a permission.
+func (bp *BasicPermissions) ValidateFunc(p Permission, fn ValidatorFunc) {
+	bp.validators.Set(string(p), fn)
 }
 
 // SetSuperRole assigns a super role.
@@ -140,85 +150,16 @@ func (bp BasicPermissions) IterateUsers(start, count int, fn UsersIterFn) (stopp
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
-func (bp *BasicPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
-	if !bp.HasPermission(user, perm) || !bp.dao.Members().Has(user) {
+func (bp *BasicPermissions) WithPermission(user std.Address, p Permission, args Args, cb func(Args)) {
+	if !bp.HasPermission(user, p) || !bp.dao.Members().Has(user) {
 		panic("unauthorized")
 	}
 
-	switch perm {
-	case PermissionBoardCreate:
-		bp.handleBoardCreate(args, cb)
-	case PermissionBoardRename:
-		bp.handleBoardRename(args, cb)
-	case PermissionMemberInvite:
-		bp.handleMemberInvite(args, cb)
-	case PermissionRoleChange:
-		bp.handleRoleChange(args, cb)
-	default:
-		cb(args)
-	}
-}
-
-func (BasicPermissions) handleBoardCreate(args Args, cb func(Args)) {
-	name, ok := args[0].(string)
-	if !ok {
-		panic("expected board name to be a string")
-	}
-
-	assertBoardNameIsNotAddress(name)
-	assertBoardNameBelongsToCaller(name)
-
-	cb(args)
-}
-
-func (BasicPermissions) handleBoardRename(args Args, cb func(Args)) {
-	newName, ok := args[2].(string)
-	if !ok {
-		panic("expected new board name to be a string")
-	}
-
-	assertBoardNameIsNotAddress(newName)
-	assertBoardNameBelongsToCaller(newName)
-
-	cb(args)
-}
-
-func (bp BasicPermissions) handleMemberInvite(args Args, cb func(Args)) {
-	// Make sure that only owners invite other owners
-	role, ok := args[1].(Role)
-	if !ok {
-		panic("expected a valid new member role")
-	}
-
-	if role == RoleOwner {
-		if !bp.HasRole(std.PreviousRealm().Address(), RoleOwner) {
-			panic("only owners are allowed to invite other owners")
-		}
-	}
-
-	cb(args)
-}
-
-func (bp BasicPermissions) handleRoleChange(args Args, cb func(Args)) {
-	// Owners and Admins can change roles.
-	// Admins should not be able to assign or remove the Owner role from members.
-	if bp.HasRole(std.PreviousRealm().Address(), RoleAdmin) {
-		role, ok := args[2].(Role)
-		if !ok {
-			panic("expected a valid member role")
-		}
-
-		if role == RoleOwner {
-			panic("admins are not allowed to promote members to Owner")
-		} else {
-			member, ok := args[1].(std.Address)
-			if !ok {
-				panic("expected a valid member address")
-			}
-
-			if bp.HasRole(member, RoleOwner) {
-				panic("admins are not allowed to remove the Owner role")
-			}
+	v, found := bp.validators.Get(string(p))
+	if found {
+		err := v.(ValidatorFunc)(bp, args)
+		if err != nil {
+			panic(err)
 		}
 	}
 
@@ -235,17 +176,19 @@ func createBasicPermissions(owners ...std.Address) *BasicPermissions {
 	return perms
 }
 
-func assertBoardNameIsNotAddress(s string) {
+func checkBoardNameIsNotAddress(s string) error {
 	if std.Address(s).IsValid() {
-		panic("addresses are not allowed as board name")
+		return errors.New("addresses are not allowed as board name")
 	}
+	return nil
 }
 
-func assertBoardNameBelongsToCaller(name string) {
+func checkBoardNameBelongsToCaller(name string) error {
 	// When the board name is the name of a registered user
 	// check that caller is the owner of the name.
 	user, _ := users.ResolveName(name)
 	if user != nil && user.Addr() != std.PreviousRealm().Address() {
-		panic("board name is a user name registered to a different user")
+		return errors.New("board name is a user name registered to a different user")
 	}
+	return nil
 }
