@@ -131,8 +131,8 @@ services:
             && grep -q 'middlewares: \\[\\]' /etc/traefik/configs/gno.yml" ]
       interval: 30s
       timeout: 3s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
 
   portalloopd-notify:
     image: containrrr/shoutrrr
