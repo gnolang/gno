@@ -32,7 +32,7 @@ func main() {
 //     +                        "@type": "/gno.PointerValue",
 //     +                        "Base": {
 //     +                            "@type": "/gno.RefValue",
-//     +                            "Hash": "58b79d0bb690b6df2f771c07c71ffa6c95052f6f",
+//     +                            "Escaped": true,
 //     +                            "ObjectID": "02f0842ff638606e376be560152a77adbd377f56:5"
 //     +                        },
 //     +                        "Index": "0",
@@ -56,3 +56,17 @@ func main() {
 //              "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:3",
 //              "RefCount": "1"
 //          }
+// u[02f0842ff638606e376be560152a77adbd377f56:5]=
+//     @@ -1,9 +1,10 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "02f0842ff638606e376be560152a77adbd377f56:5",
+//     -        "ModTime": "0",
+//     +        "IsEscaped": true,
+//     +        "ModTime": "7",
+//              "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:2",
+//     -        "RefCount": "1"
+//     +        "RefCount": "2"
+//          },
+//          "Value": {
+//              "N": "AwAAAAAAAAA=",

@@ -27,6 +27,20 @@ func (m *Machine) doOpAssign() {
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
+		if _, ok := s.Lhs[i].(*IndexExpr); ok {
+			iv := m.PeekValue(1)
+			xv := m.PeekValue(2)
+			if mv, ok := xv.V.(*MapValue); ok {
+				var oo1 Object
+				key := iv.ComputeMapKey(m.Store, false)
+				if _, ok := mv.vmap[key]; ok {
+					if oo, ok := iv.V.(Object); ok {
+						oo1 = oo
+					}
+				}
+				m.Realm.DidUpdate(mv, oo1, iv.GetFirstObject(m.Store))
+			}
+		}
 		lv := m.PopAsPointer(s.Lhs[i])
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
