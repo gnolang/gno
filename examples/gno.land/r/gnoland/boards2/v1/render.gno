@@ -72,12 +72,12 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
 
-		res.Write("**" + newLink(board.GetName(), board.GetURL()) + "**  \n")
-		res.Write("Created by " + newUserLink(board.creator) + " ")
-		res.Write("on " + board.createdAt.Format(dateFormat))
-		res.Write(", #" + board.id.String() + "  \n")
-		res.Write("**" + strconv.Itoa(board.threads.Size()) + " threads")
-		if board.IsReadonly() {
+		res.Write("**" + newLink(board.Name, board.URL()) + "**  \n")
+		res.Write("Created by " + newUserLink(board.Creator) + " ")
+		res.Write("on " + board.CreatedAt().Format(dateFormat))
+		res.Write(", #" + board.ID.String() + "  \n")
+		res.Write("**" + strconv.Itoa(board.ThreadsCount()) + " threads")
+		if board.Readonly {
 			res.Write(", read-only")
 		}
 
@@ -139,10 +139,10 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 func renderBoardMenu(board *Board, req *mux.Request) string {
 	var (
 		b               strings.Builder
-		boardMembersURL = board.GetPath() + "/members"
+		boardMembersURL = board.Path() + "/members"
 	)
 
-	if board.IsReadonly() {
+	if board.Readonly {
 		b.WriteString(newLink("List Members", boardMembersURL))
 		b.WriteString(" • ")
 		b.WriteString(newLink("Unfreeze Board", board.GetUnfreezeFormURL()))
@@ -257,10 +257,10 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		board := v.(*Board)
-		boardID = board.GetID()
+		boardID = board.ID
 		perms = board.perms
 
-		res.Write("# " + board.GetName() + " Members\n")
+		res.Write("# " + board.Name + " Members\n")
 		res.Write("### These are the board members\n\n")
 	} else {
 		res.Write("# Admin Users\n")

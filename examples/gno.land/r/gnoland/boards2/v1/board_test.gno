@@ -9,23 +9,7 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-func TestBoardID_String(t *testing.T) {
-	input := BoardID(32)
-
-	uassert.Equal(t, "32", input.String())
-}
-
-func TestBoard_GetID(t *testing.T) {
-	want := int(92)
-	b := new(Board)
-	b.id = BoardID(want)
-	got := int(b.GetID())
-
-	uassert.Equal(t, got, want)
-	uassert.NotEqual(t, got, want*want)
-}
-
-func TestBoard_GetURL(t *testing.T) {
+func TestBoardURL(t *testing.T) {
 	pkgPath := strings.TrimPrefix(string(gRealmLink), "gno.land")
 	name := "foobar_test_get_url123"
 	want := pkgPath + ":" + name
@@ -33,11 +17,11 @@ func TestBoard_GetURL(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	perms := createBasicBoardPermissions(addr)
 	board := newBoard(1, name, addr, perms)
-	got := board.GetURL()
+	got := board.URL()
 	uassert.Equal(t, want, got)
 }
 
-func TestBoard_GetThread(t *testing.T) {
+func TestBoardGetThread(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	perms := createBasicBoardPermissions(addr)
 	b := newBoard(1, "test123", addr, perms)
@@ -50,7 +34,7 @@ func TestBoard_GetThread(t *testing.T) {
 	uassert.True(t, ok)
 }
 
-func TestBoard_DeleteThread(t *testing.T) {
+func TestBoardDeleteThread(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	perms := createBasicBoardPermissions(addr)
 	b := newBoard(1, "test123", addr, perms)
@@ -64,7 +48,7 @@ func TestBoard_DeleteThread(t *testing.T) {
 
 var boardUrlPrefix = strings.TrimPrefix(string(gRealmLink), "gno.land")
 
-func TestBoard_GetURLFromThreadID(t *testing.T) {
+func TestBoardGetURLFromThreadID(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
 
 	boardName := "test12345"
@@ -77,7 +61,7 @@ func TestBoard_GetURLFromThreadID(t *testing.T) {
 	uassert.Equal(t, want, got)
 }
 
-func TestBoard_GetURLFromReplyID(t *testing.T) {
+func TestBoardGetURLFromReplyID(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
 
 	boardName := "test12345"
@@ -90,7 +74,7 @@ func TestBoard_GetURLFromReplyID(t *testing.T) {
 	uassert.Equal(t, want, got)
 }
 
-func TestBoard_GetPostFormURL(t *testing.T) {
+func TestBoardGetPostFormURL(t *testing.T) {
 	bid := BoardID(386)
 	addr := testutils.TestAddress("creator")
 	perms := createBasicBoardPermissions(addr)

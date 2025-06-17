@@ -18,7 +18,7 @@ func UnfreezeBoard(_ realm, boardID BoardID) {
 // IsBoardFrozen checks if a board has been frozen.
 func IsBoardFrozen(boardID BoardID) bool {
 	board := mustGetBoard(boardID)
-	return board.IsReadonly()
+	return board.Readonly
 }
 
 // FreezeThread freezes a thread so thread cannot be replied, modified or deleted.
@@ -43,7 +43,7 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
 
-	return board.IsReadonly() || thread.Readonly
+	return board.Readonly || thread.Readonly
 }
 
 // UnfreezeReply removes frozen status from a reply.
@@ -72,7 +72,7 @@ func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsVisible(reply)
 
-	return board.IsReadonly() || thread.Readonly || reply.Readonly
+	return board.Readonly || thread.Readonly || reply.Readonly
 }
 
 func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool) {
@@ -143,7 +143,7 @@ func setBoardReadonly(boardID BoardID, isReadonly bool) {
 	caller := std.PreviousRealm().Address()
 	assertHasPermission(board.perms, caller, PermissionBoardFreeze)
 
-	board.SetReadonly(isReadonly)
+	board.Readonly = isReadonly
 
 	std.Emit(
 		"BoardFreeze",

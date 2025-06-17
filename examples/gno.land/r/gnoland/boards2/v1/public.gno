@@ -99,7 +99,7 @@ func GetBoardIDFromName(_ realm, name string) (_ BoardID, found bool) {
 	if !found {
 		return 0, false
 	}
-	return v.(*Board).id, true
+	return v.(*Board).ID, true
 }
 
 // CreateBoard creates a new board.
@@ -122,7 +122,7 @@ func CreateBoard(_ realm, name string, private bool) BoardID {
 		perms := createBasicBoardPermissions(caller)
 		board := newBoard(id, name, caller, perms)
 		if private {
-			board.SetPrivate(true)
+			board.Private = true
 		}
 
 		key := id.Key()
@@ -158,7 +158,7 @@ func RenameBoard(_ realm, name, newName string) {
 	board := mustGetBoardByName(name)
 	assertBoardIsNotFrozen(board)
 
-	bid := board.GetID()
+	bid := board.ID
 	caller := std.PreviousRealm().Address()
 	args := Args{bid, name, newName}
 	board.perms.WithPermission(caller, PermissionBoardRename, args, func(Args) {
@@ -166,8 +166,8 @@ func RenameBoard(_ realm, name, newName string) {
 		assertBoardNameNotExists(newName)
 
 		board := mustGetBoard(bid)
-		board.aliases = append(board.aliases, board.name)
-		board.name = newName
+		board.Aliases = append(board.Aliases, board.Name)
+		board.Name = newName
 
 		// Index board for the new name keeping previous indexes for older names
 		gBoardsByName.Set(newName, board)
@@ -275,11 +275,11 @@ func CreateRepost(_ realm, boardID BoardID, threadID PostID, title, body string,
 		panic("reposting a thread that is a repost is not allowed")
 	}
 
-	repostId := dst.incGetPostID()
+	repostId := dst.generateNextPostID() // TODO: This must be changed when types are moved to a package
 	body = strings.TrimSpace(body)
 	repost := newPost(dst, repostId, repostId, caller, title, body)
 	repost.ParentID = thread.ID
-	repost.RepostBoardID = thread.Board.GetID()
+	repost.RepostBoardID = thread.Board.ID
 	thread.AddRepostTo(caller, repost, dst)
 
 	std.Emit(
@@ -613,7 +613,7 @@ func assertBoardExists(id BoardID) {
 }
 
 func assertBoardIsNotFrozen(b *Board) {
-	if b.IsReadonly() {
+	if b.Readonly {
 		panic("board is frozen")
 	}
 }

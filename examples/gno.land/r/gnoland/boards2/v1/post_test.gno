@@ -55,12 +55,12 @@ func TestPostAddRepostTo(t *testing.T) {
 			createRepost := func() {
 				var repostId PostID
 				if tc.dstBoard != nil {
-					repostId = tc.dstBoard.incGetPostID()
+					repostId = tc.dstBoard.generateNextPostID()
 				}
 
 				repost = newPost(tc.dstBoard, repostId, repostId, creator, tc.title, tc.body)
 				repost.ParentID = thread.ID
-				repost.RepostBoardID = thread.Board.GetID()
+				repost.RepostBoardID = thread.Board.ID
 				thread.AddRepostTo(creator, repost, tc.dstBoard)
 			}
 
@@ -76,7 +76,7 @@ func TestPostAddRepostTo(t *testing.T) {
 			uassert.True(t, repost == r)
 			uassert.Equal(t, tc.title, repost.Title)
 			uassert.Equal(t, tc.body, repost.Body)
-			uassert.Equal(t, uint(thread.Board.GetID()), uint(repost.RepostBoardID))
+			uassert.Equal(t, uint(thread.Board.ID), uint(repost.RepostBoardID))
 		})
 	}
 }
