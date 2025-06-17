@@ -13,12 +13,16 @@ import (
 
 const dateFormat = "2006-01-02 3:04pm MST"
 
+// PostID defines a type for Post (Threads/Replies) identifiers.
 type PostID uint64
 
+// String returns the ID as a string.
 func (id PostID) String() string {
 	return strconv.Itoa(int(id))
 }
 
+// Key returns the ID as a string with 10 characters padded with zeroes.
+// This value can be used for indexing by ID.
 func (id PostID) Key() string {
 	return padZero(uint64(id), 10)
 }
@@ -89,6 +93,8 @@ func (post *Post) FlagsCount() int {
 	return post.flags.Size()
 }
 
+// AddReply adds a new reply to the post.
+// Replies can be added to threads and also to other replies.
 func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.Board
 	pid := board.generateNextPostID()
@@ -106,10 +112,12 @@ func (post *Post) AddReply(creator std.Address, body string) *Post {
 	return reply
 }
 
+// HasReplies checks if post has replies.
 func (post *Post) HasReplies() bool {
 	return post.replies.Size() > 0
 }
 
+// Get returns a post reply.
 func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 	v, found := thread.repliesAll.Get(pid.Key())
 	if !found {
@@ -118,6 +126,7 @@ func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 	return v.(*Post), true
 }
 
+// Repost reposts a thread into another boards.
 func (post *Post) Repost(creator std.Address, dst *Board, title, body string) *Post {
 	if !post.IsThread() {
 		panic("post must be a thread to be reposted to another board")
@@ -132,6 +141,7 @@ func (post *Post) Repost(creator std.Address, dst *Board, title, body string) *P
 	return repost
 }
 
+// DeleteReply deletes a reply from a thread.
 func (post *Post) DeleteReply(replyID PostID) error {
 	if !post.IsThread() {
 		// TODO: Allow removing replies from parent replies too

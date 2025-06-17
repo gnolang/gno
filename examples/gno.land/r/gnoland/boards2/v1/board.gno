@@ -14,18 +14,24 @@ import (
 )
 
 type (
+	// PostIterFn defines a function type to iterate posts.
 	PostIterFn func(*Post) bool
-	BoardID    uint64
+
+	// BoardID defines a type for board identifiers.
+	BoardID uint64
 )
 
+// String returns the ID as a string.
 func (id BoardID) String() string {
 	return strconv.Itoa(int(id))
 }
 
+// Key returns the ID as a string which can be used to index by ID.
 func (id BoardID) Key() string {
 	return seqid.ID(id).String()
 }
 
+// Board defines a type for boards.
 type Board struct {
 	ID       BoardID
 	Name     string
@@ -102,6 +108,7 @@ func (board *Board) ReverseIterateThreads(start, count int, fn PostIterFn) bool 
 	})
 }
 
+// GetThread returns board thread.
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
 	v, found := board.threads.Get(threadID.Key())
 	if !found {
@@ -110,6 +117,7 @@ func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
 	return v.(*Post), true
 }
 
+// AddThread adds a new thread to the board.
 func (board *Board) AddThread(creator std.Address, title, body string) *Post {
 	pid := board.generateNextPostID()
 	thread := newPost(board, pid, pid, creator, title, body)
@@ -117,6 +125,7 @@ func (board *Board) AddThread(creator std.Address, title, body string) *Post {
 	return thread
 }
 
+// DeleteThread deletes a thread from the board.
 // NOTE: this can be potentially very expensive for threads with many replies.
 // TODO: implement optional fast-delete where thread is simply moved.
 func (board *Board) DeleteThread(pid PostID) {
