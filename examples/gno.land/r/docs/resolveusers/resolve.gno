@@ -1,4 +1,4 @@
-package use_rsysusers
+package resolveusers
 
 import (
 	"gno.land/r/sys/users" // Import the user registry
@@ -17,8 +17,8 @@ usernames and addresses in their realms. Check out the example below.
 `
 		out += "Add `:{name OR address}` to the search bar to check for a name or address.\n\n"
 		out += "Here are some examples:\n\n"
-		out += "- [@test1](/r/docs/users:test1)\n"
-		out += "- [g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5](/r/docs/users:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)\n"
+		out += "- [@test1](/r/docs/resolveusers:test1)\n"
+		out += "- [g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5](/r/docs/resolveusers:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)\n"
 
 		return out
 	}
