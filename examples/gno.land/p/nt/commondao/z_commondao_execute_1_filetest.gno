@@ -26,9 +26,7 @@ func (testPropDef) Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (b
 	return true, nil
 }
 
-func (testPropDef) Execute() error {
-	crossing()
-
+func (testPropDef) Execute(cur realm) error {
 	return errors.New("test error")
 }
 

@@ -18,7 +18,7 @@ var (
 )
 
 // Helper to reset the Authorizer for each test, simulating initialization.
-func setupTest(t *testing.T) {
+func setupTest(cur realm, t *testing.T) {
 	t.Helper()
 
 	// Set the initial caller context
@@ -27,149 +27,149 @@ func setupTest(t *testing.T) {
 	// simulating the state after NewWithOrigin() in a real deployment.
 	Authorizer = authz.NewWithAuthority(authz.NewMemberAuthority(originAddr))
 	// Ensure the origin address is the initial manager
-	uassert.True(t, HasManager(originAddr), "origin should be the initial manager")
+	uassert.True(t, HasManager(cur, originAddr), "origin should be the initial manager")
 }
 
-func TestAddManager(t *testing.T) {
-	setupTest(t)
+func TestAddManager(cur realm, t *testing.T) {
+	setupTest(cur, t)
 
 	// Origin adds manager1 - Should succeed
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err := cross(AddManager)(manager1Addr)
+	err := AddManager(cross, manager1Addr)
 	uassert.NoError(t, err, "origin adding manager1 should succeed")
-	uassert.True(t, HasManager(manager1Addr), "manager1 should now be a manager")
+	uassert.True(t, HasManager(cur, manager1Addr), "manager1 should now be a manager")
 
 	// Non-manager tries to add manager2 - Should fail
 	testing.SetRealm(std.NewUserRealm(nonManagerAddr))
-	err = cross(AddManager)(manager2Addr)
+	err = AddManager(cross, manager2Addr)
 	uassert.Error(t, err, "non-manager adding manager2 should fail")
-	uassert.False(t, HasManager(manager2Addr), "manager2 should not have been added")
+	uassert.False(t, HasManager(cur, manager2Addr), "manager2 should not have been added")
 
 	// Manager1 adds manager2 - Should succeed
 	testing.SetRealm(std.NewUserRealm(manager1Addr))
-	err = cross(AddManager)(manager2Addr)
+	err = AddManager(cross, manager2Addr)
 	uassert.NoError(t, err, "manager1 adding manager2 should succeed")
-	uassert.True(t, HasManager(manager2Addr), "manager2 should now be a manager")
+	uassert.True(t, HasManager(cur, manager2Addr), "manager2 should now be a manager")
 
 	// Transfer authority away from MemberAuthority
 	testing.SetRealm(std.NewUserRealm(originAddr)) // Origin transfers
-	err = cross(TransferManagement)(authz.NewAutoAcceptAuthority())
+	err = TransferManagement(cross, authz.NewAutoAcceptAuthority())
 	uassert.NoError(t, err, "transferring authority should succeed")
 
 	// Try adding after transfer - Should fail (wrong authority type)
 	testing.SetRealm(std.NewUserRealm(manager1Addr))
-	err = cross(AddManager)(nonManagerAddr) // Try adding someone new
+	err = AddManager(cross, nonManagerAddr) // Try adding someone new
 	uassert.ErrorContains(t, err, "current authority is not a MemberAuthority", "adding manager should fail after transfer")
 }
 
-func TestRemoveManager(t *testing.T) {
-	setupTest(t)
+func TestRemoveManager(cur realm, t *testing.T) {
+	setupTest(cur, t)
 
 	// Add manager1 first
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err := cross(AddManager)(manager1Addr)
+	err := AddManager(cross, manager1Addr)
 	uassert.NoError(t, err, "setup: failed to add manager1")
-	uassert.True(t, HasManager(manager1Addr), "setup: manager1 should be added")
+	uassert.True(t, HasManager(cur, manager1Addr), "setup: manager1 should be added")
 
 	// Non-manager tries to remove manager1 - Should fail
 	testing.SetRealm(std.NewUserRealm(nonManagerAddr))
-	err = cross(RemoveManager)(manager1Addr)
+	err = RemoveManager(cross, manager1Addr)
 	uassert.Error(t, err, "non-manager removing manager1 should fail")
-	uassert.True(t, HasManager(manager1Addr), "manager1 should still be a manager")
+	uassert.True(t, HasManager(cur, manager1Addr), "manager1 should still be a manager")
 
 	// Origin removes manager1 - Should succeed
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err = cross(RemoveManager)(manager1Addr)
+	err = RemoveManager(cross, manager1Addr)
 	uassert.NoError(t, err, "origin removing manager1 should succeed")
-	uassert.False(t, HasManager(manager1Addr), "manager1 should now be removed")
+	uassert.False(t, HasManager(cur, manager1Addr), "manager1 should now be removed")
 
 	// Add manager1 again for next test case
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err = cross(AddManager)(manager1Addr)
+	err = AddManager(cross, manager1Addr)
 	uassert.NoError(t, err, "setup: failed to re-add manager1")
 
 	// Transfer authority
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err = cross(TransferManagement)(authz.NewAutoAcceptAuthority())
+	err = TransferManagement(cross, authz.NewAutoAcceptAuthority())
 	uassert.NoError(t, err, "transferring authority should succeed")
 
 	// Try removing after transfer - Should fail (wrong authority type)
 	testing.SetRealm(std.NewUserRealm(originAddr)) // Use origin, doesn't matter which user now
-	err = cross(RemoveManager)(manager1Addr)
+	err = RemoveManager(cross, manager1Addr)
 	uassert.ErrorContains(t, err, "current authority is not a MemberAuthority", "removing manager should fail after transfer")
 }
 
-func TestListManagers(t *testing.T) {
-	setupTest(t)
-	initialList := cross(ListManagers)()
+func TestListManagers(cur realm, t *testing.T) {
+	setupTest(cur, t)
+	initialList := ListManagers(cross)
 	assertAddrSliceEqual(t, []std.Address{originAddr}, initialList)
 	// Add manager1 and manager2
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err := cross(AddManager)(manager1Addr)
+	err := AddManager(cross, manager1Addr)
 	uassert.NoError(t, err)
-	err = cross(AddManager)(manager2Addr)
+	err = AddManager(cross, manager2Addr)
 	uassert.NoError(t, err)
 
 	// List should contain origin, manager1, manager2
-	list1 := cross(ListManagers)()
+	list1 := ListManagers(cross)
 	expected1 := []std.Address{manager2Addr, manager1Addr, originAddr}
 	assertAddrSliceEqual(t, expected1, list1)
 
 	// Remove manager1
 	testing.SetRealm(std.NewUserRealm(originAddr)) // Can be origin or manager2
-	err = cross(RemoveManager)(manager1Addr)
+	err = RemoveManager(cross, manager1Addr)
 	uassert.NoError(t, err)
 
 	// List should contain origin, manager2
-	list2 := cross(ListManagers)()
+	list2 := ListManagers(cross)
 	expected2 := []std.Address{manager2Addr, originAddr}
 	assertAddrSliceEqual(t, expected2, list2)
 
 	// Transfer authority
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err = cross(TransferManagement)(authz.NewAutoAcceptAuthority())
+	err = TransferManagement(cross, authz.NewAutoAcceptAuthority())
 	uassert.NoError(t, err)
 
 	// List should be empty after transfer
-	list3 := cross(ListManagers)()
+	list3 := ListManagers(cross)
 	uassert.True(t, len(list3) == 0, "manager list should be empty after transfer")
 }
 
-func TestHasManager(t *testing.T) {
-	setupTest(t)
+func TestHasManager(cur realm, t *testing.T) {
+	setupTest(cur, t)
 
 	// Initially, only origin is manager
-	uassert.True(t, cross(HasManager)(originAddr), "origin should initially be a manager")
-	uassert.False(t, cross(HasManager)(manager1Addr), "manager1 should not initially be a manager")
-	uassert.False(t, cross(HasManager)(nonManagerAddr), "nonManager should not initially be a manager")
+	uassert.True(t, HasManager(cross, originAddr), "origin should initially be a manager")
+	uassert.False(t, HasManager(cross, manager1Addr), "manager1 should not initially be a manager")
+	uassert.False(t, HasManager(cross, nonManagerAddr), "nonManager should not initially be a manager")
 
 	// Add manager1
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err := cross(AddManager)(manager1Addr)
+	err := AddManager(cross, manager1Addr)
 	uassert.NoError(t, err)
 
 	// Check again
-	uassert.True(t, cross(HasManager)(originAddr), "origin should still be a manager")
-	uassert.True(t, cross(HasManager)(manager1Addr), "manager1 should now be a manager")
-	uassert.False(t, cross(HasManager)(nonManagerAddr), "nonManager should still not be a manager")
+	uassert.True(t, HasManager(cross, originAddr), "origin should still be a manager")
+	uassert.True(t, HasManager(cross, manager1Addr), "manager1 should now be a manager")
+	uassert.False(t, HasManager(cross, nonManagerAddr), "nonManager should still not be a manager")
 
 	// Transfer authority
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err = cross(TransferManagement)(authz.NewAutoAcceptAuthority())
+	err = TransferManagement(cross, authz.NewAutoAcceptAuthority())
 	uassert.NoError(t, err)
 
 	// After transfer, HasManager should always return false for MemberAuthority checks
-	uassert.False(t, cross(HasManager)(originAddr), "HasManager should be false after transfer")
-	uassert.False(t, cross(HasManager)(manager1Addr), "HasManager should be false after transfer")
-	uassert.False(t, cross(HasManager)(nonManagerAddr), "HasManager should be false after transfer")
+	uassert.False(t, HasManager(cross, originAddr), "HasManager should be false after transfer")
+	uassert.False(t, HasManager(cross, manager1Addr), "HasManager should be false after transfer")
+	uassert.False(t, HasManager(cross, nonManagerAddr), "HasManager should be false after transfer")
 }
 
-func TestTransferManagement(t *testing.T) {
-	setupTest(t)
+func TestTransferManagement(cur realm, t *testing.T) {
+	setupTest(cur, t)
 
 	// Add manager1
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err := cross(AddManager)(manager1Addr)
+	err := AddManager(cross, manager1Addr)
 	uassert.NoError(t, err)
 
 	// Create a new authority (MemberAuthority with manager2)
@@ -177,14 +177,14 @@ func TestTransferManagement(t *testing.T) {
 
 	// Non-manager tries to transfer - Should fail
 	testing.SetRealm(std.NewUserRealm(nonManagerAddr))
-	err = cross(TransferManagement)(newAuthority)
+	err = TransferManagement(cross, newAuthority)
 	uassert.Error(t, err, "non-manager transfer should fail")
 	_, isMemberAuth := Authorizer.Authority().(*authz.MemberAuthority)
 	uassert.True(t, isMemberAuth, "authority should still be MemberAuthority") // Verify it didn't change
 
 	// Manager1 tries to transfer - Should succeed
 	testing.SetRealm(std.NewUserRealm(manager1Addr))
-	err = cross(TransferManagement)(newAuthority)
+	err = TransferManagement(cross, newAuthority)
 	uassert.NoError(t, err, "manager1 transfer should succeed")
 
 	// Verify current authority is the new one
@@ -193,29 +193,29 @@ func TestTransferManagement(t *testing.T) {
 
 	// Verify origin is no longer a manager under the *new* authority
 	testing.SetRealm(std.NewUserRealm(manager2Addr)) // Need new manager to check
-	uassert.False(t, cross(HasManager)(originAddr), "origin should not be manager under new authority")
-	uassert.False(t, cross(HasManager)(manager1Addr), "manager1 should not be manager under new authority")
-	uassert.True(t, cross(HasManager)(manager2Addr), "manager2 should be manager under new authority")
+	uassert.False(t, HasManager(cross, originAddr), "origin should not be manager under new authority")
+	uassert.False(t, HasManager(cross, manager1Addr), "manager1 should not be manager under new authority")
+	uassert.True(t, HasManager(cross, manager2Addr), "manager2 should be manager under new authority")
 
 	// Try adding a manager using the old origin - Should fail
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err = cross(AddManager)(nonManagerAddr)
+	err = AddManager(cross, nonManagerAddr)
 	uassert.Error(t, err, "origin should not be able to add manager after transfer")
 
 	// Try adding a manager using the new manager (manager2) - Should succeed
 	testing.SetRealm(std.NewUserRealm(manager2Addr))
-	err = cross(AddManager)(nonManagerAddr)
+	err = AddManager(cross, nonManagerAddr)
 	uassert.NoError(t, err, "new manager (manager2) should be able to add managers")
-	uassert.True(t, cross(HasManager)(nonManagerAddr), "nonManager should be added by manager2")
+	uassert.True(t, HasManager(cross, nonManagerAddr), "nonManager should be added by manager2")
 
 	// Try transferring to nil - Should fail
 	testing.SetRealm(std.NewUserRealm(manager2Addr))
-	err = cross(TransferManagement)(nil)
+	err = TransferManagement(cross, nil)
 	uassert.ErrorContains(t, err, "new authority cannot be nil", "transferring to nil should fail")
 }
 
-func TestTransferToContractAuthority(t *testing.T) {
-	setupTest(t) // Origin is the initial manager
+func TestTransferToContractAuthority(cur realm, t *testing.T) {
+	setupTest(cur, t) // Origin is the initial manager
 
 	contractPath := "gno.land/r/testcontract"
 	contractRealm := std.NewCodeRealm(contractPath) // Simulate contract realm
@@ -242,7 +242,7 @@ func TestTransferToContractAuthority(t *testing.T) {
 
 	// Origin transfers management to the contract authority
 	testing.SetRealm(std.NewUserRealm(originAddr))
-	err := cross(TransferManagement)(contractAuth)
+	err := TransferManagement(cross, contractAuth)
 	uassert.NoError(t, err, "transfer to contract authority failed")
 	uassert.True(t, Authorizer.Authority() == contractAuth, "authority should now be the contract authority")
 
@@ -252,7 +252,7 @@ func TestTransferToContractAuthority(t *testing.T) {
 
 	// Try adding a manager (will check authority type) - Should fail
 	testing.SetRealm(std.NewUserRealm(originAddr)) // Caller doesn't matter for this check
-	err = cross(AddManager)(manager1Addr)
+	err = AddManager(cross, manager1Addr)
 	uassert.ErrorContains(t, err, "current authority is not a MemberAuthority", "AddManager should fail with ContractAuthority")
 
 	// Simulate an action authorized *by the contract* using Authorizer.Do

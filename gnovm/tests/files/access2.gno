@@ -5,9 +5,7 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	testutils.TestVar1 += 1
 	println(testutils.TestVar1)
 }

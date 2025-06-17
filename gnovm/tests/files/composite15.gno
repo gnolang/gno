@@ -13,4 +13,4 @@ func main() {
 // slice[(0 int),(2 int),(0 int),(4 int)]
 
 // TypeCheckError:
-// main/files/composite15.gno:6:3: index a must be integer constant; main/files/composite15.gno:7:3: index c must be integer constant
+// main/composite15.gno:6:3: index a must be integer constant; main/composite15.gno:7:3: index c must be integer constant

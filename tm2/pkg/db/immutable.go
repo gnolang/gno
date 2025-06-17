@@ -60,8 +60,8 @@ func (idb *ImmutableDB) NewBatch() Batch {
 }
 
 // Implements DB.
-func (idb *ImmutableDB) Close() {
-	idb.db.Close()
+func (idb *ImmutableDB) Close() error {
+	return idb.db.Close()
 }
 
 // Implements DB.
