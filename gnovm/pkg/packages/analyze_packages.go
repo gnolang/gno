@@ -204,14 +204,14 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 
 	// don't load gnomod.toml if package is command-line-arguments
 	if pkg.ImportPath == "command-line-arguments" {
-		pkg.Errors = cleanErrors(pkg.Errors)
+		pkg.Errors = dedupErrors(pkg.Errors)
 		return pkg
 	}
 
 	// don't load gnomod.toml if package is stdlib
 	stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
 	if strings.HasPrefix(pkg.Dir, stdlibDir) {
-		pkg.Errors = cleanErrors(pkg.Errors)
+		pkg.Errors = dedupErrors(pkg.Errors)
 		return pkg
 	}
 
@@ -225,11 +225,11 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		pkg.ImportPath = mod.Module
 	}
 
-	pkg.Errors = cleanErrors(pkg.Errors)
+	pkg.Errors = dedupErrors(pkg.Errors)
 	return pkg
 }
 
-func cleanErrors(s []*Error) []*Error {
+func dedupErrors(s []*Error) []*Error {
 	seen := map[Error]struct{}{}
 	res := []*Error{}
 	for _, elem := range s {
