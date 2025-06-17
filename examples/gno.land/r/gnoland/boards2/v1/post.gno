@@ -118,13 +118,18 @@ func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 	return v.(*Post), true
 }
 
-func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
+func (post *Post) Repost(creator std.Address, dst *Board, title, body string) *Post {
 	if !post.IsThread() {
-		panic("cannot repost non-thread post")
+		panic("post must be a thread to be reposted to another board")
 	}
+
+	repost := dst.AddThread(creator, title, body)
+	repost.ParentID = post.ID
+	repost.RepostBoardID = post.Board.ID
 
 	dst.threads.Set(repost.ID.Key(), repost)
 	post.reposts.Set(dst.ID.Key(), repost.ID)
+	return repost
 }
 
 func (post *Post) DeleteReply(replyID PostID) error {

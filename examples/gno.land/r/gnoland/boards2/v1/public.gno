@@ -275,12 +275,8 @@ func CreateRepost(_ realm, boardID BoardID, threadID PostID, title, body string,
 		panic("reposting a thread that is a repost is not allowed")
 	}
 
-	repostId := dst.generateNextPostID() // TODO: This must be changed when types are moved to a package
 	body = strings.TrimSpace(body)
-	repost := newPost(dst, repostId, repostId, caller, title, body)
-	repost.ParentID = thread.ID
-	repost.RepostBoardID = thread.Board.ID
-	thread.AddRepostTo(caller, repost, dst)
+	repost := thread.Repost(caller, dst, title, body)
 
 	std.Emit(
 		"Repost",
@@ -288,10 +284,11 @@ func CreateRepost(_ realm, boardID BoardID, threadID PostID, title, body string,
 		"boardID", boardID.String(),
 		"threadID", threadID.String(),
 		"destinationBoardID", destinationBoardID.String(),
+		"repostID", repost.ID.String(),
 		"title", title,
 	)
 
-	return repostId
+	return repost.ID
 }
 
 // DeleteThread deletes a thread from a board.
