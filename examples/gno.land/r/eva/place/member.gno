@@ -19,7 +19,7 @@ const (
 	memberRank = iota // Default rank for user
 	adminRank         // Administrator rank with privilege to manage users
 
-	timeRefill int = 2 // Cooldown in minutes
+	timeRefill = 2 // Cooldown in minutes
 )
 
 var (

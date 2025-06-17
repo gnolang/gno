@@ -99,7 +99,11 @@ func displayColorList(query url.Values, req *realmpath.Request) string {
 	for _, color := range colors {
 		query.Set("color", color.initial)
 
-		out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", generateSquareSvg(color.rgb)) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
+		squareSvg, err := generateSquareSvg(color.rgb)
+
+		if err == nil {
+			out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", squareSvg) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
+		}
 	}
 	return out
 }

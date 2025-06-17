@@ -1,16 +1,47 @@
 package place
 
 import (
+	"errors"
 	"std"
+	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/svg"
 )
 
-func generateSquareSvg(color string) string {
+const (
+	minColorLength = 10 // exemple rgb(0,0,0)
+	maxColorLength = 16 // exemple rgb(255,255,255)
+)
+
+func checkColorValid(color string) bool {
+	if len(color) < minColorLength || len(color) > maxColorLength ||
+		color[:4] != "rgb(" || color[len(color)-1] != ')' {
+		return false
+	}
+
+	numbers := strings.Split(color[4:len(color)-1], ",")
+	if len(numbers) != 3 {
+		return false
+	}
+
+	for _, numberString := range numbers {
+		numberValue, err := strconv.ParseUint(numberString, 10, 0)
+		if err != nil || numberValue > 255 {
+			return false
+		}
+	}
+	return true
+}
+
+func generateSquareSvg(color string) (string, error) {
+	if checkColorValid(color) == false {
+		return "", errors.New("Invalid color")
+	}
 	canvas := svg.Canvas{Width: 30, Height: 30}
 	canvas.Append(svg.NewRectangle(0, 0, 30, 30, color))
-	return canvas.Base64()
+	return canvas.Base64(), nil
 }
 
 func generateSVG() string {
