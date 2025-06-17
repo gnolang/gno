@@ -462,10 +462,9 @@ func writeFloat(p *printer, verb rune, arg any) {
 		p.buf.writeString(fallback(verb, v))
 		return
 	}
-	prec := -1
+	prec := p.meta.precision
 	verbChar := byte(verb)
 	if verbChar == 'f' || verbChar == 'F' {
-		prec = p.meta.precision
 		verbChar = 'f'
 	}
 	subBuf = strconv.FormatFloat(n, verbChar, prec, bits)
