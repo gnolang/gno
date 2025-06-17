@@ -10,44 +10,13 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func TestPostUpdate(t *testing.T) {
-	addr := testutils.TestAddress("creator")
-	perms := createBasicBoardPermissions(addr)
-	board := newBoard(1, "test123", addr, perms)
-	creator := testutils.TestAddress("creator")
-	post := newPost(board, 1, creator, "Title", "Body", 1, 0, 0)
-	title := "New Title"
-	body := "New body"
-
-	post.Update(title, body)
-
-	uassert.Equal(t, title, post.GetTitle())
-	uassert.Equal(t, body, post.GetBody())
-	uassert.False(t, post.GetUpdatedAt().IsZero())
-}
-
-func TestPostAddFlag(t *testing.T) {
+func TestPostFlag(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	post := createTestThread(t)
 
-	flag := Flag{
-		User:   addr,
-		Reason: "foobar",
-	}
-	uassert.True(t, post.AddFlag(flag))
-	uassert.False(t, post.AddFlag(flag), "should reject flag from duplicate user")
+	uassert.True(t, post.Flag(addr, "foo"))
+	uassert.False(t, post.Flag(addr, "foo"), "should reject flag from duplicate user")
 	uassert.Equal(t, post.FlagsCount(), 1)
-}
-
-func TestPostSetVisible(t *testing.T) {
-	post := createTestThread(t)
-	uassert.False(t, post.IsHidden(), "post should be visible by default")
-
-	post.SetVisible(false)
-	uassert.True(t, post.IsHidden(), "post should be hidden")
-
-	post.SetVisible(true)
-	uassert.False(t, post.IsHidden(), "post should be visible")
 }
 
 func TestPostAddRepostTo(t *testing.T) {
@@ -89,7 +58,9 @@ func TestPostAddRepostTo(t *testing.T) {
 					repostId = tc.dstBoard.incGetPostID()
 				}
 
-				repost = newPost(tc.dstBoard, repostId, creator, tc.title, tc.body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
+				repost = newPost(tc.dstBoard, repostId, repostId, creator, tc.title, tc.body)
+				repost.ParentID = thread.ID
+				repost.RepostBoardID = thread.Board.GetID()
 				thread.AddRepostTo(creator, repost, tc.dstBoard)
 			}
 
@@ -100,12 +71,12 @@ func TestPostAddRepostTo(t *testing.T) {
 				uassert.NotPanics(t, createRepost)
 			}
 
-			r, found := tc.dstBoard.GetThread(repost.GetPostID())
+			r, found := tc.dstBoard.GetThread(repost.ID)
 			uassert.True(t, found)
 			uassert.True(t, repost == r)
-			uassert.Equal(t, tc.title, repost.GetTitle())
-			uassert.Equal(t, tc.body, repost.GetBody())
-			uassert.Equal(t, uint(thread.GetBoard().GetID()), uint(repost.GetRepostBoardID()))
+			uassert.Equal(t, tc.title, repost.Title)
+			uassert.Equal(t, tc.body, repost.Body)
+			uassert.Equal(t, uint(thread.Board.GetID()), uint(repost.RepostBoardID))
 		})
 	}
 }
@@ -154,16 +125,16 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 
-	thread := newPost(board, threadID, creator, title, body, threadID, 0, 0)
+	thread := newPost(board, threadID, threadID, creator, title, body)
 
 	uassert.True(t, thread.IsThread())
-	uassert.Equal(t, uint(threadID), uint(thread.GetPostID()))
-	uassert.False(t, thread.GetCreatedAt().IsZero())
-	uassert.True(t, thread.GetUpdatedAt().IsZero())
-	uassert.Equal(t, title, thread.GetTitle())
-	uassert.Equal(t, body[:77]+"...", thread.GetSummary())
+	uassert.Equal(t, uint(threadID), uint(thread.ID))
+	uassert.False(t, thread.CreatedAt().IsZero())
+	uassert.True(t, thread.UpdatedAt.IsZero())
+	uassert.Equal(t, title, thread.Title)
+	uassert.Equal(t, body[:77]+"...", thread.Summary())
 	uassert.False(t, thread.HasReplies())
-	uassert.Equal(t, url, thread.GetURL())
+	uassert.Equal(t, url, thread.URL())
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
 	uassert.Equal(t, editURL, thread.GetEditFormURL())
 	uassert.Equal(t, repostURL, thread.GetRepostFormURL())
@@ -174,17 +145,17 @@ func TestNewThread(t *testing.T) {
 func TestThreadAddReply(t *testing.T) {
 	replier := testutils.TestAddress("replier")
 	thread := createTestThread(t)
-	threadID := uint(thread.GetPostID())
+	threadID := uint(thread.ID)
 	body := "A reply"
 
 	reply := thread.AddReply(replier, body)
 
-	r, found := thread.GetReply(reply.GetPostID())
+	r, found := thread.GetReply(reply.ID)
 	uassert.True(t, found)
 	uassert.True(t, reply == r)
-	uassert.Equal(t, threadID+1, uint(reply.GetPostID()))
-	uassert.Equal(t, reply.GetCreator(), replier)
-	uassert.Equal(t, reply.GetBody(), body)
+	uassert.Equal(t, threadID+1, uint(reply.ID))
+	uassert.Equal(t, reply.Creator, replier)
+	uassert.Equal(t, reply.Body, body)
 	uassert.True(t, thread.HasReplies())
 }
 
@@ -200,7 +171,7 @@ func TestThreadGetReply(t *testing.T) {
 			thread: createTestThread(t),
 			setup: func(thread *Post) PostID {
 				reply := thread.AddReply(testutils.TestAddress("replier"), "")
-				return reply.GetPostID()
+				return reply.ID
 			},
 			found: true,
 		},
@@ -219,7 +190,7 @@ func TestThreadGetReply(t *testing.T) {
 
 			uassert.Equal(t, tc.found, found)
 			if reply != nil {
-				uassert.Equal(t, uint(replyID), uint(reply.GetPostID()))
+				uassert.Equal(t, uint(replyID), uint(reply.ID))
 			}
 		})
 	}
@@ -236,19 +207,19 @@ func TestThreadDeleteReply(t *testing.T) {
 			name: "ok",
 			setup: func() PostID {
 				reply := thread.AddReply(testutils.TestAddress("replier"), "")
-				return reply.GetPostID()
+				return reply.ID
 			},
 		},
 		{
 			name: "ok nested",
 			setup: func() PostID {
 				reply := thread.AddReply(testutils.TestAddress("replier"), "")
-				return reply.AddReply(testutils.TestAddress("replier2"), "").GetPostID()
+				return reply.AddReply(testutils.TestAddress("replier2"), "").ID
 			},
 		},
 		{
 			name:  "invalid",
-			setup: func() PostID { return thread.GetPostID() },
+			setup: func() PostID { return thread.ID },
 			err:   "expected an ID of an inner reply",
 		},
 		{
@@ -319,15 +290,16 @@ func TestNewReply(t *testing.T) {
 		uint(threadID),
 	)
 
-	reply := newPost(board, replyID, creator, "", body, threadID, parentID, 0)
+	reply := newPost(board, threadID, replyID, creator, "", body)
+	reply.ParentID = parentID
 
 	uassert.False(t, reply.IsThread())
-	uassert.Equal(t, uint(replyID), uint(reply.GetPostID()))
-	uassert.False(t, reply.GetCreatedAt().IsZero())
-	uassert.True(t, reply.GetUpdatedAt().IsZero())
+	uassert.Equal(t, uint(replyID), uint(reply.ID))
+	uassert.False(t, reply.CreatedAt().IsZero())
+	uassert.True(t, reply.UpdatedAt.IsZero())
 	uassert.False(t, reply.HasReplies())
-	uassert.Equal(t, body[:77]+"...", reply.GetSummary())
-	uassert.Equal(t, url, reply.GetURL())
+	uassert.Equal(t, body[:77]+"...", reply.Summary())
+	uassert.Equal(t, url, reply.URL())
 	uassert.Equal(t, replyURL, reply.GetReplyFormURL())
 	uassert.Equal(t, deleteURL, reply.GetDeleteFormURL())
 }
@@ -336,18 +308,18 @@ func TestReplyAddReply(t *testing.T) {
 	replier := testutils.TestAddress("replier")
 	thread := createTestThread(t)
 	parentReply := thread.AddReply(testutils.TestAddress("parentReplier"), "")
-	parentReplyID := uint(parentReply.GetPostID())
+	parentReplyID := uint(parentReply.ID)
 	body := "A child reply"
 
 	reply := parentReply.AddReply(replier, body)
 
-	r, found := thread.GetReply(reply.GetPostID())
+	r, found := thread.GetReply(reply.ID)
 	uassert.True(t, found)
 	uassert.True(t, reply == r)
-	uassert.Equal(t, parentReplyID, uint(reply.GetParentID()))
-	uassert.Equal(t, parentReplyID+1, uint(reply.GetPostID()))
-	uassert.Equal(t, reply.GetCreator(), replier)
-	uassert.Equal(t, reply.GetBody(), body)
+	uassert.Equal(t, parentReplyID, uint(reply.ParentID))
+	uassert.Equal(t, parentReplyID+1, uint(reply.ID))
+	uassert.Equal(t, reply.Creator, replier)
+	uassert.Equal(t, reply.Body, body)
 	uassert.False(t, reply.HasReplies())
 	uassert.True(t, parentReply.HasReplies())
 }
@@ -364,7 +336,7 @@ func TestReplyGetReply(t *testing.T) {
 			name: "found",
 			setup: func() PostID {
 				reply := parentReply.AddReply(testutils.TestAddress("replier"), "")
-				return reply.GetPostID()
+				return reply.ID
 			},
 			found: true,
 		},
@@ -382,7 +354,7 @@ func TestReplyGetReply(t *testing.T) {
 
 			uassert.Equal(t, tc.found, found)
 			if reply != nil {
-				uassert.Equal(t, uint(replyID), uint(reply.GetPostID()))
+				uassert.Equal(t, uint(replyID), uint(reply.ID))
 			}
 		})
 	}
@@ -395,7 +367,7 @@ func TestReplyDeleteReply(t *testing.T) {
 
 	// NOTE: Deleting a reply from a parent reply should eventually be suported
 	uassert.PanicsWithMessage(t, "cannot delete reply from a non-thread post", func() {
-		parentReply.DeleteReply(reply.GetPostID())
+		parentReply.DeleteReply(reply.ID)
 	})
 }
 

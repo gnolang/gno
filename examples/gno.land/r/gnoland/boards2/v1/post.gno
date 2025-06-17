@@ -26,147 +26,84 @@ func (id PostID) Key() string {
 // A Post is a "thread" or a "reply" depending on context.
 // A thread is a Post of a Board that holds other replies.
 type Post struct {
-	board         *Board
-	id            PostID
-	creator       std.Address
-	title         string // optional
-	body          string
-	isHidden      bool
-	isReadonly    bool
-	replies       avl.Tree // Post.id -> *Post
-	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
-	reposts       avl.Tree // Board.id -> Post.id
-	flags         []Flag
-	threadID      PostID  // original Post.id
-	parentID      PostID  // parent Post.id (if reply or repost)
-	repostBoardID BoardID // original Board.id (if repost)
-	createdAt     time.Time
-	updatedAt     time.Time
+	ID            PostID
+	Board         *Board
+	Creator       std.Address
+	Title         string
+	Body          string
+	Hidden        bool
+	Readonly      bool
+	ThreadID      PostID  // original Post.id
+	ParentID      PostID  // parent Post.id (if reply or repost)
+	RepostBoardID BoardID // original Board.id (if repost)
+	UpdatedAt     time.Time
+
+	flags      avl.Tree // std.Address -> string(reason)
+	replies    avl.Tree // Post.id -> *Post
+	repliesAll avl.Tree // Post.id -> *Post (all replies, for top-level posts)
+	reposts    avl.Tree // Board.id -> Post.id
+	createdAt  time.Time
 }
 
-func newPost(board *Board, id PostID, creator std.Address, title, body string, threadID, parentID PostID, repostBoardID BoardID) *Post {
+func newPost(board *Board, threadID, id PostID, creator std.Address, title, body string) *Post {
 	return &Post{
-		board:         board,
-		id:            id,
-		creator:       creator,
-		title:         title,
-		body:          body,
-		replies:       avl.Tree{},
-		repliesAll:    avl.Tree{},
-		reposts:       avl.Tree{},
-		threadID:      threadID,
-		parentID:      parentID,
-		repostBoardID: repostBoardID,
-		createdAt:     time.Now(),
+		Board:     board,
+		ThreadID:  threadID,
+		ID:        id,
+		Creator:   creator,
+		Title:     title,
+		Body:      body,
+		createdAt: time.Now(),
 	}
 }
 
-func (post *Post) IsRepost() bool {
-	return post.repostBoardID != 0
-}
-
-func (post *Post) IsThread() bool {
-	// repost threads also have parent ID
-	return post.parentID == 0 || post.IsRepost()
-}
-
-func (post *Post) GetBoard() *Board {
-	return post.board
-}
-
-func (post *Post) GetPostID() PostID {
-	return post.id
-}
-
-func (post *Post) GetParentID() PostID {
-	return post.parentID
-}
-
-func (post *Post) GetRepostBoardID() BoardID {
-	return post.repostBoardID
-}
-
-func (post *Post) GetCreator() std.Address {
-	return post.creator
-}
-
-func (post *Post) GetTitle() string {
-	return post.title
-}
-
-func (post *Post) GetBody() string {
-	return post.body
-}
-
-func (post *Post) GetCreatedAt() time.Time {
+// CreatedAt returns the time when post was created.
+func (post *Post) CreatedAt() time.Time {
 	return post.createdAt
 }
 
-func (post *Post) GetUpdatedAt() time.Time {
-	return post.updatedAt
+// IsRepost checks if current post is repost.
+func (post *Post) IsRepost() bool {
+	return post.RepostBoardID != 0
 }
 
-func (post *Post) AddFlag(flag Flag) bool {
-	// TODO: sort flags for fast search in case of big thresholds
-	for _, v := range post.flags {
-		if v.User == flag.User {
-			return false
-		}
+// IsThread checks if current post is a thread.
+func (post *Post) IsThread() bool {
+	// repost threads also have parent ID
+	return post.ParentID == 0 || post.IsRepost()
+}
+
+// Flag add a flag to the post.
+// It returns false when the user flagging the post already flagged it.
+func (post *Post) Flag(user std.Address, reason string) bool {
+	if post.flags.Has(user.String()) {
+		return false
 	}
 
-	post.flags = append(post.flags, flag)
+	post.flags.Set(user.String(), reason)
 	return true
 }
 
+// FlagsCount returns the number of time post was flagged.
 func (post *Post) FlagsCount() int {
-	return len(post.flags)
-}
-
-func (post *Post) SetVisible(isVisible bool) {
-	post.isHidden = !isVisible
-}
-
-func (post *Post) IsHidden() bool {
-	return post.isHidden
-}
-
-func (post *Post) SetReadonly(isReadonly bool) {
-	post.isReadonly = isReadonly
-}
-
-func (post *Post) IsReadonly() bool {
-	return post.isReadonly
+	return post.flags.Size()
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
-	board := post.board
+	board := post.Board
 	pid := board.incGetPostID()
 	pKey := pid.Key()
-	reply := newPost(board, pid, creator, "", body, post.threadID, post.id, 0)
+	reply := newPost(board, post.ThreadID, pid, creator, "", body)
+	reply.ParentID = post.ID
 	// TODO: Figure out how to remove this redundancy of data "replies==repliesAll" in threads
 	post.replies.Set(pKey, reply)
-	if post.threadID == post.id {
+	if post.ThreadID == post.ID {
 		post.repliesAll.Set(pKey, reply)
 	} else {
-		thread, _ := board.GetThread(post.threadID)
+		thread, _ := board.GetThread(post.ThreadID)
 		thread.repliesAll.Set(pKey, reply)
 	}
 	return reply
-}
-
-func (post *Post) Update(title string, body string) error {
-	if post.IsThread() && title == "" {
-		return errors.New("title is empty") // TODO: Use error vars when Post is moved to a package
-	}
-
-	if body == "" {
-		return errors.New("body is empty")
-	}
-
-	post.title = title
-	post.body = body
-	post.updatedAt = time.Now()
-	return nil
 }
 
 func (post *Post) HasReplies() bool {
@@ -186,8 +123,8 @@ func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 		panic("cannot repost non-thread post")
 	}
 
-	dst.threads.Set(repost.id.Key(), repost)
-	post.reposts.Set(dst.id.Key(), repost.id)
+	dst.threads.Set(repost.ID.Key(), repost)
+	post.reposts.Set(dst.id.Key(), repost.ID)
 }
 
 func (post *Post) DeleteReply(replyID PostID) error {
@@ -196,7 +133,7 @@ func (post *Post) DeleteReply(replyID PostID) error {
 		panic("cannot delete reply from a non-thread post")
 	}
 
-	if post.id == replyID {
+	if post.ID == replyID {
 		return errors.New("expected an ID of an inner reply")
 	}
 
@@ -208,8 +145,8 @@ func (post *Post) DeleteReply(replyID PostID) error {
 
 	// TODO: Shouldn't reply be hidden instead of deleted? Maybe replace reply by a deleted message.
 	reply := v.(*Post)
-	if reply.parentID != post.id {
-		parent, _ := post.GetReply(reply.parentID)
+	if reply.ParentID != post.ID {
+		parent, _ := post.GetReply(reply.ParentID)
 		parent.replies.Remove(key)
 	} else {
 		post.replies.Remove(key)
@@ -217,32 +154,35 @@ func (post *Post) DeleteReply(replyID PostID) error {
 	return nil
 }
 
-func (post *Post) GetSummary() string {
-	return summaryOf(post.body, 80)
+// Summary return a summary of the post's body.
+// It returns the body making sure that the length is limited to 80 characters.
+func (post *Post) Summary() string {
+	return summaryOf(post.Body, 80)
 }
 
-func (post *Post) GetURL() string {
+// URL returns the realm link URL to the post.
+func (post *Post) URL() string {
 	if post.IsThread() {
-		return post.board.GetURLFromThreadID(post.id)
+		return post.Board.GetURLFromThreadID(post.ID)
 	}
-	return post.board.GetURLFromReplyID(post.threadID, post.id)
+	return post.Board.GetURLFromReplyID(post.ThreadID, post.ID)
 }
 
 func (post *Post) GetReplyFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"CreateReply",
-			"boardID", post.board.id.String(),
-			"threadID", post.threadID.String(),
+			"boardID", post.Board.id.String(),
+			"threadID", post.ThreadID.String(),
 			"replyID", "0",
 			"body", "",
 		)
 	}
 	return gRealmLink.Call(
 		"CreateReply",
-		"boardID", post.board.id.String(),
-		"threadID", post.threadID.String(),
-		"replyID", post.id.String(),
+		"boardID", post.Board.id.String(),
+		"threadID", post.ThreadID.String(),
+		"replyID", post.ID.String(),
 		"body", "",
 	)
 }
@@ -250,8 +190,8 @@ func (post *Post) GetReplyFormURL() string {
 func (post *Post) GetRepostFormURL() string {
 	return gRealmLink.Call(
 		"CreateRepost",
-		"boardID", post.board.id.String(),
-		"threadID", post.id.String(),
+		"boardID", post.Board.id.String(),
+		"threadID", post.ID.String(),
 		"title", "",
 		"body", "",
 		"destinationBoardID", "",
@@ -262,15 +202,15 @@ func (post *Post) GetDeleteFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"DeleteThread",
-			"boardID", post.board.id.String(),
-			"threadID", post.threadID.String(),
+			"boardID", post.Board.id.String(),
+			"threadID", post.ThreadID.String(),
 		)
 	}
 	return gRealmLink.Call(
 		"DeleteReply",
-		"boardID", post.board.id.String(),
-		"threadID", post.threadID.String(),
-		"replyID", post.id.String(),
+		"boardID", post.Board.id.String(),
+		"threadID", post.ThreadID.String(),
+		"replyID", post.ID.String(),
 	)
 }
 
@@ -278,19 +218,19 @@ func (post *Post) GetEditFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"EditThread",
-			"boardID", post.board.id.String(),
-			"threadID", post.threadID.String(),
-			"title", post.GetTitle(),
-			"body", post.GetBody(),
+			"boardID", post.Board.id.String(),
+			"threadID", post.ThreadID.String(),
+			"title", post.Title,
+			"body", post.Body,
 		)
 	}
 
 	return gRealmLink.Call(
 		"EditReply",
-		"boardID", post.board.id.String(),
-		"threadID", post.threadID.String(),
-		"replyID", post.id.String(),
-		"body", post.GetBody(),
+		"boardID", post.Board.id.String(),
+		"threadID", post.ThreadID.String(),
+		"replyID", post.ID.String(),
+		"body", post.Body,
 	)
 }
 
@@ -298,17 +238,17 @@ func (post *Post) GetFlagFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"FlagThread",
-			"boardID", post.board.id.String(),
-			"threadID", post.threadID.String(),
+			"boardID", post.Board.id.String(),
+			"threadID", post.ThreadID.String(),
 			"reason", "",
 		)
 	}
 
 	return gRealmLink.Call(
 		"FlagReply",
-		"boardID", post.board.id.String(),
-		"threadID", post.threadID.String(),
-		"replyID", post.id.String(),
+		"boardID", post.Board.id.String(),
+		"threadID", post.ThreadID.String(),
+		"replyID", post.ID.String(),
 		"reason", "",
 	)
 }
@@ -316,12 +256,12 @@ func (post *Post) GetFlagFormURL() string {
 func (post *Post) RenderSummary() string {
 	var (
 		b       strings.Builder
-		postURL = post.GetURL()
-		title   = post.title
+		postURL = post.URL()
+		title   = post.Title
 	)
 
 	b.WriteString("**≡ " + newLink(summaryOf(title, 80), postURL) + "**  \n")
-	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
+	b.WriteString("Created by " + newUserLink(post.Creator) + " on " + post.createdAt.Format(dateFormat))
 	b.WriteString("  \n**")
 	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
 	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts**\n")
@@ -336,28 +276,28 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 	indent += "> "
 
 	// TODO: figure out a way to decouple posts from a global storage.
-	board, ok := getBoard(post.repostBoardID)
+	board, ok := getBoard(post.RepostBoardID)
 	if !ok {
 		// TODO: Boards can't be deleted so this might be redundant
 		return indentBody(indent, "*⚠ Source board has been deleted*\n\n"), nil
 	}
 
-	srcPost, ok := board.GetThread(post.parentID)
+	srcPost, ok := board.GetThread(post.ParentID)
 	if !ok {
 		return indentBody(indent, "*⚠ Source post has been deleted*\n\n"), nil
 	}
 
-	if srcPost.isHidden {
+	if srcPost.Hidden {
 		return indentBody(indent, "*⚠ Source post has been flagged as inappropriate*\n\n"), nil
 	}
 
-	return indentBody(indent, srcPost.GetSummary()) + "\n\n", srcPost
+	return indentBody(indent, srcPost.Summary()) + "\n\n", srcPost
 }
 
 // renderPostContent renders post text content (including repost body).
 // Function will dump a predefined message instead of a body if post is hidden.
 func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels int) {
-	if post.isHidden {
+	if post.Hidden {
 		// Flagged comment should be hidden, but replies still visible (see: #3480)
 		// Flagged threads will be hidden by render function caller.
 		sb.WriteString(indentBody(indent, "_⚠ Reply is hidden as it has been flagged as inappropriate_"))
@@ -367,17 +307,17 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 
 	srcContent, srcPost := post.renderSourcePost(indent)
 	if post.IsRepost() && srcPost != nil {
-		sb.WriteString("  \nThis thread is a repost of [another thread](" + srcPost.GetURL() + "): \n")
+		sb.WriteString("  \nThis thread is a repost of [another thread](" + srcPost.URL() + "): \n")
 	}
 
 	sb.WriteString(srcContent)
 
-	if post.IsRepost() && srcPost == nil && len(post.body) > 0 {
+	if post.IsRepost() && srcPost == nil && len(post.Body) > 0 {
 		// Add a newline to separate source deleted message from repost body content
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(indentBody(indent, post.body))
+	sb.WriteString(indentBody(indent, post.Body))
 	sb.WriteString("\n")
 
 	if post.IsThread() {
@@ -393,14 +333,14 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	}
 
 	sb.WriteString("Created by ")
-	sb.WriteString(newUserLink(post.creator))
+	sb.WriteString(newUserLink(post.Creator))
 	sb.WriteString(" on ")
 	sb.WriteString(post.createdAt.Format(dateFormat))
 
 	// Add a reply view link to each top level reply
 	if !post.IsThread() {
 		sb.WriteString(", ")
-		sb.WriteString(newLink("#"+post.id.String(), post.GetURL()))
+		sb.WriteString(newLink("#"+post.ID.String(), post.URL()))
 	}
 
 	if post.reposts.Size() > 0 {
@@ -417,7 +357,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(newLink("Repost", post.GetRepostFormURL()))
 	}
 
-	isReadonly := post.IsReadonly() || post.GetBoard().IsReadonly()
+	isReadonly := post.Readonly || post.Board.IsReadonly()
 	if !isReadonly {
 		sb.WriteString(" • ")
 		sb.WriteString(newLink("Reply", post.GetReplyFormURL()))
@@ -430,9 +370,9 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	if levels == 0 {
 		sb.WriteString(" • ")
 		if post.IsThread() {
-			sb.WriteString(newLink("Show all Replies", post.board.GetURLFromThreadID(post.GetPostID())))
+			sb.WriteString(newLink("Show all Replies", post.Board.GetURLFromThreadID(post.ID)))
 		} else {
-			sb.WriteString(newLink("View Thread", post.board.GetURLFromThreadID(post.threadID)))
+			sb.WriteString(newLink("View Thread", post.Board.GetURLFromThreadID(post.ThreadID)))
 		}
 	}
 
@@ -448,11 +388,11 @@ func (post *Post) Render(path string, indent string, levels int) string {
 	var sb strings.Builder
 
 	// Thread reposts might not have a title, if so get title from source thread
-	title := post.title
+	title := post.Title
 	if post.IsRepost() && title == "" {
-		if board, ok := getBoard(post.repostBoardID); ok {
-			if src, ok := board.GetThread(post.parentID); ok {
-				title = src.GetTitle()
+		if board, ok := getBoard(post.RepostBoardID); ok {
+			if src, ok := board.GetThread(post.ParentID); ok {
+				title = src.Title
 			}
 		}
 	}
@@ -552,18 +492,18 @@ func (post *Post) RenderInner() string {
 
 	var (
 		s         string
-		threadID  = post.threadID
-		thread, _ = post.board.GetThread(threadID) // TODO: This seems redundant (post == thread)
+		threadID  = post.ThreadID
+		thread, _ = post.Board.GetThread(threadID) // TODO: This seems redundant (post == thread)
 	)
 
 	// Fully render parent if it's not a repost.
 	if !post.IsRepost() {
 		var (
 			parent   *Post
-			parentID = post.parentID
+			parentID = post.ParentID
 		)
 
-		if thread.id == parentID {
+		if thread.ID == parentID {
 			parent = thread
 		} else {
 			parent, _ = thread.GetReply(parentID)

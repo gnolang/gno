@@ -43,7 +43,7 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
 
-	return board.IsReadonly() || thread.IsReadonly()
+	return board.IsReadonly() || thread.Readonly
 }
 
 // UnfreezeReply removes frozen status from a reply.
@@ -72,7 +72,7 @@ func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsVisible(reply)
 
-	return board.IsReadonly() || thread.IsReadonly() || reply.IsReadonly()
+	return board.IsReadonly() || thread.Readonly || reply.Readonly
 }
 
 func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool) {
@@ -95,7 +95,7 @@ func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool
 		assertReplyIsNotFrozen(reply)
 	}
 
-	reply.SetReadonly(isReadonly)
+	reply.Readonly = isReadonly
 
 	std.Emit(
 		"ReplyFreeze",
@@ -121,7 +121,7 @@ func setThreadReadonly(boardID BoardID, threadID PostID, isReadonly bool) {
 		assertThreadIsNotFrozen(thread)
 	}
 
-	thread.SetReadonly(isReadonly)
+	thread.Readonly = isReadonly
 
 	std.Emit(
 		"ThreadFreeze",
