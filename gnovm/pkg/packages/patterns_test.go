@@ -232,12 +232,12 @@ func TestDataExpandPatterns(t *testing.T) {
 		{
 			name:             "err-outside-root",
 			patterns:         []string{".."},
-			errShouldContain: `pattern ".." is not rooted in current module`,
+			errShouldContain: `pattern ".." is not rooted in current workspace`,
 		},
 		{
 			name:             "err-outside-root-abs",
 			patterns:         []string{filepath.Join(cwd, "..")},
-			errShouldContain: `is not rooted in current module`,
+			errShouldContain: `is not rooted in current workspace`,
 		},
 		{
 			name:             "err-remote-recursive",

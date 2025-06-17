@@ -60,7 +60,7 @@ func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatc
 				return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
 			}
 			if !strings.HasPrefix(absPat, root) {
-				return nil, fmt.Errorf("pattern %q is not rooted in current module (%q)", match, root)
+				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q)", match, root)
 			}
 		}
 	}
@@ -166,7 +166,7 @@ func expandRecursive(pat string) ([]string, error) {
 		if slices.Contains(dirs, dir) {
 			return nil
 		}
-		if strings.HasSuffix(base, ".gno") || base == "LICENSE" || base == "README.md" {
+		if strings.HasSuffix(base, ".gno") || base == "gnomod.toml" {
 			dirs = append(dirs, dir)
 		}
 		return nil

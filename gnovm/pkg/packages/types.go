@@ -13,10 +13,9 @@ import (
 
 // ported from https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/cmd/go/internal/load/pkg.go
 type Package struct {
-	Dir        string `json:",omitempty"` // directory containing package sources
-	ImportPath string `json:",omitempty"` // import path of package in dir
-	Name       string `json:",omitempty"` // package name
-	ModPath    string
+	Dir        string                `json:",omitempty"` // directory containing package sources
+	ImportPath string                `json:",omitempty"` // import path of package in dir
+	Name       string                `json:",omitempty"` // package name
 	Match      []string              `json:",omitempty"` // command-line patterns matching this package
 	Errors     []*Error              `json:",omitempty"` // error loading this package (not dependencies)
 	Draft      bool                  `json:",omitempty"`

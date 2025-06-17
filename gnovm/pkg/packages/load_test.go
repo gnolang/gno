@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -17,9 +18,9 @@ import (
 
 func TestListAndNonDraftPkgs(t *testing.T) {
 	for _, tc := range []struct {
-		desc string
-		in   []struct{ name, modfile string }
-
+		desc            string
+		in              []struct{ name, modfile string }
+		errorContains   string
 		outListPkgs     []string
 		outNonDraftPkgs []string
 	}{
@@ -31,15 +32,15 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
-					`module foo`,
+					`module = "foo"`,
 				},
 				{
 					"bar",
-					`module bar`,
+					`module = "bar"`,
 				},
 				{
 					"baz",
-					`module baz`,
+					`module = "baz"`,
 				},
 			},
 			outListPkgs:     []string{"foo", "bar", "baz"},
@@ -50,17 +51,16 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
-					`module foo`,
+					`module = "foo"`,
 				},
 				{
 					"baz",
-					`module baz`,
+					`module = "baz"`,
 				},
 				{
 					"qux",
-					`// Draft
-
-					module qux`,
+					`draft = true
+					module = "qux"`,
 				},
 			},
 			outListPkgs:     []string{"foo", "baz", "qux"},
@@ -78,9 +78,12 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 				createGnoModPkg(t, dirPath, p.name, p.modfile)
 			}
 
+			testChdir(t, dirPath)
+
 			// List packages
-			pkgs, err := Load(&LoadConfig{AllowEmpty: true, Fetcher: examplespkgfetcher.New("")}, filepath.Join(dirPath, "..."))
+			pkgs, err := Load(&LoadConfig{AllowEmpty: true, Fetcher: pkgdownload.NewNoopFetcher()}, filepath.Join(dirPath, "..."))
 			require.NoError(t, err)
+
 			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
 			for _, p := range pkgs {
 				assert.Contains(t, tc.outListPkgs, p.ImportPath)
@@ -109,7 +112,7 @@ func createGnoModPkg(t *testing.T, dirPath, pkgName, modData string) {
 	require.NoError(t, err)
 
 	// Create gno.mod
-	err = os.WriteFile(filepath.Join(pkgDirPath, "gno.mod"), []byte(modData), 0o644)
+	err = os.WriteFile(filepath.Join(pkgDirPath, "gnomod.toml"), []byte(modData), 0o644)
 	require.NoError(t, err)
 }
 
@@ -170,13 +173,15 @@ func TestSortPkgs(t *testing.T) {
 }
 
 func TestLoadNonDraftExamples(t *testing.T) {
-	examples := filepath.Join("..", "..", "..", "examples", "...")
+	examples := filepath.Join("..", "..", "..", "examples")
+
+	testChdir(t, examples)
+
 	conf := LoadConfig{
-		Deps:    true,
 		Fetcher: pkgdownload.NewNoopFetcher(),
 	}
 
-	pkgs, err := Load(&conf, examples)
+	pkgs, err := Load(&conf, "./...")
 	require.NoError(t, err)
 
 	for _, pkg := range pkgs {
@@ -219,8 +224,6 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
-				Root:       filepath.Join(cwd, "testdata", "workspace-1"),
-				ModPath:    "gno.example.com/r/wspace1/foo",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
 				Match:      []string{localFromSlash("./testdata/workspace-1")},
 				Files: FilesMap{
@@ -238,8 +241,6 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
-				Root:       filepath.Join(cwd, "testdata", "workspace-1"),
-				ModPath:    "gno.example.com/r/wspace1/foo",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
 				Match:      []string{filepath.Join(cwd, "testdata", "workspace-1")},
 				Files: FilesMap{
@@ -257,8 +258,6 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
-				Root:       filepath.Join(cwd, "testdata", "workspace-1"),
-				ModPath:    "gno.example.com/r/wspace1/foo",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
 				Match:      []string{localFromSlash("./testdata/workspace-1/...")},
 				Files: FilesMap{
@@ -280,6 +279,7 @@ func TestDataLoad(t *testing.T) {
 				Files: FilesMap{
 					FileKindPackageSource: {"lib.gno", "main.gno"},
 				},
+				Errors: []*Error{missingGnomodError(cwd, "workspace-2")},
 			}},
 		},
 		{
@@ -292,12 +292,11 @@ func TestDataLoad(t *testing.T) {
 				Files: FilesMap{
 					FileKindPackageSource: {"lib.gno", "main.gno"},
 				},
+				Errors: []*Error{missingGnomodError(cwd, "workspace-2")},
 			}, {
 				ImportPath: "gno.example.com/r/wspace2/bar",
 				Name:       "bar",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "bar"),
-				Root:       filepath.Join(cwd, "testdata", "workspace-2", "bar"),
-				ModPath:    "gno.example.com/r/wspace2/bar",
 				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
 				Files: FilesMap{
 					FileKindPackageSource: {"bar.gno"},
@@ -308,21 +307,17 @@ func TestDataLoad(t *testing.T) {
 					FileKindXTest:         {"gno.example.com/r/wspace2/bar", "testing"},
 				},
 			}, {
-				ImportPath: "gno.example.com/r/wspace2/bar/baz",
-				Name:       "baz",
-				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "bar", "baz"),
-				Root:       filepath.Join(cwd, "testdata", "workspace-2", "bar"),
-				ModPath:    "gno.example.com/r/wspace2/bar",
-				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
+				Name:  "baz",
+				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar", "baz"),
+				Match: []string{localFromSlash("./testdata/workspace-2/...")},
 				Files: FilesMap{
 					FileKindPackageSource: {"baz.gno"},
 				},
+				Errors: []*Error{missingGnomodError(cwd, "workspace-2/bar/baz")},
 			}, {
 				ImportPath: "gno.example.com/r/wspace2/foo",
-				ModPath:    "gno.example.com/r/wspace2/foo",
 				Name:       "foo",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "foo"),
-				Root:       filepath.Join(cwd, "testdata", "workspace-2", "foo"),
 				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
 				Files: FilesMap{
 					FileKindPackageSource: {"foo.gno"},
@@ -363,8 +358,6 @@ func TestDataLoad(t *testing.T) {
 				ImportPath: "gno.example.com/p/demo/avl",
 				Name:       "avl",
 				Dir:        PackageDir("gno.example.com/p/demo/avl"),
-				Root:       PackageDir("gno.example.com/p/demo/avl"),
-				ModPath:    "gno.example.com/p/demo/avl",
 				Match:      []string{"gno.example.com/p/demo/avl"},
 				Files: FilesMap{
 					FileKindPackageSource: {"avl.gno"},
@@ -435,4 +428,48 @@ type writeCloser struct {
 
 func (wc *writeCloser) Close() error {
 	return nil
+}
+
+// port of go1.24 T.Chdir
+func testChdir(t *testing.T, dir string) {
+	oldwd, err := os.Open(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	// On POSIX platforms, PWD represents “an absolute pathname of the
+	// current working directory.” Since we are changing the working
+	// directory, we should also set or update PWD to reflect that.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		// Windows and Plan 9 do not use the PWD variable.
+	default:
+		if !filepath.IsAbs(dir) {
+			dir, err = os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("PWD", dir)
+	}
+	t.Cleanup(func() {
+		err := oldwd.Chdir()
+		oldwd.Close()
+		if err != nil {
+			// It's not safe to continue with tests if we can't
+			// get back to the original working directory. Since
+			// we are holding a dirfd, this is highly unlikely.
+			panic("testing.Chdir: " + err.Error())
+		}
+	})
+}
+
+func missingGnomodError(cwd string, path string) *Error {
+	modpath := filepath.Join(cwd, "testdata", filepath.FromSlash(path), "gnomod.toml")
+	return &Error{
+		Pos: modpath,
+		Msg: fmt.Sprintf("could not read file %q: open %s: no such file or directory", modpath, modpath),
+	}
 }

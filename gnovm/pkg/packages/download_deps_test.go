@@ -10,8 +10,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
 )
 
 func TestDownloadDeps(t *testing.T) {
@@ -27,22 +25,14 @@ func TestDownloadDeps(t *testing.T) {
 			desc:    "not_exists",
 			pkgPath: "gno.land/p/demo/does_not_exists",
 			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
+				Module: "testFetchDeps",
 			},
 			errorShouldContain: "query files list for pkg \"gno.land/p/demo/does_not_exists\": package \"gno.land/p/demo/does_not_exists\" is not available",
 		}, {
 			desc:    "fetch_gno.land/p/demo/avl",
 			pkgPath: "gno.land/p/demo/avl",
 			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
+				Module: "testFetchDeps",
 			},
 			requirements: []string{"avl", "ufmt"},
 			ioErrContains: []string{
@@ -53,13 +43,9 @@ func TestDownloadDeps(t *testing.T) {
 			desc:    "fetch_gno.land/p/demo/blog6",
 			pkgPath: "gno.land/p/demo/blog",
 			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
+				Module: "testFetchDeps",
 			},
-			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux"},
+			requirements: []string{"avl", "blog", "diff", "uassert", "ufmt", "mux", "nestedpkg", "testutils"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/blog",
 				"gno: downloading gno.land/p/demo/avl",
@@ -69,14 +55,10 @@ func TestDownloadDeps(t *testing.T) {
 			desc:    "fetch_replace_gno.land/p/demo/avl",
 			pkgPath: "gno.land/p/demo/replaced_avl",
 			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
-				Replace: []*modfile.Replace{{
-					Old: module.Version{Path: "gno.land/p/demo/replaced_avl"},
-					New: module.Version{Path: "gno.land/p/demo/avl"},
+				Module: "testFetchDeps",
+				Replace: []gnomod.Replace{{
+					Old: "gno.land/p/demo/replaced_avl",
+					New: "gno.land/p/demo/avl",
 				}},
 			},
 			requirements: []string{"avl", "ufmt"},
@@ -88,14 +70,10 @@ func TestDownloadDeps(t *testing.T) {
 			desc:    "fetch_replace_local",
 			pkgPath: "gno.land/p/demo/foo",
 			modFile: gnomod.File{
-				Module: &modfile.Module{
-					Mod: module.Version{
-						Path: "testFetchDeps",
-					},
-				},
-				Replace: []*modfile.Replace{{
-					Old: module.Version{Path: "gno.land/p/demo/foo"},
-					New: module.Version{Path: "../local_foo"},
+				Module: "testFetchDeps",
+				Replace: []gnomod.Replace{{
+					Old: "gno.land/p/demo/foo",
+					New: "../local_foo",
 				}},
 			},
 		},
@@ -114,13 +92,14 @@ func TestDownloadDeps(t *testing.T) {
 			fetcher := examplespkgfetcher.New("")
 
 			// gno: downloading dependencies
-			err = DownloadDeps(&mockErr, fetcher, dirPath, &tc.modFile)
+			err = DownloadDeps(&mockErr, fetcher, dirPath, &tc.modFile, make(map[string]struct{}))
 			if tc.errorShouldContain != "" {
 				require.ErrorContains(t, err, tc.errorShouldContain)
 			} else {
 				require.Nil(t, err)
 
 				// Read dir
+				// XXX: check all downloaded packages (including realms and non-demo)
 				entries, err := os.ReadDir(filepath.Join(tmpGnoHome, "pkg", "mod", "gno.land", "p", "demo"))
 				if !os.IsNotExist(err) {
 					require.Nil(t, err)
@@ -140,7 +119,7 @@ func TestDownloadDeps(t *testing.T) {
 				mockErr.Reset()
 
 				// Try fetching again. Should be cached
-				DownloadDeps(&mockErr, fetcher, dirPath, &tc.modFile)
+				DownloadDeps(&mockErr, fetcher, dirPath, &tc.modFile, make(map[string]struct{}))
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
 				}

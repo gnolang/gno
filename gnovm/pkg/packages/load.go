@@ -154,7 +154,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 
 			// check if this package is present in local context
 			// XXX: use a fetcher middleware?
-			if rootModule != nil && rootModule.Module != "" && strings.HasPrefix(imp.PkgPath, rootModule.Module.Mod.Path) {
+			if rootModule != nil && rootModule.Module != "" && strings.HasPrefix(imp.PkgPath, rootModule.Module) {
 				pkgSubPath := strings.TrimPrefix(imp.PkgPath, rootModule.Module)
 				pkgDir := filepath.Join(root, filepath.FromSlash(pkgSubPath))
 				if info, err := os.Stat(pkgDir); err == nil && info.IsDir() {
@@ -191,15 +191,52 @@ func findLoaderRootDir() (string, error) {
 		return "", err
 	}
 
-	root, err := gnomod.FindRootDir(wd)
+	root, err := FindRootDir(wd)
 	switch {
 	case err == nil:
 		return root, nil
-	case errors.Is(err, gnomod.ErrGnoModNotFound):
-		return wd, err
+	case errors.Is(err, ErrGnoModNotFound):
+		return wd, nil // XXX: consider erroring-out here to ensure explicit workspace root and avoid different behavior depending on the cwd
 	default:
 		return "", err
 	}
+}
+
+// ErrGnoModNotFound is returned by [FindRootDir] when, even after traversing
+// up to the root directory, a gno.mod file could not be found.
+var ErrGnoModNotFound = errors.New("gnomod.toml file not found in current or any parent directory")
+
+// FindRootDir determines the root directory of the project which contains the
+// gno.mod file. If no gno.mod file is found, [ErrGnoModNotFound] is returned.
+// The given path must be absolute.
+func FindRootDir(absPath string) (string, error) {
+	if !filepath.IsAbs(absPath) {
+		return "", errors.New("requires absolute path")
+	}
+
+	root := filepath.VolumeName(absPath) + string(filepath.Separator)
+
+	lastFound := ""
+
+	for absPath != root {
+		modPath := filepath.Join(absPath, "gnomod.toml")
+		_, err := os.Stat(modPath)
+		if errors.Is(err, os.ErrNotExist) {
+			absPath = filepath.Dir(absPath)
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		lastFound = absPath
+		absPath = filepath.Dir(absPath)
+	}
+
+	if lastFound == "" {
+		return "", ErrGnoModNotFound
+	}
+
+	return lastFound, nil
 }
 
 func (p *Package) MemPkg() (*std.MemPackage, error) {

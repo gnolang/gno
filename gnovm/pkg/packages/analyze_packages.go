@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"errors"
 	"fmt"
 	"go/token"
 	"io"
@@ -189,10 +188,10 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		absFiles = append(absFiles, filepath.Join(pkg.Dir, f))
 	}
 
-	minMempkg, err := gnolang.ReadMemPackageFromListWithFset(absFiles, "", fset)
+	// XXX: fset
+	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "", gnolang.MemPackageTypeAny)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
-		return pkg
 	} else {
 		pkg.Name = minMempkg.Name
 	}
@@ -203,48 +202,30 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	}
 	pkg.Imports = pkg.ImportsSpecs.ToStrings()
 
-	// TODO: check if stdlib
-
+	// don't load gnomod.toml if package is command-line-arguments
 	if pkg.ImportPath == "command-line-arguments" {
+		pkg.Errors = cleanErrors(pkg.Errors)
 		return pkg
 	}
 
-	pkg.Root, err = gnomod.FindRootDir(pkg.Dir)
-	if errors.Is(err, gnomod.ErrGnoModNotFound) {
-		return pkg
-	}
-	if err != nil {
-		pkg.Errors = append(pkg.Errors, &Error{
-			Pos: pkg.Dir,
-			Msg: err.Error(),
-		})
+	// don't load gnomod.toml if package is stdlib
+	stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
+	if strings.HasPrefix(pkg.Dir, stdlibDir) {
+		pkg.Errors = cleanErrors(pkg.Errors)
 		return pkg
 	}
 
-	modFpath := filepath.Join(pkg.Root, "gno.mod")
-	mod, err := gnomod.ParseGnoMod(modFpath)
+	// get import path and flags from gnomod.toml
+	modFpath := filepath.Join(pkg.Dir, "gnomod.toml")
+	mod, err := gnomod.ParseFilepath(modFpath)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
-		return pkg
+	} else {
+		pkg.Draft = mod.Draft
+		pkg.ImportPath = mod.Module
 	}
-
-	pkg.Draft = mod.Draft
-
-	if mod.Module == nil {
-		return pkg
-	}
-
-	pkg.ModPath = mod.Module.Mod.Path
-	subPath, err := filepath.Rel(pkg.Root, pkg.Dir)
-	if err != nil {
-		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, false)...)
-		return pkg
-	}
-
-	pkg.ImportPath = path.Join(pkg.ModPath, filepath.ToSlash(subPath))
 
 	pkg.Errors = cleanErrors(pkg.Errors)
-
 	return pkg
 }
 
