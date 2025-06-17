@@ -19,7 +19,14 @@ type CallbackProposalDefinition struct {
 	CallbackArgs []string
 }
 
-var _ commondao.Executable = (*CallbackProposalDefinition)(nil)
+const (
+	acceptMemberFunc = "AcceptAwaitingMember"
+	refuseMemberFunc = "RefuseAwaitingMember"
+	makeAdminFunc    = "MakeAdmin"
+	removeAdminFunc  = "RemoveAdminRank"
+	removeMemberFunc = "RemoveMember"
+	setHangoutFunc   = "SetHangoutTimeAndPlace"
+)
 
 type ProposalDefinition interface {
 	Title() string
@@ -125,14 +132,34 @@ func AdminCloseProposal(groupId, voteIdStr, logged string) {
 }
 
 func (p *CallbackProposalDefinition) Execute(cur realm) error {
+	group := organizer.GetGroupFromId(p.GroupId)
+
+	if len(p.CallbackArgs) < 2 {
+		return errors.New("not enough arguments")
+	}
+
 	switch p.Callback {
-	case "SetHangout":
+	case acceptMemberFunc:
+		return AcceptAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case refuseMemberFunc:
+		return RefuseAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case makeAdminFunc:
+		return MakeAdmin(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case removeAdminFunc:
+		return RemoveAdminRank(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case removeMemberFunc:
+		return RemoveMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case setHangoutFunc:
 		if len(p.CallbackArgs) < 4 {
 			return errors.New("not enough arguments")
 		}
-
-		group := organizer.GetGroupFromId(p.GroupId)
 		return group.SetHangoutTimeAndPlace(p.CallbackArgs[0], p.CallbackArgs[1], p.CallbackArgs[2], p.CallbackArgs[3])
+
 	default:
 		return errors.New("unknown callback: " + p.Callback)
 	}

@@ -92,6 +92,14 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 		"callbackArgs", "Default Callback Arguments",
 		"logged", logged)) + "\n"
 
+	out += md.H3("Available callbacks:") + "\n"
+	out += "AcceptAwaitingMember(your address - target address)" + "\n\n"
+	out += "RefuseAwaitingMember(your address - target address)" + "\n\n"
+	out += "MakeAdmin(your address - target address)" + "\n\n"
+	out += "RemoveAdminRank(your address - target address)" + "\n\n"
+	out += "RemoveMember(your address - target address)" + "\n\n"
+	out += "SetHangoutTimeAndPlace(date - time - place - description)" + "\n\n"
+
 	out += md.H3("Approval Waitlist") + "\n"
 
 	if group.WaitList.Size() > 0 {

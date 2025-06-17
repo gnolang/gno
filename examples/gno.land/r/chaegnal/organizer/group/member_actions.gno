@@ -12,7 +12,7 @@ const (
 )
 
 // AcceptAwaitingMember is a wrapper to accept new members into friendgroup and DAO
-func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) {
+func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -25,20 +25,22 @@ func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) {
 	group.WaitList.Remove(adr.String())
 	group.DAO.Members().Add(adr)
 	group.Rank.Set(adr.String(), memberRank)
+	return nil
 }
 
 // RefuseAwaitingMember is a wrapper to refuse new members into friendgroup and DAO
-func RefuseAwaitingMember(cur realm, groupId, logged string, adr std.Address) {
+func RefuseAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
 
 	group := organizer.GetGroupFromId(groupId)
 	group.WaitList.Remove(adr.String())
+	return nil
 }
 
 // RemoveMember is a wrapper to remove members from group and DAO
-func RemoveMember(cur realm, groupId, logged string, adr std.Address) {
+func RemoveMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -50,10 +52,11 @@ func RemoveMember(cur realm, groupId, logged string, adr std.Address) {
 
 	group.DAO.Members().Remove(adr)
 	group.Rank.Remove(adr.String())
+	return nil
 }
 
 // MakeAdmin is a wrapper to promote member to admin status
-func MakeAdmin(cur realm, groupId, logged string, adr std.Address) {
+func MakeAdmin(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -65,10 +68,11 @@ func MakeAdmin(cur realm, groupId, logged string, adr std.Address) {
 	}
 
 	group.Rank.Set(adr.String(), adminRank)
+	return nil
 }
 
 // RemoveAdminRank is a wrapper to demote admin to member status
-func RemoveAdminRank(cur realm, groupId, logged string, adr std.Address) {
+func RemoveAdminRank(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
 	}
@@ -88,6 +92,7 @@ func RemoveAdminRank(cur realm, groupId, logged string, adr std.Address) {
 	}
 
 	group.Rank.Set(adr.String(), memberRank)
+	return nil
 }
 
 func isAdmin(groupId string, adr std.Address) bool {
