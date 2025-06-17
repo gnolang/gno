@@ -21,8 +21,8 @@ func clearState(t *testing.T) {
 	}
 	adminAddr = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 	inPause = false
-	moderatorList = avl.Tree{}
-	commenterList = avl.Tree{}
+	moderatorList = avl.NewTree()
+	commenterList = avl.NewTree()
 }
 
 func TestBlog_AdminControls(t *testing.T) {
