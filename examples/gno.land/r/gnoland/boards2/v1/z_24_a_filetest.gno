@@ -23,13 +23,12 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	boards2.IterateBoards(0, func(b boards2.ReadonlyBoard) bool {
-		println(b.ID().String())
-		println(b.Name())
+	boards2.IterateBoards(0, func(b *boards2.Board) bool {
+		println(b.GetID().String())
+		println(b.GetName())
 
-		b.IterateMembers(0, b.MembersCount(), func(u boards2.User) bool {
-			println(u.Address, string(u.Roles[0]))
-			return false
+		b.IterateMembers(0, b.MembersCount(), func(member std.Address, r []boards2.Role) {
+			println(member, string(r[0]))
 		})
 
 		return false

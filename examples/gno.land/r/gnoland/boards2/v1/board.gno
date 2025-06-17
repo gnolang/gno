@@ -94,6 +94,19 @@ func (board *Board) IsPrivate() bool {
 	return board.private
 }
 
+// MembersCount returns the total number of board members.
+func (board *Board) MembersCount() int {
+	return board.perms.UsersCount()
+}
+
+// IterateMembers iterates board members.
+func (board *Board) IterateMembers(start, count int, fn func(std.Address, []Role)) {
+	board.perms.IterateUsers(start, count, func(u User) bool {
+		fn(u.Address, u.Roles)
+		return false
+	})
+}
+
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
 	v, found := board.threads.Get(threadID.Key())
 	if !found {
