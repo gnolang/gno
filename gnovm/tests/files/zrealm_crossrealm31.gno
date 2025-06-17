@@ -11,5 +11,8 @@ func main() {
 	rb.Foo2(cross)
 }
 
-// Output:
-// hello A
+// Error:
+// gno.land/r/crossrealm_test/zrealm_crossrealm31.gno:9:11-17: name New not declared
+
+// TypeCheckError:
+// gno.land/r/crossrealm_test/zrealm_crossrealm31.gno:9:14: undefined: rb.New; gno.land/r/crossrealm_test/zrealm_crossrealm31.gno:11:5: undefined: rb.Foo2

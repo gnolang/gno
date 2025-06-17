@@ -47,22 +47,22 @@ func main(cur realm) {
 //     +            "Base": {
 //     +                "@type": "/gno.RefValue",
 //     +                "Escaped": true,
-//     +                "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:7"
+//     +                "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:4"
 //     +            },
 //     +            "Index": "0",
 //     +            "TV": null
 //     +        }
 //     +    }
 //      }
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:7]=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:4]=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:7",
+//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
 //     +        "ModTime": "38",
-//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:6",
+//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
@@ -71,7 +71,7 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:8]=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
 //     @@ -7,13 +7,13 @@
 //                  },
 //                  "V": {
@@ -82,10 +82,10 @@ func main(cur realm) {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:8",
+//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:5",
 //     -        "ModTime": "0",
-//     +        "ModTime": "17",
-//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:7",
+//     +        "ModTime": "15",
+//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //              "RefCount": "1"
 //          }
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
