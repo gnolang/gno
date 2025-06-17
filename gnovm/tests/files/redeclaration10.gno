@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// running package "github.com/gnolang/gno/_test/redeclaration3": redeclarations for identifiers: "a<VPUverse(0)>.method"
+// running package "github.com/gnolang/gno/_test/redeclaration3": redeclarations for identifiers: "a<VPInvalid(0)>.method"
