@@ -5,6 +5,7 @@ import (
 	"std"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -203,11 +204,11 @@ func CreateThread(_ realm, boardID BoardID, title, body string) PostID {
 		"ThreadCreated",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
-		"threadID", thread.GetPostID().String(),
+		"threadID", thread.ID.String(),
 		"title", title,
 	)
 
-	return thread.id
+	return thread.ID
 }
 
 // CreateReply creates a new comment or reply within a thread.
@@ -236,7 +237,7 @@ func CreateReply(_ realm, boardID BoardID, threadID, replyID PostID, body string
 	} else {
 		// Try to get parent reply and add a new child reply
 		parent := mustGetReply(thread, replyID)
-		if parent.IsHidden() || parent.IsReadonly() {
+		if parent.Hidden || parent.Readonly {
 			panic("replying to a hidden or frozen reply is not allowed")
 		}
 
@@ -248,10 +249,10 @@ func CreateReply(_ realm, boardID BoardID, threadID, replyID PostID, body string
 		"caller", caller.String(),
 		"boardID", boardID.String(),
 		"threadID", threadID.String(),
-		"replyID", reply.GetPostID().String(),
+		"replyID", reply.ID.String(),
 	)
 
-	return reply.id
+	return reply.ID
 }
 
 // CreateRepost reposts a thread into another board.
@@ -276,7 +277,9 @@ func CreateRepost(_ realm, boardID BoardID, threadID PostID, title, body string,
 
 	repostId := dst.incGetPostID()
 	body = strings.TrimSpace(body)
-	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
+	repost := newPost(dst, repostId, repostId, caller, title, body)
+	repost.ParentID = thread.ID
+	repost.RepostBoardID = thread.Board.GetID()
 	thread.AddRepostTo(caller, repost, dst)
 
 	std.Emit(
@@ -309,7 +312,7 @@ func DeleteThread(_ realm, boardID BoardID, threadID PostID) {
 		assertBoardIsNotFrozen(board)
 		assertThreadIsNotFrozen(thread)
 
-		if caller != thread.GetCreator() {
+		if caller != thread.Creator {
 			assertHasPermission(board.perms, caller, PermissionThreadDelete)
 		}
 	}
@@ -348,7 +351,7 @@ func DeleteReply(_ realm, boardID BoardID, threadID, replyID PostID) {
 		assertReplyIsVisible(reply)
 		assertReplyIsNotFrozen(reply)
 
-		if caller != reply.GetCreator() {
+		if caller != reply.Creator {
 			assertHasPermission(board.perms, caller, PermissionReplyDelete)
 		}
 	}
@@ -356,7 +359,8 @@ func DeleteReply(_ realm, boardID BoardID, threadID, replyID PostID) {
 	// Soft delete reply by changing its body when it contains
 	// sub-replies, otherwise hard delete it.
 	if reply.HasReplies() {
-		reply.Update(reply.GetTitle(), "This reply has been deleted")
+		reply.Body = "This reply has been deleted"
+		reply.UpdatedAt = time.Now()
 	} else {
 		thread.DeleteReply(replyID)
 	}
@@ -391,11 +395,13 @@ func EditThread(_ realm, boardID BoardID, threadID PostID, title, body string) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	if caller != thread.GetCreator() {
+	if caller != thread.Creator {
 		assertHasPermission(board.perms, caller, PermissionThreadEdit)
 	}
 
-	thread.Update(title, body)
+	thread.Title = title
+	thread.Body = body
+	thread.UpdatedAt = time.Now()
 
 	std.Emit(
 		"ThreadEdited",
@@ -426,11 +432,12 @@ func EditReply(_ realm, boardID BoardID, threadID, replyID PostID, body string) 
 	assertReplyIsNotFrozen(reply)
 
 	caller := std.PreviousRealm().Address()
-	if caller != reply.GetCreator() {
+	if caller != reply.Creator {
 		panic("only the reply creator is allowed to edit it")
 	}
 
-	reply.Update("", body)
+	reply.Body = body
+	reply.UpdatedAt = time.Now()
 
 	std.Emit(
 		"ReplyEdited",
@@ -567,6 +574,11 @@ func IterateRealmMembers(offset int, fn UsersIterFn) (halted bool) {
 	return gPerms.IterateUsers(offset, count, fn)
 }
 
+// GetBoard returns a single board.
+func GetBoard(boardID BoardID) *Board {
+	return mustGetBoard(boardID)
+}
+
 // IterateBoards iterates realm boards.
 func IterateBoards(offset int, fn func(*Board) bool) (halted bool) {
 	count := gBoardsByID.Size() - offset
@@ -627,13 +639,13 @@ func assertIsValidBoardName(name string) {
 }
 
 func assertThreadIsNotFrozen(t *Post) {
-	if t.IsReadonly() {
+	if t.Readonly {
 		panic("thread is frozen")
 	}
 }
 
 func assertReplyIsNotFrozen(r *Post) {
-	if r.IsReadonly() {
+	if r.Readonly {
 		panic("reply is frozen")
 	}
 }
@@ -680,13 +692,13 @@ func assertReplyExists(thread *Post, replyID PostID) {
 }
 
 func assertThreadIsVisible(thread *Post) {
-	if thread.IsHidden() {
+	if thread.Hidden {
 		panic("thread is hidden")
 	}
 }
 
 func assertReplyIsVisible(thread *Post) {
-	if thread.IsHidden() {
+	if thread.Hidden {
 		panic("reply is hidden")
 	}
 }

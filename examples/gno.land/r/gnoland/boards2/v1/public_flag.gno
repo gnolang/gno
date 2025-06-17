@@ -64,15 +64,10 @@ func FlagThread(_ realm, boardID BoardID, threadID PostID, reason string) {
 	}
 	assertThreadIsNotFrozen(t)
 
-	f := Flag{
-		User:   caller,
-		Reason: reason,
-	}
-
 	// Realm owners can hide with a single flag
-	hide := flagItem(t, f, getFlaggingThreshold(boardID))
+	hide := flagItem(t, caller, reason, getFlaggingThreshold(boardID))
 	if hide || isRealmOwner {
-		t.SetVisible(false)
+		t.Hidden = true
 	}
 
 	std.Emit(
@@ -106,15 +101,10 @@ func FlagReply(_ realm, boardID BoardID, threadID, replyID PostID, reason string
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsNotFrozen(thread)
 
-	f := Flag{
-		User:   caller,
-		Reason: reason,
-	}
-
 	// Realm owners can hide with a single flag
-	hide := flagItem(reply, f, getFlaggingThreshold(boardID))
+	hide := flagItem(reply, caller, reason, getFlaggingThreshold(boardID))
 	if hide || isRealmOwner {
-		reply.SetVisible(false)
+		reply.Hidden = true
 	}
 
 	std.Emit(

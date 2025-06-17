@@ -117,7 +117,7 @@ func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
 
 func (board *Board) AddThread(creator std.Address, title string, body string) *Post {
 	pid := board.incGetPostID()
-	thread := newPost(board, pid, creator, title, body, pid, 0, 0)
+	thread := newPost(board, pid, pid, creator, title, body)
 	board.threads.Set(pid.Key(), thread)
 	return thread
 }
@@ -170,7 +170,7 @@ func (board *Board) Render(path, menu string) string {
 
 	render := func(_ string, v any) bool {
 		thread := v.(*Post)
-		if thread.isHidden {
+		if thread.Hidden {
 			return false
 		}
 

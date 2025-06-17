@@ -12,33 +12,25 @@ const DefaultFlaggingThreshold = 1
 
 var gFlaggingThresholds avl.Tree // string(board ID) -> int
 
-type Flag struct {
-	User   std.Address
-	Reason string
-}
-
 type Flaggable interface {
-	// AddFlag adds a new flag to an item.
-	//
-	// Returns false if item was already flagged by user.
-	AddFlag(flag Flag) bool
+	// Flag adds a new flag to an item.
+	// It returns false when the user flagging already flagged the item.
+	Flag(user std.Address, reason string) bool
 
 	// FlagsCount returns number of times item was flagged.
 	FlagsCount() int
 }
 
-// flagItem adds a flag to a flaggable item (post, thread, etc).
-//
+// flagItem adds a flag to a flaggable item.
 // Returns whether flag count threshold is reached and item can be hidden.
-//
 // Panics if flag count threshold was already reached.
-func flagItem(item Flaggable, flag Flag, threshold int) bool {
+func flagItem(item Flaggable, user std.Address, reason string, threshold int) bool {
 	if item.FlagsCount() >= threshold {
 		panic("item flag count threshold exceeded: " + strconv.Itoa(threshold))
 	}
 
-	if !item.AddFlag(flag) {
-		panic("item has been already flagged by a current user")
+	if !item.Flag(user, reason) {
+		panic("item has been already flagged by " + user.String())
 	}
 
 	return item.FlagsCount() == threshold

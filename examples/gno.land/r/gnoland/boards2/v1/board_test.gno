@@ -46,7 +46,7 @@ func TestBoard_GetThread(t *testing.T) {
 	uassert.False(t, ok)
 
 	post := b.AddThread(addr, "foo", "bar")
-	_, ok = b.GetThread(post.GetPostID())
+	_, ok = b.GetThread(post.ID)
 	uassert.True(t, ok)
 }
 
@@ -56,11 +56,9 @@ func TestBoard_DeleteThread(t *testing.T) {
 	b := newBoard(1, "test123", addr, perms)
 
 	post := b.AddThread(addr, "foo", "bar")
-	id := post.GetPostID()
+	b.DeleteThread(post.ID)
 
-	b.DeleteThread(id)
-
-	_, ok := b.GetThread(id)
+	_, ok := b.GetThread(post.ID)
 	uassert.False(t, ok)
 }
 
