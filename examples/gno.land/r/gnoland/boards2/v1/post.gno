@@ -40,7 +40,6 @@ type Post struct {
 	threadID      PostID  // original Post.id
 	parentID      PostID  // parent Post.id (if reply or repost)
 	repostBoardID BoardID // original Board.id (if repost)
-	repostsCount  uint64
 	createdAt     time.Time
 	updatedAt     time.Time
 }
@@ -187,7 +186,6 @@ func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 		panic("cannot repost non-thread post")
 	}
 
-	post.repostsCount++
 	dst.threads.Set(repost.id.Key(), repost)
 	post.reposts.Set(dst.id.Key(), repost.id)
 }
@@ -405,9 +403,9 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(newLink("#"+post.id.String(), post.GetURL()))
 	}
 
-	if post.repostsCount > 0 {
+	if post.reposts.Size() > 0 {
 		sb.WriteString(", ")
-		sb.WriteString(strconv.FormatUint(post.repostsCount, 10))
+		sb.WriteString(strconv.Itoa(post.reposts.Size()))
 		sb.WriteString(" repost(s)")
 	}
 
