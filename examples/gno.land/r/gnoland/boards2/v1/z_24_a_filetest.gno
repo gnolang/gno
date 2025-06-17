@@ -24,8 +24,8 @@ func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	boards2.IterateBoards(0, func(b *boards2.Board) bool {
-		println(b.GetID().String())
-		println(b.GetName())
+		println(b.ID.String())
+		println(b.Name)
 
 		b.IterateMembers(0, b.MembersCount(), func(member std.Address, r []boards2.Role) {
 			println(member, string(r[0]))

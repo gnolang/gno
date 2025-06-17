@@ -33,15 +33,15 @@ type Post struct {
 	Body          string
 	Hidden        bool
 	Readonly      bool
-	ThreadID      PostID  // original Post.id
-	ParentID      PostID  // parent Post.id (if reply or repost)
-	RepostBoardID BoardID // original Board.id (if repost)
+	ThreadID      PostID  // Original Post.ID
+	ParentID      PostID  // Parent Post.ID (if reply or repost)
+	RepostBoardID BoardID // Original Board.ID (if repost)
 	UpdatedAt     time.Time
 
 	flags      avl.Tree // std.Address -> string(reason)
-	replies    avl.Tree // Post.id -> *Post
-	repliesAll avl.Tree // Post.id -> *Post (all replies, for top-level posts)
-	reposts    avl.Tree // Board.id -> Post.id
+	replies    avl.Tree // Post.ID -> *Post
+	repliesAll avl.Tree // Post.ID -> *Post (all replies, for top-level posts)
+	reposts    avl.Tree // Board.ID -> Post.ID
 	createdAt  time.Time
 }
 
@@ -91,7 +91,7 @@ func (post *Post) FlagsCount() int {
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
 	board := post.Board
-	pid := board.incGetPostID()
+	pid := board.generateNextPostID()
 	pKey := pid.Key()
 	reply := newPost(board, post.ThreadID, pid, creator, "", body)
 	reply.ParentID = post.ID
@@ -124,7 +124,7 @@ func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 	}
 
 	dst.threads.Set(repost.ID.Key(), repost)
-	post.reposts.Set(dst.id.Key(), repost.ID)
+	post.reposts.Set(dst.ID.Key(), repost.ID)
 }
 
 func (post *Post) DeleteReply(replyID PostID) error {
@@ -172,7 +172,7 @@ func (post *Post) GetReplyFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"CreateReply",
-			"boardID", post.Board.id.String(),
+			"boardID", post.Board.ID.String(),
 			"threadID", post.ThreadID.String(),
 			"replyID", "0",
 			"body", "",
@@ -180,7 +180,7 @@ func (post *Post) GetReplyFormURL() string {
 	}
 	return gRealmLink.Call(
 		"CreateReply",
-		"boardID", post.Board.id.String(),
+		"boardID", post.Board.ID.String(),
 		"threadID", post.ThreadID.String(),
 		"replyID", post.ID.String(),
 		"body", "",
@@ -190,7 +190,7 @@ func (post *Post) GetReplyFormURL() string {
 func (post *Post) GetRepostFormURL() string {
 	return gRealmLink.Call(
 		"CreateRepost",
-		"boardID", post.Board.id.String(),
+		"boardID", post.Board.ID.String(),
 		"threadID", post.ID.String(),
 		"title", "",
 		"body", "",
@@ -202,13 +202,13 @@ func (post *Post) GetDeleteFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"DeleteThread",
-			"boardID", post.Board.id.String(),
+			"boardID", post.Board.ID.String(),
 			"threadID", post.ThreadID.String(),
 		)
 	}
 	return gRealmLink.Call(
 		"DeleteReply",
-		"boardID", post.Board.id.String(),
+		"boardID", post.Board.ID.String(),
 		"threadID", post.ThreadID.String(),
 		"replyID", post.ID.String(),
 	)
@@ -218,7 +218,7 @@ func (post *Post) GetEditFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"EditThread",
-			"boardID", post.Board.id.String(),
+			"boardID", post.Board.ID.String(),
 			"threadID", post.ThreadID.String(),
 			"title", post.Title,
 			"body", post.Body,
@@ -227,7 +227,7 @@ func (post *Post) GetEditFormURL() string {
 
 	return gRealmLink.Call(
 		"EditReply",
-		"boardID", post.Board.id.String(),
+		"boardID", post.Board.ID.String(),
 		"threadID", post.ThreadID.String(),
 		"replyID", post.ID.String(),
 		"body", post.Body,
@@ -238,7 +238,7 @@ func (post *Post) GetFlagFormURL() string {
 	if post.IsThread() {
 		return gRealmLink.Call(
 			"FlagThread",
-			"boardID", post.Board.id.String(),
+			"boardID", post.Board.ID.String(),
 			"threadID", post.ThreadID.String(),
 			"reason", "",
 		)
@@ -246,7 +246,7 @@ func (post *Post) GetFlagFormURL() string {
 
 	return gRealmLink.Call(
 		"FlagReply",
-		"boardID", post.Board.id.String(),
+		"boardID", post.Board.ID.String(),
 		"threadID", post.ThreadID.String(),
 		"replyID", post.ID.String(),
 		"reason", "",
@@ -261,7 +261,7 @@ func (post *Post) RenderSummary() string {
 	)
 
 	b.WriteString("**≡ " + newLink(summaryOf(title, 80), postURL) + "**  \n")
-	b.WriteString("Created by " + newUserLink(post.Creator) + " on " + post.createdAt.Format(dateFormat))
+	b.WriteString("Created by " + newUserLink(post.Creator) + " on " + post.CreatedAt().Format(dateFormat))
 	b.WriteString("  \n**")
 	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
 	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts**\n")
@@ -335,7 +335,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	sb.WriteString("Created by ")
 	sb.WriteString(newUserLink(post.Creator))
 	sb.WriteString(" on ")
-	sb.WriteString(post.createdAt.Format(dateFormat))
+	sb.WriteString(post.CreatedAt().Format(dateFormat))
 
 	// Add a reply view link to each top level reply
 	if !post.IsThread() {
@@ -357,7 +357,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(newLink("Repost", post.GetRepostFormURL()))
 	}
 
-	isReadonly := post.Readonly || post.Board.IsReadonly()
+	isReadonly := post.Readonly || post.Board.Readonly
 	if !isReadonly {
 		sb.WriteString(" • ")
 		sb.WriteString(newLink("Reply", post.GetReplyFormURL()))
