@@ -35,17 +35,19 @@ func (b *buffer) writeRune(r rune) {
 }
 
 // the different flags
+type flag uint8
 const (
-	flagHashtag uint8 = 1
-	flagZero    uint8 = 1 << 1
-	flagMinus   uint8 = 1 << 2
-	flagSpace   uint8 = 1 << 3
-	flagPlus    uint8 = 1 << 4
+	flagHashtag flag = 1 << iota
+	flagZero
+	flagMinus
+	flagSpace
+	flagPlus
 )
 
 // the different len modifiers
+type lengthModifier uint8
 const (
-	lenNo uint8 = iota
+	lenNo lengthModifier = iota
 	lenHH
 	lenH
 	lenL
@@ -54,9 +56,9 @@ const (
 )
 
 type printerMeta struct {
-	flags     uint8
+	flags     flag
 	padding   uint
-	length    uint8
+	length    lengthModifier
 	width     uint
 	precision int
 }
@@ -92,14 +94,14 @@ func ptrForward(ptr *int, runes []rune, inc int) {
 	*ptr += inc
 }
 
-var c2f = map[rune]uint8{
+var c2f = map[rune]flag{
 	'-': flagMinus,
 	'+': flagPlus,
 	' ': flagSpace,
 	'0': flagZero,
 }
 
-var lenMap = map[string]uint8{
+var lenMap = map[string]lengthModifier{
 	"ll": lenLL,
 	"l":  lenL,
 	"h":  lenH,
