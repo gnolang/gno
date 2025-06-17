@@ -45,7 +45,7 @@ func renderHomePage() string {
 
 	for i := len(entries) - 1; i >= 0; i-- {
 		user := entries[i].(string)
-		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Bold(user), user)
+		out += ufmt.Sprintf("- User [%s](/u/%s)\n", md.Bold(user), user)
 	}
 
 	return out
@@ -70,8 +70,10 @@ will gain permission to deploy packages and realms to package paths with the pat
 	out += md.Paragraph("In later versions of the registry, vanity usernames will be allowed through specific mechanisms.")
 
 	if !paused {
-		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.Call("Register")))
-		out += ufmt.Sprintf("Registration price: %f GNOT (%dugnot)\n\n", float64(registerPrice)/1_000_000, registerPrice)
+		amount := ufmt.Sprintf("%dugnot", registerPrice)
+		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.NewLink("Register").SetSend(amount).URL()))
+		// XXX: Display registration price adjusting for dynamic GNOT price when it becomes possible.
+		out += ufmt.Sprintf("Registration price: %f GNOT (%s)\n\n", float64(registerPrice)/1_000_000, amount)
 	}
 
 	out += md.HorizontalRule()
@@ -106,7 +108,7 @@ func renderUserPage(path string) string {
 
 	if isName && !isLatest {
 		out += md.Paragraph(ufmt.Sprintf(
-			"Note: You searched for `%s`, which is a previous name of [`%s`](/r/gnoland/users/v1:%s).",
+			"Note: You searched for `%s`, which is a previous name of [`%s`](/u/%s).",
 			path, data.Name(), data.Name()))
 	} else {
 		out += ufmt.Sprintf("Address: %s\n\n", data.Addr().String())

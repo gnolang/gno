@@ -11,9 +11,6 @@ const (
 	// StoreKey is string representation of the store key for auth
 	StoreKey = "acc"
 
-	// FeeCollectorName the root string for the fee collector account address
-	FeeCollectorName = "fee_collector"
-
 	// QuerierRoute is the querier route for acc
 	QuerierRoute = StoreKey
 
@@ -38,15 +35,4 @@ func AddressStoreKey(addr crypto.Address) []byte {
 // SessionStoreKey turn a pubkey to key used to get it from the session store
 func SessionStoreKey(pubkey crypto.PubKey) []byte {
 	return append([]byte(SessionStoreKeyPrefix), pubkey.Bytes()...)
-}
-
-// NOTE: do not modify.
-// XXX: consider parameterization at the keeper level.
-var feeCollector crypto.Address
-
-func FeeCollectorAddress() crypto.Address {
-	if feeCollector.IsZero() {
-		feeCollector = crypto.AddressFromPreimage([]byte(FeeCollectorName))
-	}
-	return feeCollector
 }

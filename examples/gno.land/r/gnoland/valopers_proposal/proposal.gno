@@ -4,11 +4,10 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
 	pVals "gno.land/p/sys/validators"
 	valopers "gno.land/r/gnoland/valopers"
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/r/gov/dao"
 	validators "gno.land/r/sys/validators/v2"
 )
 
@@ -17,15 +16,15 @@ var (
 	ErrSameValues       = errors.New("the valoper has the same voting power and pubkey")
 )
 
-// ProposeNewValidator creates a proposal to the GovDAO
+// NewValidatorProposalRequest creates a proposal request to the GovDAO
 // for adding the given valoper to the validator set.
-func ProposeNewValidator(address std.Address) {
+func NewValidatorProposalRequest(cur realm, address_XXX std.Address) dao.ProposalRequest {
 	var (
-		valoper     = valopers.GetByAddr(address)
+		valoper     = valopers.GetByAddr(address_XXX)
 		votingPower = uint64(1)
 	)
 
-	exist := validators.IsValidator(address)
+	exist := validators.IsValidator(address_XXX)
 
 	// Determine the voting power
 	if !valoper.KeepRunning {
@@ -36,7 +35,7 @@ func ProposeNewValidator(address std.Address) {
 	}
 
 	if exist {
-		validator := validators.GetValidator(address)
+		validator := validators.GetValidator(address_XXX)
 		if validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
 			panic(ErrSameValues)
 		}
@@ -52,9 +51,6 @@ func ProposeNewValidator(address std.Address) {
 		}
 	}
 
-	// Create the executor
-	executor := validators.NewPropExecutor(changesFn)
-
 	// Craft the proposal title
 	title := ufmt.Sprintf(
 		"Add valoper %s to the valset",
@@ -67,48 +63,32 @@ func ProposeNewValidator(address std.Address) {
 		valoper.Render(),
 	)
 
-	prop := dao.ProposalRequest{
-		Title:       title,
-		Description: description,
-		Executor:    executor,
-	}
-
-	// Create the govdao proposal
-	bridge.GovDAO().Propose(prop)
+	// Create the request
+	return validators.NewPropRequest(changesFn, title, description)
 }
 
-// ProposeNewInstructions creates a proposal to the GovDAO
+// ProposeNewInstructionsProposalRequest creates a proposal to the GovDAO
 // for updating the realm instructions.
-func ProposeNewInstructions(newInstructions string) {
-	executor := valopers.NewInstructionsExecutor(newInstructions)
-
+func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
+	cb := valopers.NewInstructionsProposalCallback(newInstructions)
 	// Create a proposal
 	title := "/p/gnoland/valopers: Update instructions"
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
-	prop := dao.ProposalRequest{
-		Title:       title,
-		Description: description,
-		Executor:    executor,
-	}
+	e := dao.NewSimpleExecutor(cb, "")
 
-	bridge.GovDAO().Propose(prop)
+	return dao.NewProposalRequest(title, description, e)
 }
 
 // ProposeNewMinFee creates a proposal to the GovDAO
 // for updating the minimum fee to register a new valoper.
-func ProposeNewMinFee(newMinFee int64) {
-	executor := valopers.NewMinFeeExecutor(newMinFee)
-
+func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
+	cb := valopers.NewMinFeeProposalCallback(newMinFee)
 	// Create a proposal
 	title := "/p/gnoland/valopers: Update minFee"
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 
-	prop := dao.ProposalRequest{
-		Title:       title,
-		Description: description,
-		Executor:    executor,
-	}
+	e := dao.NewSimpleExecutor(cb, "")
 
-	bridge.GovDAO().Propose(prop)
+	return dao.NewProposalRequest(title, description, e)
 }

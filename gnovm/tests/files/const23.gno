@@ -8,4 +8,7 @@ func main() {
 }
 
 // Error:
-// main/files/const23.gno:6:8: invalid constant type []string
+// main/const23.gno:6:8-31: invalid constant type []string
+
+// TypeCheckError:
+// main/const23.gno:6:10: invalid constant type []string

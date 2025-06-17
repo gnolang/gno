@@ -1,14 +1,21 @@
 // PKGPATH: gno.land/r/gnoland/valopers_proposal_test
-package valopers_proposal_test
-
 // SEND: 20000000ugnot
+
+package valopers_proposal_test
 
 import (
 	"std"
+	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gnoland/valopers_proposal"
-	_ "gno.land/r/gov/dao/init" // so that the govdao initializer is executed
+	"gno.land/r/gov/dao"
+	daoinit "gno.land/r/gov/dao/v3/init"
+)
+
+var (
+	g1user = testutils.TestAddress("g1user")
 )
 
 const (
@@ -20,17 +27,22 @@ const (
 )
 
 func init() {
+	testing.SetOriginCaller(g1user)
+	daoinit.InitWithUsers(g1user)
 }
 
 func main() {
+	testing.SetOriginCaller(g1user)
 	// Register a validator
-	valopers.Register(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 	// Try to make a proposal for a non-existing validator
-	defer func() {
-		r := recover()
-		println("r: ", r)
-	}()
-	valopers_proposal.ProposeNewValidator(otherAddress)
+
+	if err := revive(func() {
+		pr := valopers_proposal.NewValidatorProposalRequest(cross, otherAddress)
+		dao.MustCreateProposal(cross, pr)
+	}); err != nil {
+		println("r: ", err)
+	}
 }
 
 // Output:

@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/range8.gno:4:2: cannot range over nil
+// main/range8.gno:4:2-6:3: cannot range over nil
+
+// TypeCheckError:
+// main/range8.gno:4:20: cannot range over nil

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	r "github.com/gnolang/gno/tm2/pkg/regx"
 )
 
 // NOTE: TypeID() implementations are currently
@@ -23,7 +25,8 @@ type Type interface {
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types
 	GetPkgPath() string
-	IsNamed() bool // named vs unname type. property as a method
+	IsNamed() bool     // named vs unname type. property as a method
+	IsImmutable() bool // immutable types
 }
 
 type TypeID string
@@ -78,6 +81,25 @@ func (blockType) assertType()      {}
 func (heapItemType) assertType()   {}
 func (*tupleType) assertType()     {}
 func (RefType) assertType()        {}
+
+// IsImmutable
+func (PrimitiveType) IsImmutable() bool    { return true }
+func (*PointerType) IsImmutable() bool     { return false }
+func (FieldType) IsImmutable() bool        { panic("should not happen") }
+func (*ArrayType) IsImmutable() bool       { return false }
+func (*SliceType) IsImmutable() bool       { return false }
+func (*StructType) IsImmutable() bool      { return false }
+func (*FuncType) IsImmutable() bool        { return true }
+func (*MapType) IsImmutable() bool         { return false }
+func (*InterfaceType) IsImmutable() bool   { return false } // preprocessor only
+func (*TypeType) IsImmutable() bool        { return true }
+func (dt *DeclaredType) IsImmutable() bool { return dt.Base.IsImmutable() }
+func (*PackageType) IsImmutable() bool     { return false }
+func (*ChanType) IsImmutable() bool        { return true }
+func (blockType) IsImmutable() bool        { return false }
+func (heapItemType) IsImmutable() bool     { return false }
+func (*tupleType) IsImmutable() bool       { panic("should not happen") }
+func (RefType) IsImmutable() bool          { panic("should not happen") }
 
 // ----------------------------------------
 // Primitive types
@@ -313,7 +335,7 @@ func (pt PrimitiveType) Elem() Type {
 }
 
 func (pt PrimitiveType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (pt PrimitiveType) IsNamed() bool {
@@ -528,7 +550,7 @@ func (at *ArrayType) Elem() Type {
 }
 
 func (at *ArrayType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (at *ArrayType) IsNamed() bool {
@@ -556,11 +578,8 @@ func (st *SliceType) Kind() Kind {
 
 func (st *SliceType) TypeID() TypeID {
 	if st.typeid.IsZero() {
-		if st.Vrd {
-			st.typeid = typeidf("...%s", st.Elt.TypeID().String())
-		} else {
-			st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
-		}
+		// same whether .Vrd or not.
+		st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
 	}
 	return st.typeid
 }
@@ -578,7 +597,7 @@ func (st *SliceType) Elem() Type {
 }
 
 func (st *SliceType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (st *SliceType) IsNamed() bool {
@@ -860,10 +879,6 @@ func (pt *PackageType) Kind() Kind {
 
 func (pt *PackageType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		// NOTE Different package types may have the same
-		// TypeID if and only if neither have unexported fields.
-		// pt.Path is only included in field names that are not
-		// uppercase.
 		pt.typeid = typeid("package{}")
 	}
 	return pt.typeid
@@ -923,6 +938,16 @@ func (it *InterfaceType) TypeID() TypeID {
 		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
 	}
 	return it.typeid
+}
+
+func (it *InterfaceType) GetMethodFieldType(mname Name) *FieldType {
+	for i := range it.Methods {
+		im := &it.Methods[i]
+		if im.Name == mname {
+			return im
+		}
+	}
+	return nil
 }
 
 func (it *InterfaceType) String() string {
@@ -1086,7 +1111,7 @@ func (ct *ChanType) Elem() Type {
 }
 
 func (ct *ChanType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (ct *ChanType) IsNamed() bool {
@@ -1102,8 +1127,6 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
-
-	IsClosure bool
 }
 
 // true for predefined func types that are not filled in yet.
@@ -1128,7 +1151,7 @@ func (ft *FuncType) Kind() Kind {
 	return FuncKind
 }
 
-// bound function type (if ft is a method).
+// bound function type w/o receiver (if ft is a method).
 func (ft *FuncType) BoundType() *FuncType {
 	if ft.bound == nil {
 		ft.bound = &FuncType{
@@ -1255,16 +1278,9 @@ func (ft *FuncType) TypeID() TypeID {
 	// this exchangeability is useful to denote type semantics.
 	ps := FieldTypeList(ft.Params)
 	rs := FieldTypeList(ft.Results)
-	/*
-		pp := ""
-		if ps.HasUnexported() || rs.HasUnexported() {
-			pp = fmt.Sprintf("@%q", ft.PkgPath)
-		}
-	*/
 	if ft.typeid.IsZero() {
 		ft.typeid = typeidf(
 			"func(%s)(%s)",
-			// pp,
 			ps.UnnamedTypeID(),
 			rs.UnnamedTypeID(),
 		)
@@ -1275,12 +1291,15 @@ func (ft *FuncType) TypeID() TypeID {
 func (ft *FuncType) String() string {
 	switch len(ft.Results) {
 	case 0:
+		// XXX add ->()
 		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc())
 	case 1:
+		// XXX add ->()
 		return fmt.Sprintf("func(%s) %s",
 			FieldTypeList(ft.Params).StringForFunc(),
 			ft.Results[0].Type.String())
 	default:
+		// XXX make ()->()
 		return fmt.Sprintf("func(%s) (%s)",
 			FieldTypeList(ft.Params).StringForFunc(),
 			FieldTypeList(ft.Results).StringForFunc())
@@ -1309,6 +1328,15 @@ func (ft *FuncType) HasVarg() bool {
 		} else {
 			return false
 		}
+	}
+}
+
+func (ft *FuncType) IsCrossing() bool {
+	if numParams := len(ft.Params); numParams == 0 {
+		return false
+	} else {
+		fpt := ft.Params[0].Type
+		return fpt == gRealmType
 	}
 }
 
@@ -1348,7 +1376,7 @@ func (mt *MapType) Elem() Type {
 }
 
 func (mt *MapType) GetPkgPath() string {
-	return ""
+	return "" // XXX panic?
 }
 
 func (mt *MapType) IsNamed() bool {
@@ -1393,23 +1421,34 @@ func (tt *TypeType) IsNamed() bool {
 // and associated methods.
 
 type DeclaredType struct {
-	PkgPath string
-	Name    Name
-	Base    Type         // not a DeclaredType
-	Methods []TypedValue // {T:*FuncType,V:*FuncValue}...
+	PkgPath   string
+	Name      Name         // name of declaration
+	ParentLoc Location     // for disambiguation
+	Base      Type         // not a DeclaredType
+	Methods   []TypedValue // {T:*FuncType,V:*FuncValue}...
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
 }
 
-// returns an unsealed *DeclaredType.
-// do not use for aliases.
-func declareWith(pkgPath string, name Name, b Type) *DeclaredType {
+// Returns an unsealed *DeclaredType.
+// Do not use for aliases.
+func declareWith(pkgPath string, parent BlockNode, name Name, b Type) *DeclaredType {
+	ploc := Location{}
+	switch parent.(type) {
+	case *PackageNode, *FileNode:
+		// keep blank.
+	case *FuncDecl, *FuncLitExpr:
+		ploc = parent.GetLocation()
+	default:
+		panic(fmt.Sprintf("expected type expr but got %T", parent))
+	}
 	dt := &DeclaredType{
-		PkgPath: pkgPath,
-		Name:    name,
-		Base:    baseOf(b),
-		sealed:  false,
+		PkgPath:   pkgPath,
+		Name:      name,
+		ParentLoc: ploc,
+		Base:      baseOf(b),
+		sealed:    false,
 	}
 	return dt
 }
@@ -1457,17 +1496,44 @@ func (dt *DeclaredType) checkSeal() {
 
 func (dt *DeclaredType) TypeID() TypeID {
 	if dt.typeid.IsZero() {
-		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.Name)
+		dt.typeid = DeclaredTypeID(dt.PkgPath, dt.ParentLoc, dt.Name)
+	} else {
+		// XXX delete this if tests pass.
+		if dt.typeid != DeclaredTypeID(dt.PkgPath, dt.ParentLoc, dt.Name) {
+			panic("should not happen")
+		}
 	}
 	return dt.typeid
 }
 
-func DeclaredTypeID(pkgPath string, name Name) TypeID {
-	return typeidf("%s.%s", pkgPath, name)
+var Re_declaredTypeID = r.G(
+	r.N("PATH", r.P(r.CN(r.E(`[.`)))),
+	r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
+	r.E(`.`),
+	r.N("NAME", r.P(`.`)))
+
+func ParseDeclaredTypeID(tid string) (pkgPath string, loc string, name string, ok bool) {
+	match := Re_declaredTypeID.Match(tid)
+	if match == nil {
+		return
+	}
+	return match.Get("PATH"), match.Get("LOC"), match.Get("NAME"), true
+}
+
+func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
+	if loc.IsZero() { // package/file decl
+		return typeidf("%s.%s", pkgPath, name)
+	} else {
+		return typeidf("%s[%s].%s", pkgPath, loc.String(), name)
+	}
 }
 
 func (dt *DeclaredType) String() string {
-	return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+	if dt.ParentLoc.IsZero() {
+		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
+	} else {
+		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name)
+	}
 }
 
 func (dt *DeclaredType) Elem() Type {
@@ -1640,7 +1706,6 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 // The Preprocesses uses *DT.FindEmbeddedFieldType() to set the path.
 // OpSelector uses *TV.GetPointerTo(path), and for declared types, in turn
 // uses *DT.GetValueAt(path) to find any methods (see values.go).
-//
 // i.e.,
 //
 //	preprocessor: *DT.FindEmbeddedFieldType(name)
@@ -1648,6 +1713,9 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 //
 //	     runtime: *TV.GetPointerTo(path)
 //	               -> *DT.GetValueAt(path)
+//
+// NOTE: You cannot use the result to modify the method value as they will be
+// copied.
 func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
@@ -1657,10 +1725,10 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			mtv := dt.Methods[path.Index]
-			// Fill in *FV.Closure.
+			// Fill in *FV.Parent.
 			ft := mtv.T
 			fv := mtv.V.(*FuncValue).Copy(alloc)
-			fv.Closure = fv.GetClosure(store)
+			fv.Parent = fv.GetParent(store)
 			return TypedValue{T: ft, V: fv}
 		} else {
 			panic("DeclaredType.GetValueAt() expects depth == 0")
@@ -1672,7 +1740,7 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	}
 }
 
-// Like GetValueAt, but doesn't fill *FuncValue closures.
+// Like GetValueAt, but doesn't fill *FuncValue parent blocks.
 func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
@@ -2066,6 +2134,7 @@ func fillEmbeddedName(ft *FieldType) {
 		case *DeclaredType:
 			ft.Name = ct.Name
 		default:
+			// should not happen,
 			panic("should not happen")
 		}
 	case *DeclaredType:
