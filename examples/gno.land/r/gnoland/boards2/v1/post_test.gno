@@ -19,7 +19,7 @@ func TestPostFlag(t *testing.T) {
 	uassert.Equal(t, post.FlagsCount(), 1)
 }
 
-func TestPostAddRepostTo(t *testing.T) {
+func TestPostRepost(t *testing.T) {
 	// TODO: Improve this unit test
 	addr := testutils.TestAddress("creatorDstBoard")
 	perms := createBasicBoardPermissions(addr)
@@ -40,7 +40,7 @@ func TestPostAddRepostTo(t *testing.T) {
 		{
 			name:  "invalid repost from reply",
 			setup: func() *Post { return createTestReply(t) },
-			err:   "cannot repost non-thread post",
+			err:   "post must be a thread to be reposted to another board",
 		},
 	}
 
@@ -53,15 +53,7 @@ func TestPostAddRepostTo(t *testing.T) {
 			)
 
 			createRepost := func() {
-				var repostId PostID
-				if tc.dstBoard != nil {
-					repostId = tc.dstBoard.generateNextPostID()
-				}
-
-				repost = newPost(tc.dstBoard, repostId, repostId, creator, tc.title, tc.body)
-				repost.ParentID = thread.ID
-				repost.RepostBoardID = thread.Board.ID
-				thread.AddRepostTo(creator, repost, tc.dstBoard)
+				repost = thread.Repost(creator, tc.dstBoard, tc.title, tc.body)
 			}
 
 			if tc.err != "" {

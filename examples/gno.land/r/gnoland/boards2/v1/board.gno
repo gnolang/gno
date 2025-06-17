@@ -110,7 +110,7 @@ func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
 	return v.(*Post), true
 }
 
-func (board *Board) AddThread(creator std.Address, title string, body string) *Post {
+func (board *Board) AddThread(creator std.Address, title, body string) *Post {
 	pid := board.generateNextPostID()
 	thread := newPost(board, pid, pid, creator, title, body)
 	board.threads.Set(pid.Key(), thread)
