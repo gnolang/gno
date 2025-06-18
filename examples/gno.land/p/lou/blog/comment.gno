@@ -14,7 +14,7 @@ type Comment struct {
 	author    string
 	content   string
 	createdAt time.Time
-	editedAt  *time.Time
+	editedAt  *time.Time // nil if unedited
 	pinned    bool
 	likes     int
 	RepliesId seqid.ID
@@ -24,7 +24,6 @@ type Comment struct {
 	DisableLikes bool
 }
 
-// Getters
 func (c Comment) ID() string {
 	return c.id.String()
 }
@@ -95,12 +94,42 @@ func (c *Comment) AddReply(reply *Comment) error {
 	if c.Replies == nil {
 		c.Replies = avl.NewTree()
 	}
-	c.RepliesId.Next()
-	reply.SetID(c.RepliesId)
+	reply.SetID(c.RepliesId.Next())
 	if !c.Replies.Set(c.RepliesId.String(), reply) {
 		return ErrCommentAddFailed
 	}
 	return nil
+}
+
+func (c *Comment) EditReplyByID(id, content string) error { // NECESSARY?
+	reply, err := GetReplyByID(id)
+	if err != nil {
+		return err
+	}
+	err = c.Edit(content)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Comment) DeleteReplyByID(id string) error { // NECESSARY?
+	reply, err := GetReplyByID(id)
+	if err != nil {
+		return err
+	}
+	if !c.Replies.Remove(reply.ID()) {
+		return ErrCommentAddFailed
+	}
+	return nil
+}
+
+func (c Comment) GetReplyByID(id string) (*Comment, error) { // NECESSARY?
+	reply, found := c.Replies.Get(id)
+	if !found {
+		return nil, ErrCommentNotFound
+	}
+	return reply.(*Comment), nil
 }
 
 func (c *Comment) Pin() {

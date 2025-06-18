@@ -59,16 +59,16 @@ func (p Post) PublishedAt() time.Time {
 	return p.publishedAt
 }
 
-func (p Post) Publisher() string {
-	return p.publisher
+func (p Post) Tags() []string {
+	return p.tags
 }
 
 func (p Post) Authors() []string {
 	return p.authors
 }
 
-func (p Post) Tags() []string {
-	return p.tags
+func (p Post) Publisher() string {
+	return p.publisher
 }
 
 func (p Post) Likes() int {
@@ -124,28 +124,28 @@ func (p *Post) AddComment(comment *Comment) error {
 		return err
 	}
 	comment.author = user
-	p.CommentsId.Next()
-	comment.SetID(p.CommentsId)
+
+	comment.SetID(p.CommentsId.Next())
 	if !p.Comments.Set(p.CommentsId.String(), comment) {
 		return ErrCommentAddFailed
 	}
 	return nil
 }
 
-func (p *Post) EditComment(id string, content string) error {
-	comment, exists := p.Comments.Get(id)
-	if !exists {
-		return ErrCommentNotFound
+func (p *Post) EditCommentByID(id string, content string) error {
+	comment, err := p.GetCommentByID(id)
+	if err != nil {
+		return err
 	}
-	if err := comment.(*Comment).Edit(content); err != nil {
+	if err := comment.Edit(content); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (p *Post) DeleteCommentById(id string) error {
-	if _, exists := p.Comments.Get(id); !exists {
-		return ErrCommentNotFound
+	if _, err := p.GetPostByID(id); err != nil {
+		return err
 	}
 	_, removed := p.Comments.Remove(id)
 	if !removed {
@@ -155,16 +155,20 @@ func (p *Post) DeleteCommentById(id string) error {
 }
 
 func (p *Post) PinCommentById(id string) error {
-	comment, exists := p.Comments.Get(id)
-	if !exists {
+	comment, err := p.GetCommentByID(id)
+	if err != nil {
 		return ErrCommentNotFound
 	}
-	comment.(*Comment).Pin()
+	comment.Pin()
 	return nil
 }
 
-func (p *Post) SetPreviewFooter(footer string) {
-	p.previewFooter = footer
+func (p Post) GetCommentByID(id string) error {
+	comment, found := p.Comments.Get(id)
+	if !found {
+		return nil, ErrCommentNotFound
+	}
+	return comment.(*Comment), nil
 }
 
 func (p Post) GetCommentsByAuthor(author string) []*Comment {
@@ -178,6 +182,10 @@ func (p Post) GetCommentsByAuthor(author string) []*Comment {
 		return false
 	})
 	return comments
+}
+
+func (p *Post) SetPreviewFooter(footer string) {
+	p.previewFooter = footer
 }
 
 func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
@@ -208,7 +216,7 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 }
 
 func (p Post) RenderPost(prefix string) string {
-	resolvedAuthors := resolveAuthors(p.Authors(), p.UserResolver)
+	resolvedAuthors := p.resolveAuthors(p.Authors())
 	out := md.H1(p.Title()) + "\n\n"
 	if p.Comments.Size() > 0 {
 		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comment(s)", "#comments") + "\n\n"
@@ -271,10 +279,10 @@ func (p Post) getReplies(replies *avl.Tree, author string) []*Comment {
 	return comments
 }
 
-func resolveAuthors(authors []string, resolver *UserResolver) []string {
+func (p Post) resolveAuthors(authors []string) []string {
 	var resolvedAuthors []string
 	for _, author := range authors {
-		user, err := CheckUser(author, resolver)
+		user, err := CheckUser(author, p.UserResolver)
 		if err == nil {
 			resolvedAuthors = append(resolvedAuthors, user)
 		} else {

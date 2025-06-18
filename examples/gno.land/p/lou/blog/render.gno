@@ -299,13 +299,13 @@ func (b Blog) renderCommenterItem(item pager.Item, options RenderOptions) string
 	postKey := parts[1]
 
 	var post interface{}
-	var ok bool
-	if post, ok = b.Posts.Get(postKey); !ok {
-		if post, ok = b.PostsBySlug.Get(postKey); !ok {
-			post, ok = b.PostsByUpdatedAt.Get(postKey)
+	var found bool
+	if post, found = b.Posts.Get(postKey); !found {
+		if post, found = b.PostsBySlug.Get(postKey); !found {
+			post, found = b.PostsByUpdatedAt.Get(postKey)
 		}
 	}
-	if !ok {
+	if !found {
 		return ""
 	}
 	p := post.(*Post)
@@ -348,4 +348,14 @@ func (b Blog) determinePager(options RenderOptions, field, value string) (*pager
 		return pager.NewPager(filteredPosts, pageSize, !options.Ascending), exists
 	}
 	return pager.NewPager(filteredPosts, pageSize, options.Ascending), exists
+}
+
+func orderArrow(targetSort, currentSort, order string) string {
+	if targetSort != currentSort {
+		return "↕"
+	}
+	if order == "asc" {
+		return "▲"
+	}
+	return "▼"
 }

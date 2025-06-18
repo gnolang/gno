@@ -12,7 +12,7 @@ import (
 
 type Blog struct {
 	Admin         ownable.Ownable
-	ModeratorList *avl.Tree // addr ---> permissions
+	ModeratorList *avl.Tree // addr --> permissions TO DO
 
 	title            string
 	prefix           string
@@ -25,7 +25,7 @@ type Blog struct {
 	AuthorsIndex     *avl.Tree // authorAddress --> int
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
-	// CustomHeader
+	// CustomHeader TO DO
 	previewFooter string // additional text, e.g. "via @lou" or txlink calls
 	DisableLikes  bool
 	UserResolver  *UserResolver
@@ -42,8 +42,8 @@ func (b Blog) Prefix() string {
 func NewBlog(title, prefix string) (*Blog, error) {
 	admin := *ownable.New()
 	moderators := avl.NewTree()
+	moderators.Set(admin.Owner().String(), Permission{Read: true, Write: true}) // TO DO (this is just an idea for now)
 
-	moderators.Set(admin.Owner().String(), Permission{Read: true, Write: true})
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
@@ -78,7 +78,7 @@ func (b *Blog) AddPost(post *Post) error {
 	if b.UserResolver != nil {
 		post.UserResolver = b.UserResolver
 	}
-	post.authors = resolveAuthors(post.Authors(), b.UserResolver)
+	post.authors = post.resolveAuthors(post.Authors())
 	post.publisher, _ = CheckUser(post.Publisher(), b.UserResolver)
 
 	b.addToIndex(post)
@@ -175,17 +175,17 @@ func (b Blog) GetPostBySlug(slug string) (*Post, error) {
 
 func (b *Blog) SetDisablePostLikes(disable bool) {
 	b.DisableLikes = disable
-	b.Posts.ReverseIterate("", "", func(_ string, value any) bool {
+	b.Posts.Iterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
 		post.DisableLikes = disable
 		return false
 	})
-	b.PostsBySlug.ReverseIterate("", "", func(_ string, value any) bool {
+	b.PostsBySlug.Iterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
 		post.DisableLikes = disable
 		return false
 	})
-	b.PostsByUpdatedAt.ReverseIterate("", "", func(_ string, value any) bool {
+	b.PostsByUpdatedAt.Iterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
 		post.DisableLikes = disable
 		return false
@@ -194,6 +194,29 @@ func (b *Blog) SetDisablePostLikes(disable bool) {
 
 func (b *Blog) SetUserResolver(resolver UserResolver) {
 	b.UserResolver = &resolver
+}
+
+func (b *Blog) addToIndex(post *Post) {
+	for _, tag := range post.Tags() {
+		oldCount := 0
+		if val, found := b.TagsIndex.Get(tag); found {
+			oldCount = val.(int)
+			b.TagsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, tag))
+		}
+		newCount := oldCount + 1
+		b.TagsIndex.Set(tag, newCount)
+		b.TagsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, tag), newCount)
+	}
+	for _, author := range post.Authors() {
+		oldCount := 0
+		if val, found := b.AuthorsIndex.Get(author); found {
+			oldCount = val.(int)
+			b.AuthorsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, author))
+		}
+		newCount := oldCount + 1
+		b.AuthorsIndex.Set(author, newCount)
+		b.AuthorsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, author), newCount)
+	}
 }
 
 func (b Blog) Mention(role, recipient string) string {
@@ -223,7 +246,6 @@ func (b Blog) filterPostsStartEnd(tree *avl.Tree, start, end *time.Time) *avl.Tr
 }
 
 func (b Blog) filterPostsByField(field, value, sort string) (*avl.Tree, bool) {
-	commenterId := seqid.ID(0)
 	recentPosts := avl.NewTree()
 	alphaPosts := avl.NewTree()
 	updatedPosts := avl.NewTree()
@@ -247,12 +269,12 @@ func (b Blog) filterPostsByField(field, value, sort string) (*avl.Tree, bool) {
 		})
 
 	case "commenter":
+		commenterId := seqid.ID(0)
 		b.Posts.ReverseIterate("", "", func(k string, v interface{}) bool {
 			post := v.(*Post)
 			comments := post.GetCommentsByAuthor(value)
 			for _, comment := range comments {
-				commenterId.Next()
-				keyPrefix := commenterId.String() + "::"
+				keyPrefix := commenterId.Next().String() + "::"
 				recentPosts.Set(keyPrefix+post.ID(), comment)
 				alphaPosts.Set(keyPrefix+post.Slug(), comment)
 				updatedPosts.Set(keyPrefix+post.UpdatedAt().String(), comment)
@@ -283,27 +305,4 @@ func (b Blog) findPostBySlug(value string) (string, bool) {
 		return found
 	})
 	return foundKey, found
-}
-
-func (b *Blog) addToIndex(post *Post) {
-	for _, tag := range post.Tags() {
-		oldCount := 0
-		if val, found := b.TagsIndex.Get(tag); found {
-			oldCount = val.(int)
-			b.TagsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, tag))
-		}
-		newCount := oldCount + 1
-		b.TagsIndex.Set(tag, newCount)
-		b.TagsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, tag), newCount)
-	}
-	for _, author := range post.Authors() {
-		oldCount := 0
-		if val, found := b.AuthorsIndex.Get(author); found {
-			oldCount = val.(int)
-			b.AuthorsSorted.Remove(ufmt.Sprintf("%05d::%s", oldCount, author))
-		}
-		newCount := oldCount + 1
-		b.AuthorsIndex.Set(author, newCount)
-		b.AuthorsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, author), newCount)
-	}
 }

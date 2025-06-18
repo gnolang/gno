@@ -4,7 +4,7 @@ import (
 	"std"
 )
 
-type Permission struct {
+type Permission struct { // TO DO
 	Read  bool
 	Write bool
 }
@@ -22,7 +22,7 @@ func CheckUser(addr string, resolver *UserResolver) (string, error) {
 	if CheckAddr(addr) != nil {
 		return "", ErrInvalidCaller
 	}
-	if !IsRegistered(addr, resolver) {
+	if !isRegistered(addr, resolver) {
 		return addr, nil
 	}
 	resolveUser := *resolver
@@ -30,7 +30,7 @@ func CheckUser(addr string, resolver *UserResolver) (string, error) {
 	return userData, nil
 }
 
-func IsRegistered(addr string, resolver *UserResolver) bool { // to fix
+func isRegistered(addr string, resolver *UserResolver) bool { // TO FIX
 	if resolver == nil {
 		return false
 	}
