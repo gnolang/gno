@@ -17,10 +17,11 @@ type Comment struct {
 	editedAt  *time.Time
 	pinned    bool
 	likes     int
+	RepliesId seqid.ID
 	Replies   *avl.Tree // id --> *Comment
 
-	DisableLikes bool
 	footer       string // additional text, e.g. "via @lou" or txlink calls
+	DisableLikes bool
 }
 
 // Getters
@@ -67,6 +68,7 @@ func NewComment(author, content string) (*Comment, error) {
 		editedAt:     nil,
 		pinned:       false,
 		likes:        0,
+		RepliesId:    seqid.ID(0),
 		Replies:      avl.NewTree(),
 		footer:       "",
 		DisableLikes: false,
@@ -80,6 +82,24 @@ func (c *Comment) Edit(content string) error {
 	c.content = content
 	now := time.Now()
 	c.editedAt = &now
+	return nil
+}
+
+func (c *Comment) AddReply(reply *Comment) error {
+	if err := CheckAddr(reply.Author()); err != nil {
+		return err
+	}
+	if reply == nil {
+		return ErrEmptyComment
+	}
+	if c.Replies == nil {
+		c.Replies = avl.NewTree()
+	}
+	c.RepliesId.Next()
+	reply.SetID(c.RepliesId)
+	if !c.Replies.Set(c.RepliesId.String(), reply) {
+		return ErrCommentAddFailed
+	}
 	return nil
 }
 
@@ -101,19 +121,8 @@ func (c *Comment) RemoveLike() {
 	}
 }
 
-func (c *Comment) AddReply(reply *Comment) error {
-	if err := CheckAddr(reply.Author()); err != nil {
-		return err
-	}
-	if reply == nil {
-		return ErrEmptyComment
-	}
-	if c.Replies == nil {
-		c.Replies = avl.NewTree()
-	}
-	reply.id.Next()
-	c.Replies.Set(reply.ID(), reply)
-	return nil
+func (c *Comment) SetID(id seqid.ID) {
+	c.id = id
 }
 
 func (c *Comment) SetFooter(footer string) {
@@ -125,9 +134,8 @@ func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) s
 	for i := 0; i < depth; i++ {
 		prefix += "> "
 	}
-	out := ""
 	user, _ := CheckUser(c.Author(), resolver)
-	out += prefix + md.Bold(md.Link(user, blogPrefix+":commenters/"+user)) + " "
+	out := prefix + md.Bold(md.Link("@"+user, blogPrefix+":commenters/"+user)) + " "
 	if c.Pinned() {
 		out += "📌 "
 	}
@@ -145,7 +153,7 @@ func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) s
 	}
 
 	if c.Replies != nil && c.Replies.Size() > 0 {
-		c.Replies.Iterate("", "", func(key string, value any) bool {
+		c.Replies.ReverseIterate("", "", func(key string, value any) bool {
 			reply := value.(*Comment)
 			out += reply.Render(blogPrefix, depth+1, resolver)
 			return false

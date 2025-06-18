@@ -23,7 +23,7 @@ type Post struct {
 	authors     []string
 	publisher   string
 	likes       int
-	CommentId   seqid.ID
+	CommentsId  seqid.ID
 	Comments    *avl.Tree // id --> *Comment
 
 	previewFooter string // additional text, e.g. "via @lou" or txlink calls
@@ -110,7 +110,7 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 		authors:       authors,
 		publisher:     caller,
 		likes:         0,
-		CommentId:     seqid.ID(0),
+		CommentsId:    seqid.ID(0),
 		Comments:      avl.NewTree(),
 		previewFooter: "",
 		DisableLikes:  false,
@@ -119,11 +119,14 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 }
 
 func (p *Post) AddComment(comment *Comment) error {
-	if _, err := CheckUser(comment.Author(), p.UserResolver); err != nil {
+	user, err := CheckUser(comment.Author(), p.UserResolver)
+	if err != nil {
 		return err
 	}
-	p.CommentId.Next()
-	if !p.Comments.Set(p.CommentId.String(), comment) {
+	comment.author = user
+	p.CommentsId.Next()
+	comment.SetID(p.CommentsId)
+	if !p.Comments.Set(p.CommentsId.String(), comment) {
 		return ErrCommentAddFailed
 	}
 	return nil
@@ -171,14 +174,13 @@ func (p Post) GetCommentsByAuthor(author string) []*Comment {
 		if c.Author() == author {
 			comments = append(comments, c)
 		}
-		comments = append(comments, getReplies(c.Replies, author)...)
+		comments = append(comments, p.getReplies(c.Replies, author)...)
 		return false
 	})
 	return comments
 }
 
 func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
-	resolvedAuthors := resolveAuthors(p.Authors(), p.UserResolver)
 	out := md.H2(md.Link(p.Title(), prefix+":posts/"+p.Slug())) + "\n\n"
 	out += md.H5(md.Italic("/"+p.Slug())) + "\n\n"
 	if p.UpdatedAt() != p.CreatedAt() {
@@ -187,7 +189,7 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 		out += formatTime(p.CreatedAt(), timeFmt) + "\n\n"
 	}
 	if !gridMode {
-		out += md.Bold("author(s):") + " " + strings.Join(resolvedAuthors, ", ") + "\n\n"
+		out += md.Bold("author(s):") + " " + strings.Join(p.Authors(), ", ") + "\n\n"
 	}
 	if len(p.Tags()) > 0 {
 		out += md.Bold("tags:") + " `" + strings.Join(p.Tags(), "`, `") + "`\n\n"
@@ -219,13 +221,7 @@ func (p Post) RenderPost(prefix string) string {
 	if p.UpdatedAt() != p.CreatedAt() {
 		out += md.Bold("Last updated:") + " " + formatTime(p.UpdatedAt(), "full") + "\n\n"
 	}
-	out += md.Bold("Publisher:") + " "
-	userPublisher, _ := CheckUser(p.Publisher(), p.UserResolver)
-	if IsRegistered(p.Publisher(), p.UserResolver) {
-		out += md.Link(userPublisher, "/u/"+userPublisher) + "\n\n"
-	} else {
-		out += userPublisher + "\n\n"
-	}
+	out += md.Bold("Publisher:") + " " + md.Link(p.Publisher(), "/u/"+p.Publisher()) + "\n\n"
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags()) + "\n\n"
 	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes())
 	out += md.HorizontalRule()
@@ -256,11 +252,34 @@ func (p Post) RenderComments(prefix string) string {
 	return out
 }
 
+func (p Post) getReplies(replies *avl.Tree, author string) []*Comment {
+	var comments []*Comment
+	if replies == nil {
+		return comments
+	}
+	replies.ReverseIterate("", "", func(_ string, value any) bool {
+		comment := value.(*Comment)
+		currUser, _ := CheckUser(comment.Author(), p.UserResolver)
+		if comment.Author() == author || currUser == author {
+			comments = append(comments, comment)
+		}
+		if comment.Replies.Size() > 0 {
+			comments = append(comments, p.getReplies(comment.Replies, author)...)
+		}
+		return false
+	})
+	return comments
+}
+
 func resolveAuthors(authors []string, resolver *UserResolver) []string {
 	var resolvedAuthors []string
 	for _, author := range authors {
-		user, _ := CheckUser(author, resolver)
-		resolvedAuthors = append(resolvedAuthors, user)
+		user, err := CheckUser(author, resolver)
+		if err == nil {
+			resolvedAuthors = append(resolvedAuthors, user)
+		} else {
+			resolvedAuthors = append(resolvedAuthors, author)
+		}
 	}
 	return resolvedAuthors
 }
@@ -271,22 +290,4 @@ func renderTagLinks(prefix string, tags []string) string {
 
 func renderAuthorLinks(prefix string, authors []string) string {
 	return renderLinks(prefix, "authors", authors, "")
-}
-
-func getReplies(replies *avl.Tree, author string) []*Comment {
-	var comments []*Comment
-	if replies == nil {
-		return comments
-	}
-	replies.ReverseIterate("", "", func(_ string, value any) bool {
-		comment := value.(*Comment)
-		if comment.Author() == author {
-			comments = append(comments, comment)
-		}
-		if comment.Replies.Size() > 0 {
-			comments = append(comments, getReplies(comment.Replies, author)...)
-		}
-		return false
-	})
-	return comments
 }

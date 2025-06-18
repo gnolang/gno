@@ -30,7 +30,7 @@ func CheckUser(addr string, resolver *UserResolver) (string, error) {
 	return userData, nil
 }
 
-func IsRegistered(addr string, resolver *UserResolver) bool {
+func IsRegistered(addr string, resolver *UserResolver) bool { // to fix
 	if resolver == nil {
 		return false
 	}

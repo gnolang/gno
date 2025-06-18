@@ -139,12 +139,20 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(out)
 }
 
-func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
+func (b Blog) RenderFilterHeader(req *mux.Request, user string, isListing bool) string {
 	out := ""
-	if strings.Split(req.RawPath, "/")[0] == "commenters" {
-		out += md.H2(md.Link(b.Prefix(), b.Prefix()) + "/commenters/" + strings.Split(req.RawPath, "/")[1])
-	} else {
-		out += md.H2(renderBreadcrumb(b.Prefix(), req.Path)) + "\n"
+	field := strings.Split(req.RawPath, "/")[0]
+	switch field {
+	case "commenters":
+		out += md.H2(md.Link(b.Prefix(), b.Prefix()) + "/commenters/" + user)
+		out += md.H4(md.Link("@"+user, "/u/"+user) + "'s profile")
+	case "authors":
+		out += md.H2(renderBreadcrumb(b.Prefix(), req.Path))
+		if user != "" {
+			out += md.H4(md.Link("@"+user, "/u/"+user) + "'s profile")
+		}
+	default:
+		out += md.H2(renderBreadcrumb(b.Prefix(), req.Path))
 	}
 	if !isListing {
 		out += md.Link("⊞ grid", GetGridFmtPath(b.Prefix()+":"+req.RawPath)) + " | "
@@ -226,11 +234,15 @@ func (b Blog) RenderListings(field, value string, req *mux.Request) string {
 	if value == "" {
 		return b.renderListingIndex(field, options, req)
 	}
+	user, err := CheckUser(value, b.UserResolver)
+	if err == nil && user != "" {
+		return b.renderFilteredListing(field, user, options, req)
+	}
 	return b.renderFilteredListing(field, value, options, req)
 }
 
 func (b Blog) renderListingIndex(field string, options RenderOptions, req *mux.Request) string {
-	out := b.RenderFilterHeader(req, true)
+	out := b.RenderFilterHeader(req, "", true)
 	p, exists := b.determinePager(options, field, "")
 	if !exists {
 		return out + "No " + field + "s found."
@@ -246,7 +258,7 @@ func (b Blog) renderListingIndex(field string, options RenderOptions, req *mux.R
 }
 
 func (b Blog) renderFilteredListing(field, value string, options RenderOptions, req *mux.Request) string {
-	out := b.RenderFilterHeader(req, false)
+	out := b.RenderFilterHeader(req, value, false)
 	p, exists := b.determinePager(options, field, value)
 	if !exists {
 		out += "No posts found for this " + field + "."
@@ -298,10 +310,42 @@ func (b Blog) renderCommenterItem(item pager.Item, options RenderOptions) string
 	}
 	p := post.(*Post)
 
-	out := md.H4(b.Mention("commenter", comment.Author())) + "\n\n"
+	user, _ := CheckUser(comment.Author(), b.UserResolver)
+	out := md.H4(b.Mention("commenter", user)) + "\n\n"
 	out += comment.Content() + "\n\n"
 	out += md.Italic(formatTime(comment.CreatedAt(), options.TimeFormat)) + "\n\n"
 	out += "in " + md.Link(p.Title(), b.Prefix()+":posts/"+p.Slug()) + "\n\n"
 	out += md.HorizontalRule()
 	return out
+}
+
+func (b Blog) determinePager(options RenderOptions, field, value string) (*pager.Pager, bool) {
+	if value == "" {
+		if options.IsAlphabetical && field == "author" {
+			return pager.NewPager(b.AuthorsIndex, 12, !options.Ascending), true
+		} else if options.IsCommon && field == "author" {
+			return pager.NewPager(b.AuthorsSorted, 12, options.Ascending), true
+		} else if options.IsAlphabetical && field == "tag" {
+			return pager.NewPager(b.TagsIndex, 12, !options.Ascending), true
+		} else if options.IsCommon && field == "tag" {
+			return pager.NewPager(b.TagsSorted, 12, options.Ascending), true
+		} else if field == "author" {
+			return pager.NewPager(b.AuthorsIndex, 12, options.Ascending), true
+		} else if field == "tag" {
+			return pager.NewPager(b.TagsIndex, 12, options.Ascending), true
+		}
+	}
+	pageSize := 9
+	if !options.IsGrid {
+		pageSize = 3
+	}
+
+	filteredPosts, exists := b.filterPostsByField(field, value, options.Sort)
+	if options.StartTime != nil || options.EndTime != nil {
+		filteredPosts = b.filterPostsStartEnd(filteredPosts, options.StartTime, options.EndTime)
+	}
+	if options.Sort == "alpha" {
+		return pager.NewPager(filteredPosts, pageSize, !options.Ascending), exists
+	}
+	return pager.NewPager(filteredPosts, pageSize, options.Ascending), exists
 }

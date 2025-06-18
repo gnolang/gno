@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
@@ -79,6 +78,8 @@ func (b *Blog) AddPost(post *Post) error {
 	if b.UserResolver != nil {
 		post.UserResolver = b.UserResolver
 	}
+	post.authors = resolveAuthors(post.Authors(), b.UserResolver)
+	post.publisher, _ = CheckUser(post.Publisher(), b.UserResolver)
 
 	b.addToIndex(post)
 	added := b.Posts.Set(b.PostId.String(), post)
@@ -122,7 +123,7 @@ func UpdatePost(existingPost, newPost *Post) {
 	existingPost.body = newPost.body
 	existingPost.authors = newPost.authors
 	existingPost.tags = newPost.tags
-	existingPost.CommentId = newPost.CommentId
+	existingPost.CommentsId = newPost.CommentsId
 	existingPost.Comments = newPost.Comments
 	existingPost.likes = newPost.likes
 	existingPost.DisableLikes = newPost.DisableLikes
@@ -206,37 +207,6 @@ func (b Blog) Mention(role, recipient string) string {
 		return md.Bold(md.Link("#"+recipient, b.Prefix()+":tags/"+recipient))
 	}
 	return ""
-}
-
-func (b Blog) determinePager(options RenderOptions, field, value string) (*pager.Pager, bool) {
-	if value == "" {
-		if options.IsAlphabetical && field == "author" {
-			return pager.NewPager(b.AuthorsIndex, 12, !options.Ascending), true
-		} else if options.IsCommon && field == "author" {
-			return pager.NewPager(b.AuthorsSorted, 12, options.Ascending), true
-		} else if options.IsAlphabetical && field == "tag" {
-			return pager.NewPager(b.TagsIndex, 12, !options.Ascending), true
-		} else if options.IsCommon && field == "tag" {
-			return pager.NewPager(b.TagsSorted, 12, options.Ascending), true
-		} else if field == "author" {
-			return pager.NewPager(b.AuthorsIndex, 12, options.Ascending), true
-		} else if field == "tag" {
-			return pager.NewPager(b.TagsIndex, 12, options.Ascending), true
-		}
-	}
-	pageSize := 9
-	if !options.IsGrid {
-		pageSize = 3
-	}
-
-	filteredPosts, exists := b.filterPostsByField(field, value, options.Sort)
-	if options.StartTime != nil || options.EndTime != nil {
-		filteredPosts = b.filterPostsStartEnd(filteredPosts, options.StartTime, options.EndTime)
-	}
-	if options.Sort == "alpha" {
-		return pager.NewPager(filteredPosts, pageSize, !options.Ascending), exists
-	}
-	return pager.NewPager(filteredPosts, pageSize, options.Ascending), exists
 }
 
 func (b Blog) filterPostsStartEnd(tree *avl.Tree, start, end *time.Time) *avl.Tree {
