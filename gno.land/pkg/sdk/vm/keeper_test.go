@@ -13,6 +13,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -35,18 +36,19 @@ func TestVMKeeperAddPackage(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{
 			Name: "test.gno",
 			Body: `package test
-func Echo() string {
-	crossing()
 
+func Echo(cur realm) string {
 	return "hello world"
 }`,
 		},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 
@@ -66,12 +68,9 @@ func Echo() string {
 	assert.NotNil(t, memFile)
 	expected := `package test
 
-func Echo() string {
-	crossing()
-
+func Echo(cur realm) string {
 	return "hello world"
-}
-`
+}`
 	assert.Equal(t, expected, memFile.Body)
 }
 
@@ -87,18 +86,18 @@ func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
+	const pkgPath = "anotherdomain.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{
 			Name: "test.gno",
 			Body: `package test
-func Echo() string {
-	crossing()
-
+func Echo(cur realm) string {
 	return "hello world"
 }`,
 		},
 	}
-	pkgPath := "anotherdomain.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 
@@ -129,7 +128,9 @@ func TestVMKeeperOriginSend1(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -138,9 +139,7 @@ import "std"
 func init() {
 }
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string {
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
@@ -149,7 +148,6 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -176,7 +174,9 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -185,12 +185,10 @@ import "std"
 var admin std.Address
 
 func init() {
-     admin =	std.OriginCaller()
+     admin = std.OriginCaller()
 }
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string {
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
@@ -199,14 +197,12 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }
 
-func GetAdmin() string {
-	crossing()
-
+func GetAdmin(cur realm) string {
 	return admin.String()
 }
 `},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -233,7 +229,9 @@ func TestVMKeeperOriginSend3(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -242,9 +240,7 @@ import "std"
 func init() {
 }
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string {
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
@@ -253,7 +249,7 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -278,8 +274,9 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
-	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -288,9 +285,7 @@ import "std"
 func init() {
 }
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string {
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
@@ -299,7 +294,7 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -324,8 +319,9 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
-	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -334,9 +330,7 @@ import "std"
 func init() {
 }
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string {
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
@@ -345,7 +339,7 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -371,8 +365,9 @@ func TestVMKeeperParams(t *testing.T) {
 	// env.prmk.
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
-	// Create test package.
+	const pkgPath = "gno.land/r/myuser/myrealm"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package params
 
@@ -382,16 +377,14 @@ func init() {
 	std.SetParamString("foo.string", "foo1")
 }
 
-func Do() string {
-	crossing()
-
+func Do(cur realm) string {
 	std.SetParamInt64("bar.int64", int64(1337))
 	std.SetParamString("foo.string", "foo2") // override init
 
 	return "XXX" // return std.GetConfig("gno.land/r/test.foo"), if we want to expose std.GetConfig, maybe as a std.TestGetConfig
 }`},
 	}
-	pkgPath := "gno.land/r/myuser/myrealm"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -426,8 +419,9 @@ func TestVMKeeperOriginCallerInit(t *testing.T) {
 	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
-	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
@@ -439,9 +433,7 @@ func init() {
      admin = std.OriginCaller()
 }
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string {
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
@@ -450,15 +442,13 @@ func Echo(msg string) string {
 	return "echo:"+msg
 }
 
-func GetAdmin() string {
-	crossing()
-
+func GetAdmin(cur realm) string { // XXX: remove crossing call ?
 	return admin.String()
 }
 
 `},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -482,13 +472,13 @@ func TestVMKeeperRunSimple(t *testing.T) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "script.gno", Body: `
 package main
 
 func main() {
-	crossing()
-
 	println("hello world!")
 }
 `},
@@ -523,15 +513,15 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "script.gno", Body: `
 package main
 
 import "std"
 
 func main() {
-	crossing()
-
 	addr := std.OriginCaller()
 	println("hello world!", addr)
 }
@@ -558,19 +548,19 @@ func TestNumberOfArgsError(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{
 			Name: "test.gno",
 			Body: `package test
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string { // XXX remove crossing call ?
 	return "echo:"+msg
 }`,
 		},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	assert.NoError(t, err)
@@ -580,7 +570,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
 	assert.PanicsWithValue(
 		t,
-		"wrong number of arguments in call to Echo: want 1 got 2",
+		"wrong number of arguments in call to Echo: want 2 got 3",
 		func() {
 			env.vmk.Call(ctx, msg2)
 		},
@@ -599,17 +589,17 @@ func TestVMKeeperReinitialize(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 		{Name: "init.gno", Body: `
 package test
 
-func Echo(msg string) string {
-	crossing()
-
+func Echo(cur realm, msg string) string {
 	return "echo:"+msg
 }`},
 	}
-	pkgPath := "gno.land/r/test"
+
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
 	require.NoError(t, err)
@@ -637,10 +627,81 @@ func Test_loadStdlibPackage(t *testing.T) {
 	cs := dbadapter.StoreConstructor(mdb, types.StoreOptions{})
 
 	gs := gnolang.NewStore(nil, cs, cs)
-	assert.PanicsWithValue(t, `failed loading stdlib "notfound": does not exist`, func() {
+	assert.PanicsWithError(t, `failed loading stdlib "notfound": does not exist`, func() {
 		loadStdlibPackage("notfound", "./testdata", gs)
 	})
-	assert.PanicsWithValue(t, `failed loading stdlib "emptystdlib": not a valid MemPackage`, func() {
+	assert.PanicsWithError(t, `failed loading stdlib "emptystdlib": package has no files`, func() {
 		loadStdlibPackage("emptystdlib", "./testdata", gs)
 	})
+}
+
+func TestVMKeeperAddPackage_DevelopmentModeFails(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+
+	const pkgPath = "gno.land/r/testdev"
+	// gnomod.toml with develop = 1
+	gnomodToml := `[module]
+path = "gno.land/r/testdev"
+
+[gno]
+version = "0.9"
+
+[develop]
+[[develop.replace]]
+old = "foo"
+new = "bar"
+`
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnomodToml},
+		{Name: "test.gno", Body: `package testdev
+func Echo(cur realm) string { return "dev" }`},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	assert.Error(t, err, ErrInvalidPackage(""))
+}
+
+func TestVMKeeperAddPackage_PatchGnomodToml(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr2"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+
+	const pkgPath = "gno.land/r/testpatch"
+	gnomodToml := `module = "gno.land/r/anothername"
+gno = "0.9"
+`
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnomodToml},
+		{Name: "test.gno", Body: `package testpatch
+func Echo(cur realm) string { return "patched" }`},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg)
+	require.NoError(t, err)
+
+	// Check that gnomod.toml was patched
+	store := env.vmk.getGnoTransactionStore(ctx)
+
+	memFile := store.GetMemFile(pkgPath, "gnomod.toml")
+	mpkg, err := gnomod.ParseBytes("gnomod.toml", []byte(memFile.Body))
+	require.NoError(t, err)
+	expected := `module = "gno.land/r/testpatch"
+gno = "0.9"
+
+[upload_metadata]
+  uploader = "g1cq2j7y4utseeatek2alfy5ttaphjrtdx67mg8v"
+  height = 42
+`
+	// XXX: custom height
+	assert.Equal(t, expected, mpkg.WriteString())
 }

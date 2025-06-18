@@ -18,12 +18,10 @@ var (
 )
 
 func init() {
-	cross(grc20reg.Register)(Token.Getter(), "")
+	grc20reg.Register(cross, Token, "")
 }
 
-func Faucet() string {
-	crossing()
-
+func Faucet(cur realm) string {
 	caller := std.PreviousRealm().Address()
 	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()

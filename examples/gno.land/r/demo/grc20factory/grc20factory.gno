@@ -20,16 +20,12 @@ type instance struct {
 	faucet int64 // per-request amount. disabled if 0.
 }
 
-func New(name, symbol string, decimals int, initialMint, faucet int64) {
-	crossing()
-
+func New(cur realm, name, symbol string, decimals int, initialMint, faucet int64) {
 	caller := std.PreviousRealm().Address()
-	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
+	NewWithAdmin(cur, name, symbol, decimals, initialMint, faucet, caller)
 }
 
-func NewWithAdmin(name, symbol string, decimals int, initialMint, faucet int64, admin std.Address) {
-	crossing()
-
+func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, faucet int64, admin std.Address) {
 	exists := instances.Has(symbol)
 	if exists {
 		panic("token already exists")
@@ -46,8 +42,15 @@ func NewWithAdmin(name, symbol string, decimals int, initialMint, faucet int64, 
 		admin:  ownable.NewWithAddress(admin),
 		faucet: faucet,
 	}
-	instances.Set(symbol, &inst)
-	cross(grc20reg.Register)(token.Getter(), symbol)
+
+	// XXX: Workaround to keep ownership of the token in the current Realm
+	// before passing a pointer to the grc20reg.Register function.
+	// See #4274.
+	func(cur realm) {
+		instances.Set(symbol, &inst)
+	}(cross)
+
+	grc20reg.Register(cross, token, symbol)
 }
 
 func (inst instance) Token() *grc20.Token {
@@ -78,27 +81,21 @@ func Allowance(symbol string, owner, spender std.Address) int64 {
 	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
 
-func Transfer(symbol string, to std.Address, amount int64) {
-	crossing()
-
+func Transfer(cur realm, symbol string, to std.Address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
-func Approve(symbol string, spender std.Address, amount int64) {
-	crossing()
-
+func Approve(cur realm, symbol string, spender std.Address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
-func TransferFrom(symbol string, from, to std.Address, amount int64) {
-	crossing()
-
+func TransferFrom(cur realm, symbol string, from, to std.Address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
@@ -106,9 +103,7 @@ func TransferFrom(symbol string, from, to std.Address, amount int64) {
 }
 
 // faucet.
-func Faucet(symbol string) {
-	crossing()
-
+func Faucet(cur realm, symbol string) {
 	inst := mustGetInstance(symbol)
 	if inst.faucet == 0 {
 		panic("faucet disabled for this token")
@@ -119,33 +114,25 @@ func Faucet(symbol string) {
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
-func Mint(symbol string, to std.Address, amount int64) {
-	crossing()
-
+func Mint(cur realm, symbol string, to std.Address, amount int64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
-func Burn(symbol string, from std.Address, amount int64) {
-	crossing()
-
+func Burn(cur realm, symbol string, from std.Address, amount int64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedByPrevious()
 	checkErr(inst.ledger.Burn(from, amount))
 }
 
 // instance admin functionality
-func DropInstanceOwnership(symbol string) {
-	crossing()
-
+func DropInstanceOwnership(cur realm, symbol string) {
 	inst := mustGetInstance(symbol)
 	checkErr(inst.admin.DropOwnershipByCurrent())
 }
 
-func TransferInstanceOwnership(symbol string, newOwner std.Address) {
-	crossing()
-
+func TransferInstanceOwnership(cur realm, symbol string, newOwner std.Address) {
 	inst := mustGetInstance(symbol)
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
