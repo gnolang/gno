@@ -11,14 +11,6 @@ import (
 	"gno.land/r/chaegnal/organizer"
 )
 
-type CallbackProposalDefinition struct {
-	GroupId      string
-	TitleValue   string
-	BodyValue    string
-	Callback     string
-	CallbackArgs []string
-}
-
 const (
 	acceptMemberFunc = "AcceptAwaitingMember"
 	refuseMemberFunc = "RefuseAwaitingMember"
@@ -27,6 +19,14 @@ const (
 	removeMemberFunc = "RemoveMember"
 	setHangoutFunc   = "SetHangoutTimeAndPlace"
 )
+
+type CallbackProposalDefinition struct {
+	GroupId      string
+	TitleValue   string
+	BodyValue    string
+	Callback     string
+	CallbackArgs []string
+}
 
 func (c *CallbackProposalDefinition) Title() string {
 	return c.TitleValue
@@ -37,7 +37,7 @@ func (c *CallbackProposalDefinition) Body() string {
 }
 
 func (c *CallbackProposalDefinition) VotingPeriod() time.Duration {
-	return 1 * time.Minute
+	return 24 * time.Hour
 }
 
 func (c *CallbackProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
@@ -72,6 +72,8 @@ func CreateProposals(cur realm, groupId, title, desc, callback, callbackArgsStr,
 	}
 }
 
+// VoteOnProposal allows the user to vote on a proposal
+// Checks if the proposal deadline is overdue
 func VoteOnProposal(cur realm, groupId, voteIdStr, voteStr, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
@@ -102,28 +104,8 @@ func VoteOnProposal(cur realm, groupId, voteIdStr, voteStr, logged string) {
 	ExecuteExpiredProposals(cross, groupId)
 }
 
-// AdminCloseProposal is a wrapper for admin to close proposal forcefully
-// Panics if the vote ID does not belong to any open proposals
-func AdminCloseProposal(groupId, voteIdStr, logged string) {
-	// crossing()
-	// group := organizer.GetGroupFromId(groupId)
-	//
-	// voteId, err := strconv.ParseUint(voteIdStr, 10, 64)
-	// if err != nil {
-	// panic("invalid vote id")
-	// }
-	//
-	// p := group.DAO.ActiveProposals().Get(voteId)
-	// p.SetStatus(commondao.StatusFailed)
-	// p.SetStatusReason("forcefully closed by admin")
-	// if err != nil {
-	// group.DAO.ActiveProposals().Remove(p.ID())
-	// group.DAO.FinishedProposals().Add(p)
-	// } else {
-	// panic("proposal not active")
-	// }
-}
-
+// Execute defines the authorized callbacks for proposals
+// Execute start the execution of the desired callback
 func (p *CallbackProposalDefinition) Execute(cur realm) error {
 	group := organizer.GetGroupFromId(p.GroupId)
 
@@ -158,6 +140,8 @@ func (p *CallbackProposalDefinition) Execute(cur realm) error {
 	}
 }
 
+// ExecuteExpiredProposals checks if the voting deadline is overdue
+// Calls the function to execute the callback if so
 func ExecuteExpiredProposals(cur realm, groupId string) {
 	group := organizer.GetGroupFromId(groupId)
 

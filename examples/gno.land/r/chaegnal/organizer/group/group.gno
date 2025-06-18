@@ -121,6 +121,7 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 	return out
 }
 
+// displayActiveProposals displays every ongoing proposals
 func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
@@ -165,6 +166,7 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 	return table.String()
 }
 
+// displayClosedProposals displays all the past proposals
 func displayClosedProposals(group organizer.FriendGroup) string {
 	table := mdtable.Table{
 		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
@@ -190,6 +192,7 @@ func displayClosedProposals(group organizer.FriendGroup) string {
 	return table.String()
 }
 
+// displayHangouts displays the validated hangouts
 func displayHangouts(group organizer.FriendGroup) string {
 	table := mdtable.Table{
 		Headers: []string{"ID", "Date", "Time", "Place", "Description"},
