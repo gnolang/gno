@@ -1,10 +1,8 @@
-package main
+package fix
 
 import (
 	"bytes"
-	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,14 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
-	"go.uber.org/multierr"
 )
 
 /*
@@ -85,65 +80,9 @@ Translate Interrealm Spec 2 to Interrealm Spec 3 (Gno 0.9)
 Also refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
-type fixCmd struct {
-	verbose        bool
-	rootDir        string
-	filetestsOnly  bool
-	filetestsMatch string
-	// min_confidence: minimum confidence of a problem to print it
-	// (default 0.8) auto-fix: apply suggested fixes automatically.
-}
-
-func newFixCmd(cio commands.IO) *commands.Command {
-	cmd := &fixCmd{}
-
-	return commands.NewCommand(
-		commands.Metadata{
-			Name:       "fix",
-			ShortUsage: "fix [flags] <package> [<package>...]",
-			ShortHelp:  "runs the fixer for the specified packages",
-		},
-		cmd,
-		func(_ context.Context, args []string) error {
-			return execFix(cmd, args, cio)
-		},
-	)
-}
-
-func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
-	rootdir := gnoenv.RootDir()
-
-	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixing")
-	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
-	fs.BoolVar(&c.filetestsOnly, "filetests-only", false, "dir only contains filetests. not recursive.")
-	fs.StringVar(&c.filetestsMatch, "filetests-match", "", "if --filetests-only=true, filters by substring match.")
-}
-
-func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
-	// Show a help message by default.
-	if len(args) == 0 {
-		return flag.ErrHelp
-	}
-
-	// Guess cmd.RootDir.
-	if cmd.rootDir == "" {
-		cmd.rootDir = gnoenv.RootDir()
-	}
-
-	var dirs []string = nil
-	var err error
-
-	if cmd.filetestsOnly {
-		dirs = append([]string(nil), args...)
-	} else {
-		dirs, err = gnoPackagesFromArgsRecursively(args)
-		if err != nil {
-			return fmt.Errorf("list packages from args: %w", err)
-		}
-	}
-
+func interrealm(opts Options, paths []string) error {
 	bs, ts := test.StoreWithOptions(
-		cmd.rootDir, io.Discard,
+		opts.RootDir, io.Discard,
 		test.StoreOptions{
 			PreprocessOnly: true,
 			FixFrom:        gno.GnoVerMissing,
@@ -151,70 +90,21 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		},
 	)
 
-	if cmd.verbose {
-		cio.ErrPrintfln("fixing directories: %v", dirs)
-	}
-
-	if !cmd.filetestsOnly {
-		return fixDir(cmd, cio, dirs, bs, ts, "")
-	} else {
-		if len(dirs) != 1 {
-			return fmt.Errorf("must specify one dir")
-		}
-		files, err := os.ReadDir(dirs[0])
-		if err != nil {
-			return fmt.Errorf("reading directory: %w", err)
-		}
-		fnames := make([]string, 0, len(files))
-		for _, file := range files {
-			// Ignore directories and hidden files, only include
-			// allowed files & extensions, then exclude files that
-			// are of the bad extensions.
-			if file.IsDir() ||
-				strings.HasPrefix(file.Name(), ".") ||
-				!strings.HasSuffix(file.Name(), ".gno") {
-				continue
-			}
-			fpath := filepath.Join(dirs[0], file.Name())
-			if cmd.filetestsMatch != "" {
-				if !strings.Contains(fpath, cmd.filetestsMatch) {
-					continue
-				}
-			}
-			fnames = append(fnames, filepath.Join(dirs[0], file.Name()))
-		}
-		for _, fname := range fnames {
-			if cmd.verbose {
-				fmt.Printf("fixing %q\n", fname)
-			}
-			err2 := fixDir(cmd, cio, dirs, bs, ts, fname)
-			if err2 != nil {
-				fmt.Printf("error fixing file %q: %v\n",
-					fname, err2)
-				err = multierr.Append(err, err2)
-			}
-		}
-	}
-	return err
-}
-
-// filetest: if cmd.filetestsOnly, a single filetest to run fixDir on.
-func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, ts gno.Store, filetest string) error {
 	ppkgs := map[string]processedPackage{}
 	tccache := gno.TypeCheckCache{}
 	hasError := false
 	//----------------------------------------
 	// FIX STAGE 1: Type-check and lint.
-	for _, dir := range dirs {
-		if cmd.verbose && !cmd.filetestsOnly {
-			cio.ErrPrintfln("fixing %q", dir)
-		}
-
+	for _, dir := range paths {
 		// Only supports directories.
 		// You should fix all directories at once to avoid dependency issues.
 		info, err := os.Stat(dir)
 		if err == nil && !info.IsDir() {
 			dir = filepath.Dir(dir)
+		}
+
+		if opts.Error != nil {
+			fmt.Fprintf(opts.Error, "interrealm: %s", dir)
 		}
 
 		// Read and parse gnomod.toml directly.
@@ -236,8 +126,8 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 		} else {
 			switch mod.GetGno() {
 			case gno.GnoVerLatest:
-				if cmd.verbose {
-					cio.ErrPrintfln("%s: module is up to date, skipping fix", dir)
+				if opts.Error != nil {
+					fmt.Fprintf(opts.Error, "interrealm: %s: module is up to date, skipping fix", dir)
 				}
 				continue // nothing to do.
 			case gno.GnoVerMissing:
@@ -468,7 +358,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 	//----------------------------------------
 	// FIX STAGE 2: Transpile to Gno 0.9
 	// Must be a separate stage because dirs depend on each other.
-	for _, dir := range dirs {
+	for _, dir := range paths {
 		ppkg, ok := ppkgs[dir]
 		if !ok {
 			// Happens when fixing a file, (XXX fix this case)
@@ -512,7 +402,7 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, bs stypes.CommitStore, 
 	//----------------------------------------
 	// FIX STAGE 3: Write.
 	// Must be a separate stage to prevent partial writes.
-	for _, dir := range dirs {
+	for _, dir := range paths {
 		ppkg, ok := ppkgs[dir]
 		if !ok {
 			// Happens when fixing a file, (XXX fix this case)
@@ -578,3 +468,46 @@ func filterInvalidFiletest(cio commands.IO, mpkg *std.MemPackage) bool {
 	}
 	return false
 }
+
+/*
+	if !cmd.filetestsOnly {
+		return fixDir(cmd, cio, dirs)
+	} else {
+		if len(dirs) != 1 {
+			return fmt.Errorf("must specify one dir")
+		}
+		files, err := os.ReadDir(dirs[0])
+		if err != nil {
+			return fmt.Errorf("reading directory: %w", err)
+		}
+		fnames := make([]string, 0, len(files))
+		for _, file := range files {
+			// Ignore directories and hidden files, only include
+			// allowed files & extensions, then exclude files that
+			// are of the bad extensions.
+			if file.IsDir() ||
+				strings.HasPrefix(file.Name(), ".") ||
+				!strings.HasSuffix(file.Name(), ".gno") {
+				continue
+			}
+			fpath := filepath.Join(dirs[0], file.Name())
+			if cmd.filetestsMatch != "" {
+				if !strings.Contains(fpath, cmd.filetestsMatch) {
+					continue
+				}
+			}
+			fnames = append(fnames, filepath.Join(dirs[0], file.Name()))
+		}
+		for _, fname := range fnames {
+			if cmd.verbose {
+				fmt.Printf("fixing %q\n", fname)
+			}
+			err2 := fixDir(cmd, cio, dirs, bs, ts, fname)
+			if err2 != nil {
+				fmt.Printf("error fixing file %q: %v\n",
+					fname, err2)
+				err = multierr.Append(err, err2)
+			}
+		}
+	}
+*/
