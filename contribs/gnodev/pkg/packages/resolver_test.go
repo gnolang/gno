@@ -232,7 +232,7 @@ func TestResolver_ResolveRemote(t *testing.T) {
 			},
 		},
 	}
-	mempkg.SetFile("gno.mod", gnolang.GenGnoModLatest(mempkg.Path))
+	mempkg.SetFile("gnomod.toml", gnolang.GenGnoModLatest(mempkg.Path))
 	mempkg.Sort()
 
 	rootdir := gnoenv.RootDir()
