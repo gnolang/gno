@@ -3,14 +3,14 @@
 TMP_DIR=temp-tx-exports
 
 # The master backup file will contain the ultimate txs backup
-# that the portal loop use when looping (generating the genesis)
+# that the staging use when looping (generating the genesis)
 MASTER_BACKUP_FILE="backup.jsonl"
 
 # The master balances file will contain the ultimate balances
-# backup that the portal loop uses when looping (generating the genesis)
+# backup that the staging uses when looping (generating the genesis)
 MASTER_BALANCES_FILE="balances.jsonl"
 
-# Clones the portal loop backups subdirectory, located in BACKUPS_REPO (tx-exports)
+# Clones the staging backups subdirectory, located in BACKUPS_REPO (tx-exports)
 pullGHBackups () {
   BACKUPS_REPO=https://github.com/gnolang/tx-exports.git
   BACKUPS_REPO_PATH="portal-loop"
