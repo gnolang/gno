@@ -1,13 +1,18 @@
 package gnoblog
 
 import (
-	"std"
 	"strings"
 	"testing"
+
+	"std"
 )
 
 func TestPackage(cur realm, t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	clearState(t)
+
+	testing.SetOriginCaller(adminAddr)
+	testing.SetRealm(std.NewUserRealm(adminAddr))
+
 	// by default, no posts.
 	{
 		got := Render("")
