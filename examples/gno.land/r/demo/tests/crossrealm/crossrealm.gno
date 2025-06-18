@@ -108,6 +108,16 @@ func SetClosure(cur realm, f func()) {
 	Closure = f
 }
 
+func ExecuteClosure(cur realm) {
+	Closure()
+}
+
+// Closure -> FooUpdate
+func FooUpdate(cur realm, s string) {
+	println("current realm: ", std.CurrentRealm())
+	println("previous realm: ", std.PreviousRealm())
+}
+
 var Object any
 
 func SetObject(cur realm, x any) {
