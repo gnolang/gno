@@ -15,8 +15,8 @@ const (
 	VoteYay = 1 // VoteYay represented yes votes
 	VoteNay = 0 // VoteNay represented no votes
 
-	memberRank = 0 // memberRank represents the basic right of user
-	adminRank  = 1 // adminRank represents the rank of admin with heightened rights
+	MemberRank = iota // memberRank represents the basic right of user
+	AdminRank         // adminRank represents the rank of admin with heightened rights
 )
 
 var (
@@ -64,7 +64,7 @@ func CreateFriendGroup(cur realm, title string) {
 	}
 
 	newGroup.DAO.Members().Add(caller)
-	newGroup.Rank.Set(caller.String(), adminRank)
+	newGroup.Rank.Set(caller.String(), AdminRank)
 
 	NextGroupId++
 	ListGroups.Groups.Set(strconv.Itoa(newGroup.ID), newGroup)

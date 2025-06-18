@@ -6,11 +6,6 @@ import (
 	"gno.land/r/chaegnal/organizer"
 )
 
-const (
-	memberRank = 0
-	adminRank  = 1
-)
-
 // AcceptAwaitingMember accepts new members into friendgroup and DAO
 func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
@@ -24,7 +19,7 @@ func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) er
 
 	group.WaitList.Remove(adr.String())
 	group.DAO.Members().Add(adr)
-	group.Rank.Set(adr.String(), memberRank)
+	group.Rank.Set(adr.String(), organizer.MemberRank)
 	return nil
 }
 
@@ -67,7 +62,7 @@ func MakeAdmin(cur realm, groupId, logged string, adr std.Address) error {
 		panic("user does not exist")
 	}
 
-	group.Rank.Set(adr.String(), adminRank)
+	group.Rank.Set(adr.String(), organizer.AdminRank)
 	return nil
 }
 
@@ -87,11 +82,11 @@ func RemoveAdminRank(cur realm, groupId, logged string, adr std.Address) error {
 		panic("user does not exist")
 	}
 
-	if rank.(int) != adminRank {
+	if rank.(int) != organizer.AdminRank {
 		panic("user does not have admin right")
 	}
 
-	group.Rank.Set(adr.String(), memberRank)
+	group.Rank.Set(adr.String(), organizer.MemberRank)
 	return nil
 }
 
@@ -103,5 +98,5 @@ func isAdmin(groupId string, adr std.Address) bool {
 		panic("user does not exist")
 	}
 
-	return rank.(int) == adminRank
+	return rank.(int) == organizer.AdminRank
 }
