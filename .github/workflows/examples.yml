@@ -98,9 +98,8 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v4
-      - run: |
-          GNO_CMD="$(pwd)/gnovm/cmd/gno"
-          # Find all directories containing gno.mod file
-          find ./examples -name "gno.mod" -execdir go run "$GNO_CMD" mod tidy \;
+      - working-directory: ./examples
+        run: |
+          make tidy
           # Check if there are changes after running gno mod tidy
-          git diff --exit-code || (echo "Some gno.mod files are not tidy, please run 'make tidy'." && exit 1)
+          git diff --exit-code || (echo "Some gnomod.toml files are not tidy, please run 'make tidy'." && exit 1)

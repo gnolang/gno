@@ -1,6 +1,7 @@
 package commondao
 
 import (
+	"errors"
 	"std"
 	"testing"
 	"time"
@@ -292,18 +293,31 @@ func TestIsQuorumReached(t *testing.T) {
 	}
 }
 
+func TestMustValidate(t *testing.T) {
+	uassert.NotPanics(t, func() {
+		MustValidate(testPropDef{})
+	}, "expect validation to succeed")
+
+	uassert.PanicsWithMessage(t, "validable proposal definition is nil", func() {
+		MustValidate(nil)
+	}, "expect validation to panic with nil definition")
+
+	uassert.PanicsWithMessage(t, "boom!", func() {
+		MustValidate(testPropDef{validationErr: errors.New("boom!")})
+	}, "expect validation to panic")
+}
+
 type testPropDef struct {
-	votingPeriod                          time.Duration
-	tallyResult                           bool
-	validationErr, tallyErr, executionErr error
-	voteChoices                           []VoteChoice
+	votingPeriod            time.Duration
+	tallyResult             bool
+	validationErr, tallyErr error
+	voteChoices             []VoteChoice
 }
 
 func (testPropDef) Title() string                 { return "" }
 func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
-func (d testPropDef) Execute() error              { return d.executionErr }
 
 func (d testPropDef) Tally(ReadonlyVotingRecord, MemberSet) (bool, error) {
 	return d.tallyResult, d.tallyErr

@@ -26,7 +26,7 @@ func main() {
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100_000_000}})
 	testing.SetRealm(std.NewUserRealm(mainaddr))
-	res := cross(banktest.Deposit)("ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
+	res := banktest.Deposit(cross, "ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
 	println("Deposit():", res)
 
 	// print main balance after.

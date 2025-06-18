@@ -69,6 +69,10 @@ stdout 'OK!'
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
 stderr 'is not authorized to deploy packages to namespace'
 
+-- gnomod.toml --
+module = "gno.land/r/mypkg"
+gno = "0.9"
+
 -- one.gno --
 package one
 

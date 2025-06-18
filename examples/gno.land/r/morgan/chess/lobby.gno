@@ -61,10 +61,8 @@ var (
 	lobbyPlayer2Game avl.Tree // player addr -> *Game. set after a user is matched; reset when joining again.
 )
 
-func LobbyJoin(seconds, increment int) {
-	crossing()
+func LobbyJoin(cur realm, seconds, increment int) {
 	assertOriginCall()
-
 	var tc tcLobby
 	switch {
 	case seconds == (60*5) && increment == 0:
@@ -218,8 +216,7 @@ var bracketSize = [...]float64{
 	5000,
 }
 
-func LobbyGameFound() string {
-	crossing()
+func LobbyGameFound(cur realm) string {
 	refreshLobby(tcLobby5p0)
 	refreshLobby(tcLobby10p5)
 
@@ -230,8 +227,7 @@ func LobbyGameFound() string {
 	return val.(*Game).json()
 }
 
-func LobbyQuit() {
-	crossing()
+func LobbyQuit(cur realm) {
 	caller := std.PreviousRealm().Address()
 	for tc, sublob := range lobby {
 		for i, pl := range sublob {
