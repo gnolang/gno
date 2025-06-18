@@ -239,8 +239,8 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	} else {
 		mpkg = gimp.getter.GetMemPackage(pkgPath)
 	}
-	if gimp.pkgPath == pkgPath {
-		if gimp.testing {
+	if (gimp.pkgPath == pkgPath) || IsStdlib(pkgPath) {
+		if gimp.testing && !strings.HasPrefix(pkgPath, "gnobuiltins/") {
 			// xxx_test importing xxx for integration testing
 			mpkg = MPFTest.FilterMemPackage(mpkg)
 		} else {
@@ -279,7 +279,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
-	wtests := gimp.testing && gimp.pkgPath == pkgPath
+	wtests := gimp.testing && (gimp.pkgPath == pkgPath || IsStdlib(pkgPath))
 	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
 	if errs != nil {
 		result.err = errs
