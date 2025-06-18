@@ -10,4 +10,3 @@ func main() {
 
 // Output:
 // map[0:20]
-

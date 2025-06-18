@@ -1,0 +1,2 @@
+module = "gnovm/tests/integ/several-files-multiple-errors"
+gno = "0.9"

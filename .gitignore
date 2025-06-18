@@ -33,7 +33,12 @@ coverage.out
 
 *.swp
 *.swo
+*.swn
+*.swm
 *.bak
 
 .tmp/
 wal/
+
+# Gnoweb frontend
+node_modules/
