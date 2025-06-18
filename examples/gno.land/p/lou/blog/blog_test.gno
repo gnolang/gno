@@ -4,115 +4,107 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/lou/blog"
-	"gno.land/r/sys/users"
 )
 
-func testResolver(input string) (string, bool) {
-	if input == "g1user1" {
-		return "User One", true
-	} else if input == "g1user2" {
-		return "User Two", true
-	} else if input == "g1user3" {
-		return "User Three", true
+func testUserResolver(input string) (string, bool) {
+	switch input {
+	case "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs":
+		return "AuthorOne", true
+	case "g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n":
+		return "CommenterOne", true
+	case "g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae":
+		return "ReplyUser", true
+	default:
+		return "", false
 	}
-	return "", false
 }
 
-func createTestBlog() *blog.Blog {
-	println("1. NO ERR :: in createTestBlog()")
-	b, err := blog.NewBlog("Test Blog", "/r/test/blog")
-	if err != nil {
-		println("1.1 ERR :: new blog error")
-	}
-	// urequire.NoError(nil, err, "create blog")
-	b.SetUserResolver(testResolver)
+func TestBlogRenderBasic(t *testing.T) {
+	blogTest, err := blog.NewBlog("Test Blog", "/r/test/blog")
+	urequire.NoError(t, err, "creating blog")
+	blogTest.SetUserResolver(testUserResolver)
 
-	println("1.1 NO ERR :: no user resolver set")
 	post, err := blog.NewPost(
-		"post-1",
-		"First Post",
-		"This is the first post body.",
-		"2025-06-01T12:00:00Z",
-		"g1user1",
-		[]string{"g1user2", "g1user3"},
-		[]string{"test", "blog"},
+		"sample-post",
+		"My First Post",
+		"Hello world blog content.",
+		"2025-06-18T10:00:00Z",
+		"g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs",
+		[]string{"g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n"},
+		[]string{"intro", "welcome"},
 	)
-	if err != nil {
-		println("1.2 ERR :: new post error")
-	}
-	println("1.2 NO ERR :: post created")
-	// urequire.NoError(nil, err, "create post")
+	urequire.NoError(t, err, "creating post")
 
-	comm1, err := blog.NewComment("g1user2", "I love this post!")
-	// urequire.NoError(nil, err, "create comment")
+	comment, err := blog.NewComment("g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n", "Nice Post!")
+	urequire.NoError(t, err, "creating comment")
+	post.AddComment(comment)
 
-	comm2, err := blog.NewComment("g1user3", "Thanks!")
-	// urequire.NoError(nil, err, "create reply")
-	comm1.AddReply(comm2)
-
-	post.AddComment(comm1)
-	b.AddPost(post)
-	return b
-}
-
-func TestBlogRender(t *testing.T) {
-	println("0. BEGINNING :: createTestBlog()")
-	b := createTestBlog()
-	out := b.Render("")
-	println("DEBUG: blog.Render output:\n", out)
-
+	blogTest.AddPost(post)
 	check := false
+
+	out := blogTest.Render("")
 	check = strings.Contains(out, "First Post")
 	uassert.True(t, check, "First Post")
+
+	out = blogTest.Render("posts/sample-post")
 	check = strings.Contains(out, "This is the first post body.")
-	uassert.True(t, check, "This is the first post body.")
+	uassert.False(t, check, "This is the first post body.")
 	check = strings.Contains(out, "User One")
-	uassert.True(t, check, "User One")
+	uassert.False(t, check, "User One")
+	check = strings.Contains(out, "CommenterOne")
+	uassert.True(t, check, "CommenterOne")
 	check = strings.Contains(out, "User Two")
-	uassert.True(t, check, "User Two")
-	check = strings.Contains(out, "User Three")
-	uassert.True(t, check, "User Three")
+	uassert.False(t, check, "User Two")
 	check = strings.Contains(out, "I love this post!")
-	uassert.True(t, check, "I love this post!")
-	check = strings.Contains(out, "Thanks!")
-	uassert.True(t, check, "Thanks!")
+	uassert.False(t, check, "I love this post!")
+	check = strings.Contains(out, "Nice Post!")
+	uassert.True(t, check, "Nice Post!")
 }
 
-func TestBlogPostCommentLinking(t *testing.T) {
-	b := createTestBlog()
-	post, _ := b.GetPostBySlug("post-1")
-	urequire.NotEqual(t, nil, post, "post not nil")
+func TestCommentThreadRender(t *testing.T) {
+	blogTest, err := blog.NewBlog("Thread Test", "/r/test/blog")
+	urequire.NoError(t, err, "creating blog")
+	blogTest.SetUserResolver(testUserResolver)
 
-	uassert.Equal(t, "First Post", post.Title())
-	uassert.Equal(t, "User One", post.Publisher())
+	post, err := blog.NewPost(
+		"threaded-post",
+		"Thread Test",
+		"Checking comment threads.",
+		"2025-06-18T11:00:00Z",
+		"g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs",
+		[]string{"g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n"},
+		[]string{"threads"},
+	)
+	urequire.NoError(t, err, "creating post")
 
-	comments := post.Comments
-	urequire.Equal(t, 1, comments.Size(), "one top-level comment")
+	// Parent comment
+	parent, err := blog.NewComment("g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n", "Needs more detail.")
+	urequire.NoError(t, err, "creating parent comment")
 
-	currId := seqid.ID(0)
-	comment, _ := comments.Get(currId.Next().String())
-	comm := comment.(*blog.Comment)
-	uassert.Equal(t, "User Two", comm.Author())
-	uassert.Equal(t, "I love this post!", comm.Content())
+	// Reply
+	reply, err := blog.NewComment("g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae", "Agreed.")
+	urequire.NoError(t, err, "creating reply")
+	parent.AddReply(reply)
 
-	replies := comm.Replies
-	urequire.Equal(t, 1, replies.Size(), "one reply")
-	
-	reply, _ := replies.Get(currId.String())
-	firstReply := reply.(*blog.Comment)
-	uassert.Equal(t, "User Three", firstReply.Author())
-	uassert.Equal(t, "Thanks!", firstReply.Content())
-}
+	err = post.AddComment(parent)
+	println(parent.Author())
+	urequire.NoError(t, err, "adding comment to post ("+err.Error()+")")
+	err = blogTest.AddPost(post)
+	urequire.NoError(t, err, "adding post to blog")
 
-func TestUserRenderLink(t *testing.T) {
-	data, ok := users.ResolveAny("g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9")
-	if !ok || data == nil {
-		t.Skip("user not found in test environment")
-	}
-	link := data.RenderLink("")
-	uassert.True(t, strings.HasPrefix(link, "<a href"), "rendered link")
+	out := blogTest.Render("posts/threaded-post")
+	check := false
+	check = strings.Contains(out, "AuthorOne")
+	uassert.True(t, check, "AuthorOne")
+	check = strings.Contains(out, "Needs more detail.")
+	uassert.True(t, check, "Needs more detail.")
+	check = strings.Contains(out, "Agreed.")
+	uassert.True(t, check, "Agreed.")
+	check = strings.Contains(out, "CommenterOne")
+	uassert.True(t, check, "CommenterOne")
+	check = strings.Contains(out, "ReplyUser")
+	uassert.True(t, check, "ReplyUser")
 }

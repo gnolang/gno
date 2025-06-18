@@ -25,6 +25,7 @@ func (b Blog) Render(path string) string {
 }
 
 func RenderBlogHeader(prefix, rawPath string) string {
+	rawPath = prefix + ":" + rawPath
 	out := md.Link("⊞ grid", GetGridFmtPath(rawPath)) + " | "
 	out += md.Link("☰ list", GetListFmtPath(rawPath)) + " | "
 
