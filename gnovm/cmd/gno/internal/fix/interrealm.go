@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
@@ -90,7 +91,7 @@ func interrealm(opts Options, paths []string) error {
 		},
 	)
 
-	ppkgs := map[string]processedPackage{}
+	ppkgs := map[string]cmdutil.ProcessedPackage{}
 	tccache := gno.TypeCheckCache{}
 	hasError := false
 	//----------------------------------------
@@ -103,9 +104,7 @@ func interrealm(opts Options, paths []string) error {
 			dir = filepath.Dir(dir)
 		}
 
-		if opts.Error != nil {
-			fmt.Fprintf(opts.Error, "interrealm: %s", dir)
-		}
+		opts.Verbosefln("interrealm: %s", dir)
 
 		// Read and parse gnomod.toml directly.
 		fpath := filepath.Join(dir, "gnomod.toml")
@@ -126,14 +125,12 @@ func interrealm(opts Options, paths []string) error {
 		} else {
 			switch mod.GetGno() {
 			case gno.GnoVerLatest:
-				if opts.Error != nil {
-					fmt.Fprintf(opts.Error, "interrealm: %s: module is up to date, skipping fix", dir)
-				}
+				opts.Verbosefln("interrealm: %s: module is up to date, skipping fix", dir)
 				continue // nothing to do.
 			case gno.GnoVerMissing:
 				// good, fix it.
 			default:
-				cio.ErrPrintfln("%s: unrecognized gnomod.toml version %q, skipping fix", dir, mod.GetGno())
+				opts.Errorfln("interrealm: %s: unrecognized gnomod.toml version %q, skipping fix", dir, mod.GetGno())
 				continue // skip it.
 			}
 		}
@@ -367,28 +364,28 @@ func interrealm(opts Options, paths []string) error {
 		}
 
 		// Sanity check.
-		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
+		mod, err := gno.ParseCheckGnoMod(ppkg.MPkg)
 		if mod != nil && mod.GetGno() != gno.GnoVerMissing {
 			panic("should not happen")
 		}
 
 		// FIX STEP 8 & 9: gno.TranspileGno0p9() Part 1 & 2
-		mpkg := ppkg.mpkg
-		transpileProcessedFileSet := func(pfs processedFileSet) error {
-			pn, fset := pfs.pn, pfs.fset
+		mpkg := ppkg.MPkg
+		transpileProcessedFileSet := func(pfs cmdutil.ProcessedFileSet) error {
+			pn, fset := pfs.Pn, pfs.Fset
 			xforms1, _ := pn.GetAttribute(gno.ATTR_PN_XFORMS).(map[string]struct{})
 			err = gno.TranspileGno0p9(mpkg, dir, pn, fset.GetFileNames(), xforms1)
 			return err
 		}
-		err = transpileProcessedFileSet(ppkg.normal)
+		err = transpileProcessedFileSet(ppkg.Normal)
 		if err != nil {
 			return err
 		}
-		err = transpileProcessedFileSet(ppkg._tests)
+		err = transpileProcessedFileSet(ppkg.Tests)
 		if err != nil {
 			return err
 		}
-		for _, ftest := range ppkg.ftests {
+		for _, ftest := range ppkg.Ftests {
 			err = transpileProcessedFileSet(ftest)
 			if err != nil {
 				return err
@@ -411,7 +408,7 @@ func interrealm(opts Options, paths []string) error {
 		}
 
 		// Write version to gnomod.toml.
-		mod, err := gno.ParseCheckGnoMod(ppkg.mpkg)
+		mod, err := gno.ParseCheckGnoMod(ppkg.MPkg)
 		if err != nil {
 			panic(fmt.Sprintf("unhandled error: %v", err))
 		}
@@ -419,12 +416,12 @@ func interrealm(opts Options, paths []string) error {
 			panic("XXX: generate default gnomod.toml")
 		}
 		mod.SetGno(gno.GnoVerLatest)
-		ppkg.mpkg.SetFile("gnomod.toml", mod.WriteString())
+		ppkg.MPkg.SetFile("gnomod.toml", mod.WriteString())
 		// Cleanup gno.mod if it exists.
-		ppkg.mpkg.DeleteFile("gno.mod")
+		ppkg.MPkg.DeleteFile("gno.mod")
 
 		// FIX STEP 10: mpkg.WriteTo():
-		err = ppkg.mpkg.WriteTo(dir)
+		err = ppkg.MPkg.WriteTo(dir)
 		if err != nil {
 			return err
 		}

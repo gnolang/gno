@@ -73,7 +73,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		RootDir: cmd.rootDir,
 	}
 	if cmd.verbose {
-		opts.Error = cio.Err()
+		opts.Verbose = cio.Err()
 	}
 
 	paths, err := targetsFromPatterns(args)

@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"io"
+	"os"
 	"slices"
 	"strconv"
 
@@ -17,7 +18,22 @@ import (
 
 type Options struct {
 	RootDir string    // gno root dir.
-	Error   io.Writer // Stderr output, for verbose error messages.
+	Verbose io.Writer // Output for verbose error messages. Optional.
+	Error   io.Writer // Output for error messages. If nil, will be set to os.Stderr.
+}
+
+func (o Options) Verbosefln(format string, args ...any) {
+	if o.Verbose != nil {
+		fmt.Fprintf(o.Verbose, format, args...)
+	}
+}
+
+func (o Options) Errorfln(format string, args ...any) {
+	out := o.Error
+	if out == nil {
+		out = os.Stderr
+	}
+	fmt.Fprintf(out, format, args...)
 }
 
 // Fix is an individual fix provided by this package.
