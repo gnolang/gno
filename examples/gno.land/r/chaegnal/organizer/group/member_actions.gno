@@ -11,7 +11,7 @@ const (
 	adminRank  = 1
 )
 
-// AcceptAwaitingMember is a wrapper to accept new members into friendgroup and DAO
+// AcceptAwaitingMember accepts new members into friendgroup and DAO
 func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
@@ -28,7 +28,7 @@ func AcceptAwaitingMember(cur realm, groupId, logged string, adr std.Address) er
 	return nil
 }
 
-// RefuseAwaitingMember is a wrapper to refuse new members into friendgroup and DAO
+// RefuseAwaitingMember refuses new members into friendgroup and DAO
 func RefuseAwaitingMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
@@ -39,7 +39,7 @@ func RefuseAwaitingMember(cur realm, groupId, logged string, adr std.Address) er
 	return nil
 }
 
-// RemoveMember is a wrapper to remove members from group and DAO
+// RemoveMember removes members from group and DAO
 func RemoveMember(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
@@ -55,7 +55,7 @@ func RemoveMember(cur realm, groupId, logged string, adr std.Address) error {
 	return nil
 }
 
-// MakeAdmin is a wrapper to promote member to admin status
+// MakeAdmin promotes member to admin status
 func MakeAdmin(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
@@ -71,7 +71,7 @@ func MakeAdmin(cur realm, groupId, logged string, adr std.Address) error {
 	return nil
 }
 
-// RemoveAdminRank is a wrapper to demote admin to member status
+// RemoveAdminRank demotes admin to member status
 func RemoveAdminRank(cur realm, groupId, logged string, adr std.Address) error {
 	if !isAdmin(groupId, std.Address(logged)) {
 		panic("only admin can do this action")
