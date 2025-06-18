@@ -11,7 +11,7 @@ import (
 var ErrInvalidCoordQuery = errors.New("Invalid coordinate value, expecting a uint64")
 
 // parseXY takes a raw query like "?x=19&y=1" and returns the two ints.
-func parseXY(rawQuery string) (x, y uint64, err error) {
+func parseXY(rawQuery string) (x uint64, y uint64, err error) {
 	vals, err := url.ParseQuery(strings.TrimPrefix(rawQuery, "?"))
 	if err != nil {
 		return 0, 0, err

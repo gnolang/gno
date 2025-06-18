@@ -95,3 +95,85 @@ func Test_checkColorValid_false4(t *testing.T) {
 		t.Fatalf("The color should be invalid")
 	}
 }
+
+func Test_submitInvalidCoordinates1(t *testing.T) {
+	abort := revive(func() {
+		Submit(cross, 1000, 1, "R")
+	})
+
+	if abort == nil {
+		t.Fatal("Invalid Submit didn't panic")
+	}
+}
+
+func Test_submitInvalidCoordinates2(t *testing.T) {
+	abort := revive(func() {
+		Submit(cross, 1, 40, "R") // 40 is the number of colomns / rows, the last assignable value is 39
+	})
+
+	if abort == nil {
+		t.Fatal("Invalid Submit didn't panic")
+	}
+}
+
+func Test_submitInvalidColor(t *testing.T) {
+	abort := revive(func() {
+		Submit(cross, 1, 40, "This color is definitly not a valid one")
+	})
+
+	if abort == nil {
+		t.Fatal("Invalid Submit didn't panic")
+	}
+}
+
+func Test_submitInvalidColorEmpty(t *testing.T) {
+	abort := revive(func() {
+		Submit(cross, 1, 40, "")
+	})
+
+	if abort == nil {
+		t.Fatal("Invalid Submit didn't panic")
+	}
+}
+
+func Test_submitValid(t *testing.T) {
+	tableColor[39][1] = Color{white, "W"}
+
+	Submit(cross, 1, 39, "R")
+
+	if tableColor[39][1].initial != "R" {
+		t.Fatal("Submit not taken into account")
+	}
+}
+
+func Test_parseXYValid(t *testing.T) {
+	x, y, err := parseXY("someAdress/r/eva/place:?color=G&x=9&y=2")
+
+	if err != nil || x != 9 || y != 2 {
+		t.Fatal("coordinates should be valid")
+	}
+}
+
+func Test_parseXYValid2(t *testing.T) {
+	x, y, err := parseXY("?x=19&y=1")
+
+	if err != nil || x != 19 || y != 1 {
+		t.Fatal("coordinates should be valid")
+	}
+}
+
+func Test_parseXYInvalid(t *testing.T) {
+	_, _, err := parseXY("someAdress/r/eva/place:?color=G&x=9a&y=2")
+
+	if err == nil {
+		t.Fatal("coordinates should be invalid")
+	}
+}
+
+func Test_parseXYInvalid2(t *testing.T) {
+	_, _, err := parseXY("")
+
+	if err == nil {
+		t.Fatal("coordinates should be invalid")
+	}
+}

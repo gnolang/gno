@@ -73,6 +73,10 @@ func Submit(cur realm, x uint64, y uint64, colorName string) {
 		panic("invalid color")
 	}
 
+	if x >= cols || y >= rows {
+		panic("invalid coordinates")
+	}
+
 	tableColor[y][x].rgb = color.rgb
 	tableColor[y][x].initial = color.initial
 
