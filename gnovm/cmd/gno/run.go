@@ -12,7 +12,6 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -122,11 +121,6 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	var send std.Coins
 	pkgPath := string(files[0].PkgName)
-	mod, err := gnomod.ParseFilepath(filepath.Join(filepath.Dir(files[0].FileName), "gno.mod"))
-	if err == nil && cfg.pkgPath == "" && pkgPath != "main" {
-		cfg.pkgPath = mod.Module.Mod.Path
-	}
-	_ = mod
 	if cfg.pkgPath != "" {
 		// Run in realm mode.
 		pkgPath = cfg.pkgPath
