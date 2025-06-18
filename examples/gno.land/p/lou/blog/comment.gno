@@ -102,11 +102,11 @@ func (c *Comment) AddReply(reply *Comment) error {
 }
 
 func (c *Comment) EditReplyByID(id, content string) error { // NECESSARY?
-	reply, err := GetReplyByID(id)
+	reply, err := c.GetReplyByID(id)
 	if err != nil {
 		return err
 	}
-	err = c.Edit(content)
+	err = reply.Edit(content)
 	if err != nil {
 		return err
 	}
@@ -114,11 +114,11 @@ func (c *Comment) EditReplyByID(id, content string) error { // NECESSARY?
 }
 
 func (c *Comment) DeleteReplyByID(id string) error { // NECESSARY?
-	reply, err := GetReplyByID(id)
+	reply, err := c.GetReplyByID(id)
 	if err != nil {
 		return err
 	}
-	if !c.Replies.Remove(reply.ID()) {
+	if _, removed := c.Replies.Remove(reply.ID()); !removed {
 		return ErrCommentAddFailed
 	}
 	return nil

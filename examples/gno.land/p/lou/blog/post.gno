@@ -144,7 +144,7 @@ func (p *Post) EditCommentByID(id string, content string) error {
 }
 
 func (p *Post) DeleteCommentById(id string) error {
-	if _, err := p.GetPostByID(id); err != nil {
+	if _, err := p.GetCommentByID(id); err != nil {
 		return err
 	}
 	_, removed := p.Comments.Remove(id)
@@ -163,7 +163,7 @@ func (p *Post) PinCommentById(id string) error {
 	return nil
 }
 
-func (p Post) GetCommentByID(id string) error {
+func (p Post) GetCommentByID(id string) (*Comment, error) {
 	comment, found := p.Comments.Get(id)
 	if !found {
 		return nil, ErrCommentNotFound
