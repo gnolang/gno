@@ -56,6 +56,7 @@ type Debugger struct {
 	breakpoints []Location                  // list of breakpoints set by user, as source locations
 	call        []Location                  // for function tracking, ideally should be provided by machine frame
 	blocks      []*Block                    // machine last blocks depth at each call level (for up & down)
+	realms      []*Realm                    // for realm tracking
 	frameLevel  int                         // frame level of the current machine instruction
 	nextDepth   int                         // function call depth at the 'next' command
 	getSrc      func(string, string) string // helper to access source from repl or others
@@ -197,9 +198,11 @@ loop:
 	case OpCall:
 		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)
 		m.Debugger.blocks = append(m.Debugger.blocks, m.LastBlock())
+		m.Debugger.realms = append(m.Debugger.realms, m.Realm)
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
 		m.Debugger.blocks = m.Debugger.blocks[:len(m.Debugger.blocks)-1]
+		m.Debugger.realms = m.Debugger.realms[:len(m.Debugger.realms)-1]
 	}
 }
 
@@ -758,8 +761,9 @@ const (
 func debugStack(m *Machine, arg string) error {
 	i := 0
 	for {
-		ff, realm := debugFrameFunc(m, i)
+		ff := debugFrameFunc(m, i)
 		loc := debugFrameLoc(m, i)
+		realm := debugFrameRealm(m, i)
 		if ff == nil {
 			break
 		}
@@ -782,18 +786,18 @@ func locString(loc Location) string {
 	return fmt.Sprintf("%s/%s:%s", loc.PkgPath, loc.File, loc.Pos)
 }
 
-func debugFrameFunc(m *Machine, n int) (*FuncValue, *Realm) {
-	for ncall, i := 0, len(m.Frames)-1; i >= 0; i-- {
-		f := m.Frames[i]
+func debugFrameFunc(m *Machine, n int) *FuncValue {
+	for ncall, i := 0, m.NumFrames()-1; i >= 0; i-- {
+		f := &m.Frames[i]
 		if f.Func == nil {
 			continue
 		}
 		if ncall == n {
-			return f.Func, f.LastRealm
+			return f.Func
 		}
 		ncall++
 	}
-	return nil, nil
+	return nil
 }
 
 func debugFrameLoc(m *Machine, n int) Location {
@@ -804,6 +808,16 @@ func debugFrameLoc(m *Machine, n int) Location {
 		return m.Debugger.call[i]
 	}
 	return m.Debugger.call[0]
+}
+
+func debugFrameRealm(m *Machine, n int) *Realm {
+	if n == 0 || len(m.Debugger.realms) == 0 {
+		return m.Realm
+	}
+	if i := len(m.Debugger.realms) - n; i > 0 {
+		return m.Debugger.realms[i]
+	}
+	return m.Debugger.realms[0]
 }
 
 // ---------------------------------------
