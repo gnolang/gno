@@ -843,6 +843,14 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 	return pkg
 }
 
+// ParseMemPackage executes [ParseFile] on each file of the mpkg.
+//
+// If one of the files has a different package name than mpkg.Name,
+// or [ParseFile] returns an error, ParseMemPackageAsType panics.
+func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
+	return ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
+}
+
 // ParseMemPackageAsType executes [ParseFile] on each file of the mpkg, with
 // files filtered based on mptype, which must match mpkg.Type. See also
 // MemPackageType.Matches() for details.
