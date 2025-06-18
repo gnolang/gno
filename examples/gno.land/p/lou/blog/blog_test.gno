@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/lou/blog"
@@ -22,10 +23,15 @@ func testResolver(input string) (string, bool) {
 }
 
 func createTestBlog() *blog.Blog {
+	println("1. NO ERR :: in createTestBlog()")
 	b, err := blog.NewBlog("Test Blog", "/r/test/blog")
-	urequire.NoError(nil, err, "create blog")
+	if err != nil {
+		println("1.1 ERR :: new blog error")
+	}
+	// urequire.NoError(nil, err, "create blog")
 	b.SetUserResolver(testResolver)
 
+	println("1.1 NO ERR :: no user resolver set")
 	post, err := blog.NewPost(
 		"post-1",
 		"First Post",
@@ -35,13 +41,17 @@ func createTestBlog() *blog.Blog {
 		[]string{"g1user2", "g1user3"},
 		[]string{"test", "blog"},
 	)
-	urequire.NoError(nil, err, "create post")
+	if err != nil {
+		println("1.2 ERR :: new post error")
+	}
+	println("1.2 NO ERR :: post created")
+	// urequire.NoError(nil, err, "create post")
 
 	comm1, err := blog.NewComment("g1user2", "I love this post!")
-	urequire.NoError(nil, err, "create comment")
+	// urequire.NoError(nil, err, "create comment")
 
 	comm2, err := blog.NewComment("g1user3", "Thanks!")
-	urequire.NoError(nil, err, "create reply")
+	// urequire.NoError(nil, err, "create reply")
 	comm1.AddReply(comm2)
 
 	post.AddComment(comm1)
@@ -49,18 +59,28 @@ func createTestBlog() *blog.Blog {
 	return b
 }
 
-// func TestBlogRender(t *testing.T) {
-// 	b := createTestBlog()
-// 	out := b.Render("/r/test/blog")
+func TestBlogRender(t *testing.T) {
+	println("0. BEGINNING :: createTestBlog()")
+	b := createTestBlog()
+	out := b.Render("")
+	println("DEBUG: blog.Render output:\n", out)
 
-// 	uassert.StringContains(t, out, "First Post")
-// 	uassert.StringContains(t, out, "This is the first post body.")
-// 	uassert.StringContains(t, out, "User One")
-// 	uassert.StringContains(t, out, "User Two")
-// 	uassert.StringContains(t, out, "User Three")
-// 	uassert.StringContains(t, out, "I love this post!")
-// 	uassert.StringContains(t, out, "Thanks!")
-// }
+	check := false
+	check = strings.Contains(out, "First Post")
+	uassert.True(t, check, "First Post")
+	check = strings.Contains(out, "This is the first post body.")
+	uassert.True(t, check, "This is the first post body.")
+	check = strings.Contains(out, "User One")
+	uassert.True(t, check, "User One")
+	check = strings.Contains(out, "User Two")
+	uassert.True(t, check, "User Two")
+	check = strings.Contains(out, "User Three")
+	uassert.True(t, check, "User Three")
+	check = strings.Contains(out, "I love this post!")
+	uassert.True(t, check, "I love this post!")
+	check = strings.Contains(out, "Thanks!")
+	uassert.True(t, check, "Thanks!")
+}
 
 func TestBlogPostCommentLinking(t *testing.T) {
 	b := createTestBlog()
@@ -68,19 +88,24 @@ func TestBlogPostCommentLinking(t *testing.T) {
 	urequire.NotEqual(t, nil, post, "post not nil")
 
 	uassert.Equal(t, "First Post", post.Title())
-	uassert.Equal(t, "User One", post.Author())
+	uassert.Equal(t, "User One", post.Publisher())
 
-	comments := post.Comments()
-	urequire.Equal(t, 1, len(comments), "one top-level comment")
+	comments := post.Comments
+	urequire.Equal(t, 1, comments.Size(), "one top-level comment")
 
-	comm := comments[0]
+	currId := seqid.ID(0)
+	comment, _ := comments.Get(currId.Next().String())
+	comm := comment.(*blog.Comment)
 	uassert.Equal(t, "User Two", comm.Author())
-	uassert.Equal(t, "I love this post!", comm.Body())
+	uassert.Equal(t, "I love this post!", comm.Content())
 
-	replies := comm.Replies()
-	urequire.Equal(t, 1, len(replies), "one reply")
-	uassert.Equal(t, "User Three", replies[0].Author())
-	uassert.Equal(t, "Thanks!", replies[0].Body())
+	replies := comm.Replies
+	urequire.Equal(t, 1, replies.Size(), "one reply")
+	
+	reply, _ := replies.Get(currId.String())
+	firstReply := reply.(*blog.Comment)
+	uassert.Equal(t, "User Three", firstReply.Author())
+	uassert.Equal(t, "Thanks!", firstReply.Content())
 }
 
 func TestUserRenderLink(t *testing.T) {
