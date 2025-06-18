@@ -10,16 +10,50 @@ import (
 )
 
 type Comment struct {
-	ID           seqid.ID
-	Author       string
-	Content      string
-	CreatedAt    time.Time
-	EditedAt     *time.Time
-	Pinned       bool
-	Likes        int
-	Replies      *avl.Tree // id --> *Comment
+	id        seqid.ID
+	author    string
+	content   string
+	createdAt time.Time
+	editedAt  *time.Time
+	pinned    bool
+	likes     int
+	Replies   *avl.Tree // id --> *Comment
+
 	DisableLikes bool
-	Footer       string // additional text, e.g. "via @lou" or txlink calls
+	footer       string // additional text, e.g. "via @lou" or txlink calls
+}
+
+// Getters
+func (c Comment) ID() string {
+	return c.id.String()
+}
+
+func (c Comment) Author() string {
+	return c.author
+}
+
+func (c Comment) Content() string {
+	return c.content
+}
+
+func (c Comment) CreatedAt() time.Time {
+	return c.createdAt
+}
+
+func (c Comment) EditedAt() *time.Time {
+	return c.editedAt
+}
+
+func (c Comment) Pinned() bool {
+	return c.pinned
+}
+
+func (c Comment) Likes() int {
+	return c.likes
+}
+
+func (c Comment) Footer() string {
+	return c.footer
 }
 
 func NewComment(author, content string) (*Comment, error) {
@@ -27,14 +61,14 @@ func NewComment(author, content string) (*Comment, error) {
 		return nil, ErrEmptyComment
 	}
 	return &Comment{
-		Author:       author,
-		Content:      content,
-		CreatedAt:    time.Now(),
-		EditedAt:     nil,
-		Pinned:       false,
-		Likes:        0,
+		author:       author,
+		content:      content,
+		createdAt:    time.Now(),
+		editedAt:     nil,
+		pinned:       false,
+		likes:        0,
 		Replies:      avl.NewTree(),
-		Footer:       "",
+		footer:       "",
 		DisableLikes: false,
 	}, nil
 }
@@ -43,48 +77,47 @@ func (c *Comment) Edit(content string) error {
 	if content == "" {
 		return ErrEmptyComment
 	}
-	c.Content = content
+	c.content = content
 	now := time.Now()
-	c.EditedAt = &now
+	c.editedAt = &now
 	return nil
 }
 
 func (c *Comment) Pin() {
-	c.Pinned = true
+	c.pinned = true
 }
 
 func (c *Comment) Unpin() {
-	c.Pinned = false
+	c.pinned = false
 }
 
 func (c *Comment) AddLike() {
-	c.Likes++
+	c.likes++
 }
 
 func (c *Comment) RemoveLike() {
-	if c.Likes > 0 {
-		c.Likes--
+	if c.likes > 0 {
+		c.likes--
 	}
 }
 
 func (c *Comment) AddReply(reply *Comment) error {
+	if err := CheckAddr(reply.Author()); err != nil {
+		return err
+	}
 	if reply == nil {
 		return ErrEmptyComment
 	}
 	if c.Replies == nil {
 		c.Replies = avl.NewTree()
 	}
-	reply.ID.Next()
-	c.Replies.Set(reply.ID.String(), reply)
+	reply.id.Next()
+	c.Replies.Set(reply.ID(), reply)
 	return nil
 }
 
 func (c *Comment) SetFooter(footer string) {
-	c.Footer = footer
-}
-
-func (c *Comment) SetDisableLikes(disable bool) {
-	c.DisableLikes = disable
+	c.footer = footer
 }
 
 func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) string {
@@ -93,22 +126,22 @@ func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) s
 		prefix += "> "
 	}
 	out := ""
-	user, _ := CheckUser(c.Author, resolver)
-	out += prefix + md.Bold(md.Link(user, blogPrefix+":commenters/"+c.Author)) + " "
-	if c.Pinned {
+	user, _ := CheckUser(c.Author(), resolver)
+	out += prefix + md.Bold(md.Link(user, blogPrefix+":commenters/"+user)) + " "
+	if c.Pinned() {
 		out += "📌 "
 	}
-	if c.EditedAt != nil {
-		out += md.Italic(formatTime(*c.EditedAt, "relative")+" (edited)") + "\n"
+	if c.EditedAt() != nil {
+		out += md.Italic(formatTime(*c.EditedAt(), "relative")+" (edited)") + "\n"
 	} else {
-		out += md.Italic(formatTime(c.CreatedAt, "relative")) + "\n"
+		out += md.Italic(formatTime(c.CreatedAt(), "relative")) + "\n"
 	}
-	out += "\n" + prefix + c.Content + "\n"
+	out += "\n" + prefix + c.Content() + "\n"
 	if !c.DisableLikes {
-		out += prefix + "❤️ " + strconv.Itoa(c.Likes) + " \n\n"
+		out += prefix + "❤️ " + strconv.Itoa(c.Likes()) + " \n\n"
 	}
-	if c.Footer != "" {
-		out += prefix + c.Footer + "\n\n"
+	if c.Footer() != "" {
+		out += prefix + c.Footer() + "\n\n"
 	}
 
 	if c.Replies != nil && c.Replies.Size() > 0 {

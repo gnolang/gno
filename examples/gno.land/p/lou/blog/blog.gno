@@ -5,14 +5,18 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
 
 type Blog struct {
-	Title            string
-	Prefix           string
+	Admin         ownable.Ownable
+	ModeratorList *avl.Tree // addr ---> permissions
+
+	title            string
+	prefix           string
 	PostId           seqid.ID
 	Posts            *avl.Tree // id --> *Post
 	PostsBySlug      *avl.Tree // slug --> *Post
@@ -23,18 +27,32 @@ type Blog struct {
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
 	// CustomHeader
-	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
+	previewFooter string // additional text, e.g. "via @lou" or txlink calls
 	DisableLikes  bool
 	UserResolver  *UserResolver
 }
 
+func (b Blog) Title() string {
+	return b.title
+}
+
+func (b Blog) Prefix() string {
+	return b.prefix
+}
+
 func NewBlog(title, prefix string) (*Blog, error) {
+	admin := *ownable.New()
+	moderators := avl.NewTree()
+
+	moderators.Set(admin.Owner().String(), Permission{Read: true, Write: true})
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
 	return &Blog{
-		Title:            title,
-		Prefix:           prefix,
+		Admin:            admin,
+		ModeratorList:    moderators,
+		title:            title,
+		prefix:           prefix,
 		PostId:           seqid.ID(0),
 		Posts:            avl.NewTree(),
 		PostsBySlug:      avl.NewTree(),
@@ -43,29 +61,29 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		TagsSorted:       avl.NewTree(),
 		AuthorsIndex:     avl.NewTree(),
 		AuthorsSorted:    avl.NewTree(),
-		PreviewFooter:    "",
+		previewFooter:    "",
 		DisableLikes:     false,
 		UserResolver:     nil,
 	}, nil
 }
 
 func (b *Blog) AddPost(post *Post) error {
-	post.ID = b.PostId.Next()
-	if _, exists := b.PostsBySlug.Get(post.Slug); exists {
+	post.id = b.PostId.Next()
+	if _, err := b.GetPostBySlug(post.Slug()); err == nil {
 		return ErrPostAlreadyExists
 	}
-	if _, err := CheckUser(post.Publisher, b.UserResolver); err != nil {
+	if err := CheckAddr(post.Publisher()); err != nil {
 		return err
 	}
-	post.SetDisableLikes(b.DisableLikes)
+	post.DisableLikes = b.DisableLikes
 	if b.UserResolver != nil {
-		post.SetUserResolver(*b.UserResolver)
+		post.UserResolver = b.UserResolver
 	}
 
 	b.addToIndex(post)
 	added := b.Posts.Set(b.PostId.String(), post)
-	addedSlug := b.PostsBySlug.Set(post.Slug, post)
-	addedUpdated := b.PostsByUpdatedAt.Set(post.UpdatedAt.String(), post)
+	addedSlug := b.PostsBySlug.Set(post.Slug(), post)
+	addedUpdated := b.PostsByUpdatedAt.Set(post.UpdatedAt().String(), post)
 	if !added || !addedSlug || !addedUpdated {
 		return ErrPostAddFailed
 	}
@@ -73,13 +91,12 @@ func (b *Blog) AddPost(post *Post) error {
 }
 
 func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
-	existingPost, found := b.Posts.Get(id.String())
-	if !found {
-		return ErrPostNotFound
+	post, err := b.GetPostByID(id.String())
+	if err != nil {
+		return err
 	}
-	post := existingPost.(*Post)
-	postBySlug, _ := b.PostsBySlug.Get(post.Slug)
-	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt.String())
+	postBySlug, _ := b.PostsBySlug.Get(post.Slug())
+	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt().String())
 	UpdatePost(post, newPost)
 	UpdatePost(postBySlug.(*Post), newPost)
 	UpdatePost(postByUpdated.(*Post), newPost)
@@ -87,13 +104,12 @@ func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
 }
 
 func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
-	existingPost, found := b.PostsBySlug.Get(slug)
-	if !found {
-		return ErrPostNotFound
+	post, err := b.GetPostBySlug(slug)
+	if err != nil {
+		return err
 	}
-	post := existingPost.(*Post)
-	postById, _ := b.Posts.Get(post.ID.String())
-	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt.String())
+	postById, _ := b.Posts.Get(post.ID())
+	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt().String())
 	UpdatePost(post, newPost)
 	UpdatePost(postById.(*Post), newPost)
 	UpdatePost(postByUpdated.(*Post), newPost)
@@ -101,60 +117,76 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 }
 
 func UpdatePost(existingPost, newPost *Post) {
-	existingPost.Slug = newPost.Slug
-	existingPost.Title = newPost.Title
-	existingPost.Body = newPost.Body
-	existingPost.Authors = newPost.Authors
-	existingPost.Tags = newPost.Tags
+	existingPost.slug = newPost.slug
+	existingPost.title = newPost.title
+	existingPost.body = newPost.body
+	existingPost.authors = newPost.authors
+	existingPost.tags = newPost.tags
 	existingPost.CommentId = newPost.CommentId
 	existingPost.Comments = newPost.Comments
-	existingPost.Likes = newPost.Likes
+	existingPost.likes = newPost.likes
 	existingPost.DisableLikes = newPost.DisableLikes
-	existingPost.PreviewFooter = newPost.PreviewFooter
-	existingPost.UpdatedAt = time.Now()
+	existingPost.previewFooter = newPost.previewFooter
+	existingPost.updatedAt = time.Now()
 }
 
 func (b *Blog) DeletePostById(id string) error {
-	post, found := b.Posts.Get(id)
-	if !found {
-		return ErrPostNotFound
+	post, err := b.GetPostByID(id)
+	if err != nil {
+		return err
 	}
-	return b.DeletePost(post.(*Post))
+	return b.DeletePost(post)
 }
 
 func (b *Blog) DeletePostBySlug(slug string) error {
-	post, found := b.PostsBySlug.Get(slug)
-	if !found {
-		return ErrPostNotFound
+	post, err := b.GetPostBySlug(slug)
+	if err != nil {
+		return err
 	}
-	return b.DeletePost(post.(*Post))
+	return b.DeletePost(post)
 }
 
 func (b *Blog) DeletePost(post *Post) error {
-	_, removed := b.Posts.Remove(post.ID.String())
-	_, removedSlug := b.PostsBySlug.Remove(post.Slug)
-	_, removedUpdated := b.PostsByUpdatedAt.Remove(post.UpdatedAt.String())
+	_, removed := b.Posts.Remove(post.ID())
+	_, removedSlug := b.PostsBySlug.Remove(post.Slug())
+	_, removedUpdated := b.PostsByUpdatedAt.Remove(post.UpdatedAt().String())
 	if !removed || !removedSlug || !removedUpdated {
 		return ErrDeleteFailed
 	}
 	return nil
 }
 
+func (b Blog) GetPostByID(id string) (*Post, error) {
+	post, found := b.Posts.Get(id)
+	if !found {
+		return nil, ErrPostNotFound
+	}
+	return post.(*Post), nil
+}
+
+func (b Blog) GetPostBySlug(slug string) (*Post, error) {
+	post, found := b.PostsBySlug.Get(slug)
+	if !found {
+		return nil, ErrPostNotFound
+	}
+	return post.(*Post), nil
+}
+
 func (b *Blog) SetDisablePostLikes(disable bool) {
 	b.DisableLikes = disable
 	b.Posts.ReverseIterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
-		post.SetDisableLikes(disable)
+		post.DisableLikes = disable
 		return false
 	})
 	b.PostsBySlug.ReverseIterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
-		post.SetDisableLikes(disable)
+		post.DisableLikes = disable
 		return false
 	})
 	b.PostsByUpdatedAt.ReverseIterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
-		post.SetDisableLikes(disable)
+		post.DisableLikes = disable
 		return false
 	})
 }
@@ -165,13 +197,13 @@ func (b *Blog) SetUserResolver(resolver UserResolver) {
 
 func (b Blog) Mention(role, recipient string) string {
 	if role == "author" {
-		return md.Bold(md.Link("@"+recipient, b.Prefix+":authors/"+recipient))
+		return md.Bold(md.Link("@"+recipient, b.Prefix()+":authors/"+recipient))
 	}
 	if role == "commenter" {
-		return md.Bold(md.Link("@"+recipient, b.Prefix+":commenters/"+recipient))
+		return md.Bold(md.Link("@"+recipient, b.Prefix()+":commenters/"+recipient))
 	}
 	if role == "tag" {
-		return md.Bold(md.Link("#"+recipient, b.Prefix+":tags/"+recipient))
+		return md.Bold(md.Link("#"+recipient, b.Prefix()+":tags/"+recipient))
 	}
 	return ""
 }
@@ -211,8 +243,8 @@ func (b Blog) filterPostsStartEnd(tree *avl.Tree, start, end *time.Time) *avl.Tr
 	filtered := avl.NewTree()
 	tree.Iterate("", "", func(k string, v interface{}) bool {
 		post := v.(*Post)
-		if (start == nil || post.CreatedAt.After(*start)) &&
-			(end == nil || post.CreatedAt.Before(*end)) {
+		if (start == nil || post.CreatedAt().After(*start)) &&
+			(end == nil || post.CreatedAt().Before(*end)) {
 			filtered.Set(k, post)
 		}
 		return false
@@ -232,14 +264,14 @@ func (b Blog) filterPostsByField(field, value, sort string) (*avl.Tree, bool) {
 			post := v.(*Post)
 			var match bool
 			if field == "tag" {
-				match = hasField(post.Tags, value)
+				match = hasField(post.Tags(), value)
 			} else {
-				match = hasField(post.Authors, value)
+				match = hasField(post.Authors(), value)
 			}
 			if match {
 				recentPosts.Set(k, post)
-				alphaPosts.Set(post.Slug, post)
-				updatedPosts.Set(post.UpdatedAt.String(), post)
+				alphaPosts.Set(post.Slug(), post)
+				updatedPosts.Set(post.UpdatedAt().String(), post)
 			}
 			return false
 		})
@@ -251,9 +283,9 @@ func (b Blog) filterPostsByField(field, value, sort string) (*avl.Tree, bool) {
 			for _, comment := range comments {
 				commenterId.Next()
 				keyPrefix := commenterId.String() + "::"
-				recentPosts.Set(keyPrefix+post.ID.String(), comment)
-				alphaPosts.Set(keyPrefix+post.Slug, comment)
-				updatedPosts.Set(keyPrefix+post.UpdatedAt.String(), comment)
+				recentPosts.Set(keyPrefix+post.ID(), comment)
+				alphaPosts.Set(keyPrefix+post.Slug(), comment)
+				updatedPosts.Set(keyPrefix+post.UpdatedAt().String(), comment)
 			}
 			return false
 		})
@@ -274,7 +306,7 @@ func (b Blog) findPostBySlug(value string) (string, bool) {
 	var found bool
 	b.Posts.Iterate("", "", func(k string, v interface{}) bool {
 		post := v.(*Post)
-		if post.Slug == value {
+		if post.Slug() == value {
 			foundKey = k
 			found = true
 		}
@@ -284,7 +316,7 @@ func (b Blog) findPostBySlug(value string) (string, bool) {
 }
 
 func (b *Blog) addToIndex(post *Post) {
-	for _, tag := range post.Tags {
+	for _, tag := range post.Tags() {
 		oldCount := 0
 		if val, found := b.TagsIndex.Get(tag); found {
 			oldCount = val.(int)
@@ -294,7 +326,7 @@ func (b *Blog) addToIndex(post *Post) {
 		b.TagsIndex.Set(tag, newCount)
 		b.TagsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, tag), newCount)
 	}
-	for _, author := range post.Authors {
+	for _, author := range post.Authors() {
 		oldCount := 0
 		if val, found := b.AuthorsIndex.Get(author); found {
 			oldCount = val.(int)

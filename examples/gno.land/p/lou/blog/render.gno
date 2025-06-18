@@ -66,7 +66,7 @@ func RenderBlogHeader(prefix, rawPath string) string {
 
 // :posts
 func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
-	out := md.H1(b.Title) + "\n"
+	out := md.H1(b.Title()) + "\n"
 	if b.Posts.Size() == 0 {
 		res.Write("No posts found.")
 		return
@@ -96,7 +96,7 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 
 	p := pager.NewPager(tree, pageSize, order)
 	page := p.MustGetPageByPath(req.RawPath)
-	out += RenderBlogHeader(b.Prefix, req.RawPath)
+	out += RenderBlogHeader(b.Prefix(), req.RawPath)
 	out += b.RenderListGrid(page, options.IsGrid, options.TimeFormat) + page.Picker(req.Path)
 	res.Write(out)
 }
@@ -109,7 +109,7 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool, timeFmt string) st
 			out += "<gno-columns>\n"
 		}
 		post := item.Value.(*Post)
-		out += post.RenderPreview(gridMode, timeFmt, b.Prefix)
+		out += post.RenderPreview(gridMode, timeFmt, b.Prefix())
 		colCount++
 		if colCount%3 == 0 {
 			out += "</gno-columns>\n"
@@ -133,7 +133,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 	post, found := b.Posts.Get(foundKey)
-	out := post.(*Post).RenderPost(b.Prefix)
+	out := post.(*Post).RenderPost(b.Prefix())
 
 	res.Write(out)
 }
@@ -141,20 +141,20 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 	out := ""
 	if strings.Split(req.RawPath, "/")[0] == "commenters" {
-		out += md.H2(md.Link(b.Prefix, b.Prefix) + "/commenters/" + strings.Split(req.RawPath, "/")[1])
+		out += md.H2(md.Link(b.Prefix(), b.Prefix()) + "/commenters/" + strings.Split(req.RawPath, "/")[1])
 	} else {
-		out += md.H2(renderBreadcrumb(b.Prefix, req.Path)) + "\n"
+		out += md.H2(renderBreadcrumb(b.Prefix(), req.Path)) + "\n"
 	}
 	if !isListing {
-		out += md.Link("⊞ grid", GetGridFmtPath(b.Prefix+":"+req.RawPath)) + " | "
-		out += md.Link("☰ list", GetListFmtPath(b.Prefix+":"+req.RawPath)) + " | "
+		out += md.Link("⊞ grid", GetGridFmtPath(b.Prefix()+":"+req.RawPath)) + " | "
+		out += md.Link("☰ list", GetListFmtPath(b.Prefix()+":"+req.RawPath)) + " | "
 
 		// ?time=relative | short | full
 		time := parseQueryParams("time", req.RawPath)
 		if time == "" {
 			time = "relative"
 		}
-		out += md.Link("⏱ "+time, GetTimeFmtPath(b.Prefix+":"+req.RawPath, toggleTimeFormat(time))) + " | "
+		out += md.Link("⏱ "+time, GetTimeFmtPath(b.Prefix()+":"+req.RawPath, toggleTimeFormat(time))) + " | "
 
 	}
 
@@ -169,14 +169,14 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 		alphaOrder = " (Z-A)"
 	}
 	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical"+alphaOrder,
-		GetSortByAlphabeticalPath(b.Prefix+":"+req.RawPath, order)) + " | "
+		GetSortByAlphabeticalPath(b.Prefix()+":"+req.RawPath, order)) + " | "
 	// ?sort=recent
 	publishedOrder := " recent"
 	if order == "desc" && sort == "recent" {
 		publishedOrder = " oldest"
 	}
 	out += md.Link(orderArrow("recent", sort, order)+publishedOrder,
-		GetSortByPublishedPath(b.Prefix+":"+req.RawPath, order)) + " | "
+		GetSortByPublishedPath(b.Prefix()+":"+req.RawPath, order)) + " | "
 
 	if isListing {
 		// ?sort=common
@@ -185,15 +185,15 @@ func (b Blog) RenderFilterHeader(req *mux.Request, isListing bool) string {
 			commonOrder = " least common"
 		}
 		out += md.Link(orderArrow("common", sort, order)+commonOrder,
-			GetSortByCommonPath(b.Prefix+":"+req.RawPath, order)) + " | "
+			GetSortByCommonPath(b.Prefix()+":"+req.RawPath, order)) + " | "
 	} else {
 		// ?sort=update
 		out += md.Link(orderArrow("update", sort, order)+" last updated",
-			GetSortByUpdatedPath(b.Prefix+":"+req.RawPath, order)) + " | "
+			GetSortByUpdatedPath(b.Prefix()+":"+req.RawPath, order)) + " | "
 	}
 	// ?start=<date>&end=<date>
-	out += renderTimeRangeLinks(b.Prefix+":"+req.RawPath) + " | "
-	out += md.Link("🗘 reset", b.Prefix+":"+req.Path) + "\n\n"
+	out += renderTimeRangeLinks(b.Prefix()+":"+req.RawPath) + " | "
+	out += md.Link("🗘 reset", b.Prefix()+":"+req.Path) + "\n\n"
 	return out
 }
 
@@ -238,7 +238,7 @@ func (b Blog) renderListingIndex(field string, options RenderOptions, req *mux.R
 
 	for _, item := range page.Items {
 		label, count := extractListingDisplay(item.Key, item.Value)
-		out += md.H3(md.Link(label, b.Prefix+":"+field+"s/"+label)+" ("+ufmt.Sprintf("%d", count)+")") + "\n\n"
+		out += md.H3(md.Link(label, b.Prefix()+":"+field+"s/"+label)+" ("+ufmt.Sprintf("%d", count)+")") + "\n\n"
 	}
 	out += page.Picker(req.Path) + "\n\n"
 	return out
@@ -262,7 +262,7 @@ func (b Blog) renderFilteredListing(field, value string, options RenderOptions, 
 			out += b.renderCommenterItem(item, options)
 		} else {
 			post := item.Value.(*Post)
-			out += post.RenderPreview(options.IsGrid, options.TimeFormat, b.Prefix) + "\n"
+			out += post.RenderPreview(options.IsGrid, options.TimeFormat, b.Prefix()) + "\n"
 		}
 		if colCount%3 == 0 {
 			out += "</gno-columns>\n"
@@ -297,10 +297,10 @@ func (b Blog) renderCommenterItem(item pager.Item, options RenderOptions) string
 	}
 	p := post.(*Post)
 
-	out := md.H4(b.Mention("commenter", comment.Author)) + "\n\n"
-	out += comment.Content + "\n\n"
-	out += md.Italic(formatTime(comment.CreatedAt, options.TimeFormat)) + "\n\n"
-	out += "in " + md.Link(p.Title, b.Prefix+":posts/"+p.Slug) + "\n\n"
+	out := md.H4(b.Mention("commenter", comment.Author())) + "\n\n"
+	out += comment.Content() + "\n\n"
+	out += md.Italic(formatTime(comment.CreatedAt(), options.TimeFormat)) + "\n\n"
+	out += "in " + md.Link(p.Title(), b.Prefix()+":posts/"+p.Slug()) + "\n\n"
 	out += md.HorizontalRule()
 	return out
 }

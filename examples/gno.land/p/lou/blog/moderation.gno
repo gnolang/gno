@@ -4,20 +4,29 @@ import (
 	"std"
 )
 
+type Permission struct {
+	Read  bool
+	Write bool
+}
+
 type UserResolver func(input string) (string, bool)
 
-func CheckUser(addr string, resolver *UserResolver) (string, error) {
+func CheckAddr(addr string) error {
 	if !std.Address(addr).IsValid() {
+		return ErrInvalidCaller
+	}
+	return nil
+}
+
+func CheckUser(addr string, resolver *UserResolver) (string, error) {
+	if CheckAddr(addr) != nil {
 		return "", ErrInvalidCaller
 	}
-	if resolver == nil {
+	if !IsRegistered(addr, resolver) {
 		return addr, nil
 	}
 	resolveUser := *resolver
 	userData, _ := resolveUser(addr)
-	if userData == "" {
-		return addr, nil
-	}
 	return userData, nil
 }
 

@@ -12,23 +12,71 @@ import (
 )
 
 type Post struct {
-	ID          seqid.ID
-	Slug        string
-	Title       string
-	Body        string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	PublishedAt time.Time
-	Tags        []string
-	Authors     []string
-	Publisher   string
-	Likes       uint64
+	id          seqid.ID
+	slug        string
+	title       string
+	body        string
+	createdAt   time.Time
+	updatedAt   time.Time
+	publishedAt time.Time
+	tags        []string
+	authors     []string
+	publisher   string
+	likes       int
 	CommentId   seqid.ID
 	Comments    *avl.Tree // id --> *Comment
 
-	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
+	previewFooter string // additional text, e.g. "via @lou" or txlink calls
 	DisableLikes  bool
 	UserResolver  *UserResolver
+}
+
+func (p Post) ID() string {
+	return p.id.String()
+}
+
+func (p Post) Slug() string {
+	return p.slug
+}
+
+func (p Post) Title() string {
+	return p.title
+}
+
+func (p Post) Body() string {
+	return p.body
+}
+
+func (p Post) CreatedAt() time.Time {
+	return p.createdAt
+}
+
+func (p Post) UpdatedAt() time.Time {
+	return p.updatedAt
+}
+
+func (p Post) PublishedAt() time.Time {
+	return p.publishedAt
+}
+
+func (p Post) Publisher() string {
+	return p.publisher
+}
+
+func (p Post) Authors() []string {
+	return p.authors
+}
+
+func (p Post) Tags() []string {
+	return p.tags
+}
+
+func (p Post) Likes() int {
+	return p.likes
+}
+
+func (p Post) PreviewFooter() string {
+	return p.previewFooter
 }
 
 func NewPost(slug, title, body, publicationDate, caller string, authors, tags []string) (*Post, error) {
@@ -52,26 +100,26 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 	}
 
 	return &Post{
-		Slug:          slug,
-		Title:         title,
-		Body:          body,
-		CreatedAt:     publishedAt,
-		UpdatedAt:     publishedAt,
-		PublishedAt:   time.Now(),
-		Tags:          tags,
-		Authors:       authors,
-		Publisher:     caller,
-		Likes:         0,
+		slug:          slug,
+		title:         title,
+		body:          body,
+		createdAt:     publishedAt,
+		updatedAt:     publishedAt,
+		publishedAt:   time.Now(),
+		tags:          tags,
+		authors:       authors,
+		publisher:     caller,
+		likes:         0,
 		CommentId:     seqid.ID(0),
 		Comments:      avl.NewTree(),
-		PreviewFooter: "",
+		previewFooter: "",
 		DisableLikes:  false,
 		UserResolver:  nil,
 	}, nil
 }
 
 func (p *Post) AddComment(comment *Comment) error {
-	if _, err := CheckUser(comment.Author, p.UserResolver); err != nil {
+	if _, err := CheckUser(comment.Author(), p.UserResolver); err != nil {
 		return err
 	}
 	p.CommentId.Next()
@@ -113,22 +161,14 @@ func (p *Post) PinCommentById(id string) error {
 }
 
 func (p *Post) SetPreviewFooter(footer string) {
-	p.PreviewFooter = footer
-}
-
-func (p *Post) SetDisableLikes(disable bool) {
-	p.DisableLikes = disable
-}
-
-func (p *Post) SetUserResolver(resolver UserResolver) {
-	p.UserResolver = &resolver
+	p.previewFooter = footer
 }
 
 func (p Post) GetCommentsByAuthor(author string) []*Comment {
 	var comments []*Comment = nil
 	p.Comments.ReverseIterate("", "", func(_ string, comment interface{}) bool {
 		c := comment.(*Comment)
-		if c.Author == author {
+		if c.Author() == author {
 			comments = append(comments, c)
 		}
 		comments = append(comments, getReplies(c.Replies, author)...)
@@ -138,56 +178,56 @@ func (p Post) GetCommentsByAuthor(author string) []*Comment {
 }
 
 func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
-	resolvedAuthors := resolveAuthors(p.Authors, p.UserResolver)
-	out := md.H2(md.Link(p.Title, prefix+":posts/"+p.Slug)) + "\n\n"
-	out += md.H5(md.Italic("/"+p.Slug)) + "\n\n"
-	if p.UpdatedAt != p.CreatedAt {
-		out += formatTime(p.UpdatedAt, timeFmt) + " (updated)\n\n"
+	resolvedAuthors := resolveAuthors(p.Authors(), p.UserResolver)
+	out := md.H2(md.Link(p.Title(), prefix+":posts/"+p.Slug())) + "\n\n"
+	out += md.H5(md.Italic("/"+p.Slug())) + "\n\n"
+	if p.UpdatedAt() != p.CreatedAt() {
+		out += formatTime(p.UpdatedAt(), timeFmt) + " (updated)\n\n"
 	} else {
-		out += formatTime(p.CreatedAt, timeFmt) + "\n\n"
+		out += formatTime(p.CreatedAt(), timeFmt) + "\n\n"
 	}
 	if !gridMode {
 		out += md.Bold("author(s):") + " " + strings.Join(resolvedAuthors, ", ") + "\n\n"
 	}
-	if len(p.Tags) > 0 {
-		out += md.Bold("tags:") + " `" + strings.Join(p.Tags, "`, `") + "`\n\n"
+	if len(p.Tags()) > 0 {
+		out += md.Bold("tags:") + " `" + strings.Join(p.Tags(), "`, `") + "`\n\n"
 	}
-	out += md.Bold(md.Link("comments ("+strconv.Itoa(p.Comments.Size()), prefix+":posts/"+p.Slug+"#comments"))
+	out += md.Bold(md.Link("comments ("+strconv.Itoa(p.Comments.Size()), prefix+":posts/"+p.Slug()+"#comments"))
 	if p.DisableLikes {
 		out += ") "
 	} else {
-		out += ufmt.Sprintf(") | ❤️ (%d)\n\n", p.Likes)
+		out += ufmt.Sprintf(") | ❤️ (%d)\n\n", p.Likes())
 	}
-	if p.PreviewFooter != "" {
-		out += p.PreviewFooter + "\n\n"
+	if p.PreviewFooter() != "" {
+		out += p.PreviewFooter() + "\n\n"
 	}
 	out += md.HorizontalRule()
 	return out
 }
 
 func (p Post) RenderPost(prefix string) string {
-	resolvedAuthors := resolveAuthors(p.Authors, p.UserResolver)
-	out := md.H1(p.Title) + "\n\n"
+	resolvedAuthors := resolveAuthors(p.Authors(), p.UserResolver)
+	out := md.H1(p.Title()) + "\n\n"
 	if p.Comments.Size() > 0 {
 		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comment(s)", "#comments") + "\n\n"
 	}
 	out += md.Italic("Author(s):") + " " + renderAuthorLinks(prefix, resolvedAuthors) + "\n\n"
-	out += p.Body + "\n\n"
+	out += p.Body() + "\n\n"
 	out += md.HorizontalRule()
-	out += md.Bold("Created on:") + " " + formatTime(p.CreatedAt, "full") + "\n\n"
-	out += md.Bold("Published on:") + " " + formatTime(p.PublishedAt, "full") + "\n\n"
-	if p.UpdatedAt != p.CreatedAt {
-		out += md.Bold("Last updated:") + " " + formatTime(p.UpdatedAt, "full") + "\n\n"
+	out += md.Bold("Created on:") + " " + formatTime(p.CreatedAt(), "full") + "\n\n"
+	out += md.Bold("Published on:") + " " + formatTime(p.PublishedAt(), "full") + "\n\n"
+	if p.UpdatedAt() != p.CreatedAt() {
+		out += md.Bold("Last updated:") + " " + formatTime(p.UpdatedAt(), "full") + "\n\n"
 	}
 	out += md.Bold("Publisher:") + " "
-	userPublisher, _ := CheckUser(p.Publisher, p.UserResolver)
-	if IsRegistered(p.Publisher, p.UserResolver) {
+	userPublisher, _ := CheckUser(p.Publisher(), p.UserResolver)
+	if IsRegistered(p.Publisher(), p.UserResolver) {
 		out += md.Link(userPublisher, "/u/"+userPublisher) + "\n\n"
 	} else {
 		out += userPublisher + "\n\n"
 	}
-	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
-	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes)
+	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags()) + "\n\n"
+	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes())
 	out += md.HorizontalRule()
 	out += p.RenderComments(prefix)
 	return out
@@ -201,14 +241,14 @@ func (p Post) RenderComments(prefix string) string {
 	}
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
-		if comment.Pinned {
+		if comment.Pinned() {
 			out += comment.Render(prefix, 0, p.UserResolver) + "\n\n"
 		}
 		return false
 	})
 	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
 		comment := v.(*Comment)
-		if !comment.Pinned {
+		if !comment.Pinned() {
 			out += comment.Render(prefix, 0, p.UserResolver) + "\n\n"
 		}
 		return false
@@ -240,7 +280,7 @@ func getReplies(replies *avl.Tree, author string) []*Comment {
 	}
 	replies.ReverseIterate("", "", func(_ string, value any) bool {
 		comment := value.(*Comment)
-		if comment.Author == author {
+		if comment.Author() == author {
 			comments = append(comments, comment)
 		}
 		if comment.Replies.Size() > 0 {
