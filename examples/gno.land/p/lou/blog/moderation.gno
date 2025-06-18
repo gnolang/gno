@@ -2,28 +2,33 @@ package blog
 
 import (
 	"std"
-
-	"gno.land/p/moul/md"
 )
 
 type UserResolver func(input string) (string, bool)
 
-type User struct {
-	Addr     std.Address
-	Username string
-}
-
-func (u User) renderLink() string {
-	return md.Link("@"+u.Username, "/r/gnoland/users/v1:"+u.Username)
-}
-
-func CheckUser(addr string, resolver UserResolver) (*User, error) {
-	if std.Address(addr).IsValid() {
-		return nil, ErrInvalidCaller
+func CheckUser(addr string, resolver *UserResolver) (string, error) {
+	if !std.Address(addr).IsValid() {
+		return "", ErrInvalidCaller
 	}
-	userData, _ := resolver(addr)
-	return &User{
-		Addr:     std.Address(addr),
-		Username: userData,
-	}, nil
+	if resolver == nil {
+		return addr, nil
+	}
+	resolveUser := *resolver
+	userData, _ := resolveUser(addr)
+	if userData == "" {
+		return addr, nil
+	}
+	return userData, nil
+}
+
+func IsRegistered(addr string, resolver *UserResolver) bool {
+	if resolver == nil {
+		return false
+	}
+	resolveUser := *resolver
+	userData, _ := resolveUser(addr)
+	if userData == "" {
+		return false
+	}
+	return true
 }

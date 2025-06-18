@@ -54,6 +54,9 @@ func (b *Blog) AddPost(post *Post) error {
 	if _, exists := b.PostsBySlug.Get(post.Slug); exists {
 		return ErrPostAlreadyExists
 	}
+	if _, err := CheckUser(post.Publisher, b.UserResolver); err != nil {
+		return err
+	}
 	post.SetDisableLikes(b.DisableLikes)
 	if b.UserResolver != nil {
 		post.SetUserResolver(*b.UserResolver)

@@ -12,7 +12,6 @@ import (
 type Comment struct {
 	ID           seqid.ID
 	Author       string
-	User         *User
 	Content      string
 	CreatedAt    time.Time
 	EditedAt     *time.Time
@@ -94,12 +93,8 @@ func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) s
 		prefix += "> "
 	}
 	out := ""
-	user, err := CheckUser(c.Author, *resolver)
-	if err != nil || resolver == nil || user.Username == "" {
-		out += prefix + md.Bold(md.Link(c.Author, blogPrefix+":commenters/"+c.Author)) + " "
-	} else {
-		out += prefix + md.Bold(md.Link(user.Username, blogPrefix+":commenters/"+c.Author)) + " "
-	}
+	user, _ := CheckUser(c.Author, resolver)
+	out += prefix + md.Bold(md.Link(user, blogPrefix+":commenters/"+c.Author)) + " "
 	if c.Pinned {
 		out += "📌 "
 	}

@@ -71,6 +71,9 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 }
 
 func (p *Post) AddComment(comment *Comment) error {
+	if _, err := CheckUser(comment.Author, p.UserResolver); err != nil {
+		return err
+	}
 	p.CommentId.Next()
 	if !p.Comments.Set(p.CommentId.String(), comment) {
 		return ErrCommentAddFailed
@@ -135,6 +138,7 @@ func (p Post) GetCommentsByAuthor(author string) []*Comment {
 }
 
 func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
+	resolvedAuthors := resolveAuthors(p.Authors, p.UserResolver)
 	out := md.H2(md.Link(p.Title, prefix+":posts/"+p.Slug)) + "\n\n"
 	out += md.H5(md.Italic("/"+p.Slug)) + "\n\n"
 	if p.UpdatedAt != p.CreatedAt {
@@ -143,7 +147,7 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 		out += formatTime(p.CreatedAt, timeFmt) + "\n\n"
 	}
 	if !gridMode {
-		out += md.Bold("author(s):") + " " + strings.Join(p.Authors, ", ") + "\n\n"
+		out += md.Bold("author(s):") + " " + strings.Join(resolvedAuthors, ", ") + "\n\n"
 	}
 	if len(p.Tags) > 0 {
 		out += md.Bold("tags:") + " `" + strings.Join(p.Tags, "`, `") + "`\n\n"
@@ -162,11 +166,12 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 }
 
 func (p Post) RenderPost(prefix string) string {
+	resolvedAuthors := resolveAuthors(p.Authors, p.UserResolver)
 	out := md.H1(p.Title) + "\n\n"
 	if p.Comments.Size() > 0 {
 		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comment(s)", "#comments") + "\n\n"
 	}
-	out += md.Italic("Author(s):") + " " + renderAuthorLinks(prefix, p.Authors) + "\n\n"
+	out += md.Italic("Author(s):") + " " + renderAuthorLinks(prefix, resolvedAuthors) + "\n\n"
 	out += p.Body + "\n\n"
 	out += md.HorizontalRule()
 	out += md.Bold("Created on:") + " " + formatTime(p.CreatedAt, "full") + "\n\n"
@@ -175,11 +180,11 @@ func (p Post) RenderPost(prefix string) string {
 		out += md.Bold("Last updated:") + " " + formatTime(p.UpdatedAt, "full") + "\n\n"
 	}
 	out += md.Bold("Publisher:") + " "
-	user, err := CheckUser(p.Publisher, *p.UserResolver)
-	if err != nil || p.UserResolver == nil {
-		out += p.Publisher + "\n\n"
+	userPublisher, _ := CheckUser(p.Publisher, p.UserResolver)
+	if IsRegistered(p.Publisher, p.UserResolver) {
+		out += md.Link(userPublisher, "/u/"+userPublisher) + "\n\n"
 	} else {
-		out += user.Username + "\n\n"
+		out += userPublisher + "\n\n"
 	}
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags) + "\n\n"
 	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes)
@@ -209,6 +214,15 @@ func (p Post) RenderComments(prefix string) string {
 		return false
 	})
 	return out
+}
+
+func resolveAuthors(authors []string, resolver *UserResolver) []string {
+	var resolvedAuthors []string
+	for _, author := range authors {
+		user, _ := CheckUser(author, resolver)
+		resolvedAuthors = append(resolvedAuthors, user)
+	}
+	return resolvedAuthors
 }
 
 func renderTagLinks(prefix string, tags []string) string {
