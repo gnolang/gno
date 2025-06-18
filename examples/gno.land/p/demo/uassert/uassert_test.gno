@@ -102,6 +102,30 @@ func TestPanicsWithMessage(t *testing.T) {
 	mockT.equals(t, "error: func should panic with message:\t\"Panic!\"\n\tActual panic value:\t\"panic\"")
 }
 
+func TestPanicsContains(t *testing.T) {
+	mockT := new(mockTestingT)
+	if !uassert.PanicsContains(mockT, "panic", func() {
+		panic(errors.New("panic: something happened"))
+	}) {
+		t.Error("PanicsContains should return true for substring match")
+	}
+	mockT.empty(t)
+
+	if uassert.PanicsContains(mockT, "notfound", func() {
+		panic(errors.New("panic: something happened"))
+	}) {
+		t.Error("PanicsContains should return false for missing substring")
+	}
+	mockT.equals(t, "error: func should panic with message containing:\t\"notfound\"\n\tActual panic value:\t\"panic: something happened\"")
+
+	if uassert.PanicsContains(mockT, "panic", func() {
+		// noop
+	}) {
+		t.Error("PanicsContains should return false when no panic occurs")
+	}
+	mockT.equals(t, "error: func should panic\n\tPanic value:\tnil")
+}
+
 func TestAbortsWithMessage(t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.AbortsWithMessage(mockT, "abort message", func() {
@@ -152,6 +176,36 @@ func TestAbortsWithMessage(t *testing.T) {
 	mockT.equals(t, "error: func should abort with message:\t\"doesn't matter\"\n\tActual abort value:\t\"123\"")
 
 	// XXX: test with Error
+}
+
+func TestAbortsContains(t *testing.T) {
+	mockT := new(mockTestingT)
+	if !uassert.AbortsContains(mockT, "abort", func() {
+		tests.ExecSwitch(cross, func() {
+			panic("abort message: something happened")
+		})
+		panic("dontcare")
+	}) {
+		t.Error("AbortsContains should return true for substring match")
+	}
+	mockT.empty(t)
+
+	if uassert.AbortsContains(mockT, "notfound", func() {
+		tests.ExecSwitch(cross, func() {
+			panic("abort message: something happened")
+		})
+		panic("dontcare")
+	}) {
+		t.Error("AbortsContains should return false for missing substring")
+	}
+	mockT.equals(t, "error: func should abort with message containing:\t\"notfound\"\n\tActual abort value:\t\"abort message: something happened\"")
+
+	if uassert.AbortsContains(mockT, "abort", func() {
+		// noop
+	}) {
+		t.Error("AbortsContains should return false when no abort occurs")
+	}
+	mockT.equals(t, "error: func should abort")
 }
 
 func TestNotAborts(t *testing.T) {
