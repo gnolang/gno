@@ -28,13 +28,6 @@ const (
 	setHangoutFunc   = "SetHangoutTimeAndPlace"
 )
 
-type ProposalDefinition interface {
-	Title() string
-	Body() string
-	VotingPeriod() time.Duration
-	Tally(commondao.ReadonlyVotingRecord, commondao.MemberSet) (bool, error)
-}
-
 func (c *CallbackProposalDefinition) Title() string {
 	return c.TitleValue
 }
