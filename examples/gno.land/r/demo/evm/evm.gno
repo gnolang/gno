@@ -58,7 +58,7 @@ func splitCallData(callData string) (string, []*uint256.Uint) {
 }
 
 // public functions
-func ExecuteByteCode(codeStr, callData string, valueToSend string) {
+func ExecuteByteCode(codeStr, callData, valueToSend string) {
 	crossing()
 
 	// check for caller
@@ -69,6 +69,20 @@ func ExecuteByteCode(codeStr, callData string, valueToSend string) {
 
 	// execute raw byte code
 	res, err := caller.Call(env, uint256.MustFromDecimal(valueToSend), codeStr, callDataFunc, args...)
+	if err != nil {
+		panic("execute bytecode runtime error: " + err.Error())
+	}
+	env.Transaction.PushExecution(0, caller, res, 0, true) // TODO: get the execution price
+}
+
+func CreateNewContract(initCode, valueToSend string) {
+	crossing()
+
+	// check for caller
+	caller := assertGetConnectedUserFromRealm()
+
+	// execute raw byte code
+	res, err := caller.CreateContract(env, initCode, uint256.MustFromDecimal(valueToSend))
 	if err != nil {
 		panic("execute bytecode runtime error: " + err.Error())
 	}

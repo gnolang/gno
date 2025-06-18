@@ -1706,7 +1706,7 @@ func TestCallEvm(t *testing.T) {
 
 	// call code to test
 	env.Accounts[me].Gas = 100000
-	res, err := env.Accounts[me].executeCallHex(env, uint256.Zero(), "", env.Accounts[codeThatReturns].Code)
+	res, err := env.Accounts[me].executeCallHex(env, "", env.Accounts[codeThatReturns].Code)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1716,7 +1716,7 @@ func TestCallEvm(t *testing.T) {
 
 	// create a contract that calls
 	env.Accounts[me].Gas = 100_000
-	prout, err := env.Accounts[me].executeCallHex(env, uint256.Zero(), "", []byte{
+	prout, err := env.Accounts[me].executeCallHex(env, "", []byte{
 		byte(PUSH1), 1, // retSize
 		byte(PUSH0),                              // retOffset
 		byte(PUSH0),                              // argsSize

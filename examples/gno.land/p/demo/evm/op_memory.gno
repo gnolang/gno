@@ -6,6 +6,19 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
+func getByteCopyFromMemory(memory []byte, offset *uint256.Uint, size *uint256.Uint) []byte {
+	callData := make([]byte, 0)
+	if int(offset.Uint64()) >= len(memory) {
+		callData = make([]byte, int(size.Uint64()))
+	} else if int(offset.Uint64()+size.Uint64()) > len(memory) {
+		callData = make([]byte, int(size.Uint64()))
+		copy(callData, memory[offset.Uint64():])
+	} else {
+		callData = memory[offset.Uint64() : offset.Uint64()+size.Uint64()]
+	}
+	return callData
+}
+
 // Retrieve data stored in memory, at offset.
 // > IN: `[offset]`
 // > OUT: `[result]`

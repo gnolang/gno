@@ -15,10 +15,11 @@ type LogEntry struct {
 
 // tmpEnv stores temporary execution environment data such as storage, logs, warm storage slots, and accounts.
 type tmpEnv struct {
-	storage     map[uint256.Uint]*uint256.Uint // Temporary storage key-value pairs for the current execution
-	warmStorage []uint256.Uint                 // List of storage slots accessed ("warm" slots)
-	logs        []LogEntry                     // Event logs generated during execution
-	accounts    Accounts                       // Temporary accounts state
+	storage      map[uint256.Uint]*uint256.Uint // Temporary storage key-value pairs for the current execution
+	warmStorage  []uint256.Uint                 // List of storage slots accessed ("warm" slots)
+	logs         []LogEntry                     // Event logs generated during execution
+	accounts     Accounts                       // Temporary accounts state
+	transactions Transactions                   // Temporary list of transactions that happened on the chain
 }
 
 // State represents the full EVM execution state during a transaction or message call.
@@ -48,10 +49,11 @@ func newEmptyState() *State {
 		callerAddress: 0,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
-			storage:     map[uint256.Uint]*uint256.Uint{},
-			logs:        []LogEntry{},
-			warmStorage: []uint256.Uint{},
-			accounts:    Accounts{},
+			storage:      map[uint256.Uint]*uint256.Uint{},
+			logs:         []LogEntry{},
+			warmStorage:  []uint256.Uint{},
+			accounts:     Accounts{},
+			transactions: []Transaction{},
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              nil,
@@ -78,6 +80,10 @@ func newStateFromEnv(env *Env) *State {
 			accountsCopy[k] = v
 		}
 	}
+
+	transactionsCopy := make(Transactions, len(env.Transaction))
+	copy(transactionsCopy, env.Transaction)
+
 	return &State{
 		stack:         *NewevmStack(),
 		memory:        []byte{}, // make([]byte, 1024)
@@ -86,10 +92,11 @@ func newStateFromEnv(env *Env) *State {
 		callerAddress: 0,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
-			storage:     storageCopy,
-			logs:        logsCopy,
-			warmStorage: []uint256.Uint{},
-			accounts:    accountsCopy,
+			storage:      storageCopy,
+			logs:         logsCopy,
+			warmStorage:  []uint256.Uint{},
+			accounts:     accountsCopy,
+			transactions: transactionsCopy,
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              env,
@@ -117,6 +124,9 @@ func (s *State) clone() *State {
 		accountsCopy[k] = v
 	}
 
+	transactionsCopy := make(Transactions, len(s.tmp.transactions))
+	copy(transactionsCopy, s.tmp.transactions)
+
 	return &State{
 		stack:         *NewevmStack(),
 		memory:        []byte{},
@@ -125,15 +135,48 @@ func (s *State) clone() *State {
 		callerAddress: s.callerAddress,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
-			storage:     storageCopy,
-			logs:        logsCopy,
-			warmStorage: warmStorageCopy,
-			accounts:    accountsCopy,
+			storage:      storageCopy,
+			logs:         logsCopy,
+			warmStorage:  warmStorageCopy,
+			accounts:     accountsCopy,
+			transactions: transactionsCopy,
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
 		env:              s.env,
 		gasConsumed:      0,
 		gasLimit:         -1,
+	}
+}
+
+// clone creates a deep copy of the current State, including storage, logs, warm storage, and accounts.
+// Note that stack, memory, and code are reset/empty in the clone.
+func (s *State) applyStateAfterReturn(tmpState *State) {
+	storageCopy := make(map[uint256.Uint]*uint256.Uint)
+	for k, v := range tmpState.tmp.storage {
+		storageCopy[k] = v
+	}
+
+	logsCopy := make([]LogEntry, len(tmpState.tmp.logs))
+	copy(logsCopy, tmpState.tmp.logs)
+
+	warmStorageCopy := make([]uint256.Uint, len(tmpState.tmp.warmStorage))
+	copy(warmStorageCopy, tmpState.tmp.warmStorage)
+
+	accountsCopy := make(Accounts)
+	for k, v := range tmpState.tmp.accounts {
+		accountsCopy[k] = v
+	}
+
+	transactionsCopy := make(Transactions, len(tmpState.tmp.transactions))
+	copy(transactionsCopy, s.tmp.transactions)
+
+	s.lastCallState = tmpState
+	s.tmp = tmpEnv{
+		storage:      storageCopy,
+		logs:         logsCopy,
+		warmStorage:  warmStorageCopy,
+		accounts:     accountsCopy,
+		transactions: transactionsCopy,
 	}
 }
 
@@ -178,7 +221,9 @@ func (s *State) setCallValue(wei *uint256.Uint) {
 
 // setCallData appends input call data bytes to the existing call data.
 func (s *State) setCallData(data []byte) {
-	s.callData = append(s.callData, data...)
+	s.callData = make([]byte, len(data))
+	copy(s.callData, data)
+
 }
 
 //==// USEFULL //==//

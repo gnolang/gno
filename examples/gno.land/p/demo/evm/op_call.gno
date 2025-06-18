@@ -22,19 +22,6 @@ func getVariables(stack *evmStack) (gas *uint256.Uint, address *uint256.Uint, mo
 	return
 }
 
-func getCallData(argsOffset *uint256.Uint, s *State, argsSize *uint256.Uint) []byte {
-	callData := make([]byte, 0)
-	if int(argsOffset.Uint64()) >= len(s.memory) {
-		callData = make([]byte, int(argsSize.Uint64()))
-	} else if int(argsOffset.Uint64()+argsSize.Uint64()) > len(s.memory) {
-		callData = make([]byte, int(argsSize.Uint64()))
-		copy(callData, s.memory[argsOffset.Uint64():])
-	} else {
-		callData = s.memory[argsOffset.Uint64() : argsOffset.Uint64()+argsSize.Uint64()]
-	}
-	return callData
-}
-
 func opCall(s *State) error {
 	// get the values pushed in stack
 	gas, address, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getVariables(&s.stack)
@@ -52,7 +39,7 @@ func opCall(s *State) error {
 		return notEnoughGas
 	}
 	memoryCost := uint64(0)
-	callData := getCallData(argsOffset, s, argsSize)
+	callData := getByteCopyFromMemory(s.memory, argsOffset, argsSize)
 
 	// create a tmp state
 	tmpState := s.clone()
@@ -97,11 +84,8 @@ func opCall(s *State) error {
 	copy(s.memory[retOffset.Uint64():retOffset.Uint64()+retSize.Uint64()], res)
 
 	s.gasConsumed += uint(memoryCost)
-	s.lastCallState = tmpState
-	s.tmp.storage = tmpState.tmp.storage
-	s.tmp.logs = tmpState.tmp.logs
-	s.tmp.accounts = tmpState.tmp.accounts
-	s.tmp.warmStorage = tmpState.tmp.warmStorage
+
+	s.applyStateAfterReturn(tmpState)
 	if s.tmp.accounts[s.callerAddress] != nil && s.tmp.accounts[s.callerAddress].Balance != nil {
 		s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, moneyToGive)
 	}
@@ -128,7 +112,7 @@ func opCallCode(s *State) error {
 		return notEnoughGas
 	}
 	memoryCost := uint64(0)
-	callData := getCallData(argsOffset, s, argsSize)
+	callData := getByteCopyFromMemory(s.memory, argsOffset, argsSize)
 
 	// create a tmp state
 	tmpState := s.clone()
@@ -173,11 +157,8 @@ func opCallCode(s *State) error {
 	copy(s.memory[retOffset.Uint64():retOffset.Uint64()+retSize.Uint64()], res)
 
 	s.gasConsumed += uint(memoryCost)
-	s.lastCallState = tmpState
-	s.tmp.storage = tmpState.tmp.storage
-	s.tmp.logs = tmpState.tmp.logs
-	s.tmp.accounts = tmpState.tmp.accounts
-	s.tmp.warmStorage = tmpState.tmp.warmStorage
+
+	s.applyStateAfterReturn(tmpState)
 	if s.tmp.accounts[s.callerAddress] != nil && s.tmp.accounts[s.callerAddress].Balance != nil {
 		s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, moneyToGive)
 	}
