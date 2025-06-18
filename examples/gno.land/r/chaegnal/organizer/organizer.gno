@@ -30,7 +30,7 @@ type AllGroups struct {
 	Groups *avl.Tree
 }
 
-// FriendGroup is a struc for created groups with their ID, Title, Owner and DAO
+// FriendGroup is a struct for created groups with their ID, Title, Owner and DAO
 type FriendGroup struct {
 	ID       int
 	Title    string
@@ -70,7 +70,7 @@ func CreateFriendGroup(cur realm, title string) {
 	ListGroups.Groups.Set(strconv.Itoa(newGroup.ID), newGroup)
 }
 
-// JoinFriendGroup puts the caller in a waitlist for the specified group
+// AskJoinFriendGroup puts the caller in a waitlist for the specified group
 // The caller is in the waitlist until an admin of the group approves
 func AskJoinFriendGroup(cur realm, groupId int) {
 	caller := std.PreviousRealm().Address()
@@ -148,27 +148,4 @@ func parseQuery(url string) string {
 	}
 
 	return keyValue[1]
-}
-
-type HangoutInfo struct {
-	Id          int
-	Date        string
-	Time        string
-	Place       string
-	Description string
-	Active      bool
-}
-
-func (g *FriendGroup) SetHangoutTimeAndPlace(date, time, place, desc string) error {
-	id := g.Hangout.Size() + 1
-	hangout := HangoutInfo{
-		Id:          id,
-		Date:        date,
-		Time:        time,
-		Place:       place,
-		Description: desc,
-		Active:      true,
-	}
-	g.Hangout.Set(strconv.Itoa(id), hangout)
-	return nil
 }
