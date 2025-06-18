@@ -228,7 +228,7 @@ func init() {
 		EXTCODECOPY:    {EXTCODECOPY, "EXTCODECOPY", opExtCodeCopy, 100}, // can change
 		RETURNDATASIZE: {RETURNDATASIZE, "RETURNDATASIZE", opReturnDataSize, 2},
 		RETURNDATACOPY: {RETURNDATACOPY, "RETURNDATACOPY", opReturnDataCopy, 3}, // can change
-		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", opExtCodeHash, 100},       // can change
+		EXTCODEHASH:    {EXTCODEHASH, "EXTCODEHASH", opExtCodeHash, 100},        // can change
 		BLOCKHASH:      {BLOCKHASH, "BLOCKHASH", opBlockHash, 20},
 		COINBASE:       {COINBASE, "COINBASE", opCoinbase, 2},
 		TIMESTAMP:      {TIMESTAMP, "TIMESTAMP", opTimestamp, 2},
@@ -325,9 +325,9 @@ func init() {
 		LOG2:           {LOG2, "LOG2", opLog(2), 1125},
 		LOG3:           {LOG3, "LOG3", opLog(3), 1500},
 		LOG4:           {LOG4, "LOG4", opLog(4), 1875},
-		CREATE:         {CREATE, "CREATE", notImplemented /*opCreate*/, 32000},
+		CREATE:         {CREATE, "CREATE", opCreate, 32000},
 		CALL:           {CALL, "CALL", opCall, 100},
-		CALLCODE:       {CALLCODE, "CALLCODE", notImplemented /*opCallcode*/, 700},
+		CALLCODE:       {CALLCODE, "CALLCODE", opCallCode, 700},
 		RETURN:         {RETURN, "RETURN", opReturn, 0},
 		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", notImplemented /*opDelegatecall*/, 100},
 		CREATE2:        {CREATE2, "CREATE2", notImplemented /*opCreate2*/, 32000},

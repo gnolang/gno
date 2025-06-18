@@ -49,7 +49,7 @@ func TestCallSha256(t *testing.T) {
 
 	// make the call
 	env.Accounts[me].Gas = 0xffffffff_ffffffff
-	res, err := env.Accounts[me].executeCallHex(env, uint256.Zero(), "", env.Accounts[contractAddress].Code)
+	res, err := env.Accounts[me].executeCallHex(env, "", env.Accounts[contractAddress].Code)
 	if err != nil {
 		t.Error(err)
 	}

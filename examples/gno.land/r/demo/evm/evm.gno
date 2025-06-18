@@ -47,7 +47,7 @@ func splitCallData(callData string) (string, []*uint256.Uint) {
 	callexpr := strings.Split(callData, " ")
 
 	list := []*uint256.Uint{}
-	for i := 3; i < len(callexpr); i++ {
+	for i := 1; i < len(callexpr); i++ {
 		n, err := uint256.FromHex(callexpr[i])
 		if err != nil {
 			panic("call: invalid parametter, " + err.Error())
@@ -75,18 +75,18 @@ func ExecuteByteCode(codeStr, callData, valueToSend string) {
 	env.Transaction.PushExecution(0, caller, res, 0, true) // TODO: get the execution price
 }
 
-func CreateNewContract(initCode, valueToSend string) {
+func CreateContract(initCode, valueToSend string) {
 	crossing()
 
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
 
 	// execute raw byte code
-	res, err := caller.CreateContract(env, initCode, uint256.MustFromDecimal(valueToSend))
+	_, err := caller.CreateContract(env, initCode, uint256.MustFromDecimal(valueToSend))
 	if err != nil {
 		panic("execute bytecode runtime error: " + err.Error())
 	}
-	env.Transaction.PushExecution(0, caller, res, 0, true) // TODO: get the execution price
+	env.Transaction.PushContractCreation(0, caller, 0) // TODO: get the execution price
 }
 
 func Faucet(weiToGive uint) {
@@ -129,8 +129,9 @@ func CallContract(contractAddress, callData string, valueToSend string) {
 	caller := assertGetConnectedUserFromRealm()
 
 	// get contract index
-	contractIndex := uint64(0)
-	if contractIndex, err := strconv.ParseUint(contractAddress, 16, 64); err != nil || env.Accounts[contractIndex] == nil {
+	contractIndex := uint256.Zero()
+	contractIndex, err := uint256.FromHex(contractAddress)
+	if err != nil || env.Accounts[contractIndex.Uint64()] == nil {
 		panic("call contract: bad address (bad number, or invalid address) or " + err.Error())
 	}
 
@@ -138,11 +139,11 @@ func CallContract(contractAddress, callData string, valueToSend string) {
 	callDataFunc, args := splitCallData(callData)
 
 	// execute contract code
-	res, err := caller.CallContract(env, contractIndex, uint256.MustFromDecimal(valueToSend), callDataFunc, args...)
+	res, err := caller.CallContract(env, contractIndex.Uint64(), uint256.MustFromDecimal(valueToSend), callDataFunc, args...)
 	if err != nil {
 		panic("call contract runtime error: " + err.Error())
 	}
-	env.Transaction.PushExecution(0, caller, res, 0, false) // TODO: get the execution price
+	env.Transaction.PushExecution(0, caller, res, contractIndex.Uint64(), false) // TODO: get the execution price
 }
 
 func Render(path string) string {
@@ -161,14 +162,16 @@ func Render(path string) string {
 	faucetLnk := txlink.Call("Faucet", "weiToGive", "100000")
 	buyGasLnk := txlink.Call("BuyGas", "nbGasToBuy", "100000")
 	callLnk := txlink.Call("CallContract", "contractAddress", "12", "callData", "foo(uint256,uint256) 42 1", "valueToSend", "10")
+	createLnk := txlink.Call("CreateContract", "initCode", "0xCACABEBE", "valueToSend", "10")
 	actionPart += md.BulletList([]string{
 		"Click " + md.Link("here", executeByteCodeLnk) + " to execute raw EVM bytecode.",
 		"Click " + md.Link("here", faucetLnk) + " to give wei to your account (faucet).",
 		"Click " + md.Link("here", buyGasLnk) + " to buy gas from wei.",
 		"Click " + md.Link("here", callLnk) + " to call a contract.",
+		"Click " + md.Link("here", createLnk) + " to create a new contract from it's init code.",
 	})
 
-	// create the transaction part
+	// list transactions
 	transactionsPart := md.H2("Transactions")
 	transTable := mdtable.Table{}
 	transTable.Headers = []string{"id", "name"}
@@ -177,7 +180,7 @@ func Render(path string) string {
 	}
 	transactionsPart += transTable.String()
 
-	// create the accounts
+	// list accounts
 	accountPart := md.H2("Accounts")
 	accountTable := mdtable.Table{}
 	accountTable.Headers = []string{"id", "type", "gas", "wei"}

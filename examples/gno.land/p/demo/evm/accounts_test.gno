@@ -18,5 +18,4 @@ func TestAccountCreateContract(t *testing.T) {
 		t.Errorf("Error creating contract : " + err.Error())
 		return
 	}
-
 }

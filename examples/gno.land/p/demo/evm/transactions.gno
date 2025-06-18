@@ -84,7 +84,7 @@ func (t *CreateContractTransaction) getCaller() *Account {
 }
 
 func (t *CreateContractTransaction) String() string {
-	return "0x" + strconv.FormatUint(uint64(t.caller.EvmAddress), 16) + " created an account for a " + t.caller.AccountType.String() + ", costing " + strconv.FormatUint(uint64(t.gasPrice), 10) + " gas"
+	return "0x" + strconv.FormatUint(uint64(t.caller.EvmAddress), 16) + " created an account for a " + t.AccountType.String() + ", costing " + strconv.FormatUint(uint64(t.gasPrice), 10) + " gas"
 }
 
 type ExecuteContractTransaction struct {

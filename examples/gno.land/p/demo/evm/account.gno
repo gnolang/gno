@@ -82,8 +82,8 @@ func (c *Account) Call(env *Env, valueToSend *uint256.Uint, code string, f strin
 }
 
 func (c *Account) CallContract(env *Env, contractAddress uint64, valueToSend *uint256.Uint, f string, args ...*uint256.Uint) ([]byte, error) {
-	contract := env.Accounts[contractAddress]
-	if contract.AccountType != ContractAccount {
+	contract, ok := env.Accounts[contractAddress]
+	if !ok || contract.AccountType != ContractAccount {
 		return []byte{}, errors.New("invalid contract address")
 	}
 	if valueToSend.Gt(c.Balance) {
@@ -109,7 +109,7 @@ func (c *Account) CreateContract(env *Env, code string, valueToSend *uint256.Uin
 	creationCode = append(creationCode,
 		lenByteCodeUint256.Bytes()...,
 	)
-	codeOffsetUint256 := uint256.NewUint(uint64(1 + lenByteCodeUint256.ByteLen() + 33 + 2 + 1 + lenByteCodeUint256.ByteLen() + 1 + 1 + valueToSend.ByteLen() + 1)).Bytes32()
+	codeOffsetUint256 := uint256.NewUint(uint64(1 + lenByteCodeUint256.ByteLen() + 33 + 2 + 1 + lenByteCodeUint256.ByteLen() + 1 + 1 + valueToSend.ByteLen() + 2)).Bytes32()
 	creationCode = append(creationCode,
 		byte(PUSH32),
 	)
@@ -137,10 +137,11 @@ func (c *Account) CreateContract(env *Env, code string, valueToSend *uint256.Uin
 		valueToSend.Bytes()...,
 	)
 	creationCode = append(creationCode, byte(CREATE))
+	creationCode = append(creationCode, byte(STOP))
 
 	creationCode = append(creationCode, byteCode...)
 
-	return c.executeCallHex(env, "", byteCode)
+	return c.executeCallHex(env, "", creationCode)
 }
 
 func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) {
