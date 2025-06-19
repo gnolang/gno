@@ -50,9 +50,7 @@ import (
 
 var calleePtr *pkg.PkgObject
 
-func Register(callerPtr *pkg.PkgObject) {
-	crossing()
-
+func Register(cur realm, callerPtr *pkg.PkgObject) {
 	calleePtr = callerPtr
 }
 
@@ -67,23 +65,16 @@ import (
 
 var callerPtr *pkg.PkgObject
 
-func WorkingNew() {
-	crossing()
-
+func WorkingNew(cur realm) {
 	callerPtr = pkg.New()
 }
 
-func BuggedNew() {
-	crossing()
-
+func BuggedNew(cur realm) {
 	callerPtr = pkg.New()
-
-	cross(callee.Register)(callerPtr)
+ 	callee.Register(cross, callerPtr)
 }
 
-func Set(value int) {
-	crossing()
-
+func Set(cur realm, value int) {
 	callerPtr.Set(value)
 }
 
