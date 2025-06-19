@@ -1,0 +1,206 @@
+adduser test2
+
+## start a new node
+gnoland start
+
+## load packages
+gnokey maketx addpkg -pkgdir $WORK/utils -pkgpath gno.land/p/test/utils -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/borrowrealm -pkgpath gno.land/r/test/borrowrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+
+## execute NonCrossingMutation
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+stderr 'cannot modify external-realm or non-realm object'
+
+## execute CrossingMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute BorrowedObjectMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedObjectMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute ObjectMutationRootedAtCaller
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute CallMutateObject
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute InspectRealmsCrossing
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute InspectRealmsNonCrossing
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute MutateObjectWithBorrowCrossing
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+
+## execute MutateCrossingObjectRootedAtCaller
+! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+stderr 'cannot directly modify readonly tainted object'
+
+-- callerrealm/gnomod.toml --
+module = "gno.land/r/test/callerrealm"
+gno = "0.9"
+
+-- callerrealm/main.gno --
+package callerrealm
+
+import (
+    "gno.land/p/test/utils"
+	"gno.land/r/test/borrowrealm"
+)
+
+var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
+
+func NonCrossingMutation(cur realm) {
+    utils.AssertPreviousRealmPkgPath("")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
+
+    borrowrealm.Mutate()
+}
+
+func CrossingMutation(cur realm) {
+    borrowrealm.MutateCrossing(cross)
+}
+
+func BorrowedObjectMutation(cur realm) {
+ 	borrowrealm.Object.Mutate()
+}
+
+func ObjectMutationRootedAtCaller(cur realm) {
+ 	obj.Mutate()
+}
+
+func CallMutateObject(cur realm) {
+    borrowrealm.MutateObject()
+}
+
+func InspectRealmsCrossing(cur realm) {
+    borrowrealm.InspectRealmsCrossing(cross)
+}
+
+func InspectRealmsNonCrossing(cur realm) {
+    borrowrealm.InspectRealmsNonCrossing()
+}
+
+func MutateObjectWithBorrowCrossing(cur realm) {
+    borrowrealm.MutateObjectWithBorrowCrossing(cross)
+}
+
+func MutateCrossingObject(cur realm) {
+    borrowrealm.Object.MutateCrossing(cross)
+}
+
+func MutateCrossingObjectRootedAtCaller(cur realm) {
+    obj.MutateCrossingObjectRootedAtCaller(cross)
+}
+
+-- borrowrealm/gnomod.toml --
+module = "gno.land/r/test/borrowrealm"
+gno = "0.9"
+
+-- borrowrealm/main.gno --
+package borrowrealm
+
+import (
+    "gno.land/p/test/utils"
+)
+
+var Object ObjectImplem
+var value int
+
+type ObjectImplem struct {
+    value int
+}
+
+func NewObject() *ObjectImplem {
+    return &ObjectImplem{}
+}
+
+func (o *ObjectImplem) MutateWithoutRealmCheck() {
+    o.value++
+}
+
+func (o *ObjectImplem) Mutate() {
+    utils.AssertPreviousRealmPkgPath("")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
+
+    o.value++
+}
+
+func (o *ObjectImplem) MutateCrossing(cur realm) {
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+
+    o.value++
+}
+
+func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller(cur realm) {
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+
+    o.value++
+}
+
+func (o *ObjectImplem) MutateWithBorrowCrossing() {
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+
+    o.value++
+}
+
+func InspectRealmsNonCrossing() {
+    utils.AssertPreviousRealmPkgPath("")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/callerrealm")
+}
+
+func InspectRealmsCrossing(cur realm) {
+    utils.AssertPreviousRealmPkgPath("gno.land/r/test/callerrealm")
+    utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
+}
+
+func Mutate() {
+    value++
+}
+
+func MutateCrossing(cur realm) {
+    value++
+}
+
+func MutateObject() {
+    Object.Mutate()
+}
+
+func MutateObjectWithBorrowCrossing(cur realm) {
+    Object.MutateWithBorrowCrossing()
+}
+
+-- utils/gnomod.toml --
+module = "gno.land/p/test/utils"
+gno = "0.9"
+
+-- utils/utils.gno --
+package utils
+
+import (
+    "std"
+)
+
+func AssertCurrentRealmPkgPath(expected string) {
+    currentRealm := std.CurrentRealm().PkgPath()
+    if currentRealm != expected {
+        if expected == "" {
+            expected = "empty"
+        }
+        panic("expected std.CurrentRealm().PkgPath() to return " + expected + ", got " + currentRealm)
+    }
+}
+
+func AssertPreviousRealmPkgPath(expected string) {
+    previousRealm := std.PreviousRealm().PkgPath()
+    if previousRealm != expected {
+        if expected == "" {
+            expected = "empty"
+        }
+        panic("expected std.PreviousRealm().PkgPath() to return " + expected + ", got " + previousRealm)
+    }
+}
