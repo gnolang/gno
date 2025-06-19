@@ -7,7 +7,9 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
+
 	"gno.land/r/gnoland/events"
+	"gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
 
@@ -29,6 +31,9 @@ func Render(_ string) string {
 		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
+	r.RegisterCallback(":latest-gnomes:", func() string {
+		return users.RenderLatestUsersWidget(5)
+	})
 	r.RegisterCallback(":chain-height:", func() string {
 		return strconv.Itoa(int(std.ChainHeight()))
 	})
@@ -151,6 +156,11 @@ The demo packages
 ---
 
 <gno-columns>
+## Latest Gnomes
+
+:latest-gnomes:
+
+|||
 
 ## Socials
 

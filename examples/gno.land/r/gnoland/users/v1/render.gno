@@ -38,15 +38,7 @@ func renderHomePage() string {
 	out += renderIntroParagraph()
 
 	out += md.H2("Latest registrations")
-	entries := latestUsers.Entries()
-	if len(entries) == 0 {
-		out += "No registered users."
-	}
-
-	for i := len(entries) - 1; i >= 0; i-- {
-		user := entries[i].(string)
-		out += ufmt.Sprintf("- User [%s](/u/%s)\n", md.Bold(user), user)
-	}
+	out += RenderLatestUsersWidget(-1)
 
 	return out
 }
@@ -118,6 +110,29 @@ func renderUserPage(path string) string {
 		out += "\n\n"
 		out += ufmt.Sprintf("[Update bio](%s)", txlink.Realm("gno.land/r/demo/profile").Call("SetStringField", "field", "Bio"))
 		out += "\n\n"
+	}
+
+	return out
+}
+
+// RenderLatestUsersWidget renders the latest num registered users
+// For num = -1, maximum number (10) will be displayed
+func RenderLatestUsersWidget(num int) string {
+	size := latestUsers.Size()
+	if size == 0 {
+		return "No registered users."
+	}
+
+	if num > size || num == -1 {
+		num = size
+	}
+
+	entries := latestUsers.Entries()
+	var out string
+
+	for i := size - 1; i >= size-num; i-- {
+		user := entries[i].(string)
+		out += ufmt.Sprintf("- User [%s](/u/%s)\n", md.Bold(user), user)
 	}
 
 	return out
