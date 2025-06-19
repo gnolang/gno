@@ -305,7 +305,11 @@ func Public(cur realm) {
     // ) == std.NewCodeRealm("gno.land/r/test/test")
     std.CurrentRealm()
 
+    // Call a crossing function of same realm with crossing
     AnotherPublic(cross)
+
+    // Call a crossing function of same realm without crossing
+    AnotherPublic(cur)
 }
 
 func AnotherPublic(cur realm) {
