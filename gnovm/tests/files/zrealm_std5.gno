@@ -5,7 +5,7 @@ import (
 	"gno.land/p/demo/tests" // NOTE: not a realm path.
 )
 
-func main() {
+func main(cur realm) {
 	println("test1", tests.CurrentRealmPath())
 	func() {
 		println("test2", tests.CurrentRealmPath())

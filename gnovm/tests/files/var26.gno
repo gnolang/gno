@@ -8,4 +8,7 @@ func main() {
 }
 
 // Error:
-// main/files/var26.gno:6:6: extra init expr 3
+// main/var26.gno:6:6-20: extra init expr 3
+
+// TypeCheckError:
+// main/var26.gno:6:19: extra init expr 3

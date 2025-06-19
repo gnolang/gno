@@ -3,7 +3,7 @@ package const_test
 
 import "std"
 
-func main() {
+func main(cur realm,) {
 	println(std.RawAddressSize)
 }
 

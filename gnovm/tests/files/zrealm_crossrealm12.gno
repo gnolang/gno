@@ -9,13 +9,15 @@ import (
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
-func main() {
+func main(cur realm) {
 	tests := []struct {
 		fn func() std.Realm
 	}{
 		{std.CurrentRealm},
 		{psubtests.GetCurrentRealm},
-		{rsubtests.GetCurrentRealm},
+		{func() std.Realm {
+			return rsubtests.GetCurrentRealm(cross)
+		}},
 	}
 
 	for _, test := range tests {

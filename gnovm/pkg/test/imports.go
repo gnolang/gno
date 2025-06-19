@@ -10,7 +10,6 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
@@ -31,6 +30,13 @@ type StoreOptions struct {
 	// [gno.Machine.PreprocessFiles]. It avoids executing code for contexts
 	// which only intend to perform a type check, ie. `gno lint`.
 	PreprocessOnly bool
+
+	// When transpiling code in examples/ we use the test store. gno fix may need
+	// gno.mod to not be auto-generated when importing from the test store.
+	DoNotGenerateGnoMod bool
+
+	// When fixing code from an earler gno version. Not supported for stdlibs.
+	FixFrom string
 }
 
 // NOTE: this isn't safe, should only be used for testing.
@@ -41,9 +47,14 @@ func Store(
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
-	return StoreWithOptions(rootDir, output, StoreOptions{})
+	return StoreWithOptions(
+		rootDir,
+		output,
+		StoreOptions{},
+	)
 }
 
+// ========================================
 // StoreWithOptions is a variant of [Store] which additionally accepts a
 // [StoreOptions] argument.
 func StoreWithOptions(
@@ -54,35 +65,70 @@ func StoreWithOptions(
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
-	processMemPackage := func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
-		return m.RunMemPackage(memPkg, save)
-	}
-	if opts.PreprocessOnly {
-		processMemPackage = func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
-			m.Store.AddMemPackage(memPkg)
-			return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), save, false)
+	//----------------------------------------
+	// process the mempackage after gno.MustReadMemPackage().
+	// * m.PreprocessFiles() if opts.PreprocessOnly.
+	// * m.RunMemPackage() otherwise.
+	_processMemPackage := func(
+		m *gno.Machine, mpkg *std.MemPackage, save bool) (
+		pn *gno.PackageNode, pv *gno.PackageValue,
+	) {
+		if opts.PreprocessOnly {
+			// Check the gno.mod gno version.
+			mod, err := gno.ParseCheckGnoMod(mpkg)
+			if err != nil {
+				panic(fmt.Errorf("test store parsing gno.mod: %w", err))
+			}
+			if mod == nil || mod.GetGno() == gno.GnoVerMissing {
+				// In order to translate into a newer Gno version with
+				// the preprocessor make a slight modifications to the
+				// AST. This needs to happen even for imports, because
+				// the preprocessor requires imports also preprocessed.
+				// This is because the linter uses pkg/test/imports.go.
+				gofset, _, gofs, _gofs, tgofs, errs := gno.GoParseMemPackage(
+					mpkg, gno.ParseModeAll)
+				if errs != nil {
+					panic(fmt.Errorf("test store parsing: %w", errs))
+				}
+				allgofs := append(gofs, _gofs...)
+				allgofs = append(allgofs, tgofs...)
+				errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
+				if errs != nil {
+					panic(fmt.Errorf("test store preparing AST: %w", errs))
+				}
+			}
+			m.Store.AddMemPackage(mpkg, gno.MemPackageTypeAny)
+			return m.PreprocessFiles(
+				mpkg.Name, mpkg.Path,
+				gno.ParseMemPackage(mpkg),
+				save, false, opts.FixFrom)
+		} else {
+			return m.RunMemPackage(mpkg, save)
 		}
 	}
+
+	//----------------------------------------
+	// Main entrypoint for new test imports.
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
-
 		if opts.WithExtern {
 			// if _test package...
 			const testPath = "github.com/gnolang/gno/_test/"
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
-				memPkg := gno.MustReadMemPackage(baseDir, pkgPath)
+				mpkg := gno.MustReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
-				ctx := Context(pkgPath, send)
+				ctx := Context("", pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: "test",
-					Output:  output,
-					Store:   store,
-					Context: ctx,
+					PkgPath:       "test",
+					Output:        output,
+					Store:         store,
+					Context:       ctx,
+					ReviveEnabled: true,
 				})
-				return processMemPackage(m2, memPkg, true)
+				return _processMemPackage(m2, mpkg, true)
 			}
 		}
 
@@ -95,23 +141,28 @@ func StoreWithOptions(
 		// if examples package...
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
-			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
-			if memPkg.IsEmpty() {
+			mpkg := gno.MustReadMemPackage(examplePath, pkgPath)
+			if mpkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
 
 			send := std.Coins{}
-			ctx := Context(pkgPath, send)
+			ctx := Context("", pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				PkgPath: "test",
-				Output:  output,
-				Store:   store,
-				Context: ctx,
+				PkgPath:       "test",
+				Output:        output,
+				Store:         store,
+				Context:       ctx,
+				ReviveEnabled: true,
 			})
-			return processMemPackage(m2, memPkg, true)
+			return _processMemPackage(m2, mpkg, true)
 		}
+
 		return nil, nil
 	}
+
+	//----------------------------------------
+	// Construct new stores
 	db := memdb.NewMemDB()
 	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
 	// Make a new store.
@@ -150,21 +201,22 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		return nil, nil
 	}
 
-	memPkg := gno.MustReadMemPackageFromList(files, pkgPath)
+	mpkg := gno.MustReadMemPackageFromList(files, pkgPath, gno.MemPackageTypeStdlib)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
 		// getter for the store, which calls loadStdlib, so it would be recursively called.
-		PkgPath: "stdlibload",
-		Output:  stdout,
-		Store:   store,
+		PkgPath:       "stdlibload",
+		Output:        stdout,
+		Store:         store,
+		ReviveEnabled: true,
 	})
 	if preprocessOnly {
-		m2.Store.AddMemPackage(memPkg)
-		return m2.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), true, true)
+		m2.Store.AddMemPackage(mpkg, gno.MemPackageTypeStdlib)
+		return m2.PreprocessFiles(mpkg.Name, mpkg.Path, gno.ParseMemPackage(mpkg), true, true, "")
 	}
 	// TODO: make this work when using gno lint.
-	return m2.RunMemPackageWithOverrides(memPkg, true)
+	return m2.RunMemPackageWithOverrides(mpkg, true)
 }
 
 type stackWrappedError struct {
@@ -182,29 +234,36 @@ func (e *stackWrappedError) String() string {
 // from the store. This is mostly useful for "eager import loading", whereby all
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
-func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
-	defer func() {
-		// This is slightly different from other similar error handling; we do not have a
-		// machine to work with, as this comes from an import; so we need
-		// "machine-less" alternatives. (like v.String instead of v.Sprint)
-		if r := recover(); r != nil {
-			switch v := r.(type) {
-			case *gno.TypedValue:
-				err = errors.New(v.String())
-			case *gno.PreprocessError:
-				err = &stackWrappedError{v.Unwrap(), debug.Stack()}
-			case gno.UnhandledPanicError:
-				err = v
-			case error:
-				err = &stackWrappedError{v, debug.Stack()}
-			default:
-				err = &stackWrappedError{fmt.Errorf("%v", v), debug.Stack()}
+func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err error) {
+	// If this gets out of hand (e.g. with nested catchPanic with need for
+	// selective catching) then pass in a bool instead.
+	// See also cmd/gno/common.go.
+	if os.Getenv("DEBUG_PANIC") == "1" {
+		fmt.Println("DEBUG_PANIC=1 (will not recover)")
+	} else {
+		defer func() {
+			// This is slightly different from other similar error handling; we do not have a
+			// machine to work with, as this comes from an import; so we need
+			// "machine-less" alternatives. (like v.String instead of v.Sprint)
+			if r := recover(); r != nil {
+				switch v := r.(type) {
+				case *gno.TypedValue:
+					err = errors.New(v.String())
+				case *gno.PreprocessError:
+					err = &stackWrappedError{v.Unwrap(), debug.Stack()}
+				case gno.UnhandledPanicError:
+					err = v
+				case error:
+					err = &stackWrappedError{v, debug.Stack()}
+				default:
+					err = &stackWrappedError{fmt.Errorf("%v", v), debug.Stack()}
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	fset := token.NewFileSet()
-	importsMap, err := packages.Imports(memPkg, fset)
+	importsMap, err := packages.Imports(mpkg, fset)
 	if err != nil {
 		return err
 	}
@@ -215,9 +274,16 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
+		if !abortOnError {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Printf("ignoring panic: %v\n", r)
+				}
+			}()
+		}
 		pkg := store.GetPackage(imp.PkgPath, true)
-		if pkg == nil {
-			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Spec.Pos()).String(), imp.PkgPath)
+		if abortOnError && pkg == nil {
+			return gno.ImportNotFoundError{Location: fset.Position(imp.Spec.Pos()).String(), PkgPath: imp.PkgPath}
 		}
 	}
 	return nil

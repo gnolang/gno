@@ -5,10 +5,10 @@ import (
 	"gno.land/p/demo/tests"
 )
 
-func main() {
+func main(cur realm) {
 	tests.SomeValue2.Field = "modified"
 	println("done")
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): (const (ref(gno.land/p/demo/tests) package{})).SomeValue2.Field

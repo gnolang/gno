@@ -155,7 +155,7 @@ func TestItemRecord(t *testing.T) {
 	wantContent := `### [Test Realm](/r/demo/test)
 This is a test realm in the Hall of Fame
 
-by demo
+by [@demo](/u/demo)
 
 Submitted at Block #42
 

@@ -39,6 +39,8 @@ import (
 
 const nodeMaxLifespan = time.Second * 30
 
+var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
+
 type envKey int
 
 const (
@@ -278,7 +280,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 			defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-			pkgsTxs, err := pkgs.LoadPackages(defaultPK, defaultFee, nil)
+			pkgsTxs, err := pkgs.GenerateTxs(defaultPK, defaultFee, nil)
 			if err != nil {
 				ts.Fatalf("unable to load packages txs: %s", err)
 			}
@@ -441,7 +443,16 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 			ts.Fatalf("unable to get keybase")
 		}
 
-		balance, err := createAccount(ts, kb, args[0])
+		coins := defaultUserBalance
+		if len(args) > 1 {
+			// parse coins from string
+			coins, err = std.ParseCoins(args[1])
+			if err != nil {
+				ts.Fatalf("unable to parse coins: %s", err)
+			}
+		}
+
+		balance, err := createAccount(ts, kb, args[0], coins)
 		if err != nil {
 			ts.Fatalf("error creating account %s: %s", args[0], err)
 		}
@@ -486,7 +497,7 @@ func adduserfromCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, 
 			ts.Fatalf("unable to get keybase")
 		}
 
-		balance, err := createAccountFrom(ts, kb, args[0], args[1], uint32(account), uint32(index))
+		balance, err := createAccountFrom(ts, kb, args[0], args[1], defaultUserBalance, uint32(account), uint32(index))
 		if err != nil {
 			ts.Fatalf("error creating wallet %s", err)
 		}
@@ -522,20 +533,20 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 
 		pkgs := ts.Value(envKeyPkgsLoader).(*PkgsLoader)
 
-		var path, name string
+		var dir, path string
 		switch len(args) {
 		case 2:
-			name = args[0]
-			path = filepath.Clean(args[1])
+			path = args[0]
+			dir = filepath.Clean(args[1])
 		case 1:
-			path = filepath.Clean(args[0])
+			dir = filepath.Clean(args[0])
 		case 0:
 			ts.Fatalf("`loadpkg`: no arguments specified")
 		default:
 			ts.Fatalf("`loadpkg`: too many arguments specified")
 		}
 
-		if path == "all" {
+		if dir == "all" {
 			ts.Logf("warning: loading all packages")
 			if err := pkgs.LoadAllPackagesFromDir(examplesDir); err != nil {
 				ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
@@ -544,11 +555,11 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 			return
 		}
 
-		if !strings.HasPrefix(path, workDir) {
-			path = filepath.Join(examplesDir, path)
+		if !strings.HasPrefix(dir, workDir) {
+			dir = filepath.Join(examplesDir, dir)
 		}
 
-		if err := pkgs.LoadPackage(examplesDir, path, name); err != nil {
+		if err := pkgs.LoadPackage(examplesDir, dir, path); err != nil {
 			ts.Fatalf("`loadpkg` unable to load package(s) from %q: %s", args[0], err)
 		}
 
@@ -670,7 +681,7 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 }
 
 // createAccount creates a new account with the given name and adds it to the keybase.
-func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
+func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName string, coins std.Coins) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
@@ -682,11 +693,11 @@ func createAccount(ts *testscript.TestScript, kb keys.Keybase, accountName strin
 		return balance, fmt.Errorf("error generating mnemonic: %w", err)
 	}
 
-	return createAccountFrom(ts, kb, accountName, mnemonic, 0, 0)
+	return createAccountFrom(ts, kb, accountName, mnemonic, coins, 0, 0)
 }
 
 // createAccountFrom creates a new account with the given metadata and adds it to the keybase.
-func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, mnemonic string, account, index uint32) (gnoland.Balance, error) {
+func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, mnemonic string, coins std.Coins, account, index uint32) (gnoland.Balance, error) {
 	var balance gnoland.Balance
 
 	// check if mnemonic is valid
@@ -705,7 +716,7 @@ func createAccountFrom(ts *testscript.TestScript, kb keys.Keybase, accountName, 
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
+		Amount:  coins,
 	}, nil
 }
 

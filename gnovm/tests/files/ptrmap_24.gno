@@ -20,7 +20,7 @@ func init() {
 	m[&i1.key] = "first key"
 }
 
-func main() {
+func main(cur realm,) {
 	println(m[&i1.key])
 }
 

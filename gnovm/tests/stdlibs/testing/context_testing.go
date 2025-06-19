@@ -56,23 +56,24 @@ func X_setContext(
 
 	if currRealmAddr != "" {
 		// Associate the given Realm with the caller's frame.
-		var frame *gno.Frame
+		var frameIdx int
 		// NOTE: the frames are different from when calling testing.SetRealm (has been refactored to this code)
 		//
 		// When calling this function from Gno, the 3 top frames are the following:
 		// #7: [FRAME FUNC:setContext RECV:(undefined) (15 args) 11/3/0/6/4 LASTPKG:testing ...]
 		// #6: [FRAME FUNC:SetContext RECV:(undefined) (1 args) 8/2/0/4/3 LASTPKG:testing ...]
 		// #5: [FRAME FUNC:SetRealm RECV:(undefined) (1 args) 5/1/0/2/2 LASTPKG:gno.land/r/demo/groups ...]
-		// We want to set the Realm of the frame where testing.SetRealm is being called, hence -3.
-		for i := m.NumFrames() - 3; i >= 0; i-- {
+		// We want to set the Realm of the frame where testing.SetRealm is being called, hence -3-1.
+		for i := m.NumFrames() - 4; i >= 0; i-- {
 			// Must be a frame from calling a function.
 			if fr := m.Frames[i]; fr.Func != nil && fr.Func.PkgPath != "testing" {
-				frame = fr
+				frameIdx = i
 				break
 			}
 		}
 
-		ctx.RealmFrames[frame] = teststd.RealmOverride{
+		m.Frames[frameIdx].TestOverridden = true // in case frame gets popped
+		ctx.RealmFrames[frameIdx] = teststd.RealmOverride{
 			Addr:    crypto.Bech32Address(currRealmAddr),
 			PkgPath: currRealmPkgPath,
 		}
