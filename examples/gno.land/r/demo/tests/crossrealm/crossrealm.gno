@@ -102,6 +102,7 @@ func Exec(cb func() string) string {
 	return cb()
 }
 
+// ------------------------------------
 var Closure func()
 
 func SetClosure(cur realm, f func()) {
@@ -112,12 +113,22 @@ func ExecuteClosure(cur realm) {
 	Closure()
 }
 
+var Closure2 func(realm)
+
+func SetClosure2(cur realm, f func(realm)) {
+	Closure2 = f
+}
+func ExecuteClosureCross(cur realm) {
+	Closure2(cross)
+}
+
 // Closure -> FooUpdate
 func FooUpdate(cur realm, s string) {
 	println("current realm: ", std.CurrentRealm())
 	println("previous realm: ", std.PreviousRealm())
 }
 
+// -------------------------------------------------
 var Object any
 
 func SetObject(cur realm, x any) {
