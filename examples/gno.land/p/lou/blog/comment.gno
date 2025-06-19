@@ -84,54 +84,6 @@ func (c *Comment) Edit(content string) error {
 	return nil
 }
 
-func (c *Comment) AddReply(reply *Comment) error {
-	if err := CheckAddr(reply.Author()); err != nil {
-		return err
-	}
-	if reply == nil {
-		return ErrEmptyComment
-	}
-	if c.Replies == nil {
-		c.Replies = avl.NewTree()
-	}
-	reply.SetID(c.RepliesId.Next())
-	if !c.Replies.Set(c.RepliesId.String(), reply) {
-		return ErrCommentAddFailed
-	}
-	return nil
-}
-
-func (c *Comment) EditReplyByID(id, content string) error { // NECESSARY?
-	reply, err := c.GetReplyByID(id)
-	if err != nil {
-		return err
-	}
-	err = reply.Edit(content)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Comment) DeleteReplyByID(id string) error { // NECESSARY?
-	reply, err := c.GetReplyByID(id)
-	if err != nil {
-		return err
-	}
-	if _, removed := c.Replies.Remove(reply.ID()); !removed {
-		return ErrCommentAddFailed
-	}
-	return nil
-}
-
-func (c Comment) GetReplyByID(id string) (*Comment, error) { // NECESSARY?
-	reply, found := c.Replies.Get(id)
-	if !found {
-		return nil, ErrCommentNotFound
-	}
-	return reply.(*Comment), nil
-}
-
 func (c *Comment) Pin() {
 	c.pinned = true
 }
@@ -164,7 +116,7 @@ func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) s
 		prefix += "> "
 	}
 	user, _ := CheckUser(c.Author(), resolver)
-	out := prefix + md.Bold(md.Link("@"+user, blogPrefix+":commenters/"+user)) + " "
+	out := prefix + c.ID() + " " + md.Bold(md.Link("@"+user, blogPrefix+":commenters/"+user)) + " "
 	if c.Pinned() {
 		out += "📌 "
 	}
@@ -189,4 +141,25 @@ func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) s
 		})
 	}
 	return out
+}
+
+func searchInReplies(tree *avl.Tree, id string, result **Comment) bool {
+	if tree == nil {
+		return false
+	}
+	found := false
+	tree.ReverseIterate("", "", func(_ string, v interface{}) bool {
+		c := v.(*Comment)
+		if c.ID() == id {
+			*result = c
+			found = true
+			return true
+		}
+		if searchInReplies(c.Replies, id, result) {
+			found = true
+			return true
+		}
+		return false
+	})
+	return found
 }

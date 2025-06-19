@@ -12,19 +12,20 @@ import (
 )
 
 type Post struct {
-	id          seqid.ID
-	slug        string
-	title       string
-	body        string
-	createdAt   time.Time
-	updatedAt   time.Time
-	publishedAt time.Time
-	tags        []string
-	authors     []string
-	publisher   string
-	likes       int
-	CommentsId  seqid.ID
-	Comments    *avl.Tree // id --> *Comment
+	id           seqid.ID
+	slug         string
+	title        string
+	body         string
+	createdAt    time.Time
+	updatedAt    time.Time
+	publishedAt  time.Time
+	tags         []string
+	authors      []string
+	publisher    string
+	likes        int
+	CommentsId   seqid.ID
+	Comments     *avl.Tree // id --> *Comment
+	CommentsSize int
 
 	previewFooter string // additional text, e.g. "via @lou" or txlink calls
 	DisableLikes  bool
@@ -112,6 +113,7 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 		likes:         0,
 		CommentsId:    seqid.ID(0),
 		Comments:      avl.NewTree(),
+		CommentsSize:  0,
 		previewFooter: "",
 		DisableLikes:  false,
 		UserResolver:  nil,
@@ -125,8 +127,32 @@ func (p *Post) AddComment(comment *Comment) error {
 	}
 	comment.author = user
 
-	comment.SetID(p.CommentsId.Next())
+	p.CommentsId.Next()
+	p.CommentsSize++
+	comment.SetID(p.CommentsId)
 	if !p.Comments.Set(p.CommentsId.String(), comment) {
+		return ErrCommentAddFailed
+	}
+	return nil
+}
+
+func (p *Post) AddReply(parentID string, reply *Comment) error {
+	user, err := CheckUser(reply.Author(), p.UserResolver)
+	if err != nil {
+		return err
+	}
+	reply.author = user
+
+	parent, err := p.GetCommentByID(parentID)
+	if err != nil {
+		println(parentID)
+		return err
+	}
+
+	p.CommentsId.Next()
+	p.CommentsSize++
+	reply.SetID(p.CommentsId)
+	if !parent.Replies.Set(p.CommentsId.String(), reply) {
 		return ErrCommentAddFailed
 	}
 	return nil
@@ -165,10 +191,22 @@ func (p *Post) PinCommentById(id string) error {
 
 func (p Post) GetCommentByID(id string) (*Comment, error) {
 	comment, found := p.Comments.Get(id)
-	if !found {
+	if found {
+		return comment.(*Comment), nil
+	}
+
+	var result *Comment
+	p.Comments.ReverseIterate("", "", func(_ string, v interface{}) bool {
+		c := v.(*Comment)
+		if found := searchInReplies(c.Replies, id, &result); found {
+			return true
+		}
+		return false
+	})
+	if result == nil {
 		return nil, ErrCommentNotFound
 	}
-	return comment.(*Comment), nil
+	return result, nil
 }
 
 func (p Post) GetCommentsByAuthor(author string) []*Comment {
@@ -202,7 +240,7 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 	if len(p.Tags()) > 0 {
 		out += md.Bold("tags:") + " `" + strings.Join(p.Tags(), "`, `") + "`\n\n"
 	}
-	out += md.Bold(md.Link("comments ("+strconv.Itoa(p.Comments.Size()), prefix+":posts/"+p.Slug()+"#comments"))
+	out += md.Bold(md.Link("comments ("+strconv.Itoa(p.CommentsSize), prefix+":posts/"+p.Slug()+"#comments"))
 	if p.DisableLikes {
 		out += ") "
 	} else {
@@ -219,7 +257,7 @@ func (p Post) RenderPost(prefix string) string {
 	resolvedAuthors := p.resolveAuthors(p.Authors())
 	out := md.H1(p.Title()) + "\n\n"
 	if p.Comments.Size() > 0 {
-		out += md.Link(strconv.Itoa(p.Comments.Size())+" Comment(s)", "#comments") + "\n\n"
+		out += md.Link(strconv.Itoa(p.CommentsSize)+" Comment(s)", "#comments") + "\n\n"
 	}
 	out += md.Italic("Author(s):") + " " + renderAuthorLinks(prefix, resolvedAuthors) + "\n\n"
 	out += p.Body() + "\n\n"
@@ -238,7 +276,7 @@ func (p Post) RenderPost(prefix string) string {
 }
 
 func (p Post) RenderComments(prefix string) string {
-	out := md.H3("Comments ("+strconv.Itoa(p.Comments.Size())+")") + "\n\n"
+	out := md.H3("Comments ("+strconv.Itoa(p.CommentsSize)+")") + "\n\n"
 	if p.Comments.Size() == 0 {
 		out += "No comments yet.\n\n"
 		return out
@@ -267,8 +305,7 @@ func (p Post) getReplies(replies *avl.Tree, author string) []*Comment {
 	}
 	replies.ReverseIterate("", "", func(_ string, value any) bool {
 		comment := value.(*Comment)
-		currUser, _ := CheckUser(comment.Author(), p.UserResolver)
-		if comment.Author() == author || currUser == author {
+		if comment.Author() == author {
 			comments = append(comments, comment)
 		}
 		if comment.Replies.Size() > 0 {

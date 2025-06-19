@@ -88,13 +88,13 @@ func TestCommentThreadRender(t *testing.T) {
 	// reply, err := blog.NewComment("g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae", "Agreed.") // TO FIX
 	// urequire.NoError(t, err, "creating reply")
 	// err = parent.AddReply(reply)
-	// urequire.NoError(t, err, "adding reply to comment") // TO FIX
+	// urequire.NoError(t, err, "adding reply to comment")
 
 	err = post.AddComment(parent)
-	// println(parent.Author() + ": " + err.Error()) // TO FIX
+	// println(parent.Author() + ": " + err.Error())
 	// urequire.NoError(t, err, "adding comment to post")
 	// err = post.AddComment(reply)
-	// println(reply.Author() + ": " + err.Error()) // TO FIX
+	// println(reply.Author() + ": " + err.Error())
 	// urequire.NoError(t, err, "adding comment to post")
 
 	err = blogTest.AddPost(post)
