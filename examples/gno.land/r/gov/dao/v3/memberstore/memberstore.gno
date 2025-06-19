@@ -104,18 +104,16 @@ func init() {
 	members.SetMember(T1, std.Address("g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25"), &Member{InvitationPoints: 3}) // Antoine
 	members.SetMember(T1, std.Address("g1778y2yphxs2wpuaflsy5y9qwcd4gttn4g5yjx5"), &Member{InvitationPoints: 3}) // Michelle
 	members.SetMember(T1, std.Address("g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"), &Member{InvitationPoints: 3}) // Dongwon
+	members.SetMember(T1, std.Address("g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j"), &Member{InvitationPoints: 3}) // Ray
 	members.SetMember(T1, std.Address("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"), &Member{InvitationPoints: 3}) // Zooma
 
 	members.SetTier(T2)
 	members.SetMember(T2, std.Address("g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7"), &Member{InvitationPoints: 2}) // Nemanja
 	members.SetMember(T2, std.Address("g1dfr24yhk5ztwtqn2a36m8f6ud8cx5hww4dkjfl"), &Member{InvitationPoints: 2}) // Antonio
-	members.SetMember(T2, std.Address("g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j"), &Member{InvitationPoints: 2}) // Ray
-	members.SetMember(T2, std.Address("g1v66dsvddjvgtkunjpaew9qetj2ya77zh9u2lsu"), &Member{InvitationPoints: 2}) // Petar
 	members.SetMember(T2, std.Address("g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu"), &Member{InvitationPoints: 2}) // Ilker
 	members.SetMember(T2, std.Address("g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun"), &Member{InvitationPoints: 2}) // Jerónimo
 	members.SetMember(T2, std.Address("g1lckl8j2g3jyyuq6fx7pke3uz4kemht7lw4fg5l"), &Member{InvitationPoints: 2}) // Danny
 	members.SetMember(T2, std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), &Member{InvitationPoints: 2}) // Leon
-	members.SetMember(T2, std.Address("g1whzkakk4hzjkvy60d5pwfk484xu67ar2cl62h2"), &Member{InvitationPoints: 2}) // Kirk
 	members.SetMember(T2, std.Address("g17n4y745s08awwq4e0a38lagsgtntna0749tnxe"), &Member{InvitationPoints: 2}) // Jinwoo (Onbloc)
 	members.SetMember(T2, std.Address("g1ckae7tc5sez8ul3ssne75sk4muwgttp6ks2ky9"), &Member{InvitationPoints: 2}) // ByeongJun (Onbloc)
 
