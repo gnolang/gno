@@ -33,8 +33,8 @@ even when exposed (e.g. `package realm1; var MyGlobal int = 1`) is safe from ext
 manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For users to
 manipulate them a function or method *must* be provided.
 
-Realm crossing occurs when a function is called with the Gno `fn(cross, ...)`
-syntax.
+Realm crossing occurs when a crossing function(declared as `fn(cur realm, ...){...}`) 
+is called with the Gno `fn(cross, ...)` syntax.
 
 ```go
 package main
@@ -139,8 +139,8 @@ to.
 `std.PreviousRealm()` returns the realm explicitly crossed to before that.
 
 A crossing function declared in the same realm package as the callee may be
-called normally OR like `fn(cross, ...)`. When called normally there will be no
-realm crossing, but when called like `fn(cross, ...)` there is technically a
+called like `fn(cross, ...)` or `fn(cur, ...)`. When called with `fn(cur, ...)` there 
+will be no realm crossing, but when called like `fn(cross, ...)` there is technically a
 realm crossing and the current realm and previous realm returned are the same.
 
 The current realm and previous realm do not depend on any implicit crossing to
