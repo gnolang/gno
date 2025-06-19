@@ -8,8 +8,8 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/testutils"
-	trs_pkg "gno.land/p/demo/treasury"
 	"gno.land/p/demo/uassert"
+	trs_pkg "gno.land/p/nt/treasury"
 
 	"gno.land/r/demo/grc20reg"
 	"gno.land/r/gov/dao"

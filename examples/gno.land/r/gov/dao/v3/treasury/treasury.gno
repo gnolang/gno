@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/grc/grc20"
-	t "gno.land/p/demo/treasury"
+	t "gno.land/p/nt/treasury"
 
 	"gno.land/r/demo/grc20reg"
 	"gno.land/r/gov/dao"

@@ -4,8 +4,8 @@ import (
 	"std"
 
 	"gno.land/p/aeddi/utils"
-	trs_pkg "gno.land/p/demo/treasury"
 	"gno.land/p/demo/ufmt"
+	trs_pkg "gno.land/p/nt/treasury"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
