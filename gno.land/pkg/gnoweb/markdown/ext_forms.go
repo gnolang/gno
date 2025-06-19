@@ -73,6 +73,7 @@ func (in FormInput) String() string {
 
 type FormNode struct {
 	ast.BaseBlock
+	Error      error
 	Inputs     []FormInput
 	RenderPath string // Path to render after form submission
 	RealmName  string
@@ -139,19 +140,19 @@ func (p *formParser) Trigger() []byte {
 func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
 	tok, valid := parseFormTag(line)
-	if !valid {
-		return nil, parser.NoChildren // skip
-	}
-
-	if tok.Data != "gno-form" || tok.Type != html.StartTagToken {
-		return nil, parser.NoChildren // skip, not our tag
+	if !valid || tok.Data != "gno-form" {
+		return nil, parser.NoChildren
 	}
 
 	fn := FormNode{}
+	if tok.Type != html.StartTagToken {
+		fn.Error = ErrFormUnexpectedOrInvalidTag
+		return &fn, parser.NoChildren // skip, not our tag
+	}
+
 	fn.RenderPath, _ = ExtractAttr(tok.Attr, "path")
 	if gnourl, ok := getUrlFromContext(pc); ok {
-		// Use full path instead of just namespace
-		fn.RealmName = gnourl.Path
+		fn.RealmName = gnourl.Path // Use full path instead of just namespace
 	}
 
 	return &fn, parser.Continue
@@ -160,11 +161,7 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 // Continue processes lines until "</gno-form>" is found.
 // When a line contains <gno-input />, it adds a child node.
 func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	line, seg := reader.PeekLine()
-	if seg.IsEmpty() {
-		return parser.Continue
-	}
-
+	line, _ := reader.PeekLine()
 	if line = bytes.TrimSpace(line); len(line) == 0 {
 		return parser.Continue // skip empty line
 	}
@@ -259,6 +256,11 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	n, ok := node.(*FormNode)
 	if !ok {
+		return ast.WalkContinue, nil
+	}
+
+	if n.Error != nil {
+		fmt.Fprintf(w, "<!-- Error: %s -->\n", HTMLEscapeString(n.Error.Error()))
 		return ast.WalkContinue, nil
 	}
 
