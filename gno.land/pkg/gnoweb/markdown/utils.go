@@ -3,7 +3,6 @@ package markdown
 import (
 	"errors"
 	"io"
-	"strings"
 
 	"html/template"
 
@@ -38,20 +37,12 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 	}
 }
 
-func ExtractAttr(line string, attr string) string {
-	tokens, err := ParseHTMLTokens(strings.NewReader(line))
-	if err != nil {
-		return ""
-	}
-
-	for _, tok := range tokens {
-		if tok.Type == html.StartTagToken || tok.Type == html.SelfClosingTagToken {
-			for _, a := range tok.Attr {
-				if a.Key == attr {
-					return a.Val
-				}
-			}
+func ExtractAttr(attrs []html.Attribute, key string) (val string, ok bool) {
+	for _, attr := range attrs {
+		if key == attr.Key {
+			return attr.Val, true
 		}
 	}
-	return ""
+
+	return "", false
 }
