@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	println(tests.Counter())
+	println(tests.Counter(cross))
 }
 
 // Error:

@@ -8,9 +8,9 @@ import (
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/nt/commondao"
 	"gno.land/p/sunspirit/md"
 
-	"gno.land/p/chaegnal/dao"
 	"gno.land/r/chaegnal/organizer"
 )
 
@@ -36,15 +36,15 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOn
 
 // displayMembers displays the group current members
 // It lets the admin promote / demote / remove member
-func displayMembers(group organizer.FriendGroup, whitelist rotree.IReadOnlyTree, logged string) string {
+func displayMembers(group organizer.FriendGroup, logged string) string {
 	table := mdtable.Table{
 		Headers: []string{"Address", "Rank", "Action"},
 	}
 
-	whitelist.Iterate("", "", func(indexStr string, val any) bool {
+	members := group.DAO.Members()
+	members.IterateByOffset(0, members.Size(), func(adr std.Address) bool {
 		var actionAdmin string
 
-		adr := std.Address(indexStr)
 		if adr == std.Address(logged) {
 			return false
 		}
@@ -53,14 +53,14 @@ func displayMembers(group organizer.FriendGroup, whitelist rotree.IReadOnlyTree,
 		switch {
 		case adr == group.Owner.Owner():
 			rank = "Owner"
-		case group.DAO.IsAdmin(adr):
+		case isAdmin(strconv.Itoa(group.ID), std.Address(adr)):
 			rank = "Admin"
 		default:
 			rank = "Member"
 		}
 
 		if rank != "Owner" {
-			if group.DAO.IsAdmin(adr) {
+			if isAdmin(strconv.Itoa(group.ID), std.Address(adr)) {
 				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
 			} else {
 				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
@@ -92,11 +92,18 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 		"callbackArgs", "Default Callback Arguments",
 		"logged", logged)) + "\n"
 
+	out += md.H3("Available callbacks:") + "\n"
+	out += "AcceptAwaitingMember(your address - target address)" + "\n\n"
+	out += "RefuseAwaitingMember(your address - target address)" + "\n\n"
+	out += "MakeAdmin(your address - target address)" + "\n\n"
+	out += "RemoveAdminRank(your address - target address)" + "\n\n"
+	out += "RemoveMember(your address - target address)" + "\n\n"
+	out += "SetHangoutTimeAndPlace(date - time - place - description)" + "\n\n"
+
 	out += md.H3("Approval Waitlist") + "\n"
 
-	awaiting := group.DAO.GetAwaiting()
-	if awaiting.Size() > 0 {
-		out += displayPendingApproval(group, awaiting, logged)
+	if group.WaitList.Size() > 0 {
+		out += displayPendingApproval(group, group.WaitList, logged)
 	} else {
 		out += md.Paragraph("No member waiting for approval") + "\n"
 	}
@@ -104,9 +111,8 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 
 	out += md.H3("Members") + "\n"
 
-	whitelist := group.DAO.GetWhitelisted()
-	if whitelist.Size() > 1 {
-		out += displayMembers(group, whitelist, logged)
+	if group.DAO.Members().Size() > 1 {
+		out += displayMembers(group, logged)
 	} else {
 		out += md.Paragraph("You're the only member for now.") + "\n"
 	}
@@ -115,21 +121,43 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 	return out
 }
 
-func displayHangouts(group organizer.FriendGroup) string {
-	hangouts := group.DAO.GetHangouts()
-
+// displayActiveProposals displays every ongoing proposals
+func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 	table := mdtable.Table{
-		Headers: []string{"ID", "Date", "Time", "Place", "Description"},
+		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
 	}
 
-	hangouts.Iterate("", "", func(_ string, val any) bool {
-		hangout := val.(dao.HangoutInfo)
+	group.DAO.ActiveProposals().Iterate(0, group.DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
+		record := p.VotingRecord()
+		yay := record.VoteCount(commondao.ChoiceYes)
+		nay := record.VoteCount(commondao.ChoiceNo)
+
+		proposalID := strconv.FormatUint(p.ID(), 10)
+
+		voteActions := md.Link("Yay", txlink.Call("VoteOnProposal",
+			"groupId", strconv.Itoa(group.ID),
+			"index", proposalID,
+			"vote", strconv.Itoa(organizer.VoteYay),
+			"logged", logged)) + " | " +
+			md.Link("Nay", txlink.Call("VoteOnProposal",
+				"groupId", strconv.Itoa(group.ID),
+				"index", proposalID,
+				"vote", strconv.Itoa(organizer.VoteNay),
+				"logged", logged))
+
+		if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
+			closeLink := md.Link("Check", txlink.Call("ExecuteExpiredProposals",
+				"groupId", strconv.Itoa(group.ID)))
+			voteActions += " | " + closeLink
+		}
+
 		table.Append([]string{
-			strconv.Itoa(hangout.Id),
-			hangout.Date,
-			hangout.Time,
-			hangout.Place,
-			hangout.Description,
+			p.Definition().Title(),
+			p.Definition().Body(),
+			"Active",
+			"Yay: " + strconv.Itoa(yay) + " / Nay: " + strconv.Itoa(nay),
+			voteActions,
+			"-",
 		})
 
 		return false
@@ -138,74 +166,50 @@ func displayHangouts(group organizer.FriendGroup) string {
 	return table.String()
 }
 
-func displayProposals(group organizer.FriendGroup, activeOnly bool, logged string) string {
-	proposals := group.DAO.GetProposals()
-
+// displayClosedProposals displays all the past proposals
+func displayClosedProposals(group organizer.FriendGroup) string {
 	table := mdtable.Table{
 		Headers: []string{"Title", "Description", "Status", "Votes", "Actions", "Result"},
 	}
 
-	proposals.Iterate("", "", func(index string, val any) bool {
-		proposal := val.(dao.Proposal)
+	group.DAO.FinishedProposals().Iterate(0, group.DAO.FinishedProposals().Size(), false, func(p *commondao.Proposal) bool {
+		record := p.VotingRecord()
+		yay := record.VoteCount(commondao.ChoiceYes)
+		nay := record.VoteCount(commondao.ChoiceNo)
 
-		if activeOnly != proposal.Active {
+		table.Append([]string{
+			p.Definition().Title(),
+			p.Definition().Body(),
+			"Closed",
+			"Yay: " + strconv.Itoa(yay) + " / Nay: " + strconv.Itoa(nay),
+			"-",
+			string(p.Status()),
+		})
+
+		return false
+	})
+
+	return table.String()
+}
+
+// displayHangouts displays the validated hangouts
+func displayHangouts(group organizer.FriendGroup) string {
+	table := mdtable.Table{
+		Headers: []string{"ID", "Date", "Time", "Place", "Description"},
+	}
+
+	group.Hangout.Iterate("", "", func(indexStr string, val any) bool {
+		hangout, ok := val.(organizer.HangoutInfo)
+		if !ok {
 			return false
 		}
 
-		voteYayRaw, _ := proposal.Votes.Get(strconv.Itoa(organizer.VoteYay))
-		voteNayRaw, _ := proposal.Votes.Get(strconv.Itoa(organizer.VoteNay))
-
-		yay := 0
-		nay := 0
-		if voteYayRaw != nil {
-			yay = voteYayRaw.(int)
-		}
-		if voteNayRaw != nil {
-			nay = voteNayRaw.(int)
-		}
-
-		status := "Closed"
-		if proposal.Active {
-			status = "Active"
-		}
-
-		result := "-"
-		if !proposal.Active {
-			result = proposal.Winner
-		}
-
-		voteActions := "-"
-		if proposal.Active {
-			voteActions =
-				md.Link("Yay", txlink.Call("VoteOnProposal",
-					"groupId", strconv.Itoa(group.ID),
-					"index", index,
-					"vote", strconv.Itoa(organizer.VoteYay),
-					"logged", logged)) + " | " +
-					md.Link("Nay", txlink.Call("VoteOnProposal",
-						"groupId", strconv.Itoa(group.ID),
-						"index", index,
-						"vote", strconv.Itoa(organizer.VoteNay),
-						"logged", logged))
-
-			if group.DAO.IsAdmin(std.Address(logged)) {
-				closeLink := md.Link("Close", txlink.Call("AdminCloseProposal",
-					"groupId", strconv.Itoa(group.ID), "voteId", index, "logged", logged))
-				if voteActions == "-" {
-					voteActions = closeLink
-				} else {
-					voteActions += " | " + closeLink
-				}
-			}
-		}
-
 		table.Append([]string{
-			proposal.Title,
-			proposal.Description,
-			status,
-			"Yay: " + strconv.Itoa(yay) + " / Nay: " + strconv.Itoa(nay),
-			voteActions,
-			result,
+			indexStr,
+			hangout.Date,
+			hangout.Time,
+			hangout.Place,
+			hangout.Description,
 		})
 
 		return false
@@ -222,10 +226,10 @@ func Render(url string) string {
 
 	out += md.H1("Group: " + group.Title)
 	out += md.H2("Created by: " + organizer.NameOrAddress(group.Owner.Owner()))
-	out += md.Paragraph("Number of friends: "+strconv.Itoa(group.DAO.Whitelist.Size())) + "\n"
+	out += md.Paragraph("Number of friends: "+strconv.Itoa(group.DAO.Members().Size())) + "\n"
 	out += md.HorizontalRule()
 
-	if group.DAO.IsAdmin(std.Address(logged)) {
+	if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
 		out += displayAdminBoard(group, logged)
 	}
 
@@ -234,11 +238,11 @@ func Render(url string) string {
 	out += md.HorizontalRule()
 
 	out += md.H2("Active DAOs")
-	out += displayProposals(group, true, logged)
+	out += displayActiveProposals(group, logged)
 	out += md.HorizontalRule()
 
 	out += md.H2("Closed DAOs")
-	out += displayProposals(group, false, logged)
+	out += displayClosedProposals(group)
 	out += md.HorizontalRule()
 
 	out += md.Paragraph(md.Link("Go back", "/r/chaegnal/organizer"))
@@ -247,6 +251,7 @@ func Render(url string) string {
 		out += md.Paragraph(" | " + md.Link("Delete Group", txlink.Call("DeleteFriendGroup", "groupId", strconv.Itoa(group.ID), "logged", logged)))
 		out += md.Paragraph(" | " + md.Link("Give ownership", txlink.Call("SwitchOwner", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", "default")))
 	}
+
 	return out
 }
 

@@ -11,8 +11,7 @@ import (
 
 // DeleteFriendGroup allows the owner to delete the friendgroup
 // Panics if anyone but the owner try to delete the group
-func DeleteFriendGroup(groupId, logged string) {
-	crossing()
+func DeleteFriendGroup(cur realm, groupId, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != std.Address(logged) {
@@ -24,15 +23,14 @@ func DeleteFriendGroup(groupId, logged string) {
 
 // SwitchOwner enables giving out ownership of the group
 // Panics if the caller is not the owner or if the new owner is not an admin
-func SwitchOwner(groupId, logged string, adr std.Address) {
-	crossing()
+func SwitchOwner(cur realm, groupId, logged string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != std.Address(logged) {
 		panic("only the owner give ownership away")
 	}
 
-	ok := group.DAO.IsAdmin(adr)
+	ok := isAdmin(groupId, adr)
 	if !ok {
 		panic("the new owner must be an admin")
 	}

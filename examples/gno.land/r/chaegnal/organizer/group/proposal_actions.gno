@@ -1,58 +1,155 @@
 package group
 
 import (
+	"errors"
 	"std"
 	"strconv"
 	"strings"
+	"time"
 
+	"gno.land/p/nt/commondao"
 	"gno.land/r/chaegnal/organizer"
 )
 
+const (
+	acceptMemberFunc = "AcceptAwaitingMember"
+	refuseMemberFunc = "RefuseAwaitingMember"
+	makeAdminFunc    = "MakeAdmin"
+	removeAdminFunc  = "RemoveAdminRank"
+	removeMemberFunc = "RemoveMember"
+	setHangoutFunc   = "SetHangoutTimeAndPlace"
+)
+
+type CallbackProposalDefinition struct {
+	GroupId      string
+	TitleValue   string
+	BodyValue    string
+	Callback     string
+	CallbackArgs []string
+}
+
+func (c *CallbackProposalDefinition) Title() string {
+	return c.TitleValue
+}
+
+func (c *CallbackProposalDefinition) Body() string {
+	return c.BodyValue
+}
+
+func (c *CallbackProposalDefinition) VotingPeriod() time.Duration {
+	return 24 * time.Hour
+}
+
+func (c *CallbackProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
+	yesCount := r.VoteCount(commondao.ChoiceYes)
+	noCount := r.VoteCount(commondao.ChoiceNo)
+	return yesCount > noCount, nil
+}
+
 // CreateProposals is a wrapper to create a proposal
 // It sanitizes the arguments given
-func CreateProposals(groupId, title, desc, callback, callbackArgsStr, logged string) {
-	crossing()
+func CreateProposals(cur realm, groupId, title, desc, callback, callbackArgsStr, logged string) {
+	if !isAdmin(groupId, std.PreviousRealm().Address()) {
+		panic("only admin can create proposals")
+	}
+
 	group := organizer.GetGroupFromId(groupId)
 
 	callbackArgsStr = strings.Trim(callbackArgsStr, "\"")
 	callbackArgs := strings.Split(callbackArgsStr, ",")
 
-	group.DAO.CreateProposals(title, desc, callback, callbackArgs, std.Address(logged))
+	def := &CallbackProposalDefinition{
+		GroupId:      groupId,
+		TitleValue:   title,
+		BodyValue:    desc,
+		Callback:     callback,
+		CallbackArgs: callbackArgs,
+	}
+
+	_, err := group.DAO.Propose(std.Address(logged), def)
+	if err != nil {
+		panic("proposal creation failed: " + err.Error())
+	}
 }
 
-// VoteOnProposal is a wrapper to vote on a proposal
-// Panics if the given vote informations are not possible
-func VoteOnProposal(groupId, voteIdStr, voteStr, logged string) {
-	crossing()
+// VoteOnProposal allows the user to vote on a proposal
+// Checks if the proposal deadline is overdue
+func VoteOnProposal(cur realm, groupId, voteIdStr, voteStr, logged string) {
 	group := organizer.GetGroupFromId(groupId)
 
-	voteId, err := strconv.Atoi(voteIdStr)
+	voteId, err := strconv.ParseUint(voteIdStr, 10, 64)
 	if err != nil {
 		panic("invalid vote id")
 	}
 
-	vote, err := strconv.Atoi(voteStr)
+	voteInt, err := strconv.Atoi(voteStr)
 	if err != nil {
 		panic("invalid vote choice")
 	}
 
-	if vote != organizer.VoteNay && vote != organizer.VoteYay {
+	var choice commondao.VoteChoice
+	switch voteInt {
+	case organizer.VoteYay:
+		choice = commondao.ChoiceYes
+	case organizer.VoteNay:
+		choice = commondao.ChoiceNo
+	default:
 		panic("vote should be yay (1) or nay (0)")
 	}
 
-	group.DAO.VoteProposal(voteId, vote, std.Address(logged))
+	err = group.DAO.Vote(std.Address(logged), voteId, choice, "")
+	if err != nil {
+		panic("failed to vote: " + err.Error())
+	}
+	ExecuteExpiredProposals(cross, groupId)
 }
 
-// AdminCloseProposal is a wrapper for admin to close proposal forcefully
-// Panics if the vote ID does not belong to any open proposals
-func AdminCloseProposal(groupId, voteIdStr, logged string) {
-	crossing()
-	group := organizer.GetGroupFromId(groupId)
+// Execute defines the authorized callbacks for proposals
+// Execute start the execution of the desired callback
+func (p *CallbackProposalDefinition) Execute(cur realm) error {
+	group := organizer.GetGroupFromId(p.GroupId)
 
-	voteId, err := strconv.Atoi(voteIdStr)
-	if err != nil {
-		panic("invalid vote id")
+	if len(p.CallbackArgs) < 2 {
+		return errors.New("not enough arguments")
 	}
 
-	group.DAO.AdminCloseProposal(voteId, std.Address(logged))
+	switch p.Callback {
+	case acceptMemberFunc:
+		return AcceptAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case refuseMemberFunc:
+		return RefuseAwaitingMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case makeAdminFunc:
+		return MakeAdmin(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case removeAdminFunc:
+		return RemoveAdminRank(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case removeMemberFunc:
+		return RemoveMember(cross, p.GroupId, p.CallbackArgs[0], std.Address(p.CallbackArgs[1]))
+
+	case setHangoutFunc:
+		if len(p.CallbackArgs) < 4 {
+			return errors.New("not enough arguments")
+		}
+		return group.SetHangoutTimeAndPlace(p.CallbackArgs[0], p.CallbackArgs[1], p.CallbackArgs[2], p.CallbackArgs[3])
+
+	default:
+		return errors.New("unknown callback: " + p.Callback)
+	}
+}
+
+// ExecuteExpiredProposals checks if the voting deadline is overdue
+// Calls the function to execute the callback if so
+func ExecuteExpiredProposals(cur realm, groupId string) {
+	group := organizer.GetGroupFromId(groupId)
+
+	group.DAO.ActiveProposals().Iterate(0, group.DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
+		if time.Now().After(p.VotingDeadline()) {
+			_ = group.DAO.Execute(p.ID())
+		}
+		return true
+	})
+
 }
