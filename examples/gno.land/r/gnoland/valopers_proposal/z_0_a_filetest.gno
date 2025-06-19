@@ -1,13 +1,13 @@
 // PKGPATH: gno.land/r/gnoland/valopers_proposal_test
-package valopers_proposal_test
+package valopers_proposal
 
 // SEND: 20000000ugnot
 
 import (
 	"std"
 
-	valopers "gno.land/r/gnoland/valopers/v2"
-	valopers_proposal "gno.land/r/gnoland/valopers_proposal/v2"
+	"gno.land/r/gnoland/valopers"
+	"gno.land/r/gnoland/valopers_proposal"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/init"
 )

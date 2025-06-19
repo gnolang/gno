@@ -1,12 +1,12 @@
 // PKGPATH: gno.land/r/gnoland/valopers_test
-package valopers_test
+package valopers
 
 // SEND: 20000000ugnot
 
 import (
 	"std"
 
-	valopers "gno.land/r/gnoland/valopers/v2"
+	valopers "gno.land/r/gnoland/valopers"
 )
 
 const (
@@ -39,7 +39,7 @@ func main() {
 //
 // ## 📝 How to Register Your Validator Node
 //
-// To add your validator node to the registry, use the [**Register**](/r/gnoland/valopers/v2$help&func=Register) function with the following parameters:
+// To add your validator node to the registry, use the [**Register**](/r/gnoland/valopers$help&func=Register) function with the following parameters:
 //
 // - **Moniker** (Validator Name)
 //   - Must be **human-readable**

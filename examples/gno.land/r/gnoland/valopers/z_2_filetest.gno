@@ -1,12 +1,12 @@
 // PKGPATH: gno.land/r/gnoland/valopers_test
-package valopers_test
+package valopers
 
 // SEND: 20000000ugnot
 
 import (
 	"std"
 
-	valopers "gno.land/r/gnoland/valopers/v2"
+	valopers "gno.land/r/gnoland/valopers"
 )
 
 const (
