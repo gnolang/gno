@@ -177,6 +177,7 @@ func (p *Post) DeleteCommentById(id string) error {
 	if !removed {
 		return ErrCommentDeleteFailed
 	}
+	p.CommentsSize--
 	return nil
 }
 

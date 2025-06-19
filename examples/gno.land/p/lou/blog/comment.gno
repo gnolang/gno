@@ -116,7 +116,7 @@ func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) s
 		prefix += "> "
 	}
 	user, _ := CheckUser(c.Author(), resolver)
-	out := prefix + c.ID() + " " + md.Bold(md.Link("@"+user, blogPrefix+":commenters/"+user)) + " "
+	out := prefix + md.Bold(md.Link("@"+user, blogPrefix+":commenters/"+user)) + " "
 	if c.Pinned() {
 		out += "📌 "
 	}
