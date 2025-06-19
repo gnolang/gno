@@ -96,19 +96,49 @@ func ptrForward(ptr *int, runes []rune, inc int) {
 	*ptr += inc
 }
 
-var c2f = map[rune]flag{
-	'-': flagMinus,
-	'+': flagPlus,
-	' ': flagSpace,
-	'0': flagZero,
-}
-
 var lenMap = map[string]lengthModifier{
 	"ll": lenLL,
 	"l":  lenL,
 	"h":  lenH,
 	"hh": lenHH,
 	"z":  lenZ,
+}
+
+func parseDigit(r rune) int {
+	if '0' <= r && r <= '9' {
+		return int(r - '0')
+	}
+	return -1
+}
+
+func parseNumber(runes []rune, start int, end int) (int, int, bool) {
+	if start >= end {
+		return 0, 0, false
+	}
+
+	num := 0
+	i := 0
+	for start+i < end {
+		digit := parseDigit(runes[start+i])
+		if digit < 0 {
+			break
+		}
+		num = num*10 + digit
+		i++
+	}
+
+	if i == 0 {
+		return 0, 0, false
+	}
+
+	return num, i, true
+}
+
+var flagMap = [256]flag{
+	'-': flagMinus,
+	'+': flagPlus,
+	' ': flagSpace,
+	'0': flagZero,
 }
 
 // Parse the printf flags, precisions... all formatting data, stored in "p.meta".
@@ -118,51 +148,86 @@ var lenMap = map[string]lengthModifier{
 //  precision | number after the '.' character, mostly used in float precision ("%.2f", "%.3d", ...)
 //       flag | the flags are the characters before the flag ("%#x", "%+d", "%0f", ...)
 //    padding | the padding is the number you put after the flag ("%3d", "%5f", ...)
-func (p *printer) parse(runes []rune, index *int) {
-	ptrForward(index, runes, 1)
-	if runes[*index] == '#' {
-		p.meta.flags |= flagHashtag
-		ptrForward(index, runes, 1)
+func (p *printer) parse(runes []rune, index *int, end int) {
+	// Skip the '%' character that starts format specifiers
+	*index++
+	if *index >= end {
+		return
 	}
-	stop := false
-	for {
-		x, ok := c2f[runes[*index]]
-		switch {
-		case ok:
-			p.meta.flags |= x
-			ptrForward(index, runes, 1)
-		case unicode.IsNumber(runes[*index]):
-			strRunes := string(runes[*index:])
-			n, rest := strtoi(strRunes)
-			if rest == strRunes {
-				continue
+
+	// Single-pass parsing with lookahead for efficient processing
+	for *index < end {
+		c := runes[*index]
+
+		switch c {
+		case '#':
+			// Handle hashtag flag for alternate format
+			p.meta.flags |= flagHashtag
+			*index++
+
+		case '-', '+', ' ', '0':
+			// Process format flags using direct array indexing
+			p.meta.flags |= flagMap[c]
+			*index++
+
+		case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			// Parse width specification (padding)
+			if num, consumed, ok := parseNumber(runes, *index, end); ok {
+				p.meta.padding = num
+				*index += consumed
 			}
-			p.meta.padding = n
-			ptrForward(index, runes, len(strRunes)-len(rest))
-		case runes[*index] == '.':
-			ptrForward(index, runes, 1)
-			strRunes := string(runes[*index:])
-			n, rest := strtoi(strRunes)
-			p.meta.precision = n // 0 by default, not an error
-			if rest == strRunes {
-				continue
+
+		case '.':
+			// Parse precision specification (after decimal point)
+			*index++
+			if *index < end {
+				if num, consumed, ok := parseNumber(runes, *index, end); ok {
+					p.meta.precision = num
+					*index += consumed
+				} else {
+					// Handle case where only '.' is provided (precision = 0)
+					p.meta.precision = 0
+				}
 			}
-			ptrForward(index, runes, len(strRunes)-len(rest))
+
+		case 'h', 'l', 'z':
+			// Use lookahead to check for double-character length modifiers
+			// like 'hh' (char) or 'll' (long long) without iterating through options
+			if *index+1 < end {
+				next := runes[*index+1]
+				if c == 'h' && next == 'h' {
+					p.meta.length = lenHH
+					*index += 2 // Skip both characters
+					continue
+				} else if c == 'l' && next == 'l' {
+					p.meta.length = lenLL
+					*index += 2 // Skip both characters
+					continue
+				}
+			}
+
+			// Handle single-character length modifiers
+			switch c {
+			case 'h':
+				p.meta.length = lenH
+			case 'l':
+				p.meta.length = lenL
+			case 'z':
+				p.meta.length = lenZ
+			}
+			*index++
+
 		default:
-			stop = true
-		}
-		if stop {
-			break
+			// Found a non-metadata character (likely a verb), exit parsing
+			goto endParse
 		}
 	}
-	for k, v := range lenMap {
-		if string(runes[*index:*index+len(k)-1]) == k {
-			p.meta.length = v
-			ptrForward(index, runes, len(k))
-			break
-		}
+
+endParse:
+	// Adjust index to position before the verb for subsequent processing
+	if *index < end {
+		*index-- // Back up one position to position at the verb
 	}
-	*index--
 }
 
 func (p *printer) resetMeta() {
@@ -174,7 +239,7 @@ func (p *printer) resetMeta() {
 
 func newPrinter() *printer {
 	p := &printer{
-		buf: buffer{},
+		buf: make(buffer, 0, 64),
 	}
 	p.resetMeta()
 	return p
@@ -290,7 +355,7 @@ func (p *printer) doPrintf(format string, args []any) {
 		}
 
 		p.resetMeta()
-		p.parse(sTor, &i)
+		p.parse(sTor, &i, end)
 
 		verb := sTor[i+1]
 		if verb == '%' {
