@@ -131,7 +131,7 @@ that start with the `cur realm` argument as first argument are called "crossing 
 A crossing function declared in a realm different from the last explicitly
 crossed realm *must* be called like `fn(cross, ...)`. That is, functions of
 calls that result in explicit realm crossings must use `cross` as the first argument
-(`cross` is a reserved keyword).
+(`cross` is a keyword reserved specifically for this purpose).
 
 `std.CurrentRealm()` returns the current realm that was last explicitly crossed
 to.
