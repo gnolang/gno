@@ -9,8 +9,6 @@ Below is the information relating to the `genesis.json`, how to download it or g
 The initial `genesis.json` validator set is consisted of 4 entities (8 validators in total):
 
 - Gno Core - the gno core team (**2 validators**)
-- Gno DevX - the gno devX team (**2 validators**)
-- AiB - the AiB DevOps team (**2 validators**)
 - Onbloc - the [Onbloc](https://onbloc.xyz/) team (**2 validators**)
 
 Subsequent validators will be added through the governance mechanism in govdao.
