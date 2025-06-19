@@ -379,7 +379,7 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 			continue
 		}
 
-		if len(fun.Params) >= 1 && fun.Params[0].Name == "cur" && fun.Params[0].Type == "realm" {
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
 			// Don't make an entry field for "cur realm". The signature will still show it.
 			fun.Params = fun.Params[1:]
 		}
