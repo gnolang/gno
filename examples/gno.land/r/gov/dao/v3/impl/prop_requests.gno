@@ -3,7 +3,7 @@ package impl
 import (
 	"std"
 
-	"gno.land/p/aeddi/utils"
+	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/demo/ufmt"
 	trs_pkg "gno.land/p/nt/treasury"
 
@@ -161,7 +161,7 @@ func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string
 	cb := func() error {
 		err := error(nil)
 		func(cur realm) {
-			err = utils.PanicToError(func() {
+			err = panictoerr.PanicToError(func() {
 				treasury.Send(cross, payment)
 			})
 		}(cross)

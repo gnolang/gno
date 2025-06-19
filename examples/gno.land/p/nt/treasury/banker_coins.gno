@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/aeddi/utils"
+	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -35,7 +35,7 @@ func (cb *CoinsBanker) Send(p Payment) error {
 	}
 
 	// Send the coins.
-	return utils.PanicToError(func() {
+	return panictoerr.PanicToError(func() {
 		cb.banker.SendCoins(cb.owner, payment.toAddress, payment.coins)
 	})
 }
