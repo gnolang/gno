@@ -36,6 +36,7 @@ func (b *buffer) writeRune(r rune) {
 
 // the different flags
 type flag uint8
+
 const (
 	flagHashtag flag = 1 << iota
 	flagZero
@@ -46,6 +47,7 @@ const (
 
 // the different len modifiers
 type lengthModifier uint8
+
 const (
 	lenNo lengthModifier = iota
 	lenHH
@@ -57,7 +59,7 @@ const (
 
 type printerMeta struct {
 	flags     flag
-	padding   uint
+	padding   int
 	length    lengthModifier
 	width     uint
 	precision int
@@ -88,7 +90,7 @@ func ptrForward(ptr *int, runes []rune, inc int) {
 	if inc <= 0 {
 		return
 	}
-	if *ptr + inc > len(runes) {
+	if *ptr+inc > len(runes) {
 		return
 	}
 	*ptr += inc
@@ -109,7 +111,13 @@ var lenMap = map[string]lengthModifier{
 	"z":  lenZ,
 }
 
-// parse the flags
+// Parse the printf flags, precisions... all formatting data, stored in "p.meta".
+//
+// Supported metadata:
+//     length | the length modifier ("%ld", "%hhd", ...) // unused in go printf
+//  precision | number after the '.' character, mostly used in float precision ("%.2f", "%.3d", ...)
+//       flag | the flags are the characters before the flag ("%#x", "%+d", "%0f", ...)
+//    padding | the padding is the number you put after the flag ("%3d", "%5f", ...)
 func (p *printer) parse(runes []rune, index *int) {
 	ptrForward(index, runes, 1)
 	if runes[*index] == '#' {
@@ -129,8 +137,8 @@ func (p *printer) parse(runes []rune, index *int) {
 			if rest == strRunes {
 				continue
 			}
-			p.meta.padding = uint(n)
-			ptrForward(index, runes, len(strRunes) - len(rest))
+			p.meta.padding = n
+			ptrForward(index, runes, len(strRunes)-len(rest))
 		case runes[*index] == '.':
 			ptrForward(index, runes, 1)
 			strRunes := string(runes[*index:])
@@ -139,7 +147,7 @@ func (p *printer) parse(runes []rune, index *int) {
 			if rest == strRunes {
 				continue
 			}
-			ptrForward(index, runes, len(strRunes) - len(rest))
+			ptrForward(index, runes, len(strRunes)-len(rest))
 		default:
 			stop = true
 		}
@@ -157,13 +165,19 @@ func (p *printer) parse(runes []rune, index *int) {
 	*index--
 }
 
-func newPrinter() *printer {
-	return &printer{
-		buf: buffer{},
-		meta: printerMeta{
-			precision: 6,
-		},
+func (p *printer) resetMeta() {
+	p.meta = printerMeta{
+		precision: -1,
+		padding: -1,
 	}
+}
+
+func newPrinter() *printer {
+	p := &printer{
+		buf: buffer{},
+	}
+	p.resetMeta()
+	return p
 }
 
 // Sprint formats using the default formats for its operands and returns the resulting string.
@@ -275,6 +289,7 @@ func (p *printer) doPrintf(format string, args []any) {
 			continue
 		}
 
+		p.resetMeta()
 		p.parse(sTor, &i)
 
 		verb := sTor[i+1]
@@ -411,32 +426,52 @@ func writeChar(p *printer, verb rune, arg any) {
 
 // writeInt handles %d & %i formatting
 func writeInt(p *printer, verb rune, arg any) {
-	var subBuf string
+	var (
+		subBuf string
+		num int64 = 0
+		unsigned = false
+		paddingCount int
+	)
 	switch v := arg.(type) {
 	case int:
-		subBuf = strconv.Itoa(v)
+		num = int64(v)
 	case int8:
-		subBuf = strconv.Itoa(int(v))
+		num = int64(v)
 	case int16:
-		subBuf = strconv.Itoa(int(v))
+		num = int64(v)
 	case int32:
-		subBuf = strconv.Itoa(int(v))
+		num = int64(v)
 	case int64:
-		subBuf = strconv.Itoa(int(v))
+		num = v
 	case uint:
-		subBuf = strconv.FormatUint(uint64(v), 10)
+		num = int64(v)
+		unsigned = true
 	case uint8:
-		subBuf = strconv.FormatUint(uint64(v), 10)
+		num = int64(v)
+		unsigned = true
 	case uint16:
-		subBuf = strconv.FormatUint(uint64(v), 10)
+		num = int64(v)
+		unsigned = true
 	case uint32:
-		subBuf = strconv.FormatUint(uint64(v), 10)
+		num = int64(v)
+		unsigned = true
 	case uint64:
-		subBuf = strconv.FormatUint(v, 10)
+		num = int64(v)
+		unsigned = true
 	default:
-		subBuf = fallback(verb, v)
+		p.buf.writeString(fallback(verb, v))
+		return
 	}
-	paddingCount := int(p.meta.padding) - len(subBuf)
+	if unsigned {
+		subBuf = strconv.FormatUint(uint64(num), 10)
+	} else {
+		subBuf = strconv.FormatInt(num, 10)
+	}
+	if p.meta.padding == -1 {
+		paddingCount = 1
+	} else {
+		paddingCount = int(p.meta.padding) - len(subBuf)
+	}
 	if paddingCount < 0 {
 		paddingCount = 0
 	}
@@ -444,6 +479,12 @@ func writeInt(p *printer, verb rune, arg any) {
 		subBuf = strings.Repeat(" ", paddingCount) + subBuf
 	} else if p.meta.flags&flagZero != 0 {
 		subBuf = strings.Repeat("0", paddingCount) + subBuf
+	}
+	if p.meta.flags&flagPlus != 0 && (unsigned || num >= 0) {
+		subBuf = "+" + subBuf
+	}
+	if p.meta.precision == 0 && num == 0 {
+		subBuf = ""
 	}
 	p.buf.writeString(subBuf)
 }
@@ -465,6 +506,9 @@ func writeFloat(p *printer, verb rune, arg any) {
 		return
 	}
 	prec := p.meta.precision
+	if prec == -1 {
+		prec = 6
+	}
 	verbChar := byte(verb)
 	if verbChar == 'f' || verbChar == 'F' {
 		verbChar = 'f'

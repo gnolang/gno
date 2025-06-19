@@ -153,6 +153,8 @@ func TestSprintf(t *testing.T) {
 		{"%3s", []any{nil}, "%!s(<nil>)"},
 		{"%2s", []any{123}, "%!s(int=123)"},
 
+		// entering dangerous printf zone
+
 		// advanced int (from go/fmt)
 		{"%.d", []any{0}, ""},
 		{"%.0d", []any{0}, ""},
@@ -222,14 +224,19 @@ func TestSprintf(t *testing.T) {
 		{"%#.4g", []any{123000.0}, "1.230e+05"},
 	}
 
+	nFails := 0
 	for _, tc := range cases {
 		name := fmt.Sprintf(tc.format, tc.values...)
 		t.Run(name, func(t *testing.T) {
 			got := Sprintf(tc.format, tc.values...)
 			if got != tc.expectedOutput {
+				nFails++
 				t.Errorf("got %q, want %q.", got, tc.expectedOutput)
 			}
 		})
+	}
+	if nFails != 0 {
+		t.Logf("=> (%d tests failed)", nFails)
 	}
 }
 
