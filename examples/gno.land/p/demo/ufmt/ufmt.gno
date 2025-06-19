@@ -513,7 +513,10 @@ func writeFloat(p *printer, verb rune, arg any) {
 	if verbChar == 'f' || verbChar == 'F' {
 		verbChar = 'f'
 	}
-	subBuf = strconv.FormatFloat(n, verbChar, prec, bits)
+	if p.meta.flags&flagPlus != 0 && n >= 0. {
+		subBuf = "+" + subBuf
+	}
+	subBuf += strconv.FormatFloat(n, verbChar, prec, bits)
 	p.buf.writeString(subBuf)
 }
 
