@@ -18,11 +18,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+// mapping step
 // type OpTrace struct {
-//     Op         Op
-//     SourcePos  Position // position dans le code source (ligne/colonne/fichier)
-//     IndexOp int         // index dans le tableau d'opcodes Ops
-//     FuncName   string   // nom de la fonction en cours
+//     Op        Op       // The opcode that was executed
+//     SourcePos Position // Position in the source code (line/column/file)
+//     IndexOp   int      // Index in the Ops slice (program opcode array)
+//     FuncName  string   // Name of the current function being executed
 // }
 
 type OpStats struct {
