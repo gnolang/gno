@@ -1,5 +1,5 @@
 package bb
 
-import "abc.xy/pkg/aa"
+import "abc.xy/t/aa"
 
 type SB = aa.SA

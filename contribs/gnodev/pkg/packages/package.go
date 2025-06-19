@@ -28,6 +28,10 @@ type Package struct {
 }
 
 func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error) {
+	if !gnolang.IsUserlib(path) && !gnolang.IsStdlib(path) {
+		return nil, ErrResolverPackageSkip
+	}
+
 	mod, err := gnomod.ParseDir(dir)
 	switch {
 	case err == nil:
@@ -37,23 +41,21 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 			// here avoid to potentially parse broken files
 			return nil, ErrResolverPackageSkip
 		}
-	case errors.Is(err, os.ErrNotExist) || errors.Is(err, gnomod.ErrNoModFile) || mod == nil:
+	case errors.Is(err, os.ErrNotExist) || errors.Is(err, gnomod.ErrNoModFile):
 		// gnomod.toml is not present, continue anyway
 	default:
 		return nil, err
 	}
 
-	mempkg, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAll)
+	mempkg, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAnyAll)
 	switch {
 	case err == nil: // ok
 	case os.IsNotExist(err):
 		return nil, ErrResolverPackageNotFound
+	case mempkg == nil || mempkg.IsEmpty(): // XXX: should check an internal error instead
+		return nil, ErrResolverPackageSkip
 	default:
 		return nil, fmt.Errorf("unable to read package %q: %w", dir, err)
-	}
-
-	if mempkg == nil || mempkg.IsEmpty() { // XXX: should check an internal error instead
-		return nil, ErrResolverPackageSkip
 	}
 
 	if err := validateMemPackage(fset, mempkg); err != nil {

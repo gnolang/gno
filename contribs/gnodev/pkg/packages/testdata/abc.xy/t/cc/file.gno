@@ -1,5 +1,5 @@
 package cc
 
-import "abc.xy/pkg/bb"
+import "abc.xy/t/bb"
 
 type SC = bb.SB
