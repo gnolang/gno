@@ -272,9 +272,9 @@ func (x BranchStmt) String() string {
 	if x.Label == "" {
 		return x.Op.TokenString()
 	}
-	return fmt.Sprintf("%s %s<%d,%d>",
+	return fmt.Sprintf("%s %s<%d,%d,%d>",
 		x.Op.TokenString(), string(x.Label),
-		x.Depth, x.BodyIndex)
+		x.BlockDepth, x.FrameDepth, x.BodyIndex)
 }
 
 func (x DeclStmt) String() string {
