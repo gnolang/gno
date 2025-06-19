@@ -80,38 +80,28 @@ func TestCommentThreadRender(t *testing.T) {
 	)
 	urequire.NoError(t, err, "creating post")
 
-	// Parent comment
 	parent, err := blog.NewComment("g14x2crt492f84shxa9s7e5ulk7lnf2p3euz7r9n", "Needs more detail.")
 	urequire.NoError(t, err, "creating parent comment")
+	post.AddComment(parent)
 
-	// Reply
-	// reply, err := blog.NewComment("g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae", "Agreed.") // TO FIX
-	// urequire.NoError(t, err, "creating reply")
-	// err = parent.AddReply(reply)
-	// urequire.NoError(t, err, "adding reply to comment")
+	reply, err := blog.NewComment("g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae", "Agreed.") // TO FIX
+	urequire.NoError(t, err, "creating reply")
+	post.AddReply(parent.ID(), reply)
 
-	err = post.AddComment(parent)
-	// println(parent.Author() + ": " + err.Error())
-	// urequire.NoError(t, err, "adding comment to post")
-	// err = post.AddComment(reply)
-	// println(reply.Author() + ": " + err.Error())
-	// urequire.NoError(t, err, "adding comment to post")
-
-	err = blogTest.AddPost(post)
-	// urequire.NoError(t, err, "adding post to blog")
+	blogTest.AddPost(post)
+	check := false
 
 	out := blogTest.Render("posts/threaded-post")
-	check := false
 	check = strings.Contains(out, "Checking comment threads.")
 	uassert.True(t, check, "Checking comment threads.")
-	// check = strings.Contains(out, "authorone") // TO FIX
-	// uassert.True(t, check, "authorone")
-	// check = strings.Contains(out, "Needs more detail.")
-	// uassert.True(t, check, "Needs more detail.")
-	// check = strings.Contains(out, "Agreed.")
-	// uassert.True(t, check, "Agreed.")
-	// check = strings.Contains(out, "commenter1")
-	// uassert.True(t, check, "commenter1")
-	// check = strings.Contains(out, "replyuser")
-	// uassert.True(t, check, "replyuser")
+	check = strings.Contains(out, "authorone")
+	uassert.True(t, check, "authorone")
+	check = strings.Contains(out, "Needs more detail.")
+	uassert.True(t, check, "Needs more detail.")
+	check = strings.Contains(out, "Agreed.")
+	uassert.True(t, check, "Agreed.")
+	check = strings.Contains(out, "commenter1")
+	uassert.True(t, check, "commenter1")
+	check = strings.Contains(out, "replyuser")
+	uassert.True(t, check, "replyuser")
 }
