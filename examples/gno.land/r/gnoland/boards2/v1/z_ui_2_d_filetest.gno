@@ -33,8 +33,6 @@ func main() {
 //
 // [List Members](/r/gnoland/boards2/v1:BoardName/members) • [Unfreeze Board](/r/gnoland/boards2/v1$help&func=UnfreezeBoard&boardID=1&replyID=&threadID=)
 //
-//
-//
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:BoardName?order=desc)
 //
