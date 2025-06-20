@@ -27,6 +27,7 @@ var (
 	ErrFormInputMissingName       = errors.New("gno-input must have a 'name' attribute")
 	ErrFormNoEndingTag            = errors.New("no ending tag found")
 	ErrFormInvalidInputType       = errors.New("invalid input type")
+	ErrFormInputNameAlreadyUsed   = errors.New("input name already used")
 )
 
 // Whitelist of allowed input types
@@ -66,8 +67,15 @@ type FormNode struct {
 	ast.BaseBlock
 	Error      error
 	Inputs     []FormInput
+	InputsName map[string]bool
 	RenderPath string // Path to render after form submission
 	RealmName  string
+}
+
+func NewFormNode() *FormNode {
+	return &FormNode{
+		InputsName: map[string]bool{},
+	}
 }
 
 func (n *FormNode) Kind() ast.NodeKind { return KindForm }
@@ -135,10 +143,11 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 		return nil, parser.NoChildren
 	}
 
-	fn := FormNode{}
+	fn := NewFormNode()
+
 	if tok.Type != html.StartTagToken {
 		fn.Error = ErrFormUnexpectedOrInvalidTag
-		return &fn, parser.NoChildren // skip, not our tag
+		return fn, parser.NoChildren // skip, not our tag
 	}
 
 	fn.RenderPath, _ = ExtractAttr(tok.Attr, "path")
@@ -146,7 +155,7 @@ func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 		fn.RealmName = gnourl.Path // Use full path instead of just namespace
 	}
 
-	return &fn, parser.Continue
+	return fn, parser.Continue
 }
 
 // Continue processes lines until "</gno-form>" is found.
@@ -197,6 +206,17 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		}
 	}
 
+	if formInput.Name == "" {
+		formInput.Error = ErrFormInputMissingName
+		return parser.Continue
+	}
+
+	if formNode.InputsName[formInput.Name] {
+		formInput.Error = fmt.Errorf("%q: %w", formInput.Name, ErrFormInputNameAlreadyUsed)
+		return parser.Continue
+	}
+	formNode.InputsName[formInput.Name] = true
+
 	if formInput.Placeholder == "" {
 		formInput.Placeholder = defaultPlaceholder
 	}
@@ -208,12 +228,7 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		return parser.Continue
 	}
 
-	if formInput.Name == "" {
-		formInput.Error = ErrFormInputMissingName
-		return parser.Continue
-	}
-
-	// Any other line (text, etc.) should stop the block
+	// Continue with the next line
 	return parser.Continue
 }
 
