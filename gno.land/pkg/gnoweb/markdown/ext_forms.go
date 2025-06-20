@@ -17,15 +17,6 @@ import (
 
 var KindForm = ast.NewNodeKind("Form")
 
-// We only need two tags in our AST: the block node (gno-form)
-// and the input nodes (gno-input).
-type FormTag int
-
-const (
-	FormTagOpen  FormTag = iota // For the opening node (<gno-form>)
-	FormTagInput                // For an input node (<gno-input />)
-)
-
 const (
 	defaultInputType   = "text"
 	defaultPlaceholder = "Enter value"
