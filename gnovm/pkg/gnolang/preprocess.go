@@ -356,11 +356,7 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName.Name != "" {
-						// XXX NameExprTypeDefine in NameExpr?
-						// See known issues in README.nd:
-						// > Switch varnames cannot be
-						// captured as heap items.
-						// [test](../gnovm/tests/files/closure11_known.gno)
+						// see [test](../gnovm/tests/files/closure11.gno)
 						ss.VarName.Type = NameExprTypeDefine
 						ss.VarName.Path.Type = VPBlock
 						last.Reserve(false, &ss.VarName, ss, NSTypeSwitch, -1)
@@ -3130,7 +3126,6 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 				}
 				// Find the block where name is defined.
 				dbn := last.GetBlockNodeForPath(nil, n.Path)
-				// fmt.Println("===findHeapDefineByUse, dbn: ", dbn, reflect.TypeOf(dbn))
 				for {
 					// If used as closure capture, mark as heap use.
 					flx, depth, found := findFirstClosure(stack, dbn)
@@ -3344,7 +3339,6 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 					}
 				case NameExprTypeDefine, NameExprTypeHeapDefine:
 					// Find the block where name is defined
-					// special case type type switch
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// special case when it's *SwitchStmt
 					if ss, ok := dbn.(*SwitchStmt); ok && ss.IsTypeSwitch {
@@ -3354,6 +3348,7 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 							}
 							n.Type = NameExprTypeHeapDefine
 							// Make record in static block.
+							// will be populated in ExpandWith().
 							sc.SetIsHeapItem(n.Name)
 							break
 						}
