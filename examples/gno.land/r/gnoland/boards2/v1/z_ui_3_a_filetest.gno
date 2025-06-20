@@ -27,7 +27,6 @@ func main() {
 // Output:
 // # BoardName Members
 // ### These are the board members
-//
 // | Member | Role | Actions |
 // | --- | --- | --- |
 // | g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=1&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=1&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq&role=) |

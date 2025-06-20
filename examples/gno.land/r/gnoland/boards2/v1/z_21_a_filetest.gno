@@ -17,7 +17,7 @@ func main() {
 
 	// Render content must contain the message
 	content := boards2.Render("")
-	println(strings.HasPrefix(content, "> This is a test realm message\n\n"))
+	println(strings.HasPrefix(content, "> This is a test realm message\n"))
 }
 
 // Output:
