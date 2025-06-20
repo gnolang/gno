@@ -130,6 +130,7 @@ func SignAndBroadcastHandler(
 		return nil, err
 	}
 	accountAddr := info.GetAddress()
+	key := info.GetPubKey()
 
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
@@ -147,7 +148,7 @@ func SignAndBroadcastHandler(
 
 	// sign tx
 	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.Sequence
+	sequence := qret.BaseAccount.SequenceByKey(key)
 
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,

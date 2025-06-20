@@ -23,39 +23,44 @@ var (
 	ErrSessionAlreadyExists = errors.New("session already exists")
 	ErrSessionNotFound      = errors.New("session not found")
 	ErrSessionInvalid       = errors.New("session is invalid")
+	ErrSessionUnauthorized  = errors.New("session is unauthorized")
 )
 
 // Account flags
 const (
-	// XXX rename these to flagXyz.
+	// flagAccountUnrestricted allows flagUnrestricted transfers.
+	flagAccountUnrestricted BitSet = 1 << iota
 
-	// accountFlagUnrestricted allows flagUnrestricted transfers.
-	accountFlagUnrestricted BitSet = 1 << iota
+	// flagAccountRealm marks an account as realm.
+	// XXX: flagAccountRealm
 
-	// TODO: accountFlagValidator marks an account as validator.
-	accountFlagValidator // XXX: consider flagValidatorSession instead of flagValidatorAccount
+	// flagAccountTOSAccepted marks an account as having accepted the terms of service.
+	// XXX: flagAccountTOSAccepted
 
-	// TODO: accountFlagRealm marks an account as realm.
-	accountFlagRealm
+	// flagAccountFreeze marks an account as frozen.
+	// XXX: flagAccountFreeze
 )
 
 // validAccountFlags defines the set of all valid flags for accounts
-var validAccountFlags = accountFlagUnrestricted | accountFlagValidator | accountFlagRealm
+var validAccountFlags = flagAccountUnrestricted /* XXX: | flagAccountRealm | ... */
 
 // Session flags
 const (
-	// sessionFlagMaster is a flag indicating that the session is a master session
-	sessionFlagMaster BitSet = 1 << iota
+	// flagSessionValidationOnly is a flag limiting the session to validator permissions.
+	flagSessionValidationOnly BitSet = 1 << iota
 
-	// sessionFlagValidationOnly is a flag limiting the session to validator permissions
-	sessionFlagValidationOnly
+	// flagSessionCanManageSessions is a flag that allows the session to manage other sessions.
+	flagSessionCanManageSessions
 
-	// sessionFlagCanManageSessions is a flag that allows the session to manage other sessions
-	sessionFlagCanManageSessions // Can manage sessions
+	// flagSessionCanTransferCoins is a flag that allows the session to transfer coins.
+	flagSessionCanTransferCoins
+
+	// flagSessionCanMakeIBCCalls is a flag that allows the session to make IBC calls.
+	// XXX: flagSessionCanMakeIBCCalls
 )
 
 // validSessionFlags defines the set of all valid flags for sessions
-var validSessionFlags = sessionFlagMaster | sessionFlagValidationOnly | sessionFlagCanManageSessions
+var validSessionFlags = flagSessionValidationOnly | flagSessionCanManageSessions | flagSessionCanTransferCoins
 
 const (
 	// MaxSessionsPerAccount is the maximum number of sessions allowed per account
