@@ -36,6 +36,10 @@ func (c *pureClient) Sources(path string) ([]string, error) {
 	return []string{"only.gno"}, nil
 }
 
+func (c *pureClient) HasFile(pkgPath, fileName string) bool {
+	return fileName == "only.gno"
+}
+
 func newTestHandlerConfig(t *testing.T, mockPackage *gnoweb.MockPackage) *gnoweb.WebHandlerConfig {
 	t.Helper()
 
@@ -182,8 +186,8 @@ func TestWebHandler_NoRender(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "unexpected status code")
-	expectedBody := "This realm does not implement a Render() function."
-	assert.Contains(t, rr.Body.String(), expectedBody, "rendered body should contain: %q", expectedBody)
+	assert.Contains(t, rr.Body.String(), "gno.mod", "rendered body should contain the file list (gno.mod)")
+	assert.Contains(t, rr.Body.String(), "render.gno", "rendered body should contain the file list (render.gno)")
 }
 
 // TestWebHandler_GetSourceDownload tests the source file download functionality
@@ -314,6 +318,14 @@ func (c *stubDirectoryClient) Sources(path string) ([]string, error) {
 
 func (c *stubDirectoryClient) QueryPaths(prefix string, limit int) ([]string, error) {
 	return c.queryPaths, c.queryPathsErr
+}
+
+func (c *stubDirectoryClient) HasFile(pkgPath, fileName string) bool {
+	return false
+}
+
+func (c *stubDirectoryClient) SourceFileRaw(pkgPath, fileName string) ([]byte, error) {
+	return nil, errors.New("not implemented")
 }
 
 // TestWebHandler_DirectoryViewPurePackage covers the pure "package" mode without error:

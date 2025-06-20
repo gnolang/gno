@@ -23,6 +23,10 @@ type MockPackage struct {
 // MockWebClient is a mock implementation of the Client interface.
 type MockWebClient struct {
 	Packages map[string]*MockPackage // path -> package
+	// Optional override for raw file fetch in tests.
+	SourceFileRawFunc func(pkgPath, fileName string) ([]byte, error)
+	// Optional override for file existence check in tests.
+	HasFileFunc func(pkgPath, fileName string) bool
 }
 
 var _ WebClient = (*MockWebClient)(nil)
@@ -159,5 +163,28 @@ func pkgHasRender(pkg *MockPackage) bool {
 		}
 	}
 
+	return false
+}
+
+// retourne le contenu brut si le test le fournit, ou nil
+func (m *MockWebClient) SourceFileRaw(pkgPath, fileName string) ([]byte, error) {
+	if m.SourceFileRawFunc != nil {
+		return m.SourceFileRawFunc(pkgPath, fileName)
+	}
+	return nil, nil
+}
+
+// teste la présence du fichier d’après le mock ou via HasFileFunc
+func (m *MockWebClient) HasFile(pkgPath, fileName string) bool {
+	if m.HasFileFunc != nil {
+		return m.HasFileFunc(pkgPath, fileName)
+	}
+	// fallback: check via Sources
+	files, _ := m.Sources(pkgPath)
+	for _, f := range files {
+		if f == fileName {
+			return true
+		}
+	}
 	return false
 }

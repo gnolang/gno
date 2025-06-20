@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -135,6 +136,15 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string, isRaw boo
 	}
 
 	return &fileMeta, nil
+}
+
+// HasFile checks if fileName exists in the list of source files for pkgPath.
+func (s *HTMLWebClient) HasFile(pkgPath, fileName string) bool {
+	files, err := s.Sources(pkgPath)
+	if err != nil {
+		return false
+	}
+	return slices.Contains(files, fileName)
 }
 
 // Sources lists all source files available in a specified
