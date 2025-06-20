@@ -160,8 +160,15 @@ func SignAndBroadcastHandler(
 		decryptPass: pass,
 	}
 
-	if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
-		return nil, fmt.Errorf("unable to sign transaction, %w", err)
+	// Generate the transaction signature
+	signature, err := generateSignature(&tx, kb, sOpts, kOpts)
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign transaction: %w", err)
+	}
+
+	// Add the signature to the tx
+	if err = addSignature(&tx, signature); err != nil {
+		return nil, fmt.Errorf("unable to add signature: %w", err)
 	}
 
 	// broadcast signed tx
