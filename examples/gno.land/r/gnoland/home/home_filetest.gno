@@ -95,7 +95,7 @@ func main() {
 // ## Explore New Packages and Realms
 //
 // All code in Gno.land is organized in packages, and each package lives at a unique package path like
-// r/gnoland/home. You can browse packages, inspect their source, and reuse them in your own realms.
+// "r/gnoland/home"". You can browse packages, inspect their source, and them in your own libraries and realms.
 //
 // <gno-columns>
 //
