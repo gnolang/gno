@@ -14,6 +14,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Adder](/r/docs/adder) - An interactive example to update a number with transactions.
 - [Source](/r/docs/source) - View realm source code.
 - [Buttons](/r/docs/buttons) - Add buttons to your realm's render.
+- [Transaction Links](/r/docs/txlink) - Create clickable transaction links in your realm's render!
 - [Optional Render](/r/docs/optional_render) - Render() is optional in realms.
 - [Routing for Render paths](/r/docs/routing) - Route Render paths with the ^p/demo/mux^ package.
 - [Embed images](/r/docs/img_embed) - Demonstrates how to embed an image in a realm render.
@@ -24,7 +25,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Safe Objects](/r/docs/safeobjects) - A Gno-specific pattern allowing you to expose objects with admin privileges preserved.
 - [Calling non-primitive argument functions](/r/docs/complexargs) - Learn how to call functions that take in complex arguments.
 - [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
-- [Resolving usernames and addresses](/r/docs/use_rsysusers) - How to resolve usernames and addresses via the ^r/sys/users^ realm.
+- [Resolving usernames and addresses](/r/docs/resolveusers) - How to resolve usernames and addresses via the ^r/sys/users^ realm.
 - More coming soon!
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
