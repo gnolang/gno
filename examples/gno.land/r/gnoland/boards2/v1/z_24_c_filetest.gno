@@ -17,16 +17,11 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(owner))
+	testing.SetRealm(std.NewUserRealm("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"))
 
-	// Calling as an owner should succeed
-	board := boards2.GetBoard(bid)
-	if board == nil {
-		return
-	}
-
-	println(board.ID == bid)
+	// Calling as a non member should fail
+	boards2.GetBoard(bid)
 }
 
-// Output:
-// true
+// Error:
+// forbidden
