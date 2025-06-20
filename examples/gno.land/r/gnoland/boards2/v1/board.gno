@@ -38,7 +38,6 @@ type Board struct {
 	Aliases  []string
 	Creator  std.Address
 	Readonly bool
-	Private  bool
 
 	perms     Permissions
 	postsCtr  uint64   // Increments Post.ID

@@ -13,9 +13,9 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, "AAA", false)
-	boards2.CreateBoard(cross, "BBB", false)
-	boards2.CreateBoard(cross, "CCC", false)
+	boards2.CreateBoard(cross, "AAA", true)
+	boards2.CreateBoard(cross, "BBB", true)
+	boards2.CreateBoard(cross, "CCC", true)
 }
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 
 // Output:
 // # Boards
-// [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&name=&private=false) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
+// [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&listed=true&name=) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:?order=asc)

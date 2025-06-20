@@ -104,8 +104,8 @@ func GetBoardIDFromName(_ realm, name string) (_ BoardID, found bool) {
 
 // CreateBoard creates a new board.
 //
-// Private boards are not included in the list of boards.
-func CreateBoard(_ realm, name string, private bool) BoardID {
+// Listed boards are included in the list of boards.
+func CreateBoard(_ realm, name string, listed bool) BoardID {
 	assertRealmIsNotLocked()
 
 	name = strings.TrimSpace(name)
@@ -114,24 +114,20 @@ func CreateBoard(_ realm, name string, private bool) BoardID {
 
 	caller := std.PreviousRealm().Address()
 	id := reserveBoardID()
-	args := Args{name, id, private}
+	args := Args{name, id, listed}
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
 
 		perms := createBasicBoardPermissions(caller)
 		board := newBoard(id, name, caller, perms)
-		if private {
-			board.Private = true
-		}
-
 		key := id.Key()
 		gBoardsByID.Set(key, board)
 		gBoardsByName.Set(name, board)
 
-		// Public boards are also indexed separately for easier iteration and pagination
-		if !private {
-			gPublicBoardsByID.Set(key, board)
+		// Listed boards are also indexed separately for easier iteration and pagination
+		if listed {
+			gListedBoardsByID.Set(key, board)
 		}
 
 		std.Emit(

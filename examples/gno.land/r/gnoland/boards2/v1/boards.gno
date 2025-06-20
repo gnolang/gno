@@ -15,7 +15,7 @@ var (
 	gHelp             string
 	gLastReservedID   BoardID
 	gBoardsByID       avl.Tree // string(id) -> *Board
-	gPublicBoardsByID avl.Tree // string(id) -> *Board
+	gListedBoardsByID avl.Tree // string(id) -> *Board
 	gBoardsByName     avl.Tree // string(name) -> *Board
 	gLocked           struct {
 		realm        bool

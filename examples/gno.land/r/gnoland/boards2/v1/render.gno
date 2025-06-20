@@ -56,9 +56,9 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	renderBoardListMenu(res, req)
 	res.Write(md.HorizontalRule())
 
-	boards := gPublicBoardsByID
+	boards := gListedBoardsByID
 	if boards.Size() == 0 {
-		link := gRealmLink.Call("CreateBoard", "name", "", "private", "false")
+		link := gRealmLink.Call("CreateBoard", "name", "", "listed", "true")
 		res.Write(md.H3("Currently there are no boards"))
 		res.Write("Be the first to " + md.Link("create a new board", link) + " !")
 		return
@@ -107,7 +107,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 	path := strings.TrimPrefix(string(gRealmLink), "gno.land")
 
-	res.Write(md.Link("Create Board", gRealmLink.Call("CreateBoard", "name", "", "private", "false")))
+	res.Write(md.Link("Create Board", gRealmLink.Call("CreateBoard", "name", "", "listed", "true")))
 	res.Write(" • ")
 	res.Write(md.Link("List Admin Users", path+":admin-users"))
 	res.Write(" • ")
@@ -121,7 +121,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
-		link := md.Link("create a new board", gRealmLink.Call("CreateBoard", "name", name, "private", "false"))
+		link := md.Link("create a new board", gRealmLink.Call("CreateBoard", "name", name, "listed", "true"))
 		res.Write(md.H3("The board you are looking for does not exist"))
 		res.Write("Do you want to " + link + " ?")
 		return
