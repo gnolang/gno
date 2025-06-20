@@ -37,27 +37,15 @@ func indentBody(indent string, body string) string {
 	return res
 }
 
-// NOTE: length must be greater than 3.
 func summaryOf(text string, length int) string {
 	lines := strings.SplitN(text, "\n", 2)
 	line := lines[0]
 	if len(line) > length {
 		line = line[:(length-3)] + "..."
 	} else if len(lines) > 1 {
-		// len(line) <= 80
 		line = line + "..."
 	}
 	return line
-}
-
-// newLink returns a Markdown link.
-func newLink(label, uri string) string {
-	return "[" + label + "](" + uri + ")"
-}
-
-// newButtonLink returns a Makdown link with label wrapped in brackets.
-func newButtonLink(label, uri string) string {
-	return `[\[` + label + `\]](` + uri + ")"
 }
 
 // newUserLink returns a Markdown link for an account to the users

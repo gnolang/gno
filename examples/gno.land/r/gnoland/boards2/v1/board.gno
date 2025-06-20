@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/md"
 	"gno.land/p/nt/commondao"
 )
 
@@ -171,12 +172,12 @@ func (board *Board) Render(path, menu string) string {
 	r := parseRealmPath(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
-		sb.WriteString(newLink("newest first", r.String()))
+		sb.WriteString(md.Link("newest first", r.String()))
 		sb.WriteString("\n\n")
 		board.ReverseIterateThreads(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
-		sb.WriteString(newLink("oldest first", r.String()))
+		sb.WriteString(md.Link("oldest first", r.String()))
 		sb.WriteString("\n\n")
 		board.IterateThreads(p.Offset(), p.PageSize(), render)
 	}
