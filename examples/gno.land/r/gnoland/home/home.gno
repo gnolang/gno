@@ -9,7 +9,7 @@ import (
 	blog "gno.land/r/gnoland/blog"
 
 	"gno.land/r/gnoland/events"
-	"gno.land/r/gnoland/users/v1"
+	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/leon/hor"
 )
 
@@ -38,23 +38,23 @@ func Render(_ string) string {
 		return strconv.Itoa(int(std.ChainHeight()))
 	})
 
-	template := `# Welcome to gno.land
+	template := `# Welcome to Gno.land
 
-We’re building gno.land, set to become the leading open-source smart contract
+We’re building Gno.land, set to become the leading open-source smart contract
 platform, using Gno, an interpreted and fully deterministic variation of the
 Go programming language for succinct and composable smart contracts.
 
-With transparent and timeless code, gno.land is the next generation of smart
+With transparent and timeless code, Gno.land is the next generation of smart
 contract platforms, serving as the “GitHub” of the ecosystem, with realms built
 using fully transparent, auditable code that anyone can inspect and reuse.
 
-Intuitive and easy to use, gno.land lowers the barrier to web3 and makes
+Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
 censorship-resistant platforms accessible to everyone. If you want to help lay
 the foundations of a fairer and freer world, join us today. 
 
 
 <gno-columns>
-## Learn about gno.land
+## Learn about Gno.land
 
 - [About](/about)
 - [GitHub](https://github.com/gnolang)
@@ -94,17 +94,18 @@ the foundations of a fairer and freer world, join us today.
 :latest-blogposts:
 
 |||
+
 ## [Latest Events](/r/gnoland/events)
 
 :upcoming-events:
 
 ||| 
+
 ## [Hall of Realms](/r/leon/hor)
 
 :latest-hor:
 
 </gno-columns>
-
 
 ---
 
@@ -113,43 +114,49 @@ the foundations of a fairer and freer world, join us today.
 Gno Playground is a web application designed for building, running, testing, and
 interacting with your Gno code, enhancing your understanding of the Gno
 language. With Gno Playground, you can share your code, execute tests, deploy
-your realms and packages to gno.land, and explore a multitude of other features.
+your realms and packages to Gno.land, and explore a multitude of other features.
 
 Experience the convenience of code sharing and rapid experimentation with
 [Gno Playground](https://play.gno.land).
 
+---
+
 ## Explore New Packages and Realms
 
-Intro the user to package paths and packages in general, 
-
-let them know that they are browsable
+All code in Gno.land is organized in packages, and each package lives at a unique package path like
+r/gnoland/home. You can browse packages, inspect their source, and reuse them in your own realms.
 
 <gno-columns>
 
-### [r/gnoland](/r/gnoland)
+### r/gnoland
 
-Official gno.land packages for XYZ.
+Official realm packages developed by the Gno.land core team.
 
-|||
-
-### [r/sys](/r/sys)
-
-The system packages.
-
+[-> Browse](/r/gnoland)
 
 |||
 
-### [r/demo](/r/demo)
+### r/sys
 
-The demo apps
+System-level realm packages used by the chain.
+
+[-> Browse](/r/sys)
+
+|||
+
+### r/demo
+
+Demo realm packages showcasing what’s possible.
+
+[-> Browse](/r/demo)
 
 |||
 
 ### p/demo
 
-The demo packages
+Pure packages for demo purposes.
 
-[-> Browse](/r/demo)
+[-> Browse](/p/demo)
 
 </gno-columns>
 
@@ -157,6 +164,8 @@ The demo packages
 
 <gno-columns>
 ## Latest Gnomes
+
+Latest Gnomes in the [registry](/r/gnoland/users/v1).
 
 :latest-gnomes:
 
@@ -172,7 +181,7 @@ The demo packages
 
 |||
 
-## Quote of the ~Day~ Block#:chain-height:
+## Quote of the ~Day~ Block #:chain-height:
 
 > :qotb:
 
