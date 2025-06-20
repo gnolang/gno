@@ -126,12 +126,12 @@ func TestNewThread(t *testing.T) {
 	uassert.Equal(t, title, thread.Title)
 	uassert.Equal(t, body[:77]+"...", thread.Summary())
 	uassert.False(t, thread.HasReplies())
-	uassert.Equal(t, url, thread.URL())
-	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
-	uassert.Equal(t, editURL, thread.GetEditFormURL())
-	uassert.Equal(t, repostURL, thread.GetRepostFormURL())
-	uassert.Equal(t, deleteURL, thread.GetDeleteFormURL())
-	uassert.Equal(t, flagURL, thread.GetFlagFormURL())
+	uassert.Equal(t, url, makeThreadURI(thread))
+	uassert.Equal(t, replyURL, makeCreateReplyURI(thread))
+	uassert.Equal(t, editURL, makeEditPostURI(thread))
+	uassert.Equal(t, repostURL, makeCreateRepostURI(thread))
+	uassert.Equal(t, deleteURL, makeDeletePostURI(thread))
+	uassert.Equal(t, flagURL, makeFlagURI(thread))
 }
 
 func TestThreadAddReply(t *testing.T) {
@@ -291,9 +291,9 @@ func TestNewReply(t *testing.T) {
 	uassert.True(t, reply.UpdatedAt.IsZero())
 	uassert.False(t, reply.HasReplies())
 	uassert.Equal(t, body[:77]+"...", reply.Summary())
-	uassert.Equal(t, url, reply.URL())
-	uassert.Equal(t, replyURL, reply.GetReplyFormURL())
-	uassert.Equal(t, deleteURL, reply.GetDeleteFormURL())
+	uassert.Equal(t, url, makeReplyURI(reply))
+	uassert.Equal(t, replyURL, makeCreateReplyURI(reply))
+	uassert.Equal(t, deleteURL, makeDeletePostURI(reply))
 }
 
 func TestReplyAddReply(t *testing.T) {

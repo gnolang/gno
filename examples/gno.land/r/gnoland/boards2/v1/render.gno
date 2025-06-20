@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
 )
 
@@ -72,7 +73,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
 
-		res.Write("**" + newLink(board.Name, board.URL()) + "**  \n")
+		res.Write("**" + newLink(board.Name, makeBoardURI(board)) + "**  \n")
 		res.Write("Created by " + newUserLink(board.Creator) + " ")
 		res.Write("on " + board.CreatedAt().Format(dateFormat))
 		res.Write(", #" + board.ID.String() + "  \n")
@@ -137,18 +138,20 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardMenu(board *Board, req *mux.Request) string {
-	var (
-		b               strings.Builder
-		boardMembersURL = board.Path() + "/members"
+	boardMembersURL := ufmt.Sprintf(
+		"%s:%s/members",
+		strings.TrimPrefix(string(gRealmLink), "gno.land"),
+		board.Name,
 	)
 
+	var b strings.Builder
 	if board.Readonly {
 		b.WriteString(newLink("List Members", boardMembersURL))
 		b.WriteString(" • ")
-		b.WriteString(newLink("Unfreeze Board", board.GetUnfreezeFormURL()))
+		b.WriteString(newLink("Unfreeze Board", makeUnfreezeBoardURI(board)))
 		b.WriteString("\n")
 	} else {
-		b.WriteString(newLink("Create Thread", board.GetPostFormURL()))
+		b.WriteString(newLink("Create Thread", makeCreateThreadURI(board)))
 		b.WriteString(" • ")
 
 		menu := getCurrentMenu(req.RawPath)
@@ -162,11 +165,11 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 
 		if menu == menuManageBoard {
 			b.WriteString("↳")
-			b.WriteString(newLink("Invite Member", board.GetInviteMemberFormURL()))
+			b.WriteString(newLink("Invite Member", makeInviteMemberURI(board)))
 			b.WriteString(" • ")
 			b.WriteString(newLink("List Members", boardMembersURL))
 			b.WriteString(" • ")
-			b.WriteString(newLink("Freeze Board", board.GetFreezeFormURL()))
+			b.WriteString(newLink("Freeze Board", makeFreezeBoardURI(board)))
 			b.WriteString("\n\n")
 		}
 	}
