@@ -152,7 +152,7 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 
 	// Save the signature to the tx
 	if err = addSignature(&tx, sig); err != nil {
-		return fmt.Errorf("unable to add signature: %w", err)
+		return fmt.Errorf("unable to add signature to the tx: %w", err)
 	}
 
 	// Save the tx to disk
