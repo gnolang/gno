@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"net/url"
 	"std"
 	"strconv"
 	"strings"
@@ -60,18 +59,6 @@ func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Boar
 // CreatedAt returns the time when board was created.
 func (board *Board) CreatedAt() time.Time {
 	return board.createdAt
-}
-
-// URL returns the relative URL of the board.
-func (board *Board) URL() string {
-	return strings.TrimPrefix(string(gRealmLink), "gno.land") + ":" + url.PathEscape(board.Name)
-}
-
-// Path returns relative board path relative.
-// Returned result is not escaped.
-// Call URL to get URL-encoded path.
-func (board *Board) Path() string {
-	return strings.TrimPrefix(string(gRealmLink), "gno.land") + ":" + board.Name
 }
 
 // MembersCount returns the total number of board members.
@@ -161,7 +148,7 @@ func (board *Board) Render(path, menu string) string {
 	if board.ThreadsCount() == 0 {
 		sb.WriteString("### This board doesn't have any threads\n")
 		if !board.Readonly {
-			url := board.GetPostFormURL()
+			url := makeCreateThreadURI(board)
 			sb.WriteString("Do you want to [start a new conversation](" + url + ") in this board ?")
 		}
 		return sb.String()
@@ -205,68 +192,6 @@ func (board *Board) Render(path, menu string) string {
 func (board *Board) generateNextPostID() PostID {
 	board.postsCtr++
 	return PostID(board.postsCtr)
-}
-
-func (board *Board) GetURLFromThreadID(threadID PostID) string {
-	return board.URL() + "/" + threadID.String()
-}
-
-func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
-	return board.URL() + "/" + threadID.String() + "/" + replyID.String()
-}
-
-func (board *Board) GetRenameFormURL() string { // TODO: These type of functions shouldn't be part of Board type
-	return gRealmLink.Call(
-		"RenameBoard",
-		"name", board.Name,
-		"newName", "",
-	)
-}
-
-func (board *Board) GetFreezeFormURL() string {
-	return gRealmLink.Call(
-		"FreezeBoard",
-		"boardID", board.ID.String(),
-	)
-}
-
-func (board *Board) GetUnfreezeFormURL() string {
-	return gRealmLink.Call(
-		"UnfreezeBoard",
-		"boardID", board.ID.String(),
-		"threadID", "",
-		"replyID", "",
-	)
-}
-
-func (board *Board) GetFlaggingThresholdFormURL() string {
-	return gRealmLink.Call(
-		"SetFlaggingThreshold",
-		"boardID", board.ID.String(),
-		"threshold", "",
-	)
-}
-
-func (board *Board) GetInviteMemberFormURL() string {
-	return gRealmLink.Call(
-		"InviteMember",
-		"boardID", board.ID.String(),
-		"user", "",
-		"role", "",
-	)
-}
-
-func (board *Board) GetPostFormURL() string {
-	return gRealmLink.Call(
-		"CreateThread",
-		"boardID", board.ID.String(),
-		"title", "",
-		"body", "",
-	)
-}
-
-func (board *Board) GetMembersURL() string {
-	return board.URL() + "/members"
 }
 
 func createBasicBoardPermissions(owner std.Address) *BasicPermissions {

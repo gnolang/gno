@@ -1,7 +1,6 @@
 package boards2
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestBoardURL(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	perms := createBasicBoardPermissions(addr)
 	board := newBoard(1, name, addr, perms)
-	got := board.URL()
+	got := makeBoardURI(board)
 	uassert.Equal(t, want, got)
 }
 
@@ -46,34 +45,6 @@ func TestBoardDeleteThread(t *testing.T) {
 	uassert.False(t, ok)
 }
 
-var boardUrlPrefix = strings.TrimPrefix(string(gRealmLink), "gno.land")
-
-func TestBoardGetURLFromThreadID(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
-
-	boardName := "test12345"
-	addr := testutils.TestAddress("creator")
-	perms := createBasicBoardPermissions(addr)
-	b := newBoard(BoardID(11), boardName, addr, perms)
-	want := boardUrlPrefix + ":" + boardName + "/10"
-
-	got := b.GetURLFromThreadID(10)
-	uassert.Equal(t, want, got)
-}
-
-func TestBoardGetURLFromReplyID(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/boards2/v1"))
-
-	boardName := "test12345"
-	addr := testutils.TestAddress("creator")
-	perms := createBasicBoardPermissions(addr)
-	b := newBoard(BoardID(11), boardName, addr, perms)
-	want := boardUrlPrefix + ":" + boardName + "/10/20"
-
-	got := b.GetURLFromReplyID(10, 20)
-	uassert.Equal(t, want, got)
-}
-
 func TestBoardGetPostFormURL(t *testing.T) {
 	bid := BoardID(386)
 	addr := testutils.TestAddress("creator")
@@ -81,6 +52,6 @@ func TestBoardGetPostFormURL(t *testing.T) {
 	b := newBoard(bid, "foo1234", addr, perms)
 	expect := gRealmLink.Call("CreateThread", "boardID", bid.String(), "title", "", "body", "")
 
-	got := b.GetPostFormURL()
+	got := makeCreateThreadURI(b)
 	uassert.Equal(t, expect, got)
 }

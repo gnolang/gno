@@ -175,107 +175,13 @@ func (post *Post) Summary() string {
 	return summaryOf(post.Body, 80)
 }
 
-// URL returns the realm link URL to the post.
-func (post *Post) URL() string {
-	if post.IsThread() {
-		return post.Board.GetURLFromThreadID(post.ID)
-	}
-	return post.Board.GetURLFromReplyID(post.ThreadID, post.ID)
-}
-
-func (post *Post) GetReplyFormURL() string {
-	if post.IsThread() {
-		return gRealmLink.Call(
-			"CreateReply",
-			"boardID", post.Board.ID.String(),
-			"threadID", post.ThreadID.String(),
-			"replyID", "0",
-			"body", "",
-		)
-	}
-	return gRealmLink.Call(
-		"CreateReply",
-		"boardID", post.Board.ID.String(),
-		"threadID", post.ThreadID.String(),
-		"replyID", post.ID.String(),
-		"body", "",
-	)
-}
-
-func (post *Post) GetRepostFormURL() string {
-	return gRealmLink.Call(
-		"CreateRepost",
-		"boardID", post.Board.ID.String(),
-		"threadID", post.ID.String(),
-		"title", "",
-		"body", "",
-		"destinationBoardID", "",
-	)
-}
-
-func (post *Post) GetDeleteFormURL() string {
-	if post.IsThread() {
-		return gRealmLink.Call(
-			"DeleteThread",
-			"boardID", post.Board.ID.String(),
-			"threadID", post.ThreadID.String(),
-		)
-	}
-	return gRealmLink.Call(
-		"DeleteReply",
-		"boardID", post.Board.ID.String(),
-		"threadID", post.ThreadID.String(),
-		"replyID", post.ID.String(),
-	)
-}
-
-func (post *Post) GetEditFormURL() string {
-	if post.IsThread() {
-		return gRealmLink.Call(
-			"EditThread",
-			"boardID", post.Board.ID.String(),
-			"threadID", post.ThreadID.String(),
-			"title", post.Title,
-			"body", post.Body,
-		)
-	}
-
-	return gRealmLink.Call(
-		"EditReply",
-		"boardID", post.Board.ID.String(),
-		"threadID", post.ThreadID.String(),
-		"replyID", post.ID.String(),
-		"body", post.Body,
-	)
-}
-
-func (post *Post) GetFlagFormURL() string {
-	if post.IsThread() {
-		return gRealmLink.Call(
-			"FlagThread",
-			"boardID", post.Board.ID.String(),
-			"threadID", post.ThreadID.String(),
-			"reason", "",
-		)
-	}
-
-	return gRealmLink.Call(
-		"FlagReply",
-		"boardID", post.Board.ID.String(),
-		"threadID", post.ThreadID.String(),
-		"replyID", post.ID.String(),
-		"reason", "",
-	)
-}
-
 func (post *Post) RenderSummary() string {
 	var (
 		b       strings.Builder
-		postURL = post.URL()
-		title   = post.Title
+		postURI = makeThreadURI(post)
 	)
 
-	b.WriteString("**≡ " + newLink(summaryOf(title, 80), postURL) + "**  \n")
+	b.WriteString("**≡ " + newLink(summaryOf(post.Title, 80), postURI) + "**  \n")
 	b.WriteString("Created by " + newUserLink(post.Creator) + " on " + post.CreatedAt().Format(dateFormat))
 	b.WriteString("  \n**")
 	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
@@ -322,7 +228,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 
 	srcContent, srcPost := post.renderSourcePost(indent)
 	if post.IsRepost() && srcPost != nil {
-		sb.WriteString("  \nThis thread is a repost of [another thread](" + srcPost.URL() + "): \n")
+		sb.WriteString("  \nThis thread is a repost of [another thread](" + makeThreadURI(srcPost) + "): \n")
 	}
 
 	sb.WriteString(srcContent)
@@ -355,7 +261,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	// Add a reply view link to each top level reply
 	if !post.IsThread() {
 		sb.WriteString(", ")
-		sb.WriteString(newLink("#"+post.ID.String(), post.URL()))
+		sb.WriteString(newLink("#"+post.ID.String(), makeReplyURI(post)))
 	}
 
 	if post.reposts.Size() > 0 {
@@ -365,29 +271,29 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	}
 
 	sb.WriteString("  \n")
-	sb.WriteString(newLink("Flag", post.GetFlagFormURL()))
+	sb.WriteString(newLink("Flag", makeFlagURI(post)))
 
 	if post.IsThread() {
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Repost", post.GetRepostFormURL()))
+		sb.WriteString(newLink("Repost", makeCreateRepostURI(post)))
 	}
 
 	isReadonly := post.Readonly || post.Board.Readonly
 	if !isReadonly {
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Reply", post.GetReplyFormURL()))
+		sb.WriteString(newLink("Reply", makeCreateReplyURI(post)))
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Edit", post.GetEditFormURL()))
+		sb.WriteString(newLink("Edit", makeEditPostURI(post)))
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Delete", post.GetDeleteFormURL()))
+		sb.WriteString(newLink("Delete", makeDeletePostURI(post)))
 	}
 
 	if levels == 0 {
 		sb.WriteString(" • ")
 		if post.IsThread() {
-			sb.WriteString(newLink("Show all Replies", post.Board.GetURLFromThreadID(post.ID)))
+			sb.WriteString(newLink("Show all Replies", makeThreadURI(post)))
 		} else {
-			sb.WriteString(newLink("View Thread", post.Board.GetURLFromThreadID(post.ThreadID)))
+			sb.WriteString(newLink("View Thread", makeThreadURI(post)))
 		}
 	}
 
