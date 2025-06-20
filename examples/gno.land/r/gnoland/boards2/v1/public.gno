@@ -564,7 +564,7 @@ func ChangeMemberRole(_ realm, boardID BoardID, member std.Address, role Role) {
 	})
 }
 
-// IterateRealmMembers iterates realm members.
+// IterateRealmMembers iterates boards realm members.
 // The iteration is done only for realm members, board members are not iterated.
 func IterateRealmMembers(offset int, fn UsersIterFn) (halted bool) {
 	count := gPerms.UsersCount() - offset
@@ -573,16 +573,11 @@ func IterateRealmMembers(offset int, fn UsersIterFn) (halted bool) {
 
 // GetBoard returns a single board.
 func GetBoard(boardID BoardID) *Board {
-	return mustGetBoard(boardID)
-}
-
-// IterateBoards iterates realm boards.
-func IterateBoards(offset int, fn func(*Board) bool) (halted bool) {
-	count := gBoardsByID.Size() - offset
-	return gBoardsByID.IterateByOffset(offset, count, func(_ string, v any) bool {
-		board, _ := v.(*Board)
-		return fn(board)
-	})
+	board := mustGetBoard(boardID)
+	if !board.perms.HasRole(std.OriginCaller(), RoleOwner) {
+		panic("forbidden")
+	}
+	return board
 }
 
 func assertMemberAddressIsValid(member std.Address) {
