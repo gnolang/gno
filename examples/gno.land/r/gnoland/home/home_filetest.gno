@@ -138,12 +138,7 @@ func main() {
 //
 // Latest Gnomes in the [registry](/r/gnoland/users/v1).
 //
-// - [@test1](/u/test1)
-// - [@x](/u/x)
-// - [@sys](/u/sys)
-// - [@nt](/u/nt)
-// - [@gov](/u/gov)
-//
+// No registered users.
 //
 // |||
 //
