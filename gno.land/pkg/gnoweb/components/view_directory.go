@@ -23,7 +23,7 @@ func (d DirLinkType) LinkPrefix(pkgPath string) string {
 	case DirLinkTypeSource:
 		return pkgPath + "$source&file="
 	case DirLinkTypeFile:
-		return "https://"
+		return ""
 	}
 	return ""
 }
