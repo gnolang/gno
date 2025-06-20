@@ -37,10 +37,9 @@ func main() {
 }
 
 // Output:
-// ## Bar
+// # Bar
 //
 // > *⚠ Source post has been deleted*
-// >
 // >
 // Body2
 //

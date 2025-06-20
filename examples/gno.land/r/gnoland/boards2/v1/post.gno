@@ -178,15 +178,21 @@ func (post *Post) Summary() string {
 
 func (post *Post) RenderSummary() string {
 	var (
-		b       strings.Builder
-		postURI = makeThreadURI(post)
+		b             strings.Builder
+		postURI       = makeThreadURI(post)
+		threadSummary = summaryOf(post.Title, 80)
+		creatorLink   = newUserLink(post.Creator)
+		date          = post.CreatedAt().Format(dateFormat)
 	)
 
-	b.WriteString("**≡ " + md.Link(summaryOf(post.Title, 80), postURI) + "**  \n")
-	b.WriteString("Created by " + newUserLink(post.Creator) + " on " + post.CreatedAt().Format(dateFormat))
-	b.WriteString("  \n**")
-	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
-	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts**\n")
+	b.WriteString(md.Bold("≡ "+md.Link(threadSummary, postURI)) + "  \n")
+	b.WriteString("Created by " + creatorLink + " on " + date + "  \n")
+
+	status := []string{
+		strconv.Itoa(post.repliesAll.Size()) + " replies",
+		strconv.Itoa(post.reposts.Size()) + " reposts",
+	}
+	b.WriteString(md.Bold(strings.Join(status, " • ")) + "\n")
 	return b.String()
 }
 
@@ -201,16 +207,16 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 	board, ok := getBoard(post.RepostBoardID)
 	if !ok {
 		// TODO: Boards can't be deleted so this might be redundant
-		return indentBody(indent, "*⚠ Source board has been deleted*\n\n"), nil
+		return indentBody(indent, md.Italic("⚠ Source board has been deleted")+"\n"), nil
 	}
 
 	srcPost, ok := board.GetThread(post.ParentID)
 	if !ok {
-		return indentBody(indent, "*⚠ Source post has been deleted*\n\n"), nil
+		return indentBody(indent, md.Italic("⚠ Source post has been deleted")+"\n"), nil
 	}
 
 	if srcPost.Hidden {
-		return indentBody(indent, "*⚠ Source post has been flagged as inappropriate*\n\n"), nil
+		return indentBody(indent, md.Italic("⚠ Source post has been flagged as inappropriate")+"\n"), nil
 	}
 
 	return indentBody(indent, srcPost.Summary()) + "\n\n", srcPost
@@ -222,14 +228,14 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	if post.Hidden {
 		// Flagged comment should be hidden, but replies still visible (see: #3480)
 		// Flagged threads will be hidden by render function caller.
-		sb.WriteString(indentBody(indent, "_⚠ Reply is hidden as it has been flagged as inappropriate_"))
-		sb.WriteString("\n")
+		sb.WriteString(indentBody(indent, md.Italic("⚠ Reply is hidden as it has been flagged as inappropriate")) + "\n")
 		return
 	}
 
 	srcContent, srcPost := post.renderSourcePost(indent)
 	if post.IsRepost() && srcPost != nil {
-		sb.WriteString("  \nThis thread is a repost of [another thread](" + makeThreadURI(srcPost) + "): \n")
+		originLink := md.Link("another thread", makeThreadURI(srcPost))
+		sb.WriteString("  \nThis thread is a repost of " + originLink + ": \n")
 	}
 
 	sb.WriteString(srcContent)
@@ -254,59 +260,55 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(indent)
 	}
 
-	sb.WriteString("Created by ")
-	sb.WriteString(newUserLink(post.Creator))
-	sb.WriteString(" on ")
-	sb.WriteString(post.CreatedAt().Format(dateFormat))
+	creatorLink := newUserLink(post.Creator)
+	date := post.CreatedAt().Format(dateFormat)
+	sb.WriteString("Created by " + creatorLink + " on " + date)
 
 	// Add a reply view link to each top level reply
 	if !post.IsThread() {
-		sb.WriteString(", ")
-		sb.WriteString(md.Link("#"+post.ID.String(), makeReplyURI(post)))
+		sb.WriteString(", " + md.Link("#"+post.ID.String(), makeReplyURI(post)))
 	}
 
 	if post.reposts.Size() > 0 {
-		sb.WriteString(", ")
-		sb.WriteString(strconv.Itoa(post.reposts.Size()))
-		sb.WriteString(" repost(s)")
+		sb.WriteString(", " + strconv.Itoa(post.reposts.Size()) + " repost(s)")
 	}
 
 	sb.WriteString("  \n")
-	sb.WriteString(md.Link("Flag", makeFlagURI(post)))
+
+	actions := []string{
+		md.Link("Flag", makeFlagURI(post)),
+	}
 
 	if post.IsThread() {
-		sb.WriteString(" • ")
-		sb.WriteString(md.Link("Repost", makeCreateRepostURI(post)))
+		actions = append(actions, md.Link("Repost", makeCreateRepostURI(post)))
 	}
 
 	isReadonly := post.Readonly || post.Board.Readonly
 	if !isReadonly {
-		sb.WriteString(" • ")
-		sb.WriteString(md.Link("Reply", makeCreateReplyURI(post)))
-		sb.WriteString(" • ")
-		sb.WriteString(md.Link("Edit", makeEditPostURI(post)))
-		sb.WriteString(" • ")
-		sb.WriteString(md.Link("Delete", makeDeletePostURI(post)))
+		actions = append(
+			actions,
+			md.Link("Reply", makeCreateReplyURI(post)),
+			md.Link("Edit", makeEditPostURI(post)),
+			md.Link("Delete", makeDeletePostURI(post)),
+		)
 	}
 
 	if levels == 0 {
-		sb.WriteString(" • ")
 		if post.IsThread() {
-			sb.WriteString(md.Link("Show all Replies", makeThreadURI(post)))
+			actions = append(actions, md.Link("Show all Replies", makeThreadURI(post)))
 		} else {
-			sb.WriteString(md.Link("View Thread", makeThreadURI(post)))
+			actions = append(actions, md.Link("View Thread", makeThreadURI(post)))
 		}
 	}
 
-	sb.WriteString(" \n")
+	sb.WriteString(strings.Join(actions, " • ") + " \n")
 }
 
 func (post *Post) Render(path string, indent string, levels int) string {
 	if post == nil {
-		return "nil post"
+		return ""
 	}
 
-	// TODO: pass a builder as arg into Render.
 	var sb strings.Builder
 
 	// Thread reposts might not have a title, if so get title from source thread
@@ -320,7 +322,7 @@ func (post *Post) Render(path string, indent string, levels int) string {
 	}
 
 	if title != "" { // Replies don't have a title
-		sb.WriteString("## " + title + "\n")
+		sb.WriteString(md.H1(title))
 	}
 	sb.WriteString(indent + "\n")
 
@@ -333,8 +335,6 @@ func (post *Post) Render(path string, indent string, levels int) string {
 	// XXX: This triggers for reply views
 	if levels == 0 {
 		sb.WriteString(indent + "\n")
-		sb.WriteString(indent)
-		sb.WriteString("\n")
 		return sb.String()
 	}
 
@@ -359,30 +359,25 @@ func (post *Post) renderTopLevelReplies(path, indent string, levels int) string 
 
 	render := func(_ string, v any) bool {
 		reply := v.(*Post)
-
-		b.WriteString(indent)
-		b.WriteString("\n")
-		b.WriteString(reply.Render("", commentsIndent, levels-1))
+		b.WriteString(indent + "\n" + reply.Render("", commentsIndent, levels-1))
 		return false
 	}
 
-	b.WriteString("\n\n---\nSort by: ")
+	b.WriteString("\n" + md.HorizontalRule() + "Sort by: ")
 	r := parseRealmPath(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
-		b.WriteString(md.Link("newest first", r.String()))
-		b.WriteString("\n")
+		b.WriteString(md.Link("newest first", r.String()) + "\n")
 		post.replies.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 
 	} else {
 		r.Query.Set("order", "desc")
-		b.WriteString(md.Link("oldest first", r.String()))
-		b.WriteString("\n")
+		b.WriteString(md.Link("oldest first", r.String()) + "\n")
 		post.replies.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
 	if p.HasPages() {
-		b.WriteString("\n---\n")
+		b.WriteString(md.HorizontalRule())
 		b.WriteString(pager.Picker(p))
 	}
 
@@ -397,10 +392,7 @@ func (post *Post) renderSubReplies(indent string, levels int) string {
 
 	post.replies.Iterate("", "", func(_ string, v any) bool {
 		reply := v.(*Post)
-
-		b.WriteString(indent)
-		b.WriteString("\n")
-		b.WriteString(reply.Render("", commentsIndent, levels-1))
+		b.WriteString(indent + "\n" + reply.Render("", commentsIndent, levels-1))
 		return false
 	})
 

@@ -38,10 +38,9 @@ func main() {
 }
 
 // Output:
-// ## Bar
+// # Bar
 //
 // > *⚠ Source post has been flagged as inappropriate*
-// >
 // >
 // Body2
 //
