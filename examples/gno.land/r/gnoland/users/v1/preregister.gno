@@ -32,6 +32,5 @@ func init() {
 	for _, res := range preRegisteredUsers {
 		// Try registering, skip if it fails
 		susers.RegisterUser(cross, res.Name, res.Address)
-		latestUsers.Append(res.Name)
 	}
 }
