@@ -424,6 +424,24 @@ func TestIsHomePath(t *testing.T) {
 	assert.False(t, gnoweb.IsHomePath("/foo"))
 }
 
+// TestServeHTTPMethodNotAllowed verifies 405 for POST/PUT/etc methods.
+func TestServeHTTPMethodNotAllowed(t *testing.T) {
+	t.Parallel()
+
+	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ex", Files: map[string]string{}}
+	cfg := newTestHandlerConfig(t, dummy)
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler, err := gnoweb.NewWebHandler(logger, cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodDelete, "/r/ex", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+	assert.Contains(t, rr.Body.String(), "method not allowed")
+}
+
 // TestWebHandler_DirectoryViewNoFiles covers the case where Sources returns
 // no error but the list is empty (len(files)==0).
 func TestWebHandler_DirectoryViewNoFiles(t *testing.T) {
