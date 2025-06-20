@@ -862,20 +862,11 @@ func (m *Machine) doOpTypeSwitch() {
 				// define if varname
 				if ss.VarName.Name != "" {
 					// NOTE: assumes the var is first after size.
-					// vp := NewValuePath(
-					// 	VPBlock, 1, uint16(size), ss.VarName.Name)
+					vp := NewValuePath(
+						VPBlock, 1, uint16(size), ss.VarName.Name)
 					// NOTE: GetPointerToMaybeHeapDefine not needed,
 					// because this type is in new type switch clause block.
-					// fmt.Println("---vp: ", vp)
-					// ptr := b.GetPointerTo(m.Store, vp)
-
-					ss.VarName.Path.Type = VPBlock
-					ss.VarName.Path.Depth = 1
-					ss.VarName.Path.Index = uint16(size)
-					// fmt.Println("===op_exec, type swtich, ss.VarName: ", ss.VarName.Name, ss.VarName.Type)
-					// fmt.Println("===ss.VarName.Path: ", ss.VarName.Path)
-					ptr := b.GetPointerToMaybeHeapDefine(m.Store, &ss.VarName)
-
+					ptr := b.GetPointerTo(m.Store, vp)
 					ptr.TV.Assign(m.Alloc, *xv, false)
 				}
 				// exec clause body

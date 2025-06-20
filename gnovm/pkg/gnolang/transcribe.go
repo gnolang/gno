@@ -90,7 +90,7 @@ const (
 	TRANS_SEND_VALUE
 	TRANS_SWITCH_INIT
 	TRANS_SWITCH_X
-	TRANS_SWITCH_VarName
+	TRANS_SWITCH_VAR_NAME
 	TRANS_SWITCH_CASE
 	TRANS_SWITCHCASE_CASE
 	TRANS_SWITCHCASE_BODY
@@ -581,7 +581,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 
-		cnn.VarName = *transcribe(t, nns, TRANS_SWITCH_VarName, 0, &cnn.VarName, &c).(*NameExpr)
+		cnn.VarName = *transcribe(t, nns, TRANS_SWITCH_VAR_NAME, 0, &cnn.VarName, &c).(*NameExpr)
 		if stopOrSkip(nc, c) {
 			return
 		}

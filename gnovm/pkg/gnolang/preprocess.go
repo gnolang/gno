@@ -356,7 +356,6 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName.Name != "" {
-						// fmt.Println("---type switch varName define, ss.VarName: ", ss.VarName)
 						// XXX NameExprTypeDefine in NameExpr?
 						// See known issues in README.nd:
 						// > Switch varnames cannot be
@@ -1054,7 +1053,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"should not happen: name %q is reserved", n.Name))
 				}
-				if ftype == TRANS_SWITCH_VarName {
+				if ftype == TRANS_SWITCH_VAR_NAME {
 					// do nothing
 					return n, TRANS_CONTINUE
 				}
@@ -3194,8 +3193,6 @@ func hasAttrHeapUse(bn BlockNode, name Name) bool {
 
 // adds ~name to func lit static block and to heap captures atomically.
 func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16) {
-	// fmt.Println("===addHeapCapture, dbn: ", dbn)
-	// fmt.Println("===addHeapCapture, nx: ", nx)
 	if depth <= 0 {
 		panic("invalid depth")
 	}
@@ -3332,7 +3329,6 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *NameExpr:
-				// fmt.Println("========find heap define, nx: ", n, n.Type)
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE
@@ -3347,11 +3343,10 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 						n.Type = NameExprTypeHeapUse
 					}
 				case NameExprTypeDefine, NameExprTypeHeapDefine:
-					// fmt.Println("===n.Path: ", n.Path)
 					// Find the block where name is defined
 					// special case type type switch
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// fmt.Println("===dbn: ", dbn)
+					// special case when it's *SwitchStmt
 					if ss, ok := dbn.(*SwitchStmt); ok && ss.IsTypeSwitch {
 						for _, sc := range ss.Clauses {
 							if !hasAttrHeapUse(&sc, n.Name) {
@@ -3359,12 +3354,11 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 							}
 							n.Type = NameExprTypeHeapDefine
 							// Make record in static block.
-							(&sc).SetIsHeapItem(n.Name)
+							sc.SetIsHeapItem(n.Name)
 							break
 						}
 					} else if hasAttrHeapUse(dbn, n.Name) { // If the name is actually heap used:
 						// Promote type to heap define.
-						// fmt.Println("===promote to heap define, n.Name: ", n.Name)
 						n.Type = NameExprTypeHeapDefine
 						// Make record in static block.
 						dbn.SetIsHeapItem(n.Name)
