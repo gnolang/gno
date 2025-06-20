@@ -1392,10 +1392,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						} else if ct.Kind() == SliceKind {
 							switch ct.Elem().Kind() {
 							case Uint8Kind, Int32Kind:
-								// The inverse conversion is handled later, see "[]byte/rune CASE".
-								// The conversion is legal, set the target type.
-								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
-								return n, TRANS_CONTINUE
+								if at != nil && at.Kind() == StringKind {
+									// The inverse conversion is handled later, see "[]byte/rune CASE".
+									// The conversion is legal, set the target type.
+									n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+									return n, TRANS_CONTINUE
+								} else if at == nil {
+									// this is handled later, see "arg0.IsUndefined()"
+								} else {
+									panic(fmt.Sprintf("cannot convert %v to type %v", arg0, ct))
+								}
 							}
 						}
 						// (const) untyped decimal -> float64.
@@ -1501,6 +1507,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					//----------------------------------------
 
 					if ast, ok := atBase.(*SliceType); ok {
+						if cat, ok := unwrapPointerType(baseOf(ct)).(*ArrayType); ok {
+							// convert slice to array or *array is permitted
+							// if elem type match and they have same length,
+							// the length is checked in runtime.
+							if cat.Elem().TypeID() == ast.Elt.TypeID() {
+								// fmt.Println("---convert slice to array or *array")
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
+						}
 						switch ast.Elem().Kind() {
 						case Uint8Kind, Int32Kind:
 							if ct.Kind() == StringKind {
