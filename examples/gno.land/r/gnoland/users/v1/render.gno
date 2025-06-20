@@ -132,7 +132,7 @@ func RenderLatestUsersWidget(num int) string {
 
 	for i := size - 1; i >= size-num; i-- {
 		user := entries[i].(string)
-		out += ufmt.Sprintf("- User %s\n", md.UserLink(user))
+		out += md.BulletItem(md.UserLink(user))
 	}
 
 	return out
