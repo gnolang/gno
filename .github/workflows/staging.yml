@@ -1,4 +1,4 @@
-name: Portal Loop
+name: Staging
 
 on:
   push:
@@ -7,14 +7,15 @@ on:
   pull_request:
     paths:
       - "misc/loop/**"
-      - ".github/workflows/portal-loop.yml"
+      - ".github/workflows/staging.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  portal-loop:
+  build-staging:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,26 +41,28 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           target: portalloopd
-          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ github.event_name != 'pull_request' }}
 
-  test-portal-loop-docker-compose:
-    runs-on: ubuntu-latest
+  test-staging-running-in-compose:
+    runs-on: ubuntu-latest 
     timeout-minutes: 10
-    if: ${{ false }} # Disable this job temporarily
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
 
-      - name: "Setup The portal loop docker compose"
-        run: |
+      - name: "Setup The staging docker compose"
+        # Pull the current Docker image of Gnoland to allow the loop application
+        # finding already the image in the local registry when booting.
+        run: | 
+          docker pull ghcr.io/gnolang/gno/gnoland:master
           cd misc/loop
           echo "Making docker compose happy"
           touch .env
           make docker.ci
 
-      - name: "Test1 - Portal loop start gnoland"
+      - name: "Test1 - Staging start gnoland"
         run: |
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
@@ -86,7 +89,7 @@ jobs:
             sleep 5
           done
 
-      - name: "Test2 - Wait portal-loop start new image"
+      - name: "Test2 - Wait staging start new image"
         run: |
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
