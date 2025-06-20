@@ -7,7 +7,7 @@
 -- output.html --
 <form class="gno-form" method="post" action="/r/test">
 <div class="gno-form_header">
-<span><span class="font-bold">/r/test</span>Form</span>
+<span><span class="font-bold">/r/test</span> Form</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>
 </div>
 <div class="gno-form_input"><label for="test&lt;script&gt;"> Enter your name &amp; info </label>

@@ -424,7 +424,7 @@ func TestIsHomePath(t *testing.T) {
 	assert.False(t, gnoweb.IsHomePath("/foo"))
 }
 
-// TestServeHTTPMethodNotAllowed verifies 405 for POST/PUT/etc methods.
+// TestServeHTTPMethodNotAllowed verifies 405 for HTTP methods.
 func TestServeHTTPMethodNotAllowed(t *testing.T) {
 	t.Parallel()
 
