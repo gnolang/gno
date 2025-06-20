@@ -120,6 +120,10 @@ func RenderExhibWidget(itemsToRender int) string {
 		return ""
 	}
 
+	if exhibition.items.Size() == 0 {
+		return "No items in the Hall of Realms.\n\n"
+	}
+
 	out := ""
 	i := 0
 	exhibition.items.Iterate("", "", func(key string, value any) bool {
