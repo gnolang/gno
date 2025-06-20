@@ -366,20 +366,14 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
 
 ±±±markdown
 <gno-form>
-
   <gno-input name="name" placeholder="Enter your name" />
-
   <gno-input name="email" placeholder="Enter your email" />
-
 </gno-form>
 ±±±
 
 <gno-form>
-
   <gno-input name="name" placeholder="Enter your name" />
-
   <gno-input name="email" placeholder="Enter your email" />
-
 </gno-form>
 
 #### Form Structure
@@ -414,20 +408,14 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
 1. Form with Path and Query Parameters
 ±±±markdown
 <gno-form path="user">
-
   <gno-input name="username" type="text" placeholder="Enter username" />
-
   <gno-input name="age" type="number" placeholder="Your age" />
-
 </gno-form>
 ±±±
 
 <gno-form path="user">
-
   <gno-input name="username" type="text" placeholder="Enter username" />
-
   <gno-input name="age" type="number" placeholder="Your age" />
-
 </gno-form>
 
 This form will submit to ±:user?username=value&age=value± on the same realm.
@@ -435,24 +423,16 @@ This form will submit to ±:user?username=value&age=value± on the same realm.
 2. Form with Query Parameters Only
 ±±±markdown
 <gno-form>
-
   <gno-input name="recipient" type="text" placeholder="Enter recipient address" />
-
   <gno-input name="email" type="email" placeholder="Your email" />
-
   <gno-input name="pswd" type="password" placeholder="Your password" />
-
 </gno-form>
 ±±±
 
 <gno-form>
-
   <gno-input name="recipient" type="text" placeholder="Enter recipient address" />
-
   <gno-input name="email" type="email" placeholder="Your email" />
-
   <gno-input name="pswd" type="password" placeholder="Your password" />
-
 </gno-form>
 
 This form will submit to ±?recipient=value&email=value&pswd=value± on the same realm.
