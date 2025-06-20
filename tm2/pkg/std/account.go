@@ -27,8 +27,8 @@ type Account interface {
 	GetAccountNumber() uint64
 	SetAccountNumber(uint64) error
 
-	GetGlobalSequence() uint64
-	SetGlobalSequence(uint64) error
+	GetSequenceSum() uint64
+	SetSequenceSum(uint64) error
 
 	GetCoins() Coins
 	SetCoins(Coins) error
@@ -69,12 +69,13 @@ type AccountUnrestricter interface {
 // BaseAccount - a base account structure.
 // This can be extended by embedding within in your *Account structure.
 type BaseAccount struct {
-	Address        crypto.Address `json:"address" yaml:"address"`
-	RootKey        AccountKey     `json:"root_key" yaml:"root_key"`
-	Sessions       []AccountKey   `json:"sessions" yaml:"sessions"` // First is root key, rest are sessions
-	Coins          Coins          `json:"coins" yaml:"coins"`
-	AccountNumber  uint64         `json:"account_number" yaml:"account_number"`
-	GlobalSequence uint64         `json:"global_sequence" yaml:"global_sequence"` // sum of all session sequences
+	Address       crypto.Address `json:"address" yaml:"address"`
+	RootKey       AccountKey     `json:"root_key" yaml:"root_key"`
+	RootSequence  uint64         `json:"root_sequence" yaml:"root_sequence"` // sequence for root key
+	Sessions      []AccountKey   `json:"sessions" yaml:"sessions"`           // sessions
+	Coins         Coins          `json:"coins" yaml:"coins"`
+	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
+	SequenceSum   uint64         `json:"sequence_sum" yaml:"sequence_sum"` // sum of all key sequences, total amount of calls made by this account by any key
 }
 
 // NewBaseAccount creates a new BaseAccount object
@@ -82,24 +83,26 @@ func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey, a
 ) *BaseAccount {
 	key := NewBaseAccountKey(pubKey, 0)
 	return &BaseAccount{
-		Address:        address,
-		RootKey:        key,
-		Coins:          coins,
-		AccountNumber:  accountNumber,
-		Sessions:       []AccountKey{},
-		GlobalSequence: 0,
+		Address:       address,
+		RootKey:       key,
+		RootSequence:  0,
+		Coins:         coins,
+		AccountNumber: accountNumber,
+		Sessions:      []AccountKey{},
+		SequenceSum:   0,
 	}
 }
 
 // String implements fmt.Stringer
 func (acc BaseAccount) String() string {
 	return fmt.Sprintf(`Account:
-  Address:        %s
-  Coins:          %s
-  AccountNumber:  %d
-  GlobalSequence: %d
-  Sessions:       %d`,
-		acc.Address, acc.Coins, acc.AccountNumber, acc.GlobalSequence, len(acc.Sessions),
+  Address:       %s
+  Coins:         %s
+  AccountNumber: %d
+  RootSequence:  %d
+  SequenceSum:   %d
+  Sessions:      %d`,
+		acc.Address, acc.Coins, acc.AccountNumber, acc.RootSequence, acc.SequenceSum, len(acc.Sessions),
 	)
 }
 
@@ -164,12 +167,12 @@ func (acc *BaseAccount) AddSession(pubKey crypto.PubKey) (AccountKey, error) {
 	}
 
 	// When adding a session, we initialize its sequence number to the account's current
-	// global sequence number. This prevents replay attacks from previously pruned sessions,
-	// since any old transactions would have sequence numbers lower than the current global
-	// sequence and thus be rejected. Multiple active sessions may use the same sequence
+	// sequence sum. This prevents replay attacks from previously pruned sessions,
+	// since any old transactions would have sequence numbers lower than the current sequence
+	// sum and thus be rejected. Multiple active sessions may use the same sequence
 	// number concurrently, which is cryptographically safe since each signature is still
 	// unique.
-	sequenceNumber := acc.GlobalSequence
+	sequenceNumber := acc.SequenceSum
 
 	// Create and store the session key.
 	sess := NewBaseAccountKey(pubKey, sequenceNumber)
@@ -188,15 +191,15 @@ func (acc *BaseAccount) GetRootKey() AccountKey {
 	return acc.RootKey
 }
 
-// SetGlobalSequence implements Account.
-func (acc *BaseAccount) SetGlobalSequence(globalSequence uint64) error {
-	acc.GlobalSequence = globalSequence
+// SetSequenceSum implements Account.
+func (acc *BaseAccount) SetSequenceSum(sequenceSum uint64) error {
+	acc.SequenceSum = sequenceSum
 	return nil
 }
 
-// GetGlobalSequence implements Account.
-func (acc *BaseAccount) GetGlobalSequence() uint64 {
-	return acc.GlobalSequence
+// GetSequenceSum implements Account.
+func (acc *BaseAccount) GetSequenceSum() uint64 {
+	return acc.SequenceSum
 }
 
 // DelSession implements Account.

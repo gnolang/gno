@@ -264,8 +264,8 @@ func processSig(
 	if err := currentKey.SetSequence(currentKey.GetSequence() + 1); err != nil {
 		return nil, abciResult(std.ErrInternal("setting sequence on signer's key"))
 	}
-	if err := acc.SetGlobalSequence(acc.GetGlobalSequence() + 1); err != nil {
-		return nil, abciResult(std.ErrInternal("setting global sequence on signer's account"))
+	if err := acc.SetSequenceSum(acc.GetSequenceSum() + 1); err != nil {
+		return nil, abciResult(std.ErrInternal("setting sequence sum on signer's account"))
 	}
 
 	return acc, res
