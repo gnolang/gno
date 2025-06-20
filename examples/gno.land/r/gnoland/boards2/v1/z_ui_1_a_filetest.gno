@@ -12,7 +12,6 @@ func main() {
 // Output:
 // # Admin Users
 // ### These are the admin users of the realm
-//
 // | Member | Role | Actions |
 // | --- | --- | --- |
 // | g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq | owner | [remove](/r/gnoland/boards2/v1$help&func=RemoveMember&boardID=0&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) • [change role](/r/gnoland/boards2/v1$help&func=ChangeMemberRole&boardID=0&member=g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq&role=) |

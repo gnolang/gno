@@ -27,10 +27,7 @@ func main() {
 
 // Output:
 // # Boards
-//
 // [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&name=&private=false) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
-//
-//
 //
 // ---
 // ### Currently there are no boards

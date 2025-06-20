@@ -35,7 +35,6 @@ func main() {
 //
 //
 //
-//
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:BoardName?menu=manageBoard&order=desc)
 //

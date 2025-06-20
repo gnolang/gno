@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
 )
 
 const (
@@ -37,32 +38,29 @@ func Render(path string) string {
 }
 
 func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
-	res.Write("# Boards Help\n")
+	res.Write(md.H1("Boards Help"))
 	if gHelp != "" {
 		res.Write(gHelp)
-	} else {
-		res.Write("### Help content has not been uploaded\n")
-		res.Write("Do you want to ")
-		res.Write(md.Link("upload boards help", gRealmLink.Call("SetHelp", "content", "")))
-		res.Write(" ?")
+		return
 	}
+
+	link := gRealmLink.Call("SetHelp", "content", "")
+	res.Write(md.H3("Help content has not been uploaded"))
+	res.Write("Do you want to " + md.Link("upload boards help", link) + " ?")
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	renderNotice(res)
 
-	res.Write("# Boards\n\n")
+	res.Write(md.H1("Boards"))
 	renderBoardListMenu(res, req)
-	res.Write("\n\n---\n")
+	res.Write(md.HorizontalRule())
 
 	boards := gPublicBoardsByID
 	if boards.Size() == 0 {
 		link := gRealmLink.Call("CreateBoard", "name", "", "private", "false")
-		res.Write("### Currently there are no boards\n")
-		res.Write("Be the first to ")
-		res.Write(md.Link("create a new board", link))
-		res.Write(" !")
-
+		res.Write(md.H3("Currently there are no boards"))
+		res.Write("Be the first to " + md.Link("create a new board", link) + " !")
 		return
 	}
 
@@ -73,17 +71,18 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
+		userLink := newUserLink(board.Creator)
+		date := board.CreatedAt().Format(dateFormat)
 
-		res.Write("**" + md.Link(board.Name, makeBoardURI(board)) + "**  \n")
-		res.Write("Created by " + newUserLink(board.Creator) + " ")
-		res.Write("on " + board.CreatedAt().Format(dateFormat))
-		res.Write(", #" + board.ID.String() + "  \n")
-		res.Write("**" + strconv.Itoa(board.ThreadsCount()) + " threads")
+		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
+		res.Write("Created by " + userLink + " on " + date + ", #" + board.ID.String() + "  \n")
+
+		status := strconv.Itoa(board.ThreadsCount()) + " threads"
 		if board.Readonly {
-			res.Write(", read-only")
+			status += ", read-only"
 		}
 
-		res.Write("**\n\n")
+		res.Write(md.Bold(status) + "\n\n")
 		return false
 	}
 
@@ -91,18 +90,16 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	r := parseRealmPath(req.RawPath)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
-		res.Write(md.Link("newest first", r.String()))
-		res.Write("\n\n")
+		res.Write(md.Link("newest first", r.String()) + "\n\n")
 		boards.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
-		res.Write(md.Link("oldest first", r.String()))
-		res.Write("\n\n")
+		res.Write(md.Link("oldest first", r.String()) + "\n\n")
 		boards.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
 	if p.HasPages() {
-		res.Write("\n---\n")
+		res.Write(md.HorizontalRule())
 		res.Write(pager.Picker(p))
 	}
 }
@@ -125,10 +122,8 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		link := md.Link("create a new board", gRealmLink.Call("CreateBoard", "name", name, "private", "false"))
-		res.Write("### The board you are looking for does not exist\n")
-		res.Write("Do you want to ")
-		res.Write(link)
-		res.Write(" ?")
+		res.Write(md.H3("The board you are looking for does not exist"))
+		res.Write("Do you want to " + link + " ?")
 		return
 	}
 
@@ -157,7 +152,7 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 
 		menu := getCurrentMenu(req.RawPath)
 		if menu == menuManageBoard {
-			b.WriteString("**Manage Board**")
+			b.WriteString(md.Bold("Manage Board"))
 		} else {
 			b.WriteString(md.Link("Manage Board", menuURL(menuManageBoard)))
 		}
@@ -171,7 +166,7 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 			b.WriteString(md.Link("List Members", boardMembersURL))
 			b.WriteString(" • ")
 			b.WriteString(md.Link("Freeze Board", makeFreezeBoardURI(board)))
-			b.WriteString("\n\n")
+			b.WriteString("\n")
 		}
 	}
 
@@ -256,7 +251,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 	if name != "" {
 		v, found := gBoardsByName.Get(name)
 		if !found {
-			res.Write("### Board not found")
+			res.Write(md.H3("Board not found"))
 			return
 		}
 
@@ -264,11 +259,11 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		boardID = board.ID
 		perms = board.perms
 
-		res.Write("# " + board.Name + " Members\n")
-		res.Write("### These are the board members\n\n")
+		res.Write(md.H1(board.Name + " Members"))
+		res.Write(md.H3("These are the board members"))
 	} else {
-		res.Write("# Admin Users\n")
-		res.Write("### These are the admin users of the realm\n\n")
+		res.Write(md.H1("Admin Users"))
+		res.Write(md.H3("These are the admin users of the realm"))
 	}
 
 	// Create a pager with a small page size to reduce
@@ -279,42 +274,43 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write("| Member | Role | Actions |\n| --- | --- | --- |\n")
+	table := mdtable.Table{
+		Headers: []string{"Member", "Role", "Actions"},
+	}
+
 	perms.IterateUsers(p.Offset(), p.PageSize(), func(u User) bool {
-		res.Write("| ")
-		res.Write(newUserLink(u.Address))
-		res.Write(" | ")
-		res.Write(rolesToString(u.Roles))
-		res.Write(" | ")
-		res.Write(md.Link("remove", gRealmLink.Call(
-			"RemoveMember",
-			"boardID", boardID.String(),
-			"member", u.Address.String(),
-		)))
-		res.Write(" • ")
-		res.Write(md.Link("change role", gRealmLink.Call(
-			"ChangeMemberRole",
-			"boardID", boardID.String(),
-			"member", u.Address.String(),
-			"role", "",
-		)))
-		res.Write(" |\n")
+		actions := []string{
+			md.Link("remove", gRealmLink.Call(
+				"RemoveMember",
+				"boardID", boardID.String(),
+				"member", u.Address.String(),
+			)),
+			md.Link("change role", gRealmLink.Call(
+				"ChangeMemberRole",
+				"boardID", boardID.String(),
+				"member", u.Address.String(),
+				"role", "",
+			)),
+		}
+
+		table.Append([]string{
+			newUserLink(u.Address),
+			rolesToString(u.Roles),
+			strings.Join(actions, " • "),
+		})
 		return false
 	})
+	res.Write(table.String())
 
 	if p.HasPages() {
-		res.Write("\n\n" + pager.Picker(p))
+		res.Write("\n" + pager.Picker(p))
 	}
 }
 
 func renderNotice(res *mux.ResponseWriter) {
-	if gNotice == "" {
-		return
+	if gNotice != "" {
+		res.Write(md.Blockquote(gNotice))
 	}
-
-	res.Write("> ")
-	res.Write(gNotice)
-	res.Write("\n\n")
 }
 
 func rolesToString(roles []Role) string {
