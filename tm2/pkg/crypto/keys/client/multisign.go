@@ -140,7 +140,7 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 			sig.PubKey,
 			multisigPub.PubKeys,
 		); err != nil {
-			return fmt.Errorf("unable to addd signature: %w", err)
+			return fmt.Errorf("unable to add signature: %w", err)
 		}
 	}
 
