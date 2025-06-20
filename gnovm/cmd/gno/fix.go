@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/fix"
@@ -21,6 +22,7 @@ type fixCmd struct {
 	filetestsOnly  bool
 	filetestsMatch string
 	diff           bool
+	fix            string
 }
 
 func newFixCmd(cio commands.IO) *commands.Command {
@@ -56,6 +58,7 @@ func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.rootDir, "root-dir", "", "clone location of github.com/gnolang/gno (gno tries to guess it)")
 	fs.BoolVar(&c.filetestsOnly, "filetests-only", false, "dir only contains filetests. not recursive.")
 	fs.StringVar(&c.filetestsMatch, "filetests-match", "", "if --filetests-only=true, filters by substring match.")
+	fs.StringVar(&c.fix, "fix", "", "comma-separated of fixes to run. by default all known fixes.")
 }
 
 func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
@@ -69,6 +72,12 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
+	fixFilter := func(s string) bool { return true }
+	if cmd.fix != "" {
+		fixes := strings.Split(cmd.fix, ",")
+		fixFilter = func(s string) bool { return slices.Contains(fixes, s) }
+	}
+
 	opts := fix.Options{
 		RootDir: cmd.rootDir,
 	}
@@ -79,16 +88,6 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	paths, err := targetsFromPatterns(args)
 	if err != nil {
 		return fmt.Errorf("unable to get targets paths from patterns: %w", err)
-	}
-
-	for _, fx := range fix.Fixes {
-		if fx.DirsF == nil {
-			continue
-		}
-		err := fx.DirsF(opts, paths)
-		if err != nil {
-			return fmt.Errorf("%s: %w", fx.Name, err)
-		}
 	}
 
 	files, err := gnoFilesFromArgs(paths)
@@ -115,7 +114,7 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		// set if any of the fixes changed the AST.
 		fixed := false
 		for _, fx := range fix.Fixes {
-			if fx.F == nil {
+			if fx.F == nil || !fixFilter(fx.Name) {
 				continue
 			}
 			// wrap in anonymous func so we can recover and wrap errors with file name.

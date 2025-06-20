@@ -75,8 +75,16 @@ func interrealm(opts Options, f *ast.File) bool {
 	// func(...) (...) { crossing(); ... -> func(cur realm, ...) (...) { ...
 	// for transformed fn in same package:
 	//     fn(args) -> fn(cur, args)
-	// identifiers renamed:
-	//     cross realm gnocoin gnocoins istypednil
+	// change reserved names into <name>_ as available
+	reservedNames := [...]string{
+		"cross",
+		"realm",
+		"gnocoin",
+		"gnocoins",
+		"istypednil",
+		"revive",
+		"address",
+	}
 
 	apply(
 		f,
@@ -84,15 +92,28 @@ func interrealm(opts Options, f *ast.File) bool {
 			return true
 		},
 		func(c *astutil.Cursor, sc scopes) bool {
+			if isBlockNode(c.Node()) {
+				// if popping out of a block, rename any reserved names.
+				last := sc[len(sc)-1]
+				for _, rn := range reservedNames {
+					if du := last[rn]; du != nil {
+						newName := rn + "_"
+						for last[newName] != nil {
+							newName += "_"
+						}
+						du.rename(newName)
+					}
+				}
+			}
 			switch n := c.Node().(type) {
 			case *ast.FuncLit:
 				if hasCrossingStatement(n.Body.List) {
-					addRealmArg(n.Type, n)
+					addRealmArg(sc, n.Type)
 					n.Body.List = n.Body.List[1:]
 				}
 			case *ast.FuncDecl:
 				if hasCrossingStatement(n.Body.List) {
-					addRealmArg(n.Type, n)
+					addRealmArg(sc, n.Type)
 					n.Body.List = n.Body.List[1:]
 				}
 			case *ast.CallExpr:
@@ -130,17 +151,12 @@ func hasCrossingStatement(ss []ast.Stmt) bool {
 	return cx.Fun.(*ast.Ident).Name == "crossing" && len(cx.Args) == 0
 }
 
-func addRealmArg(ft *ast.FuncType, n ast.Node) {
+func addRealmArg(sc scopes, ft *ast.FuncType) {
 	var names []*ast.Ident
-	hasName := len(ft.Params.List) > 0 && len(ft.Params.List[0].Names) > 0
+	hasName := len(ft.Params.List) == 0 || len(ft.Params.List[0].Names) > 0
 	if hasName {
-		used := findUsedNames(n)
 		id := "cur"
-		for {
-			_, ok := used[id]
-			if !ok {
-				break
-			}
+		for sc.lookup(id) != nil {
 			id += "_"
 		}
 		names = []*ast.Ident{ast.NewIdent(id)}
@@ -149,26 +165,4 @@ func addRealmArg(ft *ast.FuncType, n ast.Node) {
 		Names: names,
 		Type:  ast.NewIdent("realm"),
 	}}, ft.Params.List...)
-}
-
-func findUsedNames(n ast.Node) map[string]struct{} {
-	used := make(map[string]struct{}, 32)
-	var visit func(ast.Node) bool
-	visit = func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.SelectorExpr:
-			// only care about n.X, ignore n.Sel.
-			ast.Inspect(n.X, visit)
-			return false
-		case *ast.TypeSpec:
-			// Type specs cannot use values within, so ignore.
-			visit(n.Name)
-			return false
-		case *ast.Ident:
-			used[n.Name] = struct{}{}
-		}
-		return true
-	}
-	ast.Inspect(n, visit)
-	return used
 }
