@@ -1,1 +1,23 @@
 TODO
+- high-level changes (structs, interfaces)
+- vmkeeper changes
+- tm2 vs gno.land vs ...
+- within contracts
+- storage efficiency
+- lookup efficiency
+- reusing burned
+- sequence numbers
+- account vs session
+- account session vs subaccount vs session account + compatibility with this in the future
+- one account, several keys
+- one key, several accounts
+- key rotation
+- new error codes
+- inter-wallet
+- self-expiring
+- expected usage
+- patterns
+- offline
+- masterkey usage warning
+- constraints / filters
+- validator limited keys
