@@ -9,6 +9,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/md"
 )
 
 const dateFormat = "2006-01-02 3:04pm MST"
@@ -181,7 +182,7 @@ func (post *Post) RenderSummary() string {
 		postURI = makeThreadURI(post)
 	)
 
-	b.WriteString("**≡ " + newLink(summaryOf(post.Title, 80), postURI) + "**  \n")
+	b.WriteString("**≡ " + md.Link(summaryOf(post.Title, 80), postURI) + "**  \n")
 	b.WriteString("Created by " + newUserLink(post.Creator) + " on " + post.CreatedAt().Format(dateFormat))
 	b.WriteString("  \n**")
 	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
@@ -261,7 +262,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	// Add a reply view link to each top level reply
 	if !post.IsThread() {
 		sb.WriteString(", ")
-		sb.WriteString(newLink("#"+post.ID.String(), makeReplyURI(post)))
+		sb.WriteString(md.Link("#"+post.ID.String(), makeReplyURI(post)))
 	}
 
 	if post.reposts.Size() > 0 {
@@ -271,29 +272,29 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 	}
 
 	sb.WriteString("  \n")
-	sb.WriteString(newLink("Flag", makeFlagURI(post)))
+	sb.WriteString(md.Link("Flag", makeFlagURI(post)))
 
 	if post.IsThread() {
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Repost", makeCreateRepostURI(post)))
+		sb.WriteString(md.Link("Repost", makeCreateRepostURI(post)))
 	}
 
 	isReadonly := post.Readonly || post.Board.Readonly
 	if !isReadonly {
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Reply", makeCreateReplyURI(post)))
+		sb.WriteString(md.Link("Reply", makeCreateReplyURI(post)))
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Edit", makeEditPostURI(post)))
+		sb.WriteString(md.Link("Edit", makeEditPostURI(post)))
 		sb.WriteString(" • ")
-		sb.WriteString(newLink("Delete", makeDeletePostURI(post)))
+		sb.WriteString(md.Link("Delete", makeDeletePostURI(post)))
 	}
 
 	if levels == 0 {
 		sb.WriteString(" • ")
 		if post.IsThread() {
-			sb.WriteString(newLink("Show all Replies", makeThreadURI(post)))
+			sb.WriteString(md.Link("Show all Replies", makeThreadURI(post)))
 		} else {
-			sb.WriteString(newLink("View Thread", makeThreadURI(post)))
+			sb.WriteString(md.Link("View Thread", makeThreadURI(post)))
 		}
 	}
 
@@ -369,13 +370,13 @@ func (post *Post) renderTopLevelReplies(path, indent string, levels int) string 
 	r := parseRealmPath(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
-		b.WriteString(newLink("newest first", r.String()))
+		b.WriteString(md.Link("newest first", r.String()))
 		b.WriteString("\n")
 		post.replies.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 
 	} else {
 		r.Query.Set("order", "desc")
-		b.WriteString(newLink("oldest first", r.String()))
+		b.WriteString(md.Link("oldest first", r.String()))
 		b.WriteString("\n")
 		post.replies.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
