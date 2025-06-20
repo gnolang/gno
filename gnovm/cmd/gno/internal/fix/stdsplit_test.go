@@ -339,6 +339,31 @@ func main() {
 }`,
 		},
 		{
+			name: "colliding imports in func scope",
+			input: `package main
+
+import (
+	"std"
+)
+
+func main() {
+	banker := 123
+	banker_ := 456
+	_ = 123 + banker + banker_
+	println(std.Coins{})
+}`,
+			expected: `package main
+
+import "chain/banker"
+
+func main() {
+	banker__ := 123
+	banker_ := 456
+	_ = 123 + banker__ + banker_
+	println(banker.Coins{})
+}`,
+		},
+		{
 			name: "shadowing after first use",
 			input: `package disperse
 
@@ -445,7 +470,7 @@ func DisperseUgnot(addresses []chain.Address, coins banker.Coins) {
 			f, err := parser.ParseFile(fset, "test.go", tc.input, parser.ParseComments)
 			require.NoError(t, err)
 
-			stdsplit(f)
+			stdsplit(Options{}, f)
 
 			// Convert the AST back to source code for comparison
 			output := astToString(t, fset, f)
@@ -506,7 +531,7 @@ func main() {
 			f, err := parser.ParseFile(fset, "test.go", tc.input, parser.ParseComments)
 			require.NoError(t, err)
 
-			fixed := stdsplit(f)
+			fixed := stdsplit(Options{}, f)
 			assert.Equal(t, tc.expectedFixed, fixed)
 		})
 	}
@@ -552,7 +577,7 @@ func main() {
 	f, err := parser.ParseFile(fset, "test.go", input, parser.ParseComments)
 	require.NoError(t, err)
 
-	fixed := stdsplit(f)
+	fixed := stdsplit(Options{}, f)
 	assert.True(t, fixed)
 
 	output := astToString(t, fset, f)

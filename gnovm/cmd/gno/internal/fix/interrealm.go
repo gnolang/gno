@@ -1,21 +1,10 @@
 package fix
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"io"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strings"
+	"go/ast"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/test"
-	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/std"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 /*
@@ -81,430 +70,105 @@ Translate Interrealm Spec 2 to Interrealm Spec 3 (Gno 0.9)
 Also refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
-func interrealm(opts Options, paths []string) error {
-	bs, ts := test.StoreWithOptions(
-		opts.RootDir, io.Discard,
-		test.StoreOptions{
-			PreprocessOnly: true,
-			FixFrom:        gno.GnoVerMissing,
-			WithExtern:     true,
+func interrealm(opts Options, f *ast.File) bool {
+	// cross(fn)(args) -> fn(cross, args)
+	// func(...) (...) { crossing(); ... -> func(cur realm, ...) (...) { ...
+	// for transformed fn in same package:
+	//     fn(args) -> fn(cur, args)
+	// identifiers renamed:
+	//     cross realm gnocoin gnocoins istypednil
+
+	apply(
+		f,
+		func(c *astutil.Cursor, sc scopes) bool {
+			return true
+		},
+		func(c *astutil.Cursor, sc scopes) bool {
+			switch n := c.Node().(type) {
+			case *ast.FuncLit:
+				if hasCrossingStatement(n.Body.List) {
+					addRealmArg(n.Type, n)
+					n.Body.List = n.Body.List[1:]
+				}
+			case *ast.FuncDecl:
+				if hasCrossingStatement(n.Body.List) {
+					addRealmArg(n.Type, n)
+					n.Body.List = n.Body.List[1:]
+				}
+			case *ast.CallExpr:
+				// Rewrite cross(fn)(args...) -> fn(cross, args...)
+				cx, ok := n.Fun.(*ast.CallExpr)
+				if !ok {
+					break
+				}
+				id, ok := cx.Fun.(*ast.Ident)
+				if ok && id.Name == "cross" {
+					if len(cx.Args) != 1 {
+						panic(fmt.Errorf("invalid cross(fn) call with %d args", len(cx.Args)))
+					}
+					n.Fun = cx.Args[0]
+					n.Args = append([]ast.Expr{
+						ast.NewIdent("cross"),
+					}, n.Args...)
+				}
+			}
+			return true
 		},
 	)
-
-	ppkgs := map[string]cmdutil.ProcessedPackage{}
-	tccache := gno.TypeCheckCache{}
-	hasError := false
-	//----------------------------------------
-	// FIX STAGE 1: Type-check and lint.
-	for _, dir := range paths {
-		// Only supports directories.
-		// You should fix all directories at once to avoid dependency issues.
-		info, err := os.Stat(dir)
-		if err == nil && !info.IsDir() {
-			dir = filepath.Dir(dir)
-		}
-
-		opts.Verbosefln("interrealm: %s", dir)
-
-		// Read and parse gnomod.toml directly.
-		fpath := filepath.Join(dir, "gnomod.toml")
-		mod, err := gnomod.ParseFilepath(fpath)
-		if errors.Is(err, fs.ErrNotExist) {
-			// We try a lazy migration from gno.mod if it exists and is valid.
-			deprecatedDotmod := filepath.Join(dir, "gno.mod")
-			mod, err = gnomod.ParseFilepath(deprecatedDotmod)
-			if err != nil {
-				// It doesn't exist or we can't parse it.
-				// Make a temporary gnomod.toml (but don't write it yet)
-				modstr := gno.GenGnoModMissing("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
-				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
-				if err != nil {
-					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
-				}
-			}
-		} else {
-			switch mod.GetGno() {
-			case gno.GnoVerLatest:
-				opts.Verbosefln("interrealm: %s: module is up to date, skipping fix", dir)
-				continue // nothing to do.
-			case gno.GnoVerMissing:
-				// good, fix it.
-			default:
-				opts.Errorfln("interrealm: %s: unrecognized gnomod.toml version %q, skipping fix", dir, mod.GetGno())
-				continue // skip it.
-			}
-		}
-		if err != nil {
-			issue := gnoIssue{
-				Code:       gnoGnoModError,
-				Confidence: 1, // ??
-				Location:   fpath,
-				Msg:        err.Error(),
-			}
-			cio.ErrPrintln(issue)
-			hasError = true
-			return commands.ExitCodeError(1)
-		}
-		if mod.Draft {
-			cio.ErrPrintfln("%s: module is draft, skipping fix", dir)
-			continue
-		}
-
-		// See adr/pr4264_fix_transpile.md
-		// FIX STEP 1: ReadMemPackage()
-		// Read MemPackage with pkgPath.
-		var mpkg *std.MemPackage
-		pkgPath, _ := determinePkgPath(mod, dir, cmd.rootDir)
-		if cmd.filetestsOnly {
-			mpkg, err = gno.ReadMemPackageFromList(
-				[]string{filetest}, pkgPath, gno.MemPackageTypeFiletests)
-		} else {
-			mpkg, err = gno.ReadMemPackage(dir, pkgPath)
-		}
-		if err != nil {
-			printError(cio.Err(), dir, pkgPath, err)
-			hasError = true
-			continue
-		}
-
-		// Filter out filetests that fail type-check.
-		if cmd.filetestsOnly && filterInvalidFiletest(cio, mpkg) {
-			return nil // done
-		}
-
-		// Perform imports using the parent store.
-		abortOnError := !cmd.filetestsOnly
-		if err := test.LoadImports(ts, mpkg, abortOnError); err != nil {
-			printError(cio.Err(), dir, pkgPath, err)
-			hasError = true
-			continue
-		}
-
-		// Handle runtime errors
-		didPanic := catchPanic(dir, pkgPath, cio.Err(), func() {
-			// Wrap in cache wrap so execution of the fixer
-			// doesn't impact other packages.
-			cw := bs.CacheWrap()
-			gs := ts.BeginTransaction(cw, cw, nil)
-
-			// Memo process results here.
-			ppkg := processedPackage{mpkg: mpkg, dir: dir}
-
-			// Run type checking
-			// FIX STEP 2: ParseGnoMod()
-			// FIX STEP 3: GoParse*()
-			//
-			// lintTypeCheck(mpkg) -->
-			//   TypeCheckMemPackage(mpkg) -->
-			//     imp.typeCheckMemPackage(mpkg)
-			//       ParseGnoMod(mpkg);
-			//       GoParseMemPackage(mpkg);
-			//       g.cmd.Check();
-			errs := lintTypeCheck(cio, dir, mpkg, gs, gno.TypeCheckOptions{
-				ParseMode: gno.ParseModeAll,
-				Mode:      gno.TCGno0p0,
-				Cache:     tccache,
-			})
-			if errs != nil {
-				// cio.ErrPrintln(errs) already printed.
-				hasError = true
-				return
-			}
-
-			// FIX STEP 4.a: Prepare*()
-			tm := test.Machine(gs, io.Discard, pkgPath, false)
-			defer tm.Release()
-			// FIX STEP 4.b: Re-parse the mem package to Go AST.
-			pmode := gno.ParseModeAll
-			gofset, allgofs, _, _, _, errs := gno.GoParseMemPackage(mpkg, pmode)
-			if errs != nil {
-				cio.ErrPrintln(errs)
-				hasError = true
-				return // Go parse must succeed.
-			}
-			// FIX STEP 4.c: PrepareGno0p9() for Gno preprocessing.
-			errs = gno.PrepareGno0p9(gofset, allgofs, mpkg)
-			if errs != nil {
-				cio.ErrPrintln(errs)
-				hasError = true
-				return // Prepare must succeed.
-			}
-
-			// FIX STEP 5: re-parse
-			// Gno parse source fileset and test filesets.
-			_, fset, _tests, ftests := sourceAndTestFileset(mpkg, cmd.filetestsOnly)
-
-			{
-				// FIX STEP 6: PreprocessFiles()
-				// Preprocess fset files (w/ some _test.gno).
-				cw := bs.CacheWrap()
-				gs := ts.BeginTransaction(cw, cw, nil)
-				tm.Store = gs
-				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false, gno.GnoVerMissing)
-				ppkg.AddNormal(pn, fset)
-
-				// FIX STEP 7: FindXforms():
-				// FindXforms for all files if outdated.
-				// Use the preprocessor to collect the
-				// transformations needed to be done.
-				// They are collected in
-				// pn.GetAttribute("XREALMFORM")
-				for _, fn := range fset.Files {
-					gno.FindXformsGno0p9(gs, pn, fn)
-					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
-				}
-				for { // continue to find more until exhausted.
-					xnewSum := 0
-					for _, fn := range fset.Files {
-						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
-						xnewSum += xnew
-					}
-					if xnewSum == 0 {
-						break // done
-					}
-				}
-			}
-			{
-				// FIX STEP 6: PreprocessFiles()
-				// Preprocess xxx_test files (some _test.gno).
-				cw := bs.CacheWrap()
-				gs := ts.BeginTransaction(cw, cw, nil)
-				tm.Store = gs
-				pn, _ := tm.PreprocessFiles(
-					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, gno.GnoVerMissing)
-				ppkg.AddUnderscoreTests(pn, _tests)
-
-				// FIX STEP 7: FindXforms():
-				// FindXforms for all files if outdated.
-				// Use the preprocessor to collect the
-				// transformations needed to be done.
-				// They are collected in
-				// pn.GetAttribute("XREALMFORM")
-				for _, fn := range _tests.Files {
-					gno.FindXformsGno0p9(gs, pn, fn)
-					gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
-				}
-				for { // continue to find more until exhausted.
-					xnewSum := 0
-					for _, fn := range _tests.Files {
-						xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
-						xnewSum += xnew
-					}
-					if xnewSum == 0 {
-						break // done
-					}
-				}
-			}
-			{
-				// FIX STEP 6: PreprocessFiles()
-				// Preprocess _filetest.gno files.
-				for i, fset := range ftests {
-					cw := bs.CacheWrap()
-					gs := ts.BeginTransaction(cw, cw, nil)
-					tm.Store = gs
-					fname := fset.Files[0].FileName
-					mfile := mpkg.GetFile(fname)
-					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
-					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
-					if err != nil {
-						cio.ErrPrintln(err)
-						hasError = true
-						continue
-					}
-					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(
-						pkgName, pkgPath, fset,
-						false, false, gno.GnoVerMissing)
-					ppkg.AddFileTest(pn, fset)
-
-					// FIX STEP 7: FindXforms():
-					// FindXforms for all files if outdated.
-					// Use the preprocessor to collect the
-					// transformations needed to be done.
-					// They are collected in
-					// pn.GetAttribute("XREALMFORM")
-					for _, fn := range fset.Files {
-						gno.FindXformsGno0p9(gs, pn, fn)
-						gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
-					}
-					for { // continue to find more until exhausted.
-						xnewSum := 0
-						for _, fn := range fset.Files {
-							xnew := gno.FindMoreXformsGno0p9(gs, pn, pn, fn)
-							xnewSum += xnew
-						}
-						if xnewSum == 0 {
-							break // done
-						}
-					}
-				}
-			}
-
-			// Record results.
-			ppkgs[dir] = ppkg
-		})
-		if didPanic {
-			hasError = true
-		}
-	}
-	if hasError {
-		return commands.ExitCodeError(1)
-	}
-
-	//----------------------------------------
-	// FIX STAGE 2: Transpile to Gno 0.9
-	// Must be a separate stage because dirs depend on each other.
-	for _, dir := range paths {
-		ppkg, ok := ppkgs[dir]
-		if !ok {
-			// Happens when fixing a file, (XXX fix this case)
-			// but also happens when preprocessing isn't needed.
-			continue
-		}
-
-		// Sanity check.
-		mod, err := gno.ParseCheckGnoMod(ppkg.MPkg)
-		if mod != nil && mod.GetGno() != gno.GnoVerMissing {
-			panic("should not happen")
-		}
-
-		// FIX STEP 8 & 9: gno.TranspileGno0p9() Part 1 & 2
-		mpkg := ppkg.MPkg
-		transpileProcessedFileSet := func(pfs cmdutil.ProcessedFileSet) error {
-			pn, fset := pfs.Pn, pfs.Fset
-			xforms1, _ := pn.GetAttribute(gno.ATTR_PN_XFORMS).(map[string]struct{})
-			err = gno.TranspileGno0p9(mpkg, dir, pn, fset.GetFileNames(), xforms1)
-			return err
-		}
-		err = transpileProcessedFileSet(ppkg.Normal)
-		if err != nil {
-			return err
-		}
-		err = transpileProcessedFileSet(ppkg.Tests)
-		if err != nil {
-			return err
-		}
-		for _, ftest := range ppkg.Ftests {
-			err = transpileProcessedFileSet(ftest)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	if hasError {
-		return commands.ExitCodeError(1)
-	}
-
-	//----------------------------------------
-	// FIX STAGE 3: Write.
-	// Must be a separate stage to prevent partial writes.
-	for _, dir := range paths {
-		ppkg, ok := ppkgs[dir]
-		if !ok {
-			// Happens when fixing a file, (XXX fix this case)
-			// but also happens when preprocessing isn't needed.
-			continue
-		}
-
-		// Write version to gnomod.toml.
-		mod, err := gno.ParseCheckGnoMod(ppkg.MPkg)
-		if err != nil {
-			panic(fmt.Sprintf("unhandled error: %v", err))
-		}
-		if mod == nil {
-			panic("XXX: generate default gnomod.toml")
-		}
-		mod.SetGno(gno.GnoVerLatest)
-		ppkg.MPkg.SetFile("gnomod.toml", mod.WriteString())
-		// Cleanup gno.mod if it exists.
-		ppkg.MPkg.DeleteFile("gno.mod")
-
-		// FIX STEP 10: mpkg.WriteTo():
-		err = ppkg.MPkg.WriteTo(dir)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// Assume fixed = true, there may be more transformations done afterwards.
+	return true
 }
 
-// Returns true if mpkg has a filetest that has a TypeCheckError directive,
-// or has a type-check-like Error directive. Panics if it has anything
-// but one testfile.
-func filterInvalidFiletest(cio commands.IO, mpkg *std.MemPackage) bool {
-	if len(mpkg.Files) != 1 {
-		panic("expected 1 filetest but got something else")
-	}
-	mfile := mpkg.Files[0]
-	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(mfile.Body)))
-	if err != nil {
-		panic(fmt.Errorf("error parsing directives: %w", err))
-	}
-	// Filter filetests with Go type-check error.
-	tcErr := dirs.FirstDefault(test.DirectiveTypeCheckError, "")
-	if tcErr != "" {
-		cio.Printfln("skipping filetest with type-check error %q", mfile.Name)
-		return true
-	}
-	// Filter filetests with type-check-ish Error directives.
-	// (most Error directives are fine).
-	// Not sure why Go type-check doesn't catch this.
-	dErr := dirs.FirstDefault(test.DirectiveError, "")
-	if dErr != "" && strings.Contains(dErr, "import cycle detected") ||
-		strings.Contains(dErr, "exceeded maximum VPBlock depth") ||
-		strings.Contains(dErr, "cannot import realm path") ||
-		strings.Contains(dErr, "cannot import stdlib internal") ||
-		strings.Contains(dErr, "internal/ packages can only be") ||
-		strings.Contains(dErr, "cannot find branch label") ||
-		strings.Contains(dErr, "but is not natively defined") ||
-		strings.Contains(dErr, "goroutines are not permitted") {
-		cio.Printfln("skipping filetest with type-check-ish error %q", mfile.Name)
-		return true
-	}
-	return false
+func hasCrossingStatement(ss []ast.Stmt) bool {
+	// This function will panic only for nil ptr derefences or invalid
+	// assertions. Rather than handling each of them, simply no-op recover when
+	// they happen and return false.
+	defer func() {
+		recover()
+	}()
+	cx := ss[0].(*ast.ExprStmt).X.(*ast.CallExpr)
+	return cx.Fun.(*ast.Ident).Name == "crossing" && len(cx.Args) == 0
 }
 
-/*
-	if !cmd.filetestsOnly {
-		return fixDir(cmd, cio, dirs)
-	} else {
-		if len(dirs) != 1 {
-			return fmt.Errorf("must specify one dir")
-		}
-		files, err := os.ReadDir(dirs[0])
-		if err != nil {
-			return fmt.Errorf("reading directory: %w", err)
-		}
-		fnames := make([]string, 0, len(files))
-		for _, file := range files {
-			// Ignore directories and hidden files, only include
-			// allowed files & extensions, then exclude files that
-			// are of the bad extensions.
-			if file.IsDir() ||
-				strings.HasPrefix(file.Name(), ".") ||
-				!strings.HasSuffix(file.Name(), ".gno") {
-				continue
+func addRealmArg(ft *ast.FuncType, n ast.Node) {
+	var names []*ast.Ident
+	hasName := len(ft.Params.List) > 0 && len(ft.Params.List[0].Names) > 0
+	if hasName {
+		used := findUsedNames(n)
+		id := "cur"
+		for {
+			_, ok := used[id]
+			if !ok {
+				break
 			}
-			fpath := filepath.Join(dirs[0], file.Name())
-			if cmd.filetestsMatch != "" {
-				if !strings.Contains(fpath, cmd.filetestsMatch) {
-					continue
-				}
-			}
-			fnames = append(fnames, filepath.Join(dirs[0], file.Name()))
+			id += "_"
 		}
-		for _, fname := range fnames {
-			if cmd.verbose {
-				fmt.Printf("fixing %q\n", fname)
-			}
-			err2 := fixDir(cmd, cio, dirs, bs, ts, fname)
-			if err2 != nil {
-				fmt.Printf("error fixing file %q: %v\n",
-					fname, err2)
-				err = multierr.Append(err, err2)
-			}
-		}
+		names = []*ast.Ident{ast.NewIdent(id)}
 	}
-*/
+	ft.Params.List = append([]*ast.Field{{
+		Names: names,
+		Type:  ast.NewIdent("realm"),
+	}}, ft.Params.List...)
+}
+
+func findUsedNames(n ast.Node) map[string]struct{} {
+	used := make(map[string]struct{}, 32)
+	var visit func(ast.Node) bool
+	visit = func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.SelectorExpr:
+			// only care about n.X, ignore n.Sel.
+			ast.Inspect(n.X, visit)
+			return false
+		case *ast.TypeSpec:
+			// Type specs cannot use values within, so ignore.
+			visit(n.Name)
+			return false
+		case *ast.Ident:
+			used[n.Name] = struct{}{}
+		}
+		return true
+	}
+	ast.Inspect(n, visit)
+	return used
+}

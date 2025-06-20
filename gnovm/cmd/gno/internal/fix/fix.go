@@ -20,15 +20,22 @@ type Options struct {
 	RootDir string    // gno root dir.
 	Verbose io.Writer // Output for verbose error messages. Optional.
 	Error   io.Writer // Output for error messages. If nil, will be set to os.Stderr.
+
+	// A simple context map to keep information about previously done
+	// transformations on a given target. A target is either a file or a directory,
+	// representing a package.
+	// This is used, for instance, to track information about inter-realm
+	// functions which have had their signature changed.
+	TargetCtx map[any]any
 }
 
-func (o Options) Verbosefln(format string, args ...any) {
+func (o *Options) Verbosefln(format string, args ...any) {
 	if o.Verbose != nil {
 		fmt.Fprintf(o.Verbose, format, args...)
 	}
 }
 
-func (o Options) Errorfln(format string, args ...any) {
+func (o *Options) Errorfln(format string, args ...any) {
 	out := o.Error
 	if out == nil {
 		out = os.Stderr
@@ -38,20 +45,23 @@ func (o Options) Errorfln(format string, args ...any) {
 
 // Fix is an individual fix provided by this package.
 type Fix struct {
-	Name     string
-	Date     string // date that fix was introduced, in YYYY-MM-DD format
-	F        func(opts Options, f *ast.File) bool
-	DirsF    func(opts Options, dirs []string) error
-	Desc     string
-	Disabled bool // whether this fix should be disabled by default
+	Name string
+	Date string // date that fix was introduced, in YYYY-MM-DD format
+	F    func(opts Options, f *ast.File) bool
+	Desc string
+
+	// gnomod.toml version applied after this fix. If not said, applied
+	// regardless of gnomod.toml version.
+	Version string
 }
 
 var Fixes = []Fix{
 	{
-		Name:  "interrealm",
-		Date:  "2025-06-06",
-		Desc:  "gno 0.9 inter-realm syntax change",
-		DirsF: interrealm,
+		Name:    "interrealm",
+		Date:    "2025-06-06",
+		Desc:    "gno 0.9 inter-realm syntax change",
+		F:       interrealm,
+		Version: "0.9",
 	},
 	{
 		Name: "stdsplit",
@@ -245,11 +255,42 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 
 			// This contains the logic for handling scopes.
 			switch n := n.(type) {
+			case *ast.Ident:
+				switch p := c.Parent().(type) {
+				case *ast.SelectorExpr:
+					// Only consider usage if left hand side of selector expr,
+					// ie only consider <1> of <1>.<2>.<3>
+					if p.X == n {
+						sc.use(n)
+					}
+				case *ast.KeyValueExpr:
+					// Only consider usage if n is the value in the KeyValueExpr.
+					// Left hand side is most often the name of a struct field.
+					// (This is incorrect if it is a map, array, slice literal,
+					// however to correctly address this we'd need type information.)
+					if p.Value == n {
+						sc.use(n)
+					}
+				case *ast.Field:
+					// *ast.Field is either a field in a struct type, a method
+					// in a method list, a type parameter or a function
+					// type or field.
+					// Of these cases, we are only interested in those of
+					// function types, when they are in a function literal or
+					// declaration, and are handled separately.
+					// Only consider references to type names.
+					if p.Type == n {
+						sc.use(n)
+					}
+				default:
+					sc.use(n)
+				}
+
 			case *ast.TypeSpec:
-				sc.declare(n.Name.Name, n)
+				sc.declare(n.Name, n)
 			case *ast.ValueSpec:
 				for _, name := range n.Names {
-					sc.declare(name.Name, n)
+					sc.declare(name, n)
 				}
 			case *ast.AssignStmt:
 				if n.Tok == token.DEFINE {
@@ -257,14 +298,15 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 						// only declare if it doesn't exist in the last scope,
 						// := allows the LHS to contain already defined values
 						// which are then simply assigned instead of declared.
-						name := name.(*ast.Ident).Name
-						if _, ok := sc[len(sc)-1][name]; !ok {
+						name := name.(*ast.Ident)
+						if _, ok := sc[len(sc)-1][name.Name]; !ok {
 							sc.declare(name, n)
 						}
 					}
 				}
 			case *ast.FuncDecl:
-				name := n.Name.Name
+				id := n.Name
+				name := id.Name
 				if n.Recv != nil && len(n.Recv.List) > 0 {
 					tp := recvType(n.Recv.List[0].Type)
 					if tp != nil {
@@ -272,7 +314,7 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 					}
 				}
 				if name != "init" {
-					sc.declare(name, n)
+					sc.declare(ast.NewIdent(name), n)
 				}
 				sc.push()
 				sc.declareList(n.Recv)
@@ -286,10 +328,10 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 				sc.push()
 				if n.Tok == token.DEFINE {
 					if id, ok := n.Key.(*ast.Ident); ok {
-						sc.declare(id.Name, n)
+						sc.declare(id, n)
 					}
 					if id, ok := n.Value.(*ast.Ident); ok {
-						sc.declare(id.Name, n)
+						sc.declare(id, n)
 					}
 				}
 			case *ast.BlockStmt,
@@ -301,6 +343,7 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 				*ast.ForStmt,
 				*ast.SelectStmt:
 				sc.push()
+
 			}
 			return true
 		},
@@ -309,34 +352,52 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 				return false
 			}
 
-			n := c.Node()
-			switch n.(type) {
-			case *ast.FuncDecl,
-				*ast.BlockStmt,
-				*ast.FuncLit,
-				*ast.IfStmt,
-				*ast.SwitchStmt,
-				*ast.TypeSwitchStmt,
-				*ast.CaseClause,
-				*ast.CommClause,
-				*ast.ForStmt,
-				*ast.SelectStmt,
-				*ast.RangeStmt:
+			if isBlockNode(c.Node()) {
 				sc.pop()
 			}
+
 			return true
 		},
 	)
 }
 
-type scope map[string]ast.Node
+func isBlockNode(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.FuncDecl,
+		*ast.BlockStmt,
+		*ast.FuncLit,
+		*ast.IfStmt,
+		*ast.SwitchStmt,
+		*ast.TypeSwitchStmt,
+		*ast.CaseClause,
+		*ast.CommClause,
+		*ast.ForStmt,
+		*ast.SelectStmt,
+		*ast.RangeStmt:
+		return true
+	}
+	return false
+}
+
+type definitionUsages struct {
+	def    ast.Node
+	usages []*ast.Ident
+}
+
+func (du definitionUsages) rename(name string) {
+	for _, us := range du.usages {
+		us.Name = name
+	}
+}
+
+type scope map[string]*definitionUsages
 
 type scopes []scope
 
 func (s scopes) lookup(name string) ast.Node {
 	for _, scope := range slices.Backward(s) {
 		if stmt, ok := scope[name]; ok {
-			return stmt
+			return stmt.def
 		}
 	}
 	return nil
@@ -350,15 +411,37 @@ func (s *scopes) pop() {
 	*s = (*s)[:len(*s)-1]
 }
 
-func (s scopes) declare(name string, stmt ast.Node) {
-	if name == "_" {
+func (s scopes) declare(name *ast.Ident, stmt ast.Node) {
+	if name.Name == "_" {
 		return
 	}
 	sc := s[len(s)-1]
-	if _, ok := sc[name]; ok {
-		panic(fmt.Sprintf("duplicate declaration of ident %q", name))
+	if du, ok := sc[name.Name]; ok {
+		if du.def != nil {
+			panic(fmt.Sprintf("duplicate declaration of ident %q", name))
+		}
+		// This name was encountered before, but the name had not been declared yet.
+		du.def = stmt
 	}
-	sc[name] = stmt
+	sc[name.Name] = &definitionUsages{def: stmt}
+}
+
+func (s scopes) use(n *ast.Ident) {
+	var sc scope
+	for _, val := range slices.Backward(s) {
+		if _, ok := val[n.Name]; ok {
+			sc = val
+			break
+		}
+	}
+	if sc == nil {
+		sc = s[0]
+		// uverse or name defined elsewhere in package.
+		if sc[n.Name] == nil {
+			sc[n.Name] = &definitionUsages{}
+		}
+	}
+	sc[n.Name].usages = append(sc[n.Name].usages, n)
 }
 
 func (s scopes) declareList(fl *ast.FieldList) {
@@ -367,7 +450,18 @@ func (s scopes) declareList(fl *ast.FieldList) {
 	}
 	for _, field := range fl.List {
 		for _, name := range field.Names {
-			s.declare(name.Name, field)
+			s.declare(name, field)
 		}
 	}
+}
+
+func recvType(x ast.Expr) *ast.Ident {
+	if sx, ok := x.(*ast.StarExpr); ok {
+		x = sx.X
+	}
+
+	if id, ok := x.(*ast.Ident); ok {
+		return id
+	}
+	return nil
 }

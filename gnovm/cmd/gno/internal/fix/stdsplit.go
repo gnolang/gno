@@ -98,7 +98,6 @@ func stdsplit(opts Options, f *ast.File) (fixed bool) {
 	}
 
 	var toRename []string
-	ignoreIdents := map[*ast.Ident]struct{}{}
 
 	apply(
 		f,
@@ -109,14 +108,15 @@ func stdsplit(opts Options, f *ast.File) (fixed bool) {
 			switch n := n.(type) {
 			case *ast.ImportSpec:
 				unq := importPath(n)
-				id := knownImportIdentifiers[unq]
+
 				if n.Name != nil {
-					id = n.Name.Name
-				} else if id == "" {
+					sc.declare(n.Name, n)
+				} else if id := knownImportIdentifiers[unq]; id != "" {
+					sc.declare(ast.NewIdent(id), n)
+				} else {
 					// Don't assume other identifiers without importing them.
 					return false
 				}
-				sc.declare(id, n)
 			case *ast.SelectorExpr:
 				id, ok := n.X.(*ast.Ident)
 				if !ok {
@@ -169,14 +169,13 @@ func stdsplit(opts Options, f *ast.File) (fixed bool) {
 					}
 
 					decl = f.Imports[len(f.Imports)-1]
-					sc[0][ident] = decl
+					scopes(sc[:1]).declare(ast.NewIdent(ident), decl)
 				}
 				if sc.lookup(ident) != decl {
 					// Will be tackled in post
 					toRename = append(toRename, target.ident)
 				}
 				newPkgIdent := &ast.Ident{NamePos: id.Pos(), Name: ident}
-				ignoreIdents[newPkgIdent] = struct{}{}
 				c.Replace(&ast.SelectorExpr{
 					X:   newPkgIdent,
 					Sel: &ast.Ident{NamePos: n.Sel.Pos(), Name: target.fname},
@@ -188,49 +187,24 @@ func stdsplit(opts Options, f *ast.File) (fixed bool) {
 			return true
 		},
 		func(c *astutil.Cursor, sc scopes) bool {
-			n := c.Node()
-			switch n.(type) {
-			case *ast.BlockStmt,
-				*ast.FuncLit,
-				*ast.IfStmt,
-				*ast.SwitchStmt,
-				*ast.TypeSwitchStmt,
-				*ast.CaseClause,
-				*ast.CommClause,
-				*ast.ForStmt,
-				*ast.SelectStmt,
-				*ast.RangeStmt:
+			if isBlockNode(c.Node()) {
 				// We're popping a block; if our current scope contains one
 				// of the identifiers in toRename, and none of the parent scopes
 				// (except the root, for the import) does, then apply() on the
 				// node again to rename the definition(s) and all usages.
-				// Usages that actually refer to the import are detected through
-				// ignoreIdents.
-
+				// Usages that actually refer to the import are not inspected
+				// using astutil, and so are not considered by our scope analyzer.
+				lastScope := sc[len(sc)-1]
 				newToRename := toRename[:0]
 				for _, tr := range toRename {
-					if sc[len(sc)-1][tr] != nil &&
-						scopes(sc[1:len(sc)-1]).lookup(tr) == nil {
-						astutil.Apply(
-							n,
-							func(c *astutil.Cursor) bool {
-								switch n := c.Node().(type) {
-								case *ast.Ident:
-									_, ignore := ignoreIdents[n]
-									if !ignore && n.Name == tr {
-										// NOTE: there could still be collisions,
-										// but these would be extreme edge cases.
-										n.Name += "_"
-									}
-									// This may overcorrect some slice literals
-									// which use names which are being replaced;
-									// let the user fix them.
-								}
-								return true
-							},
-							nil,
-						)
-					} else {
+					if du := lastScope[tr]; du != nil {
+						newName := tr + "_"
+						for lastScope[newName] != nil {
+							newName += "_"
+						}
+						du.rename(newName)
+					}
+					if scopes(sc[1:]).lookup(tr) != nil {
 						newToRename = append(newToRename, tr)
 					}
 				}
@@ -244,15 +218,4 @@ func stdsplit(opts Options, f *ast.File) (fixed bool) {
 	}
 
 	return
-}
-
-func recvType(x ast.Expr) *ast.Ident {
-	if sx, ok := x.(*ast.StarExpr); ok {
-		x = sx.X
-	}
-
-	if id, ok := x.(*ast.Ident); ok {
-		return id
-	}
-	return nil
 }
