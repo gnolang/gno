@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 
-	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
@@ -15,22 +14,6 @@ var (
 	ErrClientBadRequest   = errors.New("bad request")
 	ErrClientResponse     = errors.New("node response error")
 )
-
-type FileMeta struct {
-	Lines  int
-	SizeKb float64
-}
-
-type RealmMeta struct {
-	Toc md.Toc
-}
-
-// Renderer is an interface for rendering content from source.
-type ContentRenderer interface {
-	// Render renders the content of a source file and write it on the given writer.
-	// It returns a Table of Contents (Toc) and an error if any occurs.
-	Render(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error)
-}
 
 // WebClient is an interface for interacting with package and node resources.
 type WebClient interface {

@@ -4,34 +4,11 @@ package gnoweb
 // 	GoldmarkOptions []goldmark.Option
 // }
 
-// func NewDefaultMarkdownRendererConfig(chromaOptions []chromahtml.Option) *MarkdownRendererConfig {
-// 	// Only allow svg data image
-// 	allowSvgDataImage := func(uri string) bool {
-// 		const svgdata = "image/svg+xml"
-// 		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
-// 	}
-
-// 	goldmarkOptions := []goldmark.Option{
-// 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-// 		goldmark.WithExtensions(
-
-// 			extension.Strikethrough,
-// 			extension.Table,
-
-// 			md.NewGnoExtension(
-// 				md.WithImageValidator(allowSvgDataImage),
-// 			),
-// 		),
-// 	}
-
-// 	return &MarkdownRendererConfig{
-// 		GoldmarkOptions: goldmarkOptions,
-// 	}
-// }
-
 // type MarkdownRenderer struct {
-// 	logger   *slog.Logger
-// 	markdown goldmark.Markdown
+// 	logger      *slog.Logger
+// 	markdown    goldmark.Markdown
+// 	Formatter   *chromahtml.Formatter
+// 	chromaStyle *chroma.Style
 // }
 
 // var _ ContentRenderer = (*MarkdownRenderer)(nil)
@@ -43,7 +20,7 @@ package gnoweb
 // 	}
 // }
 
-// func (mr *MarkdownRenderer) Render(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
+// func (mr *MarkdownRenderer) RenderMarkdown(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
 // 	ctx := md.NewGnoParserContext(u)
 
 // 	// Use Goldmark for Markdown parsing
