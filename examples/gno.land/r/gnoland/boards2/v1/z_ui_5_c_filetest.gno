@@ -39,7 +39,7 @@ func main() {
 }
 
 // Output:
-// ## Foo
+// # Foo
 //
 // Body
 //
@@ -47,9 +47,8 @@ func main() {
 // [Flag](/r/gnoland/boards2/v1$help&func=FlagThread&boardID=1&reason=&threadID=1) • [Repost](/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=1&body=&destinationBoardID=&threadID=1&title=) • [Reply](/r/gnoland/boards2/v1$help&func=CreateReply&boardID=1&body=&replyID=0&threadID=1) • [Edit](/r/gnoland/boards2/v1$help&func=EditThread&boardID=1&body=Body&threadID=1&title=Foo) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1) • [Show all Replies](/r/gnoland/boards2/v1:BoardName/1)
 //
 //
-//
 // >
-// > _⚠ Reply is hidden as it has been flagged as inappropriate_
+// > *⚠ Reply is hidden as it has been flagged as inappropriate*
 // >
 // > >
 // > > Third comment

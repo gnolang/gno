@@ -42,7 +42,7 @@ func main() {
 }
 
 // Output:
-// ## Foo
+// # Foo
 //
 // Body
 //
@@ -51,7 +51,7 @@ func main() {
 //
 // >>><<<
 //
-// ## Bar
+// # Bar
 //
 //
 // This thread is a repost of [another thread](/r/gnoland/boards2/v1:BoardName/1):

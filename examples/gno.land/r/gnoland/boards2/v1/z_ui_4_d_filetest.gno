@@ -31,7 +31,7 @@ func main() {
 }
 
 // Output:
-// ## Foo
+// # Foo
 //
 // Body
 //

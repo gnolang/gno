@@ -35,13 +35,12 @@ func main() {
 }
 
 // Output:
-// ## Foo
+// # Foo
 //
 // Body
 //
 // Created by g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq on 2009-02-13 11:31pm UTC
 // [Flag](/r/gnoland/boards2/v1$help&func=FlagThread&boardID=1&reason=&threadID=1) • [Repost](/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=1&body=&destinationBoardID=&threadID=1&title=) • [Reply](/r/gnoland/boards2/v1$help&func=CreateReply&boardID=1&body=&replyID=0&threadID=1) • [Edit](/r/gnoland/boards2/v1$help&func=EditThread&boardID=1&body=Body&threadID=1&title=Foo) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
-//
 //
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:BoardName/1?order=desc)
