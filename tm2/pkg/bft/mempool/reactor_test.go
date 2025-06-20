@@ -40,7 +40,7 @@ func (ps peerState) GetHeight() int64 {
 }
 
 // connect N mempool reactors through N switches
-func makeAndConnectReactors(t *testing.T, mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
+func makeAndConnectReactors(t *testing.T, mconfig *memcfg.Config, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
 	t.Helper()
 
 	var (
@@ -73,7 +73,7 @@ func makeAndConnectReactors(t *testing.T, mconfig *memcfg.MempoolConfig, pconfig
 		Count:         n,
 		P2PCfg:        pconfig,
 		SwitchOptions: options,
-		Channels:      []byte{MempoolChannel},
+		Channels:      []byte{Channel},
 	}
 
 	p2pTesting.MakeConnectedPeers(t, ctx, cfg)
