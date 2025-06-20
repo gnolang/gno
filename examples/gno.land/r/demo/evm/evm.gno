@@ -58,8 +58,8 @@ func splitCallData(callData string) (string, []*uint256.Uint) {
 }
 
 // public functions
-func ExecuteByteCode(codeStr, callData, valueToSend string) {
-	crossing()
+func ExecuteByteCode(_ realm, codeStr, callData, valueToSend string) {
+	// crossing()
 
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
@@ -75,8 +75,8 @@ func ExecuteByteCode(codeStr, callData, valueToSend string) {
 	env.Transaction.PushExecution(0, caller, res, 0, true) // TODO: get the execution price
 }
 
-func CreateContract(initCode, valueToSend string) {
-	crossing()
+func CreateContract(_ realm, initCode, valueToSend string) {
+	// crossing()
 
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
@@ -89,15 +89,15 @@ func CreateContract(initCode, valueToSend string) {
 	env.Transaction.PushContractCreation(0, caller, 0) // TODO: get the execution price
 }
 
-func Faucet(weiToGive uint) {
-	crossing()
+func Faucet(_ realm, weiToGive uint) {
+	// crossing()
 
 	usr := assertGetConnectedUserFromRealm()
 	usr.Balance.Add(usr.Balance, uint256.NewUint(uint64(weiToGive)))
 }
 
-func BuyGas(nbGasToBuy uint64) {
-	crossing()
+func BuyGas(realm, nbGasToBuy uint64) {
+	// crossing()
 
 	usr := assertGetConnectedUserFromRealm()
 	price := nbGasToBuy * evm.GasPrice
@@ -109,8 +109,8 @@ func BuyGas(nbGasToBuy uint64) {
 	usr.Gas += uint(nbGasToBuy)
 }
 
-func Register() {
-	crossing()
+func Register(_ realm) {
+	// crossing()
 
 	// create the user
 	gnoAddr := std.PreviousRealm().Address()
@@ -123,8 +123,8 @@ func Register() {
 	env.Transaction.PushCallerCreation(0, env.Accounts[addr], addr)
 }
 
-func CallContract(contractAddress, callData string, valueToSend string) {
-	crossing()
+func CallContract(_ realm, contractAddress, callData string, valueToSend string) {
+	// crossing()
 
 	caller := assertGetConnectedUserFromRealm()
 

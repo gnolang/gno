@@ -24,7 +24,7 @@ func getVariables(stack *evmStack) (gas *uint256.Uint, address *uint256.Uint, mo
 
 func opCall(s *State) error {
 	// get the values pushed in stack
-	gas, address, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getVariables(&s.stack)
+	gas, addr, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getVariables(&s.stack)
 	if err != nil {
 		return err
 	}
@@ -45,18 +45,18 @@ func opCall(s *State) error {
 	tmpState := s.clone()
 	tmpState.setCallData(callData)
 	tmpState.setGasLimit(uint(gas.Uint64()))
-	tmpState.setCallerAddress(address.Uint64())
+	tmpState.setCallerAddress(addr.Uint64())
 
 	// check for precompiled
 	var res []byte
-	if address.Uint64() <= nbPrecompiledContract {
-		f, ok := precompiled[precompiledAddress(address.Uint64())]
+	if addr.Uint64() <= nbPrecompiledContract {
+		f, ok := precompiled[precompiledAddress(addr.Uint64())]
 		if ok {
 			err = f(tmpState)
 		}
 	} else {
 		// get the contrat code
-		contract := tmpState.tmp.accounts[address.Uint64()]
+		contract := tmpState.tmp.accounts[addr.Uint64()]
 		if contract == nil || contract.AccountType != ContractAccount {
 			s.stack.Push(uint256.Zero())
 			return nil
@@ -89,15 +89,15 @@ func opCall(s *State) error {
 	if s.tmp.accounts[s.callerAddress] != nil && s.tmp.accounts[s.callerAddress].Balance != nil {
 		s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, moneyToGive)
 	}
-	if s.tmp.accounts[address.Uint64()] != nil && s.tmp.accounts[address.Uint64()].Balance != nil {
-		s.tmp.accounts[address.Uint64()].Balance.Add(s.tmp.accounts[address.Uint64()].Balance, moneyToGive)
+	if s.tmp.accounts[addr.Uint64()] != nil && s.tmp.accounts[addr.Uint64()].Balance != nil {
+		s.tmp.accounts[addr.Uint64()].Balance.Add(s.tmp.accounts[addr.Uint64()].Balance, moneyToGive)
 	}
 	return nil
 }
 
 func opCallCode(s *State) error {
 	// get the values pushed in stack
-	gas, address, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getVariables(&s.stack)
+	gas, addr, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getVariables(&s.stack)
 	if err != nil {
 		return err
 	}
@@ -122,14 +122,14 @@ func opCallCode(s *State) error {
 
 	// check for precompiled
 	var res []byte
-	if address.Uint64() <= nbPrecompiledContract {
-		f, ok := precompiled[precompiledAddress(address.Uint64())]
+	if addr.Uint64() <= nbPrecompiledContract {
+		f, ok := precompiled[precompiledAddress(addr.Uint64())]
 		if ok {
 			err = f(tmpState)
 		}
 	} else {
 		// get the contrat code
-		contract := tmpState.tmp.accounts[address.Uint64()]
+		contract := tmpState.tmp.accounts[addr.Uint64()]
 		if contract == nil || contract.AccountType != ContractAccount {
 			s.stack.Push(uint256.Zero())
 			return nil
@@ -162,8 +162,8 @@ func opCallCode(s *State) error {
 	if s.tmp.accounts[s.callerAddress] != nil && s.tmp.accounts[s.callerAddress].Balance != nil {
 		s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, moneyToGive)
 	}
-	if s.tmp.accounts[address.Uint64()] != nil && s.tmp.accounts[address.Uint64()].Balance != nil {
-		s.tmp.accounts[address.Uint64()].Balance.Add(s.tmp.accounts[address.Uint64()].Balance, moneyToGive)
+	if s.tmp.accounts[addr.Uint64()] != nil && s.tmp.accounts[addr.Uint64()].Balance != nil {
+		s.tmp.accounts[addr.Uint64()].Balance.Add(s.tmp.accounts[addr.Uint64()].Balance, moneyToGive)
 	}
 	return nil
 }

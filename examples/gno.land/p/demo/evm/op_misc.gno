@@ -391,7 +391,7 @@ func opBlockHash(s *State) error {
 }
 
 func opExtCodeHash(s *State) error {
-	address, err := s.stack.Pop()
+	addr256, err := s.stack.Pop()
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,7 @@ func opExtCodeHash(s *State) error {
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
-	addr := address.Uint64()
+	addr := addr256.Uint64()
 	account, ok := s.env.Accounts[addr]
 	if !ok {
 		s.stack.Push(uint256.Zero())
