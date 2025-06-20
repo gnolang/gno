@@ -1,4 +1,4 @@
-package profile
+package profiles
 
 import (
 	"std"
@@ -16,14 +16,15 @@ var (
 // Standard fields
 const (
 	DisplayName        = "DisplayName"
-	Homepage           = "Homepage"
 	Bio                = "Bio"
 	Age                = "Age"
 	Location           = "Location"
-	Avatar             = "Avatar"
-	GravatarEmail      = "GravatarEmail"
+	GitHubHandle       = "GitHubHandle"
+	XHandle            = "XHandle"
+	Website            = "Website"
+	Location           = "Location"
+	ProfilePicture     = "ProfilePicture"
 	AvailableForHiring = "AvailableForHiring"
-	InvalidField       = "InvalidField"
 )
 
 // Events
@@ -49,12 +50,13 @@ func init() {
 
 // List of supported string fields
 var stringFields = map[string]bool{
-	DisplayName:   true,
-	Homepage:      true,
-	Bio:           true,
-	Location:      true,
-	Avatar:        true,
-	GravatarEmail: true,
+	DisplayName:    true,
+	Bio:            true,
+	Location:       true,
+	ProfilePicture: true,
+	GitHubHandle:   true,
+	XHandle:        true,
+	Website:        true,
 }
 
 // List of support int fields
@@ -69,6 +71,7 @@ var boolFields = map[string]bool{
 
 // Setters
 
+// SetStringField sets the specified string field value to the previous realm.
 func SetStringField(cur realm, field, value string) bool {
 	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
@@ -84,6 +87,7 @@ func SetStringField(cur realm, field, value string) bool {
 	return updated
 }
 
+// SetIntField sets the specified int field value to the previous realm.
 func SetIntField(cur realm, field string, value int) bool {
 	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
@@ -99,6 +103,7 @@ func SetIntField(cur realm, field string, value int) bool {
 	return updated
 }
 
+// SetBoolField sets the specified bool field value to the previous realm.
 func SetBoolField(cur realm, field string, value bool) bool {
 	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
@@ -116,22 +121,22 @@ func SetBoolField(cur realm, field string, value bool) bool {
 
 // Getters
 
-func GetStringField(addr std.Address, field, def string) string {
+func GetStringField(addr std.Address, field string) string {
 	key := addr.String() + ":" + field
 	if value, ok := fields.Get(key); ok {
 		return value.(string)
 	}
 
-	return def
+	return ""
 }
 
-func GetBoolField(addr std.Address, field string, def bool) bool {
+func GetBoolField(addr std.Address, field string) bool {
 	key := addr.String() + ":" + field
 	if value, ok := fields.Get(key); ok {
 		return value.(bool)
 	}
 
-	return def
+	return false
 }
 
 func GetIntField(addr std.Address, field string, def int) int {

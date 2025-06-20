@@ -1,4 +1,4 @@
-package profile
+package profiles
 
 import (
 	"bytes"
@@ -10,17 +10,29 @@ import (
 )
 
 const (
-	BaseURL           = "/r/demo/profile"
+	BaseURL           = "/r/gnoland/profiles"
 	SetStringFieldURL = BaseURL + "$help&func=SetStringField&field=%s"
 	SetIntFieldURL    = BaseURL + "$help&func=SetIntField&field=%s"
 	SetBoolFieldURL   = BaseURL + "$help&func=SetBoolField&field=%s"
-	ViewAllFieldsURL  = BaseURL + ":u/%s"
-	ViewFieldURL      = BaseURL + ":f/%s/%s"
 )
 
-func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
+func homeHandler(res *mux.ResponseWriter, _ *mux.Request) {
 	var b bytes.Buffer
 
+	intro := "# Gno.land Profiles\n\n"
+
+	intro += `This realm provides a standardized way to set and share basic
+profile information on-chain, like your display name, bio, homepage, and 
+more. Other realms can read your profile data from here, so users don’t have 
+to set it up multiple times in multiple places, creating redundant and fragmented data. It’s a simple,
+reusable profile layer meant to make your info easily accessible across the Gno ecosystem if you choose so.
+
+Below are transaction links that allow for setting the specific fields for the caller address.
+
+For a short doc on how to use this realm to get user data in your app, see [this](/r/docs/profiles).
+`
+
+	b.WriteString(intro)
 	b.WriteString("## Setters\n")
 	for field := range stringFields {
 		link := ufmt.Sprintf(SetStringFieldURL, field)

@@ -1,4 +1,4 @@
-package profile
+package profiles
 
 import (
 	"std"
