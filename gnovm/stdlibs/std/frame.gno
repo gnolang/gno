@@ -1,5 +1,7 @@
 package std
 
+import "regexp"
+
 type Realm struct {
 	addr    Address
 	pkgPath string
@@ -21,8 +23,21 @@ func (r Realm) PkgPath() string {
 	return r.pkgPath
 }
 
+var reGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/(?P<addr>g1[a-z0-9]+)/run$`)
+
 func (r Realm) IsUser() bool {
-	return r.pkgPath == ""
+	// non-code realm.
+	if r.pkgPath == "" {
+		return true
+	}
+
+	// `maketx run`
+	// TODO: replace with the upcoming /e/ ephemeral realms
+	if reGnoRunPath.MatchString(r.pkgPath) {
+		return true
+	}
+
+	return false
 }
 
 func (r Realm) CoinDenom(coinName string) string {
