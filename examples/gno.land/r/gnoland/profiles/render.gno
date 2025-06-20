@@ -3,7 +3,6 @@ package profiles
 import (
 	"bytes"
 	"net/url"
-	"std"
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
@@ -56,26 +55,24 @@ For a short doc on how to use this realm to get user data in your app, see [this
 
 func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
-	addr := req.GetVar("addr")
+	addr := address(req.GetVar("addr"))
 
 	b.WriteString(ufmt.Sprintf("# Profile %s\n", addr))
 
-	address_XXX := std.Address(addr)
-
 	for field := range stringFields {
-		value := GetStringField(address_XXX, field, "n/a")
+		value := GetStringField(addr, field)
 		link := ufmt.Sprintf(SetStringFieldURL, field)
 		b.WriteString(ufmt.Sprintf("- %s: %s [Edit](%s)\n", field, value, link))
 	}
 
 	for field := range intFields {
-		value := GetIntField(address_XXX, field, 0)
+		value := GetIntField(addr, field, 0)
 		link := ufmt.Sprintf(SetIntFieldURL, field)
 		b.WriteString(ufmt.Sprintf("- %s: %d [Edit](%s)\n", field, value, link))
 	}
 
 	for field := range boolFields {
-		value := GetBoolField(address_XXX, field, false)
+		value := GetBoolField(addr, field)
 		link := ufmt.Sprintf(SetBoolFieldURL, field)
 		b.WriteString(ufmt.Sprintf("- %s: %t [Edit](%s)\n", field, value, link))
 	}
@@ -85,23 +82,22 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 func fieldHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
-	addr := req.GetVar("addr")
+	addr := address(req.GetVar("addr"))
 	field := req.GetVar("field")
 
 	b.WriteString(ufmt.Sprintf("# Field %s for %s\n", field, addr))
 
-	address_XXX := std.Address(addr)
 	value := "n/a"
 	var editLink string
 
 	if _, ok := stringFields[field]; ok {
-		value = ufmt.Sprintf("%s", GetStringField(address_XXX, field, "n/a"))
+		value = ufmt.Sprintf("%s", GetStringField(addr, field))
 		editLink = ufmt.Sprintf(SetStringFieldURL+"&addr=%s&value=%s", field, addr, url.QueryEscape(value))
 	} else if _, ok := intFields[field]; ok {
-		value = ufmt.Sprintf("%d", GetIntField(address_XXX, field, 0))
+		value = ufmt.Sprintf("%d", GetIntField(addr, field, 0))
 		editLink = ufmt.Sprintf(SetIntFieldURL+"&addr=%s&value=%s", field, addr, value)
 	} else if _, ok := boolFields[field]; ok {
-		value = ufmt.Sprintf("%t", GetBoolField(address_XXX, field, false))
+		value = ufmt.Sprintf("%t", GetBoolField(addr, field))
 		editLink = ufmt.Sprintf(SetBoolFieldURL+"&addr=%s&value=%s", field, addr, value)
 	}
 

@@ -22,7 +22,6 @@ const (
 	GitHubHandle       = "GitHubHandle"
 	XHandle            = "XHandle"
 	Website            = "Website"
-	Location           = "Location"
 	ProfilePicture     = "ProfilePicture"
 	AvailableForHiring = "AvailableForHiring"
 )
@@ -72,7 +71,7 @@ var boolFields = map[string]bool{
 // Setters
 
 // SetStringField sets the specified string field value to the previous realm.
-func SetStringField(cur realm, field, value string) bool {
+func SetStringField(cur realm, field, value string) {
 	addr := std.PreviousRealm().Address()
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
@@ -83,8 +82,6 @@ func SetStringField(cur realm, field, value string) bool {
 	}
 
 	std.Emit(event, FieldType, StringField, field, value)
-
-	return updated
 }
 
 // SetIntField sets the specified int field value to the previous realm.
