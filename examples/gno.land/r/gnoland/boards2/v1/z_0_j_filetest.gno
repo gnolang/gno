@@ -15,23 +15,23 @@ const (
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, name, true)
+	boards2.CreateBoard(cross, name, false)
 
-	// Private board should not be listed
+	// Unlisted board should not be rendered
 	println(boards2.Render(""))
 
-	// Private board can be rendered by path
+	// Unlisted board can be rendered by path
 	println("\n==================")
 	println(boards2.Render(name))
 }
 
 // Output:
 // # Boards
-// [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&name=&private=false) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
+// [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&listed=true&name=) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
 // ---
 // ### Currently there are no boards
-// Be the first to [create a new board](/r/gnoland/boards2/v1$help&func=CreateBoard&name=&private=false) !
+// Be the first to [create a new board](/r/gnoland/boards2/v1$help&func=CreateBoard&listed=true&name=) !
 //
 // ==================
 // # TestBoard

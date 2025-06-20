@@ -1,5 +1,5 @@
 // Render default realm view.
-// Default realm view must render the list of non private boards.
+// Default realm view must render the list of listed boards.
 package main
 
 import (
@@ -15,13 +15,13 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
 	// Create board "AAA" with a single thread
-	boardID := boards2.CreateBoard(cross, "AAA", false)
+	boardID := boards2.CreateBoard(cross, "AAA", true)
 	boards2.CreateThread(cross, boardID, "Foo", "Bar")
 
 	// Create 2 more boards
-	boards2.CreateBoard(cross, "BBB", false)
-	boards2.CreateBoard(cross, "CCC", false)
-	boards2.CreateBoard(cross, "DDD", true) // <-- Private board
+	boards2.CreateBoard(cross, "BBB", true)
+	boards2.CreateBoard(cross, "CCC", true)
+	boards2.CreateBoard(cross, "DDD", false) // <-- Unlisted board
 }
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 
 // Output:
 // # Boards
-// [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&name=&private=false) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
+// [Create Board](/r/gnoland/boards2/v1$help&func=CreateBoard&listed=true&name=) • [List Admin Users](/r/gnoland/boards2/v1:admin-users) • [Help](/r/gnoland/boards2/v1:help)
 //
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:?order=desc)
