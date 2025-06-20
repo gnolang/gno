@@ -39,8 +39,6 @@ func main() {
 //
 // [Create Thread](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) • [Manage Board](?menu=manageBoard)
 //
-//
-//
 // ---
 // ### This board doesn't have any threads
 // Do you want to [start a new conversation](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) in this board ?

@@ -35,8 +35,6 @@ func main() {
 //
 // [Create Thread](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) • [Manage Board](?menu=manageBoard)
 //
-//
-//
 // ---
 // Sort by: [newest first](/r/gnoland/boards2/v1:BoardName?order=asc)
 //

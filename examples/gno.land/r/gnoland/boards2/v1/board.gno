@@ -125,32 +125,33 @@ func (board *Board) DeleteThread(pid PostID) {
 
 // Render renders a board into Markdown.
 func (board *Board) Render(path, menu string) string {
-	var sb strings.Builder
+	var (
+		sb          strings.Builder
+		creatorLink = newUserLink(board.Creator)
+		date        = board.CreatedAt().Format(dateFormat)
+	)
 
-	sb.WriteString("# " + board.Name + "  \n")
-	sb.WriteString("Board created by " + newUserLink(board.Creator) + " ")
-	sb.WriteString("on " + board.CreatedAt().Format(dateFormat))
-	sb.WriteString(", #" + board.ID.String())
-
+	sb.WriteString(md.H1(board.Name))
+	sb.WriteString("Board created by " + creatorLink + " on " + date + ", #" + board.ID.String())
 	if board.Readonly {
-		sb.WriteString("  \n_**Starting new threads and commenting is disabled**_")
+		sb.WriteString("  \n_" + md.Bold("Starting new threads and commenting is disabled") + "_")
 	}
+
+	sb.WriteString("\n")
 
 	// XXX: Menu is rendered by the caller to deal with links and sub-menus
 	// TODO: We should have the render logic separated from boards so avoid sending menu as argument
 	if menu != "" {
-		sb.WriteString("\n\n")
-		sb.WriteString(menu)
-		sb.WriteString("\n")
+		sb.WriteString("\n" + menu + "\n")
 	}
 
-	sb.WriteString("\n\n---\n")
+	sb.WriteString(md.HorizontalRule())
 
 	if board.ThreadsCount() == 0 {
-		sb.WriteString("### This board doesn't have any threads\n")
+		sb.WriteString(md.H3("This board doesn't have any threads"))
 		if !board.Readonly {
-			url := makeCreateThreadURI(board)
-			sb.WriteString("Do you want to [start a new conversation](" + url + ") in this board ?")
+			startConversationLink := md.Link("start a new conversation", makeCreateThreadURI(board))
+			sb.WriteString("Do you want to " + startConversationLink + " in this board ?")
 		}
 		return sb.String()
 	}
@@ -162,8 +163,7 @@ func (board *Board) Render(path, menu string) string {
 
 	render := func(thread *Post) bool {
 		if !thread.Hidden {
-			sb.WriteString(thread.RenderSummary())
-			sb.WriteString("\n")
+			sb.WriteString(thread.RenderSummary() + "\n")
 		}
 		return false
 	}
@@ -172,18 +172,16 @@ func (board *Board) Render(path, menu string) string {
 	r := parseRealmPath(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
-		sb.WriteString(md.Link("newest first", r.String()))
-		sb.WriteString("\n\n")
+		sb.WriteString(md.Link("newest first", r.String()) + "\n\n")
 		board.ReverseIterateThreads(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
-		sb.WriteString(md.Link("oldest first", r.String()))
-		sb.WriteString("\n\n")
+		sb.WriteString(md.Link("oldest first", r.String()) + "\n\n")
 		board.IterateThreads(p.Offset(), p.PageSize(), render)
 	}
 
 	if p.HasPages() {
-		sb.WriteString("\n---\n")
+		sb.WriteString(md.HorizontalRule())
 		sb.WriteString(pager.Picker(p))
 	}
 
