@@ -65,7 +65,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"Simple",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
 				Files: []*std.MemFile{
@@ -85,7 +85,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"WrongReturn",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
 				Files: []*std.MemFile{
@@ -105,7 +105,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"ParseError",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
 				Files: []*std.MemFile{
@@ -123,7 +123,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"MultiError",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "main",
 				Path: "gno.land/p/demo/main",
 				Files: []*std.MemFile{
@@ -144,7 +144,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"TestsAlso",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserTest,
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
 				Files: []*std.MemFile{
@@ -166,7 +166,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"ImportFailed",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
 				Files: []*std.MemFile{
@@ -185,7 +185,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"ImportSucceeded",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
 				Files: []*std.MemFile{
@@ -200,7 +200,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			mockPackageGetter{
 				&std.MemPackage{
-					Type: MPProd,
+					Type: MPStdlibProd,
 					Name: "std",
 					Path: "std",
 					Files: []*std.MemFile{
@@ -218,7 +218,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		{
 			"ImportBadIdent",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
 				Files: []*std.MemFile{
@@ -233,7 +233,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			mockPackageGetter{
 				&std.MemPackage{
-					Type: MPProd,
+					Type: MPStdlibProd,
 					Name: "a_completely_different_identifier",
 					Path: "std",
 					Files: []*std.MemFile{
@@ -253,7 +253,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			// used" error.
 			"ImportTwoInits",
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPUserProd,
 				Name: "gns",
 				Path: "gno.land/r/demo/gns",
 				Files: []*std.MemFile{
@@ -281,7 +281,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			mockPackageGetter{
 				&std.MemPackage{
-					Type: MPProd,
+					Type: MPStdlibProd,
 					Name: "std",
 					Path: "std",
 					Files: []*std.MemFile{
@@ -294,7 +294,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 					},
 				},
 				&std.MemPackage{
-					Type: MPProd,
+					Type: MPStdlibProd,
 					Name: "overflow",
 					Path: "math/overflow",
 					Files: []*std.MemFile{
@@ -316,7 +316,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	cacheMpg := mockPackageGetterCounts{
 		mockPackageGetter{
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPStdlibProd,
 				Name: "bye",
 				Path: "bye",
 				Files: []*std.MemFile{
@@ -330,7 +330,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 				},
 			},
 			&std.MemPackage{
-				Type: MPProd,
+				Type: MPStdlibProd,
 				Name: "std",
 				Path: "std",
 				Files: []*std.MemFile{
@@ -350,7 +350,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		"ImportWithCache",
 		// This test will make use of the importer's internal cache for package `std`.
 		&std.MemPackage{
-			Type: MPProd,
+			Type: MPUserProd,
 			Name: "hello",
 			Path: "gno.land/p/demo/hello",
 			Files: []*std.MemFile{
@@ -402,7 +402,7 @@ func TestTypeCheckMemPackage_format(t *testing.T) {
 `
 
 	pkg := &std.MemPackage{
-		Type: MPProd,
+		Type: MPUserProd,
 		Name: "hello",
 		Path: "gno.land/p/demo/hello",
 		Files: []*std.MemFile{
