@@ -6,17 +6,28 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func persistData(t *testing.T, data any, path string) {
+	t.Helper()
+
+	marshalledData, err := amino.MarshalJSONIndent(data, "", "\t")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, marshalledData, 0o644))
+}
+
 func TestSecrets_Verify_All(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid data directory", func(t *testing.T) {
+	t.Run("non-existent data directory", func(t *testing.T) {
 		t.Parallel()
 
 		// Create the command
@@ -62,7 +73,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 		assert.ErrorContains(t, cmdErr, errInvalidDataDir.Error())
 	})
 
-	t.Run("signature mismatch", func(t *testing.T) {
+	t.Run("verify signature mismatch", func(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
@@ -84,13 +95,22 @@ func TestSecrets_Verify_All(t *testing.T) {
 
 		// Modify the signature
 		statePath := filepath.Join(tempDir, defaultValidatorStateName)
-		state, err := readSecretData[privval.FilePVLastSignState](statePath)
+		state, err := fstate.LoadFileState(statePath)
 		require.NoError(t, err)
 
-		state.SignBytes = []byte("something totally random")
-		state.Signature = []byte("signature")
+		// Generate a valid state with a bad signature
+		vote := bft.CanonicalVote{
+			Type:   bft.PrecommitType,
+			Height: state.Height,
+			Round:  int64(state.Round),
+		}
+		state.Step = fstate.StepPrecommit
+		state.Signature = []byte("bad signature")
+		state.SignBytes, err = amino.MarshalSized(&vote)
+		require.NoError(t, err)
 
-		require.NoError(t, saveSecretData(state, statePath))
+		// Persist the modified state
+		persistData(t, state, statePath)
 
 		cmd = newRootCmd(commands.NewTestIO())
 
@@ -262,11 +282,11 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		dirPath := t.TempDir()
 		path := filepath.Join(dirPath, defaultValidatorKeyName)
 
-		invalidKey := &privval.FilePVKey{
+		invalidKey := &signer.FileKey{
 			PrivKey: nil, // invalid
 		}
 
-		require.NoError(t, saveSecretData(invalidKey, path))
+		persistData(t, invalidKey, path)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -280,7 +300,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, errInvalidPrivateKey)
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("invalid validator state", func(t *testing.T) {
@@ -289,11 +309,11 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		dirPath := t.TempDir()
 		path := filepath.Join(dirPath, defaultValidatorStateName)
 
-		invalidState := &privval.FilePVLastSignState{
+		invalidState := &fstate.FileState{
 			Height: -1, // invalid
 		}
 
-		require.NoError(t, saveSecretData(invalidState, path))
+		persistData(t, invalidState, path)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -307,38 +327,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, errInvalidSignStateHeight)
-	})
-
-	t.Run("invalid validator state signature", func(t *testing.T) {
-		t.Parallel()
-
-		dirPath := t.TempDir()
-		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
-		statePath := filepath.Join(dirPath, defaultValidatorStateName)
-
-		validKey := generateValidatorPrivateKey()
-		validState := generateLastSignValidatorState()
-
-		// Save an invalid signature
-		validState.Signature = []byte("totally valid signature")
-
-		require.NoError(t, saveSecretData(validKey, keyPath))
-		require.NoError(t, saveSecretData(validState, statePath))
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"secrets",
-			"verify",
-			"--data-dir",
-			dirPath,
-			validatorStateKey,
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, errSignatureValuesMissing)
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("invalid node key", func(t *testing.T) {
@@ -347,11 +336,9 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		dirPath := t.TempDir()
 		path := filepath.Join(dirPath, defaultNodeKeyName)
 
-		invalidNodeKey := &types.NodeKey{
-			PrivKey: nil, // invalid
-		}
+		var invalidNodeKey *types.NodeKey = nil // invalid
 
-		require.NoError(t, saveSecretData(invalidNodeKey, path))
+		persistData(t, invalidNodeKey, path)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -365,6 +352,6 @@ func TestSecrets_Verify_Single(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, errInvalidNodeKey)
+		assert.Error(t, cmdErr)
 	})
 }

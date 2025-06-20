@@ -64,14 +64,19 @@ func TestEnsureTestRoot(t *testing.T) {
 	require.True(t, checkConfig(string(data)))
 
 	// TODO: make sure the cfg returned and testconfig are the same!
-	baseConfig := DefaultBaseConfig()
 	ensureFiles(
 		t,
 		rootDir,
 		"genesis.json",
 		DefaultDBDir,
-		baseConfig.PrivValidatorKey,
-		baseConfig.PrivValidatorState,
+	)
+
+	// Root dir was set directly in validator config along with the DefaultSecretsDir.
+	ensureFiles(
+		t,
+		"",
+		cfg.Consensus.PrivValidator.LocalSignerPath(),
+		cfg.Consensus.PrivValidator.SignStatePath(),
 	)
 }
 
