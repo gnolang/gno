@@ -2170,7 +2170,9 @@ func fillEmbeddedName(ft *FieldType) {
 		case Float64Type:
 			ft.Name = Name("float64")
 		}
+	case *InterfaceType:
 	default:
+		fmt.Printf("here%stest", ft.Name)
 		panic(fmt.Sprintf(
 			"unexpected field type %s",
 			ft.Type.String()))
