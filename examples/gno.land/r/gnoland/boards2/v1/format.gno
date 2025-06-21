@@ -1,11 +1,8 @@
 package boards2
 
 import (
-	"std"
 	"strconv"
 	"strings"
-
-	"gno.land/r/sys/users"
 )
 
 func padLeft(s string, length int) string {
@@ -46,14 +43,4 @@ func summaryOf(text string, length int) string {
 		line = line + "..."
 	}
 	return line
-}
-
-// newUserLink returns a Markdown link for an account to the users
-// realm or the address as string when a user is not registered.
-func newUserLink(addr std.Address) string {
-	user := users.ResolveAddress(addr)
-	if user != nil {
-		return user.RenderLink("")
-	}
-	return addr.String()
 }

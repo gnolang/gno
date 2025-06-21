@@ -38,7 +38,7 @@ func main() {
 
 // Output:
 // # BoardName
-// Board created by g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq on 2009-02-13 11:31pm UTC, #1
+// Board created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
 //
 // [Create Thread](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) • [Manage Board](?menu=manageBoard)
 //
@@ -46,13 +46,13 @@ func main() {
 // Sort by: [oldest first](/r/gnoland/boards2/v1:BoardName?order=desc)
 //
 // **≡ [A](/r/gnoland/boards2/v1:BoardName/1)**
-// Created by g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq on 2009-02-13 11:31pm UTC
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 // **1 replies • 0 reposts**
 //
 // **≡ [B](/r/gnoland/boards2/v1:BoardName/3)**
-// Created by g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq on 2009-02-13 11:31pm UTC
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 // **0 replies • 0 reposts**
 //
 // **≡ [C](/r/gnoland/boards2/v1:BoardName/4)**
-// Created by g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq on 2009-02-13 11:31pm UTC
+// Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
 // **0 replies • 1 reposts**

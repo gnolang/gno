@@ -126,7 +126,7 @@ func (board *Board) DeleteThread(pid PostID) {
 func (board *Board) Render(path, menu string) string {
 	var (
 		sb          strings.Builder
-		creatorLink = newUserLink(board.Creator)
+		creatorLink = md.UserLink(board.Creator.String())
 		date        = board.CreatedAt().Format(dateFormat)
 	)
 
