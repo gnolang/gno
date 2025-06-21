@@ -20,7 +20,7 @@ func (s *Struct) Get() int {
 	return s.A
 }
 
-func (s *Struct) PrintRealms() {
+func (s *Struct) PrintRealms(cur realm) {
 	s.printRealms(cross)
 }
 
@@ -46,7 +46,7 @@ func (p *Passthrough) PrintRealms() {
 }
 
 func (p *Passthrough) printRealm() {
-	p.S.PrintRealms()
+	p.S.PrintRealms(cross)
 }
 
 var s *Struct
