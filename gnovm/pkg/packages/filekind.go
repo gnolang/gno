@@ -16,18 +16,27 @@ import (
 // - [FileKindXTest] -> A *_test.gno file with a package name ending in _test that will be used for blackbox testing
 //
 // - [FileKindFiletest] -> A *_filetest.gno file that will be used for snapshot testing
-type FileKind uint
+type FileKind string
 
 const (
-	FileKindUnknown FileKind = iota
-	FileKindPackageSource
-	FileKindTest
-	FileKindXTest
-	FileKindFiletest
+	FileKindUnknown       FileKind = ""
+	FileKindPackageSource          = "PackageSource"
+	FileKindTest                   = "Test"
+	FileKindXTest                  = "XTest"
+	FileKindFiletest               = "Filetest"
+	FileKindOther                  = "Other"
 )
+
+func GnoFileKinds() []FileKind {
+	return []FileKind{FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest}
+}
 
 // GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional
 func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, error) {
+	if filename == "LICENSE" || filename == "README.md" {
+		return FileKindOther, nil
+	}
+
 	if !strings.HasSuffix(filename, ".gno") {
 		return FileKindUnknown, fmt.Errorf("%s:1:1: not a gno file", filename)
 	}
@@ -45,7 +54,7 @@ func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, e
 	}
 	ast, err := parser.ParseFile(fset, filename, body, parser.PackageClauseOnly)
 	if err != nil {
-		return FileKindUnknown, err
+		return FileKindTest, nil
 	}
 	packageName := ast.Name.Name
 
