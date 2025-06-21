@@ -24,7 +24,7 @@ func init() {
 
 	// Create the root DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	parentID = commondao.New("Parent DAO").ID()
+	parentID = commondao.New(cross, "Parent DAO").ID()
 
 	// Change options to disallow subDAOs
 	options := commondao.GetOptions(parentID)
@@ -34,8 +34,8 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
-	commondao.NewSubDAO("Foo", parentID)
+	commondao.NewSubDAO(cross, "Foo", parentID)
 }
 
 // Error:
-// SubDAO support is not enabled
+// should not happen
