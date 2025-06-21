@@ -805,6 +805,7 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
+	// fmt.Printf("===doOpTypeSwitch, ss: %v, xv: %v \n", ss, xv)
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
@@ -859,10 +860,10 @@ func (m *Machine) doOpTypeSwitch() {
 				// expand block size
 				b.ExpandWith(m.Alloc, cs)
 				// define if varname
-				if ss.VarName != "" {
+				if ss.VarName.Name != "" {
 					// NOTE: assumes the var is first after size.
 					vp := NewValuePath(
-						VPBlock, 1, uint16(size), ss.VarName)
+						VPBlock, 1, uint16(size), ss.VarName.Name)
 					// NOTE: GetPointerToMaybeHeapDefine not needed,
 					// because this type is in new type switch clause block.
 					ptr := b.GetPointerTo(m.Store, vp)
