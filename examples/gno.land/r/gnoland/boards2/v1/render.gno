@@ -71,7 +71,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
-		userLink := newUserLink(board.Creator)
+		userLink := md.UserLink(board.Creator.String())
 		date := board.CreatedAt().Format(dateFormat)
 
 		res.Write(md.Bold(md.Link(board.Name, makeBoardURI(board))) + "  \n")
@@ -294,7 +294,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		table.Append([]string{
-			newUserLink(u.Address),
+			md.UserLink(u.Address.String()),
 			rolesToString(u.Roles),
 			strings.Join(actions, " • "),
 		})
