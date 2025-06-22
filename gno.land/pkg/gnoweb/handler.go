@@ -469,20 +469,22 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	// Standard file rendering
 	var source bytes.Buffer
 	var fileSource components.Component
-
 	var fileLines int
-	var fileSizeStr string
 	var sizeKb float64
 
 	// Check whether the file is a markdown file
 	switch fileName {
 	case "README.md":
-		// Fetch raw markdown by using the renderReadme function
+		// Try to render README.md with markdown processing
 		readmeComp, raw := h.renderReadme(gnourl, pkgPath)
-
-		fileSource = readmeComp
-		fileLines = len(strings.Split(string(raw), "\n"))
-		sizeKb = float64(len(raw)) / 1024.0
+		if readmeComp != nil && raw != nil {
+			fileSource = readmeComp
+			fileLines = len(strings.Split(string(raw), "\n"))
+			sizeKb = float64(len(raw)) / 1024.0
+			break
+		}
+		// Fall through to default case if markdown rendering fails
+		fallthrough
 
 	default:
 		// Fetch raw source file
@@ -497,7 +499,7 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 		fileLines = meta.Lines
 	}
 
-	fileSizeStr = fmt.Sprintf("%.2f Kb", sizeKb)
+	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKb)
 
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
