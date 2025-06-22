@@ -262,7 +262,7 @@
     @apply block border rounded pt-2 pb-4 px-4 my-12;
   }
   .realm-view .gno-form_header {
-    @apply flex justify-between text-gray-600 text-50 mb-6;
+    @apply flex justify-between text-gray-300 text-50 mb-6;
   }
   .realm-view .gno-form label {
     @apply absolute top-0 left-2 -translate-y-1/2 text-gray-300 text-50 bg-light px-1 hidden;
