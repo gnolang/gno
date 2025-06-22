@@ -1,26 +1,24 @@
-// You can edit this code!
-// Click here and start typing.
 package main
 
-import "fmt"
-
-type D interface {
-	B()
+func main() {
+	var x A = aImpl{}
+	x.B()
+	x.C()
 }
+
 type A interface {
+	interface {
+		B()
+	}
+
 	C()
 }
 
-type (
-	aImpl2 struct{}
-	aImpl  struct {
-		D
-		aImpl2
-	}
-)
+type aImpl struct{}
 
 func (aImpl) B() { println(123) }
 func (aImpl) C() { println(456) }
-func main() {
-	fmt.Println("Hello, 世界")
-}
+
+// Output:
+// 123
+// 456
