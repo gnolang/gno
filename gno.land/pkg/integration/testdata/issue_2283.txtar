@@ -58,8 +58,8 @@ import (
             "Body": "package social_feeds\n\nimport (\n\t\"strconv\"\n\t\"strings\"\n\n\t\"gno.land/p/demo/teritori/flags_index\"\n)\n\nvar SEPARATOR = \"/\"\n\nfunc getFlagID(fid FeedID, pid PostID) flags_index.FlagID {\n\treturn flags_index.FlagID(fid.String() + SEPARATOR + pid.String())\n}\n\nfunc parseFlagID(flagID flags_index.FlagID) (FeedID, PostID) {\n\tparts := strings.Split(string(flagID), SEPARATOR)\n\tif len(parts) != 2 {\n\t\tpanic(\"invalid flag ID '\" + string(flagID) + \"'\")\n\t}\n\tfid, err := strconv.Atoi(parts[0])\n\tif err != nil || fid == 0 {\n\t\tpanic(\"invalid feed ID in flag ID '\" + parts[0] + \"'\")\n\t}\n\tpid, err := strconv.Atoi(parts[1])\n\tif err != nil || pid == 0 {\n\t\tpanic(\"invalid post ID in flag ID '\" + parts[1] + \"'\")\n\t}\n\treturn FeedID(fid), PostID(pid)\n}\n"
           },
           {
-            "Name": "gno.mod",
-            "Body": "module gno.land/r/demo/teritori/social_feeds\n\nrequire (\n\tgno.land/p/demo/avl v0.0.0-latest\n\tgno.land/p/demo/teritori/dao_interfaces v0.0.0-latest\n\tgno.land/p/demo/teritori/flags_index v0.0.0-latest\n\tgno.land/p/demo/teritori/ujson v0.0.0-latest\n\tgno.land/p/demo/testutils v0.0.0-latest\n\tgno.land/p/demo/ufmt v0.0.0-latest\n\tgno.land/r/demo/boards v0.0.0-latest\n\tgno.land/r/demo/users v0.0.0-latest\n)\n"
+            "Name": "gnomod.toml",
+            "Body": "module = \"gno.land/r/demo/teritori/social_feeds\"\ngno = \"0.9\"\n"
           },
           {
             "Name": "messages.gno",
@@ -101,10 +101,9 @@ import (
   ],
   "memo": ""
 }
--- bye/gno.mod --
-module gno.land/r/demo/bye
-
-gno 0.9
+-- bye/gnomod.toml --
+module = "gno.land/r/demo/bye"
+gno = "0.9"
 -- bye/bye.gno --
 package bye
 
@@ -118,10 +117,9 @@ func init() {
     base64.StdEncoding.EncodeToString([]byte(val))
 }
 
--- pusers/gno.mod --
-module gno.land/p/demo/users
-
-gno 0.9
+-- pusers/gnomod.toml --
+module = "gno.land/p/demo/users"
+gno = "0.9"
 -- pusers/users.gno --
 package users
 
@@ -167,10 +165,9 @@ func (aon AddressOrName) GetName() (string, bool) {
 	}
 	return "", false
 }
--- users/gno.mod --
-module gno.land/r/demo/users
-
-gno 0.9
+-- users/gnomod.toml --
+module = "gno.land/r/demo/users"
+gno = "0.9"
 -- users/users.gno --
 package users
 
@@ -584,10 +581,9 @@ func init() {
 		restricted.Set(name, true)
 	}
 }
--- boards/gno.mod --
-module gno.land/r/demo/boards
-
-gno 0.9
+-- boards/gnomod.toml --
+module = "gno.land/r/demo/boards"
+gno = "0.9"
 -- boards/boards.gno --
 package boards
 
