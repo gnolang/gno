@@ -63,6 +63,29 @@ func NewDefaultAppConfig() *AppConfig {
 	}
 }
 
+var (
+	renderFactory RenderFactory = DefaultMarkdown
+)
+
+type RenderFactory func(logger *slog.Logger, cfg *AppConfig) (*MarkdownRenderer, error)
+
+func SetRenderFactory(factory RenderFactory) {
+	if factory == nil {
+		panic("RenderFactory cannot be nil")
+	}
+	renderFactory = factory
+}
+
+func DefaultMarkdown(logger *slog.Logger, cfg *AppConfig) (*MarkdownRenderer, error) {
+	markdownCfg := NewDefaultMarkdownRendererConfig(nil)
+	if cfg.UnsafeHTML {
+		markdownCfg.GoldmarkOptions = append(markdownCfg.GoldmarkOptions, goldmark.WithRendererOptions(
+			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
+		))
+	}
+	return NewMarkdownRenderer(logger, markdownCfg), nil
+}
+
 // NewRouter initializes the gnoweb router with the specified logger and configuration.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Initialize RPC Client
@@ -87,14 +110,10 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Analytics:  cfg.Analytics,
 	}
 
-	// Configure Markdown renderer
-	markdownCfg := NewDefaultMarkdownRendererConfig(webcfg.ChromaHTMLOptions)
-	if cfg.UnsafeHTML {
-		markdownCfg.GoldmarkOptions = append(markdownCfg.GoldmarkOptions, goldmark.WithRendererOptions(
-			mdhtml.WithXHTML(), mdhtml.WithUnsafe(),
-		))
+	markdownRenderer, err := renderFactory(logger, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create markdown renderer: %w", err)
 	}
-	markdownRenderer := NewMarkdownRenderer(logger, markdownCfg)
 
 	// Configure WebHandler
 	if cfg.Aliases == nil {

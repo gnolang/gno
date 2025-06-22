@@ -49,16 +49,16 @@ func NewDefaultMarkdownRendererConfig(chromaOptions []chromahtml.Option) *Markdo
 }
 
 type MarkdownRenderer struct {
-	logger   *slog.Logger
-	markdown goldmark.Markdown
+	Logger   *slog.Logger
+	Markdown goldmark.Markdown
 }
 
 var _ ContentRenderer = (*MarkdownRenderer)(nil)
 
 func NewMarkdownRenderer(logger *slog.Logger, cfg *MarkdownRendererConfig) *MarkdownRenderer {
 	return &MarkdownRenderer{
-		logger:   logger,
-		markdown: goldmark.New(cfg.GoldmarkOptions...),
+		Logger:   logger,
+		Markdown: goldmark.New(cfg.GoldmarkOptions...),
 	}
 }
 
@@ -66,14 +66,14 @@ func (mr *MarkdownRenderer) Render(w io.Writer, u *weburl.GnoURL, src []byte) (m
 	ctx := md.NewGnoParserContext(u)
 
 	// Use Goldmark for Markdown parsing
-	doc := mr.markdown.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
-	if err := mr.markdown.Renderer().Render(w, src, doc); err != nil {
+	doc := mr.Markdown.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	if err := mr.Markdown.Renderer().Render(w, src, doc); err != nil {
 		return md.Toc{}, fmt.Errorf("unable to render markdown at path %q: %w", u.Path, err)
 	}
 
 	toc, err := md.TocInspect(doc, src, md.TocOptions{MaxDepth: 6, MinDepth: 2})
 	if err != nil {
-		mr.logger.Warn("unable to inspect for TOC elements", "error", err)
+		mr.Logger.Warn("unable to inspect for TOC elements", "error", err)
 	}
 
 	return toc, nil
