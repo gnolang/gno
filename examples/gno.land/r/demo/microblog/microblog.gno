@@ -67,7 +67,7 @@ func Render(path string) string {
 func PageToString(p *microblog.Page) string {
 	o := ""
 	if u := susers.ResolveAddress(p.Author); u != nil {
-		o += ufmt.Sprintf("# [%s](/r/gnoland/users/v1:%s)\n\n", u, u)
+		o += ufmt.Sprintf("# [%s](/u/%s)\n\n", u, u)
 	}
 	o += ufmt.Sprintf("## [%s](/r/demo/microblog:%s)\n\n", p.Author, p.Author)
 
