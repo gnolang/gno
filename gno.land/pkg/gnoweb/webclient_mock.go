@@ -166,7 +166,7 @@ func pkgHasRender(pkg *MockPackage) bool {
 	return false
 }
 
-// retourne le contenu brut si le test le fournit, ou nil
+// returns the raw content if the test provides it, or nil
 func (m *MockWebClient) SourceFileRaw(pkgPath, fileName string) ([]byte, error) {
 	if m.SourceFileRawFunc != nil {
 		return m.SourceFileRawFunc(pkgPath, fileName)
@@ -174,7 +174,7 @@ func (m *MockWebClient) SourceFileRaw(pkgPath, fileName string) ([]byte, error) 
 	return nil, nil
 }
 
-// teste la présence du fichier d’après le mock ou via HasFileFunc
+// tests the presence of the file according to the mock or via HasFileFunc
 func (m *MockWebClient) HasFile(pkgPath, fileName string) bool {
 	if m.HasFileFunc != nil {
 		return m.HasFileFunc(pkgPath, fileName)
