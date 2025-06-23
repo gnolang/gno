@@ -42,8 +42,8 @@ func init() {
 		res.Write(renderHomepage())
 	})
 
-	router.HandleFunc("balances/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
-		res.Write(renderAllBalances(req.RawPath, req.GetVar("address")))
+	router.HandleFunc("balances", func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write(renderBalances(req.RawPath, req..GetVar("address"))
 	})
 
 	router.HandleFunc("convert/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
@@ -69,7 +69,13 @@ func Render(path string) string {
 func renderHomepage() string {
 	return strings.Replace(`# Gno.land Coins Explorer
 
-This is a simple, readonly realm that allows users to browse native coin balances.
+This is a simple, readonly realm that allows users to browse native coin balances. Check your coin balance below!
+
+<gno-form path="balances">
+  <gno-input name="coin" type="text" placeholder="Coin (e.g. ugnot)"" />
+  <gno-input name="address" type="text" placeholder="Address (e.g. g1... or cosmos1...)" />
+</gno-form>
+
 Here are a few examples on how to use it:
 
 - ~/r/gnoland/coins:balances/<address>~ - show full list of coin balances of an address
@@ -80,6 +86,7 @@ Here are a few examples on how to use it:
 	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
 - ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom
 	- Coming soon!
+
 `, "~", "`", -1)
 }
 
@@ -125,7 +132,7 @@ func renderSingleCoinBalance(banker std.Banker, denom string, addr string) strin
 	return out
 }
 
-func renderAllBalances(rawpath, input string) string {
+func renderBalances(rawpath, input string) string {
 	out := "# Balances\n\n"
 
 	if strings.HasPrefix(input, "cosmos") {
@@ -143,22 +150,22 @@ func renderAllBalances(rawpath, input string) string {
 		}
 	}
 
-	user, _ := users.ResolveAny(input)
-	name := "`" + input + "`"
-	if user != nil {
-		name = user.RenderLink("")
-	}
-
 	banker := std.NewBanker(std.BankerTypeReadonly)
-	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
-		name, std.ChainHeight())
-
 	req := realmpath.Parse(rawpath)
 
 	coin := req.Query.Get("coin")
 	if coin != "" {
 		return renderSingleCoinBalance(banker, coin, input)
 	}
+
+	user, _ := users.ResolveAny(input)
+	name := "`" + input + "`"
+	if user != nil {
+		name = user.RenderLink("")
+	}
+
+	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
+		name, std.ChainHeight())
 
 	balances := banker.GetCoins(std.Address(input))
 
