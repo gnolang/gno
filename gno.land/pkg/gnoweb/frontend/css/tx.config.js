@@ -1,4 +1,4 @@
-const pxToRem = (px) => px / 16;
+const pxToRem = px => px / 16;
 
 export default {
   content: ["./components/**/*.{html,ts}"],
@@ -69,12 +69,6 @@ export default {
         400: "#7F49EB",
         600: "#6C3EC9", // Tip alert color
         900: "#39216B",
-      },
-      yellow: {
-        50: "#FFFCF1",
-        400: "#FACC32",
-        600: "#FBBF24",
-        900: "#7b4807",
       },
       transparent: "transparent",
       current: "currentColor",
