@@ -3,6 +3,7 @@ package fix
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -70,7 +71,7 @@ Translate Interrealm Spec 2 to Interrealm Spec 3 (Gno 0.9)
 Also refer to the [Lint and Transpile ADR](./adr/pr4264_lint_transpile.md).
 */
 
-func interrealm(opts Options, f *ast.File) bool {
+func interrealm(f *ast.File) (fixed bool) {
 	// cross(fn)(args) -> fn(cross, args)
 	// func(...) (...) { crossing(); ... -> func(cur realm, ...) (...) { ...
 	// for transformed fn in same package:
@@ -96,26 +97,24 @@ func interrealm(opts Options, f *ast.File) bool {
 				// if popping out of a block, rename any reserved names.
 				last := sc[len(sc)-1]
 				for _, rn := range reservedNames {
-					if du := last[rn]; du != nil {
+					// When popping out of the last block, there are also names
+					// without a corresponding definition. Ignore them, as we
+					// cannot rename the matching definition.
+					if du := last[rn]; du != nil && du.def != nil {
 						newName := rn + "_"
 						for last[newName] != nil {
 							newName += "_"
 						}
 						du.rename(newName)
+						fixed = true
 					}
 				}
 			}
 			switch n := c.Node().(type) {
 			case *ast.FuncLit:
-				if hasCrossingStatement(n.Body.List) {
-					addRealmArg(sc, n.Type)
-					n.Body.List = n.Body.List[1:]
-				}
+				fixed = convertCrossing(sc, n.Body, n.Type) || fixed
 			case *ast.FuncDecl:
-				if hasCrossingStatement(n.Body.List) {
-					addRealmArg(sc, n.Type)
-					n.Body.List = n.Body.List[1:]
-				}
+				fixed = convertCrossing(sc, n.Body, n.Type) || fixed
 			case *ast.CallExpr:
 				// Rewrite cross(fn)(args...) -> fn(cross, args...)
 				cx, ok := n.Fun.(*ast.CallExpr)
@@ -131,23 +130,34 @@ func interrealm(opts Options, f *ast.File) bool {
 					n.Args = append([]ast.Expr{
 						ast.NewIdent("cross"),
 					}, n.Args...)
+					fixed = true
 				}
 			}
 			return true
 		},
 	)
-	// Assume fixed = true, there may be more transformations done afterwards.
+	return
+}
+
+func convertCrossing(sc scopes, body *ast.BlockStmt, tp *ast.FuncType) bool {
+	if !hasCrossingStatement(body) {
+		return false
+	}
+
+	addRealmArg(sc, tp)
+	body.Lbrace = body.List[0].End()
+	body.List = body.List[1:]
 	return true
 }
 
-func hasCrossingStatement(ss []ast.Stmt) bool {
+func hasCrossingStatement(bs *ast.BlockStmt) bool {
 	// This function will panic only for nil ptr derefences or invalid
 	// assertions. Rather than handling each of them, simply no-op recover when
 	// they happen and return false.
 	defer func() {
 		recover()
 	}()
-	cx := ss[0].(*ast.ExprStmt).X.(*ast.CallExpr)
+	cx := bs.List[0].(*ast.ExprStmt).X.(*ast.CallExpr)
 	return cx.Fun.(*ast.Ident).Name == "crossing" && len(cx.Args) == 0
 }
 
@@ -161,8 +171,15 @@ func addRealmArg(sc scopes, ft *ast.FuncType) {
 		}
 		names = []*ast.Ident{ast.NewIdent(id)}
 	}
+	end := token.NoPos
+	if len(ft.Params.List) == 0 {
+		end = ft.Params.End() - 1
+	}
 	ft.Params.List = append([]*ast.Field{{
 		Names: names,
-		Type:  ast.NewIdent("realm"),
+		Type: &ast.Ident{
+			NamePos: end,
+			Name:    "realm",
+		},
 	}}, ft.Params.List...)
 }

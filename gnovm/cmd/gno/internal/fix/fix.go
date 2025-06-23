@@ -8,46 +8,17 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"io"
-	"os"
 	"slices"
 	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-type Options struct {
-	RootDir string    // gno root dir.
-	Verbose io.Writer // Output for verbose error messages. Optional.
-	Error   io.Writer // Output for error messages. If nil, will be set to os.Stderr.
-
-	// A simple context map to keep information about previously done
-	// transformations on a given target. A target is either a file or a directory,
-	// representing a package.
-	// This is used, for instance, to track information about inter-realm
-	// functions which have had their signature changed.
-	TargetCtx map[any]any
-}
-
-func (o *Options) Verbosefln(format string, args ...any) {
-	if o.Verbose != nil {
-		fmt.Fprintf(o.Verbose, format, args...)
-	}
-}
-
-func (o *Options) Errorfln(format string, args ...any) {
-	out := o.Error
-	if out == nil {
-		out = os.Stderr
-	}
-	fmt.Fprintf(out, format, args...)
-}
-
 // Fix is an individual fix provided by this package.
 type Fix struct {
 	Name string
 	Date string // date that fix was introduced, in YYYY-MM-DD format
-	F    func(opts Options, f *ast.File) bool
+	F    func(f *ast.File) bool
 	Desc string
 
 	// gnomod.toml version applied after this fix. If not said, applied
@@ -57,9 +28,12 @@ type Fix struct {
 
 var Fixes = []Fix{
 	{
-		Name:    "interrealm",
-		Date:    "2025-06-06",
-		Desc:    "gno 0.9 inter-realm syntax change",
+		Name: "interrealm",
+		Date: "2025-06-06",
+		Desc: `gno 0.9 inter-realm syntax change. This is a version of the transpiler
+which works directly onto the AST (without type checking); function calls to
+funcs/methods in the same package will not be modified, as such some manual
+modification may be required in these cases.`,
 		F:       interrealm,
 		Version: "0.9",
 	},
@@ -243,7 +217,8 @@ func deleteImport(f *ast.File, path string) (deleted bool) {
 //
 // Callers are responsible for tracking identifiers of any ImportSpec.
 func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
-	sc := scopes{scope{}}
+	// likely upper bound of nested scopes.
+	sc := make(scopes, 0, 32)
 	return astutil.Apply(
 		f,
 		func(c *astutil.Cursor) bool {
@@ -341,7 +316,8 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 				*ast.CaseClause,
 				*ast.CommClause,
 				*ast.ForStmt,
-				*ast.SelectStmt:
+				*ast.SelectStmt,
+				*ast.File:
 				sc.push()
 
 			}
@@ -373,7 +349,8 @@ func isBlockNode(n ast.Node) bool {
 		*ast.CommClause,
 		*ast.ForStmt,
 		*ast.SelectStmt,
-		*ast.RangeStmt:
+		*ast.RangeStmt,
+		*ast.File:
 		return true
 	}
 	return false
@@ -451,6 +428,9 @@ func (s scopes) declareList(fl *ast.FieldList) {
 	for _, field := range fl.List {
 		for _, name := range field.Names {
 			s.declare(name, field)
+			// ast.Fields are not added when going through ast.Ident's;
+			// so let's add usage info here.
+			s.use(name)
 		}
 	}
 }

@@ -1,19 +1,26 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/fix"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 type fixCmd struct {
@@ -23,6 +30,7 @@ type fixCmd struct {
 	filetestsMatch string
 	diff           bool
 	fix            string
+	fixFilter      func(s string) bool
 }
 
 func newFixCmd(cio commands.IO) *commands.Command {
@@ -72,29 +80,76 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
-	fixFilter := func(s string) bool { return true }
 	if cmd.fix != "" {
 		fixes := strings.Split(cmd.fix, ",")
-		fixFilter = func(s string) bool { return slices.Contains(fixes, s) }
+		cmd.fixFilter = func(s string) bool { return slices.Contains(fixes, s) }
+	} else {
+		cmd.fixFilter = func(s string) bool { return true }
 	}
 
-	opts := fix.Options{
-		RootDir: cmd.rootDir,
-	}
-	if cmd.verbose {
-		opts.Verbose = cio.Err()
-	}
-
-	paths, err := targetsFromPatterns(args)
+	targets, err := targetsFromPatterns(args)
 	if err != nil {
 		return fmt.Errorf("unable to get targets paths from patterns: %w", err)
 	}
 
-	files, err := gnoFilesFromArgs(paths)
-	if err != nil {
-		return fmt.Errorf("unable to gather gno files: %w", err)
+	for _, targ := range targets {
+		files, err := gnoFilesFromArgs([]string{targ})
+		if err != nil {
+			return fmt.Errorf("unable to gather gno files: %w", err)
+		}
+		if len(files) == 0 {
+			continue
+		}
+		// individual file: process fix without version
+		if len(files) == 1 && files[0] == targ {
+			if err := cmd.processFix(cio, files, nil); err != nil {
+				return err
+			}
+		}
+		gm, isDotMod := gnoFixParseGnomod(targ)
+		if err := cmd.processFix(cio, files, gm); err != nil {
+			return err
+		}
+		if !cmd.diff {
+			if err = gm.WriteFile(filepath.Join(targ, "gnomod.toml")); err != nil {
+				return fmt.Errorf("writing gnomod.toml: %w", err)
+			}
+			if isDotMod {
+				err := os.Remove(filepath.Join(targ, "gno.mod"))
+				if err != nil {
+					return fmt.Errorf("removing gno.mod: %w", err)
+				}
+			}
+		}
 	}
 
+	return err
+}
+
+func gnoFixParseGnomod(dir string) (mod *gnomod.File, isDotMod bool) {
+	fpath := filepath.Join(dir, "gnomod.toml")
+	mod, err := gnomod.ParseFilepath(fpath)
+	if errors.Is(err, fs.ErrNotExist) {
+		// We try a lazy migration from gno.mod if it exists and is valid.
+		deprecatedDotmod := filepath.Join(dir, "gno.mod")
+		mod, err = gnomod.ParseFilepath(deprecatedDotmod)
+		if err != nil {
+			// It doesn't exist or we can't parse it.
+			// Make a temporary gnomod.toml (but don't write it yet)
+			modstr := gno.GenGnoModMissing("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
+			mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
+			if err != nil {
+				panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
+			}
+		} else {
+			isDotMod = true
+		}
+	}
+	return
+}
+
+func (cmd *fixCmd) processFix(cio commands.IO, files []string, gm *gnomod.File) error {
+	var newVersion string
 	for _, file := range files {
 		if cmd.verbose {
 			cio.ErrPrintln(file)
@@ -114,8 +169,21 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 		// set if any of the fixes changed the AST.
 		fixed := false
 		for _, fx := range fix.Fixes {
-			if fx.F == nil || !fixFilter(fx.Name) {
+			if fx.F == nil || !cmd.fixFilter(fx.Name) {
 				continue
+			}
+			if fx.Version != "" && gm != nil {
+				cmpv, ok := gno.CompareVersions(fx.Version, gm.Gno)
+				if ok && cmpv <= 0 {
+					if cmd.verbose {
+						cio.ErrPrintfln(
+							"%s: %s: skipping fix (fix version %q <= gnomod version %q)",
+							file, fx.Name, fx.Version, gm.Gno,
+						)
+					}
+					continue
+				}
+				newVersion = fx.Version
 			}
 			// wrap in anonymous func so we can recover and wrap errors with file name.
 			func() {
@@ -124,28 +192,44 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 					switch rec := rec.(type) {
 					case nil:
 					case error:
-						panic(fmt.Errorf("%s: %s: %w", fx.Name, file, rec))
+						panic(fmt.Errorf("%s: %s: %w", file, fx.Name, rec))
 					default:
-						panic(fmt.Errorf("%s: %s: %v", fx.Name, file, rec))
+						panic(fmt.Errorf("%s: %s: %v", file, fx.Name, rec))
 					}
 				}()
-				fixed = fx.F(opts, parsed) || fixed
+				fixed = fx.F(parsed) || fixed
 			}()
 		}
 		if !fixed {
 			// onto the next file.
 			continue
 		}
-		// XXX: diff option - https://github.com/thehowl/gno/pull/1/files
-		f, err := os.Create(file)
-		if err != nil {
-			return fmt.Errorf("cannot write to dst file: %w", err)
-		}
-		err = format.Node(f, fset, parsed)
-		f.Close()
-		if err != nil {
-			return fmt.Errorf("error formatting: %w", err)
+		if cmd.diff {
+			var buf bytes.Buffer
+			if err := format.Node(&buf, fset, parsed); err != nil {
+				return fmt.Errorf("error formatting: %w", err)
+			}
+			difflib.WriteUnifiedDiff(cio.Out(), difflib.UnifiedDiff{
+				FromFile: file,
+				ToFile:   file,
+				A:        difflib.SplitLines(string(src)),
+				B:        difflib.SplitLines(buf.String()),
+				Context:  3,
+			})
+		} else {
+			f, err := os.Create(file)
+			if err != nil {
+				return fmt.Errorf("cannot write to dst file: %w", err)
+			}
+			err = format.Node(f, fset, parsed)
+			f.Close()
+			if err != nil {
+				return fmt.Errorf("error formatting: %w", err)
+			}
 		}
 	}
-	return err
+	if gm != nil && newVersion != "" {
+		gm.Gno = newVersion
+	}
+	return nil
 }

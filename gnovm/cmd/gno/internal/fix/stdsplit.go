@@ -84,7 +84,7 @@ func makeSplitFuncs() {
 	splitFuncs["std.GetHeight"] = splitFuncs["std.ChainHeight"]
 }
 
-func stdsplit(opts Options, f *ast.File) (fixed bool) {
+func stdsplit(f *ast.File) (fixed bool) {
 	if splitFuncs == nil {
 		makeSplitFuncs()
 	}
