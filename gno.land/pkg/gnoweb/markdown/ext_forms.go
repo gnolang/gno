@@ -20,12 +20,15 @@ var KindForm = ast.NewNodeKind("Form")
 const (
 	defaultInputType   = "text"
 	defaultPlaceholder = "Enter value"
+
+	// HTML tag names
+	tagGnoForm  = "gno-form"
+	tagGnoInput = "gno-input"
 )
 
 var (
 	ErrFormUnexpectedOrInvalidTag = errors.New("unexpected or invalid tag")
-	ErrFormInputMissingName       = errors.New("gno-input must have a 'name' attribute")
-	ErrFormNoEndingTag            = errors.New("no ending tag found")
+	ErrFormInputMissingName       = errors.New(tagGnoInput + " must have a 'name' attribute")
 	ErrFormInvalidInputType       = errors.New("invalid input type")
 	ErrFormInputNameAlreadyUsed   = errors.New("input name already used")
 )
@@ -139,7 +142,7 @@ func (p *formParser) Trigger() []byte {
 func (p *formParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
 	tok, valid := parseFormTag(line)
-	if !valid || tok.Data != "gno-form" {
+	if !valid || tok.Data != tagGnoForm {
 		return nil, parser.NoChildren
 	}
 
@@ -174,7 +177,7 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		return parser.Continue
 	}
 
-	if tok.Data == "gno-form" {
+	if tok.Data == tagGnoForm {
 		if tok.Type == html.EndTagToken {
 			reader.AdvanceLine()
 			return parser.Close // done
@@ -184,7 +187,7 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		return parser.Continue
 	}
 
-	if tok.Data != "gno-input" {
+	if tok.Data != tagGnoInput {
 		formNode.NewErrorInput(ErrFormUnexpectedOrInvalidTag)
 		return parser.Continue
 	}
@@ -277,7 +280,7 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	}
 
 	// Render form opening and header
-	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s">`+"\n", HTMLEscapeString(formAction))
+	fmt.Fprintf(w, `<form class="gno-form" method="post" action="%s" autocomplete="off" spellcheck="false">`+"\n", HTMLEscapeString(formAction))
 	fmt.Fprintln(w, `<div class="gno-form_header">`)
 	fmt.Fprintf(w, `<span><span class="font-bold">%s</span> Form</span>`+"\n", HTMLEscapeString(n.RealmName))
 	fmt.Fprintf(w, `<span class="tooltip" data-tooltip="Processed securely by %s"><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`+"\n", HTMLEscapeString(n.RealmName))
@@ -312,11 +315,6 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 type formExtension struct{}
 
-// NewFormExtension creates a new instance of formExtension
-func NewFormExtension() *formExtension {
-	return &formExtension{}
-}
-
 // Extend adds parsing and rendering options for the Form node
 func (e *formExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
@@ -327,5 +325,4 @@ func (e *formExtension) Extend(m goldmark.Markdown) {
 	)
 }
 
-// Forms is the extension instance
 var ExtForms = &formExtension{}
