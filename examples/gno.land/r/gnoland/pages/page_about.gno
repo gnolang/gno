@@ -25,5 +25,7 @@ One of our inspirations for Gno.land is the gospels, which built a system of mor
 By observing a minimal production implementation, Gno.land’s design will endure over time and serve as a reference for
 future generations with censorship-resistant tools that improve their understanding of the world.
 `
-	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:22Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2022-05-20T13:17:22Z", nil, nil); err != nil {
+		panic(err)
+	}
 }
