@@ -275,8 +275,15 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
+
+			var mpkgType gno.MemPackageType
+			if gno.IsStdlib(mpkg.Path) {
+				mpkgType = gno.MPStdlibIntegration
+			} else {
+				mpkgType = gno.MPUserIntegration
+			}
 			itmpkg := &std.MemPackage{
-				Type:  gno.MPUserIntegration,
+				Type:  mpkgType,
 				Name:  mpkg.Name + "_test",
 				Path:  mpkg.Path + "_test",
 				Files: itfiles,

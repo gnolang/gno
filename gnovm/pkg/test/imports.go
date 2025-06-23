@@ -233,6 +233,8 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		// Override path. Definitions here override the previous if duplicate.
 		dirs = append(dirs, filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath))
 		mPkgType = gno.MPStdlibTest
+	} else {
+		mPkgType = gno.MPStdlibProd
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for _, path := range dirs {
