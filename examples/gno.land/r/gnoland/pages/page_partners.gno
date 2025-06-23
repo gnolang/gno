@@ -11,5 +11,7 @@ provides financial contributions for individuals and teams to innovate on the pl
 
 Read more about our Funds and Grants program [here](https://github.com/gnolang/ecosystem-fund-grants).
 `
-	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:27Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2022-05-20T13:17:25Z", nil, nil); err != nil {
+		panic(err)
+	}
 }

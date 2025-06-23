@@ -20,5 +20,7 @@ Below are Gno.land's most important links.
 #### [Gno.land Playground, an online editor for exploring Gno.land](https://play.gno.land)
 #### [GnoScan, a Gno.land block explorer](https://gnoscan.io/)
 `
-	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:30Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2025-06-23T13:17:30Z", nil, nil); err != nil {
+		panic(err)
+	}
 }

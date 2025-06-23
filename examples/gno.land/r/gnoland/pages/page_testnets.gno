@@ -12,5 +12,7 @@ For a list of RPC endpoints, see the [reference documentation](https://docs.gno.
 
 See the "Build on Gno.land" section in the [Official Documentation](https://docs.gno.land/).
 `
-	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:29Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2022-05-20T13:17:27Z", nil, nil); err != nil {
+		panic(err)
+	}
 }
