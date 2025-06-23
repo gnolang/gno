@@ -7,17 +7,16 @@ import (
 
 func TestHome(t *testing.T) {
 	printedOnce := false
-	got := Render("")
+	got := Render("p/about")
+
 	expectedSubtrings := []string{
 		"/r/gnoland/pages:p/tokenomics",
 		"/r/gnoland/pages:p/start",
-		"/r/gnoland/pages:p/about",
 		"/r/gnoland/pages:p/links",
 		"/r/gnoland/pages:p/contribute",
 		"/r/gnoland/pages:p/about",
 		"/r/gnoland/pages:p/gnolang",
 	}
-	println(got)
 
 	for _, substring := range expectedSubtrings {
 		if !strings.Contains(got, substring) {

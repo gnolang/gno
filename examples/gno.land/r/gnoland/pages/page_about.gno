@@ -26,6 +26,6 @@ By observing a minimal production implementation, Gno.land’s design will endur
 future generations with censorship-resistant tools that improve their understanding of the world.
 `
 	if err := b.NewPost("", path, title, body, "2022-05-20T13:17:22Z", nil, nil); err != nil {
-		panic(err)
+		panic("WATAFAKKKKK")
 	}
 }

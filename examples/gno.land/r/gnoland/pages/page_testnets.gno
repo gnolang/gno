@@ -2,7 +2,7 @@ package gnopages
 
 func init() {
 	path := "testnets"
-	title := "gno.land Testnet List"
+	title := "Gno.land Testnet List"
 	body := `
 - [Staging](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops) - a rolling testnet
 
