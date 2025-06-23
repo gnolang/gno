@@ -24,13 +24,10 @@ import (
 )
 
 type fixCmd struct {
-	verbose        bool
-	rootDir        string
-	filetestsOnly  bool
-	filetestsMatch string
-	diff           bool
-	fix            string
-	fixFilter      func(s string) bool
+	verbose   bool
+	diff      bool
+	fix       string
+	fixFilter func(s string) bool
 }
 
 func newFixCmd(cio commands.IO) *commands.Command {
@@ -63,9 +60,7 @@ The available fixes are the following:
 
 func (c *fixCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when fixing")
-	fs.StringVar(&c.rootDir, "root-dir", "", "clone location of github.com/gnolang/gno (gno tries to guess it)")
-	fs.BoolVar(&c.filetestsOnly, "filetests-only", false, "dir only contains filetests. not recursive.")
-	fs.StringVar(&c.filetestsMatch, "filetests-match", "", "if --filetests-only=true, filters by substring match.")
+	fs.BoolVar(&c.diff, "diff", false, "show diffs of files which are meant to be changed (without writing to them)")
 	fs.StringVar(&c.fix, "fix", "", "comma-separated of fixes to run. by default all known fixes.")
 }
 
