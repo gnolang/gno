@@ -6,26 +6,105 @@ import (
 	"gno.land/p/mason/md"
 )
 
+type HeaderLink func(rawPath string) string
+
+type HeaderPreset struct {
+	Label   string
+	Default string
+	Render  HeaderLink
+}
+
+func RenderModeToggle(rawPath string) string {
+	return md.Link("⊞ grid", GetGridFmtPath(rawPath)) + " | " +
+		md.Link("☰ list", GetListFmtPath(rawPath))
+}
+
+func RenderTimeFormat(rawPath string) string {
+	time := parseQueryParams("time", rawPath)
+	if time == "" {
+		time = "relative"
+	}
+	return md.Link("⏱ "+time, GetTimeFmtPath(rawPath, toggleTimeFormat(time)))
+}
+
+func RenderSortAlpha(rawPath string) string {
+	sort := parseQueryParams("sort", rawPath)
+	order := parseQueryParams("order", rawPath)
+	if order == "" {
+		order = "desc"
+	}
+	alphaOrder := "(A-Z)"
+	if order == "desc" && sort == "alpha" {
+		alphaOrder = "(Z-A)"
+	}
+	return md.Link(orderArrow("alpha", sort, order)+" alphabetical "+alphaOrder,
+		GetSortByAlphabeticalPath(rawPath, order))
+}
+
+func RenderSortRecent(rawPath string) string {
+	sort := parseQueryParams("sort", rawPath)
+	order := parseQueryParams("order", rawPath)
+	if order == "" {
+		order = "desc"
+	}
+	publishedOrder := " recent"
+	if order == "desc" && sort == "recent" {
+		publishedOrder = " oldest"
+	}
+	return md.Link(orderArrow("recent", sort, order)+publishedOrder,
+		GetSortByPublishedPath(rawPath, order))
+}
+
+func RenderSortUpdate(rawPath string) string {
+	sort := parseQueryParams("sort", rawPath)
+	order := parseQueryParams("order", rawPath)
+	if order == "" {
+		order = "desc"
+	}
+	return md.Link(orderArrow("update", sort, order)+" last updated",
+		GetSortByUpdatedPath(rawPath, order))
+}
+
+func SetCustomHeader(rawPath string, presets []HeaderPreset) string {
+	out := ""
+	for i, preset := range presets {
+		if preset.Render != nil {
+			out += preset.Render(rawPath)
+		} else {
+			out += preset.Label + ": " + preset.Default
+		}
+		if i < len(presets)-1 {
+			out += " | "
+		}
+	}
+	return out
+}
+
 type TimeRangePreset struct {
 	Label string
 	Start string
 	End   string
 }
 
-var TimeRangePresets = []TimeRangePreset{
-	{"past year", "2024-01-01", "2024-12-31"},
-	{"this year", "2025-01-01", "2025-12-31"},
+var DefaultTimeRanges = []TimeRangePreset{
+	{"past year", "2024-01-01", "2024-12-31"}, // change to adjust based on time.Now()
+	{"this year", "2025-01-01", "2025-12-31"}, // change to adjust based on time.Now()
 	{"last 30 days", time.Now().AddDate(0, 0, -30).Format("2006-01-02"), time.Now().Format("2006-01-02")},
 }
 
-func renderTimeRangeLinks(rawPath string) string {
-	var out string
-	for i, r := range TimeRangePresets {
+func RenderTimeRangeLinks(rawPath string, presets []TimeRangePreset) string {
+	out := ""
+	timePresets := presets
+	// if presets == [] {
+	// 	timePresets = DefaultTimeRanges
+	// }
+	// for i, r := range timePresets {
+	for i, r := range DefaultTimeRanges {
 		out += md.Link(r.Label, updateQueryMulti(rawPath, map[string]string{
 			"start": r.Start,
 			"end":   r.End,
 		}))
-		if i < len(TimeRangePresets)-1 {
+		if i < len(timePresets)-1 {
 			out += ", "
 		}
 	}
