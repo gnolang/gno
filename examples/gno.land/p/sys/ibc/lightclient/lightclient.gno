@@ -1,4 +1,4 @@
-package core
+package lightclient
 
 // Status represents the status of a client
 type Status string
