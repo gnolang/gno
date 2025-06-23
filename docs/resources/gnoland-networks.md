@@ -137,7 +137,7 @@ is the `gnoweb` render of the Staging testnet.
 ### Test6
 
 Test6 is the latest testnet released on the 23rd of June, 2025. It enables token 
-locking, implements the interrealm specification, and more.
+locking, implements the interrealm specification, GovDAO V3 and more.
 
 - **Persistence of state:**
   - State is fully persisted unless there are breaking changes in a new release,
