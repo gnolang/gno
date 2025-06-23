@@ -36,7 +36,7 @@ func (b Blog) RenderLastPostsWidget(limit int) string {
 	return output
 }
 
-func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
+func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 	if !b.NoBreadcrumb {
 		res.Write(breadcrumb([]string{b.Title}))
 	}
