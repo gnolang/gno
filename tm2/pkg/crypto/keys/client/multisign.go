@@ -170,7 +170,7 @@ func saveTx(tx *std.Tx, path string) error {
 	// Encode the transaction
 	encodedTx, err := amino.MarshalJSON(tx)
 	if err != nil {
-		return fmt.Errorf("unable ot marshal tx to JSON, %w", err)
+		return fmt.Errorf("unable to marshal tx to JSON, %w", err)
 	}
 
 	// Save the transaction
