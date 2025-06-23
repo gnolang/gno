@@ -17,14 +17,9 @@ type SourceData struct {
 	FileSource   Component
 }
 
-// IsReadme reports whether the current file is README.md.
-func (d SourceData) IsReadme() bool {
-	return d.FileName == "README.md"
-}
-
 // WrappedSource returns a Component: raw for README.md, or code_wrapper otherwise.
 func (d SourceData) WrappedSource() Component {
-	if d.IsReadme() {
+	if d.FileName == "README.md" {
 		return d.FileSource
 	}
 	return NewTemplateComponent("ui/code_wrapper", d.FileSource)
@@ -32,7 +27,7 @@ func (d SourceData) WrappedSource() Component {
 
 // ArticleClasses returns the CSS classes based on file type.
 func (d SourceData) ArticleClasses() string {
-	if d.IsReadme() {
+	if d.FileName == "README.md" {
 		return "realm-view bg-light px-4 pt-6 pb-4 rounded lg:col-span-7"
 	}
 	return "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900"
@@ -74,7 +69,7 @@ func SourceView(data SourceData) *View {
 		}
 
 		switch {
-		case SourceData{FileName: file}.IsReadme():
+		case file == "README.md":
 			tocData.ReadmeFile = item
 
 		case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):
