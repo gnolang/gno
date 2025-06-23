@@ -6,30 +6,26 @@ import (
 )
 
 func TestHome(t *testing.T) {
-	//printedOnce := false
-	//got := Render("")
+	printedOnce := false
+	got := Render("")
 
-	println(b.Posts.Size())
-	println(b.PostsAlphabetical.Size())
-	println(b.PostsPublished.Size())
+	expectedSubtrings := []string{
+		"/r/gnoland/pages:p/tokenomics",
+		"/r/gnoland/pages:p/links",
+		"/r/gnoland/pages:p/contribute",
+		"/r/gnoland/pages:p/start",
+		"/r/gnoland/pages:p/about",
+		"/r/gnoland/pages:p/gnolang",
+	}
 
-	//expectedSubtrings := []string{
-	//	"/r/gnoland/pages:p/tokenomics",
-	//	"/r/gnoland/pages:p/links",
-	//	"/r/gnoland/pages:p/contribute",
-	//	"/r/gnoland/pages:p/start",
-	//	"/r/gnoland/pages:p/about",
-	//	"/r/gnoland/pages:p/gnolang",
-	//}
-	//
-	//for _, substring := range expectedSubtrings {
-	//	if !strings.Contains(got, substring) {
-	//		if !printedOnce {
-	//			printedOnce = true
-	//		}
-	//		t.Errorf("expected %q, but not found.", substring)
-	//	}
-	//}
+	for _, substring := range expectedSubtrings {
+		if !strings.Contains(got, substring) {
+			if !printedOnce {
+				printedOnce = true
+			}
+			t.Errorf("expected %q, but not found.", substring)
+		}
+	}
 }
 
 func TestAbout(t *testing.T) {
