@@ -5,7 +5,7 @@ func init() {
 	title := "Useful links"
 	body := `
 
-Link1
+[### Link1]()
 
 Link2
 
