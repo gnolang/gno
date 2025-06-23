@@ -1,9 +1,9 @@
 package gnopages
 
 func init() {
-	path := "partners"
-	title := "Partnerships"
-	body := `# Useful links
+	path := "links"
+	title := "Useful links"
+	body := `
 
 Link1
 
