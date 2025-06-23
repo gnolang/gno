@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/fix"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -68,11 +67,6 @@ func execFix(cmd *fixCmd, args []string, cio commands.IO) error {
 	// Show a help message by default.
 	if len(args) == 0 {
 		return flag.ErrHelp
-	}
-
-	// Guess cmd.RootDir.
-	if cmd.rootDir == "" {
-		cmd.rootDir = gnoenv.RootDir()
 	}
 
 	if cmd.fix != "" {
