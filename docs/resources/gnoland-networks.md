@@ -148,6 +148,11 @@ locking, implements the interrealm specification, GovDAO V3 and more.
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
 
+
+### TestX
+
+These testnets are deprecated and currently serve as archives of previous progress.
+
 ### Test5 (archive)
 
 Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
@@ -155,10 +160,6 @@ nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
 improvements.
 
 Test5 was launched in November 2024.
-
-### TestX
-
-These testnets are deprecated and currently serve as archives of previous progress.
 
 ## Test4 (archive)
 
