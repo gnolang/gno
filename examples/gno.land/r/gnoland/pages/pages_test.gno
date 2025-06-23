@@ -15,10 +15,11 @@ func TestHome(t *testing.T) {
 		"/r/gnoland/pages:p/about",
 		"/r/gnoland/pages:p/gnolang",
 	}
+	println(got)
+
 	for _, substring := range expectedSubtrings {
 		if !strings.Contains(got, substring) {
 			if !printedOnce {
-				println(got)
 				printedOnce = true
 			}
 			t.Errorf("expected %q, but not found.", substring)
