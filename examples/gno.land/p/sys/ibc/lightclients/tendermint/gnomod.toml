@@ -1,2 +1,0 @@
-module = "gno.land/p/sys/ibc/lightclients/tendermint"
-gno = "0.9"

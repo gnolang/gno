@@ -1,6 +1,10 @@
 package tendermint
 
-import "time"
+import (
+	"time"
+
+	"gno.land/p/demo/ufmt"
+)
 
 // ClientState from Tendermint tracks the current validator set, latest height,
 // and a possible frozen height.
@@ -56,6 +60,10 @@ type Height struct {
 	RevisionNumber uint64
 	// the height within the given revision
 	RevisionHeight uint64
+}
+
+func (h Height) String() string {
+	return ufmt.Sprintf("%d/%d", h.RevisionNumber, h.RevisionHeight)
 }
 
 // ConsensusState defines the consensus state from Tendermint.

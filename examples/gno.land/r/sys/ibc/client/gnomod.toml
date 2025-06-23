@@ -1,0 +1,2 @@
+module = "gno.land/r/sys/ibc/client"
+gno = "0.9"
