@@ -112,10 +112,15 @@ func renderBalances(req *mux.Request) string {
 		name = user.RenderLink("")
 	}
 
+	balances := banker.GetCoins(std.Address(input))
+
+	if len(balances) == 0 {
+		out += "This address currently has no coins."
+		return out
+	}
+
 	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
 		name, std.ChainHeight())
-
-	balances := banker.GetCoins(std.Address(input))
 
 	// Determine sorting
 	if getSortField(req) == "balance" {
