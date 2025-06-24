@@ -294,7 +294,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			ParseMode: gno.ParseModeAll,
 			Mode:      gno.TCLatestRelaxed,
 			Cache:     opts.Cache,
-		}); err != nil {
+		}, 0); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 
@@ -330,7 +330,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = tx
 
 		// Validate Gno syntax and type check.
-		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll, gno.TCLatestRelaxed); err != nil {
+		if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, gno.ParseModeAll, gno.TCLatestRelaxed, 0); err != nil {
 			tcError = fmt.Sprintf("%v", err.Error())
 		}
 

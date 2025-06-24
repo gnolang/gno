@@ -284,7 +284,7 @@ func lintTypeCheck(
 	lerr error,
 ) {
 	// gno.TypeCheckMemPackage(mpkg, testStore).
-	_, tcErrs := gno.TypeCheckMemPackageWithOptions(mpkg, testStore, tcopts)
+	_, tcErrs := gno.TypeCheckMemPackageWithOptions(mpkg, testStore, tcopts, 0)
 
 	// Print errors, and return the first unexpected error.
 	errors := multierr.Errors(tcErrs)

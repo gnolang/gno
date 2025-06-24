@@ -142,13 +142,13 @@ const (
 // Args:
 
 // - tcmode: TypeCheckMode, see comments above.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, pmode ParseMode, tcmode TypeCheckMode) (
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, pmode ParseMode, tcmode TypeCheckMode, height int64) (
 	pkg *types.Package, errs error,
 ) {
 	return TypeCheckMemPackageWithOptions(mpkg, getter, TypeCheckOptions{
 		ParseMode: pmode,
 		Mode:      tcmode,
-	})
+	}, height)
 }
 
 type TypeCheckCache map[string]*gnoImporterResult
@@ -163,7 +163,7 @@ type TypeCheckOptions struct {
 }
 
 // TypeCheckMemPackageWithOptions checks the given mpkg, configured using opts.
-func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGetter, opts TypeCheckOptions) (
+func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGetter, opts TypeCheckOptions, height int64) (
 	pkg *types.Package, errs error,
 ) {
 	if opts.Cache == nil {
@@ -172,6 +172,7 @@ func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGette
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
+		height:  height,
 		tcmode:  opts.Mode,
 		getter:  gnoBuiltinsGetterWrapper{getter},
 		cache:   opts.Cache,
@@ -200,6 +201,7 @@ type gnoImporterResult struct {
 type gnoImporter struct {
 	// when importing self (from xxx_test package) include *_test.gno.
 	pkgPath string
+	height  int64
 	tcmode  TypeCheckMode
 	getter  MemPackageGetter
 	cache   TypeCheckCache
@@ -251,6 +253,16 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		// TODO: For completeness we could append to a separate slice
 		// and check presence in gimp.importErrors before converting.
 		// gimp.importErrors = append(gimp.importErrors, err)
+		result.err = err
+		result.pending = false
+		return nil, err
+	}
+	mod, err := ParseCheckGnoMod(mpkg)
+	if err != nil {
+		return nil, err
+	}
+	if mod.Draft && gimp.height != 0 {
+		err := ImportDraftError{PkgPath: pkgPath}
 		result.err = err
 		result.pending = false
 		return nil, err
@@ -607,10 +619,12 @@ type ImportError interface {
 }
 
 func (e ImportNotFoundError) assertImportError() {}
+func (e ImportDraftError) assertImportError()    {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
+	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportCycleError{}
 )
 
@@ -625,6 +639,20 @@ func (e ImportNotFoundError) GetLocation() string { return e.Location }
 func (e ImportNotFoundError) GetMsg() string { return fmt.Sprintf("unknown import path %q", e.PkgPath) }
 
 func (e ImportNotFoundError) Error() string { return importErrorString(e) }
+
+// ImportDraftError implements ImportError
+type ImportDraftError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportDraftError) GetLocation() string { return e.Location }
+
+func (e ImportDraftError) GetMsg() string {
+	return fmt.Sprintf("import path %q is a draft package", e.PkgPath)
+}
+
+func (e ImportDraftError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {
