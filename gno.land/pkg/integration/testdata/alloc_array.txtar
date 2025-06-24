@@ -5,10 +5,9 @@ gnoland start
 ! gnokey maketx call -pkgpath gno.land/r/alloc -func DoAlloc -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stderr 'Data: allocation limit exceeded'
 
---  gno.mod --
-module gno.land/r/alloc
-
-gno 0.9
+--  gnomod.toml --
+module = "alloc_array"
+gno = "0.9"
 
 -- alloc.gno --
 package alloc

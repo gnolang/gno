@@ -171,7 +171,13 @@ func (s *HTMLWebClient) QueryPaths(prefix string, limit int) ([]string, error) {
 		return nil, err
 	}
 
-	return strings.Split(strings.TrimSpace(string(res)), "\n"), nil
+	// update the paths to be relative to the root instead of the domain
+	paths := strings.Split(strings.TrimSpace(string(res)), "\n")
+	for i, path := range paths {
+		paths[i] = strings.TrimPrefix(path, s.domain)
+	}
+
+	return paths, nil
 }
 
 // RenderRealm renders the content of a realm from a given path
@@ -220,6 +226,7 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%w: %s", ErrClientResponse, err.Error())
 	}
 
+	s.logger.Debug("response query", "path", qpath, "data", qres.Response.Data)
 	return qres.Response.Data, nil
 }
 
