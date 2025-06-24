@@ -94,7 +94,7 @@ gno = "0.9"`,
 			require.NoError(t, err)
 
 			// Non ignore packages
-			nonIgnore := sorted.GetNonIgnorePkgs()
+			nonIgnore := sorted.GetNonIgnoredPkgs()
 			assert.Equal(t, len(tc.outNonIgnorePkgs), len(nonIgnore))
 			for _, p := range nonIgnore {
 				assert.Contains(t, tc.outNonIgnorePkgs, p.Name)

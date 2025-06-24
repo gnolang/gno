@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNoCycles checks that there is no import cycles in stdlibs and non-ignore examples
+// TestNoCycles checks that there is no import cycles in stdlibs and non-ignored examples
 func TestNoCycles(t *testing.T) {
 	// find stdlibs
 	gnoRoot := gnoenv.RootDir()
