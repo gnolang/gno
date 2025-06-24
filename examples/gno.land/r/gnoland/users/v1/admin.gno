@@ -65,11 +65,11 @@ func ProposeArbitraryName(name, reason string, addr std.Address) dao.ProposalReq
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest(ufmt.Sprintf("User Registry V1: Give %s to %s", name, addr.String()), reason, e)
+	return dao.NewProposalRequest(ufmt.Sprintf("User Registry V1: Give `%s` to `%s`", name, addr.String()), reason, e)
 }
 
-// NewSetPausedExecutor allows GovDAO to pause or unpause this realm
-func NewSetPausedExecutor(newPausedValue bool, reason string) dao.ProposalRequest {
+// ProposeNewPausedValue allows GovDAO to pause or unpause this realm
+func ProposeNewPausedValue(newPausedValue bool, reason string) dao.ProposalRequest {
 	cb := func() error {
 		setPaused(cross, newPausedValue)
 		return nil
@@ -101,7 +101,7 @@ func ProposeNewName(addr std.Address, newName, reason string) dao.ProposalReques
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest(ufmt.Sprintf("User Registry V1: Rename user %s to %s", userData.Name(), newName), reason, e)
+	return dao.NewProposalRequest(ufmt.Sprintf("User Registry V1: Rename user `%s` to `%s`", userData.Name(), newName), reason, e)
 }
 
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
@@ -119,7 +119,7 @@ func ProposeDeleteUser(addr std.Address, reason string) dao.ProposalRequest {
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest(ufmt.Sprintf("User Registry V1: Delete user %s", userData.Name()), reason, e)
+	return dao.NewProposalRequest(ufmt.Sprintf("User Registry V1: Delete user `%s`", userData.Name()), reason, e)
 }
 
 // ProposeNewRegisterPrice allows GovDAO to update the price of registration
