@@ -46,7 +46,7 @@ func (c *CallbackProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m c
 	return yesCount > noCount, nil
 }
 
-// CreateProposals is a wrapper to create a proposal
+// CreateProposals allows an admin to create a proposal
 // It sanitizes the arguments given
 func CreateProposals(cur realm, groupId, title, desc, callback, callbackArgsStr, logged string) {
 	if !isAdmin(groupId, std.PreviousRealm().Address()) {
