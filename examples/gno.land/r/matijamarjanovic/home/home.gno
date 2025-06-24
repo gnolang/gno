@@ -12,7 +12,7 @@ import (
 
 var (
 	pfp        string
-	pfpCaption string 
+	pfpCaption string
 	abtMe      string
 
 	modernVotes  int64
