@@ -59,21 +59,21 @@ func UpdateAboutMe(cur realm, col1 string) {
 	}
 }
 
-func VoteModern() {
+func VoteModern(cur realm) {
 	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
 }
 
-func VoteClassic() {
+func VoteClassic(cur realm) {
 	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
 }
 
-func VoteMinimal() {
+func VoteMinimal(cur realm) {
 	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
