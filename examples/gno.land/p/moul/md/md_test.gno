@@ -21,6 +21,7 @@ func TestHelpers(t *testing.T) {
 		{"CodeBlock", func() string { return md.CodeBlock("foo") }, "```\nfoo\n```"},
 		{"LanguageCodeBlock", func() string { return md.LanguageCodeBlock("go", "foo") }, "```go\nfoo\n```"},
 		{"Link", func() string { return md.Link("foo", "http://example.com") }, "[foo](http://example.com)"},
+		{"UserLink", func() string { return md.UserLink("moul") }, "[@moul](/u/moul)"},
 		{"Image", func() string { return md.Image("foo", "http://example.com") }, "![foo](http://example.com)"},
 		{"InlineImageWithLink", func() string { return md.InlineImageWithLink("alt", "image-url", "link-url") }, "[![alt](image-url)](link-url)"},
 		{"Footnote", func() string { return md.Footnote("foo", "bar") }, "[foo]: bar"},
@@ -65,6 +66,28 @@ func TestLists(t *testing.T) {
 			t.Errorf("TodoList(%q, %q) = %q, want %q", items, done, result, expected)
 		}
 	})
+}
+
+func TestUserLink(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"username", "moul", "[@moul](/u/moul)"},
+		{"address", "g1blah", "[g1blah](/u/g1blah)"},
+		{"username with special chars", "user_name", "[@user\\_name](/u/user_name)"},
+		{"address with numbers", "g1abc123", "[g1abc123](/u/g1abc123)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := md.UserLink(tt.input)
+			if result != tt.expected {
+				t.Errorf("UserLink(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
 }
 
 func TestNested(t *testing.T) {

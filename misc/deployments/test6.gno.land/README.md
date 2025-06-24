@@ -26,6 +26,7 @@ all nodes should be configured in the network.
 Some configuration params are required, while others are advised to be set.
 
 - `moniker` - the recognizable identifier of the node.
+- `application.prune_strategy` - the prune strategy. ⚠️ **Required to be `syncable`
 - `consensus.timeout_commit` - the timeout value after the consensus commit phase. ⚠️ **Required to be `3s`** ⚠️.
 - `consensus.peer_gossip_sleep_duration` - the timeout for peer gossip. ⚠️ **Required to be `10ms`** ⚠️.
 - `mempool.size` - the maximum number of txs in the mempool. **Advised to be `10000`**.
@@ -33,10 +34,10 @@ Some configuration params are required, while others are advised to be set.
   reverse-proxy, and keep this value at `tcp://0.0.0.0:<port>`.
 - `p2p.max_num_outbound_peers` - the max number of outbound peer connections. **Advised to be `40`**.
 - `p2p.persistent_peers` - the persistent peers. ⚠️ **Required to be
-  `g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-01.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-02.test6.testnets.gno.land:26656`
+  `g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-1.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-2.test6.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.seeds` - the bootnode peers. ⚠️ **Required to be
-  `g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-01.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-02.test6.testnets.gno.land:26656`
+  `g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-1.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-2.test6.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.pex` - if using a sentry node architecture, should be `false`. **If not, please set to `true`**.
 - `p2p.external_address` - the advertised peer dial address. If empty, will use the same port as the `p2p.laddr`. This
@@ -69,7 +70,7 @@ shasum -a 256 genesis.json
 because of a bug in `gnogenesis balances` that doesn't deterministically generate the genesis balance list:
 https://github.com/gnolang/gno/issues/4122
 
---- 
+---
 
 ## Generating the test6 `genesis.json`
 

@@ -49,6 +49,7 @@ func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Comman
 		NewQueryCmd(cfg, io),
 		NewBroadcastCmd(cfg, io),
 		NewMakeTxCmd(cfg, io),
+		NewMultisignCmd(cfg, io),
 	)
 
 	return cmd
