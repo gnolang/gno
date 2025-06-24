@@ -456,9 +456,6 @@ func Render(_ string) string {
 }
 ```
 
-This realm is deployed to [`gno.land/r/docs/examples/run/foo`](https://gno.land/r/docs/examples/run/foo/package.gno)
-on the Staging testnet.
-
 1. Calling realm functions multiple times in a loop:
 ```go
 package main
