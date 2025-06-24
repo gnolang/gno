@@ -11,8 +11,7 @@ import (
 
 // Items
 
-func NewItemDatasource() ItemDatasource {
-	crossing()
+func NewItemDatasource(cur realm) ItemDatasource {
 	return ItemDatasource{items}
 }
 
@@ -90,8 +89,7 @@ func (it *itemIterator) Next() bool {
 
 // Categories
 
-func NewCategoryDatasource() CategoryDatasource {
-	crossing()
+func NewCategoryDatasource(cur realm) CategoryDatasource {
 	return CategoryDatasource{categories}
 }
 

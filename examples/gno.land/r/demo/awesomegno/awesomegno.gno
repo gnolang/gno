@@ -37,9 +37,7 @@ func init() {
 	hor.Register(cross, "AwesomeGno", "Awesome Gno is a registry for gnowesome dApps, tools and resources on gno.land")
 }
 
-func AddItem(title, description, url, authorAddress string) {
-	crossing()
-
+func AddItem(cur realm, title, description, url, authorAddress string) {
 	if title == "" {
 		panic("item title cannot be empty")
 	}
@@ -57,9 +55,7 @@ func AddItem(title, description, url, authorAddress string) {
 	}
 }
 
-func UpdateItemWithCategories(itemID seqid.ID, title, description, url string, categories ...seqid.ID) {
-	crossing()
-
+func UpdateItemWithCategories(cur realm, itemID seqid.ID, title, description, url string, categories ...seqid.ID) {
 	emptyAddrs := []std.Address{}
 	if err := Auth.DoByPrevious("update_item", func() error {
 		updateItem(itemID, title, description, url, emptyAddrs, categories...)
@@ -69,9 +65,7 @@ func UpdateItemWithCategories(itemID seqid.ID, title, description, url string, c
 	}
 }
 
-func UpdateItem(itemID seqid.ID, title, description, url string) {
-	crossing()
-
+func UpdateItem(cur realm, itemID seqid.ID, title, description, url string) {
 	emptyAddrs := []std.Address{}
 	emptyCategories := []seqid.ID{}
 	if err := Auth.DoByPrevious("update_item_without_categories", func() error {
@@ -82,9 +76,7 @@ func UpdateItem(itemID seqid.ID, title, description, url string) {
 	}
 }
 
-func AddItemToCategory(itemID seqid.ID, categoryID seqid.ID) {
-	crossing()
-
+func AddItemToCategory(cur realm, itemID seqid.ID, categoryID seqid.ID) {
 	if err := Auth.DoByPrevious("add_item_to_category", func() error {
 		addItemToCategory(itemID, categoryID)
 		return nil
@@ -93,9 +85,7 @@ func AddItemToCategory(itemID seqid.ID, categoryID seqid.ID) {
 	}
 }
 
-func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
-	crossing()
-
+func UpdateItemsAuthors(cur realm, itemID seqid.ID, authors []std.Address) {
 	if len(authors) == 0 {
 		panic("authors cannot be empty")
 	}
@@ -114,9 +104,7 @@ func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
 	}
 }
 
-func DeleteItem(itemID seqid.ID) {
-	crossing()
-
+func DeleteItem(cur realm, itemID seqid.ID) {
 	if err := Auth.DoByPrevious("delete_item", func() error {
 		deleteItem(itemID)
 		return nil
@@ -125,9 +113,7 @@ func DeleteItem(itemID seqid.ID) {
 	}
 }
 
-func AddCategory(name, description string) {
-	crossing()
-
+func AddCategory(cur realm, name, description string) {
 	if name == "" {
 		panic("category name cannot be empty")
 	}
@@ -140,9 +126,7 @@ func AddCategory(name, description string) {
 	}
 }
 
-func UpdateCategory(categoryID seqid.ID, name, description string) {
-	crossing()
-
+func UpdateCategory(cur realm, categoryID seqid.ID, name, description string) {
 	if err := Auth.DoByPrevious("update_category", func() error {
 		updateCategory(categoryID, name, description)
 		return nil
@@ -151,9 +135,7 @@ func UpdateCategory(categoryID seqid.ID, name, description string) {
 	}
 }
 
-func DeleteCategory(categoryID seqid.ID) {
-	crossing()
-
+func DeleteCategory(cur realm, categoryID seqid.ID) {
 	if err := Auth.DoByPrevious("delete_category", func() error {
 		deleteCategory(categoryID)
 		return nil
@@ -162,9 +144,7 @@ func DeleteCategory(categoryID seqid.ID) {
 	}
 }
 
-func SetLatestItemsSize(size int) {
-	crossing()
-
+func SetLatestItemsSize(cur realm, size int) {
 	if err := Auth.DoByPrevious("set_latest_items_size", func() error {
 		latestItems.SetMaxSize(size)
 		return nil
@@ -173,9 +153,7 @@ func SetLatestItemsSize(size int) {
 	}
 }
 
-func SetLatestCategoriesSize(size int) {
-	crossing()
-
+func SetLatestCategoriesSize(cur realm, size int) {
 	if err := Auth.DoByPrevious("set_latest_categories_size", func() error {
 		latestCategories.SetMaxSize(size)
 		return nil
@@ -184,9 +162,7 @@ func SetLatestCategoriesSize(size int) {
 	}
 }
 
-func GetLatestItems() []seqid.ID {
-	crossing()
-
+func GetLatestItems(cur realm) []seqid.ID {
 	entries := latestItems.Entries()
 	result := make([]seqid.ID, len(entries))
 	for i, entry := range entries {
@@ -195,8 +171,7 @@ func GetLatestItems() []seqid.ID {
 	return result
 }
 
-func GetLatestCategories() []seqid.ID {
-	crossing()
+func GetLatestCategories(cur realm) []seqid.ID {
 	entries := latestCategories.Entries()
 	result := make([]seqid.ID, len(entries))
 	for i, entry := range entries {
