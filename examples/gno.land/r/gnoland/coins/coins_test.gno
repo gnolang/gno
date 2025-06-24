@@ -81,6 +81,18 @@ func TestBalanceChecker(t *testing.T) {
 			contains: "Automatically converted `osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09`",
 		},
 		{
+			name:      "no addr",
+			path:      "balances?address=",
+			contains:  "Please input a valid address",
+			wantPanic: false,
+		},
+		{
+			name:      "no addr",
+			path:      "balances?address=&coin=",
+			contains:  "Please input a valid address and coin denomination.",
+			wantPanic: false,
+		},
+		{
 			name:      "invalid path",
 			path:      "invalid",
 			contains:  "404",
