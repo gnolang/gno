@@ -109,4 +109,4 @@ fclean: clean
 
 
 # Dirs
-$(PUBLIC_DIR):; mkdir -p $@ && touch $@/.keep
+$(PUBLIC_DIR):; mkdir -p $@
