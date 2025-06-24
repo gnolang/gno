@@ -5,7 +5,7 @@ import (
 )
 
 func GetLatestItemsWidget() string {
-	latestIDs := GetLatestItems()
+	latestIDs := GetLatestItems(cross)
 	if len(latestIDs) == 0 {
 		return md.Italic("No items available")
 	}
@@ -26,7 +26,7 @@ func GetLatestItemsWidget() string {
 }
 
 func GetLatestCategoriesWidget() string {
-	latestIDs := GetLatestCategories()
+	latestIDs := GetLatestCategories(cross)
 	if len(latestIDs) == 0 {
 		return md.Italic("No categories available")
 	}
