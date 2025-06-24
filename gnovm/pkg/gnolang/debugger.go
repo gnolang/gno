@@ -59,6 +59,10 @@ type Debugger struct {
 	nextDepth   int                         // function call depth at the 'next' command
 	getSrc      func(string, string) string // helper to access source from repl or others
 	rootDir     string
+
+	// DAP server integration
+	dapServer *DAPServer // optional DAP server instance
+	dapMode   bool       // true when running in DAP mode
 }
 
 // Enable makes the debugger d active, using in as input reader, out as output writer and f as a source helper.
@@ -141,8 +145,16 @@ loop:
 			m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
 			m.Debugger.state = DebugAtCmd
 		case DebugAtCmd:
-			if err := debugCmd(m); err != nil {
-				fmt.Fprintln(m.Debugger.out, "Command failed:", err)
+			if m.Debugger.dapMode && m.Debugger.dapServer != nil {
+				// In DAP mode, send a stopped event
+				m.Debugger.dapServer.SendStoppedEvent("breakpoint", "")
+				// DAP server handles commands via its message loop
+				m.Debugger.state = DebugAtRun
+			} else {
+				// Traditional debugger mode
+				if err := debugCmd(m); err != nil {
+					fmt.Fprintln(m.Debugger.out, "Command failed:", err)
+				}
 			}
 		case DebugAtRun:
 			if !m.Debugger.enabled {
@@ -282,6 +294,13 @@ func (d *Debugger) Serve(addr string) error {
 	println(" connected!")
 	d.in, d.out = conn, conn
 	return nil
+}
+
+// ServeDAP starts a DAP server for the debugger
+func (d *Debugger) ServeDAP(m *Machine, addr string) error {
+	d.dapMode = true
+	d.dapServer = NewDAPServer(d, m)
+	return d.dapServer.Serve(DAPModeTCP, addr)
 }
 
 // debugUpdateLocation computes the source code location for the current VM state.

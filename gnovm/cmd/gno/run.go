@@ -23,6 +23,7 @@ type runCmd struct {
 	expr      string
 	debug     bool
 	debugAddr string
+	dapMode   bool
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -76,6 +77,13 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.dapMode,
+		"dap",
+		false,
+		"enable Debug Adapter Protocol mode for IDE integration",
+	)
 }
 
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
@@ -126,8 +134,16 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	// If the debug address is set, the debugger waits for a remote client to connect to it.
 	if cfg.debugAddr != "" {
-		if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
-			return err
+		if cfg.dapMode {
+			// Start DAP server mode
+			if err := m.Debugger.ServeDAP(m, cfg.debugAddr); err != nil {
+				return err
+			}
+		} else {
+			// Start traditional debugger mode
+			if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
+				return err
+			}
 		}
 	}
 
