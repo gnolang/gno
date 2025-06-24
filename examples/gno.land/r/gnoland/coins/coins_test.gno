@@ -46,23 +46,23 @@ func TestBalanceChecker(t *testing.T) {
 
 		{
 			name:     "addr1's coin balance",
-			path:     ufmt.Sprintf("balances/%s?coin=%s", addr1.String(), denom1),
+			path:     ufmt.Sprintf("balances?address=%s&coin=%s", addr1.String(), denom1),
 			contains: ufmt.Sprintf("`%s` has `%d%s`", addr1.String(), 1000000, denom1),
 		},
 		{
 			name:     "addr2's full balances",
-			path:     ufmt.Sprintf("balances/%s", addr2.String()),
+			path:     ufmt.Sprintf("balances?address=%s", addr2.String()),
 			contains: ufmt.Sprintf("This page shows full coin balances of `%s` at block", addr2.String()),
 		},
 		{
 			name: "addr2's full balances",
-			path: ufmt.Sprintf("balances/%s", addr2.String()),
+			path: ufmt.Sprintf("balances?address=%s", addr2.String()),
 			contains: `| testtoken1 | 501 |
 | testtoken2 | 12345 |`,
 		},
 		{
 			name:     "addr2's coin balance",
-			path:     ufmt.Sprintf("balances/%s?coin=%s", addr2.String(), denom1),
+			path:     ufmt.Sprintf("balances?address=%s&coin=%s", addr2.String(), denom1),
 			contains: ufmt.Sprintf("`%s` has `%d%s`", addr2.String(), 501, denom1),
 		},
 		{
