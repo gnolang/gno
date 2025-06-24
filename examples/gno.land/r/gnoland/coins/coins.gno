@@ -118,12 +118,12 @@ func renderBalances(req *mux.Request) string {
 		wasConverted = true
 	}
 
-	if wasConverted {
-		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", originalInput)
-	}
-
 	if coin != "" {
 		return renderSingleCoinBalance(coin, input, originalInput, wasConverted)
+	}
+
+	if wasConverted {
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", originalInput)
 	}
 
 	banker := std.NewBanker(std.BankerTypeReadonly)
