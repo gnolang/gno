@@ -29,7 +29,7 @@ func TestNoCycles(t *testing.T) {
 	require.NoError(t, err)
 
 	// find examples
-	examples, err := gnolang.ReadPkgListFromDir(filepath.Join(gnoRoot, "examples"), gnolang.MPAll)
+	examples, err := gnolang.ReadPkgListFromDir(filepath.Join(gnoRoot, "examples"), gnolang.MPAnyAll)
 	require.NoError(t, err)
 	for _, example := range examples {
 		if example.Draft {
