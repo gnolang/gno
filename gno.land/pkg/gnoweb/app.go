@@ -24,7 +24,7 @@ var DefaultAliases = map[string]AliasTarget{
 	"/events":     {"/r/gnoland/events", GnowebPath},
 }
 
-// AppConfig contains configuration for the gnoweb.
+// AppConfig contains configuration for gnoweb.
 type AppConfig struct {
 	// UnsafeHTML, if enabled, allows to use HTML in the markdown.
 	UnsafeHTML bool
@@ -46,12 +46,12 @@ type AppConfig struct {
 	Domain string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
-	// RenderConfig, define the default configuration for rendering realm and source file
+	// RenderConfig defines the default configuration for rendering realms and source files.
 	RenderConfig RenderConfig
 }
 
-// NewDefaultAppConfig returns a new default [AppConfig]. The default sets
-// 127.0.0.1:26657 as the remote node, "dev" as the chain ID and sets up Assets
+// NewDefaultAppConfig returns a new default AppConfig. The default sets
+// 127.0.0.1:26657 as the remote node, "dev" as the chain ID, and sets up assets
 // to be served on /public/.
 func NewDefaultAppConfig() *AppConfig {
 	return &AppConfig{
@@ -66,6 +66,7 @@ func NewDefaultAppConfig() *AppConfig {
 }
 
 // NewRouter initializes the gnoweb router with the specified logger and configuration.
+// It sets up all routes, static asset handling, and middleware.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
 
@@ -138,7 +139,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// XXX: probably move this elsewhere
 	chromaStyleHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
-		if err := renderer.WriteFormatterCSS(w); err != nil {
+		if err := renderer.WriteChromaCSS(w); err != nil {
 			logger.Error("unable to write CSS", "err", err)
 			http.NotFound(w, r)
 		}

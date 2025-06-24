@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	// Register custom go.mod (and gno.mod) lexer
+	// Register a custom lexer for Go/Gno module files (go.mod, gno.mod) for syntax highlighting.
 	lexers.Register(chroma.MustNewLexer(
 		&chroma.Config{
 			Name:      "Go/Gno module file",

@@ -18,11 +18,13 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
+// Renderer defines the interface for rendering realms and source files.
 type Renderer interface {
 	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
 }
 
+// HTMLRenderer implements the Renderer interface for HTML output.
 type HTMLRenderer struct {
 	logger *slog.Logger
 	cfg    *RenderConfig
@@ -45,6 +47,7 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig) *HTMLRenderer {
 	}
 }
 
+// RenderRealm renders a realm to HTML and returns a table of contents.
 func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (md.Toc, error) {
 	ctx := md.NewGnoParserContext(u)
 
@@ -62,6 +65,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte) (m
 	return toc, nil
 }
 
+// RenderSource renders a source file into HTML with syntax highlighting based on its extension.
 func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error {
 	var lexer chroma.Lexer
 
@@ -95,6 +99,7 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 	return nil
 }
 
-func (r *HTMLRenderer) WriteFormatterCSS(w io.Writer) error {
+// WriteChromaCSS writes the CSS for syntax highlighting to the provided writer.
+func (r *HTMLRenderer) WriteChromaCSS(w io.Writer) error {
 	return r.ch.WriteCSS(w, r.cfg.ChromaStyle)
 }

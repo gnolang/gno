@@ -1,7 +1,0 @@
-{
-  "name": "gnoweb",
-  "dependencies": {
-    "tailwindcss": "3.4.14",
-    "esbuild": "0.25.5"
-  }
-}

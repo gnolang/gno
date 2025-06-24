@@ -1,6 +1,6 @@
 # Configurable arguments
 DEV_REMOTE ?= 127.0.0.1:26657
-CHAIN_ID ?= test3
+CHAIN_ID ?= dev
 PUBLIC_DIR ?= public
 
 # tools
@@ -15,12 +15,14 @@ tw_config_path := frontend/css/tx.config.js
 templates_files := $(shell find . -iname '*.html')
 
 # static config
+tailwind := ./tools/node_modules/.bin/tailwindcss
 src_dir_static := frontend/static
 out_dir_static := $(PUBLIC_DIR)
 input_static := $(shell find $(src_dir_static) -type f)
 output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_static))
 
 # esbuild config
+esbuild := ./tools/node_modules/.bin/esbuild
 src_dir_js := frontend/js
 out_dir_js := $(PUBLIC_DIR)/js
 input_js := $(shell find $(src_dir_js) -name '*.ts')
@@ -34,8 +36,11 @@ cache_dir := .cache
 #############
 .PHONY: all generate fmt css ts
 
-# Install dependencies
+# Generate public dir
 all: generate
+
+# Run gnoweb in development mode
+dev: dev.all
 
 test:
 	go test -v ./...
@@ -43,14 +48,14 @@ test:
 # Generate process
 generate: css ts static
 
-css: node_modules $(output_css)
+css: $(tailwind) $(output_css)
 $(output_css): $(input_css) $(templates_files)
-	npx tailwindcss -c $(tw_config_path) -i $(input_css) -o $@ --minify # tailwind
+	$(tailwind) -c $(tw_config_path) -i $(input_css) -o $@ --minify # tailwind
 	touch $@
 
-ts: node_modules $(output_js)
+ts: $(esbuild) $(output_js)
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts
-	npx esbuild $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --minify
+	$(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --minify
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
@@ -68,7 +73,7 @@ fmt:
 .PHONY: dev dev.server dev.css dev.ts
 
 # Run the development dependencies in parallel
-dev: node_modules $(PUBLIC_DIR)
+dev.all: $(esbuild) $(tailwind) $(PUBLIC_DIR)
 	@echo "-- starting development tools"
 	PUBLIC_DIR=$(cache_dir)/public $(MAKE) -j 3 dev.gnoweb dev.ts dev.css
 
@@ -80,25 +85,28 @@ dev.gnoweb: generate
 		2>&1 | $(run_logname) gnoweb
 
 # Tailwind CSS in development mode
-dev.css: node_modules generate | $(PUBLIC_DIR)
-	npx tailwindcss -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
+dev.css: $(tailwind) generate | $(PUBLIC_DIR)
+	$(tailwind) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
 		2>&1 | $(run_logname) tailwind
 
 # TS in development mode
-dev.ts: node_modules generate | $(PUBLIC_DIR)
-	npx esbuild $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
+dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
+	$(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
 		2>&1 | $(run_logname) esbuild
+
+# Install node modules deps located in ./tools
+$(esbuild) $(tailwind): ./tools/node_modules
+./tools/node_modules:
+	cd tools && npm install
+	touch $@
 
 # Cleanup
 clean:
 	rm -rf $(cache_dir) tmp
-	rm -rf node_modules
 fclean: clean
 	rm -rf $(PUBLIC_DIR)
+	rm -rf ./tools/node_modules
 
-# Deps
-node_modules: package.json package-lock.json
-	npm install && touch $@
 
 # Dirs
 $(PUBLIC_DIR):; mkdir -p $@ && touch $@/.keep

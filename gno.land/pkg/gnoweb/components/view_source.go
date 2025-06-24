@@ -6,6 +6,7 @@ import (
 
 const SourceViewType ViewType = "source-view"
 
+// SourceData holds data for rendering a source code view.
 type SourceData struct {
 	PkgPath      string
 	Files        []string
@@ -17,6 +18,7 @@ type SourceData struct {
 	FileSource   Component
 }
 
+// SourceTocData holds data for the table of contents in a source view.
 type SourceTocData struct {
 	Icon         string
 	ReadmeFile   SourceTocItem
@@ -24,11 +26,13 @@ type SourceTocData struct {
 	GnoTestFiles []SourceTocItem
 }
 
+// SourceTocItem represents an item in the source view table of contents.
 type SourceTocItem struct {
 	Link string
 	Text string
 }
 
+// sourceViewParams holds parameters for rendering the source view template.
 type sourceViewParams struct {
 	Article      ArticleData
 	Files        []string
@@ -41,6 +45,7 @@ type sourceViewParams struct {
 	ComponentTOC Component
 }
 
+// SourceView creates a new View for displaying source code and its table of contents.
 func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
 		Icon: "file",

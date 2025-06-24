@@ -9,7 +9,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
-// MockPackage represents a mock package with files and function signatures.
+// MockPackage represents a mock package with files and function signatures for testing.
 type MockPackage struct {
 	Path      string
 	Domain    string
@@ -17,13 +17,14 @@ type MockPackage struct {
 	Functions []*doc.JSONFunc
 }
 
-// MockClient is a mock implementation of the Client interface.
+// MockClient is a mock implementation of the ClientAdapter interface for testing.
 type MockClient struct {
 	Packages map[string]*MockPackage // path -> package
 }
 
 var _ ClientAdapter = (*MockClient)(nil)
 
+// NewMockClient creates a new MockClient from one or more MockPackages.
 func NewMockClient(pkgs ...*MockPackage) *MockClient {
 	mpkgs := make(map[string]*MockPackage)
 	for _, pkg := range pkgs {
@@ -32,7 +33,7 @@ func NewMockClient(pkgs ...*MockPackage) *MockClient {
 	return &MockClient{Packages: mpkgs}
 }
 
-// Realm fetches the content of a realm from a given path and returns the data.
+// Realm fetches the content of a realm from a given path and returns the data, or an error if not found or not declared.
 func (m *MockClient) Realm(path, args string) ([]byte, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
@@ -51,7 +52,7 @@ func (m *MockClient) Realm(path, args string) ([]byte, error) {
 	return []byte(header + body), nil
 }
 
-// File fetches the source file from a given package path and filename.
+// File fetches the source file from a given package path and filename, returning its content and metadata.
 func (m *MockClient) File(pkgPath, fileName string) ([]byte, FileMeta, error) {
 	pkg, exists := m.Packages[pkgPath]
 	if !exists {
@@ -85,7 +86,7 @@ func (m *MockClient) ListFiles(path string) ([]string, error) {
 	return fileNames, nil
 }
 
-// ListPaths lists any path given the specified prefix.
+// ListPaths lists all package paths that match the specified prefix, up to the given limit.
 func (m *MockClient) ListPaths(prefix string, limit int) ([]string, error) {
 	var shouldKeep func(s string) bool
 	if strings.HasPrefix(prefix, "@") {
@@ -111,7 +112,7 @@ func (m *MockClient) ListPaths(prefix string, limit int) ([]string, error) {
 	return list, nil
 }
 
-// Doc retrieves the JSON doc suitable for printing from a specified package path.
+// Doc retrieves the JSON documentation for a specified package path.
 func (m *MockClient) Doc(path string) (*doc.JSONDocumentation, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {

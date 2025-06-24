@@ -13,6 +13,7 @@ import (
 )
 
 // XXX: rework this part, this is the original method from previous gnoweb
+// handlerStatusJSON returns an http.Handler that serves status information as JSON.
 func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler {
 	const qpath = ".app/version"
 

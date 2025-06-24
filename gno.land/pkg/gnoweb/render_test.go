@@ -85,7 +85,7 @@ func TestRenderer_RenderSource_UnsupportedLexer(t *testing.T) {
 func TestRenderer_WriteFormatterCSS(t *testing.T) {
 	r := newTestRenderer()
 	w := &bytes.Buffer{}
-	err := r.WriteFormatterCSS(w)
+	err := r.WriteChromaCSS(w)
 	require.NoError(t, err)
 	assert.Contains(t, w.String(), ".chroma-")
 }

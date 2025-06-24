@@ -41,7 +41,7 @@ type AliasTarget struct {
 	Kind  AliasKind
 }
 
-// HTTPHandlerConfig configures a WebHandler.
+// HTTPHandlerConfig configures an HTTPHandler.
 type HTTPHandlerConfig struct {
 	Meta          StaticMetadata
 	ClientAdapter ClientAdapter
@@ -49,7 +49,7 @@ type HTTPHandlerConfig struct {
 	Aliases       map[string]AliasTarget
 }
 
-// validate checks if the WebHandlerConfig is valid.
+// validate checks if the HTTPHandlerConfig is valid.
 func (cfg *HTTPHandlerConfig) validate() error {
 	if cfg.ClientAdapter == nil {
 		return errors.New("no `ClientAdapter` configured")
@@ -63,7 +63,7 @@ func (cfg *HTTPHandlerConfig) validate() error {
 	return nil
 }
 
-// HTTPHandler processes HTTP requests.
+// HTTPHandler processes HTTP requests for gnoweb.
 type HTTPHandler struct {
 	Logger   *slog.Logger
 	Static   StaticMetadata
@@ -72,7 +72,7 @@ type HTTPHandler struct {
 	Aliases  map[string]AliasTarget
 }
 
-// NewHTTPHandler creates a new WebHandler.
+// NewHTTPHandler creates a new HTTPHandler.
 func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
@@ -87,7 +87,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	}, nil
 }
 
-// ServeHTTP handles HTTP requests.
+// ServeHTTP handles HTTP requests and only allows GET requests.
 func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
 
@@ -100,7 +100,7 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Get(w, r)
 }
 
-// Get processes a GET HTTP request.
+// Get processes a GET HTTP request and renders the appropriate page.
 func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	defer func() {
@@ -164,7 +164,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// prepareIndexBodyView prepares the data and main view for the index.
+// prepareIndexBodyView prepares the data and main view for the index page.
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
@@ -199,7 +199,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 	}
 }
 
-// GetMarkdownView handles markdown files.
+// GetMarkdownView handles rendering of markdown files.
 func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
 	var content bytes.Buffer
 
@@ -216,7 +216,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	})
 }
 
-// GetPackageView handles package pages.
+// GetPackageView handles package pages, including help, source, directory, and user views.
 func (h *HTTPHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
@@ -242,6 +242,7 @@ func (h *HTTPHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *component
 	return h.GetRealmView(gnourl, indexData)
 }
 
+// GetRealmView renders a realm page or returns an error/status if not available.
 func (h *HTTPHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	// First fecth the realm
 	raw, err := h.Client.Realm(gnourl.Path, gnourl.EncodeArgs())
@@ -314,7 +315,7 @@ func (h *HTTPHandler) buildContributions(username string) ([]components.UserCont
 }
 
 // TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-// createUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address
+// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
 func CreateUsernameFromBech32(username string) string {
 	_, _, err := bech32.Decode(username)
 	if err == nil {
@@ -425,6 +426,7 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 	})
 }
 
+// GetSourceView renders the source code view for a package or file.
 func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
 
@@ -504,6 +506,7 @@ func (h *HTTPHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *compone
 	)
 }
 
+// GetDirectoryView renders the directory view for a package, showing available files.
 func (h *HTTPHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	files, err := h.Client.ListFiles(pkgPath)
@@ -536,6 +539,7 @@ func (h *HTTPHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *compone
 	)
 }
 
+// GetSourceDownload handles downloading a source file as plain text.
 func (h *HTTPHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
 	pkgPath := gnourl.Path
 

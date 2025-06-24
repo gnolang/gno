@@ -14,12 +14,14 @@ import (
 
 var DefaultChromaRenderStyle = styles.Get("friendly")
 
+// RenderConfig holds configuration for syntax highlighting and Markdown rendering.
 type RenderConfig struct {
 	ChromaStyle     *chroma.Style
 	ChromaOptions   []chromahtml.Option
 	GoldmarkOptions []goldmark.Option
 }
 
+// NewDefaultRenderConfig returns a RenderConfig with default styles and options.
 func NewDefaultRenderConfig() (cfg RenderConfig) {
 	cfg.ChromaStyle = DefaultChromaRenderStyle
 	cfg.GoldmarkOptions = NewDefaultGoldmarkOptions()
@@ -27,6 +29,7 @@ func NewDefaultRenderConfig() (cfg RenderConfig) {
 	return cfg
 }
 
+// NewDefaultGoldmarkOptions returns the default Goldmark options for Markdown rendering.
 func NewDefaultGoldmarkOptions() []goldmark.Option {
 	// Only allow svg data image
 	allowSvgDataImage := func(uri string) bool {
@@ -46,6 +49,7 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 	}
 }
 
+// NewDefaultChromaOptions returns the default Chroma options for syntax highlighting.
 func NewDefaultChromaOptions() []chromahtml.Option {
 	return []chromahtml.Option{
 		chromahtml.WithLineNumbers(true),
