@@ -41,21 +41,21 @@ type AliasTarget struct {
 	Kind  AliasKind
 }
 
-// WebHandlerConfig configures a WebHandler.
-type WebHandlerConfig struct {
-	Meta             StaticMetadata
-	WebClient        WebClient
-	MarkdownRenderer *MarkdownRenderer
-	Aliases          map[string]AliasTarget
+// HTTPHandlerConfig configures a WebHandler.
+type HTTPHandlerConfig struct {
+	Meta          StaticMetadata
+	ClientAdapter ClientAdapter
+	Renderer      Renderer
+	Aliases       map[string]AliasTarget
 }
 
 // validate checks if the WebHandlerConfig is valid.
-func (cfg *WebHandlerConfig) validate() error {
-	if cfg.WebClient == nil {
-		return errors.New("no `WebClient` configured")
+func (cfg *HTTPHandlerConfig) validate() error {
+	if cfg.ClientAdapter == nil {
+		return errors.New("no `ClientAdapter` configured")
 	}
-	if cfg.MarkdownRenderer == nil {
-		return errors.New("no `MarkdownRenderer` configured")
+	if cfg.Renderer == nil {
+		return errors.New("no `Renderer` configured")
 	}
 	if cfg.Aliases == nil {
 		return errors.New("no `Aliases` configured")
@@ -63,37 +63,32 @@ func (cfg *WebHandlerConfig) validate() error {
 	return nil
 }
 
-// IsHomePath checks if the given path is the home path.
-func IsHomePath(path string) bool {
-	return path == "/"
+// HTTPHandler processes HTTP requests.
+type HTTPHandler struct {
+	Logger   *slog.Logger
+	Static   StaticMetadata
+	Client   ClientAdapter
+	Renderer Renderer
+	Aliases  map[string]AliasTarget
 }
 
-// WebHandler processes HTTP requests.
-type WebHandler struct {
-	Logger           *slog.Logger
-	Static           StaticMetadata
-	Client           WebClient
-	MarkdownRenderer *MarkdownRenderer
-	Aliases          map[string]AliasTarget
-}
-
-// NewWebHandler creates a new WebHandler.
-func NewWebHandler(logger *slog.Logger, cfg *WebHandlerConfig) (*WebHandler, error) {
+// NewHTTPHandler creates a new WebHandler.
+func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
 	}
 
-	return &WebHandler{
-		Client:           cfg.WebClient,
-		Static:           cfg.Meta,
-		MarkdownRenderer: cfg.MarkdownRenderer,
-		Aliases:          cfg.Aliases,
-		Logger:           logger,
+	return &HTTPHandler{
+		Client:   cfg.ClientAdapter,
+		Static:   cfg.Meta,
+		Renderer: cfg.Renderer,
+		Aliases:  cfg.Aliases,
+		Logger:   logger,
 	}, nil
 }
 
 // ServeHTTP handles HTTP requests.
-func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
 
 	if r.Method != http.MethodGet {
@@ -106,7 +101,7 @@ func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get processes a GET HTTP request.
-func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	defer func() {
 		h.Logger.Debug("request completed",
@@ -149,7 +144,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Set the header mode based on the URL type and context
 	switch {
-	case IsHomePath(r.RequestURI):
+	case r.RequestURI == "/": // is home path
 		indexData.Mode = components.ViewModeHome
 	case gnourl.IsPure():
 		indexData.Mode = components.ViewModePackage
@@ -170,7 +165,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareIndexBodyView prepares the data and main view for the index.
-func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
 	// If the alias target exists and is a gnoweb path, replace the URL path with it.
@@ -205,11 +200,11 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 }
 
 // GetMarkdownView handles markdown files.
-func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	toc, err := h.MarkdownRenderer.Render(&content, gnourl, []byte(mdContent))
+	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent))
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
@@ -222,7 +217,7 @@ func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (i
 }
 
 // GetPackageView handles package pages.
-func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(gnourl)
@@ -247,26 +242,32 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components
 	return h.GetRealmView(gnourl, indexData)
 }
 
-func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	var content bytes.Buffer
-
-	meta, err := h.Client.RenderRealm(&content, gnourl, h.MarkdownRenderer)
+func (h *HTTPHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	// First fecth the realm
+	raw, err := h.Client.Realm(gnourl.Path, gnourl.EncodeArgs())
 	switch {
 	case err == nil: // ok
-	case errors.Is(err, ErrRenderNotDeclared):
+	case errors.Is(err, ErrClientRenderNotDeclared):
 		// XXX: We should display paths list along realm informations
 		return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
 	case errors.Is(err, ErrClientPathNotFound):
 		// No realm exists here, try to display underlying paths
 		return h.GetPathsListView(gnourl, indexData)
 	default:
+		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	var content bytes.Buffer
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw)
+	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
-			Items: meta.Toc.Items,
+			Items: meta.Items,
 		},
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
@@ -275,9 +276,10 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 }
 
 // buildContributions returns the sorted list of contributions (packages and realms) for a user.
-func (h *WebHandler) buildContributions(username string) ([]components.UserContribution, int, error) {
+func (h *HTTPHandler) buildContributions(username string) ([]components.UserContribution, int, error) {
 	prefix := "@" + username
-	paths, err := h.Client.QueryPaths(prefix, 10000)
+
+	paths, err := h.Client.ListPaths(prefix, 10000)
 	if err != nil {
 		h.Logger.Error("unable to query contributions", "user", username, "error", err)
 		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
@@ -324,20 +326,27 @@ func CreateUsernameFromBech32(username string) string {
 }
 
 // GetUserView returns the user profile view for a given GnoURL.
-func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *HTTPHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
 	username := strings.TrimPrefix(gnourl.Path, "/u/")
+
 	var content bytes.Buffer
 
 	// Render user profile realm
-	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer); err != nil {
-		h.Logger.Debug("unable to render user realm", "error", err)
+	raw, err := h.Client.Realm("/r/"+username+"/home", "")
+	if err == nil {
+		_, err = h.Renderer.RenderRealm(&content, gnourl, raw)
 	}
 
-	// Build contributions
+	if content.Len() == 0 {
+		h.Logger.Debug("unable to fetch user realm", "username", username, "error", err)
+	}
+
+	// Build contributionsWW
 	contribs, realmCount, err := h.buildContributions(username)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
-		return http.StatusInternalServerError, components.StatusErrorComponent(err.Error())
+		return GetClientErrorStatusPage(gnourl, err)
+
 	}
 
 	// Compute package counts
@@ -365,7 +374,7 @@ func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) 
 	return http.StatusOK, components.UserView(data)
 }
 
-func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(gnourl.Path)
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
@@ -416,11 +425,12 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 	})
 }
 
-func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
-	files, err := h.Client.Sources(pkgPath)
+
+	files, err := h.Client.ListFiles(pkgPath)
 	if err != nil {
-		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
@@ -440,14 +450,18 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 		fileName = files[0] // fallback on the first file
 	}
 
-	var source bytes.Buffer
-	meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
+	file, meta, err := h.Client.File(pkgPath, fileName)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
-	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
+	var source bytes.Buffer
+	if err := h.Renderer.RenderSource(&source, fileName, file); err != nil {
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKB)
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
 		Files:        files,
@@ -460,11 +474,11 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	})
 }
 
-func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	const limit = 1_000 // XXX: implement pagination
 
 	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
-	paths, qerr := h.Client.QueryPaths(prefix, limit)
+	paths, qerr := h.Client.ListPaths(prefix, limit)
 	if qerr != nil {
 		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
 	} else {
@@ -490,9 +504,9 @@ func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *componen
 	)
 }
 
-func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-	files, err := h.Client.Sources(pkgPath)
+	files, err := h.Client.ListFiles(pkgPath)
 
 	// Set header mode based on URL type
 	if gnourl.IsPure() {
@@ -522,7 +536,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 	)
 }
 
-func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
 	pkgPath := gnourl.Path
 
 	var fileName string
@@ -538,8 +552,7 @@ func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWri
 	}
 
 	// Get source file
-	var source bytes.Buffer
-	_, err := h.Client.SourceFile(&source, pkgPath, fileName, true)
+	source, _, err := h.Client.File(pkgPath, fileName)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		status, _ := GetClientErrorStatusPage(gnourl, err)
@@ -551,7 +564,7 @@ func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWri
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
-	source.WriteTo(w)
+	w.Write(source) // write raw file
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {

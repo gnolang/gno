@@ -12,22 +12,19 @@ import (
 	"github.com/yuin/goldmark/parser"
 )
 
+var DefaultChromaRenderStyle = styles.Get("friendly")
+
 type RenderConfig struct {
 	ChromaStyle     *chroma.Style
 	ChromaOptions   []chromahtml.Option
 	GoldmarkOptions []goldmark.Option
 }
 
-// NewDefault returns one fully-initialised bundle that other
-// renderers can share.
-func NewDefaultRenderConfig() *RenderConfig {
-	var cfg RenderConfig
-
-	cfg.ChromaStyle = styles.Get("friendly")
+func NewDefaultRenderConfig() (cfg RenderConfig) {
+	cfg.ChromaStyle = DefaultChromaRenderStyle
 	cfg.GoldmarkOptions = NewDefaultGoldmarkOptions()
 	cfg.ChromaOptions = NewDefaultChromaOptions()
-
-	return &cfg
+	return cfg
 }
 
 func NewDefaultGoldmarkOptions() []goldmark.Option {

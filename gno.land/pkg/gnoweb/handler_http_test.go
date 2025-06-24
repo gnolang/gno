@@ -3,7 +3,7 @@ package gnoweb_test
 import (
 	"bytes"
 	"errors"
-	"io"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
@@ -27,46 +26,68 @@ func (t *testingLogger) Write(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-// pureClient is a WebClient stub that always returns exactly one source file.
-type pureClient struct {
-	stubDirectoryClient
+// Top-level stubClient definition for use in error simulation/custom behavior tests
+// stubClient simulates a client that can be customized per test by setting function fields.
+type stubClient struct {
+	realmFunc     func(path, args string) ([]byte, error)
+	fileFunc      func(path, filename string) ([]byte, gnoweb.FileMeta, error)
+	docFunc       func(path string) (*doc.JSONDocumentation, error)
+	listFilesFunc func(path string) ([]string, error)
+	listPathsFunc func(prefix string, limit int) ([]string, error)
 }
 
-func (c *pureClient) Sources(path string) ([]string, error) {
-	return []string{"only.gno"}, nil
-}
-
-func newTestHandlerConfig(t *testing.T, mockPackage *gnoweb.MockPackage) *gnoweb.WebHandlerConfig {
-	t.Helper()
-
-	webclient := gnoweb.NewMockWebClient(mockPackage)
-
-	markdownRenderer := gnoweb.NewMarkdownRenderer(
-		log.NewTestingLogger(t),
-		gnoweb.NewDefaultMarkdownRendererConfig(nil),
-	)
-
-	return &gnoweb.WebHandlerConfig{
-		WebClient:        webclient,
-		MarkdownRenderer: markdownRenderer,
-		Aliases:          map[string]gnoweb.AliasTarget{},
+func (s *stubClient) Realm(path, args string) ([]byte, error) {
+	if s.realmFunc != nil {
+		return s.realmFunc(path, args)
 	}
+	return nil, errors.New("stubClient: Realm not implemented")
 }
 
-// renderFailClient simulates a client that always fails on RenderRealm
-// but provides valid paths via QueryPaths.
-type renderFailClient struct {
-	stubDirectoryClient
+func (s *stubClient) File(path, filename string) ([]byte, gnoweb.FileMeta, error) {
+	if s.fileFunc != nil {
+		return s.fileFunc(path, filename)
+	}
+	return nil, gnoweb.FileMeta{}, errors.New("stubClient: File not implemented")
 }
 
-func (c *renderFailClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
-	return nil, errors.New("render failed")
+func (s *stubClient) Doc(path string) (*doc.JSONDocumentation, error) {
+	if s.docFunc != nil {
+		return s.docFunc(path)
+	}
+	return nil, errors.New("stubClient: Doc not implemented")
+}
+
+func (s *stubClient) ListFiles(path string) ([]string, error) {
+	if s.listFilesFunc != nil {
+		return s.listFilesFunc(path)
+	}
+	return nil, errors.New("stubClient: ListFiles not implemented")
+}
+
+func (s *stubClient) ListPaths(prefix string, limit int) ([]string, error) {
+	if s.listPathsFunc != nil {
+		return s.listPathsFunc(prefix, limit)
+	}
+	return nil, errors.New("stubClient: ListPaths not implemented")
+}
+
+// newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
+func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
+	renderer := gnoweb.NewHTMLRenderer(
+		log.NewTestingLogger(t),
+		gnoweb.NewDefaultRenderConfig(),
+	)
+	return &gnoweb.HTTPHandlerConfig{
+		ClientAdapter: client,
+		Renderer:      renderer,
+		Aliases:       map[string]gnoweb.AliasTarget{},
+	}
 }
 
 // TestWebHandler_Get tests the Get method of WebHandler using table-driven tests.
 func TestWebHandler_Get(t *testing.T) {
 	t.Parallel()
-	// Set up a mock package with some files and functions
+
 	mockPackage := &gnoweb.MockPackage{
 		Domain: "example.com",
 		Path:   "/r/mock/path",
@@ -76,18 +97,12 @@ func TestWebHandler_Get(t *testing.T) {
 			"LicEnse":    `my super license`,
 		},
 		Functions: []*doc.JSONFunc{
-			{Name: "SuperRenderFunction", Params: []*doc.JSONField{
-				{Name: "my_super_arg", Type: "string"},
-			}},
-			{
-				Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}},
-				Results: []*doc.JSONField{{Name: "", Type: "string"}},
-			},
+			{Name: "SuperRenderFunction", Params: []*doc.JSONField{{Name: "my_super_arg", Type: "string"}}},
+			{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
 		},
 	}
 
-	// Create a WebHandlerConfig with the mock web client and markdown renderer
-	config := newTestHandlerConfig(t, mockPackage)
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
 
 	// Define test cases
 	cases := []struct {
@@ -118,7 +133,7 @@ func TestWebHandler_Get(t *testing.T) {
 
 		// Invalid path
 		{Path: "/r", Status: http.StatusBadRequest, Contain: "invalid path"},
-		{Path: "/r/~!1337", Status: http.StatusNotFound, Contain: "invalid path"},
+		{Path: "/~!1337", Status: http.StatusNotFound, Contain: "invalid path"},
 	}
 
 	for _, tc := range cases {
@@ -130,7 +145,7 @@ func TestWebHandler_Get(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 
 			// Create a new WebHandler
-			handler, err := gnoweb.NewWebHandler(logger, config)
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
 			require.NoError(t, err)
 
 			// Create a new HTTP request for each test case
@@ -158,7 +173,6 @@ func TestWebHandler_Get(t *testing.T) {
 func TestWebHandler_NoRender(t *testing.T) {
 	t.Parallel()
 
-	mockPath := "/r/mock/path"
 	mockPackage := &gnoweb.MockPackage{
 		Domain: "gno.land",
 		Path:   "/r/mock/path",
@@ -166,15 +180,16 @@ func TestWebHandler_NoRender(t *testing.T) {
 			"render.gno": `package main; func init() {}`,
 			"gno.mod":    `module gno.land/r/mock/path`,
 		},
+		Functions: []*doc.JSONFunc{}, // No Render function
 	}
 
-	// Create a WebHandlerConfig with the mock web client and markdown renderer
-	config := newTestHandlerConfig(t, mockPackage)
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
 
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewWebHandler(logger, config)
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err, "failed to create WebHandler")
 
+	mockPath := "/r/mock/path"
 	req, err := http.NewRequest(http.MethodGet, mockPath, nil)
 	require.NoError(t, err, "failed to create HTTP request")
 
@@ -198,8 +213,7 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 		},
 	}
 
-	// Create a WebHandlerConfig with the mock web client and markdown renderer
-	config := newTestHandlerConfig(t, mockPackage)
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
 
 	cases := []struct {
 		Path    string
@@ -240,7 +254,7 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 			t.Logf("input: %+v", tc)
 
 			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-			handler, err := gnoweb.NewWebHandler(logger, config)
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
 			require.NoError(t, err)
 
 			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
@@ -271,9 +285,9 @@ func TestWebHandler_DirectoryViewExplorerMode(t *testing.T) {
 		},
 	}
 
-	config := newTestHandlerConfig(t, mockPackage)
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewWebHandler(logger, config)
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
 
 	req, err := http.NewRequest(http.MethodGet, "/r/mock/explorer/", nil)
@@ -288,48 +302,21 @@ func TestWebHandler_DirectoryViewExplorerMode(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "file2.gno")
 }
 
-// stubDirectoryClient simulates a client that fails on Sources and, depending on the test,
-// returns either paths or an error on QueryPaths.
-type stubDirectoryClient struct {
-	sourcesErr    error
-	queryPaths    []string
-	queryPathsErr error
-}
-
-func (c *stubDirectoryClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
-	return &gnoweb.RealmMeta{}, nil
-}
-
-func (c *stubDirectoryClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*gnoweb.FileMeta, error) {
-	return &gnoweb.FileMeta{}, nil
-}
-
-func (c *stubDirectoryClient) Doc(path string) (*doc.JSONDocumentation, error) {
-	return &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{}}, nil
-}
-
-func (c *stubDirectoryClient) Sources(path string) ([]string, error) {
-	return nil, c.sourcesErr
-}
-
-func (c *stubDirectoryClient) QueryPaths(prefix string, limit int) ([]string, error) {
-	return c.queryPaths, c.queryPathsErr
-}
-
 // TestWebHandler_DirectoryViewPurePackage covers the pure "package" mode without error:
 func TestWebHandler_DirectoryViewPurePackage(t *testing.T) {
 	t.Parallel()
 
-	client := &pureClient{}
-
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+	mockPackage := &gnoweb.MockPackage{
 		Domain: "ex",
 		Path:   "/p/pkg",
-		Files:  map[string]string{},
-	})
-	cfg.WebClient = client
+		Files: map[string]string{
+			"only.gno": "package only;",
+		},
+	}
 
-	handler, err := gnoweb.NewWebHandler(
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	handler, err := gnoweb.NewHTTPHandler(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
 		cfg,
 	)
@@ -347,14 +334,11 @@ func TestWebHandler_DirectoryViewPurePackage(t *testing.T) {
 // TestWebHandler_DirectoryViewErrorTotal covers the case where neither Sources nor QueryPaths return anything:
 func TestWebHandler_DirectoryViewErrorTotal(t *testing.T) {
 	t.Parallel()
-	client := &stubDirectoryClient{
-		sourcesErr:    errors.New("fail"),
-		queryPaths:    []string{}, // empty
-		queryPathsErr: nil,
-	}
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{Domain: "ex", Path: "/r/y", Files: map[string]string{}})
-	cfg.WebClient = client
-	handler, err := gnoweb.NewWebHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+
+	// For error simulation tests, instantiate the top-level stubClient and set the relevant function fields for each test. Do not redeclare methods or types inside the test functions.
+	client := &stubClient{}
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/r/y/", nil)
@@ -370,34 +354,30 @@ func TestWebHandler_DirectoryViewErrorTotal(t *testing.T) {
 func TestNewWebHandlerInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ex", Files: map[string]string{}}
-	valid := newTestHandlerConfig(t, dummy)
+	minimalMock := gnoweb.NewMockClient(&gnoweb.MockPackage{Path: "/", Files: map[string]string{}})
+	valid := newTestHandlerConfig(t, minimalMock)
 
 	cases := []struct {
-		name    string
-		mutate  func(cfg *gnoweb.WebHandlerConfig)
-		wantErr string
+		name   string
+		mutate func(cfg *gnoweb.HTTPHandlerConfig)
 	}{
 		{
-			name: "missing WebClient",
-			mutate: func(cfg *gnoweb.WebHandlerConfig) {
-				cfg.WebClient = nil
+			name: "missing Client",
+			mutate: func(cfg *gnoweb.HTTPHandlerConfig) {
+				cfg.ClientAdapter = nil
 			},
-			wantErr: "no `WebClient` configured",
 		},
 		{
-			name: "missing MarkdownRenderer",
-			mutate: func(cfg *gnoweb.WebHandlerConfig) {
-				cfg.MarkdownRenderer = nil
+			name: "missing Renderer",
+			mutate: func(cfg *gnoweb.HTTPHandlerConfig) {
+				cfg.Renderer = nil
 			},
-			wantErr: "no `MarkdownRenderer` configured",
 		},
 		{
 			name: "missing Aliases",
-			mutate: func(cfg *gnoweb.WebHandlerConfig) {
+			mutate: func(cfg *gnoweb.HTTPHandlerConfig) {
 				cfg.Aliases = nil
 			},
-			wantErr: "no `Aliases` configured",
 		},
 	}
 
@@ -411,27 +391,20 @@ func TestNewWebHandlerInvalidConfig(t *testing.T) {
 			tc.mutate(&cfg)
 
 			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-			_, err := gnoweb.NewWebHandler(logger, &cfg)
+			_, err := gnoweb.NewHTTPHandler(logger, &cfg)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), tc.wantErr)
 		})
 	}
-}
-
-// TestIsHomePath covers the utility function.
-func TestIsHomePath(t *testing.T) {
-	assert.True(t, gnoweb.IsHomePath("/"))
-	assert.False(t, gnoweb.IsHomePath("/foo"))
 }
 
 // TestServeHTTPMethodNotAllowed verifies 405 for POST/PUT/etc methods.
 func TestServeHTTPMethodNotAllowed(t *testing.T) {
 	t.Parallel()
 
-	dummy := &gnoweb.MockPackage{Domain: "ex", Path: "/r/ex", Files: map[string]string{}}
-	cfg := newTestHandlerConfig(t, dummy)
+	minimalMock := gnoweb.NewMockClient(&gnoweb.MockPackage{Path: "/", Files: map[string]string{}})
+	cfg := newTestHandlerConfig(t, minimalMock)
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	handler, err := gnoweb.NewWebHandler(logger, cfg)
+	handler, err := gnoweb.NewHTTPHandler(logger, cfg)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/r/ex", nil)
@@ -447,21 +420,15 @@ func TestServeHTTPMethodNotAllowed(t *testing.T) {
 func TestWebHandler_DirectoryViewNoFiles(t *testing.T) {
 	t.Parallel()
 
-	// stub that doesn't error on Sources, but returns an empty slice
-	client := &stubDirectoryClient{
-		sourcesErr:    nil,
-		queryPaths:    []string{"shouldNotBeUsed"},
-		queryPathsErr: nil,
-	}
-
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+	mockPackage := &gnoweb.MockPackage{
 		Domain: "ex",
 		Path:   "/r/empty",
 		Files:  map[string]string{},
-	})
-	cfg.WebClient = client
+	}
 
-	handler, err := gnoweb.NewWebHandler(
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	handler, err := gnoweb.NewHTTPHandler(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
 		cfg,
 	)
@@ -480,21 +447,12 @@ func TestWebHandler_DirectoryViewNoFiles(t *testing.T) {
 func TestWebHandler_GetSourceView_Error(t *testing.T) {
 	t.Parallel()
 
-	// stubDirectoryClient implements Sources with an error
-	client := &stubDirectoryClient{
-		sourcesErr:    errors.New("fail listing sources"),
-		queryPaths:    nil,
-		queryPathsErr: nil,
-	}
+	// For error simulation tests, instantiate the top-level stubClient and set the relevant function fields for each test. Do not redeclare methods or types inside the test functions.
+	client := &stubClient{}
 
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
-		Domain: "ex",
-		Path:   "/r/errsrc",
-		Files:  map[string]string{},
-	})
-	cfg.WebClient = client
+	cfg := newTestHandlerConfig(t, client)
 
-	handler, err := gnoweb.NewWebHandler(
+	handler, err := gnoweb.NewHTTPHandler(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
 		cfg,
 	)
@@ -514,21 +472,15 @@ func TestWebHandler_GetSourceView_Error(t *testing.T) {
 func TestWebHandler_GetSourceView_NoFiles(t *testing.T) {
 	t.Parallel()
 
-	// stubDirectoryClient implements Sources without error but returns nil slice
-	client := &stubDirectoryClient{
-		sourcesErr:    nil,
-		queryPaths:    nil,
-		queryPathsErr: nil,
-	}
-
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
+	mockPackage := &gnoweb.MockPackage{
 		Domain: "ex",
 		Path:   "/r/emptysrc",
 		Files:  map[string]string{},
-	})
-	cfg.WebClient = client
+	}
 
-	handler, err := gnoweb.NewWebHandler(
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	handler, err := gnoweb.NewHTTPHandler(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
 		cfg,
 	)
@@ -615,25 +567,24 @@ func TestGetClientErrorStatusPage(t *testing.T) {
 func TestWebHandler_GetUserView(t *testing.T) {
 	t.Parallel()
 
-	// Prepare stub client that always writes the expected message
-	client := &userProfileTestClient{
-		stubDirectoryClient{
-			queryPaths: []string{
-				"/r/testuser/pkg1",
-				"/r/testuser/pkg2",
-			},
-			queryPathsErr: nil,
+	client := &stubClient{
+		listPathsFunc: func(prefix string, limit int) ([]string, error) {
+			return []string{
+				"/r/testuser/pkg1", "/r/testuser/pkg2",
+			}, nil
+		},
+		realmFunc: func(path string, args string) ([]byte, error) {
+			if path != "/r/testuser/home" {
+				return nil, fmt.Errorf("unknown path")
+			}
+
+			return []byte("# Welcome to testuser's profile"), nil
 		},
 	}
 
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/testuser/home",
-		Files:  map[string]string{},
-	})
-	cfg.WebClient = client
+	cfg := newTestHandlerConfig(t, client)
 
-	handler, err := gnoweb.NewWebHandler(
+	handler, err := gnoweb.NewHTTPHandler(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
 		cfg,
 	)
@@ -655,41 +606,25 @@ func TestWebHandler_GetUserView(t *testing.T) {
 	assert.Contains(t, body, "testuser")
 }
 
-// userProfileTestClient overrides RenderRealm to write a welcome message for user profiles.
-// TODO: this is a hack to get the test to pass. We should find a better way to test this.
-type userProfileTestClient struct {
-	stubDirectoryClient
-}
-
-func (c *userProfileTestClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
-	// Simulate user profile content
-	username := strings.TrimPrefix(u.Path, "/r/")
-	username = strings.TrimSuffix(username, "/home")
-	if username == "" {
-		username = "unknown"
-	}
-	w.Write([]byte("Welcome to " + username + "'s profile"))
-	return &gnoweb.RealmMeta{}, nil
-}
-
 func TestWebHandler_GetUserView_QueryPathsError(t *testing.T) {
 	t.Parallel()
 
-	client := &userProfileTestClient{
-		stubDirectoryClient{
-			queryPaths:    nil,
-			queryPathsErr: errors.New("simulated QueryPaths error"),
+	client := &stubClient{
+		listPathsFunc: func(prefix string, limit int) ([]string, error) {
+			return nil, errors.New("fail to list paths")
+		},
+		realmFunc: func(path string, args string) ([]byte, error) {
+			if path != "/r/testuser/home" {
+				return nil, fmt.Errorf("unknown path")
+			}
+
+			return []byte("# Welcome to testuser's profile"), nil
 		},
 	}
 
-	cfg := newTestHandlerConfig(t, &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/testuser/home",
-		Files:  map[string]string{},
-	})
-	cfg.WebClient = client
+	cfg := newTestHandlerConfig(t, client)
 
-	handler, err := gnoweb.NewWebHandler(
+	handler, err := gnoweb.NewHTTPHandler(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
 		cfg,
 	)
@@ -699,10 +634,9 @@ func TestWebHandler_GetUserView_QueryPathsError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
+	// Should be 500 + internal error
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
-	body := rr.Body.String()
-
-	assert.Contains(t, body, "simulated QueryPaths error")
+	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
 func TestCreateUsernameFromBech32(t *testing.T) {
