@@ -17,6 +17,7 @@ func TestParseBytes(t *testing.T) {
 		fileType        string // "gno.mod" or "gnomod.toml"
 		expectedModule  string
 		expectedVersion string
+		expectedIgnore  bool
 		expectedDraft   bool
 		expectedError   string
 	}{
@@ -77,7 +78,14 @@ func TestParseBytes(t *testing.T) {
 			fileType:        "gnomod.toml",
 			expectedModule:  "gno.land/p/demo/foo",
 			expectedVersion: "0.0",
-			expectedDraft:   true,
+			expectedIgnore:  true,
+		},
+		{
+			name:           "gnomod.toml with ignore flag",
+			content:        "module = \"gno.land/p/demo/foo\"\nignore = true",
+			fileType:       "gnomod.toml",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedIgnore: true,
 		},
 		{
 			name:           "gnomod.toml with draft flag",
@@ -85,6 +93,29 @@ func TestParseBytes(t *testing.T) {
 			fileType:       "gnomod.toml",
 			expectedModule: "gno.land/p/demo/foo",
 			expectedDraft:  true,
+		},
+		{
+			name:           "gnomod.toml with draft and ignore flags",
+			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true\nignore = true",
+			fileType:       "gnomod.toml",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedDraft:  true,
+			expectedIgnore: true,
+		},
+		{
+			name:           "gnomod.toml with draft flag",
+			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true",
+			fileType:       "gnomod.toml",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedDraft:  true,
+		},
+		{
+			name:           "gnomod.toml with draft and ignore flags",
+			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true\nignore = true",
+			fileType:       "gnomod.toml",
+			expectedModule: "gno.land/p/demo/foo",
+			expectedDraft:  true,
+			expectedIgnore: true,
 		},
 
 		// Invalid cases
