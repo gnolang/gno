@@ -423,7 +423,7 @@ func (mptype MemPackageType) IsAny() bool {
 }
 func (mptype MemPackageType) AssertNotAny() {
 	if mptype.IsAny() {
-		panic("undefined MPAny*")
+		panic(fmt.Sprintf("undefined any: %#v", mptype))
 	}
 }
 func (mptype MemPackageType) Decide(pkgPath string) MemPackageType {

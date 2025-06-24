@@ -1,1 +1,1 @@
-module minim
+module gno.land/t/minim
