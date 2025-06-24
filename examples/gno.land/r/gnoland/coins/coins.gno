@@ -71,7 +71,7 @@ func renderHomepage() string {
 This is a simple, readonly realm that allows users to browse native coin balances. Check your coin balance below!
 
 <gno-form path="balances">
-	<gno-input name="address" type="text" placeholder="Address (e.g. g1... or cosmos1...)" />
+	<gno-input name="address" type="text" placeholder="Valid bech32 address (e.g. g1..., cosmos1..., osmo1...)" />
 	<gno-input name="coin" type="text" placeholder="Coin (e.g. ugnot)"" />
 </gno-form>
 
@@ -81,7 +81,7 @@ Here are a few more ways to use this app:
 	- [Example](/r/gnoland/coins:balances?address=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
 - ~/r/gnoland/coins:balances?address=g1...&coin=ugnot~ - shows the balance of an address for a specific coin
 	- [Example](/r/gnoland/coins:balances?address=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5&coin=ugnot)
-- ~/r/gnoland/coins:convert/<cosmos_address>~ - convert Cosmos address to Gno address
+- ~/r/gnoland/coins:convert/<bech32_addr>~ - convert a bech32 address to a Gno address
 	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
 - ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom
 	- Coming soon!
@@ -95,9 +95,27 @@ func renderBalances(req *mux.Request) string {
 	input := req.Query.Get("address")
 	coin := req.Query.Get("coin")
 
-	if input == "" {
-		out += "Please input a valid address.\n\n"
+	if input == "" && coin == "" {
+		out += "Please input a valid address and coin denomination.\n\n"
 		return out
+	}
+
+	if input == "" {
+		out += "Please input a valid bech32 address.\n\n"
+		return out
+	}
+
+	// If input is not a valid Gno address
+	if !std.Address(input).IsValid() {
+		// Try converting input to Gno
+		addr, err := ctg.ConvertAnyToGno(input)
+		if err != nil {
+			out += ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.", input)
+			return out
+		}
+
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
+		input = addr.String()
 	}
 
 	if coin != "" {
@@ -152,24 +170,6 @@ func renderSingleCoinBalance(denom, input string) string {
 	out := "# Coin balance\n\n"
 	banker := std.NewBanker(std.BankerTypeReadonly)
 
-	// If input is not a valid Gno address
-	if !std.Address(input).IsValid() {
-		if input == "" {
-			out += "Please input a valid address.\n\n"
-			return out
-		}
-
-		// Try converting input to Gno
-		addr, err := ctg.ConvertAnyToGno(input)
-		if err != nil {
-			out += ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.", input)
-			return out
-		}
-
-		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
-		input = addr.String()
-	}
-
 	user, _ := users.ResolveAny(input)
 	name := "`" + input + "`"
 	if user != nil {
@@ -187,7 +187,7 @@ func renderSingleCoinBalance(denom, input string) string {
 func renderConvertedAddress(addr string) string {
 	out := "# Address converter\n\n"
 
-	gnoAddress, err := ctg.ConvertCosmosToGno(addr)
+	gnoAddress, err := ctg.ConvertAnyToGno(addr)
 	if err != nil {
 		out += err.Error()
 		return out
@@ -200,8 +200,8 @@ func renderConvertedAddress(addr string) string {
 	}
 
 	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
-	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances?address=" + gnoAddress.String() + "&coin=ugnot) - "
-	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + gnoAddress.String() + ")"
+	out += "[[View `ugnot` balance for this address]](/r/gnoland/coins:balances?address=" + gnoAddress.String() + "&coin=ugnot) - "
+	out += "[[View full balance list for this address]](/r/gnoland/coins:balances?address=" + gnoAddress.String() + ")"
 	return out
 }
 
