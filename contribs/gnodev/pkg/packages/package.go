@@ -30,8 +30,8 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 	mod, err := gnomod.ParseDir(dir)
 	switch {
 	case err == nil:
-		if mod.Draft {
-			// Skip draft package
+		if mod.Ignore {
+			// Skip ignore package
 			// XXX: We could potentially do that in a middleware, but doing this
 			// here avoid to potentially parse broken files
 			return nil, ErrResolverPackageSkip
