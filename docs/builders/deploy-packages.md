@@ -51,7 +51,7 @@ Consider the following directory structure for our `Counter` realm:
 
 ```
 counter/
-    ├─ gno.mod
+    ├─ gnomod.toml
     ├─ counter.gno
     ├─ counter_test.gno
 ```
