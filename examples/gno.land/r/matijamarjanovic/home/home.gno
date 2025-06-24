@@ -25,18 +25,9 @@ var (
 )
 
 func init() {
-	pfp = "https://static.artzone.ai/media/38734/conversions/IPF9dR7ro7n05CmMLLrXIojycr1qdLFxgutaaanG-w768.webp"
-	pfpCaption = "My profile picture - Tarantula Nebula"
-	abtMe = `Motivated Computer Science student with strong
-                analytical and problem-solving skills. Proficient in
-                programming and version control, with a high level of
-                focus and attention to detail. Eager to apply academic
-                knowledge to real-world projects and contribute to
-                innovative technology solutions.
-                In addition to my academic pursuits,
-                I enjoy traveling and staying active through weightlifting.
-                I have a keen interest in electronic music and often explore various genres.
-                I believe in maintaining a balanced lifestyle that complements my professional development.`
+	pfp = "https://avatars.githubusercontent.com/u/93043005?s=60&v=4"
+	pfpCaption = "My github profile picture"
+	abtMe = `Blockchain & Full Stack Developer and a Computer Science Student who enjoys hackathons and building cool stuff. My current passion is DeFi. Outside of work, I enjoy travelling, weightlifting and combat sports.`
 
 	modernVotes = 0
 	classicVotes = 0
@@ -49,14 +40,22 @@ func init() {
 }
 
 func UpdatePFP(url, caption string) {
-	AssertAuthorized()
-	pfp = url
-	pfpCaption = caption
+	if err := Auth.DoByPrevious("update_pfp", func() error {
+		pfp = url
+		pfpCaption = caption
+		return nil
+	}); err != nil {
+		panic(err)
+	}
 }
 
 func UpdateAboutMe(col1 string) {
-	AssertAuthorized()
-	abtMe = col1
+	if err := Auth.DoByPrevious("update_about_me", func() error {
+		abtMe = col1
+		return nil
+	}); err != nil {
+		panic(err)
+	}
 }
 
 func maxOfThree(a, b, c int64) int64 {
@@ -104,12 +103,14 @@ func updateCurrentTheme() {
 }
 
 func CollectBalance() {
-	AssertAuthorized()
-
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	ownerAddr := Address()
-
-	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
+	if err := Auth.DoByPrevious("collect_balance", func() error {
+		banker := std.NewBanker(std.BankerTypeRealmSend)
+		ownerAddr := Address()
+		banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
+		return nil
+	}); err != nil {
+		panic(err)
+	}
 }
 
 func Render(path string) string {
@@ -223,16 +224,28 @@ func Render(path string) string {
 }
 
 func UpdateModernLink(link string) {
-	AssertAuthorized()
-	modernLink = link
+	if err := Auth.DoByPrevious("update_modern_link", func() error {
+		modernLink = link
+		return nil
+	}); err != nil {
+		panic(err)
+	}
 }
 
 func UpdateClassicLink(link string) {
-	AssertAuthorized()
-	classicLink = link
+	if err := Auth.DoByPrevious("update_classic_link", func() error {
+		classicLink = link
+		return nil
+	}); err != nil {
+		panic(err)
+	}
 }
 
 func UpdateMinimalLink(link string) {
-	AssertAuthorized()
-	minimalLink = link
+	if err := Auth.DoByPrevious("update_minimal_link", func() error {
+		minimalLink = link
+		return nil
+	}); err != nil {
+		panic(err)
+	}
 }

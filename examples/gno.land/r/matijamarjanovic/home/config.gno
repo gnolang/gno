@@ -3,6 +3,7 @@ package home
 import (
 	"errors"
 	"std"
+	"gno.land/p/moul/authz"
 )
 
 var (
@@ -11,7 +12,13 @@ var (
 
 	errorInvalidAddr  = errors.New("config: invalid address")
 	errorUnauthorized = errors.New("config: unauthorized")
+
+	Auth *authz.Authorizer
 )
+
+func init() {
+	Auth = authz.NewWithAuthority(authz.NewMemberAuthority(mainAddr, backupAddr))
+}
 
 func Address() std.Address {
 	return mainAddr
@@ -26,11 +33,13 @@ func SetAddress(newAddress std.Address) error {
 		return errorInvalidAddr
 	}
 
-	if err := checkAuthorized(); err != nil {
+	if err := Auth.DoByPrevious("set_address", func() error {
+		mainAddr = newAddress
+		return nil
+	}); err != nil {
 		return err
 	}
 
-	mainAddr = newAddress
 	return nil
 }
 
@@ -39,26 +48,16 @@ func SetBackup(newAddress std.Address) error {
 		return errorInvalidAddr
 	}
 
-	if err := checkAuthorized(); err != nil {
+	if err := Auth.DoByPrevious("set_backup", func() error {
+		backupAddr = newAddress
+		return nil
+	}); err != nil {
 		return err
 	}
 
-	backupAddr = newAddress
 	return nil
 }
 
-func checkAuthorized() error {
-	caller := std.OriginCaller()
-	if caller != mainAddr && caller != backupAddr {
-		return errorUnauthorized
-	}
-
-	return nil
-}
-
-func AssertAuthorized() {
-	caller := std.OriginCaller()
-	if caller != mainAddr && caller != backupAddr {
-		panic(errorUnauthorized)
-	}
+func GetAuth() *authz.Authorizer {
+	return Auth
 }

@@ -9,13 +9,8 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-// Helper function to set up test environment
-func setupTest() {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-}
-
 func TestUpdatePFP(t *testing.T) {
-	setupTest()
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	pfp = ""
 	pfpCaption = ""
 
@@ -26,7 +21,7 @@ func TestUpdatePFP(t *testing.T) {
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-	setupTest()
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	abtMe = ""
 
 	UpdateAboutMe("This is my new bio.")
@@ -35,7 +30,7 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestVoteModern(t *testing.T) {
-	setupTest()
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -50,7 +45,7 @@ func TestVoteModern(t *testing.T) {
 }
 
 func TestVoteClassic(t *testing.T) {
-	setupTest()
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -65,7 +60,7 @@ func TestVoteClassic(t *testing.T) {
 }
 
 func TestVoteMinimal(t *testing.T) {
-	setupTest()
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -80,8 +75,7 @@ func TestVoteMinimal(t *testing.T) {
 }
 
 func TestRender(t *testing.T) {
-	setupTest()
-	// Reset the state to known values
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 	currentTheme = "classic"
 	pfp = "https://example.com/pic.png"
@@ -91,7 +85,6 @@ func TestRender(t *testing.T) {
 	out := Render("")
 	urequire.NotEqual(t, out, "", "Render output should not be empty")
 
-	// Test classic theme specific content
 	uassert.True(t, strings.Contains(out, "✨ Welcome to Matija's Homepage ✨"), "Classic theme should have correct header")
 	uassert.True(t, strings.Contains(out, pfp), "Should contain profile picture URL")
 	uassert.True(t, strings.Contains(out, pfpCaption), "Should contain profile picture caption")
@@ -102,7 +95,7 @@ func TestRender(t *testing.T) {
 }
 
 func TestRenderModernTheme(t *testing.T) {
-	setupTest()
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	modernVotes, classicVotes, minimalVotes = 100, 0, 0
 	currentTheme = "modern"
 	updateCurrentTheme()
@@ -112,7 +105,7 @@ func TestRenderModernTheme(t *testing.T) {
 }
 
 func TestRenderMinimalTheme(t *testing.T) {
-	setupTest()
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 100
 	currentTheme = "minimal"
 	updateCurrentTheme()
@@ -122,8 +115,7 @@ func TestRenderMinimalTheme(t *testing.T) {
 }
 
 func TestUpdateLinks(t *testing.T) {
-	setupTest()
-
+	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	newLink := "https://example.com/vote"
 
 	UpdateModernLink(newLink)
