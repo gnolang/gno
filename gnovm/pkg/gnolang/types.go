@@ -2172,7 +2172,6 @@ func fillEmbeddedName(ft *FieldType) {
 		}
 	case *InterfaceType:
 	default:
-		fmt.Printf("here%stest", ft.Name)
 		panic(fmt.Sprintf(
 			"unexpected field type %s",
 			ft.Type.String()))
