@@ -63,6 +63,11 @@ type AccountUnrestricter interface {
 	IsUnrestricted() bool
 }
 
+type AccountSession interface {
+	GetKey() AccountKey
+	String() string
+}
+
 //----------------------------------------
 // BaseAccount
 
@@ -221,7 +226,7 @@ func (acc *BaseAccount) DelAllSessions() error {
 }
 
 // GetKey implements Account.
-func (acc *BaseAccount) GetKey(pubKey crypto.PubKey) (AccountKey, error) {
+func (acc BaseAccount) GetKey(pubKey crypto.PubKey) (AccountKey, error) {
 	if acc.RootKey.GetPubKey().Equals(pubKey) {
 		return acc.RootKey, nil
 	}
@@ -236,6 +241,22 @@ func (acc *BaseAccount) GetKey(pubKey crypto.PubKey) (AccountKey, error) {
 func (acc *BaseAccount) SetRootKey(pubKey crypto.PubKey) (AccountKey, error) {
 	acc.RootKey = NewBaseAccountKey(pubKey, 0)
 	return acc.RootKey, nil
+}
+
+// SequenceByPubKey returns the sequence number for a given public key.
+// If the public key is the root key, it returns the root sequence.
+// If the public key is a session key, it returns the session sequence.
+// If the public key is not found, it returns an error.
+func (acc BaseAccount) SequenceByPubKey(pubKey crypto.PubKey) (uint64, error) {
+	if acc.RootKey.GetPubKey().Equals(pubKey) {
+		return acc.RootSequence, nil
+	}
+	for _, sess := range acc.Sessions {
+		if sess.GetPubKey().Equals(pubKey) {
+			return sess.GetSequence(), nil
+		}
+	}
+	return 0, errors.New("key not found")
 }
 
 // BaseAccountKey - a base structure for authentication.

@@ -111,7 +111,7 @@ func (ga *GnoAccount) gc() int {
 }
 
 // CreateSession implements Session interface with GnoSession specifics
-func (ga *GnoAccount) CreateSession(pubKey crypto.PubKey) (std.Session, error) {
+func (ga *GnoAccount) CreateSession(pubKey crypto.PubKey) (*GnoSession, error) {
 	// Clean up expired sessions before adding new ones
 	ga.gc()
 
@@ -137,12 +137,12 @@ func (ga *GnoAccount) CreateSession(pubKey crypto.PubKey) (std.Session, error) {
 
 // GetSessions returns all non-expired sessions
 // Implements the Account interface
-func (ga *GnoAccount) GetSessions() []std.Session {
+func (ga *GnoAccount) GetSessions() []GnoSession {
 	// Clean up expired sessions first
 	ga.gc()
 
 	// Convert and return all sessions as std.Session
-	sessions := make([]std.Session, 0, len(ga.Sessions))
+	sessions := make([]GnoSession, 0, len(ga.Sessions))
 	for i := range ga.Sessions {
 		sessions = append(sessions, &ga.Sessions[i])
 	}
@@ -534,4 +534,8 @@ func NewGnoAccountWithMasterKey(address crypto.Address, pubKey crypto.PubKey) *G
 	acc.Sessions = append(acc.Sessions, *masterSession)
 
 	return acc
+}
+
+func ProtoGnoSession() std.AccountSession {
+	return &GnoSession{}
 }

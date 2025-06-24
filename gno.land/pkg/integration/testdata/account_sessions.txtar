@@ -1,3 +1,9 @@
+gnokey list
+gnokey add NAME
+gnokey add -recover NAME
+gnokey add -session NAME
+gnokey list
+
 # gnokey query
 # gnokey add recover
 # gnokey add
