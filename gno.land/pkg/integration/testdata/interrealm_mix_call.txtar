@@ -145,7 +145,7 @@ func NewObject() *ObjectImplem {
 }
 
 func (o *ObjectImplem) String() string {
-    return ufmt.Sprintf("%d", o.value)
+	return ufmt.Sprintf("%d", o.value)
 }
 
 func (o *ObjectImplem) MutateWithoutRealmCheck() {
