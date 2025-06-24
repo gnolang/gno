@@ -2573,6 +2573,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
+				if n.Name == blankIdentifier {
+					return n, TRANS_CONTINUE
+				}
 				// 'tmp' is a newly constructed type value, where
 				// any recursive references refer to the
 				// original type constructed by predefineRecursively()
@@ -2590,9 +2593,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				//
 				// In short, the relationship between tmp and dst is:
 				//   `type dst tmp`.
-				if n.Name == blankIdentifier {
-					return n, TRANS_CONTINUE
-				}
 				dst := last.GetSlot(store, n.Name, true).GetType()
 				switch dst := dst.(type) {
 				case *FuncType:
