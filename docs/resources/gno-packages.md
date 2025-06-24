@@ -1,6 +1,6 @@
 # Understanding Gno Packages
 
-In gno.land, code is organized into packages that are stored on-chain. This
+In Gno.land, code is organized into packages that are stored on-chain. This
 guide explains the different types of packages, how they're organized, and how
 to work with them.
 
@@ -36,7 +36,7 @@ For more details on realms, see the dedicated [Realms](./realms.md) documentatio
 
 ## Package Path Structure
 
-A package path is a unique identifier for any package that lives on the gno.land
+A package path is a unique identifier for any package that lives on the Gno.land
 blockchain. It consists of multiple parts separated with `/` and follows this
 structure:
 
