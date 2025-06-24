@@ -27,25 +27,25 @@ type Response struct {
 	Success    bool           `json:"success"`
 	Command    string         `json:"command"`
 	Message    string         `json:"message,omitempty"`
-	Body       any    `json:"body,omitempty"`
+	Body       any            `json:"body,omitempty"`
 	ErrorBody  *ErrorResponse `json:"error,omitempty"`
 }
 
 // Event represents a debug adapter initiated event
 type Event struct {
 	ProtocolMessage
-	Event string      `json:"event"`
-	Body  any `json:"body,omitempty"`
+	Event string `json:"event"`
+	Body  any    `json:"body,omitempty"`
 }
 
 // ErrorResponse contains error information
 type ErrorResponse struct {
-	ID        int                    `json:"id"`
-	Format    string                 `json:"format"`
+	ID        int            `json:"id"`
+	Format    string         `json:"format"`
 	Variables map[string]any `json:"variables,omitempty"`
-	ShowUser  bool                   `json:"showUser,omitempty"`
-	URL       string                 `json:"url,omitempty"`
-	URLLabel  string                 `json:"urlLabel,omitempty"`
+	ShowUser  bool           `json:"showUser,omitempty"`
+	URL       string         `json:"url,omitempty"`
+	URLLabel  string         `json:"urlLabel,omitempty"`
 }
 
 // DAP Request Types

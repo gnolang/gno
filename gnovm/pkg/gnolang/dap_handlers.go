@@ -76,7 +76,7 @@ func (s *DAPServer) handleLaunch(req *Request, _ []byte) error {
 }
 
 // handleSetBreakpoints processes the setBreakpoints request
-func (s *DAPServer) handleSetBreakpoints(req *Request, raw []byte) error {
+func (s *DAPServer) handleSetBreakpoints(req *Request, _ []byte) error {
 	var args SetBreakpointsArguments
 	if err := json.Unmarshal(req.Arguments, &args); err != nil {
 		return err
@@ -90,11 +90,17 @@ func (s *DAPServer) handleSetBreakpoints(req *Request, raw []byte) error {
 	for _, bp := range args.Breakpoints {
 		line := s.convertClientToServerLine(bp.Line)
 
+		// Handle column: if not specified (0), keep it as 0
+		column := 0
+		if bp.Column > 0 {
+			column = s.convertClientToServerColumn(bp.Column)
+		}
+
 		// Create a location for the breakpoint
 		loc := Location{
 			File: filepath.Base(args.Source.Path),
 			Span: Span{
-				Pos: Pos{Line: line, Column: 0},
+				Pos: Pos{Line: line, Column: column},
 			},
 		}
 
@@ -107,6 +113,7 @@ func (s *DAPServer) handleSetBreakpoints(req *Request, raw []byte) error {
 			Verified: true,
 			Source:   args.Source,
 			Line:     bp.Line,
+			Column:   bp.Column,
 		}
 		s.nextBreakpointID++
 
@@ -222,7 +229,7 @@ func (s *DAPServer) handleStackTrace(req *Request, _ []byte) error {
 }
 
 // handleScopes processes the scopes request
-func (s *DAPServer) handleScopes(req *Request, raw []byte) error {
+func (s *DAPServer) handleScopes(req *Request, _ []byte) error {
 	var args struct {
 		FrameID int `json:"frameId"`
 	}
@@ -250,7 +257,7 @@ func (s *DAPServer) handleScopes(req *Request, raw []byte) error {
 }
 
 // handleVariables processes the variables request
-func (s *DAPServer) handleVariables(req *Request, raw []byte) error {
+func (s *DAPServer) handleVariables(req *Request, _ []byte) error {
 	var args struct {
 		VariablesReference int `json:"variablesReference"`
 	}
@@ -268,7 +275,7 @@ func (s *DAPServer) handleVariables(req *Request, raw []byte) error {
 }
 
 // handleContinue processes the continue request
-func (s *DAPServer) handleContinue(req *Request, raw []byte) error {
+func (s *DAPServer) handleContinue(req *Request, _ []byte) error {
 	var args ContinueArguments
 	if err := json.Unmarshal(req.Arguments, &args); err != nil {
 		return err
@@ -361,7 +368,7 @@ func (s *DAPServer) handlePause(req *Request) error {
 }
 
 // handleEvaluate processes the evaluate request
-func (s *DAPServer) handleEvaluate(req *Request, raw []byte) error {
+func (s *DAPServer) handleEvaluate(req *Request, _ []byte) error {
 	var args EvaluateArguments
 	if err := json.Unmarshal(req.Arguments, &args); err != nil {
 		return err
