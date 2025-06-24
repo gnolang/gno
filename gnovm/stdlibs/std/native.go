@@ -142,12 +142,6 @@ func X_getRealm(m *gno.Machine, height int) (addr, pkgPath string) {
 	}
 }
 
-// currentPkgPath retrieves the current package's pkgPath.
-// It's not a native binding; but is used within this package to clarify usage.
-func currentPkgPath(m *gno.Machine) (pkgPath string) {
-	return m.MustPeekCallFrame(2).LastPackage.PkgPath
-}
-
 // currentRealm retrieves the current realm's address and pkgPath.
 // It's not a native binding; but is used within this package to clarify usage.
 func currentRealm(m *gno.Machine) (addr, pkgPath string) {
