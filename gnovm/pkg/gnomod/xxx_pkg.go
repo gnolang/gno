@@ -83,24 +83,24 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 
 // GetNonIgnorePkgs returns packages that are not ignored
 // and have no direct or indirect ignore dependencies.
-func (sp SortedPkgList) GetNonIgnorePkgs() SortedPkgList {
+func (sp SortedPkgList) GetNonIgnoredPkgs() SortedPkgList {
 	res := make([]Pkg, 0, len(sp))
-	ignore := make(map[string]bool)
+	ignored := make(map[string]bool)
 
 	for _, pkg := range sp {
 		if pkg.Ignore {
-			ignore[pkg.Name] = true
+			ignored[pkg.Name] = true
 			continue
 		}
-		dependsOnIgnore := false
+		dependsOnIgnored := false
 		for _, req := range pkg.Imports {
-			if ignore[req] {
-				dependsOnIgnore = true
-				ignore[pkg.Name] = true
+			if ignored[req] {
+				dependsOnIgnored = true
+				ignored[pkg.Name] = true
 				break
 			}
 		}
-		if !dependsOnIgnore {
+		if !dependsOnIgnored {
 			res = append(res, pkg)
 		}
 	}
