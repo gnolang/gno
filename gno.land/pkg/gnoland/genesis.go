@@ -185,11 +185,11 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 		return nil, fmt.Errorf("sorting packages: %w", err)
 	}
 
-	// Filter out draft packages.
-	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
-	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
+	// Filter out ignore packages.
+	nonIgnorePkgs := sortedPkgs.GetNonIgnorePkgs()
+	txs := make([]TxWithMetadata, 0, len(nonIgnorePkgs))
 
-	for _, pkg := range nonDraftPkgs {
+	for _, pkg := range nonIgnorePkgs {
 		// XXX: as addpkg require gno.mod, we should probably check this here
 		mpkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
 		tx, err := LoadPackage(mpkg, creator, fee, nil)
