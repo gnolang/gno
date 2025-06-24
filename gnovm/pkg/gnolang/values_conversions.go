@@ -1195,7 +1195,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				panic("should not happen")
 			}
 		} else if at, ok := unwrapPointerType(t).(*ArrayType); ok {
-			// slice -> array or *array
+			// slice -> array or pointer of array
 			if t.Kind() == PointerKind {
 				tv.T = t
 				switch sv := tv.V.(type) {

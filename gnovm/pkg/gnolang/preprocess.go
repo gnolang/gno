@@ -1512,7 +1512,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// if elem type match and they have same length,
 							// the length is checked in runtime.
 							if cat.Elem().TypeID() == ast.Elt.TypeID() {
-								// fmt.Println("---convert slice to array or *array")
 								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 								return n, TRANS_CONTINUE
 							}

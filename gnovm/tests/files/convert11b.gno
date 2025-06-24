@@ -1,12 +1,15 @@
 package main
 
+// slice -> *array
 func main() {
+	s0 := "hello"
+	s1 := []byte(s0)
+	arrPtr1 := (*[5]byte)(s1)
+	arr := [5]byte(s1)
+	arrPtr2 := &arr
 
-	var nilSlice []int
-	arrPtr := (*[3]int)(nilSlice) // Panic: runtime error: cannot convert slice with length 0 to array or pointer to array with length 3
-	println(len(arrPtr))
-
+	println(arrPtr1 == arrPtr2)
 }
 
-// Error:
-// runtime error: cannot convert slice with length 0 to array or pointer to array with length 3
+// Output:
+// false
