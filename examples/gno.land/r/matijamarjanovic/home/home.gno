@@ -6,12 +6,13 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
 	"gno.land/r/leon/hor"
 )
 
 var (
-	pfp        string // link to profile picture
-	pfpCaption string // profile picture caption
+	pfp        string
+	pfpCaption string 
 	abtMe      string
 
 	modernVotes  int64
@@ -33,13 +34,13 @@ func init() {
 	classicVotes = 0
 	minimalVotes = 0
 	currentTheme = "classic"
-	modernLink = "https://www.google.com"
-	classicLink = "https://www.google.com"
-	minimalLink = "https://www.google.com"
+	modernLink = txlink.NewLink("VoteModern").URL()
+	classicLink = txlink.NewLink("VoteClassic").URL()
+	minimalLink = txlink.NewLink("VoteMinimal").URL()
 	hor.Register(cross, "Matija Marijanovic's Home Realm", "")
 }
 
-func UpdatePFP(url, caption string) {
+func UpdatePFP(cur realm, url, caption string) {
 	if err := Auth.DoByPrevious("update_pfp", func() error {
 		pfp = url
 		pfpCaption = caption
@@ -49,24 +50,13 @@ func UpdatePFP(url, caption string) {
 	}
 }
 
-func UpdateAboutMe(col1 string) {
+func UpdateAboutMe(cur realm, col1 string) {
 	if err := Auth.DoByPrevious("update_about_me", func() error {
 		abtMe = col1
 		return nil
 	}); err != nil {
 		panic(err)
 	}
-}
-
-func maxOfThree(a, b, c int64) int64 {
-	max := a
-	if b > max {
-		max = b
-	}
-	if c > max {
-		max = c
-	}
-	return max
 }
 
 func VoteModern() {
@@ -90,19 +80,7 @@ func VoteMinimal() {
 	updateCurrentTheme()
 }
 
-func updateCurrentTheme() {
-	maxVotes := maxOfThree(modernVotes, classicVotes, minimalVotes)
-
-	if maxVotes == modernVotes {
-		currentTheme = "modern"
-	} else if maxVotes == classicVotes {
-		currentTheme = "classic"
-	} else {
-		currentTheme = "minimal"
-	}
-}
-
-func CollectBalance() {
+func CollectBalance(cur realm) {
 	if err := Auth.DoByPrevious("collect_balance", func() error {
 		banker := std.NewBanker(std.BankerTypeRealmSend)
 		ownerAddr := Address()
@@ -116,7 +94,6 @@ func CollectBalance() {
 func Render(path string) string {
 	var sb strings.Builder
 
-	// Theme-specific header styling
 	switch currentTheme {
 	case "modern":
 		// Modern theme - Clean and minimalist with emojis
@@ -140,7 +117,7 @@ func Render(path string) string {
 		sb.WriteString(pfpCaption)
 		sb.WriteString("\n")
 
-	default: // classic
+	default:
 		// Classic theme - Traditional blog style with decorative elements
 		sb.WriteString(md.H1("✨ Welcome to Matija's Homepage ✨"))
 		sb.WriteString("\n")
@@ -155,7 +132,6 @@ func Render(path string) string {
 		sb.WriteString("\n")
 	}
 
-	// Theme-specific voting section
 	switch currentTheme {
 	case "modern":
 		sb.WriteString(md.HorizontalRule())
@@ -181,7 +157,7 @@ func Render(path string) string {
 		sb.WriteString(md.Link("Minimal", minimalLink))
 		sb.WriteString("\n")
 
-	default: // classic
+	default:
 		sb.WriteString(md.HorizontalRule())
 		sb.WriteString(md.H2("✨ Theme Customization ✨"))
 		sb.WriteString(md.Bold("Choose Your Preferred Theme:"))
@@ -210,7 +186,7 @@ func Render(path string) string {
 		sb.WriteString(md.Link("LinkedIn", "https://www.linkedin.com/in/matijamarjanovic"))
 		sb.WriteString("\n")
 
-	default: // classic
+	default:
 		sb.WriteString(md.HorizontalRule())
 		sb.WriteString(md.H3("✨ Connect With Me"))
 		items := []string{
@@ -223,29 +199,25 @@ func Render(path string) string {
 	return sb.String()
 }
 
-func UpdateModernLink(link string) {
-	if err := Auth.DoByPrevious("update_modern_link", func() error {
-		modernLink = link
-		return nil
-	}); err != nil {
-		panic(err)
+func maxOfThree(a, b, c int64) int64 {
+	max := a
+	if b > max {
+		max = b
 	}
+	if c > max {
+		max = c
+	}
+	return max
 }
 
-func UpdateClassicLink(link string) {
-	if err := Auth.DoByPrevious("update_classic_link", func() error {
-		classicLink = link
-		return nil
-	}); err != nil {
-		panic(err)
-	}
-}
+func updateCurrentTheme() {
+	maxVotes := maxOfThree(modernVotes, classicVotes, minimalVotes)
 
-func UpdateMinimalLink(link string) {
-	if err := Auth.DoByPrevious("update_minimal_link", func() error {
-		minimalLink = link
-		return nil
-	}); err != nil {
-		panic(err)
+	if maxVotes == modernVotes {
+		currentTheme = "modern"
+	} else if maxVotes == classicVotes {
+		currentTheme = "classic"
+	} else {
+		currentTheme = "minimal"
 	}
 }

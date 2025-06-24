@@ -10,27 +10,27 @@ import (
 )
 
 func TestUpdatePFP(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	pfp = ""
 	pfpCaption = ""
 
-	UpdatePFP("https://example.com/pic.png", "New Caption")
+	UpdatePFP(cross, "https://example.com/pic.png", "New Caption")
 
 	urequire.Equal(t, pfp, "https://example.com/pic.png", "Profile picture URL should be updated")
 	urequire.Equal(t, pfpCaption, "New Caption", "Profile picture caption should be updated")
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	abtMe = ""
 
-	UpdateAboutMe("This is my new bio.")
+	UpdateAboutMe(cross, "This is my new bio.")
 
 	urequire.Equal(t, abtMe, "This is my new bio.", "About Me should be updated")
 }
 
 func TestVoteModern(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -45,7 +45,7 @@ func TestVoteModern(t *testing.T) {
 }
 
 func TestVoteClassic(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -60,7 +60,7 @@ func TestVoteClassic(t *testing.T) {
 }
 
 func TestVoteMinimal(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
@@ -75,7 +75,7 @@ func TestVoteMinimal(t *testing.T) {
 }
 
 func TestRender(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 	currentTheme = "classic"
 	pfp = "https://example.com/pic.png"
@@ -95,7 +95,7 @@ func TestRender(t *testing.T) {
 }
 
 func TestRenderModernTheme(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 100, 0, 0
 	currentTheme = "modern"
 	updateCurrentTheme()
@@ -105,25 +105,11 @@ func TestRenderModernTheme(t *testing.T) {
 }
 
 func TestRenderMinimalTheme(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	modernVotes, classicVotes, minimalVotes = 0, 0, 100
 	currentTheme = "minimal"
 	updateCurrentTheme()
 
 	out := Render("")
 	uassert.True(t, strings.Contains(out, "Matija Marjanovic"), "Minimal theme should have correct header")
-}
-
-func TestUpdateLinks(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-	newLink := "https://example.com/vote"
-
-	UpdateModernLink(newLink)
-	urequire.Equal(t, modernLink, newLink, "Modern link should be updated")
-
-	UpdateClassicLink(newLink)
-	urequire.Equal(t, classicLink, newLink, "Classic link should be updated")
-
-	UpdateMinimalLink(newLink)
-	urequire.Equal(t, minimalLink, newLink, "Minimal link should be updated")
 }
