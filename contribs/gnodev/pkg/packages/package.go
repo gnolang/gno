@@ -31,7 +31,7 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 	switch {
 	case err == nil:
 		if mod.Ignore {
-			// Skip ignore package
+			// Skip ignored package
 			// XXX: We could potentially do that in a middleware, but doing this
 			// here avoid to potentially parse broken files
 			return nil, ErrResolverPackageSkip
