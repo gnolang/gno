@@ -38,7 +38,7 @@ func TestVoteModern(t *testing.T) {
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
-	VoteModern()
+	VoteModern(cross)
 
 	uassert.Equal(t, int64(75000000), modernVotes, "Modern votes should be calculated correctly")
 	uassert.Equal(t, "modern", currentTheme, "Theme should be updated to modern")
@@ -53,7 +53,7 @@ func TestVoteClassic(t *testing.T) {
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
-	VoteClassic()
+	VoteClassic(cross)
 
 	uassert.Equal(t, int64(75000000), classicVotes, "Classic votes should be calculated correctly")
 	uassert.Equal(t, "classic", currentTheme, "Theme should be updated to classic")
@@ -68,7 +68,7 @@ func TestVoteMinimal(t *testing.T) {
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
-	VoteMinimal()
+	VoteMinimal(cross)
 
 	uassert.Equal(t, int64(75000000), minimalVotes, "Minimal votes should be calculated correctly")
 	uassert.Equal(t, "minimal", currentTheme, "Theme should be updated to minimal")
