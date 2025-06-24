@@ -114,7 +114,7 @@ if err != nil {
 ```
 
 A list of gno.land network endpoints & chain IDs can be found in the
-[Gno RPC endpoints](../reference/network-config.md) page.
+[Gno.land Networks](../../../../docs/resources/gnoland-networks.md) page.
 
 With this, we can initialize the `gnoclient.Client` struct:
 
