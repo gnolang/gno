@@ -1,0 +1,125 @@
+# Create user test123
+adduserfrom test123 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1 1
+stdout 'g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp'
+
+# Create user alice
+adduserfrom alice 'love fitness remind toy analyst dolphin sunset punch regular fee identify innocent someone quick private finger decorate life crucial dirt waste alert payment punch'
+stdout 'g15ag48skjgl06snm0ugpufrle0yc2hkpl8husmh'
+
+# Create user bob
+adduserfrom bob 'sea reform cage rain jewel try violin visa phrase mobile high skirt fault bulk tragic situate intact survey extend age exotic drastic keep tool'
+stdout 'g1lkrf599hzhmaj7x0wn46f3xl9gy9krpwv78p2u'
+
+# Create user eve
+adduserfrom eve 'devote elder ghost good practice reveal load pilot post immune milk industry math stock bike rely come kite science curtain account mad trash core'
+stdout 'g1amu4p4ccx6s4fqjnswndv9jytzjs663rt5snff'
+
+# Prepare chain
+loadpkg gno.land/r/gnoland/boards2/v1
+gnoland start
+
+### Test board creation
+
+# Create invalid board starting with non-alphabetic character
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateBoard -args "42-my_Board-Name" -args true -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stderr 'board name contains invalid characters'
+
+# Create invalid board with illegal characters
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateBoard -args "my Board-Name" -args true -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stderr 'board name contains invalid characters'
+
+# Create invalid board with too short name
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateBoard -args "my" -args true -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stderr 'board name is too short, minimum length is 3 characters'
+
+# Create invalid board with too long name
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateBoard -args "a01234567890123456789012345678901234567890123456789" -args true -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stderr 'board name is too long, maximum allowed is 50 characters'
+
+# Create board as eve (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateBoard -args "my_Board-Name" -args true -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test eve
+stderr 'unauthorized'
+
+# Create valid board "my_Board-Name"
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateBoard -args "my_Board-Name" -args true -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stdout '1'
+
+### Test invite
+
+# Invite alice as eve (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func InviteMember -args 1 -args $alice_user_addr -args "" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test eve
+stderr 'unauthorized'
+
+# Invite alice with moderator role
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func InviteMember -args 1 -args $alice_user_addr -args "moderator" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stdout 'OK!'
+
+# Invite bob as alice (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func InviteMember -args 1 -args $bob_user_addr -args "" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice
+stderr 'unauthorized'
+
+# Invite bob
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func InviteMember -args 1 -args $bob_user_addr -args "" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stdout 'OK!'
+
+### Test posting
+
+# Post as board creator
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateThread -args 1 -args "My Awesome Thread" -args "Something about something" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stdout '1'
+
+# Post as eve (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateThread -args 1 -args "My Awesome Thread" -args "Something about something" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test eve
+stderr 'unauthorized'
+
+# Post as alice (invited)
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateThread -args 1 -args "My Awesome Thread" -args "Something about something" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice
+stdout '2'
+
+# Reply as eve (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateReply -args 1 -args 1 -args "0" -args "Reply about something" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test eve
+stderr 'unauthorized'
+
+# Reply as bob
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateReply -args 1 -args 1 -args "0" -args "Reply about something" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test bob
+stdout '3'
+
+# Reply to reply as alice
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateReply -args 1 -args 1 -args 3 -args "Reply to reply about something" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice
+stdout '4'
+
+### Test moderation
+
+# Edit creator thread as bob (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func EditThread -args 1 -args 1 -args "My Awesome Thread" -args "Something about something edited" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test bob
+stderr 'unauthorized'
+
+# Edit creator thread as alice (moderator)
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func EditThread -args 1 -args 1 -args "My Awesome Thread" -args "Something about something edited" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# Delete creator thread as bob (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func DeleteThread -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test bob
+stderr 'unauthorized'
+
+# Delete creator thread as alice (moderator but still unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func DeleteThread -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice
+stderr 'unauthorized'
+
+# Delete creator thread as creator
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func DeleteThread -args 1 -args 1 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stdout 'OK!'
+
+# Delete alice thread as creator
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func DeleteThread -args 1 -args 2 -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stdout 'OK!'
+
+### Test kick
+
+# Remove alice as bob (unauthorized)
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func RemoveMember -args 1 -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test bob
+stderr 'unauthorized'
+
+# Remove alice as creator
+gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func RemoveMember -args 1 -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
+stdout 'OK!'
