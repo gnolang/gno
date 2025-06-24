@@ -123,3 +123,7 @@ stderr 'unauthorized'
 # Remove alice as creator
 gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func RemoveMember -args 1 -args $alice_user_addr -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test123
 stdout 'OK!'
+
+# Check alice can't post anymore
+! gnokey maketx  call -pkgpath gno.land/r/gnoland/boards2/v1 -func CreateThread -args 1 -args "My Awesome Thread" -args "Something about something" -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice
+stderr 'unauthorized'
