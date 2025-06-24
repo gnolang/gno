@@ -554,3 +554,48 @@ func TestContractAuthorityUnauthorizedCaller(t *testing.T) {
 	uassert.True(t, handlerExecutedCorrectly, "Handler should have executed successfully for authorized caller")
 	uassert.True(t, actionExecuted, "Privileged action should have executed for authorized caller")
 }
+
+func crossThrough(rlm std.Realm, cr func()) {
+	testing.SetRealm(rlm)
+	cr()
+}
+
+func TestAuthorizerDoByPrevious(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+
+	auth := NewWithMembers(alice)
+
+	testing.SetRealm(std.NewUserRealm(alice))
+
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
+		executed := false
+		args := []any{"test_arg", 123}
+		err := auth.DoByPrevious("test_action", func() error {
+			executed = true
+			return nil
+		}, args...)
+
+		uassert.True(t, err == nil, "expected no error")
+		uassert.True(t, executed, "action should have been executed")
+
+		expectedErr := errors.New("test error")
+		err = auth.DoByPrevious("test_action", func() error {
+			return expectedErr
+		})
+
+		uassert.True(t, err == expectedErr, "expected specific error")
+	})
+
+	testing.SetRealm(std.NewUserRealm(bob))
+	crossThrough(std.NewCodeRealm("gno.land/r/test/test"), func() {
+		executed := false
+		err := auth.DoByPrevious("test_action", func() error {
+			executed = true
+			return nil
+		}, "unauthorized_arg")
+
+		uassert.True(t, err != nil, "expected error")
+		uassert.False(t, executed, "action should not have been executed")
+	})
+}
