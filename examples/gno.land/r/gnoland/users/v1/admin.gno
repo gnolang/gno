@@ -48,11 +48,8 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 // ProposeNewName allows GovDAO to propose a new name for an existing user
 // The associated address and all previous names of a user that changes a name
 // are preserved, and all resolve to the new name.
+// The new name is completely arbitrary.
 func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
-	if matched := reUsername.MatchString(newName); !matched {
-		panic(ErrInvalidUsername)
-	}
-
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)
