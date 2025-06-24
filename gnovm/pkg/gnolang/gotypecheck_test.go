@@ -363,7 +363,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := TypeCheckMemPackage(tc.pkg, tc.getter, ParseModeAll, TCLatestRelaxed)
+			_, err := TypeCheckMemPackage(tc.pkg, tc.getter, ParseModeAll, TCLatestRelaxed, 0)
 			if tc.check == nil {
 				assert.NoError(t, err)
 			} else {
