@@ -127,17 +127,17 @@ func TestVMKeeperAddPackage_DraftPackage(t *testing.T) {
 	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
-	const pkgPath = "gno.land/r/test2"
+	const pkgPath = "gno.land/r/test"
 	files := []*std.MemFile{
 		{
 			Name: "gnomod.toml",
-			Body: `module = "gno.land/r/test2"
+			Body: `module = "gno.land/r/test"
 gno = "0.9"
 draft = true`,
 		},
 		{
 			Name: "test.gno",
-			Body: `package test2
+			Body: `package test
 
 func Echo(cur realm) string {
 	return "hello world"
@@ -150,7 +150,7 @@ func Echo(cur realm) string {
 
 	err := env.vmk.AddPackage(ctx, msg1)
 
-	assert.Error(t, err, ErrInvalidPackage("draft package cannot be added to the store: gno.land/r/test2"))
+	assert.Error(t, err, ErrInvalidPackage("draft packages must be deployed at genesis"))
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 
