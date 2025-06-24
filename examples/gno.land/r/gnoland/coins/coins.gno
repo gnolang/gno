@@ -101,7 +101,7 @@ func renderBalances(req *mux.Request) string {
 	}
 
 	if coin != "" {
-		return renderSingleCoinBalance(req)
+		return renderSingleCoinBalance(coin, input)
 	}
 
 	banker := std.NewBanker(std.BankerTypeReadonly)
@@ -143,26 +143,26 @@ func renderBalances(req *mux.Request) string {
 	return out
 }
 
-func renderSingleCoinBalance(req *mux.Request) string {
-	denom := req.Query.Get("coin")
-	input := req.Query.Get("address")
-
+func renderSingleCoinBalance(denom, input string) string {
 	out := "# Coin balance\n\n"
 	banker := std.NewBanker(std.BankerTypeReadonly)
 
-	if strings.HasPrefix(input, "cosmos") {
-		addr, err := ctg.ConvertCosmosToGno(input)
-		if err != nil {
-			out += "Tried converting a Cosmos address to a Gno address but failed. Please double-check your input."
+	// If input is not a valid Gno address
+	if !std.Address(input).IsValid() {
+		if input == "" {
+			out += "Please input a valid address.\n\n"
 			return out
 		}
+
+		// Try converting input to Gno
+		addr, err := ctg.ConvertAnyToGno(input)
+		if err != nil {
+			out += ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.", input)
+			return out
+		}
+
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
 		input = addr.String()
-	} else {
-		if !std.Address(input).IsValid() {
-			out += "Invalid address."
-			return out
-		}
 	}
 
 	user, _ := users.ResolveAny(input)
