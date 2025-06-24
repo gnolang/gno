@@ -8,7 +8,7 @@ import (
 )
 
 // handleInitialize processes the initialize request
-func (s *DAPServer) handleInitialize(req *Request, raw []byte) error {
+func (s *DAPServer) handleInitialize(req *Request, _ []byte) error {
 	var args InitializeArguments
 	if err := json.Unmarshal(req.Arguments, &args); err != nil {
 		return err
@@ -56,7 +56,7 @@ func (s *DAPServer) handleInitialize(req *Request, raw []byte) error {
 }
 
 // handleLaunch processes the launch request
-func (s *DAPServer) handleLaunch(req *Request, raw []byte) error {
+func (s *DAPServer) handleLaunch(req *Request, _ []byte) error {
 	var args LaunchArguments
 	if err := json.Unmarshal(req.Arguments, &args); err != nil {
 		return err
@@ -117,7 +117,7 @@ func (s *DAPServer) handleSetBreakpoints(req *Request, raw []byte) error {
 
 	// Send response
 	resp := NewResponse(req, true)
-	resp.Body = map[string]interface{}{
+	resp.Body = map[string]any{
 		"breakpoints": responseBreakpoints,
 	}
 	return s.sendMessage(resp)
@@ -138,8 +138,8 @@ func (s *DAPServer) handleConfigurationDone(req *Request) error {
 // handleThreads processes the threads request
 func (s *DAPServer) handleThreads(req *Request) error {
 	resp := NewResponse(req, true)
-	resp.Body = map[string]interface{}{
-		"threads": []map[string]interface{}{
+	resp.Body = map[string]any{
+		"threads": []map[string]any{
 			{
 				"id":   s.threadID,
 				"name": "main",
@@ -150,7 +150,7 @@ func (s *DAPServer) handleThreads(req *Request) error {
 }
 
 // handleStackTrace processes the stackTrace request
-func (s *DAPServer) handleStackTrace(req *Request, raw []byte) error {
+func (s *DAPServer) handleStackTrace(req *Request, _ []byte) error {
 	var args StackTraceArguments
 	if err := json.Unmarshal(req.Arguments, &args); err != nil {
 		return err
@@ -214,7 +214,7 @@ func (s *DAPServer) handleStackTrace(req *Request, raw []byte) error {
 	}
 
 	resp := NewResponse(req, true)
-	resp.Body = map[string]interface{}{
+	resp.Body = map[string]any{
 		"stackFrames": frames,
 		"totalFrames": len(frames),
 	}
@@ -232,8 +232,8 @@ func (s *DAPServer) handleScopes(req *Request, raw []byte) error {
 
 	// For now, we'll just return local and global scopes
 	resp := NewResponse(req, true)
-	resp.Body = map[string]interface{}{
-		"scopes": []map[string]interface{}{
+	resp.Body = map[string]any{
+		"scopes": []map[string]any{
 			{
 				"name":               "Locals",
 				"variablesReference": 1000 + args.FrameID, // Unique reference
@@ -261,8 +261,8 @@ func (s *DAPServer) handleVariables(req *Request, raw []byte) error {
 	// TODO: Implement actual variable lookup
 	// For now, return empty list
 	resp := NewResponse(req, true)
-	resp.Body = map[string]interface{}{
-		"variables": []map[string]interface{}{},
+	resp.Body = map[string]any{
+		"variables": []map[string]any{},
 	}
 	return s.sendMessage(resp)
 }
@@ -276,7 +276,7 @@ func (s *DAPServer) handleContinue(req *Request, raw []byte) error {
 
 	// Send response first
 	resp := NewResponse(req, true)
-	resp.Body = map[string]interface{}{
+	resp.Body = map[string]any{
 		"allThreadsContinued": true,
 	}
 	if err := s.sendMessage(resp); err != nil {
@@ -389,7 +389,7 @@ func (s *DAPServer) handleEvaluate(req *Request, raw []byte) error {
 	if err != nil {
 		resp.Message = err.Error()
 	} else {
-		resp.Body = map[string]interface{}{
+		resp.Body = map[string]any{
 			"result":             result,
 			"variablesReference": 0,
 		}

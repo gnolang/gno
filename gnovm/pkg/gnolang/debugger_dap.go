@@ -167,7 +167,7 @@ func (s *DAPServer) readMessage() ([]byte, error) {
 }
 
 // sendMessage sends a DAP message
-func (s *DAPServer) sendMessage(msg interface{}) error {
+func (s *DAPServer) sendMessage(msg any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

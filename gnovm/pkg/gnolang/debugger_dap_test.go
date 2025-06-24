@@ -8,7 +8,6 @@ import (
 	"testing"
 )
 
-// TestDAPMessageParsing tests DAP message parsing
 func TestDAPMessageParsing(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -41,7 +40,6 @@ func TestDAPMessageParsing(t *testing.T) {
 	}
 }
 
-// TestDAPServerMessageFormat tests DAP message formatting
 func TestDAPServerMessageFormat(t *testing.T) {
 	// Create a buffer to capture output
 	var buf bytes.Buffer
@@ -93,8 +91,7 @@ func TestDAPServerMessageFormat(t *testing.T) {
 	}
 }
 
-// TestDAPLineConversion tests line number conversion
-func TestDAPLineConversion(t *testing.T) {
+func TestDAPLineNumberConversion(t *testing.T) {
 	debugger := &Debugger{}
 	machine := &Machine{}
 	server := NewDAPServer(debugger, machine)
@@ -139,7 +136,6 @@ func TestDAPLineConversion(t *testing.T) {
 	}
 }
 
-// MockWriter implements io.Writer for testing
 type MockWriter struct {
 	bytes.Buffer
 }
@@ -148,7 +144,6 @@ func (m *MockWriter) Flush() error {
 	return nil
 }
 
-// TestDAPInitializeSequence tests the DAP initialization sequence
 func TestDAPInitializeSequence(t *testing.T) {
 	// This is a basic test to ensure the DAP types and handlers compile correctly
 	// More comprehensive integration tests would require a full debugging session
@@ -180,7 +175,6 @@ func TestDAPInitializeSequence(t *testing.T) {
 	}
 }
 
-// Example of how to use DAP with the debugger
 func ExampleDebugger_ServeDAP() {
 	// Create a new machine with debugging enabled
 	store := NewStore(nil, nil, nil)
@@ -191,7 +185,7 @@ func ExampleDebugger_ServeDAP() {
 	})
 
 	// Start DAP server
-	addr := "localhost:0" // Use port 0 for testing
+	addr := "localhost:0"
 	go func() {
 		if err := machine.Debugger.ServeDAP(machine, addr); err != nil {
 			fmt.Println("DAP server error:", err)

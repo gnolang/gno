@@ -27,7 +27,7 @@ type Response struct {
 	Success    bool           `json:"success"`
 	Command    string         `json:"command"`
 	Message    string         `json:"message,omitempty"`
-	Body       interface{}    `json:"body,omitempty"`
+	Body       any    `json:"body,omitempty"`
 	ErrorBody  *ErrorResponse `json:"error,omitempty"`
 }
 
@@ -35,14 +35,14 @@ type Response struct {
 type Event struct {
 	ProtocolMessage
 	Event string      `json:"event"`
-	Body  interface{} `json:"body,omitempty"`
+	Body  any `json:"body,omitempty"`
 }
 
 // ErrorResponse contains error information
 type ErrorResponse struct {
 	ID        int                    `json:"id"`
 	Format    string                 `json:"format"`
-	Variables map[string]interface{} `json:"variables,omitempty"`
+	Variables map[string]any `json:"variables,omitempty"`
 	ShowUser  bool                   `json:"showUser,omitempty"`
 	URL       string                 `json:"url,omitempty"`
 	URLLabel  string                 `json:"urlLabel,omitempty"`
@@ -261,7 +261,7 @@ type TerminatedEvent struct {
 }
 
 type TerminatedEventBody struct {
-	Restart interface{} `json:"restart,omitempty"`
+	Restart any `json:"restart,omitempty"`
 }
 
 // InitializedEvent is sent when the debug adapter is ready
