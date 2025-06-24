@@ -1,6 +1,7 @@
 package group
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -15,8 +16,7 @@ func Test_RemoveAdminRank_Success(t *testing.T) {
 	testing.SetOriginCaller("Ghhv")
 	organizer.AskJoinFriendGroup(cross, 7)
 
-	group := organizer.GetGroupFromId("7")
-	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
+	AcceptAwaitingMember(cross, "7", "Chaegnal", std.Address("Ghhv"))
 
 	testing.SetOriginCaller("Chaegnal")
 	MakeAdmin(cross, "7", "Chaegnal", "Ghhv")
@@ -31,13 +31,20 @@ func Test_RemoveAdminRank_Failure(t *testing.T) {
 	testing.SetOriginCaller("Ghhv")
 	organizer.AskJoinFriendGroup(cross, 8)
 
-	group := organizer.GetGroupFromId("8")
-	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
+	AcceptAwaitingMember(cross, "8", "Chaegnal", std.Address("Ghhv"))
 
 	testing.SetOriginCaller("Chaegnal")
 	MakeAdmin(cross, "8", "Chaegnal", "Ghhv")
 
 	testing.SetOriginCaller("Ghhv")
 
-	uassert.PanicsWithMessage(t, "you cannot undo admin rights of the owner", func() { RemoveAdminRank(cross, "8", "Ghhv", "Chaegnal") })
+	err := revive(func() {
+		RemoveAdminRank(cross, "8", "Ghhv", "Chaegnal")
+	})
+
+	errorMsg := "you cannot undo admin rights of the owner"
+
+	if err == nil || err.(string) != errorMsg {
+		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
+	}
 }
