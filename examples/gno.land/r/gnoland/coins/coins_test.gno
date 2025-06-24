@@ -26,6 +26,9 @@ func TestBalanceChecker(t *testing.T) {
 
 	gnoAddr, _ := ctg.ConvertCosmosToGno("cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr")
 	osmoAddr := "osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09"
+	gnoAddr1, _ := ctg.ConvertAnyToGno(osmoAddr)
+
+	testing.IssueCoins(gnoAddr1, std.NewCoins(std.NewCoin(denom2, 12345)))
 
 	tests := []struct {
 		name      string

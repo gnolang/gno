@@ -118,6 +118,14 @@ func renderBalances(req *mux.Request) string {
 		wasConverted = true
 	}
 
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	balances := banker.GetCoins(std.Address(input))
+
+	if len(balances) == 0 {
+		out += "This address currently has no coins."
+		return out
+	}
+
 	if coin != "" {
 		return renderSingleCoinBalance(coin, input, originalInput, wasConverted)
 	}
@@ -126,19 +134,10 @@ func renderBalances(req *mux.Request) string {
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", originalInput)
 	}
 
-	banker := std.NewBanker(std.BankerTypeReadonly)
-
 	user, _ := users.ResolveAny(input)
 	name := "`" + input + "`"
 	if user != nil {
 		name = user.RenderLink("")
-	}
-
-	balances := banker.GetCoins(std.Address(input))
-
-	if len(balances) == 0 {
-		out += "This address currently has no coins."
-		return out
 	}
 
 	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
