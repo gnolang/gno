@@ -25,6 +25,7 @@ func TestBalanceChecker(t *testing.T) {
 	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom2, 12345)))
 
 	gnoAddr, _ := ctg.ConvertCosmosToGno("cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr")
+	osmoAddr := "osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09"
 
 	tests := []struct {
 		name      string
@@ -43,7 +44,6 @@ func TestBalanceChecker(t *testing.T) {
 		// 	path:     denom,
 		// 	expected: "Balance: 1500000testtoken",
 		// },
-
 		{
 			name:     "addr1's coin balance",
 			path:     ufmt.Sprintf("balances?address=%s&coin=%s", addr1.String(), denom1),
@@ -69,6 +69,16 @@ func TestBalanceChecker(t *testing.T) {
 			name:     "cosmos addr conversion",
 			path:     "convert/cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr",
 			contains: ufmt.Sprintf("`cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr` on Cosmos matches `%s`", gnoAddr),
+		},
+		{
+			name:     "balances bech32 auto convert",
+			path:     ufmt.Sprintf("balances?address=%s&coin=%s", osmoAddr, denom1),
+			contains: "Automatically converted `osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09`",
+		},
+		{
+			name:     "single coin balance bech32 auto convert",
+			path:     ufmt.Sprintf("balances?address=%s", osmoAddr),
+			contains: "Automatically converted `osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09`",
 		},
 		{
 			name:      "invalid path",

@@ -105,21 +105,25 @@ func renderBalances(req *mux.Request) string {
 		return out
 	}
 
-	// If input is not a valid Gno address
+	originalInput := input
+	var wasConverted bool
+
+	// Try to validate or convert
 	if !std.Address(input).IsValid() {
-		// Try converting input to Gno
 		addr, err := ctg.ConvertAnyToGno(input)
 		if err != nil {
-			out += ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.", input)
-			return out
+			return out + ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.\n\n", input)
 		}
-
-		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
 		input = addr.String()
+		wasConverted = true
+	}
+
+	if wasConverted {
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", originalInput)
 	}
 
 	if coin != "" {
-		return renderSingleCoinBalance(coin, input)
+		return renderSingleCoinBalance(coin, input, originalInput, wasConverted)
 	}
 
 	banker := std.NewBanker(std.BankerTypeReadonly)
@@ -166,20 +170,24 @@ func renderBalances(req *mux.Request) string {
 	return out
 }
 
-func renderSingleCoinBalance(denom, input string) string {
+func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) string {
 	out := "# Coin balance\n\n"
 	banker := std.NewBanker(std.BankerTypeReadonly)
 
-	user, _ := users.ResolveAny(input)
-	name := "`" + input + "`"
+	if wasConverted {
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", origInput)
+	}
+
+	user, _ := users.ResolveAny(addr)
+	name := "`" + addr + "`"
 	if user != nil {
 		name = user.RenderLink("")
 	}
 
 	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker.GetCoins(std.Address(input)).AmountOf(denom), denom, std.ChainHeight())
+		name, banker.GetCoins(std.Address(addr)).AmountOf(denom), denom, std.ChainHeight())
 
-	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + input + ")"
+	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + addr + ")"
 
 	return out
 }
