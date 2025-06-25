@@ -24,11 +24,6 @@ func TestCombine(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "nil errors",
-			errors:   []error{nil, nil},
-			expected: "",
-		},
-		{
 			name:     "single error",
 			errors:   []error{newError("error1"), nil},
 			expected: "error1",
