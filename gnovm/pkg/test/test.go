@@ -362,12 +362,23 @@ func (opts *TestOptions) runTestFiles(
 		// if coverage is enabled, instrument the files
 		if opts.Coverage {
 			for _, file := range mpkg.Files {
+				// Skip non-gno files
+				if !strings.HasSuffix(file.Name, ".gno") {
+					continue
+				}
+				// Skip test files
+				if strings.HasSuffix(file.Name, "_test.gno") {
+					continue
+				}
 				instrumenter := coverage.NewCoverageInstrumenter(tracker, file.Name)
 				instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
 				if err != nil {
 					return fmt.Errorf("failed to instrument file %s: %w", file.Name, err)
 				}
 				file.Body = string(instrumentedContent)
+				if opts.Verbose {
+					fmt.Fprintf(opts.Error, "Instrumented file: %s\n", file.Name)
+				}
 			}
 		}
 		m.RunMemPackage(mpkg, true)

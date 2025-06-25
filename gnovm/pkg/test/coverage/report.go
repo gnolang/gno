@@ -28,29 +28,16 @@ func GenerateReport(tracker *CoverageTracker, outputFile string) error {
 		Files: make(map[string]FileCoverage),
 	}
 
-	// collect the coverage data for all files
-	for filename, lines := range tracker.data {
+	// Use GetCoverageData to get consistent coverage calculations
+	coverageData := tracker.GetCoverageData()
+	
+	for filename, data := range coverageData {
 		fileCoverage := FileCoverage{
-			Lines: make(map[int]int),
+			Lines:    data.LineData,
+			Total:    data.TotalLines,
+			Covered:  data.CoveredLines,
+			Coverage: data.CoverageRatio,
 		}
-
-		// calculate the total and covered lines for the file
-		total := 0
-		covered := 0
-		for line, count := range lines {
-			fileCoverage.Lines[line] = count
-			total++
-			if count > 0 {
-				covered++
-			}
-		}
-
-		fileCoverage.Total = total
-		fileCoverage.Covered = covered
-		if total > 0 {
-			fileCoverage.Coverage = float64(covered) / float64(total) * 100
-		}
-
 		report.Files[filename] = fileCoverage
 	}
 

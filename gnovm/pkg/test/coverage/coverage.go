@@ -15,12 +15,14 @@ var globalTracker = NewCoverageTracker()
 
 // CoverageTracker tracks the coverage data
 type CoverageTracker struct {
-	data map[string]map[int]int // filename -> line number -> count
+	data          map[string]map[int]int  // filename -> line number -> count
+	allLines      map[string]map[int]bool // filename -> line number -> exists (all executable lines)
 }
 
 func NewCoverageTracker() *CoverageTracker {
 	return &CoverageTracker{
-		data: make(map[string]map[int]int),
+		data:     make(map[string]map[int]int),
+		allLines: make(map[string]map[int]bool),
 	}
 }
 
@@ -30,6 +32,14 @@ func (ct *CoverageTracker) MarkLine(filename string, line int) {
 		ct.data[filename] = make(map[int]int)
 	}
 	ct.data[filename][line]++
+}
+
+// RegisterExecutableLine registers a line as executable (for coverage calculation)
+func (ct *CoverageTracker) RegisterExecutableLine(filename string, line int) {
+	if _, ok := ct.allLines[filename]; !ok {
+		ct.allLines[filename] = make(map[int]bool)
+	}
+	ct.allLines[filename][line] = true
 }
 
 // GetCoverage return the coverage data for a specific file
@@ -49,15 +59,26 @@ type CoverageData struct {
 func (ct *CoverageTracker) GetCoverageData() map[string]*CoverageData {
 	result := make(map[string]*CoverageData)
 
-	for filename, lineData := range ct.data {
-		totalLines := 0
+	// Process all files that have executable lines
+	for filename, executableLines := range ct.allLines {
+		totalLines := len(executableLines)
 		coveredLines := 0
-
-		// Count total and covered lines
-		for _, count := range lineData {
-			totalLines++
-			if count > 0 {
-				coveredLines++
+		
+		lineData := make(map[int]int)
+		
+		// Check coverage for each executable line
+		for line := range executableLines {
+			if executedData, ok := ct.data[filename]; ok {
+				if count, executed := executedData[line]; executed {
+					lineData[line] = count
+					if count > 0 {
+						coveredLines++
+					}
+				} else {
+					lineData[line] = 0
+				}
+			} else {
+				lineData[line] = 0
 			}
 		}
 
@@ -209,15 +230,7 @@ func (ci *CoverageInstrumenter) instrumentBlockStmt(block *ast.BlockStmt, line i
 	markStmt := ci.createMarkLineStmt(ci.filename, line)
 	block.List = append([]ast.Stmt{markStmt}, block.List...)
 
-	// handle return statements
-	for i := 0; i < len(block.List); i++ {
-		if ret, ok := block.List[i].(*ast.ReturnStmt); ok {
-			retLine := ci.fset.Position(ret.Pos()).Line
-			markLineStmt := ci.createMarkLineStmt(ci.filename, retLine)
-			block.List = append(block.List[:i], append([]ast.Stmt{markLineStmt}, block.List[i:]...)...)
-			i++ // due to the inserted code, increment the index
-		}
-	}
+	// Note: return statement handling is done in Visit method to avoid duplication
 }
 
 // instrumentCaseList adds a call to the markLine function to the case list
@@ -240,33 +253,56 @@ func (ci *CoverageInstrumenter) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
 		if n.Body != nil {
-			ci.instrumentBlockStmt(n.Body, line)
+			// Register the function entry line
+			funcLine := ci.fset.Position(n.Body.Lbrace).Line
+			ci.tracker.RegisterExecutableLine(ci.filename, funcLine)
+			ci.instrumentBlockStmt(n.Body, funcLine)
 		}
 	case *ast.IfStmt:
 		if n.Cond != nil {
 			condLine := ci.fset.Position(n.Cond.Pos()).Line
+			ci.tracker.RegisterExecutableLine(ci.filename, condLine)
 			ci.instrumentBlockStmt(n.Body, condLine)
+		}
+		// Also instrument else block if present
+		if n.Else != nil {
+			if elseBlock, ok := n.Else.(*ast.BlockStmt); ok {
+				elseLine := ci.fset.Position(elseBlock.Lbrace).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, elseLine)
+				ci.instrumentBlockStmt(elseBlock, elseLine)
+			}
 		}
 	case *ast.ForStmt:
 		if n.Cond != nil {
 			condLine := ci.fset.Position(n.Cond.Pos()).Line
+			ci.tracker.RegisterExecutableLine(ci.filename, condLine)
 			ci.instrumentBlockStmt(n.Body, condLine)
+		} else {
+			// For loop without condition
+			ci.tracker.RegisterExecutableLine(ci.filename, line)
+			ci.instrumentBlockStmt(n.Body, line)
 		}
 	case *ast.RangeStmt:
+		ci.tracker.RegisterExecutableLine(ci.filename, line)
 		ci.instrumentBlockStmt(n.Body, line)
 	case *ast.SwitchStmt:
+		ci.tracker.RegisterExecutableLine(ci.filename, line)
 		ci.instrumentBlockStmt(n.Body, line)
 	case *ast.SelectStmt:
+		ci.tracker.RegisterExecutableLine(ci.filename, line)
 		ci.instrumentBlockStmt(n.Body, line)
 	case *ast.CaseClause:
+		ci.tracker.RegisterExecutableLine(ci.filename, line)
 		n.Body = ci.instrumentCaseStmts(n.Body, line)
 	case *ast.CommClause:
+		ci.tracker.RegisterExecutableLine(ci.filename, line)
 		n.Body = ci.instrumentCaseStmts(n.Body, line)
 	case *ast.BlockStmt:
 		// handle return statements in the block
 		for i := 0; i < len(n.List); i++ {
 			if ret, ok := n.List[i].(*ast.ReturnStmt); ok {
 				retLine := ci.fset.Position(ret.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, retLine)
 				markLineStmt := ci.createMarkLineStmt(ci.filename, retLine)
 				n.List = append(n.List[:i], append([]ast.Stmt{markLineStmt}, n.List[i:]...)...)
 				i++ // due to the inserted code, increment the index
@@ -307,4 +343,5 @@ func GetGlobalTracker() *CoverageTracker {
 // Reset resets the coverage data
 func (ct *CoverageTracker) Reset() {
 	ct.data = make(map[string]map[int]int)
+	ct.allLines = make(map[string]map[int]bool)
 }

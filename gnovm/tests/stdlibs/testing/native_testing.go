@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 )
 
 func X_unixNano() int64 {
@@ -25,4 +26,9 @@ func X_recoverWithStacktrace(m *gnolang.Machine) (gnolang.TypedValue, string) {
 		return gnolang.TypedValue{}, ""
 	}
 	return exception.Value, exception.Stacktrace.String()
+}
+
+// X_markLine marks a line as executed
+func X_markLine(filename string, line int) {
+	coverage.GetGlobalTracker().MarkLine(filename, line)
 }
