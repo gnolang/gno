@@ -12,6 +12,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -37,6 +38,12 @@ type StoreOptions struct {
 
 	// When fixing code from an earler gno version. Not supported for stdlibs.
 	FixFrom string
+
+	// Coverage enables code coverage instrumentation
+	Coverage bool
+
+	// CoverageTracker is the global coverage tracker to use
+	CoverageTracker *coverage.CoverageTracker
 }
 
 // NOTE: this isn't safe, should only be used for testing.
@@ -145,6 +152,11 @@ func StoreWithOptions(
 			if mpkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
+
+			// NOTE: Coverage instrumentation should NOT be applied to imported packages.
+			// Only the package being tested should be instrumented, not its dependencies.
+			// Instrumenting imports causes parse errors because the "testing" package
+			// is not available in the regular package context.
 
 			send := std.Coins{}
 			ctx := Context("", pkgPath, send)

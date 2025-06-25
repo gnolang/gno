@@ -174,6 +174,21 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	return opts
 }
 
+// createTestStore creates a test store with the given options, including coverage settings
+func createTestStore(opts *TestOptions) (gno.Store, error) {
+	storeOpts := StoreOptions{
+		Coverage: opts.Coverage,
+	}
+	
+	// Get the global coverage tracker if coverage is enabled
+	if opts.Coverage {
+		storeOpts.CoverageTracker = coverage.GetGlobalTracker()
+	}
+	
+	_, testStore := StoreWithOptions(opts.RootDir, opts.WriterForStore(), storeOpts)
+	return testStore, nil
+}
+
 // proxyWriter is a simple wrapper around a io.Writer, it exists so that the
 // underlying writer can be swapped with another when necessary.
 type proxyWriter struct {
@@ -231,6 +246,33 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		coverageTracker := coverage.GetGlobalTracker()
 		// 기존 데이터 초기화
 		coverageTracker.Reset()
+		
+		// Recreate test store with coverage options
+		testStore, err := createTestStore(opts)
+		if err != nil {
+			return err
+		}
+		opts.TestStore = testStore
+		
+		// Instrument the package files BEFORE loading imports
+		for i, file := range mpkg.Files {
+			// Skip non-gno files and test files
+			if !strings.HasSuffix(file.Name, ".gno") || strings.HasSuffix(file.Name, "_test.gno") {
+				continue
+			}
+			
+			// Use full path for coverage tracking
+			fullPath := filepath.Join(mpkg.Path, file.Name)
+			instrumenter := coverage.NewCoverageInstrumenter(coverageTracker, fullPath)
+			instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
+			if err != nil {
+				return fmt.Errorf("failed to instrument file %s: %w", file.Name, err)
+			}
+			mpkg.Files[i].Body = string(instrumentedContent)
+			if opts.Verbose {
+				fmt.Fprintf(opts.Error, "Instrumented file: %s\n", file.Name)
+			}
+		}
 	}
 
 	// Eagerly load imports.
@@ -359,28 +401,6 @@ func (opts *TestOptions) runTestFiles(
 	m.Alloc = alloc
 
 	if gs.GetMemPackage(mpkg.Path) == nil {
-		// if coverage is enabled, instrument the files
-		if opts.Coverage {
-			for _, file := range mpkg.Files {
-				// Skip non-gno files
-				if !strings.HasSuffix(file.Name, ".gno") {
-					continue
-				}
-				// Skip test files
-				if strings.HasSuffix(file.Name, "_test.gno") {
-					continue
-				}
-				instrumenter := coverage.NewCoverageInstrumenter(tracker, file.Name)
-				instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
-				if err != nil {
-					return fmt.Errorf("failed to instrument file %s: %w", file.Name, err)
-				}
-				file.Body = string(instrumentedContent)
-				if opts.Verbose {
-					fmt.Fprintf(opts.Error, "Instrumented file: %s\n", file.Name)
-				}
-			}
-		}
 		m.RunMemPackage(mpkg, true)
 	} else {
 		m.SetActivePackage(gs.GetPackage(mpkg.Path, false))

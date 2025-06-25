@@ -287,10 +287,10 @@ func (ci *CoverageInstrumenter) Visit(node ast.Node) ast.Visitor {
 		ci.instrumentBlockStmt(n.Body, line)
 	case *ast.SwitchStmt:
 		ci.tracker.RegisterExecutableLine(ci.filename, line)
-		ci.instrumentBlockStmt(n.Body, line)
+		// Don't instrument the switch body directly - only instrument case clauses
 	case *ast.SelectStmt:
 		ci.tracker.RegisterExecutableLine(ci.filename, line)
-		ci.instrumentBlockStmt(n.Body, line)
+		// Don't instrument the select body directly - only instrument case clauses
 	case *ast.CaseClause:
 		ci.tracker.RegisterExecutableLine(ci.filename, line)
 		n.Body = ci.instrumentCaseStmts(n.Body, line)
