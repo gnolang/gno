@@ -1595,6 +1595,40 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 5003,
 		},
+		{
+			name: "create2 adress contract creation",
+			code: []byte{
+				byte(PUSH9), 0x60, 0x2a, 0x5f, 0x52, 0x60, 0x01, 0x60, 0x1f, 0xf3,
+				byte(PUSH0),
+				byte(MSTORE),
+				byte(PUSH1), 0x69, // salt
+				byte(PUSH1), 0x9, // size
+				byte(PUSH1), 0x17, // offset
+				byte(PUSH1), 0x1, // value
+				byte(CREATE2),
+			},
+			caller: &Account{
+				EvmAddress: 0x50,
+				Balance:    uint256.One(),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.MustFromHex("0x8ba8d2173a510c31"),
+			},
+			expectedAccounts: Accounts{
+				0x50: &Account{
+					EvmAddress: 0x50,
+					Balance:    uint256.Zero(),
+				},
+				0x8ba8d2173a510c31: &Account{
+					AccountType: ContractAccount,
+					EvmAddress:  0x8ba8d2173a510c31,
+					Balance:     uint256.One(),
+					Code:        []byte{0x2a},
+				},
+			},
+			ignoreMemory:        true,
+			expectedGasConsumed: 32308,
+		},
 	}
 
 	for _, tc := range testCases {

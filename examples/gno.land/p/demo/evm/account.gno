@@ -167,6 +167,15 @@ func (c *Account) String() string {
 	res += ", Balance: " + c.Balance.String()
 	res += ", Nonce: " + strconv.FormatUint(c.Nonce, 10)
 	res += ", Gas: " + strconv.FormatUint(uint64(c.Gas), 10)
+	res += ", Code: len = " + strconv.Itoa(len(c.Code)) + " : [ "
+
+	for i := 0; i < 10 && i < len(c.Code); i += 1 {
+		res += string(c.Code[i]) + ", "
+	}
+	if len(c.Code) >= 10 {
+		res += "... "
+	}
+	res += "]"
 
 	return res
 }
