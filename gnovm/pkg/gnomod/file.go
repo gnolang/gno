@@ -29,6 +29,7 @@ type File struct {
 	// Private indicates that the module is private.
 	// Private modules:
 	// - cannot be imported by other modules.
+	// - does not have state persistance.
 	Private bool `toml:"private,omitempty" json:"private,omitempty"`
 
 	// Replace is a list of replace directives for the module's dependencies.

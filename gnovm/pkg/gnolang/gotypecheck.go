@@ -261,6 +261,12 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 	if err != nil {
 		return nil, err
 	}
+	if mod.Private {
+		err := ImportPrivateError{PkgPath: pkgPath}
+		result.err = err
+		result.pending = false
+		return nil, err
+	}
 	if mod.Draft && gimp.height != 0 {
 		err := ImportDraftError{PkgPath: pkgPath}
 		result.err = err
@@ -620,11 +626,13 @@ type ImportError interface {
 
 func (e ImportNotFoundError) assertImportError() {}
 func (e ImportDraftError) assertImportError()    {}
+func (e ImportPrivateError) assertImportError()  {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
 	_ ImportError = ImportDraftError{}
+	_ ImportError = ImportPrivateError{}
 	_ ImportError = ImportCycleError{}
 )
 
@@ -653,6 +661,20 @@ func (e ImportDraftError) GetMsg() string {
 }
 
 func (e ImportDraftError) Error() string { return importErrorString(e) }
+
+// ImportPrivateError implements ImportError
+type ImportPrivateError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportPrivateError) GetLocation() string { return e.Location }
+
+func (e ImportPrivateError) GetMsg() string {
+	return fmt.Sprintf("import path %q is private", e.PkgPath)
+}
+
+func (e ImportPrivateError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {
