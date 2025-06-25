@@ -3,7 +3,7 @@ package blog
 import (
 	"time"
 
-	"gno.land/p/mason/md"
+	"gno.land/p/moul/md"
 )
 
 type HeaderLink func(rawPath string) string
@@ -65,6 +65,20 @@ func RenderSortUpdate(rawPath string) string {
 		GetSortByUpdatedPath(rawPath, order))
 }
 
+func RenderSortCommon(rawPath string) string {
+	sort := parseQueryParams("sort", rawPath)
+	order := parseQueryParams("order", rawPath)
+	if order == "" {
+		order = "desc"
+	}
+	commonOrder := " most common"
+	if order == "desc" && sort == "common" {
+		commonOrder = " least common"
+	}
+	return md.Link(orderArrow("common", sort, order)+commonOrder,
+		GetSortByCommonPath(rawPath, order)) + " | "
+}
+
 func SetCustomHeader(rawPath string, presets []HeaderPreset) string {
 	out := ""
 	for i, preset := range presets {
@@ -92,19 +106,18 @@ var DefaultTimeRanges = []TimeRangePreset{
 	{"last 30 days", time.Now().AddDate(0, 0, -30).Format("2006-01-02"), time.Now().Format("2006-01-02")},
 }
 
-func RenderTimeRangeLinks(rawPath string, presets []TimeRangePreset) string {
+func RenderTimeRangeLinks(rawPath string, presets *[]TimeRangePreset) string {
 	out := ""
 	timePresets := presets
-	// if presets == [] {
-	// 	timePresets = DefaultTimeRanges
-	// }
-	// for i, r := range timePresets {
-	for i, r := range DefaultTimeRanges {
+	if presets == nil {
+		timePresets = &DefaultTimeRanges
+	}
+	for i, r := range *timePresets {
 		out += md.Link(r.Label, updateQueryMulti(rawPath, map[string]string{
 			"start": r.Start,
 			"end":   r.End,
 		}))
-		if i < len(timePresets)-1 {
+		if i < len(*timePresets)-1 {
 			out += ", "
 		}
 	}

@@ -166,55 +166,29 @@ func (b Blog) RenderFilterHeader(req *mux.Request, user string, isListing bool) 
 	default:
 		out += md.H2(renderBreadcrumb(b.Prefix(), req.Path))
 	}
+
+	var headerPresets []HeaderPreset
 	if !isListing {
-		out += md.Link("⊞ grid", GetGridFmtPath(b.Prefix()+":"+req.RawPath)) + " | "
-		out += md.Link("☰ list", GetListFmtPath(b.Prefix()+":"+req.RawPath)) + " | "
-
-		// ?time=relative | short | full
-		time := parseQueryParams("time", req.RawPath)
-		if time == "" {
-			time = "relative"
-		}
-		out += md.Link("⏱ "+time, GetTimeFmtPath(b.Prefix()+":"+req.RawPath, toggleTimeFormat(time))) + " | "
-
+		headerPresets = append(headerPresets,
+			HeaderPreset{"mode", "grid", RenderModeToggle},
+			HeaderPreset{"time", "relative", RenderTimeFormat},
+		)
 	}
-
-	sort := parseQueryParams("sort", req.RawPath)
-	order := parseQueryParams("order", req.RawPath)
-	if order == "" {
-		order = "desc"
-	}
-	// ?sort=alpha
-	alphaOrder := " (A-Z)"
-	if order == "desc" && sort == "alpha" {
-		alphaOrder = " (Z-A)"
-	}
-	out += md.Link(orderArrow("alpha", sort, order)+" alphabetical"+alphaOrder,
-		GetSortByAlphabeticalPath(b.Prefix()+":"+req.RawPath, order)) + " | "
-	// ?sort=recent
-	publishedOrder := " recent"
-	if order == "desc" && sort == "recent" {
-		publishedOrder = " oldest"
-	}
-	out += md.Link(orderArrow("recent", sort, order)+publishedOrder,
-		GetSortByPublishedPath(b.Prefix()+":"+req.RawPath, order)) + " | "
+	headerPresets = append(headerPresets,
+		HeaderPreset{"alpha", "", RenderSortAlpha},
+		HeaderPreset{"recent", "", RenderSortRecent},
+	)
 
 	if isListing {
-		// ?sort=common
-		commonOrder := " most common"
-		if order == "desc" && sort == "common" {
-			commonOrder = " least common"
-		}
-		out += md.Link(orderArrow("common", sort, order)+commonOrder,
-			GetSortByCommonPath(b.Prefix()+":"+req.RawPath, order)) + " | "
+		headerPresets = append(headerPresets, HeaderPreset{"common", "", RenderSortCommon})
 	} else {
-		// ?sort=update
-		out += md.Link(orderArrow("update", sort, order)+" last updated",
-			GetSortByUpdatedPath(b.Prefix()+":"+req.RawPath, order)) + " | "
+		headerPresets = append(headerPresets, HeaderPreset{"update", "", RenderSortUpdate})
 	}
-	// ?start=<date>&end=<date>
-	out += RenderTimeRangeLinks(b.Prefix()+":"+req.RawPath, []TimeRangePreset{}) + " | "
-	out += md.Link("🗘 reset", b.Prefix()+":"+req.Path) + "\n\n"
+	headerPresets = append(headerPresets,
+		HeaderPreset{"time-range", "", func(p string) string { return RenderTimeRangeLinks(p, nil) }},
+		HeaderPreset{"reset", "", func(p string) string { return md.Link("🗘 reset", b.Prefix()) }},
+	)
+	out += SetCustomHeader(b.Prefix()+":"+req.RawPath, headerPresets)
 	return out
 }
 
