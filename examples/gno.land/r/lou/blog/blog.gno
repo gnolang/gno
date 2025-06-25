@@ -11,33 +11,16 @@ func myResolver(input string) (string, bool) {
 	if !ok || data == nil {
 		return "", false
 	}
-	println("yo: ")
 	println(data.RenderLink(""))
 	return data.Name(), true
 }
 
-func testUserResolver(input string) (string, bool) {
-	switch input {
-	case "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs":
-		return "lou", true
-	case "g1abcde12345":
-		return "commenterone", true
-	case "g1xyz987654":
-		return "commentertwo", true
-	case "g1ffzxha57dh0qgv9ma5v393ur0zexfvp6lsjpae":
-		return "replyuser", true
-	default:
-		return "", false
-	}
-}
-
 func CreateSampleBlog() *blog.Blog {
-	myBlog, err := blog.NewBlog("Tech Thoughts", "/r/lou/blog")
+	myBlog, err := blog.NewBlog("Lou's Blog", "/r/lou/blog")
 	if err != nil {
 		panic(err)
 	}
-	// myBlog.SetUserResolver(myResolver)
-	myBlog.SetUserResolver(testUserResolver)
+	myBlog.SetUserResolver(myResolver)
 	post1, err := blog.NewPost(
 		"ai-future",
 		"The Future of AI",
@@ -124,13 +107,6 @@ func CreateSampleBlog() *blog.Blog {
 
 func Render(path string) string {
 	out := ""
-	// user, _ := users.ResolveAny("g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9")
-	// if user != nil {
-	// 	out += user.Name() + "\n\n"
-	// 	out += user.RenderLink("") + "\n\n"
-	// } else {
-	// 	out += "yo\n\n"
-	// }
 	myBlog := CreateSampleBlog()
 	out += myBlog.Render(path)
 	return out
