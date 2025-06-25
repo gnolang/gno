@@ -36,45 +36,7 @@ func RenderBlogHeader(prefix, rawPath string) string {
 		{"reset", "", func(p string) string { return md.Link("🗘 reset", prefix) }},
 	}
 
-	out := SetCustomHeader(rawPath, headerPresets)
-	return out + "\n\n"
-	// out := md.Link("⊞ grid", GetGridFmtPath(rawPath)) + " | "
-	// out += md.Link("☰ list", GetListFmtPath(rawPath)) + " | "
-
-	// // ?time=relative | full | short
-	// time := parseQueryParams("time", rawPath)
-	// if time == "" {
-	// 	time = "relative"
-	// }
-	// out += md.Link("⏱ "+time, GetTimeFmtPath(rawPath, toggleTimeFormat(time))) + " | "
-
-	// sort := parseQueryParams("sort", rawPath)
-	// order := parseQueryParams("order", rawPath)
-	// if order == "" {
-	// 	order = "desc"
-	// }
-	// // ?sort=alpha
-	// alphaOrder := "(A-Z)"
-	// if order == "desc" && sort == "alpha" {
-	// 	alphaOrder = "(Z-A)"
-	// }
-	// out += md.Link(orderArrow("alpha", sort, order)+" alphabetical "+alphaOrder,
-	// 	GetSortByAlphabeticalPath(rawPath, order)) + " | "
-	// // ?sort=recent
-	// publishedOrder := " recent"
-	// if order == "desc" && sort == "recent" {
-	// 	publishedOrder = " oldest"
-	// }
-	// out += md.Link(orderArrow("recent", sort, order)+publishedOrder,
-	// 	GetSortByPublishedPath(rawPath, order)) + " | "
-	// // ?sort=update
-	// out += md.Link(orderArrow("update", sort, order)+" last updated",
-	// 	GetSortByUpdatedPath(rawPath, order)) + " | "
-	// // ?start=<date>&end=<date>
-	// out += RenderTimeRangeLinks(rawPath, []) + " | "
-
-	// out += md.Link("🗘 reset", prefix) + "\n\n"
-	return out
+	return SetCustomHeader(rawPath, headerPresets)
 }
 
 // :posts
@@ -189,7 +151,7 @@ func (b Blog) RenderFilterHeader(req *mux.Request, user string, isListing bool) 
 		HeaderPreset{"reset", "", func(p string) string { return md.Link("🗘 reset", b.Prefix()) }},
 	)
 	out += SetCustomHeader(b.Prefix()+":"+req.RawPath, headerPresets)
-	return out
+	return out + "\n\n"
 }
 
 // :tags
