@@ -342,7 +342,7 @@ func (h *HTTPHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View)
 		h.Logger.Debug("unable to fetch user realm", "username", username, "error", err)
 	}
 
-	// Build contributionsWW
+	// Build contributions
 	contribs, realmCount, err := h.buildContributions(username)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
