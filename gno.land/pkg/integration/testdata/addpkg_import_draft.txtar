@@ -1,3 +1,5 @@
+loadpkg gno.land/r/demo/draftrealm
+
 # start a new node
 gnoland start
 
@@ -6,16 +8,17 @@ gnoland start
 
 # check error message
 stdout 'TX HASH:    '
-stderr '"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/bar" as a draft package can only be deployed or imported at genesis'
+stderr '"gno.land/r/demo/draftrealm" as a draft package can only be deployed or imported at genesis'
 
 -- gnomod.toml --
 module = "bar"
 gno = "0.9"
-draft = true
 
 -- bar.gno --
 package bar
 
+import "gno.land/r/demo/draftrealm"
+
 func Render(path string) string {
- 	return "hello"
+ 	return "hello " + draftrealm.Render(path)
 }

@@ -261,14 +261,10 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 	if err != nil {
 		return nil, err
 	}
-	if mod.Private {
+	if mod != nil && mod.Private {
+		// If the package is private, we cannot import it.
 		err := ImportPrivateError{PkgPath: pkgPath}
-		result.err = err
-		result.pending = false
-		return nil, err
-	}
-	if mod.Draft && gimp.height != 0 {
-		err := ImportDraftError{PkgPath: pkgPath}
+		// NOTE: see comment above for ImportNotFoundError.
 		result.err = err
 		result.pending = false
 		return nil, err
@@ -357,6 +353,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if gimp.tcmode == TCLatestStrict {
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
+		}
+		if pmode == ParseModeProduction && mod.Draft && gimp.height > 0 {
+			panic(fmt.Sprintf("%q as a draft package can only be deployed or imported at genesis", mpkg.Path))
 		}
 		if mod.GetGno() != GnoVerLatest {
 			panic(fmt.Sprintf("expected gnomod.toml gno version %v but got %v",
@@ -625,13 +624,11 @@ type ImportError interface {
 }
 
 func (e ImportNotFoundError) assertImportError() {}
-func (e ImportDraftError) assertImportError()    {}
 func (e ImportPrivateError) assertImportError()  {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
-	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportPrivateError{}
 	_ ImportError = ImportCycleError{}
 )
@@ -648,20 +645,6 @@ func (e ImportNotFoundError) GetMsg() string { return fmt.Sprintf("unknown impor
 
 func (e ImportNotFoundError) Error() string { return importErrorString(e) }
 
-// ImportDraftError implements ImportError
-type ImportDraftError struct {
-	Location string
-	PkgPath  string
-}
-
-func (e ImportDraftError) GetLocation() string { return e.Location }
-
-func (e ImportDraftError) GetMsg() string {
-	return fmt.Sprintf("import path %q is a draft package", e.PkgPath)
-}
-
-func (e ImportDraftError) Error() string { return importErrorString(e) }
-
 // ImportPrivateError implements ImportError
 type ImportPrivateError struct {
 	Location string
@@ -671,7 +654,7 @@ type ImportPrivateError struct {
 func (e ImportPrivateError) GetLocation() string { return e.Location }
 
 func (e ImportPrivateError) GetMsg() string {
-	return fmt.Sprintf("import path %q is private", e.PkgPath)
+	return fmt.Sprintf("import path %q is private and cannot be imported", e.PkgPath)
 }
 
 func (e ImportPrivateError) Error() string { return importErrorString(e) }
