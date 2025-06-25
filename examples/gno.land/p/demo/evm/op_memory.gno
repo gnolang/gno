@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"errors"
 	"math"
 
 	"gno.land/p/demo/uint256"
@@ -144,6 +145,10 @@ func opMcopy(s *State) error {
 // opTload loads a value from the transient storage at the given key and pushes it onto the stack.
 // If the key does not exist, it pushes zero.
 func opTload(s *State) error {
+	if s.context == staticContext {
+		return errors.New("can't modify transient memory from staticCall")
+	}
+
 	key, err := s.stack.Pop()
 	if err != nil {
 		return err
@@ -203,6 +208,9 @@ func opSload(s *State) error {
 // opSstore stores a value into persistent storage at the given key.
 // It tracks whether the storage slot is warm and charges gas accordingly.
 func opSstore(s *State) error {
+	if s.context == staticContext {
+		return errors.New("can't modify memory from staticCall")
+	}
 	key, err := s.stack.Pop()
 	if err != nil {
 		return err

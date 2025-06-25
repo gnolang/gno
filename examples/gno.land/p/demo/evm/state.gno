@@ -4,8 +4,14 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
+type contextType uint
+
 // gasPrice defines the cost of one gas unit in wei.
-const GasPrice = 10 // one gas cost 10 wei
+const (
+	GasPrice    uint        = 10
+	callContext contextType = iota
+	staticContext
+) // one gas cost 10 wei
 
 // LogEntry represents an event log entry with topics and data.
 type LogEntry struct {
@@ -25,6 +31,7 @@ type tmpEnv struct {
 
 // State represents the full EVM execution state during a transaction or message call.
 type State struct {
+	context          contextType
 	callerAddress    uint64                         // Address of the caller executing this state
 	callValue        *uint256.Uint                  // Amount of wei sent with the call
 	callData         []byte                         // Input data for the call
@@ -43,6 +50,7 @@ type State struct {
 // newEmptyState initializes and returns a new State with empty/default values.
 func newEmptyState() *State {
 	return &State{
+		context:       callContext,
 		stack:         *NewevmStack(),
 		memory:        []byte{}, // make([]byte, 1024)
 		result:        []byte{}, // make([]byte, 1024)
@@ -86,6 +94,7 @@ func newStateFromEnv(env *Env) *State {
 	copy(transactionsCopy, env.Transaction)
 
 	return &State{
+		context:       callContext,
 		stack:         *NewevmStack(),
 		memory:        []byte{}, // make([]byte, 1024)
 		result:        []byte{}, // make([]byte, 1024)
@@ -129,6 +138,7 @@ func (s *State) clone() *State {
 	copy(transactionsCopy, s.tmp.transactions)
 
 	return &State{
+		context:       s.context,
 		stack:         *NewevmStack(),
 		memory:        []byte{},
 		result:        []byte{},
@@ -149,8 +159,7 @@ func (s *State) clone() *State {
 	}
 }
 
-// clone creates a deep copy of the current State, including storage, logs, warm storage, and accounts.
-// Note that stack, memory, and code are reset/empty in the clone.
+// reapply a state at the end of a sub context
 func (s *State) applyStateAfterReturn(tmpState *State) {
 	storageCopy := make(map[uint256.Uint]*uint256.Uint)
 	for k, v := range tmpState.tmp.storage {

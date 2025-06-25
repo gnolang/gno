@@ -1,11 +1,17 @@
 package evm
 
 import (
+	"errors"
+
 	"gno.land/p/demo/evm/keccak256"
 	"gno.land/p/demo/uint256"
 )
 
 func opCreate(s *State) error {
+	if s.context == staticContext {
+		return errors.New("can't create from staticCall")
+	}
+
 	// pop arguments from stack
 	value, err := s.stack.Pop()
 	if err != nil {
@@ -66,6 +72,10 @@ func opCreate(s *State) error {
 }
 
 func opCreate2(s *State) error {
+	if s.context == staticContext {
+		return errors.New("can't create2 from staticCall")
+	}
+
 	// pop arguments from stack
 	value, err := s.stack.Pop()
 	if err != nil {

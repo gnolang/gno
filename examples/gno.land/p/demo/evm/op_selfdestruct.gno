@@ -7,6 +7,10 @@ import (
 )
 
 func opSelfDestruct(s *State) error {
+	if s.context == staticContext {
+		return errors.New("can't selfdestruct from staticCall")
+	}
+
 	addr, err := s.stack.Pop()
 	if err != nil {
 		return errors.New("can't self destruct: need account address")

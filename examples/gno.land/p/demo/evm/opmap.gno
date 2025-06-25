@@ -331,7 +331,7 @@ func init() {
 		RETURN:         {RETURN, "RETURN", opReturn, 0},
 		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", opDelegateCall, 100},
 		CREATE2:        {CREATE2, "CREATE2", opCreate2, 32000},
-		STATICCALL:     {STATICCALL, "STATICCALL", notImplemented /*opStaticcall*/, 700},
+		STATICCALL:     {STATICCALL, "STATICCALL", opStaticCall, 700},
 		REVERT:         {REVERT, "REVERT", opRevert, 0},
 		INVALID:        {INVALID, "INVALID", opInvalid, 0},
 		SELFDESTRUCT:   {SELFDESTRUCT, "SELFDESTRUCT", opSelfDestruct, 5000},

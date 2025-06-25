@@ -75,6 +75,10 @@ func opPop(s *State) error {
 
 func opLog(nTopics int) func(*State) error {
 	return func(s *State) error {
+		if s.context == staticContext {
+			return errors.New("can't log from staticCall")
+		}
+
 		topics := make([][]byte, nTopics)
 		for i := 0; i < nTopics; i++ {
 			topicVal, err := s.stack.Pop()
@@ -307,33 +311,33 @@ func opNumber(s *State) error {
 }
 
 func opBaseFee(s *State) error {
-    prevBaseFee := uint64(202700000000) // wei
-    includedGas := uint64(30000000)
-    targetGas := uint64(15000000)
-    if env := s.env; env != nil {
-        if env.PrevBaseFee != 0 {
-            prevBaseFee = env.PrevBaseFee
-        }
-        if env.IncludedGas != 0 {
-            includedGas = env.IncludedGas
-        }
-        if env.TargetGas != 0 {
-            targetGas = env.TargetGas
-        }
-    }
-    delta := float64(int64(includedGas) - int64(targetGas)) / float64(targetGas)
-    adjustment := delta * float64(prevBaseFee) / 8 // adjust base fee (12.5% limit)
-    feeResult := uint64(float64(prevBaseFee) + adjustment + 0.5) // rounded
-    s.stack.Push(uint256.NewUint(feeResult))
-    return nil
+	prevBaseFee := uint64(202700000000) // wei
+	includedGas := uint64(30000000)
+	targetGas := uint64(15000000)
+	if env := s.env; env != nil {
+		if env.PrevBaseFee != 0 {
+			prevBaseFee = env.PrevBaseFee
+		}
+		if env.IncludedGas != 0 {
+			includedGas = env.IncludedGas
+		}
+		if env.TargetGas != 0 {
+			targetGas = env.TargetGas
+		}
+	}
+	delta := float64(int64(includedGas)-int64(targetGas)) / float64(targetGas)
+	adjustment := delta * float64(prevBaseFee) / 8               // adjust base fee (12.5% limit)
+	feeResult := uint64(float64(prevBaseFee) + adjustment + 0.5) // rounded
+	s.stack.Push(uint256.NewUint(feeResult))
+	return nil
 }
 
 func opBlobBaseFee(s *State) error {
-    if s.env != nil && s.env.BlobBaseFee != nil {
-        s.stack.Push(s.env.BlobBaseFee.Clone())
-    } else {
-        s.stack.Push(uint256.Zero())
-    }
+	if s.env != nil && s.env.BlobBaseFee != nil {
+		s.stack.Push(s.env.BlobBaseFee.Clone())
+	} else {
+		s.stack.Push(uint256.Zero())
+	}
 	return nil
 }
 
@@ -357,12 +361,12 @@ func opBlobHash(s *State) error {
 }
 
 func opCoinbase(s *State) error {
-    if s.env != nil && s.env.Coinbase != nil {
-        s.stack.Push(s.env.Coinbase.Clone()) // miner address -> coinbase
-    } else {
-        s.stack.Push(uint256.Zero())
-    }
-    return nil
+	if s.env != nil && s.env.Coinbase != nil {
+		s.stack.Push(s.env.Coinbase.Clone()) // miner address -> coinbase
+	} else {
+		s.stack.Push(uint256.Zero())
+	}
+	return nil
 }
 
 func opBlockHash(s *State) error {
@@ -405,7 +409,7 @@ func opExtCodeHash(s *State) error {
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
-	if len(account.Code) == 0 { 
+	if len(account.Code) == 0 {
 		emptyHash := keccak256.Keccak256(nil) // if the account has no code -> return keccak256("")
 		emptyHash256 := uint256.Zero().SetBytes(emptyHash)
 		s.stack.Push(emptyHash256)

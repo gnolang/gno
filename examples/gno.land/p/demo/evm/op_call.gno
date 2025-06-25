@@ -43,6 +43,10 @@ func opCall(s *State) error {
 		return err
 	}
 
+	if s.context == staticContext && !moneyToGive.IsZero() {
+		return errors.New("can't send money from staticCall (call with non 0 value)")
+	}
+
 	// check for enough money
 	if s.tmp.accounts[s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
 		s.stack.Push(uint256.Zero())
@@ -235,6 +239,67 @@ func opDelegateCall(s *State) error {
 	s.gasConsumed += uint(memoryCost)
 
 	s.applyStateAfterReturn(tmpState)
+	return nil
+}
+
+func opStaticCall(s *State) error {
+	// get the values pushed in stack
+	gas, addr, argsOffset, argsSize, retOffset, retSize, err := getDelegateCallVariables(&s.stack)
+	if err != nil {
+		return err
+	}
+
+	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
+		return notEnoughGas
+	}
+	memoryCost := uint64(0)
+	callData := getByteCopyFromMemory(s.memory, argsOffset, argsSize)
+
+	// create a tmp state
+	tmpState := s.clone()
+	tmpState.context = staticContext
+	tmpState.setCallData(callData)
+	tmpState.setCallValue(uint256.Zero())
+	tmpState.setGasLimit(uint(gas.Uint64()))
+	tmpState.transientStorage = s.transientStorage
+
+	// check for precompiled
+	var res []byte
+	if addr.Uint64() <= nbPrecompiledContract {
+		f, ok := precompiled[precompiledAddress(addr.Uint64())]
+		if ok {
+			err = f(tmpState)
+		}
+	} else {
+		// get the contrat code
+		contract := tmpState.tmp.accounts[addr.Uint64()]
+		if contract == nil || contract.AccountType != ContractAccount {
+			s.stack.Push(uint256.Zero())
+			return nil
+		}
+		contractCode := contract.Code
+
+		// execute the bytecode in tmpState
+		tmpState.setCode(contractCode)
+		err = tmpState.executeByteCode()
+	}
+	s.gasConsumed += tmpState.gasConsumed
+
+	// check for error, and push 1 or 0 if success
+	if err != nil {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+
+	s.stack.Push(uint256.One())
+	res = tmpState.getResult()
+
+	// extend memory as needed, and copy the result (res) in parent process
+	// also change storages, gas consumed and stuff like that
+	extendMemory(s, retOffset, retSize, &memoryCost)
+	copy(s.memory[retOffset.Uint64():retOffset.Uint64()+retSize.Uint64()], res)
+
+	s.gasConsumed += uint(memoryCost)
 	return nil
 }
 
