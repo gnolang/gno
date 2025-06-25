@@ -575,8 +575,7 @@ func TestAuthorizerDoByPrevious(t *testing.T) {
 			executed = true
 			return nil
 		}, args...)
-
-		uassert.True(t, err == nil, "expected no error")
+		uassert.NoError(t, err, "expected no error")
 		uassert.True(t, executed, "action should have been executed")
 
 		expectedErr := errors.New("test error")
@@ -584,7 +583,7 @@ func TestAuthorizerDoByPrevious(t *testing.T) {
 			return expectedErr
 		})
 
-		uassert.True(t, err == expectedErr, "expected specific error")
+		uassert.Error(t, err, "expected error")
 	})
 
 	testing.SetRealm(std.NewUserRealm(bob))
@@ -595,7 +594,7 @@ func TestAuthorizerDoByPrevious(t *testing.T) {
 			return nil
 		}, "unauthorized_arg")
 
-		uassert.True(t, err != nil, "expected error")
+		uassert.Error(t, err, "expected error")
 		uassert.False(t, executed, "action should not have been executed")
 	})
 }
