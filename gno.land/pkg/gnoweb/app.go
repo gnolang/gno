@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -54,10 +55,10 @@ type AppConfig struct {
 // 127.0.0.1:26657 as the remote node, "dev" as the chain ID, and sets up assets
 // to be served on /public/.
 func NewDefaultAppConfig() *AppConfig {
+	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:   "127.0.0.1:26657", // local first
-		RemoteHelp:   "127.0.0.1:26657",
-		ChainID:      "dev",
+		NodeRemote:   localRemote, // local first
+		RemoteHelp:   localRemote,
 		AssetsPath:   "/public/",
 		Domain:       "gno.land",
 		Aliases:      DefaultAliases,
@@ -74,6 +75,14 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
+	}
+
+	if cfg.ChainID == "" {
+		cfg.ChainID, err = getChainID(rpcclient)
+		if err != nil {
+			logger.Error("unable to guess chain-id, make sure that the remote node is up and running and the RPC endpoint is valid", "error", err)
+			return nil, errors.New("no chain-id configured")
+		}
 	}
 
 	// Setup client adapter
@@ -103,7 +112,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if cfg.Aliases == nil {
 		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
 	}
-	httpHandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
+	httphandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
 		ClientAdapter: adpcli,
 		Meta:          staticMeta,
 		Renderer:      renderer,
@@ -117,7 +126,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// Handle web handler with redirect middleware
-	mux.Handle("/", RedirectMiddleware(webhandler, cfg.Analytics))
+	mux.Handle("/", RedirectMiddleware(httphandler, cfg.Analytics))
 
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {

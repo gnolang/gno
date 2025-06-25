@@ -1,12 +1,15 @@
 # Configurable arguments
 DEV_REMOTE ?= 127.0.0.1:26657
-CHAIN_ID ?= dev
+CHAIN_ID ?=
 PUBLIC_DIR ?= public
 
 # tools
+node_modules := ./tools/node_modules
 tools_run := go run -modfile ./tools/go.mod
-run_reflex := $(tools_run) github.com/cespare/reflex
-run_logname := go -C ./tools run ./cmd/logname
+reflex := $(tools_run) github.com/cespare/reflex
+logname := go -C ./tools run ./cmd/logname
+esbuild := $(node_modules)/.bin/esbuild
+tailwind := $(node_modules)/.bin/tailwindcss
 
 # css config
 input_css := frontend/css/input.css
@@ -15,14 +18,12 @@ tw_config_path := frontend/css/tx.config.js
 templates_files := $(shell find . -iname '*.html')
 
 # static config
-tailwind := ./tools/node_modules/.bin/tailwindcss
 src_dir_static := frontend/static
 out_dir_static := $(PUBLIC_DIR)
 input_static := $(shell find $(src_dir_static) -type f)
 output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_static))
 
 # esbuild config
-esbuild := ./tools/node_modules/.bin/esbuild
 src_dir_js := frontend/js
 out_dir_js := $(PUBLIC_DIR)/js
 input_js := $(shell find $(src_dir_js) -name '*.ts')
@@ -34,7 +35,7 @@ cache_dir := .cache
 #############
 # Targets
 #############
-.PHONY: all generate fmt css ts
+.PHONY: all dev start-node generate fmt css ts
 
 # Generate public dir
 all: generate
@@ -42,8 +43,17 @@ all: generate
 # Run gnoweb in development mode
 dev: dev.all
 
+# Run gnodev instance
+start-node:
+	go -C ../../../contribs/gnodev run ./cmd/gnodev -no-web
+
+# Test process
 test:
 	go test -v ./...
+
+# Format process
+fmt:
+	go fmt ./...
 
 # Generate process
 generate: css ts static
@@ -63,14 +73,10 @@ $(out_dir_static)/%: $(src_dir_static)/%
 	@mkdir -p $(dir $@)
 	@cp -v $< $@
 
-# Format process
-fmt:
-	go fmt ./...
-
  ###############################
  # Developments
  ###############################
-.PHONY: dev dev.server dev.css dev.ts
+.PHONY: dev.all dev.server dev.css dev.ts
 
 # Run the development dependencies in parallel
 dev.all: $(esbuild) $(tailwind) $(PUBLIC_DIR)
@@ -79,24 +85,24 @@ dev.all: $(esbuild) $(tailwind) $(PUBLIC_DIR)
 
 # Go server in development mode
 dev.gnoweb: generate
-	$(run_reflex) -s -r '.*\.(go|html)' -- \
+	$(reflex) -s -r '.*\.(go|html)' -- \
 		go run -tags=noembed -ldflags="-X 'github.com/gnolang/gno/gno.land/pkg/gnoweb.AssetDir=${PUBLIC_DIR}'" ../../cmd/gnoweb \
 		-v -no-strict -chainid=${CHAIN_ID} -remote=${DEV_REMOTE} \
-		2>&1 | $(run_logname) gnoweb
+		2>&1 | $(logname) gnoweb
 
 # Tailwind CSS in development mode
 dev.css: $(tailwind) generate | $(PUBLIC_DIR)
 	$(tailwind) -c $(tw_config_path) --verbose -i $(input_css) -o $(output_css) --watch \
-		2>&1 | $(run_logname) tailwind
+		2>&1 | $(logname) tailwind
 
 # TS in development mode
 dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
 	$(esbuild) $(input_js) --bundle --outdir=$(out_dir_js) --sourcemap --format=esm --watch \
-		2>&1 | $(run_logname) esbuild
+		2>&1 | $(logname) esbuild
 
 # Install node modules deps located in ./tools
-$(esbuild) $(tailwind): ./tools/node_modules
-./tools/node_modules:
+$(esbuild) $(tailwind): $(node_modules)
+$(node_modules):
 	cd tools && npm install
 	touch $@
 
