@@ -7,16 +7,15 @@ import (
 )
 
 var (
-	GovernanceAddr = std.DerivePkgAddr("gno.land/r/volosgov")
-	Token *Token
-	ledger *PrivateLedger
+	volosDAOAddress = std.DerivePkgAddr("gno.land/r/volosgov")
+	Token, ledger = NewToken("Volos Governance Token", "VLS", 6)
 
 	Auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
 			"gno.land/r/volosgov",
 			func(title string, action authz.PrivilegedAction) error {
 				// only allow the governance contract to execute privileged actions
-				if std.CurrentRealm().Address() != GovernanceAddr {
+				if std.CurrentRealm().Address() != volosDAOAddress {
 					return std.Errorf("only governance contract can execute: %s", title)
 				}
 				return action()
@@ -24,10 +23,6 @@ var (
 		),
 	)
 )
-
-func init() {
-	Token, ledger = NewToken("Volos Governance Token", "VLS", 6)
-}
 
 // we can do both, use inital supply and then mint later
 func Mint(volosDAO std.Address, to std.Address, amount int64) {
@@ -68,10 +63,10 @@ func Approve(volosDAO std.Address, owner, spender std.Address, amount int64) {
 
 // is this something we want to do? if volosDao is going to have versioning, we need this probably
 func UpdateGovernance(newAddr std.Address) {
-	if std.CurrentRealm().Address() != GovernanceAddr {
+	if std.CurrentRealm().Address() != volosDAOAddress {
 		panic("only current governance contract can update governance")
 	}
-	GovernanceAddr = newAddr
+	volosDAOAddress = newAddr
 	Auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
 			newAddr.String(),
