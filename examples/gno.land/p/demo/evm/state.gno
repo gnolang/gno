@@ -15,11 +15,12 @@ type LogEntry struct {
 
 // tmpEnv stores temporary execution environment data such as storage, logs, warm storage slots, and accounts.
 type tmpEnv struct {
-	storage      map[uint256.Uint]*uint256.Uint // Temporary storage key-value pairs for the current execution
-	warmStorage  []uint256.Uint                 // List of storage slots accessed ("warm" slots)
-	logs         []LogEntry                     // Event logs generated during execution
-	accounts     Accounts                       // Temporary accounts state
-	transactions Transactions                   // Temporary list of transactions that happened on the chain
+	storage            map[uint256.Uint]*uint256.Uint // Temporary storage key-value pairs for the current execution
+	warmStorage        []uint256.Uint                 // List of storage slots accessed ("warm" slots)
+	warmAccountAddress []uint256.Uint                 // List of account addresses accessed ("warm" address)
+	logs               []LogEntry                     // Event logs generated during execution
+	accounts           Accounts                       // Temporary accounts state
+	transactions       Transactions                   // Temporary list of transactions that happened on the chain
 }
 
 // State represents the full EVM execution state during a transaction or message call.

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/evm/keccak256"
 	"gno.land/p/demo/uint256"
@@ -157,4 +158,19 @@ func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) 
 		Code:        []byte{},
 	}
 	return env.NextAccountId, nil
+}
+
+func (c *Account) String() string {
+	res := "AccountType: " + c.AccountType.String()
+	res += ", EvmAddress: " + uint256.NewUint(c.EvmAddress).Hex()
+	res += ", GnoAddress: " + c.GnoAddress.String()
+	res += ", Balance: " + c.Balance.String()
+	res += ", Nonce: " + strconv.FormatUint(c.Nonce, 10)
+	res += ", Gas: " + strconv.FormatUint(uint64(c.Gas), 10)
+
+	return res
+}
+
+func (c *Account) Eq(a Account) bool {
+	return c.String() == a.String()
 }

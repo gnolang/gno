@@ -334,6 +334,6 @@ func init() {
 		STATICCALL:     {STATICCALL, "STATICCALL", notImplemented /*opStaticcall*/, 700},
 		REVERT:         {REVERT, "REVERT", opRevert, 0},
 		INVALID:        {INVALID, "INVALID", opInvalid, 0},
-		SELFDESTRUCT:   {SELFDESTRUCT, "SELFDESTRUCT", notImplemented /*opSelfdestruct*/, 5000},
+		SELFDESTRUCT:   {SELFDESTRUCT, "SELFDESTRUCT", opSelfDestruct, 5000},
 	}
 }

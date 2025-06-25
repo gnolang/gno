@@ -17,7 +17,7 @@ func TestExecuteEvm(t *testing.T) {
 		code                     []byte
 		callValue                uint256.Uint
 		callData                 []byte
-		caller                   Account
+		caller                   *Account
 		env                      Env
 		gas                      uint
 		expectedResult           []byte
@@ -26,7 +26,9 @@ func TestExecuteEvm(t *testing.T) {
 		expectedError            error
 		expectedGasConsumed      uint
 		expectedTransientStorage map[uint256.Uint]uint256.Uint
+		expectedAccounts         Accounts
 		ignoreMemory             bool
+		ignoreAccouts            bool
 		ignoreTransientStorage   bool
 		ignoreGasConsumed        bool
 		ignoreStack              bool
@@ -930,12 +932,13 @@ func TestExecuteEvm(t *testing.T) {
 				byte(CALLER),
 				byte(STOP),
 			},
-			caller: Account{
+			caller: &Account{
 				EvmAddress: 0xcacabebe,
 			},
 			expectedStack: []*uint256.Uint{
 				uint256.NewUint(0xcacabebe),
 			},
+			ignoreAccouts:       true,
 			expectedGasConsumed: 2,
 		},
 		{
@@ -1285,7 +1288,9 @@ func TestExecuteEvm(t *testing.T) {
 				byte(CALL),
 				byte(RETURNDATASIZE),
 			},
-			caller: Account{
+			ignoreAccouts: true,
+
+			caller: &Account{
 				AccountType: CallerAccount,
 				EvmAddress:  0,
 				GnoAddress:  "address",
@@ -1334,7 +1339,9 @@ func TestExecuteEvm(t *testing.T) {
 				byte(PUSH4), 0xff, 0xff, 0xff, 0xff, // gas
 				byte(CALL),
 			},
-			caller: Account{
+			ignoreAccouts: true,
+
+			caller: &Account{
 				AccountType: CallerAccount,
 				EvmAddress:  0xbebecaca,
 				GnoAddress:  "bebecaca",
@@ -1487,6 +1494,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(EXTCODEHASH),
 				byte(STOP),
 			},
+			ignoreAccouts: true,
 			env: Env{
 				Accounts: Accounts{
 					0x43: &Account{
@@ -1536,17 +1544,70 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 103,
 		},
+		{
+			name: "selfdestructs success",
+			code: []byte{
+				byte(PUSH1), 0x43, // addr
+				byte(SELFDESTRUCT),
+			},
+			caller: &Account{
+				EvmAddress: 0x50,
+				Balance:    uint256.One(),
+			},
+			env: Env{
+				Accounts: Accounts{
+					0x43: &Account{
+						Balance: uint256.One(),
+					},
+				},
+			},
+			expectedAccounts: Accounts{
+				0x43: &Account{
+					Balance: uint256.NewUint(2),
+				},
+			},
+			expectedStack:       []*uint256.Uint{},
+			expectedGasConsumed: 7603,
+		},
+		{
+			name: "selfdestructs invalid address",
+			code: []byte{
+				byte(PUSH1), 0x45, // addr
+				byte(SELFDESTRUCT),
+			},
+			caller: &Account{
+				EvmAddress: 0x50,
+				Balance:    uint256.One(),
+			},
+			expectedGasConsumed: 32603,
+		},
+		{
+			name: "error selfdestructs auto giving balance",
+			code: []byte{
+				byte(PUSH1), 0x50, // addr
+				byte(SELFDESTRUCT),
+			},
+			ignoreAccouts: true,
+			expectedError: errors.New("can't self destruct: you are giving your balance to yourself"),
+			caller: &Account{
+				EvmAddress: 0x50,
+				Balance:    uint256.One(),
+			},
+			expectedGasConsumed: 5003,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			errStack, errResult, errMem := false, false, false
+			errStack, errResult, errMem, errAccounts := false, false, false, false
 
 			st := newStateFromEnv(&tc.env)
 			st.setCallData(tc.callData)
 			st.setCallValue(&tc.callValue)
-			st.setCallerAddress(tc.caller.EvmAddress)
-			st.tmp.accounts[tc.caller.EvmAddress] = &tc.caller
+			if tc.caller != nil {
+				st.setCallerAddress(tc.caller.EvmAddress)
+				st.tmp.accounts[tc.caller.EvmAddress] = tc.caller
+			}
 			if tc.gas > 0 {
 				st.setGasLimit(tc.gas)
 			}
@@ -1570,6 +1631,18 @@ func TestExecuteEvm(t *testing.T) {
 				t.Errorf("I expected this gas usage:\n -> %d\nbut I got:\n -> %d", tc.expectedGasConsumed, st.gasConsumed)
 			}
 
+			if len(tc.expectedAccounts) != len(st.tmp.accounts) {
+				errAccounts = true
+			} else {
+				if len(st.tmp.accounts) != 0 {
+					for k, v := range tc.expectedAccounts {
+						if st.tmp.accounts[k] == nil || !st.tmp.accounts[k].Eq(*v) {
+							errAccounts = true
+							break
+						}
+					}
+				}
+			}
 			if len(stack) != len(tc.expectedStack) {
 				errStack = true
 			} else {
@@ -1613,6 +1686,10 @@ func TestExecuteEvm(t *testing.T) {
 				fmt.Println("--- WARN: Stack is ignored for this test")
 				errStack = false
 			}
+			if tc.ignoreAccouts {
+				fmt.Println("--- WARN: Accounts is ignored for this test")
+				errAccounts = false
+			}
 
 			if errStack {
 				t.Errorf("I expected this stack at exit:")
@@ -1650,13 +1727,33 @@ func TestExecuteEvm(t *testing.T) {
 					t.Errorf("-> %s", actual)
 				}
 			}
+			if errAccounts {
+				t.Errorf("I expected those accounts:")
+
+				if len(tc.expectedAccounts) != 0 {
+					for k, v := range tc.expectedAccounts {
+						t.Errorf("-> " + uint256.NewUint(k).Hex() + ": " + v.String())
+					}
+				} else {
+					t.Errorf("-> empty")
+				}
+				t.Error("but I got:")
+				if len(st.tmp.accounts) != 0 {
+					for k, v := range st.tmp.accounts {
+						t.Errorf("-> " + uint256.NewUint(k).Hex() + ": " + v.String())
+					}
+				} else {
+					t.Errorf("-> empty")
+				}
+			}
+
 			max := len(mem)
 			if len(tc.expectedMemory) > max {
 				max = len(tc.expectedMemory)
 			}
 			if errMem {
 				t.Errorf("Memory doesnt match expected")
-				t.Errorf("|  Address  | EXPECTED |  REALLY  |")
+				t.Errorf("| Address  | EXPECTED | REALLY   |")
 				t.Errorf("|----------|----------|----------|")
 				for i := 0; i < max; i++ {
 					x := "        "
