@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	gopath "path"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -176,28 +177,59 @@ func (c *rpcClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
 
 // query sends a query to the RPC client and returns the response
 // data.
+// query sends a query to the RPC client and returns the response data.
 func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
-	c.logger.Info("query", "path", qpath, "data", string(data))
+	c.logger.Info("querying node", "path", qpath, "data", string(data))
 
+	start := time.Now()
 	qres, err := c.client.ABCIQuery(qpath, data)
+	took := time.Since(start)
+
 	if err != nil {
-		c.logger.Debug("request error", "path", qpath, "data", string(data), "error", err)
+		// Unexpected error from the RPC client itself
+		c.logger.Error("query request failed",
+			"path", qpath,
+			"data", string(data),
+			"error", err,
+			"took", took,
+		)
 		return nil, fmt.Errorf("%w: %s", ErrClientBadRequest, err.Error())
 	}
 
-	if err = qres.Response.Error; err != nil {
-		if errors.Is(err, vm.InvalidPkgPathError{}) {
+	// Log the response at debug level for detailed tracing
+	c.logger.Debug("query response received",
+		"path", qpath,
+		"data", string(data),
+		"response_error", qres.Response.Error,
+		"took", took,
+	)
+
+	if qres.Response.Error != nil {
+		// Handle known error types with appropriate log levels
+		switch {
+		case errors.Is(qres.Response.Error, vm.InvalidPkgPathError{}):
+			c.logger.Warn("invalid package path",
+				"path", qpath,
+				"data", string(data),
+				"error", qres.Response.Error,
+			)
 			return nil, ErrClientPathNotFound
-		}
-
-		if errors.Is(err, vm.NoRenderDeclError{}) {
+		case errors.Is(qres.Response.Error, vm.NoRenderDeclError{}):
+			c.logger.Warn("render function not declared",
+				"path", qpath,
+				"data", string(data),
+				"error", qres.Response.Error,
+			)
 			return nil, ErrClientRenderNotDeclared
+		default:
+			c.logger.Error("node response error",
+				"path", qpath,
+				"data", string(data),
+				"error", qres.Response.Error,
+			)
+			return nil, fmt.Errorf("%w: %s", ErrClientResponse, qres.Response.Error.Error())
 		}
-
-		c.logger.Debug("query response error", "path", qpath, "log", qres.Response.Log)
-		return nil, fmt.Errorf("%w: %s", ErrClientResponse, err.Error())
 	}
 
-	c.logger.Debug("response query", "path", qpath, "data", qres.Response.Data)
 	return qres.Response.Data, nil
 }

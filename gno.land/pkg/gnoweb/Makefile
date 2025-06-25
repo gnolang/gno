@@ -44,7 +44,7 @@ all: generate
 dev: dev.all
 
 # Run gnodev instance
-start-node:
+node-start:
 	go -C ../../../contribs/gnodev run ./cmd/gnodev -no-web
 
 # Test process

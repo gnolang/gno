@@ -13,15 +13,15 @@ Before you begin, ensure you have the following software installed on your machi
 
 ## Development
 
-To start the development environment, which runs multiple development tools in parallel,
-For local development, make sure that a local node is up and running.
-If you are using gnodev, you can run a fresh node using:
+In order to run gnoweb in developement mode ensure that a local gnoland node is up and running.
+For development purposes, it's recommended to use [gnodev](../../../contribs/gnodev) as the development node.
 
+You can launch a fresh node using:
 ```sh
-gnodev -no-web # disable gnoweb interface
+make node-start # or use `gnodev -no-web` directly
 ```
 
-use the following command:
+Then use the following command on another terminal to start the development environment, which runs multiple tools in parallel:
 
 ```sh
 make dev
@@ -29,27 +29,23 @@ make dev
 
 This will:
 
-- Start a Go server in development mode and watch for any Go files change (listening on [localhost](http://localhost:8888)).
+- Start a `gnoweb` server in development mode and watch for any Go files change (listening on [localhost](http://localhost:8888)).
 - Enable Tailwind CSS in watch mode to automatically compile CSS changes.
 - Use esbuild in watch mode to automatically transpile and bundle TypeScript changes.
 
 ### Custom remote
+By default, `make dev` uses a local node. However, you can specify a custom target using the `DEV_REMOTE` environment variable (and optionally set `CHAIN_ID` variable).
 
-You can customize the behavior of the Gnoweb using the `DEV_REMOTE`, (and optionnaly
-`CHAIN_ID`) environment variables. For example, to use `staging` as the
-target, run:
-
+For example, to use `gno.land` as the target, run:
 ```sh
-CHAIN_ID=staging DEV_REMOTE=https://rpc.gno.land make dev
+DEV_REMOTE=https://rpc.gno.land make dev
 ```
 
 ### Static Assets in Development
 
 When running in development mode (with `make dev`), static assets are **not embedded** in the binary. Instead,
 they are served from a directory specified by the `GNOWEB_ASSETDIR` environment variable or the `AssetDir`
-preprocessor variable (set via `-ldflags`). By default, this is `./public`.
-
-> **Note:** The `noembed` build tag is used in development to disable embedding of static assets.
+preprocessor variable (set via `-ldflags`).
 
 
 ## Generate
