@@ -1671,7 +1671,7 @@ func TestExecuteEvm(t *testing.T) {
 					Balance:    uint256.One(),
 				},
 			},
-			expectedGasConsumed: 2,
+			expectedGasConsumed: 2706,
 		},
 	}
 
