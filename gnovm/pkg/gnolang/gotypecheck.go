@@ -343,7 +343,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
 		}
 		if pmode == ParseModeProduction && mod.Draft && gimp.height > 0 {
-			panic(fmt.Sprintf("%q as a draft package can only be deployed or imported at genesis", mpkg.Path))
+			return nil, ImportDraftError{PkgPath: mpkg.Path}
 		}
 		if mod.GetGno() != GnoVerLatest {
 			panic(fmt.Sprintf("expected gnomod.toml gno version %v but got %v",
@@ -612,10 +612,12 @@ type ImportError interface {
 }
 
 func (e ImportNotFoundError) assertImportError() {}
+func (e ImportDraftError) assertImportError()    {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
+	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportCycleError{}
 )
 
@@ -630,6 +632,20 @@ func (e ImportNotFoundError) GetLocation() string { return e.Location }
 func (e ImportNotFoundError) GetMsg() string { return fmt.Sprintf("unknown import path %q", e.PkgPath) }
 
 func (e ImportNotFoundError) Error() string { return importErrorString(e) }
+
+// ImportDraftError implements ImportError
+type ImportDraftError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportDraftError) GetLocation() string { return e.Location }
+
+func (e ImportDraftError) GetMsg() string {
+	return fmt.Sprintf("import path %q is a draft package and can only be imported at genesis", e.PkgPath)
+}
+
+func (e ImportDraftError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {
