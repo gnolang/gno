@@ -329,7 +329,7 @@ func init() {
 		CALL:           {CALL, "CALL", opCall, 100},
 		CALLCODE:       {CALLCODE, "CALLCODE", opCallCode, 700},
 		RETURN:         {RETURN, "RETURN", opReturn, 0},
-		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", notImplemented /*opDelegatecall*/, 100},
+		DELEGATECALL:   {DELEGATECALL, "DELEGATECALL", opDelegateCall, 100},
 		CREATE2:        {CREATE2, "CREATE2", notImplemented /*opCreate2*/, 32000},
 		STATICCALL:     {STATICCALL, "STATICCALL", notImplemented /*opStaticcall*/, 700},
 		REVERT:         {REVERT, "REVERT", opRevert, 0},

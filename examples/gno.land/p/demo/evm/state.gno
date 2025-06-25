@@ -134,7 +134,7 @@ func (s *State) clone() *State {
 		result:        []byte{},
 		code:          instructions{},
 		callerAddress: s.callerAddress,
-		callValue:     uint256.Zero(),
+		callValue:     s.callValue.Clone(),
 		tmp: tmpEnv{
 			storage:      storageCopy,
 			logs:         logsCopy,
