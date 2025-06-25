@@ -3,43 +3,58 @@ package grc20
 import (
 	"std"
 	"gno.land/p/moul/authz"
+	"gno.land/p/demo/avl"
 )
 
 var (
-	Auth  = authz.NewWithMembers(std.DerivePkgAddr("gno.land/r/volosgov"))
-	Token, ledger = NewToken("Volos Governance Token", "VLS", 6)
+	GovernanceAddr = std.DerivePkgAddr("gno.land/r/volosgov")
+	Token *Token
+	ledger *PrivateLedger
+
+	Auth = authz.NewWithAuthority(
+		authz.NewContractAuthority(
+			"gno.land/r/volosgov",
+			func(title string, action authz.PrivilegedAction) error {
+				// only allow the governance contract to execute privileged actions
+				if std.CurrentRealm().Address() != GovernanceAddr {
+					return std.Errorf("only governance contract can execute: %s", title)
+				}
+				return action()
+			},
+		),
+	)
 )
 
-// do we want initial supply? or do we want to mint it later?
-func Init(initialSupply int64) {
-	if Token != nil {
-		panic("already initialized")
-	}
-	if initialSupply > 0 {
-		must(LEDGER.Mint(std.DerivePkgAddr("gno.land/r/volosgov"), initialSupply))
-	}
+func init() {
+	Token, ledger = NewToken("Volos Governance Token", "VLS", 6)
 }
 
 // we can do both, use inital supply and then mint later
-func Mint(caller std.Address, to std.Address, amount int64) {
-	must(AUTH.Authority().Authorize(caller, "mint", func() error {
-		return LEDGER.Mint(to, amount)
+func Mint(volosDAO std.Address, to std.Address, amount int64) {
+	must(Auth.Authority().Authorize(volosDAO, "mint", func() error {
+		return ledger.Mint(to, amount)
 	}))
 }
 
-func Airdrop(caller std.Address, recipients []std.Address, amounts []int64) {
-	must(AUTH.Authority().Authorize(caller, "airdrop", func() error {
-		if len(recipients) != len(amounts) {
-			panic("recipients and amounts length mismatch")
-		}
-		for i := 0; i < len(recipients); i++ {
-			must(LEDGER.Mint(recipients[i], amounts[i]))
+// Airdrop using an avl.Tree (address string -> amount int64)
+func Airdrop(volosDAO std.Address, airdropTree *avl.Tree) {
+	must(Auth.Authority().Authorize(volosDAO, "airdrop", func() error {
+		airdropped := false
+		airdropTree.Iterate("", "", func(key string, value any) bool {
+			addr := std.Address(key)
+			amount := value.(int64)
+			must(ledger.Mint(addr, amount))
+			airdropped = true
+			return false
+		})
+		if !airdropped {
+			panic("airdrop tree is empty")
 		}
 		return nil
 	}))
 }
 
-// Helper for panics on error
+// helper for panics on error
 func must(err error) {
 	if err != nil {
 		panic(err.Error())
