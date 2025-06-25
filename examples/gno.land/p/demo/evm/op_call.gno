@@ -224,6 +224,7 @@ func opDelegateCall(s *State) error {
 	tmpState := s.clone()
 	tmpState.setCallData(callData)
 	tmpState.setGasLimit(uint(gas.Uint64()))
+	tmpState.setCallerAddress(s.originAddress)
 	tmpState.transientStorage = s.transientStorage
 
 	// check for precompiled

@@ -32,6 +32,7 @@ type tmpEnv struct {
 // State represents the full EVM execution state during a transaction or message call.
 type State struct {
 	context          contextType
+	originAddress    uint64                         // Address of the caller that inititated the transaction
 	callerAddress    uint64                         // Address of the caller executing this state
 	callValue        *uint256.Uint                  // Amount of wei sent with the call
 	callData         []byte                         // Input data for the call
@@ -144,6 +145,7 @@ func (s *State) clone() *State {
 		result:        []byte{},
 		code:          instructions{},
 		callerAddress: s.callerAddress,
+		originAddress: s.originAddress,
 		callValue:     s.callValue.Clone(),
 		tmp: tmpEnv{
 			storage:      storageCopy,
@@ -222,6 +224,11 @@ func (s *State) setGasLimit(gas uint) {
 // setCallerAddress sets the address of the caller initiating the execution.
 func (s *State) setCallerAddress(callerAddress uint64) {
 	s.callerAddress = callerAddress
+}
+
+// setOriginAddress sets the address of the caller initiating the execution.
+func (s *State) setOriginAddress(callerAddress uint64) {
+	s.originAddress = callerAddress
 }
 
 // setCallValue sets the amount of wei sent with the call.

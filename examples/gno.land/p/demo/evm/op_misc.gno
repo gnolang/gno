@@ -453,5 +453,6 @@ func opBalance(s *State) error {
 }
 
 func opOrigin(s *State) error {
+	s.stack.Push(uint256.NewUint(s.originAddress))
 	return nil
 }

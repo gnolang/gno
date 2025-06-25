@@ -57,6 +57,7 @@ func (c *Account) executeCallHex(env *Env, f string, code []byte, args ...*uint2
 	st.setCallData(buf)
 	st.setGasLimit(c.Gas)
 	st.setCallerAddress(c.EvmAddress)
+	st.setOriginAddress(c.EvmAddress)
 	st.setCode(code)
 	err := st.executeByteCode()
 	if err != nil && err != revertError {
