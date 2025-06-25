@@ -1,4 +1,4 @@
-package grc20
+package vls
 
 import (
 	"std"
@@ -54,9 +54,40 @@ func Airdrop(volosDAO std.Address, airdropTree *avl.Tree) {
 	}))
 }
 
+func Burn(volosDAO std.Address, from std.Address, amount int64) {
+	must(Auth.Authority().Authorize(volosDAO, "burn", func() error {
+		return ledger.Burn(from, amount)
+	}))
+}
+
+func Approve(volosDAO std.Address, owner, spender std.Address, amount int64) {
+	must(Auth.Authority().Authorize(volosDAO, "approve", func() error {
+		return ledger.Approve(owner, spender, amount)
+	}))
+}
+
+// is this something we want to do? if volosDao is going to have versioning, we need this probably
+func UpdateGovernance(newAddr std.Address) {
+	if std.CurrentRealm().Address() != GovernanceAddr {
+		panic("only current governance contract can update governance")
+	}
+	GovernanceAddr = newAddr
+	Auth = authz.NewWithAuthority(
+		authz.NewContractAuthority(
+			newAddr.String(),
+			func(title string, action authz.PrivilegedAction) error {
+				if std.CurrentRealm().Address() != newAddr {
+					return std.Errorf("only governance contract can execute: %s", title)
+				}
+				return action()
+			},
+		),
+	)
+}
+
 // helper for panics on error
 func must(err error) {
 	if err != nil {
 		panic(err.Error())
 	}
-} 
+}
