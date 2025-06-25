@@ -420,3 +420,16 @@ func opExtCodeHash(s *State) error {
 	s.stack.Push(codeHash256)
 	return nil
 }
+
+func opAddress(s *State) error {
+	s.stack.Push(uint256.NewUint(s.callerAddress))
+	return nil
+}
+
+func opBalance(s *State) error {
+	return nil
+}
+
+func opOrigin(s *State) error {
+	return nil
+}

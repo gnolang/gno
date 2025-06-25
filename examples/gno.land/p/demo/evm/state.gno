@@ -8,7 +8,7 @@ type contextType uint
 
 // gasPrice defines the cost of one gas unit in wei.
 const (
-	GasPrice    uint        = 10
+	GasPrice    uint64      = 10
 	callContext contextType = iota
 	staticContext
 ) // one gas cost 10 wei

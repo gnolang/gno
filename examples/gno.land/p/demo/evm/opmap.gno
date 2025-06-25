@@ -213,9 +213,9 @@ func init() {
 		SHR:            {SHR, "SHR", opOperation(func(a, b *uint256.Uint) *uint256.Uint { return b.Rsh(b, uint(a.Uint64())) }), 3},
 		SAR:            {SAR, "SAR", opSar, 3},
 		KECCAK256:      {KECCAK256, "KECCAK256", opKeccak256, 30}, // can change
-		ADDRESS:        {ADDRESS, "ADDRESS", notImplemented, 2},
-		BALANCE:        {BALANCE, "BALANCE", notImplemented, 100}, // can change
-		ORIGIN:         {ORIGIN, "ORIGIN", notImplemented, 2},
+		ADDRESS:        {ADDRESS, "ADDRESS", opAddress, 2},
+		BALANCE:        {BALANCE, "BALANCE", opBalance, 100}, // can change
+		ORIGIN:         {ORIGIN, "ORIGIN", opOrigin, 2},
 		CALLER:         {CALLER, "CALLER", opCaller, 2},
 		CALLVALUE:      {CALLVALUE, "CALLVALUE", opCallvalue, 2},
 		CALLDATALOAD:   {CALLDATALOAD, "CALLDATALOAD", opCalldataload, 3},
