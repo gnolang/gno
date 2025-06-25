@@ -30,7 +30,7 @@ func GenerateReport(tracker *CoverageTracker, outputFile string) error {
 
 	// Use GetCoverageData to get consistent coverage calculations
 	coverageData := tracker.GetCoverageData()
-	
+
 	for filename, data := range coverageData {
 		fileCoverage := FileCoverage{
 			Lines:    data.LineData,

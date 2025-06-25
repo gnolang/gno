@@ -15,8 +15,8 @@ var globalTracker = NewCoverageTracker()
 
 // CoverageTracker tracks the coverage data
 type CoverageTracker struct {
-	data          map[string]map[int]int  // filename -> line number -> count
-	allLines      map[string]map[int]bool // filename -> line number -> exists (all executable lines)
+	data     map[string]map[int]int  // filename -> line number -> count
+	allLines map[string]map[int]bool // filename -> line number -> exists (all executable lines)
 }
 
 func NewCoverageTracker() *CoverageTracker {
@@ -63,9 +63,9 @@ func (ct *CoverageTracker) GetCoverageData() map[string]*CoverageData {
 	for filename, executableLines := range ct.allLines {
 		totalLines := len(executableLines)
 		coveredLines := 0
-		
+
 		lineData := make(map[int]int)
-		
+
 		// Check coverage for each executable line
 		for line := range executableLines {
 			if executedData, ok := ct.data[filename]; ok {

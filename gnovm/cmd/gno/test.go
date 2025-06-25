@@ -241,7 +241,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
-  opts.Coverage = cmd.coverage
+	opts.Coverage = cmd.coverage
 	opts.CoverageOutput = cmd.coverageOutput
 
 	buildErrCount := 0

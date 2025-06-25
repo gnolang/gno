@@ -179,12 +179,12 @@ func createTestStore(opts *TestOptions) (gno.Store, error) {
 	storeOpts := StoreOptions{
 		Coverage: opts.Coverage,
 	}
-	
+
 	// Get the global coverage tracker if coverage is enabled
 	if opts.Coverage {
 		storeOpts.CoverageTracker = coverage.GetGlobalTracker()
 	}
-	
+
 	_, testStore := StoreWithOptions(opts.RootDir, opts.WriterForStore(), storeOpts)
 	return testStore, nil
 }
@@ -241,26 +241,25 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
-	// 커버리지 트래커 초기화
+	// initialize coverage tracker
 	if opts.Coverage {
 		coverageTracker := coverage.GetGlobalTracker()
-		// 기존 데이터 초기화
 		coverageTracker.Reset()
-		
+
 		// Recreate test store with coverage options
 		testStore, err := createTestStore(opts)
 		if err != nil {
 			return err
 		}
 		opts.TestStore = testStore
-		
+
 		// Instrument the package files BEFORE loading imports
 		for i, file := range mpkg.Files {
 			// Skip non-gno files and test files
 			if !strings.HasSuffix(file.Name, ".gno") || strings.HasSuffix(file.Name, "_test.gno") {
 				continue
 			}
-			
+
 			// Use full path for coverage tracking
 			fullPath := filepath.Join(mpkg.Path, file.Name)
 			instrumenter := coverage.NewCoverageInstrumenter(coverageTracker, fullPath)
