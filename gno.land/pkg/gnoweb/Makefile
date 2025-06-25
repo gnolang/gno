@@ -11,10 +11,10 @@ logname := go -C ./tools run ./cmd/logname
 golangci_lint := go run -modfile ../../../misc/devdeps/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint
 
 ## node tools
-node_modules := ./tools/node_modules
-
+node_modules := ./frontend/node_modules
 esbuild := $(node_modules)/.bin/esbuild
 tailwind := $(node_modules)/.bin/tailwindcss
+biome := $(node_modules)/.bin/biome
 
 # css config
 input_css := frontend/css/input.css
@@ -57,12 +57,15 @@ test:
 	go test -v ./...
 
 # Format process
-fmt:
-	go fmt ./...
+fmt: fmt.go fmt.js
+fmt.go:; go fmt ./...
+fmt.js:; $(MAKE) -C frontend fmt
+
 
 # Lint process
-lint:
-	$(golangci_lint) --config ../../../.github/golangci.yml run ./...
+lint: lint.go lint.js
+lint.go:; $(golangci_lint) --config ../../../.github/golangci.yml run ./...
+lint.js:; $(MAKE) -C frontend lint
 
 # Generate process
 generate: css ts static
@@ -112,7 +115,7 @@ dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
 # Install node modules deps located in ./tools
 $(esbuild) $(tailwind): $(node_modules)
 $(node_modules):
-	cd tools && npm install
+	cd $(dir $@) && npm install
 	touch $@
 
 # Cleanup
@@ -120,7 +123,7 @@ clean:
 	rm -rf $(cache_dir) tmp
 fclean: clean
 	rm -rf $(PUBLIC_DIR)
-	rm -rf ./tools/node_modules
+	rm -rf $(node_modules)
 
 
 # Dirs
