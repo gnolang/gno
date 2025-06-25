@@ -48,7 +48,7 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // IsKnownAccount checks if the specified address is a known account in the bank.
-func (tok Token) IsKnownAccount(address_XXX std.Address) bool {
+func (tok Token) HasAddr(addr std.Address) bool {
 	return tok.ledger.isKnownAccount(address_XXX)
 }
 
