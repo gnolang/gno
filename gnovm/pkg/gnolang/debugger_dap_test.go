@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDAPMessageParsing(t *testing.T) {
@@ -194,4 +195,336 @@ func ExampleDebugger_ServeDAP() {
 
 	// In a real scenario, an IDE would connect to this address
 	// and send DAP commands to control debugging
+}
+
+func TestDAPDebugLoopIntegration(t *testing.T) {
+	// Set up machine with debugging
+	store := NewStore(nil, nil, nil)
+	machine := NewMachineWithOptions(MachineOptions{
+		PkgPath: "test",
+		Store:   store,
+		Debug:   true,
+	})
+
+	// Ensure debugger is properly cleaned up after test
+	defer func() {
+		machine.Debugger.enabled = false
+		machine.Debugger.state = DebugAtExit
+		machine.Debugger.dapMode = false
+		machine.Debugger.dapServer = nil
+	}()
+
+	// Set up DAP server
+	machine.Debugger.enabled = true
+	machine.Debugger.dapMode = true
+	machine.Debugger.state = DebugAtInit
+
+	dapServer := NewDAPServer(&machine.Debugger, machine)
+	machine.Debugger.dapServer = dapServer
+
+	// Mock writer for DAP responses
+	mockWriter := &MockWriter{}
+	dapServer.writer = mockWriter
+
+	tests := []struct {
+		name            string
+		initialState    DebugState
+		dapCommand      string
+		expectedState   DebugState
+		expectedLastCmd string
+	}{
+		{
+			name:            "DAP continue command",
+			initialState:    DebugAtCmd,
+			dapCommand:      "continue",
+			expectedState:   DebugAtRun,
+			expectedLastCmd: "continue",
+		},
+		{
+			name:            "DAP step command",
+			initialState:    DebugAtCmd,
+			dapCommand:      "step",
+			expectedState:   DebugAtRun,
+			expectedLastCmd: "step",
+		},
+		{
+			name:            "DAP next command",
+			initialState:    DebugAtCmd,
+			dapCommand:      "next",
+			expectedState:   DebugAtRun,
+			expectedLastCmd: "next",
+		},
+		{
+			name:            "DAP stepOut command",
+			initialState:    DebugAtCmd,
+			dapCommand:      "stepOut",
+			expectedState:   DebugAtRun,
+			expectedLastCmd: "stepout",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset state
+			machine.Debugger.state = tt.initialState
+			machine.Debugger.lastCmd = ""
+			mockWriter.Reset()
+
+			// Create and handle the request
+			req := &Request{
+				ProtocolMessage: ProtocolMessage{
+					Seq:  1,
+					Type: "request",
+				},
+				Command:   tt.dapCommand,
+				Arguments: json.RawMessage(`{"threadId":1}`),
+			}
+
+			// Handle the command
+			var err error
+			switch tt.dapCommand {
+			case "continue":
+				err = dapServer.handleContinue(req, nil)
+			case "step":
+				req.Command = "stepIn"
+				err = dapServer.handleStepIn(req)
+			case "next":
+				err = dapServer.handleNext(req)
+			case "stepOut":
+				err = dapServer.handleStepOut(req)
+			}
+
+			if err != nil {
+				t.Fatalf("Handler failed: %v", err)
+			}
+
+			// Check state changes
+			if machine.Debugger.state != tt.expectedState {
+				t.Errorf("Expected state %v, got %v", tt.expectedState, machine.Debugger.state)
+			}
+			if machine.Debugger.lastCmd != tt.expectedLastCmd {
+				t.Errorf("Expected lastCmd %q, got %q", tt.expectedLastCmd, machine.Debugger.lastCmd)
+			}
+		})
+	}
+}
+
+// TestDAPDebugLoopBlocking tests that Debug() loop properly blocks in DAP mode
+func TestDAPDebugLoopBlocking(t *testing.T) {
+	// Set up machine with debugging
+	store := NewStore(nil, nil, nil)
+	machine := NewMachineWithOptions(MachineOptions{
+		PkgPath: "test",
+		Store:   store,
+		Debug:   true,
+	})
+
+	// Ensure debugger is properly cleaned up after test
+	defer func() {
+		machine.Debugger.enabled = false
+		machine.Debugger.state = DebugAtExit
+		machine.Debugger.dapMode = false
+		machine.Debugger.dapServer = nil
+	}()
+
+	// Create debugger in DAP mode
+	machine.Debugger.enabled = true
+	machine.Debugger.dapMode = true
+	machine.Debugger.state = DebugAtCmd
+	machine.Debugger.out = &bytes.Buffer{}
+
+	// Create empty block for testing and initialize machine state properly
+	blockStmt := &BlockStmt{Body: []Stmt{}}
+	machine.Blocks = []*Block{{Source: blockStmt}}
+	// Add a dummy operation to prevent index out of range
+	machine.Ops = []Op{OpNoop}
+	machine.NumOps = 1
+
+	dapServer := NewDAPServer(&machine.Debugger, machine)
+	machine.Debugger.dapServer = dapServer
+
+	// Mock writer
+	mockWriter := &MockWriter{}
+	dapServer.writer = mockWriter
+
+	// Run Debug() in a goroutine
+	debugDone := make(chan bool)
+	go func() {
+		// This should block when in DAP mode at DebugAtCmd
+		// The Debug() function should send a stopped event and transition to DebugAtRun
+		machine.Debug()
+		debugDone <- true
+	}()
+
+	// Give Debug() time to process and send the stopped event
+	time.Sleep(100 * time.Millisecond)
+
+	// Check that a stopped event was sent
+	output := mockWriter.String()
+	if !strings.Contains(output, "stopped") {
+		t.Error("Expected stopped event to be sent")
+	}
+
+	// Verify state remains at DebugAtCmd (waiting for DAP commands)
+	if machine.Debugger.state != DebugAtCmd {
+		t.Errorf("Expected state DebugAtCmd, got %v", machine.Debugger.state)
+	}
+
+	// Send a DAP continue command to unblock the Debug() loop
+	req := &Request{
+		ProtocolMessage: ProtocolMessage{Seq: 1, Type: "request"},
+		Command:         "continue",
+		Arguments:       json.RawMessage(`{"threadId":1}`),
+	}
+
+	err := dapServer.handleContinue(req, nil)
+	if err != nil {
+		t.Fatalf("handleContinue failed: %v", err)
+	}
+
+	// Now disable debugger to make Debug() exit
+	machine.Debugger.enabled = false
+
+	// Wait for Debug() to complete
+	<-debugDone
+}
+
+func TestDAPDebugLoopIntegrationWithBreakpoints(t *testing.T) {
+	// Set up machine with debugging
+	store := NewStore(nil, nil, nil)
+	machine := NewMachineWithOptions(MachineOptions{
+		PkgPath: "test",
+		Store:   store,
+		Debug:   true,
+	})
+
+	// Ensure debugger is properly cleaned up after test
+	defer func() {
+		machine.Debugger.enabled = false
+		machine.Debugger.state = DebugAtExit
+		machine.Debugger.dapMode = false
+		machine.Debugger.dapServer = nil
+	}()
+
+	// Set up DAP server
+	machine.Debugger.enabled = true
+	machine.Debugger.dapMode = true
+	machine.Debugger.state = DebugAtCmd
+
+	// Set a breakpoint
+	machine.Debugger.breakpoints = []Location{
+		{File: "test.gno", Span: Span{Pos: Pos{Line: 10}}},
+	}
+	machine.Debugger.loc = Location{File: "test.gno", Span: Span{Pos: Pos{Line: 10}}}
+	// Set prevLoc to something different so atBreak() returns true
+	machine.Debugger.prevLoc = Location{File: "test.gno", Span: Span{Pos: Pos{Line: 9}}}
+
+	// Initialize machine state
+	blockStmt := &BlockStmt{Body: []Stmt{}}
+	machine.Blocks = []*Block{{Source: blockStmt}}
+	machine.Ops = []Op{OpNoop}
+	machine.NumOps = 1
+
+	dapServer := NewDAPServer(&machine.Debugger, machine)
+	machine.Debugger.dapServer = dapServer
+
+	// Mock writer
+	mockWriter := &MockWriter{}
+	dapServer.writer = mockWriter
+
+	// Test that stopped event is sent with breakpoint reason
+	debugDone := make(chan bool)
+	go func() {
+		machine.Debug()
+		debugDone <- true
+	}()
+
+	// Wait for stopped event
+	time.Sleep(50 * time.Millisecond)
+
+	output := mockWriter.String()
+	if !strings.Contains(output, "stopped") {
+		t.Error("Expected stopped event to be sent")
+	}
+	if !strings.Contains(output, "breakpoint") {
+		t.Logf("Output: %q", output)
+		t.Error("Expected stopped event with breakpoint reason")
+	}
+
+	// Verify state remains at DebugAtCmd waiting for DAP command
+	if machine.Debugger.state != DebugAtCmd {
+		t.Errorf("Expected state DebugAtCmd, got %v", machine.Debugger.state)
+	}
+
+	// Send continue command
+	req := &Request{
+		ProtocolMessage: ProtocolMessage{Seq: 1, Type: "request"},
+		Command:         "continue",
+		Arguments:       json.RawMessage(`{"threadId":1}`),
+	}
+
+	mockWriter.Reset()
+	err := dapServer.handleContinue(req, nil)
+	if err != nil {
+		t.Fatalf("handleContinue failed: %v", err)
+	}
+
+	// Verify state changed to DebugAtRun
+	if machine.Debugger.state != DebugAtRun {
+		t.Errorf("Expected state DebugAtRun after continue, got %v", machine.Debugger.state)
+	}
+
+	// Terminate debugging
+	machine.Debugger.enabled = false
+	<-debugDone
+}
+
+func TestDAPStoppedEventReasons(t *testing.T) {
+	debugger := &Debugger{}
+	machine := &Machine{}
+	server := NewDAPServer(debugger, machine)
+
+	mockWriter := &MockWriter{}
+	server.writer = mockWriter
+
+	tests := []struct {
+		reason      string
+		description string
+	}{
+		{"breakpoint", "Hit breakpoint at line 10"},
+		{"step", "Stepped to next line"},
+		{"pause", "Paused by user request"},
+		{"exception", "Runtime error occurred"},
+		{"entry", "Program started"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.reason, func(t *testing.T) {
+			mockWriter.Reset()
+
+			err := server.SendStoppedEvent(tt.reason, tt.description)
+			if err != nil {
+				t.Fatalf("SendStoppedEvent failed: %v", err)
+			}
+
+			// Parse the output
+			output := mockWriter.String()
+			parts := strings.Split(output, "\r\n\r\n")
+			if len(parts) != 2 {
+				t.Fatal("Invalid output format")
+			}
+
+			var event StoppedEvent
+			if err := json.Unmarshal([]byte(parts[1]), &event); err != nil {
+				t.Fatalf("Failed to parse event: %v", err)
+			}
+
+			if event.Body.Reason != tt.reason {
+				t.Errorf("Expected reason %q, got %q", tt.reason, event.Body.Reason)
+			}
+			if event.Body.Description != tt.description {
+				t.Errorf("Expected description %q, got %q", tt.description, event.Body.Description)
+			}
+		})
+	}
 }

@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -141,15 +142,40 @@ loop:
 		switch m.Debugger.state {
 		case DebugAtInit:
 			debugUpdateLocation(m)
-			fmt.Fprintln(m.Debugger.out, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
-			m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
+			if !m.Debugger.dapMode {
+				fmt.Fprintln(m.Debugger.out, "Welcome to the Gnovm debugger. Type 'help' for list of commands.")
+				m.Debugger.scanner = bufio.NewScanner(m.Debugger.in)
+			}
 			m.Debugger.state = DebugAtCmd
 		case DebugAtCmd:
 			if m.Debugger.dapMode && m.Debugger.dapServer != nil {
-				// In DAP mode, send a stopped event
-				m.Debugger.dapServer.SendStoppedEvent("breakpoint", "")
-				// DAP server handles commands via its message loop
-				m.Debugger.state = DebugAtRun
+				// In DAP mode, send a stopped event only once
+				reason := "entry"
+				if m.Debugger.prevLoc != (Location{}) {
+					if atBreak(m) {
+						reason = "breakpoint"
+					} else if m.Debugger.lastCmd == "step" || m.Debugger.lastCmd == "next" || m.Debugger.lastCmd == "stepout" {
+						reason = "step"
+					}
+				}
+				m.Debugger.dapServer.SendStoppedEvent(reason, "")
+
+				// Wait for DAP command to change state
+				// In DAP mode, we block here until a DAP command handler
+				// sets the state to DebugAtRun
+				// Add timeout to prevent infinite blocking in test environments
+				timeout := time.After(5 * time.Second)
+			dapWaitLoop:
+				for m.Debugger.state == DebugAtCmd && m.Debugger.enabled {
+					select {
+					case <-timeout:
+						// Timeout reached, break out of the loop
+						break dapWaitLoop
+					default:
+						// Small delay to prevent busy waiting
+						time.Sleep(1 * time.Millisecond)
+					}
+				}
 			} else {
 				// Traditional debugger mode
 				if err := debugCmd(m); err != nil {
@@ -163,12 +189,16 @@ loop:
 			switch m.Debugger.lastCmd {
 			case "si", "stepi":
 				m.Debugger.state = DebugAtCmd
-				debugLineInfo(m)
+				if !m.Debugger.dapMode {
+					debugLineInfo(m)
+				}
 			case "s", "step":
 				if m.Debugger.loc != m.Debugger.prevLoc && m.Debugger.loc.File != "" {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			case "n", "next":
@@ -176,21 +206,27 @@ loop:
 					(m.Debugger.nextDepth == 0 || !sameLine(m.Debugger.loc, m.Debugger.nextLoc) && callDepth(m) <= m.Debugger.nextDepth) {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			case "stepout", "so":
 				if callDepth(m) < m.Debugger.nextDepth {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			default:
 				if atBreak(m) {
 					m.Debugger.state = DebugAtCmd
 					m.Debugger.prevLoc = m.Debugger.loc
-					debugList(m, "")
+					if !m.Debugger.dapMode {
+						debugList(m, "")
+					}
 					continue loop
 				}
 			}
@@ -236,7 +272,7 @@ func atBreak(m *Machine) bool {
 		return false
 	}
 	for _, b := range m.Debugger.breakpoints {
-		if loc.File == b.File && loc.Line == b.Line {
+		if loc.File == b.File && loc.Pos.Line == b.Pos.Line {
 			return true
 		}
 	}
