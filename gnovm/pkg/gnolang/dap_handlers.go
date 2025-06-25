@@ -258,20 +258,159 @@ func (s *DAPServer) handleScopes(req *Request, _ []byte) error {
 
 // handleVariables processes the variables request
 func (s *DAPServer) handleVariables(req *Request, _ []byte) error {
-	var args struct {
-		VariablesReference int `json:"variablesReference"`
-	}
+	var args VariablesArguments
 	if err := json.Unmarshal(req.Arguments, &args); err != nil {
 		return err
 	}
 
-	// TODO: Implement actual variable lookup
-	// For now, return empty list
+	variables := make([]Variable, 0)
+
+	// Determine scope from variablesReference
+	// We use a simple scheme: 1000+frameID for locals, 2000+frameID for globals
+	frameID := 0
+	if args.VariablesReference >= 1000 && args.VariablesReference < 2000 {
+		// Local variables
+		frameID = args.VariablesReference - 1000
+		variables = s.getLocalVariables(frameID)
+	} else if args.VariablesReference >= 2000 && args.VariablesReference < 3000 {
+		// Global variables
+		// frameID = args.VariablesReference - 2000
+		variables = s.getGlobalVariables()
+	}
+	// If variablesReference doesn't match our scheme, return empty array
+
 	resp := NewResponse(req, true)
 	resp.Body = map[string]any{
-		"variables": []map[string]any{},
+		"variables": variables,
 	}
 	return s.sendMessage(resp)
+}
+
+// getLocalVariables returns local variables for a specific frame
+func (s *DAPServer) getLocalVariables(frameID int) []Variable {
+	variables := make([]Variable, 0)
+
+	// Get variables from the current frame
+	if len(s.machine.Blocks) == 0 {
+		return variables
+	}
+
+	// Save current frame level
+	oldFrameLevel := s.debugger.frameLevel
+	s.debugger.frameLevel = frameID
+
+	// Collect all variable names from visible blocks
+	varMap := make(map[string]TypedValue)
+
+	// Iterate through blocks to find variables
+	for i := len(s.machine.Blocks) - 1; i >= 0; i-- {
+		block := s.machine.Blocks[i]
+		if block == nil || block.Source == nil {
+			continue
+		}
+
+		// Get block names
+		names := block.Source.GetBlockNames()
+		for idx, name := range names {
+			nameStr := string(name)
+			// Skip if we already have this variable (inner scope shadows outer)
+			if _, exists := varMap[nameStr]; exists {
+				continue
+			}
+			if idx < len(block.Values) {
+				varMap[nameStr] = block.Values[idx]
+			}
+		}
+
+		// Stop at function boundary
+		if i > 0 && s.machine.Frames != nil {
+			for _, frame := range s.machine.Frames {
+				if frame.Func != nil && block.Source == frame.Func.Source {
+					goto done
+				}
+			}
+		}
+	}
+
+done:
+	// Convert to Variable array
+	for name, tv := range varMap {
+		variables = append(variables, s.typedValueToVariable(name, tv))
+	}
+
+	// Restore frame level
+	s.debugger.frameLevel = oldFrameLevel
+
+	return variables
+}
+
+// getGlobalVariables returns global/package-level variables
+func (s *DAPServer) getGlobalVariables() []Variable {
+	variables := make([]Variable, 0)
+
+	// Get global block (usually first block)
+	if len(s.machine.Blocks) > 0 && s.machine.Blocks[0] != nil {
+		block := s.machine.Blocks[0]
+		if block.Source != nil {
+			names := block.Source.GetBlockNames()
+			for idx, name := range names {
+				if idx < len(block.Values) {
+					variables = append(variables, s.typedValueToVariable(string(name), block.Values[idx]))
+				}
+			}
+		}
+	}
+
+	return variables
+}
+
+// typedValueToVariable converts a TypedValue to a DAP Variable
+func (s *DAPServer) typedValueToVariable(name string, tv TypedValue) Variable {
+	var valueStr, typeStr string
+	variablesRef := 0
+
+	if tv.T != nil {
+		typeStr = tv.T.String()
+	}
+
+	// Format value based on type
+	switch tv.T.(type) {
+	case PrimitiveType:
+		valueStr = tv.String()
+	case *SliceType, *ArrayType:
+		if tv.V != nil {
+			switch v := tv.V.(type) {
+			case *SliceValue:
+				valueStr = fmt.Sprintf("(length=%d, cap=%d)", v.Length, v.Maxcap)
+				// TODO: Assign a unique reference for expanding the slice
+			case *ArrayValue:
+				if v != nil && v.List != nil {
+					valueStr = fmt.Sprintf("(length=%d)", len(v.List))
+				} else {
+					valueStr = fmt.Sprintf("(length=%d)", 0)
+				}
+				// TODO: Assign a unique reference for expanding the array
+			default:
+				valueStr = tv.String()
+			}
+		} else {
+			valueStr = "nil"
+		}
+	case *StructType, *MapType:
+		// For complex types, show a summary
+		valueStr = typeStr
+		// TODO: Assign a unique reference for expanding the struct/map
+	default:
+		// For other types, use String() method
+		valueStr = tv.String()
+	}
+
+	return Variable{
+		Name:               name,
+		Value:              valueStr,
+		Type:               typeStr,
+		VariablesReference: variablesRef,
+	}
 }
 
 // handleContinue processes the continue request

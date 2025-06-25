@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -443,4 +444,126 @@ func containsHelper(t *testing.T, s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestHandleVariables(t *testing.T) {
+	// minimal block structure
+	testBlock := &BlockStmt{
+		Body: []Stmt{},
+	}
+
+	// block with some test values
+	block := &Block{
+		Source: testBlock,
+		Values: []TypedValue{
+			{T: IntType, V: nil},    // Will be displayed as int value
+			{T: StringType, V: nil}, // Will be displayed as string value
+		},
+	}
+
+	// Set the block names
+	testBlock.Names = []Name{"testInt", "testStr"}
+
+	machine := &Machine{
+		Blocks: []*Block{block},
+	}
+
+	debugger := &Debugger{
+		enabled:    true,
+		frameLevel: 0,
+	}
+
+	server := NewDAPServer(debugger, machine)
+	server.machine = machine
+	mockWriter := &MockWriter{}
+	server.writer = mockWriter
+
+	tests := []struct {
+		name               string
+		variablesReference int
+		wantVariableCount  int
+		checkVariables     bool
+	}{
+		{
+			name:               "local variables scope",
+			variablesReference: 1000, // Local scope reference
+			wantVariableCount:  2,    // testInt and testStr
+			checkVariables:     true,
+		},
+		{
+			name:               "global variables scope",
+			variablesReference: 2000, // Global scope reference
+			wantVariableCount:  2,    // Same variables in our test
+			checkVariables:     true,
+		},
+		{
+			name:               "invalid reference",
+			variablesReference: 9999,
+			wantVariableCount:  0,
+			checkVariables:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockWriter.Reset()
+
+			req := &Request{
+				ProtocolMessage: ProtocolMessage{Seq: 1, Type: "request"},
+				Command:         "variables",
+				Arguments:       json.RawMessage(fmt.Sprintf(`{"variablesReference":%d}`, tt.variablesReference)),
+			}
+
+			err := server.handleVariables(req, nil)
+			if err != nil {
+				t.Fatalf("handleVariables failed: %v", err)
+			}
+
+			// Parse response
+			response := mockWriter.String()
+			bodyStart := 0
+			for i := 0; i < len(response)-4; i++ {
+				if response[i:i+4] == "\r\n\r\n" {
+					bodyStart = i + 4
+					break
+				}
+			}
+
+			var resp struct {
+				Body struct {
+					Variables []Variable `json:"variables"`
+				} `json:"body"`
+			}
+
+			if err := json.Unmarshal([]byte(response[bodyStart:]), &resp); err != nil {
+				t.Fatalf("Failed to parse response: %v", err)
+			}
+
+			// Check variable count
+			if len(resp.Body.Variables) != tt.wantVariableCount {
+				t.Errorf("Expected %d variables, got %d", tt.wantVariableCount, len(resp.Body.Variables))
+			}
+
+			// Check variable properties if needed
+			if tt.checkVariables && len(resp.Body.Variables) > 0 {
+				// Check first variable
+				if resp.Body.Variables[0].Name != "testInt" {
+					t.Errorf("Expected first variable name 'testInt', got %s", resp.Body.Variables[0].Name)
+				}
+				if resp.Body.Variables[0].Type != "int" {
+					t.Errorf("Expected first variable type 'int', got %s", resp.Body.Variables[0].Type)
+				}
+
+				// Check second variable if exists
+				if len(resp.Body.Variables) > 1 {
+					if resp.Body.Variables[1].Name != "testStr" {
+						t.Errorf("Expected second variable name 'testStr', got %s", resp.Body.Variables[1].Name)
+					}
+					if resp.Body.Variables[1].Type != "string" {
+						t.Errorf("Expected second variable type 'string', got %s", resp.Body.Variables[1].Type)
+					}
+				}
+			}
+		})
+	}
 }

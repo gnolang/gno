@@ -226,6 +226,46 @@ type EvaluateArguments struct {
 	Format     string `json:"format,omitempty"`
 }
 
+// ScopesRequest is sent to get scopes for a stack frame
+type ScopesRequest struct {
+	Request
+	Arguments ScopesArguments `json:"arguments"`
+}
+
+type ScopesArguments struct {
+	FrameID int `json:"frameId"`
+}
+
+type Scope struct {
+	Name               string `json:"name"`
+	VariablesReference int    `json:"variablesReference"`
+	NamedVariables     int    `json:"namedVariables,omitempty"`
+	IndexedVariables   int    `json:"indexedVariables,omitempty"`
+	Expensive          bool   `json:"expensive"`
+}
+
+// VariablesRequest is sent to get variables in a scope
+type VariablesRequest struct {
+	Request
+	Arguments VariablesArguments `json:"arguments"`
+}
+
+type VariablesArguments struct {
+	VariablesReference int    `json:"variablesReference"`
+	Filter             string `json:"filter,omitempty"`
+	Start              int    `json:"start,omitempty"`
+	Count              int    `json:"count,omitempty"`
+}
+
+type Variable struct {
+	Name               string `json:"name"`
+	Value              string `json:"value"`
+	Type               string `json:"type,omitempty"`
+	VariablesReference int    `json:"variablesReference"`
+	NamedVariables     int    `json:"namedVariables,omitempty"`
+	IndexedVariables   int    `json:"indexedVariables,omitempty"`
+}
+
 // DAP Event Types
 
 // StoppedEvent is sent when execution stops
