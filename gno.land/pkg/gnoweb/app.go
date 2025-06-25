@@ -103,7 +103,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if cfg.Aliases == nil {
 		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
 	}
-	webhandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
+	httpHandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
 		ClientAdapter: adpcli,
 		Meta:          staticMeta,
 		Renderer:      renderer,
