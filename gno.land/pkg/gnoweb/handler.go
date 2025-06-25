@@ -19,6 +19,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
+const ReadmeFileName = "README.md"
+
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
 	Domain     string
@@ -455,12 +457,12 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 
 // renderReadme renders the README.md file and returns the component and the raw content
 func (h *WebHandler) renderReadme(gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
-	if !h.Client.HasFile(pkgPath, "README.md") {
+	if !h.Client.HasFile(pkgPath, ReadmeFileName) {
 		return nil, nil
 	}
 
 	var rawBuffer bytes.Buffer
-	_, err := h.Client.SourceFile(&rawBuffer, pkgPath, "README.md", true)
+	_, err := h.Client.SourceFile(&rawBuffer, pkgPath, ReadmeFileName, true)
 	if err != nil {
 		h.Logger.Error("fetch README.md", "path", pkgPath, "error", err)
 		return nil, nil
@@ -500,19 +502,21 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	}
 
 	// Standard file rendering
-	var source bytes.Buffer
-	var fileSource components.Component
-	var fileLines int
-	var sizeKb float64
+	var (
+		source     bytes.Buffer
+		fileSource components.Component
+		fileLines  int
+		sizeKb     float64
+	)
 
 	// Check whether the file is a markdown file
 	switch fileName {
-	case "README.md":
+	case ReadmeFileName:
 		// Try to render README.md with markdown processing
 		readmeComp, raw := h.renderReadme(gnourl, pkgPath)
 		if readmeComp != nil && raw != nil {
 			fileSource = readmeComp
-			fileLines = len(strings.Split(string(raw), "\n"))
+			fileLines = bytes.Count(raw, []byte("\n")) + 1
 			sizeKb = float64(len(raw)) / 1024.0
 			break
 		}
