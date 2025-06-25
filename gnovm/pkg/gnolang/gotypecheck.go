@@ -343,7 +343,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
 		}
 		if pmode == ParseModeProduction && mod.Draft && gimp.height > 0 {
-			panic(fmt.Sprintf("%q is a draft package, it can only be deployed or imported at genesis (height 0)", mpkg.Path))
+			panic(fmt.Sprintf("%q as a draft package can only be deployed or imported at genesis", mpkg.Path))
 		}
 		if mod.GetGno() != GnoVerLatest {
 			panic(fmt.Sprintf("expected gnomod.toml gno version %v but got %v",
