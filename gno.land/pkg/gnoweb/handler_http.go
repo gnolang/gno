@@ -347,7 +347,6 @@ func (h *HTTPHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
-
 	}
 
 	// Compute package counts

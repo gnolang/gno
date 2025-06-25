@@ -177,7 +177,6 @@ func (c *rpcClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
 
 // query sends a query to the RPC client and returns the response
 // data.
-// query sends a query to the RPC client and returns the response data.
 func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
 	c.logger.Info("querying node", "path", qpath, "data", string(data))
 
@@ -205,7 +204,7 @@ func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
 	)
 
 	if qres.Response.Error != nil {
-		// Handle known error types with appropriate log levels
+		// Handle known error types
 		switch {
 		case errors.Is(qres.Response.Error, vm.InvalidPkgPathError{}):
 			c.logger.Warn("invalid package path",

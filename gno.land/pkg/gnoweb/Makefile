@@ -4,10 +4,15 @@ CHAIN_ID ?=
 PUBLIC_DIR ?= public
 
 # tools
-node_modules := ./tools/node_modules
-tools_run := go run -modfile ./tools/go.mod
-reflex := $(tools_run) github.com/cespare/reflex
+
+## go tools
+reflex := go run -modfile ./tools/go.mod github.com/cespare/reflex
 logname := go -C ./tools run ./cmd/logname
+golangci_lint := go run -modfile ../../../misc/devdeps/go.mod github.com/golangci/golangci-lint/cmd/golangci-lint
+
+## node tools
+node_modules := ./tools/node_modules
+
 esbuild := $(node_modules)/.bin/esbuild
 tailwind := $(node_modules)/.bin/tailwindcss
 
@@ -32,9 +37,9 @@ output_js := $(patsubst $(src_dir_js)/%.ts,$(out_dir_js)/%.js,$(input_js))
 # cache
 cache_dir := .cache
 
-#############
-# Targets
-#############
+#####################
+# General Targets
+#####################
 .PHONY: all dev start-node generate fmt css ts
 
 # Generate public dir
@@ -54,6 +59,10 @@ test:
 # Format process
 fmt:
 	go fmt ./...
+
+# Lint process
+lint:
+	$(golangci_lint) --config ../../../.github/golangci.yml run ./...
 
 # Generate process
 generate: css ts static

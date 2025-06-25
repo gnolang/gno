@@ -73,6 +73,8 @@ func (s *stubClient) ListPaths(prefix string, limit int) ([]string, error) {
 
 // newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
 func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
+	t.Helper()
+
 	renderer := gnoweb.NewHTMLRenderer(
 		log.NewTestingLogger(t),
 		gnoweb.NewDefaultRenderConfig(),
