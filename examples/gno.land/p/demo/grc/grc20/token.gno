@@ -260,9 +260,9 @@ func (led *PrivateLedger) Burn(address_XXX std.Address, amount int64) error {
 }
 
 // isKnownAccount checks if the specified address is a known account in the ledger.
-func (led PrivateLedger) isKnownAccount(address_XXX std.Address) bool {
-	_, found := led.balances.Get(address_XXX.String())
-	return found
+func (led PrivateLedger) hasAddr(address_XXX std.Address) bool {
+	bal, found := led.balances.Get(address_XXX.String())
+	return found && bal > 0
 }
 
 // balanceOf returns the balance of the specified address.
