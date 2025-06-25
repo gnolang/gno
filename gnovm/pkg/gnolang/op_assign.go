@@ -31,14 +31,11 @@ func (m *Machine) doOpAssign() {
 			iv := m.PeekValue(1)
 			xv := m.PeekValue(2)
 			if mv, ok := xv.V.(*MapValue); ok {
-				var oo1 Object
 				key := iv.ComputeMapKey(m.Store, false)
-				if _, ok := mv.vmap[key]; ok {
-					if oo, ok := iv.V.(Object); ok {
-						oo1 = oo
-					}
+				if _, ok := mv.vmap[key]; !ok {
+					m.Realm.DidUpdate(mv, nil, iv.GetFirstObject(m.Store))
 				}
-				m.Realm.DidUpdate(mv, oo1, iv.GetFirstObject(m.Store))
+				// if exist, do nothing
 			}
 		}
 		lv := m.PopAsPointer(s.Lhs[i])
