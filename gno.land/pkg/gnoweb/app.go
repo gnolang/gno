@@ -37,7 +37,7 @@ type AppConfig struct {
 	RemoteHelp string
 	// AssetsPath is the base path to the gnoweb assets.
 	AssetsPath string
-	// NoAssetsCache disable assets caching
+	// NoAssetsCache disables assets caching.
 	NoAssetsCache bool
 	// ChainID is the chain id, used for constructing the help page.
 	ChainID string
