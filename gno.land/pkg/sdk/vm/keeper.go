@@ -8,7 +8,9 @@ import (
 	goerrors "errors"
 	"fmt"
 	"io"
+	"iter"
 	"log/slog"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -173,11 +176,14 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 func loadStdlib(store gno.Store, stdlibDir string) {
 	stdlibInitList := stdlibs.InitOrder()
 	for _, lib := range stdlibInitList {
-		if lib == "testing" {
-			// XXX: testing is skipped for now while it uses testing-only packages
+		parts := strings.Split(lib, "/")
+		if len(parts) > 0 && parts[0] == "testing" {
+			// XXX: testing and sub testing packages are skipped for
+			// now while it uses testing-only packages
 			// like fmt and encoding/json
 			continue
 		}
+
 		loadStdlibPackage(lib, stdlibDir, store)
 	}
 }
@@ -186,12 +192,12 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	stdlibPath := filepath.Join(stdlibDir, pkgPath)
 	if !osm.DirExists(stdlibPath) {
 		// does not exist.
-		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))
+		panic(fmt.Errorf("failed loading stdlib %q: does not exist", pkgPath))
 	}
-	memPkg := gno.MustReadMemPackage(stdlibPath, pkgPath)
-	if memPkg.IsEmpty() {
+	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath)
+	if err != nil {
 		// no gno files are present
-		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
+		panic(fmt.Errorf("failed loading stdlib %q: %w", pkgPath, err))
 	}
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -337,9 +343,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := msg.Package.Validate(); err != nil {
+	if err := gno.ValidateMemPackage(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+
 	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
@@ -357,10 +364,31 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	format := true
-	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestStrict)
+	if err != nil {
 		return ErrTypeCheck(err)
 	}
+
+	// Extra keeper-only checks.
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
+	// no development packages.
+	if gm.HasReplaces() {
+		return ErrInvalidPackage("development packages are not allowed")
+	}
+	// no (deprecated) gno.mod file.
+	if memPkg.GetFile("gno.mod") != nil {
+		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")
+	}
+
+	// Patch gnomod.toml metadata
+	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
+	gm.UploadMetadata.Uploader = creator.String()
+	gm.UploadMetadata.Height = int(ctx.BlockHeight())
+	// Re-encode gnomod.toml in memPkg
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
@@ -439,7 +467,12 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
-	expr := fmt.Sprintf(`cross(pkg.%s)(%s)`, fnc, argslist)
+	var expr string
+	if argslist == "" {
+		expr = fmt.Sprintf(`pkg.%s(cross)`, fnc)
+	} else {
+		expr = fmt.Sprintf(`pkg.%s(cross,%s)`, fnc, argslist)
+	}
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgCryptoAddr(pkgPath)
@@ -454,13 +487,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if cx.Varg {
 		panic("variadic calls not yet supported")
 	}
-	if len(msg.Args) != len(ft.Params) {
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), len(msg.Args)))
+	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
+		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
 	}
 	for i, arg := range msg.Args {
-		argType := ft.Params[i].Type
+		argType := ft.Params[i+1].Type
 		atv := convertArgToGno(arg, argType)
-		cx.Args[i] = &gno.ConstExpr{
+		cx.Args[i+1] = &gno.ConstExpr{
 			TypedValue: atv,
 		}
 	}
@@ -582,13 +615,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
-	if err := msg.Package.Validate(); err != nil {
+	if err := gno.ValidateMemPackage(msg.Package); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
 	// Validate Gno syntax and type check.
-	format := false
-	if err = gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestRelaxed)
+	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
 
@@ -667,6 +700,79 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	)
 
 	return res, nil
+}
+
+var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
+
+// QueryPaths returns public facing function signatures.
+// XXX: Implement pagination
+func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
+	if limit < 0 {
+		return nil, errors.New("cannot have negative limit value")
+	}
+
+	// Determine effective limit to return
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	// Handle case where no name is specified (general prefix lookup)
+	if !strings.HasPrefix(target, "@") {
+		return collectWithLimit(store.FindPathsByPrefix(target), limit), nil
+	}
+
+	// Extract name and sub-subPrefix from target
+	name, subPrefix, hasSubPrefix := strings.Cut(target[1:], "/")
+	if !reUserNamespace.MatchString(name) {
+		return nil, errors.New("invalid username format")
+	}
+
+	// Handle reserved name
+	if name == "stdlibs" || name == "std" {
+		// XXX: Keep it simple here for now. If we have more reserved names at
+		// some point, we should consider centralizing it somewhere.
+		path := path.Join("_", subPrefix)
+		return collectWithLimit(store.FindPathsByPrefix(path), limit), nil
+	}
+	// Lookup for both `/r` & `/p` paths of the namespace
+	ctxDomain := vm.getChainDomainParam(ctx)
+	rpath := path.Join(ctxDomain, "r", name, subPrefix)
+	ppath := path.Join(ctxDomain, "p", name, subPrefix)
+
+	// Add trailing slash if no subname is specified
+	if !hasSubPrefix {
+		rpath += "/"
+		ppath += "/"
+	}
+
+	// Collect both paths
+	return collectWithLimit(joinIters(
+		store.FindPathsByPrefix(ppath),
+		store.FindPathsByPrefix(rpath),
+	), limit), nil
+}
+
+// joinIters joins the given iterators in a single iterator.
+func joinIters[T any](seqs ...iter.Seq[T]) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, seq := range seqs {
+			for v := range seq {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// like slices.Collect, but limits the slice size to the given limit.
+func collectWithLimit[T any](seq iter.Seq[T], limit int) []T {
+	s := []T{}
+	for v := range seq {
+		s = append(s, v)
+		if len(s) >= limit {
+			return s
+		}
+	}
+	return s
 }
 
 // QueryFuncs returns public facing function signatures.

@@ -11,9 +11,7 @@ func init() {
 	ms.Field = 1
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	println(ms)
 	ms.Field += 2
 	println(ms)

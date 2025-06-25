@@ -183,6 +183,17 @@ func Link(text, url string) string {
 	return "[" + EscapeText(text) + "](" + url + ")"
 }
 
+// UserLink returns a user profile link for markdown.
+// For usernames, it adds @ prefix to the display text.
+// Example: UserLink("moul") => "[@moul](/u/moul)"
+// Example: UserLink("g1blah") => "[g1blah](/u/g1blah)"
+func UserLink(user string) string {
+	if strings.HasPrefix(user, "g1") {
+		return "[" + EscapeText(user) + "](/u/" + user + ")"
+	}
+	return "[@" + EscapeText(user) + "](/u/" + user + ")"
+}
+
 // InlineImageWithLink creates an inline image wrapped in a hyperlink for markdown.
 // Example: InlineImageWithLink("alt text", "image-url", "link-url") => "[![alt text](image-url)](link-url)"
 func InlineImageWithLink(altText, imageUrl, linkUrl string) string {
