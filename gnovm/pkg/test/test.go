@@ -254,7 +254,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(memPkg, tset, gs, coverage.GetGlobalTracker())
+			err := opts.runTestFiles(mpkg, tset, gs, coverage.GetGlobalTracker())
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -358,10 +358,10 @@ func (opts *TestOptions) runTestFiles(
 	m = Machine(gs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
 
-	if gs.GetMemPackage(memPkg.Path) == nil {
+	if gs.GetMemPackage(mpkg.Path) == nil {
 		// if coverage is enabled, instrument the files
 		if opts.Coverage {
-			for _, file := range memPkg.Files {
+			for _, file := range mpkg.Files {
 				instrumenter := coverage.NewCoverageInstrumenter(tracker, file.Name)
 				instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
 				if err != nil {
@@ -370,7 +370,7 @@ func (opts *TestOptions) runTestFiles(
 				file.Body = string(instrumentedContent)
 			}
 		}
-		m.RunMemPackage(memPkg, true)
+		m.RunMemPackage(mpkg, true)
 	} else {
 		m.SetActivePackage(gs.GetPackage(mpkg.Path, false))
 	}

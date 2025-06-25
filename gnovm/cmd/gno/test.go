@@ -332,8 +332,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		return fail()
 	}
 
-	// 커버리지 결과 출력
-	if cfg.coverage {
+	// print coverage results
+	if cmd.coverage {
 		coverageTracker := test.GetCoverageTracker()
 		coverageTracker.PrintCoverage()
 	}
