@@ -211,7 +211,7 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	}
 	if err == nil && gmod.Ignore {
 		if opts.cfg.verbose {
-			opts.io.ErrPrintfln("%s (skipped, gnomod.toml marks module as ignore)", filepath.Clean(dirPath))
+			opts.io.ErrPrintfln("%s (skipped, gnomod.toml marks module as ignored)", filepath.Clean(dirPath))
 		}
 		opts.skipped = append(opts.skipped, dirPath)
 		return nil
