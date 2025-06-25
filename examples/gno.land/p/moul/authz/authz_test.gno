@@ -582,8 +582,7 @@ func TestAuthorizerDoByPrevious(t *testing.T) {
 		err = auth.DoByPrevious("test_action", func() error {
 			return expectedErr
 		})
-
-		uassert.Error(t, err, "expected error")
+		uassert.ErrorContains(t, err, expectedErr.Error(), "expected error")
 	})
 
 	testing.SetRealm(std.NewUserRealm(bob))
@@ -594,7 +593,7 @@ func TestAuthorizerDoByPrevious(t *testing.T) {
 			return nil
 		}, "unauthorized_arg")
 
-		uassert.Error(t, err, "expected error")
+		uassert.ErrorContains(t, err, "unauthorized", "expected error")
 		uassert.False(t, executed, "action should not have been executed")
 	})
 }
