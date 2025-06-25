@@ -427,6 +427,28 @@ func opAddress(s *State) error {
 }
 
 func opBalance(s *State) error {
+	addr, err := s.stack.Pop()
+	if err != nil {
+		return err
+	}
+	if s.tmp.accounts[addr.Uint64()] == nil {
+		s.stack.Push(uint256.Zero())
+		return nil
+	}
+	s.stack.Push(s.tmp.accounts[addr.Uint64()].Balance)
+
+	warm := false
+	for _, e := range s.tmp.warmAccountAddress {
+		if e.Eq(addr) {
+			warm = true
+			break
+		}
+	}
+	if !warm {
+		s.tmp.warmAccountAddress = append(s.tmp.warmAccountAddress, *addr)
+		s.gasConsumed += 2500
+	}
+
 	return nil
 }
 

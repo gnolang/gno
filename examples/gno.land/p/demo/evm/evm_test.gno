@@ -1649,6 +1649,30 @@ func TestExecuteEvm(t *testing.T) {
 			},
 			expectedGasConsumed: 2,
 		},
+		{
+			name: "balance of account in my stack",
+			code: []byte{
+				byte(PUSH1), 0x50,
+				byte(BALANCE),
+				byte(PUSH1), 0x50,
+				byte(BALANCE),
+			},
+			caller: &Account{
+				EvmAddress: 0x50,
+				Balance:    uint256.One(),
+			},
+			expectedStack: []*uint256.Uint{
+				uint256.MustFromHex("0x1"),
+				uint256.MustFromHex("0x1"),
+			},
+			expectedAccounts: Accounts{
+				0x50: &Account{
+					EvmAddress: 0x50,
+					Balance:    uint256.One(),
+				},
+			},
+			expectedGasConsumed: 2,
+		},
 	}
 
 	for _, tc := range testCases {

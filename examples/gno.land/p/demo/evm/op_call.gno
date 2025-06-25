@@ -104,6 +104,19 @@ func opCall(s *State) error {
 	s.gasConsumed += uint(memoryCost)
 
 	s.applyStateAfterReturn(tmpState)
+
+	warm := false
+	for _, e := range s.tmp.warmAccountAddress {
+		if e.Eq(addr) {
+			warm = true
+			break
+		}
+	}
+	if !warm {
+		s.tmp.warmAccountAddress = append(s.tmp.warmAccountAddress, *addr)
+		s.gasConsumed += 2600
+	}
+
 	if s.tmp.accounts[s.callerAddress] != nil && s.tmp.accounts[s.callerAddress].Balance != nil {
 		s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, moneyToGive)
 	}
@@ -178,6 +191,19 @@ func opCallCode(s *State) error {
 	s.gasConsumed += uint(memoryCost)
 
 	s.applyStateAfterReturn(tmpState)
+
+	warm := false
+	for _, e := range s.tmp.warmAccountAddress {
+		if e.Eq(addr) {
+			warm = true
+			break
+		}
+	}
+	if !warm {
+		s.tmp.warmAccountAddress = append(s.tmp.warmAccountAddress, *addr)
+		s.gasConsumed += 2600
+	}
+
 	return nil
 }
 
@@ -239,6 +265,19 @@ func opDelegateCall(s *State) error {
 	s.gasConsumed += uint(memoryCost)
 
 	s.applyStateAfterReturn(tmpState)
+
+	warm := false
+	for _, e := range s.tmp.warmAccountAddress {
+		if e.Eq(addr) {
+			warm = true
+			break
+		}
+	}
+	if !warm {
+		s.tmp.warmAccountAddress = append(s.tmp.warmAccountAddress, *addr)
+		s.gasConsumed += 2600
+	}
+
 	return nil
 }
 
@@ -298,6 +337,18 @@ func opStaticCall(s *State) error {
 	// also change storages, gas consumed and stuff like that
 	extendMemory(s, retOffset, retSize, &memoryCost)
 	copy(s.memory[retOffset.Uint64():retOffset.Uint64()+retSize.Uint64()], res)
+
+	warm := false
+	for _, e := range s.tmp.warmAccountAddress {
+		if e.Eq(addr) {
+			warm = true
+			break
+		}
+	}
+	if !warm {
+		s.tmp.warmAccountAddress = append(s.tmp.warmAccountAddress, *addr)
+		s.gasConsumed += 2600
+	}
 
 	s.gasConsumed += uint(memoryCost)
 	return nil
