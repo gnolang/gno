@@ -1,1 +1,1 @@
-function i(e,n=250){let t;return function(...r){t!==void 0&&clearTimeout(t),t=setTimeout(()=>{e.apply(this,r)},n)}}function a(e){return e.replace(/([$`"\\!|&;<>*?{}()])/g,"\\$1")}export{i as debounce,a as escapeShellSpecialChars};
+function i(e,n=250){let t;return function(...r){t!==void 0&&clearTimeout(t),t=setTimeout(()=>{e.apply(this,r)},n)}}function u(e){return e.replace(/([$`"\\!|&;<>*?{}()])/g,"\\$1")}export{i as debounce,u as escapeShellSpecialChars};
