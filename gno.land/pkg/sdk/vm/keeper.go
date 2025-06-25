@@ -378,9 +378,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
-	if gm.Draft && ctx.BlockHeight() > 0 {
-		return ErrInvalidPackage("draft packages must be deployed at genesis")
-	}
 	// no (deprecated) gno.mod file.
 	if memPkg.GetFile("gno.mod") != nil {
 		return ErrInvalidPackage("gno.mod file is deprecated and not allowed, run 'gno mod tidy' to upgrade to gnomod.toml")

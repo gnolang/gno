@@ -257,16 +257,6 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		result.pending = false
 		return nil, err
 	}
-	mod, err := ParseCheckGnoMod(mpkg)
-	if err != nil {
-		return nil, err
-	}
-	if mod.Draft && gimp.height != 0 {
-		err := ImportDraftError{PkgPath: pkgPath}
-		result.err = err
-		result.pending = false
-		return nil, err
-	}
 	pmode := ParseModeProduction // don't parse test files for imports...
 	if gimp.pkgPath == pkgPath {
 		// ...unless importing self from a *_test.gno
@@ -351,6 +341,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if gimp.tcmode == TCLatestStrict {
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
+		}
+		if pmode == ParseModeProduction && mod.Draft && gimp.height > 0 {
+			panic(fmt.Sprintf("%q is a draft package, it can only be deployed or imported at genesis (height 0)", mpkg.Path))
 		}
 		if mod.GetGno() != GnoVerLatest {
 			panic(fmt.Sprintf("expected gnomod.toml gno version %v but got %v",
@@ -619,12 +612,10 @@ type ImportError interface {
 }
 
 func (e ImportNotFoundError) assertImportError() {}
-func (e ImportDraftError) assertImportError()    {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
-	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportCycleError{}
 )
 
@@ -639,20 +630,6 @@ func (e ImportNotFoundError) GetLocation() string { return e.Location }
 func (e ImportNotFoundError) GetMsg() string { return fmt.Sprintf("unknown import path %q", e.PkgPath) }
 
 func (e ImportNotFoundError) Error() string { return importErrorString(e) }
-
-// ImportDraftError implements ImportError
-type ImportDraftError struct {
-	Location string
-	PkgPath  string
-}
-
-func (e ImportDraftError) GetLocation() string { return e.Location }
-
-func (e ImportDraftError) GetMsg() string {
-	return fmt.Sprintf("import path %q is a draft package", e.PkgPath)
-}
-
-func (e ImportDraftError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {
