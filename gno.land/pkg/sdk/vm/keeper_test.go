@@ -150,7 +150,7 @@ func Echo(cur realm) string {
 
 	err := env.vmk.AddPackage(ctx, msg1)
 
-	assert.Error(t, err, ErrInvalidPackage("draft packages must be deployed at genesis"))
+	assert.Error(t, err, ErrTypeCheck(gnolang.ImportDraftError{PkgPath: pkgPath}))
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 
