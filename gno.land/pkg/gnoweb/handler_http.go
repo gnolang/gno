@@ -91,13 +91,15 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
 
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		h.Get(w, r)
+	case http.MethodPost:
+		h.Post(w, r)
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
-
-	w.Header().Add("Content-Type", "text/html; charset=utf-8")
-	h.Get(w, r)
 }
 
 // Get processes a GET HTTP request and renders the appropriate page.
@@ -164,8 +166,40 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Post processes a POST HTTP request.
+func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		h.Logger.Debug("request completed",
+			"url", r.URL.String(),
+			"elapsed", time.Since(start).String())
+	}()
+
+	// Parse the form data
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Error("failed to parse form", "error", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the URL
+	gnourl, err := weburl.ParseFromURL(r.URL)
+	if err != nil {
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		http.Error(w, "invalid path", http.StatusNotFound)
+		return
+	}
+
+	// Use form data as query
+	gnourl.Query = r.PostForm
+
+	// Redirect to the new URL
+	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
+}
+
 // prepareIndexBodyView prepares the data and main view for the index page.
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
 	// If the alias target exists and is a gnoweb path, replace the URL path with it.
@@ -388,6 +422,10 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 			continue
 		}
 
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			// Don't make an entry field for "cur realm". The signature will still show it.
+			fun.Params = fun.Params[1:]
+		}
 		fsigs = append(fsigs, fun)
 	}
 

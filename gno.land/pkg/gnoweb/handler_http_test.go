@@ -399,7 +399,7 @@ func TestNewWebHandlerInvalidConfig(t *testing.T) {
 	}
 }
 
-// TestServeHTTPMethodNotAllowed verifies 405 for POST/PUT/etc methods.
+// TestServeHTTPMethodNotAllowed verifies 405 for HTTP methods.
 func TestServeHTTPMethodNotAllowed(t *testing.T) {
 	t.Parallel()
 
@@ -409,7 +409,7 @@ func TestServeHTTPMethodNotAllowed(t *testing.T) {
 	handler, err := gnoweb.NewHTTPHandler(logger, cfg)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/r/ex", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/r/ex", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
