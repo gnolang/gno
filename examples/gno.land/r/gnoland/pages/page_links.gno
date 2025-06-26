@@ -8,9 +8,9 @@ func init() {
 Below are Gno.land's most important links.
 
 #### [Gno GitHub, the project's main repository](https://github.com/gnolang/gno)
-#### [Gnoverse Github, a community organization for Gnomes](https://github.com/gnoverse)
 #### [Getting Started with Gno](https://github.com/gnolang/getting-started/)
 #### [Gno.land Official Docs](https://docs.gno.land/)
+#### [Gnoverse Github, a community organization for Gnomes](https://github.com/gnoverse)
 #### [Gno.land Workshops, a repo for Gno resources](https://github.com/gnolang/workshops)
 #### [Gno.land Students Program](https://github.com/gnolang/student-contributors-program/)
 #### [Gno.land Contributor page](https://gno.land/contribute)
