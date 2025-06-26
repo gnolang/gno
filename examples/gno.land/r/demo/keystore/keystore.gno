@@ -32,7 +32,7 @@ type KeyStore struct {
 
 // Set will set a value to a key
 // requires write-access (original caller must be caller)
-func Set(k, v string) string {
+func Set(_ realm, k, v string) string {
 	origOwner := std.OriginCaller()
 	return set(origOwner.String(), k, v)
 }
@@ -61,7 +61,7 @@ func set(owner, k, v string) string {
 
 // Remove removes a key
 // requires write-access (original owner must be caller)
-func Remove(k string) string {
+func Remove(_ realm, k string) string {
 	origOwner := std.OriginCaller()
 	return remove(origOwner.String(), k)
 }
