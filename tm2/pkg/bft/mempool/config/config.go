@@ -18,7 +18,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Broadcast:  true,
-		MaxTxCount: 5000,
+		MaxTxCount: 15000,
 		MaxBytes:   1024 * 1024 * 1024, // 1GB
 	}
 }
