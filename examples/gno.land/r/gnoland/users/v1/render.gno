@@ -123,7 +123,7 @@ func RenderLatestUsersWidget(num int) string {
 		return "No registered users."
 	}
 
-	if num > size || num == -1 {
+	if num > size || num < 0 {
 		num = size
 	}
 
