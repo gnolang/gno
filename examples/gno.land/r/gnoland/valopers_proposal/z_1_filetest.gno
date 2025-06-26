@@ -45,14 +45,13 @@ func main() {
 }
 
 // Output:
+// OK
 // # GovDAO Proposals
 // ### [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 //
 // Status: ACTIVE
 //
 // Tiers eligible to vote: T1, T2, T3
 //
 // ---
-//
-//
