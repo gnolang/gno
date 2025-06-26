@@ -18,8 +18,6 @@ func init() {
 
 func Render(path string) string {
 	out := ""
-	if myBlog != nil {
-		out += myBlog.Render(path)
-	}
+	out += myBlog.Render(path)
 	return out
 }
