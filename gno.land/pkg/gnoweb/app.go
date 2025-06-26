@@ -21,6 +21,7 @@ var DefaultAliases = map[string]AliasTarget{
 	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
 	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
 	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
+	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
 	"/events":     {"/r/gnoland/events", GnowebPath},
 	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
 }
