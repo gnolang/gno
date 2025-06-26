@@ -1,5 +1,5 @@
+// PKGPATH: math
 // https://github.com/gnolang/gno/issues/3751
-
 package math
 
 import "testing"
@@ -13,4 +13,4 @@ func TestAdd(t *testing.T) {
 }
 
 // Error:
-// files/parse_err2.gno:12:2: goroutines are not permitted
+// parse_err2.gno:12:2: goroutines are not permitted

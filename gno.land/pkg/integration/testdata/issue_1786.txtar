@@ -1,3 +1,5 @@
+# XXX: NEED UPDATE: cannot send transfer to self
+
 # Test for https://github.com/gnolang/gno/issues/1786
 
 loadpkg gno.land/r/demo/wugnot
@@ -17,9 +19,8 @@ gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot --send "10000ugnot" -fun
 stdout OK!
 
 # check user's wugnot balance
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
-stdout '10000 uint64'
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+stdout '10000 int64'
 
 # unwrap 500 wugnot
 gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot -func ProxyUnwrap -args 500 -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
@@ -31,13 +32,17 @@ gnokey maketx call -pkgpath gno.land/r/demo/proxywugnot -func ProxyUnwrap -args 
 
 
 # check user's wugnot balance
-gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
-stdout '9500 uint64'
 
--- gno.mod --
-module gno.land/r/demo/proxywugnot
+gnokey query vm/qeval --data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
+stdout '9500 int64'
 
+# render
+gnokey query vm/qrender --data "gno.land/r/demo/wugnot:invalid"
+stdout 'data: 404'
+
+-- gnomod.toml --
+module = "issue_1786"
+gno = "0.9"
 
 -- realm.gno --
 package proxywugnot
@@ -48,9 +53,9 @@ import (
 	"gno.land/r/demo/wugnot"
 )
 
-func ProxyWrap() {
+func ProxyWrap(cur realm) {
 	sent := std.OriginSend()
-	ugnotSent := uint64(sent.AmountOf("ugnot"))
+	ugnotSent := int64(sent.AmountOf("ugnot"))
 
 	if ugnotSent == 0 {
 		return
@@ -60,25 +65,24 @@ func ProxyWrap() {
 	wugnotAddr := std.DerivePkgAddr("gno.land/r/demo/wugnot")
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(std.CurrentRealm().Address(), wugnotAddr, std.Coins{{"ugnot", int64(ugnotSent)}})
-	wugnot.Deposit() // `proxywugnot` has ugnot
+	wugnot.Deposit(cross) // `proxywugnot` has ugnot
 
 	// SEND WUGNOT: PROXY_WUGNOT -> USER
-	wugnot.Transfer(std.OriginCaller(), ugnotSent)
+	wugnot.Transfer(cross, std.OriginCaller(), ugnotSent)
 }
 
-func ProxyUnwrap(wugnotAmount uint64) {
+func ProxyUnwrap(cur realm, wugnotAmount int64) {
 	if wugnotAmount == 0 {
 		return
 	}
 
 	// SEND WUGNOT: USER -> PROXY_WUGNOT
-	wugnot.TransferFrom(std.OriginCaller(), std.CurrentRealm().Address(), wugnotAmount)
+	wugnot.TransferFrom(cross, std.OriginCaller(), std.CurrentRealm().Address(), wugnotAmount)
 
 	// UNWRAP IT
-	wugnot.Withdraw(wugnotAmount)
+	wugnot.Withdraw(cross, wugnotAmount)
 
 	// SEND GNOT: PROXY_WUGNOT -> USER
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
 }
-

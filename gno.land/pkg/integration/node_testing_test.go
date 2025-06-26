@@ -5,7 +5,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -18,17 +17,17 @@ func TestGenerateTestingGenesisState(t *testing.T) {
 	creatorAddr := privKey.PubKey().Address()
 
 	// Create sample packages
-	pkg1 := gnovm.MemPackage{
+	pkg1 := std.MemPackage{
 		Name: "pkg1",
 		Path: "pkg1",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "file.gno", Body: "package1"},
 		},
 	}
-	pkg2 := gnovm.MemPackage{
+	pkg2 := std.MemPackage{
 		Name: "pkg2",
 		Path: "pkg2",
-		Files: []*gnovm.MemFile{
+		Files: []*std.MemFile{
 			{Name: "file.gno", Body: "package2"},
 		},
 	}
@@ -64,7 +63,7 @@ func TestGenerateTestingGenesisState(t *testing.T) {
 		require.Len(t, genesis.Txs, 2)
 
 		// Check each transaction's package
-		for i, expectedPkg := range []gnovm.MemPackage{pkg1, pkg2} {
+		for i, expectedPkg := range []std.MemPackage{pkg1, pkg2} {
 			tx := genesis.Txs[i].Tx
 			require.Len(t, tx.Msgs, 1)
 			msg, ok := tx.Msgs[0].(vm.MsgAddPackage)

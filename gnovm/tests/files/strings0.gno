@@ -4,7 +4,7 @@ package main
 
 import "github.com/gnolang/gno/_test/replacer"
 
-func main() {
+func main(cur realm,) {
 	s := replacer.Replacer.Replace("Hello")
 	println(s)
 }

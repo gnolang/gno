@@ -20,14 +20,16 @@
 // Quick Start
 //
 //	// Initialize with contract deployer as authority
-//	var auth = authz.New()
+//	var member std.Address(...)
+//	var auth = authz.NewWithMembers(member)
 //
 //	// Create functions that require authorization
 //	func UpdateConfig(newValue string) error {
-//	    return auth.Do("update_config", func() error {
-//	        config = newValue
-//	        return nil
-//	    })
+//		crossing()
+//		return auth.DoByPrevious("update_config", func() error {
+//			config = newValue
+//			return nil
+//		})
 //	}
 //
 // See example_test.gno for more usage examples.
@@ -36,6 +38,7 @@ package authz
 import (
 	"errors"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/rotree"
@@ -44,16 +47,19 @@ import (
 	"gno.land/p/moul/once"
 )
 
-// Authorizer is the main wrapper object that handles authority management
+// Authorizer is the main wrapper object that handles authority management.
+// It is configured with a replaceable Authority implementation.
 type Authorizer struct {
-	current Authority
+	auth Authority
 }
 
-// Authority represents an entity that can authorize privileged actions
+// Authority represents an entity that can authorize privileged actions.
+// It is implemented by MemberAuthority, ContractAuthority, AutoAcceptAuthority,
+// and DroppedAuthority.
 type Authority interface {
 	// Authorize executes a privileged action if the caller is authorized
 	// Additional args can be provided for context (e.g., for proposal creation)
-	Authorize(title string, action PrivilegedAction, args ...any) error
+	Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error
 
 	// String returns a human-readable description of the authority
 	String() string
@@ -66,45 +72,94 @@ type PrivilegedAction func() error
 // privileged actions.
 type PrivilegedActionHandler func(title string, action PrivilegedAction) error
 
-// New creates a new Authorizer with the current realm's address as authority
-func New() *Authorizer {
+// NewWithCurrent creates a new Authorizer with the auth realm's address as authority
+func NewWithCurrent() *Authorizer {
 	return &Authorizer{
-		current: NewMemberAuthority(std.PreviousRealm().Address()),
+		auth: NewMemberAuthority(std.CurrentRealm().Address()),
+	}
+}
+
+// NewWithPrevious creates a new Authorizer with the previous realm's address as authority
+func NewWithPrevious() *Authorizer {
+	return &Authorizer{
+		auth: NewMemberAuthority(std.PreviousRealm().Address()),
+	}
+}
+
+// NewWithCurrent creates a new Authorizer with the auth realm's address as authority
+func NewWithMembers(addrs ...std.Address) *Authorizer {
+	return &Authorizer{
+		auth: NewMemberAuthority(addrs...),
+	}
+}
+
+// NewWithOrigin creates a new Authorizer with the origin caller's address as
+// authority.
+// This is typically used in the init() function.
+func NewWithOrigin() *Authorizer {
+	origin := std.OriginCaller()
+	previous := std.PreviousRealm()
+	if origin != previous.Address() {
+		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
+	}
+	return &Authorizer{
+		auth: NewMemberAuthority(origin),
 	}
 }
 
 // NewWithAuthority creates a new Authorizer with a specific authority
 func NewWithAuthority(authority Authority) *Authorizer {
 	return &Authorizer{
-		current: authority,
+		auth: authority,
 	}
 }
 
-// Current returns the current authority implementation
-func (a *Authorizer) Current() Authority {
-	return a.current
+// Authority returns the auth authority implementation
+func (a *Authorizer) Authority() Authority {
+	return a.auth
 }
 
-// Transfer changes the current authority after validation
-func (a *Authorizer) Transfer(newAuthority Authority) error {
-	// Ask current authority to validate the transfer
-	return a.current.Authorize("transfer_authority", func() error {
-		a.current = newAuthority
+// Transfer changes the auth authority after validation
+func (a *Authorizer) Transfer(caller std.Address, newAuthority Authority) error {
+	// Ask auth authority to validate the transfer
+	return a.auth.Authorize(caller, "transfer_authority", func() error {
+		a.auth = newAuthority
 		return nil
 	})
 }
 
-// Do executes a privileged action through the current authority
-func (a *Authorizer) Do(title string, action PrivilegedAction, args ...any) error {
-	return a.current.Authorize(title, action, args...)
+// DoByCurrent executes a privileged action by the auth realm.
+func (a *Authorizer) DoByCurrent(title string, action PrivilegedAction, args ...any) error {
+	current := std.CurrentRealm()
+	caller := current.Address()
+	return a.auth.Authorize(caller, title, action, args...)
 }
 
-// String returns a string representation of the current authority
+// DoByPrevious executes a privileged action by the previous realm.
+func (a *Authorizer) DoByPrevious(title string, action PrivilegedAction, args ...any) error {
+	previous := std.PreviousRealm()
+	caller := previous.Address()
+	return a.auth.Authorize(caller, title, action, args...)
+}
+
+// String returns a string representation of the auth authority
 func (a *Authorizer) String() string {
-	return a.current.String()
+	authStr := a.auth.String()
+
+	switch a.auth.(type) {
+	case *MemberAuthority:
+	case *ContractAuthority:
+	case *AutoAcceptAuthority:
+	case *droppedAuthority:
+	default:
+		// this way official "dropped" is different from "*custom*: dropped" (autoclaimed).
+		return ufmt.Sprintf("custom_authority[%s]", authStr)
+	}
+	return authStr
 }
 
-// MemberAuthority is the default implementation using addrset for member management
+// MemberAuthority is the default implementation using addrset for member
+// management.
 type MemberAuthority struct {
 	members addrset.Set
 }
@@ -117,8 +172,7 @@ func NewMemberAuthority(members ...std.Address) *MemberAuthority {
 	return auth
 }
 
-func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
-	caller := std.PreviousRealm().Address()
+func (a *MemberAuthority) Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error {
 	if !a.members.Has(caller) {
 		return errors.New("unauthorized")
 	}
@@ -130,26 +184,26 @@ func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args 
 }
 
 func (a *MemberAuthority) String() string {
-	out := ""
+	addrs := []string{}
 	a.members.Tree().Iterate("", "", func(key string, _ any) bool {
-		out += "- " + key + "\n"
+		addrs = append(addrs, key)
 		return false
 	})
-
-	return out
+	addrsStr := strings.Join(addrs, ",")
+	return ufmt.Sprintf("member_authority[%s]", addrsStr)
 }
 
 // AddMember adds a new member to the authority
-func (a *MemberAuthority) AddMember(addr std.Address) error {
-	return a.Authorize("add_member", func() error {
+func (a *MemberAuthority) AddMember(caller std.Address, addr std.Address) error {
+	return a.Authorize(caller, "add_member", func() error {
 		a.members.Add(addr)
 		return nil
 	})
 }
 
 // AddMembers adds a list of members to the authority
-func (a *MemberAuthority) AddMembers(addrs ...std.Address) error {
-	return a.Authorize("add_members", func() error {
+func (a *MemberAuthority) AddMembers(caller std.Address, addrs ...std.Address) error {
+	return a.Authorize(caller, "add_members", func() error {
 		for _, addr := range addrs {
 			a.members.Add(addr)
 		}
@@ -158,8 +212,8 @@ func (a *MemberAuthority) AddMembers(addrs ...std.Address) error {
 }
 
 // RemoveMember removes a member from the authority
-func (a *MemberAuthority) RemoveMember(addr std.Address) error {
-	return a.Authorize("remove_member", func() error {
+func (a *MemberAuthority) RemoveMember(caller std.Address, addr std.Address) error {
+	return a.Authorize(caller, "remove_member", func() error {
 		a.members.Remove(addr)
 		return nil
 	})
@@ -193,7 +247,8 @@ func NewContractAuthority(path string, handler PrivilegedActionHandler) *Contrac
 	}
 }
 
-// NewRestrictedContractAuthority creates a new contract authority with a proposer restriction
+// NewRestrictedContractAuthority creates a new contract authority with a
+// proposer restriction.
 func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler, proposer Authority) Authority {
 	if path == "" {
 		panic("contract path cannot be empty")
@@ -212,7 +267,7 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 	}
 }
 
-func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
+func (a *ContractAuthority) Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error {
 	if a.contractHandler == nil {
 		return errors.New("contract handler is not set")
 	}
@@ -222,8 +277,8 @@ func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, arg
 
 	// Wrap the action to ensure it can only be executed by the contract
 	wrappedAction := func() error {
-		caller := std.PreviousRealm().Address()
-		if caller != a.contractAddr {
+		current := std.CurrentRealm().Address()
+		if current != a.contractAddr {
 			return errors.New("action can only be executed by the contract")
 		}
 		return executionOnce.DoErr(func() error {
@@ -232,7 +287,7 @@ func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, arg
 	}
 
 	// Use the proposer authority to control who can create proposals
-	return a.proposer.Authorize(title+"_proposal", func() error {
+	return a.proposer.Authorize(caller, title+"_proposal", func() error {
 		if err := a.contractHandler(title, wrappedAction); err != nil {
 			return err
 		}
@@ -245,7 +300,8 @@ func (a *ContractAuthority) String() string {
 }
 
 // AutoAcceptAuthority implements an authority that accepts all actions
-// AutoAcceptAuthority is a simple authority that automatically accepts all actions.
+// AutoAcceptAuthority is a simple authority that automatically accepts all
+// actions.
 // It can be used as a proposer authority to allow anyone to create proposals.
 type AutoAcceptAuthority struct{}
 
@@ -253,7 +309,7 @@ func NewAutoAcceptAuthority() *AutoAcceptAuthority {
 	return &AutoAcceptAuthority{}
 }
 
-func (a *AutoAcceptAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
+func (a *AutoAcceptAuthority) Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error {
 	return action()
 }
 
@@ -268,7 +324,7 @@ func NewDroppedAuthority() Authority {
 	return &droppedAuthority{}
 }
 
-func (a *droppedAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
+func (a *droppedAuthority) Authorize(caller std.Address, title string, action PrivilegedAction, args ...any) error {
 	return errors.New("dropped authority: all actions are denied")
 }
 

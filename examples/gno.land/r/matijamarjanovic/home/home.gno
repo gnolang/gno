@@ -6,12 +6,13 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
 	"gno.land/r/leon/hor"
 )
 
 var (
-	pfp        string // link to profile picture
-	pfpCaption string // profile picture caption
+	pfp        string
+	pfpCaption string
 	abtMe      string
 
 	modernVotes  int64
@@ -25,97 +26,74 @@ var (
 )
 
 func init() {
-	pfp = "https://static.artzone.ai/media/38734/conversions/IPF9dR7ro7n05CmMLLrXIojycr1qdLFxgutaaanG-w768.webp"
-	pfpCaption = "My profile picture - Tarantula Nebula"
-	abtMe = `Motivated Computer Science student with strong
-                analytical and problem-solving skills. Proficient in
-                programming and version control, with a high level of
-                focus and attention to detail. Eager to apply academic
-                knowledge to real-world projects and contribute to
-                innovative technology solutions.
-                In addition to my academic pursuits,
-                I enjoy traveling and staying active through weightlifting.
-                I have a keen interest in electronic music and often explore various genres.
-                I believe in maintaining a balanced lifestyle that complements my professional development.`
+	pfp = "https://avatars.githubusercontent.com/u/93043005?s=60&v=4"
+	pfpCaption = "My github profile picture"
+	abtMe = `Blockchain & Full Stack Developer and a Computer Science Student who enjoys hackathons and building cool stuff. My current passion is DeFi. Outside of work, I enjoy travelling, weightlifting and combat sports.`
 
 	modernVotes = 0
 	classicVotes = 0
 	minimalVotes = 0
 	currentTheme = "classic"
-	modernLink = "https://www.google.com"
-	classicLink = "https://www.google.com"
-	minimalLink = "https://www.google.com"
-	hor.Register("Matija Marijanovic's Home Realm", "")
+	modernLink = txlink.NewLink("VoteModern").URL()
+	classicLink = txlink.NewLink("VoteClassic").URL()
+	minimalLink = txlink.NewLink("VoteMinimal").URL()
+	hor.Register(cross, "Matija Marijanovic's Home Realm", "")
 }
 
-func UpdatePFP(url, caption string) {
-	AssertAuthorized()
-	pfp = url
-	pfpCaption = caption
-}
-
-func UpdateAboutMe(col1 string) {
-	AssertAuthorized()
-	abtMe = col1
-}
-
-func maxOfThree(a, b, c int64) int64 {
-	max := a
-	if b > max {
-		max = b
+func UpdatePFP(cur realm, url, caption string) {
+	if err := Auth.DoByPrevious("update_pfp", func() error {
+		pfp = url
+		pfpCaption = caption
+		return nil
+	}); err != nil {
+		panic(err)
 	}
-	if c > max {
-		max = c
-	}
-	return max
 }
 
-func VoteModern() {
+func UpdateAboutMe(cur realm, col1 string) {
+	if err := Auth.DoByPrevious("update_about_me", func() error {
+		abtMe = col1
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func VoteModern(cur realm) {
 	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
 }
 
-func VoteClassic() {
+func VoteClassic(cur realm) {
 	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
 }
 
-func VoteMinimal() {
+func VoteMinimal(cur realm) {
 	ugnotAmount := std.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
 	updateCurrentTheme()
 }
 
-func updateCurrentTheme() {
-	maxVotes := maxOfThree(modernVotes, classicVotes, minimalVotes)
-
-	if maxVotes == modernVotes {
-		currentTheme = "modern"
-	} else if maxVotes == classicVotes {
-		currentTheme = "classic"
-	} else {
-		currentTheme = "minimal"
+func CollectBalance(cur realm) {
+	if err := Auth.DoByPrevious("collect_balance", func() error {
+		banker := std.NewBanker(std.BankerTypeRealmSend)
+		ownerAddr := Address()
+		banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
+		return nil
+	}); err != nil {
+		panic(err)
 	}
-}
-
-func CollectBalance() {
-	AssertAuthorized()
-
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	ownerAddr := Address()
-
-	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
 }
 
 func Render(path string) string {
 	var sb strings.Builder
 
-	// Theme-specific header styling
 	switch currentTheme {
 	case "modern":
 		// Modern theme - Clean and minimalist with emojis
@@ -139,7 +117,7 @@ func Render(path string) string {
 		sb.WriteString(pfpCaption)
 		sb.WriteString("\n")
 
-	default: // classic
+	default:
 		// Classic theme - Traditional blog style with decorative elements
 		sb.WriteString(md.H1("✨ Welcome to Matija's Homepage ✨"))
 		sb.WriteString("\n")
@@ -154,7 +132,6 @@ func Render(path string) string {
 		sb.WriteString("\n")
 	}
 
-	// Theme-specific voting section
 	switch currentTheme {
 	case "modern":
 		sb.WriteString(md.HorizontalRule())
@@ -180,7 +157,7 @@ func Render(path string) string {
 		sb.WriteString(md.Link("Minimal", minimalLink))
 		sb.WriteString("\n")
 
-	default: // classic
+	default:
 		sb.WriteString(md.HorizontalRule())
 		sb.WriteString(md.H2("✨ Theme Customization ✨"))
 		sb.WriteString(md.Bold("Choose Your Preferred Theme:"))
@@ -209,7 +186,7 @@ func Render(path string) string {
 		sb.WriteString(md.Link("LinkedIn", "https://www.linkedin.com/in/matijamarjanovic"))
 		sb.WriteString("\n")
 
-	default: // classic
+	default:
 		sb.WriteString(md.HorizontalRule())
 		sb.WriteString(md.H3("✨ Connect With Me"))
 		items := []string{
@@ -222,17 +199,25 @@ func Render(path string) string {
 	return sb.String()
 }
 
-func UpdateModernLink(link string) {
-	AssertAuthorized()
-	modernLink = link
+func maxOfThree(a, b, c int64) int64 {
+	max := a
+	if b > max {
+		max = b
+	}
+	if c > max {
+		max = c
+	}
+	return max
 }
 
-func UpdateClassicLink(link string) {
-	AssertAuthorized()
-	classicLink = link
-}
+func updateCurrentTheme() {
+	maxVotes := maxOfThree(modernVotes, classicVotes, minimalVotes)
 
-func UpdateMinimalLink(link string) {
-	AssertAuthorized()
-	minimalLink = link
+	if maxVotes == modernVotes {
+		currentTheme = "modern"
+	} else if maxVotes == classicVotes {
+		currentTheme = "classic"
+	} else {
+		currentTheme = "minimal"
+	}
 }
