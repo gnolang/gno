@@ -23,6 +23,7 @@ var DefaultAliases = map[string]AliasTarget{
 	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
 	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
 	"/events":     {"/r/gnoland/events", GnowebPath},
+	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
 }
 
 // AppConfig contains configuration for the gnoweb.
