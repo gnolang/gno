@@ -42,7 +42,7 @@ Both TCP and Unix domain socket connections are supported for communication betw
 2. Start a `gnokms` server with the [gnokey](../../gno.land/cmd/gnokey) backend using:
 
 ```shell
-$ gnokms gnokey '<key_name>' -listener '<listen_address>'`
+$ gnokms gnokey '<key_name>' -listener '<listen_address>'
 # <key_name> is the name of the key generated in step 1.
 # <listen_address> is the address on which the server should listen (e.g., 'tcp://127.0.0.1:26659' or 'unix:///tmp/gnokms.sock').
 ```
@@ -50,7 +50,7 @@ $ gnokms gnokey '<key_name>' -listener '<listen_address>'`
 3. Set the `gnokms` server address in the gnoland validator config using:
 
 ```shell
-$ gnoland config set priv_validator.remote_signer.server_address '<gnokms_server_address>'
+$ gnoland config set consensus.priv_validator.remote_signer.server_address '<gnokms_server_address>'
 Updated configuration saved at gnoland-data/config/config.toml
 ```
 
@@ -109,7 +109,7 @@ Server public key: "<gnokms_public_key>"
 3. On the client side, add the `gnokms` server’s key to the validator’s whitelist using:
 
 ```shell
-$ gnoland config set priv_validator.remote_signer.tcp_authorized_keys '<gnokms_public_key>'
+$ gnoland config set consensus.priv_validator.remote_signer.tcp_authorized_keys '<gnokms_public_key>'
 Updated configuration saved at gnoland-data/config/config.toml
 ```
 
