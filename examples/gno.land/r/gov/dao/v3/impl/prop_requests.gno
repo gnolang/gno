@@ -93,15 +93,7 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 	)
 }
 
-<<<<<<< HEAD
-func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
-	if !addr.IsValid() {
-		panic("invalid address provided")
-	}
-
-=======
 func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.ProposalRequest {
->>>>>>> master
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
