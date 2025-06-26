@@ -44,6 +44,10 @@ type StoreOptions struct {
 
 	// CoverageTracker is the global coverage tracker to use
 	CoverageTracker *coverage.CoverageTracker
+
+	// TestedPackagePath is the path of the package being tested (for coverage)
+	// This is used to prevent loading the package from disk when it's already instrumented
+	TestedPackagePath string
 }
 
 // NOTE: this isn't safe, should only be used for testing.
@@ -148,6 +152,15 @@ func StoreWithOptions(
 		// if examples package...
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
+			// Skip loading if this is the package being tested with coverage
+			// This ensures we use the instrumented version instead
+			if opts.Coverage && pkgPath == opts.TestedPackagePath {
+				if output != nil {
+					fmt.Fprintf(output, "[Coverage Debug] Skipping reload of tested package: %s\n", pkgPath)
+				}
+				return nil, nil
+			}
+
 			mpkg := gno.MustReadMemPackage(examplePath, pkgPath)
 			if mpkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
@@ -281,6 +294,11 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 	}
 	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
 	for _, imp := range imports {
+		// Skip loading the package being tested itself as it's already instrumented
+		// This is crucial for coverage to work correctly
+		if imp.PkgPath == mpkg.Path {
+			continue
+		}
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
