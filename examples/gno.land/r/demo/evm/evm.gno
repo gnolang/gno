@@ -59,8 +59,6 @@ func splitCallData(callData string) (string, []*uint256.Uint) {
 
 // public functions
 func ExecuteByteCode(_ realm, codeStr, callData, valueToSend string) {
-	// crossing()
-
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
 
@@ -76,8 +74,6 @@ func ExecuteByteCode(_ realm, codeStr, callData, valueToSend string) {
 }
 
 func CreateContract(_ realm, initCode, valueToSend string) {
-	// crossing()
-
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
 
@@ -90,15 +86,11 @@ func CreateContract(_ realm, initCode, valueToSend string) {
 }
 
 func Faucet(_ realm, weiToGive uint) {
-	// crossing()
-
 	usr := assertGetConnectedUserFromRealm()
 	usr.Balance.Add(usr.Balance, uint256.NewUint(uint64(weiToGive)))
 }
 
-func BuyGas(realm, nbGasToBuy uint64) {
-	// crossing()
-
+func BuyGas(_ realm, nbGasToBuy uint64) {
 	usr := assertGetConnectedUserFromRealm()
 	price := nbGasToBuy * evm.GasPrice
 	if usr.Balance.Lt(uint256.NewUint(uint64(price))) {
@@ -110,8 +102,6 @@ func BuyGas(realm, nbGasToBuy uint64) {
 }
 
 func Register(_ realm) {
-	// crossing()
-
 	// create the user
 	gnoAddr := std.PreviousRealm().Address()
 	addr, err := env.Accounts.PushCaller(env, gnoAddr)
@@ -124,8 +114,6 @@ func Register(_ realm) {
 }
 
 func CallContract(_ realm, contractAddress, callData string, valueToSend string) {
-	// crossing()
-
 	caller := assertGetConnectedUserFromRealm()
 
 	// get contract index
@@ -158,10 +146,10 @@ func Render(path string) string {
 
 	// create the action part
 	actionPart := md.H2("Actions") + br
-	executeByteCodeLnk := txlink.Call("ExecuteByteCode", "codeStr", "00", "callData", "foo(uint256,uint256) 42 1", "valueToSend", "10")
+	executeByteCodeLnk := txlink.Call("ExecuteByteCode", "codeStr", "00", "callData", "foo(uint256,uint256) 0x42 0x1", "valueToSend", "10")
 	faucetLnk := txlink.Call("Faucet", "weiToGive", "100000")
 	buyGasLnk := txlink.Call("BuyGas", "nbGasToBuy", "100000")
-	callLnk := txlink.Call("CallContract", "contractAddress", "12", "callData", "foo(uint256,uint256) 42 1", "valueToSend", "10")
+	callLnk := txlink.Call("CallContract", "contractAddress", "12", "callData", "foo(uint256,uint256) 0x42 0x1", "valueToSend", "10")
 	createLnk := txlink.Call("CreateContract", "initCode", "0xCACABEBE", "valueToSend", "10")
 	actionPart += md.BulletList([]string{
 		"Click " + md.Link("here", executeByteCodeLnk) + " to execute raw EVM bytecode.",
