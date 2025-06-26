@@ -673,7 +673,8 @@ func Echo(cur realm) string {
 	assert.NoError(t, err)
 
 	ctx = ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 42})
-	// Run Echo function.
+
+	// Msg Run Echo function.
 	coins := std.MustParseCoins("")
 	files = []*std.MemFile{
 		{
