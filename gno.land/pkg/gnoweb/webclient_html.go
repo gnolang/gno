@@ -184,12 +184,17 @@ func (s *HTMLWebClient) QueryPaths(prefix string, limit int) ([]string, error) {
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
 func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr ContentRenderer) (*RealmMeta, error) {
-	//const qpath = "vm/qrender"
-	const qpath = "vm/qrenderas"
-
+	viewer := "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // TODO: get dynamically
 	pkgPath := strings.Trim(u.Path, "/")
-	viewer := "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
-	data := fmt.Sprintf("%s@%s/%s:%s", viewer, s.domain, pkgPath, u.EncodeArgs())
+
+	var qpath, data string
+	if viewer != "" {
+		qpath = "vm/qrenderas"
+		data = fmt.Sprintf("%s@%s/%s:%s", viewer, s.domain, pkgPath, u.EncodeArgs())
+	} else {
+		qpath = "vm/qrender"
+		data = fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
+	}
 
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {
