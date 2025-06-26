@@ -4,7 +4,7 @@ import "testing"
 
 func TestIncrement(t *testing.T) {
 	counter = 0
-	val := Increment()
+	val := Increment(cross)
 	if val != 1 {
 		t.Fatalf("result from Increment(): %d != 1", val)
 	}

@@ -2,18 +2,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
          | grep -v -E 'func [A-Z][A-Za-z0-9_]*\s*\(\s*cur\s+realm' > cur.txt
 
 
-./demo/boards/board.gno:55:func NewPrivateBoard(url string, name string, creator std.Address) *Board {
-./demo/microblog/microblog.gno:84:func NewPost(text string) string {
-./demo/btree_dao/btree_dao.gno:42:func PlantTree(userBTree *btree.BTree) error {
-./demo/btree_dao/btree_dao.gno:49:func PlantSeed(message string) error {
-./demo/foo1155/foo1155.gno:53:func SetApprovalForAll(user std.Address, approved bool) {
-./demo/foo1155/foo1155.gno:60:func TransferFrom(from, to std.Address, tid grc1155.TokenID, amount int64) {
-./demo/foo1155/foo1155.gno:67:func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []int64) {
-./demo/foo1155/foo1155.gno:76:func Mint(to std.Address, tid grc1155.TokenID, amount int64) {
-./demo/foo1155/foo1155.gno:85:func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []int64) {
-./demo/foo1155/foo1155.gno:94:func Burn(from std.Address, tid grc1155.TokenID, amount int64) {
-./demo/foo1155/foo1155.gno:103:func BurnBatch(from std.Address, batch []grc1155.TokenID, amounts []int64) {
-./demo/emit/emit.gno:10:func Emit(value string) {
 ./demo/counter/counter.gno:7:func Increment() int {
 ./demo/counter/counter.gno:12:func Render(_ string) string {
 ./demo/releases_example/example.gno:19:func NewRelease(name, url, notes string) {
