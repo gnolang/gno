@@ -23,8 +23,8 @@ type Blog struct {
 	AuthorsIndex     *avl.Tree // authorAddress --> int
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
-	// CustomHeader TO DO
-	previewFooter string // additional text, e.g. "via @lou" or txlink calls
+	customHeader  []HeaderPreset // TO DO
+	previewFooter string         // additional text, e.g. "via @lou" or txlink calls
 	DisableLikes  bool
 	UserResolver  *UserResolver
 }
@@ -41,7 +41,7 @@ func NewBlog(title, prefix string) (*Blog, error) {
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
-	auth := authorizable.NewAuthorizable()
+	auth := authorizable.NewAuthorizableWithAddress("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
 	return &Blog{
 		Authorizable:     auth,
 		title:            title,
@@ -95,7 +95,7 @@ func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
 	postBySlug, _ := b.PostsBySlug.Get(post.Slug())
 	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt().String())
 	post.UpdatePost(newPost)
-	postById.(*Post).UpdatePost(newPost)
+	postBySlug.(*Post).UpdatePost(newPost)
 	postByUpdated.(*Post).UpdatePost(newPost)
 	return nil
 }

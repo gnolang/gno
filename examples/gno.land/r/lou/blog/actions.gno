@@ -17,7 +17,9 @@ func AddCommentToPostById(_ realm, id, comment string) {
 	if err != nil {
 		panic(err)
 	}
-	post.AddComment(comm)
+	if err := post.AddComment(comm); err != nil {
+		panic(err)
+	}
 }
 
 func AddCommentToPostBySlug(_ realm, slug, comment string) {
@@ -31,7 +33,9 @@ func AddCommentToPostBySlug(_ realm, slug, comment string) {
 	if err != nil {
 		panic(err)
 	}
-	post.AddComment(comm)
+	if err := post.AddComment(comm); err != nil {
+		panic(err)
+	}
 }
 
 func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags string) {
@@ -50,5 +54,7 @@ func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags strin
 	if err != nil {
 		panic(err)
 	}
-	myBlog.AddPost(post)
+	if err := myBlog.AddPost(post); err != nil {
+		panic(err)
+	}
 }
