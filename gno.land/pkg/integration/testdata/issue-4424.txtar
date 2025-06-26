@@ -1,0 +1,57 @@
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/demo/executor $WORK/executor
+# loadpkg gno.land/r/demo/caller_realm $WORK/caller_realm
+
+gnoland start
+
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/setter/main.gno
+stdout OK!
+
+# gnokey maketx call -pkgpath gno.land/r/demo/caller_realm -func DoSet -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+# stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/demo/executor -func Execute -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+
+-- setter/main.gno --
+package main
+
+import (
+	"gno.land/r/demo/executor"
+)
+var x = 1
+func main() {
+	executor.Set(cross, func()int {
+		println(x)
+		return x
+	})
+}
+
+-- caller_realm/main.gno --
+package caller_realm
+
+import (
+	"gno.land/r/demo/executor"
+)
+
+func DoSet(cur realm) {
+	executor.Set(cross, func() {})
+}
+
+-- executor/executor.gno --
+package executor
+
+
+var f func()int
+func Set(cur realm, d func()int) {
+	f = d 
+}
+
+
+func Execute(cur realm)int {
+	return f()
+}

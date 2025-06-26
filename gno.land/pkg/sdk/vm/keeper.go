@@ -666,7 +666,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		defer m.Release()
 		defer doRecover(m, &err)
 
-		_, pv := m.RunMemPackage(memPkg, false)
+		// _, pv := m.RunMemPackage(memPkg, false)
+		_, pv := m.RunMemPackage(memPkg, true)
 		return pv
 	}()
 	if err != nil {
