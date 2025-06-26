@@ -28,7 +28,6 @@ import (
 	"gno.land/p/leon/ctg"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/moul/realmpath"
 
 	"gno.land/r/sys/users"
 )
@@ -42,8 +41,8 @@ func init() {
 		res.Write(renderHomepage())
 	})
 
-	router.HandleFunc("balances/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
-		res.Write(renderAllBalances(req.RawPath, req.GetVar("address")))
+	router.HandleFunc("balances", func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write(renderBalances(req))
 	})
 
 	router.HandleFunc("convert/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
@@ -69,78 +68,70 @@ func Render(path string) string {
 func renderHomepage() string {
 	return strings.Replace(`# Gno.land Coins Explorer
 
-This is a simple, readonly realm that allows users to browse native coin balances.
-Here are a few examples on how to use it:
+This is a simple, readonly realm that allows users to browse native coin balances. Check your coin balance below!
 
-- ~/r/gnoland/coins:balances/<address>~ - show full list of coin balances of an address
-	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
-- ~/r/gnoland/coins:balances/<address>?coin=ugnot~ - shows the balance of an address for a specific coin
-	- [Example](/r/gnoland/coins:balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5?coin=ugnot)
-- ~/r/gnoland/coins:convert/<cosmos_address>~ - convert Cosmos address to Gno address
+<gno-form path="balances">
+	<gno-input name="address" type="text" placeholder="Valid bech32 address (e.g. g1..., cosmos1..., osmo1...)" />
+	<gno-input name="coin" type="text" placeholder="Coin (e.g. ugnot)"" />
+</gno-form>
+
+Here are a few more ways to use this app:
+
+- ~/r/gnoland/coins:balances?address=g1...~ - show full list of coin balances of an address
+	- [Example](/r/gnoland/coins:balances?address=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
+- ~/r/gnoland/coins:balances?address=g1...&coin=ugnot~ - shows the balance of an address for a specific coin
+	- [Example](/r/gnoland/coins:balances?address=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5&coin=ugnot)
+- ~/r/gnoland/coins:convert/<bech32_addr>~ - convert a bech32 address to a Gno address
 	- [Example](/r/gnoland/coins:convert/cosmos1jg8mtutu9khhfwc4nxmuhcpftf0pajdh6svrgs)
 - ~/r/gnoland/coins:supply/<denom>~ - shows the total supply of denom
 	- Coming soon!
+
 `, "~", "`", -1)
 }
 
-func renderConvertedAddress(addr string) string {
-	out := "# Address converter\n\n"
-
-	gnoAddress, err := ctg.ConvertCosmosToGno(addr)
-	if err != nil {
-		out += err.Error()
-		return out
-	}
-
-	user, _ := users.ResolveAny(gnoAddress.String())
-	name := "`" + gnoAddress.String() + "`"
-	if user != nil {
-		name = user.RenderLink("")
-	}
-
-	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
-	out += "[View `ugnot` balance for this address](/r/gnoland/coins:balances/" + gnoAddress.String() + "?coin=ugnot)\n\n"
-	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + gnoAddress.String() + ")"
-	return out
-}
-
-func renderSingleCoinBalance(banker std.Banker, denom string, addr string) string {
-	out := "# Single coin balance\n\n"
-	if !std.Address(addr).IsValid() {
-		out += "Invalid address."
-		return out
-	}
-
-	user, _ := users.ResolveAny(addr)
-	name := "`" + addr + "`"
-	if user != nil {
-		name = user.RenderLink("")
-	}
-
-	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
-		name, banker.GetCoins(std.Address(addr)).AmountOf(denom), denom, std.ChainHeight())
-
-	out += "[View full balance list for this address](/r/gnoland/coins:balances/" + addr + ")"
-
-	return out
-}
-
-func renderAllBalances(rawpath, input string) string {
+func renderBalances(req *mux.Request) string {
 	out := "# Balances\n\n"
 
-	if strings.HasPrefix(input, "cosmos") {
-		addr, err := ctg.ConvertCosmosToGno(input)
+	input := req.Query.Get("address")
+	coin := req.Query.Get("coin")
+
+	if input == "" && coin == "" {
+		out += "Please input a valid address and coin denomination.\n\n"
+		return out
+	}
+
+	if input == "" {
+		out += "Please input a valid bech32 address.\n\n"
+		return out
+	}
+
+	originalInput := input
+	var wasConverted bool
+
+	// Try to validate or convert
+	if !std.Address(input).IsValid() {
+		addr, err := ctg.ConvertAnyToGno(input)
 		if err != nil {
-			out += "Tried converting a Cosmos address to a Gno address but failed. Please double-scheck your input."
-			return out
+			return out + ufmt.Sprintf("Tried converting `%s` to a Gno address but failed. Please try with a valid bech32 address.\n\n", input)
 		}
-		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", input)
 		input = addr.String()
-	} else {
-		if !std.Address(input).IsValid() {
-			out += "Invalid address."
-			return out
-		}
+		wasConverted = true
+	}
+
+	if wasConverted {
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", originalInput)
+	}
+
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	balances := banker.GetCoins(std.Address(input))
+
+	if len(balances) == 0 {
+		out += "This address currently has no coins."
+		return out
+	}
+
+	if coin != "" {
+		return renderSingleCoinBalance(coin, input, originalInput, wasConverted)
 	}
 
 	user, _ := users.ResolveAny(input)
@@ -149,18 +140,8 @@ func renderAllBalances(rawpath, input string) string {
 		name = user.RenderLink("")
 	}
 
-	banker := std.NewBanker(std.BankerTypeReadonly)
 	out += ufmt.Sprintf("This page shows full coin balances of %s at block #%d\n\n",
 		name, std.ChainHeight())
-
-	req := realmpath.Parse(rawpath)
-
-	coin := req.Query.Get("coin")
-	if coin != "" {
-		return renderSingleCoinBalance(banker, coin, input)
-	}
-
-	balances := banker.GetCoins(std.Address(input))
 
 	// Determine sorting
 	if getSortField(req) == "balance" {
@@ -188,21 +169,64 @@ func renderAllBalances(rawpath, input string) string {
 	return out
 }
 
+func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) string {
+	out := "# Coin balance\n\n"
+	banker := std.NewBanker(std.BankerTypeReadonly)
+
+	if wasConverted {
+		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", origInput)
+	}
+
+	user, _ := users.ResolveAny(addr)
+	name := "`" + addr + "`"
+	if user != nil {
+		name = user.RenderLink("")
+	}
+
+	out += ufmt.Sprintf("%s has `%d%s` at block #%d\n\n",
+		name, banker.GetCoins(std.Address(addr)).AmountOf(denom), denom, std.ChainHeight())
+
+	out += "[View full balance list for this address](/r/gnoland/coins:balances?address=" + addr + ")"
+
+	return out
+}
+
+func renderConvertedAddress(addr string) string {
+	out := "# Address converter\n\n"
+
+	gnoAddress, err := ctg.ConvertAnyToGno(addr)
+	if err != nil {
+		out += err.Error()
+		return out
+	}
+
+	user, _ := users.ResolveAny(gnoAddress.String())
+	name := "`" + gnoAddress.String() + "`"
+	if user != nil {
+		name = user.RenderLink("")
+	}
+
+	out += ufmt.Sprintf("`%s` on Cosmos matches %s on gno.land.\n\n", addr, name)
+	out += "[[View `ugnot` balance for this address]](/r/gnoland/coins:balances?address=" + gnoAddress.String() + "&coin=ugnot) - "
+	out += "[[View full balance list for this address]](/r/gnoland/coins:balances?address=" + gnoAddress.String() + ")"
+	return out
+}
+
 // Helper functions for sorting and pagination
-func getSortField(req *realmpath.Request) string {
+func getSortField(req *mux.Request) string {
 	field := req.Query.Get("sort")
 	switch field {
-	case "denom", "balance": // XXX: add Coins.SortBy{denom,bal} methods
+	case "denom", "balance":
 		return field
 	}
 	return "denom"
 }
 
-func isSortReversed(req *realmpath.Request) bool {
+func isSortReversed(req *mux.Request) bool {
 	return req.Query.Get("order") != "asc"
 }
 
-func renderSortLink(req *realmpath.Request, field, label string) string {
+func renderSortLink(req *mux.Request, field, label string) string {
 	currentField := getSortField(req)
 	currentOrder := req.Query.Get("order")
 
