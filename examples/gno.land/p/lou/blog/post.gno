@@ -120,6 +120,20 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 	}, nil
 }
 
+func (p *Post) UpdatePost(newPost *Post) {
+	p.slug = newPost.slug
+	p.title = newPost.title
+	p.body = newPost.body
+	p.authors = newPost.authors
+	p.tags = newPost.tags
+	p.CommentsId = newPost.CommentsId
+	p.Comments = newPost.Comments
+	p.likes = newPost.likes
+	p.DisableLikes = newPost.DisableLikes
+	p.previewFooter = newPost.previewFooter
+	p.updatedAt = time.Now()
+}
+
 func (p *Post) AddComment(comment *Comment) error {
 	user, err := CheckUser(comment.Author(), p.UserResolver)
 	if err != nil {

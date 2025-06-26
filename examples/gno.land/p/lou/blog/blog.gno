@@ -94,9 +94,9 @@ func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
 	}
 	postBySlug, _ := b.PostsBySlug.Get(post.Slug())
 	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt().String())
-	UpdatePost(post, newPost)
-	UpdatePost(postBySlug.(*Post), newPost)
-	UpdatePost(postByUpdated.(*Post), newPost)
+	post.UpdatePost(newPost)
+	postById.(*Post).UpdatePost(newPost)
+	postByUpdated.(*Post).UpdatePost(newPost)
 	return nil
 }
 
@@ -108,24 +108,10 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 	}
 	postById, _ := b.Posts.Get(post.ID())
 	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt().String())
-	UpdatePost(post, newPost)
-	UpdatePost(postById.(*Post), newPost)
-	UpdatePost(postByUpdated.(*Post), newPost)
+	post.UpdatePost(newPost)
+	postById.(*Post).UpdatePost(newPost)
+	postByUpdated.(*Post).UpdatePost(newPost)
 	return nil
-}
-
-func UpdatePost(existingPost, newPost *Post) {
-	existingPost.slug = newPost.slug
-	existingPost.title = newPost.title
-	existingPost.body = newPost.body
-	existingPost.authors = newPost.authors
-	existingPost.tags = newPost.tags
-	existingPost.CommentsId = newPost.CommentsId
-	existingPost.Comments = newPost.Comments
-	existingPost.likes = newPost.likes
-	existingPost.DisableLikes = newPost.DisableLikes
-	existingPost.previewFooter = newPost.previewFooter
-	existingPost.updatedAt = time.Now()
 }
 
 func (b *Blog) DeletePostById(id string) error {
