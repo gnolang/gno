@@ -244,11 +244,3 @@ Coverage functions are implemented as native Go functions:
 
 - Cause: `cross` identifier cannot be instrumented
 - Workaround: Files with `cross` are skipped
-
-### Debugging Coverage
-
-Use verbose mode to see:
-
-- Which files are being instrumented
-- The instrumented code (with `-v` flag)
-- Which packages are being loaded
