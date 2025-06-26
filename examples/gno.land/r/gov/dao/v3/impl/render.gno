@@ -74,7 +74,7 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 		panic(err.Error())
 	}
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(dao.ProposalID(pid))
+	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("## Prop #%v - %v\n", sPid, p.Title())
 
 	out += p.Description()
@@ -99,7 +99,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	}
 
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
-	p := dao.MustGetProposal(dao.ProposalID(pid))
+	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", sPid, p.Title(), ren.relativeRealmPath, sPid)
 	out += ufmt.Sprintf("Author: %s\n\n", p.Author())
 
