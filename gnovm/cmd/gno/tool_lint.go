@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -78,7 +79,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		cmd.rootDir, goio.Discard,
 		test.StoreOptions{PreprocessOnly: true},
 	)
-	ppkgs := map[string]processedPackage{}
+	ppkgs := map[string]cmdutil.ProcessedPackage{}
 	tccache := gno.TypeCheckCache{}
 
 	if cmd.verbose {
@@ -162,7 +163,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			gs := ts.BeginTransaction(cw, cw, nil)
 
 			// Memo process results here.
-			ppkg := processedPackage{mpkg: mpkg, dir: dir}
+			ppkg := cmdutil.ProcessedPackage{MPkg: mpkg, Dir: dir}
 
 			// Run type checking
 			// LINT STEP 2: ParseGnoMod()
@@ -262,7 +263,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 
 		// LINT STEP 6: mpkg.WriteTo():
-		err := ppkg.mpkg.WriteTo(dir)
+		err := ppkg.MPkg.WriteTo(dir)
 		if err != nil {
 			return err
 		}

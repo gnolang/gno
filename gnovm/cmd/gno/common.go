@@ -95,63 +95,6 @@ func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
 	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
 }
 
-type processedFileSet struct {
-	pn   *gno.PackageNode
-	fset *gno.FileSet
-}
-
-type processedPackage struct {
-	dir    string             // dirctory
-	mpkg   *std.MemPackage    // includes all files
-	normal processedFileSet   // includes all prod (and some *_test.gno) files
-	_tests processedFileSet   // includes all xxx_test *_test.gno integration files
-	ftests []processedFileSet // includes all *_filetest.gno filetest files
-}
-
-func (ppkg *processedPackage) AddNormal(pn *gno.PackageNode, fset *gno.FileSet) {
-	if ppkg.normal != (processedFileSet{}) {
-		panic("normal processed fileset already set")
-	}
-	ppkg.normal = processedFileSet{pn, fset}
-}
-
-func (ppkg *processedPackage) AddUnderscoreTests(pn *gno.PackageNode, fset *gno.FileSet) {
-	if ppkg._tests != (processedFileSet{}) {
-		panic("_test processed fileset already set")
-	}
-	ppkg._tests = processedFileSet{pn, fset}
-}
-
-func (ppkg *processedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet) {
-	if len(fset.Files) != 1 {
-		panic("filetests must have filesets of length 1")
-	}
-	fname := fset.Files[0].FileName
-	/* NOTE: filetests in tests/files do not end with _filetest.gno.
-	if !strings.HasSuffix(string(fname), "_filetest.gno") {
-		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
-	}
-	*/
-	for _, ftest := range ppkg.ftests {
-		if ftest.fset.Files[0].FileName == fname {
-			panic(fmt.Sprintf("fileetest with name %q already exists", fname))
-		}
-	}
-	ppkg.ftests = append(ppkg.ftests, processedFileSet{pn, fset})
-}
-
-func (ppkg *processedPackage) GetFileTest(fname string) processedFileSet {
-	if !strings.HasSuffix(fname, "_filetest.gno") {
-		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
-	}
-	for _, ftest := range ppkg.ftests {
-		if ftest.fset.Files[0].FileName == fname {
-			return ftest
-		}
-	}
-	panic(fmt.Sprintf("processedFileSet for filetest %q not found", fname))
-}
-
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	switch err := err.(type) {
 	case *gno.PreprocessError:
