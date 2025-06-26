@@ -2,16 +2,22 @@ package foo20
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/demo/avl"
+	p "gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	"gno.land/r/demo/grc20reg"
 )
 
-var instances avl.Tree // symbol -> *instance
+var (
+	instances avl.Tree // symbol -> *instance
+	pager     = p.NewPager(rotree.Wrap(&instances, nil), 20, false)
+)
 
 type instance struct {
 	token  *grc20.Token
@@ -128,49 +134,79 @@ func TransferInstanceOwnership(cur realm, symbol string, newOwner std.Address) {
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
 
-func ListTokens() []*grc20.Token {
-	tokens := make([]*grc20.Token, 0, instances.Size())
+func ListTokens(pageNumber, pageSIze int) []*grc20.Token {
+	page := pager.GetPageWithSize(pageNumber, pageSIze)
 
-	instances.Iterate("", "", func(_ string, instI any) bool {
-		inst := instI.(*instance)
-		tokens = append(tokens, inst.token)
-		return false
-	})
+	tokens := make([]*grc20.Token, len(page.Items))
+	for i := range page.Items {
+		tokens[i] = page.Items[i].Value.(*instance).token
+	}
 
 	return tokens
 }
 
 func Render(path string) string {
-	parts := strings.Split(path, "/")
-	c := len(parts)
+	router := mux.NewRouter()
+	router.HandleFunc("", renderHome)
+	router.HandleFunc("{symbol}", renderToken)
+	router.HandleFunc("{symbol}/balance/{address}", renderBalance)
+	return router.Render(path)
+}
 
-	switch {
-	case path == "":
-		tokens := ListTokens()
-		if len(tokens) == 0 {
-			return "No registered tokens."
-		}
-		out := ufmt.Sprintf("# GRC20 Tokens (%d)\n\n", len(tokens))
-		for _, token := range tokens {
-			infoLink := "/r/demo/grc20factory:" + token.GetSymbol()
-			out += ufmt.Sprintf("- [%s ($%s)](%s)\n", token.GetName(), token.GetSymbol(), infoLink)
-		}
-		return out
-	case c == 1:
-		symbol := parts[0]
-		inst := mustGetInstance(symbol)
-		out := inst.token.RenderHome()
-		out += ufmt.Sprintf("* **Admin**: %s\n", inst.admin.Owner())
-		return out
-	case c == 3 && parts[1] == "balance":
-		symbol := parts[0]
-		inst := mustGetInstance(symbol)
-		owner := std.Address(parts[2])
-		balance := inst.token.CallerTeller().BalanceOf(owner)
-		return ufmt.Sprintf("%d", balance)
-	default:
-		return "404\n"
+func renderHome(res *mux.ResponseWriter, req *mux.Request) {
+	out := md.H1(ufmt.Sprintf("GRC20 Tokens (%d)", instances.Size()))
+
+	// Get the current page of tokens based on the request path.
+	page := pager.MustGetPageByPath(req.RawPath)
+
+	// Render the list of tokens.
+	for _, item := range page.Items {
+		token := item.Value.(*instance).token
+		out += md.BulletItem(
+			md.Link(
+				ufmt.Sprintf("%s ($%s)", token.GetName(), token.GetSymbol()),
+				ufmt.Sprintf("/r/demo/grc20factory:%s", token.GetSymbol()),
+			),
+		)
 	}
+	out += "\n"
+
+	// Add the page picker.
+	out += md.Paragraph(page.Picker(req.Path))
+
+	res.Write(out)
+}
+
+func renderToken(res *mux.ResponseWriter, req *mux.Request) {
+	// Get the token symbol from the request.
+	symbol := req.GetVar("symbol")
+	inst := mustGetInstance(symbol)
+
+	// Render the token details.
+	out := inst.token.RenderHome()
+	out += md.BulletItem(
+		ufmt.Sprintf("%s: %s", md.Bold("Admin"), inst.admin.Owner()),
+	)
+
+	res.Write(out)
+}
+
+func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
+	var (
+		symbol = req.GetVar("symbol")
+		addr   = req.GetVar("address")
+	)
+
+	// Get the balance of the specified address for the token.
+	inst := mustGetInstance(symbol)
+	balance := inst.token.CallerTeller().BalanceOf(std.Address(addr))
+
+	// Render the balance information.
+	out := md.Paragraph(
+		ufmt.Sprintf("%s balance: %d", md.Bold(addr), balance),
+	)
+
+	res.Write(out)
 }
 
 func mustGetInstance(symbol string) *instance {
