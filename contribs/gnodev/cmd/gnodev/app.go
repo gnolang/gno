@@ -444,7 +444,7 @@ func (ds *App) RunInteractive(ctx context.Context, term *rawterm.RawTerm) {
 }
 
 var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation:
-https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
+https://docs.gno.land/builders/local-dev-with-gnodev
 
 P           Previous TX  - Go to the previous tx
 N           Next TX      - Go to the next tx
