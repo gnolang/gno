@@ -122,7 +122,7 @@ func StoreWithOptions(
 	// Main entrypoint for new test imports.
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
-			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
+			panic("invalid zero package path in testStore().pkgGetter")
 		}
 		if opts.WithExtern {
 			// if _test package...
@@ -260,6 +260,12 @@ func (e *stackWrappedError) String() string {
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
 func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err error) {
+	return LoadImportsWithOptions(store, mpkg, abortOnError, false)
+}
+
+// LoadImportsWithOptions is like LoadImports but allows specifying whether to load realm dependencies.
+// This is needed for coverage testing of realms that depend on other realms.
+func LoadImportsWithOptions(store gno.Store, mpkg *std.MemPackage, abortOnError bool, loadRealmDeps bool) (err error) {
 	// If this gets out of hand (e.g. with nested catchPanic with need for
 	// selective catching) then pass in a bool instead.
 	// See also cmd/gno/common.go.
@@ -300,9 +306,14 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 			continue
 		}
 		if gno.IsRealmPath(imp.PkgPath) {
-			// Don't eagerly load realms.
-			// Realms persist state and can change the state of other realms in initialization.
-			continue
+			if !loadRealmDeps {
+				// Don't eagerly load realms in normal mode.
+				// Realms persist state and can change the state of other realms in initialization.
+				continue
+			}
+			// In coverage mode or when explicitly requested, we need to load realm dependencies
+			// to avoid "unexpected node with location" panics when the tested realm
+			// calls functions from other realms.
 		}
 		if !abortOnError {
 			defer func() {

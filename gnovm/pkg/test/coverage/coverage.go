@@ -151,6 +151,58 @@ func (ci *CoverageInstrumenter) InstrumentFile(content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("parsing failed: %w", err)
 	}
 
+	// Check if the file contains any usage of 'cross' identifier
+	var containsCross bool
+	ast.Inspect(f, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok && ident.Name == "cross" {
+			containsCross = true
+			return false
+		}
+		return true
+	})
+
+	if containsCross {
+		// If the file contains 'cross', skip instrumentation but register all executable lines
+		// This avoids preprocessing issues with the special 'cross' identifier
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch node := n.(type) {
+			case *ast.FuncDecl:
+				if node.Body != nil {
+					funcLine := ci.fset.Position(node.Body.Lbrace).Line
+					ci.tracker.RegisterExecutableLine(ci.filename, funcLine)
+					// Register all statement lines in the function
+					for _, stmt := range node.Body.List {
+						if stmt != nil {
+							stmtLine := ci.fset.Position(stmt.Pos()).Line
+							ci.tracker.RegisterExecutableLine(ci.filename, stmtLine)
+						}
+					}
+				}
+			case *ast.IfStmt:
+				line := ci.fset.Position(node.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, line)
+			case *ast.ForStmt:
+				line := ci.fset.Position(node.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, line)
+			case *ast.RangeStmt:
+				line := ci.fset.Position(node.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, line)
+			case *ast.SwitchStmt:
+				line := ci.fset.Position(node.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, line)
+			case *ast.CaseClause:
+				line := ci.fset.Position(node.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, line)
+			case *ast.ReturnStmt:
+				line := ci.fset.Position(node.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, line)
+			}
+			return true
+		})
+		// Return original content without instrumentation
+		return content, nil
+	}
+
 	// add testing import if not already present
 	hasTestingImport := false
 	for _, imp := range f.Imports {
@@ -227,10 +279,36 @@ func (ci *CoverageInstrumenter) instrumentBlockStmt(block *ast.BlockStmt, line i
 		return
 	}
 
+	// Check if first statement contains cross identifier
+	if len(block.List) > 0 && ci.statementContainsCross(block.List[0]) {
+		// Register all lines as executable but don't instrument
+		// to avoid preprocessing issues with the 'cross' keyword
+		for _, stmt := range block.List {
+			if stmt != nil {
+				stmtLine := ci.fset.Position(stmt.Pos()).Line
+				ci.tracker.RegisterExecutableLine(ci.filename, stmtLine)
+			}
+		}
+		return
+	}
+
 	markStmt := ci.createMarkLineStmt(ci.filename, line)
 	block.List = append([]ast.Stmt{markStmt}, block.List...)
 
 	// Note: return statement handling is done in Visit method to avoid duplication
+}
+
+// statementContainsCross checks if a statement contains the cross identifier
+func (ci *CoverageInstrumenter) statementContainsCross(stmt ast.Stmt) bool {
+	var containsCross bool
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok && ident.Name == "cross" {
+			containsCross = true
+			return false
+		}
+		return true
+	})
+	return containsCross
 }
 
 // instrumentCaseList adds a call to the markLine function to the case list

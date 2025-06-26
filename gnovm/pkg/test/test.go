@@ -282,13 +282,15 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		if err != nil {
 			return err
 		}
-		
+
 		opts.TestStore = testStore
 	}
 
 	// Eagerly load imports.
 	abortOnError := true
-	if err := LoadImports(opts.TestStore, mpkg, abortOnError); err != nil {
+	// When coverage is enabled for a realm, load realm dependencies to avoid panics
+	loadRealmDeps := opts.Coverage && gno.IsRealmPath(mpkg.Path)
+	if err := LoadImportsWithOptions(opts.TestStore, mpkg, abortOnError, loadRealmDeps); err != nil {
 		return err
 	}
 
@@ -382,7 +384,7 @@ func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,
 	gs gno.TransactionStore,
-	tracker *coverage.CoverageTracker,
+	_ *coverage.CoverageTracker, // unused but kept for future use
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -413,9 +415,6 @@ func (opts *TestOptions) runTestFiles(
 
 	// Always run the instrumented package, even if it exists in the store
 	// This ensures coverage instrumentation is preserved
-	if opts.Verbose && opts.Coverage {
-		fmt.Fprintf(opts.Error, "[Coverage Debug] Running instrumented package: %s\n", mpkg.Path)
-	}
 	m.RunMemPackage(mpkg, true)
 	pv := m.Package
 
