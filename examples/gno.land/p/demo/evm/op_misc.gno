@@ -267,8 +267,6 @@ func opRevert(s *State) error {
 }
 
 func opInvalid(s *State) error {
-	s.tmp.logs = []LogEntry{}
-	s.tmp.storage = make(map[uint256.Uint]*uint256.Uint)
 	return invalidPanic
 }
 

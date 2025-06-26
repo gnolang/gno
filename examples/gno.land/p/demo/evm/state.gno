@@ -21,12 +21,11 @@ type LogEntry struct {
 
 // tmpEnv stores temporary execution environment data such as storage, logs, warm storage slots, and accounts.
 type tmpEnv struct {
-	storage            map[uint256.Uint]*uint256.Uint // Temporary storage key-value pairs for the current execution
-	warmStorage        []uint256.Uint                 // List of storage slots accessed ("warm" slots)
-	warmAccountAddress []uint256.Uint                 // List of account addresses accessed ("warm" address)
-	logs               []LogEntry                     // Event logs generated during execution
-	accounts           Accounts                       // Temporary accounts state
-	transactions       Transactions                   // Temporary list of transactions that happened on the chain
+	warmStorage        []uint256.Uint // List of storage slots accessed ("warm" slots)
+	warmAccountAddress []uint256.Uint // List of account addresses accessed ("warm" address)
+	logs               []LogEntry     // Event logs generated during execution
+	accounts           Accounts       // Temporary accounts state
+	transactions       Transactions   // Temporary list of transactions that happened on the chain
 }
 
 // State represents the full EVM execution state during a transaction or message call.
@@ -59,7 +58,6 @@ func newEmptyState() *State {
 		callerAddress: 0,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
-			storage:      map[uint256.Uint]*uint256.Uint{},
 			logs:         []LogEntry{},
 			warmStorage:  []uint256.Uint{},
 			accounts:     Accounts{},
@@ -74,22 +72,9 @@ func newEmptyState() *State {
 
 // newStateFromEnv creates a new State initialized from a given external Env, copying storage, logs, and accounts.
 func newStateFromEnv(env *Env) *State {
-	storageCopy := make(map[uint256.Uint]*uint256.Uint)
-	if len(env.Storage) > 0 {
-		for k, v := range env.Storage {
-			storageCopy[k] = v
-		}
-	}
 
 	logsCopy := make([]LogEntry, len(env.Logs))
 	copy(logsCopy, env.Logs)
-
-	accountsCopy := make(Accounts, 0)
-	if len(env.Accounts) > 0 {
-		for k, v := range env.Accounts {
-			accountsCopy[k] = v
-		}
-	}
 
 	transactionsCopy := make(Transactions, len(env.Transaction))
 	copy(transactionsCopy, env.Transaction)
@@ -103,10 +88,9 @@ func newStateFromEnv(env *Env) *State {
 		callerAddress: 0,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
-			storage:      storageCopy,
 			logs:         logsCopy,
 			warmStorage:  []uint256.Uint{},
-			accounts:     accountsCopy,
+			accounts:     *env.Accounts.Clone(),
 			transactions: transactionsCopy,
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
@@ -119,21 +103,11 @@ func newStateFromEnv(env *Env) *State {
 // clone creates a deep copy of the current State, including storage, logs, warm storage, and accounts.
 // Note that stack, memory, and code are reset/empty in the clone.
 func (s *State) clone() *State {
-	storageCopy := make(map[uint256.Uint]*uint256.Uint)
-	for k, v := range s.tmp.storage {
-		storageCopy[k] = v
-	}
-
 	logsCopy := make([]LogEntry, len(s.tmp.logs))
 	copy(logsCopy, s.tmp.logs)
 
 	warmStorageCopy := make([]uint256.Uint, len(s.tmp.warmStorage))
 	copy(warmStorageCopy, s.tmp.warmStorage)
-
-	accountsCopy := make(Accounts)
-	for k, v := range s.tmp.accounts {
-		accountsCopy[k] = v
-	}
 
 	transactionsCopy := make(Transactions, len(s.tmp.transactions))
 	copy(transactionsCopy, s.tmp.transactions)
@@ -148,10 +122,9 @@ func (s *State) clone() *State {
 		originAddress: s.originAddress,
 		callValue:     s.callValue.Clone(),
 		tmp: tmpEnv{
-			storage:      storageCopy,
 			logs:         logsCopy,
 			warmStorage:  warmStorageCopy,
-			accounts:     accountsCopy,
+			accounts:     *s.tmp.accounts.Clone(),
 			transactions: transactionsCopy,
 		},
 		transientStorage: map[uint256.Uint]*uint256.Uint{},
@@ -163,31 +136,20 @@ func (s *State) clone() *State {
 
 // reapply a state at the end of a sub context
 func (s *State) applyStateAfterReturn(tmpState *State) {
-	storageCopy := make(map[uint256.Uint]*uint256.Uint)
-	for k, v := range tmpState.tmp.storage {
-		storageCopy[k] = v
-	}
-
 	logsCopy := make([]LogEntry, len(tmpState.tmp.logs))
 	copy(logsCopy, tmpState.tmp.logs)
 
 	warmStorageCopy := make([]uint256.Uint, len(tmpState.tmp.warmStorage))
 	copy(warmStorageCopy, tmpState.tmp.warmStorage)
 
-	accountsCopy := make(Accounts)
-	for k, v := range tmpState.tmp.accounts {
-		accountsCopy[k] = v
-	}
-
 	transactionsCopy := make(Transactions, len(tmpState.tmp.transactions))
 	copy(transactionsCopy, s.tmp.transactions)
 
 	s.lastCallState = tmpState
 	s.tmp = tmpEnv{
-		storage:      storageCopy,
 		logs:         logsCopy,
 		warmStorage:  warmStorageCopy,
-		accounts:     accountsCopy,
+		accounts:     *tmpState.tmp.accounts.Clone(),
 		transactions: transactionsCopy,
 	}
 }
@@ -247,18 +209,10 @@ func (s *State) setCallData(data []byte) {
 
 // loadStagedChangesIntoEnv copies all staged storage, logs, and accounts changes from the temporary execution environment back into the external Env.
 func (s *State) loadStagedChangesIntoEnv(env *Env) {
-	env.Storage = make(map[uint256.Uint]*uint256.Uint)
-	for k, v := range s.tmp.storage {
-		env.Storage[k] = v
-	}
-
 	env.Logs = make([]LogEntry, len(s.tmp.logs))
 	copy(env.Logs, s.tmp.logs)
 
-	env.Accounts = make(Accounts)
-	for k, v := range s.tmp.accounts {
-		env.Accounts[k] = v
-	}
+	env.Accounts = *s.tmp.accounts.Clone()
 }
 
 // executeByteCode runs the contract bytecode until a STOP opcode or end of code is reached.

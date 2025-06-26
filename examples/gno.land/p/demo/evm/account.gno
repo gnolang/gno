@@ -36,6 +36,7 @@ type Account struct {
 	Balance     *uint256.Uint
 	Nonce       uint64
 	Gas         uint
+	Storage     [uint256.Uint]*uint256.Uint
 	Code        []byte
 }
 
@@ -45,6 +46,14 @@ func mustHex(str string) []byte {
 		panic(err)
 	}
 	return x
+}
+
+func (c *Accounts) Clone() *Accounts {
+	accs := make(Accounts)
+	for k, v := range *c {
+		accs[k] = v.Clone()
+	}
+	return &accs
 }
 
 func (c *Account) executeCallHex(env *Env, f string, code []byte, args ...*uint256.Uint) ([]byte, error) {
@@ -183,4 +192,27 @@ func (c *Account) String() string {
 
 func (c *Account) Eq(a Account) bool {
 	return c.String() == a.String()
+}
+
+func (c *Account) Clone() *Account {
+	storageCopy := make(map[uint256.Uint]*uint256.Uint)
+	if len(c.Storage) > 0 {
+		for k, v := range c.Storage {
+			storageCopy[k] = v.Clone()
+		}
+	}
+
+	codeCopy := make([]byte, len(c.Code))
+	copy(codeCopy, c.Code)
+
+	return &Account{
+		AccountType: c.AccountType,
+		EvmAddress:  c.EvmAddress,
+		GnoAddress:  c.GnoAddress,
+		Balance:     c.Balance.Clone(),
+		Nonce:       c.Nonce,
+		Gas:         c.Gas,
+		Storage:     storageCopy,
+		Code:        codeCopy,
+	}
 }

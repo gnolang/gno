@@ -197,7 +197,7 @@ func opSload(s *State) error {
 		s.gasConsumed += 2000
 	}
 
-	read, ok := s.tmp.storage[*key]
+	read, ok := s.tmp.accounts[s.callerAddress].Storage[*key]
 	if !ok {
 		s.stack.Push(uint256.Zero())
 	}
@@ -231,8 +231,7 @@ func opSstore(s *State) error {
 		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
 		s.gasConsumed += 2000
 	}
-
-	s.tmp.storage[*key] = value
+	s.tmp.accounts[s.callerAddress].Storage[*key] = value
 	return nil
 }
 
