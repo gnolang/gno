@@ -78,7 +78,7 @@ func main() {
 //
 // --
 // ## Prop #0 - Propose deleting a name using users/v1 realm
-// Change alice's name!
+// delete user test
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -99,7 +99,7 @@ func main() {
 // --
 // --
 // ## Prop #0 - Propose deleting a name using users/v1 realm
-// Change alice's name!
+// delete user test
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -120,7 +120,7 @@ func main() {
 // --
 // --
 // ## Prop #0 - Propose deleting a name using users/v1 realm
-// Change alice's name!
+// delete user test
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
