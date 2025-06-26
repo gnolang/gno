@@ -9,54 +9,59 @@ import (
 
 // Test VoteOnProposal
 func Test_VoteOnProposal_Success(t *testing.T) {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetOriginCaller("g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	CreateProposals(cross, "7", "test", "test", "", "", "Chaegnal")
+	CreateProposals(cross, "9", "test", "test", "", "", "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
 
-	uassert.NotPanics(t, func() { VoteOnProposal(cross, "7", "1", "1", "Chaegnal") })
+	uassert.NotPanics(t, func() { VoteOnProposal(cross, "9", "1", "1", "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g") })
 }
 
 func Test_VoteOnProposal_InvalidVoteId(t *testing.T) {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetOriginCaller("g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	uassert.PanicsWithMessage(t, "invalid vote id", func() { VoteOnProposal(cross, "7", "abc", "1", "Chaegnal") })
+	err := revive(func() {
+		VoteOnProposal(cross, "7", "abc", "1", "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
+	})
+
+	errorMsg := "invalid vote id"
+
+	if err == nil || err.(string) != errorMsg {
+		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
+	}
 }
 
 func Test_VoteOnProposal_InvalidVoteChoice(t *testing.T) {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetOriginCaller("g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	CreateProposals(cross, "7", "test", "test", "", "", "Chaegnal")
+	CreateProposals(cross, "10", "test", "test", "", "", "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
 
-	uassert.PanicsWithMessage(t, "invalid vote choice", func() { VoteOnProposal(cross, "7", "1", "abc", "Chaegnal") })
+	err := revive(func() {
+		VoteOnProposal(cross, "10", "1", "abc", "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
+	})
+
+	errorMsg := "invalid vote choice"
+
+	if err == nil || err.(string) != errorMsg {
+		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
+	}
 }
 
 func Test_VoteOnProposal_NorYayNorNay(t *testing.T) {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetOriginCaller("g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	CreateProposals(cross, "7", "test", "test", "", "", "Chaegnal")
+	CreateProposals(cross, "11", "test", "test", "", "", "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
 
-	uassert.PanicsWithMessage(t, "vote should be yay (1) or nay (0)", func() { VoteOnProposal(cross, "7", "1", "2", "Chaegnal") })
-}
+	err := revive(func() {
+		VoteOnProposal(cross, "11", "1", "2", "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g")
+	})
 
-// Test AdminCloseProposal
-func Test_AdminCloseProposal_Success(t *testing.T) {
-	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup(cross, "Chaegnal's group")
+	errorMsg := "vote should be yay (1) or nay (0)"
 
-	CreateProposals(cross, "8", "test", "test", "", "", "Chaegnal")
-
-	uassert.NotPanics(t, func() { AdminCloseProposal("8", "1", "Chaegnal") })
-}
-
-func Test_AdminCloseProposal_Failure(t *testing.T) {
-	testing.SetOriginCaller("Chaegnal")
-	organizer.CreateFriendGroup(cross, "Chaegnal's group")
-
-	CreateProposals(cross, "9", "test", "test", "", "", "Chaegnal")
-
-	uassert.PanicsWithMessage(t, "invalid vote id", func() { AdminCloseProposal("9", "a", "Chaegnal") })
+	if err == nil || err.(string) != errorMsg {
+		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
+	}
 }

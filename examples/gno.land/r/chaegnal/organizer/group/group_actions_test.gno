@@ -1,6 +1,7 @@
 package group
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -19,7 +20,15 @@ func Test_DeleteFriendGroup_Failure(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	uassert.PanicsWithMessage(t, "only the owner can delete the group", func() { DeleteFriendGroup(cross, "2", "Ghhv") })
+	err := revive(func() {
+		DeleteFriendGroup(cross, "2", "Ghhv")
+	})
+
+	errorMsg := "only the owner can delete the group"
+
+	if err == nil || err.(string) != errorMsg {
+		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
+	}
 }
 
 // Test SwitchOwner
@@ -30,8 +39,7 @@ func Test_SwitchOwner_Success(t *testing.T) {
 	testing.SetOriginCaller("Ghhv")
 	organizer.AskJoinFriendGroup(cross, 3)
 
-	group := organizer.GetGroupFromId("3")
-	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
+	AcceptAwaitingMember(cross, "3", "Chaegnal", std.Address("Ghhv"))
 
 	testing.SetOriginCaller("Chaegnal")
 	MakeAdmin(cross, "3", "Chaegnal", "Ghhv")
@@ -44,7 +52,16 @@ func Test_SwitchOwner_NotOwner(t *testing.T) {
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	uassert.PanicsWithMessage(t, "only the owner give ownership away", func() { SwitchOwner(cross, "4", "Ghhv", "Ghhv") })
+
+	err := revive(func() {
+		SwitchOwner(cross, "4", "Ghhv", "Ghhv")
+	})
+
+	errorMsg := "only the owner give ownership away"
+
+	if err == nil || err.(string) != errorMsg {
+		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
+	}
 }
 
 func Test_SwitchOwner_NotAdmin(t *testing.T) {
@@ -54,10 +71,16 @@ func Test_SwitchOwner_NotAdmin(t *testing.T) {
 	testing.SetOriginCaller("Ghhv")
 	organizer.AskJoinFriendGroup(cross, 5)
 
-	group := organizer.GetGroupFromId("5")
-	group.DAO.WhitelistUser("Chaegnal", "Ghhv")
+	AcceptAwaitingMember(cross, "5", "Chaegnal", std.Address("Ghhv"))
 
 	testing.SetOriginCaller("Chaegnal")
+	err := revive(func() {
+		SwitchOwner(cross, "5", "Chaegnal", "Ghhv")
+	})
 
-	uassert.PanicsWithMessage(t, "the new owner must be an admin", func() { SwitchOwner(cross, "5", "Chaegnal", "Ghhv") })
+	errorMsg := "the new owner must be an admin"
+
+	if err == nil || err.(string) != errorMsg {
+		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
+	}
 }
