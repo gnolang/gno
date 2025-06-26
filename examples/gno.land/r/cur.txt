@@ -2,34 +2,10 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
          | grep -v -E 'func [A-Z][A-Za-z0-9_]*\s*\(\s*cur\s+realm' > cur.txt
 
 
-./demo/todolist/todolist.gno:24:func NewTodoList(title string) (int, string) {
-./demo/todolist/todolist.gno:33:func AddTask(todolistID int, title string) string {
-./demo/todolist/todolist.gno:52:func ToggleTaskStatus(todolistID int, taskID int) string {
-./demo/todolist/todolist.gno:71:func RemoveTask(todolistID int, taskID int) string {
-./demo/todolist/todolist.gno:90:func RemoveTodoList(todolistID int) string {
-./demo/todolist/todolist.gno:103:func Render(path string) string {
-./demo/profile/render.gno:101:func Render(path string) string {
-./demo/profile/profile.gno:119:func GetStringField(addr std.Address, field, def string) string {
-./demo/profile/profile.gno:128:func GetBoolField(addr std.Address, field string, def bool) bool {
-./demo/profile/profile.gno:137:func GetIntField(addr std.Address, field string, def int) int {
-./demo/foo20/foo20.gno:26:func TotalSupply() int64 {
-./demo/foo20/foo20.gno:30:func BalanceOf(owner std.Address) int64 {
-./demo/foo20/foo20.gno:34:func Allowance(owner, spender std.Address) int64 {
-./demo/foo20/foo20.gno:68:func Render(path string) string {
-./demo/banktest/banktest.gno:61:func Render(path string) string {
-./demo/boards/render.gno:11:func RenderBoard(bid BoardID) string {
-./demo/boards/render.gno:19:func Render(path string) string {
 ./demo/boards/board.gno:55:func NewPrivateBoard(url string, name string, creator std.Address) *Board {
-./demo/boards/public.gno:11:func GetBoardIDFromName(name string) (BoardID, bool) {
-./demo/microblog/microblog.gno:50:func Render(path string) string {
-./demo/microblog/microblog.gno:67:func PageToString(p *microblog.Page) string {
 ./demo/microblog/microblog.gno:84:func NewPost(text string) string {
 ./demo/btree_dao/btree_dao.gno:42:func PlantTree(userBTree *btree.BTree) error {
 ./demo/btree_dao/btree_dao.gno:49:func PlantSeed(message string) error {
-./demo/btree_dao/btree_dao.gno:126:func Render(path string) string {
-./demo/foo1155/foo1155.gno:29:func BalanceOf(user std.Address, tid grc1155.TokenID) int64 {
-./demo/foo1155/foo1155.gno:38:func BalanceOfBatch(ul []std.Address, batch []grc1155.TokenID) []int64 {
-./demo/foo1155/foo1155.gno:47:func IsApprovedForAll(owner, user std.Address) bool {
 ./demo/foo1155/foo1155.gno:53:func SetApprovalForAll(user std.Address, approved bool) {
 ./demo/foo1155/foo1155.gno:60:func TransferFrom(from, to std.Address, tid grc1155.TokenID, amount int64) {
 ./demo/foo1155/foo1155.gno:67:func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []int64) {
@@ -37,7 +13,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./demo/foo1155/foo1155.gno:85:func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []int64) {
 ./demo/foo1155/foo1155.gno:94:func Burn(from std.Address, tid grc1155.TokenID, amount int64) {
 ./demo/foo1155/foo1155.gno:103:func BurnBatch(from std.Address, batch []grc1155.TokenID, amounts []int64) {
-./demo/foo1155/foo1155.gno:114:func Render(path string) string {
 ./demo/emit/emit.gno:10:func Emit(value string) {
 ./demo/counter/counter.gno:7:func Increment() int {
 ./demo/counter/counter.gno:12:func Render(_ string) string {
