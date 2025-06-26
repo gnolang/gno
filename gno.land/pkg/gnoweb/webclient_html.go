@@ -188,7 +188,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr ContentRen
 	const qpath = "vm/qrenderas"
 
 	pkgPath := strings.Trim(u.Path, "/")
-	viewer := "Vg1manfred47kzduec920z88wfr64ylksmdcedlf5"
+	viewer := "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 	data := fmt.Sprintf("%s@%s/%s:%s", viewer, s.domain, pkgPath, u.EncodeArgs())
 
 	rawres, err := s.query(qpath, []byte(data))
