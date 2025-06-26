@@ -1,7 +1,7 @@
 package evm
 
 import (
-	"encoding/binary"
+	// "encoding/binary"
 	"encoding/hex"
 	"strconv"
 )
@@ -135,6 +135,5 @@ func (t *ExecuteContractTransaction) String() string {
 	x := "0x" + strconv.FormatInt(int64(t.caller.EvmAddress), 16) + " executed " + tmp
 	x += " costing " + strconv.FormatUint(uint64(t.gasPrice), 10)
 	x += ", resulting with 0x" + hex.EncodeToString(trimLeadingZeros(t.result))
-	x += " (decimal: " + strconv.FormatUint(binary.BigEndian.Uint64(t.result[len(t.result)-8:len(t.result)]), 10) + ")"
 	return x
 }
