@@ -63,7 +63,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 	// Pad and flush any remaining items
 	if len(rowItems) > 0 {
 		for len(rowItems) < maxCol {
-			rowItems = append(rowItems, "<!-- empty -->")
+			rowItems = append(rowItems, "")
 		}
 		res.Write("<gno-columns>" + strings.Join(rowItems, "\n|||\n") + "</gno-columns>\n")
 	}
