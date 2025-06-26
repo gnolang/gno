@@ -76,7 +76,7 @@ func RenderSortCommon(rawPath string) string {
 		commonOrder = " least common"
 	}
 	return md.Link(orderArrow("common", sort, order)+commonOrder,
-		GetSortByCommonPath(rawPath, order)) + " | "
+		GetSortByCommonPath(rawPath, order))
 }
 
 func SetCustomHeader(rawPath string, presets []HeaderPreset) string {

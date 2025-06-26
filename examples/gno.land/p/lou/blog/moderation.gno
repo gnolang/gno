@@ -4,9 +4,12 @@ import (
 	"std"
 )
 
-type Permission struct { // TO DO
-	Read  bool
-	Write bool
+func (b *Blog) AddModerator(addr std.Address) error {
+	return b.Authorizable.AddToAuthList(addr)
+}
+
+func (b *Blog) DeleteModerator(addr std.Address) error {
+	return b.Authorizable.DeleteFromAuthList(addr)
 }
 
 type UserResolver func(input string) (string, bool)

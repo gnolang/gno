@@ -42,10 +42,12 @@ func RenderBlogHeader(prefix, rawPath string) string {
 // :posts
 func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 	out := md.H1(b.Title()) + "\n"
+	out += RenderBlogHeader(b.Prefix(), req.RawPath) + "\n\n"
 	if b.Posts.Size() == 0 {
-		res.Write("No posts found.")
+		res.Write(out + "No posts found.")
 		return
 	}
+
 	options := ParseRenderOptions(req.RawPath)
 	pageSize := 9
 	if !options.IsGrid {
@@ -71,7 +73,6 @@ func (b Blog) RenderPosts(res *mux.ResponseWriter, req *mux.Request) {
 
 	p := pager.NewPager(tree, pageSize, order)
 	page := p.MustGetPageByPath(req.RawPath)
-	out += RenderBlogHeader(b.Prefix(), req.RawPath)
 	out += b.RenderListGrid(page, options.IsGrid, options.TimeFormat) + page.Picker(req.Path)
 	res.Write(out)
 }

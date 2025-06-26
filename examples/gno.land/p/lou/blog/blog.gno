@@ -1,19 +1,18 @@
 package blog
 
 import (
+	"std"
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 )
 
 type Blog struct {
-	Admin         ownable.Ownable
-	ModeratorList *avl.Tree // addr --> permissions TO DO
-
+	Authorizable     *authorizable.Authorizable
 	title            string
 	prefix           string
 	PostId           seqid.ID
@@ -40,16 +39,12 @@ func (b Blog) Prefix() string {
 }
 
 func NewBlog(title, prefix string) (*Blog, error) {
-	admin := *ownable.New()
-	moderators := avl.NewTree()
-	moderators.Set(admin.Owner().String(), Permission{Read: true, Write: true}) // TO DO (this is just an idea for now)
-
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
+	auth := authorizable.NewAuthorizableWithAddress(std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"))
 	return &Blog{
-		Admin:            admin,
-		ModeratorList:    moderators,
+		Authorizable:     auth,
 		title:            title,
 		prefix:           prefix,
 		PostId:           seqid.ID(0),
@@ -67,6 +62,7 @@ func NewBlog(title, prefix string) (*Blog, error) {
 }
 
 func (b *Blog) AddPost(post *Post) error {
+	b.Authorizable.AssertPreviousOnAuthList()
 	post.id = b.PostId.Next()
 	if _, err := b.GetPostBySlug(post.Slug()); err == nil {
 		return ErrPostAlreadyExists
@@ -92,6 +88,7 @@ func (b *Blog) AddPost(post *Post) error {
 }
 
 func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
+	b.Authorizable.AssertPreviousOnAuthList()
 	post, err := b.GetPostByID(id.String())
 	if err != nil {
 		return err
@@ -105,6 +102,7 @@ func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
 }
 
 func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
+	b.Authorizable.AssertPreviousOnAuthList()
 	post, err := b.GetPostBySlug(slug)
 	if err != nil {
 		return err
@@ -132,6 +130,7 @@ func UpdatePost(existingPost, newPost *Post) {
 }
 
 func (b *Blog) DeletePostById(id string) error {
+	b.Authorizable.AssertPreviousOnAuthList()
 	post, err := b.GetPostByID(id)
 	if err != nil {
 		return err
@@ -140,6 +139,7 @@ func (b *Blog) DeletePostById(id string) error {
 }
 
 func (b *Blog) DeletePostBySlug(slug string) error {
+	b.Authorizable.AssertPreviousOnAuthList()
 	post, err := b.GetPostBySlug(slug)
 	if err != nil {
 		return err
