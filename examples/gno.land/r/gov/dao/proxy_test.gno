@@ -2,6 +2,7 @@ package dao
 
 import (
 	"std"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -67,25 +68,59 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 		})
 	})
 
-	var pid ProposalID
-	testing.SetRealm(std.NewUserRealm(alice))
-	urequire.NotPanics(t, func() {
-		e := NewSimpleExecutor(
-			func() error {
-				return nil
-			},
-			"",
-		)
-		pid = MustCreateProposal(cross, NewProposalRequest("Proposal Title", "Description", e))
-	})
+	// test proposal creation
+	{
+		var pid ProposalID
+		testing.SetRealm(std.NewUserRealm(alice))
+		urequire.NotPanics(t, func() {
+			e := NewSimpleExecutor(
+				func() error {
+					return nil
+				},
+				"",
+			)
+			pid = MustCreateProposal(cross, NewProposalRequest("Proposal Title", "Description", e))
+		})
 
-	p := MustGetProposal(cross, 1000)
-	if p != nil {
-		panic("proposal must be nil")
+		p := MustGetProposal(cross, 1000)
+		if p != nil {
+			panic("proposal must be nil")
+		}
+		p = MustGetProposal(cross, pid)
+		urequire.Equal(t, "Proposal Title", p.Title())
+		urequire.Equal(t, p.Author().String(), alice.String())
 	}
-	p = MustGetProposal(cross, pid)
-	urequire.Equal(t, "Proposal Title", p.Title())
-	urequire.Equal(t, p.Author().String(), alice.String())
+
+	// test allowedDAOs update
+	{
+		var pid ProposalID
+		testing.SetRealm(std.NewUserRealm(alice))
+		urequire.NotPanics(t, func() {
+			pid = MustCreateProposal(cross, NewAllowImplRequest("gno.land/r/gov/dao/v6/impl"))
+		})
+
+		p := MustGetProposal(cross, 1000)
+		if p != nil {
+			panic("proposal must be nil")
+		}
+		p = MustGetProposal(cross, pid)
+		urequire.Equal(t, "Add gno.land/r/gov/dao/v6/impl to allowed GovDAO implementations", p.Title())
+		urequire.Equal(t, p.Author().String(), alice.String())
+
+		urequire.NotPanics(t, func() {
+			ExecuteProposal(cross, pid)
+		})
+
+		urequire.Equal(t, "gno.land/r/gov/dao/v4/impl, gno.land/r/gov/dao/v6/impl", strings.Join(allowedDAOs, ", "))
+
+		testing.SetRealm(std.NewCodeRealm(v6))
+		UpdateImpl(cross, UpdateRequest{
+			DAO:         &dummyDao{},
+			AllowedDAOs: []string{"gno.land/r/gov/dao/v4/impl"},
+		})
+
+		urequire.Equal(t, "gno.land/r/gov/dao/v4/impl", strings.Join(AllowedDAOs(), ", "))
+	}
 
 	// need to switch the context back to v4
 	testing.SetRealm(std.NewCodeRealm(v4))
