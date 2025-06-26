@@ -658,13 +658,7 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			// Pop the frame before popping the block
-			for i := uint8(0); i < cs.FrameDepth; i++ {
-				m.PopFrameAndReset()
-			}
-			for i := uint8(0); i < cs.BlockDepth; i++ {
-				m.PopBlock()
-			}
+			m.GotoJump(int(cs.FrameDepth), int(cs.BlockDepth))
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
 			m.NumOps = bs.NumOps
