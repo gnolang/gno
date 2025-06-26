@@ -159,6 +159,7 @@ func TestParseBytes(t *testing.T) {
 				assert.Equal(t, tc.expectedVersion, file.GetGno())
 			}
 			assert.Equal(t, tc.expectedIgnore, file.Ignore)
+			assert.Equal(t, tc.expectedDraft, file.Draft)
 		})
 	}
 }

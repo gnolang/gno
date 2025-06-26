@@ -129,10 +129,24 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 type TypeCheckMode int
 
 const (
-	TCLatestStrict  TypeCheckMode = iota // require latest gno.mod gno version.
-	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
-	TCGno0p0                             // when gno fix'ing from gno 0.0.
+	TCLatestStrict   TypeCheckMode = iota // require latest gno.mod gno version.
+	TCLatestRelaxed                       // generate latest gno.mod if missing; for testing
+	TCGenesisStrict                       // require latest gno.mod gno version, but allow to import draft packages
+	TCGenesisRelaxed                      // generate latest gno.mod if missing, but allow to import draft packages
+	TCGno0p0                              // when gno fix'ing from gno 0.0.
 )
+
+func (m TypeCheckMode) IsGenesis() bool {
+	return m == TCGenesisStrict || m == TCGenesisRelaxed
+}
+
+func (m TypeCheckMode) IsStrict() bool {
+	return m == TCLatestStrict || m == TCGenesisStrict
+}
+
+func (m TypeCheckMode) IsRelaxed() bool {
+	return m == TCLatestRelaxed || m == TCGenesisRelaxed
+}
 
 // TypeCheckMemPackage performs type validation and checking on the given
 // mpkg. To retrieve dependencies, it uses getter.
@@ -142,13 +156,13 @@ const (
 // Args:
 
 // - tcmode: TypeCheckMode, see comments above.
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, pmode ParseMode, tcmode TypeCheckMode, height int64) (
+func TypeCheckMemPackage(mpkg *std.MemPackage, getter MemPackageGetter, pmode ParseMode, tcmode TypeCheckMode) (
 	pkg *types.Package, errs error,
 ) {
 	return TypeCheckMemPackageWithOptions(mpkg, getter, TypeCheckOptions{
 		ParseMode: pmode,
 		Mode:      tcmode,
-	}, height)
+	})
 }
 
 type TypeCheckCache map[string]*gnoImporterResult
@@ -163,7 +177,7 @@ type TypeCheckOptions struct {
 }
 
 // TypeCheckMemPackageWithOptions checks the given mpkg, configured using opts.
-func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGetter, opts TypeCheckOptions, height int64) (
+func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGetter, opts TypeCheckOptions) (
 	pkg *types.Package, errs error,
 ) {
 	if opts.Cache == nil {
@@ -172,7 +186,6 @@ func TypeCheckMemPackageWithOptions(mpkg *std.MemPackage, getter MemPackageGette
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
 		pkgPath: mpkg.Path,
-		height:  height,
 		tcmode:  opts.Mode,
 		getter:  gnoBuiltinsGetterWrapper{getter},
 		cache:   opts.Cache,
@@ -201,7 +214,6 @@ type gnoImporterResult struct {
 type gnoImporter struct {
 	// when importing self (from xxx_test package) include *_test.gno.
 	pkgPath string
-	height  int64
 	tcmode  TypeCheckMode
 	getter  MemPackageGetter
 	cache   TypeCheckCache
@@ -262,6 +274,19 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		// ...unless importing self from a *_test.gno
 		// file with package name xxx_test.
 		pmode = ParseModeIntegration
+	}
+	// ensure import is not a draft package.
+	mod, err := ParseCheckGnoMod(mpkg)
+	if err != nil {
+		result.err = err
+	}
+	if !gimp.tcmode.IsGenesis() && mod != nil && mod.Draft {
+		// cannot import draft packages after genesis.
+		// NOTE: see comment below for ImportNotFoundError.
+		err = ImportDraftError{PkgPath: pkgPath}
+		result.err = err
+		result.pending = false
+		return nil, err
 	}
 	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode)
 	if errs != nil {
@@ -338,12 +363,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if err != nil {
 		return nil, err
 	}
-	if gimp.tcmode == TCLatestStrict {
+	if gimp.tcmode.IsStrict() {
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
-		}
-		if pmode == ParseModeProduction && mod.Draft && gimp.height > 0 {
-			return nil, ImportDraftError{PkgPath: mpkg.Path}
 		}
 		if mod.GetGno() != GnoVerLatest {
 			panic(fmt.Sprintf("expected gnomod.toml gno version %v but got %v",
@@ -359,7 +381,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 			}
 			if gimp.tcmode == TCGno0p0 {
 				gnoVersion = GnoVerMissing
-			} else if gimp.tcmode == TCLatestRelaxed {
+			} else if gimp.tcmode.IsRelaxed() {
 				gnoVersion = GnoVerLatest
 			}
 		} else {
