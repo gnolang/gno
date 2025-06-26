@@ -149,28 +149,6 @@ func UpdateImpl(cur realm, r UpdateRequest) {
 	}
 }
 
-// NewAllowImplRequest creates a ProposalRequest to allow a new GovDAO implementation
-func NewAllowImplRequest(pkgPath string) ProposalRequest {
-	// XXX: check that the proposer is member in the CreateProposal routine
-
-	callback := func() error {
-		for _, pp := range allowedDAOs {
-			if pp == pkgPath {
-				panic(pkgPath + "is already in allowedDAOs list")
-			}
-		}
-		allowedDAOs = append(allowedDAOs, pkgPath)
-		return nil
-	}
-
-	e := NewSimpleExecutor(callback, "")
-
-	title := "Add " + pkgPath + " to allowed GovDAO implementations"
-	description := "This proposal is looking to add " + pkgPath + " to the allowed GovDAO implementations.\n\nWARNING: Thorougly review the implementation at " + pkgPath + " before approving this proposal!"
-
-	return NewProposalRequest(title, description, e)
-}
-
 func AllowedDAOs() []string {
 	dup := make([]string, len(allowedDAOs))
 	copy(dup, allowedDAOs)
