@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"std"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -42,7 +41,7 @@ func NewBlog(title, prefix string) (*Blog, error) {
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
-	auth := authorizable.NewAuthorizableWithAddress(std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"))
+	auth := authorizable.NewAuthorizable()
 	return &Blog{
 		Authorizable:     auth,
 		title:            title,

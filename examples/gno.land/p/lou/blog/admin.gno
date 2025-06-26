@@ -1,11 +1,7 @@
 package blog
 
-import (
-	"gno.land/p/demo/ownable"
-)
-
-func ResetPosts(admin ownable.Ownable) { // TO DO
-	admin.AssertOwnedByPrevious()
-}
+// func (b *Blog) ResetPosts(admin ownable.Ownable) { // TO DO
+// 	if b.Authorizable.Ownable
+// }
 
 // ADD MORE

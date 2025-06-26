@@ -11,7 +11,6 @@ func myResolver(input string) (string, bool) {
 	if !ok || data == nil {
 		return "", false
 	}
-	println(data.RenderLink(""))
 	return data.Name(), true
 }
 

@@ -8,7 +8,7 @@ var (
 	myBlog *blog.Blog
 )
 
-func Start(_ realm) {
+func init() {
 	var err error
 	myBlog, err = blog.NewBlog("Lou's Blog", "/r/lou/blog")
 	if err != nil {
