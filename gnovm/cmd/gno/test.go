@@ -241,7 +241,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Read and parse gno.mod directly.
+		// Read and parse gnomod.toml directly.
 		fpath := filepath.Join(pkg.Dir, "gnomod.toml")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {

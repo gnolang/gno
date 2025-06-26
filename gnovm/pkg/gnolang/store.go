@@ -825,7 +825,7 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	}
 	mptype = mptype.Decide(mpkg.Path)
 	if mpkgtype != mptype {
-		panic(fmt.Sprintf("expected %v but got %v", mptype, mpkgtype))
+		panic(fmt.Sprintf("unexpected mempackage type: expected %v but got %v", mptype, mpkgtype))
 	}
 	err := ValidateMemPackageAny(mpkg)
 	if err != nil {

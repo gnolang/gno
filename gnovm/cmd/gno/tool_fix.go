@@ -222,7 +222,8 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			if err != nil {
 				// It doesn't exist or we can't parse it.
 				// Make a temporary gnomod.toml (but don't write it yet)
-				modstr := gno.GenGnoModMissing("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
+				modulePath := pkgPathFromRootDir(dir, cmd.rootDir)
+				modstr := gno.GenGnoModLatest(modulePath)
 				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
 				if err != nil {
 					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
