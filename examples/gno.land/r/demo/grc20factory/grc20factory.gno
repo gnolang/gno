@@ -65,7 +65,7 @@ func TotalSupply(symbol string) int64 {
 
 func HasAddr(symbol string, owner std.Address) bool {
 	inst := mustGetInstance(symbol)
-	return inst.token.IsKnownAccount(owner)
+	return inst.token.HasAddr(owner)
 }
 
 func BalanceOf(symbol string, owner std.Address) int64 {
