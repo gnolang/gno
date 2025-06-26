@@ -42,7 +42,7 @@ No posts.
 20 May 2022
 
 |||
-<!-- empty --></gno-columns>
+</gno-columns>
 `
 		assertMDEquals(t, got, expected)
 	}
