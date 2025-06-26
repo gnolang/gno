@@ -699,7 +699,6 @@ func main() {
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello world\n", res)
-
 }
 
 func TestNumberOfArgsError(t *testing.T) {
