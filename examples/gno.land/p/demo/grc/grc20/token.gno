@@ -128,7 +128,7 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount int64) error {
 	led.balances.Set(string(from), newFromBalance)
 
 	if newFromBalance == 0 {
-		led.allowances.Remove(string(from))
+		led.balances.Remove(string(from))
 	}
 
 	std.Emit(
