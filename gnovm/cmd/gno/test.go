@@ -273,7 +273,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if mod == nil || !mod.Draft {
+			if mod == nil || !mod.Ignore {
 				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
 					ParseMode: gno.ParseModeAll,
 					Mode:      gno.TCLatestRelaxed,
@@ -286,7 +286,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 					return
 				}
 			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
 			}
 			errs := test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {
