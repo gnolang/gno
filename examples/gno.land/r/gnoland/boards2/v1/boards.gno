@@ -17,6 +17,7 @@ var (
 	gBoardsByID       avl.Tree // string(id) -> *Board
 	gListedBoardsByID avl.Tree // string(id) -> *Board
 	gBoardsByName     avl.Tree // string(name) -> *Board
+	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
@@ -57,6 +58,15 @@ func getBoard(id BoardID) (_ *Board, found bool) {
 		return nil, false
 	}
 	return v.(*Board), true
+}
+
+// getInvitesRequests returns invite requests for a board.
+func getInviteRequests(boardID BoardID) (_ *avl.Tree, found bool) {
+	v, exists := gInviteRequests.Get(boardID.Key())
+	if !exists {
+		return nil, false
+	}
+	return v.(*avl.Tree), true
 }
 
 // mustGetBoardByName returns a board or panics when it's not found.

@@ -31,7 +31,7 @@ func main() {
 // Board created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC, #1
 //
 // [Create Thread](/r/gnoland/boards2/v1$help&func=CreateThread&boardID=1&body=&title=) • **Manage Board**
-// ↳[Invite Member](/r/gnoland/boards2/v1$help&func=InviteMember&boardID=1&role=&user=) • [List Members](/r/gnoland/boards2/v1:BoardName/members) • [Freeze Board](/r/gnoland/boards2/v1$help&func=FreezeBoard&boardID=1)
+// ↳[Invite Member](/r/gnoland/boards2/v1$help&func=InviteMember&boardID=1&role=&user=) • [List Invite Requests](/r/gnoland/boards2/v1:BoardName/invites) • [List Members](/r/gnoland/boards2/v1:BoardName/members) • [Freeze Board](/r/gnoland/boards2/v1$help&func=FreezeBoard&boardID=1)
 //
 // ---
 // Sort by: [oldest first](/r/gnoland/boards2/v1:BoardName?menu=manageBoard&order=desc)

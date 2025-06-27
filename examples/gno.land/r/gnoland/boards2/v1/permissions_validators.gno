@@ -5,6 +5,12 @@ import (
 	"std"
 )
 
+// validateBoardCreate validates PermissionBoardCreate.
+//
+// Expected `args` values:
+// 1. Board name
+// 2. Board ID
+// 3. Is board listed
 func validateBoardCreate(_ Permissions, args Args) error {
 	name, ok := args[0].(string)
 	if !ok {
@@ -21,6 +27,12 @@ func validateBoardCreate(_ Permissions, args Args) error {
 	return nil
 }
 
+// validateBoardRename validates PermissionBoardRename.
+//
+// Expected `args` values:
+// 1. Board ID
+// 2. Current board name
+// 3. New board name
 func validateBoardRename(_ Permissions, args Args) error {
 	newName, ok := args[2].(string)
 	if !ok {
@@ -37,9 +49,15 @@ func validateBoardRename(_ Permissions, args Args) error {
 	return nil
 }
 
+// validateMemberInvite validates PermissionMemberInvite.
+//
+// Expected `args` values:
+// 1. Board ID
+// 2. User address
+// 3. Role
 func validateMemberInvite(perms Permissions, args Args) error {
 	// Make sure that only owners invite other owners
-	role, ok := args[1].(Role)
+	role, ok := args[2].(Role)
 	if !ok {
 		return errors.New("expected a valid new member role")
 	}
@@ -52,6 +70,12 @@ func validateMemberInvite(perms Permissions, args Args) error {
 	return nil
 }
 
+// validateRoleChange validates PermissionRoleChange.
+//
+// Expected `args` values:
+// 1. Board ID
+// 2. Member address
+// 3. Role
 func validateRoleChange(perms Permissions, args Args) error {
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
