@@ -18,7 +18,10 @@ func TestParseBytes(t *testing.T) {
 		expectedModule  string
 		expectedVersion string
 		expectedIgnore  bool
+<<<<<<< HEAD
 		expectedDraft   bool
+=======
+>>>>>>> master
 		expectedError   string
 	}{
 		// Valid gno.mod cases
@@ -88,13 +91,6 @@ func TestParseBytes(t *testing.T) {
 			expectedIgnore: true,
 		},
 		{
-			name:           "gnomod.toml with draft flag",
-			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true",
-			fileType:       "gnomod.toml",
-			expectedModule: "gno.land/p/demo/foo",
-			expectedDraft:  true,
-		},
-		{
 			name:           "gnomod.toml with draft and ignore flags",
 			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true\nignore = true",
 			fileType:       "gnomod.toml",
@@ -159,7 +155,10 @@ func TestParseBytes(t *testing.T) {
 				assert.Equal(t, tc.expectedVersion, file.GetGno())
 			}
 			assert.Equal(t, tc.expectedIgnore, file.Ignore)
+<<<<<<< HEAD
 			assert.Equal(t, tc.expectedDraft, file.Draft)
+=======
+>>>>>>> master
 		})
 	}
 }
