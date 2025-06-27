@@ -35,9 +35,13 @@ No posts.
 <gno-columns>
 ### [title2](/r/gnoland/blog:p/slug2)
 20 May 2022
+
 |||
+
 ### [title1](/r/gnoland/blog:p/slug1)
 20 May 2022
+
+|||
 </gno-columns>
 `
 		assertMDEquals(t, got, expected)
