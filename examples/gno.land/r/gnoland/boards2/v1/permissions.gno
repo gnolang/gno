@@ -22,6 +22,7 @@ const (
 	PermissionReplyFreeze                    = "reply:freeze"
 	PermissionMemberInvite                   = "member:invite"
 	PermissionMemberRemove                   = "member:remove"
+	PermissionMemberInviteRevoke             = "member:invite-remove"
 	PermissionRoleChange                     = "role:change"
 	PermissionPermissionsUpdate              = "permissions:update"
 )

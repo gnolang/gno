@@ -4,17 +4,16 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"gno.land/p/demo/mux"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 )
 
 const (
-	pageSizeBoards  = 6
-	pageSizeThreads = 6
+	pageSizeDefault = 6
 	pageSizeReplies = 10
 )
 
@@ -27,6 +26,7 @@ func Render(path string) string {
 	router.HandleFunc("admin-users", renderMembers)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
+	router.HandleFunc("{board}/invites", renderInvites)
 	router.HandleFunc("{board}/{thread}", renderThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 
@@ -64,7 +64,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, boards.Size(), pager.WithPageSize(pageSizeBoards))
+	p, err := pager.New(req.RawPath, boards.Size(), pager.WithPageSize(pageSizeDefault))
 	if err != nil {
 		panic(err)
 	}
@@ -134,13 +134,11 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardMenu(board *Board, req *mux.Request) string {
-	boardMembersURL := ufmt.Sprintf(
-		"%s:%s/members",
-		strings.TrimPrefix(string(gRealmLink), "gno.land"),
-		board.Name,
+	var (
+		b               strings.Builder
+		boardMembersURL = makeBoardURI(board) + "/members"
 	)
 
-	var b strings.Builder
 	if board.Readonly {
 		b.WriteString(md.Link("List Members", boardMembersURL))
 		b.WriteString(" • ")
@@ -162,6 +160,8 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 		if menu == menuManageBoard {
 			b.WriteString("↳")
 			b.WriteString(md.Link("Invite Member", makeInviteMemberURI(board)))
+			b.WriteString(" • ")
+			b.WriteString(md.Link("List Invite Requests", makeBoardURI(board)+"/invites"))
 			b.WriteString(" • ")
 			b.WriteString(md.Link("List Members", boardMembersURL))
 			b.WriteString(" • ")
@@ -268,7 +268,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Create a pager with a small page size to reduce
 	// the number of username lookups per page.
-	p, err := pager.New(req.RawPath, perms.UsersCount(), pager.WithPageSize(5))
+	p, err := pager.New(req.RawPath, perms.UsersCount(), pager.WithPageSize(pageSizeDefault))
 	if err != nil {
 		res.Write(err.Error())
 		return
@@ -300,6 +300,63 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		})
 		return false
 	})
+	res.Write(table.String())
+
+	if p.HasPages() {
+		res.Write("\n" + pager.Picker(p))
+	}
+}
+
+func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write(md.H3("Board not found"))
+		return
+	}
+
+	board := v.(*Board)
+	res.Write(md.H1(board.Name + " Invite Requests"))
+
+	requests, found := getInviteRequests(board.ID)
+	if !found || requests.Size() == 0 {
+		res.Write(md.H3("Board has no invite requests"))
+		return
+	}
+
+	p, err := pager.New(req.RawPath, requests.Size(), pager.WithPageSize(pageSizeDefault))
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	table := mdtable.Table{
+		Headers: []string{"User", "Request Date", "Actions"},
+	}
+
+	res.Write(md.H3("These users have requested to be invited to the board"))
+	requests.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(addr string, v any) bool {
+		actions := []string{
+			md.Link("accept", gRealmLink.Call(
+				"AcceptInvite",
+				"boardID", board.ID.String(),
+				"user", addr,
+			)),
+			md.Link("revoke", gRealmLink.Call(
+				"RevokeInvite",
+				"boardID", board.ID.String(),
+				"user", addr,
+			)),
+		}
+
+		table.Append([]string{
+			md.UserLink(addr),
+			v.(time.Time).Format(dateFormat),
+			strings.Join(actions, " • "),
+		})
+		return false
+	})
+
 	res.Write(table.String())
 
 	if p.HasPages() {
