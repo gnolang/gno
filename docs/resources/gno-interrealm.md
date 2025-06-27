@@ -31,17 +31,17 @@ expressions are read-only when performed by an external realm; a realm cannot
 directly modify another realm's objects. Thus, a Gno package's global variables
 even when exposed (e.g. `package realm1; var MyGlobal int = 1`) is safe from external
 manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For users to
-manipulate them a function or method must be provided.
+manipulate them a function or method *must* be provided.
 
-Realm crossing occurs when a function is called with the Gno `cross(fn)(...)`
-syntax.
+Realm crossing occurs when a crossing function(declared as `fn(cur realm, ...){...}`) 
+is called with the Gno `fn(cross, ...)` syntax.
 
 ```go
 package main
 import "gno.land/r/alice/realm1"
 
 func main() {
-    bread := cross(realm1.MakeBread)("flour", "water")
+    bread := realm1.MakeBread(cross, "flour", "water")
 ```
 
 (In Linux/Unix operating systems user processes can cross-call into the kernel
@@ -49,14 +49,14 @@ by calling special syscall functions, but user processes cannot directly
 cross-call into other users' processes. This makes the GnoVM a more complete
 multi-user operating system than traditional operating systems)
 
-Besides explicit realm crossing via the `cross(fn)(...)` Gno syntax, implicit
+Besides explicit realm crossing via the `fn(cross, ...)` Gno syntax, implicit
 realm crossing occurs when calling a method of a receiver object stored in an
 external realm. Implicitly crossing into (borrowing) a receiver object's
 storage realm allows the method to directly modify the receiver as well as all
 other objects directly reachable from the receiver stored in the same realm as
 the receiver. Unlike explicit crosses, implicit crosses do not shift or
 otherwise effect the current realm context; `std.CurrentRealm()` does not
-change unless a method is called like `cross(receiver.Method)(args...)`.
+change unless a method is called like `receiver.Method(cross, args...)`.
 
 Realms hold objects in residence and they also have a Gno address to send and
 receive coins from. Coins can only be spent from the current realm context.
@@ -64,7 +64,7 @@ receive coins from. Coins can only be spent from the current realm context.
 ### Realm Boundaries
 
 A realm boundary is defined as a change in realm in the call frame stack
-from one realm to another, whether explicitly crossed with `cross(fn)()`
+from one realm to another, whether explicitly crossed with `fn(cross, ...)`
 or implicitly borrow-crossed into a different receiver's storage realm.
 A realm may cross into itself with an explicit cross-call.
 
@@ -100,7 +100,7 @@ be protected from external realm direct modification, but the return object
 could be passed back to the realm for mutation; or the object may be mutated
 through its own methods.
 
-## `cross(fn)()` and `crossing()` Specification
+## `fn(cross, ...)` and `fn(cur realm, ...){...}` Specification
 
 Gno extends Go's type system with interrealm rules. These rules can be
 checked during the static type-checking phase (but at the moment they are
@@ -120,17 +120,18 @@ A function declared in p packages when called:
 A function declared in a realm package when called:
 
  * explicitly crosses to the realm in which the function is declared if the
-   function begins with a `crossing()` statement. The new realm is called the
-   "current realm".
+   function is declared as `fn(cur realm, ...){...}` (with `cur realm` as the 
+   first argument). The new realm is called the "current realm".
  * otherwise follows the same rules as for p packages.
 
-The `crossing()` statement must be the first statement of a function's body.
+The `cur realm` argument must appear as the first argument of a function's parameter list.
 It is illegal to use anywhere else, and cannot be used in p packages. Functions
-that begin with the `crossing()` statement are called "crossing functions".
+that start with the `cur realm` argument as first argument are called "crossing functions".
 
 A crossing function declared in a realm different from the last explicitly
-crossed realm *must* be called like `cross(fn)(...)`. That is, functions of
-calls that result in explicit realm crossings must be wrapped with `cross()`.
+crossed realm *must* be called like `fn(cross, ...)`. That is, functions of
+calls that result in explicit realm crossings must use `cross` as the first argument
+(`cross` is a keyword reserved specifically for this purpose).
 
 `std.CurrentRealm()` returns the current realm that was last explicitly crossed
 to.
@@ -138,8 +139,8 @@ to.
 `std.PreviousRealm()` returns the realm explicitly crossed to before that.
 
 A crossing function declared in the same realm package as the callee may be
-called normally OR like `cross(fn)(...)`. When called normally there will be no
-realm crossing, but when called like `cross(fn)(...)` there is technically a
+called like `fn(cross, ...)` or `fn(cur, ...)`. When called with `fn(cur, ...)` there 
+will be no realm crossing, but when called like `fn(cross, ...)` there is technically a
 realm crossing and the current realm and previous realm returned are the same.
 
 The current realm and previous realm do not depend on any implicit crossing to
@@ -149,7 +150,7 @@ may be different from `m.Realm` (the borrow realm) when a receiver is called on
 a foreign object.
 
 Calls of methods on receivers residing in realms different from the current
-realm must *not* be called like `cross(fn)(...)` if the method is not a
+realm must *not* be called like `fn(cross, ...)` if the method is not a
 crossing function itself, and vice versa. Or it could be said that implicit
 crossing is not real realm crossing. (When you sign a document with someone
 else's pen it is still your signature; signature:pen :: current:borrowed)
@@ -173,9 +174,9 @@ both crossing functions and non-crossing functions.
 
 A realm package's initialization (including `init()` calls) execute with current
 realm of itself, and it `std.PreviousRealm()` will panic unless the call stack
-includes a crossing function called like `cross(fn)(...)`.
+includes a crossing function called like `fn(cross, ...)`.
 
-### `cross` and `crossing` Design Goals
+### `fn(cross, ...)` and `fn(cur realm, ...){...}` Design Goals
 
 P package code should behave the same even when copied verbatim in a realm
 package.
@@ -207,7 +208,7 @@ the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
 export trust unto the chain because functions declared in those two realms can
 be upgraded.
 
-Both `crossing()` and `cross(fn)(...)` statements may become special syntax in
+Both `fn(cross, ...)` and `fn(cur realm, ...){...}` may become special syntax in
 future Gno versions.
 
 ## `attach()`
@@ -247,12 +248,12 @@ TL;DR: `revive(fn)` is Gno's builtin for STM (software transactional memory).
 
 ## Application
 
-P package code cannot contain crossing functions, nor use `crossing()`. P
-package code also cannot import R realm packages. But code can call named
-crossing functions e.g. those passed in as parameters.
+P package code cannot contain crossing functions. P package code also cannot 
+import R realm packages. But code can call named crossing functions e.g. 
+those passed in as parameters.
 
-You must declare a public realm function to be `crossing()` if it is intended to
-be called by end users, because users cannot MsgCall non-crossing functions
+You must declare a public realm function to be a crossing function if it is intended
+to be called by end users, because users cannot MsgCall non-crossing functions
 (for safety/consistency) or p package functions (there's no point).
 
 Utility functions that are a common sequence of non-crossing logic can be
@@ -279,7 +280,7 @@ overrides for testing are defined in `testing/stdlibs/std/std.gno/go`. All
 stdlibs functions are available unless overridden by the latter.
 
 `std.CurrentRealm()` shifts to `std.PreviousRealm()` if and only if a function
-is called like `cross(fn)(...)`.
+is called like `fn(cross, ...)`.
 
 ### MsgCall
 
@@ -290,8 +291,7 @@ functions of other realms is still possible with MsgRun.
 ```go
 // PKGPATH: gno.land/r/test/test
 
-func Public() {
-    crossing()
+func Public(cur realm) {
 
     // Returns (
     //     addr:<origin_caller>,
@@ -305,15 +305,14 @@ func Public() {
     // ) == std.NewCodeRealm("gno.land/r/test/test")
     std.CurrentRealm()
 
-    // Already in gno.land/r/test/test realm,
-    // no need to cross unless the intent
-    // is to call AnotherPublic() as a consumer
-    // in which case cross(AnotherPublic)() needed.
-    AnotherPublic()
+    // Call a crossing function of same realm with crossing
+    AnotherPublic(cross)
+
+    // Call a crossing function of same realm without crossing
+    AnotherPublic(cur)
 }
 
-func AnotherPublic() {
-    crossing()
+func AnotherPublic(cur realm) {
     ...
 }
 ```
@@ -346,7 +345,7 @@ func main() {
     std.CurrentRealm()
 
     realmA.PublicNoncrossing()
-    cross(realmA.PublicCrossing)()
+    realmA.PublicCrossing(cross)
 }
 ```
 
