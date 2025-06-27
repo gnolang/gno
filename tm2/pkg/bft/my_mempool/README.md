@@ -1,145 +1,114 @@
-# Mempool Redesign
+# Minimal & Performant FIFO Mempool for GnoLand
 
-## 1. Motivation
-
-The current mempool implementation in Gno.land (`CListMempool`) contains core structural flaws that limit its reliability and robustness. These problems stem from incorrect transaction ordering, lack of execution guarantees, and susceptibility to denial-of-service (DoS) scenarios. Below are the main problems:
-
-### 1.1. Transaction Misordering
-
-Transactions are not returned in the correct order of account sequence (nonce). This leads to scenarios where transactions fail despite being valid, simply because they are executed in the wrong order. For example:
-
-* TX1 funds a new account (nonce 1)
-* TX2 deploys a Realm from that newly funded account (nonce 1 from the new account)
-* The mempool returns TX2 before TX1 due to gas-based ordering
-* TX2 fails because the account doesn't yet exist
-
-This breaks atomicity and forces users to re-submit transactions.
-
-### 1.2. Inefficient Gas Limit Handling
-
-The current implementation relies on user-defined gas limits instead of the actual gas used, resulting in inefficient block space usage. A transaction can declare a high gas limit, get included in a block, and use only a fraction of the declared gas — effectively blocking other legitimate transactions.
-
-### 1.3. Lack of Control over Prioritization
-
-There is no support for application-level prioritization logic, such as transaction lanes, governance queueing, or account-based throughput fairness. The mempool is a flat structure where only gas price determines inclusion order.
-
-These problems reduce reliability, create unfair execution environments, and limit future extensibility.
+This repository contains a new mempool implementation for GnoLand focused on **performance**, **simplicity**, and **extensibility**. This implementation was developed in response to [Issue #1830](https://github.com/gnolang/gno/issues/1830), which highlighted critical limitations in the legacy `CListMempool`.
 
 ---
 
-## 2. Design Overview
+## Motivation
 
-The new mempool architecture is designed from the ground up to address these core issues. The system ensures determinism, fair prioritization, and protection against abuse.
+The original Gno mempool (`CListMempool`) has accumulated structural complexity over time, which makes it difficult to maintain and extend. More importantly, it suffers from several protocol-level deficiencies:
 
-### 2.1. Sequential Execution Enforcement
+* ❌ **No ordering by account sequence (nonce)** – causing invalid transaction ordering in blocks
+* ❌ **No prioritization by gas price** – undermining incentive mechanisms
+* ❌ **Inefficient structure for DDoS resistance or selective transaction building**
 
-Each sender’s transactions are stored in a list sorted by nonce. The mempool maintains the expected nonce for each sender and only considers the transaction with the exact expected nonce as valid for selection. This eliminates the possibility of out-of-order execution.
+Fixing these issues in the current design would require an **extensive rewrite**. Instead, this implementation provides a **clean, minimal core** — making it ideal for experimentation and alignment with future protocol improvements.
 
-> **Problem resolved:** Transaction misordering. By always selecting only the next valid nonce, dependent transactions cannot be executed prematurely.
-
-### 2.2. Prioritization Within Valid Candidates
-
-Among all transactions that are valid (i.e., match the expected nonce), the mempool selects the one with the highest gas price. This provides a fair prioritization mechanism without violating execution correctness.
-
-> **Problem resolved:** Order fairness. High-fee transactions are still prioritized — but only if they're executable.
-
-### 2.3. Sender-Based Isolation and Fairness
-
-Transactions are grouped by sender. Each sender contributes at most one transaction (the one with expected nonce) at a time to the candidate pool. This avoids starvation and enables fair contribution across participants.
-
-> **Problem resolved:** Throughput fairness and spam prevention. One sender cannot flood the mempool with follow-up transactions until prior ones are confirmed.
-
-### 2.4. Stateless, Deterministic Behavior
-
-The system avoids internal dependencies between transactions and keeps selection logic stateless from one block to the next. Any validator node can deterministically produce the same block candidate set, without relying on timing or shared state.
-
-> **Problem resolved:** Inconsistent node behavior. Block inclusion is fully deterministic and network-agnostic.
+This implementation **resolves the nonce ordering issue**, ensuring transactions from the same sender are executed in proper sequence, eliminating scenarios where dependent transactions fail due to incorrect ordering — a key part of [Issue #1830](https://github.com/gnolang/gno/issues/1830).
 
 ---
 
-## 3. Transaction Selection Walkthrough
+## What This Implementation Improves
 
-```mermaid
-graph TB
+* ✅ **Faster performance**: Benchmarks show **2–3× speedup** in transaction addition and update.
+* ✅ **Simple FIFO logic**: Transactions are stored in the order they arrive, using an internal map and hash slice for efficient lookup and iteration.
+* ✅ **Lower memory usage**: Fewer allocations and lighter data structures.
+* ✅ **Correct nonce ordering**: Ensures transaction dependencies are respected by executing account transactions in proper sequence.
+* ✅ **Thread-safe access** to mempool via controlled locking mechanism.
+* ✅ **ABC-compliant**: Implements standard interfaces (`AddTx`, `Update`, `Flush`, `Pending`, etc.).
+* ✅ **Modular & extensible**: Easy to add nonce sorting, gas prioritization, spam prevention, etc., without modifying core logic.
 
-    %% TOP ROW: Mempool State and Expected Nonce
-    subgraph Mempool
-        direction LR
+---
 
-        subgraph Expected_Nonce [Expected Nonce]
-            ENA["senderA: 3"]
-            ENB["senderB: 5"]
-            ENC["senderC: 2"]
-        end
+## Code Structure
 
-        subgraph Mempool_By_Sender [Mempool State]
-            subgraph senderC
-                C1["TX(nonce=2, gas=15)"]
-                C2["TX(nonce=4, gas=20)"]
-            end
-            subgraph senderB
-                B1["TX(nonce=6, gas=30)"]
-            end
-            subgraph senderA
-                A1["TX(nonce=3, gas=10)"]
-                A2["TX(nonce=4, gas=15)"]
-            end
-        end
-    end
-
-    %% BOTTOM ROW: Selection Process and Block Output
-    subgraph Selection Process
-        direction TB
-
-        Init["InitializencurrentBest = nil"]
-        Step1["senderA:<br>TX(nonce=3) == expected(3)<br>→ currentBest = TX_A (gas=10)"]
-        Step2["senderB<br>TX(nonce=6) ≠ expected(5)<br>→ skip"]
-        Step3["senderC<br>TX(nonce=2) == expected(2)<br>→ gas=15 > 10<br>→ currentBest = TX_C"]
-        Selected["Selected transaction:<br>TX_C (senderC, nonce=2, gas=15)"]
-
-        Init --> Step1 --> Step2 --> Step3 --> Selected
-
-        subgraph New_Block [New Block]
-            Block["Block Row 1:<br>TX_C (senderC, nonce=2, gas=15)"]
-        end
-
-        Selected --> Block
-    end
+```go
+// my_mempool.go
+Mempool struct {
+  txMap      map[string]txEntry // transactions by hash
+  txHashes   []string           // ordered hashes for FIFO
+  proxyApp   appconn.Mempool    // ABCI app conn
+  mutex      sync.RWMutex       // concurrency
+  txsBytes   int64              // total tx size
+}
 ```
 
-**Explanation:**
-
-1. Each sender has its transactions grouped and sorted by nonce inside the mempool.
-2. `expectedNonce` is tracked per sender and defines the only eligible transaction for selection.
-3. During selection, we iterate over **only the first transaction (i.e. lowest nonce)** for each sender:
-
-   * `senderA` has matching nonce 3 and becomes the initial best candidate.
-   * `senderB` has nonce 6 but expected is 5 → skipped.
-   * `senderC` has matching nonce 2 and higher gas than A → it becomes the selected transaction.
-4. TX_C is selected and added to the block.
-
-This approach is linear, deterministic, and prevents execution gaps and unfair prioritization.
-
-This diagram illustrates how a single transaction is processed: stored, validated, and potentially selected depending on its nonce and fee.
+* `AddTx` validates and inserts transactions
+* `Update` removes committed transactions
+* `Pending` returns ready txs within block limits
+* `Flush`, `GetTx`, `Size`, `TxsBytes` are all lightweight helpers
 
 ---
 
-## 4. Expected Impact
+## Benchmarks
 
-The new design addresses all major pain points in the current system:
+Both implementations were tested with `go test -bench=. -benchmem` on the same machine:
 
-* ✅ Prevents execution errors by enforcing nonce order
-* ✅ Improves fairness via fee prioritization only among valid candidates
-* ✅ Eliminates gas limit manipulation vector
-* ✅ Reduces mempool bloat by filtering only executable transactions
-* ✅ Establishes a flexible and extensible architecture for future features like lanes or access lists
+* **CPU**: 13th Gen Intel Core i7-13700H
+* **Go version**: 1.22
+* **OS**: Linux
 
-The system aligns with best practices from high-performance blockchain runtimes and prepares Gno.land for production-grade reliability.
+### Raw Benchmark Visuals
+
+**Optimized FIFO Mempool**
+
+![My Mempool](https://github.com/user-attachments/assets/b2f8a81d-bde6-4372-8515-928863bbf45b)
+
+
+**CList Mempool**
+
+![Clist Mempool](https://github.com/user-attachments/assets/e6af8140-8764-4f2e-9335-0e70b3de0d15)
 
 ---
 
-## 5. Roadmap & Progress Tracking
+### Performance Summary
 
-This redesign effort was initiated based on the problems outlined in [Issue #1830](https://github.com/gnolang/gno/issues/1830), which highlighted fundamental flaws in the existing mempool such as unordered transaction execution, lack of prioritization control, and inefficiency in gas handling.
+| Operation        | Optimized FIFO | CList Mempool | Speedup     |
+| ---------------- | -------------- | ------------- | ----------- |
+| AddTx (10k txs)  | 8.58 ms        | 20.01 ms      | \~2.3×      |
+| Update (10k txs) | 0.89 ms        | 2.94 ms       | \~3.3×      |
+| Memory Used      | 5.8 MB         | 15.7 MB       | \~2.7× less |
+| Allocations      | 50k            | 253k          | \~5× fewer  |
 
-For those interested in detailed progress updates, weekly implementation logs, and future plans, please refer to my [Builder Journey](https://github.com/gnolang/hackerspace/issues/108). It serves as the central place for tracking how the mempool redesign evolves over time.
+> While **Pending** is slightly faster in CList due to its internal queue structure, this has minimal effect on overall throughput compared to the significant gains in **AddTx** and **Update**.
+
+✅ These results demonstrate a **significant performance advantage** in real-world scenarios.
+
+---
+
+## Foundation for Future Features
+
+In agreement with mentor **Miloš Živković**, caching and recheck logic were deliberately not included in this implementation, since their future relevance is still under discussion.
+
+A fully prioritized mempool variant — including sender nonce tracking, gas prioritization, and advanced selection logic — is available here:
+[`application_mempool`](https://github.com/Milosevic02/gno/tree/feat/application_mempool/tm2/pkg/bft/app_mempool)
+
+Due to current limitations in protocol support (e.g., lack of access to nonce or account info during mempool validation), this extended version is **not yet usable in practice**.
+
+---
+
+## Final Thoughts
+
+This implementation offers more than just a working alternative — it provides a **clear, minimal, and high-performance foundation** for building the next generation of GnoLand mempool logic.
+
+By resolving the **nonce-ordering issue** and significantly improving **transaction throughput** and **memory usage**, this design sets a new **baseline** for what a performant mempool should be.
+
+Its **simplicity is its strength** — easy to understand, maintain, and extend.
+
+With proven performance gains of up to **3× faster Add/Update operations** and **5× fewer allocations**, it delivers **real, measurable improvements** over the legacy `CListMempool`.
+
+While this may not yet be a **production-ready** mempool, it can easily become one with **minimal, well-contained extensions** thanks to its clean foundation.
+
+---
+
+*Developed by Dragan Milošević as part of a GnoLand grant, under guidance of Miloš Živković.*
