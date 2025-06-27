@@ -261,8 +261,8 @@ func (led *PrivateLedger) Burn(addr std.Address, amount int64) error {
 
 // hasAddr checks if the specified address is a known account in the ledger.
 func (led PrivateLedger) hasAddr(addr std.Address) bool {
-	bal, found := led.balances.Get(addr.String())
-	return found && bal > 0
+	balance, found := led.balances.Get(addr.String())
+	return found && balance.(int64) > 0
 }
 
 // balanceOf returns the balance of the specified address.
