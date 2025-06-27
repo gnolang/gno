@@ -125,7 +125,12 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount int64) error {
 	)
 
 	led.balances.Set(string(to), newToBalance)
-	led.balances.Set(string(from), newFromBalance)
+
+	if newFromBalance == 0 {
+		led.balances.Remove(string(from))
+	} else {
+		led.balances.Set(string(from), newFromBalance)
+	}
 
 	std.Emit(
 		TransferEvent,
@@ -238,7 +243,11 @@ func (led *PrivateLedger) Burn(address_XXX std.Address, amount int64) error {
 	led.totalSupply = overflow.Sub64p(led.totalSupply, amount)
 	newBalance := overflow.Sub64p(currentBalance, amount)
 
-	led.balances.Set(string(address_XXX), newBalance)
+	if newBalance == 0 {
+		led.balances.Remove(string(address_XXX))
+	} else {
+		led.balances.Set(string(address_XXX), newBalance)
+	}
 
 	std.Emit(
 		TransferEvent,

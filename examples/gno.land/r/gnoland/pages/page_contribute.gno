@@ -5,15 +5,15 @@ func init() {
 	title := "Contributor Ecosystem: Call for Contributions"
 	body := `
 
-gno.land puts at the center of its identity the contributors that help to create and shape the project into what it is; incentivizing those who contribute the most and help advance its vision. Eventually, contributions will be incentivized directly on-chain; in the meantime, this page serves to illustrate our current off-chain initiatives.
+Gno.land puts at the center of its identity the contributors that help to create and shape the project into what it is; incentivizing those who contribute the most and help advance its vision. Eventually, contributions will be incentivized directly on-chain; in the meantime, this page serves to illustrate our current off-chain initiatives.
 
-gno.land is still in full-steam development. For now, we're looking for the earliest of adopters; curious to explore a new way to build smart contracts and eager to make an impact. Joining gno.land's development now means you can help to shape the base of its development ecosystem, which will pave the way for the next generation of blockchain programming.
+Gno.land is still in full-steam development. For now, we're looking for the earliest of adopters; curious to explore a new way to build smart contracts and eager to make an impact. Joining Gno.land's development now means you can help to shape the base of its development ecosystem, which will pave the way for the next generation of blockchain programming.
 
 As an open-source project, we welcome all contributions. On this page you can find some pointers on where to get started; as well as some incentives for the most valuable and important contributions.
 
 ## Where to get started
 
-If you are interested in contributing to gno.land, you can jump on in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens.
+If you are interested in contributing to Gno.land, you can jump on in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens.
 
 A good place where to start are the issues tagged ["good first issue"](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). They should allow you to make some impact on the Gno repository while you're still exploring the details of how everything works.
 
@@ -21,7 +21,7 @@ A good place where to start are the issues tagged ["good first issue"](https://g
 
 Additionally, you can look out to help on specific issues labeled as bounties. The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty). For more detals on the categories and types of bounties, we have a [bounties README](https://github.com/gnolang/bounties).  
 
-Recommendations on participating in the gno.land Bounty Program:
+Recommendations on participating in the Gno.land Bounty Program:
 
 - Identify the bounty you want to work on, and join in the discussion on the issue for anything that is unclear; or where you want to more clearly define the work to be done. At this stage, you can also start working on an initial implementation in your local enviornment.
 - Once you have spent time on the code related to the bounty, we recommend submitting a 'draft' PR as soon as possible.
@@ -43,7 +43,7 @@ Don't fear your work being "stolen": if a submission is the result of multiple p
 	- If you, for instance, cannot complete the entirety of the task or, as a non-developer, can only contribute a part of the specification/implementation, you may still be awarded a bounty for your input in the contribution.
 - If Alice makes a PR that aside from implementing what's required, also undertakes creating useful tools among the way, she may qualify for an "outstanding contribution"; and may be awarded up to 25% more of the original bounty's value. Or she may also ask if the team would be willing to offer a different bounty for the implementation of the tools.
 
-Participants in the gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/e/2PACX-1vSUF-JwIXGscrNsc5QBD7Pa6i83mXUGogAEIf1wkeb_w42UgL3Lj6jFKMlNTdwEMUnhsLkjRlhe25K4/pub).
+Participants in the Gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/e/2PACX-1vSUF-JwIXGscrNsc5QBD7Pa6i83mXUGogAEIf1wkeb_w42UgL3Lj6jFKMlNTdwEMUnhsLkjRlhe25K4/pub).
 
 ### Bounty sizes
 
@@ -74,11 +74,11 @@ _[3XL]_ \*   | $ 32000
 
 \*: XXL and 3XL bounties are exceptional. Almost no issues will have these sizes; most will be broken down into smaller bounties.
 
-## gno.land Grants
+## Gno.land Grants
 
-The gno.land grants program is to encourage and support the growth of the gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in gno.land.
+The Gno.land grants program is to encourage and support the growth of the Gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in Gno.land.
 
-For more details on gno.land grants, suggested topics, and how to apply, visit our grants [repository](https://github.com/gnolang/grants). 
+For more details on Gno.land grants, suggested topics, and how to apply, visit our grants [repository](https://github.com/gnolang/grants). 
 
 ## Join Game of Realms
 
@@ -88,7 +88,7 @@ These contributions are not linked to immediate financial rewards, but are notab
 
 The selection of a notable contribution or the sum of contributions that equal 'notable' is based on the impact it has on the development of the project. For now, it is focused on code contributions, and will evolve over time. The Gno development teams will initially qualify and evaluate notable contributions, and vote off-chain on adding them to the 'notable contributions' folder on GitHub.
 
-You can always contribute to the project, and all contributions will be noticed. Contributing now is a way to build your personal contributor profile in gno.land early on in the ecosystem, and signal your commitment to the project, the community, and its future.
+You can always contribute to the project, and all contributions will be noticed. Contributing now is a way to build your personal contributor profile in Gno.land early on in the ecosystem, and signal your commitment to the project, the community, and its future.
 
 There are a variety of ways to make your contributions count:
 
@@ -100,5 +100,7 @@ There are a variety of ways to make your contributions count:
 
 To start, we recommend you create a PR in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to create your profile page for all your contributions.`
 
-	_ = b.NewPost("", path, title, body, "2024-09-05T00:00:00Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2024-09-05T00:00:00Z", nil, nil); err != nil {
+		panic(err)
+	}
 }

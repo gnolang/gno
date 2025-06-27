@@ -1,10 +1,10 @@
 # Becoming a Gnome Contributor
 
-In gno.land, contributors are critical to everything—helping to build the
+In Gno.land, contributors are critical to everything—helping to build the
 project and shape the ecosystem. Becoming a Gnome isn't just about coding or
 submitting contributions; it's about joining a collaborative community where you
 can hone your skills, share your ideas, innovate and make an impact in ways that
-help gno.land grow and self-govern. This guide isn't a standard rulebook but
+help Gno.land grow and self-govern. This guide isn't a standard rulebook but
 rather a helpful starting point to navigate your journey in the ecosystem, find
 your own way to contribute and your own way to stand out.
 
@@ -25,7 +25,7 @@ equally important.
 
 Commitment makes a real difference in the goal of standing out as a Gnome.
 Following through on tasks and being reliable keeps the momentum going. Quality
-matters too as we are aiming for the highest standard for gno.land—thoughtful,
+matters too as we are aiming for the highest standard for Gno.land—thoughtful,
 useful, and well-documented work is much easier to integrate and makes a stronger
 impact in the ecosystem. Sticking to contributor
 [submission guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md)
@@ -34,7 +34,7 @@ helps speed up reviews and get your contributions merged faster.
 ## Showcasing Your Work & Engaging with the Community
 
 Making your contributions visible is equally important as making them. Start
-by creating your own [gno.land namespace](../resources/gno-packages.md#package-path-structure)
+by creating your own [Gno.land namespace](../resources/gno-packages.md#package-path-structure)
 to establish your identity, a [Hackerspace journey](https://github.com/gnolang/hackerspace/issues?q=sort:updated-desc%20is:issue%20is:open%20label:%22%F0%9F%8C%84%20journey%22)
 to document your work, as well as a [Game of Realms](https://github.com/gnolang/game-of-realms) profile.
 
@@ -60,18 +60,18 @@ there are many ways to stay involved and illustrate your contributions.
 
 Steps to Becoming a Gnome:
 
-1. **Secure Your Namespace** – This is your unique identity in gno.land.
+1. **Secure Your Namespace** – This is your unique identity in Gno.land.
 2. **Set Up Your Home Realm** – A space to organize and showcase your work.
 3. **Build a Portfolio** – Document projects, achievements, and ongoing efforts in the Hackerspace repo and Game of Realms repo.
 4. **Engage with the Community** – Share updates, join discussions, and collaborate.
 
 ## Stay True to Yourself
 
-Your unique perspective, approach, and style are the foundation to making gno.land
+Your unique perspective, approach, and style are the foundation to making Gno.land
 special. Authenticity is key, but it's also important to ensure your contributions
 are clear and accessible to others. By balancing individuality with effective
 communication, you can grow as a contributor and leave a lasting impact.
 
 Becoming a Gnome is a journey of learning, collaboration, and
 creativity. By embracing these principles and finding ways to showcase your work,
-you can help shape the future of gno.land while staying true to your own path.
+you can help shape the future of Gno.land while staying true to your own path.
