@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"log/slog"
+	"os"
 
 	"github.com/gnolang/gno/misc/loop/cmd/cfg"
 	"github.com/gnolang/gno/misc/loop/cmd/portalloop"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 func NewSwitchCmd(_ commands.IO) *commands.Command {
@@ -26,7 +27,8 @@ func NewSwitchCmd(_ commands.IO) *commands.Command {
 }
 
 func execSwitch(ctx context.Context, cfg_ *cfg.CmdCfg) error {
-	logger := log.NewNoopLogger()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg_, logger)
 	if err != nil {
 		return err
