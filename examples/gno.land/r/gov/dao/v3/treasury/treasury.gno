@@ -6,26 +6,18 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	t "gno.land/p/nt/treasury"
 
-	"gno.land/r/demo/grc20reg"
 	"gno.land/r/gov/dao"
 )
 
 var treasury *t.Treasury
 
 func init() {
-	// Define a lister for the GRC20Banker that retrieves GRC20 tokens from the
-	// grc20 Realm registry.
-	grc20regLister := func() []*grc20.Token {
-		var (
-			registry = grc20reg.GetRegistry()
-			tokens   = make([]*grc20.Token, 0, registry.Size())
-		)
-
-		registry.Iterate("", "", func(_ string, tokenI any) bool {
-			token := tokenI.(*grc20.Token)
-			tokens = append(tokens, token)
-			return false
-		})
+	// Define a lister for the GRC20Banker that returns a static list
+	// of GRC20 tokens.
+	grc20Lister := func() []*grc20.Token {
+		tokens := []*grc20.Token{
+			// TODO: Add the GRC20 tokens we want to support.
+		}
 
 		return tokens
 	}

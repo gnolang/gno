@@ -69,11 +69,6 @@ func (gb *GRC20Banker) Balances() []Balance {
 	// Convert GRC20 tokens to []Balance.
 	var balances []Balance
 	for _, token := range tokens {
-		// Skip this balance if our address is a not known account for this token.
-		if !token.IsKnownAccount(gb.owner) {
-			continue
-		}
-
 		balances = append(balances, Balance{
 			Denom:  token.GetSymbol(),
 			Amount: token.BalanceOf(gb.owner),
