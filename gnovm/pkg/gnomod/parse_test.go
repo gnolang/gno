@@ -88,13 +88,6 @@ func TestParseBytes(t *testing.T) {
 			expectedIgnore: true,
 		},
 		{
-			name:           "gnomod.toml with draft flag",
-			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true",
-			fileType:       "gnomod.toml",
-			expectedModule: "gno.land/p/demo/foo",
-			expectedDraft:  true,
-		},
-		{
 			name:           "gnomod.toml with draft and ignore flags",
 			content:        "module = \"gno.land/p/demo/foo\"\ndraft = true\nignore = true",
 			fileType:       "gnomod.toml",
