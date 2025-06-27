@@ -16,7 +16,7 @@ func TestDerivePkgCryptoAddr(t *testing.T) {
 		{
 			name:     "old run path",
 			pkgPath:  "gno.land/r/" + validAddr + "/run",
-			expected: crypto.AddressFromPreimage([]byte(validAddr)),
+			expected: crypto.AddressFromPreimage([]byte("pkgPath:gno.land/r/" + validAddr + "/run")),
 		},
 		{
 			name:     "new ephemeral run path",
@@ -51,6 +51,7 @@ func TestDerivePkgCryptoAddr(t *testing.T) {
 }
 
 func TestDerivePkgBech32Addr(t *testing.T) {
+	validAddr := "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	tests := []struct {
 		name     string
 		pkgPath  string
@@ -58,23 +59,23 @@ func TestDerivePkgBech32Addr(t *testing.T) {
 	}{
 		{
 			name:     "old run path",
-			pkgPath:  "gno.land/r/g1user123/run",
-			expected: crypto.Bech32Address("g1user123"),
+			pkgPath:  "gno.land/r/" + validAddr + "/run",
+			expected: crypto.Bech32Address(validAddr),
 		},
 		{
 			name:     "new ephemeral run path",
-			pkgPath:  "gno.land/e/g1user123/run",
-			expected: crypto.Bech32Address("g1user123"),
+			pkgPath:  "gno.land/e/" + validAddr + "/run",
+			expected: crypto.Bech32Address(validAddr),
 		},
 		{
 			name:     "regular realm path",
-			pkgPath:  "gno.land/r/user123/test",
-			expected: crypto.AddressFromPreimage([]byte("pkgPath:gno.land/r/user123/test")).Bech32(),
+			pkgPath:  "gno.land/r/" + validAddr + "/test",
+			expected: crypto.AddressFromPreimage([]byte("pkgPath:gno.land/r/" + validAddr + "/test")).Bech32(),
 		},
 		{
 			name:     "ephemeral path",
-			pkgPath:  "gno.land/e/user123/test",
-			expected: crypto.AddressFromPreimage([]byte("pkgPath:gno.land/e/user123/test")).Bech32(),
+			pkgPath:  "gno.land/e/" + validAddr + "/test",
+			expected: crypto.AddressFromPreimage([]byte("pkgPath:gno.land/e/" + validAddr + "/test")).Bech32(),
 		},
 	}
 
