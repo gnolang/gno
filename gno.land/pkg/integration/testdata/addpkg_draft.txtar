@@ -6,7 +6,7 @@ gnoland start
 
 # check error message
 stdout 'TX HASH:    '
-stderr 'import path "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/bar" is a draft package and can only be imported at genesis'
+stderr 'draft packages must be deployed at genesis time'
 
 -- gnomod.toml --
 module = "bar"
