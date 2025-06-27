@@ -14,11 +14,11 @@ cmp gnovm/stdlibs/math/math.gno.gen.go gnovm/stdlibs/math/math.gno.gen.go.golden
 -- stderr.golden --
 examples/gno.land/r/answer
 $WORK/gnovm/stdlibs/math
-examples/gno.land/r/question (skipped, gnomod.toml marks module as draft)
+examples/gno.land/r/question (skipped, gnomod.toml marks module as ignored)
 -- examples/gno.land/r/question/gnomod.toml --
 module = "examples/gno.land/r/question"
 gno = "0.9"
-draft = true
+ignore = true
 
 -- examples/gno.land/r/question/question.gno --
 package question
