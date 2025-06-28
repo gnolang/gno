@@ -240,14 +240,15 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}
 
 		// Read and parse gno.mod directly.
-		fpath := filepath.Join(pkg.Dir, "gno.mod")
+		fpath := filepath.Join(pkg.Dir, "gnomod.toml")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
 			if cmd.autoGnomod {
-				modstr := gno.GenGnoModLatest("gno.land/r/test")
-				mod, err = gnomod.ParseBytes("gno.mod", []byte(modstr))
+				modstr := gno.GenGnoModLatest("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
+				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
+
 				if err != nil {
-					panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
+					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
 				}
 				io.ErrPrintfln("auto-generated %q", fpath)
 				err = mod.WriteFile(fpath)
@@ -272,7 +273,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if mod == nil || !mod.Draft {
+			if mod == nil || !mod.Ignore {
 				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
 					ParseMode: gno.ParseModeAll,
 					Mode:      gno.TCLatestRelaxed,
@@ -285,7 +286,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 					return
 				}
 			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
 			}
 			errs := test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {
@@ -317,7 +318,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 func determinePkgPath(mod *gnomod.File, dir, rootDir string) (string, bool) {
 	if mod != nil {
-		return mod.Module.Mod.Path, true
+		return mod.Module, true
 	}
 	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
 		return pkgPath, true

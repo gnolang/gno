@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
+// TestNoCycles checks that there is no import cycles in stdlibs and non-ignored examples
 func TestNoCycles(t *testing.T) {
 	// find stdlibs
 	gnoRoot := gnoenv.RootDir()
@@ -33,7 +33,7 @@ func TestNoCycles(t *testing.T) {
 	examples, err := gnolang.ReadPkgListFromDir(filepath.Join(gnoRoot, "examples"))
 	require.NoError(t, err)
 	for _, example := range examples {
-		if example.Draft {
+		if example.Ignore {
 			continue
 		}
 		examplePkgs, err := listPkgs(example)
