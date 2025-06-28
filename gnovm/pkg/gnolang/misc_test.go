@@ -8,20 +8,24 @@ import (
 
 func TestDerivePkgCryptoAddr(t *testing.T) {
 	validAddr := "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	cryptoAddr, err := crypto.AddressFromBech32(validAddr)
+	if err != nil {
+		t.Fatalf("failed to parse bech32 address: %v", err)
+	}
 	tests := []struct {
 		name     string
 		pkgPath  string
 		expected crypto.Address
 	}{
 		{
+			name:     "new ephemeral run path",
+			pkgPath:  "gno.land/e/" + validAddr + "/run",
+			expected: cryptoAddr,
+		},
+		{
 			name:     "old run path",
 			pkgPath:  "gno.land/r/" + validAddr + "/run",
 			expected: crypto.AddressFromPreimage([]byte("pkgPath:gno.land/r/" + validAddr + "/run")),
-		},
-		{
-			name:     "new ephemeral run path",
-			pkgPath:  "gno.land/e/" + validAddr + "/run",
-			expected: crypto.AddressFromPreimage([]byte(validAddr)),
 		},
 		{
 			name:     "regular realm path with address as namespace",
@@ -58,14 +62,14 @@ func TestDerivePkgBech32Addr(t *testing.T) {
 		expected crypto.Bech32Address
 	}{
 		{
-			name:     "old run path",
-			pkgPath:  "gno.land/r/" + validAddr + "/run",
-			expected: crypto.Bech32Address(validAddr),
-		},
-		{
 			name:     "new ephemeral run path",
 			pkgPath:  "gno.land/e/" + validAddr + "/run",
 			expected: crypto.Bech32Address(validAddr),
+		},
+		{
+			name:     "old run path",
+			pkgPath:  "gno.land/r/" + validAddr + "/run",
+			expected: crypto.AddressFromPreimage([]byte("pkgPath:gno.land/r/" + validAddr + "/run")).Bech32(),
 		},
 		{
 			name:     "regular realm path",
