@@ -38,12 +38,12 @@ func checkDidPanic(f any) (didPanic bool, message string) {
 
 		message = "recover: unsupported type"
 	}()
-
-	if fn, ok := f.(func()); ok {
-		fn()
-	} else if fn, ok := f.(func(realm)); ok {
-		fn(cross)
-	} else {
+	switch f := f.(type) {
+	case func():
+		f()
+	case func(realm):
+		f(cross)
+	default:
 		panic("f must be of type func() or func(realm)")
 	}
 	didPanic = false
