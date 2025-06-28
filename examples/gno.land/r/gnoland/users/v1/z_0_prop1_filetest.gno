@@ -29,7 +29,7 @@ func init() {
 	// Prop to change name
 	testing.SetOriginCaller(c)
 	testing.SetRealm(std.NewUserRealm(c))
-	pr := users.ProposeNewName(alice, "alice_new123")
+	pr := users.ProposeNewName(alice, "alice_new123", "")
 	dao.MustCreateProposal(cross, pr)
 }
 
@@ -64,7 +64,7 @@ func main() {
 // --
 // # Active Proposals:
 // ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
+// ### Title: User Registry V1: Rename user `alice123` to `alice_new123`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -82,7 +82,7 @@ func main() {
 //
 // --
 // ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
+// ### Title: User Registry V1: Rename user `alice123` to `alice_new123`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -101,7 +101,7 @@ func main() {
 // --
 // --
 // ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
+// ### Title: User Registry V1: Rename user `alice123` to `alice_new123`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
@@ -120,7 +120,7 @@ func main() {
 // --
 // --
 // ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
+// ### Title: User Registry V1: Rename user `alice123` to `alice_new123`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
