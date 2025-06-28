@@ -29,6 +29,8 @@ type Mempool interface {
 
 	FlushAsync() *abcicli.ReqRes
 	FlushSync() error
+
+	QuerySync(abci.RequestQuery) (abci.ResponseQuery, error)
 }
 
 type Query interface {
@@ -142,4 +144,8 @@ func (app *query) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, error) {
 
 func (app *query) QuerySync(reqQuery abci.RequestQuery) (abci.ResponseQuery, error) {
 	return app.appConn.QuerySync(reqQuery)
+}
+
+func (app *mempool) QuerySync(req abci.RequestQuery) (abci.ResponseQuery, error) {
+	return app.appConn.QuerySync(req)
 }

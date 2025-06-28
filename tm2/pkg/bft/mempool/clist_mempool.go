@@ -17,9 +17,7 @@ import (
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
@@ -32,7 +30,7 @@ import (
 // mempool uses a concurrent list structure for storing transactions that can
 // be efficiently accessed by multiple concurrent readers.
 type CListMempool struct {
-	config *cfg.MempoolConfig
+	config *cfg.Config
 
 	mtx          sync.Mutex
 	proxyAppConn appconn.Mempool
@@ -76,7 +74,7 @@ type CListMempoolOption func(*CListMempool)
 
 // NewCListMempool returns a new mempool with the given configuration and connection to an application.
 func NewCListMempool(
-	config *cfg.MempoolConfig,
+	config *cfg.Config,
 	proxyAppConn appconn.Mempool,
 	height int64,
 	maxTxBytes int64,
@@ -122,39 +120,6 @@ func (mem *CListMempool) SetLogger(l *slog.Logger) {
 // false. This is ran before CheckTx.
 func WithPreCheck(f PreCheckFunc) CListMempoolOption {
 	return func(mem *CListMempool) { mem.preCheck = f }
-}
-
-// *panics* if can't create directory or open file.
-// *not thread safe*
-func (mem *CListMempool) InitWAL() {
-	walDir := mem.config.WalDir()
-	err := osm.EnsureDir(walDir, 0o700)
-	if err != nil {
-		panic(errors.Wrap(err, "Error ensuring WAL dir"))
-	}
-	af, err := auto.OpenAutoFile(walDir + "/wal")
-	if err != nil {
-		panic(errors.Wrap(err, "Error opening WAL file"))
-	}
-	mem.wal = af
-}
-
-func (mem *CListMempool) CloseWAL() {
-	mem.mtx.Lock()
-	defer mem.mtx.Unlock()
-
-	if err := mem.wal.Close(); err != nil {
-		mem.logger.Error("Error closing WAL", "err", err)
-	}
-	mem.wal = nil
-}
-
-func (mem *CListMempool) Lock() {
-	mem.mtx.Lock()
-}
-
-func (mem *CListMempool) Unlock() {
-	mem.mtx.Unlock()
 }
 
 func (mem *CListMempool) Size() int {
@@ -227,10 +192,10 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 
 	// Check max pending txs bytes
 	if memSize >= mem.config.Size ||
-		int64(txSize)+txsBytes > mem.config.MaxPendingTxsBytes {
+		int64(txSize)+txsBytes > mem.config.MaxTxSize {
 		return MempoolIsFullError{
 			memSize, mem.config.Size,
-			txsBytes, mem.config.MaxPendingTxsBytes,
+			txsBytes, mem.config.MaxTxSize,
 		}
 	}
 
