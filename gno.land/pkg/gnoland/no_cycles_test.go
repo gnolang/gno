@@ -98,22 +98,17 @@ func detectCycles(root testPkg, pkgs []testPkg, visited map[string]bool) error {
 
 // visitImports resolves and visits imports by kinds
 func visitImports(kinds []packages.FileKind, root testPkg, pkgs []testPkg, visited map[string]bool, stack []string) error {
-	for kind, imps := range root.Imports {
-		if !slices.Contains(kinds, kind) {
+	for _, imp := range root.Imports.Merge(kinds...) {
+		if testsstdlibs.HasNativePkg(imp.PkgPath) {
 			continue
 		}
-		for _, imp := range imps {
-			if testsstdlibs.HasNativePkg(imp.PkgPath) {
-				continue
-			}
 
-			idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
-			if idx == -1 {
-				return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
-			}
-			if err := visitPackage(pkgs[idx], pkgs, visited, stack); err != nil {
-				return fmt.Errorf("test import error: %w", err)
-			}
+		idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
+		if idx == -1 {
+			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
+		}
+		if err := visitPackage(pkgs[idx], pkgs, visited, stack); err != nil {
+			return fmt.Errorf("test import error: %w", err)
 		}
 	}
 
