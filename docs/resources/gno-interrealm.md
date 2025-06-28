@@ -320,14 +320,14 @@ func AnotherPublic(cur realm) {
 ### MsgRun
 
 ```go
-// PKGPATH: gno.land/r/g1user/run
+// PKGPATH: gno.land/e/g1user/run
 
 import "gno.land/r/realmA"
 
 func main() {
     // There is assumed to be in "frame -1"
     // a crossing from UserRealm(g1user) to
-    // CodeRealm(gno.land/r/g1user/run) before
+    // CodeRealm(gno.land/e/g1user/run) before
     // main() is called, so crossing() here
     // is redundant.
     // crossing()
@@ -340,8 +340,8 @@ func main() {
 
     // Returns (
     //     addr:g1user,
-    //     pkgpath:"gno.land/r/g1user/run"
-    // ) == std.NewCodeRealm("gno.land/r/g1user/run")
+    //     pkgpath:"gno.land/e/g1user/run"
+    // ) == std.NewUserRealm(g1user, "gno.land/e/g1user/run")
     std.CurrentRealm()
 
     realmA.PublicNoncrossing()
@@ -390,7 +390,7 @@ func DerivePkgAddr(pkgPath string) Address {
 ```
 
 1. `std.DerivePkgAddr("gno.land/r/name123/realm")` - bech32 from hash(path)
-2. `std.DerivePkgAddr("gno.land/r/g1user/run")` - bech32 substring "g1user"
+2. `std.DerivePkgAddr("gno.land/e/g1user/run")` - bech32 substring "g1user"
 
 Therefore in the MsgRun file's `init()` function the previous realm and current
 realm have different pkgpaths (the origin caller always has empty pkgpath) but
@@ -429,7 +429,7 @@ var _ = std.PreviousRealm()
 ```
 
 ```go
-// PKGPATH: gno.land/r/g1user/run
+// PKGPATH: gno.land/e/g1user/run
 
 func init() {
     // Returns (
@@ -440,8 +440,8 @@ func init() {
 
     // Returns (
     //     addr:g1user,
-    //     pkgpath:"gno.land/r/g1user/run"
-    // ) == std.NewCodeRealm("gno.land/r/g1user/run")
+    //     pkgpath:"gno.land/e/g1user/run"
+    // ) == std.NewCodeRealm("gno.land/e/g1user/run")
     std.CurrentRealm()
 }
 ```
@@ -449,7 +449,8 @@ func init() {
 The same applies for p package initialization. Initialization and tests are the
 only times that `std.CurrentRealm()` will return a p package path that starts
 with "/p/" instead of "/r/". The package is technically still mutable during
-initialization.
+initialization. Note that the /e/ namespace is used for run paths (ephemeral),
+while /r/ is used for normal realms.
 
 ### Testing overrides with stdlibs/testing
 
@@ -530,7 +531,7 @@ func init() {
 func main() {
     // There is assumed to be in "frame -1"
     // a crossing from UserRealm(g1user) to
-    // CodeRealm(gno.land/r/test/test) before
+    // CodeRealm("gno.land/r/test/test") before
     // main() is called, so crossing() here
     // is redundant.
     // crossing()

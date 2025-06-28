@@ -21,8 +21,38 @@ func (r Realm) PkgPath() string {
 	return r.pkgPath
 }
 
+// IsEphemeral returns true if r.pkgPath is an ephemeral path (/e/).
+func (r Realm) IsEphemeral() bool {
+	if r.pkgPath == "" {
+		return false
+	}
+
+	// Check if pkgPath matches pattern: domain/e/*
+	// We need to find "/e/" and ensure it comes exactly after the domain (no "/" before it)
+	// We assume pkgPath is a full path (e.g., "gno.land/e/user/run") to avoid unnecessary computation
+	var (
+		idx             = index(r.pkgPath, "/e/")
+		hasSlashE       = idx != -1
+		hasContentAfter = len(r.pkgPath) > idx+3
+		hasDomainBefore = index(r.pkgPath[:idx], "/") == -1
+	)
+	return hasSlashE && hasDomainBefore && hasContentAfter
+}
+
+// IsCode returns true if r.pkgPath is not empty.
+// - true if Coderealm and !IsEphemeral, an uploaded code realm.
+// - true if CodeRealm and IsEphemeral, 'gnokey maketx run'.
+// - false if UserRealm, 'gnokey maketx call'.
+func (r Realm) IsCode() bool {
+	return r.pkgPath != ""
+}
+
+// IsUser returns true if r.Address is a user address.
+// - true if UserRealm, 'gnokey maketx call',
+// - true if CodeRealm and IsEphemeral, 'gnokey maketx run',
+// - false if Coderealm and !IsEphemeral, an uploaded code realm.
 func (r Realm) IsUser() bool {
-	return r.pkgPath == ""
+	return !r.IsCode() || r.IsEphemeral()
 }
 
 func (r Realm) CoinDenom(coinName string) string {
