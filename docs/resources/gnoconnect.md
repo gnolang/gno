@@ -11,6 +11,8 @@ straightforward for both users and developers.
 GnoConnect uses HTML/HTTP metadata to provide connection details for clients and
 wallets.
 
+By including the following metadata/headers in your app, clients and wallets will be able to recognize your app as Gno-compatible and get the data needed to generate transactions for users.
+
 ### HTML Metadata
 
 ```html
