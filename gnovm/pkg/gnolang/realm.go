@@ -79,14 +79,13 @@ func (pid PkgID) Bytes() []byte {
 }
 
 var (
-	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
+	pkgIDFromPkgPathCacheMu sync.RWMutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+	pkgPathFromPkgIDCache = make(map[PkgID]string, 100)
 )
-
-var mapPkdIDPkgPath = make(map[PkgID]string, 100)
 
 func PkgIDFromPkgPath(path string) PkgID {
 	pkgIDFromPkgPathCacheMu.Lock()
@@ -98,8 +97,8 @@ func PkgIDFromPkgPath(path string) PkgID {
 		*pkgID = PkgID{HashBytes([]byte(path))}
 		pkgIDFromPkgPathCache[path] = pkgID
 		// Also update the reverse map.
-		if _, exists := mapPkdIDPkgPath[*pkgID]; !exists {
-			mapPkdIDPkgPath[*pkgID] = path
+		if _, exists := pkgPathFromPkgIDCache[*pkgID]; !exists {
+			pkgPathFromPkgIDCache[*pkgID] = path
 		}
 	}
 	return *pkgID
@@ -127,7 +126,7 @@ func PkgPathFromObjectID(oid ObjectID) string {
 	if pkgID.IsZero() {
 		return ""
 	}
-	pkgPath, ok := mapPkdIDPkgPath[pkgID]
+	pkgPath, ok := pkgPathFromPkgIDCache[pkgID]
 	if !ok {
 		return ""
 	}
