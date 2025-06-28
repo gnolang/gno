@@ -168,7 +168,7 @@ func TestVoteVerifySignature(t *testing.T) {
 	t.Parallel()
 
 	privVal := NewMockPV()
-	pubkey := privVal.GetPubKey()
+	pubkey := privVal.PubKey()
 
 	vote := examplePrecommit()
 	signBytes := vote.SignBytes("test_chain_id")
@@ -224,7 +224,7 @@ func TestVoteVerify(t *testing.T) {
 	t.Parallel()
 
 	privVal := NewMockPV()
-	pubkey := privVal.GetPubKey()
+	pubkey := privVal.PubKey()
 
 	vote := examplePrevote()
 	vote.ValidatorAddress = pubkey.Address()
