@@ -363,9 +363,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
-	tcmode := gno.TCLatestStrict
+	tcmode := gno.TCForbidDraftImportStrict
 	if ctx.BlockHeight() == 0 {
-		tcmode = gno.TCGenesisStrict
+		tcmode = gno.TCLatestStrict // genesis time, waive blocking rules for importing draft packages.
 	}
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
@@ -630,9 +630,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	tcmode := gno.TCLatestRelaxed
-	if ctx.BlockHeight() == 0 {
-		tcmode = gno.TCGenesisRelaxed
-	}
 	// Validate Gno syntax and type check.
 	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
 	if err != nil {
