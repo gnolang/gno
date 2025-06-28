@@ -54,4 +54,7 @@ type WebClient interface {
 	// Sources lists all source files available in a specified
 	// package path.
 	Sources(path string) ([]string, error)
+
+	// HasFile returns true if the given fileName exists in the package at pkgPath.
+	HasFile(pkgPath, fileName string) bool
 }

@@ -29,7 +29,7 @@ func RealmView(data RealmData) *View {
 	viewData := realmViewParams{
 		Article: ArticleData{
 			ComponentContent: data.ComponentContent,
-			Classes:          "realm-view lg:row-start-1",
+			Classes:          "realm-view lg:row-start-1 pt-6 lg:pt-10",
 		},
 		ComponentTOC: NewTemplateComponent("ui/toc_realm", data.TocItems),
 	}
