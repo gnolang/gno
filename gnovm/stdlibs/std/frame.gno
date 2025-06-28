@@ -1,5 +1,9 @@
 package std
 
+import (
+	"strings"
+)
+
 type Realm struct {
 	addr    Address
 	pkgPath string
@@ -31,10 +35,10 @@ func (r Realm) IsEphemeral() bool {
 	// We need to find "/e/" and ensure it comes exactly after the domain (no "/" before it)
 	// We assume pkgPath is a full path (e.g., "gno.land/e/user/run") to avoid unnecessary computation
 	var (
-		idx             = index(r.pkgPath, "/e/")
+		idx             = strings.Index(r.pkgPath, "/e/")
 		hasSlashE       = idx != -1
 		hasContentAfter = len(r.pkgPath) > idx+3
-		hasDomainBefore = index(r.pkgPath[:idx], "/") == -1
+		hasDomainBefore = strings.Index(r.pkgPath[:idx], "/") == -1
 	)
 	return hasSlashE && hasDomainBefore && hasContentAfter
 }
