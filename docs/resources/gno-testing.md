@@ -19,8 +19,9 @@ mkdir counter
 cd counter
 ```
 
-First, we should initialize a `gno.mod` file. This file declares the package path
-of your realm, and is used by Gno tools. We can do this by using the following command:
+First, we should initialize a `gnomod.toml` file. This file declares the package path
+of your realm & the Gno language version, and is used by Gno tools. We can do
+this by using the following command:
 
 ```
 gno mod init gno.land/r/<namespace>/counter
