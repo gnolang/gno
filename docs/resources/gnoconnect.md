@@ -1,10 +1,10 @@
 # GnoConnect: Wallet & Client Integration Standard
 
 GnoConnect is a standard for enabling wallets, clients, and SDKs (such as Adena
-Wallet, Gnoweb, and Gnobro) to interact seamlessly with Gno blockchains. It
-defines how applications can discover connection details and construct
-transaction links, making integration straightforward for both users and
-developers.
+Wallet, Gnoweb, and Gnobro) to interact seamlessly with Gno blockchains. It's a
+minimalistic, URL-based alternative to the gno-js-client that allows users to
+define actions in their apps without JS/TS components, making integration
+straightforward for both users and developers.
 
 ## How GnoConnect Works
 
