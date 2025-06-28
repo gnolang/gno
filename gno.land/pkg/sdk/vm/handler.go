@@ -71,12 +71,13 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryRender = "qrender"
-	QueryFuncs  = "qfuncs"
-	QueryEval   = "qeval"
-	QueryFile   = "qfile"
-	QueryDoc    = "qdoc"
-	QueryPaths  = "qpaths"
+	QueryRender   = "qrender"
+	QueryRenderAs = "qrenderas"
+	QueryFuncs    = "qfuncs"
+	QueryEval     = "qeval"
+	QueryFile     = "qfile"
+	QueryDoc      = "qdoc"
+	QueryPaths    = "qpaths"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -88,6 +89,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 	switch path {
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
+	case QueryRenderAs:
+		res = vh.queryRenderAs(ctx, req)
 	case QueryFuncs:
 		res = vh.queryFuncs(ctx, req)
 	case QueryEval:
@@ -127,6 +130,46 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 		return
 	}
 
+	res.Data = []byte(result)
+	return
+}
+
+// queryRenderAs calls .RenderAs(<path>, <viewer>) in readonly mode.
+// and fallback to .Render(<path>) if RenderAs doesn't exist or viewer is unknown.
+func (vh vmHandler) queryRenderAs(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	reqData := string(req.Data)
+	at := strings.IndexByte(reqData, '@')
+	if at < 0 {
+		panic("expected <viewer>@<pkgpath>:<path> syntax in query input data")
+	}
+	viewer, rest := reqData[:at], reqData[at+1:]
+
+	dot := strings.IndexByte(rest, ':')
+	if dot < 0 {
+		panic("expected <viewer>@<pkgpath>:<path> syntax in query input data")
+	}
+
+	pkgPath, path := rest[:dot], rest[dot+1:]
+	expr := fmt.Sprintf("RenderAs(%q, %q)", path, viewer)
+	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+	if err != nil {
+		if strings.Contains(err.Error(), "RenderAs not declared") {
+			// fallback to Render()
+			expr := fmt.Sprintf("Render(%q)", path)
+			result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+			if err != nil {
+				if strings.Contains(err.Error(), "RenderAs and Render not declared") {
+					err = NoRenderDeclError{}
+				}
+				res = sdk.ABCIResponseQueryFromError(err)
+				return
+			}
+			res.Data = []byte(result)
+			return
+		}
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
 	res.Data = []byte(result)
 	return
 }
