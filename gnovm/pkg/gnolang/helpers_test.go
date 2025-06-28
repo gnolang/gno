@@ -55,7 +55,6 @@ func TestIsStdlib(t *testing.T) {
 }
 
 func TestIsEphemeralPath(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		pkgPath  string
