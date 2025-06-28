@@ -113,7 +113,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			// TODO: gno.mod is deprecated, but we still support it for now.
 			// if gno.mod exists -> port
 			if cmd.autoGnomod {
-				modulePath := pkgPathFromRootDir(dir, cmd.rootDir)
+				modulePath, _ := determinePkgPath(nil, dir, cmd.rootDir)
 				modstr := gno.GenGnoModLatest(modulePath)
 				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
 				if err != nil {

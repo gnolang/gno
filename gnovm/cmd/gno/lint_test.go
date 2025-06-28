@@ -17,8 +17,8 @@ func TestLintApp(t *testing.T) {
 			errShouldBe:         "exit code: 1",
 		},
 		{
-			args:                []string{"lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
-			stderrShouldContain: "../../tests/integ/undefined_variable/undefined_variables.gno:6:28: undefined: toto (code=gnoTypeCheckError)",
+			args:                []string{"lint", "../../tests/integ/undefined_variable/undefined_variables_test.gno"},
+			stderrShouldContain: "../../tests/integ/undefined_variable/undefined_variables_test.gno:6:28: undefined: toto (code=gnoTypeCheckError)",
 			errShouldBe:         "exit code: 1",
 		},
 		{

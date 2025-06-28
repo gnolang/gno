@@ -154,7 +154,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/minimalist_gnomod",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
-(module minim does not need package std)
+(module gno.land/t/minim does not need package std)
 `,
 		},
 		{

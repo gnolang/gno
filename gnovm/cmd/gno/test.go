@@ -246,7 +246,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
 			if cmd.autoGnomod {
-				modulePath := pkgPathFromRootDir(pkg.Dir, cmd.rootDir)
+				modulePath, _ := determinePkgPath(nil, pkg.Dir, cmd.rootDir)
 				modstr := gno.GenGnoModLatest(modulePath)
 				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
 
