@@ -27,8 +27,8 @@ gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 1'
 
-## execute BorrowedObjectMutation
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func BorrowedObjectMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+## execute NonCrossingObjectMutation
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingObjectMutation -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 1, value = 1'
 
@@ -85,7 +85,7 @@ func CrossingMutation(cur realm) {
  	borrowrealm.MutateCrossing(cross)
 }
 
-func BorrowedObjectMutation(cur realm) {
+func NonCrossingObjectMutation(cur realm) {
  	borrowrealm.Object.Mutate()
 }
 
