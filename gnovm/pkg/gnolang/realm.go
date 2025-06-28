@@ -1644,6 +1644,11 @@ func getOwner(store Store, oo Object) Object {
 }
 
 func hasPrivateRealmDeps(obj Object, rlm *Realm, store Store) bool {
+	visited := make(map[ObjectID]bool)
+	return hasPrivateRealmDepsWithVisited(obj, rlm, store, visited)
+}
+
+func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[ObjectID]bool) bool {
 	if obj.GetObjectID().IsZero() {
 		return false
 	}
