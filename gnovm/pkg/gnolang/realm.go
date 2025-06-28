@@ -1659,6 +1659,7 @@ func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited
 	if visited[objID] {
 		return false
 	}
+	visited[objID] = true
 
 	if objID.PkgID != rlm.ID {
 		pkgPath := PkgPathFromObjectID(obj.GetObjectID())
@@ -1669,7 +1670,7 @@ func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited
 
 	children := getChildObjects2(store, obj)
 	for _, child := range children {
-		if hasPrivateRealmDeps(child, rlm, store) {
+		if hasPrivateRealmDepsWithVisited(child, rlm, store, visited) {
 			return true
 		}
 	}
