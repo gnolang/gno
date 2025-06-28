@@ -204,7 +204,7 @@ func renderHome(path string) string {
 
 	for _, item := range page.Items {
 		v := item.Value.(Valoper)
-		output += ufmt.Sprintf(" * [%s](/r/gnoland/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
+		output += ufmt.Sprintf(" * [%s](/r/gnoland/valopers:%s) - [profile](/r/gnoland/profiles:u/%s)\n",
 			v.Moniker, v.Address, v.Auth().Owner())
 	}
 
@@ -239,7 +239,7 @@ func (v Valoper) Render() string {
 
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
 	output += ufmt.Sprintf("- PubKey: %s\n\n", v.PubKey)
-	output += ufmt.Sprintf("[Profile link](/r/demo/profile:u/%s)\n", v.Address)
+	output += ufmt.Sprintf("[Profile link](/r/gnoland/profiles:u/%s)\n", v.Address)
 
 	return output
 }
