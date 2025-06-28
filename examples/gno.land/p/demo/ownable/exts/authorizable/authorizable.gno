@@ -24,6 +24,7 @@ func NewAuthorizable() *Authorizable {
 		avl.NewTree(),
 	}
 
+	println("!!yoo!!: " + a.Owner().String())
 	// Add owner to auth list
 	a.authorized.Set(a.Owner().String(), struct{}{})
 	return a
