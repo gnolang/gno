@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"path"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
 // StaticMetadata holds static configuration for a web handler.
@@ -94,13 +96,15 @@ func NewWebHandler(logger *slog.Logger, cfg *WebHandlerConfig) (*WebHandler, err
 func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
 
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		h.Get(w, r)
+	case http.MethodPost:
+		h.Post(w, r)
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
-
-	w.Header().Add("Content-Type", "text/html; charset=utf-8")
-	h.Get(w, r)
 }
 
 // Get processes a GET HTTP request.
@@ -146,11 +150,14 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the header mode based on the URL type and context
-	if IsHomePath(r.RequestURI) {
+	switch {
+	case IsHomePath(r.RequestURI):
 		indexData.Mode = components.ViewModeHome
-	} else if gnourl.IsPure() {
+	case gnourl.IsPure():
 		indexData.Mode = components.ViewModePackage
-	} else {
+	case gnourl.IsUser():
+		indexData.Mode = components.ViewModeUser
+	default:
 		indexData.Mode = components.ViewModeRealm
 	}
 
@@ -162,6 +169,37 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
 		h.Logger.Error("failed to render index component", "error", err)
 	}
+}
+
+// Post processes a POST HTTP request.
+func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		h.Logger.Debug("request completed",
+			"url", r.URL.String(),
+			"elapsed", time.Since(start).String())
+	}()
+
+	// Parse the form data
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Error("failed to parse form", "error", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the URL
+	gnourl, err := weburl.ParseFromURL(r.URL)
+	if err != nil {
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		http.Error(w, "invalid path", http.StatusNotFound)
+		return
+	}
+
+	// Use form data as query
+	gnourl.Query = r.PostForm
+
+	// Redirect to the new URL
+	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
 }
 
 // prepareIndexBodyView prepares the data and main view for the index.
@@ -191,7 +229,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
-	case gnourl.IsRealm(), gnourl.IsPure():
+	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
@@ -233,6 +271,11 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components
 		return h.GetDirectoryView(gnourl, indexData)
 	}
 
+	// Handle User page
+	if gnourl.IsUser() {
+		return h.GetUserView(gnourl)
+	}
+
 	// Ultimately get realm view
 	return h.GetRealmView(gnourl, indexData)
 }
@@ -264,6 +307,97 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 	})
 }
 
+// buildContributions returns the sorted list of contributions (packages and realms) for a user.
+func (h *WebHandler) buildContributions(username string) ([]components.UserContribution, int, error) {
+	prefix := "@" + username
+	paths, err := h.Client.QueryPaths(prefix, 10000)
+	if err != nil {
+		h.Logger.Error("unable to query contributions", "user", username, "error", err)
+		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
+	}
+
+	contribs := make([]components.UserContribution, 0, len(paths))
+	realmCount := 0
+	for _, raw := range paths {
+		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
+		u, err := weburl.Parse(trimmed)
+		if err != nil {
+			h.Logger.Warn("bad contribution URL", "path", raw, "error", err)
+			continue
+		}
+		ctype := components.UserContributionTypePackage
+		if u.IsRealm() {
+			ctype = components.UserContributionTypeRealm
+			realmCount++
+		}
+		contribs = append(contribs, components.UserContribution{
+			Title: path.Base(raw),
+			URL:   raw,
+			Type:  components.UserContributionType(ctype),
+			// TODO: size, description, date...
+		})
+	}
+
+	sort.Slice(contribs, func(i, j int) bool {
+		return contribs[i].Title < contribs[j].Title
+	})
+	return slices.Clip(contribs), realmCount, nil
+}
+
+// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+// createUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address
+func CreateUsernameFromBech32(username string) string {
+	_, _, err := bech32.Decode(username)
+	if err == nil {
+		// If it's a valid bech32 address, create a shortened version
+		username = username[:4] + "..." + username[len(username)-4:]
+	}
+
+	return username
+}
+
+// GetUserView returns the user profile view for a given GnoURL.
+func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
+	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	var content bytes.Buffer
+
+	// Render user profile realm
+	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer); err != nil {
+		h.Logger.Debug("unable to render user realm", "error", err)
+	}
+
+	// Build contributions
+	contribs, realmCount, err := h.buildContributions(username)
+	if err != nil {
+		h.Logger.Error("unable to build contributions", "error", err)
+		return http.StatusInternalServerError, components.StatusErrorComponent(err.Error())
+	}
+
+	// Compute package counts
+	pkgCount := len(contribs)
+	pureCount := pkgCount - realmCount
+
+	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+	// Try to decode the bech32 address
+	username = CreateUsernameFromBech32(username)
+
+	//TODO: get from user r/profile and use placeholder if not set
+	handlename := "Gnome " + username
+
+	data := components.UserData{
+		Username:      username,
+		Handlename:    handlename,
+		Contributions: contribs,
+		PackageCount:  pkgCount,
+		RealmCount:    realmCount,
+		PureCount:     pureCount,
+		Content:       components.NewReaderComponent(&content),
+		// TODO: add bio, pic, links, teams, etc.
+	}
+
+	return http.StatusOK, components.UserView(data)
+}
+
 func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(gnourl.Path)
 	if err != nil {
@@ -278,6 +412,10 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 			continue
 		}
 
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			// Don't make an entry field for "cur realm". The signature will still show it.
+			fun.Params = fun.Params[1:]
+		}
 		fsigs = append(fsigs, fun)
 	}
 
