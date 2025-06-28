@@ -129,10 +129,15 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 type TypeCheckMode int
 
 const (
-	TCLatestStrict  TypeCheckMode = iota // require latest gno.mod gno version.
-	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
-	TCGno0p0                             // when gno fix'ing from gno 0.0.
+	TCLatestStrict            TypeCheckMode = iota // require latest gno.mod gno version.
+	TCForbidDraftImportStrict                      // require latest gno.mod gno version, but forbid import draft packages too
+	TCLatestRelaxed                                // generate latest gno.mod if missing; for testing
+	TCGno0p0                                       // when gno fix'ing from gno 0.0.
 )
+
+func (m TypeCheckMode) IsStrict() bool {
+	return m == TCLatestStrict || m == TCForbidDraftImportStrict
+}
 
 // TypeCheckMemPackage performs type validation and checking on the given
 // mpkg. To retrieve dependencies, it uses getter.
@@ -255,6 +260,27 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		result.pending = false
 		return nil, err
 	}
+	mod, err := ParseCheckGnoMod(mpkg)
+	if err != nil {
+		return nil, err
+	}
+	if mod != nil && mod.Private {
+		// If the package is private, we cannot import it.
+		err := ImportPrivateError{PkgPath: pkgPath}
+		// NOTE: see comment above for ImportNotFoundError.
+		result.err = err
+		result.pending = false
+		return nil, err
+	}
+	// ensure import is not a draft package.
+	if gimp.tcmode == TCForbidDraftImportStrict && mod != nil && mod.Draft {
+		// cannot import draft packages after genesis.
+		// NOTE: see comment below for ImportNotFoundError.
+		err = ImportDraftError{PkgPath: pkgPath}
+		result.err = err
+		result.pending = false
+		return nil, err
+	}
 	pmode := ParseModeProduction // don't parse test files for imports...
 	if gimp.pkgPath == pkgPath {
 		// ...unless importing self from a *_test.gno
@@ -336,7 +362,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if err != nil {
 		return nil, err
 	}
-	if gimp.tcmode == TCLatestStrict {
+	if gimp.tcmode.IsStrict() {
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
 		}
@@ -607,10 +633,14 @@ type ImportError interface {
 }
 
 func (e ImportNotFoundError) assertImportError() {}
+func (e ImportPrivateError) assertImportError()  {}
+func (e ImportDraftError) assertImportError()    {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
+	_ ImportError = ImportPrivateError{}
+	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportCycleError{}
 )
 
@@ -625,6 +655,34 @@ func (e ImportNotFoundError) GetLocation() string { return e.Location }
 func (e ImportNotFoundError) GetMsg() string { return fmt.Sprintf("unknown import path %q", e.PkgPath) }
 
 func (e ImportNotFoundError) Error() string { return importErrorString(e) }
+
+// ImportDraftError implements ImportError
+type ImportDraftError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportDraftError) GetLocation() string { return e.Location }
+
+func (e ImportDraftError) GetMsg() string {
+	return fmt.Sprintf("import path %q is a draft package and can only be imported at genesis", e.PkgPath)
+}
+
+func (e ImportDraftError) Error() string { return importErrorString(e) }
+
+// ImportPrivateError implements ImportError
+type ImportPrivateError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportPrivateError) GetLocation() string { return e.Location }
+
+func (e ImportPrivateError) GetMsg() string {
+	return fmt.Sprintf("import path %q is private and cannot be imported", e.PkgPath)
+}
+
+func (e ImportPrivateError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {
