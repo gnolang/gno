@@ -129,23 +129,14 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 type TypeCheckMode int
 
 const (
-	TCLatestStrict   TypeCheckMode = iota // require latest gno.mod gno version.
-	TCLatestRelaxed                       // generate latest gno.mod if missing; for testing
-	TCGenesisStrict                       // require latest gno.mod gno version, but allow to import draft packages
-	TCGenesisRelaxed                      // generate latest gno.mod if missing, but allow to import draft packages
-	TCGno0p0                              // when gno fix'ing from gno 0.0.
+	TCLatestStrict            TypeCheckMode = iota // require latest gno.mod gno version.
+	TCForbidDraftImportStrict                      // require latest gno.mod gno version, but forbid import draft packages too
+	TCLatestRelaxed                                // generate latest gno.mod if missing; for testing
+	TCGno0p0                                       // when gno fix'ing from gno 0.0.
 )
 
-func (m TypeCheckMode) IsGenesis() bool {
-	return m == TCGenesisStrict || m == TCGenesisRelaxed
-}
-
 func (m TypeCheckMode) IsStrict() bool {
-	return m == TCLatestStrict || m == TCGenesisStrict
-}
-
-func (m TypeCheckMode) IsRelaxed() bool {
-	return m == TCLatestRelaxed || m == TCGenesisRelaxed
+	return m == TCLatestStrict || m == TCForbidDraftImportStrict
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -280,7 +271,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 	if err != nil {
 		result.err = err
 	}
-	if !gimp.tcmode.IsGenesis() && mod != nil && mod.Draft {
+	if gimp.tcmode == TCForbidDraftImportStrict && mod != nil && mod.Draft {
 		// cannot import draft packages after genesis.
 		// NOTE: see comment below for ImportNotFoundError.
 		err = ImportDraftError{PkgPath: pkgPath}
@@ -381,7 +372,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 			}
 			if gimp.tcmode == TCGno0p0 {
 				gnoVersion = GnoVerMissing
-			} else if gimp.tcmode.IsRelaxed() {
+			} else if gimp.tcmode == TCLatestRelaxed {
 				gnoVersion = GnoVerLatest
 			}
 		} else {

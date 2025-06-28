@@ -692,11 +692,6 @@ func main() {
 		},
 	}
 	msg2 := NewMsgRun(addr, coins, files)
-	_, err = env.vmk.Run(ctx, msg2)
-	assert.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "could not import gno.land/r/test (import path \"gno.land/r/test\" is a draft package and can only be imported at genesis)"))
-
-	ctx = ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 0})
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello world\n", res)
