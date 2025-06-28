@@ -212,7 +212,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 
 	caller := crypto.AddressFromPreimage([]byte("addr1"))
 	pkgName := "main"
-	pkgPath := "gno.land/r/" + caller.String() + "/run"
+	pkgPath := "gno.land/e/" + caller.String() + "/run"
 	pkgFiles := []*std.MemFile{
 		{
 			Name: "main.gno",

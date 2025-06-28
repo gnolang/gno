@@ -4,6 +4,13 @@ In this tutorial, you will learn to make a simple `Counter` application in
 Gno. We will cover the basics of the Gno language which will help you get
 started writing smart contracts for Gno.land.
 
+## Package Types Overview
+
+Gno.land supports three types of packages:
+- **Realms (`/r/`)**: Stateful applications (smart contracts) that maintain persistent state
+- **Pure Packages (`/p/`)**: Stateless libraries that can be imported and reused
+- **Ephemeral Packages (`/e/`)**: Temporary user-executed code created with `gnokey maketx run`
+
 ## Language basics
 
 Let's dive into the `Counter` example.
