@@ -1644,13 +1644,15 @@ func getOwner(store Store, oo Object) Object {
 }
 
 func hasPrivateRealmDeps(obj Object, rlm *Realm, store Store) bool {
-	if !obj.GetObjectID().IsZero() {
-		coPkgID := obj.GetObjectID().PkgID
-		if coPkgID != rlm.ID {
-			pkgPath := PkgPathFromObjectID(obj.GetObjectID())
-			if pkgPath != "" && isPrivateRealm(pkgPath, store) {
-				return true
-			}
+	if obj.GetObjectID().IsZero() {
+		return false
+	}
+
+	coPkgID := obj.GetObjectID().PkgID
+	if coPkgID != rlm.ID {
+		pkgPath := PkgPathFromObjectID(obj.GetObjectID())
+		if pkgPath != "" && isPrivateRealm(pkgPath, store) {
+			return true
 		}
 	}
 
