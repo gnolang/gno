@@ -35,7 +35,7 @@ Gnoconnect-ChainID: dev
 Gnoconnect-TXDomains: auto,example.com
 ```
 
-## Transaction Links (TxLink)
+## Transaction Links (TxLinks)
 
 Transaction links define blockchain calls and can include optional arguments.
 
