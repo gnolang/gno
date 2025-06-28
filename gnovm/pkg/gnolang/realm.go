@@ -1652,22 +1652,20 @@ func hasPrivateRealmDeps(obj Object, rlm *Realm, store Store) bool {
 }
 
 func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[ObjectID]bool) bool {
-	if obj.GetObjectID().IsZero() {
-		return false
-	}
-
 	objID := obj.GetObjectID()
 
-	// RECURSE GUARD
-	if visited[objID] {
-		return false
-	}
-	visited[objID] = true
+	if !objID.IsZero() {
 
-	if objID.PkgID != rlm.ID {
-		pkgPath := PkgPathFromObjectID(obj.GetObjectID())
-		if pkgPath != "" && isPrivateRealm(pkgPath, store) {
-			return true
+		if visited[objID] {
+			return false
+		}
+		visited[objID] = true
+
+		if objID.PkgID != rlm.ID {
+			pkgPath := PkgPathFromObjectID(objID)
+			if pkgPath != "" && isPrivateRealm(pkgPath, store) {
+				return true
+			}
 		}
 	}
 
