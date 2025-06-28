@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	testsstdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -97,13 +98,22 @@ func detectCycles(root testPkg, pkgs []testPkg, visited map[string]bool) error {
 
 // visitImports resolves and visits imports by kinds
 func visitImports(kinds []packages.FileKind, root testPkg, pkgs []testPkg, visited map[string]bool, stack []string) error {
-	for _, imp := range root.Imports.Merge(kinds...) {
-		idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
-		if idx == -1 {
-			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
+	for kind, imps := range root.Imports {
+		if !slices.Contains(kinds, kind) {
+			continue
 		}
-		if err := visitPackage(pkgs[idx], pkgs, visited, stack); err != nil {
-			return fmt.Errorf("test import error: %w", err)
+		for _, imp := range imps {
+			if testsstdlibs.HasNativePkg(imp.PkgPath) {
+				continue
+			}
+
+			idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
+			if idx == -1 {
+				return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
+			}
+			if err := visitPackage(pkgs[idx], pkgs, visited, stack); err != nil {
+				return fmt.Errorf("test import error: %w", err)
+			}
 		}
 	}
 
