@@ -1647,20 +1647,18 @@ func getOwner(store Store, oo Object) Object {
 }
 
 func hasPrivateRealmDeps(obj Object, rlm *Realm, store Store) bool {
-	visited := make(map[ObjectID]bool)
+	visited := make(map[Object]bool)
 	return hasPrivateRealmDepsWithVisited(obj, rlm, store, visited)
 }
 
-func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[ObjectID]bool) bool {
+func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[Object]bool) bool {
+	if visited[obj] {
+		return false
+	}
+	visited[obj] = true
 	objID := obj.GetObjectID()
 
 	if !objID.IsZero() {
-
-		if visited[objID] {
-			return false
-		}
-		visited[objID] = true
-
 		if objID.PkgID != rlm.ID {
 			pkgPath := PkgPathFromObjectID(objID)
 			if pkgPath != "" && isPrivateRealm(pkgPath, store) {
