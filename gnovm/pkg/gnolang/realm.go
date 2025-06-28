@@ -1653,8 +1653,14 @@ func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited
 		return false
 	}
 
-	coPkgID := obj.GetObjectID().PkgID
-	if coPkgID != rlm.ID {
+	objID := obj.GetObjectID()
+
+	// RECURSE GUARD
+	if visited[objID] {
+		return false
+	}
+
+	if objID.PkgID != rlm.ID {
 		pkgPath := PkgPathFromObjectID(obj.GetObjectID())
 		if pkgPath != "" && isPrivateRealm(pkgPath, store) {
 			return true
