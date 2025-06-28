@@ -213,11 +213,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object, store Store) {
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
 	}
-
-	fmt.Print("private debug informations\r\n")
-	fmt.Print("objects: po=", po, ", xo=", xo, ", co=", co, "\r\n")
-	fmt.Print("realm id: ", rlm.ID, "\r\n")
-	fmt.Print("realm path: ", rlm.Path, "\r\n")
 	// enforce private ownership
 	if co != nil && hasPrivateRealmDeps(co, rlm, store) {
 		panic("cannot persist reference of object from private realm")
