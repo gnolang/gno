@@ -31,6 +31,8 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	coverage            bool
+	coverageOutput      string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -176,6 +178,20 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.coverage,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
+
+	fs.StringVar(
+		&c.coverageOutput,
+		"coverprofile",
+		"",
+		"write coverage profile to file",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -216,6 +232,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	if cmd.verbose {
 		stdout = io.Out()
 	}
+
 	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err())
 	opts.RunFlag = cmd.run
 	opts.Sync = cmd.updateGoldenTests
@@ -224,6 +241,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.Coverage = cmd.coverage
+	opts.CoverageOutput = cmd.coverageOutput
 
 	buildErrCount := 0
 	testErrCount := 0
@@ -311,6 +330,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
+	}
+
+	// print coverage results
+	if cmd.coverage {
+		coverageTracker := test.GetCoverageTracker()
+		coverageTracker.PrintCoverage()
 	}
 
 	return nil
