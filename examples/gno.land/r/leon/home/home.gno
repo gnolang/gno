@@ -72,7 +72,7 @@ func renderAboutMe() string {
 		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
 		abtMe[0],
 		abtMe[1],
-	})
+	}, false)
 }
 
 func renderArt() string {
@@ -82,7 +82,7 @@ func renderArt() string {
 		gnoface.Render(strconv.Itoa(int(std.ChainHeight()))),
 		renderMillipede(),
 		"SVG Gnome\n" + RenderSVGGnome(),
-	})
+	}, false)
 
 	out += "This art is dynamic; it will change with every new block.\n\n"
 
