@@ -658,9 +658,7 @@ EXEC_SWITCH:
 				}
 			}
 		case GOTO:
-			for i := uint8(0); i < cs.Depth; i++ {
-				m.PopBlock()
-			}
+			m.GotoJump(int(cs.FrameDepth), int(cs.BlockDepth))
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
 			m.NumOps = bs.NumOps
