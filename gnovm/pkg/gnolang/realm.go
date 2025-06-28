@@ -982,6 +982,9 @@ func getChildObjects2(store Store, val Value) []Object {
 	objs := make([]Object, 0, len(chos))
 	for _, child := range chos {
 		if ref, ok := child.(RefValue); ok {
+			if ref.ObjectID.IsZero() {
+				continue
+			}
 			oo := store.GetObject(ref.ObjectID)
 			objs = append(objs, oo)
 		} else if oo, ok := child.(Object); ok {
