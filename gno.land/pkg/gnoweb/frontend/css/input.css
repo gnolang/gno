@@ -314,7 +314,7 @@
 
   .realm-view .gno-form_selectable input[type="radio"]::after {
     content: "";
-    @apply absolute top-1/2 left-1/2 w-4 h-4 bg-green-600 border-4 border-light rounded-full opacity-0 -translate-x-1/2 -translate-y-1/2;
+    @apply absolute top-1/2 left-1/2 w-4 h-4 bg-green-600 border-2 border-light rounded-full opacity-0 -translate-x-1/2 -translate-y-1/2;
   }
 
   .realm-view .gno-form_selectable input[type="checkbox"] {
