@@ -34,13 +34,24 @@ func (r Realm) IsEphemeral() bool {
 	// Check if pkgPath matches pattern: domain/e/*
 	// We need to find "/e/" and ensure it comes exactly after the domain (no "/" before it)
 	// We assume pkgPath is a full path (e.g., "gno.land/e/user/run") to avoid unnecessary computation
-	var (
-		idx             = strings.Index(r.pkgPath, "/e/")
-		hasSlashE       = idx != -1
-		hasContentAfter = len(r.pkgPath) > idx+3
-		hasDomainBefore = strings.Index(r.pkgPath[:idx], "/") == -1
-	)
-	return hasSlashE && hasDomainBefore && hasContentAfter
+
+	idx := strings.Index(r.pkgPath, "/e/")
+
+	// no /e/ found
+	if idx == -1 {
+		return false
+	}
+
+	// has no content after /e/
+	if len(r.pkgPath) <= idx+3 {
+		return false
+	}
+
+	// has a domain before /e/
+	if strings.Index(r.pkgPath[:idx], "/") != -1 {
+		return false
+	}
+	return true
 }
 
 // IsCode returns true if r.pkgPath is not empty.
