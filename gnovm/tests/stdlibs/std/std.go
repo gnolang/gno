@@ -194,6 +194,7 @@ func X_isRealm(m *gno.Machine, pkgPath string) bool {
 // TestBanker is a banker that can be used as a mock banker in test contexts.
 type TestBanker struct {
 	CoinTable map[crypto.Bech32Address]tm2std.Coins
+	Supplies  map[string]int64
 }
 
 var _ std.BankerInterface = &TestBanker{}
@@ -228,7 +229,10 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 
 // TotalCoin implements the Banker interface.
 func (tb *TestBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	if denom == "" {
+		panic("empty denom")
+	}
+	return tb.Supplies[denom]
 }
 
 // IssueCoin implements the Banker interface.
@@ -236,6 +240,7 @@ func (tb *TestBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int
 	coins := tb.CoinTable[addr]
 	sum := coins.Add(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = sum
+	tb.Supplies[denom] += amt
 }
 
 // RemoveCoin implements the Banker interface.
@@ -243,6 +248,7 @@ func (tb *TestBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt in
 	coins := tb.CoinTable[addr]
 	rest := coins.Sub(tm2std.Coins{{Denom: denom, Amount: amt}})
 	tb.CoinTable[addr] = rest
+	tb.Supplies[denom] -= amt
 }
 
 func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {
