@@ -1,0 +1,10 @@
+{{ define "renderExplorer" }} {{ $pkgpath := .PkgPath }}
+<div class="code-content mt-10 lg:col-span-10 pb-24 text-gray-900">
+  {{ if .CardsList }} {{ template "ui/cards_list" . }} {{ else }}
+  <!-- Fallback if no CardsList data -->
+  <div class="mt-6 p-4 bg-gray-50 rounded">
+    <p class="text-gray-600">No packages found in this directory.</p>
+  </div>
+  {{ end }}
+</div>
+{{ end }}

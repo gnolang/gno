@@ -12,7 +12,7 @@ class List {
     range: HTMLElement | null;
     searchBar: HTMLInputElement | null;
     orderOption: HTMLElement | null;
-    packagesCount: HTMLElement | null;
+    allCount: HTMLElement | null;
     realmsCount: HTMLElement | null;
     pureCount: HTMLElement | null;
   };
@@ -22,8 +22,8 @@ class List {
     searchBar: ".js-list-searchbar",
     orderOption: ".js-list-order-filter",
     itemTitle: ".js-list-range-title",
-    packagesCount: ".js-list-packages-count",
-    realmsCount: ".js-list-realms-count",
+    allCount: ".js-list-all-count",
+    realmsCount: ".js-list-realm-count",
     pureCount: ".js-list-pure-count",
   };
 
@@ -47,9 +47,7 @@ class List {
       range: el.querySelector<HTMLElement>(List.SELECTORS.range),
       searchBar: el.querySelector<HTMLInputElement>(List.SELECTORS.searchBar),
       orderOption: el.querySelector<HTMLElement>(List.SELECTORS.orderOption),
-      packagesCount: el.querySelector<HTMLElement>(
-        List.SELECTORS.packagesCount
-      ),
+      allCount: el.querySelector<HTMLElement>(List.SELECTORS.allCount),
       realmsCount: el.querySelector<HTMLElement>(List.SELECTORS.realmsCount),
       pureCount: el.querySelector<HTMLElement>(List.SELECTORS.pureCount),
     };
@@ -60,7 +58,7 @@ class List {
     }
 
     // Store initial items with their titles and types
-    this.items = Array.from(this.DOM.range.children).map(element => {
+    this.items = Array.from(this.DOM.range.children).map((element) => {
       const titleElement = (element as HTMLElement).querySelector(
         List.SELECTORS.itemTitle
       );
@@ -87,7 +85,7 @@ class List {
     const { searchBar, orderOption } = this.DOM;
 
     // Handle order change
-    orderOption?.addEventListener("change", e => {
+    orderOption?.addEventListener("change", (e) => {
       const target = e.target as HTMLInputElement;
 
       // event delegation
@@ -98,14 +96,14 @@ class List {
     });
 
     // Handle display mode change
-    this.DOM.el?.addEventListener("change", e => {
+    this.DOM.el?.addEventListener("change", (e) => {
       const target = e.target as HTMLInputElement;
       if (target.matches('input[name="display-mode"]')) {
         localStorage.setItem(List.STORAGE_KEY, target.value);
       }
     });
 
-    searchBar?.addEventListener("input", e => {
+    searchBar?.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
       this.debouncedSearch(target.value);
     });
@@ -138,29 +136,26 @@ class List {
   private filterItems(): Array<ListItem> {
     if (!this.currentFilter) return this.sortedItems;
 
-    return this.sortedItems.filter(item =>
+    return this.sortedItems.filter((item) =>
       item.title.includes(this.currentFilter)
     );
   }
 
   // Update counts based on filtered items
   private updateCounts(items: Array<ListItem>): void {
-    const { packagesCount, realmsCount, pureCount } = this.DOM;
+    const { allCount, realmsCount, pureCount } = this.DOM;
 
-    const counts = items.reduce(
-      (acc, item) => {
-        acc[item.type] = (acc[item.type] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
+    const counts = items.reduce((acc, item) => {
+      acc[item.type] = (acc[item.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
     const realmCountValue = counts["realm"] || 0;
     const pureCountValue = counts["pure"] || 0;
     const totalPackages = realmCountValue + pureCountValue;
 
-    if (packagesCount) {
-      packagesCount.textContent = totalPackages.toString();
+    if (allCount) {
+      allCount.textContent = totalPackages.toString();
     }
     if (realmsCount) {
       realmsCount.textContent = realmCountValue.toString();
@@ -179,7 +174,7 @@ class List {
 
     // Create a document fragment for batch DOM updates
     const fragment = document.createDocumentFragment();
-    filteredItems.forEach(item => fragment.appendChild(item.element));
+    filteredItems.forEach((item) => fragment.appendChild(item.element));
 
     // Clear and update range with a single reflow
     range.textContent = "";
