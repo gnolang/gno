@@ -183,6 +183,8 @@ func TestLoadNonIgnoredExamples(t *testing.T) {
 
 	conf := LoadConfig{
 		Fetcher:       pkgdownload.NewNoopFetcher(),
+		Deps:          true,
+		Test:          true,
 		WorkspaceRoot: ".",
 	}
 
@@ -214,6 +216,9 @@ func TestDataLoad(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("GNOHOME", homeDir)
 
+	workspace1Abs := filepath.Join(cwd, "testdata", "workspace-1")
+	workspace2Abs := filepath.Join(cwd, "testdata", "workspace-2")
+
 	tcs := []struct {
 		name             string
 		workdir          string
@@ -230,7 +235,7 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
-				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
+				Dir:        workspace1Abs,
 				Match:      []string{"."},
 				Files: FilesMap{
 					FileKindPackageSource: {"foo.gno"},
@@ -244,12 +249,30 @@ func TestDataLoad(t *testing.T) {
 		{
 			name:     "workspace-1-root-abs",
 			workdir:  localFromSlash("./testdata/workspace-1"),
-			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1")},
+			patterns: []string{workspace1Abs},
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
-				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
-				Match:      []string{filepath.Join(cwd, "testdata", "workspace-1")},
+				Dir:        workspace1Abs,
+				Match:      []string{workspace1Abs},
+				Files: FilesMap{
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}},
+		},
+		{
+			name:     "workspace-1-root-2-match",
+			workdir:  localFromSlash("./testdata/workspace-1"),
+			patterns: []string{"./...", workspace1Abs},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/wspace1/foo",
+				Name:       "foo",
+				Dir:        workspace1Abs,
+				Match:      []string{"./...", workspace1Abs},
 				Files: FilesMap{
 					FileKindPackageSource: {"foo.gno"},
 					FileKindTest:          {"foo_test.gno"},
@@ -266,7 +289,7 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
-				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
+				Dir:        workspace1Abs,
 				Match:      []string{"./..."},
 				Files: FilesMap{
 					FileKindPackageSource: {"foo.gno"},
@@ -284,7 +307,7 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace2",
 				Name:       "main",
-				Dir:        filepath.Join(cwd, "testdata", "workspace-2"),
+				Dir:        workspace2Abs,
 				Match:      []string{"."},
 				Files: FilesMap{
 					FileKindPackageSource: {"lib.gno", "main.gno"},
@@ -298,7 +321,7 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace2",
 				Name:       "main",
-				Dir:        filepath.Join(cwd, "testdata", "workspace-2"),
+				Dir:        workspace2Abs,
 				Match:      []string{"./..."},
 				Files: FilesMap{
 					FileKindPackageSource: {"lib.gno", "main.gno"},
