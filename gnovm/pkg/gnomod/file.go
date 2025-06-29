@@ -17,6 +17,9 @@ type File struct {
 	// It is intended to be set by the `gno` cli when initializing or upgrading a module.
 	Gno string `toml:"gno" json:"gno"`
 
+	// Ignore indicate that the module will be ignored by the gno toolchain but still usable in development environments.
+	Ignore bool `toml:"ignore,omitempty" json:"ignore,omitempty"`
+
 	// Draft indicates that the module isn't ready for production use.
 	// Draft modules:
 	// - are added to the chain at genesis time and cannot be added after.

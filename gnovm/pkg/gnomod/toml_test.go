@@ -75,7 +75,7 @@ func TestMarshalTomlHelper(t *testing.T) {
 			file: func() *File {
 				file := File{}
 				file.Module = "gno.land/r/test"
-				file.Draft = true
+				file.Ignore = true
 				file.Private = true
 				file.Replace = []Replace{
 					{Old: "gno.land/r/test", New: "gno.land/r/test/v2"},
@@ -86,7 +86,7 @@ func TestMarshalTomlHelper(t *testing.T) {
 				file.UploadMetadata.Height = 42
 				return &file
 			}(),
-			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\ndraft = true\nprivate = true\n\n[[replace]]\n  old = \"gno.land/r/test\"\n  new = \"gno.land/r/test/v2\"\n\n[[replace]]\n  old = \"gno.land/r/test/v3\"\n  new = \"../..\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
+			expected: "module = \"gno.land/r/test\"\ngno = \"0.9\"\nignore = true\nprivate = true\n\n[[replace]]\n  old = \"gno.land/r/test\"\n  new = \"gno.land/r/test/v2\"\n\n[[replace]]\n  old = \"gno.land/r/test/v3\"\n  new = \"../..\"\n\n[upload_metadata]\n  uploader = \"addr1\"\n  height = 42\n",
 		},
 		{
 			name:     "empty",
