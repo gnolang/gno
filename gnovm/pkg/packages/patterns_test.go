@@ -178,9 +178,6 @@ func TestDataExpandPatterns(t *testing.T) {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar"),
 				Match: []string{localFromSlash("./testdata/workspace-2/...")},
 			}, {
-				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar", "baz"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
-			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "foo"),
 				Match: []string{localFromSlash("./testdata/workspace-2/...")},
 			}},
@@ -194,9 +191,6 @@ func TestDataExpandPatterns(t *testing.T) {
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar"),
 				Match: []string{localFromSlash("./testdata/workspace-2/..."), localFromSlash("./testdata/workspace-2/bar")},
-			}, {
-				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar", "baz"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "foo"),
 				Match: []string{localFromSlash("./testdata/workspace-2/...")},

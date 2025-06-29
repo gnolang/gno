@@ -16,13 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListAndNonDraftPkgs(t *testing.T) {
+func TestListAndNonIgnoredPkgs(t *testing.T) {
 	for _, tc := range []struct {
-		desc            string
-		in              []struct{ name, modfile string }
-		errorContains   string
-		outListPkgs     []string
-		outNonDraftPkgs []string
+		desc              string
+		in                []struct{ name, modfile string }
+		errorContains     string
+		outListPkgs       []string
+		outNonIgnoredPkgs []string
 	}{
 		{
 			desc: "no packages",
@@ -43,8 +43,8 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 					`module = "baz"`,
 				},
 			},
-			outListPkgs:     []string{"foo", "bar", "baz"},
-			outNonDraftPkgs: []string{"foo", "bar", "baz"},
+			outListPkgs:       []string{"foo", "bar", "baz"},
+			outNonIgnoredPkgs: []string{"foo", "bar", "baz"},
 		},
 		{
 			desc: "no package depends on draft package",
@@ -63,8 +63,8 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 					module = "qux"`,
 				},
 			},
-			outListPkgs:     []string{"foo", "baz", "qux"},
-			outNonDraftPkgs: []string{"foo", "baz"},
+			outListPkgs:       []string{"foo", "baz", "qux"},
+			outNonIgnoredPkgs: []string{"foo", "baz"},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -81,7 +81,11 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			testChdir(t, dirPath)
 
 			// List packages
-			pkgs, err := Load(&LoadConfig{AllowEmpty: true, Fetcher: pkgdownload.NewNoopFetcher()}, filepath.Join(dirPath, "..."))
+			pkgs, err := Load(LoadConfig{
+				AllowEmpty:    true,
+				Fetcher:       pkgdownload.NewNoopFetcher(),
+				WorkspaceRoot: dirPath,
+			}, filepath.Join(dirPath, "..."))
 			require.NoError(t, err)
 
 			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
@@ -95,9 +99,9 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 
 			// Non draft packages
 			nonDraft := sorted.GetNonDraftPkgs()
-			assert.Equal(t, len(tc.outNonDraftPkgs), len(nonDraft))
+			assert.Equal(t, len(tc.outNonIgnoredPkgs), len(nonDraft))
 			for _, p := range nonDraft {
-				assert.Contains(t, tc.outNonDraftPkgs, p.ImportPath)
+				assert.Contains(t, tc.outNonIgnoredPkgs, p.ImportPath)
 			}
 		})
 	}
@@ -172,16 +176,17 @@ func TestSortPkgs(t *testing.T) {
 	}
 }
 
-func TestLoadNonDraftExamples(t *testing.T) {
+func TestLoadNonIgnoredExamples(t *testing.T) {
 	examples := filepath.Join("..", "..", "..", "examples")
 
 	testChdir(t, examples)
 
 	conf := LoadConfig{
-		Fetcher: pkgdownload.NewNoopFetcher(),
+		Fetcher:       pkgdownload.NewNoopFetcher(),
+		WorkspaceRoot: ".",
 	}
 
-	pkgs, err := Load(&conf, "./...")
+	pkgs, err := Load(conf, "./...")
 	require.NoError(t, err)
 
 	for _, pkg := range pkgs {
@@ -210,22 +215,23 @@ func TestDataLoad(t *testing.T) {
 	t.Setenv("GNOHOME", homeDir)
 
 	tcs := []struct {
-		name string
-		// workdir          string
-		patterns           []string
-		conf               *LoadConfig
-		res                PkgList
-		errShouldContain   string
-		ioerrShouldContain string
+		name             string
+		workdir          string
+		patterns         []string
+		conf             *LoadConfig
+		res              PkgList
+		errShouldContain string
+		outShouldContain string
 	}{
 		{
 			name:     "workspace-1-root",
-			patterns: []string{localFromSlash("./testdata/workspace-1")},
+			workdir:  localFromSlash("./testdata/workspace-1"),
+			patterns: []string{"."},
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
-				Match:      []string{localFromSlash("./testdata/workspace-1")},
+				Match:      []string{"."},
 				Files: FilesMap{
 					FileKindPackageSource: {"foo.gno"},
 					FileKindTest:          {"foo_test.gno"},
@@ -237,6 +243,7 @@ func TestDataLoad(t *testing.T) {
 		},
 		{
 			name:     "workspace-1-root-abs",
+			workdir:  localFromSlash("./testdata/workspace-1"),
 			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1")},
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
@@ -254,12 +261,13 @@ func TestDataLoad(t *testing.T) {
 		},
 		{
 			name:     "workspace-1-recursive",
-			patterns: []string{localFromSlash("./testdata/workspace-1/...")},
+			workdir:  localFromSlash("./testdata/workspace-1"),
+			patterns: []string{"./..."},
 			res: PkgList{{
 				ImportPath: "gno.example.com/r/wspace1/foo",
 				Name:       "foo",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
-				Match:      []string{localFromSlash("./testdata/workspace-1/...")},
+				Match:      []string{"./..."},
 				Files: FilesMap{
 					FileKindPackageSource: {"foo.gno"},
 					FileKindTest:          {"foo_test.gno"},
@@ -271,33 +279,35 @@ func TestDataLoad(t *testing.T) {
 		},
 		{
 			name:     "workspace-2-root",
-			patterns: []string{localFromSlash("./testdata/workspace-2")},
+			workdir:  localFromSlash("./testdata/workspace-2"),
+			patterns: []string{"."},
 			res: PkgList{{
-				Name:  "main",
-				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
-				Match: []string{localFromSlash("./testdata/workspace-2")},
+				ImportPath: "gno.example.com/r/wspace2",
+				Name:       "main",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-2"),
+				Match:      []string{"."},
 				Files: FilesMap{
 					FileKindPackageSource: {"lib.gno", "main.gno"},
 				},
-				Errors: []*Error{missingGnomodError(cwd, "workspace-2")},
 			}},
 		},
 		{
 			name:     "workspace-2-recursive",
-			patterns: []string{localFromSlash("./testdata/workspace-2/...")},
+			workdir:  localFromSlash("./testdata/workspace-2"),
+			patterns: []string{"./..."},
 			res: PkgList{{
-				Name:  "main",
-				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
+				ImportPath: "gno.example.com/r/wspace2",
+				Name:       "main",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-2"),
+				Match:      []string{"./..."},
 				Files: FilesMap{
 					FileKindPackageSource: {"lib.gno", "main.gno"},
 				},
-				Errors: []*Error{missingGnomodError(cwd, "workspace-2")},
 			}, {
 				ImportPath: "gno.example.com/r/wspace2/bar",
 				Name:       "bar",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "bar"),
-				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
+				Match:      []string{"./..."},
 				Files: FilesMap{
 					FileKindPackageSource: {"bar.gno"},
 					FileKindXTest:         {"bar_test.gno"},
@@ -307,18 +317,10 @@ func TestDataLoad(t *testing.T) {
 					FileKindXTest:         {"gno.example.com/r/wspace2/bar", "testing"},
 				},
 			}, {
-				Name:  "baz",
-				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar", "baz"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
-				Files: FilesMap{
-					FileKindPackageSource: {"baz.gno"},
-				},
-				Errors: []*Error{missingGnomodError(cwd, "workspace-2/bar/baz")},
-			}, {
 				ImportPath: "gno.example.com/r/wspace2/foo",
 				Name:       "foo",
 				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "foo"),
-				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
+				Match:      []string{"./..."},
 				Files: FilesMap{
 					FileKindPackageSource: {"foo.gno"},
 				},
@@ -326,11 +328,12 @@ func TestDataLoad(t *testing.T) {
 		},
 		{
 			name:     "stdlibs",
+			workdir:  localFromSlash("./testdata/workspace-empty"), // XXX: allow to load stdlibs without a workspace
 			patterns: []string{"math/bits"},
 			res: PkgList{{
 				ImportPath: "math/bits",
 				Name:       "bits",
-				Dir:        filepath.Join(StdlibDir("math"), "bits"),
+				Dir:        StdlibDir("math/bits"),
 				Match:      []string{"math/bits"},
 				Files: FilesMap{
 					FileKindPackageSource: {
@@ -353,6 +356,7 @@ func TestDataLoad(t *testing.T) {
 		},
 		{
 			name:     "remote",
+			workdir:  localFromSlash("./testdata/workspace-empty"),
 			patterns: []string{"gno.example.com/p/demo/avl"},
 			res: PkgList{{
 				ImportPath: "gno.example.com/p/demo/avl",
@@ -363,36 +367,54 @@ func TestDataLoad(t *testing.T) {
 					FileKindPackageSource: {"avl.gno"},
 				},
 			}},
-			ioerrShouldContain: `gno: downloading gno.example.com/p/demo/avl`,
+			outShouldContain: `gno: downloading gno.example.com/p/demo/avl`,
 		},
 		{
 			name:             "err-stdlibs-recursive",
+			workdir:          localFromSlash("./testdata/workspace-empty"), // XXX: allow to load stdlibs without a workspace
 			patterns:         []string{"strings/..."},
 			errShouldContain: "recursive remote patterns are not supported",
 		},
 		{
 			name:             "err-remote-recursive",
+			workdir:          localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{"gno.example.com/test/strings/..."},
 			errShouldContain: "recursive remote patterns are not supported",
 		},
 		{
 			name:             "err-recursive-noroot",
-			patterns:         []string{"./testdata/notexists/..."},
-			errShouldContain: "no such file or directory",
+			workdir:          localFromSlash("./testdata/emptydir"),
+			patterns:         []string{"./..."},
+			errShouldContain: ErrGnoworkNotFound.Error(),
 		},
 		{
-			name:               "warn-recursive-nothing",
-			patterns:           []string{localFromSlash("./testdata/workspace-1/emptydir/...")},
-			errShouldContain:   "no packages",
-			ioerrShouldContain: fmt.Sprintf(`gno: warning: %q matched no packages`, localFromSlash("./testdata/workspace-1/emptydir/...")),
+			name:             "warn-recursive-nothing",
+			workdir:          localFromSlash("./testdata/workspace-empty"),
+			patterns:         []string{"./..."},
+			errShouldContain: "no packages",
+			outShouldContain: `gno: warning: "./..." matched no packages`,
 		},
 	}
+
+	testExamplesAbs, err := filepath.Abs(filepath.Join("testdata", "examples"))
+	require.NoError(t, err)
+
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			errBuf := &writeCloser{}
-			conf := &LoadConfig{Out: errBuf, Fetcher: examplespkgfetcher.New(filepath.Join("testdata", "examples"))}
+			if tc.workdir != "" {
+				testChdir(t, tc.workdir)
+			}
+
+			outBuf := &writeCloser{}
+			conf := LoadConfig{
+				Out:     outBuf,
+				Fetcher: examplespkgfetcher.New(testExamplesAbs),
+			}
 
 			res, err := Load(conf, tc.patterns...)
+
+			fmt.Println("loader output:")
+			fmt.Println(outBuf.String())
 
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
@@ -400,10 +422,10 @@ func TestDataLoad(t *testing.T) {
 				require.ErrorContains(t, err, tc.errShouldContain)
 			}
 
-			if tc.ioerrShouldContain != "" {
-				require.Contains(t, errBuf.String(), tc.ioerrShouldContain)
+			if tc.outShouldContain != "" {
+				require.Contains(t, outBuf.String(), tc.outShouldContain)
 			} else {
-				require.Equal(t, errBuf.String(), "")
+				require.Equal(t, outBuf.String(), "")
 			}
 
 			// normalize res
@@ -466,12 +488,4 @@ func testChdir(t *testing.T, dir string) {
 			panic("testing.Chdir: " + err.Error())
 		}
 	})
-}
-
-func missingGnomodError(cwd string, path string) *Error {
-	modpath := filepath.Join(cwd, "testdata", filepath.FromSlash(path), "gnomod.toml")
-	return &Error{
-		Pos: modpath,
-		Msg: fmt.Sprintf("could not read file %q: open %s: no such file or directory", modpath, modpath),
-	}
 }

@@ -68,6 +68,7 @@ func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
 	return readPkgFiles(pkg, files, fset), nil
 }
 
+// XXX: bad name since it might download the package
 func readPkgDir(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, importPath string, fset *token.FileSet) *Package {
 	pkg := &Package{
 		Dir:          pkgDir,
@@ -113,7 +114,6 @@ func readPkgDir(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string
 						})
 						return pkg
 					}
-					pkg.ImportPath = pkgPath
 				} else {
 					pkg.Errors = append(pkg.Errors, &Error{
 						Pos: pkg.Dir,

@@ -60,7 +60,7 @@ func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatc
 				return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
 			}
 			if !strings.HasPrefix(absPat, root) {
-				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q)", match, root)
+				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q is not in %q)", match, absPat, root)
 			}
 		}
 	}
@@ -166,8 +166,15 @@ func expandRecursive(pat string) ([]string, error) {
 		if slices.Contains(dirs, dir) {
 			return nil
 		}
-		if strings.HasSuffix(base, ".gno") || base == "gnomod.toml" {
+		switch base {
+		case "gnomod.toml":
+			// XXX: should we include packages with .gno files and automatically derive pkgpath?
 			dirs = append(dirs, dir)
+			return nil
+		case "gnowork.toml":
+			// XXX: maybe we should not skip the root directory
+			dirs = slices.DeleteFunc(dirs, func(d string) bool { return d == dir })
+			return fs.SkipDir
 		}
 		return nil
 	})
