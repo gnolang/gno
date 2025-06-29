@@ -13,18 +13,18 @@ cd gno && make install
 ## Overview
 
 In this tutorial, you will learn how to run up a local development node with
-`gnodev`. By spinning up a local gno.land
+`gnodev`. By spinning up a local Gno.land
 node, users can simulate the blockchain environment locally on their machines,
 allowing them to easily see how their code behaves before deploying it to a
-remote gno.land network.
+remote Gno.land network.
 
 This tutorial will show you how to use gnodev, a local development solution stack
-offering a built-in gno.land node with a hot-reload feature for packages and 
+offering a built-in Gno.land node with a hot-reload feature for packages and 
 realms, as well as a built-in instance of [gnoweb](../users/explore-with-gnoweb.md).
 
 ## Primary features
 
-Apart from providing a built-in gno.land node and a `gnoweb` instance, `gnodev`
+Apart from providing a built-in Gno.land node and a `gnoweb` instance, `gnodev`
 also provides an array of other useful features. Let's explore the three most
 prominent ones:
 1. Automatic package deployment
