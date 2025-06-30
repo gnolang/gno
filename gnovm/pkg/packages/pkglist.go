@@ -195,26 +195,26 @@ func visitPackage(ignoreStdlibs bool, pkg *Package, pkgs []*Package, visited, on
 	return nil
 }
 
-// GetNonDraftPkgs returns packages that are not draft
+// GetNonIgnoredPkgs returns packages that are not draft
 // and have no direct or indirect draft dependencies.
-func (sp SortedPkgList) GetNonDraftPkgs() SortedPkgList {
+func (sp SortedPkgList) GetNonIgnoredPkgs() SortedPkgList {
 	res := make([]*Package, 0, len(sp))
-	draft := make(map[string]bool)
+	ingore := make(map[string]bool)
 
 	for _, pkg := range sp {
-		if pkg.Draft {
-			draft[pkg.ImportPath] = true
+		if pkg.Ignore {
+			ingore[pkg.ImportPath] = true
 			continue
 		}
-		dependsOnDraft := false
+		dependsOnIgnored := false
 		for _, req := range pkg.ImportsSpecs.Merge(FileKindPackageSource) {
-			if draft[req.PkgPath] {
-				dependsOnDraft = true
-				draft[pkg.ImportPath] = true
+			if ingore[req.PkgPath] {
+				dependsOnIgnored = true
+				ingore[pkg.ImportPath] = true
 				break
 			}
 		}
-		if !dependsOnDraft {
+		if !dependsOnIgnored {
 			res = append(res, pkg)
 		}
 	}

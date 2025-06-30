@@ -47,7 +47,7 @@ func TestListAndNonIgnoredPkgs(t *testing.T) {
 			outNonIgnoredPkgs: []string{"foo", "bar", "baz"},
 		},
 		{
-			desc: "no package depends on draft package",
+			desc: "no package depends on ignore package",
 			in: []struct{ name, modfile string }{
 				{
 					"foo",
@@ -59,7 +59,7 @@ func TestListAndNonIgnoredPkgs(t *testing.T) {
 				},
 				{
 					"qux",
-					`draft = true
+					`ignore = true
 					module = "qux"`,
 				},
 			},
@@ -98,7 +98,7 @@ func TestListAndNonIgnoredPkgs(t *testing.T) {
 			require.NoError(t, err)
 
 			// Non draft packages
-			nonDraft := sorted.GetNonDraftPkgs()
+			nonDraft := sorted.GetNonIgnoredPkgs()
 			assert.Equal(t, len(tc.outNonIgnoredPkgs), len(nonDraft))
 			for _, p := range nonDraft {
 				assert.Contains(t, tc.outNonIgnoredPkgs, p.ImportPath)
@@ -192,7 +192,7 @@ func TestLoadNonIgnoredExamples(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, pkg := range pkgs {
-		if pkg.Draft {
+		if pkg.Ignore {
 			continue
 		}
 		require.Empty(t, pkg.Errors)

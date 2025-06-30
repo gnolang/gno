@@ -221,7 +221,7 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
 	} else {
-		pkg.Draft = mod.Draft
+		pkg.Ignore = mod.Ignore
 		pkg.ImportPath = mod.Module
 	}
 

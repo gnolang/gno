@@ -18,7 +18,7 @@ type Package struct {
 	Name       string                `json:",omitempty"` // package name
 	Match      []string              `json:",omitempty"` // command-line patterns matching this package
 	Errors     []*Error              `json:",omitempty"` // error loading this package (not dependencies)
-	Draft      bool                  `json:",omitempty"`
+	Ignore     bool                  `json:",omitempty"`
 	Files      FilesMap              `json:",omitempty"`
 	Imports    map[FileKind][]string `json:",omitempty"` // import paths used by this package
 	// XXX: Deps       []string              `json:",omitempty"` // all (recursively) imported dependencies
