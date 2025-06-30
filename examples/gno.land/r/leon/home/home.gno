@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 
 	"gno.land/r/demo/art/gnoface"
@@ -27,6 +28,15 @@ func Render(_ string) string {
 	out += renderAboutMe()
 	out += renderArt()
 	out += config.Banner()
+	out += "\n\n"
+	out += svgbtn.Button(
+		1200,
+		50,
+		gnomeBodyColors[int(std.ChainHeight())%len(gnomeBodyColors)],
+		"#ffffff",
+		"Support my work!",
+		"/r/leon/home$help&func=Donate&.send=1000000ugnot",
+	)
 
 	return out
 }
@@ -65,6 +75,10 @@ func UpdateAboutMe(cur realm, col1, col2 string) {
 
 	abtMe[0] = col1
 	abtMe[1] = col2
+}
+
+func Donate() {
+	// just send some coins!!
 }
 
 func renderAboutMe() string {
