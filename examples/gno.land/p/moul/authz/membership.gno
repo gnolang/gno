@@ -6,6 +6,28 @@ import "std"
 // - TimebasedMembership
 // - CoinbasedMembership
 
+// NewTokenHolderMembership returns a membership that matches addresses that
+// hold at least the required amount of tokens.
+func NewTokenHolderMembership(requiredCoins std.Coins) Membership {
+	return &tokenHolderMembership{required: requiredCoins}
+}
+
+type tokenHolderMembership struct {
+	required std.Coins
+}
+
+func (m *tokenHolderMembership) Has(addr std.Address) bool {
+	// TODO: This is a placeholder implementation.
+	// In a real scenario, this would check the token balance of the address
+	// against the required amount. For now, we'll return false.
+	return false
+}
+
+// NewCustomMembership is an alias for NewFuncMembership for backward compatibility.
+func NewCustomMembership(f func(addr std.Address) bool) Membership {
+	return NewFuncMembership(f)
+}
+
 // Membership is the interface to check if an address is a member of a set.
 type Membership interface {
 	Has(addr std.Address) bool
