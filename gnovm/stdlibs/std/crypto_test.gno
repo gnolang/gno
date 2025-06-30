@@ -1,7 +1,7 @@
 package std
 
 import (
-	"testing"
+	testing "testing/base"
 )
 
 func TestValid(t *testing.T) {

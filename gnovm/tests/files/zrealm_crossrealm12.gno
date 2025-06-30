@@ -9,16 +9,14 @@ import (
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	tests := []struct {
 		fn func() std.Realm
 	}{
 		{std.CurrentRealm},
 		{psubtests.GetCurrentRealm},
 		{func() std.Realm {
-			return cross(rsubtests.GetCurrentRealm)()
+			return rsubtests.GetCurrentRealm(cross)
 		}},
 	}
 

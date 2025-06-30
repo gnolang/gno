@@ -9,9 +9,9 @@ gnoland start
 gnokey query vm/qrender --data 'gno.land/r/importtest:'
 stdout '92054'
 
--- gno.mod --
-module gno.land/r/importtest
-
+-- gnomod.toml --
+module = "gno.land/r/importtest"
+gno = "0.9"
 -- import.gno --
 package importtest
 
@@ -20,5 +20,5 @@ import (
 )
 
 func Render(_ string) string {
- 	return ufmt.Sprintf("%d", 92054)
+	return ufmt.Sprintf("%d", 92054)
 }
