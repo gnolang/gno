@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	pkgPath  = "emit_test"
+	pkgPath  = "gno.land/r/std/emit_test"
 	fileName = "emit_test.gno"
 )
 
@@ -26,8 +26,19 @@ func pushFuncFrame(m *gno.Machine, name gno.Name) {
 			End: gno.Pos{Line: line, Column: 100},
 		},
 	})
+
 	line++
-	fv := &gno.FuncValue{Name: name, PkgPath: m.Package.PkgPath, Source: fd}
+
+	objectInfo := gno.ObjectInfo{
+		ID: gno.ObjectID{
+			PkgID: gno.PkgID{
+				Hashlet: gno.HashBytes([]byte(m.Package.PkgPath)),
+			},
+			NewTime: 1,
+		},
+	}
+	fv := &gno.FuncValue{Name: name, PkgPath: m.Package.PkgPath, Source: fd, ObjectInfo: objectInfo}
+
 	m.PushFrameCall(gno.Call(name), fv, gno.TypedValue{}, false) // fake frame
 }
 
