@@ -27,7 +27,7 @@ stdout '- Tags: tag1, tag2'
 
 
 # vote on the proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # call proposal execution
