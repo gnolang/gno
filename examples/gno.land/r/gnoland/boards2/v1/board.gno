@@ -155,7 +155,7 @@ func (board *Board) Render(path, menu string) string {
 		return sb.String()
 	}
 
-	p, err := pager.New(path, board.ThreadsCount(), pager.WithPageSize(pageSizeThreads))
+	p, err := pager.New(path, board.ThreadsCount(), pager.WithPageSize(pageSizeDefault))
 	if err != nil {
 		panic(err)
 	}
@@ -201,6 +201,7 @@ func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
 		PermissionBoardRename,
 		PermissionBoardFlaggingUpdate,
 		PermissionMemberInvite,
+		PermissionMemberInviteRevoke,
 		PermissionMemberRemove,
 		PermissionThreadCreate,
 		PermissionThreadEdit,

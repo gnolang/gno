@@ -443,42 +443,6 @@ func EditReply(_ realm, boardID BoardID, threadID, replyID PostID, body string) 
 	)
 }
 
-// InviteMember adds a member to the realm or to a boards.
-//
-// A role can optionally be specified to be assigned to the new member.
-// Board ID is only required when inviting a member to a board.
-func InviteMember(_ realm, boardID BoardID, user std.Address, role Role) {
-	assertUserAddressIsValid(user)
-	assertMembersUpdateIsEnabled(boardID)
-
-	perms := mustGetPermissions(boardID)
-	if perms.HasUser(user) {
-		panic("user is already a member")
-	}
-
-	caller := std.PreviousRealm().Address()
-	args := Args{user, role}
-	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
-		assertMembersUpdateIsEnabled(boardID)
-
-		if perms.HasUser(user) {
-			panic("user is already a member")
-		}
-
-		if err := perms.SetUserRoles(user, role); err != nil {
-			panic(err)
-		}
-
-		std.Emit(
-			"MemberInvited",
-			"caller", caller.String(),
-			"boardID", boardID.String(),
-			"member", user.String(),
-			"role", string(role),
-		)
-	})
-}
-
 // RemoveMember removes a member from the realm or a boards.
 //
 // Board ID is only required when removing a member from board.
