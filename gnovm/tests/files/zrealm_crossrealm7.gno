@@ -5,10 +5,10 @@ import (
 	"gno.land/p/demo/tests"
 )
 
-func main() {
+func main(cur realm) {
 	tests.ModifyTestRealmObject2a()
 	println("done")
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (w/o method): somevalue1<~VPBlock(3,3)>.Field

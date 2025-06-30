@@ -1,8 +1,8 @@
 package main
 
-type nat []interface{}
+type nat []any
 
-func (n nat) zero(num []interface{}) {
+func (n nat) zero(num []any) {
 	println(num)
 }
 
@@ -12,10 +12,10 @@ func (n nat) one(num nat) {
 
 func main() {
 	var a nat
-	a = []interface{}{}
+	a = []any{}
 	println(a)
 	a.zero(nat{0})
-	a.one([]interface{}{1})
+	a.one([]any{1})
 }
 
 // Output:

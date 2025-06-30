@@ -439,7 +439,7 @@ func (cs *ConsensusState) SetProposalAndBlock(proposal *types.Proposal, block *t
 	if err := cs.SetProposal(proposal, peerID); err != nil {
 		return err
 	}
-	for i := 0; i < parts.Total(); i++ {
+	for i := range parts.Total() {
 		part := parts.GetPart(i)
 		if err := cs.AddProposalBlockPart(proposal.Height, proposal.Round, part, peerID); err != nil {
 			return err
@@ -842,7 +842,7 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 	// we may need an empty "proof" block, and enterPropose immediately.
 	waitForTxs := cs.config.WaitForTxs() && round == 0 && !cs.needProofBlock(height)
 	if waitForTxs {
-		if cs.config.CreateEmptyBlocksInterval > 0 {
+		if cs.config.CreateEmptyBlocks && cs.config.CreateEmptyBlocksInterval > 0 {
 			cs.scheduleTimeout(cs.config.CreateEmptyBlocksInterval, height, round,
 				cstypes.RoundStepNewRound)
 		} else {
@@ -943,7 +943,7 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 		// send proposal and block parts on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, ""})
-		for i := 0; i < blockParts.Total(); i++ {
+		for i := range blockParts.Total() {
 			part := blockParts.GetPart(i)
 			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, ""})
 		}

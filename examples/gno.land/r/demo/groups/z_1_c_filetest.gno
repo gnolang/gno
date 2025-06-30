@@ -5,6 +5,7 @@ package groups_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
@@ -13,15 +14,15 @@ import (
 var gid groups.GroupID
 
 func main() {
-	gid = groups.CreateGroup("test_group")
+	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
 
 	// add member via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOrigCaller(test2)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginCaller(test2)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
-	groups.AddMember(gid, test2.String(), 42, "metadata3")
+	groups.AddMember(cross, gid, test2.String(), 42, "metadata3")
 }
 
 // Error:

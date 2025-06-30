@@ -6,4 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/runtime_a0.gno:5:2: operator ++ not defined on: BoolKind
+// main/runtime_a0.gno:5:2-12: operator ++ not defined on: BoolKind
+
+// TypeCheckError:
+// main/runtime_a0.gno:5:2: invalid operation: m["foo"]++ (non-numeric type bool)

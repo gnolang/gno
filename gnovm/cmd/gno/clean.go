@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -26,7 +25,7 @@ func newCleanCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "clean",
 			ShortUsage: "clean [flags]",
-			ShortHelp:  "removes generated files and cached data",
+			ShortHelp:  "remove generated and cached data",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -76,24 +75,12 @@ func execClean(cfg *cleanCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	path, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	modDir, err := gnomod.FindRootDir(path)
-	if err != nil {
-		return fmt.Errorf("not a gno module: %w", err)
-	}
-
-	if path != modDir && (cfg.dryRun || cfg.verbose) {
-		io.Println("cd", modDir)
-	}
-	err = clean(modDir, cfg, io)
+	wd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return clean(wd, cfg, io)
 }
 
 // clean removes generated files from a directory.

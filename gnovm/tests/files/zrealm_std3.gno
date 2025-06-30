@@ -9,7 +9,7 @@ func foo() {
 	println("foo", std.CurrentRealm().PkgPath())
 }
 
-func main() {
+func main(cur realm) {
 	println("main", std.CurrentRealm().PkgPath())
 	foo()
 }

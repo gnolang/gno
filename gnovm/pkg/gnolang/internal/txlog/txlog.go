@@ -7,12 +7,14 @@
 // when calling [MapCommitter.Commit].
 package txlog
 
+import "iter"
+
 // Map is a generic interface to a key/value map, like Go's builtin map.
 type Map[K comparable, V any] interface {
 	Get(K) (V, bool)
 	Set(K, V)
 	Delete(K)
-	Iterate() func(yield func(K, V) bool)
+	Iterate() iter.Seq2[K, V]
 }
 
 // MapCommitter is a Map which also implements a Commit() method, which writes
@@ -47,7 +49,7 @@ func (m GoMap[K, V]) Delete(k K) {
 }
 
 // Iterate implements [Map].
-func (m GoMap[K, V]) Iterate() func(yield func(K, V) bool) {
+func (m GoMap[K, V]) Iterate() iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
 		for k, v := range m {
 			if !yield(k, v) {
@@ -103,21 +105,26 @@ func (b txLog[K, V]) Delete(k K) {
 	b.dirty[k] = deletable[V]{deleted: true}
 }
 
-func (b txLog[K, V]) Iterate() func(yield func(K, V) bool) {
+func (b txLog[K, V]) Iterate() iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
 		// go through b.source; skip deleted values, and use updated values
 		// for those which exist in b.dirty.
-		b.source.Iterate()(func(k K, v V) bool {
+		for k, v := range b.source.Iterate() {
 			if dirty, ok := b.dirty[k]; ok {
 				if dirty.deleted {
-					return true
+					continue
 				}
-				return yield(k, dirty.v)
+				if !yield(k, dirty.v) {
+					return
+				}
+				continue
 			}
 
 			// not in dirty
-			return yield(k, v)
-		})
+			if !yield(k, v) {
+				return
+			}
+		}
 
 		// iterate over all "new" values (ie. exist in b.dirty but not b.source).
 		for k, v := range b.dirty {
@@ -129,7 +136,7 @@ func (b txLog[K, V]) Iterate() func(yield func(K, V) bool) {
 				continue
 			}
 			if !yield(k, v.v) {
-				break
+				return
 			}
 		}
 	}

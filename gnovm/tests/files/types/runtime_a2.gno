@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func gen() interface{} {
+func gen() any {
 	return false
 }
 

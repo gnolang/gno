@@ -3,10 +3,10 @@ package grc1155
 import "std"
 
 type IGRC1155 interface {
-	SafeTransferFrom(from, to std.Address, tid TokenID, amount uint64) error
-	SafeBatchTransferFrom(from, to std.Address, batch []TokenID, amounts []uint64) error
-	BalanceOf(owner std.Address, tid TokenID) (uint64, error)
-	BalanceOfBatch(owners []std.Address, batch []TokenID) ([]uint64, error)
+	SafeTransferFrom(from, to std.Address, tid TokenID, amount int64) error
+	SafeBatchTransferFrom(from, to std.Address, batch []TokenID, amounts []int64) error
+	BalanceOf(owner std.Address, tid TokenID) (int64, error)
+	BalanceOfBatch(owners []std.Address, batch []TokenID) ([]int64, error)
 	SetApprovalForAll(operator std.Address, approved bool) error
 	IsApprovedForAll(owner, operator std.Address) bool
 }
@@ -18,7 +18,7 @@ type TransferSingleEvent struct {
 	From     std.Address
 	To       std.Address
 	TokenID  TokenID
-	Amount   uint64
+	Amount   int64
 }
 
 type TransferBatchEvent struct {
@@ -26,7 +26,7 @@ type TransferBatchEvent struct {
 	From     std.Address
 	To       std.Address
 	Batch    []TokenID
-	Amounts  []uint64
+	Amounts  []int64
 }
 
 type ApprovalForAllEvent struct {
@@ -38,3 +38,5 @@ type ApprovalForAllEvent struct {
 type UpdateURIEvent struct {
 	URI string
 }
+
+type MultiTokenGetter func() IGRC1155

@@ -12,7 +12,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-var errInvalidGenesisState = errors.New("invalid genesis state type")
+var (
+	errInvalidGenesisState = errors.New("invalid genesis state type")
+	errInvalidTxSignature  = errors.New("invalid tx signature")
+)
 
 type verifyCfg struct {
 	common.Cfg
@@ -59,10 +62,36 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 			return errInvalidGenesisState
 		}
 
+		if err := gnoland.ValidateGenState(state); err != nil {
+			return fmt.Errorf("invalid genesis state: %w", err)
+		}
+
 		// Validate the initial transactions
-		for _, tx := range state.Txs {
+		for index, tx := range state.Txs {
 			if validateErr := tx.Tx.ValidateBasic(); validateErr != nil {
 				return fmt.Errorf("invalid transacton, %w", validateErr)
+			}
+
+			// Genesis txs can only be signed by 1 account.
+			// Basic tx validation ensures there is at least 1 signer
+			signer := tx.Tx.GetSignatures()[0]
+
+			// Grab the signature bytes of the tx.
+			// Genesis transactions are signed with
+			// account number and sequence set to 0
+			signBytes, err := tx.Tx.GetSignBytes(genesis.ChainID, 0, 0)
+			if err != nil {
+				return fmt.Errorf("unable to get tx signature payload, %w", err)
+			}
+
+			// Verify the signature using the public key
+			if !signer.PubKey.VerifyBytes(signBytes, signer.Signature) {
+				return fmt.Errorf(
+					"%w #%d, by signer %s",
+					errInvalidTxSignature,
+					index,
+					signer.PubKey.Address(),
+				)
 			}
 		}
 

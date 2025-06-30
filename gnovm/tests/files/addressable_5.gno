@@ -9,3 +9,6 @@ func main() {
 	le := &binary.LittleEndian
 	println(&le.AppendUint16(b, 0)[0])
 }
+
+// Output:
+// &(0 <databyte> uint8)

@@ -6,7 +6,7 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs"
 )
 
-//go:generate go run github.com/gnolang/gno/misc/genstd
+//go:generate go run github.com/gnolang/gno/misc/genstd -skip-init-order
 
 func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 	for _, nf := range nativeFuncs {
@@ -15,4 +15,13 @@ func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 		}
 	}
 	return stdlibs.NativeResolver(pkgPath, name)
+}
+
+func HasNativePkg(pkgPath string) bool {
+	for _, nf := range nativeFuncs {
+		if nf.gnoPkg == pkgPath {
+			return true
+		}
+	}
+	return stdlibs.HasNativePkg(pkgPath)
 }

@@ -85,7 +85,7 @@ func TestNode_Value(t *testing.T) {
 		name        string
 		data        []byte
 		_type       ValueType
-		expected    interface{}
+		expected    any
 		errExpected bool
 	}{
 		{name: "null", data: []byte("null"), _type: Null, expected: nil},
@@ -285,7 +285,7 @@ func TestNode_GetBool(t *testing.T) {
 	}
 }
 
-func TestNode_GetBool_Fail(t *testing.T) {
+func TestNode_GetBool_NotSucceed(t *testing.T) {
 	tests := []simpleNode{
 		{"nil node", (*Node)(nil)},
 		{"literally null node", NullNode("")},
@@ -357,7 +357,7 @@ func TestNode_GetNull(t *testing.T) {
 	}
 }
 
-func TestNode_GetNull_Fail(t *testing.T) {
+func TestNode_GetNull_NotSucceed(t *testing.T) {
 	tests := []simpleNode{
 		{"nil node", (*Node)(nil)},
 		{"number node is null", NumberNode("", 42)},
@@ -435,7 +435,7 @@ func TestNode_GetNumeric_With_Unmarshal(t *testing.T) {
 	}
 }
 
-func TestNode_GetNumeric_Fail(t *testing.T) {
+func TestNode_GetNumeric_NotSucceed(t *testing.T) {
 	tests := []simpleNode{
 		{"nil node", (*Node)(nil)},
 		{"null node", NullNode("")},
@@ -467,7 +467,7 @@ func TestNode_GetString(t *testing.T) {
 	}
 }
 
-func TestNode_GetString_Fail(t *testing.T) {
+func TestNode_GetString_NotSucceed(t *testing.T) {
 	tests := []simpleNode{
 		{"nil node", (*Node)(nil)},
 		{"null node", NullNode("")},
@@ -577,7 +577,7 @@ func TestNode_GetArray(t *testing.T) {
 	}
 }
 
-func TestNode_GetArray_Fail(t *testing.T) {
+func TestNode_GetArray_NotSucceed(t *testing.T) {
 	tests := []simpleNode{
 		{"nil node", (*Node)(nil)},
 		{"null node", NullNode("")},
@@ -736,7 +736,7 @@ func TestNode_Index(t *testing.T) {
 	}
 }
 
-func TestNode_Index_Fail(t *testing.T) {
+func TestNode_Index_NotSucceed(t *testing.T) {
 	tests := []struct {
 		name string
 		node *Node
@@ -854,7 +854,7 @@ func TestNode_GetKey(t *testing.T) {
 	}
 }
 
-func TestNode_GetKey_Fail(t *testing.T) {
+func TestNode_GetKey_NotSucceed(t *testing.T) {
 	tests := []simpleNode{
 		{"nil node", (*Node)(nil)},
 		{"null node", NullNode("")},
@@ -998,7 +998,7 @@ func TestNode_GetObject(t *testing.T) {
 	}
 }
 
-func TestNode_GetObject_Fail(t *testing.T) {
+func TestNode_GetObject_NotSucceed(t *testing.T) {
 	tests := []simpleNode{
 		{"nil node", (*Node)(nil)},
 		{"get object from null node", NullNode("")},

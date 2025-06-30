@@ -159,7 +159,7 @@ func (bs *BaseService) OnStart() error { return nil }
 func (bs *BaseService) Stop() error {
 	if atomic.CompareAndSwapUint32(&bs.stopped, 0, 1) {
 		if atomic.LoadUint32(&bs.started) == 0 {
-			bs.Logger.Error(fmt.Sprintf("Not stopping %v -- have not been started yet", bs.name), "impl", bs.impl)
+			bs.Logger.Warn(fmt.Sprintf("Not stopping %v -- have not been started yet", bs.name), "impl", bs.impl)
 			// revert flag
 			atomic.StoreUint32(&bs.stopped, 0)
 			return ErrNotStarted

@@ -1,0 +1,2 @@
+module = "gnovm/tests/integ/invalid_gno_file"
+gno = "0.9"

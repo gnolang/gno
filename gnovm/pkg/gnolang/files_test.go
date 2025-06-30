@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,32 +45,47 @@ func TestFiles(t *testing.T) {
 			Output:  io.Discard,
 			Error:   io.Discard,
 			Sync:    *withSync,
+			Cache:   gnolang.TypeCheckCache{},
 		}
-		o.BaseStore, o.TestStore = test.Store(
-			rootDir, true,
-			nopReader{}, o.WriterForStore(), io.Discard,
+		o.BaseStore, o.TestStore = test.StoreWithOptions(
+			rootDir, o.WriterForStore(),
+			test.StoreOptions{WithExtern: true},
 		)
 		return o
 	}
 	// sharedOpts is used for all "short" tests.
 	sharedOpts := newOpts()
 
-	dir := "../../tests/"
+	dir := "../../tests/files"
 	fsys := os.DirFS(dir)
-	err = fs.WalkDir(fsys, "files", func(path string, de fs.DirEntry, err error) error {
+	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
 		switch {
 		case err != nil:
 			return err
-		case path == "files/extern":
+		case path == "extern":
 			return fs.SkipDir
 		case de.IsDir():
 			return nil
 		}
-		subTestName := path[len("files/"):]
+		subTestName := path
+		isHidden := strings.HasPrefix(path, ".")
+		if isHidden {
+			t.Run(subTestName, func(t *testing.T) {
+				t.Skip("skipping hidden")
+			})
+			return nil
+		}
 		isLong := strings.HasSuffix(path, "_long.gno")
 		if isLong && testing.Short() {
 			t.Run(subTestName, func(t *testing.T) {
-				t.Skip("skipping in -short")
+				t.Skip("skipping long (-short)")
+			})
+			return nil
+		}
+		isKnown := strings.HasSuffix(path, "_known.gno")
+		if isKnown {
+			t.Run(subTestName, func(t *testing.T) {
+				t.Skip("skipping known issue")
 			})
 			return nil
 		}
@@ -121,7 +137,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
+		opts = test.NewTestOptions(rootDir, out, out)
 		opts.Verbose = true
 		return
 	}
@@ -138,10 +154,28 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(dir, path)
-		memPkg := gnolang.MustReadMemPackage(fp, path)
-		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
+
+		// Exclude empty directories.
+		files, err := ioutil.ReadDir(fp)
+		hasFiles := false
+		if err != nil {
+			return err
+		}
+		for _, file := range files {
+			if !file.IsDir() &&
+				strings.HasSuffix(file.Name(), ".gno") {
+				hasFiles = true
+			}
+		}
+		if !hasFiles {
+			return nil
+		}
+
+		// Read and run tests.
+		mpkg := gnolang.MustReadMemPackage(fp, path)
+		t.Run(strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
-			switch memPkg.Path {
+			switch mpkg.Path {
 			// Excluded in short
 			case
 				"bufio",
@@ -165,9 +199,46 @@ func TestStdlibs(t *testing.T) {
 				capture.Reset()
 			}
 
-			err := test.Test(memPkg, "", opts)
+			err := test.Test(mpkg, "", opts)
 			if !testing.Verbose() {
 				t.Log(capture.String())
+			}
+			if err != nil {
+				t.Error(err)
+			}
+		})
+
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testDir := "../../tests/stdlibs/"
+	testFs := os.DirFS(testDir)
+	err = fs.WalkDir(testFs, ".", func(path string, de fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case !de.IsDir() || path == ".":
+			return nil
+		}
+		if _, err := os.Stat(filepath.Join(dir, path)); err == nil {
+			// skip; this dir exists already in the normal stdlibs and we
+			// currently don't support testing these "mixed stdlibs".
+			return nil
+		}
+
+		fp := filepath.Join(testDir, path)
+		mpkg := gnolang.MustReadMemPackage(fp, path)
+		t.Run("test-"+strings.ReplaceAll(mpkg.Path, "/", "-"), func(t *testing.T) {
+			if sharedCapture != nil {
+				sharedCapture.Reset()
+			}
+
+			err := test.Test(mpkg, "", sharedOpts)
+			if !testing.Verbose() {
+				t.Log(sharedCapture.String())
 			}
 			if err != nil {
 				t.Error(err)

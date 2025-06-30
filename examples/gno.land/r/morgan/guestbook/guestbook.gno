@@ -31,8 +31,8 @@ var (
 	hasSigned   avl.Tree // address -> struct{}
 )
 
-func init() {
-	Sign("You reached the end of the guestbook!")
+func init(cur realm) {
+	Sign(cur, "You reached the end of the guestbook!")
 }
 
 const (
@@ -42,23 +42,23 @@ const (
 )
 
 // Sign signs the guestbook, with the specified message.
-func Sign(message string) {
-	prev := std.PrevRealm()
+func Sign(cur realm, message string) {
+	prev := std.PreviousRealm()
 	switch {
 	case !prev.IsUser():
 		panic(errNotAUser)
-	case hasSigned.Has(prev.Addr().String()):
+	case hasSigned.Has(prev.Address().String()):
 		panic(errAlreadySigned)
 	}
 	message = validateMessage(message)
 
 	guestbook.Set(signatureID.Next().Binary(), Signature{
 		Message: message,
-		Author:  prev.Addr(),
+		Author:  prev.Address(),
 		// NOTE: time.Now() will yield the "block time", which is deterministic.
 		Time: time.Now(),
 	})
-	hasSigned.Set(prev.Addr().String(), struct{}{})
+	hasSigned.Set(prev.Address().String(), struct{}{})
 }
 
 func validateMessage(msg string) string {
@@ -99,7 +99,7 @@ func Render(maxID string) string {
 
 	var lastID seqid.ID
 	var printed int
-	guestbook.ReverseIterate("", maxIDBinary, func(key string, val interface{}) bool {
+	guestbook.ReverseIterate("", maxIDBinary, func(key string, val any) bool {
 		sig := val.(Signature)
 		message := strings.ReplaceAll(sig.Message, "\n", "\n> ")
 		bld.WriteString("> " + message + "\n>\n")

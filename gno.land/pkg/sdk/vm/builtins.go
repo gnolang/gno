@@ -1,6 +1,9 @@
 package vm
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -59,22 +62,66 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 // ----------------------------------------
 // SDKParams
 
+// This implements ParamsInterface,
+// which is available as ExecContext.Params.
+// Access to SDKParams gives access to all parameters.
+// Users must write code to limit access as appropriate.
+
 type SDKParams struct {
-	vmk *VMKeeper
+	pmk ParamsKeeperI
 	ctx sdk.Context
 }
 
-func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
+func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
 	return &SDKParams{
-		vmk: vmk,
+		pmk: pmk,
 		ctx: ctx,
 	}
 }
 
-func (prm *SDKParams) SetString(key, value string)      { prm.vmk.prmk.SetString(prm.ctx, key, value) }
-func (prm *SDKParams) SetBool(key string, value bool)   { prm.vmk.prmk.SetBool(prm.ctx, key, value) }
-func (prm *SDKParams) SetInt64(key string, value int64) { prm.vmk.prmk.SetInt64(prm.ctx, key, value) }
-func (prm *SDKParams) SetUint64(key string, value uint64) {
-	prm.vmk.prmk.SetUint64(prm.ctx, key, value)
+// The key has the format <module>:(<realm>:)?<paramname>.
+func (prm *SDKParams) SetString(key string, value string) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetString(prm.ctx, key, value)
 }
-func (prm *SDKParams) SetBytes(key string, value []byte) { prm.vmk.prmk.SetBytes(prm.ctx, key, value) }
+
+func (prm *SDKParams) SetBool(key string, value bool) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetBool(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetInt64(key string, value int64) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetInt64(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetUint64(key string, value uint64) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetUint64(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetBytes(key string, value []byte) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetBytes(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetStrings(key string, value []string) {
+	prm.willSetKeeperParams(prm.ctx, key, value)
+	prm.pmk.SetStrings(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value any) {
+	parts := strings.Split(key, ":")
+	if len(parts) == 0 {
+		panic(fmt.Sprintf("SDKParams encountered invalid param key format: %s", key))
+	}
+	mname := parts[0]
+	if !prm.pmk.IsRegistered(mname) {
+		panic(fmt.Sprintf("module name <%s> not registered", mname))
+	}
+	kpr := prm.pmk.GetRegisteredKeeper(mname)
+	if kpr != nil {
+		subkey := key[len(mname)+1:]
+		kpr.WillSetParam(prm.ctx, subkey, value)
+	}
+}

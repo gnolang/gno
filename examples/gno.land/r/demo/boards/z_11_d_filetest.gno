@@ -1,13 +1,14 @@
-// PKGPATH: gno.land/r/demo/boards_test
-package boards_test
+package main
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
+	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var (
@@ -17,16 +18,18 @@ var (
 )
 
 func init() {
-	users.Register("", "gnouser", "my profile")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register(cross, "gnouser123")
 
-	bid = boards.CreateBoard("test_board")
-	pid = boards.CreateThread(bid, "First Post in (title)", "Body of the first post. (body)")
-	rid = boards.CreateReply(bid, pid, pid, "First reply of the First post\n")
+	bid = boards.CreateBoard(cross, "test_board")
+	pid = boards.CreateThread(cross, bid, "First Post in (title)", "Body of the first post. (body)")
+	rid = boards.CreateReply(cross, bid, pid, pid, "First reply of the First post\n")
 }
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
-	boards.EditPost(bid, pid, rid, "", "Edited: First reply of the First post\n")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
+	boards.EditPost(cross, bid, pid, rid, "", "Edited: First reply of the First post\n")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
@@ -35,19 +38,19 @@ func main() {
 // # First Post in (title)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)]
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
 //
 // > First reply of the First post
 // >
-// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=2)]
+// > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=2&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=1)]
 //
 // ----------------------------------------------------
 // # First Post in (title)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)]
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
 //
 // > Edited: First reply of the First post
 // >
-// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=2)]
+// > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=2&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=1)]
 //

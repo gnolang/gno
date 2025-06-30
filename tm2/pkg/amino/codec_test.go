@@ -3,6 +3,7 @@ package amino_test
 import (
 	"bytes"
 	"encoding/binary"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -236,4 +237,69 @@ func TestCodecSeal(t *testing.T) {
 	assert.Panics(t, func() { cdc.RegisterPackage(tests.Package) })
 }
 
-// XXX Test registering duplicate names or concrete types not in a package.
+func TestDupTypesMustPanic(t *testing.T) {
+	// duplicate types must panic
+	t.Parallel()
+
+	pkg := amino.NewPackage(
+		reflect.TypeOf(SimpleStruct{}).PkgPath(),
+		"amino_test",
+		amino.GetCallersDirname(),
+	)
+	assert.PanicsWithError(
+		t,
+		"type amino_test.SimpleStruct already registered with package",
+		func() {
+			pkg.WithTypes(
+				SimpleStruct{},
+				SimpleStruct{},
+			)
+		})
+}
+
+func TestTypesOutsidePackageMustPanic(t *testing.T) {
+	// adding concrete types from within a different package must panic
+	// (use dependency instead)
+	t.Parallel()
+
+	makepkg := func() *amino.Package {
+		return amino.NewPackage(
+			reflect.TypeOf(tests.EmptyStruct{}).PkgPath(),
+			"amino_test",
+			amino.GetCallersDirname(),
+		)
+	}
+
+	makepkg().WithTypes(tests.PrimitivesStruct{}) // from same package ✓
+
+	assert.Panics(t, func() {
+		makepkg().WithTypes(
+			SimpleStruct{}, // from another package ✗
+		)
+	})
+}
+
+func TestDupNamesMustPanic(t *testing.T) {
+	// adding types with the same names must panic
+	t.Parallel()
+
+	makepkg := func() *amino.Package {
+		return amino.NewPackage(
+			reflect.TypeOf(tests.EmptyStruct{}).PkgPath(),
+			"amino_test",
+			amino.GetCallersDirname(),
+		)
+	}
+	makepkg().WithTypes(
+		tests.EmptyStruct{}, "A",
+		tests.PrimitivesStruct{}, "B",
+		tests.ShortArraysStruct{}, "C",
+	)
+	assert.Panics(t, func() {
+		makepkg().WithTypes(
+			tests.EmptyStruct{}, "A",
+			tests.PrimitivesStruct{}, "B",
+			tests.ShortArraysStruct{}, "A", // Same name!
+		)
+	})
+}
