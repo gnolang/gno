@@ -8,6 +8,9 @@ var defaultOptions = Options{
 	AllowExecution: true,
 }
 
+// Option configures DAO options within CommonDAO realm.
+type Option func(*Options)
+
 // Options configures DAO behavior within CommonDAO realm.
 // These options are only valid for the CommonDAO ream, dApps that
 // own a DAO can implement these features by themselves.
@@ -86,4 +89,67 @@ func (o *Options) SetAllowSubDAOPorposals(allow bool) {
 // SetAllowDissolutionProposals toggles support for DAO dissolution proposals.
 func (o *Options) SetAllowDissolutionProposals(allow bool) {
 	o.AllowDissolutionProposals = allow
+}
+
+// AllowListing configures DAO listing within CommonDAO realm.
+func AllowListing(allow bool) Option {
+	return func(o *Options) {
+		o.AllowListing = allow
+	}
+}
+
+// AllowRender configures DAO, proposals and votes rendering within CommonDAO.
+func AllowRender(allow bool) Option {
+	return func(o *Options) {
+		o.AllowRender = allow
+	}
+}
+
+// AllowChildren configures DAO support for SubDAOs.
+func AllowChildren(allow bool) Option {
+	return func(o *Options) {
+		o.AllowChildren = allow
+	}
+}
+
+// AllowVoting configures DAO support for voting through CommonDAO realm.
+func AllowVoting(allow bool) Option {
+	return func(o *Options) {
+		o.AllowVoting = allow
+	}
+}
+
+// AllowExecution configures DAO support for executing proposals through CommonDAO realm.
+func AllowExecution(allow bool) Option {
+	return func(o *Options) {
+		o.AllowExecution = allow
+	}
+}
+
+// AllowMembersUpdate configures support for DAO members update proposals.
+func AllowMembersUpdate(allow bool) Option {
+	return func(o *Options) {
+		o.AllowMembersUpdate = allow
+	}
+}
+
+// AllowTextProposals configures support generic text proposals.
+func AllowTextProposals(allow bool) Option {
+	return func(o *Options) {
+		o.AllowTextProposals = allow
+	}
+}
+
+// AllowSubDAOPorposals configures support for SubDAO creation proposals.
+func AllowSubDAOPorposals(allow bool) Option {
+	return func(o *Options) {
+		o.AllowSubDAOProposals = allow
+	}
+}
+
+// AllowDissolutionProposals configures support for DAO dissolution proposals.
+func AllowDissolutionProposals(allow bool) Option {
+	return func(o *Options) {
+		o.AllowDissolutionProposals = allow
+	}
 }

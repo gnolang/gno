@@ -123,7 +123,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 
 func TestSubDAOPropDefinitionExecute(t *testing.T) {
 	// Create a parent DAO
-	parentDAO := createDAO("Foo", "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	parentDAO := createDAO("Foo", "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", nil)
 	urequire.Equal(t, 0, parentDAO.Children().Len(), "expected no initial SubDAOs")
 
 	// Initialize some members for the SubDAO
