@@ -79,10 +79,10 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
-	if cfg.RootCfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
+	if cfg.RootCfg.GasWanted == 0 && !cfg.RootCfg.GasAuto {
+		return errors.New("gas-wanted not specified (use --gas-wanted=<amount> or --gas-wanted=auto)")
 	}
-	if cfg.RootCfg.GasFee == "" {
+	if cfg.RootCfg.GasFee == "" && !cfg.RootCfg.GasAuto {
 		return errors.New("gas-fee not specified")
 	}
 
@@ -108,13 +108,6 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
-
 	// construct msg & tx and marshal.
 	msg := vm.MsgCall{
 		Caller:  caller,
@@ -123,11 +116,28 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		Func:    fnc,
 		Args:    cfg.Args,
 	}
+	
+	// Create initial transaction for gas estimation
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
+		Fee:        std.Fee{}, // Will be set by gas estimation or parsing
 		Signatures: nil,
 		Memo:       cfg.RootCfg.Memo,
+	}
+
+	// Estimate gas if auto mode is enabled
+	if cfg.RootCfg.GasAuto {
+		if err := client.EstimateGasAndFee(cfg.RootCfg, &tx); err != nil {
+			return errors.Wrap(err, "estimating gas and fee")
+		}
+	} else {
+		// parse gas wanted & fee manually
+		gaswanted := cfg.RootCfg.GasWanted
+		gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
+		if err != nil {
+			return errors.Wrap(err, "parsing gas fee coin")
+		}
+		tx.Fee = std.NewFee(gaswanted, gasfee)
 	}
 
 	if cfg.RootCfg.Broadcast {

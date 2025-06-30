@@ -4,8 +4,10 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"strconv"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -18,6 +20,8 @@ type MakeTxCfg struct {
 
 	GasWanted int64
 	GasFee    string
+	// GasAuto enables automatic gas estimation when set to true
+	GasAuto   bool
 	Memo      string
 
 	Broadcast bool
@@ -64,13 +68,30 @@ func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	return cmd
 }
 
+// parseGasWanted parses a gas value from string to int64
+func parseGasWanted(s string) (int64, error) {
+	return strconv.ParseInt(s, 10, 64)
+}
+
 func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.Int64Var(
-		&c.GasWanted,
-		"gas-wanted",
-		0,
-		"gas requested for tx",
-	)
+	// Custom flag parsing for gas-wanted to support "auto"
+	gasFunc := func(s string) error {
+		if s == "auto" {
+			c.GasAuto = true
+			c.GasWanted = 0
+		} else if s != "" {
+			gasWanted, err := parseGasWanted(s)
+			if err != nil {
+				return fmt.Errorf("invalid gas value: %w", err)
+			}
+			c.GasWanted = gasWanted
+			c.GasAuto = false
+		}
+		return nil
+	}
+	
+	fs.Func("gas-wanted", "gas requested for tx (or 'auto' for automatic estimation)", gasFunc)
+	fs.Func("gas", "gas requested for tx (or 'auto' for automatic estimation)", gasFunc)
 
 	fs.StringVar(
 		&c.GasFee,
@@ -231,6 +252,90 @@ func ExecSignAndBroadcast(
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", bres.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+
+	return nil
+}
+
+// EstimateGasAndFee estimates gas usage and fee for a transaction
+func EstimateGasAndFee(cfg *MakeTxCfg, tx *std.Tx) error {
+	if !cfg.GasAuto {
+		return nil // No auto estimation needed
+	}
+
+	// Get the remote client
+	remote := cfg.RootCfg.Remote
+	if remote == "" {
+		return errors.New("missing remote url for gas estimation")
+	}
+
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return errors.Wrap(err, "creating HTTP client for gas estimation")
+	}
+
+	// Serialize the transaction for simulation
+	bz, err := amino.Marshal(tx)
+	if err != nil {
+		return errors.Wrap(err, "marshaling tx for gas estimation")
+	}
+
+	// Simulate the transaction to get gas usage
+	res, err := SimulateTx(cli, bz)
+	if err != nil {
+		return errors.Wrap(err, "simulating transaction for gas estimation")
+	}
+
+	if res.CheckTx.IsErr() {
+		return errors.Wrapf(res.CheckTx.Error, "transaction check failed during gas estimation: %s", res.CheckTx.Log)
+	}
+
+	if res.DeliverTx.IsErr() {
+		return errors.Wrapf(res.DeliverTx.Error, "transaction delivery failed during gas estimation: %s", res.DeliverTx.Log)
+	}
+
+	// Get the estimated gas used and add a buffer
+	gasUsed := res.DeliverTx.GasUsed
+	// Add 10% buffer to the estimated gas
+	gasWanted := gasUsed + (gasUsed / 10)
+	
+	// Query gas price if fee is not set
+	var gasFee std.Coin
+	if cfg.GasFee == "" {
+		gp := std.GasPrice{}
+		qres, err := cli.ABCIQuery("auth/gasprice", []byte{})
+		if err != nil {
+			return errors.Wrap(err, "querying gas price for fee estimation")
+		}
+		err = amino.UnmarshalJSON(qres.Response.Data, &gp)
+		if err != nil {
+			return errors.Wrap(err, "unmarshaling gas price result")
+		}
+
+		if gp.Gas == 0 {
+			// No gas price set, use a default fee
+			gasFee = std.NewCoin("ugnot", 1000000) // Default fee
+		} else {
+			// Calculate fee based on gas price
+			feeAmount := gasWanted/gp.Gas + 1
+			// Add 5% buffer for gas price fluctuation
+			feeBuffer := feeAmount * 5 / 100
+			totalFee := feeAmount + feeBuffer
+			gasFee = std.NewCoin(gp.Price.Denom, totalFee)
+		}
+	} else {
+		// Parse existing gas fee
+		gasFee, err = std.ParseCoin(cfg.GasFee)
+		if err != nil {
+			return errors.Wrap(err, "parsing existing gas fee")
+		}
+	}
+
+	// Update the transaction with estimated values
+	cfg.GasWanted = gasWanted
+	if cfg.GasFee == "" {
+		cfg.GasFee = gasFee.String()
+	}
+	tx.Fee = std.NewFee(gasWanted, gasFee)
 
 	return nil
 }
