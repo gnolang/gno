@@ -21,7 +21,7 @@ func Test_RemoveAdminRank_Success(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 	MakeAdmin(cross, "7", "Chaegnal", "Ghhv")
 
-	uassert.NotPanics(t, func() { RemoveAdminRank(cross, "7", "Chaegnal", "Ghhv") })
+	uassert.NotAborts(t, func() { RemoveAdminRank(cross, "7", "Chaegnal", "Ghhv") })
 }
 
 func Test_RemoveAdminRank_Failure(t *testing.T) {
@@ -38,13 +38,7 @@ func Test_RemoveAdminRank_Failure(t *testing.T) {
 
 	testing.SetOriginCaller("Ghhv")
 
-	err := revive(func() {
+	uassert.AbortsWithMessage(t, "you cannot undo admin rights of the owner", func() {
 		RemoveAdminRank(cross, "8", "Ghhv", "Chaegnal")
 	})
-
-	errorMsg := "you cannot undo admin rights of the owner"
-
-	if err == nil || err.(string) != errorMsg {
-		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
-	}
 }

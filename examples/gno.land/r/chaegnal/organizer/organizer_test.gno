@@ -11,7 +11,7 @@ import (
 func Test_CreateFriendGroup(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 
-	uassert.NotPanics(t, func() { CreateFriendGroup(cross, "Test") })
+	uassert.NotAborts(t, func() { CreateFriendGroup(cross, "Test") })
 
 	raw, found := ListGroups.Groups.Get("1")
 	if !found {
@@ -38,7 +38,7 @@ func Test_AskJoinFriendGroup_Success(t *testing.T) {
 	CreateFriendGroup(cross, "Chaegnal's group")
 
 	testing.SetOriginCaller("Ghhv")
-	uassert.NotPanics(t, func() { AskJoinFriendGroup(cross, 2) })
+	uassert.NotAborts(t, func() { AskJoinFriendGroup(cross, 2) })
 
 	group := GetGroupFromId("2")
 	if !group.WaitList.Has("Ghhv") {
@@ -47,30 +47,18 @@ func Test_AskJoinFriendGroup_Success(t *testing.T) {
 }
 
 func Test_AskJoinFriendGroup_GroupFail(t *testing.T) {
-	err := revive(func() {
+	uassert.AbortsWithMessage(t, "group does not exist", func() {
 		AskJoinFriendGroup(cross, 100)
 	})
-
-	errorMsg := "group does not exist"
-
-	if err == nil || err.(string) != errorMsg {
-		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
-	}
 }
 
 func Test_AskJoinFriendGroup_AlreadyPart(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 	CreateFriendGroup(cross, "Chaegnal's Already In")
 
-	err := revive(func() {
+	uassert.AbortsWithMessage(t, "you are already part of this friend group", func() {
 		AskJoinFriendGroup(cross, 3)
 	})
-
-	errorMsg := "you are already part of this friend group"
-
-	if err == nil || err.(string) != errorMsg {
-		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errorMsg)
-	}
 }
 
 // Test LeaveGroup
@@ -88,7 +76,7 @@ func Test_LeaveGroup_Success(t *testing.T) {
 	group.DAO.Members().Add(adr)
 	group.Rank.Set(adr.String(), MemberRank)
 
-	uassert.NotPanics(t, func() { LeaveGroup(cross, "4") })
+	uassert.NotAborts(t, func() { LeaveGroup(cross, "4") })
 
 	if group.DAO.Members().Has("Ghhv") {
 		t.Errorf("'Ghhv' still in whitelist")
@@ -99,15 +87,9 @@ func Test_LeaveGroup_Failure(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 	CreateFriendGroup(cross, "Chaegnal's Leave")
 
-	err := revive(func() {
+	uassert.AbortsWithMessage(t, "owner cannot leave the group", func() {
 		LeaveGroup(cross, "4")
 	})
-
-	errMsg := "owner cannot leave the group"
-
-	if err == nil || err.(string) != errMsg {
-		t.Fatalf("unexpected panic message: got %q, want %q", err.(string), errMsg)
-	}
 }
 
 // Helpers
