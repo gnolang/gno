@@ -149,7 +149,7 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 
 			// Override package info with mod infos
 			currentPkg.Name = gm.Module
-			currentPkg.Draft = gm.Draft
+			currentPkg.Ignore = gm.Ignore
 
 			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
 			if err != nil {
@@ -169,8 +169,8 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 			}
 		}
 
-		if currentPkg.Draft {
-			continue // Skip draft package
+		if currentPkg.Ignore {
+			continue // Skip ignore package
 		}
 
 		if pl.exist(currentPkg) {
