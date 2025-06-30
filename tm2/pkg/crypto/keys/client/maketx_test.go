@@ -55,32 +55,32 @@ func TestParseGasWanted(t *testing.T) {
 
 func TestMakeTxCfg_GasAutoFlag(t *testing.T) {
 	tests := []struct {
-		name        string
-		gasInput    string
+		name         string
+		gasInput     string
 		expectedAuto bool
 		expectedGas  int64
-		wantErr     bool
+		wantErr      bool
 	}{
 		{
-			name:        "auto gas",
-			gasInput:    "auto",
+			name:         "auto gas",
+			gasInput:     "auto",
 			expectedAuto: true,
 			expectedGas:  0,
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "numeric gas",
-			gasInput:    "1000000",
+			name:         "numeric gas",
+			gasInput:     "1000000",
 			expectedAuto: false,
 			expectedGas:  1000000,
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "empty string",
-			gasInput:    "",
+			name:         "empty string",
+			gasInput:     "",
 			expectedAuto: false,
 			expectedGas:  0,
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
 			name:     "invalid gas",
@@ -92,7 +92,7 @@ func TestMakeTxCfg_GasAutoFlag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &MakeTxCfg{}
-			
+
 			// Simulate the flag parsing function
 			err := func(s string) error {
 				if s == "auto" {
@@ -120,19 +120,23 @@ func TestMakeTxCfg_GasAutoFlag(t *testing.T) {
 	}
 }
 
-func TestEstimateGasAndFee_NoAutoMode(t *testing.T) {
+func TestEstimateOrSetFee_NoAutoMode(t *testing.T) {
 	cfg := &MakeTxCfg{
-		GasAuto: false,
+		GasAuto:   false,
+		GasWanted: 100000,
+		GasFee:    "1000000ugnot",
 	}
-	
+
 	tx := &std.Tx{}
-	
-	// Should return immediately without error when auto mode is disabled
-	err := EstimateGasAndFee(cfg, tx)
+
+	// Should set fee manually when auto mode is disabled
+	err := EstimateOrSetFee(cfg, tx)
 	require.NoError(t, err)
+	assert.Equal(t, int64(100000), tx.Fee.GasWanted)
+	assert.Equal(t, "1000000ugnot", tx.Fee.GasFee.String())
 }
 
-func TestEstimateGasAndFee_MissingRemote(t *testing.T) {
+func TestEstimateOrSetFee_MissingRemote(t *testing.T) {
 	cfg := &MakeTxCfg{
 		GasAuto: true,
 		RootCfg: &BaseCfg{
@@ -141,11 +145,11 @@ func TestEstimateGasAndFee_MissingRemote(t *testing.T) {
 			},
 		},
 	}
-	
+
 	tx := &std.Tx{}
-	
+
 	// Should return error when remote URL is missing
-	err := EstimateGasAndFee(cfg, tx)
+	err := EstimateOrSetFee(cfg, tx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing remote url")
 }

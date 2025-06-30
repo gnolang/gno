@@ -21,8 +21,8 @@ type MakeTxCfg struct {
 	GasWanted int64
 	GasFee    string
 	// GasAuto enables automatic gas estimation when set to true
-	GasAuto   bool
-	Memo      string
+	GasAuto bool
+	Memo    string
 
 	Broadcast bool
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
@@ -73,9 +73,15 @@ func parseGasWanted(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }
 
-func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
-	// Custom flag parsing for gas-wanted to support "auto"
-	gasFunc := func(s string) error {
+// registerGasFlags sets up gas-wanted and gas-fee flags with auto mode support
+func (c *MakeTxCfg) registerGasFlags(fs *flag.FlagSet) {
+	// Set defaults to auto mode
+	c.GasAuto = true
+	c.GasWanted = 0
+	c.GasFee = ""
+
+	// gas-wanted flag: supports numeric values or "auto"
+	fs.Func("gas-wanted", "gas requested for tx (default: auto)", func(s string) error {
 		if s == "auto" {
 			c.GasAuto = true
 			c.GasWanted = 0
@@ -88,17 +94,25 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 			c.GasAuto = false
 		}
 		return nil
-	}
-	
-	fs.Func("gas-wanted", "gas requested for tx (or 'auto' for automatic estimation)", gasFunc)
-	fs.Func("gas", "gas requested for tx (or 'auto' for automatic estimation)", gasFunc)
+	})
 
-	fs.StringVar(
-		&c.GasFee,
-		"gas-fee",
-		"",
-		"gas payment fee",
-	)
+	// gas-fee flag: supports coin values or "auto"
+	fs.Func("gas-fee", "gas payment fee (default: auto)", func(s string) error {
+		if s == "auto" {
+			c.GasFee = "" // Empty triggers auto fee calculation
+		} else if s != "" {
+			c.GasFee = s
+			// Only disable auto if we also have explicit gas-wanted
+			if c.GasWanted > 0 {
+				c.GasAuto = false
+			}
+		}
+		return nil
+	})
+}
+
+func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
+	c.registerGasFlags(fs)
 
 	fs.StringVar(
 		&c.Memo,
@@ -256,12 +270,19 @@ func ExecSignAndBroadcast(
 	return nil
 }
 
-// EstimateGasAndFee estimates gas usage and fee for a transaction
-func EstimateGasAndFee(cfg *MakeTxCfg, tx *std.Tx) error {
+// EstimateOrSetFee handles both auto gas estimation and manual fee setting for a transaction
+func EstimateOrSetFee(cfg *MakeTxCfg, tx *std.Tx) error {
 	if !cfg.GasAuto {
-		return nil // No auto estimation needed
+		// Manual gas setting
+		gasfee, err := std.ParseCoin(cfg.GasFee)
+		if err != nil {
+			return errors.Wrap(err, "parsing gas fee coin")
+		}
+		tx.Fee = std.NewFee(cfg.GasWanted, gasfee)
+		return nil
 	}
 
+	// Auto gas estimation
 	// Get the remote client
 	remote := cfg.RootCfg.Remote
 	if remote == "" {
@@ -273,23 +294,53 @@ func EstimateGasAndFee(cfg *MakeTxCfg, tx *std.Tx) error {
 		return errors.Wrap(err, "creating HTTP client for gas estimation")
 	}
 
+	// Set temporary fee for simulation
+	// We need to set a non-zero fee for the simulation to work
+	tempGasFee := std.NewCoin("ugnot", 1000000) // 1 GNOT temporary fee
+	tempGasWanted := int64(10000000)            // 10M gas temporary limit
+
+	// Store original fee and signatures to restore if needed
+	originalFee := tx.Fee
+	originalSignatures := tx.Signatures
+
+	// Set temporary values for simulation
+	tx.Fee = std.NewFee(tempGasWanted, tempGasFee)
+
+	// Add a dummy signature for simulation to pass signature validation
+	// We need at least one signature with the correct length for the ante handler
+	if len(tx.Signatures) == 0 {
+		dummySig := std.Signature{
+			PubKey:    nil,              // Can be nil for simulation
+			Signature: make([]byte, 64), // Empty signature, correct length
+		}
+		tx.Signatures = []std.Signature{dummySig}
+	}
+
 	// Serialize the transaction for simulation
 	bz, err := amino.Marshal(tx)
 	if err != nil {
+		tx.Fee = originalFee // Restore original
+		tx.Signatures = originalSignatures
 		return errors.Wrap(err, "marshaling tx for gas estimation")
 	}
 
 	// Simulate the transaction to get gas usage
 	res, err := SimulateTx(cli, bz)
 	if err != nil {
+		tx.Fee = originalFee // Restore original
+		tx.Signatures = originalSignatures
 		return errors.Wrap(err, "simulating transaction for gas estimation")
 	}
 
 	if res.CheckTx.IsErr() {
+		tx.Fee = originalFee // Restore original
+		tx.Signatures = originalSignatures
 		return errors.Wrapf(res.CheckTx.Error, "transaction check failed during gas estimation: %s", res.CheckTx.Log)
 	}
 
 	if res.DeliverTx.IsErr() {
+		tx.Fee = originalFee // Restore original
+		tx.Signatures = originalSignatures
 		return errors.Wrapf(res.DeliverTx.Error, "transaction delivery failed during gas estimation: %s", res.DeliverTx.Log)
 	}
 
@@ -297,7 +348,7 @@ func EstimateGasAndFee(cfg *MakeTxCfg, tx *std.Tx) error {
 	gasUsed := res.DeliverTx.GasUsed
 	// Add 10% buffer to the estimated gas
 	gasWanted := gasUsed + (gasUsed / 10)
-	
+
 	// Query gas price if fee is not set
 	var gasFee std.Coin
 	if cfg.GasFee == "" {
@@ -336,6 +387,9 @@ func EstimateGasAndFee(cfg *MakeTxCfg, tx *std.Tx) error {
 		cfg.GasFee = gasFee.String()
 	}
 	tx.Fee = std.NewFee(gasWanted, gasFee)
+
+	// Clear dummy signatures - they'll be added properly during signing
+	tx.Signatures = originalSignatures
 
 	return nil
 }

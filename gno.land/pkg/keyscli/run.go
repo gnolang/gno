@@ -45,12 +45,6 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
 		return flag.ErrHelp
 	}
-	if cfg.RootCfg.GasWanted == 0 && !cfg.RootCfg.GasAuto {
-		return errors.New("gas-wanted not specified (use --gas-wanted=<amount> or --gas-wanted=auto)")
-	}
-	if cfg.RootCfg.GasFee == "" && !cfg.RootCfg.GasAuto {
-		return errors.New("gas-fee not specified")
-	}
 
 	nameOrBech32 := args[0]
 	sourcePath := args[1] // can be a file path, a dir path, or '-' for stdin
@@ -112,7 +106,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		Caller:  caller,
 		Package: memPkg,
 	}
-	
+
 	// Create initial transaction for gas estimation
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
@@ -121,19 +115,9 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		Memo:       cfg.RootCfg.Memo,
 	}
 
-	// Estimate gas if auto mode is enabled
-	if cfg.RootCfg.GasAuto {
-		if err := client.EstimateGasAndFee(cfg.RootCfg, &tx); err != nil {
-			return errors.Wrap(err, "estimating gas and fee")
-		}
-	} else {
-		// parse gas wanted & fee manually
-		gaswanted := cfg.RootCfg.GasWanted
-		gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-		if err != nil {
-			return errors.Wrap(err, "parsing gas fee coin")
-		}
-		tx.Fee = std.NewFee(gaswanted, gasfee)
+	// Handle gas estimation or manual fee setting
+	if err := client.EstimateOrSetFee(cfg.RootCfg, &tx); err != nil {
+		return errors.Wrap(err, "setting transaction fee")
 	}
 
 	if cfg.RootCfg.Broadcast {
