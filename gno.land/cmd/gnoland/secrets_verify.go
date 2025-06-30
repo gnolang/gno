@@ -8,7 +8,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 type secretsVerifyCfg struct {
@@ -146,7 +146,7 @@ func readAndVerifyValidatorState(path string, io commands.IO) (*privval.FilePVLa
 
 // readAndVerifyNodeKey reads the node p2p key from the given path and verifies it
 func readAndVerifyNodeKey(path string, io commands.IO) error {
-	nodeKey, err := readSecretData[p2p.NodeKey](path)
+	nodeKey, err := readSecretData[types.NodeKey](path)
 	if err != nil {
 		return fmt.Errorf("unable to read node p2p key, %w", err)
 	}

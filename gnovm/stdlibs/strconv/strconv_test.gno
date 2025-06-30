@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -21,24 +22,24 @@ var (
 	}{
 		{0, `AppendInt(localBuf[:0], 123, 10)`, func() {
 			var localBuf [64]byte
-			AppendInt(localBuf[:0], 123, 10)
+			strconv.AppendInt(localBuf[:0], 123, 10)
 		}},
-		{0, `AppendInt(globalBuf[:0], 123, 10)`, func() { AppendInt(globalBuf[:0], 123, 10) }},
+		{0, `AppendInt(globalBuf[:0], 123, 10)`, func() { strconv.AppendInt(globalBuf[:0], 123, 10) }},
 		{0, `AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)`, func() {
 			var localBuf [64]byte
-			AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)
+			strconv.AppendFloat(localBuf[:0], 1.23, 'g', 5, 64)
 		}},
-		{0, `AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64)`, func() { AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64) }},
+		{0, `AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64)`, func() { strconv.AppendFloat(globalBuf[:0], 1.23, 'g', 5, 64) }},
 		// In practice we see 7 for the next one, but allow some slop.
 		// Before pre-allocation in appendQuotedWith, we saw 39.
-		{10, `AppendQuoteToASCII(nil, oneMB)`, func() { AppendQuoteToASCII(nil, string(oneMB)) }},
-		{0, `ParseFloat("123.45", 64)`, func() { ParseFloat("123.45", 64) }},
-		{0, `ParseFloat("123.456789123456789", 64)`, func() { ParseFloat("123.456789123456789", 64) }},
+		{10, `AppendQuoteToASCII(nil, oneMB)`, func() { strconv.AppendQuoteToASCII(nil, string(oneMB)) }},
+		{0, `ParseFloat("123.45", 64)`, func() { strconv.ParseFloat("123.45", 64) }},
+		{0, `ParseFloat("123.456789123456789", 64)`, func() { strconv.ParseFloat("123.456789123456789", 64) }},
 		{0, `ParseFloat("1.000000000000000111022302462515654042363166809082031251", 64)`, func() {
-			ParseFloat("1.000000000000000111022302462515654042363166809082031251", 64)
+			strconv.ParseFloat("1.000000000000000111022302462515654042363166809082031251", 64)
 		}},
 		{0, `ParseFloat("1.0000000000000001110223024625156540423631668090820312500...001", 64)`, func() {
-			ParseFloat(nextToOne, 64)
+			strconv.ParseFloat(nextToOne, 64)
 		}},
 	}
 )
@@ -125,11 +126,11 @@ func TestAllocationsFromBytes(t *testing.T) {
 */
 
 func TestErrorPrefixes(t *testing.T) {
-	_, errInt := Atoi("INVALID")
-	_, errBool := ParseBool("INVALID")
-	_, errFloat := ParseFloat("INVALID", 64)
-	_, errInt64 := ParseInt("INVALID", 10, 64)
-	_, errUint64 := ParseUint("INVALID", 10, 64)
+	_, errInt := strconv.Atoi("INVALID")
+	_, errBool := strconv.ParseBool("INVALID")
+	_, errFloat := strconv.ParseFloat("INVALID", 64)
+	_, errInt64 := strconv.ParseInt("INVALID", 10, 64)
+	_, errUint64 := strconv.ParseUint("INVALID", 10, 64)
 
 	vectors := []struct {
 		err  error  // Input error
@@ -143,7 +144,7 @@ func TestErrorPrefixes(t *testing.T) {
 	}
 
 	for _, v := range vectors {
-		nerr, ok := v.err.(*NumError)
+		nerr, ok := v.err.(*strconv.NumError)
 		if !ok {
 			t.Errorf("test %s, error was not a *NumError", v.want)
 			continue

@@ -1,6 +1,7 @@
 package std
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -29,9 +30,11 @@ func ParseGasPrice(gasprice string) (GasPrice, error) {
 	if gas.Denom != "gas" {
 		return GasPrice{}, errors.New("invalid gas price: %s (invalid gas denom)", gasprice)
 	}
-	if gas.Amount == 0 {
-		return GasPrice{}, errors.New("invalid gas price: %s (gas can not be zero)", gasprice)
+
+	if gas.Amount <= 0 {
+		return GasPrice{}, errors.New("invalid gas price: %s (invalid gas amount)", gasprice)
 	}
+
 	return GasPrice{
 		Gas:   gas.Amount,
 		Price: price,
@@ -76,4 +79,8 @@ func (gp GasPrice) IsGTE(gpB GasPrice) (bool, error) {
 	// This approach helps us avoid dealing with configurations where the value of
 	// the minimum gas price is set to 0.00001ugnot/gas.
 	return prod1.Cmp(prod2) >= 0, nil
+}
+
+func (gp GasPrice) String() string {
+	return fmt.Sprintf("%dgas/%s", gp.Gas, gp.Price.String())
 }

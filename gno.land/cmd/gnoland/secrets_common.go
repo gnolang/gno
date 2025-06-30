@@ -8,7 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 var (
@@ -54,7 +54,7 @@ func isValidDirectory(dirPath string) bool {
 }
 
 type secretData interface {
-	privval.FilePVKey | privval.FilePVLastSignState | p2p.NodeKey
+	privval.FilePVKey | privval.FilePVLastSignState | types.NodeKey
 }
 
 // readSecretData reads the secret data from the given path
@@ -145,7 +145,7 @@ func validateValidatorStateSignature(
 }
 
 // validateNodeKey validates the node's p2p key
-func validateNodeKey(key *p2p.NodeKey) error {
+func validateNodeKey(key *types.NodeKey) error {
 	if key.PrivKey == nil {
 		return errInvalidNodeKey
 	}

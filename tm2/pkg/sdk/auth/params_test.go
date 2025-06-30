@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,6 +25,7 @@ func TestValidate(t *testing.T) {
 				SigVerifyCostSecp256k1:    200,
 				GasPricesChangeCompressor: 1,
 				TargetGasRatio:            50,
+				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
 			},
 			expectsError: false,
 		},
@@ -77,6 +80,7 @@ func TestNewParams(t *testing.T) {
 	sigVerifyCostSecp256k1 := int64(200)
 	gasPricesChangeCompressor := int64(50)
 	targetGasRatio := int64(75)
+	feeCollector := crypto.AddressFromPreimage([]byte("test_collector"))
 
 	// Call NewParams with the values
 	params := NewParams(
@@ -87,6 +91,7 @@ func TestNewParams(t *testing.T) {
 		sigVerifyCostSecp256k1,
 		gasPricesChangeCompressor,
 		targetGasRatio,
+		feeCollector,
 	)
 
 	// Create an expected Params struct with the same values
@@ -98,10 +103,32 @@ func TestNewParams(t *testing.T) {
 		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
 		GasPricesChangeCompressor: gasPricesChangeCompressor,
 		TargetGasRatio:            targetGasRatio,
+		FeeCollector:              feeCollector,
 	}
 
 	// Check if the returned params struct matches the expected struct
 	if !reflect.DeepEqual(params, expectedParams) {
 		t.Errorf("NewParams() = %+v, want %+v", params, expectedParams)
+	}
+}
+
+func TestParamsString(t *testing.T) {
+	cases := []struct {
+		name   string
+		params Params
+		want   string
+	}{
+		{"blank params", Params{}, "Params: \nMaxMemoBytes: 0\nTxSigLimit: 0\nTxSizeCostPerByte: 0\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\nFeeCollector: g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe\n"},
+		{"some values", Params{
+			MaxMemoBytes:      1_000_000,
+			TxSizeCostPerByte: 8192,
+		}, "Params: \nMaxMemoBytes: 1000000\nTxSigLimit: 0\nTxSizeCostPerByte: 8192\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\nFeeCollector: g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe\n"},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.params.String()
+			assert.Equal(t, tt.want, got)
+		})
 	}
 }

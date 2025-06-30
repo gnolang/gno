@@ -27,12 +27,12 @@ type Project struct {
 }
 
 var (
-	textArt       string
-	aboutMe       string
-	sponsorInfo   string
-	socialLinks   map[string]SocialLink
-	gnoProjects   map[string]Project
-	otherProjects map[string]Project
+	textArt        string
+	aboutMe        string
+	sponsorInfo    string
+	socialLinks    map[string]SocialLink
+	gnoProjects    map[string]Project
+	otherProjects  map[string]Project
 	totalDonations std.Coins
 )
 
@@ -137,7 +137,7 @@ func renderProjects(projectsMap map[string]Project, title string) string {
 }
 
 func UpdateLink(name, newURL string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -152,7 +152,7 @@ func UpdateLink(name, newURL string) {
 }
 
 func UpdateAboutMe(text string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -160,7 +160,7 @@ func UpdateAboutMe(text string) {
 }
 
 func AddGnoProject(name, description, url, imageURL string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -174,7 +174,7 @@ func AddGnoProject(name, description, url, imageURL string) {
 }
 
 func DeleteGnoProject(projectName string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -186,7 +186,7 @@ func DeleteGnoProject(projectName string) {
 }
 
 func AddOtherProject(name, description, url, imageURL string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -200,7 +200,7 @@ func AddOtherProject(name, description, url, imageURL string) {
 }
 
 func RemoveOtherProject(projectName string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !isAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -216,8 +216,8 @@ func isAuthorized(addr std.Address) bool {
 }
 
 func SponsorGnoProject(projectName string) {
-	address := std.GetOrigCaller()
-	amount := std.GetOrigSend()
+	address_XXX := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -228,9 +228,9 @@ func SponsorGnoProject(projectName string) {
 		panic("Gno project not found")
 	}
 
-	project.Sponsors[address] = Sponsor{
-		Address: address,
-		Amount:  project.Sponsors[address].Amount.Add(amount),
+	project.Sponsors[address_XXX] = Sponsor{
+		Address: address_XXX,
+		Amount:  project.Sponsors[address_XXX].Amount.Add(amount),
 	}
 
 	totalDonations = totalDonations.Add(amount)
@@ -239,8 +239,8 @@ func SponsorGnoProject(projectName string) {
 }
 
 func SponsorOtherProject(projectName string) {
-	address := std.GetOrigCaller()
-	amount := std.GetOrigSend()
+	address_XXX := std.OriginCaller()
+	amount := std.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -251,9 +251,9 @@ func SponsorOtherProject(projectName string) {
 		panic("Other project not found")
 	}
 
-	project.Sponsors[address] = Sponsor{
-		Address: address,
-		Amount:  project.Sponsors[address].Amount.Add(amount),
+	project.Sponsors[address_XXX] = Sponsor{
+		Address: address_XXX,
+		Amount:  project.Sponsors[address_XXX].Amount.Add(amount),
 	}
 
 	totalDonations = totalDonations.Add(amount)
@@ -262,19 +262,19 @@ func SponsorOtherProject(projectName string) {
 }
 
 func Withdraw() string {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	realmAddress := std.PreviousRealm().Address()
+	if !isAuthorized(realmAddress) {
 		panic(config.ErrUnauthorized)
 	}
 
-    banker := std.GetBanker(std.BankerTypeRealmSend)
-    realmAddress := std.GetOrigPkgAddr()
-    coins := banker.GetCoins(realmAddress)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
+	coins := banker.GetCoins(realmAddress)
 
-    if len(coins) == 0 {
-        return "No coins available to withdraw"
-    }
+	if len(coins) == 0 {
+		return "No coins available to withdraw"
+	}
 
-    banker.SendCoins(realmAddress, config.Address(), coins)
+	banker.SendCoins(realmAddress, config.Address(), coins)
 
-    return "Successfully withdrew all coins to config address"
+	return "Successfully withdrew all coins to config address"
 }

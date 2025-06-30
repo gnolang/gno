@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 //----------------------------------------
@@ -76,19 +76,19 @@ func summaryOf(str string, length int) string {
 }
 
 func displayAddressMD(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
+	user := users.ResolveAddress(addr)
 	if user == nil {
-		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
+		return "[" + addr.String() + "](/u/" + addr.String() + ")"
 	}
-	return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
+	return "[@" + user.Name() + "](/u/" + user.Name() + ")"
 }
 
 func usernameOf(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
+	user := users.ResolveAddress(addr)
 	if user == nil {
 		panic("user not found")
 	}
-	return user.Name
+	return user.Name()
 }
 
 func isValidPermission(perm Permission) bool {

@@ -5,6 +5,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/db"
@@ -105,8 +106,8 @@ func (db *GoLevelDB) DB() *leveldb.DB {
 }
 
 // Implements DB.
-func (db *GoLevelDB) Close() {
-	db.db.Close()
+func (db *GoLevelDB) Close() error {
+	return db.db.Close()
 }
 
 // Implements DB.
@@ -295,7 +296,7 @@ func (itr *goLevelDBIterator) Key() []byte {
 	// See https://github.com/syndtr/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
 	itr.assertNoError()
 	itr.assertIsValid()
-	return append([]byte{}, itr.source.Key()...)
+	return slices.Clone(itr.source.Key())
 }
 
 // Implements Iterator.
@@ -304,7 +305,7 @@ func (itr *goLevelDBIterator) Value() []byte {
 	// See https://github.com/syndtr/goleveldb/blob/52c212e6c196a1404ea59592d3f1c227c9f034b2/leveldb/iterator/iter.go#L88
 	itr.assertNoError()
 	itr.assertIsValid()
-	return append([]byte{}, itr.source.Value()...)
+	return slices.Clone(itr.source.Value())
 }
 
 // Implements Iterator.

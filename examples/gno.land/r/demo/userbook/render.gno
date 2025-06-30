@@ -4,14 +4,14 @@ package userbook
 import (
 	"strconv"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
 )
 
-const usersLink = "/r/demo/users"
+const usersLink = "/r/gnoland/users/v1"
 
 func Render(path string) string {
 	p := pager.NewPager(signupsTree, 20, true)
@@ -24,10 +24,10 @@ func Render(path string) string {
 
 	for _, item := range page.Items {
 		signup := item.Value.(*Signup)
-		user := signup.address.String()
+		user := signup.address_XXX.String()
 
-		if data := users.GetUserByAddress(signup.address); data != nil {
-			user = ufmt.Sprintf("[%s](%s:%s)", data.Name, usersLink, data.Name)
+		if data := users.ResolveAddress(signup.address_XXX); data != nil {
+			user = ufmt.Sprintf("[%s](%s:%s)", data.Name(), usersLink, data.Name())
 		}
 
 		out += ufmt.Sprintf("- **User #%d - %s - signed up on %s**\n\n", signup.ordinal, user, signup.timestamp.Format("January 2 2006, 03:04:04 PM"))
@@ -35,6 +35,6 @@ func Render(path string) string {
 
 	out += "---\n\n"
 	out += "**Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "**\n\n"
-	out += page.Picker()
+	out += page.Picker(path)
 	return out
 }

@@ -24,7 +24,7 @@ const (
 	MaxBlockDataBytes int64 = 2000000 // 2MB
 
 	// MaxBlockMaxGas is the max gas limit for the block
-	MaxBlockMaxGas int64 = 100000000 // 100M gas
+	MaxBlockMaxGas int64 = 3000000000 // 3B gas
 
 	// BlockTimeIotaMS is the block time iota (in ms)
 	BlockTimeIotaMS int64 = 100 // ms
@@ -81,7 +81,7 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 	}
 
 	// Check if keyType is a known ABCIPubKeyType
-	for i := 0; i < len(params.Validator.PubKeyTypeURLs); i++ {
+	for i := range params.Validator.PubKeyTypeURLs {
 		keyType := params.Validator.PubKeyTypeURLs[i]
 		if _, ok := validatorPubKeyTypeURLs[keyType]; !ok {
 			return errors.New("params.Validator.PubKeyTypeURLs[%d], %s, is an unknown pubKey type",

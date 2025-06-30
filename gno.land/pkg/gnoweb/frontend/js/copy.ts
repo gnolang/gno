@@ -9,7 +9,7 @@ class Copy {
   private isAnimationRunning: boolean = false;
 
   private static SELECTORS = {
-    button: "[data-copy-btn]",
+    button: ".js-copy-btn",
     icon: `[data-copy-icon] > use`,
     content: (id: string) => `[data-copy-content="${id}"]`,
   };

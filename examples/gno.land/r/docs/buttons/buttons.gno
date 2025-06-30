@@ -14,7 +14,7 @@ var (
 
 func UpdateMOTD(newmotd string) {
 	motd = newmotd
-	lastCaller = std.PrevRealm().Addr()
+	lastCaller = std.PreviousRealm().Address()
 }
 
 func Render(path string) string {

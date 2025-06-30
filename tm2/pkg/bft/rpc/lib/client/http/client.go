@@ -166,14 +166,14 @@ func defaultHTTPClient(remoteAddr string) *http.Client {
 		Transport: &http.Transport{
 			// Set to true to prevent GZIP-bomb DoS attacks
 			DisableCompression: true,
-			DialContext: func(_ context.Context, network, addr string) (net.Conn, error) {
-				return makeHTTPDialer(remoteAddr)(network, addr)
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return makeHTTPDialer(remoteAddr)
 			},
 		},
 	}
 }
 
-func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
+func makeHTTPDialer(remoteAddr string) (net.Conn, error) {
 	protocol, address := parseRemoteAddr(remoteAddr)
 
 	// net.Dial doesn't understand http/https, so change it to TCP
@@ -182,9 +182,7 @@ func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
 		protocol = protoTCP
 	}
 
-	return func(proto, addr string) (net.Conn, error) {
-		return net.Dial(protocol, address)
-	}
+	return net.Dial(protocol, address)
 }
 
 // protocol - client's protocol (for example, "http", "https", "wss", "ws", "tcp")

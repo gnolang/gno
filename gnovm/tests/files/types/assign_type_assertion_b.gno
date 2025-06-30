@@ -29,4 +29,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_b.gno:22:2: cannot use interface{IsSet func()(bool)} as int
+// main/assign_type_assertion_b.gno:22:2-51: cannot use interface {IsSet func() bool} as int
+
+// TypeCheckError:
+// main/assign_type_assertion_b.gno:22:20: cannot use err.(interface{IsSet() bool}) (comma, ok expression of type interface{IsSet() bool}) as int value in assignment; main/assign_type_assertion_b.gno:25:37: assertedErr.IsSet undefined (type int has no field or method IsSet)

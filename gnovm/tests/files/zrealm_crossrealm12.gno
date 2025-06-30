@@ -9,25 +9,27 @@ import (
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
-func main() {
+func main(cur realm) {
 	tests := []struct {
 		fn func() std.Realm
 	}{
 		{std.CurrentRealm},
 		{psubtests.GetCurrentRealm},
-		{rsubtests.GetCurrentRealm},
+		{func() std.Realm {
+			return rsubtests.GetCurrentRealm(cross)
+		}},
 	}
 
 	for _, test := range tests {
 		r := test.fn()
 
-		if std.DerivePkgAddr(r.PkgPath()) != r.Addr() {
+		if std.DerivePkgAddr(r.PkgPath()) != r.Address() {
 			panic(fmt.Sprintf("ERROR: expected: %v, got: %v",
-				std.DerivePkgAddr(r.PkgPath()), r.Addr(),
+				std.DerivePkgAddr(r.PkgPath()), r.Address(),
 			))
 		}
 
-		println(r.PkgPath(), r.Addr())
+		println(r.PkgPath(), r.Address())
 	}
 }
 

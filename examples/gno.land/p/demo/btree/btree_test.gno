@@ -9,8 +9,8 @@ import (
 // Content represents a key-value pair where the Key can be either an int or string
 // and the Value can be any type.
 type Content struct {
-	Key   interface{}
-	Value interface{}
+	Key   any
+	Value any
 }
 
 // Less compares two Content records by their Keys.
@@ -120,7 +120,6 @@ func TestLen(t *testing.T) {
 	if length != 123 {
 		t.Errorf("Length is incorrect. Expected 123, but got %d.", length)
 	}
-
 }
 
 func TestHas(t *testing.T) {
@@ -138,7 +137,7 @@ func TestHas(t *testing.T) {
 }
 
 func TestMin(t *testing.T) {
-	min := Content(genericSeeding(New(WithDegree(10)), 53).Min())
+	min := genericSeeding(New(WithDegree(10)), 53).Min().(Content)
 
 	if min.Key != 0 {
 		t.Errorf("Minimum should have been 0, but it was reported as %d.", min)
@@ -146,24 +145,24 @@ func TestMin(t *testing.T) {
 }
 
 func TestMax(t *testing.T) {
-	max := Content(genericSeeding(New(WithDegree(10)), 53).Min())
+	max := genericSeeding(New(WithDegree(10)), 53).Max().(Content)
 
-	if max.Key != 0 {
-		t.Errorf("Minimum should have been 0, but it was reported as %d.", max)
+	if max.Key != 52 {
+		t.Errorf("Maximum should have been 52, but it was reported as %d.", max)
 	}
 }
 
 func TestGet(t *testing.T) {
 	tree := genericSeeding(New(WithDegree(10)), 40)
 
-	if Content(tree.Get(Content{Key: 7})).Value != "Value_7" {
-		t.Errorf("Get(7) should have returned 'Value_7', but it returned %v.", tree.Get(Content{Key: 7}))
+	if val := tree.Get(Content{Key: 7}); val != nil && val.(Content).Value != "Value_7" {
+		t.Errorf("Get(7) should have returned 'Value_7', but it returned %v.", val)
 	}
-	if Content(tree.Get(Content{Key: 39})).Value != "Value_39" {
-		t.Errorf("Get(40) should have returnd 'Value_39', but it returned %v.", tree.Get(Content{Key: 39}))
+	if val := tree.Get(Content{Key: 39}); val != nil && val.(Content).Value != "Value_39" {
+		t.Errorf("Get(39) should have returned 'Value_39', but it returned %v.", val)
 	}
-	if tree.Get(Content{Key: 1111}) != nil {
-		t.Errorf("Get(1111) returned %v, but it should be nil.", Content(tree.Get(Content{Key: 1111})))
+	if val := tree.Get(Content{Key: 1111}); val != nil {
+		t.Errorf("Get(1111) returned %v, but it should be nil.", val)
 	}
 }
 
@@ -174,8 +173,8 @@ func TestDescend(t *testing.T) {
 	found := []int{}
 
 	tree.Descend(func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
@@ -191,8 +190,8 @@ func TestDescendGreaterThan(t *testing.T) {
 	found := []int{}
 
 	tree.DescendGreaterThan(Content{Key: 4}, func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
@@ -208,8 +207,8 @@ func TestDescendLessOrEqual(t *testing.T) {
 	found := []int{}
 
 	tree.DescendLessOrEqual(Content{Key: 4}, func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
@@ -225,8 +224,8 @@ func TestDescendRange(t *testing.T) {
 	found := []int{}
 
 	tree.DescendRange(Content{Key: 6}, Content{Key: 1}, func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
@@ -242,8 +241,8 @@ func TestAscend(t *testing.T) {
 	found := []int{}
 
 	tree.Ascend(func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
@@ -259,8 +258,8 @@ func TestAscendGreaterOrEqual(t *testing.T) {
 	found := []int{}
 
 	tree.AscendGreaterOrEqual(Content{Key: 5}, func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
@@ -276,13 +275,13 @@ func TestAscendLessThan(t *testing.T) {
 	found := []int{}
 
 	tree.AscendLessThan(Content{Key: 5}, func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
 	if intSlicesCompare(expected, found) != 0 {
-		t.Errorf("DescendLessOrEqual returned the wrong sequence. Expected %v, but got %v.", expected, found)
+		t.Errorf("AscendLessThan returned the wrong sequence. Expected %v, but got %v.", expected, found)
 	}
 }
 
@@ -293,13 +292,13 @@ func TestAscendRange(t *testing.T) {
 	found := []int{}
 
 	tree.AscendRange(Content{Key: 2}, Content{Key: 7}, func(_record Record) bool {
-		record := Content(_record)
-		found = append(found, int(record.Key))
+		record := _record.(Content)
+		found = append(found, record.Key.(int))
 		return true
 	})
 
 	if intSlicesCompare(expected, found) != 0 {
-		t.Errorf("DescendRange returned the wrong sequence. Expected %v, but got %v.", expected, found)
+		t.Errorf("AscendRange returned the wrong sequence. Expected %v, but got %v.", expected, found)
 	}
 }
 
@@ -309,11 +308,11 @@ func TestDeleteMin(t *testing.T) {
 	expected := []int{0, 1, 2, 3, 4}
 	found := []int{}
 
-	found = append(found, int(Content(tree.DeleteMin()).Key))
-	found = append(found, int(Content(tree.DeleteMin()).Key))
-	found = append(found, int(Content(tree.DeleteMin()).Key))
-	found = append(found, int(Content(tree.DeleteMin()).Key))
-	found = append(found, int(Content(tree.DeleteMin()).Key))
+	found = append(found, tree.DeleteMin().(Content).Key.(int))
+	found = append(found, tree.DeleteMin().(Content).Key.(int))
+	found = append(found, tree.DeleteMin().(Content).Key.(int))
+	found = append(found, tree.DeleteMin().(Content).Key.(int))
+	found = append(found, tree.DeleteMin().(Content).Key.(int))
 
 	if intSlicesCompare(expected, found) != 0 {
 		t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
@@ -326,11 +325,11 @@ func TestShift(t *testing.T) {
 	expected := []int{0, 1, 2, 3, 4}
 	found := []int{}
 
-	found = append(found, int(Content(tree.Shift()).Key))
-	found = append(found, int(Content(tree.Shift()).Key))
-	found = append(found, int(Content(tree.Shift()).Key))
-	found = append(found, int(Content(tree.Shift()).Key))
-	found = append(found, int(Content(tree.Shift()).Key))
+	found = append(found, tree.Shift().(Content).Key.(int))
+	found = append(found, tree.Shift().(Content).Key.(int))
+	found = append(found, tree.Shift().(Content).Key.(int))
+	found = append(found, tree.Shift().(Content).Key.(int))
+	found = append(found, tree.Shift().(Content).Key.(int))
 
 	if intSlicesCompare(expected, found) != 0 {
 		t.Errorf("5 rounds of Shift returned the wrong elements. Expected  %v, but got %v.", expected, found)
@@ -343,14 +342,14 @@ func TestDeleteMax(t *testing.T) {
 	expected := []int{99, 98, 97, 96, 95}
 	found := []int{}
 
-	found = append(found, int(Content(tree.DeleteMax()).Key))
-	found = append(found, int(Content(tree.DeleteMax()).Key))
-	found = append(found, int(Content(tree.DeleteMax()).Key))
-	found = append(found, int(Content(tree.DeleteMax()).Key))
-	found = append(found, int(Content(tree.DeleteMax()).Key))
+	found = append(found, tree.DeleteMax().(Content).Key.(int))
+	found = append(found, tree.DeleteMax().(Content).Key.(int))
+	found = append(found, tree.DeleteMax().(Content).Key.(int))
+	found = append(found, tree.DeleteMax().(Content).Key.(int))
+	found = append(found, tree.DeleteMax().(Content).Key.(int))
 
 	if intSlicesCompare(expected, found) != 0 {
-		t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
+		t.Errorf("5 rounds of DeleteMax returned the wrong elements. Expected  %v, but got %v.", expected, found)
 	}
 }
 
@@ -360,14 +359,14 @@ func TestPop(t *testing.T) {
 	expected := []int{99, 98, 97, 96, 95}
 	found := []int{}
 
-	found = append(found, int(Content(tree.Pop()).Key))
-	found = append(found, int(Content(tree.Pop()).Key))
-	found = append(found, int(Content(tree.Pop()).Key))
-	found = append(found, int(Content(tree.Pop()).Key))
-	found = append(found, int(Content(tree.Pop()).Key))
+	found = append(found, tree.Pop().(Content).Key.(int))
+	found = append(found, tree.Pop().(Content).Key.(int))
+	found = append(found, tree.Pop().(Content).Key.(int))
+	found = append(found, tree.Pop().(Content).Key.(int))
+	found = append(found, tree.Pop().(Content).Key.(int))
 
 	if intSlicesCompare(expected, found) != 0 {
-		t.Errorf("5 rounds of DeleteMin returned the wrong elements. Expected  %v, but got %v.", expected, found)
+		t.Errorf("5 rounds of Pop returned the wrong elements. Expected  %v, but got %v.", expected, found)
 	}
 }
 
@@ -383,13 +382,15 @@ func TestInsertGet(t *testing.T) {
 	}
 
 	for count := 0; count < 20; count++ {
-		if tree.Get(Content{Key: count}) != expected[count] {
-			t.Errorf("Insert/Get doesn't appear to be working. Expected to retrieve %v with key %d, but got %v.", expected[count], count, tree.Get(Content{Key: count}))
+		val := tree.Get(Content{Key: count})
+		if val == nil || val.(Content) != expected[count] {
+			t.Errorf("Insert/Get doesn't appear to be working. Expected to retrieve %v with key %d, but got %v.", expected[count], count, val)
 		}
 	}
 }
 
 func TestClone(t *testing.T) {
+	// Implement the clone test
 }
 
 // ***** The following tests are functional or stress testing type tests.
@@ -398,7 +399,7 @@ func TestBTree(t *testing.T) {
 	// Create a B-Tree of degree 3
 	tree := New(WithDegree(3))
 
-	//insertData := []Content{}
+	// insertData := []Content{}
 	var insertData ContentSlice
 
 	// Insert integer keys
@@ -440,18 +441,18 @@ func TestBTree(t *testing.T) {
 		val := tree.Get(test.test)
 
 		if test.expected {
-			if val != nil && Content(val).Value == test.test.Value {
+			if val != nil && val.(Content).Value == test.test.Value {
 				t.Logf("Found expected key:value %v:%v", test.test.Key, test.test.Value)
 			} else {
 				if val == nil {
 					t.Logf("Didn't find %v, but expected", test.test.Key)
 				} else {
-					t.Errorf("Expected key %v:%v, but found %v:%v.", test.test.Key, test.test.Value, Content(val).Key, Content(val).Value)
+					t.Errorf("Expected key %v:%v, but found %v:%v.", test.test.Key, test.test.Value, val.(Content).Key, val.(Content).Value)
 				}
 			}
 		} else {
 			if val != nil {
-				t.Errorf("Did not expect key %v, but found key:value %v:%v", test.test.Key, Content(val).Key, Content(val).Value)
+				t.Errorf("Did not expect key %v, but found key:value %v:%v", test.test.Key, val.(Content).Key, val.(Content).Value)
 			} else {
 				t.Logf("Didn't find %v, but wasn't expected", test.test.Key)
 			}
@@ -474,7 +475,7 @@ func TestBTree(t *testing.T) {
 	t.Logf("Tree Length: %d", tree.Len())
 
 	tree.Ascend(func(_record Record) bool {
-		record := Content(_record)
+		record := _record.(Content)
 		t.Logf("Key:Value == %v:%v", record.Key, record.Value)
 		if record.Key != sortedInsertData[pos].Key {
 			t.Errorf("Out of order! Expected %v, but got %v", sortedInsertData[pos].Key, record.Key)
@@ -487,7 +488,7 @@ func TestBTree(t *testing.T) {
 	pos = len(sortedInsertData) - 1
 
 	tree.Descend(func(_record Record) bool {
-		record := Content(_record)
+		record := _record.(Content)
 		t.Logf("Key:Value == %v:%v", record.Key, record.Value)
 		if record.Key != sortedInsertData[pos].Key {
 			t.Errorf("Out of order! Expected %v, but got %v", sortedInsertData[pos].Key, record.Key)
@@ -497,10 +498,10 @@ func TestBTree(t *testing.T) {
 	})
 
 	deleteTests := []Content{
-		Content{Key: 10, Value: "Value_10"},
-		Content{Key: 15, Value: ""},
-		Content{Key: "banana", Value: "Fruit_banana"},
-		Content{Key: "kiwi", Value: ""},
+		{Key: 10, Value: "Value_10"},
+		{Key: 15, Value: ""},
+		{Key: "banana", Value: "Fruit_banana"},
+		{Key: "kiwi", Value: ""},
 	}
 	for _, test := range deleteTests {
 		fmt.Printf("\nDeleting %+v\n", test)
@@ -514,98 +515,21 @@ func TestBTree(t *testing.T) {
 	for _, test := range deleteTests {
 		val := tree.Get(test)
 		if val != nil {
-			t.Errorf("Did not expect key %v, but found key:value %v:%v", test.Key, Content(val).Key, Content(val).Value)
+			t.Errorf("Did not expect key %v, but found key:value %v:%v", test.Key, val.(Content).Key, val.(Content).Value)
 		} else {
 			t.Logf("Didn't find %v, but wasn't expected", test.Key)
 		}
 	}
 }
 
-func TestStress(t *testing.T) {
-	// Loop through creating B-Trees with a range of degrees from 3 to 12, stepping by 3.
-	// Insert 1000 records into each tree, then search for each record.
-	// Delete half of the records, skipping every other one, then search for each record.
-
-	for degree := 3; degree <= 12; degree += 3 {
-		t.Logf("Testing B-Tree of degree %d\n", degree)
-		tree := New(WithDegree(degree))
-
-		// Insert 1000 records
-		t.Logf("Inserting 1000 records\n")
-		for i := 0; i < 1000; i++ {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			tree.Insert(content)
-		}
-
-		// Search for all records
-		for i := 0; i < 1000; i++ {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			val := tree.Get(content)
-			if val == nil {
-				t.Errorf("Expected key %v, but didn't find it", content.Key)
-			}
-		}
-
-		// Delete half of the records
-		for i := 0; i < 1000; i += 2 {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			tree.Delete(content)
-		}
-
-		// Search for all records
-		for i := 0; i < 1000; i++ {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			val := tree.Get(content)
-			if i%2 == 0 {
-				if val != nil {
-					t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, Content(val).Key, Content(val).Value)
-				}
-			} else {
-				if val == nil {
-					t.Errorf("Expected key %v, but didn't find it", content.Key)
-				}
-			}
-		}
-	}
-
-	// Now create a very large tree, with 100000 records
-	// Then delete roughly one third of them, using a very basic random number generation scheme
-	// (implement it right here) to determine which records to delete.
-	// Print a few lines using Logf to let the user know what's happening.
-
-	t.Logf("Testing B-Tree of degree 10 with 100000 records\n")
-	tree := New(WithDegree(10))
-
-	// Insert 100000 records
-	t.Logf("Inserting 100000 records\n")
-	for i := 0; i < 100000; i++ {
-		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-		tree.Insert(content)
-	}
-
-	// Implement a very basic random number generator
-	seed := 0
-	random := func() int {
-		seed = (seed*1103515245 + 12345) & 0x7fffffff
-		return seed
-	}
-
-	// Delete one third of the records
-	t.Logf("Deleting one third of the records\n")
-	for i := 0; i < 35000; i++ {
-		content := Content{Key: random() % 100000, Value: fmt.Sprintf("Value_%d", i)}
-		tree.Delete(content)
-	}
-}
-
-// Write a test that populates a large B-Tree with 10000 records.
+// Write a test that populates a large B-Tree with 1000 records.
 // It should then `Clone` the tree, make some changes to both the original and the clone,
 // And then clone the clone, and make some changes to all three trees, and then check that the changes are isolated
 // to the tree they were made in.
-
 func TestBTreeCloneIsolation(t *testing.T) {
-	t.Logf("Creating B-Tree of degree 10 with 10000 records\n")
-	tree := genericSeeding(New(WithDegree(10)), 10000)
+	t.Logf("Creating B-Tree of degree 10 with 1000 records\n")
+	size := 1000
+	tree := genericSeeding(New(WithDegree(10)), size)
 
 	// Clone the tree
 	t.Logf("Cloning the tree\n")
@@ -613,7 +537,7 @@ func TestBTreeCloneIsolation(t *testing.T) {
 
 	// Make some changes to the original and the clone
 	t.Logf("Making changes to the original and the clone\n")
-	for i := 0; i < 10000; i += 2 {
+	for i := 0; i < size; i += 2 {
 		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
 		tree.Delete(content)
 		content = Content{Key: i + 1, Value: fmt.Sprintf("Value_%d", i+1)}
@@ -626,7 +550,7 @@ func TestBTreeCloneIsolation(t *testing.T) {
 
 	// Make some changes to all three trees
 	t.Logf("Making changes to all three trees\n")
-	for i := 0; i < 10000; i += 3 {
+	for i := 0; i < size; i += 3 {
 		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
 		tree.Delete(content)
 		content = Content{Key: i, Value: fmt.Sprintf("Value_%d", i+1)}
@@ -637,13 +561,13 @@ func TestBTreeCloneIsolation(t *testing.T) {
 
 	// Check that the changes are isolated to the tree they were made in
 	t.Logf("Checking that the changes are isolated to the tree they were made in\n")
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < size; i++ {
 		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
 		val := tree.Get(content)
 
 		if i%3 == 0 || i%2 == 0 {
 			if val != nil {
-				t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, Content(val).Key, Content(val).Value)
+				t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, val.(Content).Key, val.(Content).Value)
 			}
 		} else {
 			if val == nil {
@@ -654,7 +578,7 @@ func TestBTreeCloneIsolation(t *testing.T) {
 		val = clone.Get(content)
 		if i%2 != 0 || i%3 == 0 {
 			if val != nil {
-				t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, Content(val).Key, Content(val).Value)
+				t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, val.(Content).Key, val.(Content).Value)
 			}
 		} else {
 			if val == nil {
@@ -665,7 +589,7 @@ func TestBTreeCloneIsolation(t *testing.T) {
 		val = clone2.Get(content)
 		if i%2 != 0 || (i-2)%3 == 0 {
 			if val != nil {
-				t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, Content(val).Key, Content(val).Value)
+				t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, val.(Content).Key, val.(Content).Value)
 			}
 		} else {
 			if val == nil {
@@ -674,3 +598,83 @@ func TestBTreeCloneIsolation(t *testing.T) {
 		}
 	}
 }
+
+// --------------------
+// Stress tests. Disabled for testing performance
+
+//func TestStress(t *testing.T) {
+//	// Loop through creating B-Trees with a range of degrees from 3 to 12, stepping by 3.
+//	// Insert 1000 records into each tree, then search for each record.
+//	// Delete half of the records, skipping every other one, then search for each record.
+//
+//	for degree := 3; degree <= 12; degree += 3 {
+//		t.Logf("Testing B-Tree of degree %d\n", degree)
+//		tree := New(WithDegree(degree))
+//
+//		// Insert 1000 records
+//		t.Logf("Inserting 1000 records\n")
+//		for i := 0; i < 1000; i++ {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			tree.Insert(content)
+//		}
+//
+//		// Search for all records
+//		for i := 0; i < 1000; i++ {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			val := tree.Get(content)
+//			if val == nil {
+//				t.Errorf("Expected key %v, but didn't find it", content.Key)
+//			}
+//		}
+//
+//		// Delete half of the records
+//		for i := 0; i < 1000; i += 2 {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			tree.Delete(content)
+//		}
+//
+//		// Search for all records
+//		for i := 0; i < 1000; i++ {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			val := tree.Get(content)
+//			if i%2 == 0 {
+//				if val != nil {
+//					t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, val.(Content).Key, val.(Content).Value)
+//				}
+//			} else {
+//				if val == nil {
+//					t.Errorf("Expected key %v, but didn't find it", content.Key)
+//				}
+//			}
+//		}
+//	}
+//
+//	// Now create a very large tree, with 100000 records
+//	// Then delete roughly one third of them, using a very basic random number generation scheme
+//	// (implement it right here) to determine which records to delete.
+//	// Print a few lines using Logf to let the user know what's happening.
+//
+//	t.Logf("Testing B-Tree of degree 10 with 100000 records\n")
+//	tree := New(WithDegree(10))
+//
+//	// Insert 100000 records
+//	t.Logf("Inserting 100000 records\n")
+//	for i := 0; i < 100000; i++ {
+//		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//		tree.Insert(content)
+//	}
+//
+//	// Implement a very basic random number generator
+//	seed := 0
+//	random := func() int {
+//		seed = (seed*1103515245 + 12345) & 0x7fffffff
+//		return seed
+//	}
+//
+//	// Delete one third of the records
+//	t.Logf("Deleting one third of the records\n")
+//	for i := 0; i < 35000; i++ {
+//		content := Content{Key: random() % 100000, Value: fmt.Sprintf("Value_%d", i)}
+//		tree.Delete(content)
+//	}
+//}

@@ -7,4 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a1g.gno:6:10: cannot use int as float32
+// main/eql_0a1g.gno:6:10-16: cannot use int as float32
+
+// TypeCheckError:
+// main/eql_0a1g.gno:6:15: invalid operation: a == b (mismatched types int and float32)

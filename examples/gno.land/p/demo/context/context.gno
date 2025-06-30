@@ -10,7 +10,7 @@ package context
 type Context interface {
 	// Value returns the value associated with this context for key, or nil
 	// if no value is associated with key.
-	Value(key interface{}) interface{}
+	Value(key any) any
 }
 
 // Empty returns a non-nil, empty context, similar with context.Background and
@@ -21,7 +21,7 @@ func Empty() Context {
 
 type emptyCtx struct{}
 
-func (ctx emptyCtx) Value(key interface{}) interface{} {
+func (ctx emptyCtx) Value(key any) any {
 	return nil
 }
 
@@ -31,17 +31,17 @@ func (ctx emptyCtx) String() string {
 
 type valueCtx struct {
 	parent   Context
-	key, val interface{}
+	key, val any
 }
 
-func (ctx *valueCtx) Value(key interface{}) interface{} {
+func (ctx *valueCtx) Value(key any) any {
 	if ctx.key == key {
 		return ctx.val
 	}
 	return ctx.parent.Value(key)
 }
 
-func stringify(v interface{}) string {
+func stringify(v any) string {
 	switch s := v.(type) {
 	case stringer:
 		return s.String()
@@ -63,7 +63,7 @@ func (c *valueCtx) String() string {
 
 // WithValue returns a copy of parent in which the value associated with key is
 // val.
-func WithValue(parent Context, key, val interface{}) Context {
+func WithValue(parent Context, key, val any) Context {
 	if key == nil {
 		panic("nil key")
 	}

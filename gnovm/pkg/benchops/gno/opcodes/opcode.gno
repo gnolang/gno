@@ -37,18 +37,18 @@ OpEval, (const (0 int))
 OpEval, (const (1 int))
 OpArrayLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
 OpDefine, a2<VPBlock(1,1)> := [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpExec, bodyStmt[0/0/2]=m<VPBlock(1,2)> := (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
-OpEval, (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
-OpEval, (const (make func(t type{},z ...interface{})( map[int]int)))
+OpExec, bodyStmt[0/0/2]=m<VPBlock(1,2)> := (const (make func(t type{},z ...any)( map[int]int)))(map[(const-type int)] (const-type int))
+OpEval, (const (make func(t type{},z ...any)( map[int]int)))(map[(const-type int)] (const-type int))
+OpEval, (const (make func(t type{},z ...any)( map[int]int)))
 OpEval, map[(const-type int)] (const-type int)
 OpEval, (const-type int)
 OpEval, (const-type int)
 OpMapType, (typeval{int} type{})
-OpPreCall, (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
+OpPreCall, (const (make func(t type{},z ...any)( map[int]int)))(map[(const-type int)] (const-type int))
 OpCall, make
 OpCallNativeBody, make
 OpReturn, [FRAME FUNC:make RECV:(undefined) (1 args) 4/1/0/2/2 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
-OpDefine, m<VPBlock(1,2)> := (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
+OpDefine, m<VPBlock(1,2)> := (const (make func(t type{},z ...any)( map[int]int)))(map[(const-type int)] (const-type int))
 OpExec, bodyStmt[0/0/3]=s<VPBlock(1,3)> := [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
 OpEval, [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
 OpEval, [](const-type int)
@@ -403,11 +403,11 @@ OpEval, func()
 OpFuncType, func()
 OpFuncLit, func func(){ a<VPBlock(2,1)>[(const (0 int))]++ }
 OpDefer, defer func func(){ a<VPBlock(2,1)>[(const (0 int))]++ }()
-OpExec, bodyStmt[0/0/2]=defer (const (len func(x interface{})( int)))(a<VPBlock(1,1)>)
-OpBody, defer (const (len func(x interface{})( int)))(a<VPBlock(1,1)>)
-OpEval, (const (len func(x interface{})( int)))
+OpExec, bodyStmt[0/0/2]=defer (const (len func(x any)( int)))(a<VPBlock(1,1)>)
+OpBody, defer (const (len func(x any)( int)))(a<VPBlock(1,1)>)
+OpEval, (const (len func(x any)( int)))
 OpEval, a<VPBlock(1,1)>
-OpDefer, defer (const (len func(x interface{})( int)))(a<VPBlock(1,1)>)
+OpDefer, defer (const (len func(x any)( int)))(a<VPBlock(1,1)>)
 OpExec, bodyStmt[0/0/3]=return a<VPBlock(1,1)>[(const (0 int))]
 OpBody, return a<VPBlock(1,1)>[(const (0 int))]
 OpEval, a<VPBlock(1,1)>[(const (0 int))]
@@ -690,8 +690,9 @@ func OpLand() {
 }
 
 /*
-OpEval, (const (recover func()(exception interface{})))
-OpDefer, defer (const (recover func()(exception interface{})))()
+XXX fix, OpPanic1 isn't used, "panic" is now a uverse function.
+OpEval, (const (recover func()(exception any)))
+OpDefer, defer (const (recover func()(exception any)))()
 OpExec, bodyStmt[0/0/1]=panic((const ("panic" <untyped> string)))
 OpEval, (const ("panic" <untyped> string))
 OpPanic1
@@ -745,7 +746,7 @@ OpPopFrameAndReset, [FRAME LABEL:  4/2/0/3/3]
 OpRangeIter, bodyStmt[4/3/-1]=(init)
 OpRangeIter, switch v<VPBlock(2,0)> { case (const-type int): ; case (const-type string): ; case (const-type float64): ; default:  }
 OpEval, v<VPBlock(2,0)>
-OpTypeSwitch, switch v<VPBlock(2,0)> { case (const-type int): ; case (const-type string): ; case (const-type float64): ; default:  }, (typeval{interface{} (0x1400bba9130)} type{})
+OpTypeSwitch, switch v<VPBlock(2,0)> { case (const-type int): ; case (const-type string): ; case (const-type float64): ; default:  }, (typeval{any (0x1400bba9130)} type{})
 OpPopBlock, Block(ID:0000000000000000000000000000000000000000:0,Addr:0x1400bbbcd20,Source:switch v<VPBlock(2,0)> { case (c...,Parent:0x1400bbbc5a0)
 OpPopFrameAndReset, [FRAME LABEL:  4/2/0/3/3]
 OpPopFrameAndReset, [FRAME LABEL:  3/1/0/2/2]
@@ -755,7 +756,7 @@ OpReturnFromBlock, [FRAME FUNC:OpTypeSwitch RECV:(undefined) (0 args) 1/0/0/0/1 
 OpHalt
 */
 func OpTypeSwitch() {
-	values := []interface{}{1, "hello", 1.0, interface{}}
+	values := []any{1, "hello", 1.0, any}
 	for _, v := range values {
 		switch v.(type) {
 		case int:
@@ -820,74 +821,74 @@ OpEval, one<VPBlock(1,3)>
 OpArrayLit, [(const (1 int))](const-type int){one<VPBlock(1,3)>}
 OpRef, &([(const (1 int))](const-type int){one<VPBlock(1,3)>})
 OpDefine, p<VPBlock(1,4)> := &([(const (1 int))](const-type int){one<VPBlock(1,3)>})
-OpExec, bodyStmt[0/0/5]=for i<VPBlock(1,0)> := range a<VPBlock(2,0)> { (const (println func(xs ...interface{})()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>]) }
-OpBody, for i<VPBlock(1,0)> := range a<VPBlock(2,0)> { (const (println func(xs ...interface{})()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>]) }
+OpExec, bodyStmt[0/0/5]=for i<VPBlock(1,0)> := range a<VPBlock(2,0)> { (const (println func(xs ...any)()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>]) }
+OpBody, for i<VPBlock(1,0)> := range a<VPBlock(2,0)> { (const (println func(xs ...any)()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>]) }
 OpEval, a<VPBlock(2,0)>
 OpExec, bodyStmt[0/0/-2]=(init)
-OpRangeIter, (const (println func(xs ...interface{})()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))
+OpRangeIter, (const (println func(xs ...any)()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))
 OpEval, a<VPBlock(2,0)>[i<VPBlock(1,0)>]
 OpEval, a<VPBlock(2,0)>
 OpEval, i<VPBlock(1,0)>
 OpIndex1, (array[(1 int)] [1]int)
-OpPreCall, (const (println func(xs ...interface{})()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>])
+OpPreCall, (const (println func(xs ...any)()))(a<VPBlock(2,0)>[i<VPBlock(1,0)>])
 OpCall, println
 OpCallNativeBody, println
 OpReturn, [FRAME FUNC:println RECV:(undefined) (1 args) 5/2/0/3/3 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
 OpPopResults
 OpExec, bodyStmt[1/0/1]=(end)
 OpPopFrameAndReset, [FRAME LABEL:  3/1/0/2/2]
-OpExec, bodyStmt[0/0/6]=for i<VPBlock(1,0)> := range s<VPBlock(2,1)> { (const (println func(xs ...interface{})()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>]) }
-OpBody, for i<VPBlock(1,0)> := range s<VPBlock(2,1)> { (const (println func(xs ...interface{})()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>]) }
+OpExec, bodyStmt[0/0/6]=for i<VPBlock(1,0)> := range s<VPBlock(2,1)> { (const (println func(xs ...any)()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>]) }
+OpBody, for i<VPBlock(1,0)> := range s<VPBlock(2,1)> { (const (println func(xs ...any)()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>]) }
 OpEval, s<VPBlock(2,1)>
 OpExec, bodyStmt[0/0/-2]=(init)
-OpRangeIterString, (const (println func(xs ...interface{})()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))
+OpRangeIterString, (const (println func(xs ...any)()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))
 OpEval, s<VPBlock(2,1)>[i<VPBlock(1,0)>]
 OpEval, s<VPBlock(2,1)>
 OpEval, i<VPBlock(1,0)>
 OpIndex1, ("h" string)
-OpPreCall, (const (println func(xs ...interface{})()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>])
+OpPreCall, (const (println func(xs ...any)()))(s<VPBlock(2,1)>[i<VPBlock(1,0)>])
 OpCall, println
 OpCallNativeBody, println
 OpReturn, [FRAME FUNC:println RECV:(undefined) (1 args) 5/2/0/3/3 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
 OpPopResults
 OpExec, bodyStmt[0/0/1]=(end)
 OpPopFrameAndReset, [FRAME LABEL:  3/1/0/2/2]
-OpExec, bodyStmt[0/0/7]=for i<VPBlock(1,0)> := range m<VPBlock(2,2)> { (const (println func(xs ...interface{})()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>]) }
-OpBody, for i<VPBlock(1,0)> := range m<VPBlock(2,2)> { (const (println func(xs ...interface{})()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>]) }
+OpExec, bodyStmt[0/0/7]=for i<VPBlock(1,0)> := range m<VPBlock(2,2)> { (const (println func(xs ...any)()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>]) }
+OpBody, for i<VPBlock(1,0)> := range m<VPBlock(2,2)> { (const (println func(xs ...any)()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>]) }
 OpEval, m<VPBlock(2,2)>
 OpExec, bodyStmt[0/0/-2]=(init)
-OpRangeIterMap, (const (println func(xs ...interface{})()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))
+OpRangeIterMap, (const (println func(xs ...any)()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))
 OpEval, m<VPBlock(2,2)>[i<VPBlock(1,0)>]
 OpEval, m<VPBlock(2,2)>
 OpEval, i<VPBlock(1,0)>
 OpIndex1, (map{(1 int):("one" string)} map[int]string)
-OpPreCall, (const (println func(xs ...interface{})()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>])
+OpPreCall, (const (println func(xs ...any)()))(m<VPBlock(2,2)>[i<VPBlock(1,0)>])
 OpCall, println
 OpCallNativeBody, println
 OpReturn, [FRAME FUNC:println RECV:(undefined) (1 args) 5/2/0/3/3 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
 OpPopResults
 OpExec, bodyStmt[0/0/1]=(end)
 OpPopFrameAndReset, [FRAME LABEL:  3/1/0/2/2]
-OpExec, bodyStmt[0/0/8]=for i<VPBlock(1,0)> := range p<VPBlock(2,4)> { (const (println func(xs ...interface{})()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>]) }
-OpBody, for i<VPBlock(1,0)> := range p<VPBlock(2,4)> { (const (println func(xs ...interface{})()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>]) }
+OpExec, bodyStmt[0/0/8]=for i<VPBlock(1,0)> := range p<VPBlock(2,4)> { (const (println func(xs ...any)()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>]) }
+OpBody, for i<VPBlock(1,0)> := range p<VPBlock(2,4)> { (const (println func(xs ...any)()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>]) }
 OpEval, p<VPBlock(2,4)>
 OpExec, bodyStmt[0/0/-2]=(init)
-OpRangeIterArrayPtr, (const (println func(xs ...interface{})()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>])
-OpEval, (const (println func(xs ...interface{})()))
+OpRangeIterArrayPtr, (const (println func(xs ...any)()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>])
+OpEval, (const (println func(xs ...any)()))
 OpEval, *(p<VPBlock(2,4)>)[i<VPBlock(1,0)>]
 OpEval, *(p<VPBlock(2,4)>)
 OpEval, p<VPBlock(2,4)>
 OpStar, (&0x1400a7b1590.(*[1]int) *[1]int)
 OpEval, i<VPBlock(1,0)>
 OpIndex1, (array[(1 int)] [1]int)
-OpPreCall, (const (println func(xs ...interface{})()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>])
+OpPreCall, (const (println func(xs ...any)()))(*(p<VPBlock(2,4)>)[i<VPBlock(1,0)>])
 OpCall, println
 OpCallNativeBody, println
 OpReturn, [FRAME FUNC:println RECV:(undefined) (1 args) 5/2/0/3/3 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
@@ -936,8 +937,8 @@ OpCompositeLit, [(const (1 int))](const-type int){(const (0 int))}
 OpEval, (const (0 int))
 OpArrayLit, [(const (1 int))](const-type int){(const (0 int))}
 OpDefine, a<VPBlock(1,0)> := [(const (1 int))](const-type int){(const (0 int))}
-OpExec, bodyStmt[0/0/1]=for i<VPBlock(1,0)> := (const (0 int)); (const-type bool)(i<VPBlock(1,0)> < (const (1 int))); i<VPBlock(1,0)>++ { (const (len func(x interface{})( int)))(a<VPBlock(2,0)>)
-OpBody, for i<VPBlock(1,0)> := (const (0 int)); (const-type bool)(i<VPBlock(1,0)> < (const (1 int))); i<VPBlock(1,0)>++ { (const (len func(x interface{})( int)))(a<VPBlock(2,0)>) }
+OpExec, bodyStmt[0/0/1]=for i<VPBlock(1,0)> := (const (0 int)); (const-type bool)(i<VPBlock(1,0)> < (const (1 int))); i<VPBlock(1,0)>++ { (const (len func(x any)( int)))(a<VPBlock(2,0)>)
+OpBody, for i<VPBlock(1,0)> := (const (0 int)); (const-type bool)(i<VPBlock(1,0)> < (const (1 int))); i<VPBlock(1,0)>++ { (const (len func(x any)( int)))(a<VPBlock(2,0)>) }
 OpExec, i<VPBlock(1,0)> := (const (0 int))
 OpEval, (const (0 int))
 OpDefine, i<VPBlock(1,0)> := (const (0 int))
@@ -950,11 +951,11 @@ OpLss, (0 int) < (1 int) is true
 OpPreCall, (const-type bool)(i<VPBlock(1,0)> < (const (1 int)))
 OpConvert, Value: (true <untyped> bool) | Type: bool
 OpExec, bodyStmt[0/0/-2]=(init)
-OpForLoop, (const (len func(x interface{})( int)))(a<VPBlock(2,0)>)
-OpEval, (const (len func(x interface{})( int)))(a<VPBlock(2,0)>)
-OpEval, (const (len func(x interface{})( int)))
+OpForLoop, (const (len func(x any)( int)))(a<VPBlock(2,0)>)
+OpEval, (const (len func(x any)( int)))(a<VPBlock(2,0)>)
+OpEval, (const (len func(x any)( int)))
 OpEval, a<VPBlock(2,0)>
-OpPreCall, (const (len func(x interface{})( int)))(a<VPBlock(2,0)>)
+OpPreCall, (const (len func(x any)( int)))(a<VPBlock(2,0)>)
 OpCall, len
 OpCallNativeBody, len
 OpReturn, [FRAME FUNC:len RECV:(undefined) (1 args) 5/1/0/3/3 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
@@ -1026,7 +1027,7 @@ func OpTypes() {
 		b map[string]string
 		c chan string
 		d func()
-		e interface{}
+		e any
 	}{}
 }
 

@@ -47,12 +47,12 @@ func ModifyTestRealmObject2c() {
 	SomeValue3.Field = "modified"
 }
 
-func GetPrevRealm() std.Realm {
-	return std.PrevRealm()
+func GetPreviousRealm() std.Realm {
+	return std.PreviousRealm()
 }
 
-func GetPSubtestsPrevRealm() std.Realm {
-	return psubtests.GetPrevRealm()
+func GetPSubtestsPreviousRealm() std.Realm {
+	return psubtests.GetPreviousRealm()
 }
 
 // Warning: unsafe pattern.

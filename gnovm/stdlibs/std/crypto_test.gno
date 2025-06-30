@@ -1,7 +1,7 @@
 package std
 
 import (
-	"testing"
+	testing "testing/base"
 )
 
 func TestValid(t *testing.T) {
@@ -35,6 +35,25 @@ func TestValid(t *testing.T) {
 		result := tc.inputAddress.IsValid()
 
 		if result != tc.expected {
+			t.Fatalf("Expected: %t, got: %t", tc.expected, result)
+		}
+	}
+}
+
+func TestDerivePkgAddr(t *testing.T) {
+	type test struct {
+		inputPath string
+		expected  string
+	}
+
+	testCases := []test{
+		{inputPath: "gno.land/r/gnoland/faucet", expected: "g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7"},
+		{inputPath: "gno.land/r/demo/tamagotchi", expected: "g1a3tu874agjlkrpzt9x90xv3uzncapcn959yte4"},
+	}
+
+	for _, tc := range testCases {
+		result := DerivePkgAddr(tc.inputPath)
+		if result.String() != tc.expected {
 			t.Fatalf("Expected: %t, got: %t", tc.expected, result)
 		}
 	}

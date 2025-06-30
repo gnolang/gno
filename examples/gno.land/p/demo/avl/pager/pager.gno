@@ -5,13 +5,13 @@ import (
 	"net/url"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/ufmt"
 )
 
 // Pager is a struct that holds the AVL tree and pagination parameters.
 type Pager struct {
-	Tree            avl.ITree
+	Tree            rotree.IReadOnlyTree
 	PageQueryParam  string
 	SizeQueryParam  string
 	DefaultPageSize int
@@ -33,11 +33,11 @@ type Page struct {
 // Item represents a key-value pair in the AVL tree.
 type Item struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 // NewPager creates a new Pager with default values.
-func NewPager(tree avl.ITree, defaultPageSize int, reversed bool) *Pager {
+func NewPager(tree rotree.IReadOnlyTree, defaultPageSize int, reversed bool) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
@@ -90,12 +90,12 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	items := []Item{}
 
 	if p.Reversed {
-		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value any) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})
 	} else {
-		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value any) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})
@@ -126,7 +126,7 @@ func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
 }
 
 // Picker generates the Markdown UI for the page Picker
-func (p *Page) Picker() string {
+func (p *Page) Picker(path string) string {
 	pageNumber := p.PageNumber
 	pageNumber = max(pageNumber, 1)
 
@@ -134,50 +134,55 @@ func (p *Page) Picker() string {
 		return ""
 	}
 
+	u, _ := url.Parse(path)
+	query := u.Query()
+
+	// Remove existing page query parameter
+	query.Del(p.Pager.PageQueryParam)
+
+	// Encode remaining query parameters
+	baseQuery := query.Encode()
+	if baseQuery != "" {
+		baseQuery = "&" + baseQuery
+	}
 	md := ""
 
 	if p.HasPrev {
-		// Always show the first page link
-		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, p.Pager.PageQueryParam, 1)
+		md += ufmt.Sprintf("[%d](?%s=%d%s) | ", 1, p.Pager.PageQueryParam, 1, baseQuery)
 
-		// Before
 		if p.PageNumber > 4 {
 			md += "… | "
 		}
 
 		if p.PageNumber > 3 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2)
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2, baseQuery)
 		}
 
 		if p.PageNumber > 2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1)
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1, baseQuery)
 		}
 	}
 
 	if p.PageNumber > 0 && p.PageNumber <= p.TotalPages {
-		// Current page
 		md += ufmt.Sprintf("**%d**", p.PageNumber)
 	} else {
 		md += ufmt.Sprintf("_%d_", p.PageNumber)
 	}
 
 	if p.HasNext {
-		md += " | "
-
 		if p.PageNumber < p.TotalPages-1 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1)
+			md += ufmt.Sprintf(" | [%d](?%s=%d%s)", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1, baseQuery)
 		}
 
 		if p.PageNumber < p.TotalPages-2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2)
+			md += ufmt.Sprintf(" | [%d](?%s=%d%s)", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2, baseQuery)
 		}
 
 		if p.PageNumber < p.TotalPages-3 {
-			md += "… | "
+			md += " | …"
 		}
 
-		// Always show the last page link
-		md += ufmt.Sprintf("[%d](?%s=%d)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages)
+		md += ufmt.Sprintf(" | [%d](?%s=%d%s)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages, baseQuery)
 	}
 
 	return md

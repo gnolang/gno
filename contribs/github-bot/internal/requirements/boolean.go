@@ -96,3 +96,69 @@ func (n *not) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
 func Not(req Requirement) Requirement {
 	return &not{req}
 }
+
+// IfCondition executes the condition, and based on the result then runs Then
+// or Else.
+type IfCondition struct {
+	cond Requirement
+	then Requirement
+	els  Requirement
+}
+
+var _ Requirement = &IfCondition{}
+
+func (i *IfCondition) IsSatisfied(pr *github.PullRequest, details treeprint.Tree) bool {
+	if i.then == nil {
+		i.then = Always()
+	}
+	ifBranch := details.AddBranch("")
+	condBranch := ifBranch.AddBranch("")
+
+	var (
+		target     Requirement
+		targetName string
+	)
+
+	if i.cond.IsSatisfied(pr, condBranch) {
+		condBranch.SetValue(fmt.Sprintf("%s Condition", utils.Success))
+		target, targetName = i.then, "Then"
+	} else {
+		condBranch.SetValue(fmt.Sprintf("%s Condition", utils.Fail))
+		target, targetName = i.els, "Else"
+	}
+
+	targBranch := ifBranch.AddBranch("")
+	if target == nil || target.IsSatisfied(pr, targBranch) {
+		ifBranch.SetValue(fmt.Sprintf("%s If", utils.Success))
+		targBranch.SetValue(fmt.Sprintf("%s %s", utils.Success, targetName))
+		return true
+	} else {
+		ifBranch.SetValue(fmt.Sprintf("%s If", utils.Fail))
+		targBranch.SetValue(fmt.Sprintf("%s %s", utils.Fail, targetName))
+		return false
+	}
+}
+
+// If returns a conditional requirement, which runs Then if cond evaluates
+// successfully, or Else otherwise.
+//
+// Then / Else are optional, and always evaluate to true by default.
+func If(cond Requirement) *IfCondition {
+	return &IfCondition{cond: cond}
+}
+
+func (i *IfCondition) Then(then Requirement) *IfCondition {
+	if i.then != nil {
+		panic("'Then' is already set")
+	}
+	i.then = then
+	return i
+}
+
+func (i *IfCondition) Else(els Requirement) *IfCondition {
+	if i.els != nil {
+		panic("'Else' is already set")
+	}
+	i.els = els
+	return i
+}

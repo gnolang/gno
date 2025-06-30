@@ -4,24 +4,24 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"html/template"
-	"io"
+	"go/token"
 	"log/slog"
 	"net/http"
-	"path/filepath"
+	"path"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/alecthomas/chroma/v2"
-	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
-const DefaultChainDomain = "gno.land"
-
+// StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
+	Domain     string
 	AssetsPath string
 	ChromaPath string
 	RemoteHelp string
@@ -29,351 +29,625 @@ type StaticMetadata struct {
 	Analytics  bool
 }
 
+type AliasKind int
+
+const (
+	GnowebPath AliasKind = iota
+	StaticMarkdown
+)
+
+type AliasTarget struct {
+	Value string
+	Kind  AliasKind
+}
+
+// WebHandlerConfig configures a WebHandler.
 type WebHandlerConfig struct {
-	Meta         StaticMetadata
-	RenderClient *WebClient
-	Formatter    Formatter
+	Meta             StaticMetadata
+	WebClient        WebClient
+	MarkdownRenderer *MarkdownRenderer
+	Aliases          map[string]AliasTarget
 }
 
+// validate checks if the WebHandlerConfig is valid.
+func (cfg *WebHandlerConfig) validate() error {
+	if cfg.WebClient == nil {
+		return errors.New("no `WebClient` configured")
+	}
+	if cfg.MarkdownRenderer == nil {
+		return errors.New("no `MarkdownRenderer` configured")
+	}
+	if cfg.Aliases == nil {
+		return errors.New("no `Aliases` configured")
+	}
+	return nil
+}
+
+// IsHomePath checks if the given path is the home path.
+func IsHomePath(path string) bool {
+	return path == "/"
+}
+
+// WebHandler processes HTTP requests.
 type WebHandler struct {
-	formatter Formatter
-
-	logger *slog.Logger
-	static StaticMetadata
-	webcli *WebClient
+	Logger           *slog.Logger
+	Static           StaticMetadata
+	Client           WebClient
+	MarkdownRenderer *MarkdownRenderer
+	Aliases          map[string]AliasTarget
 }
 
-func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) *WebHandler {
-	if cfg.RenderClient == nil {
-		logger.Error("no renderer has been defined")
+// NewWebHandler creates a new WebHandler.
+func NewWebHandler(logger *slog.Logger, cfg *WebHandlerConfig) (*WebHandler, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("config validate error: %w", err)
 	}
 
 	return &WebHandler{
-		formatter: cfg.Formatter,
-		webcli:    cfg.RenderClient,
-		logger:    logger,
-		static:    cfg.Meta,
-	}
+		Client:           cfg.WebClient,
+		Static:           cfg.Meta,
+		MarkdownRenderer: cfg.MarkdownRenderer,
+		Aliases:          cfg.Aliases,
+		Logger:           logger,
+	}, nil
 }
 
+// ServeHTTP handles HTTP requests.
 func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
+	h.Logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
 
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		h.Get(w, r)
+	case http.MethodPost:
+		h.Post(w, r)
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
-
-	h.Get(w, r)
 }
 
+// Get processes a GET HTTP request.
 func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
-	var body bytes.Buffer
-
 	start := time.Now()
 	defer func() {
-		h.logger.Debug("request completed",
+		h.Logger.Debug("request completed",
 			"url", r.URL.String(),
 			"elapsed", time.Since(start).String())
 	}()
 
-	var indexData components.IndexData
-	indexData.HeadData.AssetsPath = h.static.AssetsPath
-	indexData.HeadData.ChromaPath = h.static.ChromaPath
-	indexData.FooterData.Analytics = h.static.Analytics
-	indexData.FooterData.AssetsPath = h.static.AssetsPath
-
-	// Render the page body into the buffer
-	var status int
-	gnourl, err := ParseGnoURL(r.URL)
-	if err != nil {
-		h.logger.Warn("page not found", "path", r.URL.Path, "err", err)
-		status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
-	} else {
-		// TODO: real data (title & description)
-		indexData.HeadData.Title = "gno.land - " + gnourl.Path
-
-		// Header
-		indexData.HeaderData.RealmPath = gnourl.Path
-		indexData.HeaderData.Breadcrumb.Parts = generateBreadcrumbPaths(gnourl.Path)
-		indexData.HeaderData.WebQuery = gnourl.WebQuery
-
-		// Render
-		switch gnourl.Kind() {
-		case KindRealm, KindPure:
-			status, err = h.renderPackage(&body, gnourl)
-		default:
-			h.logger.Debug("invalid page kind", "kind", gnourl.Kind)
-			status, err = http.StatusNotFound, components.RenderStatusComponent(&body, "page not found")
-		}
+	indexData := components.IndexData{
+		HeadData: components.HeadData{
+			AssetsPath: h.Static.AssetsPath,
+			ChromaPath: h.Static.ChromaPath,
+			ChainId:    h.Static.ChainId,
+			Remote:     h.Static.RemoteHelp,
+		},
+		FooterData: components.FooterData{
+			Analytics:  h.Static.Analytics,
+			AssetsPath: h.Static.AssetsPath,
+		},
 	}
 
+	// Parse the URL
+	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+
+		indexData.HeadData.Title = "gno.land — invalid path"
+		indexData.BodyView = components.StatusErrorComponent("invalid path")
+		w.WriteHeader(http.StatusNotFound)
+		if err := components.IndexLayout(indexData).Render(w); err != nil {
+			h.Logger.Error("failed to render error view", "error", err)
+		}
 		return
 	}
 
-	w.WriteHeader(status)
+	// Handle download request outside of component rendering flow.
+	if gnourl.WebQuery.Has("download") {
+		h.GetSourceDownload(gnourl, w, r)
+		return
+	}
 
-	// NOTE: HTML escaping should have already been done by markdown rendering package
-	indexData.Body = template.HTML(body.String()) //nolint:gosec
+	// Set the header mode based on the URL type and context
+	switch {
+	case IsHomePath(r.RequestURI):
+		indexData.Mode = components.ViewModeHome
+	case gnourl.IsPure():
+		indexData.Mode = components.ViewModePackage
+	case gnourl.IsUser():
+		indexData.Mode = components.ViewModeUser
+	default:
+		indexData.Mode = components.ViewModeRealm
+	}
+
+	var status int
+	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
 
 	// Render the final page with the rendered body
-	if err = components.RenderIndexComponent(w, indexData); err != nil {
-		h.logger.Error("failed to render index component", "err", err)
+	w.WriteHeader(status)
+	if err := components.IndexLayout(indexData).Render(w); err != nil {
+		h.Logger.Error("failed to render index component", "error", err)
 	}
-
-	return
 }
 
-func (h *WebHandler) renderPackage(w io.Writer, gnourl *GnoURL) (status int, err error) {
-	h.logger.Info("component render", "path", gnourl.Path, "args", gnourl.Args)
+// Post processes a POST HTTP request.
+func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		h.Logger.Debug("request completed",
+			"url", r.URL.String(),
+			"elapsed", time.Since(start).String())
+	}()
 
-	kind := gnourl.Kind()
-
-	// Display realm help page?
-	if kind == KindRealm && gnourl.WebQuery.Has("help") {
-		return h.renderRealmHelp(w, gnourl)
+	// Parse the form data
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Error("failed to parse form", "error", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
 	}
 
-	// Display package source page?
+	// Parse the URL
+	gnourl, err := weburl.ParseFromURL(r.URL)
+	if err != nil {
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		http.Error(w, "invalid path", http.StatusNotFound)
+		return
+	}
+
+	// Use form data as query
+	gnourl.Query = r.PostForm
+
+	// Redirect to the new URL
+	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
+}
+
+// prepareIndexBodyView prepares the data and main view for the index.
+func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
+
+	// If the alias target exists and is a gnoweb path, replace the URL path with it.
+	if aliasExists && aliasTarget.Kind == GnowebPath {
+		r.URL.Path = aliasTarget.Value
+	}
+
+	gnourl, err := weburl.ParseFromURL(r.URL)
+	if err != nil {
+		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
+		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
+	}
+
+	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
+	indexData.HeaderData = components.HeaderData{
+		Breadcrumb: generateBreadcrumbPaths(gnourl),
+		RealmURL:   *gnourl,
+		ChainId:    h.Static.ChainId,
+		Remote:     h.Static.RemoteHelp,
+		Mode:       indexData.Mode,
+	}
+
 	switch {
-	case gnourl.WebQuery.Has("source"):
-		return h.renderRealmSource(w, gnourl)
-	case kind == KindPure,
-		strings.HasSuffix(gnourl.Path, "/"),
-		isFile(gnourl.Path):
-		i := strings.LastIndexByte(gnourl.Path, '/')
-		if i < 0 {
-			return http.StatusInternalServerError, fmt.Errorf("unable to get ending slash for %q", gnourl.Path)
-		}
-
-		// Fill webquery with file infos
-		gnourl.WebQuery.Set("source", "") // set source
-
-		file := gnourl.Path[i+1:]
-		if file == "" {
-			return h.renderRealmDirectory(w, gnourl)
-		}
-
-		gnourl.WebQuery.Set("file", file)
-		gnourl.Path = gnourl.Path[:i]
-
-		return h.renderRealmSource(w, gnourl)
+	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		return h.GetMarkdownView(gnourl, aliasTarget.Value)
+	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
+		return h.GetPackageView(gnourl, indexData)
+	default:
+		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
 	}
-
-	// Render content into the content buffer
-	var content bytes.Buffer
-	meta, err := h.webcli.Render(&content, gnourl.Path, gnourl.EncodeArgs())
-	if err != nil {
-		if errors.Is(err, vm.InvalidPkgPathError{}) {
-			return http.StatusNotFound, components.RenderStatusComponent(w, "not found")
-		}
-
-		h.logger.Error("unable to render markdown", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	err = components.RenderRealmComponent(w, components.RealmData{
-		TocItems: &components.RealmTOCData{
-			Items: meta.Items,
-		},
-		// NOTE: `content` should have already been escaped by
-		Content: template.HTML(content.String()), //nolint:gosec
-	})
-	if err != nil {
-		h.logger.Error("unable to render template", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	// Write the rendered content to the response writer
-	return http.StatusOK, nil
 }
 
-func (h *WebHandler) renderRealmHelp(w io.Writer, gnourl *GnoURL) (status int, err error) {
-	fsigs, err := h.webcli.Functions(gnourl.Path)
+// GetMarkdownView handles markdown files.
+func (h *WebHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+	var content bytes.Buffer
+
+	// Use Goldmark for Markdown parsing
+	toc, err := h.MarkdownRenderer.Render(&content, gnourl, []byte(mdContent))
 	if err != nil {
-		h.logger.Error("unable to fetch path functions", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
 	}
 
-	var selArgs map[string]string
-	var selFn string
-	if selFn = gnourl.WebQuery.Get("func"); selFn != "" {
+	return http.StatusOK, components.RealmView(components.RealmData{
+		TocItems:         &components.RealmTOCData{Items: toc.Items},
+		ComponentContent: components.NewReaderComponent(&content),
+	})
+}
+
+// GetPackageView handles package pages.
+func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	// Handle Help page
+	if gnourl.WebQuery.Has("help") {
+		return h.GetHelpView(gnourl)
+	}
+
+	// Handle Source page
+	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
+		return h.GetSourceView(gnourl)
+	}
+
+	// Handle Source page
+	if gnourl.IsDir() || gnourl.IsPure() {
+		return h.GetDirectoryView(gnourl, indexData)
+	}
+
+	// Handle User page
+	if gnourl.IsUser() {
+		return h.GetUserView(gnourl)
+	}
+
+	// Ultimately get realm view
+	return h.GetRealmView(gnourl, indexData)
+}
+
+func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	var content bytes.Buffer
+
+	meta, err := h.Client.RenderRealm(&content, gnourl, h.MarkdownRenderer)
+	switch {
+	case err == nil: // ok
+	case errors.Is(err, ErrRenderNotDeclared):
+		// XXX: We should display paths list along realm informations
+		return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
+	case errors.Is(err, ErrClientPathNotFound):
+		// No realm exists here, try to display underlying paths
+		return h.GetPathsListView(gnourl, indexData)
+	default:
+		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	return http.StatusOK, components.RealmView(components.RealmData{
+		TocItems: &components.RealmTOCData{
+			Items: meta.Toc.Items,
+		},
+		// NOTE: `RenderRealm` should ensure that HTML content is
+		// sanitized before rendering
+		ComponentContent: components.NewReaderComponent(&content),
+	})
+}
+
+// buildContributions returns the sorted list of contributions (packages and realms) for a user.
+func (h *WebHandler) buildContributions(username string) ([]components.UserContribution, int, error) {
+	prefix := "@" + username
+	paths, err := h.Client.QueryPaths(prefix, 10000)
+	if err != nil {
+		h.Logger.Error("unable to query contributions", "user", username, "error", err)
+		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
+	}
+
+	contribs := make([]components.UserContribution, 0, len(paths))
+	realmCount := 0
+	for _, raw := range paths {
+		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
+		u, err := weburl.Parse(trimmed)
+		if err != nil {
+			h.Logger.Warn("bad contribution URL", "path", raw, "error", err)
+			continue
+		}
+		ctype := components.UserContributionTypePackage
+		if u.IsRealm() {
+			ctype = components.UserContributionTypeRealm
+			realmCount++
+		}
+		contribs = append(contribs, components.UserContribution{
+			Title: path.Base(raw),
+			URL:   raw,
+			Type:  components.UserContributionType(ctype),
+			// TODO: size, description, date...
+		})
+	}
+
+	sort.Slice(contribs, func(i, j int) bool {
+		return contribs[i].Title < contribs[j].Title
+	})
+	return slices.Clip(contribs), realmCount, nil
+}
+
+// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+// createUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address
+func CreateUsernameFromBech32(username string) string {
+	_, _, err := bech32.Decode(username)
+	if err == nil {
+		// If it's a valid bech32 address, create a shortened version
+		username = username[:4] + "..." + username[len(username)-4:]
+	}
+
+	return username
+}
+
+// GetUserView returns the user profile view for a given GnoURL.
+func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
+	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	var content bytes.Buffer
+
+	// Render user profile realm
+	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer); err != nil {
+		h.Logger.Debug("unable to render user realm", "error", err)
+	}
+
+	// Build contributions
+	contribs, realmCount, err := h.buildContributions(username)
+	if err != nil {
+		h.Logger.Error("unable to build contributions", "error", err)
+		return http.StatusInternalServerError, components.StatusErrorComponent(err.Error())
+	}
+
+	// Compute package counts
+	pkgCount := len(contribs)
+	pureCount := pkgCount - realmCount
+
+	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+	// Try to decode the bech32 address
+	username = CreateUsernameFromBech32(username)
+
+	//TODO: get from user r/profile and use placeholder if not set
+	handlename := "Gnome " + username
+
+	data := components.UserData{
+		Username:      username,
+		Handlename:    handlename,
+		Contributions: contribs,
+		PackageCount:  pkgCount,
+		RealmCount:    realmCount,
+		PureCount:     pureCount,
+		Content:       components.NewReaderComponent(&content),
+		// TODO: add bio, pic, links, teams, etc.
+	}
+
+	return http.StatusOK, components.UserView(data)
+}
+
+func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
+	jdoc, err := h.Client.Doc(gnourl.Path)
+	if err != nil {
+		h.Logger.Error("unable to fetch qdoc", "error", err)
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	// Get public non-method funcs
+	fsigs := []*doc.JSONFunc{}
+	for _, fun := range jdoc.Funcs {
+		if !(fun.Type == "" && token.IsExported(fun.Name)) {
+			continue
+		}
+
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			// Don't make an entry field for "cur realm". The signature will still show it.
+			fun.Params = fun.Params[1:]
+		}
+		fsigs = append(fsigs, fun)
+	}
+
+	// Get selected function
+	selArgs := make(map[string]string)
+	selFn := gnourl.WebQuery.Get("func")
+	selSend := gnourl.WebQuery.Get(".send")
+	if selFn != "" {
 		for _, fn := range fsigs {
-			if selFn != fn.FuncName {
+			if selFn != fn.Name {
 				continue
 			}
 
-			selArgs = make(map[string]string)
 			for _, param := range fn.Params {
 				selArgs[param.Name] = gnourl.WebQuery.Get(param.Name)
 			}
 
-			fsigs = []vm.FunctionSignature{fn}
+			fsigs = []*doc.JSONFunc{fn}
 			break
 		}
 	}
 
-	// Catch last name of the path
-	// XXX: we should probably add a helper within the template
-	realmName := filepath.Base(gnourl.Path)
-	err = components.RenderHelpComponent(w, components.HelpData{
+	realmName := path.Base(gnourl.Path)
+	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
+		SelectedSend: selSend,
 		RealmName:    realmName,
-		ChainId:      h.static.ChainId,
 		// TODO: get chain domain and use that.
-		PkgPath:   filepath.Join(DefaultChainDomain, gnourl.Path),
-		Remote:    h.static.RemoteHelp,
+		ChainId:   h.Static.ChainId,
+		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
+		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
+		Doc:       jdoc.PackageDoc,
 	})
-	if err != nil {
-		h.logger.Error("unable to render helper", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	return http.StatusOK, nil
 }
 
-func (h *WebHandler) renderRealmSource(w io.Writer, gnourl *GnoURL) (status int, err error) {
+func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
-
-	files, err := h.webcli.Sources(pkgPath)
+	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
-		h.logger.Error("unable to list sources file", "path", gnourl.Path, "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	if len(files) == 0 {
-		h.logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
+		h.Logger.Debug("no files available", "path", gnourl.Path)
+		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
 	var fileName string
-	file := gnourl.WebQuery.Get("file")
-	if file == "" {
-		fileName = files[0]
-	} else if slices.Contains(files, file) {
+	if gnourl.IsFile() { // check path file from path first
+		fileName = gnourl.File
+	} else if file := gnourl.WebQuery.Get("file"); file != "" {
 		fileName = file
-	} else {
-		h.logger.Error("unable to render source", "file", file, "err", "file does not exist")
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
 	}
 
-	source, err := h.webcli.SourceFile(pkgPath, fileName)
+	if fileName == "" {
+		fileName = files[0] // fallback on the first file
+	}
+
+	var source bytes.Buffer
+	meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
 	if err != nil {
-		h.logger.Error("unable to get source file", "file", fileName, "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+		return GetClientErrorStatusPage(gnourl, err)
 	}
 
-	// XXX: we should either do this on the front or in the markdown parsing side
-	fileLines := strings.Count(string(source), "\n")
-	fileSizeKb := float64(len(source)) / 1024.0
-	fileSizeStr := fmt.Sprintf("%.2f Kb", fileSizeKb)
-
-	// Highlight code source
-	hsource, err := h.highlightSource(fileName, source)
-	if err != nil {
-		h.logger.Error("unable to highlight source file", "file", fileName, "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	err = components.RenderSourceComponent(w, components.SourceData{
-		PkgPath:     gnourl.Path,
-		Files:       files,
-		FileName:    fileName,
-		FileCounter: len(files),
-		FileLines:   fileLines,
-		FileSize:    fileSizeStr,
-		FileSource:  template.HTML(hsource), //nolint:gosec
+	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
+	return http.StatusOK, components.SourceView(components.SourceData{
+		PkgPath:      gnourl.Path,
+		Files:        files,
+		FileName:     fileName,
+		FileCounter:  len(files),
+		FileLines:    meta.Lines,
+		FileSize:     fileSizeStr,
+		FileDownload: gnourl.Path + "$download&file=" + fileName,
+		FileSource:   components.NewReaderComponent(&source),
 	})
-	if err != nil {
-		h.logger.Error("unable to render helper", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	return http.StatusOK, nil
 }
 
-func (h *WebHandler) renderRealmDirectory(w io.Writer, gnourl *GnoURL) (status int, err error) {
-	pkgPath := gnourl.Path
+func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	const limit = 1_000 // XXX: implement pagination
 
-	files, err := h.webcli.Sources(pkgPath)
+	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
+	paths, qerr := h.Client.QueryPaths(prefix, limit)
+	if qerr != nil {
+		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
+	} else {
+		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
+	}
+
+	if len(paths) == 0 || paths[0] == "" {
+		return GetClientErrorStatusPage(gnourl, ErrClientPathNotFound)
+	}
+
+	// Always use explorer mode for paths list
+	indexData.Mode = components.ViewModeExplorer
+
+	// Update header mode
+	indexData.HeaderData.Mode = indexData.Mode
+
+	return http.StatusOK, components.DirectoryView(
+		gnourl.Path,
+		paths,
+		len(paths),
+		components.DirLinkTypeFile,
+		indexData.Mode,
+	)
+}
+
+func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
+	files, err := h.Client.Sources(pkgPath)
+
+	// Set header mode based on URL type
+	if gnourl.IsPure() {
+		indexData.Mode = components.ViewModePackage
+	}
+
 	if err != nil {
-		h.logger.Error("unable to list sources file", "path", gnourl.Path, "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
+		if !errors.Is(err, ErrClientPathNotFound) {
+			h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+
+		return h.GetPathsListView(gnourl, indexData)
 	}
 
 	if len(files) == 0 {
-		h.logger.Debug("no files available", "path", gnourl.Path)
-		return http.StatusOK, components.RenderStatusComponent(w, "no files available")
+		h.Logger.Debug("no files available", "path", gnourl.Path)
+		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
-	err = components.RenderDirectoryComponent(w, components.DirData{
-		PkgPath:     gnourl.Path,
-		Files:       files,
-		FileCounter: len(files),
-	})
-	if err != nil {
-		h.logger.Error("unable to render directory", "err", err)
-		return http.StatusInternalServerError, components.RenderStatusComponent(w, "internal error")
-	}
-
-	return http.StatusOK, nil
+	return http.StatusOK, components.DirectoryView(
+		gnourl.Path,
+		files,
+		len(files),
+		components.DirLinkTypeSource,
+		indexData.Mode,
+	)
 }
 
-func (h *WebHandler) highlightSource(fileName string, src []byte) ([]byte, error) {
-	var lexer chroma.Lexer
+func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
+	pkgPath := gnourl.Path
 
-	switch strings.ToLower(filepath.Ext(fileName)) {
-	case ".gno":
-		lexer = lexers.Get("go")
-	case ".md":
-		lexer = lexers.Get("markdown")
+	var fileName string
+	if gnourl.IsFile() { // check path file from path first
+		fileName = gnourl.File
+	} else if file := gnourl.WebQuery.Get("file"); file != "" {
+		fileName = file
+	}
+
+	if fileName == "" {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	// Get source file
+	var source bytes.Buffer
+	_, err := h.Client.SourceFile(&source, pkgPath, fileName, true)
+	if err != nil {
+		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+		status, _ := GetClientErrorStatusPage(gnourl, err)
+		http.Error(w, "not found", status)
+		return
+	}
+
+	// Send raw file as attachment for download (without HTML formating)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
+	w.WriteHeader(http.StatusOK)
+	source.WriteTo(w)
+}
+
+func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {
+	if err == nil {
+		return http.StatusOK, nil
+	}
+
+	switch {
+	case errors.Is(err, ErrClientPathNotFound):
+		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
+	case errors.Is(err, ErrClientBadRequest):
+		return http.StatusInternalServerError, components.StatusErrorComponent("bad request")
+	case errors.Is(err, ErrClientResponse):
+		fallthrough // XXX: for now fallback as internal error
 	default:
-		lexer = lexers.Get("txt") // file kind not supported, fallback on `.txt`
+		return http.StatusInternalServerError, components.StatusErrorComponent("internal error")
 	}
-
-	if lexer == nil {
-		return nil, fmt.Errorf("unsupported lexer for file %q", fileName)
-	}
-
-	iterator, err := lexer.Tokenise(nil, string(src))
-	if err != nil {
-		h.logger.Error("unable to ", "fileName", fileName, "err", err)
-	}
-
-	var buff bytes.Buffer
-	if err := h.formatter.Format(&buff, iterator); err != nil {
-		return nil, fmt.Errorf("unable to format source file %q: %w", fileName, err)
-	}
-
-	return buff.Bytes(), nil
 }
 
-func generateBreadcrumbPaths(path string) []components.BreadcrumbPart {
-	split := strings.Split(path, "/")
-	parts := []components.BreadcrumbPart{}
+func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
+	split := strings.Split(url.Path, "/")
 
+	var data components.BreadcrumbData
 	var name string
 	for i := range split {
 		if name = split[i]; name == "" {
 			continue
 		}
 
-		parts = append(parts, components.BreadcrumbPart{
+		data.Parts = append(data.Parts, components.BreadcrumbPart{
 			Name: name,
-			Path: strings.Join(split[:i+1], "/"),
+			URL:  strings.Join(split[:i+1], "/"),
 		})
 	}
 
-	return parts
-}
+	// Add args
+	if url.Args != "" {
+		argSplit := strings.Split(url.Args, "/")
+		nonEmptyArgs := slices.DeleteFunc(argSplit, func(a string) bool {
+			return a == ""
+		})
 
-// IsFile checks if the last element of the path is a file (has an extension)
-func isFile(path string) bool {
-	base := filepath.Base(path)
-	ext := filepath.Ext(base)
-	return ext != ""
+		for i := range nonEmptyArgs {
+			data.ArgParts = append(data.ArgParts, components.BreadcrumbPart{
+				Name: nonEmptyArgs[i],
+				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:i+1], "/"),
+			})
+		}
+	}
+
+	// Add query params
+	for key, values := range url.Query {
+		for _, v := range values {
+			data.Queries = append(data.Queries, components.QueryParam{
+				Key:   key,
+				Value: v,
+			})
+		}
+	}
+
+	return data
 }

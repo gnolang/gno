@@ -5,8 +5,8 @@ import (
 	"std"
 )
 
-func main() {
-	caller := std.GetOrigCaller()
+func main(cur realm) {
+	caller := std.OriginCaller()
 	println(caller)
 }
 

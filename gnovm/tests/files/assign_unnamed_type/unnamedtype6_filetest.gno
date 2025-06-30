@@ -1,11 +1,11 @@
 package main
 
-type nat []interface{}
+type nat []any
 
 func main() {
 	var a nat
-	a = []interface{}{0}
-	b := []interface{}{1}
+	a = []any{0}
+	b := []any{1}
 
 	println(a)
 	println(b)

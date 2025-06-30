@@ -44,7 +44,7 @@ func NewStartCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "Runs the linter for the specified packages",
+			ShortHelp:  "Increments the counter in the specified realm at regular intervals",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -68,15 +68,15 @@ func execStart(cfg *startCfg, args []string, io commands.IO) error {
 
 	signer, err := gnoclient.SignerFromBip39(cfg.mnemonic, cfg.chainID, "", uint32(0), uint32(0))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create signer: %w", err)
 	}
 	if err := signer.Validate(); err != nil {
-		return err
+		return fmt.Errorf("invalid signer: %w", err)
 	}
 
 	rpcClient, err := rpcclient.NewHTTPClient(cfg.rpcURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create RPC client: %w", err)
 	}
 
 	client := gnoclient.Client{
@@ -97,7 +97,7 @@ func execStart(cfg *startCfg, args []string, io commands.IO) error {
 			})
 
 		if err != nil {
-			fmt.Printf("[ERROR] Failed to call Incr on %s, %+v\n", cfg.realmPath, err.Error())
+			fmt.Printf("[ERROR] Failed to call Incr on %s: %v\n", cfg.realmPath, err)
 		} else {
 			fmt.Println("[INFO] Counter incremented with success")
 		}
