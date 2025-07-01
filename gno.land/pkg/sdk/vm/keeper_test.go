@@ -151,7 +151,7 @@ func Echo(cur realm) string {
 
 	err := env.vmk.AddPackage(ctx, msg1)
 
-	assert.Error(t, err, ErrInvalidPackage("draft packages must be deployed at genesis time"))
+	assert.Error(t, err, ErrInvalidPackage("draft packages can only be deployed at genesis time"))
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 

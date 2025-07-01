@@ -6,7 +6,7 @@ gnoland start
 
 # check error message
 stdout 'TX HASH:    '
-stderr 'draft packages must be deployed at genesis time'
+stderr 'draft packages can only be deployed at genesis time'
 
 -- gnomod.toml --
 module = "bar"
