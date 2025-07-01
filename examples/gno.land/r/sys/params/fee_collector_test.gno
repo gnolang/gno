@@ -34,5 +34,5 @@ func TestSetFeeCollector(t *testing.T) {
 		},
 	)
 
-	// XXX: test that the value got properly updated
+	// XXX: test that the value got properly updated, when we can get params from gno code
 }
