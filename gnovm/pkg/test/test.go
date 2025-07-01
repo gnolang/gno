@@ -312,10 +312,14 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			if opts.Verbose {
 				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
 			}
+			// We need to use a separate cache-wrapped transaction store for each _filetest.gno to
+			// isolate the state between them.
+			cw := opts.BaseStore.CacheWrap()
+			txStore := opts.TestStore.BeginTransaction(cw, cw, nil)
 
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			changed, err := opts.runFiletest(
-				testFileName, []byte(testFile.Body), tgs, tcheck)
+				testFileName, []byte(testFile.Body), txStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
 				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
