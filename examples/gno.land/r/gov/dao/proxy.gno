@@ -1,6 +1,9 @@
 package dao
 
-import "std"
+import (
+	"std"
+	"strconv"
+)
 
 // dao is the actual govDAO implementation, having all the needed business logic
 var dao DAO
@@ -77,7 +80,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	dao.PostCreateProposal(r, pid)
 
 	std.Emit("ProposalCreated",
-		"id", pid,
+		"id", strconv.FormatInt(int64(pid), 10),
 	)
 
 	return pid, nil
