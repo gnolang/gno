@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -189,12 +190,19 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
+	loadConf := packages.LoadConfig{
+		Fetcher:    testPackageFetcher,
+		Out:        io.Err(),
+		Deps:       true,
+		Test:       true,
+		AllowEmpty: true,
+	}
+	pkgs, err := packages.Load(loadConf, args...)
 	if err != nil {
-		return fmt.Errorf("list targets from patterns: %w", err)
+		return err
 	}
 
-	if len(paths) == 0 {
+	if len(pkgs) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
 	}
@@ -206,17 +214,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}()
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
-	if err != nil {
-		return fmt.Errorf("list sub packages: %w", err)
-	}
-
 	// Set up options to run tests.
 	stdout := goio.Discard
 	if cmd.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err())
+	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err(), pkgs)
 	opts.RunFlag = cmd.run
 	opts.Sync = cmd.updateGoldenTests
 	opts.Verbose = cmd.verbose
@@ -233,8 +236,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	tccache := gno.TypeCheckCache{}
 
-	for _, pkg := range subPkgs {
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+	for _, pkg := range pkgs {
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
+		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
 		}

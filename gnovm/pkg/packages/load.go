@@ -71,6 +71,8 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		}
 	}
 
+	fmt.Fprintf(conf.Out, "gno: workspace root is %q\n", conf.WorkspaceRoot)
+
 	// sanity assert
 	if !filepath.IsAbs(conf.WorkspaceRoot) {
 		panic(fmt.Errorf("workspace root should be absolute at this point, got %q", conf.WorkspaceRoot))
@@ -163,8 +165,6 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 				markDepForVisit(readPkgDir(conf.Out, nil, dir, imp.PkgPath, conf.Fset))
 				continue
 			}
-
-			fmt.Fprintf(conf.Out, "gno: fetching %q\n", imp.PkgPath)
 
 			// XXX: why download twice?
 			// XXX: why pkgpath and name is not resolved

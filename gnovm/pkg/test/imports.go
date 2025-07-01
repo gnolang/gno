@@ -14,7 +14,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -37,12 +36,16 @@ type StoreOptions struct {
 
 	// When fixing code from an earler gno version. Not supported for stdlibs.
 	FixFrom string
+
+	// Loaded packages
+	Packages packages.PkgList
 }
 
 // NOTE: this isn't safe, should only be used for testing.
 func Store(
 	rootDir string,
 	output io.Writer,
+	pkgs packages.PkgList,
 ) (
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
@@ -50,7 +53,7 @@ func Store(
 	return StoreWithOptions(
 		rootDir,
 		output,
-		StoreOptions{},
+		StoreOptions{Packages: pkgs},
 	)
 }
 
@@ -138,10 +141,8 @@ func StoreWithOptions(
 			return
 		}
 
-		// if examples package...
-		examplePath := filepath.Join(rootDir, "examples", pkgPath)
-		if osm.DirExists(examplePath) {
-			mpkg := gno.MustReadMemPackage(examplePath, pkgPath)
+		loadFromDir := func(dir string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+			mpkg := gno.MustReadMemPackage(dir, pkgPath)
 			if mpkg.IsEmpty() {
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
@@ -157,6 +158,21 @@ func StoreWithOptions(
 			})
 			return _processMemPackage(m2, mpkg, true)
 		}
+
+		// If available in loaded packages
+		if pkg := opts.Packages.Get(pkgPath); pkg != nil {
+			return loadFromDir(pkg.Dir)
+		}
+
+		/*
+
+			// if examples package...
+			examplePath := filepath.Join(rootDir, "examples", pkgPath)
+			if osm.DirExists(examplePath) {
+				return loadFromDir(examplePath)
+			}
+
+		*/
 
 		return nil, nil
 	}

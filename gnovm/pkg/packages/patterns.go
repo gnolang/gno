@@ -20,7 +20,7 @@ type pkgMatch struct {
 	Match []string
 }
 
-func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatch, error) {
+func expandPatterns(workRoot string, warn io.Writer, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch(nil)
 
 	addPkgDir := func(dir string, match *string) {
@@ -50,7 +50,7 @@ func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatc
 		}
 		kinds = append(kinds, patKind)
 
-		if root == "" {
+		if workRoot == "" {
 			continue
 		}
 		switch patKind {
@@ -59,8 +59,8 @@ func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatc
 			if err != nil {
 				return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
 			}
-			if !strings.HasPrefix(absPat, root) {
-				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q is not in %q)", match, absPat, root)
+			if !strings.HasPrefix(absPat, workRoot) {
+				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q is not in %q)", match, absPat, workRoot)
 			}
 		}
 	}
@@ -118,12 +118,12 @@ func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatc
 			addPkgDir(dir, &match)
 
 		case patternKindRecursiveLocal:
-			dirs, err := expandRecursive(pat)
+			dirs, err := expandRecursive(workRoot, pat)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", pat, err)
 			}
 			if len(dirs) == 0 {
-				_, _ = warn.Write([]byte(fmt.Sprintf(`gno: warning: %q matched no packages`, match)))
+				fmt.Fprintf(warn, "gno: warning: %q matched no packages\n", match)
 			}
 			for _, dir := range dirs {
 				addPkgDir(dir, &match)
@@ -138,12 +138,12 @@ func expandPatterns(root string, warn io.Writer, patterns ...string) ([]*pkgMatc
 	return pkgMatches, nil
 }
 
-func expandRecursive(pat string) ([]string, error) {
+func expandRecursive(workRoot string, pat string) ([]string, error) {
 	// XXX: ignore sub modules
 
-	root, _ := filepath.Split(pat)
+	patRoot, _ := filepath.Split(pat)
 
-	info, err := os.Stat(root)
+	info, err := os.Stat(patRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func expandRecursive(pat string) ([]string, error) {
 
 	// we swallow errors after this point as we want the most packages we can get
 	dirs := []string{}
-	_ = fs.WalkDir(os.DirFS(root), ".", func(path string, d fs.DirEntry, err error) error {
+	_ = fs.WalkDir(os.DirFS(patRoot), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -162,7 +162,7 @@ func expandRecursive(pat string) ([]string, error) {
 			return nil
 		}
 		dir, base := filepath.Split(path)
-		dir = filepath.Join(root, dir)
+		dir = filepath.Join(patRoot, dir)
 		if slices.Contains(dirs, dir) {
 			return nil
 		}
@@ -172,9 +172,11 @@ func expandRecursive(pat string) ([]string, error) {
 			dirs = append(dirs, dir)
 			return nil
 		case "gnowork.toml":
-			// XXX: maybe we should not skip the root directory
-			dirs = slices.DeleteFunc(dirs, func(d string) bool { return d == dir })
-			return fs.SkipDir
+			// stop if sub-workspace
+			if dir != workRoot {
+				dirs = slices.DeleteFunc(dirs, func(d string) bool { return d == dir })
+				return fs.SkipDir
+			}
 		}
 		return nil
 	})
