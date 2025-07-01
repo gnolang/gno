@@ -12,7 +12,7 @@ func init() {
 	somevalue.Field = "test"
 }
 
-func main() {
+func main(cur realm) {
 	println(somevalue)
 }
 

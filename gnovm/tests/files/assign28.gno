@@ -8,4 +8,7 @@ func main() {
 }
 
 // Error:
-// main/files/assign28.gno:6:2: assignment mismatch: 2 variable(s) but 3 value(s)
+// main/assign28.gno:6:2-17: assignment mismatch: 2 variable(s) but 3 value(s)
+
+// TypeCheckError:
+// main/assign28.gno:6:10: assignment mismatch: 2 variables but 3 values

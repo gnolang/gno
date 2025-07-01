@@ -36,7 +36,7 @@ func (b Blog) RenderLastPostsWidget(limit int) string {
 	return output
 }
 
-func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
+func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 	if !b.NoBreadcrumb {
 		res.Write(breadcrumb([]string{b.Title}))
 	}
@@ -46,15 +46,27 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write("<div class='columns-3'>")
+	const maxCol = 3
+	var rowItems []string
+
 	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
-		res.Write(post.RenderListItem())
+		rowItems = append(rowItems, post.RenderListItem())
+
+		if len(rowItems) == maxCol {
+			res.Write("<gno-columns>" + strings.Join(rowItems, "|||") + "</gno-columns>\n")
+			rowItems = []string{}
+		}
 		return false
 	})
-	res.Write("</div>")
 
-	// FIXME: tag list/cloud.
+	// Pad and flush any remaining items
+	if len(rowItems) > 0 {
+		for len(rowItems) < maxCol {
+			rowItems = append(rowItems, "")
+		}
+		res.Write("<gno-columns>" + strings.Join(rowItems, "\n|||\n") + "</gno-columns>\n")
+	}
 }
 
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
@@ -295,15 +307,13 @@ func (p *Post) RenderListItem() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
-	output := "<div>\n\n"
-	output += ufmt.Sprintf("### [%s](%s)\n", p.Title, p.URL())
+	output := ufmt.Sprintf("\n### [%s](%s)\n", p.Title, p.URL())
 	// output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
 
-	output += " " + p.CreatedAt.Format("02 Jan 2006")
+	output += p.CreatedAt.Format("02 Jan 2006")
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	output += "\n"
-	output += "</div>"
 	return output
 }
 

@@ -1,12 +1,12 @@
-# Gas Fees in gno.land
+# Gas Fees in Gno.land
 
-This document explains how gas works in the gno.land ecosystem, including gas
+This document explains how gas works in the Gno.land ecosystem, including gas
 pricing, estimation, and optimization.
 
 ## What is Gas?
 
 Gas is a measure of computational and storage resources required to execute
-operations on the blockchain. Every transaction on gno.land consumes gas based
+operations on the blockchain. Every transaction on Gno.land consumes gas based
 on:
 
 1. The complexity of the operation being performed
@@ -20,7 +20,7 @@ Gas serves several important purposes:
 
 ## Gas Parameters
 
-When submitting transactions to gno.land, you need to specify two gas-related parameters:
+When submitting transactions to Gno.land, you need to specify two gas-related parameters:
 
 ### Gas Wanted
 
@@ -57,7 +57,7 @@ implementation of your code.
 
 ## Gas Estimation
 
-Currently, gno.land doesn't provide automatic gas estimation. You need to:
+Currently, Gno.land doesn't provide automatic gas estimation. You need to:
 
 1. Start with conservative (higher) gas values
 2. Observe actual gas usage from transaction receipts
@@ -77,7 +77,7 @@ gnokey maketx call \
   --gas-fee 1000000ugnot \
   --gas-wanted 2000000 \
   --remote https://rpc.gno.land:443 \
-  --chainid portal-loop \
+  --chainid staging \
   YOUR_KEY_NAME
 ```
 

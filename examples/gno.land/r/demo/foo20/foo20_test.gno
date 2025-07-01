@@ -17,18 +17,18 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	type test struct {
 		name    string
-		balance uint64
-		fn      func() uint64
+		balance int64
+		fn      func() int64
 	}
 
 	// check balances #1.
 	{
 		tests := []test{
-			{"TotalSupply", 10_000_000_000, func() uint64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf(admin) }},
-			{"BalanceOf(alice)", 0, func() uint64 { return BalanceOf(alice) }},
-			{"Allowance(admin, alice)", 0, func() uint64 { return Allowance(admin, alice) }},
-			{"BalanceOf(bob)", 0, func() uint64 { return BalanceOf(bob) }},
+			{"TotalSupply", 10_000_000_000, func() int64 { return TotalSupply() }},
+			{"BalanceOf(admin)", 10_000_000_000, func() int64 { return BalanceOf(admin) }},
+			{"BalanceOf(alice)", 0, func() int64 { return BalanceOf(alice) }},
+			{"Allowance(admin, alice)", 0, func() int64 { return Allowance(admin, alice) }},
+			{"BalanceOf(bob)", 0, func() int64 { return BalanceOf(bob) }},
 		}
 		for _, tc := range tests {
 			got := tc.fn()
@@ -37,17 +37,17 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// bob uses the faucet.
-	std.TestSetOriginCaller(bob)
-	Faucet()
+	testing.SetOriginCaller(bob)
+	Faucet(cross)
 
 	// check balances #2.
 	{
 		tests := []test{
-			{"TotalSupply", 10_010_000_000, func() uint64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf(admin) }},
-			{"BalanceOf(alice)", 0, func() uint64 { return BalanceOf(alice) }},
-			{"Allowance(admin, alice)", 0, func() uint64 { return Allowance(admin, alice) }},
-			{"BalanceOf(bob)", 10_000_000, func() uint64 { return BalanceOf(bob) }},
+			{"TotalSupply", 10_010_000_000, func() int64 { return TotalSupply() }},
+			{"BalanceOf(admin)", 10_000_000_000, func() int64 { return BalanceOf(admin) }},
+			{"BalanceOf(alice)", 0, func() int64 { return BalanceOf(alice) }},
+			{"Allowance(admin, alice)", 0, func() int64 { return Allowance(admin, alice) }},
+			{"BalanceOf(bob)", 10_000_000, func() int64 { return BalanceOf(bob) }},
 		}
 		for _, tc := range tests {
 			got := tc.fn()
@@ -63,15 +63,16 @@ func TestErrConditions(t *testing.T) {
 	)
 
 	type test struct {
-		name string
-		msg  string
-		fn   func()
+		name    string
+		msg     string
+		isCross bool
+		fn      func()
 	}
 
 	privateLedger.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
-			{"Transfer(admin, 1)", "cannot send transfer to self", func() {
+			{"Transfer(admin, 1)", "cannot send transfer to self", false, func() {
 				// XXX: should replace with: Transfer(admin, 1)
 				// but there is currently a limitation in manipulating the frame stack and simulate
 				// calling this package from an outside point of view.
@@ -80,12 +81,34 @@ func TestErrConditions(t *testing.T) {
 					panic(err)
 				}
 			}},
-			{"Approve(empty, 1))", "invalid address", func() { Approve(empty, 1) }},
+			{"Approve(empty, 1))", "invalid address", true, func() { Approve(cross, empty, 1) }},
 		}
 		for _, tc := range tests {
-			t.Run(tc.name, func(t *testing.T) {
+			if tc.isCross {
+				uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+			} else {
 				uassert.PanicsWithMessage(t, tc.msg, tc.fn)
-			})
+			}
 		}
 	}
 }
+
+//func TestNewFoo20(t *testing.T) {
+//	t.Run("invalid input", func(t *testing.T) {
+//		testCases := []struct {
+//			msg string
+//			fn  func()
+//		}{
+//			// Test AbortsWithMessage
+//	uassert.PanicsWithMessage", func() { NewFoo20("foo", "f", 0) }},
+//			{"symbol cannot be empty", func() { NewFoo20("foo", "", 1) }},
+//			{"name cannot be empty", func() { NewFoo20("", "f", 1) }},
+//		}
+//		for _, tc := range testCases {
+//			uassert.AbortsWithMessage(t, tc.msg, tc.fn)
+//		}
+//	})
+//	t.Run("transfer", func(t *testing.T) {
+//		// ... existing code ...
+//	})
+//}

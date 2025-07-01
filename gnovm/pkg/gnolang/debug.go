@@ -20,7 +20,10 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-type debugging bool
+type (
+	debugging      bool
+	debuggingRealm bool
+)
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
@@ -47,18 +50,18 @@ func init() {
 
 var enabled bool = true
 
-func (debugging) Println(args ...interface{}) {
+func (debugging) Println(args ...any) {
 	if debug {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			fmt.Println(append([]interface{}{prefix}, args...)...)
+			fmt.Println(append([]any{prefix}, args...)...)
 		}
 	}
 }
 
-func (debugging) Printf(format string, args ...interface{}) {
+func (debugging) Printf(format string, args ...any) {
 	if debug {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
@@ -69,12 +72,34 @@ func (debugging) Printf(format string, args ...interface{}) {
 	}
 }
 
+func (debuggingRealm) Println(args ...interface{}) {
+	if debugRealm {
+		if enabled {
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
+			fmt.Println(append([]interface{}{prefix}, args...)...)
+		}
+	}
+}
+
+func (debuggingRealm) Printf(format string, args ...interface{}) {
+	if debugRealm {
+		if enabled {
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
+			fmt.Printf(prefix+format, args...)
+		}
+	}
+}
+
 var derrors []string = nil
 
 // Instead of actually panic'ing, which messes with tests, errors are sometimes
 // collected onto `var derrors`.  tests/file_test.go checks derrors after each
 // test, and the file test fails if any unexpected debug errors were found.
-func (debugging) Errorf(format string, args ...interface{}) {
+func (debugging) Errorf(format string, args ...any) {
 	if debug {
 		if enabled {
 			derrors = append(derrors, fmt.Sprintf(format, args...))

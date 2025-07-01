@@ -22,3 +22,6 @@ func main() {
 // Output:
 // here
 // there
+
+// TypeCheckError:
+// main/goto6.gno:6:2: label nowhere declared and not used

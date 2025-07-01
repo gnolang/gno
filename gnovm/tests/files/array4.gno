@@ -6,3 +6,6 @@ func main() {
 
 // Error:
 // duplicate index 2 in array or slice literal
+
+// TypeCheckError:
+// main/array4.gno:4:26: duplicate index 2 in array or slice literal; main/array4.gno:4:2: declared and not used: a

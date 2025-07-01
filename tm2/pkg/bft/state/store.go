@@ -24,20 +24,20 @@ var errTxResultIndexCorrupted = errors.New("tx result index corrupted")
 // ------------------------------------------------------------------------
 
 func calcValidatorsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("validatorsKey:%x", height))
+	return fmt.Appendf(nil, "validatorsKey:%x", height)
 }
 
 func calcConsensusParamsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("consensusParamsKey:%x", height))
+	return fmt.Appendf(nil, "consensusParamsKey:%x", height)
 }
 
 func CalcABCIResponsesKey(height int64) []byte {
-	return []byte(fmt.Sprintf("abciResponsesKey:%x", height))
+	return fmt.Appendf(nil, "abciResponsesKey:%x", height)
 }
 
 // CalcTxResultKey calculates the storage key for the transaction result
 func CalcTxResultKey(hash []byte) []byte {
-	return []byte(fmt.Sprintf("txResultKey:%x", hash))
+	return fmt.Appendf(nil, "txResultKey:%x", hash)
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,

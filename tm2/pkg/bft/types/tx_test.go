@@ -13,7 +13,7 @@ import (
 
 func makeTxs(cnt, size int) Txs {
 	txs := make(Txs, cnt)
-	for i := 0; i < cnt; i++ {
+	for i := range cnt {
 		txs[i] = random.RandBytes(size)
 	}
 	return txs
@@ -27,9 +27,9 @@ func randInt(low, high int) int {
 func TestTxIndex(t *testing.T) {
 	t.Parallel()
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		txs := makeTxs(15, 60)
-		for j := 0; j < len(txs); j++ {
+		for j := range txs {
 			tx := txs[j]
 			idx := txs.Index(tx)
 			assert.Equal(t, j, idx)
@@ -42,9 +42,9 @@ func TestTxIndex(t *testing.T) {
 func TestTxIndexByHash(t *testing.T) {
 	t.Parallel()
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		txs := makeTxs(15, 60)
-		for j := 0; j < len(txs); j++ {
+		for j := range txs {
 			tx := txs[j]
 			idx := txs.IndexByHash(tx.Hash())
 			assert.Equal(t, j, idx)
@@ -99,7 +99,7 @@ func TestTxProofUnchangable(t *testing.T) {
 	t.Parallel()
 
 	// run the other test a bunch...
-	for i := 0; i < 40; i++ {
+	for range 40 {
 		testTxProofUnchangable(t)
 	}
 }
@@ -119,7 +119,7 @@ func testTxProofUnchangable(t *testing.T) {
 	assert.Nil(t, err)
 
 	// try mutating the data and make sure nothing breaks
-	for j := 0; j < 500; j++ {
+	for range 500 {
 		bad := testutils.MutateByteSlice(bin)
 		if !bytes.Equal(bad, bin) {
 			assertBadProof(t, root, bad, proof)

@@ -1,7 +1,6 @@
 package memo
 
 import (
-	"std"
 	"testing"
 	"time"
 )
@@ -140,7 +139,7 @@ func TestMemoizeWithValidator(t *testing.T) {
 			}
 
 			// Wait
-			std.TestSkipHeights(10)
+			testing.SkipHeights(10)
 
 			// Second call
 			result = m.MemoizeWithValidator(tt.key, fn, isValid)

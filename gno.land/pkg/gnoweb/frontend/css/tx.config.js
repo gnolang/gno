@@ -1,4 +1,4 @@
-const pxToRem = (px) => px / 16;
+const pxToRem = px => px / 16;
 
 export default {
   content: ["./components/**/*.{html,ts}"],
@@ -41,15 +41,44 @@ export default {
         900: "#080809", // Title color
       },
       green: {
-        400: "#2D8D72", // Primary dark color
+        50: "#F0F9FF",
+        400: "#60AB96", // Primary dark color
         600: "#226C57", // Primary light color
+        900: "#144134",
+      },
+      blue: {
+        50: "#F0F9FF",
+        400: "#49AFEB",
+        600: "#3E96C9", // Note alert color
+        900: "#21506B",
+      },
+      yellow: {
+        50: "#FFFCF1",
+        400: "#FACC32",
+        600: "#FBBF24",
+        900: "#7b4807",
+      },
+      red: {
+        50: "#FEF2F2",
+        400: "#EB6C49",
+        600: "#C95C3E", // Caution alert color
+        900: "#6B2521",
+      },
+      purple: {
+        50: "#F5F3FF",
+        400: "#7F49EB",
+        600: "#6C3EC9", // Tip alert color
+        900: "#39216B",
       },
       transparent: "transparent",
       current: "currentColor",
       inherit: "inherit",
     },
     fontFamily: {
-      mono: ["Roboto", 'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace;'],
+      mono: [
+        "Roboto",
+        'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace;',
+      ],
       interVar: [
         '"Inter var"',
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif',
@@ -69,6 +98,13 @@ export default {
       900: `${pxToRem(42)}rem`,
     },
   },
-  safelist: ["realm-view", { pattern: /^realm-view/ }],
+  safelist: [
+    "realm-view",
+    { pattern: /^realm-view/ },
+    "link-external",
+    "link-internal",
+    "link-tx",
+    "tooltip",
+  ],
   plugins: [],
 };

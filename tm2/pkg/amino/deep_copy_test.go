@@ -133,7 +133,7 @@ func TestDeepCopyFoo9(t *testing.T) {
 }
 
 type DCInterface1 struct {
-	Foo interface{}
+	Foo any
 }
 
 func TestDeepCopyInterface1(t *testing.T) {

@@ -1,10 +1,33 @@
 package components
 
-// Layout
+// ViewMode represents the current view mode of the application
+// It affects the layout, navigation, and display of content
+type ViewMode int
+
 const (
-	SidebarLayout = "sidebar"
-	FullLayout    = "full"
+	ViewModeExplorer ViewMode = iota // For exploring packages and paths
+	ViewModeRealm                    // For realm content display
+	ViewModePackage                  // For package content display
+	ViewModeHome                     // For home page display
+	ViewModeUser                     // For user page display
 )
+
+// View mode predicates
+func (m ViewMode) IsExplorer() bool { return m == ViewModeExplorer }
+func (m ViewMode) IsRealm() bool    { return m == ViewModeRealm }
+func (m ViewMode) IsPackage() bool  { return m == ViewModePackage }
+func (m ViewMode) IsUser() bool     { return m == ViewModeUser }
+func (m ViewMode) IsHome() bool     { return m == ViewModeHome }
+
+// ShouldShowDevTools returns whether dev tools should be shown for this mode
+func (m ViewMode) ShouldShowDevTools() bool {
+	return m != ViewModeHome
+}
+
+// ShouldShowGeneralLinks returns whether general navigation links should be shown
+func (m ViewMode) ShouldShowGeneralLinks() bool {
+	return m == ViewModeHome
+}
 
 type HeadData struct {
 	Title       string
@@ -24,6 +47,7 @@ type IndexData struct {
 	HeaderData
 	FooterData
 	BodyView *View
+	Mode     ViewMode
 }
 
 type indexLayoutParams struct {
@@ -31,37 +55,21 @@ type indexLayoutParams struct {
 
 	// Additional data
 	IsDevmodView bool
-	Layout       string
 	ViewType     string
 }
 
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
-	data.HeaderData = EnrichHeaderData(data.HeaderData)
+	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
 
 	dataLayout := indexLayoutParams{
 		IndexData: data,
-		// Set default value
-		Layout:   FullLayout,
-		ViewType: data.BodyView.String(),
+		ViewType:  data.BodyView.String(),
 	}
 
+	// Set dev mode based on view type and mode
 	switch data.BodyView.Type {
-	case RealmViewType:
-		dataLayout.Layout = SidebarLayout
-
-	case HelpViewType:
-		dataLayout.IsDevmodView = true
-		dataLayout.Layout = SidebarLayout
-
-	case SourceViewType:
-		dataLayout.IsDevmodView = true
-		dataLayout.Layout = SidebarLayout
-
-	case DirectoryViewType:
-		dataLayout.IsDevmodView = true
-
-	case StatusViewType:
+	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType:
 		dataLayout.IsDevmodView = true
 	}
 

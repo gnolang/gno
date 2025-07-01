@@ -1,29 +1,38 @@
 package main
 
 import (
-	"gno.land/p/demo/dao"
+	"std"
+	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/users"
-	_ "gno.land/r/gov/dao/init" // so that the govdao.GovDAO initializer is executed
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao"
+	ini "gno.land/r/gov/dao/v3/init"
+)
+
+var (
+	alice = testutils.TestAddress("g1alice")
 )
 
 func init() {
-	ex := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
+	testing.SetRealm(std.NewUserRealm(alice))
+	c := std.OriginCaller()
+	ini.InitWithUsers(c)
 
-	// Create a proposal
-	prop := dao.ProposalRequest{
-		Title:       "Propose users registry v2",
-		Description: "",
-		Executor:    ex,
-	}
+	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
 
-	govdao.GovDAO.Propose(prop)
+	dao.MustCreateProposal(cross, pReq)
 }
 
 func main() {
-	govdao.GovDAO.VoteOnProposal(0, "YES")
-	govdao.GovDAO.ExecuteProposal(0)
+	testing.SetRealm(std.NewUserRealm(alice))
+
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
+	})
+
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 	println(users.Render(""))
 }
 
