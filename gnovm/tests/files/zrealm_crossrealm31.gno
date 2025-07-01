@@ -17,5 +17,5 @@ func main() {
 }
 
 // Output:
-// current realm:  CodeRealm{ g1m6pzw9ex0xk3hamzch0wtad4e696gjyju0z2tz, gno.land/r/demo/tests/crossrealm }
-// previous realm:  CodeRealm{ g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p, gno.land/r/crossrealm_test }
+// current realm: CodeRealm{ g1m6pzw9ex0xk3hamzch0wtad4e696gjyju0z2tz, gno.land/r/demo/tests/crossrealm }
+// previous realm: CodeRealm{ g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p, gno.land/r/crossrealm_test }

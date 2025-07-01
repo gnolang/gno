@@ -124,8 +124,8 @@ func ExecuteClosureCross(cur realm) {
 
 // Closure -> FooUpdate
 func PrintRealms(cur realm) {
-	println("current realm: ", std.CurrentRealm())
-	println("previous realm: ", std.PreviousRealm())
+	ufmt.Printf("current realm: %s\n", std.CurrentRealm())
+	ufmt.Printf("previous realm: %s\n", std.PreviousRealm())
 }
 
 // -------------------------------------------------
