@@ -129,14 +129,15 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 type TypeCheckMode int
 
 const (
-	TCLatestStrict            TypeCheckMode = iota // require latest gno.mod gno version.
-	TCForbidDraftImportStrict                      // require latest gno.mod gno version, but forbid import draft packages too
-	TCLatestRelaxed                                // generate latest gno.mod if missing; for testing
-	TCGno0p0                                       // when gno fix'ing from gno 0.0.
+	TCLatestStrict          TypeCheckMode = iota // require latest gno.mod gno version.
+	TCGLatestForbidDraftImp                      // require latest gno.mod gno version, but forbid import draft packages too
+	TCLatestRelaxed                              // generate latest gno.mod if missing; for testing
+	TCGno0p0                                     // when gno fix'ing from gno 0.0.
 )
 
-func (m TypeCheckMode) IsStrict() bool {
-	return m == TCLatestStrict || m == TCForbidDraftImportStrict
+// RequiresLatestGnoMod returns true if the type check mode requires latest gno.mod version
+func (m TypeCheckMode) RequiresLatestGnoMod() bool {
+	return m == TCLatestStrict || m == TCGLatestForbidDraftImp
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -273,7 +274,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		return nil, err
 	}
 	// ensure import is not a draft package.
-	if gimp.tcmode == TCForbidDraftImportStrict && mod != nil && mod.Draft {
+	if gimp.tcmode == TCGLatestForbidDraftImp && mod != nil && mod.Draft {
 		// cannot import draft packages after genesis.
 		// NOTE: see comment below for ImportNotFoundError.
 		err = ImportDraftError{PkgPath: pkgPath}
@@ -362,7 +363,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if err != nil {
 		return nil, err
 	}
-	if gimp.tcmode.IsStrict() {
+	if gimp.tcmode.RequiresLatestGnoMod() {
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
 		}

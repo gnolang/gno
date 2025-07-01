@@ -363,7 +363,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
-	tcmode := gno.TCForbidDraftImportStrict
+	tcmode := gno.TCGLatestForbidDraftImp
 	if ctx.BlockHeight() == 0 {
 		tcmode = gno.TCLatestStrict // genesis time, waive blocking rules for importing draft packages.
 	}
@@ -386,7 +386,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPackage("private packages must be realm packages")
 	}
 	if gm.Draft && ctx.BlockHeight() > 0 {
-		return ErrInvalidPackage("draft packages must be deployed at genesis time")
+		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
 	}
 	// no (deprecated) gno.mod file.
 	if memPkg.GetFile("gno.mod") != nil {
