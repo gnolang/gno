@@ -32,7 +32,7 @@ func newMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set)
 	}
 }
 
-// nembersUpdateProposal defines a proposal type for adding/removing DAO members.
+// membersPropDefinition defines a proposal type for adding/removing DAO members.
 type membersPropDefinition struct {
 	dao             *commondao.CommonDAO
 	toAdd, toRemove addrset.Set
