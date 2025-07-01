@@ -33,9 +33,10 @@ Visit [gno.land](https://gno.land) to see live smart contracts in action.
 
 ## Key Features
 
-- **Go Syntax**: Write smart contracts in a familiar language
+- **Go Syntax**: If you know Go, you know Gno
 - **Deterministic Execution**: Fully predictable contract behavior
 - **Composable Packages**: Import and reuse code like regular Go
+- **Auto-Persisted State**: Global variables automatically saved between calls
 - **Contribution-Based**: Rewards open source contributors
 - **Developer Experience**: Comprehensive tooling including testing, 
   debugging, and hot-reload development
@@ -76,15 +77,23 @@ repository.
 
 ## Community
 
-**Get Help:**
+**Explore the Ecosystem:**
+- [Gnoverse](https://github.com/gnoverse) - Community projects and initiatives
+- [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated list of 
+  resources
+- [Gnoscan](https://gnoscan.io) - Blockchain explorer
+- [Gno Studio](https://gno.studio) - Web IDE for Gno development
+- [Become a Gnome](./docs/builders/become-a-gnome.md) - Join the contributor 
+  community
+
+**Connect & Get Help:**
 - [Discord](https://discord.gg/YFtMjWwUN7) - Real-time support and development 
   discussions
-- [Reddit](https://www.reddit.com/r/gnoland) - Forum-style discussions and Q&A
-
-**Stay Updated:**
 - [Twitter](https://twitter.com/_gnoland) - Official announcements and updates
 - [YouTube](https://www.youtube.com/@_gnoland) - Tutorials, workshops, and 
   development calls
+- [Workshops](https://github.com/gnolang/workshops) - Educational materials
+- [Reddit](https://www.reddit.com/r/gnoland) - Forum-style discussions
 - [Telegram](https://t.me/gnoland) - Community-run group
 
 **Contribute:**
