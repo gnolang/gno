@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
@@ -470,6 +471,33 @@ func EndBlocker(
 
 			return abci.ResponseEndBlock{}
 		}
+
+		// Filter out the updates that are not valid
+		updates = slices.DeleteFunc(updates, func(u abci.ValidatorUpdate) bool {
+			// Make sure the power is valid
+			if u.Power < 0 {
+				app.Logger().Error(
+					"valset update invalid; voting power < 0",
+					"address", u.Address.String(),
+					"power", u.Power,
+				)
+
+				return true // delete it
+			}
+
+			// Make sure the public key matches the address
+			if u.PubKey.Address().Compare(u.Address) != 0 {
+				app.Logger().Error(
+					"valset update invalid; pubkey + address mismatch",
+					"address", u.Address.String(),
+					"pubkey", u.PubKey.String(),
+				)
+
+				return true // delete it
+			}
+
+			return false // keep it, update is valid
+		})
 
 		return abci.ResponseEndBlock{
 			ValidatorUpdates: updates,
