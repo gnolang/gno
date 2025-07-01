@@ -146,9 +146,13 @@ func X_getRealm(m *gno.Machine, height int) (addr, pkgPath string) {
 // It's not a native binding; but is used within this package to clarify usage.
 func currentRealm(m *gno.Machine) (addr, pkgPath string) {
 	realm := m.MustPeekCallFrame(2).LastRealm
-	realmAddr := gno.DerivePkgCryptoAddr(realm.Path)
+	if realm == nil {
+		return X_getRealm(m, 0)
+	}
 
-	return realmAddr.Bech32().String(), realm.Path
+	realmPath := realm.Path
+	realmAddr := gno.DerivePkgCryptoAddr(realmPath).Bech32().String()
+	return realmAddr, realmPath
 }
 
 func X_assertCallerIsRealm(m *gno.Machine) {
