@@ -383,7 +383,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
 	if gm.Draft && ctx.BlockHeight() > 0 {
-		return ErrInvalidPackage("draft packages must be deployed at genesis time")
+		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
 	}
 	// no (deprecated) gno.mod file.
 	if memPkg.GetFile("gno.mod") != nil {
