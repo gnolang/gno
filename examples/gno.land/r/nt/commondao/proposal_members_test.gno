@@ -10,7 +10,7 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-var _ commondao.ProposalDefinition = (*membersPropDefinition)(nil)
+var _ commondao.ProposalDefinition = (*membersUpdatePropDefinition)(nil)
 
 func TestMembersPropDefinitionTally(t *testing.T) {
 	cases := []struct {
@@ -98,7 +98,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				p       membersPropDefinition
+				p       membersUpdatePropDefinition
 				record  commondao.VotingRecord
 				members = commondao.NewMemberStorage()
 			)
@@ -209,7 +209,7 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 				remove.Add(addr)
 			}
 
-			p := newMembersPropDefinition(tc.dao, add, remove)
+			p := newMembersUpdatePropDefinition(tc.dao, add, remove)
 
 			err := p.Execute(cross)
 

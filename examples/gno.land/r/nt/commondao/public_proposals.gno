@@ -66,7 +66,7 @@ func CreateMembersUpdateProposal(_ realm, daoID uint64, newMembers, removeMember
 
 	toAdd := mustParseStringToAddrset(newMembers)
 	toRemove := mustParseStringToAddrset(removeMembers)
-	def := newMembersPropDefinition(dao, toAdd, toRemove)
+	def := newMembersUpdatePropDefinition(dao, toAdd, toRemove)
 	p, err := dao.Propose(caller, def)
 	if err != nil {
 		panic(err)
