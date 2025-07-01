@@ -141,6 +141,36 @@ func TestHelpers(t *testing.T) {
 			template: `{{ concat }}`,
 			expected: "",
 		},
+		{
+			name:     "printf_basic",
+			template: `{{ printf "Hello %s!" "World" }}`,
+			expected: "Hello World!",
+		},
+		{
+			name:     "printf_multiple_args",
+			template: `{{ printf "%s has %s items" "Cart" "5" }}`,
+			expected: "Cart has 5 items",
+		},
+		{
+			name:     "string_helper",
+			template: `{{ string "test" }}`,
+			expected: "test",
+		},
+		{
+			name:     "trim_helper",
+			template: `{{ trim "  spaced  " }}`,
+			expected: "spaced",
+		},
+		{
+			name:     "index_numeric",
+			template: `{{ index "array" "0" }}`,
+			expected: "[0]",
+		},
+		{
+			name:     "index_string",
+			template: `{{ index "map" "key" }}`,
+			expected: "[key]",
+		},
 	}
 
 	for _, tt := range tests {

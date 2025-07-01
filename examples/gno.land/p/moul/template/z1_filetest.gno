@@ -95,36 +95,46 @@ func main() {
 }
 
 // Output:
-// # Welcome to {{ .Name
-// 's Page!" }}
+// # Welcome to Alice's Page!
 //
-// **Skills**{{ invalid range helper }}
-// - .
+// **Skills**
+// - Go Programming
+//
+// - Smart Contracts
+//
+// - Blockchain Development
+//
+// - System Architecture
 //
 //
 //
 // ## Projects
-// {{ invalid range helper }}
-// ### Alice
+// ### Gno Templates
+// A template engine for Gno
+// [View Demo](https://example.com/demo)
 //
-// .Description
 //
-// [View Demo]( .DemoURL)
+// ### Blockchain Explorer
+// A tool for exploring the Gno chain
+//
+//
 //
 // ## Contact Information
-// {{ invalid range helper }}
-// - (printf "%s: %s" .Platform .Value)
+// - Email: alice@gno.land
 //
+// - GitHub: @alice
 //
 //
 // ## Recent Posts
-// {{ invalid range helper }}
-// ### .Title
+// ### Getting Started with Gno
+// *2024-03-20*
+// A beginner's guide to Gno development
+// > Latest comment: Great article!
 //
-// *.Date*
-// .Summary
+// ---
 //
-// > (printf "Latest comment: %s" (index .Comments 0))
-//
+// ### Advanced Template Techniques
+// *2024-03-19*
+// Deep dive into Gno templates
 // ---
 //
