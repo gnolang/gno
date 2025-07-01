@@ -117,8 +117,6 @@ func main() {
 // ### Blockchain Explorer
 // A tool for exploring the Gno chain
 //
-//
-//
 // ## Contact Information
 // - Email: alice@gno.land
 //
@@ -137,4 +135,3 @@ func main() {
 // *2024-03-19*
 // Deep dive into Gno templates
 // ---
-//

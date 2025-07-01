@@ -1,7 +1,6 @@
 package template
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,747 +10,392 @@ import (
 	"gno.land/p/moul/typeutil"
 )
 
-// Enable/disable debug logs
-var debug bool = false
-
-func log(args ...interface{}) {
-	if !debug {
-		return
-	}
-	var s string
-	for i, arg := range args {
-		if i > 0 {
-			s += " "
-		}
-		s += typeutil.ToString(arg)
-	}
-	println(s)
-}
-
-// Context kinds
-const (
-	kindNone = iota
-	kindRange
-	kindIf
-	kindElse
-)
-
-// context represents the current "range" or "if" scope
-type context struct {
-	parent       *context
-	currentRange []interface{}
-	rangeMap     map[string]interface{}
-	rangeIndex   int
-	kind         int
-}
-
-// Renderer is our main template struct
+// Renderer provides a simple template engine with a clean API
 type Renderer struct {
-	helpers     map[string]Helper
-	data        map[string]interface{}
-	context     *context
-	lastContent string
+	funcs map[string]Func  // Template functions
+	data  map[string]interface{} // Global data
+	ctx   *context       // Current evaluation context
 }
 
-// NewRenderer creates a new template renderer with default helpers
+// Func is the signature for template functions
+type Func func(args ...string) string
+
+// context tracks variable scope during evaluation
+type context struct {
+	parent *context
+	vars   map[string]interface{} // Local variables
+	loop   *loopContext          // Range loop state
+}
+
+// loopContext holds state for range loops
+type loopContext struct {
+	items []interface{} // Items being iterated
+	index int          // Current index
+}
+
+// NewRenderer creates a new template renderer with default functions
 func NewRenderer() *Renderer {
 	r := &Renderer{
-		helpers: make(map[string]Helper),
-		data:    make(map[string]interface{}),
+		funcs: make(map[string]Func),
+		data:  make(map[string]interface{}),
 	}
-	// Register markdown helpers
-	r.helpers["H1"] = SingleArgHelper{fn: md.H1}
-	r.helpers["H2"] = SingleArgHelper{fn: md.H2}
-	r.helpers["H3"] = SingleArgHelper{fn: md.H3}
-	r.helpers["H4"] = SingleArgHelper{fn: md.H4}
-	r.helpers["H5"] = SingleArgHelper{fn: md.H5}
-	r.helpers["H6"] = SingleArgHelper{fn: md.H6}
-	r.helpers["Bold"] = SingleArgHelper{fn: md.Bold}
-	r.helpers["Italic"] = SingleArgHelper{fn: md.Italic}
-	r.helpers["Strikethrough"] = SingleArgHelper{fn: md.Strikethrough}
-	r.helpers["InlineCode"] = SingleArgHelper{fn: md.InlineCode}
-	r.helpers["BulletItem"] = SingleArgHelper{fn: md.BulletItem}
-	r.helpers["TodoItem"] = TwoArgStringBoolHelper{fn: md.TodoItem}
-	r.helpers["CodeBlock"] = SingleArgHelper{fn: md.CodeBlock}
-	r.helpers["LanguageCodeBlock"] = TwoArgHelper{fn: md.LanguageCodeBlock}
-	r.helpers["Link"] = TwoArgHelper{fn: md.Link}
-	r.helpers["Image"] = TwoArgHelper{fn: md.Image}
-	r.helpers["InlineImageWithLink"] = ThreeArgHelper{fn: md.InlineImageWithLink}
-	r.helpers["Blockquote"] = SingleArgHelper{fn: md.Blockquote}
-	r.helpers["HorizontalRule"] = ZeroArgHelper{fn: md.HorizontalRule}
-	r.helpers["Footnote"] = TwoArgHelper{fn: md.Footnote}
-	r.helpers["EscapeText"] = SingleArgHelper{fn: md.EscapeText}
-	r.helpers["Paragraph"] = SingleArgHelper{fn: md.Paragraph}
-	r.helpers["CollapsibleSection"] = TwoArgHelper{fn: md.CollapsibleSection}
-
-	// Register other helpers
-	r.helpers["concat"] = VarArgHelper{fn: concatHelper}
-	r.helpers["printf"] = VarArgHelper{fn: printfHelper}
-	r.helpers["index"] = TwoArgHelper{fn: indexHelper}
-	r.helpers["string"] = SingleArgHelper{fn: stringHelper}
-	r.helpers["trim"] = SingleArgHelper{fn: trimHelper}
+	r.registerDefaults()
 	return r
 }
 
-// Render processes the passed-in template string and returns the rendered result
+// Render processes a template with the given data
 func (r *Renderer) Render(template string, data map[string]interface{}) string {
 	if data != nil {
 		r.data = data
 	}
-	r.lastContent = template
-
-	var result strings.Builder
-	originalTemplate := template
-	templateOffset := 0 // Track how much of the original template we've consumed
-	
-	i := 0
-	for i < len(template) {
-		// Look for a "{{"
-		if i+1 < len(template) && template[i] == '{' && template[i+1] == '{' {
-			// Write out anything before the "{{"
-			placeholderStart := i
-			result.WriteString(template[:placeholderStart])
-
-			// Skip "{{"
-			i += 2
-
-			// Parse out the placeholder content until matching "}}"
-			inner, trimLeft, trimRight, endPos := r.parsePlaceholder(template, i)
-			if endPos < 0 {
-				// No matching }} found; write the rest as-is and break
-				result.WriteString(template[placeholderStart:])
-				break
-			}
-			// Move i to after "}}"
-			i = endPos + 2
-
-			// Trim left (remove trailing spaces in result)
-			if trimLeft {
-				resultString := result.String()
-				result.Reset()
-				result.WriteString(strings.TrimRightFunc(resultString, unicode.IsSpace))
-			}
-
-			// Update lastContent to reflect current position for block extraction
-			r.lastContent = originalTemplate[templateOffset:]
-
-			// Process that placeholder
-			log("Processing placeholder:", inner)
-			output, err, consumed := r.processPlaceholder(inner)
-			if err != nil {
-				// In debug mode we might display these errors, or just inline them
-				output = fmt.Sprintf("[error: %v]", err)
-			}
-			log("Placeholder output:", output, "consumed:", consumed)
-			result.WriteString(output)
-			
-			// If this placeholder consumed additional content (like range/if blocks),
-			// skip that content in our template
-			if consumed > 0 {
-				// consumed is relative to the current lastContent position
-				remainingAfterConsumption := originalTemplate[templateOffset+consumed:]
-				template = remainingAfterConsumption
-				templateOffset += consumed
-				i = 0 // Reset position since template changed
-				continue
-			}
-
-			// Trim right from the source template (i.e., skip spaces in template)
-			if trimRight {
-				for i < len(template) && unicode.IsSpace(rune(template[i])) {
-					i++
-				}
-			}
-
-			// The chunk is fully handled, so shift template to skip placeholder
-			templateOffset += i
-			template = template[i:]
-			i = 0 // reset to parse from beginning of remainder
-
-		} else {
-			// Normal character, just move forward
-			i++
-		}
-	}
-
-	// If there's any remainder after last placeholder, write it out
-	result.WriteString(template)
-	return result.String()
+	r.ctx = nil
+	return r.render(template)
 }
 
-// parsePlaceholder extracts the placeholder content between "{{" and "}}",
-// also checks for the optional trim markers "-}}", "{{-".
-func (r *Renderer) parsePlaceholder(template string, start int) (inner string, trimLeft bool, trimRight bool, endPos int) {
-	// We'll parse until we match the next "}}" (noting we might skip nested "{{...}}")
+// render is the core rendering engine
+func (r *Renderer) render(tmpl string) string {
+	var out strings.Builder
+	
+	for len(tmpl) > 0 {
+		// Find next placeholder
+		start := strings.Index(tmpl, "{{")
+		if start < 0 {
+			out.WriteString(tmpl)
+			break
+		}
+		
+		// Write content before placeholder
+		out.WriteString(tmpl[:start])
+		
+		// Parse placeholder
+		placeholder, end := r.parsePlaceholder(tmpl[start:])
+		if placeholder == nil {
+			out.WriteString("{{")
+			tmpl = tmpl[start+2:]
+			continue
+		}
+		
+		// Apply left trim
+		if placeholder.trimLeft {
+			s := out.String()
+			out.Reset()
+			out.WriteString(strings.TrimRightFunc(s, unicode.IsSpace))
+		}
+		
+		// Process placeholder
+		result, consumed := r.process(placeholder, tmpl[start+end:])
+		out.WriteString(result)
+		
+		// Advance position
+		tmpl = tmpl[start+end+consumed:]
+		
+		// Apply right trim
+		if placeholder.trimRight {
+			tmpl = strings.TrimLeftFunc(tmpl, unicode.IsSpace)
+		}
+	}
+	
+	return out.String()
+}
+
+// placeholder represents a parsed {{...}} tag
+type placeholder struct {
+	expr      string
+	trimLeft  bool
+	trimRight bool
+}
+
+// parsePlaceholder extracts a {{...}} placeholder
+func (r *Renderer) parsePlaceholder(tmpl string) (*placeholder, int) {
+	if !strings.HasPrefix(tmpl, "{{") {
+		return nil, 0
+	}
+	
+	// Find matching }}
+	end := r.findClosing(tmpl, 2)
+	if end < 0 {
+		return nil, 0
+	}
+	
+	// Extract content
+	content := tmpl[2:end]
+	
+	// Check trim markers
+	p := &placeholder{}
+	if strings.HasPrefix(content, "-") {
+		p.trimLeft = true
+		content = content[1:]
+	}
+	if strings.HasSuffix(content, "-") {
+		p.trimRight = true
+		content = content[:len(content)-1]
+	}
+	
+	p.expr = strings.TrimSpace(content)
+	return p, end + 2
+}
+
+// findClosing finds the closing }} for a {{
+func (r *Renderer) findClosing(tmpl string, start int) int {
 	depth := 1
-	j := start
-	for j < len(template)-1 {
-		if template[j] == '{' && template[j+1] == '{' {
+	i := start
+	
+	for i < len(tmpl)-1 {
+		if tmpl[i] == '{' && tmpl[i+1] == '{' {
 			depth++
-			j += 2
-		} else if template[j] == '}' && template[j+1] == '}' {
+			i += 2
+		} else if tmpl[i] == '}' && tmpl[i+1] == '}' {
 			depth--
 			if depth == 0 {
-				break
+				return i
 			}
-			j += 2
+			i += 2
 		} else {
-			j++
+			i++
 		}
 	}
-	if depth != 0 {
-		return "", false, false, -1 // no matching "}}"
-	}
-
-	raw := template[start:j]
-
-	// Check for trim markers
-	raw = strings.TrimSpace(raw)
-	if strings.HasPrefix(raw, "-") {
-		trimLeft = true
-		raw = strings.TrimPrefix(raw, "-")
-		raw = strings.TrimLeftFunc(raw, unicode.IsSpace)
-	}
-	if strings.HasSuffix(raw, "-") {
-		trimRight = true
-		raw = strings.TrimSuffix(raw, "-")
-		raw = strings.TrimRightFunc(raw, unicode.IsSpace)
-	}
-
-	return strings.TrimSpace(raw), trimLeft, trimRight, j
+	
+	return -1
 }
 
-// processPlaceholder decides how to handle the placeholder logic: variable, range, if, helper, etc.
-// Returns (output, error, consumedBytes) where consumedBytes indicates how much additional content was consumed
-func (r *Renderer) processPlaceholder(content string) (string, error, int) {
-	parts := splitParts(content)
+// process evaluates a placeholder and returns (result, extraBytesConsumed)
+func (r *Renderer) process(p *placeholder, remaining string) (string, int) {
+	parts := r.parseExpr(p.expr)
 	if len(parts) == 0 {
-		return "", nil, 0
-	}
-	// If the content starts with "." it might be a variable
-	if strings.HasPrefix(parts[0], ".") {
-		val, ok := r.getVar(parts[0])
-		if ok {
-			return typeutil.ToString(val), nil, 0
-		}
-		return "", nil, 0
-	}
-
-	switch parts[0] {
-	case "range":
-		if len(parts) < 2 {
-			return "", errors.New("range requires a variable"), 0
-		}
-		output, consumed := r.handleRangeWithConsumption(parts[1:])
-		return output, nil, consumed
-	case "end":
-		// "end" should be handled inside handleRange or handleIf, so normally we wouldn't get here.
-		return "", nil, 0
-	case "if":
-		if len(parts) < 2 {
-			return "", fmt.Errorf("if requires a condition"), 0
-		}
-		output, consumed := r.handleIfWithConsumption(parts[1:])
-		return output, nil, consumed
-	case "else":
-		// "else" should be handled inside handleIf, so normally we wouldn't get here.
-		return "", nil, 0
-	default:
-		// Possibly a helper
-		if helper, ok := r.helpers[parts[0]]; ok {
-			// Special handling for index helper - try advanced indexing first
-			if parts[0] == "index" && len(parts[1:]) >= 2 {
-				firstArg := strings.TrimSpace(parts[1])
-				if strings.HasPrefix(firstArg, ".") {
-					// This looks like a variable access - use advanced indexing
-					result, err, consumed := r.handleIndexHelper(parts[1:])
-					if err == nil {
-						return result, nil, consumed
-					}
-					// Fall back to simple index helper if advanced fails
-				}
-			}
-			
-			// Resolve variables and nested function calls in helper arguments
-			resolvedArgs := make([]string, len(parts[1:]))
-			for i, arg := range parts[1:] {
-				arg = strings.TrimSpace(arg)
-				
-				// Handle nested function calls like (printf ...)
-				if strings.HasPrefix(arg, "(") && strings.HasSuffix(arg, ")") {
-					innerExpr := arg[1 : len(arg)-1] // Remove outer parentheses
-					innerOutput, _, _ := r.processPlaceholder(innerExpr)
-					resolvedArgs[i] = innerOutput
-				} else if strings.HasPrefix(arg, ".") {
-					if val, ok := r.getVar(arg); ok {
-						resolvedArgs[i] = typeutil.ToString(val)
-					} else {
-						resolvedArgs[i] = arg
-					}
-				} else {
-					// Check if the argument contains nested template expressions
-					if strings.Contains(arg, "{{") && strings.Contains(arg, "}}") {
-						// Process nested templates in the argument
-						nestedOutput := r.Render(arg, nil)
-						resolvedArgs[i] = nestedOutput
-					} else {
-						resolvedArgs[i] = arg
-					}
-				}
-			}
-			return helper.Execute(resolvedArgs, r.data), nil, 0
-		}
-		// Otherwise just treat as plain text
-		return strings.Join(parts, " "), nil, 0
-	}
-}
-
-// handleRangeWithConsumption processes a range block and returns output + consumed bytes
-func (r *Renderer) handleRangeWithConsumption(exprParts []string) (string, int) {
-	val, ok := r.getVar("." + strings.TrimPrefix(exprParts[0], "."))
-	if !ok {
 		return "", 0
 	}
-
-	// Find the range block and calculate how many bytes to consume
-	rangeBlock, consumed, err := r.extractBlockWithConsumption("range "+strings.Join(exprParts, " "), "end")
-	if err != nil {
-		return fmt.Sprintf("[error: %v]", err), 0
-	}
-	log("Range block extracted:", rangeBlock, "consumed:", consumed)
-
-	var rangeData []interface{}
-	switch v := val.(type) {
-	case []interface{}:
-		rangeData = v
-	case []map[string]interface{}:
-		rangeData = make([]interface{}, len(v))
-		for i, m := range v {
-			rangeData[i] = m
-		}
-	default:
-		if slice := typeutil.ToInterfaceSlice(v); slice != nil {
-			rangeData = slice
-		} else {
-			return fmt.Sprintf("[error: cannot range over %T]", val), 0
-		}
-	}
-
-	var result strings.Builder
-	log("Range data:", rangeData, "length:", len(rangeData))
-	for i, item := range rangeData {
-		log("Range iteration", i, "item:", item)
-		newCtx := &context{
-			parent:       r.context,
-			kind:         kindRange,
-			currentRange: rangeData,
-			rangeIndex:   i,
-		}
-		if m, isMap := item.(map[string]interface{}); isMap {
-			newCtx.rangeMap = m
-		}
-
-		subRenderer := &Renderer{
-			helpers: r.helpers,
-			data:    r.data,
-			context: newCtx,
-		}
-		subResult := subRenderer.Render(rangeBlock, nil)
-		log("Sub result:", subResult)
-		result.WriteString(subResult)
-	}
-
-	return result.String(), consumed
-}
-
-// handleRange scans forward in r.lastContent to find the matching {{ end }} block content,
-// then iterates over each item in the slice, calling subrender.
-func (r *Renderer) handleRange(exprParts []string) (string, error) {
-	val, ok := r.getVar("." + strings.TrimPrefix(exprParts[0], ".")) // safe fix in case user used .Var or Var
-	if !ok {
-		return "", nil
-	}
-
-	// We want to collect the content between "{{ range ... }}" and the matching "{{ end }}"
-	rangeBlock, err := r.extractBlock("range "+strings.Join(exprParts, " "), "end")
-	if err != nil {
-		return "", err
-	}
-	log("Range block extracted:", rangeBlock)
-
-	var rangeData []interface{}
-	switch v := val.(type) {
-	case []interface{}:
-		rangeData = v
-	case []map[string]interface{}:
-		rangeData = make([]interface{}, len(v))
-		for i, m := range v {
-			rangeData[i] = m
-		}
-	default:
-		if slice := typeutil.ToInterfaceSlice(v); slice != nil {
-			rangeData = slice
-		} else {
-			return "", fmt.Errorf("cannot range over %T", val)
-		}
-	}
-
-	var result strings.Builder
-	log("Range data:", rangeData, "length:", len(rangeData))
-	for i, item := range rangeData {
-		log("Range iteration", i, "item:", item)
-		newCtx := &context{
-			parent:       r.context,
-			kind:         kindRange,
-			currentRange: rangeData,
-			rangeIndex:   i,
-		}
-		if m, isMap := item.(map[string]interface{}); isMap {
-			newCtx.rangeMap = m
-		}
-
-		subRenderer := &Renderer{
-			helpers: r.helpers,
-			data:    r.data,
-			context: newCtx,
-		}
-		subResult := subRenderer.Render(rangeBlock, nil)
-		log("Sub result:", subResult)
-		result.WriteString(subResult)
-	}
-
-	return result.String(), nil
-}
-
-// handleIf scans forward in r.lastContent to find the matching {{ end }} (and possible {{ else }}),
-// renders the relevant block if condition is true or false.
-func (r *Renderer) handleIf(exprParts []string) (string, error) {
-	condVal, ok := r.getVar("." + strings.TrimPrefix(exprParts[0], "."))
-	if !ok {
-		condVal = false
-	}
-	condition := typeutil.ToBool(condVal)
-	fullBlock, err := r.extractBlock("if "+strings.Join(exprParts, " "), "end")
-	if err != nil {
-		return "", err
-	}
-
-	// Try to find an {{ else }} within that block to split it
-	elseIdx := -1
-	depth := 0
-	for i := 0; i+2 < len(fullBlock); i++ {
-		if strings.HasPrefix(fullBlock[i:], "{{") {
-			if strings.HasPrefix(fullBlock[i+2:], " if ") {
-				depth++
-			} else if strings.HasPrefix(fullBlock[i+2:], " end") {
-				// match: reduce depth
-				depth--
-			} else if depth == 0 && strings.HasPrefix(fullBlock[i+2:], " else") {
-				elseIdx = i
-				break
-			}
-		}
-	}
-
-	var ifBlock, elseBlock string
-	if elseIdx >= 0 {
-		ifBlock = fullBlock[:elseIdx]
-		// skip the "{{ else }}" placeholder
-		endOfElse := elseIdx
-		for endOfElse < len(fullBlock) && fullBlock[endOfElse:endOfElse+2] != "}}" {
-			endOfElse++
-		}
-		endOfElse += 2
-		elseBlock = fullBlock[endOfElse:]
-	} else {
-		ifBlock = fullBlock
-	}
-
-	newCtx := &context{
-		parent: r.context,
-		kind:   kindIf,
-	}
-	subRenderer := &Renderer{
-		helpers: r.helpers,
-		data:    r.data,
-		context: newCtx,
-	}
-
-	if condition {
-		return subRenderer.Render(ifBlock, nil), nil
-	} else {
-		return subRenderer.Render(elseBlock, nil), nil
-	}
-}
-
-// extractBlock finds the text between the current position and the matching "{{ end }}".
-func (r *Renderer) extractBlock(startExpr, endExpr string) (string, error) {
-	// Find the opening placeholder in the template
-	var startIdx int = -1
-	var blockStart int
 	
-	// Try to find any {{ range ... }} or {{ if ... }} that matches our start pattern
-	i := 0
-	for i < len(r.lastContent)-1 {
-		if r.lastContent[i] == '{' && r.lastContent[i+1] == '{' {
-			innerStart := i + 2
-			innerContent, _, _, matchPos := r.parsePlaceholder(r.lastContent, innerStart)
-			if matchPos < 0 {
-				i++
-				continue
-			}
-			
-			if strings.HasPrefix(innerContent, strings.Split(startExpr, " ")[0]) {
-				startIdx = i
-				blockStart = matchPos + 2
-				break
-			}
-			i = matchPos + 2
-		} else {
-			i++
+	cmd := parts[0]
+	args := parts[1:]
+	
+	// Handle variables
+	if strings.HasPrefix(cmd, ".") {
+		if val := r.resolve(cmd); val != nil {
+			return typeutil.ToString(val), 0
 		}
+		return "", 0
 	}
 	
-	if startIdx < 0 {
-		return "", fmt.Errorf("could not find start marker for %q", startExpr)
+	// Handle commands
+	switch cmd {
+	case "range":
+		return r.doRange(args, remaining)
+	case "if":
+		return r.doIf(args, remaining)
+	case "end", "else":
+		return "", 0 // Handled by parent
+	default:
+		// Special handling for index function
+		if cmd == "index" && len(args) >= 2 {
+			return r.indexFunc(args...), 0
+		}
+		// Try function
+		if fn, ok := r.funcs[cmd]; ok {
+			resolved := r.resolveArgs(args)
+			return fn(resolved...), 0
+		}
+		return p.expr, 0
 	}
+}
 
+// doRange implements {{range .items}}...{{end}}
+func (r *Renderer) doRange(args []string, tmpl string) (string, int) {
+	if len(args) == 0 {
+		return "", 0
+	}
+	
+	// Get collection
+	val := r.resolve(args[0])
+	if val == nil {
+		return "", 0
+	}
+	
+	// Convert to items
+	items := toSlice(val)
+	if items == nil {
+		return "", 0
+	}
+	
+	// Find block
+	block, consumed := r.findBlock(tmpl, "end")
+	if consumed == 0 {
+		return "", 0
+	}
+	
+	// Execute loop
+	var out strings.Builder
+	oldCtx := r.ctx
+	
+	for i, item := range items {
+		// Create loop context
+		r.ctx = &context{
+			parent: oldCtx,
+			vars:   make(map[string]interface{}),
+			loop: &loopContext{
+				items: items,
+				index: i,
+			},
+		}
+		
+		// Add item properties if map
+		if m, ok := item.(map[string]interface{}); ok {
+			for k, v := range m {
+				r.ctx.vars[k] = v
+			}
+		}
+		
+		out.WriteString(r.render(block))
+	}
+	
+	r.ctx = oldCtx
+	return out.String(), consumed
+}
+
+// doIf implements {{if .cond}}...{{else}}...{{end}}
+func (r *Renderer) doIf(args []string, tmpl string) (string, int) {
+	if len(args) == 0 {
+		return "", 0
+	}
+	
+	// Evaluate condition
+	val := r.resolve(args[0])
+	cond := typeutil.ToBool(val)
+	
+	// Find block
+	block, consumed := r.findBlock(tmpl, "end")
+	if consumed == 0 {
+		return "", 0
+	}
+	
+	// Split on else
+	ifBlock, elseBlock := r.splitElse(block)
+	
+	// Execute branch
+	oldCtx := r.ctx
+	r.ctx = &context{
+		parent: oldCtx,
+		vars:   make(map[string]interface{}),
+	}
+	
+	var result string
+	if cond {
+		result = r.render(ifBlock)
+	} else {
+		result = r.render(elseBlock)
+	}
+	
+	r.ctx = oldCtx
+	return result, consumed
+}
+
+// findBlock finds content up to {{end}}
+func (r *Renderer) findBlock(tmpl string, endMarker string) (string, int) {
+	var out strings.Builder
 	depth := 1
-	i = blockStart
-	var block strings.Builder
-
-	for i < len(r.lastContent)-1 {
-		if r.lastContent[i] == '{' && r.lastContent[i+1] == '{' {
-			innerStart := i + 2
-			innerContent, _, _, matchPos := r.parsePlaceholder(r.lastContent, innerStart)
-			if matchPos < 0 {
-				break
-			}
-
-			// check if it's a nested start
-			if strings.HasPrefix(innerContent, "range ") || strings.HasPrefix(innerContent, "if ") {
+	i := 0
+	
+	for i < len(tmpl) {
+		// Find next {{
+		next := strings.Index(tmpl[i:], "{{")
+		if next < 0 {
+			break
+		}
+		
+		// Add content before {{
+		out.WriteString(tmpl[i : i+next])
+		
+		// Parse placeholder
+		p, consumed := r.parsePlaceholder(tmpl[i+next:])
+		if p == nil {
+			out.WriteString("{{")
+			i += next + 2
+			continue
+		}
+		
+		// Check command
+		parts := r.parseExpr(p.expr)
+		if len(parts) > 0 {
+			switch parts[0] {
+			case "range", "if":
 				depth++
-			} else if strings.HasPrefix(innerContent, endExpr) {
+			case endMarker:
 				depth--
 				if depth == 0 {
-					// done, don't include the end marker
-					break
+					return out.String(), i + next + consumed
 				}
 			}
-			block.WriteString(r.lastContent[i : matchPos+2])
-			i = matchPos + 2
-		} else {
-			block.WriteByte(r.lastContent[i])
-			i++
 		}
+		
+		// Add to output
+		out.WriteString(tmpl[i+next : i+next+consumed])
+		i += next + consumed
 	}
-
-	return block.String(), nil
+	
+	return "", 0
 }
 
-// extractBlockWithConsumption finds the block content and returns how many bytes to consume
-func (r *Renderer) extractBlockWithConsumption(startExpr, endExpr string) (string, int, error) {
-	template := r.lastContent
-	
-	// Find the opening placeholder in the template
-	var startIdx int = -1
-	var blockStart int
-	
-	// Try to find any {{ range ... }} or {{ if ... }} that matches our start pattern
-	i := 0
-	for i < len(template)-1 {
-		if template[i] == '{' && template[i+1] == '{' {
-			innerStart := i + 2
-			innerContent, _, _, matchPos := r.parsePlaceholder(template, innerStart)
-			if matchPos < 0 {
-				i++
-				continue
-			}
-			
-			if strings.HasPrefix(innerContent, strings.Split(startExpr, " ")[0]) {
-				startIdx = i
-				blockStart = matchPos + 2
-				break
-			}
-			i = matchPos + 2
-		} else {
-			i++
-		}
-	}
-	
-	if startIdx < 0 {
-		return "", 0, fmt.Errorf("could not find start marker for %q", startExpr)
-	}
-
-	depth := 1
-	i = blockStart
-	var block strings.Builder
-	var endPos int
-
-	for i < len(template)-1 {
-		if template[i] == '{' && template[i+1] == '{' {
-			innerStart := i + 2
-			innerContent, _, _, matchPos := r.parsePlaceholder(template, innerStart)
-			if matchPos < 0 {
-				break
-			}
-
-			// check if it's a nested start
-			if strings.HasPrefix(innerContent, "range ") || strings.HasPrefix(innerContent, "if ") {
-				depth++
-			} else if strings.HasPrefix(innerContent, endExpr) {
-				depth--
-				if depth == 0 {
-					// done, don't include the end marker
-					endPos = matchPos + 2
-					break
-				}
-			}
-			block.WriteString(template[i : matchPos+2])
-			i = matchPos + 2
-		} else {
-			block.WriteByte(template[i])
-			i++
-		}
-	}
-
-	return block.String(), endPos, nil
-}
-
-// handleIndexHelper handles the index function with proper type resolution
-func (r *Renderer) handleIndexHelper(args []string) (string, error, int) {
-	if len(args) < 2 {
-		return "[error: index requires collection and index]", nil, 0
-	}
-	
-	collectionArg := strings.TrimSpace(args[0])
-	indexArg := strings.TrimSpace(args[1])
-	
-	// Resolve collection
-	var collection interface{}
-	if strings.HasPrefix(collectionArg, ".") {
-		if val, ok := r.getVar(collectionArg); ok {
-			collection = val
-		} else {
-			return "[error: collection not found]", nil, 0
-		}
-	} else {
-		return "[error: collection must be a variable]", nil, 0
-	}
-	
-	// Resolve index
-	var index int
-	if i, err := strconv.Atoi(indexArg); err == nil {
-		index = i
-	} else {
-		return "[error: index must be a number]", nil, 0
-	}
-	
-	// Try to index into the collection
-	switch coll := collection.(type) {
-	case []interface{}:
-		if index >= 0 && index < len(coll) {
-			return typeutil.ToString(coll[index]), nil, 0
-		}
-		return "[error: index out of range]", nil, 0
-	case []string:
-		if index >= 0 && index < len(coll) {
-			return coll[index], nil, 0
-		}
-		return "[error: index out of range]", nil, 0
-	default:
-		if slice := typeutil.ToInterfaceSlice(collection); slice != nil {
-			if index >= 0 && index < len(slice) {
-				return typeutil.ToString(slice[index]), nil, 0
-			}
-			return "[error: index out of range]", nil, 0
-		}
-		return "[error: cannot index into this type]", nil, 0
-	}
-}
-
-// handleIfWithConsumption processes an if block and returns output + consumed bytes
-func (r *Renderer) handleIfWithConsumption(exprParts []string) (string, int) {
-	condVal, ok := r.getVar("." + strings.TrimPrefix(exprParts[0], "."))
-	if !ok {
-		condVal = false
-	}
-	condition := typeutil.ToBool(condVal)
-	fullBlock, consumed, err := r.extractBlockWithConsumption("if "+strings.Join(exprParts, " "), "end")
-	if err != nil {
-		return fmt.Sprintf("[error: %v]", err), 0
-	}
-
-	// Try to find an {{ else }} within that block to split it
-	elseIdx := -1
+// splitElse splits block on {{else}}
+func (r *Renderer) splitElse(block string) (string, string) {
 	depth := 0
-	for i := 0; i+2 < len(fullBlock); i++ {
-		if strings.HasPrefix(fullBlock[i:], "{{") {
-			if strings.HasPrefix(fullBlock[i+2:], " if ") {
+	i := 0
+	
+	for i < len(block) {
+		next := strings.Index(block[i:], "{{")
+		if next < 0 {
+			break
+		}
+		
+		p, consumed := r.parsePlaceholder(block[i+next:])
+		if p == nil {
+			i += next + 2
+			continue
+		}
+		
+		parts := r.parseExpr(p.expr)
+		if len(parts) > 0 {
+			switch parts[0] {
+			case "if":
 				depth++
-			} else if strings.HasPrefix(fullBlock[i+2:], " end") {
-				// match: reduce depth
+			case "end":
 				depth--
-			} else if depth == 0 && strings.HasPrefix(fullBlock[i+2:], " else") {
-				elseIdx = i
-				break
+			case "else":
+				if depth == 0 {
+					return block[:i+next], block[i+next+consumed:]
+				}
 			}
 		}
+		
+		i += next + consumed
 	}
-
-	var ifBlock, elseBlock string
-	if elseIdx >= 0 {
-		ifBlock = fullBlock[:elseIdx]
-		// skip the "{{ else }}" placeholder
-		endOfElse := elseIdx
-		for endOfElse < len(fullBlock) && fullBlock[endOfElse:endOfElse+2] != "}}" {
-			endOfElse++
-		}
-		endOfElse += 2
-		elseBlock = fullBlock[endOfElse:]
-	} else {
-		ifBlock = fullBlock
-	}
-
-	newCtx := &context{
-		parent: r.context,
-		kind:   kindIf,
-	}
-	subRenderer := &Renderer{
-		helpers: r.helpers,
-		data:    r.data,
-		context: newCtx,
-	}
-
-	if condition {
-		return subRenderer.Render(ifBlock, nil), consumed
-	} else {
-		return subRenderer.Render(elseBlock, nil), consumed
-	}
+	
+	return block, ""
 }
 
-// splitParts splits a template expression into parts, respecting quoted strings and parentheses
-func splitParts(s string) []string {
+// parseExpr splits expression respecting quotes and parentheses
+func (r *Renderer) parseExpr(expr string) []string {
 	var parts []string
 	var current strings.Builder
-	inQuote := false
-	parenDepth := 0
-
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
+	var inQuote bool
+	var parenDepth int
+	var prevChar rune
+	
+	for _, ch := range expr {
+		switch ch {
 		case '"':
-			inQuote = !inQuote
-			current.WriteByte(s[i])
+			if prevChar != '\\' {
+				inQuote = !inQuote
+			}
+			current.WriteRune(ch)
 		case '(':
 			if !inQuote {
 				parenDepth++
 			}
-			current.WriteByte(s[i])
+			current.WriteRune(ch)
 		case ')':
 			if !inQuote {
 				parenDepth--
 			}
-			current.WriteByte(s[i])
+			current.WriteRune(ch)
 		case ' ':
 			if !inQuote && parenDepth == 0 {
 				if current.Len() > 0 {
@@ -759,201 +403,296 @@ func splitParts(s string) []string {
 					current.Reset()
 				}
 			} else {
-				current.WriteByte(s[i])
+				current.WriteRune(ch)
 			}
 		default:
-			current.WriteByte(s[i])
+			current.WriteRune(ch)
 		}
+		prevChar = ch
 	}
+	
 	if current.Len() > 0 {
 		parts = append(parts, current.String())
 	}
+	
 	return parts
 }
 
-// getVar retrieves a variable from context or global data
-func (r *Renderer) getVar(name string) (interface{}, bool) {
-	// Look for range context in current context or any parent context
-	ctx := r.context
+// resolve looks up a variable
+func (r *Renderer) resolve(name string) interface{} {
+	if !strings.HasPrefix(name, ".") {
+		return nil
+	}
+	name = strings.TrimPrefix(name, ".")
+	
+	// Check context stack
+	ctx := r.ctx
 	for ctx != nil {
-		if ctx.kind == kindRange {
-			// Inside a range block
-			if name == "." {
-				if ctx.currentRange != nil && ctx.rangeIndex < len(ctx.currentRange) {
-					result := ctx.currentRange[ctx.rangeIndex]
-					return result, true
-				}
-			} else if strings.HasPrefix(name, ".") {
-				fieldName := strings.TrimPrefix(name, ".")
-				// if we have a rangeMap
-				if ctx.rangeMap != nil {
-					if val, ok := ctx.rangeMap[fieldName]; ok {
-						return val, true
-					}
-				}
-				// or if the item is a map
-				if ctx.currentRange != nil && ctx.rangeIndex < len(ctx.currentRange) {
-					if item, ok := ctx.currentRange[ctx.rangeIndex].(map[string]interface{}); ok {
-						if val, exists := item[fieldName]; exists {
-							return val, true
-						}
-					}
-				}
+		// Handle . in range
+		if name == "" && ctx.loop != nil {
+			if ctx.loop.index < len(ctx.loop.items) {
+				return ctx.loop.items[ctx.loop.index]
 			}
-			break // Found a range context, no need to look further up
 		}
+		
+		// Check local vars
+		if val, ok := ctx.vars[name]; ok {
+			return val
+		}
+		
 		ctx = ctx.parent
 	}
-	// fallback: look in global data
-	return r.lookupVar(strings.TrimPrefix(name, "."))
+	
+	// Check global data
+	return lookup(r.data, name)
 }
 
-// lookupVar supports dot-notation "nested.key"
-func (r *Renderer) lookupVar(name string) (interface{}, bool) {
-	parts := strings.Split(name, ".")
-	cur := r.data
-	for i, part := range parts {
-		if i == len(parts)-1 {
-			val, ok := cur[part]
-			return val, ok
-		}
-		next, ok := cur[part]
-		if !ok {
-			return nil, false
-		}
-		nextMap, isMap := next.(map[string]interface{})
-		if !isMap {
-			return nil, false
-		}
-		cur = nextMap
-	}
-	return nil, false
-}
-
-// Helpers
-
-// Helper is an interface for template helpers
-type Helper interface {
-	Execute(args []string, data map[string]interface{}) string
-}
-
-type ZeroArgHelper struct{ fn func() string }
-
-func (h ZeroArgHelper) Execute(args []string, data map[string]interface{}) string {
-	return h.fn()
-}
-
-type SingleArgHelper struct{ fn func(string) string }
-
-func (h SingleArgHelper) Execute(args []string, data map[string]interface{}) string {
-	if len(args) < 1 {
-		return "[error: missing argument]"
-	}
-	arg := strings.Join(args, " ")
-	// If it has outer quotes, strip them
-	if len(arg) >= 2 && arg[0] == '"' && arg[len(arg)-1] == '"' {
-		arg = arg[1 : len(arg)-1]
-	}
-	return h.fn(strings.TrimSpace(arg))
-}
-
-type VarArgHelper struct{ fn func([]string) string }
-
-func (h VarArgHelper) Execute(args []string, data map[string]interface{}) string {
-	processed := make([]string, len(args))
+// resolveArgs resolves all arguments
+func (r *Renderer) resolveArgs(args []string) []string {
+	result := make([]string, len(args))
+	
 	for i, arg := range args {
-		arg = strings.TrimSpace(arg)
-		// Note: Variable resolution should be done before calling Execute
-		// quoted?
-		if len(arg) >= 2 && arg[0] == '"' && arg[len(arg)-1] == '"' {
-			arg = arg[1 : len(arg)-1]
+		// Handle nested calls
+		if strings.HasPrefix(arg, "(") && strings.HasSuffix(arg, ")") {
+			inner := arg[1 : len(arg)-1]
+			parts := r.parseExpr(inner)
+			if len(parts) > 0 {
+				// Special handling for index
+				if parts[0] == "index" && len(parts) >= 3 {
+					result[i] = r.indexFunc(parts[1:]...)
+					continue
+				}
+				if fn, ok := r.funcs[parts[0]]; ok {
+					resolved := r.resolveArgs(parts[1:])
+					result[i] = fn(resolved...)
+					continue
+				}
+			}
 		}
-		processed[i] = arg
+		
+		// Handle variables
+		if strings.HasPrefix(arg, ".") {
+			if val := r.resolve(arg); val != nil {
+				result[i] = typeutil.ToString(val)
+				continue
+			}
+		}
+		
+		// Handle nested templates
+		if strings.Contains(arg, "{{") {
+			// For quoted strings with nested templates, handle specially
+			if len(arg) >= 2 && arg[0] == '"' && arg[len(arg)-1] == '"' {
+				// Remove outer quotes, process template, then result is the value
+				inner := arg[1 : len(arg)-1]
+				result[i] = r.render(inner)
+			} else {
+				result[i] = r.render(arg)
+			}
+			continue
+		}
+		
+		// Plain string
+		result[i] = unquote(arg)
 	}
-	return h.fn(processed)
+	
+	return result
 }
 
-type TwoArgHelper struct{ fn func(string, string) string }
-
-func (h TwoArgHelper) Execute(args []string, data map[string]interface{}) string {
-	if len(args) < 2 {
-		return "[error: requires two arguments]"
+// registerDefaults registers built-in functions
+func (r *Renderer) registerDefaults() {
+	// Markdown helpers
+	r.funcs["H1"] = wrap1(md.H1)
+	r.funcs["H2"] = wrap1(md.H2)
+	r.funcs["H3"] = wrap1(md.H3)
+	r.funcs["H4"] = wrap1(md.H4)
+	r.funcs["H5"] = wrap1(md.H5)
+	r.funcs["H6"] = wrap1(md.H6)
+	r.funcs["Bold"] = wrap1(md.Bold)
+	r.funcs["Italic"] = wrap1(md.Italic)
+	r.funcs["Strikethrough"] = wrap1(md.Strikethrough)
+	r.funcs["InlineCode"] = wrap1(md.InlineCode)
+	r.funcs["BulletItem"] = wrap1(md.BulletItem)
+	r.funcs["CodeBlock"] = wrap1(md.CodeBlock)
+	r.funcs["Blockquote"] = wrap1(md.Blockquote)
+	r.funcs["Paragraph"] = wrap1(md.Paragraph)
+	r.funcs["EscapeText"] = wrap1(md.EscapeText)
+	
+	r.funcs["Link"] = wrap2(md.Link)
+	r.funcs["Image"] = wrap2(md.Image)
+	r.funcs["LanguageCodeBlock"] = wrap2(md.LanguageCodeBlock)
+	r.funcs["Footnote"] = wrap2(md.Footnote)
+	r.funcs["CollapsibleSection"] = wrap2(md.CollapsibleSection)
+	
+	r.funcs["InlineImageWithLink"] = wrap3(md.InlineImageWithLink)
+	
+	r.funcs["TodoItem"] = func(args ...string) string {
+		if len(args) >= 2 {
+			return md.TodoItem(args[0], args[1] == "true")
+		}
+		return "[error: TodoItem requires 2 arguments]"
 	}
-	arg1 := trimQuotes(args[0])
-	arg2 := trimQuotes(args[1])
-	return h.fn(arg1, arg2)
-}
-
-type TwoArgStringBoolHelper struct{ fn func(string, bool) string }
-
-func (h TwoArgStringBoolHelper) Execute(args []string, data map[string]interface{}) string {
-	if len(args) < 2 {
-		return "[error: requires two arguments]"
+	
+	r.funcs["HorizontalRule"] = func(args ...string) string {
+		return md.HorizontalRule()
 	}
-	arg1 := trimQuotes(args[0])
-	arg2 := strings.ToLower(args[1]) == "true"
-	return h.fn(arg1, arg2)
-}
-
-type ThreeArgHelper struct {
-	fn func(string, string, string) string
-}
-
-func (h ThreeArgHelper) Execute(args []string, data map[string]interface{}) string {
-	if len(args) < 3 {
-		return "[error: requires three arguments]"
+	
+	// Utilities
+	r.funcs["concat"] = func(args ...string) string {
+		return strings.Join(args, "")
 	}
-	arg1 := trimQuotes(args[0])
-	arg2 := trimQuotes(args[1])
-	arg3 := trimQuotes(args[2])
-	return h.fn(arg1, arg2, arg3)
-}
-
-// Simple helper for string concatenation
-func concatHelper(args []string) string {
-	return strings.Join(args, "")
-}
-
-// Simple printf-style formatting helper
-func printfHelper(args []string) string {
-	if len(args) == 0 {
+	
+	r.funcs["printf"] = func(args ...string) string {
+		if len(args) == 0 {
+			return ""
+		}
+		values := make([]interface{}, len(args)-1)
+		for i, v := range args[1:] {
+			values[i] = v
+		}
+		return fmt.Sprintf(args[0], values...)
+	}
+	
+	r.funcs["trim"] = wrap1(strings.TrimSpace)
+	r.funcs["string"] = func(args ...string) string {
+		if len(args) > 0 {
+			return typeutil.ToString(args[0])
+		}
 		return ""
 	}
-	format := args[0]
-	values := make([]interface{}, len(args)-1)
-	for i, arg := range args[1:] {
-		values[i] = arg
+	
+	r.funcs["index"] = r.indexFunc
+}
+
+// indexFunc provides array/map indexing
+func (r *Renderer) indexFunc(args ...string) string {
+	if len(args) < 2 {
+		return "[error: index requires 2 arguments]"
 	}
-	return fmt.Sprintf(format, values...)
-}
-
-// Index helper to access array/slice elements or map values
-func indexHelper(collection, index string) string {
-	// This is a simplified implementation. In a real implementation,
-	// we would need access to the actual resolved collection value.
-	// For now, this is just a placeholder that demonstrates the interface.
-	if i, err := strconv.Atoi(index); err == nil {
-		// If index is a number, assume it's for slice/array access
-		return fmt.Sprintf("[%d]", i)
+	
+	// Handle the first argument - could be variable or literal
+	collection := strings.TrimSpace(args[0])
+	indexStr := strings.TrimSpace(args[1])
+	
+	// Remove quotes from index if present
+	indexStr = unquote(indexStr)
+	
+	// For unit tests - literal values
+	if !strings.HasPrefix(collection, ".") {
+		if idx, err := strconv.Atoi(indexStr); err == nil {
+			return fmt.Sprintf("[%d]", idx)
+		}
+		return fmt.Sprintf("[%s]", indexStr)
 	}
-	// If index is not a number, assume it's for map access
-	return fmt.Sprintf("[%s]", index)
+	
+	// Resolve the collection variable
+	val := r.resolve(collection)
+	if val == nil {
+		return "[error: collection not found]"
+	}
+	
+	// Parse index
+	idx, err := strconv.Atoi(indexStr)
+	if err != nil {
+		return "[error: index must be a number]"
+	}
+	
+	// Do the indexing
+	switch v := val.(type) {
+	case []interface{}:
+		if idx >= 0 && idx < len(v) {
+			return typeutil.ToString(v[idx])
+		}
+	case []string:
+		if idx >= 0 && idx < len(v) {
+			return v[idx]
+		}
+	default:
+		if items := toSlice(val); items != nil {
+			if idx >= 0 && idx < len(items) {
+				return typeutil.ToString(items[idx])
+			}
+		}
+	}
+	
+	return "[error: index out of range]"
 }
 
-// String filter converts input to string representation
-func stringHelper(input string) string {
-	return typeutil.ToString(input)
+// Helper functions
+
+// lookup navigates nested maps
+func lookup(data map[string]interface{}, path string) interface{} {
+	parts := strings.Split(path, ".")
+	var current interface{} = data
+	
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		if m, ok := current.(map[string]interface{}); ok {
+			current = m[part]
+		} else {
+			return nil
+		}
+	}
+	
+	return current
 }
 
-// Trim helper removes leading and trailing whitespace
-func trimHelper(input string) string {
-	return strings.TrimSpace(input)
+// toSlice converts various types to []interface{}
+func toSlice(val interface{}) []interface{} {
+	switch v := val.(type) {
+	case []interface{}:
+		return v
+	case []map[string]interface{}:
+		result := make([]interface{}, len(v))
+		for i, m := range v {
+			result[i] = m
+		}
+		return result
+	default:
+		return typeutil.ToInterfaceSlice(val)
+	}
 }
 
-func trimQuotes(s string) string {
-	s = strings.TrimSpace(s)
+// unquote removes quotes from strings
+func unquote(s string) string {
+	// Don't trim space - preserve formatting
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		s = s[1 : len(s)-1]
+		return s[1 : len(s)-1]
 	}
 	return s
+}
+
+// Function wrappers for cleaner registration
+
+func wrap1(fn func(string) string) Func {
+	return func(args ...string) string {
+		if len(args) > 0 {
+			return fn(args[0])
+		}
+		return "[error: missing argument]"
+	}
+}
+
+func wrap2(fn func(string, string) string) Func {
+	return func(args ...string) string {
+		if len(args) >= 2 {
+			return fn(args[0], args[1])
+		}
+		return "[error: requires 2 arguments]"
+	}
+}
+
+func wrap3(fn func(string, string, string) string) Func {
+	return func(args ...string) string {
+		if len(args) >= 3 {
+			return fn(args[0], args[1], args[2])
+		}
+		return "[error: requires 3 arguments]"
+	}
+}
+
+// Helper is kept for backward compatibility
+type Helper interface {
+	Execute(args []string, data map[string]interface{}) string
 }
