@@ -140,7 +140,7 @@ func TestGet(t *testing.T) {
 		input        []string
 		getKey       string
 		expectIdx    int
-		expectVal    interface{}
+		expectVal    any
 		expectExists bool
 	}{
 		{
@@ -207,7 +207,7 @@ func TestGetByIndex(t *testing.T) {
 		input       []string
 		idx         int
 		expectKey   string
-		expectVal   interface{}
+		expectVal   any
 		expectPanic bool
 	}{
 		{

@@ -4,11 +4,12 @@ import "std"
 
 func main() {
 	defer func() {
-		// assert panic is recoverable
+		// assert no panic
 		println(recover())
 	}()
-	std.GetCallerAt(0)
+	println(std.PreviousRealm())
 }
 
 // Output:
-// GetCallerAt requires positive arg
+// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
+// undefined

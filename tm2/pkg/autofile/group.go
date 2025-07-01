@@ -261,7 +261,7 @@ func (g *Group) ensureTotalSizeLimit() {
 		return
 	}
 
-	for i := 0; i < maxFilesToRemove; i++ {
+	for i := range maxFilesToRemove {
 		index := g.info.MinIndex + i
 		if g.info.TotalSize < limit {
 			return

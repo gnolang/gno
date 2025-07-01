@@ -3,7 +3,6 @@ package amino
 // NOTE: We must not depend on protubuf libraries for serialization.
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -342,7 +341,9 @@ func encodeReflectBinaryWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value,
 	}
 	// Maybe recurse with length-prefixing.
 	if !bare {
-		buf := bytes.NewBuffer(nil)
+		buf := poolBytesBuffer.Get()
+		defer poolBytesBuffer.Put(buf)
+
 		ok, err = encodeReflectBinaryWellKnown(buf, info, rv, fopts, true)
 		if err != nil {
 			return false, err
@@ -424,7 +425,7 @@ func EncodeJSONTimeValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
-	_, err = w.Write([]byte(fmt.Sprintf(`"%vZ"`, x)))
+	_, err = fmt.Fprintf(w, `"%vZ"`, x)
 	return err
 }
 
@@ -455,7 +456,7 @@ func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
-	_, err = w.Write([]byte(fmt.Sprintf(`"%vs"`, x)))
+	_, err = fmt.Fprintf(w, `"%vs"`, x)
 	return err
 }
 

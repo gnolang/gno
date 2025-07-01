@@ -1,0 +1,87 @@
+loadpkg gno.land/p/moul/authz
+loadpkg gno.land/r/testing/admin $WORK/admin
+loadpkg gno.land/r/testing/resource $WORK/resource
+
+adduserfrom alice 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+
+gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+
+gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test alice
+stdout 'edited'
+
+
+-- admin/gnomod.toml --
+module = "gno.land/r/demo/admin"
+
+gno "0.9"
+-- admin/admin.gno --
+package admin
+
+import (
+	"errors"
+	"std"
+
+	"gno.land/p/moul/authz"
+)
+
+type prop struct {
+	title  string
+	action authz.PrivilegedAction
+}
+
+var props []*prop
+
+func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
+	if std.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
+		return errors.New("unauthorized proposer")
+	}
+	func(cur realm) {
+		props = append(props, &prop{title: title, action: action})
+	}(cross)
+	return nil
+}
+
+func ExecuteAction(cur realm, index int) {
+	if std.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
+		panic(errors.New("not alice"))
+	}
+	if err := props[index].action(); err != nil {
+		panic(err)
+	}
+}
+-- resource/gnomod.toml --
+module = "gno.land/r/demo/resource"
+
+gno "0.9"
+-- resource/resource.gno --
+package resource
+
+import (
+	"gno.land/p/moul/authz"
+	"gno.land/r/testing/admin"
+)
+
+var a *authz.Authorizer = authz.NewWithAuthority(authz.NewContractAuthority("gno.land/r/testing/admin", admin.HandlePrivilegedAction))
+
+var value = "init"
+
+func Value(cur realm) string {
+	return value
+}
+
+func Edit(cur realm, newValue string) {
+	doEdit := func() error {
+		func(cur realm) {
+			value = newValue
+		}(cross)
+		return nil
+	}
+	if err := a.DoByPrevious("Edit", doEdit); err != nil {
+		panic(err)
+	}
+}

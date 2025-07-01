@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path/filepath"
+	gopath "path"
 	"regexp"
 	"strings"
 
@@ -576,5 +576,5 @@ func (m *model) getCurrentPath() string {
 		return m.urlPrefix
 	}
 
-	return filepath.Join(m.urlPrefix, path)
+	return gopath.Join(m.urlPrefix, path)
 }

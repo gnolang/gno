@@ -10,19 +10,10 @@ coverage:
   round: down
   precision: 2
   status:
-    project:
+    patch: # new lines
       default:
-        target: auto
-        threshold: 5 # Let's decrease this later.
-        base: parent
-        if_no_uploads: error
-        if_not_found: success
-        if_ci_failed: error
-        only_pulls: false
-    patch:
-      default:
-        target: auto
-        threshold: 5 # Let's decrease this later.
+        target: 80
+        threshold: 10
         base: auto
         if_no_uploads: error
         if_not_found: success

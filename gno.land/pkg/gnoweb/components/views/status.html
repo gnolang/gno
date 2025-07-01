@@ -1,8 +1,19 @@
 {{ define "status" }}
-<div class="col-span-10 flex flex-col h-full w-full mt-10 pb-24 justify-center items-center">
-  <img src="/public/imgs/gnoland.svg" alt="gno land" width="70px" height="70px" />
-  <h1 class="text-600 font-bold text-gray-600 pb-4 capitalize"><span>Error:</span> <span>{{ .Message }}</span></h1>
-  <p class="pb-3">Something went wrong. Let’s find our way back!</p>
-  <a href="/" class="rounded border py-1 px-2 hover:bg-gray-100">Go Back Home</a>
+<div
+  class="col-span-full flex flex-col h-full w-full mt-10 pb-24 justify-center items-center"
+>
+  <img
+    src="/public/imgs/gnoland.svg"
+    alt="gno land"
+    width="70px"
+    height="70px"
+  />
+  <h1 class="text-600 font-bold text-gray-600 pb-4 capitalize text-center">
+    {{ .Title }}
+  </h1>
+  <p class="pb-3">{{ .Body }}</p>
+  <a href="{{ .ButtonURL }}" class="rounded border py-1 px-2 hover:bg-gray-100">
+    {{ .ButtonText }}
+  </a>
 </div>
 {{ end }}

@@ -17,7 +17,7 @@ package counter
 
 var counter int
 
-func Incr() int {
+func Incr(cur realm) int {
 	counter++
 	return counter
 }

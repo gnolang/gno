@@ -7,16 +7,16 @@ import (
 )
 
 func TestSkipHeights(t *testing.T) {
-	oldHeight := std.GetHeight()
+	oldHeight := std.ChainHeight()
 	shouldEQ(t, oldHeight, 123)
 
 	oldNow := time.Now().Unix()
 	shouldEQ(t, oldNow, 1234567890)
 
 	// skip 3 blocks == 15 seconds
-	std.TestSkipHeights(3)
+	testing.SkipHeights(3)
 
-	shouldEQ(t, std.GetHeight()-oldHeight, 3)
+	shouldEQ(t, std.ChainHeight()-oldHeight, 3)
 	shouldEQ(t, time.Now().Unix()-oldNow, 15)
 }
 

@@ -1,6 +1,6 @@
 package main
 
-func f1(a int) interface{} { return a + 1 }
+func f1(a int) any { return a + 1 }
 
 func main() {
 	c := f1(3)

@@ -1,7 +1,6 @@
 package amino
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -156,7 +155,9 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 	}
 
 	// Write Value to buffer
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	cdc.encodeReflectJSON(buf, cinfo, crv, fopts)
 	value := buf.Bytes()
 	if len(value) == 0 {
@@ -254,7 +255,7 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 		if err != nil {
 			return
 		}
-		for i := 0; i < length; i++ {
+		for i := range length {
 			// Get dereferenced element value and info.
 			erv := rv.Index(i)
 			if erv.Kind() == reflect.Ptr &&
@@ -350,7 +351,7 @@ func (cdc *Codec) encodeReflectJSONStruct(w io.Writer, info *TypeInfo, rv reflec
 // ----------------------------------------
 // Misc.
 
-func invokeStdlibJSONMarshal(w io.Writer, v interface{}) error {
+func invokeStdlibJSONMarshal(w io.Writer, v any) error {
 	// Note: Please don't stream out the output because that adds a newline
 	// using json.NewEncoder(w).Encode(data)
 	// as per https://golang.org/pkg/encoding/json/#Encoder.Encode
@@ -367,7 +368,7 @@ func writeStr(w io.Writer, s string) (err error) {
 	return
 }
 
-func _fmt(s string, args ...interface{}) string {
+func _fmt(s string, args ...any) string {
 	return fmt.Sprintf(s, args...)
 }
 

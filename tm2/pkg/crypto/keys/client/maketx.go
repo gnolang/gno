@@ -160,8 +160,15 @@ func SignAndBroadcastHandler(
 		decryptPass: pass,
 	}
 
-	if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
-		return nil, fmt.Errorf("unable to sign transaction, %w", err)
+	// Generate the transaction signature
+	signature, err := generateSignature(&tx, kb, sOpts, kOpts)
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign transaction: %w", err)
+	}
+
+	// Add the signature to the tx
+	if err = addSignature(&tx, signature); err != nil {
+		return nil, fmt.Errorf("unable to add signature: %w", err)
 	}
 
 	// broadcast signed tx
@@ -212,6 +219,7 @@ func ExecSignAndBroadcast(
 	}
 	if bres.DeliverTx.IsErr() {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+		io.Println("INFO:      ", bres.DeliverTx.Info)
 		return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
@@ -221,6 +229,7 @@ func ExecSignAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+	io.Println("INFO:      ", bres.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil

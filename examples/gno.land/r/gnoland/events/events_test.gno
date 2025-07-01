@@ -18,8 +18,7 @@ var (
 )
 
 func TestAddEvent(t *testing.T) {
-	std.TestSetOrigCaller(su)
-	std.TestSetRealm(suRealm)
+	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
@@ -61,8 +60,7 @@ func TestAddEvent(t *testing.T) {
 }
 
 func TestAddEventErrors(t *testing.T) {
-	std.TestSetOrigCaller(su)
-	std.TestSetRealm(suRealm)
+	testing.SetRealm(suRealm)
 
 	_, err := AddEvent("", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
 	uassert.ErrorIs(t, err, ErrEmptyName)
@@ -85,8 +83,7 @@ func TestAddEventErrors(t *testing.T) {
 }
 
 func TestDeleteEvent(t *testing.T) {
-	std.TestSetOrigCaller(su)
-	std.TestSetRealm(suRealm)
+	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
@@ -108,8 +105,7 @@ func TestDeleteEvent(t *testing.T) {
 }
 
 func TestEditEvent(t *testing.T) {
-	std.TestSetOrigCaller(su)
-	std.TestSetRealm(suRealm)
+	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
@@ -138,8 +134,7 @@ func TestEditEvent(t *testing.T) {
 }
 
 func TestInvalidEdit(t *testing.T) {
-	std.TestSetOrigCaller(su)
-	std.TestSetRealm(suRealm)
+	testing.SetRealm(suRealm)
 
 	uassert.PanicsWithMessage(t, ErrNoSuchID.Error(), func() {
 		EditEvent("123123", "", "", "", "", "", "")
@@ -165,8 +160,7 @@ func TestParseTimes(t *testing.T) {
 }
 
 func TestRenderEventWidget(t *testing.T) {
-	std.TestSetOrigCaller(su)
-	std.TestSetRealm(suRealm)
+	testing.SetRealm(suRealm)
 
 	// No events yet
 	events = nil

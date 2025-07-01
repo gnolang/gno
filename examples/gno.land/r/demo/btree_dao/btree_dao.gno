@@ -57,7 +57,7 @@ func PlantSeed(message string) error {
 // Returns an error if any validation fails or if NFT minting fails.
 func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 	// Get the caller's address
-	userAddress := std.GetOrigCaller()
+	userAddress := std.OriginCaller()
 
 	var nftID string
 	var regDetails *RegistrationDetails
@@ -145,7 +145,7 @@ func Render(path string) string {
 			balance, err := dao.BalanceOf(addr)
 			if err == nil && balance > 0 {
 				nftList = " (NFTs: "
-				for i := uint64(0); i < balance; i++ {
+				for i := int64(0); i < balance; i++ {
 					if i > 0 {
 						nftList += ", "
 					}
@@ -172,7 +172,7 @@ func Render(path string) string {
 			balance, err := dao.BalanceOf(addr)
 			if err == nil && balance > 0 {
 				nftList = " (NFTs: "
-				for i := uint64(0); i < balance; i++ {
+				for i := int64(0); i < balance; i++ {
 					if i > 0 {
 						nftList += ", "
 					}
