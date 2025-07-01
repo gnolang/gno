@@ -5,28 +5,18 @@ const ExplorerViewType ViewType = "explorer-view"
 type ExplorerData struct {
 	PkgPath        string
 	Paths          []string
-	PackageCounter int
+	PackageCount   int
 	CardsListTitle string // Type of the card list (realm or pure)
 	CardsList      *UserCardList
 	PackageType    UserContributionType
 }
 
-// for pure and realm, we want to pluralize the title if there are multiple items
-// Not universal, but works for now
-func (data *ExplorerData) GetCardsListTitle() string {
-	if data.PackageCounter > 1 {
-		return data.CardsListTitle + "s"
-	}
-	return data.CardsListTitle
-}
-
 // enrichExplorerCardList enriches the explorer card list with the data from paths
 func enrichExplorerCardList(data *ExplorerData) {
-	switch data.PackageType {
-	case UserContributionTypeRealm:
-		data.CardsListTitle = "Realm"
-	case UserContributionTypePure:
-		data.CardsListTitle = "Pure"
+	typeName := data.PackageType.String()
+
+	if data.PackageCount > 1 {
+		typeName += "s"
 	}
 
 	items := make([]UserContribution, len(data.Paths))
@@ -36,28 +26,27 @@ func enrichExplorerCardList(data *ExplorerData) {
 		items[i] = UserContribution{
 			Title: path,
 			URL:   path,
-			Type:  data.PackageType, // Use the correct type
+			Type:  data.PackageType,
 		}
 	}
 
-	// Set the title with proper pluralization
-	data.CardsListTitle = data.GetCardsListTitle()
+	data.CardsListTitle = data.PkgPath
 
 	data.CardsList = &UserCardList{
-		Title:             data.CardsListTitle,
+		Title:             typeName,
 		Items:             items,
-		Categories:        []UserCardListCategory{}, // No categories for explorer
-		TotalCount:        data.PackageCounter,
-		SearchPlaceholder: "Search " + data.CardsListTitle,
+		Categories:        []UserCardListCategory{},
+		TotalCount:        data.PackageCount,
+		SearchPlaceholder: "Search " + typeName,
 	}
 }
 
 func ExplorerView(pkgPath string, paths []string, packageCounter int, packageType UserContributionType) *View {
 	viewData := ExplorerData{
-		PkgPath:        pkgPath,
-		Paths:          paths,
-		PackageCounter: packageCounter,
-		PackageType:    packageType,
+		PkgPath:      pkgPath,
+		Paths:        paths,
+		PackageCount: packageCounter,
+		PackageType:  packageType,
 	}
 
 	enrichExplorerCardList(&viewData)

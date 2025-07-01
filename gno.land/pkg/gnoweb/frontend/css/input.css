@@ -385,16 +385,16 @@
     @apply hidden;
   }
 
-  .filter-list:has(input[value="packages"]:checked) :is(li, article) {
+  .filter-list:has(input[value="all"]:checked) :is(li, article) {
     @apply flex;
   }
 
-  .filter-list:has(input[value="realms"]:checked)
+  .filter-list:has(input[value="realm"]:checked)
     :is(li[data-type="realm"], article[data-type="realm"]) {
     @apply flex;
   }
 
-  .filter-list:has(input[value="pures"]:checked)
+  .filter-list:has(input[value="pure"]:checked)
     :is(li[data-type="pure"], article[data-type="pure"]) {
     @apply flex;
   }

@@ -360,7 +360,7 @@ func TestExplorerView(t *testing.T) {
 			paths:          []string{"/r/testuser/realm1", "/r/testuser/realm2"},
 			packageCounter: 2,
 			packageType:    UserContributionTypeRealm,
-			expectedTitle:  "Realms",
+			expectedTitle:  "realms",
 		},
 		{
 			name:           "Pure explorer with single item",
@@ -368,7 +368,7 @@ func TestExplorerView(t *testing.T) {
 			paths:          []string{"/p/testuser/package1"},
 			packageCounter: 1,
 			packageType:    UserContributionTypePure,
-			expectedTitle:  "Pure",
+			expectedTitle:  "pure",
 		},
 		{
 			name:           "Realm explorer with single item",
@@ -376,7 +376,7 @@ func TestExplorerView(t *testing.T) {
 			paths:          []string{"/r/testuser/realm1"},
 			packageCounter: 1,
 			packageType:    UserContributionTypeRealm,
-			expectedTitle:  "Realm",
+			expectedTitle:  "realm",
 		},
 		{
 			name:           "Pure explorer with multiple items",
@@ -384,7 +384,7 @@ func TestExplorerView(t *testing.T) {
 			paths:          []string{"/p/testuser/package1", "/p/testuser/package2", "/p/testuser/package3"},
 			packageCounter: 3,
 			packageType:    UserContributionTypePure,
-			expectedTitle:  "Pures",
+			expectedTitle:  "pures",
 		},
 	}
 
@@ -404,12 +404,12 @@ func TestExplorerView(t *testing.T) {
 			// Test basic data
 			assert.Equal(t, tt.pkgPath, explorerData.PkgPath, "expected PkgPath %s, got %s", tt.pkgPath, explorerData.PkgPath)
 			assert.Equal(t, tt.paths, explorerData.Paths, "expected Paths to match")
-			assert.Equal(t, tt.packageCounter, explorerData.PackageCounter, "expected PackageCounter %d, got %d", tt.packageCounter, explorerData.PackageCounter)
+			assert.Equal(t, tt.packageCounter, explorerData.PackageCount, "expected PackageCount %d, got %d", tt.packageCounter, explorerData.PackageCount)
 			assert.Equal(t, tt.packageType, explorerData.PackageType, "expected PackageType %v, got %v", tt.packageType, explorerData.PackageType)
 
 			// Test CardsList data
 			assert.NotNil(t, explorerData.CardsList, "expected CardsList to be non-nil")
-			assert.Equal(t, tt.expectedTitle, explorerData.CardsListTitle, "expected CardsListTitle %s, got %s", tt.expectedTitle, explorerData.CardsListTitle)
+			assert.Equal(t, tt.pkgPath, explorerData.CardsListTitle, "expected CardsListTitle %s, got %s", tt.pkgPath, explorerData.CardsListTitle)
 			assert.Equal(t, tt.expectedTitle, explorerData.CardsList.Title, "expected CardsList.Title %s, got %s", tt.expectedTitle, explorerData.CardsList.Title)
 			assert.Equal(t, tt.packageCounter, explorerData.CardsList.TotalCount, "expected TotalCount %d, got %d", tt.packageCounter, explorerData.CardsList.TotalCount)
 
@@ -421,58 +421,6 @@ func TestExplorerView(t *testing.T) {
 			}
 
 			assert.NoError(t, view.Render(io.Discard))
-		})
-	}
-}
-
-func TestExplorerData_GetCardsListTitle(t *testing.T) {
-	tests := []struct {
-		name           string
-		cardsListTitle string
-		packageCounter int
-		expected       string
-	}{
-		{
-			name:           "Single item - should not pluralize",
-			cardsListTitle: "Realm",
-			packageCounter: 1,
-			expected:       "Realm",
-		},
-		{
-			name:           "Multiple items - should pluralize",
-			cardsListTitle: "Realm",
-			packageCounter: 2,
-			expected:       "Realms",
-		},
-		{
-			name:           "Single pure package - should not pluralize",
-			cardsListTitle: "Pure",
-			packageCounter: 1,
-			expected:       "Pure",
-		},
-		{
-			name:           "Multiple pure packages - should pluralize",
-			cardsListTitle: "Pure",
-			packageCounter: 3,
-			expected:       "Pures",
-		},
-		{
-			name:           "Zero items - should not pluralize",
-			cardsListTitle: "Realm",
-			packageCounter: 0,
-			expected:       "Realm",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			data := ExplorerData{
-				CardsListTitle: tt.cardsListTitle,
-				PackageCounter: tt.packageCounter,
-			}
-
-			result := data.GetCardsListTitle()
-			assert.Equal(t, tt.expected, result, "expected %s, got %s", tt.expected, result)
 		})
 	}
 }
@@ -507,10 +455,10 @@ func TestEnrichExplorerCardList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data := ExplorerData{
-				PkgPath:        "/test/path",
-				Paths:          tt.paths,
-				PackageCounter: tt.packageCounter,
-				PackageType:    tt.packageType,
+				PkgPath:      "/test/path",
+				Paths:        tt.paths,
+				PackageCount: tt.packageCounter,
+				PackageType:  tt.packageType,
 			}
 
 			enrichExplorerCardList(&data)
