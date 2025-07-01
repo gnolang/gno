@@ -76,6 +76,10 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	pid := proposals.SetProposal(p)
 	dao.PostCreateProposal(r, pid)
 
+	std.Emit("ProposalCreated",
+		"id", pid,
+	)
+
 	return pid, nil
 }
 
