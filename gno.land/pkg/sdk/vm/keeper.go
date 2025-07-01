@@ -363,7 +363,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
-	tcmode := gno.TCForbidDraftImportStrict
+	tcmode := gno.TCGLatestAddpkg
 	if ctx.BlockHeight() == 0 {
 		tcmode = gno.TCLatestStrict // genesis time, waive blocking rules for importing draft packages.
 	}
