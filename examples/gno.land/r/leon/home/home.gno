@@ -148,31 +148,18 @@ func RenderSVGGnome() string { // exported for your pleasure :)
 }
 
 func renderButtonPage() string {
-	out := ""
+	out := "# Buttons Demo\n\n"
 
-	out += "# SVG Button Demo\n\n"
+	out += md.ColumnsN([]string{
+		svgbtn.PrimaryButton(120, 40, "Click Me", "/click") + "\n\n",
+		svgbtn.DangerButton(120, 40, "Delete", "/delete") + "\n\n",
+		svgbtn.SuccessButton(120, 40, "Success", "/success") + "\n\n",
+		svgbtn.SmallButton(80, 25, "Edit", "/edit") + "\n\n",
+		svgbtn.WideButton(200, 40, "Big Action", "/big") + "\n\n",
+		svgbtn.TextButton(100, 30, "More Info", "/info") + "\n\n",
+		svgbtn.IconButton(40, 40, "⚙️", "/settings") + "\n\n",
+	}, 3, true)
 
-	out += "## Primary Button\n"
-	out += svgbtn.PrimaryButton(120, 40, "Click Me", "/click") + "\n\n"
-
-	out += "## Danger Button\n"
-	out += svgbtn.DangerButton(120, 40, "Delete", "/delete") + "\n\n"
-
-	out += "## Success Button\n"
-	out += svgbtn.SuccessButton(120, 40, "Success", "/success") + "\n\n"
-
-	out += "## Small Button\n"
-	out += svgbtn.SmallButton(80, 25, "Edit", "/edit") + "\n\n"
-
-	out += "## Wide Button\n"
-	out += svgbtn.WideButton(200, 40, "Big Action", "/big") + "\n\n"
-
-	out += "## Text Button\n"
-	out += svgbtn.TextButton(100, 30, "More Info", "/info") + "\n\n"
-
-	out += "## Icon Button\n"
-	out += svgbtn.IconButton(40, 40, "⚙️", "/settings") + "\n\n"
-	
 	return out
 }
 
