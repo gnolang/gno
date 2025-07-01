@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/nt/commondao"
 	"gno.land/r/sys/users"
 )
@@ -21,24 +22,24 @@ const (
 
 var (
 	ListGroups AllGroups // ListGroups has all the created friend group
-
-	NextGroupId = 1 // NextGroupId tracks the next available ID
 )
 
 // AllGroups wrap a avl.tree of created groups
 type AllGroups struct {
-	Groups *avl.Tree
+	Groups      *avl.Tree
+	NextGroupId seqid.ID
 }
 
 // FriendGroup is a struct for created groups with their ID, Title, Owner and DAO
 type FriendGroup struct {
-	ID       int
-	Title    string
-	Owner    *ownable.Ownable
-	DAO      *commondao.CommonDAO
-	WaitList *avl.Tree
-	Rank     *avl.Tree
-	Hangout  *avl.Tree
+	NextHangoutID seqid.ID
+	ID            string
+	Title         string
+	Owner         *ownable.Ownable
+	DAO           *commondao.CommonDAO
+	WaitList      *avl.Tree
+	Rank          *avl.Tree
+	Hangout       *avl.Tree
 }
 
 func init() {
@@ -50,8 +51,11 @@ func init() {
 func CreateFriendGroup(cur realm, title string) {
 	caller := std.PreviousRealm().Address()
 
+	id := ListGroups.NextGroupId.Next()
+	ListGroups.NextGroupId = id
+
 	newGroup := FriendGroup{
-		ID:    NextGroupId,
+		ID:    id.String(),
 		Title: title,
 		Owner: ownable.NewWithAddress(caller),
 		DAO: commondao.New(
@@ -66,8 +70,7 @@ func CreateFriendGroup(cur realm, title string) {
 	newGroup.DAO.Members().Add(caller)
 	newGroup.Rank.Set(caller.String(), AdminRank)
 
-	NextGroupId++
-	ListGroups.Groups.Set(strconv.Itoa(newGroup.ID), newGroup)
+	ListGroups.Groups.Set(id.String(), newGroup)
 }
 
 // AskJoinFriendGroup puts the caller in a waitlist for the specified group

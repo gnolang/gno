@@ -27,7 +27,7 @@ func displayJoiningStatus(group FriendGroup, adr std.Address) string {
 		} else if group.WaitList.Has(adr.String()) {
 			out += md.Paragraph("You are awaiting approval for this group")
 		} else {
-			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", "groupId", strconv.Itoa(group.ID))) + "\n\n"
+			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", "groupId", group.ID)) + "\n\n"
 		}
 	}
 
@@ -76,10 +76,10 @@ func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool, a
 	var view string
 
 	if hasJoined {
-		view = md.Link("View", "/r/chaegnal/organizer/group?groupId="+strconv.Itoa(group.ID)+"&address="+adr.String())
+		view = md.Link("View", "/r/chaegnal/organizer/group?groupId="+group.ID+"&address="+adr.String())
 
 		if adr != group.Owner.Owner() {
-			view += " | " + md.Link("Leave", txlink.Call("LeaveGroup", "groupId", strconv.Itoa(group.ID)))
+			view += " | " + md.Link("Leave", txlink.Call("LeaveGroup", "groupId", group.ID))
 		}
 	} else {
 		view = "You cannot view group yet"
