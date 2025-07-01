@@ -1,7 +1,7 @@
 # Gas Fees in Gno.land
 
-This document explains how gas works in the Gno.land ecosystem, including gas
-pricing, estimation, and optimization.
+This document explains how gas works in the Gno.land ecosystem, including 
+automatic gas estimation, manual control, and optimization.
 
 ## What is Gas?
 
@@ -55,21 +55,73 @@ Here are some recommended gas values for common operations:
 These values may vary based on network conditions and the specific
 implementation of your code.
 
-## Gas Estimation
+## Automatic Gas Estimation
 
-Currently, Gno.land doesn't provide automatic gas estimation. You need to:
+Gno.land provides **automatic gas estimation** by default through `gnokey`. 
+This feature:
 
-1. Start with conservative (higher) gas values
-2. Observe actual gas usage from transaction receipts
-3. Adjust your gas parameters for future transactions
+1. **Simulates your transaction** to determine exact gas requirements
+2. **Automatically adds a safety buffer** to prevent "out of gas" errors
+3. **Queries current gas prices** for optimal fee calculation
+4. **Eliminates guesswork** - no need to manually set gas parameters
 
-Future updates to the platform will likely include improved gas estimation tools.
+### Using Auto Gas
+
+```bash
+# No gas parameters needed - automatic estimation
+gnokey maketx call \
+  --pkgpath "gno.land/r/demo/boards" \
+  --func "CreateBoard" \
+  --args "MyBoard" "Board description" \
+  --remote https://rpc.gno.land:443 \
+  --chainid staging \
+  YOUR_KEY_NAME
+```
+
+### Manual Gas Control (Advanced)
+
+For users who need precise control over gas parameters:
+
+```bash
+# Full manual control
+gnokey maketx call \
+  --pkgpath "gno.land/r/demo/boards" \
+  --func "CreateBoard" \
+  --args "MyBoard" "Board description" \
+  --gas-fee 1000000ugnot \
+  --gas-wanted 2000000 \
+  --remote https://rpc.gno.land:443 \
+  --chainid staging \
+  YOUR_KEY_NAME
+
+# Partial auto - estimate gas amount, set fee manually
+gnokey maketx call \
+  --gas-wanted auto \
+  --gas-fee 1000000ugnot \
+  # ... other flags
+
+# Partial auto - set gas amount, estimate fee
+gnokey maketx call \
+  --gas-wanted 2000000 \
+  --gas-fee auto \
+  # ... other flags
+```
 
 ## Example Transaction with Gas Parameters
 
-Here's an example of sending a transaction with gas parameters:
+Here are examples of sending transactions:
 
 ```bash
+# Automatic gas estimation (default)
+gnokey maketx call \
+  --pkgpath "gno.land/r/demo/boards" \
+  --func "CreateBoard" \
+  --args "MyBoard" "Board description" \
+  --remote https://rpc.gno.land:443 \
+  --chainid staging \
+  YOUR_KEY_NAME
+
+# Advanced: Manual gas control
 gnokey maketx call \
   --pkgpath "gno.land/r/demo/boards" \
   --func "CreateBoard" \
@@ -81,12 +133,37 @@ gnokey maketx call \
   YOUR_KEY_NAME
 ```
 
+## When to Use Manual Gas Control
+
+While automatic gas estimation is the default, manual control is necessary or 
+beneficial in these scenarios:
+
+1. **Airgapped transactions**: When creating unsigned transactions on an 
+   offline machine for later signing and broadcasting
+2. **Multisig transactions**: When multiple parties need to sign and 
+   simulation isn't possible with the required conditions
+3. **No simulation node available**: When the simulation endpoint is 
+   unavailable or unreachable
+4. **Network congestion planning**: To ensure transactions will pass under 
+   the heaviest network conditions with explicit higher limits
+5. **High-frequency applications**: When you need predictable gas costs for 
+   automated systems
+6. **Gas price optimization**: During periods of high network activity, you 
+   may want to set lower fees and accept slower confirmation times
+7. **Testing and development**: When you need precise control for testing 
+   gas consumption
+
 ## Gas Optimization Tips
 
 To minimize gas costs, consider these optimization strategies:
 
-1. **Minimize on-chain storage**: Only store essential data on-chain
-2. **Batch operations**: Combine multiple operations into a single transaction when possible
-3. **Use efficient data structures**: Well-optimized code consumes less gas
-4. **Precompute values off-chain**: Do as much computation as possible before submitting to the blockchain
-5. **Test locally first**: Use `gnodev` to test and optimize your code before deploying to a network
+1. **Use automatic estimation**: Let the system calculate optimal gas 
+   parameters for you
+2. **Minimize on-chain storage**: Only store essential data on-chain
+3. **Batch operations**: Combine multiple operations into a single 
+   transaction when possible
+4. **Use efficient data structures**: Well-optimized code consumes less gas
+5. **Precompute values off-chain**: Do as much computation as possible 
+   before submitting to the blockchain
+6. **Test locally first**: Use `gnodev` to test and optimize your code 
+   before deploying to a network
