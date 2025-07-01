@@ -56,9 +56,37 @@ func (c *lintCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.autoGnomod, "auto-gnomod", true, "auto-generate gnomod.toml file if not already present")
 }
 
+type lintCode int
+
+const (
+	lintUnknown lintCode = iota
+	lintGnoMod
+	lintGnoError
+	lintParserError
+	lintTypeCheckError
+
+	// TODO: add new linter codes here.
+)
+
+const errPkgFormat = "Error in package %s:\n  %s\n"
+
+type lintIssue struct {
+	Code       lintCode
+	Msg        string
+	Confidence float64 // 1 is 100%
+	Location   string  // file:line, or equivalent
+	// TODO: consider writing fix suggestions
+}
+
+func (i lintIssue) String() string {
+	// TODO: consider crafting a doc URL based on Code.
+	return fmt.Sprintf("%s: %s (code=%d)", i.Location, i.Msg, i.Code)
+}
+
 func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	// Show a help message by default.
 	if len(args) == 0 {
+
 		return flag.ErrHelp
 	}
 
@@ -267,8 +295,61 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			return err
 		}
 	}
+	return testfiles
+}
 
-	return nil
+var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
+
+func catchRuntimeError(dirPath, pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		hasError = true
+		switch verr := r.(type) {
+		case *gno.PreprocessError:
+			err := verr.Unwrap()
+			fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, err).String())
+		case error:
+			errors := multierr.Errors(verr)
+			for _, err := range errors {
+				errList, ok := err.(scanner.ErrorList)
+				if ok {
+					for _, errorInList := range errList {
+						fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, errorInList).String())
+					}
+				} else {
+					fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, err).String())
+				}
+			}
+		case string:
+			fmt.Fprintf(stderr, errPkgFormat, pkgPath, issueFromError(dirPath, pkgPath, errors.New(verr)).String())
+		default:
+			panic(r)
+		}
+	}()
+
+	action()
+	return
+}
+
+func issueFromError(dirPath, pkgPath string, err error) lintIssue {
+	var issue lintIssue
+	issue.Confidence = 1
+	issue.Code = lintGnoError
+
+	parsedError := strings.TrimSpace(err.Error())
+
+	matches := reParseRecover.FindStringSubmatch(parsedError)
+	if len(matches) > 0 {
+		issue.Location = matches[1] + matches[2]
+		issue.Msg = strings.TrimSpace(matches[3])
+	} else {
+		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
+		issue.Msg = err.Error()
+  }
+	return issue
 }
 
 // Wrapper around TypeCheckMemPackage() to io.ErrPrintln(gnoIssue{}).
@@ -291,7 +372,6 @@ func lintTypeCheck(
 	for _, err := range errors {
 		printError(io.Err(), dir, mpkg.Path, err)
 	}
-
 	lerr = tcErrs
 	return
 }
