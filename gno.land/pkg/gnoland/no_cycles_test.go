@@ -1,4 +1,4 @@
-package examples_test
+package gnoland
 
 import (
 	"fmt"
@@ -14,11 +14,12 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	testsstdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
 
-// TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
+// TestNoCycles checks that there is no import cycles in stdlibs and non-ignored examples
 func TestNoCycles(t *testing.T) {
 	// find stdlibs
 	gnoRoot := gnoenv.RootDir()
@@ -32,7 +33,7 @@ func TestNoCycles(t *testing.T) {
 	examples, err := gnolang.ReadPkgListFromDir(filepath.Join(gnoRoot, "examples"))
 	require.NoError(t, err)
 	for _, example := range examples {
-		if example.Draft {
+		if example.Ignore {
 			continue
 		}
 		examplePkgs, err := listPkgs(example)
@@ -100,6 +101,10 @@ func visitImports(kinds []packages.FileKind, root testPkg, pkgs []testPkg, visit
 	for _, imp := range root.Imports.Merge(kinds...) {
 		idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
 		if idx == -1 {
+			if testsstdlibs.HasNativePkg(imp.PkgPath) {
+				continue
+			}
+
 			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
 		}
 		if err := visitPackage(pkgs[idx], pkgs, visited, stack); err != nil {
