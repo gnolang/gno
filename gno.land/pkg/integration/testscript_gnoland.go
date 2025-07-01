@@ -617,7 +617,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 		ts.Setenv(name+"_account_num", strAccountNumber)
 		ts.Logf("[%q] account number: %s", name, strAccountNumber)
 
-		strAccountSequence := strconv.Itoa(int(qret.BaseAccount.GetSequence()))
+		strAccountSequence := strconv.Itoa(int(qret.BaseAccount.GetSequenceSum()))
 		ts.Setenv(name+"_account_seq", strAccountSequence)
 		ts.Logf("[%q] account sequence: %s", name, strAccountNumber)
 	}

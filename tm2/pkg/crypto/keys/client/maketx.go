@@ -148,7 +148,10 @@ func SignAndBroadcastHandler(
 
 	// sign tx
 	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.SequenceByKey(key)
+	sequence, err := qret.BaseAccount.SequenceByPubKey(key)
+	if err != nil {
+		return nil, err
+	}
 
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,

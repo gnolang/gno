@@ -112,6 +112,10 @@ func (tx Tx) GetSignerInfos() []SignerInfo {
 	seen := map[string]bool{}
 	var signerInfos []SignerInfo
 	for _, sig := range tx.GetSignatures() {
+		// Skip signatures without public keys
+		if sig.PubKey == nil {
+			continue
+		}
 		// Create composite key from both pubkey and address
 		addr := sig.PubKey.Address()
 		compositeKey := sig.PubKey.String() + "|" + addr.String()

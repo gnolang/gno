@@ -118,11 +118,31 @@ func NewAnteHandler(
 		// stdSigs contains the sequence number, account number, and signatures.
 		// When simulating, this would just be a 0-length slice.
 		signerInfos := tx.GetSignerInfos()
-		signerAccs := make([]std.Account, len(signerInfos))
+		signerAddrs := tx.GetSigners()
+		if len(signerInfos) == 0 && len(signerAddrs) == 0 {
+			return newCtx, abciResult(std.ErrNoSignatures("no signers found")), true
+		}
+		
+		// Use signerInfos if available (modern path with session support)
+		// Fall back to signerAddrs for compatibility (legacy path)
+		var numSigners int
+		if len(signerInfos) > 0 {
+			numSigners = len(signerInfos)
+		} else {
+			numSigners = len(signerAddrs)
+		}
+		
+		signerAccs := make([]std.Account, numSigners)
 		isGenesis := ctx.BlockHeight() == 0
 
 		// fetch first signer, who's going to pay the fees
-		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerInfos[0].Address)
+		var firstSignerAddr crypto.Address
+		if len(signerInfos) > 0 {
+			firstSignerAddr = signerInfos[0].Address
+		} else {
+			firstSignerAddr = signerAddrs[0]
+		}
+		signerAccs[0], res = GetSignerAcc(newCtx, ak, firstSignerAddr)
 		if !res.IsOK() {
 			return newCtx, res, true
 		}
@@ -145,7 +165,15 @@ func NewAnteHandler(
 		for i := range stdSigs {
 			// skip the fee payer, account is cached and fees were deducted already
 			if i != 0 {
-				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerInfos[i].Address)
+				var signerAddr crypto.Address
+				if len(signerInfos) > i {
+					signerAddr = signerInfos[i].Address
+				} else if len(signerAddrs) > i {
+					signerAddr = signerAddrs[i]
+				} else {
+					return newCtx, abciResult(std.ErrTxDecode("signature count mismatch")), true
+				}
+				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddr)
 				if !res.IsOK() {
 					return newCtx, res, true
 				}
@@ -153,12 +181,30 @@ func NewAnteHandler(
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
-			spubkey := signerInfos[i].PubKey
+			var spubkey crypto.PubKey
+			if len(signerInfos) > i {
+				spubkey = signerInfos[i].PubKey
+			}
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, spubkey, isGenesis)
+				// For legacy mode (spubkey is nil), processSig will handle pubkey extraction from signature
+				var signBytes []byte
+				var err error
+				if spubkey != nil {
+					// Modern path: we have pubkey from SignerInfo
+					signBytes, err = GetSignBytes(newCtx.ChainID(), tx, sacc, spubkey, isGenesis)
+				} else {
+					// Legacy path: extract pubkey from signature, use old logic
+					pubKey, _ := ProcessPubKey(sacc, stdSigs[i])
+					if pubKey != nil {
+						signBytes, err = GetSignBytes(newCtx.ChainID(), tx, sacc, pubKey, isGenesis)
+					} else {
+						// Fall back to old method for genesis transactions
+						signBytes, err = tx.GetSignBytes(newCtx.ChainID(), sacc.GetAccountNumber(), sacc.GetSequenceSum())
+					}
+				}
 				if err != nil {
 					return newCtx, res, true
 				}
