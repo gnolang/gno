@@ -155,15 +155,14 @@ beneficial in these scenarios:
 
 ## Gas Optimization Tips
 
-To minimize gas costs, consider these optimization strategies:
+To minimize gas costs in your smart contracts, consider these optimization 
+strategies:
 
-1. **Use automatic estimation**: Let the system calculate optimal gas 
-   parameters for you
-2. **Minimize on-chain storage**: Only store essential data on-chain
-3. **Batch operations**: Combine multiple operations into a single 
+1. **Minimize on-chain storage**: Only store essential data on-chain
+2. **Batch operations**: Combine multiple operations into a single 
    transaction when possible
-4. **Use efficient data structures**: Well-optimized code consumes less gas
-5. **Precompute values off-chain**: Do as much computation as possible 
+3. **Use efficient data structures**: Well-optimized code consumes less gas
+4. **Precompute values off-chain**: Do as much computation as possible 
    before submitting to the blockchain
-6. **Test locally first**: Use `gnodev` to test and optimize your code 
+5. **Test locally first**: Use `gnodev` to test and optimize your code 
    before deploying to a network
