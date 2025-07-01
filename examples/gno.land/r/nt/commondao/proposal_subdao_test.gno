@@ -96,7 +96,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 			var (
 				p       subDAOPropDefinition
 				record  commondao.VotingRecord
-				members addrset.Set
+				members = commondao.NewMemberStorage()
 			)
 
 			for _, m := range tc.members {
@@ -107,7 +107,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(&members))
+			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
@@ -242,7 +242,7 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 			var (
 				p       dissolvePropDefinition
 				record  commondao.VotingRecord
-				members addrset.Set
+				members = commondao.NewMemberStorage()
 			)
 
 			for _, m := range tc.members {
@@ -253,7 +253,7 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(&members))
+			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")

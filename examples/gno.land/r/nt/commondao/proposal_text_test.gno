@@ -8,7 +8,6 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/moul/addrset"
 	"gno.land/p/nt/commondao"
 )
 
@@ -150,9 +149,9 @@ func TestTextPropDefinitionTally(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				p       = TextPropDefinition{quorum: commondao.QuorumTwoThirds}
 				record  commondao.VotingRecord
-				members addrset.Set
+				p       = TextPropDefinition{quorum: commondao.QuorumTwoThirds}
+				members = commondao.NewMemberStorage()
 			)
 
 			for _, m := range tc.members {
@@ -163,7 +162,7 @@ func TestTextPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(&members))
+			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
