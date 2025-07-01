@@ -2171,7 +2171,7 @@ func fillEmbeddedName(ft *FieldType) {
 		case Float64Type:
 			ft.Name = Name("float64")
 		}
-	case *InterfaceType: 
+	case *InterfaceType:
 	// embedded interface, no need to fill name
 	default:
 		panic(fmt.Sprintf(
