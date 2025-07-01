@@ -7,7 +7,7 @@ import "gno.land/r/demo/tests/crossrealm"
 func main() {
 	f := func() {
 		func(cur realm) {
-			crossrealm.FooUpdate(cross, "a")
+			crossrealm.PrintRealms(cross)
 		}(cross)
 	}
 

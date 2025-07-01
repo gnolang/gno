@@ -6,7 +6,7 @@ import "gno.land/r/demo/tests/crossrealm"
 // crossrealm_test -> crossrealm -> crossrealm
 func main() {
 	f := func() {
-		crossrealm.FooUpdate(cross, "a")
+		crossrealm.PrintRealms(cross)
 	}
 
 	crossrealm.SetClosure(cross, f)

@@ -123,7 +123,7 @@ func ExecuteClosureCross(cur realm) {
 }
 
 // Closure -> FooUpdate
-func FooUpdate(cur realm, s string) {
+func PrintRealms(cur realm) {
 	println("current realm: ", std.CurrentRealm())
 	println("previous realm: ", std.PreviousRealm())
 }
