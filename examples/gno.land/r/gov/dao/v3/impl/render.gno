@@ -2,11 +2,11 @@ package impl
 
 import (
 	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/helplink"
 	"gno.land/r/gov/dao"
@@ -69,13 +69,14 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 }
 
 func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
-	pid, err := strconv.Atoi(sPid)
+	seqpid, err := seqid.FromString(sPid)
 	if err != nil {
 		panic(err.Error())
 	}
+	pid := uint64(seqpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
-	out := ufmt.Sprintf("## Prop #%v - %v\n", sPid, p.Title())
+	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
 
 	out += p.Description()
 	out += "\n\n"
@@ -84,23 +85,23 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 
 	out += ps.String()
 	out += "\n"
-	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, sPid)
+	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, pid)
 	out += "\n\n---\n\n"
 
-	out += renderActionBar(sPid)
+	out += renderActionBar(ufmt.Sprintf("%v", pid))
 
 	return out
 }
 
 func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
-	pid, err := strconv.Atoi(sPid)
+	seqpid, err := seqid.FromString(sPid)
 	if err != nil {
 		panic(err.Error())
 	}
-
+	pid := uint64(seqpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
-	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", sPid, p.Title(), ren.relativeRealmPath, sPid)
+	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, seqpid)
 	out += ufmt.Sprintf("Author: %s\n\n", p.Author())
 
 	out += "Status: " + getPropStatus(ps)
@@ -114,14 +115,15 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 }
 
 func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
-	pid, err := strconv.Atoi(sPid)
+	seqpid, err := seqid.FromString(sPid)
 	if err != nil {
 		panic(err.Error())
 	}
+	pid := uint64(seqpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 
 	out := ""
-	out += ufmt.Sprintf("# Proposal #%v - Vote List\n\n", sPid)
+	out += ufmt.Sprintf("# Proposal #%v - Vote List\n\n", pid)
 	out += StringifyVotes(ps)
 
 	return out

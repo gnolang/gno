@@ -32,7 +32,7 @@ func init() {
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq"), &memberstore.Member{InvitationPoints: 3}) // Alexis
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), &memberstore.Member{InvitationPoints: 3}) // Leon
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1whzkakk4hzjkvy60d5pwfk484xu67ar2cl62h2"), &memberstore.Member{InvitationPoints: 3}) // Kirk
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr"), &memberstore.Member{InvitationPoints: 3}) // Albert
+	memberstore.Get().SetMember(memberstore.T1, std.Address("g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r"), &memberstore.Member{InvitationPoints: 3}) // Albert
 
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetMember(memberstore.T2, std.Address("g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7"), &memberstore.Member{InvitationPoints: 2}) // Nemanja
