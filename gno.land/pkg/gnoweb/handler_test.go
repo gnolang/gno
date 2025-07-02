@@ -740,3 +740,79 @@ func TestCreateUsernameFromBech32(t *testing.T) {
 		})
 	}
 }
+
+// TestWebHandler_GetSourceView_FilePreference tests the file preference logic
+// when no specific file is requested in the source view.
+func TestWebHandler_GetSourceView_FilePreference(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		files          []string
+		expectedFile   string
+		expectedStatus int
+	}{
+		{
+			name:           "prefer README.md over other files",
+			files:          []string{"config.toml", "README.md", "main.gno"},
+			expectedFile:   "README.md",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "prefer .gno file when no README.md",
+			files:          []string{"config.toml", "main.gno", "test.toml"},
+			expectedFile:   "main.gno",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "fallback to first file when no preferred files",
+			files:          []string{"config.toml", "test.toml", "data.json"},
+			expectedFile:   "config.toml",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "prefer first .gno file when multiple .gno files",
+			files:          []string{"config.toml", "main.gno", "utils.gno", "test.gno"},
+			expectedFile:   "main.gno",
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create mock package with the test files
+			mockPackage := &gnoweb.MockPackage{
+				Domain: "example.com",
+				Path:   "/r/test/path",
+				Files:  make(map[string]string),
+			}
+
+			// Add all test files to the mock
+			for _, file := range tc.files {
+				mockPackage.Files[file] = "content of " + file
+			}
+
+			config := newTestHandlerConfig(t, mockPackage)
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewWebHandler(logger, config)
+			require.NoError(t, err)
+
+			// Request source view without specifying a file
+			req, err := http.NewRequest(http.MethodGet, "/r/test/path$source", nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			// Check status
+			assert.Equal(t, tc.expectedStatus, rr.Code)
+
+			// Check that the expected file content is displayed
+			expectedContent := "content of " + tc.expectedFile
+			assert.Contains(t, rr.Body.String(), expectedContent,
+				"should display content of preferred file: %s", tc.expectedFile)
+		})
+	}
+}
