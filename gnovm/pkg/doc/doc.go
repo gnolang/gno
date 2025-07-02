@@ -72,7 +72,7 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 
 	for _, decl := range doc.Values {
 		for _, val := range decl.Values {
-			typeName := strings.Replace(val.Type, "*", "", -1)
+			typeName := strings.TrimPrefix(val.Type, "*")
 			if !types[typeName] {
 				// We only care about types defined in this package
 				typeName = ""
@@ -92,7 +92,7 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		}
 		returnType := ""
 		if len(fun.Results) == 1 {
-			returnType = strings.Replace(fun.Results[0].Type, "*", "", -1)
+			returnType = strings.TrimPrefix(fun.Results[0].Type, "*")
 			if !types[returnType] {
 				// We only care about types defined in this package
 				returnType = ""
