@@ -369,8 +369,8 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		}
 	}
 
-	// generate coverage report
-	if opts.Coverage {
+	// generate coverage report only if output file is specified
+	if opts.Coverage && opts.CoverageOutput != "" {
 		coverageTracker := coverage.GetGlobalTracker()
 		if err := coverage.GenerateReport(coverageTracker, opts.CoverageOutput); err != nil {
 			errs = multierr.Append(errs, fmt.Errorf("failed to generate coverage report: %w", err))

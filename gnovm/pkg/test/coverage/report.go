@@ -52,9 +52,6 @@ func GenerateReport(tracker *CoverageTracker, outputFile string) error {
 		if err := os.WriteFile(outputFile, jsonData, 0o644); err != nil {
 			return fmt.Errorf("failed to save file: %w", err)
 		}
-	} else {
-		// if the output file is not specified, print it to the standard output
-		fmt.Println(string(jsonData))
 	}
 
 	return nil
