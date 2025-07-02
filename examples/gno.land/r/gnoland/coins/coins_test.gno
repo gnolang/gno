@@ -25,6 +25,10 @@ func TestBalanceChecker(t *testing.T) {
 	testing.IssueCoins(addr2, std.NewCoins(std.NewCoin(denom2, 12345)))
 
 	gnoAddr, _ := ctg.ConvertCosmosToGno("cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr")
+	osmoAddr := "osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09"
+	gnoAddr1, _ := ctg.ConvertAnyToGno(osmoAddr)
+
+	testing.IssueCoins(gnoAddr1, std.NewCoins(std.NewCoin(denom2, 12345)))
 
 	tests := []struct {
 		name      string
@@ -43,32 +47,53 @@ func TestBalanceChecker(t *testing.T) {
 		// 	path:     denom,
 		// 	expected: "Balance: 1500000testtoken",
 		// },
-
 		{
 			name:     "addr1's coin balance",
-			path:     ufmt.Sprintf("balances/%s?coin=%s", addr1.String(), denom1),
+			path:     ufmt.Sprintf("balances?address=%s&coin=%s", addr1.String(), denom1),
 			contains: ufmt.Sprintf("`%s` has `%d%s`", addr1.String(), 1000000, denom1),
 		},
 		{
 			name:     "addr2's full balances",
-			path:     ufmt.Sprintf("balances/%s", addr2.String()),
+			path:     ufmt.Sprintf("balances?address=%s", addr2.String()),
 			contains: ufmt.Sprintf("This page shows full coin balances of `%s` at block", addr2.String()),
 		},
 		{
 			name: "addr2's full balances",
-			path: ufmt.Sprintf("balances/%s", addr2.String()),
+			path: ufmt.Sprintf("balances?address=%s", addr2.String()),
 			contains: `| testtoken1 | 501 |
 | testtoken2 | 12345 |`,
 		},
 		{
 			name:     "addr2's coin balance",
-			path:     ufmt.Sprintf("balances/%s?coin=%s", addr2.String(), denom1),
+			path:     ufmt.Sprintf("balances?address=%s&coin=%s", addr2.String(), denom1),
 			contains: ufmt.Sprintf("`%s` has `%d%s`", addr2.String(), 501, denom1),
 		},
 		{
 			name:     "cosmos addr conversion",
 			path:     "convert/cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr",
 			contains: ufmt.Sprintf("`cosmos1s2v4tdskccx2p3yyvzem4mw5nn5fprwcku77hr` on Cosmos matches `%s`", gnoAddr),
+		},
+		{
+			name:     "balances bech32 auto convert",
+			path:     ufmt.Sprintf("balances?address=%s&coin=%s", osmoAddr, denom1),
+			contains: "Automatically converted `osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09`",
+		},
+		{
+			name:     "single coin balance bech32 auto convert",
+			path:     ufmt.Sprintf("balances?address=%s", osmoAddr),
+			contains: "Automatically converted `osmo1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3aq6l09`",
+		},
+		{
+			name:      "no addr",
+			path:      "balances?address=",
+			contains:  "Please input a valid address",
+			wantPanic: false,
+		},
+		{
+			name:      "no addr",
+			path:      "balances?address=&coin=",
+			contains:  "Please input a valid address and coin denomination.",
+			wantPanic: false,
 		},
 		{
 			name:      "invalid path",
