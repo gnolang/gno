@@ -72,8 +72,8 @@ func TestLoadPackagesFromDir_Uploader(t *testing.T) {
 	customUploader := crypto.MustAddressFromString("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 	tests := []struct {
-		name          string
-		packages      []struct {
+		name     string
+		packages []struct {
 			dir      string
 			gnomod   string
 			goFile   string
@@ -106,6 +106,7 @@ func Hello() string {
 				},
 			},
 			verify: func(t *testing.T, txs []TxWithMetadata) {
+				t.Helper()
 				require.Len(t, txs, 1)
 				msg, ok := txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 				require.True(t, ok)
@@ -139,6 +140,7 @@ func World() string {
 				},
 			},
 			verify: func(t *testing.T, txs []TxWithMetadata) {
+				t.Helper()
 				require.Len(t, txs, 1)
 				msg, ok := txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 				require.True(t, ok)
@@ -185,6 +187,7 @@ func World() string {
 				},
 			},
 			verify: func(t *testing.T, txs []TxWithMetadata) {
+				t.Helper()
 				require.Len(t, txs, 2)
 				creators := make(map[string]crypto.Address)
 				for _, tx := range txs {
@@ -250,6 +253,7 @@ func Test() string {
 				},
 			},
 			verify: func(t *testing.T, txs []TxWithMetadata) {
+				t.Helper()
 				require.Len(t, txs, 1)
 				msg, ok := txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 				require.True(t, ok)
@@ -341,13 +345,14 @@ func Render(path string) string {
 				},
 			},
 			verify: func(t *testing.T, txs []TxWithMetadata) {
+				t.Helper()
 				require.Len(t, txs, 1)
 				msg, ok := txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 				require.True(t, ok)
 				assert.Equal(t, customUploader, msg.Creator)
 				assert.Equal(t, "gno.land/r/test/uploadertest", msg.Package.Path)
 				assert.Equal(t, "uploadertest", msg.Package.Name)
-				
+
 				// Find .gno file
 				var gnoFile *std.MemFile
 				for _, file := range msg.Package.Files {
@@ -415,8 +420,9 @@ func Test() string {
 				},
 			},
 			verify: func(t *testing.T, txs []TxWithMetadata) {
+				t.Helper()
 				require.Len(t, txs, 3)
-				
+
 				// Build creator map
 				creators := make(map[string]crypto.Address)
 				for _, tx := range txs {
@@ -424,7 +430,7 @@ func Test() string {
 					require.True(t, ok)
 					creators[msg.Package.Path] = msg.Creator
 				}
-				
+
 				// Verify uploaders
 				assert.Equal(t, customUploader, creators["gno.land/p/test/pkg1"])
 				assert.Equal(t, crypto.MustAddressFromString("g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"), creators["gno.land/p/test/pkg2"])
