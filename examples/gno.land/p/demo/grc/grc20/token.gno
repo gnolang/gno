@@ -23,10 +23,11 @@ func NewToken(name, symbol string, decimals int) (*Token, *PrivateLedger) {
 
 	ledger := &PrivateLedger{}
 	token := &Token{
-		name:     name,
-		symbol:   symbol,
-		decimals: decimals,
-		ledger:   ledger,
+		name:      name,
+		symbol:    symbol,
+		decimals:  decimals,
+		origRealm: std.CurrentRealm().PkgPath(),
+		ledger:    ledger,
 	}
 	ledger.token = token
 	return token, ledger
@@ -46,6 +47,12 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
+
+// ID returns the Identifier of the token.
+// It is composed of the original realm and the provided symbol.
+func (tok *Token) ID() string {
+	return tok.origRealm + "." + tok.symbol
+}
 
 // BalanceOf returns the balance of the specified address.
 func (tok Token) BalanceOf(address_XXX std.Address) int64 {
@@ -134,6 +141,7 @@ func (led *PrivateLedger) Transfer(from, to std.Address, amount int64) error {
 
 	std.Emit(
 		TransferEvent,
+		"token", led.token.ID(),
 		"from", from.String(),
 		"to", to.String(),
 		"value", strconv.Itoa(int(amount)),
@@ -188,6 +196,7 @@ func (led *PrivateLedger) Approve(owner, spender std.Address, amount int64) erro
 
 	std.Emit(
 		ApprovalEvent,
+		"token", led.token.ID(),
 		"owner", string(owner),
 		"spender", string(spender),
 		"value", strconv.Itoa(int(amount)),
@@ -218,6 +227,7 @@ func (led *PrivateLedger) Mint(address_XXX std.Address, amount int64) error {
 
 	std.Emit(
 		TransferEvent,
+		"token", led.token.ID(),
 		"from", "",
 		"to", string(address_XXX),
 		"value", strconv.Itoa(int(amount)),
@@ -251,6 +261,7 @@ func (led *PrivateLedger) Burn(address_XXX std.Address, amount int64) error {
 
 	std.Emit(
 		TransferEvent,
+		"token", led.token.ID(),
 		"from", string(address_XXX),
 		"to", "",
 		"value", strconv.Itoa(int(amount)),
