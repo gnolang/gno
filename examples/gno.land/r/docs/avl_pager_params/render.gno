@@ -68,7 +68,7 @@ No matter how you browse through the paginated list, the introductory text (this
 
 	// Insert pagination controls (previous/next links, etc.).
 	out += "\n" + page.Picker(fullPath) + "\n\n"
-	out += "### [Go back to r/docs](/r/docs)"
+	out += "### [Go back to r/docs](/r/docs/home)"
 
 	return out
 }
