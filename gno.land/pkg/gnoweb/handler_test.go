@@ -827,6 +827,7 @@ func TestWebHandler_GetSourceView_FilePreference(t *testing.T) {
 				"should display content of preferred file: %s", tc.expectedFile)
 		})
 	}
+}
 
 // Ensure stubDirectoryClient implements gnoweb.WebClient
 var _ gnoweb.WebClient = (*stubDirectoryClient)(nil)
