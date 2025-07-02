@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -323,7 +322,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				// however, this should be done if -no-parallel is actually
 				// adopted in a variety of tests.
 				for !nodesManager.sequentialMu.TryLock() {
-					runtime.Gosched()
+					time.Sleep(time.Millisecond * 10)
 				}
 				ts.Defer(nodesManager.sequentialMu.Unlock)
 			} else {
