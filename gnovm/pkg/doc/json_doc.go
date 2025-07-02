@@ -427,7 +427,7 @@ func isCrossing(params []*JSONField) bool {
 		return false
 	}
 
-	return params[0].Name == "cur" && params[0].Type == "realm"
+	return params[0].Type == "realm"
 }
 
 // Return the expression inside the parentheses
