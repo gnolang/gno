@@ -134,7 +134,7 @@ func TransferInstanceOwnership(cur realm, symbol string, newOwner std.Address) {
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
 
-func ListTokens(pageNumber, pageSIze int) []*grc20.Token {
+func ListTokens(pageNumber, pageSize int) []*grc20.Token {
 	page := pager.GetPageWithSize(pageNumber, pageSIze)
 
 	tokens := make([]*grc20.Token, len(page.Items))
