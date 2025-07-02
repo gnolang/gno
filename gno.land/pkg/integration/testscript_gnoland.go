@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -77,6 +78,8 @@ type tNodeProcess struct {
 type NodesManager struct {
 	nodes map[string]*tNodeProcess
 	mu    sync.RWMutex
+
+	sequentialMu sync.RWMutex
 }
 
 // NewNodesManager creates a new instance of NodesManager.
@@ -274,6 +277,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
+			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -306,6 +310,25 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 						Name:    "none",
 					},
 				}
+			}
+
+			if *noParallel {
+				// The reason for this is that a direct Lock() on the RWMutex
+				// can too easily create "splits", which are inefficient;
+				// for instance: 10 parallel tests, one sequential test, 10 parallel tests.
+				// Instead, TryLock() does not "request" the lock to be
+				// transferred to the caller, so any incoming RLock() will be
+				// given if there are other RLocks.
+				// There is probably a better way to do this without using this hack;
+				// however, this should be done if -no-parallel is actually
+				// adopted in a variety of tests.
+				for !nodesManager.sequentialMu.TryLock() {
+					runtime.Gosched()
+				}
+				ts.Defer(nodesManager.sequentialMu.Unlock)
+			} else {
+				nodesManager.sequentialMu.RLock()
+				ts.Defer(nodesManager.sequentialMu.RUnlock)
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
