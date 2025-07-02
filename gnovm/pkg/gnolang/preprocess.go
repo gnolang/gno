@@ -3321,12 +3321,16 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			// type switch is a special cast that varName is
+			// defined in case clauses.
 			case *SwitchClauseStmt:
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				if ss.VarName != "" {
+				if ss.IsTypeSwitch && ss.VarName != "" {
 					// If the name is actually heap used:
 					if hasAttrHeapUse(n, ss.VarName) {
+						// Make record in static block.
+						// will be populated in ExpandWith().
 						n.SetIsHeapItem(ss.VarName)
 					}
 				}
