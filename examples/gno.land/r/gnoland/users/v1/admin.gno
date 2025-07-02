@@ -43,15 +43,11 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	title := ""
 	if newPausedValue {
-		title = "Pause `/r/gnoland/users/v1`"
-	} else {
-		title = "Unpause `/r/gnoland/users/v1`"
+		return dao.NewProposalRequest("User Registry V1: Pause", reason, e)
 	}
 
-	desc := ufmt.Sprintf("Proposal to set the users/v1 realm to `paused=%v`.", newPausedValue)
-	return dao.NewProposalRequest(title, desc, e)
+	return dao.NewProposalRequest("User Registry V1: Unpause", reason, e)
 }
 
 // ProposeNewName allows GovDAO to propose a new name for an existing user
