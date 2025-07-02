@@ -1,6 +1,7 @@
 # Gno
 
 [![License](https://img.shields.io/badge/license-GNO%20GPL%20v5-blue.svg)](LICENSE.md)
+[![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html)
 
 > At first, there was Bitcoin, out of entropy soup of the greater All.
 > Then, there was Ethereum, which was created in the likeness of Bitcoin,
