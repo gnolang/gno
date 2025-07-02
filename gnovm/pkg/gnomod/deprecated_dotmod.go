@@ -27,7 +27,7 @@ import (
 )
 
 type deprecatedModFile struct {
-	Draft   bool
+	Ignore  bool
 	Module  *modfile.Module
 	Gno     *modfile.Go
 	Replace []*modfile.Replace
@@ -77,7 +77,7 @@ func parseDeprecatedDotModBytes(fname string, data []byte) (*deprecatedModFile, 
 			}
 		case *modfile.CommentBlock:
 			if x.Start.Line == 1 {
-				f.Draft = parseDraft(x)
+				f.Ignore = parseIgnore(x)
 			}
 		}
 	}
@@ -96,7 +96,7 @@ func (f *deprecatedModFile) Migrate() (*File, error) {
 	if f.Gno != nil {
 		fi.Gno = f.Gno.Version
 	}
-	fi.Draft = f.Draft
+	fi.Ignore = f.Ignore
 
 	// voluntarily not migrating, because not used/working the same way:
 	// - f.Replace
@@ -987,13 +987,13 @@ func parseDirectiveComment(block *modfile.LineBlock, line *modfile.Line) string 
 	return strings.Join(lines, "\n")
 }
 
-// parseDraft returns whether the module is marked as draft.
-func parseDraft(block *modfile.CommentBlock) bool {
+// parseIgnore returns whether the module is marked as ignore.
+func parseIgnore(block *modfile.CommentBlock) bool {
 	if len(block.Before) != 1 {
 		return false
 	}
 	comment := block.Before[0]
-	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "Draft" {
+	if strings.TrimSpace(strings.TrimPrefix(comment.Token, "//")) != "Ignore" {
 		return false
 	}
 	return true
