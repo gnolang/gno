@@ -66,24 +66,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 
 	// Create machine for execution and run test
-	// When tcheck is set to false, the passed-in tgs store has already called
-	// tgs.CacheWrap() and begun the transaction in pkg/test.Test()
-	var txStore gno.TransactionStore
-	if tcheck == false { // gno test example/gno.land/xxxx
-		ts, ok := tgs.(gno.TransactionStore)
-		if !ok {
-			panic("Should a TransactionStore")
-		}
-		txStore = ts
-	} else { // gnovm internal filetests in test/files.
-		tcw := opts.BaseStore.CacheWrap()
-		txStore = tgs.BeginTransaction(tcw, tcw, nil)
-
-	}
-
+	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         txStore,
+		Store:         tgs.BeginTransaction(tcw, tcw, nil),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		Debug:         opts.Debug,
