@@ -66,7 +66,7 @@ func main() {
 // Output:
 // --
 // # GovDAO Proposals
-// ### [Prop #0 - Propose deleting a name using users/v1 realm](/r/gov/dao:0)
+// ### [Prop #0 - User Registry V1: Delete user `alice123`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACTIVE
@@ -77,7 +77,7 @@ func main() {
 //
 //
 // --
-// ## Prop #0 - Propose deleting a name using users/v1 realm
+// ## Prop #0 - User Registry V1: Delete user `alice123`
 // delete user test
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
@@ -95,10 +95,10 @@ func main() {
 // ### Actions
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// WARN: Please double check transaction data before voting.
+// WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - Propose deleting a name using users/v1 realm
+// ## Prop #0 - User Registry V1: Delete user `alice123`
 // delete user test
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
@@ -116,10 +116,10 @@ func main() {
 // ### Actions
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// WARN: Please double check transaction data before voting.
+// WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - Propose deleting a name using users/v1 realm
+// ## Prop #0 - User Registry V1: Delete user `alice123`
 // delete user test
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
@@ -137,5 +137,5 @@ func main() {
 // ### Actions
 // [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-// WARN: Please double check transaction data before voting.
+// WARNING: Please double check transaction data before voting.
 // Successfully deleted alice
