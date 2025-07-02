@@ -1,0 +1,228 @@
+#!/bin/bash
+# Script to analyze Gno packages and generate a markdown report
+# Usage: ./analyze-packages.sh [directory] [filter]
+# Example: ./analyze-packages.sh examples/gno.land
+# Example: ./analyze-packages.sh examples/gno.land "p/demo"
+# Example: ./analyze-packages.sh examples/gno.land "moul"
+
+DIR="${1:-examples/gno.land}"
+FILTER="${2:-}"
+
+# Function to count non-comment lines in non-test .gno files
+count_lines() {
+    local dir="$1"
+    
+    # Find all .gno files that are not test files and count non-comment lines
+    find "$dir" -name "*.gno" -type f ! -name "*_test.gno" 2>/dev/null | while read -r file; do
+        # Count non-empty, non-comment lines (excluding // comments)
+        grep -v '^[[:space:]]*\/\/' "$file" 2>/dev/null | grep -v '^[[:space:]]*$'
+    done | wc -l
+}
+
+# Cache for import searches to speed up analysis
+declare -A import_cache
+
+# Function to find packages that import this one
+count_dependents() {
+    local pkg="$1"
+    local base_dir="$2"
+    
+    # Check cache first
+    if [ -n "${import_cache[$pkg]}" ]; then
+        echo "${import_cache[$pkg]}"
+        return
+    fi
+    
+    # Count how many times this package is imported
+    local count=$(grep -r "import.*\"$pkg\"" "$base_dir" --include="*.gno" 2>/dev/null | \
+        grep -v "^${pkg#gno.land/}/" | \
+        cut -d: -f1 | \
+        sort -u | \
+        wc -l)
+    
+    # Cache the result
+    import_cache[$pkg]=$count
+    echo "$count"
+}
+
+# Function to check if README exists
+has_readme() {
+    local dir="$1"
+    if [ -f "$dir/README.md" ] || [ -f "$dir/README" ] || [ -f "$dir/readme.md" ]; then
+        echo "yes"
+    else
+        echo "no"
+    fi
+}
+
+# Function to extract flags from gnomod.toml
+get_flags() {
+    local gnomod="$1"
+    local flags=""
+    
+    if [ -f "$gnomod" ]; then
+        # Check for draft flag
+        if grep -q "^draft = true" "$gnomod" 2>/dev/null; then
+            flags="${flags}draft,"
+        fi
+        
+        # Check for private flag
+        if grep -q "^private = true" "$gnomod" 2>/dev/null; then
+            flags="${flags}private,"
+        fi
+        
+        # Check for ignore flag
+        if grep -q "^ignore = true" "$gnomod" 2>/dev/null; then
+            flags="${flags}ignore,"
+        fi
+    fi
+    
+    # Remove trailing comma
+    echo "${flags%,}"
+}
+
+# Cache for git info to speed up analysis
+declare -A author_cache
+declare -A date_cache
+
+# Function to get first git committer and date
+get_first_git_info() {
+    local dir="$1"
+    local info_type="$2"  # "author" or "date"
+    
+    # Check cache first
+    local cache_key="${dir}_${info_type}"
+    if [ "$info_type" = "author" ] && [ -n "${author_cache[$dir]}" ]; then
+        echo "${author_cache[$dir]}"
+        return
+    elif [ "$info_type" = "date" ] && [ -n "${date_cache[$dir]}" ]; then
+        echo "${date_cache[$dir]}"
+        return
+    fi
+    
+    # Get the first commit info for files in this directory
+    local format="%an"
+    if [ "$info_type" = "date" ]; then
+        format="%ad"
+    elif [ "$info_type" = "author" ]; then
+        # Use email format to extract GitHub handle
+        format="%ae"
+    fi
+    
+    # Use git log with path to be more efficient
+    local info=$(git log --follow --format="$format" --date=short --reverse -- "$dir/*.gno" 2>/dev/null | head -1)
+    
+    if [ -z "$info" ]; then
+        # Fallback: try to find any .gno file
+        local gno_file=$(find "$dir" -name "*.gno" -type f | head -1)
+        if [ -n "$gno_file" ]; then
+            info=$(git log --follow --format="$format" --date=short --reverse -- "$gno_file" 2>/dev/null | head -1)
+        fi
+    fi
+    
+    # Process author info to get GitHub handle
+    if [ "$info_type" = "author" ]; then
+        # Try to extract GitHub handle from email or use the email prefix
+        if [[ "$info" =~ ^([^@]+)@users.noreply.github.com$ ]]; then
+            # Extract GitHub handle from noreply email
+            info="${BASH_REMATCH[1]}"
+            # Remove any numeric prefix (like "123456+")
+            info=$(echo "$info" | sed 's/^[0-9]*+//')
+        elif [[ "$info" =~ ^([^@]+)@ ]]; then
+            # Use email prefix as fallback
+            info="${BASH_REMATCH[1]}"
+        fi
+        info="${info:-unknown}"
+        author_cache[$dir]="$info"
+    else
+        info="${info:-unknown}"
+        date_cache[$dir]="$info"
+    fi
+    
+    echo "$info"
+}
+
+# Print markdown table header
+echo "# Gno Packages Analysis"
+echo ""
+echo "Generated on: $(date)"
+echo ""
+echo "| Package | Lines | Dependents | README | Flags | First Author | First Date |"
+echo "|---------|-------|------------|--------|-------|--------------|------------|"
+
+# Find all directories with gnomod.toml
+find "$DIR" -name "gnomod.toml" -type f | sort | while read -r gnomod_path; do
+    pkg_dir=$(dirname "$gnomod_path")
+    
+    # Extract package path from gnomod.toml
+    if [ -f "$gnomod_path" ]; then
+        module_line=$(grep "^module = " "$gnomod_path" | head -1)
+        if [ -n "$module_line" ]; then
+            # Extract module name between quotes
+            pkg_path=$(echo "$module_line" | sed 's/module = "\(.*\)"/\1/')
+            
+            # Remove gno.land/ prefix for display
+            display_path="${pkg_path#gno.land/}"
+            
+            # Apply filter if provided
+            if [ -n "$FILTER" ]; then
+                # Skip if path doesn't match filter
+                if ! echo "$display_path" | grep -q "$FILTER"; then
+                    # Also check if author matches filter
+                    temp_author=$(get_first_git_info "$pkg_dir" "author")
+                    if ! echo "$temp_author" | grep -qi "$FILTER"; then
+                        continue
+                    fi
+                fi
+            fi
+            
+            # Count lines
+            line_count=$(count_lines "$pkg_dir")
+            
+            # Count dependents
+            dependent_count=$(count_dependents "$pkg_path" "$DIR")
+            
+            # Check for README
+            has_readme_val=$(has_readme "$pkg_dir")
+            
+            # Get flags
+            flags=$(get_flags "$gnomod_path")
+            flags="${flags:-none}"
+            
+            # Get first committer and date
+            first_author=$(get_first_git_info "$pkg_dir" "author")
+            first_date=$(get_first_git_info "$pkg_dir" "date")
+            
+            # Output table row
+            echo "| $display_path | $line_count | $dependent_count | $has_readme_val | $flags | $first_author | $first_date |"
+        fi
+    fi
+done
+
+# Summary statistics
+echo ""
+echo "## Summary Statistics"
+echo ""
+
+# Count total packages
+total_packages=$(find "$DIR" -name "gnomod.toml" -type f | wc -l)
+echo "- Total packages: $total_packages"
+
+# Count packages by type
+p_packages=$(find "$DIR/p" -name "gnomod.toml" -type f 2>/dev/null | wc -l)
+r_packages=$(find "$DIR/r" -name "gnomod.toml" -type f 2>/dev/null | wc -l)
+echo "- Pure packages (p/): $p_packages"
+echo "- Realm packages (r/): $r_packages"
+
+# Count total lines
+total_lines=$(count_lines "$DIR")
+echo "- Total lines of code: $total_lines"
+
+# Count packages with flags
+draft_count=$(grep -l "^draft = true" $(find "$DIR" -name "gnomod.toml" -type f) 2>/dev/null | wc -l)
+private_count=$(grep -l "^private = true" $(find "$DIR" -name "gnomod.toml" -type f) 2>/dev/null | wc -l)
+ignore_count=$(grep -l "^ignore = true" $(find "$DIR" -name "gnomod.toml" -type f) 2>/dev/null | wc -l)
+
+echo "- Packages marked as draft: $draft_count"
+echo "- Packages marked as private: $private_count"
+echo "- Packages marked as ignore: $ignore_count"
