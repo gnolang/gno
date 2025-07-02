@@ -1,4 +1,4 @@
-const pxToRem = px => px / 16;
+const pxToRem = (px) => px / 16;
 
 export default {
   content: ["./components/**/*.{html,ts}"],
@@ -83,6 +83,10 @@ export default {
         '"Inter var"',
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif',
       ],
+      interSans: [
+        '"Inter var"',
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+      ],
     },
     fontSize: {
       0: "0",
@@ -105,6 +109,7 @@ export default {
     "link-internal",
     "link-tx",
     "tooltip",
+    "font-sans",
   ],
   plugins: [],
 };
