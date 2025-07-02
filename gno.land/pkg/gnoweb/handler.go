@@ -498,7 +498,14 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	}
 
 	if fileName == "" {
-		fileName = files[0] // fallback on the first file
+		// Prefer README.md, then .gno files, otherwise first file
+		if i := slices.IndexFunc(files, func(f string) bool {
+			return f == "README.md" || strings.HasSuffix(f, ".gno")
+		}); i >= 0 {
+			fileName = files[i] // prefer .gno files and README.md
+		} else {
+			fileName = files[0] // fallback to first file - might be a .toml file
+		}
 	}
 
 	// Standard file rendering
