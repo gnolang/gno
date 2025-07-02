@@ -22,6 +22,7 @@ type SourceTocData struct {
 	ReadmeFile   SourceTocItem
 	GnoFiles     []SourceTocItem
 	GnoTestFiles []SourceTocItem
+	TomlFiles    []SourceTocItem
 }
 
 type SourceTocItem struct {
@@ -61,6 +62,9 @@ func SourceView(data SourceData) *View {
 
 		case strings.HasSuffix(file, ".gno"):
 			tocData.GnoFiles = append(tocData.GnoFiles, item)
+
+		case strings.HasSuffix(file, ".toml"):
+			tocData.TomlFiles = append(tocData.TomlFiles, item)
 		}
 	}
 
