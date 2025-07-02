@@ -2,9 +2,6 @@
 package borrow_test
 
 import (
-	"fmt"
-	"std"
-
 	"gno.land/r/demo/tests/crossrealm"
 	"gno.land/r/demo/tests/crossrealm_b"
 )
@@ -15,19 +12,12 @@ type Struct struct {
 
 func (s *Struct) Mutate() {
 	s.A += 1
+	// modify object associated to borrowed realm
+	crossrealm_b.Closure = func() { println("foo closure") }
 }
 
 func (s *Struct) Get() int {
 	return s.A
-}
-
-func (s *Struct) PrintRealms() {
-	s.printRealms()
-}
-
-func (s *Struct) printRealms() {
-	fmt.Println(std.CurrentRealm())
-	fmt.Println(std.PreviousRealm())
 }
 
 type Passthrough struct {
@@ -39,15 +29,8 @@ func (p *Passthrough) Mutate() {
 }
 
 func (p *Passthrough) Get() int {
+	crossrealm_b.Closure()
 	return p.S.Get()
-}
-
-func (p *Passthrough) PrintRealms() {
-	p.printRealm()
-}
-
-func (p *Passthrough) printRealm() {
-	p.S.PrintRealms()
 }
 
 var s *Struct
@@ -63,11 +46,8 @@ func main(cur realm) {
 	p.Mutate() // receiver method borrows crossrealm, then crossrealm_b, but does not impact prev, current realm.
 
 	println(p.Get())
-
-	p.PrintRealms()
 }
 
 // Output:
+// foo closure
 // 101
-// CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
-// UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
