@@ -38,7 +38,7 @@ Visit [gno.land](https://gno.land) to see live smart contracts in action.
 - **Deterministic Execution**: Fully predictable contract behavior
 - **Composable Packages**: Import and reuse code like regular Go
 - **Auto-Persisted State**: Global variables automatically saved between calls
-- **Contribution-Based**: Rewards open source contributors
+- **Contribution System**: Rewarding open source contributors
 - **Developer Experience**: Comprehensive tooling including testing, 
   debugging, and hot-reload development
 
