@@ -2,4 +2,4 @@ lint:
 	npx @biomejs/biome check
 
 fmt:
-	npx @biomejs/biome check --write --unsafe
+	npx @biomejs/biome check --write

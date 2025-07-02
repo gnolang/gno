@@ -61,7 +61,6 @@ fmt: fmt.go fmt.js
 fmt.go:; go fmt ./...
 fmt.js:; $(MAKE) -C frontend fmt
 
-
 # Lint process
 lint: lint.go lint.js
 lint.go:; $(golangci_lint) --config ../../../.github/golangci.yml run ./...
@@ -124,7 +123,6 @@ clean:
 fclean: clean
 	rm -rf $(PUBLIC_DIR)
 	rm -rf $(node_modules)
-
 
 # Dirs
 $(PUBLIC_DIR):; mkdir -p $@
