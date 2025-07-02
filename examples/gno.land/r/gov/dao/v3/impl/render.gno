@@ -2,6 +2,7 @@ package impl
 
 import (
 	"std"
+	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl/pager"
@@ -59,7 +60,11 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 
 	page := ren.pssPager.MustGetPageByPath(url)
 	for _, item := range page.Items {
-		out += ren.renderProposalListItem(item.Key, d)
+		seqpid, err := seqid.FromString(item.Key)
+		if err != nil {
+			panic(err.Error())
+		}
+		out += ren.renderProposalListItem(ufmt.Sprintf("%v", uint64(seqpid)), d)
 		out += "---\n\n"
 	}
 
@@ -69,11 +74,11 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 }
 
 func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
-	seqpid, err := seqid.FromString(sPid)
+	intpid, err := strconv.Atoi(sPid)
 	if err != nil {
 		panic(err.Error())
 	}
-	pid := uint64(seqpid)
+	pid := uint64(intpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
@@ -94,14 +99,14 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 }
 
 func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
-	seqpid, err := seqid.FromString(sPid)
+	intpid, err := strconv.Atoi(sPid)
 	if err != nil {
 		panic(err.Error())
 	}
-	pid := uint64(seqpid)
+	pid := uint64(intpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
-	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, seqpid)
+	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
 	out += ufmt.Sprintf("Author: %s\n\n", p.Author())
 
 	out += "Status: " + getPropStatus(ps)
@@ -115,11 +120,11 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 }
 
 func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
-	seqpid, err := seqid.FromString(sPid)
+	intpid, err := strconv.Atoi(sPid)
 	if err != nil {
 		panic(err.Error())
 	}
-	pid := uint64(seqpid)
+	pid := uint64(intpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 
 	out := ""

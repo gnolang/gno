@@ -113,13 +113,12 @@ func NewProposals() *Proposals {
 }
 
 func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
-	// start at 1 since 0 is reserved for error cases
-	ps.seq = ps.seq.Next()
 	pid := ProposalID(uint64(ps.seq))
 	updated := ps.Set(pid.String(), p)
 	if updated {
 		panic("fatal error: Override proposals is not allowed")
 	}
+	ps.seq = ps.seq.Next()
 	return pid
 }
 
