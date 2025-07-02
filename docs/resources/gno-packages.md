@@ -41,7 +41,7 @@ Ephemeral packages are temporary, user-executed code that:
 - Have the pattern `domain/e/{user-address}/run`
 - Execute in the user's realm context
 - Can call both crossing and non-crossing functions
-- Are not permanently stored on-chain
+- Are not stored on-chain
 - Allow complex interactions that aren't possible with simple `maketx call`
 
 Example: `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run` (A user's run script)
