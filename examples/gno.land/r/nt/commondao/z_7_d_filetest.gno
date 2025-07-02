@@ -23,7 +23,7 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(user))
 
 	// Create the root DAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 	parentID = commondao.New("Parent DAO").ID()
 
 	// Change options to disallow subDAOs
@@ -32,7 +32,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
 	commondao.NewSubDAO("Foo", parentID)
 }
