@@ -16,6 +16,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -33,6 +34,7 @@ type testCmd struct {
 	debugAddr           string
 	coverage            bool
 	coverageOutput      string
+	show                string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -192,6 +194,13 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"write coverage profile to file",
 	)
+
+	fs.StringVar(
+		&c.show,
+		"show",
+		"",
+		"show coverage visualization for files matching pattern (e.g., '*.gno' or 'arithmetic.gno')",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -336,6 +345,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	if cmd.coverage {
 		coverageTracker := test.GetCoverageTracker()
 		coverageTracker.PrintCoverage()
+
+		// Show coverage visualization if requested
+		if cmd.show != "" {
+			if err := coverage.ShowCoverage(coverageTracker, cmd.show, cmd.rootDir); err != nil {
+				io.ErrPrintfln("Warning: failed to show coverage visualization: %v", err)
+			}
+		}
 	}
 
 	return nil
