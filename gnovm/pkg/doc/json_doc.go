@@ -158,15 +158,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	}
 
 	for _, typ := range pkg.Types {
-		// Set typeSpec to the ast.TypeSpec within the declaration that defines the symbol.
-		var typeSpec *ast.TypeSpec
-		for _, spec := range typ.Decl.Specs {
-			tSpec := spec.(*ast.TypeSpec) // Must succeed
-			if typ.Name == tSpec.Name.Name {
-				typeSpec = tSpec
-				break
-			}
-		}
+		typeSpec := getTypeSpec(typ)
 		if typeSpec == nil || typeSpec.Type == nil {
 			// We don't expect this
 			continue
@@ -421,7 +413,7 @@ func mustFormatNode(fset *token.FileSet, node any, source bool, file *ast.File) 
 	return buf.String()
 }
 
-// isCrossing returns true if the first param is "cur realm"
+// isCrossing returns true if the first param has type "realm"
 func isCrossing(params []*JSONField) bool {
 	if len(params) < 1 {
 		return false
@@ -430,7 +422,19 @@ func isCrossing(params []*JSONField) bool {
 	return params[0].Type == "realm"
 }
 
-// Return the expression inside the parentheses
+// Search typ for the ast.TypeSpec with the same name and return it, or nil if not found
+func getTypeSpec(typ *doc.Type) *ast.TypeSpec {
+	for _, spec := range typ.Decl.Specs {
+		tSpec := spec.(*ast.TypeSpec) // Must succeed
+		if typ.Name == tSpec.Name.Name {
+			return tSpec
+		}
+	}
+
+	return nil
+}
+
+// Return the expression inside the parentheses, if any
 func deparenthesize(expr ast.Expr) ast.Expr {
 	x := expr
 	for {
