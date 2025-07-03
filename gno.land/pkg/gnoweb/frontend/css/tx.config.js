@@ -105,6 +105,7 @@ export default {
 		"link-internal",
 		"link-tx",
 		"tooltip",
+		"pt-6",
 	],
 	plugins: [],
 };
