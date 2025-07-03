@@ -308,7 +308,7 @@
     @apply mb-0;
   }
   .realm-view .gno-alert > summary {
-    @apply flex items-center gap-x-2 my-2 font-bold list-none;
+    @apply flex items-center gap-x-2 my-1 font-bold list-none;
   }
   .realm-view .gno-alert > summary svg {
     @apply h-6 w-6;
