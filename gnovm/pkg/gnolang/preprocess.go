@@ -356,11 +356,6 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
-						// XXX NameExprTypeDefine in NameExpr?
-						// See known issues in README.nd:
-						// > Switch varnames cannot be
-						// captured as heap items.
-						// [test](../gnovm/tests/files/closure11_known.gno)
 						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss, NSTypeSwitch, -1)
 					}
 				} else {
@@ -2377,8 +2372,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						findBranchLabel(last, n.Label)
 					}
 				case GOTO:
-					_, depth, index := findGotoLabel(last, n.Label)
-					n.Depth = depth
+					_, blockDepth, frameDepth, index := findGotoLabel(last, n.Label)
+					n.BlockDepth = blockDepth
+					n.FrameDepth = frameDepth
 					n.BodyIndex = index
 				case FALLTHROUGH:
 					swchC, ok := last.(*SwitchClauseStmt)
@@ -2940,7 +2936,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
-					bn, _, _ := findGotoLabel(last, n.Label)
+					bn, _, _, _ := findGotoLabel(last, n.Label)
 					// already done in Preprocess:
 					// n.Depth = depth
 					// n.BodyIndex = index
@@ -3321,6 +3317,19 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			// type switch is a special cast that varName is
+			// defined in case clauses.
+			case *SwitchClauseStmt:
+				// parent switch statement.
+				ss := ns[len(ns)-1].(*SwitchStmt)
+				if ss.IsTypeSwitch && ss.VarName != "" {
+					// If the name is actually heap used:
+					if hasAttrHeapUse(n, ss.VarName) {
+						// Make record in static block.
+						// will be populated in ExpandWith().
+						n.SetIsHeapItem(ss.VarName)
+					}
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -3977,7 +3986,7 @@ func findBranchLabel(last BlockNode, label Name) (
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+	bn BlockNode, blockDepth uint8, frameDepth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3999,7 +4008,7 @@ func findGotoLabel(last BlockNode, label Name) (
 					"cannot find GOTO label %q within current function",
 					label))
 			}
-		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
+		case *ForStmt, *RangeStmt, *SwitchClauseStmt:
 			body := cbn.GetBody()
 			_, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
@@ -4007,7 +4016,19 @@ func findGotoLabel(last BlockNode, label Name) (
 				return
 			} else {
 				last = skipFaux(cbn.GetParentNode(nil))
-				depth += 1
+				frameDepth += 1
+				blockDepth = 0 // reset
+			}
+		case *IfCaseStmt, *SelectCaseStmt, *BlockStmt:
+			body := cbn.GetBody()
+			_, bodyIdx = body.GetLabeledStmt(label)
+			if bodyIdx != -1 {
+				bn = cbn
+				return
+			} else {
+				last = skipFaux(cbn.GetParentNode(nil))
+				// NOTE: frameDepth may be zero or positive.
+				blockDepth += 1
 			}
 		default:
 			panic("unexpected block node")
