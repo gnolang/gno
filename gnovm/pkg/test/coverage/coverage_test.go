@@ -1039,18 +1039,22 @@ func testFunc() {
 		t.Error("Expected function block instrumentation")
 	}
 
+	// Check that individual assignment statements are instrumented
+	expectedPatterns := []string{
+		"testing.MarkLine(\"test.go\", 5)", // x := getValue()
+		"testing.MarkLine(\"test.go\", 6)", // y = 42
+		"testing.MarkLine(\"test.go\", 7)", // z, err := getValueWithError()
+	}
+
+	for _, pattern := range expectedPatterns {
+		if !strings.Contains(instrumentedStr, pattern) {
+			t.Errorf("Expected assignment instrumentation not found: %s", pattern)
+		}
+	}
+
 	// Check that testing import is added
 	if !strings.Contains(instrumentedStr, "import \"testing\"") {
 		t.Error("Expected testing import to be added")
-	}
-
-	// Assignment statements should be registered as executable lines
-	coverageData := tracker.GetCoverageData()
-	if data, exists := coverageData["test.go"]; exists {
-		t.Logf("Total executable lines: %d", data.TotalLines)
-		if data.TotalLines == 0 {
-			t.Error("Expected some executable lines to be registered")
-		}
 	}
 }
 
@@ -1081,12 +1085,16 @@ func testFunc() {
 		t.Error("Expected function block instrumentation")
 	}
 
-	// Expression statements should be registered as executable lines
-	coverageData := tracker.GetCoverageData()
-	if data, exists := coverageData["test.go"]; exists {
-		t.Logf("Total executable lines: %d", data.TotalLines)
-		if data.TotalLines == 0 {
-			t.Error("Expected some executable lines to be registered")
+	// Check that individual expression statements are instrumented
+	expectedPatterns := []string{
+		"testing.MarkLine(\"test.go\", 5)", // println("hello")
+		"testing.MarkLine(\"test.go\", 6)", // someFunc()
+		"testing.MarkLine(\"test.go\", 7)", // obj.method()
+	}
+
+	for _, pattern := range expectedPatterns {
+		if !strings.Contains(instrumentedStr, pattern) {
+			t.Errorf("Expected expression instrumentation not found: %s", pattern)
 		}
 	}
 }

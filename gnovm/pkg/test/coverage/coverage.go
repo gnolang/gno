@@ -137,21 +137,26 @@ type CoverageInstrumenter struct {
 	filename string
 	// Cache for checking external instrumentation to avoid repeated AST traversals
 	containsExternalCache map[ast.Node]bool
+	// Track statements that need individual instrumentation
+	pendingInstrumentations map[ast.Stmt]ast.Stmt
+	// Track the current block context for statement instrumentation
+	currentBlock *ast.BlockStmt
 }
 
 // NewCoverageInstrumenter create a new CoverageInstrumenter
 func NewCoverageInstrumenter(tracker *CoverageTracker, filename string) *CoverageInstrumenter {
 	return &CoverageInstrumenter{
-		fset:                  token.NewFileSet(),
-		tracker:               tracker,
-		filename:              filename,
-		containsExternalCache: make(map[ast.Node]bool),
+		fset:                    token.NewFileSet(),
+		tracker:                 tracker,
+		filename:                filename,
+		containsExternalCache:   make(map[ast.Node]bool),
+		pendingInstrumentations: make(map[ast.Stmt]ast.Stmt),
 	}
 }
 
 // InstrumentFile instrument the file by adding coverage tracking calls.
-// It uses parser.ParseComments to preserve all comments including multiline /* */ comments,
-// and format.Node to properly format the output, ensuring comments remain in their correct positions.
+// It uses `parser.ParseComments` to preserve all comments including multiline `/* */` comments,
+// and `format.Node` to properly format the output, ensuring comments remain in their correct positions.
 func (ci *CoverageInstrumenter) InstrumentFile(content []byte) ([]byte, error) {
 	// parse the file with comments preserved
 	f, err := parser.ParseFile(ci.fset, ci.filename, string(content), parser.ParseComments)
@@ -176,10 +181,13 @@ func (ci *CoverageInstrumenter) InstrumentFile(content []byte) ([]byte, error) {
 	// modify the AST
 	ast.Walk(ci, f)
 
+	// Post-process to apply statement-level instrumentation
+	ci.applyStatementInstrumentations(f)
+
 	// convert the modified AST to code
-	// Use format.Node instead of printer.Fprint to handle comments properly.
-	// format.Node preserves the original comment positions and applies proper Go formatting,
-	// preventing syntax errors that can occur when multiline /* */ comments are present.
+	// Use `format.Node` instead of `printer.Fprint` to handle comments properly.
+	// `format.Node` preserves the original comment positions and applies proper formatting,
+	// preventing syntax errors that can occur when multiline `/* */` comments are present.
 	var buf strings.Builder
 	if err := format.Node(&buf, ci.fset, f); err != nil {
 		return nil, fmt.Errorf("code generation failed: %w", err)
@@ -323,7 +331,6 @@ func (ci *CoverageInstrumenter) registerExecutableLines(f *ast.File) {
 }
 
 // registerNodeIfExecutable registers a node's line if it's an executable statement
-// Following A1: Executability - statements that can cause side effects or control flow
 func (ci *CoverageInstrumenter) registerNodeIfExecutable(n ast.Node) {
 	if n == nil {
 		return
@@ -435,7 +442,6 @@ func (ci *CoverageInstrumenter) instrumentFuncLit(n *ast.FuncLit) {
 }
 
 // instrumentIfStmt instruments an if statement
-// Following R2: handles else if as nested IfStmt
 func (ci *CoverageInstrumenter) instrumentIfStmt(n *ast.IfStmt) {
 	if n.Cond != nil {
 		condLine := ci.getLine(n.Cond.Pos())
@@ -473,7 +479,6 @@ func (ci *CoverageInstrumenter) instrumentRangeStmt(n *ast.RangeStmt) {
 }
 
 // instrumentSwitchStmt instruments a switch statement
-// Following R4: instrument switch entry as well as cases
 func (ci *CoverageInstrumenter) instrumentSwitchStmt(n *ast.SwitchStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
@@ -488,7 +493,6 @@ func (ci *CoverageInstrumenter) instrumentSwitchStmt(n *ast.SwitchStmt) {
 }
 
 // instrumentSelectStmt instruments a select statement
-// Following R4: instrument select entry as well as cases
 func (ci *CoverageInstrumenter) instrumentSelectStmt(n *ast.SelectStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
@@ -517,7 +521,6 @@ func (ci *CoverageInstrumenter) instrumentCommClause(n *ast.CommClause) {
 }
 
 // instrumentReturnStmt instruments a return statement
-// Following S3: register only, don't duplicate block instrumentation
 func (ci *CoverageInstrumenter) instrumentReturnStmt(n *ast.ReturnStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
@@ -525,7 +528,6 @@ func (ci *CoverageInstrumenter) instrumentReturnStmt(n *ast.ReturnStmt) {
 }
 
 // instrumentDeferStmt instruments a defer statement
-// Following R6: track defer registration point
 func (ci *CoverageInstrumenter) instrumentDeferStmt(n *ast.DeferStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
@@ -533,7 +535,6 @@ func (ci *CoverageInstrumenter) instrumentDeferStmt(n *ast.DeferStmt) {
 }
 
 // instrumentBranchStmt instruments branch statements (break, continue, goto, fallthrough)
-// Following A3: non-linear control flow tracking
 func (ci *CoverageInstrumenter) instrumentBranchStmt(n *ast.BranchStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
@@ -541,19 +542,87 @@ func (ci *CoverageInstrumenter) instrumentBranchStmt(n *ast.BranchStmt) {
 }
 
 // instrumentAssignStmt instruments assignment statements
-// Following A1: assignments can have side effects (function calls, etc.)
 func (ci *CoverageInstrumenter) instrumentAssignStmt(n *ast.AssignStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
-	// Assignment statements are typically part of blocks, so no separate instrumentation needed
+
+	// Check if this statement is externally instrumented
+	if ci.statementContainsExternal(n) {
+		return
+	}
+
+	// Create a wrapper block for the assignment to add instrumentation
+	markStmt := ci.createMarkLineStmt(ci.filename, line)
+
+	// Replace the assignment with a block containing mark + assignment
+	// This is done by modifying the parent during AST walk
+	ci.addStatementInstrumentation(n, markStmt)
 }
 
 // instrumentExprStmt instruments expression statements
-// Following A1: expressions can have side effects (function calls, etc.)
 func (ci *CoverageInstrumenter) instrumentExprStmt(n *ast.ExprStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
-	// Expression statements are typically part of blocks, so no separate instrumentation needed
+
+	// Check if this statement is externally instrumented
+	if ci.statementContainsExternal(n) {
+		return
+	}
+
+	// Create a wrapper block for the expression to add instrumentation
+	markStmt := ci.createMarkLineStmt(ci.filename, line)
+
+	// Replace the expression with a block containing mark + expression
+	// This is done by modifying the parent during AST walk
+	ci.addStatementInstrumentation(n, markStmt)
+}
+
+// addStatementInstrumentation marks a statement for instrumentation
+// The actual instrumentation happens in a post-processing phase
+func (ci *CoverageInstrumenter) addStatementInstrumentation(stmt ast.Stmt, markStmt ast.Stmt) {
+	// Store instrumentation requests for post-processing
+	if ci.pendingInstrumentations == nil {
+		ci.pendingInstrumentations = make(map[ast.Stmt]ast.Stmt)
+	}
+	ci.pendingInstrumentations[stmt] = markStmt
+}
+
+// applyStatementInstrumentations applies statement-level instrumentation
+// This runs after the AST walk to modify blocks with individual statement tracking
+func (ci *CoverageInstrumenter) applyStatementInstrumentations(f *ast.File) {
+	if len(ci.pendingInstrumentations) == 0 {
+		return
+	}
+
+	// Walk through all blocks and apply statement instrumentations
+	ast.Inspect(f, func(n ast.Node) bool {
+		if block, ok := n.(*ast.BlockStmt); ok {
+			ci.instrumentStatementsInBlock(block)
+		}
+		return true
+	})
+}
+
+// instrumentStatementsInBlock instruments individual statements within a block
+func (ci *CoverageInstrumenter) instrumentStatementsInBlock(block *ast.BlockStmt) {
+	if block == nil {
+		return
+	}
+
+	var newStatements []ast.Stmt
+
+	for _, stmt := range block.List {
+		// Check if this statement needs instrumentation
+		if markStmt, needsInstrumentation := ci.pendingInstrumentations[stmt]; needsInstrumentation {
+			// Add the mark statement before the original statement
+			newStatements = append(newStatements, markStmt)
+		}
+		// Add the original statement
+		newStatements = append(newStatements, stmt)
+	}
+
+	// Update the block with instrumented statements
+	block.List = newStatements
 }
 
 // InstrumentPackage instruments all non-test .gno files in a package for coverage tracking.
