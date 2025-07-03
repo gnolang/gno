@@ -8,7 +8,6 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/commondao"
 )
 
 const (
@@ -20,9 +19,7 @@ func displayJoiningStatus(group FriendGroup, adr std.Address) string {
 	var out string
 
 	if adr != "" {
-		memberSet := commondao.NewMemberSet(group.DAO.Members())
-
-		if memberSet.Has(adr) {
+		if group.DAO.Members().Has(adr) {
 			out += md.Paragraph("You already are part of this group")
 		} else if group.WaitList.Has(adr.String()) {
 			out += md.Paragraph("You are awaiting approval for this group")
