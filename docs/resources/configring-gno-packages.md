@@ -16,7 +16,7 @@ This file defines metadata for your Gno package and can include the following fi
 
 #### `private`
 
-Marks the package as private and **unimportable** by others. Additionally:
+Marks the package as private and **unimportable** by any other package. Additionally:
 - It can be **re-uploaded** - the new version fully overwrites the old one.
 - Memory, pointers, or types defined in this package **cannot be used or stored elsewhere**.
 - see example: good for home type packages, what else?
@@ -27,7 +27,8 @@ Specifies the **Gno language version**. Currently, only version `"0.9"` is suppo
 
 #### `pkgpath`  
 
-Defines the canonical **package path**. Must exactly match the path used in the `addpkg` transaction during deployment (must it right now?).
+Defines the canonical **package path**. Must exactly match the path used in the
+`addpkg` transaction during deployment (must it right now?).
 
 #### `replace`
 
