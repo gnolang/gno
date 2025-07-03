@@ -13,8 +13,8 @@ type HangoutInfo struct {
 // SetHangoutTimeAndPlace creates a hangout after validation from the dao
 // Set the new hangout into a dedicated AVL Tree
 func (g *FriendGroup) SetHangoutTimeAndPlace(date, time, place, desc string) error {
-	id := g.NextHangoutID.Next()
-	g.NextHangoutID = id
+	id := g.nextHangoutID.Next()
+	g.nextHangoutID = id
 
 	hangout := HangoutInfo{
 		Id:          id.String(),

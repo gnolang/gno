@@ -32,7 +32,7 @@ type AllGroups struct {
 
 // FriendGroup is a struct for created groups with their ID, Title, Owner and DAO
 type FriendGroup struct {
-	NextHangoutID seqid.ID
+	nextHangoutID seqid.ID
 	ID            string
 	Title         string
 	Owner         *ownable.Ownable
