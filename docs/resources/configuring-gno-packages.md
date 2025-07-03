@@ -62,9 +62,3 @@ gno = "0.9"
 [upload_metadata]
     uploader = "g1t43aega4j3t6szv0d3zt9uhpa5g6k7h8x4vvxe"
 ```
-
----
-
-## `gnowork.toml` (Coming Soon)
-
-A future configuration file for specifying build and workspace-level metadata. Stay tuned!
