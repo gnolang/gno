@@ -129,10 +129,16 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 type TypeCheckMode int
 
 const (
-	TCLatestStrict  TypeCheckMode = iota // require latest gno.mod gno version.
+	TCLatestStrict  TypeCheckMode = iota // require latest gnomod gno version, forbid drafts
+	TCGenesisStrict                      // require latest gnomod gno version, allow drafts
 	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
 	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
+
+// RequiresLatestGnoMod returns true if the type check mode requires latest gno.mod version
+func (m TypeCheckMode) RequiresLatestGnoMod() bool {
+	return m == TCLatestStrict || m == TCGenesisStrict
+}
 
 // TypeCheckMemPackage performs type validation and checking on the given
 // mpkg. To retrieve dependencies, it uses getter.
@@ -261,6 +267,19 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		// file with package name xxx_test.
 		pmode = ParseModeIntegration
 	}
+	// ensure import is not a draft package.
+	mod, err := ParseCheckGnoMod(mpkg)
+	if err != nil {
+		result.err = err
+	}
+	if gimp.tcmode == TCLatestStrict && mod != nil && mod.Draft {
+		// cannot import draft packages after genesis.
+		// NOTE: see comment below for ImportNotFoundError.
+		err = ImportDraftError{PkgPath: pkgPath}
+		result.err = err
+		result.pending = false
+		return nil, err
+	}
 	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode)
 	if errs != nil {
 		result.err = errs
@@ -336,7 +355,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, pmode ParseMo
 	if err != nil {
 		return nil, err
 	}
-	if gimp.tcmode == TCLatestStrict {
+	if gimp.tcmode.RequiresLatestGnoMod() {
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
 		}
@@ -607,10 +626,12 @@ type ImportError interface {
 }
 
 func (e ImportNotFoundError) assertImportError() {}
+func (e ImportDraftError) assertImportError()    {}
 func (e ImportCycleError) assertImportError()    {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
+	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportCycleError{}
 )
 
@@ -625,6 +646,20 @@ func (e ImportNotFoundError) GetLocation() string { return e.Location }
 func (e ImportNotFoundError) GetMsg() string { return fmt.Sprintf("unknown import path %q", e.PkgPath) }
 
 func (e ImportNotFoundError) Error() string { return importErrorString(e) }
+
+// ImportDraftError implements ImportError
+type ImportDraftError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportDraftError) GetLocation() string { return e.Location }
+
+func (e ImportDraftError) GetMsg() string {
+	return fmt.Sprintf("import path %q is a draft package and can only be imported at genesis", e.PkgPath)
+}
+
+func (e ImportDraftError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {
