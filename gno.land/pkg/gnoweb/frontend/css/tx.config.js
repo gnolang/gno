@@ -110,6 +110,8 @@ export default {
     "link-tx",
     "tooltip",
     "font-sans",
+    "lg:pt-10",
+    "pt-6",
   ],
   plugins: [],
 };
