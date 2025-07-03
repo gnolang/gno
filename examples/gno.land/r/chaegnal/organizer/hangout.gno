@@ -1,8 +1,12 @@
 package organizer
 
+import (
+	"gno.land/p/demo/seqid"
+)
+
 // HangoutInfo is a struct for the hangout set by each friend group
 type HangoutInfo struct {
-	Id          string
+	Id          seqid.ID
 	Date        string
 	Time        string
 	Place       string
@@ -16,7 +20,7 @@ func (g *FriendGroup) SetHangoutTimeAndPlace(date, time, place, desc string) err
 	id := g.nextHangoutID.Next()
 
 	hangout := HangoutInfo{
-		Id:          id.String(),
+		Id:          id,
 		Date:        date,
 		Time:        time,
 		Place:       place,

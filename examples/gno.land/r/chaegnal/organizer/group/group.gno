@@ -25,8 +25,8 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting rotree.IReadOn
 		adr := std.Address(indexStr)
 
 		table.Append([]string{adr.String(),
-			md.Link("Approve", txlink.Call("AcceptAwaitingMember", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | " +
-				md.Link("Reject", txlink.Call("RefuseAwaitingMember", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())),
+			md.Link("Approve", txlink.Call("AcceptAwaitingMember", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())) + " | " +
+				md.Link("Reject", txlink.Call("RefuseAwaitingMember", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())),
 		})
 		return false
 	})
@@ -53,23 +53,23 @@ func displayMembers(group organizer.FriendGroup, logged string) string {
 		switch {
 		case adr == group.Owner.Owner():
 			rank = "Owner"
-		case isAdmin(strconv.Itoa(group.ID), std.Address(adr)):
+		case isAdmin(group.ID.String(), std.Address(adr)):
 			rank = "Admin"
 		default:
 			rank = "Member"
 		}
 
 		if rank != "Owner" {
-			if isAdmin(strconv.Itoa(group.ID), std.Address(adr)) {
-				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
+			if isAdmin(group.ID.String(), std.Address(adr)) {
+				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())) + " | "
 			} else {
-				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())) + " | "
+				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())) + " | "
 			}
 		}
 
 		table.Append([]string{adr.String(), rank,
 			actionAdmin +
-				md.Link("Kick out", txlink.Call("RemoveMember", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", adr.String())),
+				md.Link("Kick out", txlink.Call("RemoveMember", "groupId", group.ID.String(), "logged", logged, "adr", adr.String())),
 		})
 
 		return false
@@ -86,7 +86,7 @@ func displayAdminBoard(group organizer.FriendGroup, logged string) string {
 	out += md.H2("Admin Board") + "\n"
 
 	out += md.Link("Create Proposal", txlink.Call("CreateProposals",
-		"groupId", strconv.Itoa(group.ID), "title", "Default Title",
+		"groupId", group.ID.String(), "title", "Default Title",
 		"desc", "Default Desc",
 		"callback", "Default Callback",
 		"callbackArgs", "Default Callback Arguments",
@@ -135,19 +135,19 @@ func displayActiveProposals(group organizer.FriendGroup, logged string) string {
 		proposalID := strconv.FormatUint(p.ID(), 10)
 
 		voteActions := md.Link("Yay", txlink.Call("VoteOnProposal",
-			"groupId", strconv.Itoa(group.ID),
+			"groupId", group.ID.String(),
 			"index", proposalID,
 			"vote", strconv.Itoa(organizer.VoteYay),
 			"logged", logged)) + " | " +
 			md.Link("Nay", txlink.Call("VoteOnProposal",
-				"groupId", strconv.Itoa(group.ID),
+				"groupId", group.ID.String(),
 				"index", proposalID,
 				"vote", strconv.Itoa(organizer.VoteNay),
 				"logged", logged))
 
-		if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
+		if isAdmin(group.ID.String(), std.Address(logged)) {
 			closeLink := md.Link("Check", txlink.Call("ExecuteExpiredProposals",
-				"groupId", strconv.Itoa(group.ID)))
+				"groupId", group.ID.String()))
 			voteActions += " | " + closeLink
 		}
 
@@ -229,7 +229,7 @@ func Render(url string) string {
 	out += md.Paragraph("Number of friends: "+strconv.Itoa(group.DAO.Members().Size())) + "\n"
 	out += md.HorizontalRule()
 
-	if isAdmin(strconv.Itoa(group.ID), std.Address(logged)) {
+	if isAdmin(group.ID.String(), std.Address(logged)) {
 		out += displayAdminBoard(group, logged)
 	}
 
@@ -248,8 +248,8 @@ func Render(url string) string {
 	out += md.Paragraph(md.Link("Go back", "/r/chaegnal/organizer"))
 
 	if group.Owner.Owner() == std.Address(logged) {
-		out += md.Paragraph(" | " + md.Link("Delete Group", txlink.Call("DeleteFriendGroup", "groupId", strconv.Itoa(group.ID), "logged", logged)))
-		out += md.Paragraph(" | " + md.Link("Give ownership", txlink.Call("SwitchOwner", "groupId", strconv.Itoa(group.ID), "logged", logged, "adr", "default")))
+		out += md.Paragraph(" | " + md.Link("Delete Group", txlink.Call("DeleteFriendGroup", "groupId", group.ID.String(), "logged", logged)))
+		out += md.Paragraph(" | " + md.Link("Give ownership", txlink.Call("SwitchOwner", "groupId", group.ID.String(), "logged", logged, "adr", "default")))
 	}
 
 	return out

@@ -2,7 +2,6 @@ package group
 
 import (
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/ownable"
 
@@ -18,7 +17,7 @@ func DeleteFriendGroup(cur realm, groupId, logged string) {
 		panic("only the owner can delete the group")
 	}
 
-	organizer.ListGroups.Groups.Remove(strconv.Itoa(group.ID))
+	organizer.ListGroups.Groups.Remove(group.ID.String())
 }
 
 // SwitchOwner enables giving out ownership of the group
@@ -36,5 +35,5 @@ func SwitchOwner(cur realm, groupId, logged string, adr std.Address) {
 	}
 
 	group.Owner = ownable.NewWithAddress(adr)
-	organizer.ListGroups.Groups.Set(strconv.Itoa(group.ID), group)
+	organizer.ListGroups.Groups.Set(group.ID.String(), group)
 }
