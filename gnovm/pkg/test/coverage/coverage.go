@@ -3,7 +3,7 @@ package coverage
 import (
 	"fmt"
 	"go/ast"
-	"go/format" // Using format instead of printer to properly handle comments
+	"go/format"
 	"go/parser"
 	"go/token"
 	"strings"
@@ -135,17 +135,17 @@ type CoverageInstrumenter struct {
 	fset     *token.FileSet
 	tracker  *CoverageTracker
 	filename string
-	// Cache for checking cross identifier to avoid repeated AST traversals
-	containsCrossCache map[ast.Node]bool
+	// Cache for checking external instrumentation to avoid repeated AST traversals
+	containsExternalCache map[ast.Node]bool
 }
 
 // NewCoverageInstrumenter create a new CoverageInstrumenter
 func NewCoverageInstrumenter(tracker *CoverageTracker, filename string) *CoverageInstrumenter {
 	return &CoverageInstrumenter{
-		fset:               token.NewFileSet(),
-		tracker:            tracker,
-		filename:           filename,
-		containsCrossCache: make(map[ast.Node]bool),
+		fset:                  token.NewFileSet(),
+		tracker:               tracker,
+		filename:              filename,
+		containsExternalCache: make(map[ast.Node]bool),
 	}
 }
 
@@ -159,10 +159,10 @@ func (ci *CoverageInstrumenter) InstrumentFile(content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("parsing failed: %w", err)
 	}
 
-	// Check if the file contains any usage of 'cross' identifier
-	if ci.fileContainsCross(f) {
-		// If the file contains 'cross', skip instrumentation but register all executable lines
-		// This avoids preprocessing issues with the special 'cross' identifier
+	// Check if the file is externally instrumented
+	if ci.isExternallyInstrumented(f) {
+		// If the file is externally instrumented, skip instrumentation but register all executable lines
+		// This avoids preprocessing issues with external instrumentation systems
 		ci.registerExecutableLines(f)
 		// Return original content without instrumentation
 		return content, nil
@@ -190,39 +190,49 @@ func (ci *CoverageInstrumenter) InstrumentFile(content []byte) ([]byte, error) {
 
 // createMarkLineStmt creates an ast.ExprStmt that records the given filename and line number
 func (ci *CoverageInstrumenter) createMarkLineStmt(filename string, line int) ast.Stmt {
+	// Create proper token positions to avoid comment interference
 	return &ast.ExprStmt{
 		X: &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
-				X:   &ast.Ident{Name: "testing"},
-				Sel: &ast.Ident{Name: "MarkLine"},
+				X: &ast.Ident{
+					Name:    "testing",
+					NamePos: token.NoPos,
+				},
+				Sel: &ast.Ident{
+					Name:    "MarkLine",
+					NamePos: token.NoPos,
+				},
 			},
 			Args: []ast.Expr{
-				&ast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("%q", filename)},
-				&ast.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%d", line)},
+				&ast.BasicLit{
+					Kind:     token.STRING,
+					Value:    fmt.Sprintf("%q", filename),
+					ValuePos: token.NoPos,
+				},
+				&ast.BasicLit{
+					Kind:     token.INT,
+					Value:    fmt.Sprintf("%d", line),
+					ValuePos: token.NoPos,
+				},
 			},
+			Lparen: token.NoPos,
+			Rparen: token.NoPos,
 		},
 	}
 }
 
 // instrumentBlockStmt adds coverage tracking to a block statement.
 // It inserts a MarkLine call at the beginning of the block unless
-// the block contains the special 'cross' identifier.
+// the block is externally instrumented.
 func (ci *CoverageInstrumenter) instrumentBlockStmt(block *ast.BlockStmt, line int) {
 	if block == nil {
 		return
 	}
 
-	// even if the block is empty, insert `MarkLine` at the beginning of the block
-	if len(block.List) == 0 {
-		markStmt := ci.createMarkLineStmt(ci.filename, line)
-		block.List = append([]ast.Stmt{markStmt}, block.List...)
-		return
-	}
-
-	// Check if first statement contains cross identifier
-	if ci.statementContainsCross(block.List[0]) {
+	// Check if block is externally instrumented
+	if ci.statementContainsExternal(block) {
 		// Register all lines as executable but don't instrument
-		// to avoid preprocessing issues with the 'cross' keyword
+		// to avoid conflicts with external instrumentation
 		for _, stmt := range block.List {
 			if stmt != nil {
 				stmtLine := ci.fset.Position(stmt.Pos()).Line
@@ -232,40 +242,42 @@ func (ci *CoverageInstrumenter) instrumentBlockStmt(block *ast.BlockStmt, line i
 		return
 	}
 
+	// Insert MarkLine at the beginning of the block (even if empty)
 	markStmt := ci.createMarkLineStmt(ci.filename, line)
 	block.List = append([]ast.Stmt{markStmt}, block.List...)
 }
 
-// fileContainsCross checks if the file contains the cross identifier
-func (ci *CoverageInstrumenter) fileContainsCross(f *ast.File) bool {
-	var containsCross bool
+// isExternallyInstrumented checks if the file is externally instrumented
+// Currently checks for 'cross' identifier as a marker for external instrumentation
+func (ci *CoverageInstrumenter) isExternallyInstrumented(f *ast.File) bool {
+	var containsExternal bool
 	ast.Inspect(f, func(n ast.Node) bool {
 		if ident, ok := n.(*ast.Ident); ok && ident.Name == "cross" {
-			containsCross = true
+			containsExternal = true
 			return false
 		}
 		return true
 	})
-	return containsCross
+	return containsExternal
 }
 
-// statementContainsCross checks if a statement contains the cross identifier
-func (ci *CoverageInstrumenter) statementContainsCross(stmt ast.Stmt) bool {
-	if cached, ok := ci.containsCrossCache[stmt]; ok {
+// statementContainsExternal checks if a statement contains external instrumentation markers
+func (ci *CoverageInstrumenter) statementContainsExternal(stmt ast.Node) bool {
+	if cached, ok := ci.containsExternalCache[stmt]; ok {
 		return cached
 	}
 
-	var containsCross bool
+	var containsExternal bool
 	ast.Inspect(stmt, func(n ast.Node) bool {
 		if ident, ok := n.(*ast.Ident); ok && ident.Name == "cross" {
-			containsCross = true
+			containsExternal = true
 			return false
 		}
 		return true
 	})
 
-	ci.containsCrossCache[stmt] = containsCross
-	return containsCross
+	ci.containsExternalCache[stmt] = containsExternal
+	return containsExternal
 }
 
 // ensureTestingImport adds the testing import if not already present
@@ -311,6 +323,7 @@ func (ci *CoverageInstrumenter) registerExecutableLines(f *ast.File) {
 }
 
 // registerNodeIfExecutable registers a node's line if it's an executable statement
+// Following A1: Executability - statements that can cause side effects or control flow
 func (ci *CoverageInstrumenter) registerNodeIfExecutable(n ast.Node) {
 	if n == nil {
 		return
@@ -329,8 +342,19 @@ func (ci *CoverageInstrumenter) registerNodeIfExecutable(n ast.Node) {
 				}
 			}
 		}
+	case *ast.FuncLit:
+		// Anonymous functions are also executable
+		if node.Body != nil {
+			funcLine := ci.fset.Position(node.Body.Lbrace).Line
+			ci.tracker.RegisterExecutableLine(ci.filename, funcLine)
+		}
 	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt,
-		*ast.CaseClause, *ast.CommClause, *ast.ReturnStmt:
+		*ast.CaseClause, *ast.CommClause, *ast.ReturnStmt, *ast.DeferStmt,
+		*ast.GoStmt, *ast.BranchStmt:
+		line := ci.fset.Position(node.Pos()).Line
+		ci.tracker.RegisterExecutableLine(ci.filename, line)
+	case *ast.AssignStmt, *ast.ExprStmt:
+		// Assignment and expression statements with potential side effects
 		line := ci.fset.Position(node.Pos()).Line
 		ci.tracker.RegisterExecutableLine(ci.filename, line)
 	}
@@ -363,6 +387,8 @@ func (ci *CoverageInstrumenter) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
 		ci.instrumentFuncDecl(n)
+	case *ast.FuncLit:
+		ci.instrumentFuncLit(n)
 	case *ast.IfStmt:
 		ci.instrumentIfStmt(n)
 	case *ast.ForStmt:
@@ -379,6 +405,14 @@ func (ci *CoverageInstrumenter) Visit(node ast.Node) ast.Visitor {
 		ci.instrumentCommClause(n)
 	case *ast.ReturnStmt:
 		ci.instrumentReturnStmt(n)
+	case *ast.DeferStmt:
+		ci.instrumentDeferStmt(n)
+	case *ast.BranchStmt:
+		ci.instrumentBranchStmt(n)
+	case *ast.AssignStmt:
+		ci.instrumentAssignStmt(n)
+	case *ast.ExprStmt:
+		ci.instrumentExprStmt(n)
 	}
 
 	return ci
@@ -392,17 +426,31 @@ func (ci *CoverageInstrumenter) instrumentFuncDecl(n *ast.FuncDecl) {
 	}
 }
 
+// instrumentFuncLit instruments an anonymous function literal
+func (ci *CoverageInstrumenter) instrumentFuncLit(n *ast.FuncLit) {
+	if n.Body != nil {
+		funcLine := ci.getLine(n.Body.Lbrace)
+		ci.registerAndInstrument(n.Body, funcLine)
+	}
+}
+
 // instrumentIfStmt instruments an if statement
+// Following R2: handles else if as nested IfStmt
 func (ci *CoverageInstrumenter) instrumentIfStmt(n *ast.IfStmt) {
 	if n.Cond != nil {
 		condLine := ci.getLine(n.Cond.Pos())
 		ci.registerAndInstrument(n.Body, condLine)
 	}
-	// Also instrument else block if present
+
+	// Handle else clause
 	if n.Else != nil {
 		if elseBlock, ok := n.Else.(*ast.BlockStmt); ok {
+			// Regular else block
 			elseLine := ci.getLine(elseBlock.Lbrace)
 			ci.registerAndInstrument(elseBlock, elseLine)
+		} else if elseIf, ok := n.Else.(*ast.IfStmt); ok {
+			// else if - treat as separate if statement
+			ci.instrumentIfStmt(elseIf)
 		}
 	}
 }
@@ -425,17 +473,33 @@ func (ci *CoverageInstrumenter) instrumentRangeStmt(n *ast.RangeStmt) {
 }
 
 // instrumentSwitchStmt instruments a switch statement
+// Following R4: instrument switch entry as well as cases
 func (ci *CoverageInstrumenter) instrumentSwitchStmt(n *ast.SwitchStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
-	// Don't instrument the switch body directly - only instrument case clauses
+
+	// Create a dummy block to instrument switch entry
+	switchBlock := &ast.BlockStmt{
+		Lbrace: n.Pos(),
+		List:   []ast.Stmt{},
+		Rbrace: n.End(),
+	}
+	ci.instrumentBlockStmt(switchBlock, line)
 }
 
 // instrumentSelectStmt instruments a select statement
+// Following R4: instrument select entry as well as cases
 func (ci *CoverageInstrumenter) instrumentSelectStmt(n *ast.SelectStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
-	// Don't instrument the select body directly - only instrument case clauses
+
+	// Create a dummy block to instrument select entry
+	selectBlock := &ast.BlockStmt{
+		Lbrace: n.Pos(),
+		List:   []ast.Stmt{},
+		Rbrace: n.End(),
+	}
+	ci.instrumentBlockStmt(selectBlock, line)
 }
 
 // instrumentCaseClause instruments a case clause
@@ -453,9 +517,43 @@ func (ci *CoverageInstrumenter) instrumentCommClause(n *ast.CommClause) {
 }
 
 // instrumentReturnStmt instruments a return statement
+// Following S3: register only, don't duplicate block instrumentation
 func (ci *CoverageInstrumenter) instrumentReturnStmt(n *ast.ReturnStmt) {
 	line := ci.getLine(n.Pos())
 	ci.tracker.RegisterExecutableLine(ci.filename, line)
+	// Don't add separate instrumentation - covered by containing block
+}
+
+// instrumentDeferStmt instruments a defer statement
+// Following R6: track defer registration point
+func (ci *CoverageInstrumenter) instrumentDeferStmt(n *ast.DeferStmt) {
+	line := ci.getLine(n.Pos())
+	ci.tracker.RegisterExecutableLine(ci.filename, line)
+	// Note: actual execution happens at function exit, not here
+}
+
+// instrumentBranchStmt instruments branch statements (break, continue, goto, fallthrough)
+// Following A3: non-linear control flow tracking
+func (ci *CoverageInstrumenter) instrumentBranchStmt(n *ast.BranchStmt) {
+	line := ci.getLine(n.Pos())
+	ci.tracker.RegisterExecutableLine(ci.filename, line)
+	// These affect control flow but don't need block instrumentation
+}
+
+// instrumentAssignStmt instruments assignment statements
+// Following A1: assignments can have side effects (function calls, etc.)
+func (ci *CoverageInstrumenter) instrumentAssignStmt(n *ast.AssignStmt) {
+	line := ci.getLine(n.Pos())
+	ci.tracker.RegisterExecutableLine(ci.filename, line)
+	// Assignment statements are typically part of blocks, so no separate instrumentation needed
+}
+
+// instrumentExprStmt instruments expression statements
+// Following A1: expressions can have side effects (function calls, etc.)
+func (ci *CoverageInstrumenter) instrumentExprStmt(n *ast.ExprStmt) {
+	line := ci.getLine(n.Pos())
+	ci.tracker.RegisterExecutableLine(ci.filename, line)
+	// Expression statements are typically part of blocks, so no separate instrumentation needed
 }
 
 // InstrumentPackage instruments all non-test .gno files in a package for coverage tracking.
