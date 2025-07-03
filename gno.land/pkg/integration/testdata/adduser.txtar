@@ -20,6 +20,10 @@ stdout 'TX HASH: '
 ! adduser test5
 stderr '"adduser" error: adduser must be used before starting node'
 
+-- bar/gnomod.toml --
+module = "bar"
+gno = "0.9"
+
 -- bar/bar.gno --
 package bar
 
@@ -30,8 +34,7 @@ func Render(path string) string {
 -- script/script.gno --
 package main
 import "gno.land/r/foobar/bar"
-func main() {
-	crossing()
 
+func main() {
 	println("main: ---", bar.Render(""), "---")
 }

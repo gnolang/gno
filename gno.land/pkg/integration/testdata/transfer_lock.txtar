@@ -40,14 +40,16 @@ stdout 'OK!'
 gnokey query vm/qrender --data 'gno.land/r/demo/echo:Hello!'
 stdout 'Hello!'
 
+-- gnomod.toml --
+module = "gno.land/r/demo/lock"
+
+gno = "0.9"
 -- bank.gno --
 package bank
 
 import "std"
 
-func Withdraw(denom string, amt int64) string{
-	crossing()
-
+func Withdraw(cur realm, denom string, amt int64) string{
   caller := std.OriginCaller()
   coin := std.Coins{{denom, amt}}
   banker := std.NewBanker(std.BankerTypeOriginSend)

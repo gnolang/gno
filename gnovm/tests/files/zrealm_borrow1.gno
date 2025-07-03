@@ -21,12 +21,10 @@ func (s *Struct) Get() int {
 }
 
 func (s *Struct) PrintRealms() {
-	cross(s.printRealms)()
+	s.printRealms(cross)
 }
 
-func (s *Struct) printRealms() {
-	crossing()
-
+func (s *Struct) printRealms(cur realm) {
 	fmt.Println(std.CurrentRealm())
 	fmt.Println(std.PreviousRealm())
 }
@@ -57,16 +55,12 @@ func init() {
 	s = &Struct{A: 100} // saved in borrow_test.
 }
 
-func main() {
-	crossing()
-
-	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
-
+func main(cur realm) {
 	p := &Passthrough{S: s}
 
-	cross(crossrealm.SetObject)(p) // saved in crossrealm.
+	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm_b.
+	p.Mutate() // receiver method borrows crossrealm.
 
 	println(p.Get())
 
