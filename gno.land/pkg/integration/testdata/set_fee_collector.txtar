@@ -16,7 +16,7 @@ gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid
 
 ## Submit a proposal to change fee_collector to collector1
 
-## pay the fee and submit a proposal to unlock the transfer.
+## pay the fee and submit a proposal to change the fee collector.
 gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector1.gno
 stdout '0'
 ## Vote change proposal with unrestricted account test1
@@ -39,7 +39,7 @@ stdout '1000100000ugnot'
 
 ## Submit a proposal to change fee_collector to collector2
 
-## pay the fee and submit a proposal to unlock the transfer.
+## pay the fee and submit a proposal to change the fee collector.
 gnokey maketx run  -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_collector2.gno
 stdout '1'
 ## Vote change proposal with unrestricted account test1
