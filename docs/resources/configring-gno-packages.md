@@ -14,7 +14,7 @@ used on-chain.
 
 This file defines metadata for your Gno package and can include the following fields:
 
-#### `private`
+#### `private` (coming soon)
 
 Marks the package as private and **unimportable** by any other package. Additionally:
 - It can be **re-uploaded** - the new version fully overwrites the old one.
@@ -33,7 +33,7 @@ Specifies the **Gno language version**. Currently, only version `"0.9"` is suppo
 Defines the canonical **package path**. Must exactly match the path used in the
 `addpkg` transaction during deployment (must it right now?).
 
-#### `replace`
+#### `replace` (coming soon)
 
 Used for **local development and testing**. When set, this field allows local 
 replacement of the package, but will cause `addpkg` to **fail on-chain**. Useful
