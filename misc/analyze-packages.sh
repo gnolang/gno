@@ -8,6 +8,11 @@
 DIR="${1:-examples/gno.land}"
 FILTER="${2:-}"
 
+# Temporary files for data collection
+TEMP_DATA=$(mktemp)
+TEMP_HEADERS=$(mktemp)
+trap "rm -f $TEMP_DATA $TEMP_HEADERS" EXIT
+
 # Function to count non-comment lines in non-test .gno files
 count_lines() {
     local dir="$1"
@@ -116,15 +121,13 @@ get_first_git_info() {
     echo "$info"
 }
 
-# Print markdown table header
+# Collect all data first
 echo "# Gno Packages Analysis"
 echo ""
 echo "Generated on: $(date)"
 echo ""
-echo "| Package | Lines | Dependents | README | Flags | First Author | First Date |"
-echo "|---------|-------|------------|--------|-------|--------------|------------|"
 
-# Find all directories with gnomod.toml
+# Find all directories with gnomod.toml and collect data
 find "$DIR" -name "gnomod.toml" -type f | sort | while read -r gnomod_path; do
     pkg_dir=$(dirname "$gnomod_path")
     
@@ -150,28 +153,94 @@ find "$DIR" -name "gnomod.toml" -type f | sort | while read -r gnomod_path; do
                 fi
             fi
             
-            # Count lines
+            # Collect all data
             line_count=$(count_lines "$pkg_dir")
-            
-            # Count dependents
             dependent_count=$(count_dependents "$pkg_path" "$DIR")
-            
-            # Check for README
             has_readme_val=$(has_readme "$pkg_dir")
-            
-            # Get flags
             flags=$(get_flags "$gnomod_path")
             flags="${flags:-none}"
-            
-            # Get first committer and date
             first_author=$(get_first_git_info "$pkg_dir" "author")
             first_date=$(get_first_git_info "$pkg_dir" "date")
             
-            # Output table row
-            echo "| $display_path | $line_count | $dependent_count | $has_readme_val | $flags | $first_author | $first_date |"
+            # Store data in temporary file
+            echo "$display_path|$line_count|$dependent_count|$has_readme_val|$flags|$first_author|$first_date" >> "$TEMP_DATA"
         fi
     fi
 done
+
+# Determine which columns to show
+show_dependents=false
+show_readme=false
+show_flags=false
+
+if [ -s "$TEMP_DATA" ]; then
+    # Check if any dependents > 0
+    while IFS='|' read -r pkg lines deps readme flags author date; do
+        if [ "$deps" -gt 0 ] 2>/dev/null; then
+            show_dependents=true
+            break
+        fi
+    done < "$TEMP_DATA"
+    
+    # Check if any README = yes
+    while IFS='|' read -r pkg lines deps readme flags author date; do
+        if [ "$readme" = "yes" ]; then
+            show_readme=true
+            break
+        fi
+    done < "$TEMP_DATA"
+    
+    # Check if any flags != none
+    while IFS='|' read -r pkg lines deps readme flags author date; do
+        if [ "$flags" != "none" ] && [ -n "$flags" ]; then
+            show_flags=true
+            break
+        fi
+    done < "$TEMP_DATA"
+fi
+
+# Build header and separator
+header="| Package | Lines"
+separator="|---------|-------"
+
+if [ "$show_dependents" = true ]; then
+    header="$header | Dependents"
+    separator="$separator |------------"
+fi
+
+if [ "$show_readme" = true ]; then
+    header="$header | README"
+    separator="$separator |--------"
+fi
+
+if [ "$show_flags" = true ]; then
+    header="$header | Flags"
+    separator="$separator |-------"
+fi
+
+header="$header | First Author | First Date |"
+separator="$separator |--------------|------------|"
+
+echo "$header"
+echo "$separator"
+
+# Output data rows
+if [ -s "$TEMP_DATA" ]; then
+    while IFS='|' read -r pkg lines deps readme flags author date; do
+        row="| $pkg | $lines"
+        
+        if [ "$show_dependents" = true ]; then
+            row="$row | $deps"
+        fi
+        
+        if [ "$show_readme" = true ]; then
+            row="$row | $readme"
+        fi
+        
+        row="$row | $flags | $author | $date |"
+        echo "$row"
+    done < "$TEMP_DATA"
+fi
 
 # Summary statistics
 echo ""

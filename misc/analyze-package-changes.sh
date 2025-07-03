@@ -10,7 +10,8 @@ EXAMPLES_DIR="examples"
 TEMP_BASE=$(mktemp)
 TEMP_CURRENT=$(mktemp)
 TEMP_RENAMES=$(mktemp)
-trap "rm -f $TEMP_BASE $TEMP_CURRENT $TEMP_RENAMES" EXIT
+TEMP_ALL_RENAMES=$(mktemp)
+trap "rm -f $TEMP_BASE $TEMP_CURRENT $TEMP_RENAMES $TEMP_ALL_RENAMES" EXIT
 
 echo "# Package Changes Analysis"
 echo ""
@@ -41,35 +42,44 @@ git diff --name-status --diff-filter=R "$BASE_BRANCH"..HEAD -- "$EXAMPLES_DIR" |
     fi
 done
 
-# Sort and deduplicate renames
+# Also detect renames by comparing package lists
+# Find packages that exist in base but not in current (potential old names)
+while read -r old_pkg; do
+    if ! grep -q "^$old_pkg$" "$TEMP_CURRENT"; then
+        # Check if any files from this package were moved to a new location
+        git diff --name-status "$BASE_BRANCH"..HEAD -- "$old_pkg" | grep "^R" | while read -r status old_file new_file; do
+            new_pkg=$(dirname "$new_file")
+            if [ "$old_pkg" != "$new_pkg" ]; then
+                echo "$old_pkg -> $new_pkg" >> "$TEMP_RENAMES"
+            fi
+        done
+    fi
+done < "$TEMP_BASE"
+
+# Sort and deduplicate renames, then create both directions
 if [ -s "$TEMP_RENAMES" ]; then
+    # First, collect unique renames
     sort -u "$TEMP_RENAMES" | while read -r rename; do
         old_pkg=$(echo "$rename" | cut -d' ' -f1)
         new_pkg=$(echo "$rename" | cut -d' ' -f3)
         
-        # Check if content was modified beyond just renaming
-        modified=""
-        
-        # Check if package has any modifications besides renames
-        # Look for any Modified (M) or Added (A) files in the new package location
-        if git diff --name-status "$BASE_BRANCH"..HEAD -- "$new_pkg" | grep -E "^[MA].*\.gno$" -q; then
-            modified=" (modified)"
-        else
-            # Also check if renamed files have content changes
-            git diff --name-status --diff-filter=R "$BASE_BRANCH"..HEAD | grep "\.gno$" | while read -r status old_file new_file; do
-                if [[ "$old_file" == "$old_pkg"/* ]] && [[ "$new_file" == "$new_pkg"/* ]]; then
-                    # Check if the renamed file has content changes
-                    if ! git diff "$BASE_BRANCH:$old_file" "HEAD:$new_file" --quiet 2>/dev/null; then
-                        return 0  # Signal that we found changes
-                    fi
-                fi
-            done
-            if [ $? -eq 0 ]; then
-                modified=" (modified)"
-            fi
-        fi
-        
-        echo "- \`$old_pkg\` → \`$new_pkg\`$modified"
+        # Add both directions
+        echo "$old_pkg → $new_pkg" >> "$TEMP_ALL_RENAMES"
+        echo "$new_pkg ← $old_pkg" >> "$TEMP_ALL_RENAMES"
+    done
+    
+    # Output "moved from" section
+    echo "### Moved From"
+    echo ""
+    grep " → " "$TEMP_ALL_RENAMES" | sort | while read -r rename; do
+        echo "- \`$rename\`"
+    done
+    
+    echo ""
+    echo "### Moved To"
+    echo ""
+    grep " ← " "$TEMP_ALL_RENAMES" | sort | while read -r rename; do
+        echo "- \`$rename\`"
     done
 else
     echo "*No packages renamed*"
