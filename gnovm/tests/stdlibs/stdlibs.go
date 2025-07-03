@@ -16,3 +16,12 @@ func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 	}
 	return stdlibs.NativeResolver(pkgPath, name)
 }
+
+func HasNativePkg(pkgPath string) bool {
+	for _, nf := range nativeFuncs {
+		if nf.gnoPkg == pkgPath {
+			return true
+		}
+	}
+	return stdlibs.HasNativePkg(pkgPath)
+}
