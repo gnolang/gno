@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 )
 
@@ -13,7 +14,7 @@ func Test_CreateFriendGroup(t *testing.T) {
 
 	uassert.NotAborts(t, func() { CreateFriendGroup(cross, "Test") })
 
-	raw, found := ListGroups.Groups.Get("1")
+	raw, found := ListGroups.Groups.Get(seqid.ID(1).String())
 	if !found {
 		t.Fatalf("Group was not created")
 	}
