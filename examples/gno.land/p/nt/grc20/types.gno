@@ -5,7 +5,6 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/exts"
 )
 
 // Teller interface defines the methods that a GRC20 token must implement. It
@@ -15,7 +14,15 @@ import (
 // The Teller interface is designed to ensure that any token adhering to this
 // standard provides a consistent API for interacting with fungible tokens.
 type Teller interface {
-	exts.TokenMetadata
+	// Returns the name of the token.
+	GetName() string
+
+	// Returns the symbol of the token, usually a shorter version of the
+	// name.
+	GetSymbol() string
+
+	// Returns the decimals places of the token.
+	GetDecimals() int
 
 	// Returns the amount of tokens in existence.
 	TotalSupply() int64
