@@ -32,8 +32,8 @@ type AllGroups struct {
 
 // FriendGroup is a struct for created groups with their ID, Title, Owner and DAO
 type FriendGroup struct {
-	NextHangoutID seqid.ID
-	ID            string
+	nextHangoutID seqid.ID
+	ID            seqid.ID
 	Title         string
 	Owner         *ownable.Ownable
 	DAO           *commondao.CommonDAO
@@ -52,10 +52,9 @@ func CreateFriendGroup(cur realm, title string) {
 	caller := std.PreviousRealm().Address()
 
 	id := ListGroups.NextGroupId.Next()
-	ListGroups.NextGroupId = id
 
 	newGroup := FriendGroup{
-		ID:    id.String(),
+		ID:    id,
 		Title: title,
 		Owner: ownable.NewWithAddress(caller),
 		DAO: commondao.New(
@@ -67,7 +66,6 @@ func CreateFriendGroup(cur realm, title string) {
 		Hangout:  avl.NewTree(),
 	}
 
-	newGroup.DAO.Members().Add(caller)
 	newGroup.Rank.Set(caller.String(), AdminRank)
 
 	ListGroups.Groups.Set(id.String(), newGroup)
@@ -78,15 +76,14 @@ func CreateFriendGroup(cur realm, title string) {
 func AskJoinFriendGroup(cur realm, groupId int) {
 	caller := std.PreviousRealm().Address()
 
-	raw, exists := ListGroups.Groups.Get(strconv.Itoa(groupId))
+	raw, exists := ListGroups.Groups.Get(seqid.ID(groupId).String())
 	if !exists {
 		panic("group does not exist")
 	}
 
 	group := raw.(FriendGroup)
-	memberSet := commondao.NewMemberSet(group.DAO.Members())
 
-	if memberSet.Has(caller) {
+	if group.DAO.Members().Has(caller) {
 		panic("you are already part of this friend group")
 	}
 
@@ -95,7 +92,7 @@ func AskJoinFriendGroup(cur realm, groupId int) {
 	}
 
 	group.WaitList.Set(caller.String(), true)
-	ListGroups.Groups.Set(strconv.Itoa(groupId), group)
+	ListGroups.Groups.Set(seqid.ID(groupId).String(), group)
 }
 
 // LeaveGroup is a wrapper to leave a group and DAO
@@ -130,7 +127,7 @@ func GetGroupFromId(groupId string) FriendGroup {
 		panic("invalid id")
 	}
 
-	raw, found := ListGroups.Groups.Get(strconv.Itoa(convertedId))
+	raw, found := ListGroups.Groups.Get(seqid.ID(convertedId).String())
 	if !found {
 		panic("could not find group")
 	}

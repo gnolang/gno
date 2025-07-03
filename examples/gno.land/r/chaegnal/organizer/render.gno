@@ -8,7 +8,6 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/commondao"
 )
 
 const (
@@ -20,14 +19,12 @@ func displayJoiningStatus(group FriendGroup, adr std.Address) string {
 	var out string
 
 	if adr != "" {
-		memberSet := commondao.NewMemberSet(group.DAO.Members())
-
-		if memberSet.Has(adr) {
+		if group.DAO.Members().Has(adr) {
 			out += md.Paragraph("You already are part of this group")
 		} else if group.WaitList.Has(adr.String()) {
 			out += md.Paragraph("You are awaiting approval for this group")
 		} else {
-			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", "groupId", group.ID)) + "\n\n"
+			out += md.Link("Join Group", txlink.Call("AskJoinFriendGroup", "groupId", group.ID.String())) + "\n\n"
 		}
 	}
 
@@ -76,10 +73,10 @@ func displayGroupInfo(group FriendGroup, table *mdtable.Table, hasJoined bool, a
 	var view string
 
 	if hasJoined {
-		view = md.Link("View", "/r/chaegnal/organizer/group?groupId="+group.ID+"&address="+adr.String())
+		view = md.Link("View", "/r/chaegnal/organizer/group?groupId="+group.ID.String()+"&address="+adr.String())
 
 		if adr != group.Owner.Owner() {
-			view += " | " + md.Link("Leave", txlink.Call("LeaveGroup", "groupId", group.ID))
+			view += " | " + md.Link("Leave", txlink.Call("LeaveGroup", "groupId", group.ID.String()))
 		}
 	} else {
 		view = "You cannot view group yet"
