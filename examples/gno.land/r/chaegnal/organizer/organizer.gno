@@ -66,7 +66,6 @@ func CreateFriendGroup(cur realm, title string) {
 		Hangout:  avl.NewTree(),
 	}
 
-	newGroup.DAO.Members().Add(caller)
 	newGroup.Rank.Set(caller.String(), AdminRank)
 
 	ListGroups.Groups.Set(id.String(), newGroup)
