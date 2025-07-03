@@ -38,7 +38,7 @@
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/gno-stdlibs",
-          "",
+          "resources/configring-gno-packages",
           "resources/gno-interrealm",
           "resources/gno-memory-model",
           "resources/glossary",
