@@ -378,7 +378,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		tcmode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -640,7 +640,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	tcmode := gno.TCLatestRelaxed
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}

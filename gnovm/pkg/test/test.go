@@ -344,7 +344,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 // Runs *_test.go tests.
 // Not the same as pkg/test/filetest runFiletests()
-// whcih runs *_filetest.go tests.
+// which runs *_filetest.go tests.
 func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,

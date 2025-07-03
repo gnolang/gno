@@ -285,12 +285,6 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
-	pmode := ParseModeProduction // don't parse test files for imports...
-	if gimp.pkgPath == pkgPath {
-		// ...unless importing self from a *_test.gno
-		// file with package name xxx_test.
-		pmode = ParseModeIntegration
-	}
 	// ensure import is not a draft package.
 	mod, err := ParseCheckGnoMod(mpkg)
 	if err != nil {
@@ -304,7 +298,8 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
-	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode)
+	wtests := gimp.testing && gimp.pkgPath == pkgPath
+	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
 	if errs != nil {
 		result.err = errs
 		result.pending = false

@@ -146,7 +146,7 @@ var reservedNames = map[Name]struct{}{
 var ( // gno2: invar
 	// These are extra special reserved keywords that cannot be used in gno code.
 	// This set may be reduced in the future.
-	reservedNames2 = []string{"go", "gno", // XXX merge these.
+	_ = []string{"go", "gno", // XXX merge these. reservedNames2
 		"invar",                                             // e.g. invar x []*Foo{}; cannot replace, but can modify elements.
 		"undefined", "typed", "untyped", "typednil", "null", // types
 		"across",     // related to cross
