@@ -6,6 +6,7 @@ import (
 	"std"
 
 	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/demo/tests/crossrealm_b"
 )
 
 type Struct struct {
@@ -51,18 +52,15 @@ func (p *Passthrough) printRealm() {
 
 var s *Struct
 
-func init() {
-	s = &Struct{A: 100} // saved in borrow_test.
-}
-
 func main(cur realm) {
-	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
+	s = &Struct{A: 100}              // saved in borrow_test.
+	crossrealm_b.SetObject(cross, s) // saved in crossrealm_b
 
 	p := &Passthrough{S: s}
 
 	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm_b.
+	p.Mutate() // receiver method borrows crossrealm, then crossrealm_b, but does not impact prev, current realm.
 
 	println(p.Get())
 

@@ -56,13 +56,11 @@ func init() {
 }
 
 func main(cur realm) {
-	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
-
 	p := &Passthrough{S: s}
 
 	crossrealm.SetObject(cross, p) // saved in crossrealm.
 
-	p.Mutate() // receiver method borrows crossrealm_b.
+	p.Mutate() // receiver method borrows crossrealm.
 
 	println(p.Get())
 

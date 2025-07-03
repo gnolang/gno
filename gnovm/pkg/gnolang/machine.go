@@ -2030,6 +2030,35 @@ func (m *Machine) PopFrame() Frame {
 	return f
 }
 
+// jump to target frame, and
+// set machine accordingly.
+func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
+	if depthFrames >= len(m.Frames) {
+		panic("should not happen, depthFrames exeeds total frames")
+	}
+	// pop frames if with depth not zero
+	if depthFrames != 0 {
+		// the last popped frame
+		fr := m.Frames[len(m.Frames)-depthFrames]
+		// pop frames
+		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
+		// reset
+		m.NumOps = fr.NumOps
+		m.NumValues = fr.NumValues
+		m.Exprs = m.Exprs[:fr.NumExprs]
+		m.Stmts = m.Stmts[:fr.NumStmts]
+		m.Blocks = m.Blocks[:fr.NumBlocks]
+		// pop stmts
+		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
+	}
+
+	if depthBlocks >= len(m.Blocks) {
+		panic("should not happen, depthBlocks exeeds total blocks")
+	}
+	// pop blocks
+	m.Blocks = m.Blocks[:len(m.Blocks)-depthBlocks]
+}
+
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
 	m.NumOps = fr.NumOps

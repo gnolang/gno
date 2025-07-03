@@ -254,8 +254,8 @@ func fixDir(cmd *fixCmd, cio commands.IO, dirs []string, testbs stypes.CommitSto
 			hasError = true
 			return commands.ExitCodeError(1)
 		}
-		if mod.Draft {
-			cio.ErrPrintfln("%s: module is draft, skipping fix", dir)
+		if mod.Ignore {
+			cio.ErrPrintfln("%s: module is ignore, skipping fix", dir)
 			continue
 		}
 

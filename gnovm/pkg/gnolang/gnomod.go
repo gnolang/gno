@@ -138,7 +138,7 @@ func ReadPkgListFromDir(dir string, mptype MemPackageType) (gnomod.PkgList, erro
 			pkgs = append(pkgs, gnomod.Pkg{
 				Dir:     path,
 				Name:    mod.Module,
-				Draft:   mod.Draft,
+				Ignore:  mod.Ignore,
 				Imports: imports,
 			})
 		}

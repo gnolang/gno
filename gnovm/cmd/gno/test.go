@@ -274,10 +274,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if mod == nil || !mod.Draft {
-				// Lint/typecheck/format.
-				// (gno.mod will be read again).
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, opts.TestStore, gno.TCLatestRelaxed)
+			if mod == nil || !mod.Ignore {
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
+					ParseMode: gno.ParseModeAll,
+					Mode:      gno.TCLatestRelaxed,
+					Cache:     tccache,
+				})
 				if errs != nil {
 					didError = true
 					// already printed in lintTypeCheck.
@@ -285,7 +287,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 					return
 				}
 			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
 			}
 			///////////////////////////////////
 			// Run the tests found in the mpkg.

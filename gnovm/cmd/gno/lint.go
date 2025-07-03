@@ -214,7 +214,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 
-			if !mod.Draft {
+			if !mod.Ignore {
 				tcmode := gno.TCLatestStrict
 				if cmd.autoGnomod {
 					tcmode = gno.TCLatestRelaxed
@@ -226,7 +226,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					return
 				}
 			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", dir)
+				io.ErrPrintfln("%s: module is ignore, skipping type check", dir)
 			}
 
 			// Construct machine for testing.

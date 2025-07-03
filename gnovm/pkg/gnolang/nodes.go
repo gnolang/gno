@@ -854,10 +854,11 @@ type BlockStmt struct {
 
 type BranchStmt struct {
 	Attributes
-	Op        Word  // keyword word (BREAK, CONTINUE, GOTO, FALLTHROUGH)
-	Label     Name  // label name; or empty
-	Depth     uint8 // blocks to pop
-	BodyIndex int   // index of statement of body
+	Op         Word  // keyword word (BREAK, CONTINUE, GOTO, FALLTHROUGH)
+	Label      Name  // label name; or empty
+	BlockDepth uint8 // blocks to pop
+	FrameDepth uint8 // frames to pop
+	BodyIndex  int   // index of statement of body
 }
 
 type DeclStmt struct {
