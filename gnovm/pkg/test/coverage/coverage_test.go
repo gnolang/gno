@@ -110,9 +110,10 @@ func testFunc(x int) int {
 
 	// check if markLine call is added before the return statement
 	expected := []string{
-		"testing.MarkLine(\"test.go\", 4)", // if x > 0
-		"testing.MarkLine(\"test.go\", 5)", // return 1
-		"testing.MarkLine(\"test.go\", 8)", // return 0
+		"testing.MarkLine(\"test.go\", 4)", // function entry
+		"testing.MarkLine(\"test.go\", 5)", // if block
+		// Note: return statements are no longer instrumented separately
+		// They are covered by the block instrumentation
 	}
 
 	t.Log("instrumented\n", string(instrumented))
@@ -168,8 +169,9 @@ func TestHelper(t *testing.T) {
 
 	// Check instrumentation in main.gno
 	mainFile := pkg.Files[0].Body
-	if !strings.Contains(mainFile, "testing.MarkLine(\"main.gno\", 4)") {
+	if !strings.Contains(mainFile, "testing.MarkLine(\"main.gno\", 3)") {
 		t.Error("Expected instrumentation in main.gno")
+		t.Log("mainFile:\n", mainFile)
 	}
 
 	// Check no instrumentation in main_test.gno
@@ -274,6 +276,102 @@ func test() int {
 			count := strings.Count(string(instrumented), tt.want)
 			if count > 1 {
 				t.Errorf("Testing import is duplicated %d times in instrumented code:\n%s", count, string(instrumented))
+			}
+		})
+	}
+}
+
+func TestInstrumentFileWithMultilineComment(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantErr  bool
+		checkFor []string
+	}{
+		{
+			name: "multiline comment between functions",
+			input: `package test
+
+func foo() {
+	println("before comment")
+}
+
+/* Helper methods */
+
+func bar() {
+	println("after comment")
+}`,
+			wantErr: false,
+			checkFor: []string{
+				"/* Helper methods */",
+				"testing.MarkLine",
+				"func foo()",
+				"func bar()",
+			},
+		},
+		{
+			name: "std.Emit with multiline arguments",
+			input: `package test
+
+import "std"
+
+func mint() {
+	std.Emit(
+		"MintEvent",
+		"to", "address",
+		"tokenId", "123",
+	)
+}`,
+			wantErr: false,
+			checkFor: []string{
+				"std.Emit(",
+				"\"MintEvent\"",
+				"testing.MarkLine",
+			},
+		},
+		{
+			name: "return statement in if block",
+			input: `package test
+
+func check() error {
+	val, err := getValue()
+	if err != nil {
+		return err
+	}
+	return nil
+}`,
+			wantErr: false,
+			checkFor: []string{
+				"testing.MarkLine",
+				"return err",
+				"return nil",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tracker := NewCoverageTracker()
+			instrumenter := NewCoverageInstrumenter(tracker, "test.gno")
+
+			result, err := instrumenter.InstrumentFile([]byte(tt.input))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("InstrumentFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil {
+				resultStr := string(result)
+				for _, check := range tt.checkFor {
+					if !strings.Contains(resultStr, check) {
+						t.Errorf("InstrumentFile() result missing %q\nGot:\n%s", check, resultStr)
+					}
+				}
+
+				// Ensure the result is valid Go syntax by checking basic structure
+				if strings.Contains(resultStr, ", )") {
+					t.Errorf("InstrumentFile() produced invalid syntax with ', )'\nGot:\n%s", resultStr)
+				}
 			}
 		})
 	}

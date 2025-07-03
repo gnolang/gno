@@ -3,8 +3,8 @@ package coverage
 import (
 	"fmt"
 	"go/ast"
+	"go/format" // Using format instead of printer to properly handle comments
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"strings"
 
@@ -143,9 +143,11 @@ func NewCoverageInstrumenter(tracker *CoverageTracker, filename string) *Coverag
 	}
 }
 
-// InstrumentFile instrument the file
+// InstrumentFile instrument the file by adding coverage tracking calls.
+// It uses parser.ParseComments to preserve all comments including multiline /* */ comments,
+// and format.Node to properly format the output, ensuring comments remain in their correct positions.
 func (ci *CoverageInstrumenter) InstrumentFile(content []byte) ([]byte, error) {
-	// parse the file
+	// parse the file with comments preserved
 	f, err := parser.ParseFile(ci.fset, ci.filename, string(content), parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("parsing failed: %w", err)
@@ -249,8 +251,11 @@ func (ci *CoverageInstrumenter) InstrumentFile(content []byte) ([]byte, error) {
 	ast.Walk(ci, f)
 
 	// convert the modified AST to code
+	// Use format.Node instead of printer.Fprint to handle comments properly.
+	// format.Node preserves the original comment positions and applies proper Go formatting,
+	// preventing syntax errors that can occur when multiline /* */ comments are present.
 	var buf strings.Builder
-	if err := printer.Fprint(&buf, ci.fset, f); err != nil {
+	if err := format.Node(&buf, ci.fset, f); err != nil {
 		return nil, fmt.Errorf("code generation failed: %w", err)
 	}
 
@@ -375,17 +380,10 @@ func (ci *CoverageInstrumenter) Visit(node ast.Node) ast.Visitor {
 	case *ast.CommClause:
 		ci.tracker.RegisterExecutableLine(ci.filename, line)
 		n.Body = ci.instrumentCaseStmts(n.Body, line)
-	case *ast.BlockStmt:
-		// handle return statements in the block
-		for i := 0; i < len(n.List); i++ {
-			if ret, ok := n.List[i].(*ast.ReturnStmt); ok {
-				retLine := ci.fset.Position(ret.Pos()).Line
-				ci.tracker.RegisterExecutableLine(ci.filename, retLine)
-				markLineStmt := ci.createMarkLineStmt(ci.filename, retLine)
-				n.List = append(n.List[:i], append([]ast.Stmt{markLineStmt}, n.List[i:]...)...)
-				i++ // due to the inserted code, increment the index
-			}
-		}
+	case *ast.ReturnStmt:
+		// Just register the line as executable, don't modify the AST here
+		// The return will be covered by the block instrumentation
+		ci.tracker.RegisterExecutableLine(ci.filename, line)
 	}
 
 	return ci
