@@ -199,8 +199,9 @@ func TestDirectoryView(t *testing.T) {
 	files := []string{"file1.gno", "file2.gno"}
 	fileCounter := 2
 	linkType := DirLinkTypeSource
+	mode := ViewModePackage
 
-	view := DirectoryView(pkgPath, files, fileCounter, linkType)
+	view := DirectoryView(pkgPath, files, fileCounter, linkType, mode)
 
 	assert.NotNil(t, view, "expected view to be non-nil")
 
