@@ -82,9 +82,8 @@ func AskJoinFriendGroup(cur realm, groupId int) {
 	}
 
 	group := raw.(FriendGroup)
-	memberSet := commondao.NewMemberSet(group.DAO.Members())
 
-	if memberSet.Has(caller) {
+	if group.DAO.Members().Has(caller) {
 		panic("you are already part of this friend group")
 	}
 
