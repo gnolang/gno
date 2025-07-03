@@ -129,15 +129,15 @@ func (gw gnoBuiltinsGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage
 type TypeCheckMode int
 
 const (
-	TCLatestStrict          TypeCheckMode = iota // require latest gno.mod gno version.
-	TCGLatestForbidDraftImp                      // require latest gno.mod gno version, but forbid import draft packages too
-	TCLatestRelaxed                              // generate latest gno.mod if missing; for testing
-	TCGno0p0                                     // when gno fix'ing from gno 0.0.
+	TCLatestStrict  TypeCheckMode = iota // require latest gnomod gno version, forbid drafts
+	TCGenesisStrict                      // require latest gnomod gno version, allow drafts
+	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
+	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
 
 // RequiresLatestGnoMod returns true if the type check mode requires latest gno.mod version
 func (m TypeCheckMode) RequiresLatestGnoMod() bool {
-	return m == TCLatestStrict || m == TCGLatestForbidDraftImp
+	return m == TCLatestStrict || m == TCGenesisStrict
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -261,8 +261,23 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		result.pending = false
 		return nil, err
 	}
+	pmode := ParseModeProduction // don't parse test files for imports...
+	if gimp.pkgPath == pkgPath {
+		// ...unless importing self from a *_test.gno
+		// file with package name xxx_test.
+		pmode = ParseModeIntegration
+	}
+	// ensure import is not a draft package.
 	mod, err := ParseCheckGnoMod(mpkg)
 	if err != nil {
+		result.err = err
+	}
+	if gimp.tcmode == TCLatestStrict && mod != nil && mod.Draft {
+		// cannot import draft packages after genesis.
+		// NOTE: see comment below for ImportNotFoundError.
+		err = ImportDraftError{PkgPath: pkgPath}
+		result.err = err
+		result.pending = false
 		return nil, err
 	}
 	if mod != nil && mod.Private {
@@ -272,21 +287,6 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (*typ
 		result.err = err
 		result.pending = false
 		return nil, err
-	}
-	// ensure import is not a draft package.
-	if gimp.tcmode == TCGLatestForbidDraftImp && mod != nil && mod.Draft {
-		// cannot import draft packages after genesis.
-		// NOTE: see comment below for ImportNotFoundError.
-		err = ImportDraftError{PkgPath: pkgPath}
-		result.err = err
-		result.pending = false
-		return nil, err
-	}
-	pmode := ParseModeProduction // don't parse test files for imports...
-	if gimp.pkgPath == pkgPath {
-		// ...unless importing self from a *_test.gno
-		// file with package name xxx_test.
-		pmode = ParseModeIntegration
 	}
 	pkg, errs := gimp.typeCheckMemPackage(mpkg, pmode)
 	if errs != nil {
