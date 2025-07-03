@@ -36,7 +36,7 @@ func init() {
 }
 
 // ShowCoverage displays coverage visualization for files matching the pattern
-func ShowCoverage(tracker *CoverageTracker, pattern string, rootDir string) error {
+func ShowCoverage(tracker *Tracker, pattern string, rootDir string) error {
 	coverageData := tracker.GetCoverageData()
 
 	// Convert glob pattern to regex

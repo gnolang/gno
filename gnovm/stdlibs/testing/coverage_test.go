@@ -8,7 +8,7 @@ import (
 )
 
 func TestMarkLine(t *testing.T) {
-	coverageTracker = coverage.NewCoverageTracker()
+	coverageTracker = coverage.NewTracker()
 
 	// Test marking a line
 	X_markLine("test.gno", 42)

@@ -266,7 +266,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 			// Use full path for coverage tracking
 			fullPath := filepath.Join(instrumentedPkg.Path, file.Name)
-			instrumenter := coverage.NewCoverageInstrumenter(coverageTracker, fullPath)
+			instrumenter := coverage.NewInstrumentationEngine(coverageTracker, fullPath)
 			instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
 			if err != nil {
 				return fmt.Errorf("failed to instrument file %s: %w", file.Name, err)
@@ -384,7 +384,7 @@ func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,
 	gs gno.TransactionStore,
-	_ *coverage.CoverageTracker, // unused but kept for future use
+	_ *coverage.Tracker, // unused but kept for future use
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -671,6 +671,6 @@ func fmtDuration(d time.Duration) string {
 }
 
 // GetCoverageTracker returns the global coverage tracker
-func GetCoverageTracker() *coverage.CoverageTracker {
+func GetCoverageTracker() *coverage.Tracker {
 	return coverage.GetGlobalTracker()
 }

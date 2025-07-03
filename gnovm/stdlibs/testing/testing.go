@@ -8,10 +8,10 @@ import (
 )
 
 // coverageTracker is the global coverage tracker
-var coverageTracker *coverage.CoverageTracker
+var coverageTracker *coverage.Tracker
 
 func init() {
-	coverageTracker = coverage.NewCoverageTracker()
+	coverageTracker = coverage.NewTracker()
 }
 
 func X_unixNano() int64 {
@@ -34,7 +34,7 @@ func X_markLine(filename string, line int) {
 
 // X_instrumentCode instruments the code for coverage
 func X_instrumentCode(code string, filename string) string {
-	instrumenter := coverage.NewCoverageInstrumenter(coverageTracker, filename)
+	instrumenter := coverage.NewInstrumentationEngine(coverageTracker, filename)
 	instrumented, err := instrumenter.InstrumentFile([]byte(code))
 	if err != nil {
 		log.Printf("Failed to instrument code: %v\n", err)

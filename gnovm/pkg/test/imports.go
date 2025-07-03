@@ -43,7 +43,7 @@ type StoreOptions struct {
 	Coverage bool
 
 	// CoverageTracker is the global coverage tracker to use
-	CoverageTracker *coverage.CoverageTracker
+	CoverageTracker *coverage.Tracker
 
 	// TestedPackagePath is the path of the package being tested (for coverage)
 	// This is used to prevent loading the package from disk when it's already instrumented

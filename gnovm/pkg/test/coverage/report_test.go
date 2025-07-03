@@ -10,7 +10,7 @@ import (
 )
 
 func TestReport_GenerateReport(t *testing.T) {
-	tracker := NewCoverageTracker()
+	tracker := NewTracker()
 
 	// Setup coverage data
 	tracker.RegisterExecutableLine("test.gno", 10)
@@ -50,14 +50,14 @@ func TestReport_GenerateReport(t *testing.T) {
 }
 
 func TestReport_PrintReport(t *testing.T) {
-	tracker := NewCoverageTracker()
+	tracker := NewTracker()
 	// Setup coverage data
 	tracker.RegisterExecutableLine("test.gno", 10)
 	tracker.RegisterExecutableLine("test.gno", 15)
 	tracker.MarkLine("test.gno", 10)
 	// Capture output
 	var buf bytes.Buffer
-	err := PrintReport(tracker, &buf)
+	err := Print(tracker, &buf)
 	if err != nil {
 		t.Fatalf("Failed to print report: %v", err)
 	}

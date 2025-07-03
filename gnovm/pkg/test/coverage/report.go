@@ -23,7 +23,7 @@ type FileCoverage struct {
 }
 
 // GenerateReport generate the coverage report
-func GenerateReport(tracker *CoverageTracker, outputFile string) error {
+func GenerateReport(tracker *Tracker, outputFile string) error {
 	report := CoverageReport{
 		Files: make(map[string]FileCoverage),
 	}
@@ -57,8 +57,8 @@ func GenerateReport(tracker *CoverageTracker, outputFile string) error {
 	return nil
 }
 
-// PrintReport print the coverage report in a human-readable format
-func PrintReport(tracker *CoverageTracker, w io.Writer) error {
+// Print print the coverage report in a human-readable format
+func Print(tracker *Tracker, w io.Writer) error {
 	// sort the filenames
 	filenames := make([]string, 0, len(tracker.data))
 	for filename := range tracker.data {
