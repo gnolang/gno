@@ -19,12 +19,17 @@
           {{ end }}"
     >
       <a
-        class="{{ if eq $index 0 }}
-              pointer-events-none
-            {{ else }}
-              hover:bg-green-600
-            {{ end }} border border-transparent hover:text-light bg-light inline-block rounded-sm p-0.5 min-w-4 text-center"
-        href="{{ $part.URL }}"
+        class="
+        {{ if eq $index 0 }}
+          {{ if not (or (eq $part.Name "r") (eq $part.Name "p")) }}
+            pointer-events-none
+          {{ else }}
+            hover:bg-green-600
+          {{ end }}
+        {{ else }}
+          hover:bg-green-600
+        {{ end }} border border-transparent hover:text-light bg-light inline-block rounded-sm p-0.5 min-w-4 text-center"
+        href="{{ $part.URL }}{{ if eq $index 0 }}/{{ end }}"
       >
         {{ $part.Name }}
       </a>
