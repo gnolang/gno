@@ -230,14 +230,33 @@ if [ -s "$TEMP_DATA" ]; then
         row="| $pkg | $lines"
         
         if [ "$show_dependents" = true ]; then
-            row="$row | $deps"
+            # Hide default value (0)
+            if [ "$deps" = "0" ]; then
+                row="$row | "
+            else
+                row="$row | $deps"
+            fi
         fi
         
         if [ "$show_readme" = true ]; then
-            row="$row | $readme"
+            # Hide default value (no)
+            if [ "$readme" = "no" ]; then
+                row="$row | "
+            else
+                row="$row | $readme"
+            fi
         fi
         
-        row="$row | $flags | $author | $date |"
+        if [ "$show_flags" = true ]; then
+            # Hide default value (none)
+            if [ "$flags" = "none" ]; then
+                row="$row | "
+            else
+                row="$row | $flags"
+            fi
+        fi
+        
+        row="$row | $author | $date |"
         echo "$row"
     done < "$TEMP_DATA"
 fi
