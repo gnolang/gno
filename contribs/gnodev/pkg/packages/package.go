@@ -30,14 +30,14 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 	mod, err := gnomod.ParseDir(dir)
 	switch {
 	case err == nil:
-		if mod.Draft {
-			// Skip draft package
+		if mod.Ignore {
+			// Skip ignored package
 			// XXX: We could potentially do that in a middleware, but doing this
 			// here avoid to potentially parse broken files
 			return nil, ErrResolverPackageSkip
 		}
-	case errors.Is(err, os.ErrNotExist), errors.Is(err, gnomod.ErrGnoModNotFound):
-		// gno.mod is not present, continue anyway
+	case errors.Is(err, os.ErrNotExist) || errors.Is(err, gnomod.ErrNoModFile) || mod == nil:
+		// gnomod.toml is not present, continue anyway
 	default:
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func isMemPackageEmpty(mempkg *std.MemPackage) bool {
 	}
 
 	for _, file := range mempkg.Files {
-		if isGnoFile(file.Name) || file.Name == "gno.mod" {
+		if isGnoFile(file.Name) || file.Name == "gnomod.toml" {
 			return false
 		}
 	}
