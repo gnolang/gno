@@ -41,9 +41,11 @@ for overriding dependencies during local testing.
 
 #### `uploader`  
 
-Specifies the address that will be set as the uploader of the package. This 
-field is used only during **genesis (block 0)** and replaces the default 
-deployer address. Primarily used in monorepo setups.
+Specifies the address that will be set as the uploader of the package (origin 
+of the transaction). This field is used only during **genesis (block 0)** and
+replaces the default deployer address if set. Primarily used in monorepo setups.
+If not specified, it's automatically set to the address that initiated the `addpkg`
+transaction.
 
 #### `draft`  
 
