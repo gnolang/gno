@@ -36,6 +36,10 @@ func (c *pureClient) Sources(path string) ([]string, error) {
 	return []string{"only.gno"}, nil
 }
 
+func (c *pureClient) HasFile(pkgPath, fileName string) bool {
+	return fileName == "only.gno"
+}
+
 func newTestHandlerConfig(t *testing.T, mockPackage *gnoweb.MockPackage) *gnoweb.WebHandlerConfig {
 	t.Helper()
 
@@ -182,8 +186,8 @@ func TestWebHandler_NoRender(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "unexpected status code")
-	expectedBody := "This realm does not implement a Render() function."
-	assert.Contains(t, rr.Body.String(), expectedBody, "rendered body should contain: %q", expectedBody)
+	assert.Contains(t, rr.Body.String(), "gno.mod", "rendered body should contain the file list (gno.mod)")
+	assert.Contains(t, rr.Body.String(), "render.gno", "rendered body should contain the file list (render.gno)")
 }
 
 // TestWebHandler_GetSourceDownload tests the source file download functionality
@@ -314,6 +318,14 @@ func (c *stubDirectoryClient) Sources(path string) ([]string, error) {
 
 func (c *stubDirectoryClient) QueryPaths(prefix string, limit int) ([]string, error) {
 	return c.queryPaths, c.queryPathsErr
+}
+
+func (c *stubDirectoryClient) HasFile(pkgPath, fileName string) bool {
+	return false
+}
+
+func (c *stubDirectoryClient) SourceFileRaw(pkgPath, fileName string) ([]byte, error) {
+	return nil, errors.New("not implemented")
 }
 
 // TestWebHandler_DirectoryViewPurePackage covers the pure "package" mode without error:
@@ -739,4 +751,205 @@ func TestCreateUsernameFromBech32(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "CreateUsernameFromBech32(%q) = %q, want %q", tt.input, result, tt.expected)
 		})
 	}
+}
+
+// TestWebHandler_GetSourceView_FilePreference tests the file preference logic
+// when no specific file is requested in the source view.
+func TestWebHandler_GetSourceView_FilePreference(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		files          []string
+		expectedFile   string
+		expectedStatus int
+	}{
+		{
+			name:           "prefer README.md over other files",
+			files:          []string{"config.toml", "README.md", "main.gno"},
+			expectedFile:   "README.md",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "prefer .gno file when no README.md",
+			files:          []string{"config.toml", "main.gno", "test.toml"},
+			expectedFile:   "main.gno",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "fallback to first file when no preferred files",
+			files:          []string{"config.toml", "test.toml", "data.json"},
+			expectedFile:   "config.toml",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "prefer first .gno file when multiple .gno files",
+			files:          []string{"config.toml", "main.gno", "utils.gno", "test.gno"},
+			expectedFile:   "main.gno",
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create mock package with the test files
+			mockPackage := &gnoweb.MockPackage{
+				Domain: "example.com",
+				Path:   "/r/test/path",
+				Files:  make(map[string]string),
+			}
+
+			// Add all test files to the mock
+			for _, file := range tc.files {
+				mockPackage.Files[file] = "content of " + file
+			}
+
+			config := newTestHandlerConfig(t, mockPackage)
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewWebHandler(logger, config)
+			require.NoError(t, err)
+
+			// Request source view without specifying a file
+			req, err := http.NewRequest(http.MethodGet, "/r/test/path$source", nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			// Check status
+			assert.Equal(t, tc.expectedStatus, rr.Code)
+
+			// Check that the expected file content is displayed
+			expectedContent := "content of " + tc.expectedFile
+			assert.Contains(t, rr.Body.String(), expectedContent,
+				"should display content of preferred file: %s", tc.expectedFile)
+		})
+	}
+}
+
+// Ensure stubDirectoryClient implements gnoweb.WebClient
+var _ gnoweb.WebClient = (*stubDirectoryClient)(nil)
+
+// readmeFailClient is a lightweight mock for testing README.md failure in renderReadme.
+type readmeFailClient struct{}
+
+func (c *readmeFailClient) HasFile(pkgPath, fileName string) bool {
+	return fileName == "README.md"
+}
+
+func (c *readmeFailClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*gnoweb.FileMeta, error) {
+	return nil, errors.New("mock readme fetch error")
+}
+
+// The remaining methods are no-ops or unused for this test:
+func (c *readmeFailClient) Sources(path string) ([]string, error)                  { return []string{"README.md"}, nil }
+func (c *readmeFailClient) SourceFileRaw(pkgPath, fileName string) ([]byte, error) { return nil, nil }
+func (c *readmeFailClient) QueryPaths(prefix string, limit int) ([]string, error)  { return nil, nil }
+func (c *readmeFailClient) Doc(path string) (*doc.JSONDocumentation, error)        { return nil, nil }
+func (c *readmeFailClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
+	return nil, nil
+}
+
+func TestWebHandler_GetSourceView_ReadmeErrors(t *testing.T) {
+	t.Parallel()
+
+	mock := &gnoweb.MockPackage{
+		Domain: "ex",
+		Path:   "/r/test_readme",
+		Files:  map[string]string{"README.md": "# Hello"},
+	}
+
+	cfg := newTestHandlerConfig(t, mock)
+	cfg.WebClient = &readmeFailClient{}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler, err := gnoweb.NewWebHandler(logger, cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/test_readme$source&file=README.md", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+// readmeSuccessClient simulates a client that successfully renders README.md
+type readmeSuccessClient struct{}
+
+func (c *readmeSuccessClient) HasFile(pkgPath, fileName string) bool {
+	return fileName == "README.md"
+}
+
+func (c *readmeSuccessClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*gnoweb.FileMeta, error) {
+	if fileName == "README.md" {
+		w.Write([]byte("# Hello World"))
+		return &gnoweb.FileMeta{Lines: 1, SizeKb: 0.01}, nil
+	}
+	return nil, errors.New("file not found")
+}
+
+// The remaining methods are no-ops or unused for this test:
+func (c *readmeSuccessClient) Sources(path string) ([]string, error) {
+	return []string{"README.md"}, nil
+}
+func (c *readmeSuccessClient) SourceFileRaw(pkgPath, fileName string) ([]byte, error) {
+	return nil, nil
+}
+func (c *readmeSuccessClient) QueryPaths(prefix string, limit int) ([]string, error) { return nil, nil }
+func (c *readmeSuccessClient) Doc(path string) (*doc.JSONDocumentation, error)       { return nil, nil }
+func (c *readmeSuccessClient) RenderRealm(w io.Writer, u *weburl.GnoURL, cr gnoweb.ContentRenderer) (*gnoweb.RealmMeta, error) {
+	return nil, nil
+}
+
+func TestWebHandler_GetSourceView_ReadmeSuccess(t *testing.T) {
+	t.Parallel()
+
+	mock := &gnoweb.MockPackage{
+		Domain: "ex",
+		Path:   "/r/test_readme_success",
+		Files:  map[string]string{"README.md": "# Hello"},
+	}
+
+	cfg := newTestHandlerConfig(t, mock)
+	cfg.WebClient = &readmeSuccessClient{}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler, err := gnoweb.NewWebHandler(logger, cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/test_readme_success$source&file=README.md", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "README.md")
+	// Should contain the rendered markdown content
+	assert.Contains(t, rr.Body.String(), "Hello World")
+}
+
+func TestWebHandler_GetSourceView_DefaultCase(t *testing.T) {
+	t.Parallel()
+
+	mock := &gnoweb.MockPackage{
+		Domain: "ex",
+		Path:   "/r/test_default",
+		Files:  map[string]string{"main.gno": "package main"},
+	}
+
+	cfg := newTestHandlerConfig(t, mock)
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler, err := gnoweb.NewWebHandler(logger, cfg)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/test_default$source&file=main.gno", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "main.gno")
+	assert.Contains(t, rr.Body.String(), "package main")
 }

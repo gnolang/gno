@@ -47,9 +47,14 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
+// HasAddr checks if the specified address is a known account in the bank.
+func (tok Token) HasAddr(addr std.Address) bool {
+	return tok.ledger.hasAddr(addr)
+}
+
 // BalanceOf returns the balance of the specified address.
-func (tok Token) BalanceOf(address_XXX std.Address) int64 {
-	return tok.ledger.balanceOf(address_XXX)
+func (tok Token) BalanceOf(addr std.Address) int64 {
+	return tok.ledger.balanceOf(addr)
 }
 
 // Allowance returns the allowance of the specified owner and spender.
@@ -57,7 +62,7 @@ func (tok Token) Allowance(owner, spender std.Address) int64 {
 	return tok.ledger.allowance(owner, spender)
 }
 
-func (tok *Token) RenderHome() string {
+func (tok Token) RenderHome() string {
 	str := ""
 	str += ufmt.Sprintf("# %s ($%s)\n\n", tok.name, tok.symbol)
 	str += ufmt.Sprintf("* **Decimals**: %d\n", tok.decimals)
@@ -197,8 +202,8 @@ func (led *PrivateLedger) Approve(owner, spender std.Address, amount int64) erro
 }
 
 // Mint increases the total supply of the token and adds the specified amount to the specified address.
-func (led *PrivateLedger) Mint(address_XXX std.Address, amount int64) error {
-	if !address_XXX.IsValid() {
+func (led *PrivateLedger) Mint(addr std.Address, amount int64) error {
+	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
 	if amount < 0 {
@@ -211,15 +216,15 @@ func (led *PrivateLedger) Mint(address_XXX std.Address, amount int64) error {
 	}
 
 	led.totalSupply += amount
-	currentBalance := led.balanceOf(address_XXX)
+	currentBalance := led.balanceOf(addr)
 	newBalance := overflow.Add64p(currentBalance, amount)
 
-	led.balances.Set(string(address_XXX), newBalance)
+	led.balances.Set(string(addr), newBalance)
 
 	std.Emit(
 		TransferEvent,
 		"from", "",
-		"to", string(address_XXX),
+		"to", string(addr),
 		"value", strconv.Itoa(int(amount)),
 	)
 
@@ -227,15 +232,15 @@ func (led *PrivateLedger) Mint(address_XXX std.Address, amount int64) error {
 }
 
 // Burn decreases the total supply of the token and subtracts the specified amount from the specified address.
-func (led *PrivateLedger) Burn(address_XXX std.Address, amount int64) error {
-	if !address_XXX.IsValid() {
+func (led *PrivateLedger) Burn(addr std.Address, amount int64) error {
+	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
 	if amount < 0 {
 		return ErrInvalidAmount
 	}
 
-	currentBalance := led.balanceOf(address_XXX)
+	currentBalance := led.balanceOf(addr)
 	if currentBalance < amount {
 		return ErrInsufficientBalance
 	}
@@ -244,14 +249,14 @@ func (led *PrivateLedger) Burn(address_XXX std.Address, amount int64) error {
 	newBalance := overflow.Sub64p(currentBalance, amount)
 
 	if newBalance == 0 {
-		led.balances.Remove(string(address_XXX))
+		led.balances.Remove(string(addr))
 	} else {
-		led.balances.Set(string(address_XXX), newBalance)
+		led.balances.Set(string(addr), newBalance)
 	}
 
 	std.Emit(
 		TransferEvent,
-		"from", string(address_XXX),
+		"from", string(addr),
 		"to", "",
 		"value", strconv.Itoa(int(amount)),
 	)
@@ -259,9 +264,14 @@ func (led *PrivateLedger) Burn(address_XXX std.Address, amount int64) error {
 	return nil
 }
 
+// hasAddr checks if the specified address is a known account in the ledger.
+func (led PrivateLedger) hasAddr(addr std.Address) bool {
+	return led.balances.Has(addr.String())
+}
+
 // balanceOf returns the balance of the specified address.
-func (led PrivateLedger) balanceOf(address_XXX std.Address) int64 {
-	balance, found := led.balances.Get(address_XXX.String())
+func (led PrivateLedger) balanceOf(addr std.Address) int64 {
+	balance, found := led.balances.Get(addr.String())
 	if !found {
 		return 0
 	}
