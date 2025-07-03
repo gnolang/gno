@@ -25,10 +25,15 @@ const (
 )
 
 var (
-	admin      = Ownable.Owner()
-	adminRealm = std.NewUserRealm(admin)
+	admin      std.Address
+	adminRealm std.Realm
 	alice      = testutils.TestAddress("alice")
 )
+
+func init() {
+	admin = Ownable.Owner()
+	adminRealm = std.NewUserRealm(admin)
+}
 
 func TestRegister(t *testing.T) {
 	// Test user realm register
@@ -40,7 +45,8 @@ func TestRegister(t *testing.T) {
 
 	// Test register while paused
 	testing.SetRealm(adminRealm)
-	Pausable.Pause()
+	err := Pausable.Pause()
+	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(std.NewCodeRealm(rlmPath))
@@ -50,7 +56,8 @@ func TestRegister(t *testing.T) {
 
 	// Unpause
 	testing.SetRealm(adminRealm)
-	Pausable.Unpause()
+	err = Pausable.Unpause()
+	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(std.NewCodeRealm(rlmPath))
