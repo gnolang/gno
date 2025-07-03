@@ -27,6 +27,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [What is Gno](builders/what-is-gnolang.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Get a grasp on the basics of Gno syntax by building a simple Counter application and understanding the core language features.
 - [Installing `gno` and developing locally with `gnodev`](builders/local-dev-with-gnodev.md) - Setup a local development environment with a built-in node, hot-reload features, and testing capabilities.
+- [Testing Gno](builders/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Example `minisocial` dApp](builders/example-minisocial-dapp.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
 - [Deploying Gno packages](builders/deploy-packages.md) - Learn how to deploy your code to Gno.land networks using `gnokey` and understand gas requirements.
 - [Connecting clients](builders/connect-clients-and-apps.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
@@ -42,7 +43,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
-- [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
+- [Configuring Gno Packages](./resources/configring-gno-packages.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
 - [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
 - [Gno Memory Model](resources/gno-memory-model.md) - A peak under the hood of the Gno Virtual Machine.
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the Gno.land ecosystem, from technical concepts to tools and components.

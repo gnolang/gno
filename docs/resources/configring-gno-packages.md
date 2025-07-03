@@ -12,7 +12,7 @@ can specify specific fields:
 - private
 - gno version - currently only 0.9 is supported.
 - pkgpath - has to match the addpkg path during transaction deployment
-- replace - 
+- replace - helps with local testing; if it's not empty addpkg fails on-chain
 
 ## gnowork.toml
 
