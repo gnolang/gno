@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"time"
@@ -81,9 +82,16 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 
 	// force pull image
 	if pullImage {
-		_, err := dh.DockerClient.ImagePull(ctx, gnoOfficialImage, types.ImagePullOptions{})
+		pullOutput, err := dh.DockerClient.ImagePull(ctx, gnoOfficialImage, types.ImagePullOptions{})
 		if err != nil {
 			return nil, err
+		}
+		defer pullOutput.Close()
+
+		// Read until EOF to ensure pull completes
+		_, err = io.Copy(io.Discard, pullOutput)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read image pull output: %w", err)
 		}
 	}
 
