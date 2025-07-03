@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/gnolang/faucet"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/redis/go-redis/v9"
 )
@@ -96,7 +98,27 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 	}
 
 	// Create cooldown limiter
-	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, rdb, cfg.maxClaimableLimit)
+	cooldownLimiter := newRedisLimiter(cfg.cooldownPeriod, rdb, cfg.maxClaimableLimit)
 
-	return serveFaucet(ctx, cfg.rootCfg, io, getGithubMiddleware(cfg.ghClientID, clientSecret, cooldownLimiter))
+	// Start the IP throttler
+	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	st.start(ctx)
+
+	// Prepare the middlewares
+	httpMiddlewares := []func(http.Handler) http.Handler{
+		ipMiddleware(cfg.rootCfg.isBehindProxy, st),
+		gitHubUsernameMiddleware(cfg.ghClientID, clientSecret, defaultGHExchange),
+	}
+
+	rpcMiddlewares := []faucet.Middleware{
+		gitHubClaimMiddleware(cooldownLimiter),
+	}
+
+	return serveFaucet(
+		ctx,
+		cfg.rootCfg,
+		io,
+		faucet.WithHTTPMiddlewares(httpMiddlewares),
+		faucet.WithMiddlewares(rpcMiddlewares),
+	)
 }
