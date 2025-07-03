@@ -249,6 +249,14 @@
     @apply bg-green-600 text-light;
   }
 
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary::marker {
+    display: none;
+  }
+
   /* MD components */
   /* Columns */
   .realm-view .gno-columns {
