@@ -118,12 +118,25 @@ func (pkg *Package) WithGoPkgName(name string) *Package {
 	return pkg
 }
 
+// Package dependencies need to be declared (for now).
+// If a package has no dependency, it is conventional to
+// use `.WithDependencies()` with no arguments.
 func (pkg *Package) WithDependencies(deps ...*Package) *Package {
 	pkg.Dependencies = append(pkg.Dependencies, deps...)
 	return pkg
 }
 
-func (pkg *Package) WithTypes(objs ...interface{}) *Package {
+// WithType specifies which types are encoded and decoded by the package.
+// You must provide a list of instantiated objects in the arguments.
+// Each type declaration may be optionally followed by a string which is then
+// used as its name.
+//
+//	pkg.WithTypes(
+//		StructA{},
+//		&StructB{}, // If pointer receivers are preferred when decoding to interfaces.
+//		NoInputsError{}, "NoInputsError", // Named
+//	)
+func (pkg *Package) WithTypes(objs ...any) *Package {
 	var lastType *Type = nil
 	for _, obj := range objs {
 		// Initialize variables
@@ -182,6 +195,17 @@ func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 			PointerPreferred: pointerPreferred,
 		}
 		pkg.Types = append(pkg.Types, lastType)
+	}
+	seen := make(map[string]struct{})
+	for _, tp := range pkg.Types {
+		// tp.Name is "" for cases like nativePkg, containing go native types.
+		if tp.Name == "" {
+			continue
+		}
+		if _, ok := seen[tp.Name]; ok {
+			panic("duplicate type name " + tp.Name)
+		}
+		seen[tp.Name] = struct{}{}
 	}
 	return pkg
 }

@@ -1,0 +1,45 @@
+# tests for
+
+gnoland start
+
+# Test sys/params.SetSysParamXXX when called from gno.land/r/sys/params
+
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+
+## before set lock transfer
+gnokey query params/bank:p:restricted_denoms
+stdout 'data: \[\]\n'
+
+## lock transfer
+gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+## query bank module
+gnokey query params/bank:p:restricted_denoms
+stdout 'data: \["ugnot"\]\n'
+
+## query vm module
+gnokey query params/vm:p:sysnames_pkgpath
+stdout 'data: "gno.land/r/sys/names"\n'
+gnokey query params/vm:p:chain_domain
+stdout 'data: "gno.land"\n'
+
+## query auth module
+gnokey query params/auth:p:max_memo_bytes
+stdout 'data: "65536"\n'
+gnokey query params/auth:p:tx_sig_limit
+stdout 'data: "7"\n'
+
+-- params/gnomod.toml --
+module = "gno.land/r/sys/params"
+gno = "0.9"
+-- params/setter.gno --
+package params
+
+import (
+	"sys/params"
+)
+
+// This should succeed if it is called from gno.land/r/sys/params
+func SetLockTransfer(cur realm, denom string) {
+	params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom})
+}

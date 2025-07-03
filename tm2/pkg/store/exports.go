@@ -22,8 +22,8 @@ type (
 	Gas                    = types.Gas
 	GasMeter               = types.GasMeter
 	GasConfig              = types.GasConfig
-	OutOfGasException      = types.OutOfGasException
-	GasOverflowException   = types.GasOverflowException
+	OutOfGasError          = types.OutOfGasError
+	GasOverflowError       = types.GasOverflowError
 )
 
 var (

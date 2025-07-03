@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/armor"
 )
 
 type ExportCfg struct {
@@ -88,24 +89,19 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 		)
 	}
 
-	var (
-		armor     string
-		exportErr error
-	)
+	var keyArmor string
+
+	// Export the private key from the keybase
+	privateKey, err := kb.ExportPrivKey(cfg.NameOrBech32, decryptPassword)
+	if err != nil {
+		return fmt.Errorf("unable to export private key, %w", err)
+	}
 
 	if cfg.Unsafe {
-		// Generate the unencrypted armor
-		armor, exportErr = kb.ExportPrivKeyUnsafe(
-			cfg.NameOrBech32,
-			decryptPassword,
-		)
+		io.Printf("privk:\n%x\n", privateKey.Bytes())
 
-		privk, err := kb.ExportPrivateKeyObject(cfg.NameOrBech32, decryptPassword)
-		if err != nil {
-			panic(err)
-		}
-
-		io.Printf("privk:\n%x\n", privk.Bytes())
+		// Generate the private key armor
+		keyArmor = armor.ArmorPrivateKey(privateKey)
 	} else {
 		// Get the armor encrypt password
 		encryptPassword, err := io.GetCheckPassword(
@@ -122,25 +118,13 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 			)
 		}
 
-		// Generate the encrypted armor
-		armor, exportErr = kb.ExportPrivKey(
-			cfg.NameOrBech32,
-			decryptPassword,
-			encryptPassword,
-		)
-	}
-
-	if exportErr != nil {
-		return fmt.Errorf(
-			"unable to export the private key, %w",
-			exportErr,
-		)
+		keyArmor = armor.EncryptArmorPrivKey(privateKey, encryptPassword)
 	}
 
 	// Write the armor to disk
 	if err := os.WriteFile(
 		cfg.OutputPath,
-		[]byte(armor),
+		[]byte(keyArmor),
 		0o644,
 	); err != nil {
 		return fmt.Errorf(

@@ -3,7 +3,6 @@ package amino
 // NOTE: We must not depend on protubuf libraries for serialization.
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -210,7 +209,6 @@ func isJSONWellKnownType(rt reflect.Type) (wellKnown bool) {
 	default:
 		return false
 	}
-	return false
 }
 
 // Returns ok=false if nothing was done because the default behavior is fine (or if err).
@@ -238,16 +236,21 @@ func encodeReflectJSONWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value, f
 		}
 		return true, nil
 	// Google "well known" types.
+	// The protobuf Timestamp and Duration values contain a Mutex, and therefore must not be copied.
+	// The corresponding reflect value may not be addressable, we can not safely get their pointer.
+	// So we just extract the `Seconds` and `Nanos` fields from the reflect value, without copying
+	// the whole struct, and encode them as their coresponding time.Time or time.Duration value.
 	case gTimestampType:
-		t := rv.Interface().(timestamppb.Timestamp)
-		err = EncodeJSONPBTimestamp(w, t)
+		t := time.Unix(rv.Interface().(timestamppb.Timestamp).Seconds, int64(rv.Interface().(timestamppb.Timestamp).Nanos))
+		err = EncodeJSONTime(w, t)
 		if err != nil {
 			return false, err
 		}
 		return true, nil
 	case gDurationType:
-		d := rv.Interface().(durationpb.Duration)
-		err = EncodeJSONPBDuration(w, d)
+		d := time.Duration(rv.Interface().(durationpb.Duration).Seconds) * time.Second
+		d += time.Duration(rv.Interface().(durationpb.Duration).Nanos)
+		err = EncodeJSONDuration(w, d)
 		if err != nil {
 			return false, err
 		}
@@ -301,7 +304,8 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 		if err != nil {
 			return false, err
 		}
-		rv.Set(reflect.ValueOf(t))
+		rv.FieldByName("Seconds").Set(reflect.ValueOf(t.Seconds))
+		rv.FieldByName("Nanos").Set(reflect.ValueOf(t.Nanos))
 		return true, nil
 	case gDurationType:
 		var d durationpb.Duration
@@ -309,7 +313,8 @@ func decodeReflectJSONWellKnown(bz []byte, info *TypeInfo, rv reflect.Value, fop
 		if err != nil {
 			return false, err
 		}
-		rv.Set(reflect.ValueOf(d))
+		rv.FieldByName("Seconds").Set(reflect.ValueOf(d.Seconds))
+		rv.FieldByName("Nanos").Set(reflect.ValueOf(d.Nanos))
 		return true, nil
 	// TODO: port each below to above without proto dependency
 	// for unmarshaling code, to minimize dependencies.
@@ -336,7 +341,9 @@ func encodeReflectBinaryWellKnown(w io.Writer, info *TypeInfo, rv reflect.Value,
 	}
 	// Maybe recurse with length-prefixing.
 	if !bare {
-		buf := bytes.NewBuffer(nil)
+		buf := poolBytesBuffer.Get()
+		defer poolBytesBuffer.Put(buf)
+
 		ok, err = encodeReflectBinaryWellKnown(buf, info, rv, fopts, true)
 		if err != nil {
 			return false, err
@@ -418,7 +425,7 @@ func EncodeJSONTimeValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
-	_, err = w.Write([]byte(fmt.Sprintf(`"%vZ"`, x)))
+	_, err = fmt.Fprintf(w, `"%vZ"`, x)
 	return err
 }
 
@@ -427,7 +434,7 @@ func EncodeJSONTime(w io.Writer, t time.Time) (err error) {
 	return EncodeJSONTimeValue(w, t.Unix(), int32(t.Nanosecond()))
 }
 
-func EncodeJSONPBTimestamp(w io.Writer, t timestamppb.Timestamp) (err error) {
+func EncodeJSONPBTimestamp(w io.Writer, t *timestamppb.Timestamp) (err error) {
 	return EncodeJSONTimeValue(w, t.GetSeconds(), t.GetNanos())
 }
 
@@ -449,7 +456,7 @@ func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
-	_, err = w.Write([]byte(fmt.Sprintf(`"%vs"`, x)))
+	_, err = fmt.Fprintf(w, `"%vs"`, x)
 	return err
 }
 
@@ -457,7 +464,7 @@ func EncodeJSONDuration(w io.Writer, d time.Duration) (err error) {
 	return EncodeJSONDurationValue(w, int64(d)/1e9, int32(int64(d)%1e9))
 }
 
-func EncodeJSONPBDuration(w io.Writer, d durationpb.Duration) (err error) {
+func EncodeJSONPBDuration(w io.Writer, d *durationpb.Duration) (err error) {
 	return EncodeJSONDurationValue(w, d.GetSeconds(), d.GetNanos())
 }
 

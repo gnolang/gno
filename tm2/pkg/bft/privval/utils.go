@@ -25,7 +25,7 @@ func IsConnTimeout(err error) bool {
 }
 
 // NewSignerListener creates a new SignerListenerEndpoint using the corresponding listen address
-func NewSignerListener(listenAddr string, logger *slog.Logger) (*SignerListenerEndpoint, error) {
+func NewSignerListener(listenAddr string, logger *slog.Logger) (_ *SignerListenerEndpoint, rerr error) {
 	var listener net.Listener
 
 	protocol, address := osm.ProtocolAndAddress(listenAddr)
@@ -33,6 +33,13 @@ func NewSignerListener(listenAddr string, logger *slog.Logger) (*SignerListenerE
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		if rerr != nil {
+			ln.Close()
+		}
+	}()
+
 	switch protocol {
 	case "unix":
 		listener = NewUnixListener(ln)

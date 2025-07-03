@@ -1,0 +1,5 @@
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/memberstore
+loadpkg gno.land/r/gov/dao
+
+gnoland start

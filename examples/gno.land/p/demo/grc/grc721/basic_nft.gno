@@ -1,7 +1,9 @@
 package grc721
 
 import (
+	"math/overflow"
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -31,12 +33,12 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 	}
 }
 
-func (s *basicNFT) Name() string       { return s.name }
-func (s *basicNFT) Symbol() string     { return s.symbol }
-func (s *basicNFT) TokenCount() uint64 { return uint64(s.owners.Size()) }
+func (s *basicNFT) Name() string      { return s.name }
+func (s *basicNFT) Symbol() string    { return s.symbol }
+func (s *basicNFT) TokenCount() int64 { return int64(s.owners.Size()) }
 
 // BalanceOf returns balance of input address
-func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
+func (s *basicNFT) BalanceOf(addr std.Address) (int64, error) {
 	if err := isValidAddress(addr); err != nil {
 		return 0, err
 	}
@@ -46,7 +48,7 @@ func (s *basicNFT) BalanceOf(addr std.Address) (uint64, error) {
 		return 0, nil
 	}
 
-	return balance.(uint64), nil
+	return balance.(int64), nil
 }
 
 // OwnerOf returns owner of input token id
@@ -80,7 +82,7 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	caller := std.PrevRealm().Addr()
+	caller := std.OriginCaller()
 	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
@@ -92,12 +94,12 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 // Otherwise, returns false
 func (s *basicNFT) IsApprovedForAll(owner, operator std.Address) bool {
 	key := owner.String() + ":" + operator.String()
-	_, found := s.operatorApprovals.Get(key)
+	approved, found := s.operatorApprovals.Get(key)
 	if !found {
 		return false
 	}
 
-	return true
+	return approved.(bool)
 }
 
 // Approve approves the input address for particular token
@@ -114,14 +116,18 @@ func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
 		return ErrApprovalToCurrentOwner
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.OriginCaller()
 	if caller != owner && !s.IsApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
 
 	s.tokenApprovals.Set(string(tid), to.String())
-	event := ApprovalEvent{owner, to, tid}
-	emit(&event)
+	std.Emit(
+		ApprovalEvent,
+		"owner", string(owner),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	return nil
 }
@@ -142,7 +148,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 		return ErrInvalidAddress
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.OriginCaller()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
@@ -150,7 +156,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 // contract recipients are aware of the GRC721 protocol to prevent
 // tokens from being forever locked.
 func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.PrevRealm().Addr()
+	caller := std.OriginCaller()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -169,7 +175,7 @@ func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 
 // Transfers `tokenId` token from `from` to `to`.
 func (s *basicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.PrevRealm().Addr()
+	caller := std.OriginCaller()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -215,12 +221,15 @@ func (s *basicNFT) Burn(tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	balance -= 1
+	balance = overflow.Sub64p(balance, 1)
 	s.balances.Set(owner.String(), balance)
 	s.owners.Remove(string(tid))
 
-	event := TransferEvent{owner, zeroAddress, tid}
-	emit(&event)
+	std.Emit(
+		BurnEvent,
+		"from", string(owner),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(owner, zeroAddress, tid, 1)
 
@@ -238,8 +247,12 @@ func (s *basicNFT) setApprovalForAll(owner, operator std.Address, approved bool)
 	key := owner.String() + ":" + operator.String()
 	s.operatorApprovals.Set(key, approved)
 
-	event := ApprovalForAllEvent{owner, operator, approved}
-	emit(&event)
+	std.Emit(
+		ApprovalForAllEvent,
+		"owner", string(owner),
+		"to", string(operator),
+		"approved", strconv.FormatBool(approved),
+	)
 
 	return nil
 }
@@ -285,14 +298,18 @@ func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	fromBalance -= 1
-	toBalance += 1
+	fromBalance = overflow.Sub64p(fromBalance, 1)
+	toBalance = overflow.Add64p(toBalance, 1)
 	s.balances.Set(from.String(), fromBalance)
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 
-	event := TransferEvent{from, to, tid}
-	emit(&event)
+	std.Emit(
+		TransferEvent,
+		"from", string(from),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(from, to, tid, 1)
 
@@ -320,12 +337,15 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	toBalance += 1
+	toBalance = overflow.Add64p(toBalance, 1)
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 
-	event := TransferEvent{zeroAddress, to, tid}
-	emit(&event)
+	std.Emit(
+		MintEvent,
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(zeroAddress, to, tid, 1)
 
@@ -342,12 +362,12 @@ func (s *basicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
 		return true
 	}
 
-	_, err := s.GetApproved(tid)
+	approved, err := s.GetApproved(tid)
 	if err != nil {
 		return false
 	}
 
-	return true
+	return approved == addr
 }
 
 // Checks if token id already exists
@@ -356,11 +376,11 @@ func (s *basicNFT) exists(tid TokenID) bool {
 	return found
 }
 
-func (s *basicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *basicNFT) beforeTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
-func (s *basicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize uint64) {
+func (s *basicNFT) afterTokenTransfer(from, to std.Address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
@@ -375,4 +395,10 @@ func (s *basicNFT) RenderHome() (str string) {
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", s.balances.Size())
 
 	return
+}
+
+func (n *basicNFT) Getter() NFTGetter {
+	return func() IGRC721 {
+		return n
+	}
 }

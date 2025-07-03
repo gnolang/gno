@@ -3,7 +3,7 @@ package main
 func main() {
 	// binary
 	println(0b1010)
-	println(0B1010)
+	println(0b1010)
 
 	// decimal
 	println(10)

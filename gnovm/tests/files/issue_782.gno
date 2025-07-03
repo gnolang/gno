@@ -7,7 +7,7 @@ func main() {
 	from := uint32(2)
 	to := uint32(4)
 	b := a[from:to]
-	fmt.Print(b)
+	fmt.Println(b)
 }
 
 // Output:

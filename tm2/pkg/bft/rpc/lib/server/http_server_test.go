@@ -22,31 +22,31 @@ import (
 func TestMaxOpenConnections(t *testing.T) {
 	t.Parallel()
 
-	const max = 5 // max simultaneous connections
+	const maxVal = 5 // max simultaneous connections
 
 	// Start the server.
 	var open int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if n := atomic.AddInt32(&open, 1); n > int32(max) {
-			t.Errorf("%d open connections, want <= %d", n, max)
+		if n := atomic.AddInt32(&open, 1); n > int32(maxVal) {
+			t.Errorf("%d open connections, want <= %d", n, maxVal)
 		}
 		defer atomic.AddInt32(&open, -1)
 		time.Sleep(10 * time.Millisecond)
 		fmt.Fprint(w, "some body")
 	})
 	config := DefaultConfig()
-	config.MaxOpenConnections = max
+	config.MaxOpenConnections = maxVal
 	l, err := Listen("tcp://127.0.0.1:0", config)
 	require.NoError(t, err)
 	defer l.Close()
 	go StartHTTPServer(l, mux, log.NewTestingLogger(t), config)
 
 	// Make N GET calls to the server.
-	attempts := max * 2
+	attempts := maxVal * 2
 	var wg sync.WaitGroup
 	var failed int32
-	for i := 0; i < attempts; i++ {
+	for range attempts {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

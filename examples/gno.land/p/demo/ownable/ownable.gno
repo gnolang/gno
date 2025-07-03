@@ -1,18 +1,32 @@
 package ownable
 
-import "std"
+import (
+	"std"
+)
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
+// Ownable is safe to export as a top-level object
 type Ownable struct {
 	owner std.Address
 }
 
 func New() *Ownable {
 	return &Ownable{
-		owner: std.PrevRealm().Addr(),
+		owner: std.CurrentRealm().Address(),
+	}
+}
+
+func NewWithOrigin() *Ownable {
+	origin := std.OriginCaller()
+	previous := std.PreviousRealm()
+	if origin != previous.Address() {
+		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
+	}
+	return &Ownable{
+		owner: origin,
 	}
 }
 
@@ -24,9 +38,8 @@ func NewWithAddress(addr std.Address) *Ownable {
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
-	err := o.CallerIsOwner()
-	if err != nil {
-		return err
+	if !o.OwnedByCurrent() {
+		return ErrUnauthorized
 	}
 
 	if !newOwner.IsValid() {
@@ -37,51 +50,78 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	o.owner = newOwner
 	std.Emit(
 		OwnershipTransferEvent,
-		"from", string(prevOwner),
-		"to", string(newOwner),
+		"from", prevOwner.String(),
+		"to", newOwner.String(),
 	)
 
 	return nil
 }
 
-// DropOwnership removes the owner, effectively disabling any owner-related actions
+// DropOwnershipByCurrent removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable) DropOwnership() error {
-	err := o.CallerIsOwner()
-	if err != nil {
-		return err
+func (o *Ownable) DropOwnershipByCurrent() error {
+	if !o.OwnedByCurrent() {
+		return ErrUnauthorized
 	}
+	o.dropOwnership(o.owner)
+	return nil
+}
 
-	prevOwner := o.owner
+// DropOwnershipByPrevious removes the owner, effectively disabling any owner-related actions
+// Top-level usage: disables all only-owner actions/functions,
+// Embedded usage: behaves like a burn functionality, removing the owner from the struct
+func (o *Ownable) DropOwnershipByPrevious() error {
+	if !o.OwnedByPrevious() {
+		return ErrUnauthorized
+	}
+	o.dropOwnership(o.owner)
+	return nil
+}
+
+func (o *Ownable) dropOwnership(prevOwner std.Address) {
 	o.owner = ""
-
 	std.Emit(
 		OwnershipTransferEvent,
-		"from", string(prevOwner),
+		"from", prevOwner.String(),
 		"to", "",
 	)
-
-	return nil
 }
 
 // Owner returns the owner address from Ownable
-func (o Ownable) Owner() std.Address {
+func (o *Ownable) Owner() std.Address {
+	if o == nil {
+		return std.Address("")
+	}
 	return o.owner
 }
 
-// CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o Ownable) CallerIsOwner() error {
-	if std.PrevRealm().Addr() == o.owner {
-		return nil
+// OwnedByCurrent checks if the caller of the function is the Realm's owner
+func (o *Ownable) OwnedByCurrent() bool {
+	if o == nil {
+		return false
 	}
-
-	return ErrUnauthorized
+	return std.CurrentRealm().Address() == o.owner
 }
 
-// AssertCallerIsOwner panics if the caller is not the owner
-func (o Ownable) AssertCallerIsOwner() {
-	if std.PrevRealm().Addr() != o.owner {
+// AssertOwnedByCurrent panics if the caller is not the owner
+func (o *Ownable) AssertOwnedByCurrent() {
+	if !o.OwnedByCurrent() {
+		panic(ErrUnauthorized)
+	}
+}
+
+// OwnedByPrevious checks if the caller of the function is the Realm's owner
+func (o *Ownable) OwnedByPrevious() bool {
+	if o == nil {
+		return false
+	}
+	return std.PreviousRealm().Address() == o.owner
+}
+
+// AssertOwnedByPrevious panics if the caller is not the owner
+func (o *Ownable) AssertOwnedByPrevious() {
+	if !o.OwnedByPrevious() {
 		panic(ErrUnauthorized)
 	}
 }

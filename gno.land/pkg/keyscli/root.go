@@ -30,6 +30,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),
 		client.NewDeleteCmd(cfg, io),
+		client.NewRotateCmd(cfg, io),
 		client.NewGenerateCmd(cfg, io),
 		client.NewExportCmd(cfg, io),
 		client.NewImportCmd(cfg, io),
@@ -38,6 +39,7 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewVerifyCmd(cfg, io),
 		client.NewQueryCmd(cfg, io),
 		client.NewBroadcastCmd(cfg, io),
+		client.NewMultisignCmd(cfg, io),
 
 		// Custom MakeTX command
 		NewMakeTxCmd(cfg, io),

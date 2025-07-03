@@ -8,7 +8,7 @@ import (
 // It calls the provided callback function for each key-value pair encountered.
 // If the callback returns true, the iteration is stopped.
 // The prefix and keys are treated as byte strings, ignoring possible multi-byte Unicode runes.
-func IterateByteStringKeysByPrefix(tree avl.Tree, prefix string, cb avl.IterCbFn) {
+func IterateByteStringKeysByPrefix(tree avl.ITree, prefix string, cb avl.IterCbFn) {
 	end := ""
 	n := len(prefix)
 	// To make the end of the search, increment the final character ASCII by one.
@@ -28,9 +28,9 @@ func IterateByteStringKeysByPrefix(tree avl.Tree, prefix string, cb avl.IterCbFn
 // Get a list of keys starting from the given prefix. Limit the
 // number of results to maxResults.
 // The prefix and keys are treated as byte strings, ignoring possible multi-byte Unicode runes.
-func ListByteStringKeysByPrefix(tree avl.Tree, prefix string, maxResults int) []string {
+func ListByteStringKeysByPrefix(tree avl.ITree, prefix string, maxResults int) []string {
 	result := []string{}
-	IterateByteStringKeysByPrefix(tree, prefix, func(key string, value interface{}) bool {
+	IterateByteStringKeysByPrefix(tree, prefix, func(key string, value any) bool {
 		result = append(result, key)
 		if len(result) >= maxResults {
 			return true

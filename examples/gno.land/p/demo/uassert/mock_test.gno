@@ -1,31 +1,33 @@
-package uassert
+package uassert_test
 
 import (
 	"fmt"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 type mockTestingT struct {
 	fmt  string
-	args []interface{}
+	args []any
 }
 
 // --- interface mock
 
-var _ TestingT = (*mockTestingT)(nil)
+var _ uassert.TestingT = (*mockTestingT)(nil)
 
-func (mockT *mockTestingT) Helper()                              { /* noop */ }
-func (mockT *mockTestingT) Skip(args ...interface{})             { /* not implmented */ }
-func (mockT *mockTestingT) Fail()                                { /* not implmented */ }
-func (mockT *mockTestingT) FailNow()                             { /* not implmented */ }
-func (mockT *mockTestingT) Logf(fmt string, args ...interface{}) { /* noop */ }
+func (mockT *mockTestingT) Helper()                      { /* noop */ }
+func (mockT *mockTestingT) Skip(args ...any)             { /* not implmented */ }
+func (mockT *mockTestingT) Fail()                        { /* not implmented */ }
+func (mockT *mockTestingT) FailNow()                     { /* not implmented */ }
+func (mockT *mockTestingT) Logf(fmt string, args ...any) { /* noop */ }
 
-func (mockT *mockTestingT) Fatalf(fmt string, args ...interface{}) {
+func (mockT *mockTestingT) Fatalf(fmt string, args ...any) {
 	mockT.fmt = "fatal: " + fmt
 	mockT.args = args
 }
 
-func (mockT *mockTestingT) Errorf(fmt string, args ...interface{}) {
+func (mockT *mockTestingT) Errorf(fmt string, args ...any) {
 	mockT.fmt = "error: " + fmt
 	mockT.args = args
 }

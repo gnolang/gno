@@ -123,7 +123,7 @@ func (bA *BitArray) Or(o *BitArray) *BitArray {
 	o.mtx.Lock()
 	c := bA.copyBits(max(bA.Bits, o.Bits))
 	smaller := min(len(bA.Elems), len(o.Elems))
-	for i := 0; i < smaller; i++ {
+	for i := range smaller {
 		c.Elems[i] |= o.Elems[i]
 	}
 	bA.mtx.Unlock()
@@ -149,7 +149,7 @@ func (bA *BitArray) And(o *BitArray) *BitArray {
 
 func (bA *BitArray) and(o *BitArray) *BitArray {
 	c := bA.copyBits(min(bA.Bits, o.Bits))
-	for i := 0; i < len(c.Elems); i++ {
+	for i := range c.Elems {
 		c.Elems[i] &= o.Elems[i]
 	}
 	return c
@@ -167,7 +167,7 @@ func (bA *BitArray) Not() *BitArray {
 
 func (bA *BitArray) not() *BitArray {
 	c := bA.copy()
-	for i := 0; i < len(c.Elems); i++ {
+	for i := range c.Elems {
 		c.Elems[i] = ^c.Elems[i]
 	}
 	return c
@@ -191,7 +191,7 @@ func (bA *BitArray) Sub(o *BitArray) *BitArray {
 	// If bA is longer, then skipping those iterations is equivalent
 	// to right padding with 0's
 	smaller := min(len(bA.Elems), len(o.Elems))
-	for i := 0; i < smaller; i++ {
+	for i := range smaller {
 		// &^ is and not in golang
 		c.Elems[i] &^= o.Elems[i]
 	}
@@ -260,13 +260,13 @@ func (bA *BitArray) getTrueIndices() []int {
 	curBit := 0
 	numElems := len(bA.Elems)
 	// set all true indices
-	for i := 0; i < numElems-1; i++ {
+	for i := range numElems - 1 {
 		elem := bA.Elems[i]
 		if elem == 0 {
 			curBit += 64
 			continue
 		}
-		for j := 0; j < 64; j++ {
+		for j := range 64 {
 			if (elem & (uint64(1) << uint64(j))) > 0 {
 				trueIndices = append(trueIndices, curBit)
 			}
@@ -276,7 +276,7 @@ func (bA *BitArray) getTrueIndices() []int {
 	// handle last element
 	lastElem := bA.Elems[numElems-1]
 	numFinalBits := bA.Bits - curBit
-	for i := 0; i < numFinalBits; i++ {
+	for i := range numFinalBits {
 		if (lastElem & (uint64(1) << uint64(i))) > 0 {
 			trueIndices = append(trueIndices, curBit)
 		}
@@ -309,7 +309,7 @@ func (bA *BitArray) StringIndented(indent string) string {
 func (bA *BitArray) stringIndented(indent string) string {
 	lines := []string{}
 	bits := ""
-	for i := 0; i < bA.Bits; i++ {
+	for i := range bA.Bits {
 		if bA.getIndex(i) {
 			bits += "x"
 		} else {
@@ -339,7 +339,7 @@ func (bA *BitArray) Bytes() []byte {
 
 	numBytes := (bA.Bits + 7) / 8
 	bytes := make([]byte, numBytes)
-	for i := 0; i < len(bA.Elems); i++ {
+	for i := range bA.Elems {
 		elemBytes := [8]byte{}
 		binary.LittleEndian.PutUint64(elemBytes[:], bA.Elems[i])
 		copy(bytes[i*8:], elemBytes[:])
@@ -374,7 +374,7 @@ func (bA *BitArray) MarshalJSON() ([]byte, error) {
 	defer bA.mtx.Unlock()
 
 	bits := `"`
-	for i := 0; i < bA.Bits; i++ {
+	for i := range bA.Bits {
 		if bA.getIndex(i) {
 			bits += `x`
 		} else {
@@ -394,8 +394,12 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 	if b == "null" {
 		// This is required e.g. for encoding/json when decoding
 		// into a pointer with pre-allocated BitArray.
+		bA.mtx.Lock()
+		defer bA.mtx.Unlock()
+
 		bA.Bits = 0
 		bA.Elems = nil
+
 		return nil
 	}
 
@@ -409,11 +413,17 @@ func (bA *BitArray) UnmarshalJSON(bz []byte) error {
 	// Construct new BitArray and copy over.
 	numBits := len(bits)
 	bA2 := NewBitArray(numBits)
-	for i := 0; i < numBits; i++ {
+	for i := range numBits {
 		if bits[i] == 'x' {
 			bA2.SetIndex(i, true)
 		}
 	}
-	*bA = *bA2 //nolint:govet
+
+	bA.mtx.Lock()
+	defer bA.mtx.Unlock()
+
+	bA.Bits = bA2.Bits
+	bA.Elems = bA2.Elems
+
 	return nil
 }

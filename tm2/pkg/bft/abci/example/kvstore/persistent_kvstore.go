@@ -162,7 +162,7 @@ func (app *PersistentKVStoreApplication) Validators() (validators []abci.Validat
 }
 
 func makeValidatorKey(val abci.ValidatorUpdate) []byte {
-	return []byte(fmt.Sprintf("%s%X", ValidatorKeyPrefix, val.PubKey.Address()))
+	return fmt.Appendf(nil, "%s%X", ValidatorKeyPrefix, val.PubKey.Address())
 }
 
 func isValidatorKey(tx []byte) bool {
@@ -171,7 +171,7 @@ func isValidatorKey(tx []byte) bool {
 
 func MakeValSetChangeTx(pubkey crypto.PubKey, power int64) []byte {
 	pubkeyS := base64.StdEncoding.EncodeToString(pubkey.Bytes())
-	return []byte(fmt.Sprintf("%s%s!%d", ValidatorUpdatePrefix, pubkeyS, power))
+	return fmt.Appendf(nil, "%s%s!%d", ValidatorUpdatePrefix, pubkeyS, power)
 }
 
 func isValidatorTx(tx []byte) bool {
@@ -211,7 +211,7 @@ func (app *PersistentKVStoreApplication) execValidatorTx(tx []byte) (res abci.Re
 	}
 
 	// update
-	return app.updateValidator(abci.ValidatorUpdate{pubkey.Address(), pubkey, power})
+	return app.updateValidator(abci.ValidatorUpdate{Address: pubkey.Address(), PubKey: pubkey, Power: power})
 }
 
 // add, update, or remove a validator

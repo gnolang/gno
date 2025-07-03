@@ -4,7 +4,7 @@ import "fmt"
 
 // var f func()
 var a *struct{}
-var b interface{}
+var b any
 var c map[string]int
 var s []int
 

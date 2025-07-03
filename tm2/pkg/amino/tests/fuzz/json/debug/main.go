@@ -13,6 +13,6 @@ func main() {
 	bz := []byte("TODO")
 	cdc := amino.NewCodec()
 	cst := tests.ComplexSt{}
-	err := cdc.UnmarshalJSON(bz, &cst)
+	err := cdc.JSONUnmarshal(bz, &cst)
 	fmt.Printf("Expected a panic but did not. (err: %v)", err)
 }

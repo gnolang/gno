@@ -1,0 +1,24 @@
+# This workflow triggers a cross-repo workflow call,
+# that deploys the monorepo docs on Netlify, using Docusaurus
+name: Deploy the Documentation
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "docs/**"
+
+jobs:
+  trigger-netlify-docs-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DOCS_DEPLOY_PAT }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+                owner: 'gnolang',
+                repo: 'docs.gno.land',
+                workflow_id: 'netlify.yml',
+                ref: 'main'
+            })

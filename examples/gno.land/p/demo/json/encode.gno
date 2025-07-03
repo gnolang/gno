@@ -3,10 +3,8 @@ package json
 import (
 	"bytes"
 	"errors"
-	"math"
 	"strconv"
 
-	"gno.land/p/demo/json/ryu"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -44,17 +42,8 @@ func Marshal(node *Node) ([]byte, error) {
 				return nil, err
 			}
 
-			// ufmt does not support %g. by doing so, we need to check if the number is an integer
-			// after then, apply the correct format for each float and integer numbers.
-			if math.Mod(nVal, 1.0) == 0 {
-				// must convert float to integer. otherwise it will be overflowed.
-				num := ufmt.Sprintf("%d", int(nVal))
-				buf.WriteString(num)
-			} else {
-				// use ryu algorithm to convert float to string
-				num := ryu.FormatFloat64(nVal)
-				buf.WriteString(num)
-			}
+			num := strconv.FormatFloat(nVal, 'f', -1, 64)
+			buf.WriteString(num)
 
 		case String:
 			sVal, err = node.GetString()

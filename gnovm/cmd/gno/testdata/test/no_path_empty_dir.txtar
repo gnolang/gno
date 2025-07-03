@@ -1,0 +1,6 @@
+# Run gno test without path argument on an empty dir 
+
+gno test
+
+! stdout .+
+stderr '[no test files]'

@@ -1,32 +1,27 @@
 package main
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 )
 
-func md5Crypt(password, salt, magic []byte) []byte {
-	d := md5.New()
-	d.Write(password)
-	d.Write(magic)
-	d.Write(salt)
+func sha256Crypt(password, salt, magic string) []byte {
+	toHash := password + magic + salt
+	mixin := sha256.Sum256([]byte(password + salt))
 
-	d2 := md5.New()
-	d2.Write(password)
-	d2.Write(salt)
-
-	for i, mixin := 0, d2.Sum(nil); i < len(password); i++ {
-		d.Write([]byte{mixin[i%16]})
+	for i := 0; i < len(password); i++ {
+		toHash += string(mixin[i%32])
 	}
 
-	return ([]byte)(d.Sum(nil)) // gonative{[]byte} -> []byte
+	res := sha256.Sum256([]byte(toHash))
+	return res[:]
 }
 
 func main() {
-	b := md5Crypt([]byte("1"), []byte("2"), []byte("3"))
+	b := sha256Crypt("1", "2", "3")
 
 	fmt.Println(b)
 }
 
 // Output:
-// [187 141 73 89 101 229 33 106 226 63 117 234 117 149 230 21]
+// [172 65 148 29 23 72 77 86 46 80 184 188 192 158 154 11 145 11 197 253 206 210 141 253 188 27 157 126 89 142 179 143]

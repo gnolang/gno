@@ -1,72 +1,191 @@
 package grc20
 
 import (
+	"math"
 	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 
-func TestUserTokenImpl(t *testing.T) {
-	bank := NewBanker("Dummy", "DUMMY", 4)
-	tok := bank.Token()
-	_ = tok
+func TestTestImpl(t *testing.T) {
+	bank, _ := NewToken("Dummy", "DUMMY", 4)
+	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
-func TestUserApprove(t *testing.T) {
-	owner := testutils.TestAddress("owner")
-	spender := testutils.TestAddress("spender")
-	dest := testutils.TestAddress("dest")
-
-	bank := NewBanker("Dummy", "DUMMY", 6)
-	tok := bank.Token()
-
-	// Set owner as the original caller
-	std.TestSetOrigCaller(owner)
-	// Mint 100000000 tokens for owner
-	urequire.NoError(t, bank.Mint(owner, 100000000))
-
-	// Approve spender to spend 5000000 tokens
-	urequire.NoError(t, tok.Approve(spender, 5000000))
-
-	// Set spender as the original caller
-	std.TestSetOrigCaller(spender)
-	// Try to transfer 10000000 tokens from owner to dest, should fail because it exceeds allowance
-	urequire.Error(t,
-		tok.TransferFrom(owner, dest, 10000000),
-		ErrInsufficientAllowance.Error(),
-		"should not be able to transfer more than approved",
+func TestToken(t *testing.T) {
+	var (
+		alice = testutils.TestAddress("alice")
+		bob   = testutils.TestAddress("bob")
+		carl  = testutils.TestAddress("carl")
 	)
 
-	// Define a set of test data with spend amount and expected remaining allowance
+	bank, adm := NewToken("Dummy", "DUMMY", 6)
+
+	checkBalances := func(aliceEB, bobEB, carlEB int64) {
+		t.Helper()
+		exp := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceEB, bobEB, carlEB)
+		aliceGB := bank.BalanceOf(alice)
+		bobGB := bank.BalanceOf(bob)
+		carlGB := bank.BalanceOf(carl)
+		got := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceGB, bobGB, carlGB)
+		uassert.Equal(t, got, exp, "invalid balances")
+	}
+	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB int64) {
+		t.Helper()
+		exp := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abEB, acEB, baEB, bcEB, caEB, cbEB)
+		abGB := bank.Allowance(alice, bob)
+		acGB := bank.Allowance(alice, carl)
+		baGB := bank.Allowance(bob, alice)
+		bcGB := bank.Allowance(bob, carl)
+		caGB := bank.Allowance(carl, alice)
+		cbGB := bank.Allowance(carl, bob)
+		got := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abGB, acGB, baGB, bcGB, caGB, cbGB)
+		uassert.Equal(t, got, exp, "invalid allowances")
+	}
+
+	checkBalances(0, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, adm.Mint(alice, 1000))
+	urequire.NoError(t, adm.Mint(alice, 100))
+	checkBalances(1100, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, adm.Approve(alice, bob, 99999999))
+	checkBalances(1100, 0, 0)
+	checkAllowances(99999999, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, adm.Approve(alice, bob, 400))
+	checkBalances(1100, 0, 0)
+	checkAllowances(400, 0, 0, 0, 0, 0)
+
+	urequire.Error(t, adm.TransferFrom(alice, bob, carl, 100000000))
+	checkBalances(1100, 0, 0)
+	checkAllowances(400, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, adm.TransferFrom(alice, bob, carl, 100))
+	checkBalances(1000, 0, 100)
+	checkAllowances(300, 0, 0, 0, 0, 0)
+
+	urequire.Error(t, adm.SpendAllowance(alice, bob, 2000000))
+	checkBalances(1000, 0, 100)
+	checkAllowances(300, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, adm.SpendAllowance(alice, bob, 100))
+	checkBalances(1000, 0, 100)
+	checkAllowances(200, 0, 0, 0, 0, 0)
+}
+
+func TestMintOverflow(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	tok, adm := NewToken("Dummy", "DUMMY", 6)
+
+	safeValue := int64(1 << 62)
+	urequire.NoError(t, adm.Mint(alice, safeValue))
+	urequire.Equal(t, tok.BalanceOf(alice), safeValue)
+
+	err := adm.Mint(bob, safeValue)
+	uassert.Error(t, err, "expected ErrMintOverflow")
+}
+
+func TestTransferFromAtomicity(t *testing.T) {
+	var (
+		owner   = testutils.TestAddress("owner")
+		spender = testutils.TestAddress("spender")
+
+		invalidRecipient = std.Address("")
+	)
+
+	token, admin := NewToken("Test", "TEST", 6)
+
+	// owner has 100 tokens, spender has 50 allowance
+	initialBalance := int64(100)
+	initialAllowance := int64(50)
+
+	urequire.NoError(t, admin.Mint(owner, initialBalance))
+	urequire.NoError(t, admin.Approve(owner, spender, initialAllowance))
+
+	// transfer to an invalid address to force a transfer failure
+	transferAmount := int64(30)
+	err := admin.TransferFrom(owner, spender, invalidRecipient, transferAmount)
+	uassert.Error(t, err, "transfer should fail due to invalid address")
+
+	ownerBalance := token.BalanceOf(owner)
+	uassert.Equal(t, ownerBalance, initialBalance, "owner balance should remain unchanged")
+
+	// check if allowance was incorrectly reduced
+	remainingAllowance := token.Allowance(owner, spender)
+	uassert.Equal(t, remainingAllowance, initialAllowance,
+		"allowance should not be reduced when transfer fails")
+}
+
+func TestMintUntilOverflow(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	tok, adm := NewToken("Dummy", "DUMMY", 6)
+
 	tests := []struct {
-		spend uint64 // Spend amount
-		exp   uint64 // Remaining allowance
+		name           string
+		addr           std.Address
+		amount         int64
+		expectedError  error
+		expectedSupply int64
+		description    string
 	}{
-		{3, 4999997},
-		{999997, 4000000},
-		{4000000, 0},
+		{
+			name:           "mint negative value",
+			addr:           alice,
+			amount:         -1,
+			expectedError:  ErrInvalidAmount,
+			expectedSupply: 0,
+			description:    "minting a negative number should fail with ErrInvalidAmount",
+		},
+		{
+			name:           "mint MaxInt64",
+			addr:           alice,
+			amount:         math.MaxInt64 - 1000,
+			expectedError:  nil,
+			expectedSupply: math.MaxInt64 - 1000,
+			description:    "minting almost MaxInt64 should succeed",
+		},
+		{
+			name:           "mint small value",
+			addr:           bob,
+			amount:         1000,
+			expectedError:  nil,
+			expectedSupply: math.MaxInt64,
+			description:    "minting a small value when close to MaxInt64 should succeed",
+		},
+		{
+			name:           "mint value that would exceed MaxInt64",
+			addr:           bob,
+			amount:         1,
+			expectedError:  ErrMintOverflow,
+			expectedSupply: math.MaxInt64,
+			description:    "minting any value when at MaxInt64 should fail with ErrMintOverflow",
+		},
 	}
 
-	// perform transfer operation,and check if allowance and balance are correct
 	for _, tt := range tests {
-		b0 := tok.BalanceOf(dest)
-		// Perform transfer from owner to dest
-		urequire.NoError(t, tok.TransferFrom(owner, dest, tt.spend))
-		a := tok.Allowance(owner, spender)
-		// Check if allowance equals expected value
-		urequire.True(t, a == tt.exp, ufmt.Sprintf("allowance exp: %d,got %d", tt.exp, a))
+		t.Run(tt.name, func(t *testing.T) {
+			err := adm.Mint(tt.addr, tt.amount)
 
-		// Get dest current balance
-		b := tok.BalanceOf(dest)
-		// Calculate expected balance ,should be initial balance plus transfer amount
-		expB := b0 + tt.spend
-		// Check if balance equals expected value
-		urequire.True(t, b == expB, ufmt.Sprintf("balance exp: %d,got %d", expB, b))
+			if tt.expectedError != nil {
+				uassert.Error(t, err, tt.description)
+				if err == nil || err.Error() != tt.expectedError.Error() {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				uassert.NoError(t, err, tt.description)
+			}
+
+			totalSupply := tok.TotalSupply()
+			uassert.Equal(t, totalSupply, tt.expectedSupply, "totalSupply should match expected value")
+		})
 	}
-
-	// Try to transfer one token from owner to dest ,should fail because no allowance left
-	urequire.Error(t, tok.TransferFrom(owner, dest, 1), ErrInsufficientAllowance.Error(), "no allowance")
 }

@@ -28,7 +28,7 @@ func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFi
 	var pkgName string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName = string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			pkgName = string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
 			break
 		}
 	}
@@ -119,6 +119,9 @@ func (msg MsgCall) ValidateBasic() error {
 	if !gno.IsRealmPath(msg.PkgPath) {
 		return ErrInvalidPkgPath("pkgpath must be of a realm")
 	}
+	if _, isInt := gno.IsInternalPath(msg.PkgPath); isInt {
+		return ErrInvalidPkgPath("pkgpath must not be of an internal package")
+	}
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
 	}
@@ -155,7 +158,7 @@ var _ std.Msg = MsgRun{}
 func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgRun {
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName := string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			pkgName := string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
 			if pkgName != "main" {
 				panic("package name should be 'main'")
 			}
@@ -166,7 +169,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 		Send:   send,
 		Package: &std.MemPackage{
 			Name:  "main",
-			Path:  "", // auto set by the handler
+			Path:  "", // auto-set by handler to fmt.Sprintf("gno.land/r/%v/run", caller.String()),
 			Files: files,
 		},
 	}
@@ -184,10 +187,12 @@ func (msg MsgRun) ValidateBasic() error {
 		return std.ErrInvalidAddress("missing caller address")
 	}
 
-	// Force memPkg path to the reserved run path.
-	wantPath := "gno.land/r/" + msg.Caller.String() + "/run"
-	if path := msg.Package.Path; path != "" && path != wantPath {
-		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
+	if msg.Package.Path != "" {
+		// Force memPkg path to the reserved run path.
+		expected := "gno.land/r/" + msg.Caller.String() + "/run"
+		if path := msg.Package.Path; path != expected {
+			return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
+		}
 	}
 
 	return nil

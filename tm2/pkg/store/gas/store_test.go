@@ -20,7 +20,7 @@ func valFmt(i int) []byte { return bz(fmt.Sprintf("value%0.8d", i)) }
 func TestGasKVStoreBasic(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	meter := types.NewGasMeter(10000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
@@ -34,7 +34,7 @@ func TestGasKVStoreBasic(t *testing.T) {
 func TestGasKVStoreIterator(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	meter := types.NewGasMeter(10000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
 	require.Empty(t, st.Get(keyFmt(1)), "Expected `key1` to be empty")
@@ -60,7 +60,7 @@ func TestGasKVStoreIterator(t *testing.T) {
 func TestGasKVStoreOutOfGasSet(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	meter := types.NewGasMeter(0)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
 	require.Panics(t, func() { st.Set(keyFmt(1), valFmt(1)) }, "Expected out-of-gas")
@@ -69,7 +69,7 @@ func TestGasKVStoreOutOfGasSet(t *testing.T) {
 func TestGasKVStoreOutOfGasIterator(t *testing.T) {
 	t.Parallel()
 
-	mem := dbadapter.Store{memdb.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	meter := types.NewGasMeter(20000)
 	st := gas.New(mem, meter, types.DefaultGasConfig())
 	st.Set(keyFmt(1), valFmt(1))

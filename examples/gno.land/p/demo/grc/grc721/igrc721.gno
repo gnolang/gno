@@ -3,7 +3,7 @@ package grc721
 import "std"
 
 type IGRC721 interface {
-	BalanceOf(owner std.Address) (uint64, error)
+	BalanceOf(owner std.Address) (int64, error)
 	OwnerOf(tid TokenID) (std.Address, error)
 	SetTokenURI(tid TokenID, tURI TokenURI) (bool, error)
 	SafeTransferFrom(from, to std.Address, tid TokenID) error
@@ -19,20 +19,12 @@ type (
 	TokenURI string
 )
 
-type TransferEvent struct {
-	From    std.Address
-	To      std.Address
-	TokenID TokenID
-}
+const (
+	MintEvent           = "Mint"
+	BurnEvent           = "Burn"
+	TransferEvent       = "Transfer"
+	ApprovalEvent       = "Approval"
+	ApprovalForAllEvent = "ApprovalForAll"
+)
 
-type ApprovalEvent struct {
-	Owner    std.Address
-	Approved std.Address
-	TokenID  TokenID
-}
-
-type ApprovalForAllEvent struct {
-	Owner    std.Address
-	Operator std.Address
-	Approved bool
-}
+type NFTGetter func() IGRC721

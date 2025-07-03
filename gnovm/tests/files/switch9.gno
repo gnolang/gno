@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var i interface{} = "truc"
+	var i any = "truc"
 
 	switch i.(type) {
 	case string:
@@ -13,4 +13,7 @@ func main() {
 }
 
 // Error:
-// cannot fallthrough in type switch
+// main/switch9.gno:9:3-14: cannot fallthrough in type switch
+
+// TypeCheckError:
+// main/switch9.gno:9:3: cannot fallthrough in type switch

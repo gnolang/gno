@@ -1,0 +1,135 @@
+{{define "file-viewer" }}
+{{if ne .Status "missing in src"}}
+    <div class="file-viewer">
+        <div name="gno_file_container" class="file-container" style="margin-right: 1rem;">
+            {{- range .LineDiffferrences}}
+                {{- if eq .SrcOperation 2}}
+                <div style="display: flex; color: red;">
+                    <span style="user-select: none; min-width: 50px;">{{.SrcNumber}} </span><p>{{.SrcLine}}</p>
+                </div>
+
+                {{- else if eq .SrcOperation 3}}
+                <div div style="display: flex;">
+                    <span style="user-select: none; min-width: 50px;">{{.SrcNumber}}</span>
+                    <p style="opacity: 0.75;">{{.SrcLine}}</p>
+                </div>
+                {{- else}}
+                <div div style="display: flex;">
+                    <p style="user-select: none; width: 100%;"> </p>
+                </div>
+                {{- end}}
+            {{- end}}
+        </div>
+    </div>
+{{end}}
+    {{if ne .Status "missing in dst"}}
+        <div class="file-viewer">
+            <div name="go_file_container" class="file-container">
+                {{- range .LineDiffferrences}}
+                    {{- if eq .DestOperation 1}}
+                    <div style="display: flex; color: #07ca07;">
+                    <span style="user-select: none; min-width: 50px;">{{.DestNumber}} </span><p>{{.DestLine}}</p>
+                    </div>
+                    {{- else if eq .DestOperation 3}}
+                    <div style="display: flex;">
+                        <span style="user-select: none; min-width: 50px;">{{.DestNumber}}</span>
+                        <p style="opacity: 0.75;">{{.DestLine}}</p>
+                    </div>
+                    {{- else}}
+                        <p style="user-select: none; width: 100%;"> </p>
+                    {{- end}}
+                {{- end}}
+            </div>
+        </div>
+    {{end}}
+{{end}}
+
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .PackageName }}</title>
+    <style>
+        body, html {
+            font-family: "Roboto Mono","Courier New",sans-serif;
+            color: #eee;
+            background-color: #1e1e1e;
+            color: #c7c7c7;
+        }
+        h1,h2,h3,h4,nav {
+            font-family: ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+            font-weight: 600;
+            letter-spacing: .08rem
+        }
+        p {
+            white-space-collapse: preserve;
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 400;
+            tab-size: 4;
+        }
+
+        .diffs {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            padding-bottom: 2rem;
+            width: 100%;
+        }
+        .file-container {
+            display: flex;
+            flex-direction: column;
+        }
+        .file-viewer {
+            border-style: solid;
+            border-width: 2px;
+            border-radius: 15px;
+            border-color: #c7c7c7;
+            padding: 1rem;
+            width: 50%;
+            overflow-x: auto;
+            white-space: nowrap;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <H1>{{ .PackageName }} package differences</H1>
+
+    <h2>Package information</h2>
+
+    <h3>Sources location</h3>
+    <ul style="margin-bottom: 2rem;">
+        <li>SRC: {{.SrcPackageLocation}}</li>
+        <li>DST: {{.DstPackageLocation}}</li>
+    </ul>
+
+    <h3>Number of files</h3>
+    <ul style="margin-bottom: 2rem;">
+        <li>SRC: {{.SrcFilesCount}}</li>
+        <li>DST: {{.DstFileCount}}</li>
+    </ul>
+
+    {{- range .FilesDifferences}}
+        {{- if eq .Status "files differ"}}
+            <details open>
+            <summary>~ {{.SourceName}} ({{.Status}})</summary>
+        {{- else if eq .Status "missing in dst"}}
+            <details>
+            <summary style="color: red;">- {{.SourceName}} ({{.Status}})</summary>
+        {{- else if eq .Status "missing in src"}}
+            <details>
+            <summary style="color: forestgreen;">+ {{.SourceName}} ({{.Status}})</summary>
+        {{- else}}
+            <details>
+            <summary style="opacity: 45%;">= {{.SourceName}} ({{.Status}})</summary>
+        {{- end}}
+        <div class="diffs">
+            {{template "file-viewer" .}}
+        </div>
+    </details>
+    {{- end}}
+</body>
+</html>

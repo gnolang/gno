@@ -7,7 +7,7 @@ func main() {
 	a = 64
 	b = 64
 	c = a * b
-	fmt.Printf("c: %v %T", c, c)
+	fmt.Printf("c: %v %T\n", c, c)
 }
 
 // Output:

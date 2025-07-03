@@ -1,0 +1,29 @@
+
+## gno.land params
+
+["bank"]
+  restricted_denoms = ["gnot"]
+
+["vm"]
+  chain_domain = "gno.land"
+  sysnames_pkgpath = "gno.land/r/sys/names"
+  # TODO: Leverage toml unmarshaler to extract these into VM Params struct before writing to genesis
+  # TODO: max_gas = 100_000_000
+  # TODO: chain_tz = "UTC"
+  # TODO: default_storage_allowance = ""
+
+["tm2"]
+  # TODO
+
+#######################################
+## testing realm parameters
+## Do not remove these lines.
+## They are needed for a txtar integration test.
+## XXX copy these (and above) to say genesis_params_test.toml.
+["vm:gno.land/r/sys/testrealm"]
+  foo_string = "bar"
+  foo_int64 = -1337
+  foo_uint64 = 123
+  foo_bool = true
+  "foo_strings.strings" = ["some", "strings"]
+  # foo_bytes = ...?

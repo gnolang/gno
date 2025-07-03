@@ -1,6 +1,8 @@
 package json
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestBufferCurrent(t *testing.T) {
 	tests := []struct {
@@ -237,37 +239,6 @@ func TestBufferSkip(t *testing.T) {
 			err := tt.buffer.skip(tt.b)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("buffer.skip() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestBufferSkipAny(t *testing.T) {
-	tests := []struct {
-		name    string
-		buffer  *buffer
-		s       map[byte]bool
-		wantErr bool
-	}{
-		{
-			name:    "Skip any valid byte",
-			buffer:  &buffer{data: []byte("test"), length: 4, index: 0},
-			s:       map[byte]bool{'e': true, 'o': true},
-			wantErr: false,
-		},
-		{
-			name:    "Skip any to EOF",
-			buffer:  &buffer{data: []byte("test"), length: 4, index: 0},
-			s:       map[byte]bool{'x': true, 'y': true},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.buffer.skipAny(tt.s)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("buffer.skipAny() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

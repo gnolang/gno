@@ -44,7 +44,7 @@ func printEvents(events []*Event) {
 	}
 }
 
-func main() {
+func main(cur realm,) {
 	DelEvent("event2")
 	InsertEvent("event1.5")
 	AppendEvent("event2")

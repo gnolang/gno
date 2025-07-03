@@ -2,7 +2,7 @@
 
 The JSON parser is a package that provides functionality for parsing and processing JSON strings. This package accepts JSON strings as byte slices.
 
-Currently, gno does not [support the `reflect` package](https://docs.gno.land/concepts/effective-gno#reflection-is-never-clear), so it cannot retrieve type information at runtime. Therefore, it is designed to infer and handle type information when parsing JSON strings using a state machine approach.
+Currently, gno does not [support the `reflect` package](https://docs.gno.land/resources/effective-gno#reflection-is-never-clear), so it cannot retrieve type information at runtime. Therefore, it is designed to infer and handle type information when parsing JSON strings using a state machine approach.
 
 After passing through the state machine, JSON strings are represented as the `Node` type. The `Node` type represents nodes for JSON data, including various types such as `ObjectNode`, `ArrayNode`, `StringNode`, `NumberNode`, `BoolNode`, and `NullNode`.
 
@@ -75,7 +75,6 @@ The converted `Node` type allows you to modify the JSON data or search and extra
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
@@ -100,7 +99,6 @@ Encoding (or Marshaling) is the functionality that converts JSON data represente
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
@@ -133,7 +131,6 @@ Here is an example of finding data with a specific key. For more examples, pleas
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )

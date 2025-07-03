@@ -1,0 +1,16 @@
+{{- define "renderRedirect" -}}
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="canonical" href="{{.To}}" />
+    <meta name="robots" content="noindex" />
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content="0; url={{.To}}" />
+    <title>Redirecting to {{.To}}</title>
+  </head>
+  <body>
+    <a href="{{.To}}">{{.To}}</a>
+    {{- if .WithAnalytics -}} {{- template "layout/analytics" }} {{- end -}}
+  </body>
+</html>
+{{- end -}}

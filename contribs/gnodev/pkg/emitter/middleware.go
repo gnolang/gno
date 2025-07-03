@@ -5,10 +5,10 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 	"sync"
-	"text/template"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 )

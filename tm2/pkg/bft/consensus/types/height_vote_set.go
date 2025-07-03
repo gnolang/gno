@@ -8,7 +8,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 type RoundVoteSet struct {
@@ -39,9 +39,9 @@ type HeightVoteSet struct {
 	valSet  *types.ValidatorSet
 
 	mtx               sync.Mutex
-	round             int                  // max tracked round
-	roundVoteSets     map[int]RoundVoteSet // keys: [0...round]
-	peerCatchupRounds map[p2p.ID][]int     // keys: peer.ID; values: at most 2 rounds
+	round             int                   // max tracked round
+	roundVoteSets     map[int]RoundVoteSet  // keys: [0...round]
+	peerCatchupRounds map[p2pTypes.ID][]int // keys: peer.ID; values: at most 2 rounds
 }
 
 func NewHeightVoteSet(chainID string, height int64, valSet *types.ValidatorSet) *HeightVoteSet {
@@ -59,7 +59,7 @@ func (hvs *HeightVoteSet) Reset(height int64, valSet *types.ValidatorSet) {
 	hvs.height = height
 	hvs.valSet = valSet
 	hvs.roundVoteSets = make(map[int]RoundVoteSet)
-	hvs.peerCatchupRounds = make(map[p2p.ID][]int)
+	hvs.peerCatchupRounds = make(map[p2pTypes.ID][]int)
 
 	hvs.addRound(0)
 	hvs.round = 0
@@ -108,7 +108,7 @@ func (hvs *HeightVoteSet) addRound(round int) {
 
 // Duplicate votes return added=false, err=nil.
 // By convention, peerID is "" if origin is self.
-func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
+func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2pTypes.ID) (added bool, err error) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(vote.Type) {
@@ -176,7 +176,7 @@ func (hvs *HeightVoteSet) getVoteSet(round int, type_ types.SignedMsgType) *type
 // NOTE: if there are too many peers, or too much peer churn,
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
-func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ types.SignedMsgType, peerID p2p.ID, blockID types.BlockID) error {
+func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ types.SignedMsgType, peerID p2pTypes.ID, blockID types.BlockID) error {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(type_) {
@@ -237,7 +237,7 @@ func (hvs *HeightVoteSet) toAllRoundVotes() []roundVotes {
 	totalRounds := hvs.round + 1
 	allVotes := make([]roundVotes, totalRounds)
 	// rounds 0 ~ hvs.round inclusive
-	for round := 0; round < totalRounds; round++ {
+	for round := range totalRounds {
 		allVotes[round] = roundVotes{
 			Round:              round,
 			Prevotes:           hvs.roundVoteSets[round].Prevotes.VoteStrings(),

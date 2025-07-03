@@ -108,7 +108,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		}
 	}()
 
-	for i := 0; i < 1e4; i++ {
+	for range 10_000 {
 		f.Fuzz(ptr)
 
 		// Reset, which makes debugging decoding easier.
@@ -120,7 +120,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		case "binary":
 			bz, err = cdc.Marshal(ptr)
 		case "json":
-			bz, err = cdc.MarshalJSON(ptr)
+			bz, err = cdc.JSONMarshal(ptr)
 		default:
 			panic("should not happen")
 		}
@@ -133,7 +133,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		case "binary":
 			err = cdc.Unmarshal(bz, ptr2)
 		case "json":
-			err = cdc.UnmarshalJSON(bz, ptr2)
+			err = cdc.JSONUnmarshal(bz, ptr2)
 		default:
 			panic("should not happen")
 		}
@@ -205,7 +205,7 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 		}
 	}()
 
-	for i := 0; i < 1e4; i++ {
+	for range 10_000 {
 		f.Fuzz(ptr)
 
 		ptr2 := amino.DeepCopy(ptr)
@@ -399,7 +399,7 @@ func TestCodecMarshalAny(t *testing.T) {
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
 
 	obj := tests.ConcreteWrappedBytes{Value: []byte("0123")}
-	ifc := (interface{})(obj)
+	ifc := (any)(obj)
 
 	bz1, err := cdc.MarshalAny(obj)
 	assert.Nil(t, err)
@@ -427,7 +427,7 @@ func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 		"ConcreteTypeDef incorrectly serialized")
 
 	var i1 tests.Interface1
-	err = cdc.UnmarshalJSON(bz, &i1)
+	err = cdc.JSONUnmarshal(bz, &i1)
 	assert.Nil(t, err)
 	assert.Equal(t, c3, i1)
 }
@@ -507,11 +507,11 @@ func TestCodecBinaryStructFieldNilInterface(t *testing.T) {
 // ----------------------------------------
 // Misc.
 
-func spw(o interface{}) string {
+func spw(o any) string {
 	return spew.Sprintf("%#v", o)
 }
 
-var fuzzFuncs = []interface{}{
+var fuzzFuncs = []any{
 	func(ptr **int8, c fuzz.Continue) {
 		var i int8
 		c.Fuzz(&i)
@@ -651,14 +651,14 @@ var fuzzFuncs = []interface{}{
 			// Empty slice elements should be non-nil,
 			// since we don't set amino:"nil_elements".
 			*esz = make([]*tests.EmptyStruct, n)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				(*esz)[i] = &tests.EmptyStruct{}
 			}
 		}
 	},
 }
 
-func getTypeFromPointer(ptr interface{}) reflect.Type {
+func getTypeFromPointer(ptr any) reflect.Type {
 	rt := reflect.TypeOf(ptr)
 	if rt.Kind() != reflect.Ptr {
 		panic(fmt.Sprintf("expected pointer, got %v", rt))

@@ -2,7 +2,7 @@ package types
 
 import (
 	"bytes"
-	"hash/fnv"
+	"crypto/sha256"
 )
 
 type (
@@ -36,9 +36,7 @@ func (self String) Less(other Sortable) bool {
 }
 
 func (self String) Hash() int {
-	h := fnv.New32a()
-	h.Write([]byte(string(self)))
-	return int(h.Sum32())
+	return int(hash([]byte(self)))
 }
 
 func (self *ByteSlice) MarshalBinary() ([]byte, error) {
@@ -67,7 +65,13 @@ func (self ByteSlice) Less(other Sortable) bool {
 }
 
 func (self ByteSlice) Hash() int {
-	h := fnv.New32a()
-	h.Write([]byte(self))
-	return int(h.Sum32())
+	return int(hash([]byte(self)))
+}
+
+func hash(s []byte) int {
+	res := sha256.Sum256(s)
+	return int(res[0]) |
+		int(res[1]<<8) |
+		int(res[2]<<16) |
+		int(res[3]<<24)
 }

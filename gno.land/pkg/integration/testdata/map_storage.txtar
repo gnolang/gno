@@ -1,0 +1,26 @@
+# Test for https://github.com/gnolang/gno/pull/1112
+loadpkg gno.land/r/demo/mapindex $WORK
+
+gnoland start
+
+# call map
+gnokey query vm/qeval --data "gno.land/r/demo/mapindex.FindMapWithKey(3)"
+stdout '"three" string'
+
+# XXX without patching realm.go, expected stdout is
+# stdout ' string'
+
+-- realm.gno --
+package mapindex
+
+var mapus map[uint64]string = make(map[uint64]string)
+
+func init() {
+	mapus[3] = "three"
+	mapus[5] = "five"
+	mapus[9] = "nine"
+}
+
+func FindMapWithKey(k uint64) string {
+	return mapus[k]
+}

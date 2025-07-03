@@ -2,10 +2,12 @@ package gnoland
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -15,16 +17,16 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
-	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator      bft.PrivValidator // identity of the validator
-	Genesis            *bft.GenesisDoc
-	TMConfig           *tmcfg.Config
-	GenesisMaxVMCycles int64
-	DB                 *memdb.MemDB // will be initialized if nil
+	PrivValidator           bft.PrivValidator // identity of the validator
+	Genesis                 *bft.GenesisDoc
+	TMConfig                *tmcfg.Config
+	DB                      db.DB     // will be initialized if nil
+	VMOutput                io.Writer // optional
+	SkipGenesisVerification bool
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -36,7 +38,7 @@ func NewMockedPrivValidator() bft.PrivValidator {
 }
 
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
-func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
+func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
@@ -45,17 +47,22 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
-			Txs:      []std.Tx{},
+			Txs:      []TxWithMetadata{},
+			VM: vm.GenesisState{
+				Params: vm.Params{
+					ChainDomain: chaindomain,
+				},
+			},
 		},
 	}
 }
 
 func defaultBlockParams() *abci.BlockParams {
 	return &abci.BlockParams{
-		MaxTxBytes:   1_000_000,   // 1MB,
-		MaxDataBytes: 2_000_000,   // 2MB,
-		MaxGas:       100_000_000, // 100M gas
-		TimeIotaMS:   100,         // 100ms
+		MaxTxBytes:   1_000_000,     // 1MB,
+		MaxDataBytes: 2_000_000,     // 2MB,
+		MaxGas:       3_000_000_000, // 3B gas
+		TimeIotaMS:   100,           // 100ms
 	}
 }
 
@@ -105,11 +112,12 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:            logger,
-		MaxCycles:         cfg.GenesisMaxVMCycles,
-		DB:                cfg.DB,
-		EventSwitch:       evsw,
-		InitChainerConfig: cfg.InitChainerConfig,
+		Logger:                  logger,
+		DB:                      cfg.DB,
+		EventSwitch:             evsw,
+		InitChainerConfig:       cfg.InitChainerConfig,
+		VMOutput:                cfg.VMOutput,
+		SkipGenesisVerification: cfg.SkipGenesisVerification,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -131,7 +139,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	dbProvider := func(*node.DBContext) (db.DB, error) { return cfg.DB, nil }
 
 	// Generate p2p node identity
-	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
+	nodekey := &types.NodeKey{PrivKey: ed25519.GenPrivKey()}
 
 	// Create and return the in-memory node instance
 	return node.NewNode(cfg.TMConfig,

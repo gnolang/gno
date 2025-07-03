@@ -9,21 +9,7 @@ import (
 // A factor no higher than 2 ensures that wasted space never exceeds 50%.
 const indentGrowthFactor = 2
 
-// IndentJSON takes a JSON byte slice and a string for indentation,
-// then formats the JSON according to the specified indent string.
-// This function applies indentation rules as follows:
-//
-// 1. For top-level arrays and objects, no additional indentation is applied.
-//
-// 2. For nested structures like arrays within arrays or objects, indentation increases.
-//
-// 3. Indentation is applied after opening brackets ('[' or '{') and before closing brackets (']' or '}').
-//
-// 4. Commas and colons are handled appropriately to maintain valid JSON format.
-//
-// 5. Nested arrays within objects or arrays receive new lines and indentation based on their depth level.
-//
-// The function returns the formatted JSON as a byte slice and an error if any issues occurred during formatting.
+// IndentJSON formats the JSON data with the specified indentation.
 func Indent(data []byte, indent string) ([]byte, error) {
 	var (
 		out        bytes.Buffer

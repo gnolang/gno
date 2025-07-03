@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"strings"
 )
 
@@ -12,9 +11,9 @@ func main() {
 
 	b, err := io.ReadAll(r)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	fmt.Printf("%s", b)
+	fmt.Printf("%s\n", b)
 }
 
 // Output:
