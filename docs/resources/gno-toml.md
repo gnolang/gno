@@ -1,0 +1,18 @@
+# Configuring Gno Packages
+
+
+
+## gnomod.toml
+
+used as a package metadata file that can be created with `gno mod init pkgpath`
+
+can specify specific fields:
+- uploader - replaces the deployer address, only for genesis (block0, working in the monorepo)
+- draft
+- private
+- gno version - currently only 0.9 is supported.
+- pkgpath - has to match the addpkg path during transaction deployment
+- replace - 
+
+## gnowork.toml
+
