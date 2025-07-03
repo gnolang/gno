@@ -363,8 +363,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
+	tcmode := gno.TCLatestStrict
+	if ctx.BlockHeight() == 0 {
+		tcmode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
+	}
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestStrict)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -377,6 +381,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
+	}
+	if gm.Draft && ctx.BlockHeight() > 0 {
+		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
 	}
 	// no (deprecated) gno.mod file.
 	if memPkg.GetFile("gno.mod") != nil {
@@ -619,8 +626,9 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
+	tcmode := gno.TCLatestRelaxed
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, gno.TCLatestRelaxed)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
