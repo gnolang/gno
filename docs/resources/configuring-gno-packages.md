@@ -56,9 +56,22 @@ packages to be included at genesis.
 ### Example
 
 ```toml
-module = "gno.land/r/test/test"
+# gnomod.toml
+path = "gno.land/r/test"
 gno = "0.9"
+draft = true
+private = true
+
+[replace]
+  old = "gno.land/r/test"
+  new = "gno.land/r/test/v2"
+[replace]
+  old = "gno.land/r/test/v3"
+  new = "../.."
 
 [upload_metadata]
-    uploader = "g1t43aega4j3t6szv0d3zt9uhpa5g6k7h8x4vvxe"
+  uploader = "g1xyz..."
 ```
+
+Note that this example isn't realistic because we should either replace,
+upload metadata, or do neither, but never both at the same time.
