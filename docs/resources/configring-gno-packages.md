@@ -1,18 +1,64 @@
 # Configuring Gno Packages
 
+Gno supports package configuration through a metadata file called `gnomod.toml`.
+This file is typically generated using:
+
+```bash
+gno mod init <pkgpath>
+```
+
+It enables advanced control over how your package is interpreted, deployed, and 
+used on-chain.
 
 ## `gnomod.toml`
 
-used as a package metadata file that can be created with `gno mod init pkgpath`
+This file defines metadata for your Gno package and can include the following fields:
 
-Can specify specific fields:
-- uploader - replaces the deployer address, only for genesis (block0, working in the monorepo)
-- draft
-- private
-- gno version - currently version 0.9 is the only supported version.
-- pkgpath - has to match the addpkg path during transaction deployment
-- replace - helps with local testing; if it's not empty addpkg fails on-chain
+#### `private`
 
-## `gnowork.toml`
+Marks the package as private and **unimportable** by others. Additionally:
+- It can be **re-uploaded** - the new version fully overwrites the old one.
+- Memory, pointers, or types defined in this package **cannot be used or stored elsewhere**.
+- see example: good for home type packages, what else?
 
-Coming soon.
+#### `gno`  
+
+Specifies the **Gno language version**. Currently, only version `"0.9"` is supported.
+
+#### `pkgpath`  
+
+Defines the canonical **package path**. Must exactly match the path used in the `addpkg` transaction during deployment (must it right now?).
+
+#### `replace`
+
+Used for **local development and testing**. When set, this field allows local 
+replacement of the package, but will cause `addpkg` to **fail on-chain**. Useful
+for overriding dependencies during local testing.
+
+#### `uploader`  
+
+Specifies the address that will be set as the uploader of the package. This 
+field is used only during **genesis (block 0)** and replaces the default 
+deployer address. Primarily used in monorepo setups.
+
+#### `draft`  
+
+A flag intended for **chain creators**. Marks the package as *unimportable*
+during normal operation. This flag is **ignored at block 0**, allowing draft
+packages to be included at genesis.
+
+### Example
+
+```toml
+module = "gno.land/r/test/test"
+gno = "0.9"
+
+[upload_metadata]
+    uploader = "g1t43aega4j3t6szv0d3zt9uhpa5g6k7h8x4vvxe"
+```
+
+---
+
+## `gnowork.toml` (Coming Soon)
+
+A future configuration file for specifying build and workspace-level metadata. Stay tuned!
