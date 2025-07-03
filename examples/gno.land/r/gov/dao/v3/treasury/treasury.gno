@@ -27,7 +27,7 @@ func init() {
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())
 	}
-	grc20Banker, err := t.NewGRC20Banker(grc20regLister)
+	grc20Banker, err := t.NewGRC20Banker(grc20Lister)
 	if err != nil {
 		panic("failed to create GRC20Banker: " + err.Error())
 	}
