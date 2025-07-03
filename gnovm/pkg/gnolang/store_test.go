@@ -147,7 +147,7 @@ func TestFindByPrefix(t *testing.T) {
 			Files: []*std.MemFile{
 				{Name: lib + ".gno", Body: "package " + lib},
 			},
-		}, MPAnyAll)
+		}, MPStdlibAll)
 	}
 
 	// Add pkgs
@@ -160,7 +160,7 @@ func TestFindByPrefix(t *testing.T) {
 			Files: []*std.MemFile{
 				{Name: name + ".gno", Body: "package " + name},
 			},
-		}, MPAnyAll)
+		}, MPUserProd)
 	}
 
 	for _, tc := range cases {

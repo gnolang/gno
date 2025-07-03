@@ -1,8 +1,9 @@
 package init
 
 import (
-	"gno.land/p/demo/uassert"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 var (
