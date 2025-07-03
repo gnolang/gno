@@ -7,6 +7,8 @@ type DirData struct {
 	Files       []string
 	FileCounter int
 	FilesLinks  FilesLinks
+	Mode        ViewMode
+	Readme      Component
 }
 
 type DirLinkType int
@@ -44,12 +46,15 @@ func GetFullLinks(files []string, linkType DirLinkType, pkgPath string) FilesLin
 	return result
 }
 
-func DirectoryView(pkgPath string, files []string, fileCounter int, linkType DirLinkType) *View {
+func DirectoryView(pkgPath string, files []string, fileCounter int, linkType DirLinkType, mode ViewMode, readme ...Component) *View {
 	viewData := DirData{
 		PkgPath:     pkgPath,
 		Files:       files,
 		FilesLinks:  GetFullLinks(files, linkType, pkgPath),
 		FileCounter: fileCounter,
+	}
+	if len(readme) > 0 {
+		viewData.Readme = readme[0]
 	}
 	return NewTemplateView(DirectoryViewType, "renderDir", viewData)
 }

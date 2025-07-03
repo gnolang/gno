@@ -29,5 +29,26 @@
       {{ end }}
     </ul>
   </div>
+
+  {{ if .Readme }}
+  <div
+    class="flex justify-between lg:col-span-7 mb-4 px-2 text-gray-600 font-mono"
+  >
+    <span class="flex items-center gap-2">
+      <svg class="w-4 h-4 shrink-0">
+        <use href="#ico-readme"></use>
+      </svg>
+      <span>README.md</span>
+    </span>
+    <a
+      href="{{ $pkgpath }}$source&file=README.md"
+      class="text-gray-300 hover:text-gray-600"
+      >Open</a
+    >
+  </div>
+  <md-renderer class="realm-view block bg-light p-4 rounded">
+    {{ render .Readme }}
+  </md-renderer>
+  {{ end }}
 </article>
 {{ end }}
