@@ -52,7 +52,6 @@ func CreateFriendGroup(cur realm, title string) {
 	caller := std.PreviousRealm().Address()
 
 	id := ListGroups.NextGroupId.Next()
-	ListGroups.NextGroupId = id
 
 	newGroup := FriendGroup{
 		ID:    id.String(),
