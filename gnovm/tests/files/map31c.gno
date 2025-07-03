@@ -8,8 +8,12 @@ var (
 func main() {
 	i := 3
 	tmpInt := &i
-	m[tmpInt] = 1
+	m[tmpInt] += 2
+	println(m[tmpInt])
 }
+
+// Output:
+// 2
 
 // Realm:
 // finalizerealm["gno.land/r/map_test"]
@@ -55,7 +59,7 @@ func main() {
 //     +                    }
 //     +                },
 //     +                "Value": {
-//     +                    "N": "AQAAAAAAAAA=",
+//     +                    "N": "AgAAAAAAAAA=",
 //     +                    "T": {
 //     +                        "@type": "/gno.PrimitiveType",
 //     +                        "value": "32"
