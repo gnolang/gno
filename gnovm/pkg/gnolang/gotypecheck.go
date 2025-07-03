@@ -575,6 +575,8 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 			if strings.HasSuffix(file.Name, "_filetest.gno") {
 				continue
 			}
+		case MPUserIntegration, MPStdlibIntegration:
+			// parse all integration test files
 		default:
 			panic("should not happen")
 		}
