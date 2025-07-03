@@ -208,7 +208,14 @@ func (ci *CoverageInstrumenter) createMarkLineStmt(filename string, line int) as
 // It inserts a MarkLine call at the beginning of the block unless
 // the block contains the special 'cross' identifier.
 func (ci *CoverageInstrumenter) instrumentBlockStmt(block *ast.BlockStmt, line int) {
-	if block == nil || len(block.List) == 0 {
+	if block == nil {
+		return
+	}
+
+	// even if the block is empty, insert `MarkLine` at the beginning of the block
+	if len(block.List) == 0 {
+		markStmt := ci.createMarkLineStmt(ci.filename, line)
+		block.List = append([]ast.Stmt{markStmt}, block.List...)
 		return
 	}
 

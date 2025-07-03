@@ -145,6 +145,10 @@ func getLineColor(lineNum int, data *CoverageData) string {
 		return ""
 	}
 
+	if data == nil {
+		return ColorWhite
+	}
+
 	if count, exists := data.LineData[lineNum]; exists {
 		if count > 0 {
 			return ColorGreen // Executed line - green

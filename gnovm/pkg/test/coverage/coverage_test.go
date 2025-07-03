@@ -1,6 +1,9 @@
 package coverage
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -374,5 +377,421 @@ func check() error {
 				}
 			}
 		})
+	}
+}
+
+func TestCoverageTracker_MarkLine(t *testing.T) {
+	tracker := NewCoverageTracker()
+
+	// Test marking lines
+	tracker.MarkLine("test.gno", 10)
+	tracker.MarkLine("test.gno", 15)
+	tracker.MarkLine("test.gno", 10) // Mark same line again
+
+	coverage := tracker.GetCoverage("test.gno")
+	if len(coverage) != 2 {
+		t.Errorf("Expected 2 unique lines, got %d", len(coverage))
+	}
+
+	if coverage[10] != 2 {
+		t.Errorf("Expected line 10 to be executed 2 times, got %d", coverage[10])
+	}
+
+	if coverage[15] != 1 {
+		t.Errorf("Expected line 15 to be executed 1 time, got %d", coverage[15])
+	}
+}
+
+func TestCoverageTracker_GetCoverageData(t *testing.T) {
+	tracker := NewCoverageTracker()
+
+	// Register executable lines
+	tracker.RegisterExecutableLine("test.gno", 10)
+	tracker.RegisterExecutableLine("test.gno", 15)
+	tracker.RegisterExecutableLine("test.gno", 20)
+
+	// Mark some lines as executed
+	tracker.MarkLine("test.gno", 10)
+	tracker.MarkLine("test.gno", 15)
+
+	coverageData := tracker.GetCoverageData()
+
+	if len(coverageData) != 1 {
+		t.Errorf("Expected 1 file, got %d", len(coverageData))
+	}
+
+	data := coverageData["test.gno"]
+	if data.TotalLines != 3 {
+		t.Errorf("Expected 3 total lines, got %d", data.TotalLines)
+	}
+
+	if data.CoveredLines != 2 {
+		t.Errorf("Expected 2 covered lines, got %d", data.CoveredLines)
+	}
+
+	expectedCoverage := float64(2) / float64(3) * 100
+	if data.CoverageRatio != expectedCoverage {
+		t.Errorf("Expected coverage %.2f%%, got %.2f%%", expectedCoverage, data.CoverageRatio)
+	}
+
+	// Check line data
+	if data.LineData[10] != 1 {
+		t.Errorf("Expected line 10 to have count 1, got %d", data.LineData[10])
+	}
+	if data.LineData[20] != 0 {
+		t.Errorf("Expected line 20 to have count 0, got %d", data.LineData[20])
+	}
+}
+
+func TestCoverageTracker_PrintCoverage(t *testing.T) {
+	tracker := NewCoverageTracker()
+
+	// Setup some coverage data
+	tracker.RegisterExecutableLine("file1.gno", 10)
+	tracker.RegisterExecutableLine("file1.gno", 15)
+	tracker.RegisterExecutableLine("file2.gno", 20)
+
+	tracker.MarkLine("file1.gno", 10)
+	tracker.MarkLine("file2.gno", 20)
+
+	// Capture output
+	originalStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	tracker.PrintCoverage()
+
+	w.Close()
+	os.Stdout = originalStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	// Check if output contains expected information
+	if !strings.Contains(output, "Coverage Report:") {
+		t.Error("Expected 'Coverage Report:' in output")
+	}
+	if !strings.Contains(output, "file1.gno") {
+		t.Error("Expected 'file1.gno' in output")
+	}
+	if !strings.Contains(output, "file2.gno") {
+		t.Error("Expected 'file2.gno' in output")
+	}
+}
+
+func TestCoverageTracker_Reset(t *testing.T) {
+	tracker := NewCoverageTracker()
+
+	// Add some data
+	tracker.RegisterExecutableLine("test.gno", 10)
+	tracker.MarkLine("test.gno", 10)
+
+	// Verify data exists
+	coverage := tracker.GetCoverage("test.gno")
+	if len(coverage) == 0 {
+		t.Error("Expected coverage data before reset")
+	}
+
+	// Reset
+	tracker.Reset()
+
+	// Verify data is cleared
+	coverage = tracker.GetCoverage("test.gno")
+	if len(coverage) != 0 {
+		t.Error("Expected no coverage data after reset")
+	}
+
+	coverageData := tracker.GetCoverageData()
+	if len(coverageData) != 0 {
+		t.Error("Expected no coverage data after reset")
+	}
+}
+
+func TestGetGlobalTracker(t *testing.T) {
+	tracker := GetGlobalTracker()
+	if tracker == nil {
+		t.Error("Expected non-nil global tracker")
+	}
+
+	// Test that it's the same instance
+	tracker2 := GetGlobalTracker()
+	if tracker != tracker2 {
+		t.Error("Expected same global tracker instance")
+	}
+}
+
+func TestCoverageInstrumenter_ForLoop(t *testing.T) {
+	tracker := NewCoverageTracker()
+	instrumenter := NewCoverageInstrumenter(tracker, "test.go")
+
+	code := `
+package main
+
+func testFunc() {
+	for i := 0; i < 10; i++ {
+		println(i)
+	}
+}
+`
+	instrumented, err := instrumenter.InstrumentFile([]byte(code))
+	if err != nil {
+		t.Fatalf("instrumenting failed: %v", err)
+	}
+
+	// Check if for loop is instrumented
+	expected := "testing.MarkLine(\"test.go\", 5)"
+	if !strings.Contains(string(instrumented), expected) {
+		t.Errorf("Expected for loop instrumentation not found")
+	}
+}
+
+func TestCoverageInstrumenter_RangeLoop(t *testing.T) {
+	tracker := NewCoverageTracker()
+	instrumenter := NewCoverageInstrumenter(tracker, "test.go")
+
+	code := `
+package main
+
+func testFunc() {
+	items := []int{1, 2, 3}
+	for _, item := range items {
+		println(item)
+	}
+}
+`
+	instrumented, err := instrumenter.InstrumentFile([]byte(code))
+	if err != nil {
+		t.Fatalf("instrumenting failed: %v", err)
+	}
+
+	// Check if range loop is instrumented (실제 라인: 6)
+	expected := "testing.MarkLine(\"test.go\", 6)"
+	if !strings.Contains(string(instrumented), expected) {
+		t.Errorf("Expected range loop instrumentation not found")
+	}
+}
+
+func TestCoverageInstrumenter_SwitchStatement(t *testing.T) {
+	tracker := NewCoverageTracker()
+	instrumenter := NewCoverageInstrumenter(tracker, "test.go")
+
+	code := `
+package main
+
+func testFunc(x int) {
+	switch x {
+	case 1:
+		println("one")
+	case 2:
+		println("two")
+	default:
+		println("other")
+	}
+}
+`
+	instrumented, err := instrumenter.InstrumentFile([]byte(code))
+	if err != nil {
+		t.Fatalf("instrumenting failed: %v", err)
+	}
+	instrumentedStr := string(instrumented)
+	t.Log("Instrumented code:\n" + instrumentedStr)
+	// we don't instrument switch statement itself, but we instrument case and default clauses
+	expectedCase1 := "testing.MarkLine(\"test.go\", 6)"
+	expectedCase2 := "testing.MarkLine(\"test.go\", 8)"
+	expectedDefault := "testing.MarkLine(\"test.go\", 10)"
+	if !strings.Contains(instrumentedStr, expectedCase1) {
+		t.Errorf("Expected case 1 instrumentation not found")
+	}
+	if !strings.Contains(instrumentedStr, expectedCase2) {
+		t.Errorf("Expected case 2 instrumentation not found")
+	}
+	if !strings.Contains(instrumentedStr, expectedDefault) {
+		t.Errorf("Expected default case instrumentation not found")
+	}
+}
+
+// TODO: Currently gno does not support select statement
+func TestCoverageInstrumenter_SelectStatement(t *testing.T) {
+	tracker := NewCoverageTracker()
+	instrumenter := NewCoverageInstrumenter(tracker, "test.go")
+
+	code := `
+package main
+
+func testFunc() {
+	ch := make(chan int)
+	select {
+	case <-ch:
+		println("received")
+	default:
+		println("default")
+	}
+}
+`
+	instrumented, err := instrumenter.InstrumentFile([]byte(code))
+	if err != nil {
+		t.Fatalf("instrumenting failed: %v", err)
+	}
+	instrumentedStr := string(instrumented)
+	t.Log("Instrumented code:\n" + instrumentedStr)
+	// we don't instrument select statement itself, but we instrument case and default clauses
+	expectedCase := "testing.MarkLine(\"test.go\", 7)"
+	expectedDefault := "testing.MarkLine(\"test.go\", 9)"
+	if !strings.Contains(instrumentedStr, expectedCase) {
+		t.Errorf("Expected case instrumentation not found")
+	}
+	if !strings.Contains(instrumentedStr, expectedDefault) {
+		t.Errorf("Expected default case instrumentation not found")
+	}
+}
+
+// TODO: This test should be fixed after we handle cross identifier
+func TestCoverageInstrumenter_CrossIdentifier(t *testing.T) {
+	tracker := NewCoverageTracker()
+	instrumenter := NewCoverageInstrumenter(tracker, "test.go")
+
+	// Test file with cross identifier
+	code := `
+package main
+
+func testFunc() {
+	cross.Call()
+}
+`
+	instrumented, err := instrumenter.InstrumentFile([]byte(code))
+	if err != nil {
+		t.Fatalf("instrumenting failed: %v", err)
+	}
+	// Should return original code without instrumentation
+	if strings.Contains(string(instrumented), "testing.MarkLine") {
+		t.Error("Expected no instrumentation for file with cross identifier")
+	}
+	// But should still register executable lines
+	coverage := tracker.GetCoverage("test.go")
+	t.Logf("Coverage data: %+v", coverage)
+	if len(coverage) != 0 {
+		t.Error("Expected no coverage data for cross identifier file")
+	}
+}
+
+func TestCoverageInstrumenter_ComplexControlFlow(t *testing.T) {
+	tracker := NewCoverageTracker()
+	instrumenter := NewCoverageInstrumenter(tracker, "test.go")
+
+	code := `
+package main
+
+func complexFunc(x, y int) int {
+	if x > 0 {
+		for i := 0; i < x; i++ {
+			if i%2 == 0 {
+				switch i {
+				case 0:
+					return 0
+				case 2:
+					return 2
+				default:
+					continue
+				}
+			}
+		}
+		return x
+	} else {
+		select {
+		case <-make(chan int):
+			return -1
+		default:
+			return y
+		}
+	}
+}
+`
+	instrumented, err := instrumenter.InstrumentFile([]byte(code))
+	if err != nil {
+		t.Fatalf("instrumenting failed: %v", err)
+	}
+	instrumentedStr := string(instrumented)
+	t.Log("Instrumented code:\n" + instrumentedStr)
+	// we don't instrument select statement itself,
+	// but we instrument case and default clauses
+	expectedPatterns := []string{
+		"testing.MarkLine(\"test.go\", 4)",  // if condition
+		"testing.MarkLine(\"test.go\", 5)",  // for loop
+		"testing.MarkLine(\"test.go\", 6)",  // nested if
+		"testing.MarkLine(\"test.go\", 7)",  // switch
+		"testing.MarkLine(\"test.go\", 9)",  // case 0
+		"testing.MarkLine(\"test.go\", 11)", // case 2
+		"testing.MarkLine(\"test.go\", 13)", // default case
+		"testing.MarkLine(\"test.go\", 19)", // else block
+		"testing.MarkLine(\"test.go\", 21)", // case
+		"testing.MarkLine(\"test.go\", 23)", // default
+	}
+	for _, pattern := range expectedPatterns {
+		if !strings.Contains(instrumentedStr, pattern) {
+			t.Errorf("Expected pattern not found: %s", pattern)
+		}
+	}
+}
+
+func TestInstrumentPackage_WithErrors(t *testing.T) {
+	// Test with nil package
+	err := InstrumentPackage(nil)
+	if err == nil {
+		t.Error("Expected error for nil package")
+	}
+
+	// Test with invalid syntax
+	pkg := &std.MemPackage{
+		Files: []*std.MemFile{
+			{
+				Name: "invalid.gno",
+				Body: `package main
+
+func testFunc() {
+	return 42 // missing closing brace`,
+			},
+		},
+	}
+
+	err = InstrumentPackage(pkg)
+	if err == nil {
+		t.Error("Expected error for invalid syntax")
+	}
+}
+
+func TestCoverageInstrumenter_MultipleImports(t *testing.T) {
+	tracker := NewCoverageTracker()
+	instrumenter := NewCoverageInstrumenter(tracker, "test.go")
+
+	code := `
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func testFunc() {
+	fmt.Println("test")
+}
+`
+	instrumented, err := instrumenter.InstrumentFile([]byte(code))
+	if err != nil {
+		t.Fatalf("instrumenting failed: %v", err)
+	}
+
+	// Check that testing import is added correctly
+	instrumentedStr := string(instrumented)
+	if !strings.Contains(instrumentedStr, `"testing"`) {
+		t.Error("Expected testing import to be added")
+	}
+
+	// Check that existing imports are preserved
+	if !strings.Contains(instrumentedStr, `"fmt"`) {
+		t.Error("Expected fmt import to be preserved")
+	}
+	if !strings.Contains(instrumentedStr, `"os"`) {
+		t.Error("Expected os import to be preserved")
 	}
 }
