@@ -19,29 +19,19 @@ count_lines() {
     done | wc -l
 }
 
-# Cache for import searches to speed up analysis
-declare -A import_cache
-
 # Function to find packages that import this one
 count_dependents() {
     local pkg="$1"
     local base_dir="$2"
     
-    # Check cache first
-    if [ -n "${import_cache[$pkg]}" ]; then
-        echo "${import_cache[$pkg]}"
-        return
-    fi
-    
     # Count how many times this package is imported
+    local pkg_short="${pkg#gno.land/}"
     local count=$(grep -r "import.*\"$pkg\"" "$base_dir" --include="*.gno" 2>/dev/null | \
-        grep -v "^${pkg#gno.land/}/" | \
+        grep -v "^$pkg_short/" | \
         cut -d: -f1 | \
         sort -u | \
         wc -l)
     
-    # Cache the result
-    import_cache[$pkg]=$count
     echo "$count"
 }
 
@@ -81,24 +71,10 @@ get_flags() {
     echo "${flags%,}"
 }
 
-# Cache for git info to speed up analysis
-declare -A author_cache
-declare -A date_cache
-
 # Function to get first git committer and date
 get_first_git_info() {
     local dir="$1"
     local info_type="$2"  # "author" or "date"
-    
-    # Check cache first
-    local cache_key="${dir}_${info_type}"
-    if [ "$info_type" = "author" ] && [ -n "${author_cache[$dir]}" ]; then
-        echo "${author_cache[$dir]}"
-        return
-    elif [ "$info_type" = "date" ] && [ -n "${date_cache[$dir]}" ]; then
-        echo "${date_cache[$dir]}"
-        return
-    fi
     
     # Get the first commit info for files in this directory
     local format="%an"
@@ -133,10 +109,8 @@ get_first_git_info() {
             info="${BASH_REMATCH[1]}"
         fi
         info="${info:-unknown}"
-        author_cache[$dir]="$info"
     else
         info="${info:-unknown}"
-        date_cache[$dir]="$info"
     fi
     
     echo "$info"
