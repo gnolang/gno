@@ -19,7 +19,10 @@ This file defines metadata for your Gno package and can include the following fi
 Marks the package as private and **unimportable** by any other package. Additionally:
 - It can be **re-uploaded** - the new version fully overwrites the old one.
 - Memory, pointers, or types defined in this package **cannot be used or stored elsewhere**.
-- see example: good for home type packages, what else?
+- Usually, this flag can be used for packages that are meant to be changed,
+such as the home realm of a specific user (i.e. `r/username/home`). 
+- *This flag _does not_ provide any sort of privacy. All code is still fully
+open-source and visible to everyone, including the transactions that were used for deployments.
 
 #### `gno`  
 
