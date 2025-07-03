@@ -298,9 +298,14 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) { // Simple case - pure package.
+		// Determine package type based on path
+		mptype := gno.MPUserProd
+		if strings.HasSuffix(pkgPath, "_test") {
+			mptype = gno.MPUserIntegration
+		}
 		// Construct mem package for single filetest.
 		mpkg := &std.MemPackage{
-			Type: gno.MPUserProd, // run as prod
+			Type: mptype,
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -329,8 +334,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		gno.DisableDebug() // until main call.
 
 		// Save package using realm crawl procedure.
+		// Realms are always MPUserProd because they need to be stored
 		mpkg := &std.MemPackage{
-			Type: gno.MPUserProd, // run as prod
+			Type: gno.MPUserProd,
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
