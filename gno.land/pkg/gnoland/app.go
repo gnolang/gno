@@ -12,6 +12,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -472,6 +473,8 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
+		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
+
 		// Filter out the updates that are not valid
 		updates = slices.DeleteFunc(updates, func(u abci.ValidatorUpdate) bool {
 			// Make sure the power is valid
@@ -493,6 +496,11 @@ func EndBlocker(
 					"pubkey", u.PubKey.String(),
 				)
 
+				return true // delete it
+			}
+
+			// Make sure the public key is an allowed consensus key type
+			if !slices.Contains(allowedKeyTypes, amino.GetTypeURL(u.PubKey)) {
 				return true // delete it
 			}
 

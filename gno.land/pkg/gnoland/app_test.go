@@ -604,7 +604,13 @@ func TestEndBlocker(t *testing.T) {
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
-		res := eb(sdk.Context{}, abci.RequestEndBlock{})
+		ctx := sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Block: nil,
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"},
+			},
+		})
+		res := eb(ctx, abci.RequestEndBlock{})
 
 		// Verify the response was empty
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
@@ -672,7 +678,13 @@ func TestEndBlocker(t *testing.T) {
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
-		res := eb(sdk.Context{}, abci.RequestEndBlock{})
+		ctx := sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Block: nil,
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"}, // not usually the case; the helper generates secp keys
+			},
+		})
+		res := eb(ctx, abci.RequestEndBlock{})
 
 		// Verify the response was not empty
 		require.Len(t, res.ValidatorUpdates, len(changes))
