@@ -26,7 +26,7 @@ func (p person) LString() string {
 }
 
 func TestWithMyPhoneContact(t *testing.T) {
-	contacts := []Levensteinable{
+	contacts := []Levenshteinable{
 		person{"maman", ""},
 		person{"papa", ""},
 		person{"paul", "parisot"},
@@ -52,7 +52,7 @@ func TestWithMyPhoneContact(t *testing.T) {
 }
 
 func TestWithAVL(t *testing.T) {
-	contacts := []Levensteinable{
+	contacts := []Levenshteinable{
 		person{"maman", ""},
 		person{"papa", ""},
 		person{"paul", "parisot"},

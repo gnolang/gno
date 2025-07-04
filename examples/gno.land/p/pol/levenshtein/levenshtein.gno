@@ -1,5 +1,5 @@
 // from www.youtube.com/watch?v=d-Eq6x1yssU
-// Levenstein distance is an algorithm to detect how close 2 words are.
+// Levenshtein distance is an algorithm to detect how close 2 words are.
 // For example, "Float" and "Boats" have a levenstein distance of 3.
 // Why ? Because you need 3 steps to go from Boats to Float
 // - We start with the word (Boats)
@@ -61,10 +61,10 @@ func Distance(a, b string) uint {
 	return line[len(b)]
 }
 
-// The general interface for levensteinable string.
+// The general interface for levenshteinable string.
 // You need to use LString, because String is used to convert your object into a string.
 // LString is only when you want to compare the results.
-type Levensteinable interface {
+type Levenshteinable interface {
 	LString() string
 }
 
@@ -72,7 +72,7 @@ type Levensteinable interface {
 // levenstein string distance with the original
 // string.
 // O(n) complexity.
-func PickFromString(xStr string, xs []Levensteinable) (Levensteinable, uint) {
+func PickFromString(xStr string, xs []Levenshteinable) (Levenshteinable, uint) {
 	// check for empty list
 	if len(xs) == 0 {
 		return nil, 0
@@ -96,7 +96,7 @@ func PickFromString(xStr string, xs []Levensteinable) (Levensteinable, uint) {
 // Pick the best object that is the closest using levenstein string
 // distance with the original string object.
 // O(n) complexity.
-func Pick(x Levensteinable, xs []Levensteinable) (Levensteinable, uint) {
+func Pick(x Levenshteinable, xs []Levenshteinable) (Levenshteinable, uint) {
 	return PickFromString(x.LString(), xs)
 }
 
@@ -108,16 +108,16 @@ func padLeftNum(n uint, width int) string {
 	return s
 }
 
-// Pick the n best elements in a list of Levensteinable elements, using
+// Pick the n best elements in a list of Levenshteinable elements, using
 // the levenstein distance between the original string.
 // O(n) complexity.
-func SeveralPickFromString(xStr string, xs []Levensteinable, n uint) []Levensteinable {
+func SeveralPickFromString(xStr string, xs []Levenshteinable, n uint) []Levenshteinable {
 	// error casing
 	if len(xs) == 0 {
 		return nil
 	}
 	if n == 0 {
-		return []Levensteinable{}
+		return []Levenshteinable{}
 	}
 
 	tree := avl.NewTree()
@@ -141,17 +141,17 @@ func SeveralPickFromString(xStr string, xs []Levensteinable, n uint) []Levenstei
 	}
 
 	// create the list
-	out := make([]Levensteinable, 0, tree.Size())
+	out := make([]Levenshteinable, 0, tree.Size())
 	tree.Iterate("", "", func(k string, v any) bool {
-		out = append(out, v.(Levensteinable))
+		out = append(out, v.(Levenshteinable))
 		return false
 	})
 	return out
 }
 
-// Pick the n best elements in a list of Levensteinable elements, using
+// Pick the n best elements in a list of Levenshteinable elements, using
 // the levenstein distance between the original object's string.
 // O(n) complexity.
-func SeveralPick(x Levensteinable, xs []Levensteinable, n uint) []Levensteinable {
+func SeveralPick(x Levenshteinable, xs []Levenshteinable, n uint) []Levenshteinable {
 	return SeveralPickFromString(x.LString(), xs, n)
 }
