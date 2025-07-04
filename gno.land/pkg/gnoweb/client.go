@@ -123,12 +123,6 @@ func (c *rpcClient) ListFiles(path string) ([]string, error) {
 	fullPath := fmt.Sprintf("%s/%s", c.domain, pkgPath)
 	res, err := c.query(qpath, []byte(fullPath))
 	if err != nil {
-		// XXX: this is a bit ugly, we should make the keeper return an
-		// assertable error.
-		if strings.Contains(err.Error(), "not available") {
-			return nil, ErrClientPackageNotFound
-		}
-
 		return nil, err
 	}
 

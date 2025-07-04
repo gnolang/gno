@@ -925,13 +925,15 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
 		if memFile == nil {
-			return "", ErrInvalidFile(fmt.Sprintf("unable get file: %q", filepath)) // TODO: XSS protection
+			return "", fmt.Errorf("file %q is not available: %w",
+				filepath, &InvalidFileError{}) // TODO: XSS protection
 		}
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
 		if memPkg == nil {
-			return "", ErrInvalidPackage(fmt.Sprintf("unable get package: %q", dirpath)) // TODO: XSS protection
+			return "", fmt.Errorf("package %q is not available: %w",
+				dirpath, &InvalidPackageError{}) // TODO: XSS protection
 		}
 		for i, memfile := range memPkg.Files {
 			if i > 0 {
