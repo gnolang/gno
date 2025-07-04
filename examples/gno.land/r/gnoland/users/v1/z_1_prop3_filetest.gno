@@ -13,7 +13,7 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-// Test deleting a name via GovDAO
+// Test giving an arbi name via GovDAO
 
 var c std.Address = std.OriginCaller()
 
@@ -30,7 +30,7 @@ func init() {
 	// Prop to delete user
 	testing.SetOriginCaller(c)
 	testing.SetRealm(std.NewUserRealm(c))
-	pr := users.ProposeDeleteUser(alice, "delete user test")
+	pr := users.ProposeArbitraryName("alice", "we like alice so we want to give her an arbitrary name", alice)
 	dao.MustCreateProposal(cross, pr)
 }
 
@@ -57,21 +57,21 @@ func main() {
 	println("--")
 	println(dao.Render("0"))
 
-	data, _ := susers.ResolveName("alice123")
-	if data == nil {
-		println("Successfully deleted alice")
-	}
+	println("--")
+
+	data, _ := susers.ResolveName("alice")
+	println(data.Addr())
 }
 
 // Output:
 // --
 // # Active Proposals:
 // ## Proposal with id: 0
-// ### Title: User Registry V1: Delete user `alice123`
+// ### Title: User Registry V1: Give `alice` to `g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// delete user test
+// we like alice so we want to give her an arbitrary name
 //
 //
 // ### Proposal Status:
@@ -85,11 +85,11 @@ func main() {
 //
 // --
 // ## Proposal with id: 0
-// ### Title: User Registry V1: Delete user `alice123`
+// ### Title: User Registry V1: Give `alice` to `g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// delete user test
+// we like alice so we want to give her an arbitrary name
 //
 //
 // ### Proposal Status:
@@ -104,11 +104,11 @@ func main() {
 // --
 // --
 // ## Proposal with id: 0
-// ### Title: User Registry V1: Delete user `alice123`
+// ### Title: User Registry V1: Give `alice` to `g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// delete user test
+// we like alice so we want to give her an arbitrary name
 //
 //
 // ### Proposal Status:
@@ -123,11 +123,11 @@ func main() {
 // --
 // --
 // ## Proposal with id: 0
-// ### Title: User Registry V1: Delete user `alice123`
+// ### Title: User Registry V1: Give `alice` to `g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh`
 //
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// delete user test
+// we like alice so we want to give her an arbitrary name
 //
 //
 // ### Proposal Status:
@@ -139,4 +139,5 @@ func main() {
 // - [Go to votes list](/r/gov/dao:0/votes).
 //
 //
-// Successfully deleted alice
+// --
+// g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh
