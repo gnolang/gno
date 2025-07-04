@@ -18,7 +18,7 @@ func TestExecuteEvm(t *testing.T) {
 		callValue                uint256.Uint
 		callData                 []byte
 		caller                   *Account
-		env                      Env
+		env                      *Env
 		gas                      uint
 		expectedResult           []byte
 		expectedMemory           []byte
@@ -854,6 +854,10 @@ func TestExecuteEvm(t *testing.T) {
 				byte(SLOAD),
 				byte(STOP),
 			},
+			caller: &Account{
+				Storage: map[uint256.Uint]*uint256.Uint{},
+			},
+			ignoreAccouts: true,
 			expectedStack: []*uint256.Uint{
 				uint256.Zero(),
 			},
@@ -874,6 +878,10 @@ func TestExecuteEvm(t *testing.T) {
 				byte(SLOAD),
 				byte(STOP),
 			},
+			caller: &Account{
+				Storage: map[uint256.Uint]*uint256.Uint{},
+			},
+			ignoreAccouts: true,
 			expectedStack: []*uint256.Uint{
 				uint256.NewUint(1),
 				uint256.NewUint(3),
@@ -899,6 +907,11 @@ func TestExecuteEvm(t *testing.T) {
 				uint256.NewUint(1),
 				uint256.NewUint(3),
 			},
+			caller: &Account{
+				Storage: map[uint256.Uint]*uint256.Uint{},
+			},
+			ignoreAccouts: true,
+
 			expectedGasConsumed: 2418,
 		},
 		{
@@ -911,6 +924,11 @@ func TestExecuteEvm(t *testing.T) {
 				byte(SLOAD),
 				byte(STOP),
 			},
+			caller: &Account{
+				Storage: map[uint256.Uint]*uint256.Uint{},
+			},
+			ignoreAccouts: true,
+
 			expectedStack: []*uint256.Uint{
 				uint256.MustFromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
 			},
@@ -1270,7 +1288,7 @@ func TestExecuteEvm(t *testing.T) {
 			expectedStack: []*uint256.Uint{
 				uint256.NewUint(2),
 			},
-			env: Env{
+			env: &Env{
 				ChainID: uint256.NewUint(2),
 			},
 			expectedGasConsumed: 2,
@@ -1298,7 +1316,7 @@ func TestExecuteEvm(t *testing.T) {
 				Gas:         uint(1000),
 				Code:        []byte{},
 			},
-			env: Env{
+			env: &Env{
 				Accounts: Accounts{
 					uint64(0x42): &Account{
 						AccountType: ContractAccount,
@@ -1359,7 +1377,7 @@ func TestExecuteEvm(t *testing.T) {
 			code: []byte{
 				byte(BLOBBASEFEE),
 				byte(STOP)},
-			env: Env{
+			env: &Env{
 				BlobBaseFee: uint256.NewUint(12345),
 			},
 			expectedStack: []*uint256.Uint{
@@ -1372,7 +1390,7 @@ func TestExecuteEvm(t *testing.T) {
 			code: []byte{
 				byte(BLOBBASEFEE),
 				byte(STOP)},
-			env: Env{
+			env: &Env{
 				BlobBaseFee: nil,
 			},
 			expectedStack: []*uint256.Uint{
@@ -1385,7 +1403,7 @@ func TestExecuteEvm(t *testing.T) {
 			code: []byte{
 				byte(BASEFEE),
 				byte(STOP)},
-			env: Env{
+			env: &Env{
 				PrevBaseFee: 100_000_000_000,
 				IncludedGas: 30_000_000,
 				TargetGas:   15_000_000,
@@ -1402,7 +1420,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(BLOBHASH),
 				byte(STOP),
 			},
-			env: Env{
+			env: &Env{
 				BlobHashes: []*uint256.Uint{
 					uint256.Zero().SetBytes([]byte{0x01, 0x02, 0x03}), // hash
 				},
@@ -1419,7 +1437,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(BLOBHASH),
 				byte(STOP),
 			},
-			env: Env{
+			env: &Env{
 				BlobHashes: []*uint256.Uint{
 					uint256.Zero().SetBytes([]byte{0x01, 0x02, 0x03}), // only one blobhash at index 0
 				},
@@ -1435,7 +1453,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(COINBASE),
 				byte(STOP),
 			},
-			env: Env{
+			env: &Env{
 				Coinbase: uint256.Zero().SetBytes([]byte{
 					0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef,
 					0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef,
@@ -1458,7 +1476,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(BLOCKHASH),
 				byte(STOP),
 			},
-			env: Env{
+			env: &Env{
 				BlockNumber: uint256.NewUint(500),
 				BlockHashes: map[uint64]*uint256.Uint{
 					247: uint256.NewUint(0xdeadbeef), // (dummy) hash value for testing
@@ -1476,7 +1494,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(BLOCKHASH),
 				byte(STOP),
 			},
-			env: Env{
+			env: &Env{
 				BlockNumber: uint256.NewUint(500),
 				BlockHashes: map[uint64]*uint256.Uint{
 					243: uint256.NewUint(0xdeadbeef),
@@ -1495,10 +1513,11 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			ignoreAccouts: true,
-			env: Env{
+			env: &Env{
 				Accounts: Accounts{
 					0x43: &Account{
-						Code: []byte{}, // empty code
+						Code:    []byte{}, // empty code
+						Balance: uint256.Zero(),
 					},
 				},
 			},
@@ -1521,7 +1540,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(EXTCODEHASH),
 				byte(STOP),
 			},
-			env: Env{
+			env: &Env{
 				Accounts: Accounts{}, // empty accounts
 			},
 			expectedStack: []*uint256.Uint{
@@ -1536,7 +1555,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(EXTCODEHASH),
 				byte(STOP),
 			},
-			env: Env{
+			env: &Env{
 				Accounts: nil, // nil -> no accounts context
 			},
 			expectedStack: []*uint256.Uint{
@@ -1554,7 +1573,7 @@ func TestExecuteEvm(t *testing.T) {
 				EvmAddress: 0x50,
 				Balance:    uint256.One(),
 			},
-			env: Env{
+			env: &Env{
 				Accounts: Accounts{
 					0x43: &Account{
 						Balance: uint256.One(),
@@ -1679,7 +1698,10 @@ func TestExecuteEvm(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			errStack, errResult, errMem, errAccounts := false, false, false, false
 
-			st := newStateFromEnv(&tc.env)
+			if tc.env == nil {
+				tc.env = NewEnv()
+			}
+			st := newStateFromEnv(tc.env)
 			st.setCallData(tc.callData)
 			st.setCallValue(&tc.callValue)
 			if tc.caller != nil {

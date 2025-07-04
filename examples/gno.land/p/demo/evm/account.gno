@@ -36,7 +36,7 @@ type Account struct {
 	Balance     *uint256.Uint
 	Nonce       uint64
 	Gas         uint
-	Storage     [uint256.Uint]*uint256.Uint
+	Storage     map[uint256.Uint]*uint256.Uint
 	Code        []byte
 }
 
@@ -50,6 +50,9 @@ func mustHex(str string) []byte {
 
 func (c *Accounts) Clone() *Accounts {
 	accs := make(Accounts)
+	if len(*c) == 0 {
+		return &accs
+	}
 	for k, v := range *c {
 		accs[k] = v.Clone()
 	}
@@ -165,6 +168,7 @@ func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) 
 		GnoAddress:  gnoAddress,
 		Balance:     uint256.Zero(),
 		Gas:         0,
+		Storage:     map[uint256.Uint]*uint256.Uint{},
 		Code:        []byte{},
 	}
 	return env.NextAccountId, nil
