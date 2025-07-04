@@ -37,7 +37,7 @@ func NewMockClient(pkgs ...*MockPackage) *MockClient {
 func (m *MockClient) Realm(path, args string) ([]byte, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
-		return nil, ErrClientPathNotFound
+		return nil, ErrClientPackageNotFound
 	}
 	if !pkgHasRender(pkg) {
 		return nil, ErrClientRenderNotDeclared
@@ -56,11 +56,11 @@ func (m *MockClient) Realm(path, args string) ([]byte, error) {
 func (m *MockClient) File(pkgPath, fileName string) ([]byte, FileMeta, error) {
 	pkg, exists := m.Packages[pkgPath]
 	if !exists {
-		return nil, FileMeta{}, ErrClientPathNotFound
+		return nil, FileMeta{}, ErrClientPackageNotFound
 	}
 	body, ok := pkg.Files[fileName]
 	if !ok {
-		return nil, FileMeta{}, ErrClientPathNotFound
+		return nil, FileMeta{}, ErrClientPackageNotFound
 	}
 	// Calculate metadata
 	lines := len(bytes.Split([]byte(body), []byte("\n")))
@@ -76,7 +76,7 @@ func (m *MockClient) File(pkgPath, fileName string) ([]byte, FileMeta, error) {
 func (m *MockClient) ListFiles(path string) ([]string, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
-		return nil, ErrClientPathNotFound
+		return nil, ErrClientPackageNotFound
 	}
 	fileNames := make([]string, 0, len(pkg.Files))
 	for file := range pkg.Files {
@@ -116,7 +116,7 @@ func (m *MockClient) ListPaths(prefix string, limit int) ([]string, error) {
 func (m *MockClient) Doc(path string) (*doc.JSONDocumentation, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
-		return nil, ErrClientPathNotFound
+		return nil, ErrClientPackageNotFound
 	}
 	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
 }

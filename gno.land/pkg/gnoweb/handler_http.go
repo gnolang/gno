@@ -283,10 +283,10 @@ func (h *HTTPHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.
 	raw, err := h.Client.Realm(gnourl.Path, gnourl.EncodeArgs())
 	switch {
 	case err == nil: // ok
-	case errors.Is(err, ErrRenderNotDeclared):
+	case errors.Is(err, ErrClientRenderNotDeclared):
 		// No Render() declared: fall back to directory view (which will show README.md if present)
 		return h.GetDirectoryView(gnourl, indexData)
-	case errors.Is(err, ErrClientPathNotFound):
+	case errors.Is(err, ErrClientPackageNotFound):
 		// No realm exists here, try to display underlying paths
 		return h.GetPathsListView(gnourl, indexData)
 	default:
@@ -465,28 +465,22 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 }
 
 // renderReadme renders the README.md file and returns the component and the raw content
-func (h *WebHandler) renderReadme(gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
-	if !h.Client.HasFile(pkgPath, ReadmeFileName) {
-		return nil, nil
-	}
-
-	var rawBuffer bytes.Buffer
-	_, err := h.Client.SourceFile(&rawBuffer, pkgPath, ReadmeFileName, true)
+func (h *HTTPHandler) renderReadme(gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
+	file, _, err := h.Client.File(pkgPath, ReadmeFileName)
 	if err != nil {
-		h.Logger.Error("fetch README.md", "path", pkgPath, "error", err)
+		h.Logger.Warn("fetch README.md", "path", pkgPath, "error", err)
 		return nil, nil
 	}
 
-	raw := rawBuffer.Bytes()
 	var buf bytes.Buffer
-	if _, err := h.MarkdownRenderer.Render(&buf, gnourl, raw); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil
 	}
-	return components.NewReaderComponent(&buf), raw
+	return components.NewReaderComponent(&buf), file
 }
 
-func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *HTTPHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
 
 	files, err := h.Client.ListFiles(pkgPath)
@@ -510,6 +504,7 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 		i := slices.IndexFunc(files, func(f string) bool {
 			return f == "README.md" || strings.HasSuffix(f, ".gno")
 		})
+
 		if i >= 0 {
 			fileName = files[i] // prefer .gno files and README.md
 		} else {
@@ -517,25 +512,11 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 		}
 	}
 
-	// file, meta, err := h.Client.File(pkgPath, fileName)
-	// if err != nil {
-	// 	h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-	// 	return GetClientErrorStatusPage(gnourl, err)
-	// }
-
-	// var source bytes.Buffer
-	// if err := h.Renderer.RenderSource(&source, fileName, file); err != nil {
-	// 	return GetClientErrorStatusPage(gnourl, err)
-	// }
-
-	// fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKB)
-
 	// Standard file rendering
 	var (
-		source     bytes.Buffer
 		fileSource components.Component
 		fileLines  int
-		sizeKb     float64
+		sizeKB     float64
 	)
 
 	// Check whether the file is a markdown file
@@ -546,7 +527,7 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 		if readmeComp != nil && raw != nil {
 			fileSource = readmeComp
 			fileLines = bytes.Count(raw, []byte("\n")) + 1
-			sizeKb = float64(len(raw)) / 1024.0
+			sizeKB = float64(len(raw)) / 1024.0
 			break
 		}
 		// Fall through to default case if markdown rendering fails
@@ -554,18 +535,24 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 
 	default:
 		// Fetch raw source file
-		meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
+		file, meta, err := h.Client.File(pkgPath, fileName)
 		if err != nil {
-			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
 			return GetClientErrorStatusPage(gnourl, err)
 		}
 
-		fileSource = components.NewReaderComponent(&source)
-		sizeKb = meta.SizeKb
+		var buff bytes.Buffer
+		if err := h.Renderer.RenderSource(&buff, fileName, file); err != nil {
+			h.Logger.Error("unable to render source file", "file", fileName, "error", err)
+			return http.StatusInternalServerError, components.StatusErrorComponent("rendering error")
+		}
+
+		fileSource = components.NewReaderComponent(&buff)
+		sizeKB = meta.SizeKB
 		fileLines = meta.Lines
 	}
 
-	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKb)
+	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKB)
 
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
@@ -591,7 +578,7 @@ func (h *HTTPHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *compone
 	}
 
 	if len(paths) == 0 || paths[0] == "" {
-		return GetClientErrorStatusPage(gnourl, ErrClientPathNotFound)
+		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound)
 	}
 
 	// Always use explorer mode for paths list
@@ -612,9 +599,9 @@ func (h *HTTPHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *compone
 // GetDirectoryView renders the directory view for a package, showing available files.
 func (h *HTTPHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-	files, err := h.Client.Sources(pkgPath)
+	files, err := h.Client.ListFiles(pkgPath)
 	if err != nil {
-		if !errors.Is(err, ErrClientPathNotFound) {
+		if !errors.Is(err, ErrClientPackageNotFound) {
 			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
 			return GetClientErrorStatusPage(gnourl, err)
 		}
@@ -680,7 +667,7 @@ func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.Vie
 	}
 
 	switch {
-	case errors.Is(err, ErrClientPathNotFound):
+	case errors.Is(err, ErrClientPackageNotFound):
 		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
 	case errors.Is(err, ErrClientBadRequest):
 		return http.StatusInternalServerError, components.StatusErrorComponent("bad request")

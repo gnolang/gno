@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	ErrClientPathNotFound      = errors.New("package not found")
+	ErrClientPackageNotFound   = errors.New("package not found")
+	ErrClientFileNotFound      = errors.New("file not found")
 	ErrClientRenderNotDeclared = errors.New("render function not declared")
 	ErrClientBadRequest        = errors.New("bad request")
 	ErrClientResponse          = errors.New("node response error")
@@ -97,7 +98,7 @@ func (c *rpcClient) File(path, fileName string) (out []byte, meta FileMeta, err 
 		// XXX: this is a bit ugly, we should make the keeper return an
 		// assertable error.
 		if strings.Contains(err.Error(), "not available") {
-			return nil, meta, ErrClientPathNotFound
+			return nil, meta, ErrClientPackageNotFound
 		}
 
 		return nil, meta, err
@@ -125,7 +126,7 @@ func (c *rpcClient) ListFiles(path string) ([]string, error) {
 		// XXX: this is a bit ugly, we should make the keeper return an
 		// assertable error.
 		if strings.Contains(err.Error(), "not available") {
-			return nil, ErrClientPathNotFound
+			return nil, ErrClientPackageNotFound
 		}
 
 		return nil, err
@@ -183,7 +184,6 @@ func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
 	start := time.Now()
 	qres, err := c.client.ABCIQuery(qpath, data)
 	took := time.Since(start)
-
 	if err != nil {
 		// Unexpected error from the RPC client itself
 		c.logger.Error("query request failed",
@@ -203,32 +203,43 @@ func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
 		"took", took,
 	)
 
-	if qres.Response.Error != nil {
-		// Handle known error types
-		switch {
-		case errors.Is(qres.Response.Error, vm.InvalidPkgPathError{}):
-			c.logger.Warn("invalid package path",
-				"path", qpath,
-				"data", string(data),
-				"error", qres.Response.Error,
-			)
-			return nil, ErrClientPathNotFound
-		case errors.Is(qres.Response.Error, vm.NoRenderDeclError{}):
-			c.logger.Warn("render function not declared",
-				"path", qpath,
-				"data", string(data),
-				"error", qres.Response.Error,
-			)
-			return nil, ErrClientRenderNotDeclared
-		default:
-			c.logger.Error("node response error",
-				"path", qpath,
-				"data", string(data),
-				"error", qres.Response.Error,
-			)
-			return nil, fmt.Errorf("%w: %s", ErrClientResponse, qres.Response.Error.Error())
-		}
+	qerr := qres.Response.Error
+	if qerr == nil {
+		return qres.Response.Data, nil
 	}
 
-	return qres.Response.Data, nil
+	fmt.Println(qres.Response.Error, "error")
+	// Handle and log known error types
+	switch {
+	case errors.Is(qerr, vm.InvalidPkgPathError{}), errors.Is(qerr, vm.InvalidPackageError{}):
+		c.logger.Warn("package not found",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, ErrClientPackageNotFound
+	case errors.Is(qerr, vm.InvalidFileError{}):
+		c.logger.Warn("file not found",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, ErrClientFileNotFound
+	case errors.Is(qerr, vm.NoRenderDeclError{}):
+		c.logger.Warn("render function not declared",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, ErrClientRenderNotDeclared
+	default:
+	}
+
+	// fallback on general error
+	c.logger.Error("node response error",
+		"path", qpath,
+		"data", string(data),
+		"error", qres.Response.Error,
+	)
+	return nil, fmt.Errorf("%w: %w", ErrClientResponse, qres.Response.Error)
 }

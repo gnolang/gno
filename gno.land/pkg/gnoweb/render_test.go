@@ -38,7 +38,7 @@ func TestRenderer_RenderSource_Gno(t *testing.T) {
 func TestRenderer_RenderSource_Markdown(t *testing.T) {
 	r := newTestRenderer()
 	w := &bytes.Buffer{}
-	src := []byte("# Title\nSome text\n")
+	src := []byte("# Title\nSome Text\n")
 	err := r.RenderSource(w, "foo.md", src)
 	require.NoError(t, err)
 	assert.Contains(t, w.String(), "chroma-")
