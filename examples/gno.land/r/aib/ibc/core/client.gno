@@ -1,10 +1,4 @@
-package client
-
-var store *clientStore
-
-func init() {
-	store = newClientStore()
-}
+package core
 
 // CreateClient generates a new client identifier and invokes the associated
 // light client module in order to initialize the client.
@@ -38,8 +32,4 @@ func UpgradeClient(clientID string, clientState, consensusState []byte,
 // NOTE(tb): This must be a permissioned function called by a gov proposal.
 func RecoverClient(clientID string) {
 	// TODO
-}
-
-func Render(path string) string {
-	return "hello world"
 }
