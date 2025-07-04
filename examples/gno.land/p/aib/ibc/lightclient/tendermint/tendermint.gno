@@ -2,6 +2,7 @@ package tendermint
 
 import (
 	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/aib/ibc/types"
 	"gno.land/p/demo/avl"
 )
 
@@ -53,14 +54,14 @@ func (tm *TMLightClient) UpdateState(clientID string, clientMsg any) []int64 {
 	return nil
 }
 
-func (tm *TMLightClient) VerifyMembership(clientID string, height int64,
+func (tm *TMLightClient) VerifyMembership(clientID string, height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string,
 	value []byte) error {
 	// TODO
 	return nil
 }
 
-func (tm *TMLightClient) VerifyNonMembership(clientID string, height int64,
+func (tm *TMLightClient) VerifyNonMembership(clientID string, height types.Height,
 	delayTimePeriod uint64, delayBlockPeriod uint64, proof []byte, path string) error {
 	// TODO
 	return nil
@@ -76,7 +77,7 @@ func (tm *TMLightClient) LatestHeight(clientID string) int64 {
 	return 0
 }
 
-func (tm *TMLightClient) TimestampAtHeight(clientID string, height int64) (uint64, error) {
+func (tm *TMLightClient) TimestampAtHeight(clientID string, height types.Height) (uint64, error) {
 	// TODO
 	return 0, nil
 }
