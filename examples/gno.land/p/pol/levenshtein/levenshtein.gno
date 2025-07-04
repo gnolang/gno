@@ -6,7 +6,7 @@
 // - Remove the s (Boat)
 // - Insert the l (Bloat)
 // - Substitute b with f (Float)
-package levenstein
+package levenshtein
 
 import (
 	"strconv"
@@ -61,6 +61,9 @@ func Distance(a, b string) uint {
 	return prev[len(b)]
 }
 
+// The general interface for levensteinable string.
+// You need to use LString, because String is used to convert your object into a string.
+// LString is only when you want to compare the results.
 type Levensteinable interface {
 	LString() string
 }
