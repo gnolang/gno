@@ -536,7 +536,6 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 			panic(fmt.Sprintf("integration package path must end with %q but got %q", "_test", pkgPath))
 		}
 	} else if strings.HasSuffix(pkgPath, "_test") {
-		fmt.Println(">>>", mptype)
 		panic(fmt.Sprintf("only integration package types may end with %q but got %q", "_test", pkgPath))
 	}
 	// Check if MPUser*.
