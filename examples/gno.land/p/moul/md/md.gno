@@ -255,6 +255,9 @@ func EscapeText(text string) string {
 // Columns returns a formatted row of columns using the Gno syntax.
 // If you want a specific number of columns per row (<=4), use ColumnsN.
 // Check /r/docs/markdown#columns for more info.
+// If padded=true & the final <gno-columns> tag is missing column content, an empty
+// column element will be placed to keep the cols per row constant.
+// Padding works only with colsPerRow > 0.
 func Columns(contentByColumn []string, padded bool) string {
 	if len(contentByColumn) == 0 {
 		return ""
