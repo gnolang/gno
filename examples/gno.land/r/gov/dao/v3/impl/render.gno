@@ -64,7 +64,7 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 		if err != nil {
 			panic(err.Error())
 		}
-		out += ren.renderProposalListItem(ufmt.Sprintf("%v", uint64(seqpid)), d)
+		out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
 		out += "---\n\n"
 	}
 
@@ -78,7 +78,7 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	pid := uint64(intpid)
+	pid := int64(intpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
@@ -103,7 +103,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	pid := uint64(intpid)
+	pid := int64(intpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
@@ -124,7 +124,7 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	pid := uint64(intpid)
+	pid := int64(intpid)
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 
 	out := ""

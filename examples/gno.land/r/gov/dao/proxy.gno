@@ -64,7 +64,7 @@ func ExecuteProposal(cur realm, pid ProposalID) bool {
 func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	author, err := dao.PreCreateProposal(r)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	p := &Proposal{
@@ -95,7 +95,7 @@ func VoteOnProposal(cur realm, r VoteRequest) error {
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
-func MustVoteOnProposalSimple(cur realm, pid uint64, option string) {
+func MustVoteOnProposalSimple(cur realm, pid int64, option string) {
 	MustVoteOnProposal(cur, VoteRequest{
 		Option:     VoteOption(option),
 		ProposalID: ProposalID(pid),

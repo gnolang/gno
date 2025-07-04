@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
-type ProposalID uint64
+type ProposalID int64
 
 func (pid ProposalID) String() string {
 	return seqid.ID(pid).String()
@@ -113,7 +113,7 @@ func NewProposals() *Proposals {
 }
 
 func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
-	pid := ProposalID(uint64(ps.seq))
+	pid := ProposalID(int64(ps.seq))
 	updated := ps.Set(pid.String(), p)
 	if updated {
 		panic("fatal error: Override proposals is not allowed")

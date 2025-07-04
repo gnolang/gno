@@ -246,7 +246,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	// 	Option:     dao.YesVote,
 	// 	ProposalID: dao.ProposalID(pid),
 	// })
-	dao.MustVoteOnProposalSimple(cross, uint64(pid), "YES")
+	dao.MustVoteOnProposalSimple(cross, int64(pid), "YES")
 
 	urequire.Equal(t, true, contains(dao.Render("7"), "**Proposal is open for votes**"))
 	urequire.Equal(t, true, contains(dao.Render("7"), "68.42105263157895%"))
