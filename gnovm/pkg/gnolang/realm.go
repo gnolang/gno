@@ -1683,7 +1683,7 @@ func isPrivateRealm(pkgPath string, store Store) bool {
 		return false
 	}
 	mod, err := ParseCheckGnoMod(memPkg)
-	if err != nil {
+	if err != nil || mod == nil {
 		return false
 	}
 	return mod.Private
