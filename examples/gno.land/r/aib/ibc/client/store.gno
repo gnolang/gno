@@ -1,11 +1,11 @@
 package client
 
 import (
+	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/sys/ibc/lightclient"
-	"gno.land/p/sys/ibc/lightclient/tendermint"
 )
 
 type clientStore struct {
@@ -24,11 +24,11 @@ type client struct {
 	lightClient lightclient.LightClientModule
 }
 
-func (cs *clientStore) add(typ string) client {
+func (cs *clientStore) add(typ string) *client {
 	id := ufmt.Sprintf("%d-%d", typ, cs.seq.Next())
 	c := &client{id: id}
 	switch typ {
-	case Tendermint:
+	case lightclient.Tendermint:
 		c.lightClient = &tendermint.TMLightClient{}
 	default:
 		panic("unhandled light client type " + typ)
