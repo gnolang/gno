@@ -97,8 +97,12 @@ func (t *Treasury) RenderBankerHistory(bankerID string) string {
 	if len(history) == 0 {
 		out += md.Paragraph("No payments sent yet.")
 	} else {
-		count := strconv.FormatInt(int64(len(history)), 10)
-		out += md.Paragraph(count + " payments (sorted by latest, descending):")
+		if len(history) == 1 {
+			out += md.Paragraph("1 payment:")
+		} else {
+			count := strconv.FormatInt(int64(len(history)), 10)
+			out += md.Paragraph(count + " payments (sorted by latest, descending):")
+		}
 		for _, payment := range history {
 			out += md.BulletItem(payment.String())
 		}

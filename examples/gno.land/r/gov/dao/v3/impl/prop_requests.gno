@@ -150,7 +150,7 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 }
 
 func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
-	if treasury.HasBanker(payment.BankerID()) {
+	if !treasury.HasBanker(payment.BankerID()) {
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
 
