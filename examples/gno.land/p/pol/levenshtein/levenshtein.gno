@@ -140,7 +140,7 @@ func SeveralPickFromString(xStr string, xs []Levensteinable, n uint) []Levenstei
 		}
 	}
 
-	// creqte the list
+	// create the list
 	out := make([]Levensteinable, 0, tree.Size())
 	tree.Iterate("", "", func(k string, v any) bool {
 		out = append(out, v.(Levensteinable))
