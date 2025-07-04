@@ -114,8 +114,9 @@ func StoreWithOptions(
 		// MPUserProd is all we need here.)
 		mptype := mpkg.Type.(gno.MemPackageType)
 		if !mptype.IsProd() {
-			panic(fmt.Sprintf("unexpected mempackage type, expected prod but got %v",
-				mptype))
+			// For non-prod packages (like test packages during linting),
+			// skip processing and return nil
+			return nil, nil
 		}
 		if opts.PreprocessOnly {
 			// Check the gno.mod gno version.
