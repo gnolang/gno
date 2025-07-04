@@ -35,20 +35,20 @@ func TestWithMyPhoneContact(t *testing.T) {
 		person{"jae", "kwon"},
 		person{"justin", "bieber"},
 	}
-	who, n := PickFromString("pau parosit", contacts)
-	println(who.LString(), n)
+	who, _ := PickFromString("pau parosit", contacts)
+	// println(who.LString(), n)
 	if who.LString() != "paul parisot" {
 		t.Fatal("expected to be paul parisot !")
 	}
 
-	who, n = PickFromString("jkwo0n", contacts)
-	println(who.LString(), n)
+	who, _ = PickFromString("jkwo0n", contacts)
+	// println(who.LString(), n)
 	if who.LString() != "jae kwon" {
 		t.Fatal("expected to be jae kwon !")
 	}
 
-	who, n = PickFromString("paulparis", contacts)
-	println(who, n)
+	who, _ = PickFromString("paulparis", contacts)
+	// println(who, n)
 }
 
 func TestWithAVL(t *testing.T) {
@@ -70,5 +70,17 @@ func TestWithAVL(t *testing.T) {
 	}
 	if list[1] != contacts[1] {
 		t.Fatal("expected second to be papa")
+	}
+}
+
+func TestWhitespaces(t *testing.T) {
+	if Distance("hello world", "helloworld") != 1 {
+		t.Fatal("'helloworld' vs 'hello world' doesnt have 1 distance")
+	}
+	if Distance("hello  world", "hello world") != 1 {
+		t.Fatal("'hello  world' vs 'hello world' doesnt have 1 distance")
+	}
+	if Distance("hello world", "hello  world") != 1 {
+		t.Fatal("'hello world' vs 'hello  world' doesnt have 1 distance")
 	}
 }
