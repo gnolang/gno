@@ -208,7 +208,6 @@ func (c *rpcClient) query(qpath string, data []byte) ([]byte, error) {
 		return qres.Response.Data, nil
 	}
 
-	fmt.Println(qres.Response.Error, "error")
 	// Handle and log known error types
 	switch {
 	case errors.Is(qerr, vm.InvalidPkgPathError{}), errors.Is(qerr, vm.InvalidPackageError{}):
