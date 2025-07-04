@@ -1,9 +1,9 @@
 package client
 
-var clientStore *clientStore
+var store *clientStore
 
 func init() {
-	clientStore = newClientStore()
+	store = newClientStore()
 }
 
 // CreateClient generates a new client identifier and invokes the associated

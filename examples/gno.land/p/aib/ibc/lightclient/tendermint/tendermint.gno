@@ -1,9 +1,8 @@
 package tendermint
 
 import (
+	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/json"
-	"gno.land/p/sys/ibc/lightclient"
 )
 
 type TMLightClient struct {
@@ -15,21 +14,23 @@ var _ lightclient.LightClientModule = (*TMLightClient)(nil)
 
 // TODO remove clientID ?
 func (tm *TMLightClient) Initialize(clientID string, clientStateBz, consensusStateBz []byte) error {
-	// FIXME find encoding alternative
-	if err := json.Unmarshal(clientStateBz, tm.ClientState); err != nil {
-		// TODO embed err
-		return err
-	}
-	// TODO validate clientState
+	/*
+		// FIXME find encoding alternative
+		if err := json.Unmarshal(clientStateBz, tm.ClientState); err != nil {
+			// TODO embed err
+			return err
+		}
+		// TODO validate clientState
 
-	var consensusState ConsensusState
-	if err := json.Unmarshal(consensusStateBz, &consensusState); err != nil {
-		// TODO enmbed err
-		return err
-	}
-	// TODO validate consensusState
+		var consensusState ConsensusState
+		if err := json.Unmarshal(consensusStateBz, &consensusState); err != nil {
+			// TODO enmbed err
+			return err
+		}
+		// TODO validate consensusState
 
-	tm.ConsensusStateByHeight.Set(tm.ClientState.LatestHeight.String(), &consensusState)
+		tm.ConsensusStateByHeight.Set(tm.ClientState.LatestHeight.String(), &consensusState)
+	*/
 	return nil
 }
 
