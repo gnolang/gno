@@ -2,14 +2,20 @@ package grc777
 
 import (
 	"std"
-
-	"gno.land/p/demo/grc/exts"
 )
 
 // TODO: use big.Int or a custom int64 instead of int64
 
 type IGRC777 interface {
-	exts.TokenMetadata
+	// Returns the name of the token.
+	GetName() string
+
+	// Returns the symbol of the token, usually a shorter version of the
+	// name.
+	GetSymbol() string
+
+	// Returns the decimals places of the token.
+	GetDecimals() int
 
 	// Returns the smallest part of the token that is not divisible. This
 	// means all token operations (creation, movement and destruction) must
