@@ -1,4 +1,4 @@
-package client
+package core
 
 import (
 	"gno.land/p/aib/ibc/lightclient"
@@ -8,14 +8,20 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-type clientStore struct {
-	seq  seqid.ID
-	byID *avl.Tree
+var store *Store
+
+func init() {
+	store = newStore()
 }
 
-func newClientStore() *clientStore {
-	return &clientStore{
-		byID: avl.NewTree(),
+type Store struct {
+	clientSeq  seqid.ID
+	clientByID *avl.Tree
+}
+
+func newStore() *Store {
+	return &Store{
+		clientByID: avl.NewTree(),
 	}
 }
 
@@ -24,8 +30,8 @@ type client struct {
 	lightClient lightclient.LightClientModule
 }
 
-func (cs *clientStore) add(typ string) *client {
-	id := ufmt.Sprintf("%d-%d", typ, cs.seq.Next())
+func (cs *Store) addClient(typ string) *client {
+	id := ufmt.Sprintf("%d-%d", typ, cs.clientSeq.Next())
 	c := &client{id: id}
 	switch typ {
 	case lightclient.Tendermint:
@@ -33,6 +39,6 @@ func (cs *clientStore) add(typ string) *client {
 	default:
 		panic("unhandled light client type " + typ)
 	}
-	cs.byID.Set(id, c)
+	cs.clientByID.Set(id, c)
 	return c
 }
