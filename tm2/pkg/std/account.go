@@ -33,9 +33,9 @@ type Account interface {
 	GetCoins() Coins
 	SetCoins(Coins) error
 
-	// Root key access
-	SetRootKey(crypto.PubKey) (AccountKey, error)
-	GetRootKey() AccountKey
+	// Master key access
+	SetMasterKey(crypto.PubKey) (AccountKey, error)
+	GetMasterKey() AccountKey
 
 	// Session management
 	AddSession(pubKey crypto.PubKey) (AccountKey, error)
@@ -50,7 +50,8 @@ type Account interface {
 }
 
 // AccountKey represents authentication methods for an account.
-// This can be either a RootKey (created at account initialization) or a Session.
+// This can be either a MasterKey or a Session.
+// XXX: support realm "keys" in the future
 type AccountKey interface {
 	GetPubKey() crypto.PubKey
 	SetPubKey(crypto.PubKey) error
@@ -75,8 +76,8 @@ type AccountSession interface {
 // This can be extended by embedding within in your *Account structure.
 type BaseAccount struct {
 	Address       crypto.Address `json:"address" yaml:"address"`
-	RootKey       AccountKey     `json:"root_key" yaml:"root_key"`
-	RootSequence  uint64         `json:"root_sequence" yaml:"root_sequence"` // sequence for root key
+	MasterKey     AccountKey     `json:"master_key" yaml:"master_key"`
+	RootSequence  uint64         `json:"root_sequence" yaml:"root_sequence"` // sequence for master key
 	Sessions      []AccountKey   `json:"sessions" yaml:"sessions"`           // sessions
 	Coins         Coins          `json:"coins" yaml:"coins"`
 	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
@@ -89,7 +90,7 @@ func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey, a
 	key := NewBaseAccountKey(pubKey, 0)
 	return &BaseAccount{
 		Address:       address,
-		RootKey:       key,
+		MasterKey:     key,
 		RootSequence:  0,
 		Coins:         coins,
 		AccountNumber: accountNumber,
@@ -154,9 +155,9 @@ func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 
 // AddSession implements Account.
 func (acc *BaseAccount) AddSession(pubKey crypto.PubKey) (AccountKey, error) {
-	// Check if the pubkey is the root key.
-	if acc.RootKey.GetPubKey().Equals(pubKey) {
-		return nil, ErrAccountKeyAlreadyExists(acc.RootKey.String())
+	// Check if the pubkey is the master key.
+	if acc.MasterKey.GetPubKey().Equals(pubKey) {
+		return nil, ErrAccountKeyAlreadyExists(acc.MasterKey.String())
 	}
 
 	// Check if a session with this pubKey already exists for this account.
@@ -188,12 +189,12 @@ func (acc *BaseAccount) AddSession(pubKey crypto.PubKey) (AccountKey, error) {
 
 // GetAllKeys - Implements Account.
 func (acc *BaseAccount) GetAllKeys() []AccountKey {
-	return append([]AccountKey{acc.RootKey}, acc.Sessions...)
+	return append([]AccountKey{acc.MasterKey}, acc.Sessions...)
 }
 
-// GetRootKey implements Account.
-func (acc *BaseAccount) GetRootKey() AccountKey {
-	return acc.RootKey
+// GetMasterKey implements Account.
+func (acc *BaseAccount) GetMasterKey() AccountKey {
+	return acc.MasterKey
 }
 
 // SetSequenceSum implements Account.
@@ -227,8 +228,8 @@ func (acc *BaseAccount) DelAllSessions() error {
 
 // GetKey implements Account.
 func (acc BaseAccount) GetKey(pubKey crypto.PubKey) (AccountKey, error) {
-	if acc.RootKey.GetPubKey().Equals(pubKey) {
-		return acc.RootKey, nil
+	if acc.MasterKey.GetPubKey().Equals(pubKey) {
+		return acc.MasterKey, nil
 	}
 	for _, sess := range acc.Sessions {
 		if sess.GetPubKey().Equals(pubKey) {
@@ -238,17 +239,17 @@ func (acc BaseAccount) GetKey(pubKey crypto.PubKey) (AccountKey, error) {
 	return nil, errors.New("key not found")
 }
 
-func (acc *BaseAccount) SetRootKey(pubKey crypto.PubKey) (AccountKey, error) {
-	acc.RootKey = NewBaseAccountKey(pubKey, 0)
-	return acc.RootKey, nil
+func (acc *BaseAccount) SetMasterKey(pubKey crypto.PubKey) (AccountKey, error) {
+	acc.MasterKey = NewBaseAccountKey(pubKey, 0)
+	return acc.MasterKey, nil
 }
 
 // SequenceByPubKey returns the sequence number for a given public key.
-// If the public key is the root key, it returns the root sequence.
+// If the public key is the master key, it returns the root sequence.
 // If the public key is a session key, it returns the session sequence.
 // If the public key is not found, it returns an error.
 func (acc BaseAccount) SequenceByPubKey(pubKey crypto.PubKey) (uint64, error) {
-	if acc.RootKey.GetPubKey().Equals(pubKey) {
+	if acc.MasterKey.GetPubKey().Equals(pubKey) {
 		return acc.RootSequence, nil
 	}
 	for _, sess := range acc.Sessions {

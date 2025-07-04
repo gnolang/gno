@@ -274,15 +274,15 @@ func processSig(
 	}
 
 	var currentKey std.AccountKey
-	// If this is the account's root key and it's not set yet, set it
-	if acc.GetRootKey() == nil {
-		newKey, err := acc.SetRootKey(pubKey)
+	// If this is the account's master key and it's not set yet, set it
+	if acc.GetMasterKey() == nil {
+		newKey, err := acc.SetMasterKey(pubKey)
 		currentKey = newKey
 		if err != nil {
-			return nil, abciResult(std.ErrInternal("setting root key on signer's account"))
+			return nil, abciResult(std.ErrInternal("setting master key on signer's account"))
 		}
 	} else {
-		// Check if the pubkey is the root key or a session key
+		// Check if the pubkey is the master key or a session key
 		for _, key := range acc.GetAllKeys() {
 			if key.GetPubKey().Equals(pubKey) {
 				currentKey = key
@@ -328,8 +328,8 @@ func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Resul
 	}
 
 	// Case 1: If account has no master pubkey/session, set it from the signature
-	rootKey := acc.GetRootKey()
-	if rootKey == nil {
+	masterKey := acc.GetMasterKey()
+	if masterKey == nil {
 		// Verify the signature's pubkey matches the account address
 		if sigPubKey.Address() != acc.GetAddress() {
 			return nil, abciResult(std.ErrInvalidPubKey(
@@ -523,16 +523,14 @@ func GetSignBytes(chainID string, tx std.Tx, acc std.Account, pubKey crypto.PubK
 		akSequence = ak.GetSequence()
 	}
 
-	return std.GetSignaturePayload(
-		std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNum,
-			Sequence:      akSequence,
-			Fee:           tx.Fee,
-			Msgs:          tx.Msgs,
-			Memo:          tx.Memo,
-		},
-	)
+	return std.SignDoc{
+		ChainID:       chainID,
+		AccountNumber: accNum,
+		Sequence:      akSequence,
+		Fee:           tx.Fee,
+		Msgs:          tx.Msgs,
+		Memo:          tx.Memo,
+	}.GetSignaturePayload()
 }
 
 func abciResult(err error) sdk.Result {

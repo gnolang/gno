@@ -568,7 +568,7 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
 	acc1 = env.acck.GetAccount(ctx, addr1)
-	require.Equal(t, acc1.GetPubKey(), priv1.PubKey())
+	require.Equal(t, acc1.GetMasterKey().GetPubKey(), priv1.PubKey())
 
 	// test public key not found
 	msg = tu.NewTestMsg(addr2)
@@ -579,14 +579,14 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
 
 	acc2 = env.acck.GetAccount(ctx, addr2)
-	require.Nil(t, acc2.GetPubKey())
+	require.Nil(t, acc2.GetMasterKey().GetPubKey())
 
 	// test invalid signature and public key
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, []uint64{1}, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
 
 	acc2 = env.acck.GetAccount(ctx, addr2)
-	require.Nil(t, acc2.GetPubKey())
+	require.Nil(t, acc2.GetMasterKey().GetPubKey())
 }
 
 func TestProcessPubKey(t *testing.T) {
@@ -601,7 +601,7 @@ func TestProcessPubKey(t *testing.T) {
 	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
 	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
 
-	acc2.SetPubKey(priv2.PubKey())
+	acc2.SetMasterKey(priv2.PubKey())
 
 	type args struct {
 		acc      std.Account
@@ -950,4 +950,4 @@ func TestInvalidUserFee(t *testing.T) {
 	assert.Contains(t, res2.Log, "Gas price denominations should be equal;")
 }
 
-// XXX: bunch of tests about chains of msgs with shared pubkeys different accounts, shared accounts different pubkeys, mix between rootkey and sessions, etc.
+// XXX: bunch of tests about chains of msgs with shared pubkeys different accounts, shared accounts different pubkeys, mix between masterkey and sessions, etc.

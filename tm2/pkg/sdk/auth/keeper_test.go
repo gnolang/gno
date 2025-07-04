@@ -23,22 +23,25 @@ func TestAccountMapperGetSet(t *testing.T) {
 	// create account and check default values
 	acc = env.acck.NewAccountWithAddress(env.ctx, addr)
 	require.NotNil(t, acc)
+	if acc.GetMasterKey() == nil {
+		acc.SetMasterKey(nil)
+	}
 	require.Equal(t, addr, acc.GetAddress())
-	require.EqualValues(t, nil, acc.GetPubKey())
-	require.EqualValues(t, 0, acc.GetSequence())
+	require.EqualValues(t, nil, acc.GetMasterKey().GetPubKey())
+	require.EqualValues(t, 0, acc.GetMasterKey().GetSequence())
 
 	// NewAccount doesn't call Set, so it's still nil
 	require.Nil(t, env.acck.GetAccount(env.ctx, addr))
 
 	// set some values on the account and save it
 	newSequence := uint64(20)
-	acc.SetSequence(newSequence)
+	acc.GetMasterKey().SetSequence(newSequence)
 	env.acck.SetAccount(env.ctx, acc)
 
 	// check the new values
 	acc = env.acck.GetAccount(env.ctx, addr)
 	require.NotNil(t, acc)
-	require.Equal(t, newSequence, acc.GetSequence())
+	require.Equal(t, newSequence, acc.GetMasterKey().GetSequence())
 }
 
 func TestAccountMapperRemoveAccount(t *testing.T) {
@@ -55,14 +58,20 @@ func TestAccountMapperRemoveAccount(t *testing.T) {
 	accSeq1 := uint64(20)
 	accSeq2 := uint64(40)
 
-	acc1.SetSequence(accSeq1)
-	acc2.SetSequence(accSeq2)
+	if acc1.GetMasterKey() == nil {
+		acc1.SetMasterKey(nil)
+	}
+	if acc2.GetMasterKey() == nil {
+		acc2.SetMasterKey(nil)
+	}
+	acc1.GetMasterKey().SetSequence(accSeq1)
+	acc2.GetMasterKey().SetSequence(accSeq2)
 	env.acck.SetAccount(env.ctx, acc1)
 	env.acck.SetAccount(env.ctx, acc2)
 
 	acc1 = env.acck.GetAccount(env.ctx, addr1)
 	require.NotNil(t, acc1)
-	require.Equal(t, accSeq1, acc1.GetSequence())
+	require.Equal(t, accSeq1, acc1.GetMasterKey().GetSequence())
 
 	// remove one account
 	env.acck.RemoveAccount(env.ctx, acc1)
@@ -71,7 +80,9 @@ func TestAccountMapperRemoveAccount(t *testing.T) {
 
 	acc2 = env.acck.GetAccount(env.ctx, addr2)
 	require.NotNil(t, acc2)
-	require.Equal(t, accSeq2, acc2.GetSequence())
+	if acc2 != nil {
+		require.Equal(t, accSeq2, acc2.GetMasterKey().GetSequence())
+	}
 }
 
 func TestAccountKeeperParams(t *testing.T) {
