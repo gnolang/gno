@@ -24,31 +24,19 @@ func opPush(n int) func(*State) error {
 		if err != nil {
 			return errors.New("can't PUSH" + strconv.Itoa(n) + ": " + err.Error())
 		}
-		s.stack.Push(stackData)
+		s.stack.Push(stackData.Clone())
 		return nil
 	}
 }
 
 func opSwap(n int) func(*State) error {
 	return func(s *State) error {
-		if s.stack.Len() <= n {
+		sLen := s.stack.Len()
+		if sLen <= n {
 			return errors.New("can't SWAP" + strconv.Itoa(n) + ": stack too small")
 		}
-		temp := make([]*uint256.Uint, n+1)
-		for i := 0; i <= n; i++ {
-			val, err := s.stack.Pop()
-			if err != nil {
-				for j := i - 1; j >= 0; j-- {
-					s.stack.Push(temp[j])
-				}
-				return errors.New("can't SWAP" + strconv.Itoa(n) + err.Error())
-			}
-			temp[i] = val
-		}
-		temp[0], temp[n] = temp[n], temp[0]
-		for i := n; i >= 0; i-- {
-			s.stack.Push(temp[i])
-		}
+		sLen -= 1
+		s.stack.data[sLen], s.stack.data[sLen-n] = s.stack.data[sLen-n], s.stack.data[sLen]
 		return nil
 	}
 }
@@ -123,9 +111,14 @@ func opJump(s *State) error {
 	inc := int(dest.Uint64())
 	opDest := OpCode(s.code.At(inc))
 	if opDest != JUMPDEST {
-		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
+		opData, ok := opCodes[opDest]
+		opCodeStr := "0x" + strconv.FormatUint(uint64(opDest), 16)
+		if ok {
+			opCodeStr = opData.name
+		}
+		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but at " + dest.Hex() + " there is a " + opCodeStr)
 	}
-	s.code.rip = inc // + 1
+	s.code.rip = inc
 	return nil
 }
 
@@ -148,9 +141,14 @@ func opJumpi(s *State) error {
 	inc := int(dest.Uint64())
 	opDest := OpCode(s.code.At(inc))
 	if opDest != JUMPDEST {
-		return errors.New("can't JUMP: JUMP needs to land on a JUMPDEST, but here, it's a 0x" + strconv.FormatUint(uint64(opDest), 16) + ".")
+		opData, ok := opCodes[opDest]
+		opCodeStr := "0x" + strconv.FormatUint(uint64(opDest), 16)
+		if ok {
+			opCodeStr = opData.name
+		}
+		return errors.New("can't JUMPI: JUMPI needs to land on a JUMPDEST, but at " + dest.Hex() + " there is a " + opCodeStr)
 	}
-	s.code.rip = inc // + 1
+	s.code.rip = inc
 	return nil
 }
 
@@ -288,7 +286,7 @@ func opGasprice(s *State) error {
 // TODO: tests
 func opChainId(s *State) error {
 	if s.env != nil && s.env.ChainID != nil {
-		s.stack.Push(s.env.ChainID)
+		s.stack.Push(s.env.ChainID.Clone())
 	} else {
 		s.stack.Push(uint256.Zero())
 	}

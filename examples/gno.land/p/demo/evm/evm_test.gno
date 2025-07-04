@@ -855,7 +855,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			caller: &Account{
-				Storage: map[uint256.Uint]*uint256.Uint{},
+				Storage: map[uint64]*uint256.Uint{},
 			},
 			ignoreAccouts: true,
 			expectedStack: []*uint256.Uint{
@@ -879,7 +879,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			caller: &Account{
-				Storage: map[uint256.Uint]*uint256.Uint{},
+				Storage: map[uint64]*uint256.Uint{},
 			},
 			ignoreAccouts: true,
 			expectedStack: []*uint256.Uint{
@@ -908,7 +908,7 @@ func TestExecuteEvm(t *testing.T) {
 				uint256.NewUint(3),
 			},
 			caller: &Account{
-				Storage: map[uint256.Uint]*uint256.Uint{},
+				Storage: map[uint64]*uint256.Uint{},
 			},
 			ignoreAccouts: true,
 
@@ -925,7 +925,7 @@ func TestExecuteEvm(t *testing.T) {
 				byte(STOP),
 			},
 			caller: &Account{
-				Storage: map[uint256.Uint]*uint256.Uint{},
+				Storage: map[uint64]*uint256.Uint{},
 			},
 			ignoreAccouts: true,
 

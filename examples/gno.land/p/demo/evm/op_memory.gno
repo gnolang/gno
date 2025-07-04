@@ -158,7 +158,7 @@ func opTload(s *State) error {
 	if !ok {
 		s.stack.Push(uint256.Zero())
 	}
-	s.stack.Push(read)
+	s.stack.Push(read.Clone())
 	return nil
 }
 
@@ -197,11 +197,12 @@ func opSload(s *State) error {
 		s.gasConsumed += 2000
 	}
 
-	read, ok := s.tmp.accounts[s.callerAddress].Storage[*key]
+	read, ok := s.tmp.accounts[s.callerAddress].Storage[key.Uint64()]
 	if !ok {
 		s.stack.Push(uint256.Zero())
+		return nil
 	}
-	s.stack.Push(read)
+	s.stack.Push(read.Clone())
 	return nil
 }
 
@@ -231,7 +232,7 @@ func opSstore(s *State) error {
 		s.tmp.warmStorage = append(s.tmp.warmStorage, *key)
 		s.gasConsumed += 2000
 	}
-	s.tmp.accounts[s.callerAddress].Storage[*key] = value
+	s.tmp.accounts[s.callerAddress].Storage[key.Uint64()] = value
 	return nil
 }
 

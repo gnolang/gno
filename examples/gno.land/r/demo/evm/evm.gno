@@ -85,9 +85,10 @@ func CreateContract(_ realm, initCode, valueToSend string) {
 	env.Transaction.PushContractCreation(0, caller, 0) // TODO: get the execution price
 }
 
-func Faucet(_ realm, weiToGive uint) {
+func Faucet(_ realm, weiToGive uint, gasToGive uint) {
 	usr := assertGetConnectedUserFromRealm()
 	usr.Balance.Add(usr.Balance, uint256.NewUint(uint64(weiToGive)))
+	usr.Gas += gasToGive
 }
 
 func BuyGas(_ realm, nbGasToBuy uint64) {

@@ -36,7 +36,7 @@ type Account struct {
 	Balance     *uint256.Uint
 	Nonce       uint64
 	Gas         uint
-	Storage     map[uint256.Uint]*uint256.Uint
+	Storage     map[uint64]*uint256.Uint
 	Code        []byte
 }
 
@@ -168,7 +168,7 @@ func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) 
 		GnoAddress:  gnoAddress,
 		Balance:     uint256.Zero(),
 		Gas:         0,
-		Storage:     map[uint256.Uint]*uint256.Uint{},
+		Storage:     map[uint64]*uint256.Uint{},
 		Code:        []byte{},
 	}
 	return env.NextAccountId, nil
@@ -199,7 +199,7 @@ func (c *Account) Eq(a Account) bool {
 }
 
 func (c *Account) Clone() *Account {
-	storageCopy := make(map[uint256.Uint]*uint256.Uint)
+	storageCopy := make(map[uint64]*uint256.Uint)
 	if len(c.Storage) > 0 {
 		for k, v := range c.Storage {
 			storageCopy[k] = v.Clone()

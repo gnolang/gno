@@ -16,7 +16,7 @@ func opOperation(f func(a, b *uint256.Uint) *uint256.Uint) func(s *State) error 
 		if err != nil {
 			return errors.New("can't do operation: stack of size 1")
 		}
-		s.stack.Push(f(a, b))
+		s.stack.Push(f(a, b).Clone())
 		return nil
 	}
 }
@@ -30,7 +30,7 @@ func opExp(s *State) error {
 	if err != nil {
 		return errors.New("can't do operation: stack of size 1")
 	}
-	s.stack.Push(a.Exp(a, b))
+	s.stack.Push(a.Exp(a, b).Clone())
 	s.gasConsumed += 50 * uint((b.BitLen()+7)/8)
 	return nil
 }
@@ -179,7 +179,7 @@ func opSar(s *State) error {
 			// Max negative shift: all bits set
 			value.SetAllOne()
 		}
-		s.stack.Push(value)
+		s.stack.Push(value.Clone())
 		return nil
 	}
 	n := uint(shift.Uint64())
