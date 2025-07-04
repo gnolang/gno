@@ -2,7 +2,8 @@ package levenstein
 
 import "testing"
 
-func TestStuff(t *testing.T) {
-	x := Distance("float", "boats")
-	println(x)
+func TestExample(t *testing.T) {
+	if Distance("float", "boats") != 3 {
+		t.Fatal("expected float vs boats to be 3")
+	}
 }

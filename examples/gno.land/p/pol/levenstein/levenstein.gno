@@ -22,37 +22,34 @@ func min3(a, b, c uint) uint {
 }
 
 func Distance(a, b string) uint {
-	// create the matrix
-	rows := len(a) + 1
-	cols := len(b) + 1
-	matrix := make([][]uint, rows)
-	for x := 0; x < rows; x++ {
-		matrix[x] = make([]uint, cols)
-		for y := 0; y < cols; y++ {
-			// check for edges
-			if x == 0 {
-				matrix[x][y] = uint(y)
-				continue
-			} else if y == 0 {
-				matrix[x][y] = uint(x)
-				continue
-			}
+	// make sure a is the longest
+	if len(a) < len(b) {
+		a, b = b, a
+	}
+	prev := make([]uint, len(b)+1)
+	curr := make([]uint, len(b)+1)
 
-			// check for content
-			if a[x-1] == b[y-1] {
-				matrix[x][y] = matrix[x-1][y-1] // no cost if characters match
+	// init the first row
+	for j := range prev {
+		prev[j] = uint(j)
+	}
+
+	// main loop
+	for i := 1; i <= len(a); i++ {
+		curr[0] = uint(i)
+		for j := 1; j <= len(b); j++ {
+			if a[i-1] == b[j-1] {
+				curr[j] = prev[j-1]
 			} else {
-				matrix[x][y] = min3(
-					matrix[x][y-1]+1,   // insertion
-					matrix[x-1][y]+1,   // deletion
-					matrix[x-1][y-1]+1, // substitution
+				curr[j] = min3(
+					curr[j-1]+1,   // insertion
+					prev[j]+1,     // deletion
+					prev[j-1]+1,   // substitution
 				)
 			}
 		}
+		// swap curr and prev
+		prev, curr = curr, prev
 	}
-
-	for _, row := range matrix {
-		println(row)
-	}
-	return 0
+	return prev[len(b)]
 }
