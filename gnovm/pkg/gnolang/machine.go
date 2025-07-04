@@ -267,7 +267,6 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
-		fmt.Printf("NewPackageValue: creating realm for %s with private value %v\n", pn.PkgPath, private)
 		pv = pn.NewPackage(private)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
