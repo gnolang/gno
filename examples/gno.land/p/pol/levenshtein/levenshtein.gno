@@ -33,32 +33,32 @@ func Distance(a, b string) uint {
 	if len(a) < len(b) {
 		a, b = b, a
 	}
-	prev := make([]uint, len(b)+1)
-	curr := make([]uint, len(b)+1)
 
-	// init the first row
-	for j := range prev {
-		prev[j] = uint(j)
+	// init first row
+	line := make([]uint, len(b)+1)
+	for j := range line {
+		line[j] = uint(j)
 	}
 
 	// main loop
 	for i := 1; i <= len(a); i++ {
-		curr[0] = uint(i)
+		prev := line[0]
+		line[0] = uint(i)
 		for j := 1; j <= len(b); j++ {
+			old := line[j]
 			if a[i-1] == b[j-1] {
-				curr[j] = prev[j-1]
+				line[j] = prev
 			} else {
-				curr[j] = min3(
-					curr[j-1]+1, // insertion
-					prev[j]+1,   // deletion
-					prev[j-1]+1, // substitution
+				line[j] = min3(
+					line[j-1]+1, // insertion
+					line[j]+1,   // deletion
+					prev+1,      // substitution
 				)
 			}
+			prev = old
 		}
-		// swap curr and prev
-		prev, curr = curr, prev
 	}
-	return prev[len(b)]
+	return line[len(b)]
 }
 
 // The general interface for levensteinable string.
