@@ -1,5 +1,7 @@
 package lightclient
 
+import "gno.land/p/aib/ibc/types"
+
 // Status represents the status of a client
 type Status string
 
@@ -70,14 +72,14 @@ type LightClientModule interface {
 	// specified height.  The caller is expected to construct the full
 	// CommitmentPath from a CommitmentPrefix and a standardized path (as defined
 	// in ICS 24).
-	VerifyMembership(clientID string, height int64, delayTimePeriod uint64,
+	VerifyMembership(clientID string, height types.Height, delayTimePeriod uint64,
 		delayBlockPeriod uint64, proof []byte, path string, value []byte) error
 
 	// VerifyNonMembership is a generic proof verification method which verifies
 	// the absence of a given CommitmentPath at a specified height.  The caller
 	// is expected to construct the full CommitmentPath from a CommitmentPrefix
 	// and a standardized path (as defined in ICS 24).
-	VerifyNonMembership(clientID string, height int64, delayTimePeriod uint64,
+	VerifyNonMembership(clientID string, height types.Height, delayTimePeriod uint64,
 		delayBlockPeriod uint64, proof []byte, path string) error
 
 	// Status must return the status of the client. Only Active clients are
@@ -91,7 +93,7 @@ type LightClientModule interface {
 
 	// TimestampAtHeight must return the timestamp for the consensus state
 	// associated with the provided height.
-	TimestampAtHeight(clientID string, height int64) (uint64, error)
+	TimestampAtHeight(clientID string, height types.Height) (uint64, error)
 
 	// RecoverClient must verify that the provided substitute may be used to
 	// update the subject client.  The light client module must set the updated

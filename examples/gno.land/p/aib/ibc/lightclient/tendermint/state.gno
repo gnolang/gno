@@ -3,7 +3,7 @@ package tendermint
 import (
 	"time"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/aib/ibc/types"
 )
 
 // ClientState from Tendermint tracks the current validator set, latest height,
@@ -19,9 +19,9 @@ type ClientState struct {
 	// defines how much new (untrusted) header's Time can drift into the future.
 	MaxClockDrift time.Duration
 	// Block height when the client was frozen due to a misbehaviour
-	FrozenHeight Height
+	FrozenHeight types.Height
 	// Latest height the client was updated to
-	LatestHeight Height
+	LatestHeight types.Height
 
 	// Proof specifications used in verifying counterparty state
 	// TODO write gno type for proofspec
@@ -40,30 +40,6 @@ type ClientState struct {
 type Fraction struct {
 	Numerator   uint64
 	Denominator uint64
-}
-
-// Height is a monotonically increasing data type
-// that can be compared against another Height for the purposes of updating and
-// freezing clients
-//
-// Normally the RevisionHeight is incremented at each height while keeping
-// RevisionNumber the same. However some consensus algorithms may choose to
-// reset the height in certain conditions e.g. hard forks, state-machine
-// breaking changes In these cases, the RevisionNumber is incremented so that
-// height continues to be monitonically increasing even as the RevisionHeight
-// gets reset
-//
-// Please note that json tags for generated Go code are overridden to explicitly exclude the omitempty jsontag.
-// This enforces the Go json marshaller to always emit zero values for both revision_number and revision_height.
-type Height struct {
-	// the revision that the client is currently on
-	RevisionNumber uint64
-	// the height within the given revision
-	RevisionHeight uint64
-}
-
-func (h Height) String() string {
-	return ufmt.Sprintf("%d/%d", h.RevisionNumber, h.RevisionHeight)
 }
 
 // ConsensusState defines the consensus state from Tendermint.
