@@ -1,0 +1,3 @@
+module = "gno.land/r/demo/draftrealm"
+gno = "0.9"
+draft = true
