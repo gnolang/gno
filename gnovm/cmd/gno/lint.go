@@ -181,9 +181,11 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 						Store:       tgs,
 						SkipPackage: true,
 					})
-					m2.Store.AddMemPackage(tmpkg, gno.MPAnyAll)
+					// Use the actual type of the filtered package
+					tmpkgType := tmpkg.Type.(gno.MemPackageType)
+					m2.Store.AddMemPackage(tmpkg, tmpkgType)
 					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
-						gno.ParseMemPackageAsType(tmpkg, gno.MPAnyTest), true, true, "")
+						gno.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")
 				} else {
 					return tgetter(pkgPath, store)
 				}
