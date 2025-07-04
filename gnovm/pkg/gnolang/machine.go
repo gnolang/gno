@@ -122,7 +122,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
 			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
-			pv = pn.NewPackage()
+			pv = pn.NewPackage(false)
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
@@ -252,6 +252,12 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	mpkg.Sort()
 	// parse files.
 	files := ParseMemPackage(mpkg)
+	mod, err := ParseCheckGnoMod(mpkg)
+	private := false
+	if err != nil || mod != nil {
+		private = mod.Private
+	}
+
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -261,7 +267,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
-		pv = pn.NewPackage()
+		fmt.Printf("NewPackageValue: creating realm for %s with private value %v\n", pn.PkgPath, private)
+		pv = pn.NewPackage(private)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -443,7 +450,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	}
 	rlm := pv.GetRealm()
 	if rlm == nil && pv.IsRealm() {
-		rlm = NewRealm(pv.PkgPath) // throwaway
+		rlm = NewRealm(pv.PkgPath, false) // throwaway
 	}
 	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
 	if rlm != nil {
@@ -477,7 +484,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	if fixFrom != "" {
 		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
 	}
-	pv := pn.NewPackage()
+	pv := pn.NewPackage(false)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -695,7 +702,7 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
-		rlm := NewRealm(pv.PkgPath)
+		rlm := NewRealm(pv.PkgPath, false)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm

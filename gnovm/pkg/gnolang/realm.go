@@ -137,9 +137,10 @@ func PkgPathFromObjectID(oid ObjectID) string {
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
 type Realm struct {
-	ID   PkgID
-	Path string
-	Time uint64
+	ID      PkgID
+	Path    string
+	Private bool
+	Time    uint64
 
 	newCreated []Object
 	newDeleted []Object
@@ -152,12 +153,13 @@ type Realm struct {
 }
 
 // Creates a blank new realm with counter 0.
-func NewRealm(path string) *Realm {
+func NewRealm(path string, private bool) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
-		ID:   id,
-		Path: path,
-		Time: 0,
+		ID:      id,
+		Path:    path,
+		Time:    0,
+		Private: private,
 	}
 }
 
@@ -1678,13 +1680,6 @@ func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited
 }
 
 func isPrivateRealm(pkgPath string, store Store) bool {
-	memPkg := store.GetMemPackage(pkgPath)
-	if memPkg == nil {
-		return false
-	}
-	mod, err := ParseCheckGnoMod(memPkg)
-	if err != nil || mod == nil {
-		return false
-	}
-	return mod.Private
+	realm := store.GetPackageRealm(pkgPath)
+	return realm.Private
 }
