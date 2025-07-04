@@ -192,6 +192,7 @@ func CreateThread(_ realm, boardID BoardID, title, body string) PostID {
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
+	assertUserIsNotBanned(board.ID, caller)
 	assertHasPermission(board.perms, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
@@ -221,6 +222,7 @@ func CreateReply(_ realm, boardID BoardID, threadID, replyID PostID, body string
 
 	caller := std.PreviousRealm().Address()
 	assertHasPermission(board.perms, caller, PermissionReplyCreate)
+	assertUserIsNotBanned(boardID, caller)
 
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
@@ -259,6 +261,8 @@ func CreateRepost(_ realm, boardID BoardID, threadID PostID, title, body string,
 	assertTitleIsValid(title)
 
 	caller := std.PreviousRealm().Address()
+	assertUserIsNotBanned(destinationBoardID, caller)
+
 	dst := mustGetBoard(destinationBoardID)
 	assertBoardIsNotFrozen(dst)
 	assertHasPermission(dst.perms, caller, PermissionThreadRepost)
@@ -299,6 +303,8 @@ func DeleteThread(_ realm, boardID BoardID, threadID PostID) {
 	}
 
 	board := mustGetBoard(boardID)
+	assertUserIsNotBanned(boardID, caller)
+
 	thread := mustGetThread(board, threadID)
 
 	if !isRealmOwner {
@@ -335,6 +341,8 @@ func DeleteReply(_ realm, boardID BoardID, threadID, replyID PostID) {
 	}
 
 	board := mustGetBoard(boardID)
+	assertUserIsNotBanned(boardID, caller)
+
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
@@ -379,6 +387,9 @@ func EditThread(_ realm, boardID BoardID, threadID PostID, title, body string) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
+	caller := std.PreviousRealm().Address()
+	assertUserIsNotBanned(boardID, caller)
+
 	thread := mustGetThread(board, threadID)
 	assertThreadIsNotFrozen(thread)
 
@@ -387,7 +398,6 @@ func EditThread(_ realm, boardID BoardID, threadID PostID, title, body string) {
 		assertBodyIsNotEmpty(body)
 	}
 
-	caller := std.PreviousRealm().Address()
 	if caller != thread.Creator {
 		assertHasPermission(board.perms, caller, PermissionThreadEdit)
 	}
@@ -417,6 +427,9 @@ func EditReply(_ realm, boardID BoardID, threadID, replyID PostID, body string) 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
+	caller := std.PreviousRealm().Address()
+	assertUserIsNotBanned(boardID, caller)
+
 	thread := mustGetThread(board, threadID)
 	assertThreadIsNotFrozen(thread)
 
@@ -424,7 +437,6 @@ func EditReply(_ realm, boardID BoardID, threadID, replyID PostID, body string) 
 	assertReplyIsVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
-	caller := std.PreviousRealm().Address()
 	if caller != reply.Creator {
 		panic("only the reply creator is allowed to edit it")
 	}

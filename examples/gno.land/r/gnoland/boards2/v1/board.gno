@@ -214,6 +214,8 @@ func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
 		PermissionReplyFlag,
 		PermissionReplyFreeze,
 		PermissionRoleChange,
+		PermissionUserBan,
+		PermissionUserUnban,
 	)
 	perms.AddRole(
 		RoleModerator,
@@ -223,6 +225,8 @@ func createBasicBoardPermissions(owner std.Address) *BasicPermissions {
 		PermissionThreadFlag,
 		PermissionReplyCreate,
 		PermissionReplyFlag,
+		PermissionUserBan,
+		PermissionUserUnban,
 	)
 	perms.AddRole(
 		RoleGuest,

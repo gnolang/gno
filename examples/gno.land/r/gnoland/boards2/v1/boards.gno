@@ -8,6 +8,7 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
+// TODO: Refactor globals in favor of a cleaner pattern
 var (
 	gPerms            Permissions
 	gRealmLink        txlink.Realm
@@ -18,6 +19,7 @@ var (
 	gListedBoardsByID avl.Tree // string(id) -> *Board
 	gBoardsByName     avl.Tree // string(name) -> *Board
 	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
+	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(std.Address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
@@ -63,6 +65,15 @@ func getBoard(id BoardID) (_ *Board, found bool) {
 // getInvitesRequests returns invite requests for a board.
 func getInviteRequests(boardID BoardID) (_ *avl.Tree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
+	if !exists {
+		return nil, false
+	}
+	return v.(*avl.Tree), true
+}
+
+// getBannedUsers returns banned users within a board.
+func getBannedUsers(boardID BoardID) (_ *avl.Tree, found bool) {
+	v, exists := gBannedUsers.Get(boardID.Key())
 	if !exists {
 		return nil, false
 	}

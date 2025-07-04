@@ -27,6 +27,7 @@ func Render(path string) string {
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/invites", renderInvites)
+	router.HandleFunc("{board}/banned-users", renderBannedUsers)
 	router.HandleFunc("{board}/{thread}", renderThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 
@@ -164,6 +165,8 @@ func renderBoardMenu(board *Board, req *mux.Request) string {
 			b.WriteString(md.Link("List Invite Requests", makeBoardURI(board)+"/invites"))
 			b.WriteString(" • ")
 			b.WriteString(md.Link("List Members", boardMembersURL))
+			b.WriteString(" • ")
+			b.WriteString(md.Link("List Banned Users", makeBoardURI(board)+"/banned-users"))
 			b.WriteString(" • ")
 			b.WriteString(md.Link("Freeze Board", makeFreezeBoardURI(board)))
 			b.WriteString("\n")
@@ -353,6 +356,55 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 			md.UserLink(addr),
 			v.(time.Time).Format(dateFormat),
 			strings.Join(actions, " • "),
+		})
+		return false
+	})
+
+	res.Write(table.String())
+
+	if p.HasPages() {
+		res.Write("\n" + pager.Picker(p))
+	}
+}
+
+func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write(md.H3("Board not found"))
+		return
+	}
+
+	board := v.(*Board)
+	res.Write(md.H1(board.Name + " Banned Users"))
+
+	banned, found := getBannedUsers(board.ID)
+	if !found || banned.Size() == 0 {
+		res.Write(md.H3("Board has no banned users"))
+		return
+	}
+
+	p, err := pager.New(req.RawPath, banned.Size(), pager.WithPageSize(pageSizeDefault))
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	table := mdtable.Table{
+		Headers: []string{"User", "Banned Until", "Actions"},
+	}
+
+	res.Write(md.H3("These users have been banned from the board"))
+	banned.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(addr string, v any) bool {
+		table.Append([]string{
+			md.UserLink(addr),
+			v.(time.Time).Format(dateFormat),
+			md.Link("unban", gRealmLink.Call(
+				"Unban",
+				"boardID", board.ID.String(),
+				"user", addr,
+				"reason", "",
+			)),
 		})
 		return false
 	})
