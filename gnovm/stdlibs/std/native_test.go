@@ -17,7 +17,7 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
 			OriginCaller: user,
 		}
 		msgCallFrame = gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "main"}}
-		msgRunFrame  = gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/g1337/run"}}
+		msgRunFrame  = gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run"}}
 	)
 	type expectations struct {
 		addr         crypto.Bech32Address
