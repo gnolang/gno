@@ -235,7 +235,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// mpkg since we're running tests on them).
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: mpkg.Path,
-		Output:  os.Stdout,
+		Output:  opts.WriterForStore(),
 		Store:   tgs,
 		Context: Context("", mpkg.Path, nil),
 		// When testing examples we will find them, so pv, pn, file
