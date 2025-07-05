@@ -859,8 +859,8 @@ func Echo(cur realm) string { return "patched" }`},
 	expected := `module = "gno.land/r/testpatch"
 gno = "0.9"
 
-[upload_metadata]
-  uploader = "g1cq2j7y4utseeatek2alfy5ttaphjrtdx67mg8v"
+[addpkg]
+  creator = "g1cq2j7y4utseeatek2alfy5ttaphjrtdx67mg8v"
   height = 42
 `
 	// XXX: custom height

@@ -1,5 +1,5 @@
 module = "gno.land/r/gnoland/monit"
 gno = "0.9"
 
-[upload_metadata]
-  uploader = "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"
+[addpkg]
+  creator = "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"

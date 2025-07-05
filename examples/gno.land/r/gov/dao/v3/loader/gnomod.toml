@@ -1,5 +1,5 @@
 module = "gno.land/r/gov/dao/v3/loader"
 gno = "0.9"
 
-[upload_metadata]
-  uploader = "g1g73v2anukg4ej7axwqpthsatzrxjsh0wk797da"
+[addpkg]
+  creator = "g1g73v2anukg4ej7axwqpthsatzrxjsh0wk797da"
