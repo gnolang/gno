@@ -38,9 +38,15 @@ class Help {
     const { el } = this.DOM;
     if (!el) return;
 
-    this.DOM.funcs = Array.from(el.querySelectorAll<HTMLElement>(Help.SELECTORS.func));
-    this.DOM.addressInput = el.querySelector<HTMLInputElement>(Help.SELECTORS.addressInput);
-    this.DOM.cmdModeSelect = el.querySelector<HTMLSelectElement>(Help.SELECTORS.cmdModeSelect);
+    this.DOM.funcs = Array.from(
+      el.querySelectorAll<HTMLElement>(Help.SELECTORS.func)
+    );
+    this.DOM.addressInput = el.querySelector<HTMLInputElement>(
+      Help.SELECTORS.addressInput
+    );
+    this.DOM.cmdModeSelect = el.querySelector<HTMLSelectElement>(
+      Help.SELECTORS.cmdModeSelect
+    );
 
     this.funcList = this.DOM.funcs.map((funcEl) => new HelpFunc(funcEl));
 
@@ -49,7 +55,11 @@ class Help {
     this.bindEvents();
   }
 
-  private restoreValue(storageKey: string, inputElement: HTMLInputElement | HTMLSelectElement | null, updateCallback: (value: string) => void): void {
+  private restoreValue(
+    storageKey: string,
+    inputElement: HTMLInputElement | HTMLSelectElement | null,
+    updateCallback: (value: string) => void
+  ): void {
     if (inputElement) {
       const storedValue = localStorage.getItem(storageKey);
       if (storedValue) {
@@ -60,11 +70,15 @@ class Help {
   }
 
   private restoreAddress(): void {
-    this.restoreValue("helpAddressInput", this.DOM.addressInput, (value) => this.funcList.forEach((func) => func.updateAddr(value)));
+    this.restoreValue("helpAddressInput", this.DOM.addressInput, (value) =>
+      this.funcList.forEach((func) => func.updateAddr(value))
+    );
   }
 
   private restoreMode(): void {
-    this.restoreValue("helpCmdMode", this.DOM.cmdModeSelect, (value) => this.funcList.forEach((func) => func.updateMode(value)));
+    this.restoreValue("helpCmdMode", this.DOM.cmdModeSelect, (value) =>
+      this.funcList.forEach((func) => func.updateMode(value))
+    );
   }
 
   private bindEvents(): void {
@@ -75,7 +89,9 @@ class Help {
       localStorage.setItem("helpAddressInput", address);
       this.funcList.forEach((func) => func.updateAddr(address));
     }, 50);
-    addressInput?.addEventListener("input", () => debouncedUpdate(addressInput));
+    addressInput?.addEventListener("input", () =>
+      debouncedUpdate(addressInput)
+    );
 
     cmdModeSelect?.addEventListener("change", (e) => {
       const target = e.target as HTMLSelectElement;
@@ -111,12 +127,24 @@ class HelpFunc {
   constructor(el: HTMLElement) {
     this.DOM = {
       el,
-      addrs: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.address)),
-      args: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.args)),
-      modes: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.mode)),
-      paramInputs: Array.from(el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput)),
-      send: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.send)),
-      sendInput: el.querySelector<HTMLInputElement>(HelpFunc.SELECTORS.sendInput),
+      addrs: Array.from(
+        el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.address)
+      ),
+      args: Array.from(
+        el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.args)
+      ),
+      modes: Array.from(
+        el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.mode)
+      ),
+      paramInputs: Array.from(
+        el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput)
+      ),
+      send: Array.from(
+        el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.send)
+      ),
+      sendInput: el.querySelector<HTMLInputElement>(
+        HelpFunc.SELECTORS.sendInput
+      ),
     };
 
     this.funcName = el.dataset.func || null;
@@ -137,9 +165,12 @@ class HelpFunc {
   }
 
   private bindEvents(): void {
-    const debouncedUpdate = debounce((paramName: string, paramValue: string) => {
-      if (paramName) this.updateArg(paramName, paramValue);
-    }, 50);
+    const debouncedUpdate = debounce(
+      (paramName: string, paramValue: string) => {
+        if (paramName) this.updateArg(paramName, paramValue);
+      },
+      50
+    );
 
     this.DOM.el.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
@@ -175,7 +206,7 @@ class HelpFunc {
 
   public updateSend(sendValue: boolean): void {
     const sendAmount = sendValue ? this.DOM.sendInput?.dataset.send ?? "" : "";
-    this.DOM.send.forEach(send => send.textContent = sendAmount);
+    this.DOM.send.forEach((send) => (send.textContent = sendAmount));
   }
 
   public updateAddr(addr: string): void {
