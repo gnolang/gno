@@ -42,7 +42,7 @@ func main() {
 
 func CreateProposal() dao.ProposalID {
 	e := dao.NewSimpleExecutor(
-		func() error {
+		func(realm) error {
 			return nil
 		},
 		"",
