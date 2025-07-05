@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"io"
+	"strings"
 
 	"html/template"
 
@@ -12,6 +13,27 @@ import (
 // HTMLEscapeString escapes special characters in HTML content
 func HTMLEscapeString(s string) string {
 	return template.HTMLEscapeString(s)
+}
+
+// UnescapeMarkdown removes escape characters from markdown text.
+func UnescapeMarkdown(text string) string {
+	replacer := strings.NewReplacer(
+		`\*`, `*`,
+		`\_`, `_`,
+		`\[`, `[`,
+		`\]`, `]`,
+		`\(`, `(`,
+		`\)`, `)`,
+		`\~`, `~`,
+		`\>`, `>`,
+		`\|`, `|`,
+		`\-`, `-`,
+		`\+`, `+`,
+		`\.`, `.`,
+		`\!`, `!`,
+		"\\`", "`",
+	)
+	return replacer.Replace(text)
 }
 
 // ParseHTMLToken parse line for tokens
