@@ -136,7 +136,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
-			
+
 			// During genesis (block height 0), automatically create accounts for signers
 			// if they don't exist. This allows packages with custom uploaders to be loaded.
 			if ctx.BlockHeight() == 0 {
@@ -154,7 +154,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 					}
 				}
 			}
-			
+
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
