@@ -153,7 +153,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// Skip processing for ignored modules
 		if mod.Ignore {
 			if cmd.verbose {
-				io.ErrPrintfln("%s: module is ignore, skipping", dir)
+				io.ErrPrintfln("%s: module is ignored, skipping", dir)
 			}
 			continue
 		}

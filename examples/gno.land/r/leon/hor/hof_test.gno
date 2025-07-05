@@ -25,13 +25,12 @@ const (
 )
 
 var (
-	admin      std.Address
+	admin      std.Address = "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" // hardcoded from config.OwnableMain
 	adminRealm std.Realm
 	alice      = testutils.TestAddress("alice")
 )
 
 func init() {
-	admin = Ownable.Owner()
 	adminRealm = std.NewUserRealm(admin)
 }
 
