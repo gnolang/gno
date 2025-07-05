@@ -1,0 +1,14 @@
+# Mempool Upgrade Roadmap
+
+## Core Functionality
+- Mempool size management and limits
+- Channel for broadcasting new transaction arrivals
+- Block height tracking for state updates
+
+## Transaction Processing
+- Transaction pre-check validation
+- Re-check mechanism after block commits
+
+## Infrastructure
+- Write-Ahead Log (WAL) for crash recovery
+- Reactor component for P2P communication

@@ -32,12 +32,6 @@ type Mempool interface {
 	// transactions (~ all available transactions).
 	ReapMaxTxs(maxVal int) types.Txs
 
-	// Lock locks the mempool. The consensus must be able to hold lock to safely update.
-	Lock()
-
-	// Unlock unlocks the mempool.
-	Unlock()
-
 	// Update informs the mempool that the given txs were committed and can be discarded.
 	// NOTE: this should be called *after* block is committed by consensus.
 	// NOTE: unsafe; Lock/Unlock must be managed by caller
@@ -67,16 +61,9 @@ type Mempool interface {
 
 	// Maximum allowable tx size.
 	MaxTxBytes() int64
-
-	// InitWAL creates a directory for the WAL file and opens a file itself.
-	InitWAL()
-
-	// CloseWAL closes and discards the underlying WAL file.
-	// Any further writes will not be relayed to disk.
-	CloseWAL()
 }
 
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 
 // PreCheckFunc is an optional filter executed before CheckTx and rejects
 // transaction if false is returned. An example would be to ensure that a
