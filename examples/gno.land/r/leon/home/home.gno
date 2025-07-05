@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 
 	"gno.land/r/demo/art/gnoface"
@@ -21,12 +22,25 @@ var (
 	abtMe      [2]string
 )
 
-func Render(_ string) string {
+func Render(path string) string {
 	out := "# Leon's Homepage\n\n"
+
+	if path == "buttons" {
+		return renderButtonPage()
+	}
 
 	out += renderAboutMe()
 	out += renderArt()
 	out += config.Banner()
+	out += "\n\n"
+	out += svgbtn.Button(
+		1200,
+		50,
+		gnomeBodyColors[int(std.ChainHeight())%len(gnomeBodyColors)],
+		"#ffffff",
+		"Support my work!",
+		"/r/leon/home$help&func=Donate&.send=1000000ugnot",
+	)
 
 	return out
 }
@@ -65,6 +79,10 @@ func UpdateAboutMe(cur realm, col1, col2 string) {
 
 	abtMe[0] = col1
 	abtMe[1] = col2
+}
+
+func Donate() {
+	// just send some coins!!
 }
 
 func renderAboutMe() string {
@@ -127,6 +145,22 @@ func RenderSVGGnome() string { // exported for your pleasure :)
 	c.Append(body, head, beard, hat, leftEye, rightEye)
 
 	return c.Render("svg gnome")
+}
+
+func renderButtonPage() string {
+	out := "# Buttons Demo\n\n"
+
+	out += md.ColumnsN([]string{
+		svgbtn.PrimaryButton(120, 40, "Click Me", "/click") + "\n\n",
+		svgbtn.DangerButton(120, 40, "Delete", "/delete") + "\n\n",
+		svgbtn.SuccessButton(120, 40, "Success", "/success") + "\n\n",
+		svgbtn.SmallButton(80, 25, "Edit", "/edit") + "\n\n",
+		svgbtn.WideButton(200, 40, "Big Action", "/big") + "\n\n",
+		svgbtn.TextButton(100, 30, "More Info", "/info") + "\n\n",
+		svgbtn.IconButton(40, 40, "⚙️", "/settings") + "\n\n",
+	}, 3, true)
+
+	return out
 }
 
 var gnomeBodyColors = []string{
