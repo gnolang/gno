@@ -52,7 +52,6 @@ func DirectoryView(pkgPath string, files []string, fileCounter int, linkType Dir
 		Files:       files,
 		FilesLinks:  GetFullLinks(files, linkType, pkgPath),
 		FileCounter: fileCounter,
-		Mode:        mode,
 	}
 	if len(readme) > 0 {
 		viewData.Readme = readme[0]

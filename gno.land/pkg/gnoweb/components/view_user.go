@@ -21,17 +21,33 @@ type UserContributionType int
 
 const (
 	UserContributionTypeRealm = iota
-	UserContributionTypePackage
+	UserContributionTypePure
 )
 
 func (typ UserContributionType) String() string {
 	switch typ {
 	case UserContributionTypeRealm:
 		return "realm"
-	case UserContributionTypePackage:
+	case UserContributionTypePure:
 		return "pure"
 	}
 	return ""
+}
+
+type UserCardList struct {
+	Title             string
+	Items             []UserContribution
+	Categories        []UserCardListCategory
+	TotalCount        int
+	SearchPlaceholder string
+}
+
+type UserCardListCategory struct {
+	ID    string
+	Name  string
+	Icon  string
+	Count int
+	Items []UserContribution
 }
 
 type UserLink struct {
@@ -51,16 +67,18 @@ type UserContribution struct {
 
 // UserData contains data for the user view
 type UserData struct {
-	Username      string
-	Handlename    string
-	Bio           string
-	Teams         []struct{}
-	Links         []UserLink
-	Contributions []UserContribution
-	PackageCount  int
-	RealmCount    int
-	PureCount     int
-	Content       Component
+	Username       string
+	Handlename     string
+	Bio            string
+	Teams          []struct{}
+	Links          []UserLink
+	Contributions  []UserContribution
+	PackageCount   int
+	RealmCount     int
+	PureCount      int
+	Content        Component
+	CardsListTitle string
+	CardsList      *UserCardList
 }
 
 // enrichLinks sets the Title of link-type entries to their hostname.
@@ -76,9 +94,26 @@ func enrichUserLinks(links []UserLink) {
 	}
 }
 
+// enrichUserCardList enriches the user card list with the data from the user data
+// NOTE: Categories ID must be same as the Type of the UserContribution
+func enrichUserCardList(data *UserData) {
+	data.CardsListTitle = "Contributions"
+	data.CardsList = &UserCardList{
+		Title: "Packages",
+		Items: data.Contributions,
+		Categories: []UserCardListCategory{
+			{ID: "realm", Name: "Realm", Icon: "ico-realm", Count: data.RealmCount},
+			{ID: "pure", Name: "Pure", Icon: "ico-pure", Count: data.PureCount},
+		},
+		TotalCount:        data.PackageCount,
+		SearchPlaceholder: "Search contributions",
+	}
+}
+
 // UserView creates a new user view component
 func UserView(data UserData) *View {
 	enrichUserLinks(data.Links)
+	enrichUserCardList(&data)
 
 	return NewTemplateView(
 		UserViewType,
