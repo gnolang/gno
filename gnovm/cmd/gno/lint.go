@@ -150,6 +150,14 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			continue
 		}
 
+		// Skip processing for ignored modules
+		if mod.Ignore {
+			if cmd.verbose {
+				io.ErrPrintfln("%s: module is ignore, skipping", dir)
+			}
+			continue
+		}
+
 		// Perform imports using the parent store.
 		abortOnError := true
 		if err := test.LoadImports(testgs, mpkg, abortOnError); err != nil {
@@ -216,19 +224,15 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			//       GoParseMemPackage(mpkg);
 			//       g.cmd.Check();
 
-			if !mod.Ignore {
-				tcmode := gno.TCLatestStrict
-				if cmd.autoGnomod {
-					tcmode = gno.TCLatestRelaxed
-				}
-				errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(true), tcmode)
-				if errs != nil {
-					// io.ErrPrintln(errs) printed above.
-					hasError = true
-					return
-				}
-			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is ignore, skipping type check", dir)
+			tcmode := gno.TCLatestStrict
+			if cmd.autoGnomod {
+				tcmode = gno.TCLatestRelaxed
+			}
+			errs := lintTypeCheck(io, dir, mpkg, newProdGnoStore(), newTestGnoStore(true), tcmode)
+			if errs != nil {
+				// io.ErrPrintln(errs) printed above.
+				hasError = true
+				return
 			}
 
 			// Construct machine for testing.
@@ -303,7 +307,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	for _, dir := range dirs {
 		ppkg, ok := ppkgs[dir]
 		if !ok {
-			panic("where did it go")
+			// Skip directories that were not processed (e.g., ignored modules)
+			continue
 		}
 
 		// LINT STEP 6: mpkg.WriteTo():
