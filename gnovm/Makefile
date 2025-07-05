@@ -110,7 +110,10 @@ _test.pkg:
 .PHONY: _test.stdlibs
 _test.stdlibs:
 	go test -v ./stdlibs/...
-	# Stdlibs are already tested in pkg/gnolang.
+	# 'gno test ./stdlibs/...' is different from TestStdlibs in 'go test ./pkg/..'
+	# TestStdlibs does not include tests from *_test packages.
+	go run ../gnovm/cmd/gno test -v ./stdlibs/...
+
 
 .PHONY: _test.filetest
 _test.filetest:

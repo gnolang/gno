@@ -2,7 +2,7 @@
 package testing
 
 import (
-	"testing/base"
+	base "testing/base"
 )
 
 // NOTE almost everything actually declared in testing/base

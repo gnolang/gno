@@ -5,7 +5,7 @@
 package rand
 
 import (
-	"testing"
+	testing "testing/base"
 )
 
 // This test is first, in its own file with an alphabetically early name,

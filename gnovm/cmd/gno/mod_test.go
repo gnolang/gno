@@ -154,7 +154,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/minimalist_gnomod",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
-(module minim does not need package std)
+(module gno.land/t/minim does not need package std)
 `,
 		},
 		{
@@ -162,7 +162,7 @@ func TestModApp(t *testing.T) {
 			testDir:              "../../tests/integ/require_remote_module",
 			simulateExternalRepo: true,
 			stdoutShouldBe: `# std
-(module gno.land/tests/importavl does not need package std)
+(module gno.land/t/importavl does not need package std)
 `,
 		},
 		{
@@ -202,7 +202,7 @@ valid.gno
 		// 			args:                 []string{"mod", "graph"},
 		// 			testDir:              "../../tests/integ/require_remote_module",
 		// 			simulateExternalRepo: true,
-		// 			stdoutShouldBe: `gno.land/tests/importavl gno.land/p/demo/avl
+		// 			stdoutShouldBe: `gno.land/t/importavl gno.land/p/demo/avl
 		// `,
 		// 		},
 	}

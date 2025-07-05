@@ -22,14 +22,14 @@ func init() {
 
 	// Create a couple of DAOs
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 	commondao.New("A")
 	daoID = commondao.New(name).ID()
 	commondao.New("C")
 }
 
 func main() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
 	dao := commondao.Get(daoID)
 	if dao == nil {

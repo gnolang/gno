@@ -82,7 +82,7 @@ gno = "0.9"`,
 			}
 
 			// List packages
-			pkgs, err := gno.ReadPkgListFromDir(dirPath)
+			pkgs, err := gno.ReadPkgListFromDir(dirPath, gno.MPAnyAll)
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outPkgList), len(pkgs))
 			for _, p := range pkgs {

@@ -26,7 +26,7 @@ func TestLoader_LoadWithDeps(t *testing.T) {
 func TestLoader_ResolverPriority(t *testing.T) {
 	t.Parallel()
 
-	const commonPath = "abc.yz/pkg/a"
+	const commonPath = "abc.yz/t/a"
 
 	pkgA := std.MemPackage{Name: "pkga", Path: commonPath}
 	resolverA := NewMockResolver(&pkgA)
@@ -61,10 +61,10 @@ func TestLoader_Glob(t *testing.T) {
 		GlobPath   string
 		PkgResults []string
 	}{
-		{"abc.xy/pkg/*", []string{TestdataPkgA, TestdataPkgB, TestdataPkgC}},
-		{"abc.xy/nested/*", []string{TestdataNestedA}},
-		{"abc.xy/**/cc", []string{TestdataNestedC, TestdataPkgA, TestdataPkgB, TestdataPkgC}},
-		{"abc.xy/*/aa", []string{TestdataNestedA, TestdataPkgA}},
+		{"abc.xy/t/**", append(testdataPkgs, testdataNested...)},
+		{"abc.xy/t/nested/*", []string{TestdataNestedA}},
+		{"abc.xy/t/**/cc", []string{TestdataPkgA, TestdataPkgB, TestdataPkgC, TestdataNestedC}},
+		{"abc.xy/t/*/aa", []string{TestdataNestedA}},
 	}
 
 	fsresolver := NewRootResolver("./testdata")
@@ -74,10 +74,11 @@ func TestLoader_Glob(t *testing.T) {
 		t.Run(tc.GlobPath, func(t *testing.T) {
 			pkgs, err := globloader.Load(tc.GlobPath)
 			require.NoError(t, err)
-			require.Len(t, pkgs, len(tc.PkgResults))
-			for i, expected := range tc.PkgResults {
-				assert.Equal(t, expected, pkgs[i].Path)
+			actuals := make([]string, 0, len(pkgs))
+			for _, pkg := range pkgs {
+				actuals = append(actuals, pkg.Path)
 			}
+			assert.Equal(t, tc.PkgResults, actuals)
 		})
 	}
 }

@@ -22,13 +22,14 @@ func TestTransactionStore(t *testing.T) {
 	wrappedTm2Store := tm2Store.CacheWrap()
 	txSt := st.BeginTransaction(wrappedTm2Store, wrappedTm2Store, nil)
 	m := NewMachineWithOptions(MachineOptions{
-		PkgPath: "hello",
+		PkgPath: "gno.vm/t/hello",
 		Store:   txSt,
 		Output:  io.Discard,
 	})
 	_, pv := m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd,
 		Name: "hello",
-		Path: "hello",
+		Path: "gno.vm/t/hello",
 		Files: []*std.MemFile{
 			{Name: "hello.gno", Body: "package hello; func main() { println(A(11)); }; type A int"},
 		},
@@ -39,22 +40,22 @@ func TestTransactionStore(t *testing.T) {
 	// mem package should only exist in txSt
 	// (check both memPackage and types - one is stored directly in the db,
 	// the other uses txlog)
-	assert.Nil(t, st.GetMemPackage("hello"))
-	assert.NotNil(t, txSt.GetMemPackage("hello"))
-	assert.PanicsWithValue(t, "unexpected type with id hello.A", func() { st.GetType("hello.A") })
-	assert.NotNil(t, txSt.GetType("hello.A"))
+	assert.Nil(t, st.GetMemPackage("gno.vm/t/hello"))
+	assert.NotNil(t, txSt.GetMemPackage("gno.vm/t/hello"))
+	assert.PanicsWithValue(t, "unexpected type with id gno.vm/t/hello.A", func() { st.GetType("gno.vm/t/hello.A") })
+	assert.NotNil(t, txSt.GetType("gno.vm/t/hello.A"))
 
 	// use write on the stores
 	txSt.Write()
 	wrappedTm2Store.Write()
 
 	// mem package should exist and be ==.
-	res := st.GetMemPackage("hello")
+	res := st.GetMemPackage("gno.vm/t/hello")
 	assert.NotNil(t, res)
-	assert.Equal(t, txSt.GetMemPackage("hello"), res)
-	helloA := st.GetType("hello.A")
+	assert.Equal(t, txSt.GetMemPackage("gno.vm/t/hello"), res)
+	helloA := st.GetType("gno.vm/t/hello.A")
 	assert.NotNil(t, helloA)
-	assert.Equal(t, txSt.GetType("hello.A"), helloA)
+	assert.Equal(t, txSt.GetType("gno.vm/t/hello.A"), helloA)
 }
 
 func TestTransactionStore_blockedMethods(t *testing.T) {
@@ -77,12 +78,13 @@ func TestCopyFromCachedStore(t *testing.T) {
 		Base:    BoolType,
 	})
 	cachedStore.AddMemPackage(&std.MemPackage{
+		Type: MPStdlibAll,
 		Name: "math",
 		Path: "math",
 		Files: []*std.MemFile{
 			{Name: "math.gno", Body: "package math"},
 		},
-	}, MemPackageTypeAny)
+	}, MPAnyAll)
 
 	// Create dest store and copy.
 	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
@@ -101,9 +103,9 @@ func TestCopyFromCachedStore(t *testing.T) {
 func TestFindByPrefix(t *testing.T) {
 	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocchi"}
 	pkgs := []string{
-		"fruits.org/abricot",
-		"fruits.org/abricot/fraise",
-		"fruits.org/fraise",
+		"fruits.org/t/abricot",
+		"fruits.org/t/abricot/fraise",
+		"fruits.org/t/fraise",
 	}
 
 	cases := []struct {
@@ -113,11 +115,11 @@ func TestFindByPrefix(t *testing.T) {
 	}{
 		{"", 100, append(stdlibs, pkgs...)}, // no prefix == everything
 		{"fruits.org", 100, pkgs},
-		{"fruits.org/abricot", 100, []string{
-			"fruits.org/abricot", "fruits.org/abricot/fraise",
+		{"fruits.org/t/abricot", 100, []string{
+			"fruits.org/t/abricot", "fruits.org/t/abricot/fraise",
 		}},
-		{"fruits.org/abricot/", 100, []string{
-			"fruits.org/abricot/fraise",
+		{"fruits.org/t/abricot/", 100, []string{
+			"fruits.org/t/abricot/fraise",
 		}},
 		{"fruits", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
 		{"_", 100, stdlibs},
@@ -139,24 +141,26 @@ func TestFindByPrefix(t *testing.T) {
 	// Add stdlibs
 	for _, lib := range stdlibs {
 		store.AddMemPackage(&std.MemPackage{
+			Type: MPStdlibAll,
 			Name: lib,
 			Path: lib,
 			Files: []*std.MemFile{
 				{Name: lib + ".gno", Body: "package " + lib},
 			},
-		}, MemPackageTypeAny)
+		}, MPStdlibAll)
 	}
 
 	// Add pkgs
 	for _, pkg := range pkgs {
 		name := path.Base(pkg)
 		store.AddMemPackage(&std.MemPackage{
+			Type: MPUserProd,
 			Name: name,
 			Path: pkg,
 			Files: []*std.MemFile{
 				{Name: name + ".gno", Body: "package " + name},
 			},
-		}, MemPackageTypeAny)
+		}, MPUserProd)
 	}
 
 	for _, tc := range cases {

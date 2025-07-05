@@ -1,6 +1,6 @@
 package main
 
-import "github.com/gnolang/gno/_test/b1/foo"
+import "filetests/extern/b1/foo"
 
 func main() {
 	println(foo.Desc)

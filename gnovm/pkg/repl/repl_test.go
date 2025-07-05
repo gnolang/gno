@@ -203,11 +203,11 @@ var fixtures = []struct {
 				type MyStruct struct {
 					counter int
 				}
-				
+
 				func (s *MyStruct) Add() {
 					s.counter++
 				}
-				
+
 				func (s *MyStruct) Get() int {
 					return s.counter
 				}

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+// PKGPATH: gno.land/r/test
+package test
 
 import (
 	"std"

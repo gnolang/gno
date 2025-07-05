@@ -2,7 +2,7 @@
 
 package main
 
-import "github.com/gnolang/gno/_test/replacer"
+import "filetests/extern/replacer"
 
 func main(cur realm,) {
 	s := replacer.Replacer.Replace("Hello")

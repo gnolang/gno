@@ -1,2 +1,2 @@
-module = "gno.land/tests/severalerrors"
+module = "gno.land/t/severalerrors"
 gno = "0.9"

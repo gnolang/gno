@@ -143,7 +143,7 @@ func TestImports(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
+	pkg, err := gnolang.ReadMemPackage(tmpDir, "test", gnolang.MPAnyAll)
 	require.NoError(t, err)
 
 	importsMap, err := packages.Imports(pkg, nil)

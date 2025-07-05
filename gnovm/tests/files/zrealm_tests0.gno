@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/tests_test
-package tests_test
+// PKGPATH: gno.land/r/demo/tests0
+package tests0
 
 import (
 	"gno.land/r/demo/tests"
@@ -183,4 +183,4 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/demo/tests"]
 // finalizerealm["gno.land/r/demo/tests"]
 // finalizerealm["gno.land/r/demo/tests"]
-// finalizerealm["gno.land/r/demo/tests_test"]
+// finalizerealm["gno.land/r/demo/tests0"]

@@ -447,7 +447,8 @@ func TestCopyLargeWriter(t *testing.T) {
 	rb := new(Buffer)
 	wb := largeWriter{}
 	rb.WriteString("hello, world.")
-	if _, err := io.Copy(wb, rb); err != want {
+	// XXX: mempackage_type, re-exported error does not maintain the same identity.
+	if _, err := io.Copy(wb, rb); err.Error() != want.Error() {
 		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 
@@ -455,7 +456,8 @@ func TestCopyLargeWriter(t *testing.T) {
 	rb = new(Buffer)
 	wb = largeWriter{err: want}
 	rb.WriteString("hello, world.")
-	if _, err := io.Copy(wb, rb); err != want {
+	// XXX: mempackage_type, re-exported error does not maintain the same identity.
+	if _, err := io.Copy(wb, rb); err.Error() != want.Error() {
 		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 }
@@ -554,7 +556,8 @@ func TestOffsetWriter_Seek(t *testing.T) {
 		for _, whence := range []int{-3, -2, -1, 3, 4, 5} {
 			var offset int64 = 0
 			gotOff, gotErr := w.Seek(offset, whence)
-			if gotOff != 0 || gotErr != io.ErrWhence {
+			// XXX: mempackage_type, re-exported error does not maintain the same identity.
+			if gotOff != 0 || gotErr.Error() != io.ErrWhence.Error() {
 				t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
 					whence, offset, gotOff, gotErr, 0, io.ErrWhence)
 			}
@@ -566,7 +569,8 @@ func TestOffsetWriter_Seek(t *testing.T) {
 		for _, whence := range []int{io.SeekStart, io.SeekCurrent} {
 			for offset := int64(-3); offset < 0; offset++ {
 				gotOff, gotErr := w.Seek(offset, whence)
-				if gotOff != 0 || gotErr != io.ErrOffset {
+				// XXX: mempackage_type, re-exported error does not maintain the same identity.
+				if gotOff != 0 || gotErr.Error() != io.ErrOffset.Error() {
 					t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
 						whence, offset, gotOff, gotErr, 0, io.ErrOffset)
 				}

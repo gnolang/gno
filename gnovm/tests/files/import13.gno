@@ -3,7 +3,7 @@
 package demo
 
 import (
-	"github.com/gnolang/gno/_test/foo/internal/aa"
+	"filetests/extern/foo/internal/aa"
 )
 
 func main() {
@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// gno.land/p/demo/import13.gno:6:2-48: internal/ packages can only be imported by packages rooted at the parent of "internal"
+// gno.land/p/demo/import13.gno:6:2-36: internal/ packages can only be imported by packages rooted at the parent of "internal"

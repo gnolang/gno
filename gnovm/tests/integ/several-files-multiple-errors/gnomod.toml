@@ -1,2 +1,2 @@
-module = "gnovm/tests/integ/several-files-multiple-errors"
+module = "gno.vm/t/integ/several_files_multiple_errors"
 gno = "0.9"

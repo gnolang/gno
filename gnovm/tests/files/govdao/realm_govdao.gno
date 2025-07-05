@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/govdao_test
-package govdao_test
+// PKGPATH: gno.land/r/govdao
+package govdao
 
 import (
 	"std"

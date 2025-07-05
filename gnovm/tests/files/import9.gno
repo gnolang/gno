@@ -1,6 +1,6 @@
 package main
 
-import baz "github.com/gnolang/gno/_test/baz_bat"
+import baz "filetests/extern/baz_bat"
 
 func main() {
 	println(baz.Name)

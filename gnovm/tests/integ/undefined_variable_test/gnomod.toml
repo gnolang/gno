@@ -1,2 +1,0 @@
-module = "gnovm/tests/integ/undefined_variable_test"
-gno = "0.9"

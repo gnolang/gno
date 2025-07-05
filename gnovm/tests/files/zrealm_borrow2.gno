@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/borrow_test
-package borrow_test
+// PKGPATH: gno.land/r/borrow
+package borrow
 
 import (
 	"fmt"
@@ -69,5 +69,5 @@ func main(cur realm) {
 
 // Output:
 // 101
-// CodeRealm{ g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq, gno.land/r/borrow_test }
+// CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
 // UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }

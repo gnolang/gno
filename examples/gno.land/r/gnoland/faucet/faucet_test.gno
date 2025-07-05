@@ -1,11 +1,10 @@
-package faucet_test
+package faucet
 
 import (
 	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/r/gnoland/faucet"
 )
 
 func TestPackage(t *testing.T) {
@@ -33,57 +32,57 @@ func TestPackage(t *testing.T) {
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
 	assertBalance(t, test1addr, 0)
 	testing.SetRealm(std.NewUserRealm(test1addr))
-	assertErr(t, faucet.Transfer(cross, test1addr, 1_000_000))
+	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
-	assertErr(t, faucet.AdminAddController(cross, controlleraddr1))
+	assertErr(t, AdminAddController(cross, controlleraddr1))
 	testing.SetRealm(std.NewUserRealm(controlleraddr1))
-	assertErr(t, faucet.Transfer(cross, test1addr, 1_000_000))
+	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	// as an admin, add the controller to contract and deposit more 2000gnot to contract
 	testing.SetRealm(std.NewUserRealm(adminaddr))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr1))
+	assertNoErr(t, AdminAddController(cross, controlleraddr1))
 	assertBalance(t, faucetaddr, 1_000_000_000)
 
 	// now, send some tokens as controller.
 	testing.SetRealm(std.NewUserRealm(controlleraddr1))
-	assertNoErr(t, faucet.Transfer(cross, test1addr, 1_000_000))
+	assertNoErr(t, Transfer(cross, test1addr, 1_000_000))
 	assertBalance(t, test1addr, 1_000_000)
-	assertNoErr(t, faucet.Transfer(cross, test1addr, 1_000_000))
+	assertNoErr(t, Transfer(cross, test1addr, 1_000_000))
 	assertBalance(t, test1addr, 2_000_000)
 	assertBalance(t, faucetaddr, 998_000_000)
 
 	// remove controller
 	// as an admin, remove controller
 	testing.SetRealm(std.NewUserRealm(adminaddr))
-	assertNoErr(t, faucet.AdminRemoveController(cross, controlleraddr1))
+	assertNoErr(t, AdminRemoveController(cross, controlleraddr1))
 	testing.SetRealm(std.NewUserRealm(controlleraddr1))
-	assertErr(t, faucet.Transfer(cross, test1addr, 1_000_000))
+	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 
 	// duplicate controller
 	testing.SetRealm(std.NewUserRealm(adminaddr))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr1))
-	assertErr(t, faucet.AdminAddController(cross, controlleraddr1))
+	assertNoErr(t, AdminAddController(cross, controlleraddr1))
+	assertErr(t, AdminAddController(cross, controlleraddr1))
 	// add more than more than allowed controllers
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr2))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr3))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr4))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr5))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr6))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr7))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr8))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr9))
-	assertNoErr(t, faucet.AdminAddController(cross, controlleraddr10))
-	assertErr(t, faucet.AdminAddController(cross, controlleraddr11))
+	assertNoErr(t, AdminAddController(cross, controlleraddr2))
+	assertNoErr(t, AdminAddController(cross, controlleraddr3))
+	assertNoErr(t, AdminAddController(cross, controlleraddr4))
+	assertNoErr(t, AdminAddController(cross, controlleraddr5))
+	assertNoErr(t, AdminAddController(cross, controlleraddr6))
+	assertNoErr(t, AdminAddController(cross, controlleraddr7))
+	assertNoErr(t, AdminAddController(cross, controlleraddr8))
+	assertNoErr(t, AdminAddController(cross, controlleraddr9))
+	assertNoErr(t, AdminAddController(cross, controlleraddr10))
+	assertErr(t, AdminAddController(cross, controlleraddr11))
 
 	// send more than per transfer limit
 	testing.SetRealm(std.NewUserRealm(adminaddr))
-	assertNoErr(t, faucet.AdminSetTransferLimit(cross, 300_000_000))
+	assertNoErr(t, AdminSetTransferLimit(cross, 300_000_000))
 	testing.SetRealm(std.NewUserRealm(controlleraddr1))
-	assertErr(t, faucet.Transfer(cross, test1addr, 301_000_000))
+	assertErr(t, Transfer(cross, test1addr, 301_000_000))
 
 	// block transefer from the address not on the controllers list.
 	testing.SetRealm(std.NewUserRealm(controlleraddr11))
-	assertErr(t, faucet.Transfer(cross, test1addr, 1_000_000))
+	assertErr(t, Transfer(cross, test1addr, 1_000_000))
 }
 
 func assertErr(t *testing.T, err string) {

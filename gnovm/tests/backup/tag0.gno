@@ -3,7 +3,7 @@
 
 package main
 
-import _ "github.com/gnolang/gno/_test/ct"
+import _ "filetests/extern/ct"
 
 func main() {
 	println("bye")

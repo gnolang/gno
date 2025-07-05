@@ -25,7 +25,6 @@ func SayHello() string {
 -- bye/gnomod.toml --
 module = "gno.land/p/demo/bye"
 gno = "0.9"
-
 -- bye/bye.gno --
 package bye
 

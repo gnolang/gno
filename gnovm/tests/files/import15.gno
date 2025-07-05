@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gnolang/gno/_test/foo/v2"
+	"filetests/extern/foo/v2"
 )
 
 func main() {
