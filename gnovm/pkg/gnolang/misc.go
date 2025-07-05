@@ -161,6 +161,9 @@ func isUverseName(n Name) bool {
 // For keeping record of package & realm coins.
 // If you need the bech32 address it is faster to call DerivePkgBech32Addr().
 func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
+	if pkgPath == "" {
+		panic("pkgpath cannot be empty")
+	}
 	b32addr, ok := IsGnoRunPath(pkgPath)
 	if ok {
 		addr, err := crypto.AddressFromBech32(b32addr)
