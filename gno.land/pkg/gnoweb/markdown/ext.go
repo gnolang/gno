@@ -72,7 +72,7 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	ExtAlerts.Extend(m)
 
 	// Add link extension
-	//ExtLinks.Extend(m)
+	ExtLinks.Extend(m)
 
 	// Add form / inputs extension
 	ExtForms.Extend(m)
