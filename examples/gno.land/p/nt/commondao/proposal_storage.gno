@@ -84,3 +84,5 @@ func (s proposalStorage) Iterate(offset, count int, reverse bool, fn func(*Propo
 func makeProposalKey(id uint64) string {
 	return seqid.ID(id).String()
 }
+
+// add way to get RO Prop Tree
