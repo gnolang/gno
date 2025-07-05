@@ -8,8 +8,6 @@ package doc
 import (
 	"errors"
 	"fmt"
-	"go/ast"
-	"go/doc"
 	"go/token"
 	"io"
 	"log"
@@ -59,42 +57,59 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		}
 	}
 
-	astpkg, pkg, err := d.pkgData.docPackage(o)
+	doc, err := d.WriteJSONDocumentation(o)
 	if err != nil {
 		return err
 	}
 
 	// copied from go source - map vars, constants and constructors to their respective types.
-	typedValue := make(map[*doc.Value]bool)
-	constructor := make(map[*doc.Func]bool)
-	for _, typ := range pkg.Types {
-		pkg.Consts = append(pkg.Consts, typ.Consts...)
-		pkg.Vars = append(pkg.Vars, typ.Vars...)
-		pkg.Funcs = append(pkg.Funcs, typ.Funcs...)
-		if !o.Unexported && !token.IsExported(typ.Name) {
+	typedValue := make(map[string]string)
+	constructor := make(map[string]string)
+	types := make(map[string]bool)
+	for _, typ := range doc.Types {
+		types[typ.Name] = true
+	}
+
+	for _, decl := range doc.Values {
+		for _, val := range decl.Values {
+			typeName := strings.TrimPrefix(val.Type, "*")
+			if !types[typeName] {
+				// We only care about types defined in this package
+				typeName = ""
+			}
+			if typeName == "" || (!o.Unexported && !token.IsExported(typeName)) {
+				// We don't count it as a value bound to the type if the type itself is not exported
+				continue
+			}
+			typedValue[val.Name] = typeName
+		}
+	}
+
+	for _, fun := range doc.Funcs {
+		if fun.Type != "" {
+			// Constructors are not methods
 			continue
 		}
-		for _, value := range typ.Consts {
-			typedValue[value] = true
+		returnType := ""
+		if len(fun.Results) == 1 {
+			returnType = strings.TrimPrefix(fun.Results[0].Type, "*")
+			if !types[returnType] {
+				// We only care about types defined in this package
+				returnType = ""
+			}
 		}
-		for _, value := range typ.Vars {
-			typedValue[value] = true
+		if returnType == "" || (!o.Unexported && !token.IsExported(returnType)) {
+			// We don't count it as a constructor bound to the type if the type itself is not exported
+			continue
 		}
-		for _, fun := range typ.Funcs {
-			// We don't count it as a constructor bound to the type
-			// if the type itself is not exported.
-			constructor[fun] = true
-		}
+		constructor[fun.Name] = returnType
 	}
 
 	pp := &pkgPrinter{
 		name:        d.pkgData.name,
-		pkg:         astpkg,
-		file:        ast.MergePackageFiles(astpkg, 0),
-		doc:         pkg,
+		doc:         doc,
 		typedValue:  typedValue,
 		constructor: constructor,
-		fs:          d.pkgData.fset,
 		opt:         o,
 		importPath:  d.importPath,
 	}
@@ -137,6 +152,9 @@ func (d *Documentable) output(pp *pkgPrinter) (err error) {
 			return
 		}
 		if pp.fieldDoc(d.symbol, d.accessible) {
+			return
+		}
+		if pp.printInterfaceMethodDoc(d.symbol, d.accessible) {
 			return
 		}
 	}
