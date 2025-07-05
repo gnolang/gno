@@ -22,16 +22,19 @@ const (
 	tooltipExternalLink = "External link"
 	tooltipInternalLink = "Cross package link"
 	tooltipTxLink       = "Transaction link"
+	tooltipUserLink     = "User profile"
 
 	// Icons for link types
 	iconExternalLink = "↗"
 	iconInternalLink = "↔"
 	iconTxLink       = "⚡︎"
+	iconUserLink     = "ⓤ"
 
 	// CSS classes for link types
 	classLinkExternal = "link-external"
 	classLinkInternal = "link-internal"
 	classLinkTx       = "link-tx"
+	classLinkUser     = "link-user"
 )
 
 // GnoLinkType represents the type of a link
@@ -42,6 +45,7 @@ const (
 	GnoLinkTypeExternal
 	GnoLinkTypePackage
 	GnoLinkTypeInternal
+	GnoLinkTypeUser
 )
 
 func (t GnoLinkType) String() string {
@@ -52,6 +56,8 @@ func (t GnoLinkType) String() string {
 		return "package"
 	case GnoLinkTypeInternal:
 		return "internal"
+	case GnoLinkTypeUser:
+		return "user"
 	}
 	return "unknown"
 }
@@ -135,6 +141,11 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 		return nil, GnoLinkTypeExternal
 	}
 
+	// Check if it's a user link first
+	if target.IsUser() {
+		return target, GnoLinkTypeUser
+	}
+
 	// Extract domain and namespace from the target.
 	targetDomain := target.Domain
 	targetName := target.Namespace()
@@ -188,6 +199,7 @@ var linkTypes = map[GnoLinkType]linkTypeInfo{
 	GnoLinkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
 	GnoLinkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
 	GnoLinkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
+	GnoLinkTypeUser:     {tooltipUserLink, iconUserLink, classLinkUser},
 }
 
 // renderGnoLink renders a link node.
@@ -230,7 +242,7 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		w.WriteString("</span>")
 	}
 
-	// Add external/internal icon span if needed.
+	// Add external/internal/user icon span if needed.
 	if n.LinkType != GnoLinkTypePackage {
 		if info, ok := linkTypes[n.LinkType]; ok {
 			writeHTMLTag(w, "span", []attr{
