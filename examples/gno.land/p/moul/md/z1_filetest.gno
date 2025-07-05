@@ -36,7 +36,7 @@ func main() {
 		"Column2\ncontent2",
 		"Column3\ncontent3",
 		"Column4\ncontent4",
-	}))
+	}, true))
 
 	// Should be automatically placed in multiple column tags
 	println("3 cols per row without padding:")

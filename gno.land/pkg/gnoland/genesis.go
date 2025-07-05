@@ -196,7 +196,18 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
-		tx, err := LoadPackage(mpkg, creator, fee, nil)
+		// Check if gnomod.toml specifies an uploader
+		packageCreator := creator
+		if mod, err := gno.ParseCheckGnoMod(mpkg); err == nil && mod != nil && mod.UploadMetadata.Uploader != "" {
+			// Parse the uploader address from gnomod.toml
+			uploaderAddr, err := crypto.AddressFromBech32(mod.UploadMetadata.Uploader)
+			if err != nil {
+				return nil, fmt.Errorf("invalid uploader address %q in package %q: %w", mod.UploadMetadata.Uploader, pkg.Dir, err)
+			}
+			packageCreator = uploaderAddr
+		}
+
+		tx, err := LoadPackage(mpkg, packageCreator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
