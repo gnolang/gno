@@ -337,10 +337,13 @@ func (m *Machine) doOpExec(op Op) {
 	case OpRangeIterMap:
 		bs := s.(*bodyStmt)
 		xv := m.PeekValue(1)
-		mv := xv.V.(*MapValue)
+		var mv *MapValue
+		if xv.V != nil {
+			mv = xv.V.(*MapValue)
+		}
 		switch bs.NextBodyIndex {
 		case -2: // init.
-			if mv.GetLength() == 0 { // early termination
+			if mv == nil || mv.GetLength() == 0 { // early termination
 				m.PopFrameAndReset()
 				return
 			}
