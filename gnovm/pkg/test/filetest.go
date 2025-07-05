@@ -300,7 +300,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 
 		// Simple case - pure package.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-		pv := pn.NewPackage()
+		pv := pn.NewPackage(false)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)

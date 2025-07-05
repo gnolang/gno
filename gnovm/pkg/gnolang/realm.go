@@ -28,7 +28,7 @@ is provided a home package, for example
 a "realm package", and functions and methods declared there
 have special privileges.
 
-Every "realm package" should define at last one package-level variable:
+Every "realm package" should define at least one package-level variable:
 
 ```go
 // PKGPATH: gno.land/r/alice
@@ -79,11 +79,12 @@ func (pid PkgID) Bytes() []byte {
 }
 
 var (
-	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
+	pkgIDFromPkgPathCacheMu sync.RWMutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+	pkgPathFromPkgIDCache = make(map[PkgID]string, 100)
 )
 
 func PkgIDFromPkgPath(path string) PkgID {
@@ -95,6 +96,10 @@ func PkgIDFromPkgPath(path string) PkgID {
 		pkgID = new(PkgID)
 		*pkgID = PkgID{HashBytes([]byte(path))}
 		pkgIDFromPkgPathCache[path] = pkgID
+		// Also update the reverse map.
+		if _, exists := pkgPathFromPkgIDCache[*pkgID]; !exists {
+			pkgPathFromPkgIDCache[*pkgID] = path
+		}
 	}
 	return *pkgID
 }
@@ -113,13 +118,29 @@ func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	}
 }
 
+func PkgPathFromObjectID(oid ObjectID) string {
+	if oid.IsZero() {
+		return ""
+	}
+	pkgID := oid.PkgID
+	if pkgID.IsZero() {
+		return ""
+	}
+	pkgPath, ok := pkgPathFromPkgIDCache[pkgID]
+	if !ok {
+		return ""
+	}
+	return pkgPath
+}
+
 // NOTE: A nil realm is special and has limited functionality; enough to
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
 type Realm struct {
-	ID   PkgID
-	Path string
-	Time uint64
+	ID      PkgID
+	Path    string
+	Private bool
+	Time    uint64
 
 	newCreated []Object
 	newDeleted []Object
@@ -132,12 +153,13 @@ type Realm struct {
 }
 
 // Creates a blank new realm with counter 0.
-func NewRealm(path string) *Realm {
+func NewRealm(path string, private bool) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
-		ID:   id,
-		Path: path,
-		Time: 0,
+		ID:      id,
+		Path:    path,
+		Time:    0,
+		Private: private,
 	}
 }
 
@@ -167,7 +189,7 @@ func (rlm *Realm) String() string {
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
-func (rlm *Realm) DidUpdate(po, xo, co Object) {
+func (rlm *Realm) DidUpdate(po, xo, co Object, store Store) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -191,6 +213,10 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
+	}
+	// enforce private ownership
+	if co != nil && hasPrivateRealmDeps(co, rlm, store) {
+		panic("cannot persist reference of object from private realm")
 	}
 
 	// XXX check if this boosts performance
@@ -958,6 +984,9 @@ func getChildObjects2(store Store, val Value) []Object {
 	objs := make([]Object, 0, len(chos))
 	for _, child := range chos {
 		if ref, ok := child.(RefValue); ok {
+			if ref.ObjectID.IsZero() {
+				continue
+			}
 			oo := store.GetObject(ref.ObjectID)
 			objs = append(objs, oo)
 		} else if oo, ok := child.(Object); ok {
@@ -1617,4 +1646,40 @@ func getOwner(store Store, oo Object) Object {
 		}
 	}
 	return po
+}
+
+func hasPrivateRealmDeps(obj Object, rlm *Realm, store Store) bool {
+	visited := make(map[Object]bool)
+	return hasPrivateRealmDepsWithVisited(obj, rlm, store, visited)
+}
+
+func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[Object]bool) bool {
+	if visited[obj] {
+		return false
+	}
+	visited[obj] = true
+	objID := obj.GetObjectID()
+
+	if !objID.IsZero() {
+		if objID.PkgID != rlm.ID {
+			pkgPath := PkgPathFromObjectID(objID)
+			if pkgPath != "" && isPrivateRealm(pkgPath, store) {
+				return true
+			}
+		}
+	}
+
+	children := getChildObjects2(store, obj)
+	for _, child := range children {
+		if hasPrivateRealmDepsWithVisited(child, rlm, store, visited) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isPrivateRealm(pkgPath string, store Store) bool {
+	realm := store.GetPackageRealm(pkgPath)
+	return realm.Private
 }
