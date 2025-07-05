@@ -993,7 +993,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 			}
 			// a matched name cannot be an embedded interface.
 			if im.Type.Kind() == InterfaceKind {
-				return nil, false, nil, nil, false
+				goto RECURSIVE
 			}
 			// match found.
 			tr := []ValuePath{NewValuePathInterface(n)}
@@ -1002,6 +1002,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 			ft := im.Type
 			return tr, hasPtr, rcvr, ft, false
 		}
+	RECURSIVE:
 		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
 			// embedded interfaces must be recursively searched.
 			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, m)
@@ -2170,6 +2171,8 @@ func fillEmbeddedName(ft *FieldType) {
 		case Float64Type:
 			ft.Name = Name("float64")
 		}
+	case *InterfaceType:
+	// embedded interface, no need to fill name
 	default:
 		panic(fmt.Sprintf(
 			"unexpected field type %s",
