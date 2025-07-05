@@ -721,7 +721,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
-		return x.GetPointerAtIndex(m.Alloc, m.Store, &index).Deref(), nil
+		return x.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &index).Deref(), nil
 	default:
 		err = fmt.Errorf("expression not supported: %v", n)
 	}
