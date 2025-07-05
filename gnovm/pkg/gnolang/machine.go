@@ -405,24 +405,13 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		if len(m.Stmts) > 0 {
 			ls := m.PeekStmt(1)
 			if bs, ok := ls.(*bodyStmt); ok {
-				stacktrace.LastLine = bs.LastStmt().GetLine()
-			} else {
-				goto NOTPANIC // not a panic call
-			}
-		} else {
-			goto NOTPANIC // not a panic call
-		}
-	NOTPANIC:
-		if len(m.Exprs) > 0 {
-			stacktrace.LastLine = m.PeekExpr(1).GetLine()
-		} else if len(m.Stmts) > 0 {
-			stmt := m.PeekStmt(1)
-			if bs, ok := stmt.(*bodyStmt); ok {
-				if 0 <= bs.NextBodyIndex-1 {
-					stmt = bs.Body[bs.NextBodyIndex-1]
+				ls := bs.LastStmt()
+				if ls != nil {
+					stacktrace.LastLine = ls.GetLine()
 				}
 			}
-			stacktrace.LastLine = stmt.GetLine()
+		} else if len(m.Exprs) > 0 {
+			stacktrace.LastLine = m.PeekExpr(1).GetLine()
 		} else {
 			stacktrace.LastLine = 0 // dunno
 		}
