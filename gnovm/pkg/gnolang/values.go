@@ -8,10 +8,12 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -725,6 +727,11 @@ func (mv *MapValue) GetLength() int {
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
+		key2 := key.Copy(alloc)
+		// When assigning to a map item, the key is always equal to that of the
+		// last assignment; this is mostly noticeable in the case of -0 / 0:
+		// https://go.dev/play/p/iNPDR4FQlRv
+		mli.Key = key2
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
@@ -987,6 +994,19 @@ func (tv *TypedValue) IsNilInterface() bool {
 	return false
 }
 
+func (tv *TypedValue) IsNaN() bool {
+	switch tv.T.Kind() {
+	case Float32Kind:
+		_, _, _, _, nan := softfloat.Funpack32(tv.GetFloat32())
+		return nan
+	case Float64Kind:
+		_, _, _, _, nan := softfloat.Funpack64(tv.GetFloat64())
+		return nan
+	default:
+		return false
+	}
+}
+
 func (tv *TypedValue) HasKind(k Kind) bool {
 	if tv.T == nil {
 		return false
@@ -1052,64 +1072,76 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	return
 }
 
+// This counter is increased each time PrimitiveMapKey encounters a NaN value.
+// It allows us to create NaN values in the map which are always != one another.
+var nanCounter atomic.Uint64
+
+// appendUint56 is used to append the 7 least significant bytes to bz.
+// It is used in place of binary.LittleEndian.AppendUint64 for nan float values,
+// so that no NaN value is equal to a float value (which will be either 4 or
+// 8 bytes long).
+func appendUint56(bz []byte, i uint64) []byte {
+	return append(bz,
+		byte(i),
+		byte(i>>8),
+		byte(i>>16),
+		byte(i>>24),
+		byte(i>>32),
+		byte(i>>40),
+		byte(i>>48))
+}
+
 // Returns encoded bytes for primitive values.
-// These bytes are used for both value hashes as well
-// as hash key bytes.
-func (tv *TypedValue) PrimitiveBytes() (data []byte) {
+// These are used for computing map keys.
+// Special handling occurs for floating point types:
+// - Negative zero is normalized to zero.
+// - NaNs have an empty byte, then an uint64 to make them uncomparable with any
+// other key.
+func (tv *TypedValue) PrimitiveMapKey(bz []byte) []byte {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
 		if tv.GetBool() {
-			return []byte{0x01}
+			return append(bz, 0x01)
 		}
-		return []byte{0x00}
+		return append(bz, 0x00)
 	case StringType:
-		return []byte(tv.GetString())
+		return append(bz, tv.GetString()...)
 	case Int8Type:
-		return []byte{uint8(tv.GetInt8())}
+		return append(bz, uint8(tv.GetInt8()))
 	case Int16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, uint16(tv.GetInt16()))
-		return data
+		return binary.LittleEndian.AppendUint16(bz, uint16(tv.GetInt16()))
 	case Int32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, uint32(tv.GetInt32()))
-		return data
+		return binary.LittleEndian.AppendUint32(bz, uint32(tv.GetInt32()))
 	case IntType, Int64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetInt()))
-		return data
+		return binary.LittleEndian.AppendUint64(bz, uint64(tv.GetInt()))
 	case Uint8Type:
-		return []byte{tv.GetUint8()}
+		return append(bz, tv.GetUint8())
 	case Uint16Type:
-		data = make([]byte, 2)
-		binary.LittleEndian.PutUint16(
-			data, tv.GetUint16())
-		return data
+		return binary.LittleEndian.AppendUint16(bz, tv.GetUint16())
 	case Uint32Type:
-		data = make([]byte, 4)
-		binary.LittleEndian.PutUint32(
-			data, tv.GetUint32())
-		return data
+		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32())
 	case UintType, Uint64Type:
-		data = make([]byte, 8)
-		binary.LittleEndian.PutUint64(
-			data, tv.GetUint())
-		return data
+		return binary.LittleEndian.AppendUint64(bz, tv.GetUint())
 	case Float32Type:
-		data = make([]byte, 4)
+		if tv.IsNaN() {
+			return appendUint56(bz, nanCounter.Add(1))
+		}
 		u32 := tv.GetFloat32()
-		binary.LittleEndian.PutUint32(
-			data, u32)
-		return data
+		// If this is negative zero, normalize to zero.
+		if u32 == (1 << 31) {
+			u32 = 0
+		}
+		return binary.LittleEndian.AppendUint32(bz, u32)
 	case Float64Type:
-		data = make([]byte, 8)
+		if tv.IsNaN() {
+			return appendUint56(bz, nanCounter.Add(1))
+		}
 		u64 := tv.GetFloat64()
-		binary.LittleEndian.PutUint64(
-			data, u64)
-		return data
+		// If this is negative zero, normalize to zero.
+		if u64 == (1 << 63) {
+			u64 = 0
+		}
+		return binary.LittleEndian.AppendUint64(bz, u64)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1535,8 +1567,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		pbz := tv.PrimitiveBytes()
-		bz = append(bz, pbz...)
+		bz = tv.PrimitiveMapKey(bz)
 	case *PointerType:
 		fillValueTV(store, tv)
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
