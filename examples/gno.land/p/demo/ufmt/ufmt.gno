@@ -8,8 +8,10 @@ package ufmt
 import (
 	"errors"
 	"io"
+	"math"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -32,13 +34,215 @@ func (b *buffer) writeRune(r rune) {
 	*b = utf8.AppendRune(*b, r)
 }
 
+// the different flags
+type flag uint8
+
+const (
+	flagHashtag flag = 1 << iota
+	flagZero
+	flagMinus
+	flagSpace
+	flagPlus
+)
+
+// the different len modifiers
+type lengthModifier uint8
+
+const (
+	lenNo lengthModifier = iota
+	lenHH
+	lenH
+	lenL
+	lenLL
+	lenZ
+)
+
+type printerMeta struct {
+	flags     flag
+	padding   int
+	length    lengthModifier
+	width     uint
+	precision int
+}
+
 // printer holds state for formatting operations.
 type printer struct {
-	buf buffer
+	buf  buffer
+	meta printerMeta
+}
+
+func strtoi(s string) (int, string) {
+	i := 0
+	for i < len(s) && unicode.IsDigit(rune(s[i])) {
+		i++
+	}
+	if i == 0 {
+		return 0, s
+	}
+	num, err := strconv.Atoi(s[:i])
+	if err != nil {
+		return 0, s
+	}
+	return num, s[i:]
+}
+
+func ptrForward(ptr *int, runes []rune, inc int) {
+	if inc <= 0 {
+		return
+	}
+	if *ptr+inc > len(runes) {
+		return
+	}
+	*ptr += inc
+}
+
+var lenMap = map[string]lengthModifier{
+	"ll": lenLL,
+	"l":  lenL,
+	"h":  lenH,
+	"hh": lenHH,
+	"z":  lenZ,
+}
+
+func parseDigit(r rune) int {
+	if '0' <= r && r <= '9' {
+		return int(r - '0')
+	}
+	return -1
+}
+
+func parseNumber(runes []rune, start int, end int) (int, int, bool) {
+	if start >= end {
+		return 0, 0, false
+	}
+
+	num := 0
+	i := 0
+	for start+i < end {
+		digit := parseDigit(runes[start+i])
+		if digit < 0 {
+			break
+		}
+		num = num*10 + digit
+		i++
+	}
+
+	if i == 0 {
+		return 0, 0, false
+	}
+
+	return num, i, true
+}
+
+var flagMap = [256]flag{
+	'-': flagMinus,
+	'+': flagPlus,
+	' ': flagSpace,
+	'0': flagZero,
+}
+
+// Parse the printf flags, precisions... all formatting data, stored in "p.meta".
+//
+// Supported metadata:
+//     length | the length modifier ("%ld", "%hhd", ...) // unused in go printf
+//  precision | number after the '.' character, mostly used in float precision ("%.2f", "%.3d", ...)
+//       flag | the flags are the characters before the flag ("%#x", "%+d", "%0f", ...)
+//    padding | the padding is the number you put after the flag ("%3d", "%5f", ...)
+func (p *printer) parse(runes []rune, index *int, end int) {
+	// Skip the '%' character that starts format specifiers
+	*index++
+	if *index >= end {
+		return
+	}
+
+	// Single-pass parsing with lookahead for efficient processing
+	for *index < end {
+		c := runes[*index]
+
+		switch c {
+		case '#':
+			// Handle hashtag flag for alternate format
+			p.meta.flags |= flagHashtag
+			*index++
+
+		case '-', '+', ' ', '0':
+			// Process format flags using direct array indexing
+			p.meta.flags |= flagMap[c]
+			*index++
+
+		case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			// Parse width specification (padding)
+			if num, consumed, ok := parseNumber(runes, *index, end); ok {
+				p.meta.padding = num
+				*index += consumed
+			}
+
+		case '.':
+			// Parse precision specification (after decimal point)
+			*index++
+			if *index < end {
+				if num, consumed, ok := parseNumber(runes, *index, end); ok {
+					p.meta.precision = num
+					*index += consumed
+				} else {
+					// Handle case where only '.' is provided (precision = 0)
+					p.meta.precision = 0
+				}
+			}
+
+		case 'h', 'l', 'z':
+			// Use lookahead to check for double-character length modifiers
+			// like 'hh' (char) or 'll' (long long) without iterating through options
+			if *index+1 < end {
+				next := runes[*index+1]
+				if c == 'h' && next == 'h' {
+					p.meta.length = lenHH
+					*index += 2 // Skip both characters
+					continue
+				} else if c == 'l' && next == 'l' {
+					p.meta.length = lenLL
+					*index += 2 // Skip both characters
+					continue
+				}
+			}
+
+			// Handle single-character length modifiers
+			switch c {
+			case 'h':
+				p.meta.length = lenH
+			case 'l':
+				p.meta.length = lenL
+			case 'z':
+				p.meta.length = lenZ
+			}
+			*index++
+
+		default:
+			// Found a non-metadata character (likely a verb), exit parsing
+			goto endParse
+		}
+	}
+
+endParse:
+	// Adjust index to position before the verb for subsequent processing
+	if *index < end {
+		*index-- // Back up one position to position at the verb
+	}
+}
+
+func (p *printer) resetMeta() {
+	p.meta = printerMeta{
+		precision: -1,
+		padding: -1,
+	}
 }
 
 func newPrinter() *printer {
-	return &printer{}
+	p := &printer{
+		buf: make(buffer, 0, 64),
+	}
+	p.resetMeta()
+	return p
 }
 
 // Sprint formats using the default formats for its operands and returns the resulting string.
@@ -110,7 +314,7 @@ func (p *printer) doPrintln(a []any) {
 //	%G: Formats a float value with %G for large exponents, and %F with full precision for smaller numbers
 //	%t: Formats a boolean value to "true" or "false".
 //	%x: Formats an integer value as a hexadecimal string.
-//	    Currently supports only uint8, []uint8, [32]uint8.
+//	    Currently supports only int, uint, uint8, 16, 32, 64 and []uint8.
 //	%c: Formats a rune value as a string.
 //	    Currently supports only rune, int.
 //	%q: Formats a string value as a quoted string.
@@ -150,48 +354,13 @@ func (p *printer) doPrintf(format string, args []any) {
 			continue
 		}
 
-		length := -1
-		precision := -1
-		i++ // skip '%'
+		p.resetMeta()
+		p.parse(sTor, &i, end)
 
-		digits := func() string {
-			start := i
-			for i < end && sTor[i] >= '0' && sTor[i] <= '9' {
-				i++
-			}
-			if i > start {
-				return string(sTor[start:i])
-			}
-			return ""
-		}
-
-		if l := digits(); l != "" {
-			var err error
-			length, err = strconv.Atoi(l)
-			if err != nil {
-				panic("ufmt: invalid length specification")
-			}
-		}
-
-		if i < end && sTor[i] == '.' {
-			i++ // skip '.'
-			if l := digits(); l != "" {
-				var err error
-				precision, err = strconv.Atoi(l)
-				if err != nil {
-					panic("ufmt: invalid precision specification")
-				}
-			}
-		}
-
-		if i >= end {
-			panic("ufmt: invalid format string")
-		}
-
-		verb := sTor[i]
+		verb := sTor[i+1]
 		if verb == '%' {
 			p.buf.writeRune('%')
-			i++
+			i += 2
 			continue
 		}
 
@@ -205,17 +374,17 @@ func (p *printer) doPrintf(format string, args []any) {
 		case 'v':
 			writeValue(p, verb, arg)
 		case 's':
-			writeStringWithLength(p, verb, arg, length)
+			writeString(p, verb, arg)
 		case 'c':
 			writeChar(p, verb, arg)
-		case 'd':
+		case 'd', 'i':
 			writeInt(p, verb, arg)
 		case 'e', 'E', 'f', 'F', 'g', 'G':
-			writeFloatWithPrecision(p, verb, arg, precision)
+			writeFloat(p, verb, arg)
 		case 't':
 			writeBool(p, verb, arg)
-		case 'x':
-			writeHex(p, verb, arg)
+		case 'x', 'X':
+			writeHex(p, verb, arg, verb == 'X')
 		case 'q':
 			writeQuotedString(p, verb, arg)
 		case 'T':
@@ -225,7 +394,7 @@ func (p *printer) doPrintf(format string, args []any) {
 			p.buf.writeString("(unhandled verb: %" + string(verb) + ")")
 		}
 
-		i++
+		i += 2
 	}
 
 	if argNum < argLen {
@@ -277,8 +446,8 @@ func writeValue(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeStringWithLength handles %s formatting with length specification
-func writeStringWithLength(p *printer, verb rune, arg any, length int) {
+// writeString handles %s formatting without length specification (its in p)
+func writeString(p *printer, verb rune, arg any) {
 	var s string
 	switch v := arg.(type) {
 	case (interface{ String() string }):
@@ -291,8 +460,8 @@ func writeStringWithLength(p *printer, verb rune, arg any, length int) {
 		s = fallback(verb, v)
 	}
 
-	if length > 0 && len(s) < length {
-		s = strings.Repeat(" ", length-len(s)) + s
+	if p.meta.padding > 0 && len(s) < int(p.meta.padding) {
+		s = strings.Repeat(" ", int(p.meta.padding)-len(s)) + s
 	}
 	p.buf.writeString(s)
 }
@@ -320,54 +489,100 @@ func writeChar(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeInt handles %d formatting
+// writeInt handles %d & %i formatting
 func writeInt(p *printer, verb rune, arg any) {
+	var (
+		subBuf string
+		num int64 = 0
+		unsigned = false
+		paddingCount int
+	)
 	switch v := arg.(type) {
 	case int:
-		p.buf.writeString(strconv.Itoa(v))
+		num = int64(v)
 	case int8:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		num = int64(v)
 	case int16:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		num = int64(v)
 	case int32:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		num = int64(v)
 	case int64:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		num = v
 	case uint:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		num = int64(v)
+		unsigned = true
 	case uint8:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		num = int64(v)
+		unsigned = true
 	case uint16:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		num = int64(v)
+		unsigned = true
 	case uint32:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		num = int64(v)
+		unsigned = true
 	case uint64:
-		p.buf.writeString(strconv.FormatUint(v, 10))
+		num = int64(v)
+		unsigned = true
 	default:
 		p.buf.writeString(fallback(verb, v))
+		return
 	}
+	if unsigned {
+		subBuf = strconv.FormatUint(uint64(num), 10)
+	} else {
+		subBuf = strconv.FormatInt(num, 10)
+	}
+	if p.meta.padding == -1 {
+		paddingCount = 1
+	} else {
+		paddingCount = int(p.meta.padding) - len(subBuf)
+	}
+	if paddingCount < 0 {
+		paddingCount = 0
+	}
+	if p.meta.flags&flagSpace != 0 {
+		subBuf = strings.Repeat(" ", paddingCount) + subBuf
+	} else if p.meta.flags&flagZero != 0 {
+		subBuf = strings.Repeat("0", paddingCount) + subBuf
+	}
+	if p.meta.flags&flagPlus != 0 && (unsigned || num >= 0) {
+		subBuf = "+" + subBuf
+	}
+	if p.meta.precision == 0 && num == 0 {
+		subBuf = ""
+	}
+	p.buf.writeString(subBuf)
 }
 
-// writeFloatWithPrecision handles floating-point formatting with precision
-func writeFloatWithPrecision(p *printer, verb rune, arg any, precision int) {
+// writeFloat handles floating-point formatting verbs
+func writeFloat(p *printer, verb rune, arg any) {
+	var subBuf string
+	bits := 64
+	n := 0.
 	switch v := arg.(type) {
 	case float64:
-		format := byte(verb)
-		if format == 'F' {
-			format = 'f'
-		}
-		if precision < 0 {
-			switch format {
-			case 'e', 'E':
-				precision = 2
-			default:
-				precision = 6
-			}
-		}
-		p.buf = strconv.AppendFloat(p.buf, v, format, precision, 64)
+		bits = 64
+		n = v
+	case float32:
+		bits = 32
+		n = float64(v)
 	default:
 		p.buf.writeString(fallback(verb, v))
+		return
 	}
+	prec := p.meta.precision
+	if prec == -1 {
+		prec = 6
+	}
+	verbChar := byte(verb)
+	if verbChar == 'f' || verbChar == 'F' {
+		verbChar = 'f'
+	}
+	if p.meta.flags&flagPlus != 0 && n >= 0. {
+		subBuf = "+" + subBuf
+	}
+	subBuf += strconv.FormatFloat(n, verbChar, prec, bits)
+	p.buf.writeString(subBuf)
 }
 
 // writeBool handles %t formatting
@@ -384,14 +599,46 @@ func writeBool(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeHex handles %x formatting
-func writeHex(p *printer, verb rune, arg any) {
+// writeHex handles %x & %X formatting
+func writeHex(p *printer, verb rune, arg any, big bool) {
+	var subBuf string
 	switch v := arg.(type) {
+	case int:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint:
+		subBuf += strconv.FormatUint(uint64(v), 16)
 	case uint8:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 16))
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint16:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint32:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint64:
+		subBuf += strconv.FormatUint(v, 16)
+	case []uint8:
+		for _, v := range v {
+			x := strconv.FormatUint(uint64(v), 16)
+			if len(x) == 1 {
+				x = "0" + x
+			}
+			subBuf += x
+		}
 	default:
 		p.buf.writeString("(unhandled)")
+		return
 	}
+	if p.meta.flags&flagSpace != 0 {
+		subBuf = strings.Repeat(" ", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+	} else if p.meta.flags&flagZero != 0 {
+		subBuf = strings.Repeat("0", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+	}
+	if p.meta.flags&flagHashtag != 0 {
+		subBuf = "0x" + subBuf
+	}
+	if big {
+		subBuf = strings.ToUpper(subBuf)
+	}
+	p.buf.writeString(subBuf)
 }
 
 // writeQuotedString handles %q formatting
