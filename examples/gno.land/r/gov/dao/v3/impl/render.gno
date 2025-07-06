@@ -81,12 +81,12 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, p.Title())
+	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
 	out += p.Description()
 	out += "\n\n"
 
-	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
-
+	out += "\n\n---\n\n"
 	out += ps.String()
 	out += "\n"
 	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, pid)

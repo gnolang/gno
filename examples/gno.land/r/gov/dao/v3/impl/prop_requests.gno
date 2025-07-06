@@ -85,9 +85,10 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
 
+	name := tryResolveAddr(addr)
 	return dao.NewProposalRequestWithFilter(
 		ufmt.Sprintf("New %s Member Proposal", tier),
-		ufmt.Sprintf("This is a proposal to add `%s` to **%s**. Below is the Portfolio of the potential future member:\n## `%s`'s Portfolio:\n\n%s\n", tryResolveAddr(addr), tier, tryResolveAddr(addr), portfolio),
+		ufmt.Sprintf("This is a proposal to add `%s` to **%s**.\n#### `%s`'s Portfolio:\n\n%s\n", name, tier, name, portfolio),
 		e,
 		FilterByTier{Tier: tier},
 	)
