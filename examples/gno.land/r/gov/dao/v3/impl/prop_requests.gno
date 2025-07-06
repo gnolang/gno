@@ -87,7 +87,7 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 
 	return dao.NewProposalRequestWithFilter(
 		ufmt.Sprintf("New %s Member Proposal", tier),
-		ufmt.Sprintf("This is a proposal to add %s to **%s**.", tryResolveAddr(addr), tier),
+		ufmt.Sprintf("This is a proposal to add `%s` to **%s**. Below is the Portfolio of the potential future member:\n## `%s`'s Portfolio:\n\n%s\n", tryResolveAddr(addr), tier, tryResolveAddr(addr), portfolio),
 		e,
 		FilterByTier{Tier: tier},
 	)

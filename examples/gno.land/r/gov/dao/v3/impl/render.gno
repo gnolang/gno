@@ -22,7 +22,7 @@ type render struct {
 
 func NewRender(d *GovDAO) *render {
 	ren := &render{
-		pssPager: pager.NewPager(d.pss.Tree, 3, true),
+		pssPager: pager.NewPager(d.pss.Tree, 5, true),
 	}
 
 	r := mux.NewRouter()
@@ -105,7 +105,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 	p := dao.MustGetProposal(cross, dao.ProposalID(pid))
 	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", pid, p.Title(), ren.relativeRealmPath, pid)
-	out += ufmt.Sprintf("Author: %s\n\n", p.Author())
+	out += ufmt.Sprintf("Author: %s\n\n", tryResolveAddr(p.Author()))
 
 	out += "Status: " + getPropStatus(ps)
 	out += "\n\n"
