@@ -186,11 +186,11 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #6 - New T2 Member Proposal](/r/gov/dao:6)"))
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #5 - New T2 Member Proposal](/r/gov/dao:5)"))
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #4 - New T2 Member Proposal](/r/gov/dao:4)"))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #3 - New T2 Member Proposal](/r/gov/dao:3)"))
+	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #2 - New T2 Member Proposal](/r/gov/dao:2)"))
 
-	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #3 - New T2 Member Proposal](/r/gov/dao:3)"))
-	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #2 - New T2 Member Proposal](/r/gov/dao:2)"))
 	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #1 - New T2 Member Proposal](/r/gov/dao:1)"))
-	urequire.Equal(t, true, contains(dao.Render("?page=3"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
+	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
 }
 
 func TestUpgradeDaoImplementation(t *testing.T) {
