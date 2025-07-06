@@ -78,9 +78,13 @@ func main() {
 //
 // --
 // ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
 // delete user test
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
+// ---
 //
 // ### Stats
 // - **Proposal is open for votes**
@@ -99,9 +103,13 @@ func main() {
 // --
 // --
 // ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
 // delete user test
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
+// ---
 //
 // ### Stats
 // - **Proposal is open for votes**
@@ -120,9 +128,13 @@ func main() {
 // --
 // --
 // ## Prop #0 - User Registry V1: Delete user `alice123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
 // delete user test
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
+// ---
 //
 // ### Stats
 // - **PROPOSAL HAS BEEN ACCEPTED**

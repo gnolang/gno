@@ -75,9 +75,13 @@ func main() {
 //
 // --
 // ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
-//
-//
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
+//
+//
+//
+// ---
 //
 // ### Stats
 // - **Proposal is open for votes**
@@ -96,9 +100,13 @@ func main() {
 // --
 // --
 // ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
-//
-//
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
+//
+//
+//
+// ---
 //
 // ### Stats
 // - **Proposal is open for votes**
@@ -117,9 +125,13 @@ func main() {
 // --
 // --
 // ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
-//
-//
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
+//
+//
+//
+// ---
 //
 // ### Stats
 // - **PROPOSAL HAS BEEN ACCEPTED**
