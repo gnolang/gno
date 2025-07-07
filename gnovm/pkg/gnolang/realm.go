@@ -707,23 +707,6 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	}
 }
 
-// ----------------------------------------
-// markNewRealChildren
-func (rlm *Realm) markNewRealChildren(store Store) {
-	for _, oo := range rlm.updated {
-		more := getChildObjects2(store, oo)
-		for _, child := range more {
-			if !child.GetObjectID().IsZero() {
-				continue
-			}
-			rlm.incRefCreatedDescendants(store, child)
-			child.SetOwner(oo)
-			child.IncRefCount()
-			child.SetIsNewReal(true)
-		}
-	}
-}
-
 //----------------------------------------
 // saveUnsavedObjects
 
@@ -1452,7 +1435,6 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			fillValueTV(store, &cur.Key)
 			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv
@@ -1535,8 +1517,7 @@ func toRefValue(val Value) RefValue {
 				PkgPath: pv.PkgPath,
 			}
 		} else if !oo.GetIsReal() {
-			// panic("unexpected unreal object")
-			panic(fmt.Sprintf("unexpected unreal object: %v", oo))
+			panic("unexpected unreal object")
 		} else if oo.GetIsDirty() {
 			// This can happen with some circular
 			// references.
