@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/urequire"
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/addrset"
+	_ "gno.land/r/gnoland/users/v1" // initialize pre-populated user store
 )
 
 var (

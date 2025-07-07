@@ -67,7 +67,7 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "out of range!",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
+			args:                 []string{"run", "../../tests/integ/undefined_variable/undefined_variables_test.gno"},
 			recoverShouldContain: "--- preprocess stack ---", // should contain preprocess debug stack trace
 		},
 		{

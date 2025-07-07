@@ -1,4 +1,4 @@
-const pxToRem = px => px / 16;
+const pxToRem = (px) => px / 16;
 
 export default {
   content: ["./components/**/*.{html,ts}"],
@@ -105,6 +105,7 @@ export default {
     "link-internal",
     "link-tx",
     "tooltip",
+    "pt-6",
   ],
   plugins: [],
 };
