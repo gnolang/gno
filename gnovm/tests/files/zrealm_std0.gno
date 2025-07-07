@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/std_test
-package std_test
+// PKGPATH: gno.land/r/std
+package std
 
 import (
 	"std"
