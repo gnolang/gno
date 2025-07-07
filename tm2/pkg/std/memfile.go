@@ -91,6 +91,8 @@ type MemPackage struct {
 	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
 	Path  string     `json:"path" yaml:"path"`   // import path
 	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
+	Type  any        `json:"type" yaml:"type"`   // (user defined) package type.
+	Info  any        `json:"info" yaml:"info"`   // (user defined) extra information.
 }
 
 // Package Name must be lower_case, can have digits & underscores.
@@ -216,7 +218,19 @@ func (mpkg *MemPackage) DeleteFile(name string) *MemFile {
 
 // Returns true if it has no files.
 func (mpkg *MemPackage) IsEmpty() bool {
-	return len(mpkg.Files) == 0
+	return mpkg.IsEmptyOf(".gno")
+}
+
+// Returns true if it has no files ending in `xtn`.  xtn should start with a
+// dot to check extensions, but need not start with one, e.g. to test for
+// _test.gno.
+func (mpkg *MemPackage) IsEmptyOf(xtn string) bool {
+	for _, mfile := range mpkg.Files {
+		if strings.HasSuffix(mfile.Name, xtn) {
+			return false
+		}
+	}
+	return true
 }
 
 // Returns true if zero.

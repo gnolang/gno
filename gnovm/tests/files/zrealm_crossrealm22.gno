@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/r/demo/tests/crossrealm"
@@ -91,13 +91,13 @@ func main(cur realm) {
 //         "RefCount": "1"
 //     },
 //     "Parent": null,
-//     "PkgPath": "gno.land/r/crossrealm_test",
+//     "PkgPath": "gno.land/r/crossrealm",
 //     "Source": {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
 //             "File": "zrealm_crossrealm22.gno",
-//             "PkgPath": "gno.land/r/crossrealm_test",
+//             "PkgPath": "gno.land/r/crossrealm",
 //             "Span": {
 //                 "End": {
 //                     "Column": "71",
@@ -144,7 +144,7 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "1668c61f0ecadd1e7e47db6ae7427e92072425ea",
+//     +            "Hash": "b258e3ff88bd5d3f95e28f6c6f083ede69254abe",
 //     +            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44"
 //              }
 //          }
@@ -211,7 +211,7 @@ func main(cur realm) {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "1668c61f0ecadd1e7e47db6ae7427e92072425ea",
+//     -            "Hash": "b258e3ff88bd5d3f95e28f6c6f083ede69254abe",
 //     -            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44"
 //     +            "Escaped": true,
 //     +            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:7"
@@ -342,4 +342,4 @@ func main(cur realm) {
 //          "PkgPath": "gno.land/r/demo/tests/crossrealm_b",
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// finalizerealm["gno.land/r/crossrealm_test"]
+// finalizerealm["gno.land/r/crossrealm"]
