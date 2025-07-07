@@ -258,6 +258,7 @@
     @apply grow shrink basis-52 lg:basis-44;
   }
 
+  /* Form */
   .realm-view .gno-form {
     @apply block border rounded pt-2 pb-4 px-4 my-12;
   }
@@ -371,6 +372,11 @@
   }
   .realm-view__btns:only-child {
     @apply hidden;
+  }
+
+  /* Button */
+  .realm-view .gno-button {
+    @apply bg-green-600 text-light border-green-600 cursor-pointer font-interVar mb-2 hover:opacity-90 inline-block p-2 rounded-sm outline-none;
   }
 }
 
