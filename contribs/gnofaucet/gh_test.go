@@ -1,173 +1,245 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/alicebob/miniredis/v2"
+	"github.com/gnolang/faucet"
+	"github.com/gnolang/faucet/spec"
 	"github.com/google/go-github/v64/github"
-	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
 )
 
-// Mock function for exchangeCodeForToken
-func mockExchangeCodeForToken(ctx context.Context, secret, clientID, code string) (*github.User, error) {
-	login := "mock_login"
-	if code == "valid" {
-		return &github.User{Login: &login}, nil
+func TestGitHubUsernameMiddleware(t *testing.T) {
+	t.Parallel()
+
+	const (
+		clientID = "clientID"
+		secret   = "secret"
+	)
+
+	testTable := []struct {
+		name             string
+		query            string
+		exchangeFn       ghExchangeFn
+		nextShouldRun    bool
+		expectedStatus   int
+		expectedUsername string
+	}{
+		{
+			name:           "missing code",
+			query:          "",
+			exchangeFn:     nil,
+			nextShouldRun:  false,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:  "exchange error",
+			query: "?code=foo",
+			exchangeFn: func(_ context.Context, _ string) (*github.User, error) {
+				return nil, errors.New("boom")
+			},
+			nextShouldRun:  false,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:  "successful flow",
+			query: "?code=ok",
+			exchangeFn: func(_ context.Context, _ string) (*github.User, error) {
+				login := "alice"
+
+				return &github.User{Login: &login}, nil
+			},
+			nextShouldRun:    true,
+			expectedStatus:   http.StatusOK,
+			expectedUsername: "alice",
+		},
 	}
-	return nil, errors.New("invalid code")
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			exchangeFn := defaultGHExchange
+			if testCase.exchangeFn != nil {
+				exchangeFn = testCase.exchangeFn
+			}
+
+			var (
+				mw     = gitHubUsernameMiddleware(clientID, secret, exchangeFn)
+				called = false
+
+				next = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					called = true
+
+					username := r.Context().Value(ghUsernameKey)
+
+					assert.Equal(t, testCase.expectedUsername, username.(string))
+				})
+			)
+
+			handler := mw(next)
+			req := httptest.NewRequest("GET", "/cb"+testCase.query, nil)
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, testCase.nextShouldRun, called)
+			assert.Equal(t, testCase.expectedStatus, rr.Code)
+		})
+	}
 }
 
-func TestGitHubMiddleware(t *testing.T) {
-	cooldown := 2 * time.Minute
-	exchangeCodeForUser = mockExchangeCodeForToken
-	var tenGnots int64 = 10000000
-	claimBody := fmt.Sprintf(`{"amount": "%dugnot"}`, tenGnots)
-	t.Run("request without code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
-		req := httptest.NewRequest("GET", "http://localhost?code=", bytes.NewBufferString(claimBody))
-		rec := httptest.NewRecorder()
+type checkCooldownDelegate func(context.Context, string, int64) (bool, error)
 
-		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		handler.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("Expected status BadRequest, got %d", rec.Code)
-		}
-	})
-
-	t.Run("request invalid code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
-		req := httptest.NewRequest("GET", "http://localhost?code=invalid", bytes.NewBufferString(claimBody))
-		rec := httptest.NewRecorder()
-
-		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		handler.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("Expected status BadRequest, got %d", rec.Code)
-		}
-	})
-
-	t.Run("Invalid amount", func(t *testing.T) {
-		claimBody := `{"amount": 100000}`
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
-		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
-		rec := httptest.NewRecorder()
-
-		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		handler.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("Expected status OK, got %d", rec.Code)
-		}
-	})
-
-	t.Run("OK", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
-		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
-		rec := httptest.NewRecorder()
-
-		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		handler.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("Expected status OK, got %d", rec.Code)
-		}
-	})
-
-	t.Run("Cooldown active", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
-		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
-		rec := httptest.NewRecorder()
-
-		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		handler.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("Expected status OK, got %d", rec.Code)
-		}
-
-		req = httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
-		rec = httptest.NewRecorder()
-
-		handler.ServeHTTP(rec, req)
-		if rec.Code != http.StatusTooManyRequests {
-			t.Errorf("Expected status TooManyRequest, got %d", rec.Code)
-		}
-	})
-
-	t.Run("User exceeded lifetime limit", func(t *testing.T) {
-		cooldown = time.Millisecond
-		// Max lifetime amount is 20 Gnots so we should be able to make 2 claims
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, tenGnots*2))
-		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
-		rec := httptest.NewRecorder()
-
-		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		handler.ServeHTTP(rec, req)
-		// First claim ok
-		if rec.Code != http.StatusOK {
-			t.Errorf("Expected status OK, got %d", rec.Code)
-		}
-		// Wait 2 times the cooldown
-		time.Sleep(2 * cooldown)
-
-		req = httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
-		rec = httptest.NewRecorder()
-
-		handler.ServeHTTP(rec, req)
-		// Second claim should also be ok
-		if rec.Code != http.StatusOK {
-			t.Errorf("Expected status OK, got %d", rec.Code)
-		}
-
-		// Third one should fail
-		time.Sleep(2 * cooldown)
-
-		req = httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
-		rec = httptest.NewRecorder()
-
-		handler.ServeHTTP(rec, req)
-		// third claim should fail
-		if rec.Code != http.StatusTooManyRequests {
-			t.Errorf("Expected status OK, got %d", rec.Code)
-		}
-	})
+type mockCooldownLimiter struct {
+	checkCooldownFn checkCooldownDelegate
 }
 
-func getCooldownLimiter(t *testing.T, duration time.Duration, maxlifeTimeAmount int64) *CooldownLimiter {
-	t.Helper()
-	redisServer := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{
-		Addr: redisServer.Addr(),
-	})
+func (m *mockCooldownLimiter) checkCooldown(ctx context.Context, key string, amountClaimed int64) (bool, error) {
+	if m.checkCooldownFn != nil {
+		return m.checkCooldownFn(ctx, key, amountClaimed)
+	}
 
-	limiter := NewCooldownLimiter(duration, rdb, maxlifeTimeAmount)
+	return false, nil
+}
 
-	return limiter
+func TestGitHubClaimMiddleware(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		ctx             context.Context
+		name            string
+		limiter         cooldownLimiter
+		req             *spec.BaseJSONRequest
+		nextShouldRun   bool
+		expectedError   string
+		expectedErrCode int
+	}{
+		{
+			name: "no username in ctx",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, errors.New("error")
+				},
+			},
+			ctx:             context.Background(),
+			req:             spec.NewJSONRequest(1, faucet.DefaultDripMethod, []any{"foo", "1000ugnot"}),
+			nextShouldRun:   false,
+			expectedError:   "invalid username value",
+			expectedErrCode: spec.InvalidRequestErrorCode,
+		},
+		{
+			name: "invalid method",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(2, "random_method", []any{"foo", "1000ugnot"}),
+			nextShouldRun:   false,
+			expectedError:   "invalid method requested",
+			expectedErrCode: spec.InvalidRequestErrorCode,
+		},
+		{
+			name: "missing amount param",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(3, faucet.DefaultDripMethod, []any{"only_one"}),
+			nextShouldRun:   false,
+			expectedError:   "amount not provided",
+			expectedErrCode: spec.InvalidParamsErrorCode,
+		},
+		{
+			name: "invalid amount parse",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(4, faucet.DefaultDripMethod, []any{"foo", "notacoins"}),
+			nextShouldRun:   false,
+			expectedError:   "invalid amount",
+			expectedErrCode: spec.InvalidParamsErrorCode,
+		},
+		{
+			name: "cooldown check error",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, errors.New("cooldown error")
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(5, faucet.DefaultDripMethod, []any{"foo", "100atom"}),
+			nextShouldRun:   false,
+			expectedError:   "unable to check cooldown",
+			expectedErrCode: spec.ServerErrorCode,
+		},
+		{
+			name: "cooldown active",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return false, nil
+				},
+			},
+			ctx:             context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:             spec.NewJSONRequest(6, faucet.DefaultDripMethod, []any{"foo", "100atom"}),
+			nextShouldRun:   false,
+			expectedError:   "user is on cooldown",
+			expectedErrCode: spec.ServerErrorCode,
+		},
+		{
+			name: "no cooldown",
+			limiter: &mockCooldownLimiter{
+				checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+					return true, nil
+				},
+			},
+			ctx:           context.WithValue(context.Background(), ghUsernameKey, "bob"),
+			req:           spec.NewJSONRequest(7, faucet.DefaultDripMethod, []any{"foo", "100atom"}),
+			nextShouldRun: true,
+		},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				mw     = gitHubClaimMiddleware(testCase.limiter)
+				called = false
+				next   = func(ctx context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+					called = true
+
+					return spec.NewJSONResponse(req.ID, "ok", nil)
+				}
+			)
+
+			handler := mw(next)
+			resp := handler(testCase.ctx, testCase.req)
+
+			assert.Equal(t, testCase.nextShouldRun, called)
+
+			if testCase.nextShouldRun {
+				assert.Nil(t, resp.Error)
+
+				assert.Equal(t, "ok", resp.Result.(string))
+
+				return
+			}
+
+			assert.NotNil(t, resp.Error)
+			assert.Contains(t, resp.Error.Message, testCase.expectedError)
+			assert.Equal(t, resp.Error.Code, testCase.expectedErrCode)
+		})
+	}
 }

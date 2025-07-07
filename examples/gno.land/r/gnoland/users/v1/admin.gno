@@ -35,8 +35,8 @@ func setRegisterPrice(cur realm, newPrice int64) {
 
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
 func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
-	cb := func() error {
-		setPaused(cross, newPausedValue)
+	cb := func(cur realm) error {
+		setPaused(cur, newPausedValue)
 		return nil
 	}
 
@@ -58,8 +58,8 @@ func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
 		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
-	cb := func() error {
-		err := updateUsername(cross, userData, newName)
+	cb := func(cur realm) error {
+		err := updateUsername(cur, userData, newName)
 		return err
 	}
 
@@ -77,8 +77,8 @@ func ProposeDeleteUser(addr std.Address, desc string) dao.ProposalRequest {
 		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
-	cb := func() error {
-		return deleteUserdata(cross, userData)
+	cb := func(cur realm) error {
+		return deleteUserdata(cur, userData)
 	}
 
 	e := dao.NewSimpleExecutor(cb, "")
@@ -92,8 +92,8 @@ func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
 		panic("invalid price")
 	}
 
-	cb := func() error {
-		setRegisterPrice(cross, newPrice)
+	cb := func(cur realm) error {
+		setRegisterPrice(cur, newPrice)
 		return nil
 	}
 
