@@ -13,7 +13,7 @@ const (
 	name  = "Foo"
 )
 
-var realmAddr = std.DerivePkgAddr("gno.land/r/demo/commondao_test")
+var realmAddr = std.DerivePkgAddr("gno.land/r/test")
 
 func init() {
 	// Invite a user to be able to start creating DAOs
@@ -25,7 +25,7 @@ func main() {
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
 	dao := commondao.New(name)
 	if dao == nil {
