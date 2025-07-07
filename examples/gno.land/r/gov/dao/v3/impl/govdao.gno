@@ -3,6 +3,7 @@ package impl
 import (
 	"errors"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
@@ -58,8 +59,8 @@ var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
 	if !g.isValidCall() {
-		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
-			std.CurrentRealm(), std.PreviousRealm()))
+		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v, originCaller: %v",
+			std.CurrentRealm(), std.PreviousRealm(), std.OriginCaller()))
 	}
 
 	// Verify that the one creating the proposal is a member.
@@ -165,6 +166,25 @@ func (g *GovDAO) Render(pkgPath string, path string) string {
 	return g.render.Render(pkgPath, path)
 }
 
+func checkMsgRun(input, chainDomain, caller string) bool {
+	parts := strings.Split(input, "/")
+
+	// Expected structure: [chainDomain, "r", caller, "run"]
+	if len(parts) != 4 {
+		return false
+	}
+
+	// Check each segment
+	if parts[0] != chainDomain ||
+		parts[1] != "r" ||
+		parts[2] != caller ||
+		parts[3] != "run" {
+		return false
+	}
+
+	return true
+}
+
 func (g *GovDAO) isValidCall() bool {
 	// We need to verify two cases:
 	// 1: r/gov/dao (proxy) functions called directly by an user
@@ -176,7 +196,7 @@ func (g *GovDAO) isValidCall() bool {
 		if std.PreviousRealm().IsUser() {
 			return true
 		}
-		isMsgRun := std.DerivePkgAddr(std.PreviousRealm().PkgPath()) == std.OriginCaller()
+		isMsgRun := checkMsgRun(std.PreviousRealm().PkgPath(), "gno.land", std.OriginCaller().String())
 		// called directly by an user through MsgRun
 		if isMsgRun {
 			return true
