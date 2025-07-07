@@ -26,7 +26,7 @@ func ParseQueryMap(rawPath string) map[string]string {
 	return params
 }
 
-func BuildQueryPath(rawPath string, params map[string]string) string {
+func buildQueryPath(rawPath string, params map[string]string) string {
 	u, err := url.Parse(rawPath)
 	if err != nil {
 		return rawPath
