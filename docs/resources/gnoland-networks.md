@@ -20,7 +20,7 @@ XXX: tell that staging is currently using a custom code but will switch to a gno
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
-& the [tx-archive](https://github.com/gnolang/gno/blob/master/contribs/tx-archive) tool, the Staging
+& the [tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive) tool, the Staging
 can run the latest code from the master branch on the [Gno monorepo](https://github.com/gnolang/gno),
 while preserving most/all the previous transaction data.
 
@@ -60,7 +60,7 @@ Below is a diagram demonstrating how the Staging chain works:
 
 Specifically, Staging behaves like a normal network until a change is detected
 in the `master` branch in the Gno monorepo. At this point, the Staging chain archives
-on-chain data using the [tx-archive](https://github.com/gnolang/gno/blob/master/contribs/tx-archive)
+on-chain data using the [tx-archive](https://github.com/gnolang/gno/tree/master/contribs/tx-archive)
 tool, saving all transactions that happened on it thus far.
 
 It then pulls the latest changes from the `master` branch, and inserts all

@@ -47,7 +47,7 @@ func (pl *PkgsLoader) LoadPackages() ([]*std.MemPackage, error) {
 
 	mpkgs := make([]*std.MemPackage, len(pkgslist))
 	for i, pkg := range pkgslist {
-		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name)
+		mpkg := gnolang.MustReadMemPackage(pkg.Dir, pkg.Name, gnolang.MPAnyAll)
 		file, _ := gnomod.ParseMemPackage(mpkg)
 		if file == nil {
 			// generate a gnomod.toml
@@ -111,7 +111,7 @@ func (pl *PkgsLoader) GenerateTxs(creatorKey crypto.PrivKey, fee std.Fee, deposi
 
 func (pl *PkgsLoader) LoadAllPackagesFromDir(dir string) error {
 	// list all packages from target path
-	pkglist, err := gnolang.ReadPkgListFromDir(dir)
+	pkglist, err := gnolang.ReadPkgListFromDir(dir, gnolang.MPUserAll)
 	if err != nil {
 		return fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
@@ -149,9 +149,9 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 
 			// Override package info with mod infos
 			currentPkg.Name = gm.Module
-			currentPkg.Draft = gm.Draft
+			currentPkg.Ignore = gm.Ignore
 
-			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name)
+			pkg, err := gnolang.ReadMemPackage(currentPkg.Dir, currentPkg.Name, gnolang.MPAnyAll)
 			if err != nil {
 				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
 			}
@@ -160,7 +160,14 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 			if err != nil {
 				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
 			}
-			imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+
+			imports := importsMap.Merge(
+				packages.FileKindPackageSource,
+				packages.FileKindTest,
+				packages.FileKindXTest,
+				packages.FileKindFiletest,
+			)
+
 			for _, imp := range imports {
 				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
 					continue
@@ -169,8 +176,8 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 			}
 		}
 
-		if currentPkg.Draft {
-			continue // Skip draft package
+		if currentPkg.Ignore {
+			continue // Skip ignore package
 		}
 
 		if pl.exist(currentPkg) {
