@@ -1,17 +1,45 @@
 package core
 
+import (
+	"std"
+
+	"gno.land/p/aib/ibc/lightclient"
+	"gno.land/p/demo/ufmt"
+)
+
+type client struct {
+	id                       string
+	typ                      string
+	creator                  std.Address
+	counterpartyClientID     string
+	counterpartyMerklePrefix [][]byte
+	lightClient              lightclient.LightClientModule
+}
+
 // CreateClient generates a new client identifier and invokes the associated
 // light client module in order to initialize the client.
-func CreateClient(clientType string, clientState, consensusState []byte) string {
-	// TODO
-	return "clientID"
+func CreateClient(clientType string, clientState, consensusState any) string {
+	c := store.addClient(clientType, std.OriginCaller())
+	err := c.lightClient.Initialize(c.id, clientState, consensusState)
+	if err != nil {
+		panic(err)
+	}
+	return c.id
 }
 
 // RegisterCounterparty will register the IBC v2 counterparty info for the
 // given clientID. It must be called by the same relayer that called
 // CreateClient.
-func RegisterCounterparty(clientID string, counterpartyMerklePrefix [][]byte, CounterpartyClientID string) {
-	// TODO
+func RegisterCounterparty(clientID string, counterpartyMerklePrefix [][]byte, counterpartyClientID string) {
+	c := store.getClient(clientID)
+	if c == nil {
+		panic(ufmt.Sprintf("client %s not found", clientID))
+	}
+	if c.creator != std.OriginCaller() {
+		panic(ufmt.Sprintf("expected same signer as CreateClient submittor %s, got %s", c.creator, std.OriginCaller()))
+	}
+	c.counterpartyClientID = counterpartyClientID
+	c.counterpartyMerklePrefix = counterpartyMerklePrefix
 }
 
 // UpdateClient will update the given IBC v2 light client with a new header.

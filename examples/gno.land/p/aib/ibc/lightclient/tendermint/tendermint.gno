@@ -14,24 +14,17 @@ type TMLightClient struct {
 var _ lightclient.LightClientModule = (*TMLightClient)(nil)
 
 // TODO remove clientID ?
-func (tm *TMLightClient) Initialize(clientID string, clientStateBz, consensusStateBz []byte) error {
-	/*
-		// FIXME find encoding alternative
-		if err := json.Unmarshal(clientStateBz, tm.ClientState); err != nil {
-			// TODO embed err
-			return err
-		}
-		// TODO validate clientState
-
-		var consensusState ConsensusState
-		if err := json.Unmarshal(consensusStateBz, &consensusState); err != nil {
-			// TODO enmbed err
-			return err
-		}
-		// TODO validate consensusState
-
-		tm.ConsensusStateByHeight.Set(tm.ClientState.LatestHeight.String(), &consensusState)
-	*/
+func (tm *TMLightClient) Initialize(clientID string, clientState, consensusState any) error {
+	cs := clientState.(ClientState)
+	if err := cs.Validate(); err != nil {
+		return err
+	}
+	tm.ClientState = &cs
+	consState := consensusState.(ConsensusState)
+	if err := consState.Validate(); err != nil {
+		return err
+	}
+	tm.ConsensusStateByHeight.Set(cs.LatestHeight.String(), &consState)
 	return nil
 }
 
