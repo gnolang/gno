@@ -7,43 +7,34 @@ gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func Register --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 gnokey maketx call -pkgpath gno.land/r/demo/realm --func Set --args 4 --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/demo/realm --func Render --args "a" --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/realm --func Render --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 stdout '("0key.num:1" string)'
 
 -- realm.gno --
 package main
 
-import (
-	"strconv"
-)
+import "strconv"
 
-type myInt struct {
-	num int
-}
-
-type stringMap map[myInt]int
+type stringMap map[int]int
 
 var (
+	key int = 1
 	accounts = stringMap{}
-	tmpInt   = myInt{1}
 )
 
-func Register() {
-	crossing()
-	accounts[tmpInt] = 1
+func Register(cur realm) {
+	accounts[key] = 1
 }
 
-func Set(i int) {
-	crossing()
-	tmpInt.num = i
+func Set(cur realm, v int) {
+	key = v
 }
 
-func Render(string) string {
-    crossing()
-	s := ""
+func Render(cur realm) string {
 	i := 0
+	s := ""
 	for k := range accounts {
-		s += ""+ strconv.Itoa(i) + "key.num:"+ strconv.Itoa(k.num)
+		s += ""+ strconv.Itoa(i) + "key.num:"+ strconv.Itoa(k)
 		i++
 	}
 	return s
