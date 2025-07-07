@@ -1,19 +1,21 @@
 /*
 Package query provides a simple way to handle queries in your realm.
 
-// TO DO
+It includes helper functions to extract individual query parameters, convert the full query string into a map,
+and update one or more parameters in a URL.
 
 Example:
 
 	import "gno.land/p/lou/query"
 
-	func Render(path string) string {
-		queryTime := parseQueryParams("time", rawPath)
+	func Render(rawPath string) string {
+		queryTime := query.ParseQueryParams("time", rawPath)
 		if queryTime == "" {
 			queryTime = "default"
 		}
-		// handle queryTime value
- 	}
+		// Handle queryTime value
+		return queryTime
+	}
 
 */
 
