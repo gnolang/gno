@@ -6,16 +6,12 @@ func (n nat) Add() nat {
 	return []Word{0}
 }
 
-func GetAbs() nat {
-	crossing()
-
+func GetAbs(cur realm) nat {
 	abs = []Word{0}
 	return abs
 }
 
-func AbsAdd() nat {
-	crossing()
-
-	rt := GetAbs().Add()
+func AbsAdd(cur realm) nat {
+	rt := GetAbs(cur).Add()
 	return rt
 }

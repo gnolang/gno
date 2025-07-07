@@ -40,10 +40,10 @@ type Realm string
 
 // TxBuilder provides a fluent interface for building transaction URLs
 type TxBuilder struct {
-	fn    string   // function name
-	args  []string // key-value pairs
-	send  string   // optional send amount
-	realm Realm    // realm for the URL
+	fn        string   // function name
+	args      []string // key-value pairs
+	send      string   // optional send amount
+	realm_XXX Realm    // realm for the URL
 }
 
 // NewLink creates a transaction link builder for the specified function in the current realm.
@@ -56,7 +56,7 @@ func (r Realm) NewLink(fn string) *TxBuilder {
 	if fn == "" {
 		return nil
 	}
-	return &TxBuilder{fn: fn, realm: r}
+	return &TxBuilder{fn: fn, realm_XXX: r}
 }
 
 // addArg adds a key-value argument pair. Returns the builder for chaining.
@@ -116,7 +116,7 @@ func (b *TxBuilder) URL() string {
 	if b.send != "" {
 		args = append(args, ".send", b.send)
 	}
-	return b.realm.Call(b.fn, args...)
+	return b.realm_XXX.Call(b.fn, args...)
 }
 
 // Call returns a URL for the specified function with optional key-value
@@ -134,9 +134,9 @@ func (r Realm) prefix() string {
 	}
 
 	// local realm -> /realm
-	realm := string(r)
-	if strings.HasPrefix(realm, chainDomain) {
-		return strings.TrimPrefix(realm, chainDomain)
+	rlm := string(r)
+	if strings.HasPrefix(rlm, chainDomain) {
+		return strings.TrimPrefix(rlm, chainDomain)
 	}
 
 	// remote realm -> https://remote.land/realm

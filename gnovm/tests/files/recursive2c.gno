@@ -18,7 +18,7 @@ func main() {
 }
 
 // Error:
-// main/files/recursive2c.gno:4:7: name B not defined in fileset with files [files/recursive2c.gno]
+// main/recursive2c.gno:4:7-6:3: name B not defined in fileset with files [recursive2c.gno]
 
 // TypeCheckError:
-// main/files/recursive2c.gno:5:5: undefined: B; main/files/recursive2c.gno:9:5: undefined: C
+// main/recursive2c.gno:5:5: undefined: B; main/recursive2c.gno:9:5: undefined: C

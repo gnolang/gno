@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+// PKGPATH: gno.land/r/test
+package test
 
 import (
 	"std"
@@ -31,9 +31,7 @@ func (propDef) VotingPeriod() time.Duration                                   { 
 func (propDef) Validate() error                                               { return nil }
 func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
 
-func (propDef) Execute() error {
-	crossing()
-
+func (propDef) Execute(cur realm) error {
 	executed = true
 	return nil
 }
@@ -41,11 +39,11 @@ func (propDef) Execute() error {
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user1)
+	commondao.Invite(cross, user1)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user1))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 	dao = commondao.New("Foo")
 
 	// Configure DAO
@@ -58,19 +56,17 @@ func init() {
 
 	// Submit user1 vote
 	testing.SetRealm(std.NewUserRealm(user1))
-	cross(commondao.Vote)(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
+	commondao.Vote(cross, dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 
 	// Submit user2 vote
 	testing.SetRealm(std.NewUserRealm(user2))
-	cross(commondao.Vote)(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
+	commondao.Vote(cross, dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 }
 
 func main() {
-	crossing()
-
 	testing.SetRealm(std.NewUserRealm(user1))
 
-	cross(commondao.Execute)(dao.ID(), proposal.ID())
+	commondao.Execute(cross, dao.ID(), proposal.ID())
 
 	p := dao.FinishedProposals().Get(proposal.ID())
 	if p == nil {

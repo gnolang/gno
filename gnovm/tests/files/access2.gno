@@ -1,13 +1,11 @@
-// PKGPATH: gno.land/r/access_test
-package access_test
+// PKGPATH: gno.land/r/access
+package access
 
 import (
 	"gno.land/p/demo/testutils"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	testutils.TestVar1 += 1
 	println(testutils.TestVar1)
 }

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/tests_test
-package tests_test
+// PKGPATH: gno.land/r/demo/tests0
+package tests0
 
 import (
 	"gno.land/r/demo/tests"
@@ -11,9 +11,7 @@ func init() {
 	tests_foo.AddFooStringer("two")
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	tests_foo.AddFooStringer("three")
 	println(tests.Render(""))
 	println("end")
@@ -185,4 +183,4 @@ func main() {
 // finalizerealm["gno.land/r/demo/tests"]
 // finalizerealm["gno.land/r/demo/tests"]
 // finalizerealm["gno.land/r/demo/tests"]
-// finalizerealm["gno.land/r/demo/tests_test"]
+// finalizerealm["gno.land/r/demo/tests0"]

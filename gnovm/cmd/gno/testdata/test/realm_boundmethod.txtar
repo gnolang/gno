@@ -12,8 +12,8 @@ stderr '--- PASS: TestDo.*'
 stderr '=== RUN   ./examples/gno.land/r/demo/realm2/realm2_filetest.gno'
 stderr '--- PASS: ./examples/gno.land/r/demo/realm2/realm2_filetest.*'
 
--- examples/gno.land/p/demo/counter/gno.mod --
-module gno.land/p/demo/counter
+-- examples/gno.land/p/demo/counter/gnomod.toml --
+module = "gno.land/p/demo/counter"
 
 -- examples/gno.land/p/demo/counter/counter.gno --
 package counter
@@ -54,9 +54,7 @@ package tests
 
 import "gno.land/r/demo/realm2"
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	realm2.Do()
 	println("OK")
 }

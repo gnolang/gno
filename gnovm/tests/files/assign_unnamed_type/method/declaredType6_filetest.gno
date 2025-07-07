@@ -17,4 +17,7 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/method/declaredType6_filetest.gno:15:2: cannot use []main.c as []main.word
+// main/declaredType6.gno:15:2-14: cannot use []main.c as []main.word
+
+// TypeCheckError:
+// main/declaredType6.gno:15:8: cannot use []c{…} (value of type []c) as nat value in assignment
