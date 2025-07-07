@@ -166,25 +166,6 @@ func (g *GovDAO) Render(pkgPath string, path string) string {
 	return g.render.Render(pkgPath, path)
 }
 
-func checkMsgRun(input, chainDomain, caller string) bool {
-	parts := strings.Split(input, "/")
-
-	// Expected structure: [chainDomain, "r", caller, "run"]
-	if len(parts) != 4 {
-		return false
-	}
-
-	// Check each segment
-	if parts[0] != chainDomain ||
-		parts[1] != "r" ||
-		parts[2] != caller ||
-		parts[3] != "run" {
-		return false
-	}
-
-	return true
-}
-
 func (g *GovDAO) isValidCall() bool {
 	// We need to verify two cases:
 	// 1: r/gov/dao (proxy) functions called directly by an user
@@ -210,4 +191,23 @@ func (g *GovDAO) isValidCall() bool {
 	}
 
 	return false
+}
+
+func checkMsgRun(input, chainDomain, caller string) bool {
+	parts := strings.Split(input, "/")
+
+	// Expected structure: [chainDomain, "r", caller, "run"]
+	if len(parts) != 4 {
+		return false
+	}
+
+	// Check each segment
+	if parts[0] != chainDomain ||
+		parts[1] != "r" ||
+		parts[2] != caller ||
+		parts[3] != "run" {
+		return false
+	}
+
+	return true
 }
