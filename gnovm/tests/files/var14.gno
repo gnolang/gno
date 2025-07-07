@@ -1,6 +1,6 @@
 package main
 
-import "github.com/gnolang/gno/_test/vars"
+import "filetests/extern/vars"
 
 func main() {
 	println(vars.A)

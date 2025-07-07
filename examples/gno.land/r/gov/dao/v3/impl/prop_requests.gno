@@ -14,10 +14,8 @@ func NewChangeLawRequest(cur realm, newLaw *Law) dao.ProposalRequest {
 		panic("proposer is not a member")
 	}
 
-	cb := func() error {
-		func(cur realm) {
-			law = newLaw
-		}(cross)
+	cb := func(cur realm) error {
+		law = newLaw
 		return nil
 	}
 
@@ -32,16 +30,15 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 		panic("proposer is not a member")
 	}
 
-	cb := func() error {
+	cb := func(cur realm) error {
 		// dao.UpdateImpl() must be cross-called from v3/impl but
 		// what calls this cb function is r/gov/dao.
 		// therefore we must cross back into v3/impl and then
 		// cross call dao.UpdateRequest().
-		func(cur realm) {
-			dao.UpdateImpl(cross, dao.UpdateRequest{DAO: newDao,
-				AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
-			})
-		}(cross)
+		dao.UpdateImpl(cross, dao.UpdateRequest{
+			DAO:         newDao,
+			AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
+		})
 		return nil
 	}
 
@@ -73,12 +70,9 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	cb := func() error {
-		err := error(nil)
-		func(cur realm) {
-			member.RemoveInvitationPoint()
-			err = memberstore.Get().SetMember(tier, addr, memberByTier(tier))
-		}(cross)
+	cb := func(cur realm) error {
+		member.RemoveInvitationPoint()
+		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
 
 		return err
 	}
@@ -104,10 +98,8 @@ func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.Pr
 		panic("T1 user removals must contains a reason.")
 	}
 
-	cb := func() error {
-		func(cur realm) {
-			memberstore.Get().RemoveMember(addr)
-		}(cross)
+	cb := func(cur realm) error {
+		memberstore.Get().RemoveMember(addr)
 		return nil
 	}
 
@@ -121,20 +113,17 @@ func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.Pr
 }
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
-	cb := func() error {
-		var err error
-		func(cur realm) {
-			prevTier := memberstore.Get().RemoveMember(addr)
-			if prevTier == "" {
-				panic("member not found, so cannot be promoted")
-			}
+	cb := func(cur realm) error {
+		prevTier := memberstore.Get().RemoveMember(addr)
+		if prevTier == "" {
+			panic("member not found, so cannot be promoted")
+		}
 
-			if prevTier != fromTier {
-				panic("previous tier changed from the one indicated in the proposal")
-			}
+		if prevTier != fromTier {
+			panic("previous tier changed from the one indicated in the proposal")
+		}
 
-			err = memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
-		}(cross)
+		err := memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
 
 		return err
 	}

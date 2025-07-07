@@ -18,8 +18,10 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -71,6 +73,8 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
+	// used for typechecking
+	gnoTestStore gno.Store
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -107,6 +111,10 @@ func (vm *VMKeeper) Initialize(
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
+
+	// Initialize a basic test store for type checking test files.
+	// XXX: It should be better initlized elsewhere above.
+	_, vm.gnoTestStore = test.TestStore(gnoenv.RootDir(), io.Discard)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -194,7 +202,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 		// does not exist.
 		panic(fmt.Errorf("failed loading stdlib %q: does not exist", pkgPath))
 	}
-	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath)
+	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath, gno.MPStdlibAll)
 	if err != nil {
 		// no gno files are present
 		panic(fmt.Errorf("failed loading stdlib %q: %w", pkgPath, err))
@@ -202,9 +210,9 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		// XXX: gno.land, vm.domain, other?
-		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-		// PkgPath: pkgPath, XXX why?
-		Store: store,
+		PkgPath:     pkgPath,
+		Store:       store,
+		SkipPackage: true,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
@@ -335,6 +343,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
 
+	memPkg.Type = gno.MPUserAll
+
 	// Validate arguments.
 	if creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
@@ -343,7 +353,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := gno.ValidateMemPackage(msg.Package); err != nil {
+	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
 
@@ -359,7 +369,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if strings.HasSuffix(pkgPath, "_test") || strings.HasSuffix(pkgPath, "_filetest") {
 		return ErrInvalidPkgPath("package path must not end with _test or _filetest")
 	}
-	if gno.ReGnoRunPath.MatchString(pkgPath) {
+	if _, ok := gno.IsGnoRunPath(pkgPath); ok {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
@@ -368,7 +378,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		tcmode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -612,6 +622,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	memPkg := msg.Package
 	chainDomain := vm.getChainDomainParam(ctx)
 
+	memPkg.Type = gno.MPUserProd
+
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
@@ -622,13 +634,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
-	if err := gno.ValidateMemPackage(msg.Package); err != nil {
+	if err := gno.ValidateMemPackage(memPkg); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
 	tcmode := gno.TCLatestRelaxed
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, gno.ParseModeProduction, tcmode)
+	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
