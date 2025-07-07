@@ -732,7 +732,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 			Index: PointerIndexMap,
 		}
 	}
-	key2 := (*key).Copy(alloc)
+	key2 := key.Copy(alloc)
 	mli := mv.List.Append(alloc, key2)
 	mv.vmap[kmk] = mli
 	return PointerValue{
