@@ -182,7 +182,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 
 	stdout := io.Out()
 
-	pkgs, err := packages.ReadPkgListFromDir(args[0])
+	pkgs, err := packages.ReadPkgListFromDir(args[0], gno.MPAnyAll)
 	if err != nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func execModInit(args []string) error {
 		return fmt.Errorf("create gnomod.toml: %w", err)
 	}
 
-	if !gno.IsValidPackagePathURL(modPath) {
+	if !gno.IsUserlib(modPath) {
 		return fmt.Errorf("create gnomod.toml: %q is not a valid package path URL", modPath)
 	}
 
@@ -319,7 +319,7 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		pkgs, err := packages.ReadPkgListFromDir(wd)
+		pkgs, err := packages.ReadPkgListFromDir(wd, gno.MPAnyAll)
 		if err != nil {
 			return err
 		}

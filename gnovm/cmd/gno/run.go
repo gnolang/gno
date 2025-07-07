@@ -93,8 +93,13 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 	// init store and machine
 	output := test.OutputWithError(stdout, stderr)
+<<<<<<< HEAD
 	_, testStore := test.Store(
 		cfg.rootDir, output, nil)
+=======
+	_, testStore := test.ProdStore(
+		cfg.rootDir, output)
+>>>>>>> origin/master
 
 	if len(args) == 0 {
 		args = []string{"."}

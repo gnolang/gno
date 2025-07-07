@@ -189,7 +189,7 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 	}
 
 	// XXX: fset
-	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "", gnolang.MemPackageTypeAny)
+	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "", gnolang.MPAnyAll)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
 	} else {
