@@ -17,7 +17,6 @@ func updateInstructions(newInstructions string) {
 		instructions = newInstructions
 		return nil
 	})
-
 	if err != nil {
 		panic(err)
 	}
@@ -28,14 +27,13 @@ func updateMinFee(newMinFee int64) {
 		minFee = std.NewCoin("ugnot", newMinFee)
 		return nil
 	})
-
 	if err != nil {
 		panic(err)
 	}
 }
 
-func NewInstructionsProposalCallback(newInstructions string) func() error {
-	cb := func() error {
+func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
+	cb := func(cur realm) error {
 		updateInstructions(newInstructions)
 		return nil
 	}
@@ -43,8 +41,8 @@ func NewInstructionsProposalCallback(newInstructions string) func() error {
 	return cb
 }
 
-func NewMinFeeProposalCallback(newMinFee int64) func() error {
-	cb := func() error {
+func NewMinFeeProposalCallback(newMinFee int64) func(realm) error {
+	cb := func(cur realm) error {
 		updateMinFee(newMinFee)
 		return nil
 	}
