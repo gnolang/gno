@@ -20,7 +20,6 @@ var KindGnoSvg = ast.NewNodeKind("GnoSVG")
 
 func (n *svgNode) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, nil, nil)
-	return
 }
 
 func (n *svgNode) Kind() ast.NodeKind {
@@ -34,8 +33,6 @@ func NewSvgNode() ast.Node {
 type svgBlockParser struct {
 }
 
-var svgInfoKey = parser.NewContextKey()
-
 var defaultSVGParser = &svgBlockParser{}
 
 // NewFencedCodeBlockParser returns a new BlockParser that
@@ -44,12 +41,12 @@ func NewSVGParser() parser.BlockParser {
 	return defaultSVGParser
 }
 
-type svgData struct {
-	char   byte
-	indent int
-	length int
-	node   ast.Node
-}
+// type svgData struct {
+// 	char   byte
+// 	indent int
+// 	length int
+// 	node   ast.Node
+// }
 
 // var svgBlockInfoKey = NewContextKey()
 
@@ -59,8 +56,15 @@ func (b *svgBlockParser) Trigger() []byte {
 
 func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
+	pos := pc.BlockOffset()
+
+	if pos < 0 {
+		return nil, parser.NoChildren
+	}
+
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 	toks, err := ParseHTMLTokens(bytes.NewReader(line))
+
 	if err != nil || len(toks) != 1 {
 		return nil, parser.NoChildren
 	}
@@ -70,29 +74,20 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 		return nil, parser.NoChildren
 	}
 
-	// if pos < 0 || (line[pos] != '`' && line[pos] != '~') {
-	// 	return nil, parser.NoChildren
-	// }
-	// findent := pos
-	// fenceChar := line[pos]
-	// i := pos
-	// for ; i < len(line) && line[i] == fenceChar; i++ {
-	// }
-	// oFenceLength := i - pos
-	// if oFenceLength < 3 {
-	// 	return nil, parser.NoChildren
-	// }
-
 	node := NewSvgNode()
-	// pc.Set(svgInfoKey, &svgData{fenceChar, findent, oFenceLength, node})
 	return node, parser.NoChildren
 }
 
 func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	line, segment := reader.PeekLine()
+
+	if len(line) == 0 {
+		return parser.Continue // skip empty line
+	}
+
 	closeLine := util.TrimRightSpace(util.TrimLeftSpace(line))
 	// Stops the parsing upon reaching the end
-	if "</gno-svg>" == string(closeLine) {
+	if string(closeLine) == "</gno-svg>" {
 		reader.AdvanceLine()
 		return parser.Close
 	}
@@ -129,6 +124,7 @@ func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.C
 	}
 	seg.ForceNewline = true // EOF as newline
 	node.Lines().Append(seg)
+	// reader.AdvanceLine()
 	return parser.Continue | parser.NoChildren // Continue parsing
 }
 
@@ -164,14 +160,14 @@ func (r *svgRenderer) render(w util.BufWriter, source []byte, node ast.Node, ent
 		return ast.WalkContinue, nil
 	}
 
-	fmt.Fprintln(w, "<mysvg>")
+	fmt.Fprintln(w, "<object>")
 	l := node.Lines().Len()
 	for i := 0; i < l; i++ {
 		line := node.Lines().At(i)
 		w.Write(line.Value(source))
 	}
 
-	fmt.Fprintln(w, "</mysvg>")
+	fmt.Fprintln(w, "</object>")
 	return ast.WalkContinue, nil
 }
 
