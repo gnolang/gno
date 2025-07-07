@@ -215,7 +215,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object, store Store) {
 		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
 	}
 	// enforce private ownership
-	if co != nil && hasPrivateRealmDeps(co, rlm, store) {
+	if co != nil && hasPrivateDeps(co, rlm, store) {
 		panic("cannot persist reference of object from private realm")
 	}
 
@@ -1648,12 +1648,12 @@ func getOwner(store Store, oo Object) Object {
 	return po
 }
 
-func hasPrivateRealmDeps(obj Object, rlm *Realm, store Store) bool {
+func hasPrivateDeps(obj Object, rlm *Realm, store Store) bool {
 	visited := make(map[Object]bool)
-	return hasPrivateRealmDepsWithVisited(obj, rlm, store, visited)
+	return hasPrivateDepsWithVisited(obj, rlm, store, visited)
 }
 
-func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[Object]bool) bool {
+func hasPrivateDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[Object]bool) bool {
 	if visited[obj] {
 		return false
 	}
@@ -1671,7 +1671,7 @@ func hasPrivateRealmDepsWithVisited(obj Object, rlm *Realm, store Store, visited
 
 	children := getChildObjects2(store, obj)
 	for _, child := range children {
-		if hasPrivateRealmDepsWithVisited(child, rlm, store, visited) {
+		if hasPrivateDepsWithVisited(child, rlm, store, visited) {
 			return true
 		}
 	}
