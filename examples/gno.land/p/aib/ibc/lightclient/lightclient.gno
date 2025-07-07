@@ -43,7 +43,7 @@ type LightClientModule interface {
 	// client module is responsible for setting any client-specific data in the
 	// store. This includes the client state, initial consensus state and any
 	// associated metadata.
-	Initialize(clientID string, clientState, consensusState []byte) error
+	Initialize(clientID string, clientState, consensusState any) error
 
 	// VerifyClientMessage must verify a ClientMessage. A ClientMessage could be
 	// a Header, Misbehaviour, or batch update.  It must handle each type of
