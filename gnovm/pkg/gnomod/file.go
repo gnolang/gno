@@ -51,7 +51,6 @@ type AddPkg struct {
 	// XXX: Consider things like IsUsingBanker or other security-awareness flags
 }
 
-
 type Replace struct {
 	// Old is the old module path of the dependency, i.e.,
 	// `gno.land/r/path/to/module`.
