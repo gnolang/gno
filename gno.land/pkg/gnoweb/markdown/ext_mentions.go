@@ -117,7 +117,6 @@ func (p *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Cont
 
 	// Handle @ mentions
 	if line[0] == '@' {
-
 		// Check email boundary
 		if !isValidEmailBoundary(block.Source(), seg.Start) {
 			return nil
