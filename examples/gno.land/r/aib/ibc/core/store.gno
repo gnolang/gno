@@ -1,6 +1,8 @@
 package core
 
 import (
+	"std"
+
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/lightclient/tendermint"
 	"gno.land/p/demo/avl"
@@ -25,14 +27,13 @@ func newStore() *Store {
 	}
 }
 
-type client struct {
-	id          string
-	lightClient lightclient.LightClientModule
-}
-
-func (cs *Store) addClient(typ string) *client {
-	id := ufmt.Sprintf("%d-%d", typ, cs.clientSeq.Next())
-	c := &client{id: id}
+func (cs *Store) addClient(typ string, creator std.Address) *client {
+	id := ufmt.Sprintf("%s-%d", typ, uint64(cs.clientSeq.Next()))
+	c := &client{
+		id:      id,
+		typ:     typ,
+		creator: creator,
+	}
 	switch typ {
 	case lightclient.Tendermint:
 		c.lightClient = &tendermint.TMLightClient{}
@@ -41,4 +42,12 @@ func (cs *Store) addClient(typ string) *client {
 	}
 	cs.clientByID.Set(id, c)
 	return c
+}
+
+func (cs *Store) getClient(id string) *client {
+	x, found := cs.clientByID.Get(id)
+	if !found {
+		return nil
+	}
+	return x.(*client)
 }
