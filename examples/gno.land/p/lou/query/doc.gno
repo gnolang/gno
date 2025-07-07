@@ -6,15 +6,20 @@ and update one or more parameters in a URL.
 
 Example:
 
-	import "gno.land/p/lou/query"
+	import (
+		"gno.land/p/lou/query"
+		"gno.land/p/moul/md"
+	)
 
 	func Render(rawPath string) string {
-		queryTime := query.ParseQueryParams("time", rawPath)
-		if queryTime == "" {
-			queryTime = "default"
+		queryMode := query.ParseQueryParams("mode", rawPath)
+		if queryMode == "" {
+			queryMode = "grid" // default
 		}
-		// Handle queryTime value
-		return queryTime
+		// Handle queryMode value
+		out := md.Link("list mode", query.UpdateQuery(rawPath, "mode", "list")) + "\n\n"
+		out += md.Link("grid mode", query.UpdateQuery(rawPath, "mode", "grid")) +"\n\n"
+		return out
 	}
 
 */
