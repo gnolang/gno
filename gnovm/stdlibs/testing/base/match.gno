@@ -1,4 +1,4 @@
-package base
+package testing
 
 // Most of the code in this file is extracted from golang's src/testing/match.go.
 //
