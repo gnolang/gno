@@ -54,7 +54,7 @@ func ExecuteProposal(cur realm, pid ProposalID) bool {
 	if err != nil {
 		panic(err.Error())
 	}
-	if err := prop.executor.Execute(); err != nil {
+	if err := prop.executor.Execute(cross); err != nil {
 		panic(err.Error())
 	}
 	return true
