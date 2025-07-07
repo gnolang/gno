@@ -9,8 +9,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 )
 
-// XXX: duplicate with gno cmd
-
 // DownloadPackage downloads a remote gno package by pkg path and store it at dst
 func DownloadPackage(out io.Writer, pkgPath string, dst string, fetcher pkgdownload.PackageFetcher) error {
 	modFilePath := filepath.Join(dst, "gnomod.toml")
