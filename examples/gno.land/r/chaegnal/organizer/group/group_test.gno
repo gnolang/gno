@@ -42,7 +42,7 @@ func Test_getGroupFromUrl_Success(t *testing.T) {
 	testing.SetOriginCaller("Chaegnal")
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	uassert.NotPanics(t, func() { getGroupFromUrl("http://test.com?groupId=2") })
+	uassert.NotPanics(t, func() { getGroupFromUrl("http://test.com?groupId=1") })
 }
 
 func Test_getGroupFromUrl_Failure(t *testing.T) {
