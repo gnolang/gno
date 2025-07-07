@@ -12,8 +12,7 @@ import (
 )
 
 // SwapTeam updates the user's Pokémon team based on the provided team string
-func SwapTeam(team string) {
-	crossing()
+func SwapTeam(_ realm, team string) {
 
 	usr := string(std.PreviousRealm().Address())
 	if !pokemonDAO.Has(usr) {

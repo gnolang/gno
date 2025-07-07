@@ -81,8 +81,7 @@ func applyMaxElixer(p *Pokemon) {
 }
 
 // BuyItem allows a user to purchase an item and updates their inventory and balance
-func BuyItem(itemId ItemType) {
-	crossing()
+func BuyItem(_ realm, itemId ItemType) {
 	usr := string(std.PreviousRealm().Address())
 	if !pokemonDAO.Has(usr) {
 		panic("user is not member")

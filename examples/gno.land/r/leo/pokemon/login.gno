@@ -26,8 +26,7 @@ func defaultUserData() *UserData {
 }
 
 // Login registers a new user in the Pokémon game
-func Login() {
-	crossing()
+func Login(_ realm) {
 	usr := string(std.PreviousRealm().Address())
 	if pokemonDAO.Has(usr) {
 		panic("user already a member")
@@ -36,8 +35,7 @@ func Login() {
 }
 
 // DeleteMyAccount removes the user's account and data
-func DeleteMyAccount() {
-	crossing()
+func DeleteMyAccount(_ realm) {
 	usr := string(std.PreviousRealm().Address())
 	if !pokemonDAO.Has(usr) {
 		panic("user is not a member")

@@ -39,7 +39,7 @@ var (
 )
 
 func init() {
-	cross(hor.Register)("Pokémon", "Come play some Pokémon's fights")
+	hor.Register(cross, "Pokémon", "Come play some Pokémon's fights")
 }
 
 // render the Pokémon game pages based on the provided path and user query

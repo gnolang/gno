@@ -261,8 +261,7 @@ func initEnemy(state string) string {
 }
 
 // ApplyGameEnd updates user data based on the game outcome
-func ApplyGameEnd(state string) {
-	crossing()
+func ApplyGameEnd(_ realm, state string) {
 	usr := string(std.PreviousRealm().Address())
 	if !pokemonDAO.Has(usr) {
 		panic("user is not a member")
