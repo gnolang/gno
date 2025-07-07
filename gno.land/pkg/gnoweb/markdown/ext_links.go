@@ -28,7 +28,7 @@ const (
 	iconExternalLink = "↗"
 	iconInternalLink = "↔"
 	iconTxLink       = "⚡︎"
-	iconUserLink     = "ⓤ"
+	iconUserLink     = "⤴"
 
 	// CSS classes for link types
 	classLinkExternal = "link-external"
