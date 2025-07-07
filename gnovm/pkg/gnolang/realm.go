@@ -153,13 +153,13 @@ type Realm struct {
 }
 
 // Creates a blank new realm with counter 0.
-func NewRealm(path string, private bool) *Realm {
+func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
 		ID:      id,
 		Path:    path,
 		Time:    0,
-		Private: private,
+		Private: false,
 	}
 }
 
@@ -179,6 +179,13 @@ func (rlm *Realm) String() string {
 			"Realm{Path:%q,Time:%d}#%X",
 			rlm.Path, rlm.Time, rlm.ID.Bytes())
 	}
+}
+
+func (rlm *Realm) SetPrivate(private bool) {
+	if rlm == nil {
+		return
+	}
+	rlm.Private = private
 }
 
 //----------------------------------------

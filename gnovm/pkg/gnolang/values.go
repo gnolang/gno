@@ -885,6 +885,18 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 	pv.Realm = rlm
 }
 
+func (pv *PackageValue) SetPrivate(private bool) {
+	if !pv.IsRealm() {
+		panic(fmt.Sprintf(
+			"cannot set private for non-realm package %s",
+			pv.PkgPath))
+	}
+	if pv.Realm == nil {
+		panic("cannot set private for nil realm")
+	}
+	pv.Realm.SetPrivate(private)
+}
+
 // Convenience.
 func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 	return pv.GetBlock(store).GetSource(store).(*PackageNode)

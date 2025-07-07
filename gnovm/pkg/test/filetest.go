@@ -321,7 +321,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Construct throwaway package and parse file.
 		pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
-		pv := pn.NewPackage(false)
+		pv := pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)

@@ -138,7 +138,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
 			pn := NewPackageNode(pkgName, opts.PkgPath, &FileSet{})
-			pv = pn.NewPackage(false)
+			pv = pn.NewPackage()
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
@@ -286,7 +286,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
 		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
-		pv = pn.NewPackage(private)
+		pv = pn.NewPackage()
+		pv.SetPrivate(private)
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
@@ -471,7 +472,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	}
 	rlm := pv.GetRealm()
 	if rlm == nil && pv.IsRealm() {
-		rlm = NewRealm(pv.PkgPath, false) // throwaway
+		rlm = NewRealm(pv.PkgPath) // throwaway
 	}
 	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
 	if rlm != nil {
@@ -505,7 +506,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	if fixFrom != "" {
 		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
 	}
-	pv := pn.NewPackage(false)
+	pv := pn.NewPackage()
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -723,7 +724,7 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
-		rlm := NewRealm(pv.PkgPath, false)
+		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm

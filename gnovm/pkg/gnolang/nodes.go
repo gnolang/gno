@@ -1333,7 +1333,7 @@ func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	return pn
 }
 
-func (pn *PackageNode) NewPackage(private bool) *PackageValue {
+func (pn *PackageNode) NewPackage() *PackageValue {
 	pv := &PackageValue{
 		Block: &Block{
 			Source: pn,
@@ -1345,7 +1345,7 @@ func (pn *PackageNode) NewPackage(private bool) *PackageValue {
 		fBlocksMap: make(map[string]*Block),
 	}
 	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
-		rlm := NewRealm(pn.PkgPath, private)
+		rlm := NewRealm(pn.PkgPath)
 		pv.SetRealm(rlm)
 	}
 	pv.IncRefCount() // all package values have starting ref count of 1.
