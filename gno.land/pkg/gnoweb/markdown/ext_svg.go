@@ -164,7 +164,7 @@ func (r *svgRenderer) render(w util.BufWriter, source []byte, node ast.Node, ent
 		return ast.WalkContinue, nil
 	}
 
-	fmt.Fprintln(w, "</mysvg>")
+	fmt.Fprintln(w, "<mysvg>")
 	l := node.Lines().Len()
 	for i := 0; i < l; i++ {
 		line := node.Lines().At(i)
