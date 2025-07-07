@@ -17,4 +17,4 @@ Example:
 
 */
 
-package blog // import "gno.land/p/lou/query"
+package query // import "gno.land/p/lou/query"
