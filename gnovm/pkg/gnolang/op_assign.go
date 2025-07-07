@@ -1,7 +1,5 @@
 package gnolang
 
-import "fmt"
-
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
