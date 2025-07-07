@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"go/token"
 	"io"
@@ -181,15 +182,26 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], base)
 	}
 
-	// we use the ReadMemPkg utils to get the package name because we want name resolution like the vm
-	nameFiles := pkg.Files.Merge(FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest)
-	absFiles := make([]string, 0, len(nameFiles))
-	for _, f := range nameFiles {
-		absFiles = append(absFiles, filepath.Join(pkg.Dir, f))
+	// XXX: drop support for cla package since ReadMemPackageFromList has become very restrictive
+
+	// don't load gnomod.toml if package is stdlib
+	stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
+	if strings.HasPrefix(pkg.Dir, stdlibDir) {
+		pkg.Errors = dedupErrors(pkg.Errors)
+	} else {
+		// get import path and flags from gnomod.toml
+		modFpath := filepath.Join(pkg.Dir, "gnomod.toml")
+		mod, err := gnomod.ParseFilepath(modFpath)
+		if err != nil {
+			pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
+		} else {
+			pkg.Ignore = mod.Ignore
+			pkg.ImportPath = mod.Module
+		}
 	}
 
 	// XXX: fset
-	minMempkg, err := gnolang.ReadMemPackageFromList(absFiles, "", gnolang.MPAnyAll)
+	minMempkg, err := gnolang.ReadMemPackage(pkg.Dir, pkg.ImportPath, gnolang.MPAnyAll)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
 	} else {
@@ -204,25 +216,7 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 
 	// don't load gnomod.toml if package is command-line-arguments
 	if pkg.ImportPath == "command-line-arguments" {
-		pkg.Errors = dedupErrors(pkg.Errors)
-		return pkg
-	}
-
-	// don't load gnomod.toml if package is stdlib
-	stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
-	if strings.HasPrefix(pkg.Dir, stdlibDir) {
-		pkg.Errors = dedupErrors(pkg.Errors)
-		return pkg
-	}
-
-	// get import path and flags from gnomod.toml
-	modFpath := filepath.Join(pkg.Dir, "gnomod.toml")
-	mod, err := gnomod.ParseFilepath(modFpath)
-	if err != nil {
-		pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
-	} else {
-		pkg.Ignore = mod.Ignore
-		pkg.ImportPath = mod.Module
+		panic(errors.New("cla package not supported"))
 	}
 
 	pkg.Errors = dedupErrors(pkg.Errors)

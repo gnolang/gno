@@ -373,7 +373,7 @@ func TestDataLoad(t *testing.T) {
 				},
 				Imports: map[FileKind][]string{
 					FileKindPackageSource: {"errors"},
-					FileKindXTest:         {"math/bits", "testing"},
+					FileKindXTest:         {"math/bits", "testing/base"},
 				},
 			}},
 		},

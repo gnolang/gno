@@ -198,7 +198,7 @@ const (
 func getPatternKind(pat string) (patternKind, error) {
 	isLitteral := patternIsLiteral(pat)
 
-	if !filepath.IsAbs(pat) && (patternIsRemote(pat) || gnolang.IsStdlib(pat)) {
+	if !filepath.IsAbs(pat) && patternIsRemote(pat) {
 		if isLitteral {
 			return patternKindRemote, nil
 		}
@@ -235,8 +235,11 @@ func cleanPattern(pat string, kind patternKind) (string, error) {
 	}
 }
 
-// patternIsRemote reports wether a pattern is starting with a domain
+// patternIsRemote reports wether a pattern is starting with a domain or is a stdlib
 func patternIsRemote(path string) bool {
+	if gnolang.IsStdlib(strings.TrimSuffix(path, "/...")) {
+		return true
+	}
 	if len(path) == 0 {
 		return false
 	}

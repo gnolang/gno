@@ -71,7 +71,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		}
 	}
 
-	fmt.Fprintf(conf.Out, "gno: workspace root is %q\n", conf.WorkspaceRoot)
+	// fmt.Fprintf(conf.Out, "gno: workspace root is %q\n", conf.WorkspaceRoot)
 
 	// sanity assert
 	if !filepath.IsAbs(conf.WorkspaceRoot) {
