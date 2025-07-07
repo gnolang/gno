@@ -47,7 +47,7 @@ func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags strin
 		title,
 		body,
 		publicationDate,
-		std.CurrentRealm().Address().String(),
+		std.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
