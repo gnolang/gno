@@ -1,4 +1,4 @@
-# Configuring Gno Packages
+# Configuring Gno Projects
 
 Gno supports package configuration through a metadata file called `gnomod.toml`.
 This file is typically generated using:
