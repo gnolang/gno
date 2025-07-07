@@ -24,7 +24,7 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(user))
 
 	// Create root DAO with subDAOs
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 	rootDAO := commondao.New("Root DAO")
 	fooDAO := commondao.NewSubDAO("A", rootDAO.ID())
 	barDAO := commondao.NewSubDAO("B", fooDAO.ID())
@@ -35,7 +35,7 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
 	iter := commondao.NewIterator(rootID, commondao.WithOffset(1), commondao.WithCount(2))
 

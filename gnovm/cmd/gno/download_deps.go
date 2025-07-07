@@ -20,7 +20,7 @@ func downloadDeps(io commands.IO, pkgDir string, modfile *gnomod.File, fetcher p
 		return errors.New("fetcher is nil")
 	}
 
-	pkg, err := gnolang.ReadMemPackage(pkgDir, modfile.Module)
+	pkg, err := gnolang.ReadMemPackage(pkgDir, modfile.Module, gnolang.MPUserAll)
 	if err != nil {
 		return fmt.Errorf("read package at %q: %w", pkgDir, err)
 	}
