@@ -15,7 +15,7 @@ func main() {
 }
 
 // Error:
-// main/assgin_two_filetest.gno:11:2-7: cannot use main.nat2 as main.nat without explicit conversion
+// main/assgin_two.gno:11:2-7: cannot use main.nat2 as main.nat without explicit conversion
 
 // TypeCheckError:
-// main/assgin_two_filetest.gno:11:6: cannot use b (variable of slice type nat2) as nat value in assignment
+// main/assgin_two.gno:11:6: cannot use b (variable of slice type nat2) as nat value in assignment

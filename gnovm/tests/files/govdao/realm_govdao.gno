@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/govdao_test
-package govdao_test
+// PKGPATH: gno.land/r/govdao
+package govdao
 
 import (
 	"std"
@@ -42,7 +42,7 @@ func main() {
 
 func CreateProposal() dao.ProposalID {
 	e := dao.NewSimpleExecutor(
-		func() error {
+		func(realm) error {
 			return nil
 		},
 		"",
