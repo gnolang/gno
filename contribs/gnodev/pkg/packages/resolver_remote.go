@@ -68,7 +68,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 		body := qres.Response.Data
 
 		// Check package name
-		if name == "" && isGnoFile(fname) && !isTestFile(fname) {
+		if name == "" && isGnoFile(fname) {
 			// Check package name
 			f, err := parser.ParseFile(fset, fname, body, parser.PackageClauseOnly)
 			if err != nil {
