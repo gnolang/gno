@@ -91,6 +91,7 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	line, segment := reader.PeekLine()
 	closeLine := util.TrimRightSpace(util.TrimLeftSpace(line))
+	// Stops the parsing upon reaching the end
 	if "</gno-svg>" == string(closeLine) {
 		reader.AdvanceLine()
 		return parser.Close
@@ -128,8 +129,7 @@ func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.C
 	}
 	seg.ForceNewline = true // EOF as newline
 	node.Lines().Append(seg)
-	reader.AdvanceLine()
-	return parser.Continue | parser.NoChildren
+	return parser.Continue | parser.NoChildren // Continue parsing
 }
 
 func (b *svgBlockParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {}
