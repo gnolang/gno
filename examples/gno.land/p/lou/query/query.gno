@@ -26,21 +26,8 @@ func ParseQueryMap(rawPath string) map[string]string {
 	return params
 }
 
-func buildQueryPath(rawPath string, params map[string]string) string {
-	u, err := url.Parse(rawPath)
-	if err != nil {
-		return rawPath
-	}
-	q := url.Values{}
-	for k, v := range params {
-		q.Set(k, v)
-	}
-	u.RawQuery = q.Encode()
-	return u.String()
-}
-
 func UpdateQueryMulti(rawPath string, updates map[string]string) string {
-	params := parseQueryMap(rawPath)
+	params := ParseQueryMap(rawPath)
 	for k, v := range updates {
 		params[k] = v
 	}
@@ -55,5 +42,18 @@ func UpdateQuery(rawPath, key, value string) string {
 	query := u.Query()
 	query.Set(key, value)
 	u.RawQuery = query.Encode()
+	return u.String()
+}
+
+func buildQueryPath(rawPath string, params map[string]string) string {
+	u, err := url.Parse(rawPath)
+	if err != nil {
+		return rawPath
+	}
+	q := url.Values{}
+	for k, v := range params {
+		q.Set(k, v)
+	}
+	u.RawQuery = q.Encode()
 	return u.String()
 }

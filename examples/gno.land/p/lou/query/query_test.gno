@@ -8,13 +8,13 @@ import (
 
 func TestUpdateQuery(t *testing.T) {
 	raw := "/blog?foo=bar"
-	updated := updateQuery(raw, "foo", "baz")
+	updated := UpdateQuery(raw, "foo", "baz")
 	uassert.Equal(t, "/blog?foo=baz", updated)
 }
 
 func TestUpdateQueryMulti(t *testing.T) {
 	raw := "/blog?sort=alpha"
-	updated := updateQueryMulti(raw, map[string]string{
+	updated := UpdateQueryMulti(raw, map[string]string{
 		"sort":  "recent",
 		"order": "asc",
 	})
