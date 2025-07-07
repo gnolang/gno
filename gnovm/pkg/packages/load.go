@@ -275,7 +275,8 @@ func setAdd[T comparable](set map[T]struct{}, val T) bool {
 }
 
 func discoverPkgsForLocalDeps(roots []string) map[string]string {
-	// we swallow errors as we want the most packages we can get
+	// we swallow errors in this routine as we want the most packages we can get
+
 	byPkgPath := make(map[string]string)
 	byDir := make(map[string]string)
 
@@ -300,21 +301,22 @@ func discoverPkgsForLocalDeps(roots []string) map[string]string {
 					return nil
 				}
 
-				// skip this file if we already found this package
-				if _, ok := byPkgPath[dir]; ok {
-					return nil
-				}
-
 				// find pkg path
 				gm, err := gnomod.ParseDir(dir)
 				if err != nil {
 					// XXX: maybe store errors by dir to not silently ignore packages with invalid gnomod
 					return nil
 				}
+				pkgPath := gm.Module
+
+				// skip this file if we already found this package
+				if _, ok := byPkgPath[pkgPath]; ok {
+					return nil
+				}
 
 				// store ref
-				byPkgPath[gm.Module] = dir
-				byDir[dir] = gm.Module
+				byPkgPath[pkgPath] = dir
+				byDir[dir] = pkgPath
 
 				return nil
 
@@ -322,7 +324,7 @@ func discoverPkgsForLocalDeps(roots []string) map[string]string {
 				// stop if sub-workspace
 
 				if dir != root {
-					// delete if we found a package first
+					// if we found a pkg in this dir, ignore it
 					pkgPath, ok := byDir[dir]
 					if ok {
 						delete(byDir, dir)
