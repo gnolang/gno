@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 // This tests for realm finalization upon implicit (borrow) realm switches.
 // This is like zrealm_crossrealm30.gno, but with `return x` for doOpReturnAfterCopy.

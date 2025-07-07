@@ -225,13 +225,15 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 
+	// test.ProdStore() is suitable for type-checking prod (non-test) files.
+	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
+
 	buildErrCount := 0
 	testErrCount := 0
 	fail := func() error {
 		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
-	tccache := gno.TypeCheckCache{}
 
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
@@ -239,12 +241,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Read and parse gno.mod directly.
+		// Read and parse gnomod.toml directly.
 		fpath := filepath.Join(pkg.Dir, "gnomod.toml")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
 			if cmd.autoGnomod {
-				modstr := gno.GenGnoModLatest("gno.land/r/xxx_myrealm_xxx/xxx_fixme_xxx")
+				modulePath, _ := determinePkgPath(nil, pkg.Dir, cmd.rootDir)
+				modstr := gno.GenGnoModLatest(modulePath)
 				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
 
 				if err != nil {
@@ -265,20 +268,14 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
-		// Read MemPackage.
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
+		// Read MemPackage with all files.
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
 
-		// Lint/typecheck/format.
-		// (gno.mod will be read again).
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Ignore {
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
-					ParseMode: gno.ParseModeAll,
-					Mode:      gno.TCLatestRelaxed,
-					Cache:     tccache,
-				})
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, opts.TestStore, gno.TCLatestRelaxed)
 				if errs != nil {
 					didError = true
 					// already printed in lintTypeCheck.
@@ -288,6 +285,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
 			}
+			///////////////////////////////////
+			// Run the tests found in the mpkg.
 			errs := test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {
 				didError = true
