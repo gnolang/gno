@@ -169,7 +169,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 			// XXX: why download twice?
 			// XXX: why pkgpath and name is not resolved
 			dir := PackageDir(imp.PkgPath)
-			if err := downloadPackage(conf.Out, conf.Fetcher, imp.PkgPath, dir); err != nil {
+			if err := DownloadPackage(conf.Out, imp.PkgPath, dir, conf.Fetcher); err != nil {
 				pkg.Errors = append(pkg.Errors, &Error{
 					Pos: pkg.Dir,
 					Msg: fmt.Sprintf("download %q: %v", imp.PkgPath, err),

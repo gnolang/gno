@@ -108,7 +108,7 @@ func readPkgDir(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string
 			_, err = os.Stat(pkg.Dir)
 			if err != nil {
 				if os.IsNotExist(err) {
-					if err := downloadPackage(out, fetcher, pkgPath, pkg.Dir); err != nil {
+					if err := DownloadPackage(out, pkgPath, pkg.Dir, fetcher); err != nil {
 						pkg.Errors = append(pkg.Errors, &Error{
 							Pos: pkg.Dir,
 							Msg: err.Error(),
