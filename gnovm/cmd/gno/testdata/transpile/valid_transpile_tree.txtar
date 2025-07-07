@@ -14,11 +14,11 @@ cmp gnovm/stdlibs/math/math.gno.gen.go gnovm/stdlibs/math/math.gno.gen.go.golden
 -- stderr.golden --
 examples/gno.land/r/answer
 $WORK/gnovm/stdlibs/math
-examples/gno.land/r/question (skipped, gno.mod marks module as draft)
--- examples/gno.land/r/question/gno.mod --
-// Draft
-
-module gno.land/r/question
+examples/gno.land/r/question (skipped, gnomod.toml marks module as ignored)
+-- examples/gno.land/r/question/gnomod.toml --
+module = "examples/gno.land/r/question"
+gno = "0.9"
+ignore = true
 
 -- examples/gno.land/r/question/question.gno --
 package question
@@ -71,8 +71,9 @@ import "github.com/gnolang/gno/gnovm/stdlibs/math"
 func AntiAnswer() int {
 	return -math.Sqrt(1764)
 }
--- examples/gno.land/r/answer/gno.mod --
-module gno.land/r/answer
+-- examples/gno.land/r/answer/gnomod.toml --
+module = "examples/gno.land/r/answer"
+gno = "0.9"
 
 -- gnovm/stdlibs/math/math.gno --
 package math

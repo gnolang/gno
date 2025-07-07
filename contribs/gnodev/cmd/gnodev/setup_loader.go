@@ -40,7 +40,7 @@ func (va *varResolver) Set(value string) error {
 	case "local": // process a single directory
 		path, ok := guessPathGnoMod(location)
 		if !ok {
-			return fmt.Errorf("unable to read module path from gno.mod in %q", location)
+			return fmt.Errorf("unable to read module path from gnomod.toml in %q", location)
 		}
 
 		res = packages.NewLocalResolver(path, location)
@@ -92,7 +92,7 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 	if err != nil {
 		return "", false
 	}
-	return modfile.Module.Mod.Path, true
+	return modfile.Module, true
 }
 
 var reInvalidChar = regexp.MustCompile(`[^\w_-]`)

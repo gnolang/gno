@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// main/named_unnamed_type2_filetest.gno:11:7-32: cannot use int as int64
+// main/named_unnamed_type2.gno:11:7-32: cannot use int as int64
 
 // TypeCheckError:
-// main/named_unnamed_type2_filetest.gno:11:23: cannot use nlist (variable of slice type nat) as []int64 value in argument to append
+// main/named_unnamed_type2.gno:11:23: cannot use nlist (variable of slice type nat) as []int64 value in argument to append
