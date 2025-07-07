@@ -8,20 +8,20 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-const v3 = "gno.land/r/gov/dao/v3/impl"
-const v4 = "gno.land/r/gov/dao/v4/impl"
-const v5 = "gno.land/r/gov/dao/v5/impl"
-const v6 = "gno.land/r/gov/dao/v6/impl"
+const (
+	v3 = "gno.land/r/gov/dao/v3/impl"
+	v4 = "gno.land/r/gov/dao/v4/impl"
+	v5 = "gno.land/r/gov/dao/v5/impl"
+	v6 = "gno.land/r/gov/dao/v6/impl"
+)
 
 const invalid = "gno.land/r/invalid/dao"
 
-var (
-	alice = testutils.TestAddress("alice")
-)
+var alice = testutils.TestAddress("alice")
 
-func TestProxy_Functions(t *testing.T) {
+func TestProxy_Functions(cur realm, t *testing.T) {
 	// initialize tests
-	cross(UpdateImpl)(UpdateRequest{
+	UpdateImpl(cross, UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{v3},
 	})
@@ -29,7 +29,7 @@ func TestProxy_Functions(t *testing.T) {
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(std.NewCodeRealm(invalid))
 	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
-		cross(UpdateImpl)(UpdateRequest{
+		UpdateImpl(cross, UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -37,7 +37,7 @@ func TestProxy_Functions(t *testing.T) {
 	// dao in charge can add a new dao
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		cross(UpdateImpl)(UpdateRequest{
+		UpdateImpl(cross, UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -45,7 +45,7 @@ func TestProxy_Functions(t *testing.T) {
 	// v3 that is in charge adds v5 in charge
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		cross(UpdateImpl)(UpdateRequest{
+		UpdateImpl(cross, UpdateRequest{
 			DAO:         &dummyDao{},
 			AllowedDAOs: []string{v3, v5},
 		})
@@ -54,7 +54,7 @@ func TestProxy_Functions(t *testing.T) {
 	// v3 can still do updates
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		cross(UpdateImpl)(UpdateRequest{
+		UpdateImpl(cross, UpdateRequest{
 			AllowedDAOs: []string{v4},
 		})
 	})
@@ -62,7 +62,7 @@ func TestProxy_Functions(t *testing.T) {
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
-		cross(UpdateImpl)(UpdateRequest{
+		UpdateImpl(cross, UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
 	})
@@ -71,21 +71,19 @@ func TestProxy_Functions(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(alice))
 	urequire.NotPanics(t, func() {
 		e := NewSimpleExecutor(
-			func() error {
+			func(realm) error {
 				return nil
 			},
 			"",
 		)
-		pid = cross(MustCreateProposal)(
-			NewProposalRequest("Proposal Title", "Description", e),
-		)
+		pid = MustCreateProposal(cross, NewProposalRequest("Proposal Title", "Description", e))
 	})
 
-	p := cross(MustGetProposal)(1000)
+	p := MustGetProposal(cross, 1000)
 	if p != nil {
 		panic("proposal must be nil")
 	}
-	p = cross(MustGetProposal)(pid)
+	p = MustGetProposal(cross, pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
 	urequire.Equal(t, p.Author().String(), alice.String())
 
@@ -99,21 +97,19 @@ func TestProxy_Functions(t *testing.T) {
 
 	// reset state
 	testing.SetRealm(std.NewCodeRealm(v4))
-	cross(UpdateImpl)(UpdateRequest{
+	UpdateImpl(cross, UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
 	})
 }
 
-type dummyDao struct {
-}
+type dummyDao struct{}
 
 func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (std.Address, error) {
 	return std.OriginCaller(), nil
 }
 
 func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
-
 }
 
 func (dd *dummyDao) VoteOnProposal(r VoteRequest) error {

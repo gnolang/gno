@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/testutils"
 	users "gno.land/r/gnoland/users/v1"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/init"
+	daov3init "gno.land/r/gov/dao/v3/init"
 	susers "gno.land/r/sys/users"
 )
 
@@ -18,44 +18,44 @@ import (
 var c std.Address = std.OriginCaller()
 
 func init() {
-	init.InitWithUsers(c)
+	daov3init.InitWithUsers(c)
 
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
-	cross(users.Register)("alice123")
+	users.Register(cross, "alice123")
 
 	// Prop to delete user
 	testing.SetOriginCaller(c)
 	testing.SetRealm(std.NewUserRealm(c))
 	pr := users.ProposeDeleteUser(alice, "delete user test")
-	cross(dao.MustCreateProposal)(pr)
+	dao.MustCreateProposal(cross, pr)
 }
 
 func main() {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(cross(dao.Render)(""))
+	println(dao.Render(""))
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.ExecuteProposal)(dao.ProposalID(0))
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 
 	data, _ := susers.ResolveName("alice123")
 	if data == nil {
