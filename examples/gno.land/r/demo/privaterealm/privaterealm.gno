@@ -2,7 +2,7 @@ package privaterealm
 
 // ---------------- Private Realm ----------------
 //
-// This package illustrates a private realm.
+// This package illustrates an empty private realm.
 //
 // Rules of private realms are:
 // - Cannot be imported by other realms.
