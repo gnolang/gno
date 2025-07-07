@@ -33,7 +33,7 @@ func readPackages(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*
 		} else if known.GetByDir(pkgMatch.Dir) != nil {
 			continue
 		} else {
-			pkg = readPkgDir(out, fetcher, pkgMatch.Dir, "", fset)
+			pkg = readPkgDir(out, fetcher, pkgMatch.Dir, fset)
 		}
 		pkg.Match = pkgMatch.Match
 		pkgs = append(pkgs, pkg)
@@ -70,58 +70,55 @@ func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
 }
 
 // XXX: bad name since it might download the package
-func readPkgDir(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, importPath string, fset *token.FileSet) *Package {
+func readPkgDir(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, fset *token.FileSet) *Package {
 	pkg := &Package{
 		Dir:          pkgDir,
 		Files:        FilesMap{},
 		Imports:      map[FileKind][]string{},
 		ImportsSpecs: ImportsMap{},
-		ImportPath:   importPath,
 	}
 
-	if pkg.ImportPath == "" {
-		stdlibsPath := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
-		if strings.HasPrefix(filepath.Clean(pkg.Dir), stdlibsPath) {
-			libPath, err := filepath.Rel(stdlibsPath, pkg.Dir)
-			if err != nil {
-				pkg.Errors = append(pkg.Errors, &Error{
-					Pos: pkg.Dir,
-					Msg: err.Error(),
-				})
-				return pkg
-			}
-			pkg.ImportPath = filepath.ToSlash(libPath)
+	stdlibsPath := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
+	if strings.HasPrefix(filepath.Clean(pkg.Dir), stdlibsPath) {
+		libPath, err := filepath.Rel(stdlibsPath, pkg.Dir)
+		if err != nil {
+			pkg.Errors = append(pkg.Errors, &Error{
+				Pos: pkg.Dir,
+				Msg: err.Error(),
+			})
+			return pkg
 		}
+		pkg.ImportPath = filepath.ToSlash(libPath)
+	}
 
-		// FIXME: concurrency + don't overwrite
-		modCachePath := gnomod.ModCachePath()
-		if strings.HasPrefix(filepath.Clean(pkg.Dir), modCachePath) {
-			pkgPath, err := filepath.Rel(modCachePath, pkg.Dir)
-			if err != nil {
-				pkg.Errors = append(pkg.Errors, &Error{
-					Pos: pkg.Dir,
-					Msg: fmt.Errorf("pkgpath from cache dir: %w", err).Error(),
-				})
-				return pkg
-			}
-			pkgPath = path.Clean(pkgPath)
-			_, err = os.Stat(pkg.Dir)
-			if err != nil {
-				if os.IsNotExist(err) {
-					if err := DownloadPackage(out, pkgPath, pkg.Dir, fetcher); err != nil {
-						pkg.Errors = append(pkg.Errors, &Error{
-							Pos: pkg.Dir,
-							Msg: err.Error(),
-						})
-						return pkg
-					}
-				} else {
+	// FIXME: concurrency + don't overwrite
+	modCachePath := gnomod.ModCachePath()
+	if strings.HasPrefix(filepath.Clean(pkg.Dir), modCachePath) {
+		pkgPath, err := filepath.Rel(modCachePath, pkg.Dir)
+		if err != nil {
+			pkg.Errors = append(pkg.Errors, &Error{
+				Pos: pkg.Dir,
+				Msg: fmt.Errorf("pkgpath from cache dir: %w", err).Error(),
+			})
+			return pkg
+		}
+		pkg.ImportPath = path.Clean(filepath.ToSlash(pkgPath))
+		_, err = os.Stat(pkg.Dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if err := DownloadPackage(out, pkgPath, pkg.Dir, fetcher); err != nil {
 					pkg.Errors = append(pkg.Errors, &Error{
 						Pos: pkg.Dir,
-						Msg: fmt.Errorf("stat: %w", err).Error(),
+						Msg: err.Error(),
 					})
 					return pkg
 				}
+			} else {
+				pkg.Errors = append(pkg.Errors, &Error{
+					Pos: pkg.Dir,
+					Msg: fmt.Errorf("stat: %w", err).Error(),
+				})
+				return pkg
 			}
 		}
 	}

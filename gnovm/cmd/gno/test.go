@@ -239,6 +239,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 
 	for _, pkg := range pkgs {
+		// XXX: do something with pkg.Errors
+
 		if len(pkg.Match) == 0 {
 			continue
 		}

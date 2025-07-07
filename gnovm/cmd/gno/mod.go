@@ -210,32 +210,21 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("can't use %s flag with a custom package fetcher", remoteOverridesArgName)
 	}
 
-	path, err := os.Getwd()
-	if err != nil {
-		return err
+	loadCfg := packages.LoadConfig{
+		Fetcher:    fetcher,
+		Deps:       true,
+		Test:       true,
+		AllowEmpty: true,
+		Out:        io.Err(),
 	}
-
-	gnoMod, err := gnomod.ParseDir(path)
-	if err != nil {
-		return err
-	}
-
-	// sanitize gno.mod
-	gnoMod.Sanitize()
-
-	// validate gno.mod
-	if err := gnoMod.Validate(); err != nil {
-		return fmt.Errorf("validate: %w", err)
-	}
-
-	if err := downloadDeps(io, path, gnoMod, fetcher, make(map[string]struct{})); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := packages.Load(loadCfg, "./...")
+	return err
 }
 
 func parseRemoteOverrides(arg string) (map[string]string, error) {
+	if arg == "" {
+		return map[string]string{}, nil
+	}
 	pairs := strings.Split(arg, ",")
 	res := make(map[string]string, len(pairs))
 	for _, pair := range pairs {

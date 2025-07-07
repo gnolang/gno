@@ -156,27 +156,19 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 					}
 					pkg.Errors = append(pkg.Errors, err)
 				}
-				markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
+				markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, conf.Fset))
 				continue
 			}
 
 			// check if this package is present in current workspace or extra workspace roots
 			if dir, ok := localDeps[imp.PkgPath]; ok {
-				markDepForVisit(readPkgDir(conf.Out, nil, dir, imp.PkgPath, conf.Fset))
+				markDepForVisit(readPkgDir(conf.Out, nil, dir, conf.Fset))
 				continue
 			}
 
-			// XXX: why download twice?
-			// XXX: why pkgpath and name is not resolved
+			// attempt to download package
 			dir := PackageDir(imp.PkgPath)
-			if err := DownloadPackage(conf.Out, imp.PkgPath, dir, conf.Fetcher); err != nil {
-				pkg.Errors = append(pkg.Errors, &Error{
-					Pos: pkg.Dir,
-					Msg: fmt.Sprintf("download %q: %v", imp.PkgPath, err),
-				})
-				continue
-			}
-			markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
+			markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, conf.Fset))
 		}
 
 		loaded = append(loaded, pkg)
