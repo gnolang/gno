@@ -2,8 +2,8 @@
 package test
 
 import (
-	"github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl"
-	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
+	"filetests/extern/timtadh/data_structures/tree/avl"
+	"filetests/extern/timtadh/data_structures/types"
 )
 
 var tree *avl.AvlNode
@@ -12,9 +12,7 @@ func init() {
 	tree, _ = tree.Put(types.String("key0"), "value0")
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	var updated bool
 	tree, updated = tree.Put(types.String("key0"), "value0-new")
 	println(updated, tree.Size())
@@ -58,8 +56,8 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "741337baec39cbc5700d7a34e508b6a1ef51d17b",
-//     +            "Hash": "16280818f1c7acbde1e80e4b223540ae16a57024",
+//     -            "Hash": "ff7d2f7d23827a0af50e33994bc896d1b1ab3ea8",
+//     +            "Hash": "62ec3b3084fd4fe4f1ef8374d943207b41191e20",
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //              }
 //          }
@@ -77,8 +75,8 @@ func main() {
 //                  "@type": "/gno.PointerValue",
 //                  "Base": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "1a5319ef6d9d1b28c2427abdbe35e6fc6450d0ff",
-//     +                "Hash": "b05627b5eca2b468a119b7bbca9cf903a2873b70",
+//     -                "Hash": "9ca98fdf0502999046966e61b84ad729e39753e7",
+//     +                "Hash": "139779f145f36dc8c34ce2eca490500831ae87f0",
 //                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                  },
 //                  "Index": "0",

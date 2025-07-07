@@ -1,13 +1,11 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/p/demo/tests"
 )
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	tests.ModifyTestRealmObject2b()
 	println("done")
 }

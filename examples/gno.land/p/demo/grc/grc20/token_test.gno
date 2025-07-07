@@ -131,7 +131,7 @@ func TestMintUntilOverflow(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		address        std.Address
+		addr           std.Address
 		amount         int64
 		expectedError  error
 		expectedSupply int64
@@ -139,7 +139,7 @@ func TestMintUntilOverflow(t *testing.T) {
 	}{
 		{
 			name:           "mint negative value",
-			address:        alice,
+			addr:           alice,
 			amount:         -1,
 			expectedError:  ErrInvalidAmount,
 			expectedSupply: 0,
@@ -147,7 +147,7 @@ func TestMintUntilOverflow(t *testing.T) {
 		},
 		{
 			name:           "mint MaxInt64",
-			address:        alice,
+			addr:           alice,
 			amount:         math.MaxInt64 - 1000,
 			expectedError:  nil,
 			expectedSupply: math.MaxInt64 - 1000,
@@ -155,7 +155,7 @@ func TestMintUntilOverflow(t *testing.T) {
 		},
 		{
 			name:           "mint small value",
-			address:        bob,
+			addr:           bob,
 			amount:         1000,
 			expectedError:  nil,
 			expectedSupply: math.MaxInt64,
@@ -163,7 +163,7 @@ func TestMintUntilOverflow(t *testing.T) {
 		},
 		{
 			name:           "mint value that would exceed MaxInt64",
-			address:        bob,
+			addr:           bob,
 			amount:         1,
 			expectedError:  ErrMintOverflow,
 			expectedSupply: math.MaxInt64,
@@ -173,7 +173,7 @@ func TestMintUntilOverflow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := adm.Mint(tt.address, tt.amount)
+			err := adm.Mint(tt.addr, tt.amount)
 
 			if tt.expectedError != nil {
 				uassert.Error(t, err, tt.description)

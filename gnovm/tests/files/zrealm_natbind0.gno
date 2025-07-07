@@ -11,9 +11,7 @@ func init() {
 	node = std.ChainHeight
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	// NOTE: this test uses ChainHeight and ChainID, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
@@ -44,16 +42,16 @@ func main() {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //                  "Escaped": true,
-//     -            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:39"
-//     +            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:36"
+//     -            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:42"
+//     +            "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:39"
 //              }
 //          }
 //      }
-// u[a7f5397443359ea76c50be82c77f1f893a060925:36]=
+// u[a7f5397443359ea76c50be82c77f1f893a060925:39]=
 //     @@ -8,9 +8,10 @@
 //          "NativePkg": "std",
 //          "ObjectInfo": {
-//              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:36",
+//              "ID": "a7f5397443359ea76c50be82c77f1f893a060925:39",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
 //     +        "ModTime": "6",
@@ -63,7 +61,7 @@ func main() {
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
-// u[a7f5397443359ea76c50be82c77f1f893a060925:39]=
+// u[a7f5397443359ea76c50be82c77f1f893a060925:42]=
 //     @@ -11,7 +11,7 @@
 //              "IsEscaped": true,
 //              "ModTime": "6",

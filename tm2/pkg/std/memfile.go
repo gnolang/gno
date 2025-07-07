@@ -3,6 +3,7 @@ package std
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -62,9 +63,18 @@ func (mfile *MemFile) ValidateBasic() error {
 
 // Print file to stdout.
 func (mfile *MemFile) Print() error {
+	if mfile == nil {
+		return fmt.Errorf("file not found")
+	}
 	fmt.Printf("MemFile[%q]:\n", mfile.Name)
 	fmt.Println(mfile.Body)
 	return nil
+}
+
+// Creates a new copy.
+func (mfile *MemFile) Copy() *MemFile {
+	mfile2 := *mfile
+	return &mfile2
 }
 
 //----------------------------------------
@@ -81,6 +91,8 @@ type MemPackage struct {
 	Name  string     `json:"name" yaml:"name"`   // package name as declared by `package`
 	Path  string     `json:"path" yaml:"path"`   // import path
 	Files []*MemFile `json:"files" yaml:"files"` // plain file system files.
+	Type  any        `json:"type" yaml:"type"`   // (user defined) package type.
+	Info  any        `json:"info" yaml:"info"`   // (user defined) extra information.
 }
 
 // Package Name must be lower_case, can have digits & underscores.
@@ -129,6 +141,9 @@ func (mpkg *MemPackage) ValidateBasic() error {
 	for _, mfile := range mpkg.Files {
 		if err := mfile.ValidateBasic(); err != nil {
 			return fmt.Errorf("invalid file in package: %w", err)
+		}
+		if !reFileName.MatchString(mfile.Name) {
+			return fmt.Errorf("invalid file name %q, failed to match %q", mfile.Name, reFileName)
 		}
 	}
 	return nil
@@ -203,7 +218,19 @@ func (mpkg *MemPackage) DeleteFile(name string) *MemFile {
 
 // Returns true if it has no files.
 func (mpkg *MemPackage) IsEmpty() bool {
-	return len(mpkg.Files) == 0
+	return mpkg.IsEmptyOf(".gno")
+}
+
+// Returns true if it has no files ending in `xtn`.  xtn should start with a
+// dot to check extensions, but need not start with one, e.g. to test for
+// _test.gno.
+func (mpkg *MemPackage) IsEmptyOf(xtn string) bool {
+	for _, mfile := range mpkg.Files {
+		if strings.HasSuffix(mfile.Name, xtn) {
+			return false
+		}
+	}
+	return true
 }
 
 // Returns true if zero.
@@ -242,23 +269,23 @@ func (mpkg *MemPackage) FileNames() (fnames []string) {
 	return
 }
 
-const licenseName = "LICENSE"
-
 // Splits a path into the dir and filename.
 func SplitFilepath(fpath string) (dir string, filename string) {
-	parts := strings.Split(fpath, "/")
-	if len(parts) == 1 {
-		return parts[0], ""
+	dir, filename = path.Split(fpath)
+	if dir == "" {
+		// assume that filename is actually a directory
+		return filename, ""
 	}
 
-	switch last := parts[len(parts)-1]; {
-	case strings.Contains(last, "."):
-		return strings.Join(parts[:len(parts)-1], "/"), last
-	case last == "":
-		return strings.Join(parts[:len(parts)-1], "/"), ""
-	case last == licenseName:
-		return strings.Join(parts[:len(parts)-1], "/"), licenseName
+	var (
+		isFileWithExtension = strings.Contains(filename, ".")
+		isSpecialFile       = filename == "LICENSE" || filename == "README"
+		noFileSpecified     = filename == ""
+	)
+	if isFileWithExtension || isSpecialFile || noFileSpecified {
+		dir = strings.TrimRight(dir, "/") // gno.land/r/path//a.gno -> dir=gno.land/r/path filename=a.gno
+		return
 	}
 
-	return strings.Join(parts, "/"), ""
+	return dir + filename, ""
 }

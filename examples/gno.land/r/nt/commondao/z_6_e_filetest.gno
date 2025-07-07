@@ -17,21 +17,17 @@ var daoID uint64
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
-	dao := commondao.New("Foo")
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/nt/commondao"))
+	dao := commondao.New("Foo", commondao.AllowExecution(false)) // Disallow execution
 	daoID = dao.ID()
-
-	// Change options to disallow execution
-	options := commondao.GetOptions(daoID)
-	options.SetAllowExecution(false)
 }
 
 func main() {
-	cross(commondao.Execute)(daoID, 0)
+	commondao.Execute(cross, daoID, 0)
 }
 
 // Error:
