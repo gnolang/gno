@@ -22,7 +22,7 @@ type IGRC777 interface {
 	TotalSupply() (supply int64)
 
 	// Returns the amount of tokens owned by an account (`owner`).
-	BalanceOf(address std.Address) int64
+	BalanceOf(address_XXX std.Address) int64
 
 	// Moves `amount` tokens from the caller's account to `recipient`.
 	//

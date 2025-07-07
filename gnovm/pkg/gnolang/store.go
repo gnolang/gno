@@ -51,7 +51,8 @@ type Store interface {
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
-	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
+	GetPackageNode(pkgPath string) *PackageNode
+	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 
@@ -61,7 +62,7 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(memPkg *std.MemPackage)
+	AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
@@ -617,6 +618,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	if tt, exists := ds.cacheTypes.Get(tid); exists {
 		return tt
 	}
+
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
@@ -689,6 +691,11 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	// save type to cache.
 	ds.cacheTypes.Set(tid, tt)
+}
+
+// Convenience
+func (ds *defaultStore) GetPackageNode(pkgPath string) *PackageNode {
+	return ds.GetBlockNode(PackageNodeLocation(pkgPath)).(*PackageNode)
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
@@ -787,7 +794,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
+func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -800,14 +807,18 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 			bm.StopStore(size)
 		}()
 	}
-	memPkg.Validate() // NOTE: duplicate validation.
+	err := ValidateMemPackageWithOptions(mpkg,
+		ValidateMemPackageOptions{Type: mtype})
+	if err != nil {
+		panic(fmt.Errorf("invalid mempackage: %w", err))
+	}
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
-	bz := amino.MustMarshal(memPkg)
+	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
-	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
-	pathkey := []byte(backendPackagePathKey(memPkg.Path))
+	ds.baseStore.Set(idxkey, []byte(mpkg.Path))
+	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
 	size = len(bz)
 }
@@ -850,21 +861,21 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
-	var memPkg *std.MemPackage
-	amino.MustUnmarshal(bz, &memPkg)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
 	size = len(bz)
-	return memPkg
+	return mpkg
 }
 
 // GetMemFile retrieves the MemFile with the given name, contained in the
 // MemPackage at the given path. It returns nil if the file or the package
 // do not exist.
 func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
-	memPkg := ds.GetMemPackage(path)
-	if memPkg == nil {
+	mpkg := ds.GetMemPackage(path)
+	if mpkg == nil {
 		return nil
 	}
-	memFile := memPkg.GetFile(name)
+	memFile := mpkg.GetFile(name)
 	return memFile
 }
 
@@ -912,8 +923,8 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 					panic(fmt.Sprintf(
 						"missing package index %d", i))
 				}
-				memPkg := ds.GetMemPackage(string(path))
-				ch <- memPkg
+				mpkg := ds.GetMemPackage(string(path))
+				ch <- mpkg
 			}
 			close(ch)
 		}()
@@ -1052,6 +1063,9 @@ func decodeBackendPackagePathKey(key string) string {
 // builtin types and packages
 
 func InitStoreCaches(store Store) {
+	/* This is what it used to be, but it's confusing when there are new
+	 * uverse types.
+
 	types := []Type{
 		BoolType, UntypedBoolType,
 		StringType, UntypedStringType,
@@ -1066,6 +1080,19 @@ func InitStoreCaches(store Store) {
 	}
 	for _, tt := range types {
 		store.SetCacheType(tt)
+	}
+	*/
+	uverse := UverseNode()
+	for _, tv := range uverse.GetStaticBlock().Values {
+		if tv.T != nil && tv.T.Kind() == TypeKind {
+			uverseType := tv.GetType()
+			switch uverseType.(type) {
+			case PrimitiveType:
+				store.SetCacheType(uverseType)
+			case *DeclaredType:
+				store.SetCacheType(uverseType)
+			}
+		}
 	}
 	store.SetCachePackage(Uverse())
 }

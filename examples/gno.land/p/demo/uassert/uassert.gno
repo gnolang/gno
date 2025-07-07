@@ -83,14 +83,22 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 // AbortsWithMessage asserts that the code inside the specified func aborts
 // (panics when crossing another realm).
 // Use PanicsWithMessage for asserting local panics within the same realm.
-// Note: This relies on gno's `revive` mechanism to catch aborts.
-func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
+//
+// NOTE: This relies on gno's `revive` mechanism to catch aborts.
+func AbortsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 	t.Helper()
 
 	var didAbort bool
 	var abortValue any
+	var r any
 
-	r := revive(f) // revive() captures the value passed to panic()
+	if fn, ok := f.(func()); ok {
+		r = revive(fn)
+	} else if fn, ok := f.(func(realm)); ok {
+		r = revive(func() { fn(cross) })
+	} else {
+		panic("f must be of type func() or func(realm)")
+	}
 	if r != nil {
 		didAbort = true
 		abortValue = r
@@ -114,13 +122,20 @@ func AbortsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 // NotAborts asserts that the code inside the specified func does NOT abort
 // when crossing an execution boundary.
 // Note: Consider using NotPanics which checks for both panics and aborts.
-func NotAborts(t TestingT, f func(), msgs ...string) bool {
+func NotAborts(t TestingT, f any, msgs ...string) bool {
 	t.Helper()
 
 	var didAbort bool
 	var abortValue any
+	var r any
 
-	r := revive(f) // revive() captures the value passed to panic()
+	if fn, ok := f.(func()); ok {
+		r = revive(fn) // revive() captures the value passed to panic()
+	} else if fn, ok := f.(func(realm)); ok {
+		r = revive(func() { fn(cross) })
+	} else {
+		panic("f must be of type func() or func(realm)")
+	}
 	if r != nil {
 		didAbort = true
 		abortValue = r
@@ -139,7 +154,7 @@ func NotAborts(t TestingT, f func(), msgs ...string) bool {
 // PanicsWithMessage asserts that the code inside the specified func panics
 // locally within the same execution realm.
 // Use AbortsWithMessage for asserting panics that cross execution boundaries (aborts).
-func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
+func PanicsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 	t.Helper()
 
 	didPanic, panicValue := checkDidPanic(f)
@@ -157,7 +172,7 @@ func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 
 // NotPanics asserts that the code inside the specified func does NOT panic
 // (within the same realm) or abort (due to a cross-realm panic).
-func NotPanics(t TestingT, f func(), msgs ...string) bool {
+func NotPanics(t TestingT, f any, msgs ...string) bool {
 	t.Helper()
 
 	var panicVal any
@@ -174,7 +189,13 @@ func NotPanics(t TestingT, f func(), msgs ...string) bool {
 			}
 		}()
 		// Execute the function
-		f()
+		if fn, ok := f.(func()); ok {
+			fn()
+		} else if fn, ok := f.(func(realm)); ok {
+			fn(cross)
+		} else {
+			panic("f must be of type func() or func(realm)")
+		}
 	})
 
 	// Check if revive caught an abort
