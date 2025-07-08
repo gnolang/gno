@@ -7,9 +7,35 @@ started writing smart contracts for Gno.land.
 ## Package Types Overview
 
 Gno.land supports three types of packages:
+<<<<<<< HEAD
 - **Realms (`/r/`)**: Stateful applications (smart contracts) that maintain persistent state
 - **Pure Packages (`/p/`)**: Stateless libraries that can be imported and reused
 - **Ephemeral Packages (`/e/`)**: Temporary user-executed code created with [`gnokey maketx run`](../users/interact-with-gnokey.md#run)
+=======
+- **Realms (`/r/`)**: Stateful applications (smart contracts) that maintain 
+  persistent state between transactions
+- **Pure Packages (`/p/`)**: Stateless libraries that provide reusable 
+  functionality
+- **Ephemeral Packages (`/e/`)**: Temporary code execution environments created 
+  with [`gnokey maketx run`](../users/interact-with-gnokey.md#run). They are 
+  designed for executing complex logic or workflows (like `maketx call` on 
+  steroids) but exist only during their execution
+
+### Import Rules
+
+The import rules between different package types are:
+- **Pure packages (`/p/`)** can be imported by everything: realms, other 
+  packages, and ephemeral realms
+- **Realms (`/r/`)** can only be imported by other realms or ephemeral realms 
+  (not by pure packages)
+- **Ephemeral packages (`/e/`)** cannot be imported by anything
+
+When importing:
+- Importing a **realm** gives access to its exported functions and interacts 
+  with the realm's persistent state
+- Importing a **pure package** gives access to its exported functions without 
+  any state persistence
+>>>>>>> origin/master
 
 ## Language basics
 
