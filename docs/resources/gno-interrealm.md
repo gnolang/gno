@@ -16,6 +16,16 @@ domain. In other words, Go is a restricted subset of the Gno language in the
 single-user context. (In this analogy client requests for Go web servers don't
 count as they run outside of the server program).
 
+### Interrealm Programming Context
+
+For an overview of the different package types in Gno (`/p/`, `/r/`, and `/e/`), see [Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md).
+
+Interrealm programming refers to the ability of one realm to call functions in another realm. This can occur between:
+- Regular realms (`/r/`) calling other regular realms
+- Ephemeral realms (`/e/`) calling regular realms
+
+The key concept is that code executing in one realm context can interact with and call functions in other realms, enabling complex multi-user interactions while maintaining clear boundaries and permissions.
+
 ### Realm Write Access
 
 Objects that are directly or indirectly reachable (referenced) from the realm
@@ -446,11 +456,10 @@ func init() {
 }
 ```
 
-The same applies for p package initialization. Initialization and tests are the
-only times that `std.CurrentRealm()` will return a p package path that starts
-with "/p/" instead of "/r/". The package is technically still mutable during
-initialization. Note that the /e/ namespace is used for run paths (ephemeral),
-while /r/ is used for normal realms.
+The same applies for pure package (`/p/`) initialization. During initialization and tests, 
+`std.CurrentRealm()` can return a package path that starts with "/p/". This is because 
+the package is technically still mutable during its initialization phase. After initialization, 
+pure packages become immutable and cannot maintain state.
 
 ### Testing overrides with stdlibs/testing
 
