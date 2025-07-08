@@ -72,9 +72,9 @@ import "std"
 func main() {
 	println("=== Debug info ===")
 	println("Origin caller:", std.OriginCaller())
-	realm := std.CurrentRealm()
-	println("Current realm:", realm.String())
-	pkgPath := realm.PkgPath()
+	currentRealm := std.CurrentRealm()
+	println("Current realm:", currentRealm.String())
+	pkgPath := currentRealm.PkgPath()
 	println("Current pkg path:", pkgPath)
 	println("Derived addr from current:", std.DerivePkgAddr(pkgPath))
 }
