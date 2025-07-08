@@ -266,18 +266,18 @@ func (s *DAPServer) handleVariables(req *Request, _ []byte) error {
 	variables := make([]Variable, 0)
 
 	// Determine scope from variablesReference
-	// We use a simple scheme: 1000+frameID for locals, 2000+frameID for globals
-	frameID := 0
+	// We use a simple scheme: 1000+frameID for locals, 2000+frameID for globals, 3000+ for expandable variables
 	if args.VariablesReference >= 1000 && args.VariablesReference < 2000 {
 		// Local variables
-		frameID = args.VariablesReference - 1000
+		frameID := args.VariablesReference - 1000
 		variables = s.getLocalVariables(frameID)
 	} else if args.VariablesReference >= 2000 && args.VariablesReference < 3000 {
 		// Global variables
-		// frameID = args.VariablesReference - 2000
 		variables = s.getGlobalVariables()
+	} else if args.VariablesReference >= 3000 {
+		// Expandable variable
+		variables = s.getExpandedVariables(args.VariablesReference)
 	}
-	// If variablesReference doesn't match our scheme, return empty array
 
 	resp := NewResponse(req, true)
 	resp.Body = map[string]any{
@@ -372,35 +372,119 @@ func (s *DAPServer) typedValueToVariable(name string, tv TypedValue) Variable {
 	if tv.T != nil {
 		typeStr = tv.T.String()
 	}
+	
 
 	// Format value based on type
-	switch tv.T.(type) {
+	switch t := tv.T.(type) {
 	case PrimitiveType:
 		valueStr = tv.String()
-	case *SliceType, *ArrayType:
+	case *SliceType:
 		if tv.V != nil {
 			switch v := tv.V.(type) {
 			case *SliceValue:
-				valueStr = fmt.Sprintf("(length=%d, cap=%d)", v.Length, v.Maxcap)
-				// TODO: Assign a unique reference for expanding the slice
-			case *ArrayValue:
-				if v != nil && v.List != nil {
-					valueStr = fmt.Sprintf("(length=%d)", len(v.List))
-				} else {
-					valueStr = fmt.Sprintf("(length=%d)", 0)
+				valueStr = fmt.Sprintf("[]%s (length=%d, cap=%d)", t.Elt.String(), v.Length, v.Maxcap)
+				if v.Length > 0 {
+					// Assign a unique reference for expanding the slice
+					variablesRef = s.assignVariableRef(tv, 0)
 				}
-				// TODO: Assign a unique reference for expanding the array
 			default:
 				valueStr = tv.String()
 			}
 		} else {
 			valueStr = "nil"
 		}
-	case *StructType, *MapType:
-		// For complex types, show a summary
-		valueStr = typeStr
-		// TODO: Assign a unique reference for expanding the struct/map
+	case *ArrayType:
+		if tv.V != nil {
+			switch v := tv.V.(type) {
+			case *ArrayValue:
+				length := 0
+				if v != nil && v.List != nil {
+					length = len(v.List)
+				}
+				valueStr = fmt.Sprintf("[%d]%s", t.Len, t.Elt.String())
+				if length > 0 {
+					// Assign a unique reference for expanding the array
+					variablesRef = s.assignVariableRef(tv, 0)
+				}
+			default:
+				valueStr = tv.String()
+			}
+		} else {
+			valueStr = "nil"
+		}
+	case *StructType:
+		if tv.V != nil {
+			if sv, ok := tv.V.(*StructValue); ok && sv != nil {
+				valueStr = t.String()
+				// Assign a unique reference for expanding the struct
+				variablesRef = s.assignVariableRef(tv, 0)
+			} else {
+				valueStr = tv.String()
+			}
+		} else {
+			valueStr = "nil"
+		}
+	case *MapType:
+		valueStr = t.String()
+		if tv.V != nil {
+			if mv, ok := tv.V.(*MapValue); ok && mv != nil {
+				length := 0
+				if mv.List != nil {
+					length = mv.List.Size
+				}
+				valueStr = fmt.Sprintf("map[%s]%s (length=%d)", t.Key.String(), t.Value.String(), length)
+				if length > 0 {
+					// Assign a unique reference for expanding the map
+					variablesRef = s.assignVariableRef(tv, 0)
+				}
+			}
+		}
+	case *PointerType:
+		if tv.V != nil {
+			if pv, ok := tv.V.(PointerValue); ok && pv.TV != nil {
+				valueStr = fmt.Sprintf("&%s", pv.TV.String())
+				// Assign a unique reference for dereferencing the pointer
+				variablesRef = s.assignVariableRef(*pv.TV, 0)
+			} else {
+				valueStr = tv.String()
+			}
+		} else {
+			valueStr = "nil"
+		}
+	case *DeclaredType:
+		// Handle declared types (custom types)
+		valueStr = tv.String()
+		if tv.V != nil {
+			// Check the underlying type
+			if t.Base != nil {
+				switch t.Base.(type) {
+				case *StructType:
+					if sv, ok := tv.V.(*StructValue); ok && sv != nil {
+						// Assign a unique reference for expanding the struct
+						variablesRef = s.assignVariableRef(tv, 0)
+					}
+				case *SliceType:
+					if sv, ok := tv.V.(*SliceValue); ok && sv != nil && sv.Length > 0 {
+						// Assign a unique reference for expanding the slice
+						variablesRef = s.assignVariableRef(tv, 0)
+					}
+				case *ArrayType:
+					if av, ok := tv.V.(*ArrayValue); ok && av != nil && av.List != nil && len(av.List) > 0 {
+						// Assign a unique reference for expanding the array
+						variablesRef = s.assignVariableRef(tv, 0)
+					}
+				}
+			}
+		}
 	default:
+		// Check if it's a heapitem
+		if tv.T != nil && tv.T.Kind() == HeapItemKind {
+			// Handle heapitem by unwrapping the actual value
+			if hiv, ok := tv.V.(*HeapItemValue); ok && hiv != nil {
+				// Recursively process the wrapped value
+				return s.typedValueToVariable(name, hiv.Value)
+			}
+		}
 		// For other types, use String() method
 		valueStr = tv.String()
 	}
@@ -411,6 +495,114 @@ func (s *DAPServer) typedValueToVariable(name string, tv TypedValue) Variable {
 		Type:               typeStr,
 		VariablesReference: variablesRef,
 	}
+}
+
+// assignVariableRef assigns a unique reference ID for a variable that can be expanded
+func (s *DAPServer) assignVariableRef(tv TypedValue, frameID int) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	ref := s.nextVariableRef
+	s.nextVariableRef++
+	s.variableRefs[ref] = variableInfo{
+		value:   tv,
+		frameID: frameID,
+		isScoped: false,
+	}
+	return ref
+}
+
+// getExpandedVariables returns child variables for an expandable variable
+func (s *DAPServer) getExpandedVariables(ref int) []Variable {
+	s.mu.Lock()
+	info, exists := s.variableRefs[ref]
+	s.mu.Unlock()
+	
+	if !exists {
+		return []Variable{}
+	}
+	
+	variables := make([]Variable, 0)
+	tv := info.value
+	
+	switch t := tv.T.(type) {
+	case *ArrayType:
+		if av, ok := tv.V.(*ArrayValue); ok && av != nil && av.List != nil {
+			for i, elem := range av.List {
+				name := fmt.Sprintf("[%d]", i)
+				variables = append(variables, s.typedValueToVariable(name, elem))
+			}
+		}
+	case *SliceType:
+		if sv, ok := tv.V.(*SliceValue); ok && sv != nil {
+			// Get the underlying array
+			if base := sv.GetBase(s.machine.Store); base != nil && base.List != nil {
+				for i := sv.Offset; i < sv.Offset+sv.Length && i < len(base.List); i++ {
+					name := fmt.Sprintf("[%d]", i-sv.Offset)
+					variables = append(variables, s.typedValueToVariable(name, base.List[i]))
+				}
+			}
+		}
+	case *StructType:
+		if sv, ok := tv.V.(*StructValue); ok && sv != nil && sv.Fields != nil {
+			for i, field := range t.Fields {
+				if i < len(sv.Fields) {
+					variables = append(variables, s.typedValueToVariable(string(field.Name), sv.Fields[i]))
+				}
+			}
+		}
+	case *MapType:
+		if mv, ok := tv.V.(*MapValue); ok && mv != nil && mv.List != nil {
+			i := 0
+			for item := mv.List.Head; item != nil; item = item.Next {
+				keyVar := s.typedValueToVariable(fmt.Sprintf("[key %d]", i), item.Key)
+				variables = append(variables, keyVar)
+				
+				valueVar := s.typedValueToVariable(fmt.Sprintf("[value %d]", i), item.Value)
+				variables = append(variables, valueVar)
+				
+				i++
+			}
+		}
+	case *PointerType:
+		// For pointers, we've already stored the dereferenced value
+		// Just create a single variable for the pointed-to value
+		variables = append(variables, s.typedValueToVariable("*", tv))
+	case *DeclaredType:
+		// Handle declared types by checking their base type
+		if t.Base != nil {
+			switch baseType := t.Base.(type) {
+			case *StructType:
+				if sv, ok := tv.V.(*StructValue); ok && sv != nil && sv.Fields != nil {
+					for i, field := range baseType.Fields {
+						if i < len(sv.Fields) {
+							variables = append(variables, s.typedValueToVariable(string(field.Name), sv.Fields[i]))
+						}
+					}
+				}
+			case *SliceType:
+				// Reuse slice expansion logic
+				if sv, ok := tv.V.(*SliceValue); ok && sv != nil {
+					if base := sv.GetBase(s.machine.Store); base != nil && base.List != nil {
+						for i := sv.Offset; i < sv.Offset+sv.Length && i < len(base.List); i++ {
+							name := fmt.Sprintf("[%d]", i-sv.Offset)
+							variables = append(variables, s.typedValueToVariable(name, base.List[i]))
+						}
+					}
+				}
+			case *ArrayType:
+				// Reuse array expansion logic
+				if av, ok := tv.V.(*ArrayValue); ok && av != nil && av.List != nil {
+					for i, elem := range av.List {
+						name := fmt.Sprintf("[%d]", i)
+						variables = append(variables, s.typedValueToVariable(name, elem))
+					}
+				}
+			}
+		}
+	}
+	
+	return variables
 }
 
 // handleContinue processes the continue request

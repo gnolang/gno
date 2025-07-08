@@ -42,6 +42,10 @@ type DAPServer struct {
 	breakpoints      map[string][]Breakpoint // map[source.path][]Breakpoint
 	nextBreakpointID int
 	threadID         int // Gno VM is single-threaded, but DAP requires thread IDs
+	
+	// Variable reference management
+	variableRefs      map[int]variableInfo // map[reference]info
+	nextVariableRef   int
 
 	// Client capabilities
 	clientLinesStartAt1   bool
@@ -59,12 +63,42 @@ type StopReason struct {
 	Description string
 }
 
+// variableInfo stores information about a variable with children
+type variableInfo struct {
+	value    TypedValue
+	frameID  int
+	isScoped bool // true if this is a scope reference (locals/globals)
+}
+
+// dapOutputWriter intercepts output and sends it as DAP output events
+type dapOutputWriter struct {
+	server   *DAPServer
+	category string
+}
+
+func (w *dapOutputWriter) Write(p []byte) (n int, err error) {
+	// Send output event if DAP server is connected
+	if w.server != nil && w.server.writer != nil {
+		event := &OutputEvent{
+			Event: *NewEvent("output"),
+			Body: OutputEventBody{
+				Category: w.category,
+				Output:   string(p),
+			},
+		}
+		w.server.sendMessage(event)
+	}
+	return len(p), nil
+}
+
 // NewDAPServer creates a new DAP server
 func NewDAPServer(debugger *Debugger, machine *Machine) *DAPServer {
 	return &DAPServer{
 		debugger:              debugger,
 		machine:               machine,
 		breakpoints:           make(map[string][]Breakpoint),
+		variableRefs:          make(map[int]variableInfo),
+		nextVariableRef:       3000, // Start from 3000 to avoid conflicts with scope references
 		threadID:              1, // Single thread
 		stopCh:                make(chan StopReason, 1),
 		continueCh:            make(chan struct{}, 1),
@@ -97,6 +131,14 @@ func (s *DAPServer) Serve(mode DAPMode, addr string) error {
 		s.reader = bufio.NewReader(conn)
 		s.writer = conn
 		defer conn.Close()
+	}
+
+	// Set up output redirection to DAP
+	if s.machine != nil {
+		s.machine.Output = &dapOutputWriter{
+			server:   s,
+			category: "stdout",
+		}
 	}
 
 	// Start the main message loop
