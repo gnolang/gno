@@ -18,7 +18,9 @@ cd gno
 make install
 ```
 
-If `gno` and `gnokey` commands are not found, see [Go's official documentation](https://go.dev/doc/tutorial/compile-install) for configuring your PATH.
+If `gno` and `gnokey` commands are not found, see [Go's official
+documentation](https://go.dev/doc/tutorial/compile-install) for configuring your
+PATH.
 
 ### Testing
 
@@ -34,7 +36,9 @@ gno test ./examples/... -v
 
 ## Project Structure
 
-See the [README](./README.md) for project structure overview. Most important directories have their own README explaining their purpose and how to contribute.
+See the [README](./README.md) for project structure overview. Most important
+directories have their own README explaining their purpose and how to
+contribute.
 
 **Tip**: Look at recent commits to understand typical file modifications:
 ```bash
@@ -51,7 +55,8 @@ git log --oneline -10
 4. **Fill out the template** - Explain what and why
 5. **Move to ready** - Once CI passes and you've self-reviewed
 
-Our CI is designed to help both you and maintainers identify potential side effects of changes. Use it as a guide to improve your PR.
+Our CI is designed to help both you and maintainers identify potential side
+effects of changes. Use it as a guide to improve your PR.
 
 ### Git Commit Messages
 
@@ -62,7 +67,8 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### Rebasing
 
-Avoid rebasing after opening your PR for review. Maintainers handle the final squash/merge. Add new commits to address feedback instead of force-pushing.
+Avoid rebasing after opening your PR for review. Maintainers handle the final
+squash/merge. Add new commits to address feedback instead of force-pushing.
 
 ### Code Style
 
@@ -73,14 +79,14 @@ Avoid rebasing after opening your PR for review. Maintainers handle the final sq
 
 ### Editor Setup
 
-For editor configuration and LSP support, see [github.com/gnoverse/gnopls](https://github.com/gnoverse/gnopls).
+For editor configuration and LSP support, see
+[github.com/gnoverse/gnopls](https://github.com/gnoverse/gnopls).
 
 ## Reporting Issues
 
 Before opening an issue:
 1. Search existing issues
-2. Include reproduction steps
-3. Provide version info and logs
+2. Include reproduction steps, version info, and logs
 
 ## Quality Standards
 
@@ -94,7 +100,8 @@ Avoid superficial changes aimed at farming airdrops or karma.
 
 ## Communication
 
-See the [Community section](./README.md#community) in our README for Discord, GitHub discussions, and other communication channels.
+See the [Community section](./README.md#community) in our README for Discord,
+GitHub discussions, and other communication channels.
 
 ---
 
