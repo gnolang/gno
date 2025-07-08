@@ -15,6 +15,7 @@ import (
 	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -212,15 +213,13 @@ func StoreWithOptions(
 			return loadFromDir(pkg.Dir)
 		}
 
-		/*
-
+		if opts.WithExamples {
 			// if examples package...
 			examplePath := filepath.Join(rootDir, "examples", pkgPath)
 			if osm.DirExists(examplePath) {
 				return loadFromDir(examplePath)
 			}
-
-		*/
+		}
 
 		return nil, nil
 	}

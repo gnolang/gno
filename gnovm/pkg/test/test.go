@@ -164,10 +164,9 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer, pkgs packages.PkgL
 	}
 	opts.BaseStore, opts.TestStore = StoreWithOptions(
 		rootDir, opts.WriterForStore(), StoreOptions{
-			WithExtern:   false,
-			WithExamples: true,
-			Testing:      true,
-			Packages:     pkgs,
+			WithExtern: false,
+			Testing:    true,
+			Packages:   pkgs,
 		})
 	return opts
 }
