@@ -50,8 +50,10 @@ import (
 )
 
 func main() {
-
-	preq := impl.NewWithdrawMemberRequest(cross, std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "not responding")
+	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	reason := "not responding"
+	
+	preq := impl.NewWithdrawMemberRequest(cross, addr, reason)
 	dao.MustCreateProposal(cross, preq)
 }
 
