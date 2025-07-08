@@ -15,7 +15,6 @@ var (
 )
 
 // ParseDir parses, validates and returns a gno.mod or gnomod.toml file located at dir (does not search parents).
-// It also return the path to the file if found.
 func ParseDir(dir string) (*File, error) {
 	ferr := func(err error) (*File, error) {
 		return nil, fmt.Errorf("parsing gno.mod/gnomod.toml at %s: %w", dir, err)
@@ -33,8 +32,7 @@ func ParseDir(dir string) (*File, error) {
 			if err != nil {
 				return ferr(err)
 			}
-			f, err := ParseBytes(fpath, b)
-			return f, err
+			return ParseBytes(fpath, b)
 		}
 	}
 
