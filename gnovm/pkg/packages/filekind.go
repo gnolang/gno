@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"fmt"
 	"go/parser"
 	"go/token"
 	"strings"
@@ -33,12 +32,8 @@ func GnoFileKinds() []FileKind {
 
 // GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional
 func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, error) {
-	if filename == "LICENSE" || filename == "README.md" {
-		return FileKindOther, nil
-	}
-
 	if !strings.HasSuffix(filename, ".gno") {
-		return FileKindUnknown, fmt.Errorf("%s:1:1: not a gno file", filename)
+		return FileKindOther, nil
 	}
 
 	if strings.HasSuffix(filename, "_filetest.gno") {

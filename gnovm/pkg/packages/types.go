@@ -11,6 +11,8 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+// TODO: self-review this file
+
 // ported from https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/cmd/go/internal/load/pkg.go
 type Package struct {
 	Dir        string                `json:",omitempty"` // directory containing package sources

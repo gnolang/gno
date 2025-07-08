@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -16,6 +15,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -28,13 +28,6 @@ type LoadConfig struct {
 	Test                bool                       // load test dependencies
 	WorkspaceRoot       string                     // disable workspace root detection if set
 	ExtraWorkspaceRoots []string                   // extra workspaces root used to find dependencies
-}
-
-// XXX: get from ssot
-var injectedTestingLibs = []string{"encoding/json", "fmt", "internal/os_test", "os"}
-
-func IsInjectedTestingStdlib(pkgPath string) bool {
-	return slices.Contains(injectedTestingLibs, pkgPath)
 }
 
 func (conf *LoadConfig) applyDefaults() error {
@@ -85,7 +78,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
-	pkgs, err := readPackages(conf.Out, conf.Fetcher, expanded, nil, conf.Fset)
+	pkgs, err := loadMatches(conf.Out, conf.Fetcher, expanded, nil, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
@@ -98,14 +91,14 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		return pkgs, nil
 	}
 
-	// resolve deps
+	// load deps
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
 
-	resolvedByPkgPath := NewPackagesMap(pkgs...)
+	resolvedByPkgPath := map[string]struct{}{}
 	markDepForVisit := func(pkg *Package) {
-		resolvedByPkgPath.Add(pkg) // will only add if not already added
+		resolvedByPkgPath[pkg.ImportPath] = struct{}{} // will only add if not already added
 		toVisit = append(toVisit, pkg)
 	}
 
@@ -131,7 +124,8 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		}
 
 		for _, imp := range pkg.ImportsSpecs.Merge(importKinds...) {
-			if IsInjectedTestingStdlib(imp.PkgPath) {
+			// ignore injected testing stdlibs
+			if stdlibs.HasNativePkg(imp.PkgPath) {
 				continue
 			}
 
@@ -156,19 +150,19 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 					}
 					pkg.Errors = append(pkg.Errors, err)
 				}
-				markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, conf.Fset))
+				markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, conf.Fset))
 				continue
 			}
 
 			// check if this package is present in current workspace or extra workspace roots
 			if dir, ok := localDeps[imp.PkgPath]; ok {
-				markDepForVisit(readPkgDir(conf.Out, nil, dir, conf.Fset))
+				markDepForVisit(loadSinglePkg(conf.Out, nil, dir, conf.Fset))
 				continue
 			}
 
 			// attempt to download package
 			dir := PackageDir(imp.PkgPath)
-			markDepForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, conf.Fset))
+			markDepForVisit(loadSinglePkg(conf.Out, conf.Fetcher, dir, conf.Fset))
 		}
 
 		loaded = append(loaded, pkg)

@@ -43,9 +43,9 @@ func TestGetFileKind(t *testing.T) {
 			fileKind: FileKindFiletest,
 		},
 		{
-			name:          "err_notgnofile",
-			filename:      "foo.gno.bck",
-			errorContains: `foo.gno.bck:1:1: not a gno file`,
+			name:     "notgnofile",
+			filename: "foo.gno.bck",
+			fileKind: FileKindOther,
 		},
 	}
 

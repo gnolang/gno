@@ -238,6 +238,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        workspace1Abs,
 				Match:      []string{"."},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
 					FileKindPackageSource: {"foo.gno"},
 					FileKindTest:          {"foo_test.gno"},
 				},
@@ -256,6 +257,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        workspace1Abs,
 				Match:      []string{workspace1Abs},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
 					FileKindPackageSource: {"foo.gno"},
 					FileKindTest:          {"foo_test.gno"},
 				},
@@ -274,6 +276,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        workspace1Abs,
 				Match:      []string{"./..."},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
 					FileKindPackageSource: {"foo.gno"},
 					FileKindTest:          {"foo_test.gno"},
 				},
@@ -292,9 +295,7 @@ func TestDataLoad(t *testing.T) {
 				ImportPath: "gno.example.com/r/wspace1/invalidpkg",
 				Dir:        filepath.Join(workspace1Abs, "invalidpkg"),
 				Match:      []string{"./..."},
-				Files: FilesMap{
-					FileKindPackageSource: {"a.gno", "b.gno"},
-				},
+				Files:      FilesMap{},
 				Errors: []*Error{{
 					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
 					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\"", filepath.Join(workspace1Abs, "invalidpkg")),
@@ -311,6 +312,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        workspace1Abs,
 				Match:      []string{"./...", workspace1Abs, filepath.Join(workspace1Abs, "...")},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
 					FileKindPackageSource: {"foo.gno"},
 					FileKindTest:          {"foo_test.gno"},
 				},
@@ -329,9 +331,7 @@ func TestDataLoad(t *testing.T) {
 				ImportPath: "gno.example.com/r/wspace1/invalidpkg",
 				Dir:        filepath.Join(workspace1Abs, "invalidpkg"),
 				Match:      []string{"./...", filepath.Join(workspace1Abs, "...")},
-				Files: FilesMap{
-					FileKindPackageSource: {"a.gno", "b.gno"},
-				},
+				Files:      FilesMap{},
 				Errors: []*Error{{
 					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
 					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\"", filepath.Join(workspace1Abs, "invalidpkg")),
@@ -348,6 +348,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        workspace2Abs,
 				Match:      []string{"."},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
 					FileKindPackageSource: {"lib.gno", "main.gno"},
 				},
 			}},
@@ -362,6 +363,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        workspace2Abs,
 				Match:      []string{"./..."},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml", "gnowork.toml"},
 					FileKindPackageSource: {"lib.gno", "main.gno"},
 				},
 			}, {
@@ -370,6 +372,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "bar"),
 				Match:      []string{"./..."},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml"},
 					FileKindPackageSource: {"bar.gno"},
 					FileKindXTest:         {"bar_test.gno"},
 				},
@@ -383,6 +386,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "foo"),
 				Match:      []string{"./..."},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml"},
 					FileKindPackageSource: {"foo.gno"},
 				},
 			}},
@@ -397,6 +401,9 @@ func TestDataLoad(t *testing.T) {
 				Dir:        StdlibDir("math/bits"),
 				Match:      []string{"math/bits"},
 				Files: FilesMap{
+					FileKindOther: {
+						"gnomod.toml",
+					},
 					FileKindPackageSource: {
 						"bits.gno",
 						"bits_errors.gno",
@@ -425,6 +432,7 @@ func TestDataLoad(t *testing.T) {
 				Dir:        PackageDir("gno.example.com/p/demo/avl"),
 				Match:      []string{"gno.example.com/p/demo/avl"},
 				Files: FilesMap{
+					FileKindOther:         {"gnomod.toml"},
 					FileKindPackageSource: {"avl.gno"},
 				},
 			}},

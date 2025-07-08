@@ -3,10 +3,8 @@ package packages
 import (
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type (
@@ -14,95 +12,12 @@ type (
 	SortedPkgList []*Package
 )
 
-var _ gnolang.MemPackageGetter = (*PkgList)(nil)
-
 func (pl PkgList) Get(pkgPath string) *Package {
 	for _, p := range pl {
 		if p.ImportPath == pkgPath {
 			return p
 		}
 	}
-	return nil
-}
-
-func (pl PkgList) PkgPaths() []string {
-	res := make([]string, 0, len(pl))
-	for _, pkg := range pl {
-		res = append(res, pkg.ImportPath)
-	}
-	return res
-}
-
-func (pl PkgList) Traverse(roots []string, filekinds []FileKind, cb func(p *Package) error) error {
-	visited := []string{}
-
-	for _, root := range roots {
-		if err := pl.traverseVisit(&visited, root, filekinds, cb); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (pl PkgList) traverseVisit(visited *[]string, pkgPath string, filekinds []FileKind, cb func(p *Package) error) error {
-	if slices.Contains(*visited, pkgPath) {
-		return nil
-	}
-	*visited = append(*visited, pkgPath)
-
-	pkg := pl.Get(pkgPath)
-	if pkg == nil {
-		return fmt.Errorf("%s: %w", pkgPath, ErrPackageNotFound)
-	}
-
-	if err := cb(pkg); err != nil {
-		return err
-	}
-
-	for _, imp := range pkg.ImportsSpecs.Merge(filekinds...) {
-		if err := pl.traverseVisit(visited, imp.PkgPath, filekinds, cb); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (pl PkgList) Explore(roots []string, cb func(p *Package) ([]string, error)) error {
-	visited := []string{}
-
-	for _, root := range roots {
-		if err := pl.exploreVisit(&visited, root, cb); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (pl PkgList) exploreVisit(visited *[]string, pkgPath string, cb func(p *Package) ([]string, error)) error {
-	if slices.Contains(*visited, pkgPath) {
-		return nil
-	}
-	*visited = append(*visited, pkgPath)
-
-	pkg := pl.Get(pkgPath)
-	if pkg == nil {
-		return fmt.Errorf("%s: %w", pkgPath, ErrPackageNotFound)
-	}
-
-	next, err := cb(pkg)
-	if err != nil {
-		return err
-	}
-
-	for _, imp := range next {
-		if err := pl.exploreVisit(visited, imp, cb); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -115,29 +30,6 @@ func (pl PkgList) GetByDir(dir string) *Package {
 		}
 	}
 	return nil
-}
-
-func (pl PkgList) Matches() PkgList {
-	res := PkgList{}
-	for _, p := range pl {
-		if len(p.Match) == 0 {
-			continue
-		}
-		res = append(res, p)
-	}
-	return res
-}
-
-func (pl PkgList) GetMemPackage(pkgPath string) *std.MemPackage {
-	pkg := pl.Get(pkgPath)
-	if pkg == nil {
-		return nil
-	}
-	memPkg, err := pkg.MemPkg()
-	if err != nil {
-		panic(err)
-	}
-	return memPkg
 }
 
 // sortPkgs sorts the given packages by their dependencies.
@@ -195,6 +87,8 @@ func visitPackage(ignoreStdlibs bool, pkg *Package, pkgs []*Package, visited, on
 	return nil
 }
 
+// XXX: consider remove this
+
 // GetNonIgnoredPkgs returns packages that are not draft
 // and have no direct or indirect draft dependencies.
 func (sp SortedPkgList) GetNonIgnoredPkgs() SortedPkgList {
@@ -219,31 +113,4 @@ func (sp SortedPkgList) GetNonIgnoredPkgs() SortedPkgList {
 		}
 	}
 	return res
-}
-
-type PackagesMap map[string]*Package
-
-func NewPackagesMap(pkgs ...*Package) PackagesMap {
-	pm := make(PackagesMap, len(pkgs))
-	pm.AddBulk(pkgs...)
-	return pm
-}
-
-func (pm PackagesMap) Add(pkg *Package) bool {
-	if pkg.ImportPath == "" {
-		return false
-	}
-
-	if _, ok := pm[pkg.ImportPath]; ok {
-		return false
-	}
-
-	pm[pkg.ImportPath] = pkg
-	return true
-}
-
-func (pm PackagesMap) AddBulk(pkgs ...*Package) {
-	for _, pkg := range pkgs {
-		_ = pm.Add(pkg)
-	}
 }

@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -118,50 +117,59 @@ func expandPatterns(workRoot string, warn io.Writer, patterns ...string) ([]*pkg
 	return pkgMatches, nil
 }
 
-func expandRecursive(workRoot string, pat string) ([]string, error) {
-	// XXX: ignore sub modules
+func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
+	// this works because we only support ... at the end of patterns for now
+	patternRoot, _ := filepath.Split(pattern)
 
-	patRoot, _ := filepath.Split(pat)
-
-	info, err := os.Stat(patRoot)
+	// check that the pattern root is a directory
+	rootInfo, err := os.Stat(patternRoot)
 	if err != nil {
 		return nil, err
 	}
-
-	if !info.IsDir() {
-		return nil, errors.New("glob root is not a directory")
+	if !rootInfo.IsDir() {
+		return nil, fmt.Errorf("recursive pattern root %q is not a directory", patternRoot)
 	}
 
 	// we swallow errors after this point as we want the most packages we can get
-	dirs := []string{}
-	_ = fs.WalkDir(os.DirFS(patRoot), ".", func(path string, d fs.DirEntry, err error) error {
+
+	pkgDirs := []string{}
+	_ = fs.WalkDir(os.DirFS(patternRoot), ".", func(path string, d fs.DirEntry, err error) error {
+		// only consider valid files
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
 			return nil
 		}
-		dir, base := filepath.Split(path)
-		dir = filepath.Join(patRoot, dir)
-		if slices.Contains(dirs, dir) {
+
+		// get file's parent directory
+		parentDir, base := filepath.Split(path)
+		parentDir = filepath.Join(patternRoot, parentDir)
+
+		// ignore file if it's containing directory is already marked as a package dir
+		if slices.Contains(pkgDirs, parentDir) {
 			return nil
 		}
+
 		switch base {
-		case "gnomod.toml":
-			// XXX: should we include packages with .gno files and automatically derive pkgpath?
-			dirs = append(dirs, dir)
+		case "gnomod.toml", "gno.mod":
+			// add directories that contain gnomods as package dirs
+			pkgDirs = append(pkgDirs, parentDir)
 			return nil
 		case "gnowork.toml":
-			// stop if sub-workspace
-			if dir != workRoot {
-				dirs = slices.DeleteFunc(dirs, func(d string) bool { return d == dir })
+			// ignore sub-tree if it's a sub-workspace
+			if parentDir != workspaceRoot {
+				pkgDirs = slices.DeleteFunc(pkgDirs, func(d string) bool { return d == parentDir })
 				return fs.SkipDir
 			}
 		}
+
+		// XXX: include directories with .gno files and automatically derive pkgpath from gnowork.toml paths
+
 		return nil
 	})
 
-	return dirs, nil
+	return pkgDirs, nil
 }
 
 type patternKind int
