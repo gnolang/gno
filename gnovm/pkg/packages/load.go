@@ -26,6 +26,7 @@ type LoadConfig struct {
 	Fset                *token.FileSet             // external fset to help with pretty errors
 	Out                 io.Writer                  // used to print info
 	Test                bool                       // load test dependencies
+	GnoRoot             string                     // used to override GNOROOT
 	WorkspaceRoot       string                     // disable workspace root detection if set
 	ExtraWorkspaceRoots []string                   // extra workspaces root used to find dependencies
 }
@@ -39,6 +40,9 @@ func (conf *LoadConfig) applyDefaults() error {
 	}
 	if conf.Fset == nil {
 		conf.Fset = token.NewFileSet()
+	}
+	if conf.GnoRoot == "" {
+		conf.GnoRoot = gnoenv.RootDir()
 	}
 	return nil
 }
@@ -73,7 +77,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	localDeps := discoverPkgsForLocalDeps(append([]string{conf.WorkspaceRoot}, conf.ExtraWorkspaceRoots...))
 
-	expanded, err := expandPatterns(conf.WorkspaceRoot, conf.Out, patterns...)
+	expanded, err := expandPatterns(conf.GnoRoot, conf.WorkspaceRoot, conf.Out, patterns...)
 	if err != nil {
 		return nil, err
 	}

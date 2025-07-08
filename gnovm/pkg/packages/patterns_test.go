@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,7 +98,7 @@ func TestPatternKind(t *testing.T) {
 }
 
 func TestStdlibDir(t *testing.T) {
-	dir := StdlibDir("foo/bar")
+	dir := StdlibDir(gnoenv.RootDir(), "foo/bar")
 	expectedDir := filepath.Join("..", "..", "stdlibs", "foo", "bar")
 
 	absExpectedDir, err := filepath.Abs(expectedDir)
@@ -118,6 +119,8 @@ func TestDataExpandPatterns(t *testing.T) {
 		}
 		return "." + string(filepath.Separator) + fp
 	}
+
+	gnoRoot := gnoenv.RootDir()
 
 	tcs := []struct {
 		name string
@@ -212,10 +215,10 @@ func TestDataExpandPatterns(t *testing.T) {
 			name:     "stdlibs",
 			patterns: []string{"strings", "math"},
 			res: []*pkgMatch{{
-				Dir:   StdlibDir("math"),
+				Dir:   StdlibDir(gnoRoot, "math"),
 				Match: []string{"math"},
 			}, {
-				Dir:   StdlibDir("strings"),
+				Dir:   StdlibDir(gnoRoot, "strings"),
 				Match: []string{"strings"},
 			}},
 		},
@@ -264,7 +267,7 @@ func TestDataExpandPatterns(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			warn := &strings.Builder{}
-			res, err := expandPatterns(cwd, warn, tc.patterns...)
+			res, err := expandPatterns(gnoRoot, cwd, warn, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {

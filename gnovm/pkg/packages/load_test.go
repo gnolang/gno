@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -398,7 +399,7 @@ func TestDataLoad(t *testing.T) {
 			res: PkgList{{
 				ImportPath: "math/bits",
 				Name:       "bits",
-				Dir:        StdlibDir("math/bits"),
+				Dir:        StdlibDir(gnoenv.RootDir(), "math/bits"),
 				Match:      []string{"math/bits"},
 				Files: FilesMap{
 					FileKindOther: {

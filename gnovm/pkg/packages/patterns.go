@@ -19,7 +19,7 @@ type pkgMatch struct {
 	Match []string
 }
 
-func expandPatterns(workRoot string, warn io.Writer, patterns ...string) ([]*pkgMatch, error) {
+func expandPatterns(gnoRoot string, workspaceRoot string, out io.Writer, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch(nil)
 
 	addPkgDir := func(dir string, match *string) {
@@ -49,7 +49,7 @@ func expandPatterns(workRoot string, warn io.Writer, patterns ...string) ([]*pkg
 		}
 		kinds = append(kinds, patKind)
 
-		if workRoot == "" {
+		if workspaceRoot == "" {
 			continue
 		}
 		switch patKind {
@@ -58,8 +58,8 @@ func expandPatterns(workRoot string, warn io.Writer, patterns ...string) ([]*pkg
 			if err != nil {
 				return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
 			}
-			if !strings.HasPrefix(absPat, workRoot) {
-				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q is not in %q)", match, absPat, workRoot)
+			if !strings.HasPrefix(absPat, workspaceRoot) {
+				return nil, fmt.Errorf("pattern %q is not rooted in current workspace (%q is not in %q)", match, absPat, workspaceRoot)
 			}
 		}
 	}
@@ -90,19 +90,19 @@ func expandPatterns(workRoot string, warn io.Writer, patterns ...string) ([]*pkg
 		case patternKindRemote:
 			var dir string
 			if gnolang.IsStdlib(pat) {
-				dir = StdlibDir(pat)
+				dir = StdlibDir(gnoRoot, pat)
 			} else {
 				dir = PackageDir(pat)
 			}
 			addPkgDir(dir, &match)
 
 		case patternKindRecursiveLocal:
-			dirs, err := expandRecursive(workRoot, pat)
+			dirs, err := expandRecursive(workspaceRoot, pat)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", pat, err)
 			}
 			if len(dirs) == 0 {
-				fmt.Fprintf(warn, "gno: warning: %q matched no packages\n", match)
+				fmt.Fprintf(out, "gno: warning: %q matched no packages\n", match)
 			}
 			for _, dir := range dirs {
 				addPkgDir(dir, &match)
