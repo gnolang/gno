@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
+
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -271,9 +273,9 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	mpkg.Sort()
 	// parse files.
 	files := ParseMemPackageAsType(mpkg, mptype)
-	mod, err := ParseCheckGnoMod(mpkg)
+	mod, err := gnomod.ParseMemPackage(mpkg)
 	private := false
-	if err != nil || mod != nil {
+	if err != nil && mod != nil {
 		private = mod.Private
 	}
 
