@@ -27,8 +27,8 @@ import (
 )
 
 func main() {
-	ex := dao.NewSafeExecutor(dao.NewSimpleExecutor(func()error{return nil}, "desc"))
-	pr := dao.NewProposalRequest("title", "desc", ex) 
+	ex := dao.NewSafeExecutor(dao.NewSimpleExecutor(func(realm)error{return nil}, "desc"))
+	pr := dao.NewProposalRequest("title", "desc", ex)
 	_, err := dao.CreateProposal(cross, pr)
 	println(err.Error())
 }
