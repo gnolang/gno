@@ -218,9 +218,6 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		Out:        io.Err(),
 	}
 	_, err := packages.Load(loadCfg, "./...")
-
-	// XXX: maybe error-out on pkgs errors?
-
 	return err
 }
 
