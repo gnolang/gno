@@ -14,16 +14,6 @@ used on-chain.
 
 This file defines metadata for your Gno package and can include the following fields:
 
-#### `private` (coming soon)
-
-Marks the package as private and **unimportable** by any other package. Additionally:
-- It can be **re-uploaded** - the new version fully overwrites the old one.
-- Memory, pointers, or types defined in this package **cannot be used or stored elsewhere**.
-- Usually, this flag can be used for packages that are meant to be changed,
-such as the home realm of a specific user (i.e. `r/username/home`). 
-- *This flag _does not_ provide any sort of privacy. All code is still fully
-open-source and visible to everyone, including the transactions that were used for deployments.
-
 #### `gno`  
 
 Specifies the **Gno language version**. Currently, only version `"0.9"` is supported.
@@ -53,11 +43,25 @@ A flag intended for **chain creators**. Marks the package as *unimportable*
 during normal operation. This flag is **ignored at block 0**, allowing draft
 packages to be included at genesis.
 
+#### `private` (coming soon)
+
+Marks the package as private and **unimportable** by any other package. Additionally:
+- It can be **re-uploaded** - the new version fully overwrites the old one.
+- Memory, pointers, or types defined in this package **cannot be used or stored elsewhere**.
+- Usually, this flag can be used for packages that are meant to be changed,
+  such as the home realm of a specific user (i.e. `r/username/home`).
+- *This flag _does not_ provide any sort of privacy. All code is still fully
+  open-source and visible to everyone, including the transactions that were used for deployments.
+
+#### `ignore` (coming soon)
+
+?
+
 ### Example
 
 ```toml
 # gnomod.toml
-path = "gno.land/r/test"
+module = "gno.land/r/test"
 gno = "0.9"
 draft = true
 private = true
@@ -70,7 +74,8 @@ private = true
   new = "../.."
 
 [upload_metadata]
-  uploader = "g1xyz..."
+    uploader = "g1xyz..."
+    height = 123
 ```
 
 Note that this example isn't realistic because we should either replace,
