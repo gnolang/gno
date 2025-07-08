@@ -53,9 +53,9 @@ Marks the package as private and **unimportable** by any other package. Addition
 - *This flag _does not_ provide any sort of privacy. All code is still fully
   open-source and visible to everyone, including the transactions that were used for deployments.
 
-#### `ignore` (coming soon)
+#### `ignore` 
 
-?
+Coming soon - follow progress [here](https://github.com/gnolang/gno/pull/4413).
 
 ### Example
 
