@@ -188,7 +188,7 @@ func ExampleDebugger_ServeDAP() {
 	// Start DAP server
 	addr := "localhost:0"
 	go func() {
-		if err := machine.Debugger.ServeDAP(machine, addr); err != nil {
+		if err := machine.Debugger.ServeDAP(machine, addr, false, nil, ""); err != nil {
 			fmt.Println("DAP server error:", err)
 		}
 	}()
