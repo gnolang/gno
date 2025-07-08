@@ -59,8 +59,8 @@ var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
 	if !g.isValidCall() {
-		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v, originCaller: %v",
-			std.CurrentRealm(), std.PreviousRealm(), std.OriginCaller()))
+		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
+			std.CurrentRealm(), std.PreviousRealm()))
 	}
 
 	// Verify that the one creating the proposal is a member.
@@ -182,7 +182,6 @@ func (g *GovDAO) isValidCall() bool {
 		if isMsgRun {
 			return true
 		}
-
 	}
 
 	// case 2
