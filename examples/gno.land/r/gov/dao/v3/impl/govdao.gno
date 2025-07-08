@@ -62,7 +62,14 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
 			std.CurrentRealm(), std.PreviousRealm()))
 	}
 
-	return std.OriginCaller(), nil
+	// Verify that the one creating the proposal is a member.
+	caller := std.OriginCaller()
+	mem, _ := getMembers(cross).GetMember(caller)
+	if mem == nil {
+		return caller, errors.New("only members can create new proposals")
+	}
+
+	return caller, nil
 }
 
 func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
@@ -174,7 +181,6 @@ func (g *GovDAO) isValidCall() bool {
 		if isMsgRun {
 			return true
 		}
-
 	}
 
 	// case 2
