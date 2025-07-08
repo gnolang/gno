@@ -33,7 +33,7 @@ type Options struct {
 	// AllowMembersUpdate allows creating a proposal to update DAO members.
 	AllowMembersUpdate bool
 
-	// AllowTextProposals allows text-only, non-executable proposals. 
+	// AllowTextProposals allows text-only, non-executable proposals.
 	AllowTextProposals bool
 
 	// AllowSubDAOProposals allows creating SubDAOs though proposals.
