@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/moul/md"
+	"gno.land/p/demo/urequire"
 )
 
 func TestHelpers(t *testing.T) {
@@ -276,6 +277,116 @@ X
 			if result != tt.expected {
 				t.Errorf("ColumnsN(%v, %d, %v) =\n%q\nwant:\n%q", tt.content, tt.colsPerRow, tt.padded, result, tt.expected)
 			}
+		})
+	}
+}
+
+func TestFormExample(t *testing.T) {
+	form := md.Form{}
+	form.AddInput("name", "Enter your name")
+	form.AddInput("email", "Enter your email")
+
+	got := form.String()
+	expected := `<gno-form>
+  <gno-input name="name" type="text" placeholder="Enter your name" />
+  <gno-input name="email" type="text" placeholder="Enter your email" />
+</gno-form>
+`
+	urequire.Equal(t, got, expected)
+}
+
+func TestFormString(t *testing.T) {
+	tests := []struct {
+		name     string
+		form     md.Form
+		expected string
+	}{
+		{
+			name: "Default example with 2 texts",
+			form: md.Form{
+				Inputs: []md.FormInput{
+					md.FormInput{Name: "name", PlaceHolder: "Enter your name", Type: md.FormText},
+					md.FormInput{Name: "email", PlaceHolder: "Enter your email", Type: md.FormEmail},
+				},
+			},
+			expected: `<gno-form>
+  <gno-input name="name" type="text" placeholder="Enter your name" />
+  <gno-input name="email" type="email" placeholder="Enter your email" />
+</gno-form>
+`,
+		},
+		{
+			name: "Default example with 2 texts and path",
+			form: md.Form{
+				Path: "foobar",
+				Inputs: []md.FormInput{
+					md.FormInput{Name: "name", PlaceHolder: "Enter your name", Type: md.FormText},
+					md.FormInput{Name: "email", PlaceHolder: "Enter your email", Type: md.FormEmail},
+				},
+			},
+			expected: `<gno-form path="foobar">
+  <gno-input name="name" type="text" placeholder="Enter your name" />
+  <gno-input name="email" type="email" placeholder="Enter your email" />
+</gno-form>
+`,
+		},
+		{
+			name: "Without Inputs",
+			form: md.Form{},
+			expected: `<gno-form>
+</gno-form>
+`,
+		},
+		{
+			name: "With Quote Character",
+			form: md.Form{
+				Inputs: []md.FormInput{
+					md.FormInput{Name: "name", PlaceHolder: "foo\" bar=\"toto", Type: md.FormText},
+				},
+			},
+			expected: `<gno-form>
+  <gno-input name="name" type="text" placeholder="foo\" bar=\"toto" />
+</gno-form>
+`,
+		},
+		{
+			name: "With All types",
+			form: md.Form{
+				Inputs: []md.FormInput{
+					md.FormInput{Name: "text", PlaceHolder: "", Type: md.FormText},
+					md.FormInput{Name: "number", PlaceHolder: "", Type: md.FormNumber},
+					md.FormInput{Name: "email", PlaceHolder: "", Type: md.FormEmail},
+					md.FormInput{Name: "password", PlaceHolder: "", Type: md.FormPassword},
+					md.FormInput{Name: "tel", PlaceHolder: "", Type: md.FormTel},
+				},
+			},
+			expected: `<gno-form>
+  <gno-input name="text" type="text" placeholder="" />
+  <gno-input name="number" type="number" placeholder="" />
+  <gno-input name="email" type="email" placeholder="" />
+  <gno-input name="password" type="password" placeholder="" />
+  <gno-input name="tel" type="tel" placeholder="" />
+</gno-form>
+`,
+		},
+		{
+			name: "With invalide input",
+			form: md.Form{
+				Inputs: []md.FormInput{
+					md.FormInput{Name: "invalid", PlaceHolder: "", Type: md.FormInputType(42)},
+				},
+			},
+			expected: `<gno-form>
+  <gno-input name="invalid" type="text" placeholder="" />
+</gno-form>
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.form.String()
+			urequire.Equal(t, got, tt.expected)
 		})
 	}
 }
