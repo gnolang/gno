@@ -265,24 +265,6 @@ func TestDataLoad(t *testing.T) {
 			}},
 		},
 		{
-			name:     "workspace-1-root-2-match",
-			workdir:  localFromSlash("./testdata/workspace-1"),
-			patterns: []string{"./...", workspace1Abs},
-			res: PkgList{{
-				ImportPath: "gno.example.com/r/wspace1/foo",
-				Name:       "foo",
-				Dir:        workspace1Abs,
-				Match:      []string{"./...", workspace1Abs},
-				Files: FilesMap{
-					FileKindPackageSource: {"foo.gno"},
-					FileKindTest:          {"foo_test.gno"},
-				},
-				Imports: map[FileKind][]string{
-					FileKindTest: {"testing"},
-				},
-			}},
-		},
-		{
 			name:     "workspace-1-recursive",
 			workdir:  localFromSlash("./testdata/workspace-1"),
 			patterns: []string{"./..."},
@@ -298,6 +280,62 @@ func TestDataLoad(t *testing.T) {
 				Imports: map[FileKind][]string{
 					FileKindTest: {"testing"},
 				},
+			}, {
+				Dir:   filepath.Join(workspace1Abs, "emptygnomod"),
+				Match: []string{"./..."},
+				Files: FilesMap{},
+				Errors: []*Error{{
+					Pos: filepath.Join(workspace1Abs, "emptygnomod", "gnomod.toml"),
+					Msg: "invalid gnomod.toml: 'module' is required",
+				}},
+			}, {
+				ImportPath: "gno.example.com/r/wspace1/invalidpkg",
+				Dir:        filepath.Join(workspace1Abs, "invalidpkg"),
+				Match:      []string{"./..."},
+				Files: FilesMap{
+					FileKindPackageSource: {"a.gno", "b.gno"},
+				},
+				Errors: []*Error{{
+					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
+					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\"", filepath.Join(workspace1Abs, "invalidpkg")),
+				}},
+			}},
+		},
+		{
+			name:     "workspace-1-root-multi-match",
+			workdir:  localFromSlash("./testdata/workspace-1"),
+			patterns: []string{"./...", workspace1Abs, filepath.Join(workspace1Abs, "...")},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/wspace1/foo",
+				Name:       "foo",
+				Dir:        workspace1Abs,
+				Match:      []string{"./...", workspace1Abs, filepath.Join(workspace1Abs, "...")},
+				Files: FilesMap{
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}, {
+				Dir:   filepath.Join(workspace1Abs, "emptygnomod"),
+				Match: []string{"./...", filepath.Join(workspace1Abs, "...")},
+				Files: FilesMap{},
+				Errors: []*Error{{
+					Pos: filepath.Join(workspace1Abs, "emptygnomod", "gnomod.toml"),
+					Msg: "invalid gnomod.toml: 'module' is required",
+				}},
+			}, {
+				ImportPath: "gno.example.com/r/wspace1/invalidpkg",
+				Dir:        filepath.Join(workspace1Abs, "invalidpkg"),
+				Match:      []string{"./...", filepath.Join(workspace1Abs, "...")},
+				Files: FilesMap{
+					FileKindPackageSource: {"a.gno", "b.gno"},
+				},
+				Errors: []*Error{{
+					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
+					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\"", filepath.Join(workspace1Abs, "invalidpkg")),
+				}},
 			}},
 		},
 		{

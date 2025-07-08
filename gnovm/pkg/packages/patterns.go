@@ -66,27 +66,7 @@ func expandPatterns(workRoot string, warn io.Writer, patterns ...string) ([]*pkg
 	}
 
 	if slices.Contains(kinds, patternKindSingleFile) {
-		remaining := []string{}
-		remainingKinds := []patternKind{}
-
-		files := make([]string, 0, len(patterns))
-		for i, match := range patterns {
-			kind := kinds[i]
-			if kind != patternKindSingleFile {
-				remaining = append(remaining, match)
-				remainingKinds = append(remainingKinds, kind)
-				continue
-			}
-			if !strings.HasSuffix(match, ".gno") {
-				return nil, fmt.Errorf("named files must be .gno files: %s", match)
-			}
-			files = append(files, match)
-		}
-
-		pkgMatches = append(pkgMatches, &pkgMatch{Dir: "command-line-arguments", Match: files})
-
-		patterns = remaining
-		kinds = remainingKinds
+		return nil, fmt.Errorf("command-line-arguments package not supported yet")
 	}
 
 	for i, match := range patterns {

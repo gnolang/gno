@@ -142,6 +142,12 @@ func TestDataExpandPatterns(t *testing.T) {
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
 				Match: []string{localFromSlash("./testdata/workspace-1/...")},
+			}, {
+				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "emptygnomod"),
+				Match: []string{localFromSlash("./testdata/workspace-1/...")},
+			}, {
+				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "invalidpkg"),
+				Match: []string{localFromSlash("./testdata/workspace-1/...")},
 			}},
 		},
 		{
@@ -157,6 +163,12 @@ func TestDataExpandPatterns(t *testing.T) {
 			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
+				Match: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
+			}, {
+				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "emptygnomod"),
+				Match: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
+			}, {
+				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "invalidpkg"),
 				Match: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
 			}},
 		},

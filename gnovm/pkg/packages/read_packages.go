@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"errors"
 	"fmt"
 	"go/token"
 	"io"
@@ -24,13 +23,7 @@ func readPackages(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*
 	pkgs := make([]*Package, 0, len(matches))
 	for _, pkgMatch := range matches {
 		var pkg *Package
-		var err error
-		if pkgMatch.Dir == "command-line-arguments" {
-			pkg, err = readCLAPkg(pkgMatch.Match, fset)
-			if err != nil {
-				return nil, err
-			}
-		} else if known.GetByDir(pkgMatch.Dir) != nil {
+		if known.GetByDir(pkgMatch.Dir) != nil {
 			continue
 		} else {
 			pkg = readPkgDir(out, fetcher, pkgMatch.Dir, fset)
@@ -39,34 +32,6 @@ func readPackages(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*
 		pkgs = append(pkgs, pkg)
 	}
 	return pkgs, nil
-}
-
-func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
-	pkg := &Package{
-		ImportPath:   "command-line-arguments",
-		Files:        FilesMap{},
-		Imports:      map[FileKind][]string{},
-		ImportsSpecs: ImportsMap{},
-	}
-	var err error
-
-	files := []string{}
-	for _, match := range patterns {
-		dir, base := filepath.Split(match)
-		dir, err = filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		if pkg.Dir == "" {
-			pkg.Dir = dir
-		} else if dir != pkg.Dir {
-			return nil, fmt.Errorf("named files must all be in one directory; have %s and %s", pkg.Dir, dir)
-		}
-
-		files = append(files, base)
-	}
-
-	return readPkgFiles(pkg, files, fset), nil
 }
 
 // XXX: bad name since it might download the package
@@ -179,22 +144,29 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], base)
 	}
 
-	// XXX: drop support for cla package since ReadMemPackageFromList has become very restrictive
-
-	// don't load gnomod.toml if package is stdlib
 	stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
 	if strings.HasPrefix(pkg.Dir, stdlibDir) {
-		pkg.Errors = dedupErrors(pkg.Errors)
-	} else {
-		// get import path and flags from gnomod.toml
-		modFpath := filepath.Join(pkg.Dir, "gnomod.toml")
-		mod, err := gnomod.ParseFilepath(modFpath)
+		// get package path from dir
+		rel, err := filepath.Rel(stdlibDir, pkg.Dir)
 		if err != nil {
-			pkg.Errors = append(pkg.Errors, FromErr(err, fset, modFpath, false)...)
-		} else {
-			pkg.Ignore = mod.Ignore
-			pkg.ImportPath = mod.Module
+			// return partial package if can't find lib pkgpath
+			pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, false)...)
+			pkg.Errors = dedupErrors(pkg.Errors)
+			return pkg
 		}
+		pkg.ImportPath = filepath.ToSlash(rel)
+	} else {
+		// attempt to load gnomod.toml if package is not stdlib
+		// get import path and flags from gnomod
+		mod, fname, err := gnomod.ParseDir(pkg.Dir)
+		if err != nil {
+			// return partial package if invalid gnomod
+			pkg.Errors = append(pkg.Errors, FromErr(err, fset, filepath.Join(pkg.Dir, fname), false)...)
+			pkg.Errors = dedupErrors(pkg.Errors)
+			return pkg
+		}
+		pkg.Ignore = mod.Ignore
+		pkg.ImportPath = mod.Module
 	}
 
 	// XXX: fset
@@ -210,11 +182,6 @@ func readPkgFiles(pkg *Package, files []string, fset *token.FileSet) *Package {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
 	}
 	pkg.Imports = pkg.ImportsSpecs.ToStrings()
-
-	// don't load gnomod.toml if package is command-line-arguments
-	if pkg.ImportPath == "command-line-arguments" {
-		panic(errors.New("cla package not supported"))
-	}
 
 	pkg.Errors = dedupErrors(pkg.Errors)
 	return pkg
