@@ -272,8 +272,29 @@ func atBreak(m *Machine) bool {
 		return false
 	}
 	for _, b := range m.Debugger.breakpoints {
-		if loc.File == b.File && loc.Pos.Line == b.Pos.Line {
-			return true
+		// Check if files match (handle both basename and full path cases)
+		locFile := loc.File
+		bFile := b.File
+		
+		// Try multiple matching strategies:
+		// 1. Exact match
+		// 2. Basename comparison
+		// 3. Path suffix match (for cases like "sample.gno" matching "/path/to/sample.gno")
+		fileMatch := locFile == bFile ||
+			filepath.Base(locFile) == filepath.Base(bFile) ||
+			(bFile != "" && strings.HasSuffix(locFile, bFile)) ||
+			(locFile != "" && strings.HasSuffix(bFile, locFile))
+			
+		if fileMatch {
+			// Check if lines match - handle both Line and Pos.Line fields
+			lineMatch := (b.Line > 0 && loc.Line == b.Line) ||
+				(b.Pos.Line > 0 && loc.Line == b.Pos.Line) ||
+				(b.Line > 0 && loc.Pos.Line == b.Line) ||
+				(b.Pos.Line > 0 && loc.Pos.Line == b.Pos.Line)
+				
+			if lineMatch {
+				return true
+			}
 		}
 	}
 	return false
