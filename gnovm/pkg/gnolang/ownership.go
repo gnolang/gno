@@ -47,14 +47,12 @@ type ObjectID struct {
 
 func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
-	privateFlag := 0
+	pvFlag := 0
 	if oid.Private {
-		privateFlag = 1
+		pvFlag = 1
 	}
-	result := fmt.Sprintf("%s:%d:%d", pid, oid.NewTime, privateFlag)
-	return result, nil
+	return fmt.Sprintf("%s:%d:%d", pid, oid.NewTime, pvFlag), nil
 }
-
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	parts := strings.Split(oids, ":")
 	if len(parts) != 3 {
@@ -70,11 +68,11 @@ func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	}
 	oid.NewTime = uint64(newTime)
 
-	private, err := strconv.Atoi(parts[2])
+	privateFlag, err := strconv.Atoi(parts[2])
 	if err != nil {
 		return err
 	}
-	oid.Private = private == 2
+	oid.Private = privateFlag == 1
 	return nil
 }
 

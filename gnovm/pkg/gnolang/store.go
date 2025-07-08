@@ -464,7 +464,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 					oid, oo.GetObjectID()))
 			}
 		}
-		fmt.Printf("loaded object(oid: %s) from store\n", oid.String())
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
