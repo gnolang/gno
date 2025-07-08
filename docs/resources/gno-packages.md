@@ -6,7 +6,7 @@ to work with them.
 
 ## Package Types
 
-Gno has two fundamental package types:
+Gno has three fundamental package types:
 
 ### Pure Packages (`/p/`)
 
@@ -34,6 +34,20 @@ Example: `gno.land/r/demo/boards` (A discussion forum application)
 
 For more details on realms, see the dedicated [Realms](./realms.md) documentation.
 
+### Ephemeral Packages (`/e/`)
+
+Ephemeral packages are temporary, user-executed code that:
+- Are created dynamically when users run `gnokey maketx run`
+- Have the pattern `domain/e/{user-address}/run`
+- Execute in the user's realm context
+- Can call both crossing and non-crossing functions
+- Are not stored on-chain
+- Allow complex interactions that aren't possible with simple `maketx call`
+
+Example: `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run` (A user's run script)
+
+For more details on ephemeral packages and the `maketx run` command, see [Interacting with gnokey](../users/interact-with-gnokey.md#run).
+
 ## Package Path Structure
 
 A package path is a unique identifier for any package that lives on the Gno.land
@@ -41,23 +55,24 @@ blockchain. It consists of multiple parts separated with `/` and follows this
 structure:
 
 ```
-gno.land/[r|p]/[namespace]/[package-name]
+gno.land/[r|p|e]/[namespace]/[package-name]
           │      │          │
           │      │          └── Name of the package
           │      └── Namespace (often a username)
-          └── Type (realm or pure package)
+          └── Type (realm, pure package, or ephemeral)
 ```
 
 For example:
 - `gno.land/r/gnoland/home` is the gno.land home realm
 - `gno.land/r/leon/hor` is the Hall of Realms
 - `gno.land/p/demo/avl` is the AVL tree package
+- `gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run` is a user's ephemeral run script
 
 The components of these paths are:
 - `gno.land` is the chain domain. Currently, only `gno.land` is supported, but the ecosystem may expand in the future.
-- `p` or `r` declare the type of package found at the path. `p` stands for pure package, while `r` represents [realm](./realms.md).
+- `p`, `r`, or `e` declare the type of package found at the path. `p` stands for pure package, `r` represents [realm](./realms.md), and `e` represents ephemeral package.
 - `demo`, `gnoland`, etc., represent namespaces as described below.
-- `home`, `hof`, `avl`, etc., represent the package name found at the path.
+- `home`, `hof`, `avl`, `run`, etc., represent the package name found at the path.
 
 Two important facts about package paths:
 - The maximum length of a package path is `256` characters.
