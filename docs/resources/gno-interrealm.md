@@ -463,19 +463,11 @@ func init() {
 }
 ```
 
-<<<<<<< HEAD
-The same applies for p package initialization. Initialization and tests are the
-only times that `std.CurrentRealm()` will return a p package path that starts
-with "/p/" instead of "/r/". The package is technically still mutable during
-initialization. Note that the /e/ namespace is used for run paths (ephemeral),
-while /r/ is used for normal realms.
-=======
 The same applies for pure package (`/p/`) initialization. During initialization 
 and tests, `std.CurrentRealm()` can return a package path that starts with 
 "/p/". This is because the package is technically still mutable during its 
 initialization phase. After initialization, pure packages become immutable and 
 cannot maintain state.
->>>>>>> origin/master
 
 ### Testing overrides with stdlibs/testing
 
