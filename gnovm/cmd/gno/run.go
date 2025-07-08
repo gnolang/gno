@@ -149,6 +149,12 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 
 				m.RunFiles(files...)
 				err := runExpr(m, cfg.expr)
+
+				// Send terminated event if DAP server is active
+				if dapServer := m.Debugger.DAPServer(); dapServer != nil {
+					dapServer.SendTerminatedEvent()
+				}
+
 				programDone <- err
 			}()
 

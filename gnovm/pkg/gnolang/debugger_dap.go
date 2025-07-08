@@ -42,10 +42,10 @@ type DAPServer struct {
 	breakpoints      map[string][]Breakpoint // map[source.path][]Breakpoint
 	nextBreakpointID int
 	threadID         int // Gno VM is single-threaded, but DAP requires thread IDs
-	
+
 	// Variable reference management
-	variableRefs      map[int]variableInfo // map[reference]info
-	nextVariableRef   int
+	variableRefs    map[int]variableInfo // map[reference]info
+	nextVariableRef int
 
 	// Client capabilities
 	clientLinesStartAt1   bool
@@ -99,7 +99,7 @@ func NewDAPServer(debugger *Debugger, machine *Machine) *DAPServer {
 		breakpoints:           make(map[string][]Breakpoint),
 		variableRefs:          make(map[int]variableInfo),
 		nextVariableRef:       3000, // Start from 3000 to avoid conflicts with scope references
-		threadID:              1, // Single thread
+		threadID:              1,    // Single thread
 		stopCh:                make(chan StopReason, 1),
 		continueCh:            make(chan struct{}, 1),
 		clientLinesStartAt1:   true,
@@ -327,4 +327,12 @@ func (s *DAPServer) convertServerToClientColumn(column int) int {
 		return column
 	}
 	return column - 1
+}
+
+// SendTerminatedEvent sends a terminated event to the client
+func (s *DAPServer) SendTerminatedEvent() error {
+	event := &TerminatedEvent{
+		Event: *NewEvent("terminated"),
+	}
+	return s.sendMessage(event)
 }

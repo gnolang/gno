@@ -138,7 +138,13 @@ func (s *DAPServer) handleConfigurationDone(req *Request) error {
 	}
 
 	// Start debugging
-	s.debugger.state = DebugAtCmd
+	if len(s.debugger.breakpoints) == 0 {
+		// No breakpoints set, continue execution
+		s.debugger.state = DebugAtRun
+	} else {
+		// Breakpoints exist, wait for continue command
+		s.debugger.state = DebugAtCmd
+	}
 	return nil
 }
 
@@ -372,7 +378,6 @@ func (s *DAPServer) typedValueToVariable(name string, tv TypedValue) Variable {
 	if tv.T != nil {
 		typeStr = tv.T.String()
 	}
-	
 
 	// Format value based on type
 	switch t := tv.T.(type) {
@@ -501,12 +506,12 @@ func (s *DAPServer) typedValueToVariable(name string, tv TypedValue) Variable {
 func (s *DAPServer) assignVariableRef(tv TypedValue, frameID int) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	ref := s.nextVariableRef
 	s.nextVariableRef++
 	s.variableRefs[ref] = variableInfo{
-		value:   tv,
-		frameID: frameID,
+		value:    tv,
+		frameID:  frameID,
 		isScoped: false,
 	}
 	return ref
@@ -517,14 +522,14 @@ func (s *DAPServer) getExpandedVariables(ref int) []Variable {
 	s.mu.Lock()
 	info, exists := s.variableRefs[ref]
 	s.mu.Unlock()
-	
+
 	if !exists {
 		return []Variable{}
 	}
-	
+
 	variables := make([]Variable, 0)
 	tv := info.value
-	
+
 	switch t := tv.T.(type) {
 	case *ArrayType:
 		if av, ok := tv.V.(*ArrayValue); ok && av != nil && av.List != nil {
@@ -557,10 +562,10 @@ func (s *DAPServer) getExpandedVariables(ref int) []Variable {
 			for item := mv.List.Head; item != nil; item = item.Next {
 				keyVar := s.typedValueToVariable(fmt.Sprintf("[key %d]", i), item.Key)
 				variables = append(variables, keyVar)
-				
+
 				valueVar := s.typedValueToVariable(fmt.Sprintf("[value %d]", i), item.Value)
 				variables = append(variables, valueVar)
-				
+
 				i++
 			}
 		}
@@ -601,7 +606,7 @@ func (s *DAPServer) getExpandedVariables(ref int) []Variable {
 			}
 		}
 	}
-	
+
 	return variables
 }
 
