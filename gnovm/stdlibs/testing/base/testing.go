@@ -1,4 +1,4 @@
-package base
+package testing
 
 import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"

@@ -64,7 +64,7 @@ func (p *Processor) FormatImportFromSource(filename string, src any) ([]byte, er
 	return p.processAndFormat(nodefile, filename, pkgDecls)
 }
 
-// FormatFile processes a single Gno file from the given Package and filename.
+// FormatPackageFile processes a single Gno file from the given Package and filename.
 func (p *Processor) FormatPackageFile(pkg Package, filename string) ([]byte, error) {
 	// Process package files.
 	pkgc := p.processPackageFiles(pkg.Path(), pkg)

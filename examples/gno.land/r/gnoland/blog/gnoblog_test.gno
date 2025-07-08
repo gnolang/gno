@@ -1,13 +1,18 @@
 package gnoblog
 
 import (
-	"std"
 	"strings"
 	"testing"
+
+	"std"
 )
 
 func TestPackage(cur realm, t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	clearState(t)
+
+	testing.SetOriginCaller(adminAddr)
+	testing.SetRealm(std.NewUserRealm(adminAddr))
+
 	// by default, no posts.
 	{
 		got := Render("")
@@ -30,9 +35,13 @@ No posts.
 <gno-columns>
 ### [title2](/r/gnoland/blog:p/slug2)
 20 May 2022
+
 |||
+
 ### [title1](/r/gnoland/blog:p/slug1)
 20 May 2022
+
+|||
 </gno-columns>
 `
 		assertMDEquals(t, got, expected)
