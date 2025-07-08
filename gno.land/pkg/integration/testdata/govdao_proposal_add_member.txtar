@@ -21,8 +21,6 @@ gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chaini
 stdout '=== Debug info ==='
 stdout 'Origin caller: g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 stdout 'Current realm: CodeRealm{ g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0, gno.land/e/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0/run }'
-stdout 'Current pkg path: gno.land/e/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0/run'
-stdout 'Derived addr from current: g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 # Create a proposal using maketx run with primitive types
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
@@ -74,9 +72,6 @@ func main() {
 	println("Origin caller:", std.OriginCaller())
 	currentRealm := std.CurrentRealm()
 	println("Current realm:", currentRealm.String())
-	pkgPath := currentRealm.PkgPath()
-	println("Current pkg path:", pkgPath)
-	println("Derived addr from current:", std.DerivePkgAddr(pkgPath))
 }
 
 -- loader/load_govdao.gno --
