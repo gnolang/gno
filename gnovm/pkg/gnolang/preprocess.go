@@ -1177,6 +1177,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								"missing package %s",
 								n.String()))
 						}
+						if pv == nil {
+							panic(fmt.Sprintf("failed to load package %s", n.Name))
+						}
 						pref := RefValueFromPackage(pv)
 						n.SetAttribute(ATTR_PACKAGE_REF, pref)
 						n.SetAttribute(ATTR_PACKAGE_PATH, pv.PkgPath)

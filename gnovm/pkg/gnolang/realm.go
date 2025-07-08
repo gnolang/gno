@@ -109,7 +109,8 @@ func ObjectIDFromPkgPath(path string) ObjectID {
 func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
-		NewTime: 1, // by realm logic.
+		NewTime: 1,     // by realm logic.
+		Private: false, // TODO: find a way to retrieve last value of pkgID.
 	}
 }
 

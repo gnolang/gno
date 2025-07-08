@@ -275,7 +275,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	files := ParseMemPackageAsType(mpkg, mptype)
 	mod, err := gnomod.ParseMemPackage(mpkg)
 	private := false
-	if err != nil && mod != nil {
+	if err == nil && mod != nil {
 		private = mod.Private
 	}
 
