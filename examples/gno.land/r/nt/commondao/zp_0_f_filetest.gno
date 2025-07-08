@@ -19,7 +19,7 @@ func init() {
 	commondao.Invite(cross, user)
 
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 	dao := commondao.New("Foo")
 	subDAO := commondao.NewSubDAO("Bar", dao.ID())
 	subDAO.Members().Add(user)

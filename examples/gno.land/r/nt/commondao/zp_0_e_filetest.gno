@@ -24,7 +24,7 @@ func init() {
 	testing.SetRealm(std.NewUserRealm(user))
 
 	// Create root DAO with a subDAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/test"))
 	dao := commondao.New("Foo")
 	dao.Members().Add(user)
 

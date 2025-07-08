@@ -198,7 +198,7 @@ func renderCreateProposalSection(daoID uint64, res *mux.ResponseWriter) {
 
 	res.Write(md.H2("Create Proposal"))
 	res.Write(md.Paragraph("These are the proposal supported by this DAO:"))
-	res.Write(md.Columns(cols))
+	res.Write(md.Columns(cols, false))
 }
 
 func renderMembers(res *mux.ResponseWriter, path string, members commondao.MemberStorage) {
