@@ -886,6 +886,14 @@ func (pv *PackageValue) SetRealm(rlm *Realm) {
 }
 
 func (pv *PackageValue) SetPrivate(private bool) {
+	if private && !pv.IsRealm() {
+		panic(fmt.Sprintf(
+			"cannot set private for non-realm package %s",
+			pv.PkgPath))
+	}
+	if private && pv.Realm == nil {
+		panic("cannot set private for nil realm")
+	}
 	pv.Realm.SetPrivate(private)
 }
 
