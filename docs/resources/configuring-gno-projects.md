@@ -11,9 +11,10 @@ gno mod init <pkgpath>
 It enables advanced control over how your package is interpreted, deployed, and 
 used on-chain.
 
-> Note: Previously, this was done via the `gno.mod` file - similar to how Go projects are
-configured with a `go.mod` file. If you have a project with a `gno.mod` file,
-you can use the `gno mod tidy` subcommand to auto-convert it to a `gnomod.toml`.
+> Note: Previously, package configuration was done via the `gno.mod` file -
+similar to how Go projects are configured with a `go.mod` file. If you have a 
+project with a `gno.mod` file, you can use the `gno mod tidy` subcommand to
+auto-convert it to a `gnomod.toml`.
 
 ## `gnomod.toml`
 
