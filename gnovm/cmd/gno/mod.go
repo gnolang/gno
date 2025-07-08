@@ -377,7 +377,7 @@ func execModWhy(args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	gm, _, err := gnomod.ParseDir(wd)
+	gm, err := gnomod.ParseDir(wd)
 	if err != nil {
 		return err
 	}

@@ -32,7 +32,7 @@ func ReadPackageFromDir(fset *token.FileSet, path, dir string) (*Package, error)
 		return nil, ErrResolverPackageSkip
 	}
 
-	mod, _, err := gnomod.ParseDir(dir)
+	mod, err := gnomod.ParseDir(dir)
 	switch {
 	case err == nil:
 		if mod.Ignore {

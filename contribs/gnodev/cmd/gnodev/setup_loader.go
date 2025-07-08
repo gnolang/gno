@@ -88,7 +88,7 @@ func setupPackagesResolver(logger *slog.Logger, cfg *AppConfig, dirs ...string) 
 }
 
 func guessPathGnoMod(dir string) (path string, ok bool) {
-	modfile, _, err := gnomod.ParseDir(dir)
+	modfile, err := gnomod.ParseDir(dir)
 	if err != nil {
 		return "", false
 	}

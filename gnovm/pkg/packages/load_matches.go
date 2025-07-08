@@ -100,10 +100,10 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 	} else {
 		// attempt to load gnomod.toml if package is not stdlib
 		// get import path and flags from gnomod
-		mod, fname, err := gnomod.ParseDir(pkg.Dir)
+		mod, err := gnomod.ParseDir(pkg.Dir)
 		if err != nil {
 			// return partial package if invalid gnomod
-			pkg.Errors = append(pkg.Errors, FromErr(err, fset, filepath.Join(pkg.Dir, fname), false)...)
+			pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, false)...)
 			return pkg
 		}
 		pkg.Ignore = mod.Ignore

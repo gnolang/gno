@@ -288,7 +288,7 @@ func discoverPkgsForLocalDeps(roots []string) map[string]string {
 				}
 
 				// find pkg path
-				gm, _, err := gnomod.ParseDir(dir)
+				gm, err := gnomod.ParseDir(dir)
 				if err != nil {
 					// XXX: maybe store errors by dir to not silently ignore packages with invalid gnomod
 					return nil

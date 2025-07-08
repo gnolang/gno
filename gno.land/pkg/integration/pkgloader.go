@@ -140,7 +140,7 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 
 		if currentPkg.Name == "" {
 			// Load `gno.mod` information
-			gm, _, err := gnomod.ParseDir(currentPkg.Dir)
+			gm, err := gnomod.ParseDir(currentPkg.Dir)
 			if err != nil {
 				return fmt.Errorf("unable to load %q: %w", currentPkg.Dir, err)
 			}

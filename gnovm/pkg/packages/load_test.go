@@ -288,7 +288,7 @@ func TestDataLoad(t *testing.T) {
 				Match: []string{"./..."},
 				Files: FilesMap{},
 				Errors: []*Error{{
-					Pos: filepath.Join(workspace1Abs, "emptygnomod", "gnomod.toml"),
+					Pos: filepath.Join(workspace1Abs, "emptygnomod"),
 					Msg: "invalid gnomod.toml: 'module' is required",
 				}},
 			}, {
@@ -324,7 +324,7 @@ func TestDataLoad(t *testing.T) {
 				Match: []string{"./...", filepath.Join(workspace1Abs, "...")},
 				Files: FilesMap{},
 				Errors: []*Error{{
-					Pos: filepath.Join(workspace1Abs, "emptygnomod", "gnomod.toml"),
+					Pos: filepath.Join(workspace1Abs, "emptygnomod"),
 					Msg: "invalid gnomod.toml: 'module' is required",
 				}},
 			}, {
