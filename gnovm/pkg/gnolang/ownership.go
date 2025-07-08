@@ -40,7 +40,8 @@ supported).
 */
 
 type ObjectID struct {
-	PkgID   PkgID  // base
+	PkgID   PkgID // base
+	Private bool
 	NewTime uint64 // time created
 }
 

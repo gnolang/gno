@@ -79,12 +79,11 @@ func (pid PkgID) Bytes() []byte {
 }
 
 var (
-	pkgIDFromPkgPathCacheMu sync.RWMutex // protects the shared cache.
+	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
 	// TODO: later on switch this to an LRU if needed to ensure
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
-	pkgPathFromPkgIDCache = make(map[PkgID]string, 100)
 )
 
 func PkgIDFromPkgPath(path string) PkgID {
@@ -96,10 +95,6 @@ func PkgIDFromPkgPath(path string) PkgID {
 		pkgID = new(PkgID)
 		*pkgID = PkgID{HashBytes([]byte(path))}
 		pkgIDFromPkgPathCache[path] = pkgID
-		// Also update the reverse map.
-		if _, exists := pkgPathFromPkgIDCache[*pkgID]; !exists {
-			pkgPathFromPkgIDCache[*pkgID] = path
-		}
 	}
 	return *pkgID
 }
@@ -116,21 +111,6 @@ func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 		PkgID:   pkgID,
 		NewTime: 1, // by realm logic.
 	}
-}
-
-func PkgPathFromObjectID(oid ObjectID) string {
-	if oid.IsZero() {
-		return ""
-	}
-	pkgID := oid.PkgID
-	if pkgID.IsZero() {
-		return ""
-	}
-	pkgPath, ok := pkgPathFromPkgIDCache[pkgID]
-	if !ok {
-		return ""
-	}
-	return pkgPath
 }
 
 // NOTE: A nil realm is special and has limited functionality; enough to
@@ -1511,6 +1491,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	rlm.Time++
 	nxtid := ObjectID{
 		PkgID:   rlm.ID,
+		Private: rlm.Private,
 		NewTime: rlm.Time, // starts at 1.
 	}
 	return nxtid
@@ -1668,11 +1649,8 @@ func hasPrivateDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[
 	objID := obj.GetObjectID()
 
 	if !objID.IsZero() {
-		if objID.PkgID != rlm.ID {
-			pkgPath := PkgPathFromObjectID(objID)
-			if pkgPath != "" && isPrivateRealm(pkgPath, store) {
-				return true
-			}
+		if objID.PkgID != rlm.ID && objID.Private {
+			return true
 		}
 	}
 
@@ -1684,9 +1662,4 @@ func hasPrivateDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[
 	}
 
 	return false
-}
-
-func isPrivateRealm(pkgPath string, store Store) bool {
-	realm := store.GetPackageRealm(pkgPath)
-	return realm.Private
 }
