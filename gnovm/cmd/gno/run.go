@@ -19,12 +19,13 @@ import (
 )
 
 type runCmd struct {
-	verbose   bool
-	rootDir   string
-	expr      string
-	debug     bool
-	debugAddr string
-	dapMode   bool
+	verbose    bool
+	rootDir    string
+	expr       string
+	debug      bool
+	debugAddr  string
+	dapMode    bool
+	attachMode bool
 }
 
 func newRunCmd(cio commands.IO) *commands.Command {
@@ -85,6 +86,13 @@ func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"enable Debug Adapter Protocol mode for IDE integration",
 	)
+
+	fs.BoolVar(
+		&c.attachMode,
+		"attach",
+		false,
+		"attach to an already running debug session (requires --dap)",
+	)
 }
 
 func execRun(cfg *runCmd, args []string, cio commands.IO) error {
@@ -139,29 +147,34 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 			// In DAP mode, run the program in a goroutine and start the DAP server
 			// The DAP server will control program execution via debug commands
 			programDone := make(chan error, 1)
-			go func() {
-				// Wait for DAP server to be initialized
-				for m.Debugger.DAPServer() == nil {
-					time.Sleep(10 * time.Millisecond)
-				}
-				// Small additional delay to ensure DAP server is fully ready
-				time.Sleep(50 * time.Millisecond)
 
-				m.RunFiles(files...)
-				err := runExpr(m, cfg.expr)
+			if !cfg.attachMode {
+				// Launch mode: start program execution automatically
+				go func() {
+					// Wait for DAP server to be initialized
+					for m.Debugger.DAPServer() == nil {
+						time.Sleep(10 * time.Millisecond)
+					}
+					// Small additional delay to ensure DAP server is fully ready
+					time.Sleep(50 * time.Millisecond)
 
-				// Send terminated event if DAP server is active
-				if dapServer := m.Debugger.DAPServer(); dapServer != nil {
-					dapServer.SendTerminatedEvent()
-				}
+					m.RunFiles(files...)
+					err := runExpr(m, cfg.expr)
 
-				programDone <- err
-			}()
+					// Send terminated event if DAP server is active
+					if dapServer := m.Debugger.DAPServer(); dapServer != nil {
+						dapServer.SendTerminatedEvent()
+					}
+
+					programDone <- err
+				}()
+			}
+			// In attach mode, don't start program execution - wait for attach request
 
 			// Start DAP server mode in another goroutine
 			serverDone := make(chan error, 1)
 			go func() {
-				serverDone <- m.Debugger.ServeDAP(m, cfg.debugAddr)
+				serverDone <- m.Debugger.ServeDAP(m, cfg.debugAddr, cfg.attachMode, files, cfg.expr)
 			}()
 
 			// Wait for either program completion or server error

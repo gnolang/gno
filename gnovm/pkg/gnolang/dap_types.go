@@ -123,6 +123,18 @@ type LaunchArguments struct {
 	Cwd     string            `json:"cwd,omitempty"`
 }
 
+// AttachRequest is sent to attach to a running process
+type AttachRequest struct {
+	Request
+	Arguments AttachArguments `json:"arguments"`
+}
+
+type AttachArguments struct {
+	ProcessID int    `json:"processId,omitempty"`
+	Port      int    `json:"port,omitempty"`
+	Host      string `json:"host,omitempty"`
+}
+
 // SetBreakpointsRequest is sent to set breakpoints
 type SetBreakpointsRequest struct {
 	Request

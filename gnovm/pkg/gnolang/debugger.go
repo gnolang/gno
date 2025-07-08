@@ -409,9 +409,13 @@ func (d *Debugger) Serve(addr string) error {
 }
 
 // ServeDAP starts a DAP server for the debugger
-func (d *Debugger) ServeDAP(m *Machine, addr string) error {
+func (d *Debugger) ServeDAP(m *Machine, addr string, attachMode bool, files []*FileNode, mainExpr string) error {
 	d.dapMode = true
 	d.dapServer = NewDAPServer(d, m)
+	d.dapServer.attachMode = attachMode
+	if attachMode {
+		d.dapServer.SetProgramFiles(files, mainExpr)
+	}
 	// Enable debugger so that program execution will wait
 	d.enabled = true
 	return d.dapServer.Serve(DAPModeTCP, addr)

@@ -75,6 +75,47 @@ func (s *DAPServer) handleLaunch(req *Request, _ []byte) error {
 	return s.sendMessage(event)
 }
 
+// handleAttach processes the attach request
+func (s *DAPServer) handleAttach(req *Request, _ []byte) error {
+	var args AttachArguments
+	if err := json.Unmarshal(req.Arguments, &args); err != nil {
+		return err
+	}
+
+	// For Gno debugger, attach mode means the program was started with --attach flag
+	// and is waiting for debugger to connect before starting execution.
+
+	// If we're in attach mode, start the program execution now
+	if s.attachMode && s.programFiles != nil {
+		go func() {
+			// Run the loaded files
+			s.machine.RunFiles(s.programFiles...)
+			// Run main expression
+			if s.mainExpr != "" {
+				ex, err := ParseExpr(s.mainExpr)
+				if err == nil {
+					s.machine.Eval(ex)
+				}
+			}
+
+			// Send terminated event when done
+			s.SendTerminatedEvent()
+		}()
+	}
+
+	// Send response
+	resp := NewResponse(req, true)
+	if err := s.sendMessage(resp); err != nil {
+		return err
+	}
+
+	// Send initialized event
+	event := &InitializedEvent{
+		Event: *NewEvent("initialized"),
+	}
+	return s.sendMessage(event)
+}
+
 // handleSetBreakpoints processes the setBreakpoints request
 func (s *DAPServer) handleSetBreakpoints(req *Request, _ []byte) error {
 	var args SetBreakpointsArguments

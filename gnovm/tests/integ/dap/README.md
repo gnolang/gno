@@ -16,6 +16,7 @@ This directory contains test files and utilities for testing the DAP server impl
 - `test_dap_variables.py` - Test for variable expansion functionality
 - `test_dap_output.py` - Test for output event redirection
 - `test_output_monitor.py` - Monitor for DAP output events
+- `test_dap_attach.py` - Test for attach mode functionality
 
 ### Debug Command Files
 - `debug_commands.txt` - Basic debugger commands for CLI testing
@@ -29,11 +30,14 @@ This directory contains test files and utilities for testing the DAP server impl
 From the project root directory:
 
 ```bash
-# Start DAP server on TCP port
+# Start DAP server on TCP port (launch mode)
 gno run --debug-addr localhost:2345 --dap gnovm/tests/integ/debugger/sample.gno
 
 # Or with test program
 gno run --debug-addr localhost:2345 --dap gnovm/tests/integ/dap/test_debug.gno
+
+# Start DAP server in attach mode (waits for client to connect before executing)
+gno run --debug-addr localhost:2345 --dap --attach gnovm/tests/integ/debugger/test_output.gno
 ```
 
 ### Running Test Clients
@@ -55,6 +59,9 @@ python3 gnovm/tests/integ/dap/test_dap_variables.py
 
 # Output redirection test
 python3 gnovm/tests/integ/dap/test_dap_output.py
+
+# Attach mode test (requires server started with --attach flag)
+python3 gnovm/tests/integ/dap/test_dap_attach.py
 ```
 
 ### CLI Debugger Testing
@@ -71,6 +78,7 @@ gno run --debug gnovm/tests/integ/debugger/sample.gno < gnovm/tests/integ/dap/de
 The test suite covers:
 - DAP server initialization
 - Client connection handling
+- Launch and Attach modes
 - Breakpoint setting and hitting
 - Stopped event generation
 - Variable inspection with complex type expansion

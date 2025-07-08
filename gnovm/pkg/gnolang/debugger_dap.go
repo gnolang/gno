@@ -41,7 +41,10 @@ type DAPServer struct {
 	// Debugging state
 	breakpoints      map[string][]Breakpoint // map[source.path][]Breakpoint
 	nextBreakpointID int
-	threadID         int // Gno VM is single-threaded, but DAP requires thread IDs
+	threadID         int         // Gno VM is single-threaded, but DAP requires thread IDs
+	attachMode       bool        // true if in attach mode (program not auto-started)
+	programFiles     []*FileNode // files to run when attach completes
+	mainExpr         string      // main expression to evaluate
 
 	// Variable reference management
 	variableRefs    map[int]variableInfo // map[reference]info
@@ -256,6 +259,8 @@ func (s *DAPServer) handleMessage(raw []byte) error {
 		return s.handleInitialize(req, raw)
 	case "launch":
 		return s.handleLaunch(req, raw)
+	case "attach":
+		return s.handleAttach(req, raw)
 	case "setBreakpoints":
 		return s.handleSetBreakpoints(req, raw)
 	case "configurationDone":
@@ -335,4 +340,10 @@ func (s *DAPServer) SendTerminatedEvent() error {
 		Event: *NewEvent("terminated"),
 	}
 	return s.sendMessage(event)
+}
+
+// SetProgramFiles sets the files and main expression for attach mode
+func (s *DAPServer) SetProgramFiles(files []*FileNode, mainExpr string) {
+	s.programFiles = files
+	s.mainExpr = mainExpr
 }
