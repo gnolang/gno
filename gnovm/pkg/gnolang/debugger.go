@@ -271,33 +271,83 @@ func atBreak(m *Machine) bool {
 	if loc == m.Debugger.prevLoc {
 		return false
 	}
+
 	for _, b := range m.Debugger.breakpoints {
-		// Check if files match (handle both basename and full path cases)
-		locFile := loc.File
-		bFile := b.File
-		
-		// Try multiple matching strategies:
-		// 1. Exact match
-		// 2. Basename comparison
-		// 3. Path suffix match (for cases like "sample.gno" matching "/path/to/sample.gno")
-		fileMatch := locFile == bFile ||
-			filepath.Base(locFile) == filepath.Base(bFile) ||
-			(bFile != "" && strings.HasSuffix(locFile, bFile)) ||
-			(locFile != "" && strings.HasSuffix(bFile, locFile))
-			
-		if fileMatch {
-			// Check if lines match - handle both Line and Pos.Line fields
-			lineMatch := (b.Line > 0 && loc.Line == b.Line) ||
-				(b.Pos.Line > 0 && loc.Line == b.Pos.Line) ||
-				(b.Line > 0 && loc.Pos.Line == b.Line) ||
-				(b.Pos.Line > 0 && loc.Pos.Line == b.Pos.Line)
-				
-			if lineMatch {
-				return true
-			}
+		if matchLocation(loc, b) {
+			return true
 		}
 	}
 	return false
+}
+
+// matchLocation checks if two locations refer to the same source position.
+func matchLocation(loc, bp Location) bool {
+	// First check line numbers - both locations must have valid line numbers
+	locLine := getLine(loc)
+	bpLine := getLine(bp)
+	if locLine == 0 || bpLine == 0 || locLine != bpLine {
+		return false
+	}
+
+	// Then check file paths
+	return matchFilePath(loc.File, bp.File)
+}
+
+// getLine returns the line number from a Location, preferring Line over Pos.Line.
+func getLine(loc Location) int {
+	if loc.Line > 0 {
+		return loc.Line
+	}
+	return loc.Pos.Line
+}
+
+// matchFilePath checks if two file paths refer to the same file.
+// It handles cases where one might be absolute and the other relative,
+// or where one might be just a basename.
+func matchFilePath(path1, path2 string) bool {
+	if path1 == "" || path2 == "" {
+		return false
+	}
+
+	// Exact match
+	if path1 == path2 {
+		return true
+	}
+
+	// Compare basenames
+	base1, base2 := filepath.Base(path1), filepath.Base(path2)
+	if base1 == base2 {
+		return true
+	}
+
+	// Check if one path is a suffix of the other
+	// This handles cases like "sample.gno" matching "/path/to/sample.gno"
+	if strings.HasSuffix(path1, path2) || strings.HasSuffix(path2, path1) {
+		return true
+	}
+
+	// Check if paths end with the same relative path
+	// This handles cases like "foo/bar.gno" matching "/path/to/foo/bar.gno"
+	return hasSameRelativeSuffix(path1, path2)
+}
+
+// hasSameRelativeSuffix checks if two paths share a common relative suffix.
+func hasSameRelativeSuffix(path1, path2 string) bool {
+	parts1 := strings.Split(filepath.Clean(path1), string(filepath.Separator))
+	parts2 := strings.Split(filepath.Clean(path2), string(filepath.Separator))
+
+	// Compare from the end
+	i, j := len(parts1)-1, len(parts2)-1
+	matchCount := 0
+
+	for i >= 0 && j >= 0 && parts1[i] == parts2[j] {
+		matchCount++
+		i--
+		j--
+	}
+
+	// Consider it a match if at least the filename and one directory level match
+	return matchCount >= 2
 }
 
 // debugCmd processes a debugger REPL command. It displays a prompt, then
