@@ -67,7 +67,29 @@ func (r Realm) IsCode() bool {
 // - true if CodeRealm and IsEphemeral, 'gnokey maketx run',
 // - false if Coderealm and !IsEphemeral, an uploaded code realm.
 func (r Realm) IsUser() bool {
-	return !r.IsCode() || r.IsEphemeral()
+	return r.IsUserCall() || r.IsUserRun()
+}
+
+// IsUserRun returns true if the realm represents a user run context.
+// This checks if the pkgPath matches the pattern: domain/e/{addr}/run
+// where {addr} is the realm's address.
+func (r Realm) IsUserRun() bool {
+	// Compute expected path dynamically from address
+	idx := strings.Index(r.pkgPath, "/")
+	if idx == -1 {
+		return false
+	}
+	domain := r.pkgPath[:idx]
+	expectedPath := domain + "/e/" + r.addr.String() + "/run"
+	return r.pkgPath == expectedPath
+}
+
+// IsUserCall returns true if this is an EOA (Externally Owned Account) call.
+// This is true when pkgPath is empty, which is the opposite of IsCode().
+// - true for 'gnokey maketx call' from user
+// - false for any code realm execution
+func (r Realm) IsUserCall() bool {
+	return r.pkgPath == ""
 }
 
 func (r Realm) CoinDenom(coinName string) string {
