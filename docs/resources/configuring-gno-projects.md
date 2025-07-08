@@ -1,6 +1,9 @@
 # Configuring Gno Projects
 
 Gno supports package configuration through a metadata file called `gnomod.toml`.
+Previously, this was the `gno.mod` file - similar to how Go projects are
+configured with a `go.mod` file. 
+
 This file is typically generated using:
 
 ```bash
