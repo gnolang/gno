@@ -47,7 +47,7 @@ func (r Realm) IsEphemeral() bool {
 		return false
 	}
 
-	// has a domain before /e/
+	// has a domain right before /e/
 	if strings.Index(r.pkgPath[:idx], "/") != -1 {
 		return false
 	}
