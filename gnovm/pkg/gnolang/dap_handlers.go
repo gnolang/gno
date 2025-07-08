@@ -580,6 +580,12 @@ func (s *DAPServer) getCurrentFunctionName() string {
 
 // SendStoppedEvent sends a stopped event when execution pauses
 func (s *DAPServer) SendStoppedEvent(reason string, description string) error {
+	// Check if DAP server is ready to send messages
+	if s.writer == nil {
+		// DAP server not yet connected, skip sending event
+		return nil
+	}
+
 	event := &StoppedEvent{
 		Event: *NewEvent("stopped"),
 		Body: StoppedEventBody{

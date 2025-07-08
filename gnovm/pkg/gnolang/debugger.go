@@ -81,6 +81,11 @@ func (d *Debugger) Disable() {
 	d.enabled = false
 }
 
+// DAPServer returns the DAP server instance if running in DAP mode.
+func (d *Debugger) DAPServer() *DAPServer {
+	return d.dapServer
+}
+
 type debugCommand struct {
 	debugFunc          func(*Machine, string) error // debug command
 	usage, short, long string                       // command help texts
@@ -407,6 +412,8 @@ func (d *Debugger) Serve(addr string) error {
 func (d *Debugger) ServeDAP(m *Machine, addr string) error {
 	d.dapMode = true
 	d.dapServer = NewDAPServer(d, m)
+	// Enable debugger so that program execution will wait
+	d.enabled = true
 	return d.dapServer.Serve(DAPModeTCP, addr)
 }
 

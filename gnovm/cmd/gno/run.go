@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -135,8 +136,33 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	// If the debug address is set, the debugger waits for a remote client to connect to it.
 	if cfg.debugAddr != "" {
 		if cfg.dapMode {
-			// Start DAP server mode
-			if err := m.Debugger.ServeDAP(m, cfg.debugAddr); err != nil {
+			// In DAP mode, run the program in a goroutine and start the DAP server
+			// The DAP server will control program execution via debug commands
+			programDone := make(chan error, 1)
+			go func() {
+				// Wait for DAP server to be initialized
+				for m.Debugger.DAPServer() == nil {
+					time.Sleep(10 * time.Millisecond)
+				}
+				// Small additional delay to ensure DAP server is fully ready
+				time.Sleep(50 * time.Millisecond)
+
+				m.RunFiles(files...)
+				err := runExpr(m, cfg.expr)
+				programDone <- err
+			}()
+
+			// Start DAP server mode in another goroutine
+			serverDone := make(chan error, 1)
+			go func() {
+				serverDone <- m.Debugger.ServeDAP(m, cfg.debugAddr)
+			}()
+
+			// Wait for either program completion or server error
+			select {
+			case err := <-programDone:
+				return err
+			case err := <-serverDone:
 				return err
 			}
 		} else {
