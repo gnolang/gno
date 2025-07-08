@@ -1,10 +1,8 @@
 # Configuring Gno Projects
 
 Gno supports package configuration through a metadata file called `gnomod.toml`.
-Previously, this was the `gno.mod` file - similar to how Go projects are
-configured with a `go.mod` file. 
 
-This file is typically generated using:
+The `gnomod.toml` file is typically generated using:
 
 ```bash
 gno mod init <pkgpath>
@@ -12,6 +10,10 @@ gno mod init <pkgpath>
 
 It enables advanced control over how your package is interpreted, deployed, and 
 used on-chain.
+
+> Note: Previously, this was done via the `gno.mod` file - similar to how Go projects are
+configured with a `go.mod` file. If you have a project with a `gno.mod` file,
+you can use the `gno mod tidy` subcommand to auto-convert it to a `gnomod.toml`.
 
 ## `gnomod.toml`
 
