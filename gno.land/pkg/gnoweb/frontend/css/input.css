@@ -376,7 +376,7 @@
 
   /* Button */
   .realm-view .gno-button {
-    @apply bg-green-600 text-light border-green-600 cursor-pointer font-interVar mb-2 hover:opacity-90 inline-block p-2 rounded-sm outline-none;
+    @apply bg-green-600 text-light cursor-pointer hover:opacity-90 hover:no-underline inline-block py-2 px-3 rounded-sm;
   }
 }
 
