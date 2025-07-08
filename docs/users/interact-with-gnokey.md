@@ -461,7 +461,7 @@ func Render(_ string) string {
 package main
 
 import (
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -486,7 +486,7 @@ package main
 import (
   "strconv"
 
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -511,7 +511,7 @@ func main() {
 ```go
 package main
 
-import "gno.land/r/docs/examples/run/foo"
+import "gno.land/r/docs/examples/foo"
 
 func main() {
 	println(foo.MainFoo.String())
