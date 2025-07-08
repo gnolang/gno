@@ -22,7 +22,7 @@ stdout '=== Debug info ==='
 stdout 'Origin caller: g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 stdout 'Current realm: CodeRealm{ g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0, gno.land/e/g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0/run }'
 
-# Create a proposal using maketx run with primitive types
+# Create a proposal
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
@@ -53,7 +53,6 @@ import (
 )
 
 func main() {
-	// Using primitive types only - no lambdas, no pointers, no local structs
 	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	tier := "T2"
 	portfolio := "this is my portfolio"
