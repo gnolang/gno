@@ -15,7 +15,7 @@ gnoland start
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 
-# add the proposal
+# add the proposal using maketx run with primitive types
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
@@ -51,7 +51,12 @@ import (
 )
 
 func main() {
-	preq := impl.NewPromoteMemberRequest(std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "T3")
+	// Using primitive types only
+	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	fromTier := "T2"
+	toTier := "T3"
+	
+	preq := impl.NewPromoteMemberRequest(addr, fromTier, toTier)
 	dao.MustCreateProposal(cross, preq)
 }
 

@@ -90,6 +90,7 @@ import (
 )
 
 func main() {
+	// Using primitive types only
 	collector1 := std.Address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
 	pr := params.NewSetFeeCollectorRequest(collector1)
 	pid := dao.MustCreateProposal(cross, pr)
@@ -106,6 +107,7 @@ import (
 )
 
 func main() {
+	// Using primitive types only
 	collector2 := std.Address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
 	pr := params.NewSetFeeCollectorRequest(collector2)
 	pid := dao.MustCreateProposal(cross, pr)
