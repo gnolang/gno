@@ -26,16 +26,16 @@ func ParseQueryParams(query, rawPath string) (string, error) {
 //	  // m == map[string]string{"foo": "1", "bar": "2"}
 func ParseQueryMap(rawPath string) (map[string]string, error) {
 	u, err := url.Parse(rawPath)
+	queryMap := make(map[string]string)
 	if err != nil {
-		return map[string]string{}, err
+		return queryMap, err
 	}
-	params := make(map[string]string)
 	for key, vals := range u.Query() {
 		if len(vals) > 0 {
-			params[key] = vals[0]
+			queryMap[key] = vals[0]
 		}
 	}
-	return params, nil
+	return queryMap, nil
 }
 
 // UpdateQueryMulti updates multiple query parameters in the given raw URL path.
