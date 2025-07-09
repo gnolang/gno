@@ -29,7 +29,7 @@ import (
 // cause writes to happen to the store, such as MemPackages to iavlstore.
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
-// NativeResolver is a function which can retrijeve native bodies of native functions.
+// NativeResolver is a function which can retrieve native bodies of native functions.
 type NativeResolver func(pkgName string, name Name) func(m *Machine)
 
 // Store is the central interface that specifies the communications between the
