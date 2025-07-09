@@ -17,6 +17,9 @@ stdout OK!
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeAsAValueOfTreeToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist reference of object from private realm'
+
 gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveIntToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
@@ -99,6 +102,10 @@ func init() {
 
 func SaveTreeToPublicRealm(cur realm) {
     publicrealm.SaveYourTree(cross, tree)
+}
+
+func SaveTreeAsAValueOfTreeToPublicRealm(cur realm) {
+    publicrealm.SaveYourTreeAsAValueOfTree(cross, tree)
 }
 
 func SaveIntToPublicRealm(cur realm) {
@@ -220,6 +227,11 @@ var savedClosure func() *avl.Tree
 
 func SaveYourTree(cur realm, ptr *avl.Tree) {
     savedTree = ptr
+}
+
+func SaveYourTreeAsAValueOfTree(cur realm, tree *avl.Tree) {
+    savedTree = avl.NewTree()
+    savedTree.Set("key", tree)
 }
 
 func SaveYourInt(cur realm, value int) {
