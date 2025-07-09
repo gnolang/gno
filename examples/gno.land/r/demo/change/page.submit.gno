@@ -52,7 +52,7 @@ func renderSubmitPage(params map[string]string) string {
 	// submit button
 	tx = txlink.Call("Submit", "title", title, "description", description)
 	content += md.H2(md.Link("Submit", tx)) + br
-	content += "> [!NOTE]\n> You need to be a user to be able to submit." + br
+	content += "> [!NOTE]\n> You need to be a user to be able to submit (" + md.Link("gno.land/r/gnoland/users", "/r/gnoland/users") + ")." + br
 
 	return content
 
