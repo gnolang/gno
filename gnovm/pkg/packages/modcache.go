@@ -16,8 +16,8 @@ func PackageDir(importPath string) string {
 	return filepath.Join(gnomod.ModCachePath(), filepath.FromSlash(importPath))
 }
 
-// DownloadPackage downloads a remote gno package by pkg path and store it in the modcache
-func DownloadPackage(out io.Writer, pkgPath string, fetcher pkgdownload.PackageFetcher) error {
+// DownloadPackageToCache downloads a remote gno package by pkg path and store it in the modcache
+func DownloadPackageToCache(out io.Writer, pkgPath string, fetcher pkgdownload.PackageFetcher) error {
 	modCachePath := gnomod.ModCachePath()
 	if err := os.MkdirAll(modCachePath, 0o774); err != nil {
 		return fmt.Errorf("ensure modcache dir exists: %w", err)

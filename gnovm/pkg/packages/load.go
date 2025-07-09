@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -16,7 +15,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/gnovm/tests/stdlibs"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type LoadConfig struct {
@@ -217,32 +215,6 @@ func FindRootDir(absPath string) (string, error) {
 	}
 
 	return "", ErrGnoworkNotFound
-}
-
-func (p *Package) MemPkg() (*std.MemPackage, error) {
-	// XXX: use gnolang.ReadMemPackageFromList
-
-	files := []*std.MemFile{}
-	for _, cat := range p.Files {
-		for _, f := range cat {
-			body, err := os.ReadFile(filepath.Join(p.Dir, f))
-			if err != nil {
-				return nil, err
-			}
-			files = append(files, &std.MemFile{
-				Name: f,
-				Body: string(body),
-			})
-		}
-	}
-	sort.Slice(files, func(i int, j int) bool {
-		return files[i].Name < files[j].Name
-	})
-	return &std.MemPackage{
-		Name:  p.Name,
-		Path:  p.ImportPath,
-		Files: files,
-	}, nil
 }
 
 func fifoNext[T any](slice *[]T) (T, bool) {

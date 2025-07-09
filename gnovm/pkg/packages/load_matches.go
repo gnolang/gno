@@ -52,7 +52,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 			return pkg
 		}
 		pkg.ImportPath = pkgPath
-		if err := DownloadPackage(out, pkgPath, fetcher); err != nil {
+		if err := DownloadPackageToCache(out, pkgPath, fetcher); err != nil {
 			pkg.Errors = append(pkg.Errors, &Error{
 				Pos: pkg.Dir,
 				Msg: err.Error(),
