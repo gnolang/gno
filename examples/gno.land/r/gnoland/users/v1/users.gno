@@ -46,5 +46,5 @@ func Register(cur realm, username string) {
 	}
 
 	latestUsers.Append(username)
-	std.Emit("Registeration", "address", registrant.String(), "name", username)
+	std.Emit("Registration", "address", registrant.String(), "name", username)
 }
