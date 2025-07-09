@@ -71,7 +71,8 @@ func (p *ProposalRequest) Filter() Filter {
 }
 
 type Proposal struct {
-	author std.Address
+	author        std.Address
+	creationRealm string // The realm where this proposal was created (std.CurrentRealm)
 
 	title       string
 	description string
@@ -82,6 +83,10 @@ type Proposal struct {
 
 func (p *Proposal) Author() std.Address {
 	return p.author
+}
+
+func (p *Proposal) CreationRealm() string {
+	return p.creationRealm
 }
 
 func (p *Proposal) Title() string {

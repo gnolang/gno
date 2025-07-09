@@ -207,8 +207,10 @@ func StringifyProposal(p *dao.Proposal) string {
 
 ### Proposed by: %s
 
+### Created in: %s
+
 %s
-`, p.Title(), p.Author(), p.Description())
+`, p.Title(), p.Author(), p.CreationRealm(), p.Description())
 
 	if p.ExecutorString() != "" {
 		out += ufmt.Sprintf(`
