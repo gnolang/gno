@@ -68,12 +68,11 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	}
 
 	p := &Proposal{
-		author:        author,
-		creationRealm: std.CurrentRealm().PkgPath(),
-		title:         r.title,
-		description:   r.description,
-		executor:      r.executor,
-		allowedDAOs:   allowedDAOs[:],
+		author:      author,
+		title:       r.title,
+		description: r.description,
+		executor:    r.executor,
+		allowedDAOs: allowedDAOs[:],
 	}
 
 	pid := proposals.SetProposal(p)

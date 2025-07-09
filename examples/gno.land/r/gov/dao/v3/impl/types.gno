@@ -207,17 +207,17 @@ func StringifyProposal(p *dao.Proposal) string {
 
 ### Proposed by: %s
 
-### Created in: %s
-
 %s
-`, p.Title(), p.Author(), p.CreationRealm(), p.Description())
+`, p.Title(), p.Author(), p.Description())
 
 	if p.ExecutorString() != "" {
 		out += ufmt.Sprintf(`
 This proposal contains the following metadata:
 
-%s	
-`, p.ExecutorString())
+%s
+
+Executor created in: %s
+`, p.ExecutorString(), p.ExecutorCreationRealm())
 	}
 
 	return out

@@ -71,8 +71,7 @@ func (p *ProposalRequest) Filter() Filter {
 }
 
 type Proposal struct {
-	author        std.Address
-	creationRealm string // The realm where this proposal was created (std.CurrentRealm)
+	author std.Address
 
 	title       string
 	description string
@@ -83,10 +82,6 @@ type Proposal struct {
 
 func (p *Proposal) Author() std.Address {
 	return p.author
-}
-
-func (p *Proposal) CreationRealm() string {
-	return p.creationRealm
 }
 
 func (p *Proposal) Title() string {
@@ -100,6 +95,14 @@ func (p *Proposal) Description() string {
 func (p *Proposal) ExecutorString() string {
 	if p.executor != nil {
 		return p.executor.String()
+	}
+
+	return ""
+}
+
+func (p *Proposal) ExecutorCreationRealm() string {
+	if p.executor != nil {
+		return p.executor.CreationRealm()
 	}
 
 	return ""
@@ -142,20 +145,23 @@ func (ps *Proposals) GetProposal(pid ProposalID) *Proposal {
 type Executor interface {
 	Execute(cur realm) error
 	String() string
+	CreationRealm() string
 }
 
 func NewSimpleExecutor(callback func(realm) error, description string) *SimpleExecutor {
 	return &SimpleExecutor{
-		callback: callback,
-		desc:     description,
+		callback:      callback,
+		desc:          description,
+		creationRealm: std.CurrentRealm().PkgPath(),
 	}
 }
 
 // SimpleExecutor implements the Executor interface using
 // a callback function and a description string.
 type SimpleExecutor struct {
-	callback func(realm) error
-	desc     string
+	callback      func(realm) error
+	desc          string
+	creationRealm string
 }
 
 func (e *SimpleExecutor) Execute(cur realm) error {
@@ -164,6 +170,10 @@ func (e *SimpleExecutor) Execute(cur realm) error {
 
 func (e *SimpleExecutor) String() string {
 	return e.desc
+}
+
+func (e *SimpleExecutor) CreationRealm() string {
+	return e.creationRealm
 }
 
 func NewSafeExecutor(e Executor) *SafeExecutor {
@@ -189,6 +199,10 @@ func (e *SafeExecutor) Execute(cur realm) error {
 
 func (e *SafeExecutor) String() string {
 	return e.e.String()
+}
+
+func (e *SafeExecutor) CreationRealm() string {
+	return e.e.CreationRealm()
 }
 
 type DAO interface {
