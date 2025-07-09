@@ -1,9 +1,31 @@
-package coinsort
+package coinutils
 
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/urequire"
 )
+
+func TestFromString_Valid(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected std.Coin
+	}{
+		{"1000ugnot", std.Coin{Amount: 1000, Denom: "ugnot"}},
+		{"1gno/test.v1", std.Coin{Amount: 1, Denom: "gno/test.v1"}},
+		{"999abc.def_ghi", std.Coin{Amount: 999, Denom: "abc.def_ghi"}},
+	}
+
+	for _, tc := range tests {
+		coin, err := CoinFromString(tc.input)
+		urequire.NoError(t, err, "input: %s", tc.input)
+		urequire.Equal(t, tc.expected.Amount, coin.Amount, "input: %s", tc.input)
+		urequire.Equal(t, tc.expected.Denom, coin.Denom, "input: %s", tc.input)
+	}
+}
+
+// Sorting
 
 func TestSortByBalance(t *testing.T) {
 	coins := std.Coins{

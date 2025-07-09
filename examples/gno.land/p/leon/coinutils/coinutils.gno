@@ -1,4 +1,5 @@
-// Package coinsort provides helpers to sort a slice of std.Coins using the
+// Package coinutils provides utility helpers for std.Coin & std.Coins
+// To sort a slice of std.Coins using the
 // classic sort.Sort API (without relying on sort.Slice).
 //
 // Usage examples:
@@ -14,12 +15,45 @@
 //	})
 //
 // Note: when getting std.Coins from the banker, it's sorted by denom by default.
-package coinsort
+package coinutils
 
 import (
+	"regexp"
 	"sort"
 	"std"
+
+	"gno.land/p/demo/ufmt"
 )
+
+// taken from tm2/pkg/std/coin.go
+var (
+	reDenomString = `[a-z\/][a-z0-9_.:\/]{2,}`
+	reAmount      = `[[:digit:]]+`
+	reDenom       = regexp.MustCompile(ufmt.Sprintf(`^%s$`, reDenomString))
+	reCoin        = regexp.MustCompile(ufmt.Sprintf(`^(%s)(%s)$`, reAmount, reDenom)) // without reSpc
+)
+
+// CoinFromString converts the input to a single coin value
+func CoinFromString(input string) (std.Coin, error) {
+	matches := reCoin.FindStringSubmatch(input)
+
+	if len(matches) != 3 {
+		return std.Coin{}, ufmt.Errorf("invalid input: %s", input)
+	}
+
+	println("matches:")
+	println(matches[0])
+	println(matches[1])
+	println(matches[2])
+
+	return std.Coin{}, nil
+}
+
+//func CoinsFromString() (std.Coins, error) {
+//
+//}
+
+// Sorting
 
 type ByAmount struct{ std.Coins }
 
