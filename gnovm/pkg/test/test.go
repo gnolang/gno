@@ -110,6 +110,7 @@ func (tp *testParams) SetInt64(key string, val int64)      { /* noop */ }
 func (tp *testParams) SetUint64(key string, val uint64)    { /* noop */ }
 func (tp *testParams) SetString(key string, val string)    { /* noop */ }
 func (tp *testParams) SetStrings(key string, val []string) { /* noop */ }
+func (tp *testParams) GetStrings(key string) []string      { return []string{} }
 
 // ----------------------------------------
 // main test function
