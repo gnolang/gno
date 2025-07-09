@@ -894,6 +894,7 @@ func fmtGnoFiles(t *testing.T, loader *PkgsLoader, env *testscript.Env, dir stri
 		body, err := prcss.FormatFile(curpath)
 		if err != nil {
 			t.Logf("unable to format %q: %s", curpath, err)
+			return nil
 		}
 
 		file := strings.TrimPrefix(curpath, env.WorkDir+"/")

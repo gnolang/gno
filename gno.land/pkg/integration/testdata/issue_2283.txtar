@@ -108,15 +108,14 @@ gno = "0.9"
 package bye
 
 import (
-    "encoding/base64"
+	"encoding/base64"
 )
 
 func init() {
-    val, _ := base64.StdEncoding.DecodeString("heyhey")
-    println(val)
-    base64.StdEncoding.EncodeToString([]byte(val))
+	val, _ := base64.StdEncoding.DecodeString("heyhey")
+	println(val)
+	base64.StdEncoding.EncodeToString([]byte(val))
 }
-
 -- pusers/gnomod.toml --
 module = "gno.land/p/demo/users"
 gno = "0.9"

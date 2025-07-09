@@ -109,7 +109,6 @@ import (
 func Call(s string) {
 	base64.StdEncoding.DecodeString("hey")
 }
-
 -- pusers/gnomod.toml --
 module = "gno.land/p/demo/users"
 gno = "0.9"
@@ -160,7 +159,7 @@ func (aon AddressOrName) GetName() (string, bool) {
 }
 -- users/gnomod.toml --
 module = "gno.land/r/demo/users"
-gno "0.9"
+gno = "0.9"
 -- users/users.gno --
 package users
 
@@ -576,7 +575,7 @@ func init() {
 }
 -- boards/gnomod.toml --
 module = "gno.land/r/demo/boards"
-gno "0.9"
+gno = "0.9"
 -- boards/boards.gno --
 package boards
 

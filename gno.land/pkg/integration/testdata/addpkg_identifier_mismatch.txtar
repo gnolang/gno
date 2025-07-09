@@ -21,7 +21,6 @@ package hello123
 func SayHello() string {
 	return "hello world!"
 }
-
 -- bye/gnomod.toml --
 module = "gno.land/p/demo/bye"
 gno = "0.9"

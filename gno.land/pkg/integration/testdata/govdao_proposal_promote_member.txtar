@@ -76,7 +76,6 @@ func main() {
 	preq := impl.NewPromoteMemberRequest(std.Address("g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r"), "T3", "T2")
 	dao.MustCreateProposal(cross, preq)
 }
-
 -- proposer/create_proposal.gno --
 package main
 

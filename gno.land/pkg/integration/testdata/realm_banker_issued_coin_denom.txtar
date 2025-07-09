@@ -88,10 +88,9 @@ func Mint(cur realm, addr std.Address, denom string, amount int64) {
 }
 
 func Burn(cur realm, addr std.Address, denom string, amount int64) {
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
+	banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
 }
-
 -- long/gnomod.toml --
 module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
 gno = "0.9"
@@ -110,10 +109,9 @@ func Mint(cur realm, addr std.Address, denom string, amount int64) {
 }
 
 func Burn(cur realm, addr std.Address, denom string, amount int64) {
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
+	banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
 }
-
 -- invalid_realm_denom/gnomod.toml --
 module = "gno.land/r/test/invalid_realm_denom"
 gno = "0.9"
@@ -131,6 +129,6 @@ func Mint(cur realm, addr std.Address, denom string, amount int64) {
 }
 
 func Burn(cur realm, addr std.Address, denom string, amount int64) {
-  banker := std.NewBanker(std.BankerTypeRealmIssue)
-  banker.RemoveCoin(addr, denom, amount)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
+	banker.RemoveCoin(addr, denom, amount)
 }

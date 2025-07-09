@@ -16,4 +16,5 @@ gno = "0.9"
 
 -- bar.gno --
 package bar
+
 func Render(path string) string { return "hello" }
