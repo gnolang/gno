@@ -199,7 +199,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	pkgs, err := packages.Load(loadConf, args...)
 	if err != nil {
-		return err
+		return fmt.Errorf("load packages: %w", err)
 	}
 
 	if len(pkgs) == 0 {
