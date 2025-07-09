@@ -58,31 +58,39 @@ func splitCallData(callData string) (string, []*uint256.Uint) {
 }
 
 // public functions
-func ExecuteByteCode(_ realm, codeStr, callData, valueToSend string) {
+func ExecuteByteCode(_ realm, gasLimit int, codeStr, callData, valueToSend string) {
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
 
 	// parse args
 	callDataFunc, args := splitCallData(callData)
 
+	if gasLimit < 0 {
+		gasLimit = -1
+	}
+
 	// execute raw byte code
-	res, err := caller.Call(env, uint256.MustFromDecimal(valueToSend), codeStr, callDataFunc, args...)
+	res, gasUsed, err := caller.Call(env, gasLimit, uint256.MustFromDecimal(valueToSend), codeStr, callDataFunc, args...)
 	if err != nil {
 		panic("execute bytecode runtime error: " + err.Error())
 	}
-	env.Transaction.PushExecution(0, caller, res, 0, true) // TODO: get the execution price
+	env.Transaction.PushExecution(gasUsed, caller, res, 0, true)
 }
 
-func CreateContract(_ realm, initCode, valueToSend string) {
+func CreateContract(_ realm, gasLimit int, initCode, valueToSend string) {
 	// check for caller
 	caller := assertGetConnectedUserFromRealm()
 
+	if gasLimit < 0 {
+		gasLimit = -1
+	}
+
 	// execute raw byte code
-	_, err := caller.CreateContract(env, initCode, uint256.MustFromDecimal(valueToSend))
+	contractId, gasUsed, err := caller.CreateContract(env, gasLimit, initCode, uint256.MustFromDecimal(valueToSend))
 	if err != nil {
 		panic("execute bytecode runtime error: " + err.Error())
 	}
-	env.Transaction.PushContractCreation(0, caller, 0) // TODO: get the execution price
+	env.Transaction.PushContractCreation(gasUsed, caller, contractId)
 }
 
 func Faucet(_ realm, weiToGive uint, gasToGive uint) {
@@ -114,7 +122,7 @@ func Register(_ realm) {
 	env.Transaction.PushCallerCreation(0, env.Accounts[addr], addr)
 }
 
-func CallContract(_ realm, contractAddress, callData string, valueToSend string) {
+func CallContract(_ realm, gasLimit int, contractAddress, callData string, valueToSend string) {
 	caller := assertGetConnectedUserFromRealm()
 
 	// get contract index
@@ -124,15 +132,19 @@ func CallContract(_ realm, contractAddress, callData string, valueToSend string)
 		panic("call contract: bad address (bad number, or invalid address) or " + err.Error())
 	}
 
+	if gasLimit < 0 {
+		gasLimit = -1
+	}
+
 	// parse args
 	callDataFunc, args := splitCallData(callData)
 
 	// execute contract code
-	res, err := caller.CallContract(env, contractIndex.Uint64(), uint256.MustFromDecimal(valueToSend), callDataFunc, args...)
+	res, gasUsed, err := caller.CallContract(env, gasLimit, contractIndex.Uint64(), uint256.MustFromDecimal(valueToSend), callDataFunc, args...)
 	if err != nil {
 		panic("call contract runtime error: " + err.Error())
 	}
-	env.Transaction.PushExecution(0, caller, res, contractIndex.Uint64(), false) // TODO: get the execution price
+	env.Transaction.PushExecution(gasUsed, caller, res, contractIndex.Uint64(), false)
 }
 
 func Render(path string) string {
@@ -147,11 +159,11 @@ func Render(path string) string {
 
 	// create the action part
 	actionPart := md.H2("Actions") + br
-	executeByteCodeLnk := txlink.Call("ExecuteByteCode", "codeStr", "00", "callData", "foo(uint256,uint256) 0x42 0x1", "valueToSend", "10")
-	faucetLnk := txlink.Call("Faucet", "weiToGive", "100000")
+	executeByteCodeLnk := txlink.Call("ExecuteByteCode", "gasLimit", "-1", "codeStr", "00", "callData", "foo(uint256,uint256) 0x42 0x1", "valueToSend", "10")
+	faucetLnk := txlink.Call("Faucet", "weiToGive", "1000000", "gasToGive", "1000000")
 	buyGasLnk := txlink.Call("BuyGas", "nbGasToBuy", "100000")
-	callLnk := txlink.Call("CallContract", "contractAddress", "12", "callData", "foo(uint256,uint256) 0x42 0x1", "valueToSend", "10")
-	createLnk := txlink.Call("CreateContract", "initCode", "0xCACABEBE", "valueToSend", "10")
+	callLnk := txlink.Call("CallContract", "gasLimit", "-1", "contractAddress", "12", "callData", "foo(uint256,uint256) 0x42 0x1", "valueToSend", "10")
+	createLnk := txlink.Call("CreateContract", "gasLimit", "-1", "initCode", "0xCACABEBE", "valueToSend", "10")
 	actionPart += md.BulletList([]string{
 		"Click " + md.Link("here", executeByteCodeLnk) + " to execute raw EVM bytecode.",
 		"Click " + md.Link("here", faucetLnk) + " to give wei to your account (faucet).",

@@ -179,8 +179,8 @@ func (s *State) setEnv(env *Env) {
 }
 
 // setGasLimit sets the maximum gas limit for this execution State.
-func (s *State) setGasLimit(gas uint) {
-	s.gasLimit = int(gas)
+func (s *State) setGasLimit(gas int) {
+	s.gasLimit = gas
 }
 
 // setCallerAddress sets the address of the caller initiating the execution.
@@ -223,12 +223,12 @@ func (s *State) executeByteCode() error {
 		if !ok {
 			return invalidInstruction
 		}
-		s.gasConsumed += uint(opData.gas)
+		s.gasConsumed += opData.gas
 		err := opData.operation(s)
 		if err != nil {
 			return err
 		}
-		if s.gasLimit > 0 && s.gasLimit < int(s.gasConsumed) {
+		if s.gasLimit >= 0 && s.gasLimit < int(s.gasConsumed) {
 			return outOfGas
 		}
 		if s.code.IsDone() { // break before increment to avoid out of bounds

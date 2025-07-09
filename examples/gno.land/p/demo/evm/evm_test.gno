@@ -19,7 +19,7 @@ func TestExecuteEvm(t *testing.T) {
 		callData                 []byte
 		caller                   *Account
 		env                      *Env
-		gas                      uint
+		gas                      int
 		expectedResult           []byte
 		expectedMemory           []byte
 		expectedStack            []*uint256.Uint

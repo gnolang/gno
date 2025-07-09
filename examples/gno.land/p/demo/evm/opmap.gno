@@ -10,7 +10,7 @@ type EvmOpData struct {
 	opCode    OpCode
 	name      string
 	operation func(*State) error
-	gas       uint16
+	gas       uint
 }
 
 const (

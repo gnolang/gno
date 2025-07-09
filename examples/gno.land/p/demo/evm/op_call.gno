@@ -52,7 +52,7 @@ func opCall(s *State) error {
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
-	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
+	if s.gasLimit >= 0 && int(gas.Uint64()) > s.gasLimit-int(s.gasConsumed) {
 		return notEnoughGas
 	}
 	memoryCost := uint64(0)
@@ -62,7 +62,10 @@ func opCall(s *State) error {
 	tmpState := s.clone()
 	tmpState.setCallData(callData)
 	tmpState.setCallValue(moneyToGive)
-	tmpState.setGasLimit(uint(gas.Uint64()))
+	if s.gasLimit >= 0 {
+		tmpState.setGasLimit(int(gas.Uint64()))
+	}
+
 	tmpState.setCallerAddress(addr.Uint64())
 
 	// check for precompiled
@@ -139,7 +142,7 @@ func opCallCode(s *State) error {
 		s.stack.Push(uint256.Zero())
 		return nil
 	}
-	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
+	if s.gasLimit >= 0 && int(gas.Uint64()) > s.gasLimit-int(s.gasConsumed) {
 		return notEnoughGas
 	}
 	memoryCost := uint64(0)
@@ -148,7 +151,9 @@ func opCallCode(s *State) error {
 	// create a tmp state
 	tmpState := s.clone()
 	tmpState.setCallData(callData)
-	tmpState.setGasLimit(uint(gas.Uint64()))
+	if s.gasLimit >= 0 {
+		tmpState.setGasLimit(int(gas.Uint64()))
+	}
 	tmpState.setCallValue(moneyToGive)
 	tmpState.transientStorage = s.transientStorage
 
@@ -214,7 +219,7 @@ func opDelegateCall(s *State) error {
 		return err
 	}
 
-	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
+	if s.gasLimit >= 0 && int(gas.Uint64()) > s.gasLimit-int(s.gasConsumed) {
 		return notEnoughGas
 	}
 	memoryCost := uint64(0)
@@ -223,7 +228,10 @@ func opDelegateCall(s *State) error {
 	// create a tmp state
 	tmpState := s.clone()
 	tmpState.setCallData(callData)
-	tmpState.setGasLimit(uint(gas.Uint64()))
+	if s.gasLimit >= 0 {
+		tmpState.setGasLimit(int(gas.Uint64()))
+	}
+
 	tmpState.setCallerAddress(s.originAddress)
 	tmpState.transientStorage = s.transientStorage
 
@@ -289,7 +297,7 @@ func opStaticCall(s *State) error {
 		return err
 	}
 
-	if uint(gas.Uint64()) > s.tmp.accounts[s.callerAddress].Gas {
+	if s.gasLimit >= 0 && int(gas.Uint64()) > s.gasLimit-int(s.gasConsumed) {
 		return notEnoughGas
 	}
 	memoryCost := uint64(0)
@@ -300,7 +308,9 @@ func opStaticCall(s *State) error {
 	tmpState.context = staticContext
 	tmpState.setCallData(callData)
 	tmpState.setCallValue(uint256.Zero())
-	tmpState.setGasLimit(uint(gas.Uint64()))
+	if s.gasLimit >= 0 {
+		tmpState.setGasLimit(int(gas.Uint64()))
+	}
 	tmpState.transientStorage = s.transientStorage
 
 	// check for precompiled

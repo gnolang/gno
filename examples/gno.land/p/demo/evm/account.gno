@@ -59,7 +59,7 @@ func (c *Accounts) Clone() *Accounts {
 	return &accs
 }
 
-func (c *Account) executeCallHex(env *Env, f string, code []byte, args ...*uint256.Uint) ([]byte, error) {
+func (c *Account) executeCallHex(env *Env, gasLimit int, f string, code []byte, args ...*uint256.Uint) ([]byte, uint, error) {
 	st := newStateFromEnv(env)
 	buf := keccak256.Keccak256([]byte(f))[0:4]
 	for _, v := range args {
@@ -67,51 +67,53 @@ func (c *Account) executeCallHex(env *Env, f string, code []byte, args ...*uint2
 		buf = append(buf, b[:]...)
 	}
 	st.setCallData(buf)
-	st.setGasLimit(c.Gas)
+	st.setGasLimit(gasLimit)
 	st.setCallerAddress(c.EvmAddress)
 	st.setOriginAddress(c.EvmAddress)
 	st.setCode(code)
 	err := st.executeByteCode()
 	if err != nil && err != revertError {
-		return []byte{}, err
+		return []byte{}, st.gasConsumed, err
 	}
 
-	c.Gas -= st.gasConsumed
+	if gasLimit != -1 {
+		c.Gas -= st.gasConsumed
+	}
 	if err != revertError {
 		st.loadStagedChangesIntoEnv(env)
 	}
-	return st.getResult(), nil
+	return st.getResult(), st.gasConsumed, nil
 }
 
-func (c *Account) Call(env *Env, valueToSend *uint256.Uint, code string, f string, args ...*uint256.Uint) ([]byte, error) {
+func (c *Account) Call(env *Env, gasLimit int, valueToSend *uint256.Uint, code string, f string, args ...*uint256.Uint) ([]byte, uint, error) {
 	byteCode, err := hex.DecodeString(code)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
 	if valueToSend.Gt(c.Balance) {
-		return []byte{}, notEnoughWei
+		return []byte{}, 0, notEnoughWei
 	}
 	c.Balance.Sub(c.Balance, valueToSend)
-	return c.executeCallHex(env, f, byteCode, args...)
+	return c.executeCallHex(env, gasLimit, f, byteCode, args...)
 }
 
-func (c *Account) CallContract(env *Env, contractAddress uint64, valueToSend *uint256.Uint, f string, args ...*uint256.Uint) ([]byte, error) {
+func (c *Account) CallContract(env *Env, gasLimit int, contractAddress uint64, valueToSend *uint256.Uint, f string, args ...*uint256.Uint) ([]byte, uint, error) {
 	contract, ok := env.Accounts[contractAddress]
 	if !ok || contract.AccountType != ContractAccount {
-		return []byte{}, errors.New("invalid contract address")
+		return []byte{}, 0, errors.New("invalid contract address")
 	}
 	if valueToSend.Gt(c.Balance) {
-		return []byte{}, notEnoughWei
+		return []byte{}, 0, notEnoughWei
 	}
 	c.Balance.Sub(c.Balance, valueToSend)
 	c.Balance.Add(contract.Balance, valueToSend)
-	return c.executeCallHex(env, f, contract.Code, args...)
+	return c.executeCallHex(env, gasLimit, f, contract.Code, args...)
 }
 
-func (c *Account) CreateContract(env *Env, code string, valueToSend *uint256.Uint) ([]byte, error) {
+func (c *Account) CreateContract(env *Env, gasLimit int, code string, valueToSend *uint256.Uint) (uint64, uint, error) {
 	byteCode, err := hex.DecodeString(code)
 	if err != nil {
-		return []byte{}, err
+		return 0, 0, err
 	}
 
 	creationCode := []byte{}
@@ -155,7 +157,13 @@ func (c *Account) CreateContract(env *Env, code string, valueToSend *uint256.Uin
 
 	creationCode = append(creationCode, byteCode...)
 
-	return c.executeCallHex(env, "", creationCode)
+	_, gasConsumed, err := c.executeCallHex(env, gasLimit, "", creationCode)
+
+	if err != nil {
+		return 0, gasConsumed, err
+	}
+
+	return 0, gasConsumed, nil
 }
 
 func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) {
