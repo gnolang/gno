@@ -367,8 +367,6 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 //----------------------------------------
 // transactions
 
-//TODO: new escaped when crossing boundary will contains the objects that cross
-
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	if bm.OpsEnabled {
