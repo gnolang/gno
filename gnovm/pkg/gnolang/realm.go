@@ -1672,10 +1672,8 @@ func hasPrivateDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[
 	visited[obj] = struct{}{}
 
 	objID := obj.GetObjectID()
-	if !objID.IsZero() {
-		if objID.PkgID != rlm.ID && objID.Private {
-			return true
-		}
+	if objID.PkgID != rlm.ID && objID.Private {
+		return true
 	}
 
 	children := getChildObjects2(store, obj)
