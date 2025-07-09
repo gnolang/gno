@@ -20,10 +20,11 @@ var (
 	bigSeparator = strings.Repeat("‎ ", 10)
 
 	pagesRouter = map[string]func(map[string]string) string{
-		"":       renderMainPage,
-		"search": renderSearchPage,
-		"new":    renderNewPage,
-		"submit": renderSubmitPage,
+		"":         renderMainPage,
+		"search":   renderSearchPage,
+		"new":      renderNewPage,
+		"submit":   renderSubmitPage,
+		"petition": renderPetitionPage,
 	}
 )
 
