@@ -123,17 +123,16 @@ func PkgIDFromPkgPath(path string) PkgID {
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
-	oid := ObjectIDFromPkgID(pkgID)
-	oid.Private = GetPkgPrivateStatus(path)
+	oid := ObjectIDFromPkgID(pkgID, GetPkgPrivateStatus(path))
 	return oid
 }
 
 // Returns the ObjectID of the PackageValue associated with pkgID.
-func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
+func ObjectIDFromPkgID(pkgID PkgID, private bool) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
-		NewTime: 1,     // by realm logic.
-		Private: false, //TODO: Set this to private value of the object.
+		NewTime: 1,       // by realm logic.
+		Private: private, // whether the package is private.
 	}
 }
 

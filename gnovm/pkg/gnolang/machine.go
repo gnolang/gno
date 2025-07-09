@@ -2002,7 +2002,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			} else {
 				// Implicit switch to storage realm.
 				// Neither cross nor didswitch.
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID, recvOID.Private)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				if objpv.IsRealm() && objpv.Realm == nil {
 					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
