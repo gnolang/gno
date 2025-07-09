@@ -49,10 +49,11 @@ via the `-deploy-key` flag.
 
 #### Detecting package paths
 
-If the current working directory contains a `gno.mod` file, `gnodev` deploys the
-package to the `pkgpath` specified inside.
+If the current working directory contains a `gnomod.toml` file, `gnodev` deploys the
+package to the `pkgpath` specified inside. Check out [this page](../resources/configuring-gno-projects.md)
+for more info.
 
-If no `gno.mod` file is found, `gnodev` searches for a `.gno` file containing a
+If no `gnomod.toml` file is found, `gnodev` searches for a `.gno` file containing a
 package name and deploys it under `gno.land/r/dev/<pkgname>`.
 
 #### Deploying example packages
@@ -102,7 +103,7 @@ Let's use the local file structure we set up in the [previous tutorial](anatomy-
 
 ```
 counter/
-    ├─ gno.mod
+    ├─ gnomod.toml
     ├─ counter.gno
 ```
 
