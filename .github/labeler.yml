@@ -1,24 +1,79 @@
 ":receipt:  package/realm":
-- changed-files:
-  - any-glob-to-any-file:
-    - examples/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - examples/**/*
 
 ":package: :robot: gnovm":
-- changed-files:
-  - any-glob-to-any-file:
-    - gnovm/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - gnovm/**/*
 
 ":package: :globe_with_meridians:  tendermint v2":
-- changed-files:
-  - any-glob-to-any-file:
-    - tm2/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - tm2/**/*
 
 ":package: :mountain:  gno.land":
-- changed-files:
-  - any-glob-to-any-file:
-    - "gno.land/**/*"
+  - changed-files:
+      - any-glob-to-any-file:
+          - "gno.land/**/*"
 
 ":book:  documentation":
-- changed-files:
-  - any-glob-to-any-file:
-    - docs/**/*"
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**/*
+
+"amino":
+  - changed-files:
+      - any-glob-to-any-file:
+          - tm2/pkg/amino/**/*
+
+"🌍 gnoweb":
+  - changed-files:
+      - any-glob-to-any-file:
+          - gno.land/pkg/gnoweb/**/*
+
+"🛠️ gnodev":
+  - changed-files:
+      - any-glob-to-any-file:
+          - contribs/gnodev/**/*
+
+"📄 top-level-md":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "README*"
+          - "CHANGELOG*"
+          - "LICENSE*"
+
+"🤝 contribs":
+  - all:
+      - changed-files:
+          - all-globs-to-any-file:
+              - contribs/**/*
+          - all-globs-to-all-files:
+              - "!contribs/gnodev/**/*"
+
+"🚀 ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - ".codecov.yml"
+
+"🐳 devops":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Dockerfile*"
+          - "misc/deployments/**/*"
+          - "misc/loop/**/*"
+          - "docker-compose*.yml"
+          - "*.dockerfile"
+          - "Makefile"
+
+"🐹 golang":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/go.mod"
+          - "**/go.sum"
+          - ".go-version"
+          - "go.work*"

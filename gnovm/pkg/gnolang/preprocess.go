@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	initFunc                  = "init"
 	blankIdentifier           = "_"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
@@ -356,11 +355,6 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
-						// XXX NameExprTypeDefine in NameExpr?
-						// See known issues in README.nd:
-						// > Switch varnames cannot be
-						// captured as heap items.
-						// [test](../gnovm/tests/files/closure11_known.gno)
 						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss, NSTypeSwitch, -1)
 					}
 				} else {
@@ -2574,6 +2568,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
+				if n.Name == blankIdentifier {
+					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
+					return n, TRANS_CONTINUE
+				}
 				// 'tmp' is a newly constructed type value, where
 				// any recursive references refer to the
 				// original type constructed by predefineRecursively()
@@ -3322,6 +3320,19 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			// type switch is a special cast that varName is
+			// defined in case clauses.
+			case *SwitchClauseStmt:
+				// parent switch statement.
+				ss := ns[len(ns)-1].(*SwitchStmt)
+				if ss.IsTypeSwitch && ss.VarName != "" {
+					// If the name is actually heap used:
+					if hasAttrHeapUse(n, ss.VarName) {
+						// Make record in static block.
+						// will be populated in ExpandWith().
+						n.SetIsHeapItem(ss.VarName)
+					}
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -4811,6 +4822,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			}
 		}
 	case *TypeDecl:
+		if d.Name == blankIdentifier {
+			return
+		}
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {
