@@ -95,7 +95,7 @@ func TestListAndNonIgnoredPkgs(t *testing.T) {
 			}
 
 			// Sort packages
-			sorted, err := pkgs.Sort(false)
+			sorted, err := pkgs.Sort()
 			require.NoError(t, err)
 
 			// Non draft packages
@@ -164,7 +164,7 @@ func TestSortPkgs(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			sorted, err := tc.in.Sort(false)
+			sorted, err := tc.in.Sort()
 			if tc.shouldErr {
 				assert.Error(t, err)
 			} else {
