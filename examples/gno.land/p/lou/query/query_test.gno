@@ -4,20 +4,23 @@ import (
 	"testing"
 
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 func TestUpdateQuery(t *testing.T) {
 	raw := "/blog?foo=bar"
-	updated, _ := UpdateQuery(raw, "foo", "baz")
+	updated, err := UpdateQuery(raw, "foo", "baz")
+	urequire.NoError(t, err, "no error")
 	uassert.Equal(t, "/blog?foo=baz", updated)
 }
 
 func TestUpdateQueryMulti(t *testing.T) {
 	raw := "/blog?sort=alpha"
-	updated, _ := UpdateQueryMulti(raw, map[string]string{
+	updated, err := UpdateQueryMulti(raw, map[string]string{
 		"sort":  "recent",
 		"order": "asc",
 	})
+	urequire.NoError(t, err, "no error")
 	expected1 := "/blog?order=asc&sort=recent"
 	expected2 := "/blog?sort=recent&order=asc"
 	if updated != expected1 && updated != expected2 {
@@ -27,24 +30,34 @@ func TestUpdateQueryMulti(t *testing.T) {
 
 func TestParseQueryParams(t *testing.T) {
 	raw := "/blog?view=grid&sort=alpha"
-	val, _ := ParseQueryParams("sort", raw)
+	val, err := ParseQueryParams("sort", raw)
+	urequire.NoError(t, err, "no error")
 	uassert.Equal(t, "alpha", val)
 }
 
 func TestParseQueryMap(t *testing.T) {
 	raw := "/blog?sort=alpha&order=desc"
-	m, _ := ParseQueryMap(raw)
+	m, err := ParseQueryMap(raw)
+	urequire.NoError(t, err, "no error")
 	uassert.Equal(t, "alpha", m["sort"])
 	uassert.Equal(t, "desc", m["order"])
 }
 
 func TestDeleteQuery(t *testing.T) {
 	raw := "/blog?sort=alpha&mode=grid"
-	deleted, _ := DeleteQuery(raw, "sort")
+	deleted, err := DeleteQuery(raw, "sort")
+	urequire.NoError(t, err, "no error")
 	uassert.Equal(t, "/blog?mode=grid", deleted)
 }
 
-// func TestEmptyAndMalformedURL(t *testing.T) {
-// 	uassert.Equal(t, "", ParseQueryParams("x", ":::"))
-// 	uassert.Equal(t, "", UpdateQuery(":::", "a", "b"))
-// }
+func TestMalformedURLHandling(t *testing.T) {
+	_, err := ParseQueryMap(":::")
+	urequire.Error(t, err)
+
+	_, err = UpdateQuery(":::", "a", "b")
+	urequire.Error(t, err)
+
+	val, err := ParseQueryParams("x", ":::")
+	urequire.Error(t, err)
+	urequire.Equal(t, "", val)
+}
