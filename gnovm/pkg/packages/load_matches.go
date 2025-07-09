@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func loadMatches(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*pkgMatch, known PkgList, fset *token.FileSet) (PkgList, error) {
@@ -39,6 +40,8 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		Imports:      map[FileKind][]string{},
 		ImportsSpecs: ImportsMap{},
 	}
+
+	mptype := gnolang.MPUserAll
 
 	// get package from modcache if the dir is in it
 	modCachePath := gnomod.ModCachePath()
@@ -72,6 +75,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 			return pkg
 		}
 		pkg.ImportPath = filepath.ToSlash(rel)
+		mptype = gnolang.MPStdlibAll
 	} else {
 		// attempt to load gnomod.toml if package is not stdlib
 		// get import path and flags from gnomod
@@ -85,7 +89,21 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		pkg.ImportPath = mod.Module
 	}
 
-	mpkg, err := gnolang.ReadMemPackage(pkg.Dir, pkg.ImportPath, gnolang.MPAnyAll)
+	mpkg, err := func() (mpkg *std.MemPackage, err error) {
+		// need to recover since ReadMemPackage is panicking again
+		defer func() {
+			pret := recover()
+			switch cret := pret.(type) {
+			case nil:
+				// do nothing
+			case error:
+				err = fmt.Errorf("read mempackage: %w", cret)
+			default:
+				err = fmt.Errorf("read mempackage: %v", cret)
+			}
+		}()
+		return gnolang.ReadMemPackage(pkg.Dir, pkg.ImportPath, mptype)
+	}()
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
 		return pkg
