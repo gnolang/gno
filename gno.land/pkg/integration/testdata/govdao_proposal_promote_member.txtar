@@ -52,7 +52,11 @@ import (
 )
 
 func main() {
-	preq := impl.NewPromoteMemberRequest(std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "T3")
+	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
+	fromTier := "T2"
+	toTier := "T3"
+	
+	preq := impl.NewPromoteMemberRequest(addr, fromTier, toTier)
 	dao.MustCreateProposal(cross, preq)
 }
 
