@@ -46,7 +46,7 @@ func (m *Machine) doOpAddAssign() {
 	// add rv to lv.
 	addAssign(m.Alloc, lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -61,7 +61,7 @@ func (m *Machine) doOpSubAssign() {
 	// sub rv from lv.
 	subAssign(lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -76,7 +76,7 @@ func (m *Machine) doOpMulAssign() {
 	// lv *= rv
 	mulAssign(lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -95,7 +95,7 @@ func (m *Machine) doOpQuoAssign() {
 	}
 
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -114,7 +114,7 @@ func (m *Machine) doOpRemAssign() {
 	}
 
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -129,7 +129,7 @@ func (m *Machine) doOpBandAssign() {
 	// lv &= rv
 	bandAssign(lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -144,7 +144,7 @@ func (m *Machine) doOpBandnAssign() {
 	// lv &^= rv
 	bandnAssign(lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -159,7 +159,7 @@ func (m *Machine) doOpBorAssign() {
 	// lv |= rv
 	borAssign(lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -174,7 +174,7 @@ func (m *Machine) doOpXorAssign() {
 	// lv ^= rv
 	xorAssign(lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -186,7 +186,7 @@ func (m *Machine) doOpShlAssign() {
 	// lv <<= rv
 	shlAssign(m, lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }
 
@@ -198,6 +198,6 @@ func (m *Machine) doOpShrAssign() {
 	// lv >>= rv
 	shrAssign(m, lv.TV, rv)
 	if lv.Base != nil {
-		m.Realm.DidUpdate(lv.Base.(Object), nil, nil, m.Store)
+		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
 }

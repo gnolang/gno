@@ -481,9 +481,9 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
 			if hiv, ok := update.V.(*HeapItemValue); ok {
-				rlm.DidUpdate(pb, nil, hiv, m.Store)
+				rlm.DidUpdate(pb, nil, hiv)
 			} else {
-				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store), m.Store)
+				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
 			}
 		}
 	}

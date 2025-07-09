@@ -201,7 +201,7 @@ func (rlm *Realm) SetPrivate(private bool) {
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
-func (rlm *Realm) DidUpdate(po, xo, co Object, store Store) {
+func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -1663,17 +1663,17 @@ func getOwner(store Store, oo Object) Object {
 }
 
 func hasPrivateDeps(obj Object, rlm *Realm, store Store) bool {
-	visited := make(map[Object]bool) //TODO: use slice ? maybe benchmark
+	visited := make(map[Object]struct{})
 	return hasPrivateDepsWithVisited(obj, rlm, store, visited)
 }
 
-func hasPrivateDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[Object]bool) bool {
-	if visited[obj] {
+func hasPrivateDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[Object]struct{}) bool {
+	if _, exists := visited[obj]; exists {
 		return false
 	}
-	visited[obj] = true
-	objID := obj.GetObjectID()
+	visited[obj] = struct{}{}
 
+	objID := obj.GetObjectID()
 	if !objID.IsZero() {
 		if objID.PkgID != rlm.ID && objID.Private {
 			return true
