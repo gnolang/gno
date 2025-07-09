@@ -181,7 +181,6 @@ func (g *GovDAO) isValidCall() bool {
 		if isMsgRun {
 			return true
 		}
-
 	}
 
 	// case 2

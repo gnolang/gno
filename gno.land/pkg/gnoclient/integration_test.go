@@ -338,8 +338,7 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "main",
-			// Path will be automatically set by handler.
-			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			// Path: fmt.Sprintf("gno.land/e/%s/run", caller.GetAddress().String()),
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -427,8 +426,7 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "main",
-			// Path will be automatically set by handler.
-			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			// Path: fmt.Sprintf("gno.land/e/%s/run", caller.GetAddress().String()),
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -442,8 +440,7 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "main",
-			// Path will be automatically set by handler.
-			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			// Path: fmt.Sprintf("gno.land/e/%s/run", caller.GetAddress().String()),
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
