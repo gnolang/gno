@@ -21,6 +21,7 @@ func Submit(_ realm, title, description string) {
 		publisher:   *user,
 		title:       title,
 		description: description,
+		id:          len(petitions),
 	})
 }
 

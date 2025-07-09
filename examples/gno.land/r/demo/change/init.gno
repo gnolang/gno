@@ -6,12 +6,36 @@ import (
 
 	"std"
 	"strings"
+	"strconv"
 )
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	if max <= 3 {
+		return s[:max]
+	}
+	return s[:max-3] + "..."
+}
 
 type petition struct {
 	publisher   users.UserData
 	title       string
 	description string
+	id          int
+}
+
+func (p petition) LString() string {
+	return p.title
+}
+
+func (p petition) MiniRender() string {
+	content := md.HorizontalRule() + br
+	content += md.H3(md.Link(p.title, here + ":petition?id=" + strconv.Itoa(p.id))) + br
+	content += "by " + p.publisher.RenderLink("") + ", " + md.Bold("0") + " signatures." + br
+	content += md.HorizontalRule() + br
+	return content
 }
 
 var (
