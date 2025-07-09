@@ -70,6 +70,10 @@ func UpdateQuery(rawPath, key, value string) string {
 }
 
 // DeleteQuery removes a query parameter from the URL.
+//
+//	Example:
+//	  url := DeleteQuery("https://example.com/?foo=1&bar=2", "foo")
+//	  // url == "https://example.com/?bar=2"
 func DeleteQuery(rawURL, key string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil {
