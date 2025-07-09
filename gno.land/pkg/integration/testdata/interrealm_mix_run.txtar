@@ -67,7 +67,7 @@ import (
 
 func main() {
 	utils.AssertPreviousRealmPkgPath("")
-	utils.AssertCurrentRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertCurrentRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 
 	borrowrealm.Mutate()
 }
@@ -187,27 +187,27 @@ func (o *ObjectImplem) MutateWithoutRealmCheck() {
 
 func (o *ObjectImplem) Mutate() {
 	utils.AssertPreviousRealmPkgPath("")
-	utils.AssertCurrentRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertCurrentRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 
 	o.value++
 }
 
 func (o *ObjectImplem) MutateCrossing(cur realm) {
-	utils.AssertPreviousRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
 	o.value++
 }
 
 func (o *ObjectImplem) MutateCrossingObjectRootedAtCaller(cur realm) {
-	utils.AssertPreviousRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
 	o.value++
 }
 
 func (o *ObjectImplem) MutateWithBorrowCrossing() {
-	utils.AssertPreviousRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 
 	o.value++
@@ -215,11 +215,11 @@ func (o *ObjectImplem) MutateWithBorrowCrossing() {
 
 func InspectRealmsNonCrossing() {
 	utils.AssertPreviousRealmPkgPath("")
-	utils.AssertCurrentRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertCurrentRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 }
 
 func InspectRealmsCrossing(cur realm) {
-	utils.AssertPreviousRealmPkgPath("gno.land/r/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
+	utils.AssertPreviousRealmPkgPath("gno.land/e/g1advja7j0c7p8f3xp2yf42qnhuv5tdes7ngqp80/run")
 	utils.AssertCurrentRealmPkgPath("gno.land/r/test/borrowrealm")
 }
 
