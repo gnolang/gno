@@ -1,13 +1,8 @@
 package integration
 
 import (
-	"bufio"
 	"errors"
-	"flag"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -146,69 +141,4 @@ func splitArgs(s string) ([]string, error) {
 	}
 
 	return args, nil
-}
-
-// ParseTopLevelFlags parses top-level lines starting with # <prefix> <flags>.
-// Each # <prefix> line overrides previous flags.
-func parseTopLevelFlags(r io.Reader, prefix string, fs *flag.FlagSet) (bool, error) {
-	scanner := bufio.NewScanner(r)
-	var foundOpts bool
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if !strings.HasPrefix(line, "#") {
-			break // Stop at first non-# line
-		}
-
-		// Remove leading #
-		line = strings.TrimSpace(line[1:])
-
-		if strings.HasPrefix(line, prefix) {
-			foundOpts = true
-			opts := strings.TrimSpace(line[len(prefix):])
-			args, err := splitArgs(opts)
-			if err != nil {
-				return false, fmt.Errorf("unable to split opts %q: %w", opts, err)
-			}
-			if err := fs.Parse(args); err != nil {
-				return false, fmt.Errorf("unable to parse args %q: %w", args, err)
-			}
-		}
-	}
-
-	return foundOpts, nil
-}
-
-// parseDirFlags parses all files with the given extension in dir (non-recursively).
-// For each file, it calls parseTopLevelFlags(r, prefix, fs).
-// Returns a map of filename to foundOpts, and a slice of errors (one per file if any error occurs).
-func parseDirFlags(fs *flag.FlagSet, ext, prefix string, dir string) error {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("reading dir %q: %w", dir, err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if !strings.HasSuffix(entry.Name(), ext) {
-			continue
-		}
-		path := filepath.Join(dir, entry.Name())
-		f, err := os.Open(path)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("opening %s: %w", path, err))
-			continue
-		}
-
-		_, err = parseTopLevelFlags(f, prefix, fs)
-		f.Close()
-
-		if err != nil {
-			return fmt.Errorf("invalid file flags %q: %w", entry, err)
-		}
-	}
-
-	return nil
 }

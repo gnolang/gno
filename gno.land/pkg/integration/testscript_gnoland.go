@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnofmt"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -35,16 +37,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/txtar"
 )
 
-const nodeMaxLifespan = time.Second * 60
+var flagFormatGnofiles = flag.Bool("txtar-fmt", false, "format gno files within txtar")
+
+const nodeMaxLifespan = time.Second * 30
 
 var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
 type envKey int
 
 const (
-	envKeyGenesis envKey = iota
+	envKeyFileOpts envKey = iota
+	envKeyGenesis
 	envKeyLogger
 	envKeyPkgsLoader
 	envKeyPrivValKey
@@ -53,18 +59,18 @@ const (
 	envKeyBase
 )
 
-type commandkind int
+type CommandKind int
 
 const (
-	// commandKindBin builds and uses an integration binary to run the testscript
+	// CommandKindBin builds and uses an integration binary to run the testscript
 	// in a separate process. This should be used for any external package that
 	// wants to use test scripts.
-	commandKindBin commandkind = iota
-	// commandKindTesting uses the current testing binary to run the testscript
+	CommandKindBin CommandKind = iota
+	// CommandKindTesting uses the current testing binary to run the testscript
 	// in a separate process. This command cannot be used outside this package.
-	commandKindTesting
-	// commandKindInMemory runs testscripts in memory.
-	commandKindInMemory
+	CommandKindTesting
+	// CommandKindInMemory runs testscripts in memory.
+	CommandKindInMemory
 )
 
 type tNodeProcess struct {
@@ -77,8 +83,6 @@ type tNodeProcess struct {
 type NodesManager struct {
 	nodes map[string]*tNodeProcess
 	mu    sync.RWMutex
-
-	sequentialMu sync.RWMutex
 }
 
 // NewNodesManager creates a new instance of NodesManager.
@@ -118,6 +122,23 @@ func (nm *NodesManager) Delete(sid string) {
 	delete(nm.nodes, sid)
 }
 
+// Specific file opts
+type FileOpts struct {
+	NoFormat bool
+}
+
+func NewDefaultFileOpts() FileOpts {
+	return FileOpts{}
+}
+
+func SetEnvFileOpts(env *testscript.Env, opts FileOpts) {
+	env.Values[envKeyFileOpts] = opts
+}
+
+func SetEnvCommandKind(env *testscript.Env, kind CommandKind) {
+	env.Values[envKeyExecCommand] = kind
+}
+
 func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 	t.Helper()
 
@@ -141,12 +162,16 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			}
 		}
 
-		cmd, isSet := env.Values[envKeyExecCommand].(commandkind)
-		switch {
-		case !isSet:
-			cmd = commandKindBin // fallback on commandKindBin
-			fallthrough
-		case cmd == commandKindBin:
+		if _, ok := env.Values[envKeyFileOpts]; !ok {
+			env.Values[envKeyFileOpts] = NewDefaultFileOpts()
+		}
+
+		cmdKind, isSet := env.Values[envKeyExecCommand].(CommandKind)
+		if !isSet {
+			cmdKind = CommandKindBin // fallback on commandKindBin
+		}
+
+		if cmdKind == CommandKindBin {
 			buildOnce.Do(func() {
 				t.Logf("building the gnoland integration node")
 				start := time.Now()
@@ -198,7 +223,9 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		LoadDefaultGenesisParamFile(t, gnoRootDir, &genesis)
 
 		env.Values[envKeyGenesis] = &genesis
-		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
+
+		loader := NewPkgsLoader()
+		env.Values[envKeyPkgsLoader] = loader
 
 		env.Setenv("GNOROOT", gnoRootDir)
 		env.Setenv("GNOHOME", gnoHomeDir)
@@ -215,6 +242,16 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 				env.T().Fatal(err.Error())
 			}
 		})
+
+		// format gno files if requested
+		fopts := env.Values[envKeyFileOpts].(FileOpts)
+		if *flagFormatGnofiles && !fopts.NoFormat {
+			env.Defer(func() {
+				if err := fmtGnoFiles(t, loader, env, p.Dir); err != nil {
+					t.Logf("unable to format gno files from txtar: %s", err)
+				}
+			})
+		}
 
 		return nil
 	}
@@ -276,7 +313,8 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
-			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
+			timeout := fs.Duration("timeout", time.Second*30, "configure node max lifespan")
+
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -311,33 +349,14 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				}
 			}
 
-			if *noParallel {
-				// The reason for this is that a direct Lock() on the RWMutex
-				// can too easily create "splits", which are inefficient;
-				// for instance: 10 parallel tests, one sequential test, 10 parallel tests.
-				// Instead, TryLock() does not "request" the lock to be
-				// transferred to the caller, so any incoming RLock() will be
-				// given if there are other RLocks.
-				// There is probably a better way to do this without using this hack;
-				// however, this should be done if -no-parallel is actually
-				// adopted in a variety of tests.
-				for !nodesManager.sequentialMu.TryLock() {
-					time.Sleep(time.Millisecond * 10)
-				}
-				ts.Defer(nodesManager.sequentialMu.Unlock)
-			} else {
-				nodesManager.sequentialMu.RLock()
-				ts.Defer(nodesManager.sequentialMu.RUnlock)
-			}
+			dbdir := ts.Getenv("GNO_DBDIR")
+			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 
-			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
+			ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 			ts.Defer(cancel)
 
 			start := time.Now()
-
-			dbdir := ts.Getenv("GNO_DBDIR")
-			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
-			nodep := setupNode(ts, ctx, &ProcessNodeConfig{
+			nodep := runNode(ts, ctx, &ProcessNodeConfig{
 				ValidatorKey: priv,
 				Verbose:      false,
 				DBDir:        dbdir,
@@ -371,7 +390,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 			dbdir := ts.Getenv("GNO_DBDIR")
-			nodep := setupNode(ts, ctx, &ProcessNodeConfig{
+			nodep := runNode(ts, ctx, &ProcessNodeConfig{
 				ValidatorKey: priv,
 				DBDir:        dbdir,
 				RootDir:      gnoRootDir,
@@ -658,7 +677,7 @@ func (l *tsLogWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeConfig) NodeProcess {
+func runNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeConfig) NodeProcess {
 	pcfg := ProcessConfig{
 		Node:   cfg,
 		Stdout: &tsLogWriter{ts},
@@ -672,8 +691,8 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 
 	val := ts.Value(envKeyExecCommand)
 
-	switch cmd := val.(commandkind); cmd {
-	case commandKindInMemory:
+	switch cmd := val.(CommandKind); cmd {
+	case CommandKindInMemory:
 		nodep, err := RunInMemoryProcess(ctx, pcfg)
 		if err != nil {
 			ts.Fatalf("unable to start in memory node: %s", err)
@@ -681,14 +700,14 @@ func setupNode(ts *testscript.TestScript, ctx context.Context, cfg *ProcessNodeC
 
 		return nodep
 
-	case commandKindTesting:
+	case CommandKindTesting:
 		if !testing.Testing() {
 			ts.Fatalf("unable to invoke testing process while not testing")
 		}
 
 		return runTestingNodeProcess(&testingTS{ts}, ctx, pcfg)
 
-	case commandKindBin:
+	case CommandKindBin:
 		bin := ts.Value(envKeyExecBin).(string)
 		nodep, err := RunNodeProcess(ctx, pcfg, bin)
 		if err != nil {
@@ -820,4 +839,70 @@ func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error)
 			ts.Fatalf("unexpected %q command success", cmd)
 		}
 	}
+}
+
+func fmtGnoFiles(t *testing.T, loader *PkgsLoader, env *testscript.Env, dir string) error {
+	r, err := loader.NewFmtResolver()
+	if err != nil {
+		return fmt.Errorf("unable to create fmt resolver: %w", err)
+	}
+
+	// XXX: this is a bit hacky but i didn't find any other way
+	name := strings.TrimPrefix(filepath.Base(env.WorkDir), "script-")
+	file := filepath.Join(dir, name+".txtar")
+
+	txa, err := txtar.ParseFile(file)
+	if err != nil {
+		return fmt.Errorf("unable to load txtar %q: %w", file, err)
+	}
+
+	prcss := gnofmt.NewProcessor(r)
+	visited := map[string]bool{}
+	fmtfiles := map[string][]byte{}
+	err = filepath.WalkDir(env.WorkDir, func(curpath string, f fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("%s: walk dir: %w", env.WorkDir, err)
+		}
+		// Skip directories and non ".gno" files.
+		if f.IsDir() || filepath.Ext(curpath) != ".gno" {
+			return nil
+		}
+
+		parentDir := filepath.Dir(curpath)
+		if visited[parentDir] {
+			return nil
+		}
+
+		visited[parentDir] = true
+
+		body, err := prcss.FormatFile(curpath)
+		if err != nil {
+			t.Logf("unable to format %q: %s", curpath, err)
+		}
+
+		file := strings.TrimPrefix(curpath, env.WorkDir+"/")
+		fmtfiles[file] = body
+		return nil
+	})
+
+	for i, f := range txa.Files {
+		if body, ok := fmtfiles[f.Name]; ok {
+			f.Data = body
+			txa.Files[i] = f
+		}
+	}
+
+	// Open the file for writing, truncating it
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_TRUNC, 0)
+	if err != nil {
+		return fmt.Errorf("unable to open file %q: %w", file, err)
+	}
+	defer f.Close()
+
+	// Write new data
+	if _, err = f.Write(txtar.Format(txa)); err != nil {
+		return fmt.Errorf("unable write formated txtar: %s", err)
+	}
+
+	return nil
 }
