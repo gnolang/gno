@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"flag"
 	"os"
 	"strconv"
 	"testing"
@@ -22,6 +23,11 @@ func TestTestdata(t *testing.T) {
 		err := gno_integration.SetupTestscriptsCoverage(&p, coverdir)
 		require.NoError(t, err)
 	}
+
+	// parse files flags
+	fs := flag.NewFlagSet("opts", flag.ContinueOnError)
+	// fs.String(name string, value string, usage string)
+	// parseDirFlags(fs *flag.FlagSet, ext string, prefix string, dir string)
 
 	// Set up gnoland for testscript
 	err := SetupGnolandTestscript(t, &p)
