@@ -110,10 +110,10 @@ func main() {
 
 
 
--- storage/gno.mod --
-module gno.land/r/storage
+-- storage/gnomod.toml --
+module = "gno.land/r/storage"
 
-gno 0.9
+gno = "0.9"
 
 -- storage/storage.gno --
 package storage

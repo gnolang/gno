@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/storage_test
-package storage_test
+// PKGPATH: gno.land/r/storage
+package storage
 
 type foo struct {
 	field string
@@ -16,14 +16,14 @@ func main() {
 }
 
 // Output:
-// (struct{("h2" string)} gno.land/r/storage_test.foo)
+// (struct{("h2" string)} gno.land/r/storage.foo)
 
 // Storage:
-// gno.land/r/storage_test: -8
+// gno.land/r/storage: -8
 
 // Realm:
-// finalizerealm["gno.land/r/storage_test"]
-// c[334570344df8e77213d2886cb407c37de6da36c1:8](240)={
+// finalizerealm["gno.land/r/storage"]
+// c[34f997a9ca158338c03cfc00686d77220a6cf62f:8](240)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -37,23 +37,23 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:8",
+//         "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:8",
 //         "LastObjectSize": "240",
 //         "ModTime": "0",
-//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
+//         "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[334570344df8e77213d2886cb407c37de6da36c1:3](0)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:3](0)=
 //     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "6500a8358940dce4df7ba94c49720676eddc10d1",
-//     -            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:4"
-//     +            "Hash": "b30184135e8063eb1e79ec3ed6f1be623913bb37",
-//     +            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:8"
+//     -            "Hash": "cb71b821cefa1bb05605966f33f2d53001f59237",
+//     -            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:4"
+//     +            "Hash": "fb5d0d403090106fdcdd5778d01d657e038c00c8",
+//     +            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:8"
 //              }
 //          }
 //      }
-// d[334570344df8e77213d2886cb407c37de6da36c1:4](-248)
+// d[34f997a9ca158338c03cfc00686d77220a6cf62f:4](-248)

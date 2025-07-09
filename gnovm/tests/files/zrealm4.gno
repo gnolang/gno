@@ -2,8 +2,8 @@
 package test
 
 import (
-	"github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl"
-	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
+	"filetests/extern/timtadh/data_structures/tree/avl"
+	"filetests/extern/timtadh/data_structures/types"
 )
 
 var tree *avl.AvlNode
@@ -36,7 +36,7 @@ func main(cur realm) {
 //     @@ -49,7 +49,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
-//              "LastObjectSize": "653",
+//              "LastObjectSize": "617",
 //     -        "ModTime": "0",
 //     +        "ModTime": "8",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
@@ -46,7 +46,7 @@ func main(cur realm) {
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
-//              "LastObjectSize": "385",
+//              "LastObjectSize": "373",
 //     -        "ModTime": "0",
 //     +        "ModTime": "8",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
@@ -56,8 +56,8 @@ func main(cur realm) {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "741337baec39cbc5700d7a34e508b6a1ef51d17b",
-//     +            "Hash": "aecfae2cddd6a2b300bc3edbb278be5db85853e5",
+//     -            "Hash": "ff7d2f7d23827a0af50e33994bc896d1b1ab3ea8",
+//     +            "Hash": "6e91c2c1ddacaac0d8a29bbbfa6816187d7a491c",
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //              }
 //          }
@@ -65,7 +65,7 @@ func main(cur realm) {
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
-//              "LastObjectSize": "435",
+//              "LastObjectSize": "423",
 //     -        "ModTime": "6",
 //     +        "ModTime": "8",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
@@ -75,8 +75,8 @@ func main(cur realm) {
 //                  "@type": "/gno.PointerValue",
 //                  "Base": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "1a5319ef6d9d1b28c2427abdbe35e6fc6450d0ff",
-//     +                "Hash": "73582fd09b4b9c65c5138053bb6d58aa3bb96f41",
+//     -                "Hash": "9ca98fdf0502999046966e61b84ad729e39753e7",
+//     +                "Hash": "4fa20e6392426796a09b98a2f36a70a1dff01392",
 //                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                  },
 //                  "Index": "0",

@@ -38,6 +38,7 @@ type NativeResolver func(pkgName string, name Name) func(m *Machine)
 type Store interface {
 	// STABLE
 	BeginTransaction(baseStore, iavlStore store.Store, gasMeter store.GasMeter) TransactionStore
+	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
@@ -63,7 +64,7 @@ type Store interface {
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
 	// version 1.
-	AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType)
+	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	FindPathsByPrefix(prefix string) iter.Seq[string]
@@ -217,15 +218,13 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 	return transactionStore{ds2}
 }
 
-type transactionStore struct{ *defaultStore }
+type transactionStore struct {
+	*defaultStore
+}
 
 func (t transactionStore) Write() {
 	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
 	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
-}
-
-func (transactionStore) SetPackageGetter(pg PackageGetter) {
-	panic("SetPackageGetter may not be called in a transaction store")
 }
 
 // XXX: we should block Go2GnoType, because it uses a global cache map;
@@ -265,6 +264,11 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
+}
+
+// Used by cmd/gno (e.g. lint) to inject target package as MPTest.
+func (ds *defaultStore) GetPackageGetter() (pg PackageGetter) {
+	return ds.pkgGetter
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
@@ -339,6 +343,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 }
 
 // Used to set throwaway packages.
+// NOTE: To check whether a mem package has been run, use GetMemPackage()
+// instead of implementing HasCachePackage().
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	oid := ObjectIDFromPkgPath(pv.PkgPath)
 	if _, exists := ds.cacheObjects[oid]; exists {
@@ -814,7 +820,13 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 	}
 }
 
-func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType) {
+// mptype is passed in as a redundant parameter as convenience to assert that
+// mpkg.Type is what is expected.
+// If MPAnyAll, mpkg may be either MPStdlibAll or MPProdAll, and likewise for
+// MPAnyProd and MPAnyTest.
+// MPFiletests are not allowed, as they are currently only read from disk (e.g.
+// test/files). However, MP*All may include filetests files.
+func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -827,8 +839,15 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mtype MemPackageType
 			bm.StopStore(size)
 		}()
 	}
-	err := ValidateMemPackageWithOptions(mpkg,
-		ValidateMemPackageOptions{Type: mtype})
+	mpkgtype := mpkg.Type.(MemPackageType)
+	if !mpkgtype.IsStorable() {
+		panic(fmt.Sprintf("mempackage type is not storable: %v", mpkgtype))
+	}
+	mptype = mptype.Decide(mpkg.Path)
+	if mpkgtype != mptype {
+		panic(fmt.Sprintf("unexpected mempackage type: expected %v but got %v", mptype, mpkgtype))
+	}
+	err := ValidateMemPackageAny(mpkg)
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}

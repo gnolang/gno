@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
@@ -13,7 +13,7 @@ func main() {
 }
 
 // Storage:
-// gno.land/r/crossrealm_test: 0
+// gno.land/r/crossrealm: 0
 // gno.land/r/demo/tests/crossrealm: 0
 
 // Output:

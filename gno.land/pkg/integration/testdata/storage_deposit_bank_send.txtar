@@ -73,10 +73,10 @@ stderr 'cannot send "2ugnot", limit "1ugnot" exceeded'
 stderr 'cannot send "1ugnot", limit "" exceeded'
 
 
--- contracts/gno.mod --
-module gno.land/r/foo
+-- contracts/gnomod.toml --
+module = "gno.land/r/foo"
 
-gno 0.9
+gno = "0.9"
 
 -- contracts/storage.gno --
 package foo

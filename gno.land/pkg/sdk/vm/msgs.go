@@ -172,7 +172,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 		Send:   send,
 		Package: &std.MemPackage{
 			Name:  "main",
-			Path:  "", // auto-set by handler to fmt.Sprintf("gno.land/r/%v/run", caller.String()),
+			Path:  "", // auto-set by handler to fmt.Sprintf("gno.land/e/%v/run", caller.String()),
 			Files: files,
 		},
 	}
@@ -192,7 +192,7 @@ func (msg MsgRun) ValidateBasic() error {
 
 	if msg.Package.Path != "" {
 		// Force memPkg path to the reserved run path.
-		expected := "gno.land/r/" + msg.Caller.String() + "/run"
+		expected := "gno.land/e/" + msg.Caller.String() + "/run"
 		if path := msg.Package.Path; path != expected {
 			return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 		}

@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -116,6 +117,109 @@ func Echo(cur realm) string {
 	store := env.vmk.getGnoTransactionStore(ctx)
 	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
 	assert.Nil(t, memFile)
+}
+
+func TestVMKeeperAddPackage_DraftPackage(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+draft = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+
+	err := env.vmk.AddPackage(ctx, msg1)
+
+	assert.Error(t, err, ErrInvalidPackage("draft packages can only be deployed at genesis time"))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+}
+
+func TestVMKeeperAddPackage_ImportDraft(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// create a valid draft pkg at genesis
+	ctx = ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 0})
+	// Create test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+draft = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+
+	// Try to import the draft package.
+	const pkgPath2 = "gno.land/r/test2"
+	files2 := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath2)},
+		{
+			Name: "test2.gno",
+			Body: `package test2
+
+import "gno.land/r/test"
+
+func Echo(cur realm) string {
+	return test.Echo(cross)
+}`,
+		},
+	}
+
+	ctx = ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 42})
+	msg2 := NewMsgAddPackage(addr, pkgPath2, files2)
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.Error(t, err, ErrTypeCheck(gnolang.ImportDraftError{PkgPath: pkgPath}))
+
+	ctx = ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 0})
+	err = env.vmk.AddPackage(ctx, msg2)
+	assert.NoError(t, err)
 }
 
 // Sending total send amount succeeds.
@@ -537,6 +641,65 @@ func main() {
 	assert.NoError(t, err)
 	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
 	assert.Equal(t, expectedString, res)
+}
+
+func TestVMKeeperRunImportDraft(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{
+			Name: "gnomod.toml",
+			Body: `module = "gno.land/r/test"
+gno = "0.9"
+draft = true`,
+		},
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(cur realm) string {
+	return "hello world"
+}`,
+		},
+	}
+	ctx = ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 0})
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	ctx = ctx.WithBlockHeader(&bft.Header{ChainID: "test-chain-id", Height: 42})
+
+	// Msg Run Echo function.
+	coins := std.MustParseCoins("")
+	files = []*std.MemFile{
+		{
+			Name: "main.gno",
+			Body: `
+package main
+
+import "gno.land/r/test"
+
+func main() {
+	msg := test.Echo(cross)
+	println(msg)
+}
+`,
+		},
+	}
+	msg2 := NewMsgRun(addr, coins, files)
+	res, err := env.vmk.Run(ctx, msg2)
+	assert.NoError(t, err)
+	assert.Equal(t, "hello world\n", res)
 }
 
 func TestNumberOfArgsError(t *testing.T) {

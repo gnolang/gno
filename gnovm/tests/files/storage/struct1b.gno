@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/storage_test
-package storage_test
+// PKGPATH: gno.land/r/storage
+package storage
 
 type foo struct {
 	field string
@@ -14,14 +14,14 @@ func main() {
 }
 
 // Output:
-// (struct{("hello2" string)} gno.land/r/storage_test.foo)
+// (struct{("hello2" string)} gno.land/r/storage.foo)
 
 // Storage:
-// gno.land/r/storage_test: 35
+// gno.land/r/storage: 35
 
 // Realm:
-// finalizerealm["gno.land/r/storage_test"]
-// c[334570344df8e77213d2886cb407c37de6da36c1:7](244)={
+// finalizerealm["gno.land/r/storage"]
+// c[34f997a9ca158338c03cfc00686d77220a6cf62f:7](244)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -35,32 +35,32 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "334570344df8e77213d2886cb407c37de6da36c1:7",
+//         "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:7",
 //         "LastObjectSize": "244",
 //         "ModTime": "0",
-//         "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:3",
+//         "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[334570344df8e77213d2886cb407c37de6da36c1:3](5)=
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:3](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "334570344df8e77213d2886cb407c37de6da36c1:3",
-//              "LastObjectSize": "343",
+//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
+//              "LastObjectSize": "338",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "OwnerID": "334570344df8e77213d2886cb407c37de6da36c1:2",
+//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
 //              "RefCount": "1"
 //          },
 //     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "836c831a8ece251b218a8df34b0b77a3ef820fed",
-//     -            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:4"
-//     +            "Hash": "5e1a696207973bdfd7aae0d2651d1ed803a324f5",
-//     +            "ObjectID": "334570344df8e77213d2886cb407c37de6da36c1:7"
+//     -            "Hash": "2054070e999df8e7cb3d1f1b92c7019aa996206d",
+//     -            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:4"
+//     +            "Hash": "828319b9f2bc74534d09894634deb113649ba6b1",
+//     +            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:7"
 //              }
 //          }
 //      }
-// d[334570344df8e77213d2886cb407c37de6da36c1:4](-214)
+// d[34f997a9ca158338c03cfc00686d77220a6cf62f:4](-214)

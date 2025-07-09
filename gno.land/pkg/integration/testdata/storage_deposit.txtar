@@ -43,10 +43,10 @@ stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"attrs\":\[{\"key\":\"Deposi
 gnokey query vm/qstorage --data gno.land/p/foo
 stdout 'storage: 3029, deposit: 302900'
 
--- realm/gno.mod --
-module gno.land/r/foo
+-- realm/gnomod.toml --
+module = "gno.land/r/foo"
 
-gno 0.9
+gno = "0.9"
 
 -- realm/storage.gno --
 package foo
@@ -79,10 +79,10 @@ func Clear(cur realm){
 }
 
 
--- package/gno.mod --
-module gno.land/p/foo
+-- package/gnomod.toml --
+module = "gno.land/p/foo"
 
-gno 0.9
+gno = "0.9"
 
 -- package/storage.gno --
 package foo

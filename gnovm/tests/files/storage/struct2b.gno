@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/storage_test
-package storage_test
+// PKGPATH: gno.land/r/storage
+package storage
 
 type foo struct {
 	field string
@@ -16,14 +16,14 @@ func main() {
 }
 
 // Output:
-// (struct{("h2" string)} gno.land/r/storage_test.foo)
+// (struct{("h2" string)} gno.land/r/storage.foo)
 
 // Storage:
-// gno.land/r/storage_test: -3
+// gno.land/r/storage: -3
 
 // Realm:
-// finalizerealm["gno.land/r/storage_test"]
-// u[334570344df8e77213d2886cb407c37de6da36c1:4](-3)=
+// finalizerealm["gno.land/r/storage"]
+// u[34f997a9ca158338c03cfc00686d77220a6cf62f:4](-3)=
 //     @@ -7,7 +7,7 @@
 //                  },
 //                  "V": {
