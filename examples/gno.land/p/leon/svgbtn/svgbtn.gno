@@ -1,3 +1,19 @@
+// Package svgbtn provides utilities for generating SVG-styled buttons as Markdown image links.
+//
+// Buttons are rendered as SVG images with customizable size, colors, labels, and links.
+// This package includes preconfigured styles such as Primary, Danger, Success, Small, Wide,
+// Text-like, and Icon buttons, as well as a factory method for dynamic button creation.
+//
+// Example usage:
+//
+//	func Render(_ string) string {
+//		btn := svgbtn.PrimaryButton(120, 40, "Click Me", "https://example.com")
+//		return btn
+//	}
+//
+// See more examples at gno.land/r/leon:buttons
+//
+// All buttons are returned as Markdown-compatible strings: [svg_data](link).
 package svgbtn
 
 import (
@@ -25,22 +41,6 @@ func Button(width, height int, btnColor, textColor, text, link string) string {
 	canvas.Append(bg, label)
 
 	return ufmt.Sprintf("[%s](%s)", canvas.Render(text), link)
-}
-
-// DisabledButton renders a button without a link, grayed out to indicate disabled state.
-func DisabledButton(width, height int, text string) string {
-	canvas := svg.NewCanvas(width, height).
-		WithViewBox(0, 0, width, height)
-
-	bg := svg.NewRectangle(0, 0, width, height, "#cccccc")
-	bg.RX = height / 5
-	bg.RY = height / 5
-
-	label := svg.NewText(width/2, height/2, text, "#666666")
-
-	canvas.Append(bg, label)
-
-	return canvas.Render(text)
 }
 
 // PrimaryButton renders a blue button with white text.
