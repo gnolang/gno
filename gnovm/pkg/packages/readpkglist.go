@@ -11,9 +11,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// ========================================
 // ReadPkgListFromDir() lists all gno packages in the given dir directory.
 // `mptype` determines what subset of files are considered to read from.
+//
+// Deprecated: use [Load] with a recursive pattern instead
 func ReadPkgListFromDir(dir string, mptype gnolang.MemPackageType) (gnomod.PkgList, error) {
 	var pkgs []gnomod.Pkg
 
