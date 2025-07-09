@@ -7,4 +7,3 @@
 - [X] Collect list of public peer nodes for configurations
 - [X] Generate Release Docker Images of Gnoland for test6
 - [X] Change DNS entries
-
