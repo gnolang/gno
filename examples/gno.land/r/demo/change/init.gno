@@ -5,8 +5,19 @@ import (
 	"gno.land/r/sys/users"
 
 	"std"
+	"strconv"
 	"strings"
 )
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	if max <= 3 {
+		return s[:max]
+	}
+	return s[:max-3] + "..."
+}
 
 type petition struct {
 	publisher   *users.UserData
@@ -14,6 +25,20 @@ type petition struct {
 	description string
 	signatures  []*users.UserData
 	target      int
+	id          int
+}
+
+func (p petition) LString() string {
+	return p.title
+}
+
+func (p petition) MiniRender() string {
+	content := md.HorizontalRule() + br
+	content += md.H3(md.Link(p.title, here+":petition?id="+strconv.Itoa(p.id))) + br
+	content += "by " + p.publisher.RenderLink("") + ", "
+	content += md.Bold(strconv.Itoa(len(p.signatures))) + " / " + md.Bold(strconv.Itoa(p.target)) + " signatures." + br
+	content += md.HorizontalRule() + br
+	return content
 }
 
 var (

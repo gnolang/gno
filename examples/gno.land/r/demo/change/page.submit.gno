@@ -30,6 +30,7 @@ func Submit(_ realm, title, description, target string) {
 		description: description,
 		signatures:  []*users.UserData{},
 		target:      targetId,
+		id:          len(petitions),
 	})
 }
 
