@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/peterbourgon/ff/v3"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 // Config defines the command config interface
@@ -124,6 +125,12 @@ func (c *Command) AddSubCommands(cmds ...*Command) {
 // Additionally, any error of type [ErrExitCode] will be handled by exiting with
 // the given status code.
 func (c *Command) Execute(ctx context.Context, args []string) {
+	// test moonia
+	defer func() {
+		var m gno.Machine
+        m.PrintOpStats()
+	}()
+	// test moonia
 	if err := c.ParseAndRun(ctx, args); err != nil {
 		var ece ExitCodeError
 		switch {
