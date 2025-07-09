@@ -209,3 +209,18 @@ func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath)).Bech32()
 }
+
+// Used to keep a record of storage deposit coins for a package or realm.
+func DeriveStorageDepositCryptoAddr(pkgPath string) crypto.Address {
+	if pkgPath == "" {
+		panic("pkgpath cannot be empty in DeriveStorageDepositCryptoAddr()")
+	}
+	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath + ".storageDeposit"))
+}
+
+func DeriveStorageDepositBech32Addr(pkgPath string) crypto.Bech32Address {
+	if pkgPath == "" {
+		panic("pkgpath cannot be empty in DeriveStorageDepositBech32Addr()")
+	}
+	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath + ".storageDeposit")).Bech32()
+}

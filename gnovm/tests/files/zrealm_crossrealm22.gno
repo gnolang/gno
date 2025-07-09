@@ -36,9 +36,10 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:45]={
+// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:45](406)={
 //     "ObjectInfo": {
 //         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:45",
+//         "LastObjectSize": "406",
 //         "ModTime": "0",
 //         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44",
 //         "RefCount": "1"
@@ -64,7 +65,7 @@ func main(cur realm) {
 //         }
 //     }
 // }
-// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:44]={
+// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:44](509)={
 //     "Captures": [
 //         {
 //             "T": {
@@ -86,6 +87,7 @@ func main(cur realm) {
 //     "NativePkg": "",
 //     "ObjectInfo": {
 //         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:44",
+//         "LastObjectSize": "509",
 //         "ModTime": "0",
 //         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:14",
 //         "RefCount": "1"
@@ -127,17 +129,17 @@ func main(cur realm) {
 //         ]
 //     }
 // }
-// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:14]=
-//     @@ -1,7 +1,7 @@
-//      {
+// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:14](112)=
+//     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:14",
+//              "LastObjectSize": "255",
 //     -        "ModTime": "0",
 //     +        "ModTime": "43",
 //              "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "RefCount": "1"
 //          },
-//     @@ -9,6 +9,11 @@
+//     @@ -10,6 +10,11 @@
 //              "T": {
 //                  "@type": "/gno.RefType",
 //                  "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
@@ -149,13 +151,14 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:4]=
-//     @@ -1,9 +1,10 @@
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:4](7)=
+//     @@ -1,10 +1,11 @@
 //      {
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
-//     -        "ModTime": "0",
 //     +        "IsEscaped": true,
+//              "LastObjectSize": "356",
+//     -        "ModTime": "0",
 //     +        "ModTime": "45",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "1"
@@ -166,8 +169,8 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
-//     @@ -7,13 +7,13 @@
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:5](5)=
+//     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.StringValue",
@@ -178,6 +181,7 @@ func main(cur realm) {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:5",
+//              "LastObjectSize": "239",
 //     -        "ModTime": "0",
 //     +        "ModTime": "15",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
@@ -186,7 +190,7 @@ func main(cur realm) {
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:5](0)=
 //     @@ -7,7 +7,7 @@
 //                  },
 //                  "V": {
@@ -197,17 +201,17 @@ func main(cur realm) {
 //              }
 //          ],
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:14]=
-//     @@ -1,7 +1,7 @@
-//      {
+// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:14](1)=
+//     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:14",
+//              "LastObjectSize": "367",
 //     -        "ModTime": "43",
 //     +        "ModTime": "45",
 //              "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "RefCount": "1"
 //          },
-//     @@ -12,8 +12,8 @@
+//     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
@@ -218,13 +222,14 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:7]=
-//     @@ -8,9 +8,10 @@
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:7](7)=
+//     @@ -8,10 +8,11 @@
 //          "NativePkg": "",
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:7",
-//     -        "ModTime": "0",
 //     +        "IsEscaped": true,
+//              "LastObjectSize": "383",
+//     -        "ModTime": "0",
 //     +        "ModTime": "45",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:6",
 //     -        "RefCount": "1"
@@ -232,9 +237,9 @@ func main(cur realm) {
 //          },
 //          "Parent": null,
 //          "PkgPath": "gno.land/r/demo/tests/crossrealm_b",
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:4]=
-//     @@ -4,7 +4,7 @@
-//              "IsEscaped": true,
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:4](0)=
+//     @@ -5,7 +5,7 @@
+//              "LastObjectSize": "363",
 //              "ModTime": "45",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "2"
@@ -242,21 +247,21 @@ func main(cur realm) {
 //          },
 //          "Value": {
 //              "T": {
-//     @@ -13,7 +13,7 @@
+//     @@ -14,7 +14,7 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //     -            "Hash": "7c146728a91cd7c6aa3141a00cede434f9601daa",
-//     +            "Hash": "05d1e2f278c92ed1ffbe4634b915c053ac5949c2",
+//     +            "Hash": "ecbbe489d0ec864cc480eef69ba3493a3bdbe4c6",
 //                  "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:5"
 //              }
 //          }
-// d[1712ac7adcfdc8e58a67e5615e20fb312394c4df:44]
-// d[1712ac7adcfdc8e58a67e5615e20fb312394c4df:45]
+// d[1712ac7adcfdc8e58a67e5615e20fb312394c4df:44](-509)
+// d[1712ac7adcfdc8e58a67e5615e20fb312394c4df:45](-406)
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:5](0)=
 //     @@ -7,7 +7,7 @@
 //                  },
 //                  "V": {
@@ -267,7 +272,7 @@ func main(cur realm) {
 //              }
 //          ],
 // finalizerealm["gno.land/r/demo/tests/crossrealm"]
-// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:46]={
+// c[1712ac7adcfdc8e58a67e5615e20fb312394c4df:46](386)={
 //     "Crossing": false,
 //     "FileName": "",
 //     "IsClosure": false,
@@ -277,6 +282,7 @@ func main(cur realm) {
 //     "NativePkg": "",
 //     "ObjectInfo": {
 //         "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:46",
+//         "LastObjectSize": "386",
 //         "ModTime": "0",
 //         "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:14",
 //         "RefCount": "1"
@@ -318,8 +324,8 @@ func main(cur realm) {
 //         ]
 //     }
 // }
-// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:14]=
-//     @@ -12,8 +12,8 @@
+// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:14](-1)=
+//     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
@@ -330,9 +336,9 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:7]=
-//     @@ -11,7 +11,7 @@
-//              "IsEscaped": true,
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:7](0)=
+//     @@ -12,7 +12,7 @@
+//              "LastObjectSize": "390",
 //              "ModTime": "45",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:6",
 //     -        "RefCount": "2"

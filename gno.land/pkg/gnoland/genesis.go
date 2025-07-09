@@ -234,9 +234,9 @@ func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit
 	tx.Fee = fee
 	tx.Msgs = []std.Msg{
 		vmm.MsgAddPackage{
-			Creator: creator,
-			Package: mpkg,
-			Deposit: deposit,
+			Creator:    creator,
+			Package:    mpkg,
+			MaxDeposit: deposit,
 		},
 	}
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))

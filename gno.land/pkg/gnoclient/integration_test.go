@@ -499,7 +499,7 @@ func Echo(str string) string {
 
 	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(10000000)}}
 
 	caller, err := client.Signer.Info()
 	require.NoError(t, err)
@@ -521,7 +521,7 @@ func Echo(str string) string {
 				},
 			},
 		},
-		Deposit: deposit,
+		MaxDeposit: deposit,
 	}
 
 	// Execute AddPackage
@@ -537,9 +537,9 @@ func Echo(str string) string {
 	assert.Equal(t, fileName+"\ngnomod.toml", string(query.Response.Data))
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath))
+	baseAcc, _, err := client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins(), deposit)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177600}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
@@ -580,7 +580,8 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
-	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(10000000)}}
+	send := std.Coins{{Denom: ugnot.Denom, Amount: int64(1000000)}}
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -615,7 +616,7 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: nil,
+		MaxDeposit: nil,
 	}
 
 	msg2 := vm.MsgAddPackage{
@@ -634,9 +635,14 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: deposit,
+		Send:       send,
+		MaxDeposit: deposit,
 	}
 
+	// Verify initial balance of deployer's account
+	baseAcc, _, err := client.QueryAccount(caller.GetAddress())
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 10000000000000}}, baseAcc.GetCoins())
 	// Execute AddPackage
 	_, err = client.AddPackage(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
@@ -650,9 +656,9 @@ func Hello(str string) string {
 	assert.Equal(t, string(query.Response.Data), "echo.gno\ngnomod.toml")
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath1))
+	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), "")
+	assert.Equal(t, "177600ugnot", baseAcc.GetCoins().String())
 
 	// Check Package #2
 	query, err = client.Query(QueryCfg{
@@ -663,10 +669,21 @@ func Hello(str string) string {
 	assert.Contains(t, string(query.Response.Data), "hello.gno")
 	assert.Contains(t, string(query.Response.Data), "gnomod.toml")
 
-	// Query balance to validate deposit
+	// Query storage deposit balance to validate deposit
+	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath2))
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 178700}}, baseAcc.GetCoins())
+
+	// Verify the realm account balance received from the send
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins(), deposit)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 1000000}}, baseAcc.GetCoins())
+
+	// Verify remaining balance of deployer's account
+	baseAcc, _, err = client.QueryAccount(caller.GetAddress())
+	require.NoError(t, err)
+	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 177600 + Storage Deposit 178700 + Send 1000000)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996543700}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"

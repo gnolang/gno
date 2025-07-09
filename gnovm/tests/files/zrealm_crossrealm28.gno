@@ -31,11 +31,11 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:13]=
-//     @@ -1,20 +1,15 @@
-//      {
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:13](-98)=
+//     @@ -2,20 +2,15 @@
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:13",
+//              "LastObjectSize": "320",
 //     -        "ModTime": "15",
 //     +        "ModTime": "16",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2",
@@ -57,9 +57,9 @@ func main(cur realm) {
 //              }
 //          }
 //      }
-// d[0edc46caf30c00efd87b6c272673239eafbd051e:16]
+// d[0edc46caf30c00efd87b6c272673239eafbd051e:16](-298)
 // finalizerealm["gno.land/r/crossrealm"]
-// u[dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8]=
+// u[dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8](5)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "Fields": [
@@ -69,10 +69,10 @@ func main(cur realm) {
 //                  "T": {
 //                      "@type": "/gno.PrimitiveType",
 //                      "value": "32"
-//     @@ -10,7 +10,7 @@
-//          ],
+//     @@ -11,7 +11,7 @@
 //          "ObjectInfo": {
 //              "ID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8",
+//              "LastObjectSize": "214",
 //     -        "ModTime": "0",
 //     +        "ModTime": "8",
 //              "OwnerID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7",
