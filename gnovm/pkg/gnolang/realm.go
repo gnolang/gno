@@ -226,11 +226,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object, store Store) {
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
 	}
-	// enforce private ownership
-	if co != nil && hasPrivateDeps(co, rlm, store) {
-		panic("cannot persist reference of object from private realm")
-	}
-
 	// XXX check if this boosts performance
 	// XXX with broad integration benchmarking.
 	// XXX if co == xo {
@@ -371,6 +366,8 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 //----------------------------------------
 // transactions
+
+//TODO: new escaped when crossing boundary will contains the objects that cross
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
@@ -772,6 +769,10 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !uo.GetIsDeleted() {
+				// Perform private ownership check.
+				if hasPrivateDeps(uo, rlm, store) {
+					panic("cannot persist reference of object from private realm")
+				}
 				rlm.saveUnsavedObjectRecursively(store, uo)
 			}
 		}
@@ -1662,7 +1663,7 @@ func getOwner(store Store, oo Object) Object {
 }
 
 func hasPrivateDeps(obj Object, rlm *Realm, store Store) bool {
-	visited := make(map[Object]bool)
+	visited := make(map[Object]bool) //TODO: use slice ? maybe benchmark
 	return hasPrivateDepsWithVisited(obj, rlm, store, visited)
 }
 
