@@ -114,8 +114,7 @@ dev.ts: $(esbuild) generate | $(PUBLIC_DIR)
 # Install node modules deps located in ./tools
 $(esbuild) $(tailwind): $(node_modules)
 $(node_modules):
-	cd $(dir $@) && npm install
-	touch $@
+	$(MAKE) -C frontend node_modules
 
 # Cleanup
 clean:

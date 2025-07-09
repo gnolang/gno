@@ -29,7 +29,7 @@ jobs:
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
-  gnoweb_js_generate:
+  gnoweb_generate:
     strategy:
       fail-fast: false
       matrix:
@@ -51,7 +51,7 @@ jobs:
           git diff --exit-code || \
              (echo "\`gnoweb generate\` out of date, please run \`make gnoweb.generate\` within './gno.land'" && exit 1)
 
-  gnoweb_js_lint:
+  gnoweb_lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
