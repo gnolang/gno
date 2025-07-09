@@ -18,22 +18,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-// mapping step
-// type OpTrace struct {
-//     Op        Op       // The opcode that was executed
-//     SourcePos Position // Position in the source code (line/column/file)
-//     IndexOp   int      // Index in the Ops slice (program opcode array)
-//     FuncName  string   // Name of the current function being executed
-// }
-
-type OpStats struct {
-	Count        int64
-	CumulativeCPU int64
-	Allocations int64
-}
-
-var opStats = make(map[Op]*OpStats)
-
 //----------------------------------------
 // Machine
 
@@ -1209,6 +1193,8 @@ func (m *Machine) Run(st Stage) {
 		}
 	}()
 
+	opIndex := 0
+
 	for {
 		if m.Debugger.enabled {
 			m.Debug()
@@ -1216,13 +1202,20 @@ func (m *Machine) Run(st Stage) {
 		op := m.PopOp()
 		
 		// test moonia
-		stats, ok := opStats[op] 
-		if !ok {
-			stats = &OpStats{}
-			opStats[op] = stats
+		if op != OpHalt && op != OpInvalid {
+			funcName := "<unknown>"
+			if len(m.Frames) > 0 && m.Frames[len(m.Frames)-1].Func != nil {
+				funcName = string(m.Frames[len(m.Frames)-1].Func.Name)
+			}
+			
+			pos := Position{
+				File: "tests.gno",
+				Line: opIndex + 1,
+			}
+			
+			m.UpdateOpStats(op, opIndex, funcName, pos)
+			opIndex++
 		}
-		stats.Count++
-		stats.CumulativeCPU += m.getOpCPUCost(op)
 		// test moonia
 
 		if bm.OpsEnabled {
@@ -1234,7 +1227,7 @@ func (m *Machine) Run(st Stage) {
 				bm.StartOpCode(byte(op))
 			}
 		}
-		println(op.String())
+		// println(op.String())
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
@@ -1552,250 +1545,6 @@ func (m *Machine) Run(st Stage) {
 				bm.StopOpCode()
 			}
 		}
-	}
-}
-
-// getOpCPUCost returns the CPU cost (in "cycles")
-// associated with each opcode.
-func (m *Machine) getOpCPUCost(op Op) int64 {
-	switch op {
-
-	/* ---------- Control ---------- */
-	case OpInvalid:
-		return OpCPUInvalid
-	case OpHalt:
-		return OpCPUHalt
-	case OpNoop:
-		return OpCPUNoop
-	case OpExec:
-		return OpCPUExec
-	case OpPrecall:
-		return OpCPUPrecall
-	case OpCall:
-		return OpCPUCall
-	case OpCallNativeBody:
-		return OpCPUCallNativeBody
-	case OpDefer:
-		return OpCPUDefer
-	case OpCallDeferNativeBody:
-		return OpCPUCallDeferNativeBody
-	case OpGo:
-		return OpCPUGo
-	case OpSelect:
-		return OpCPUSelect
-	case OpSwitchClause:
-		return OpCPUSwitchClause
-	case OpSwitchClauseCase:
-		return OpCPUSwitchClauseCase
-	case OpTypeSwitch:
-		return OpCPUTypeSwitch
-	case OpIfCond:
-		return OpCPUIfCond
-	case OpPopValue:
-		return OpCPUPopValue
-	case OpPopResults:
-		return OpCPUPopResults
-	case OpPopBlock:
-		return OpCPUPopBlock
-	case OpPopFrameAndReset:
-		return OpCPUPopFrameAndReset
-	case OpPanic1:
-		return OpCPUPanic1
-	case OpPanic2:
-		return OpCPUPanic2
-	case OpReturn:
-		return OpCPUReturn
-	case OpReturnAfterCopy:
-		return OpCPUReturnAfterCopy
-	case OpReturnFromBlock:
-		return OpCPUReturnFromBlock
-	case OpReturnToBlock:
-		return OpCPUReturnToBlock
-
-	/* ---------- Unary / Binary ---------- */
-	case OpUpos:
-		return OpCPUUpos
-	case OpUneg:
-		return OpCPUUneg
-	case OpUnot:
-		return OpCPUUnot
-	case OpUxor:
-		return OpCPUUxor
-	case OpUrecv:
-		return OpCPUUrecv
-	case OpLor:
-		return OpCPULor
-	case OpLand:
-		return OpCPULand
-	case OpEql:
-		return OpCPUEql
-	case OpNeq:
-		return OpCPUNeq
-	case OpLss:
-		return OpCPULss
-	case OpLeq:
-		return OpCPULeq
-	case OpGtr:
-		return OpCPUGtr
-	case OpGeq:
-		return OpCPUGeq
-	case OpAdd:
-		return OpCPUAdd
-	case OpSub:
-		return OpCPUSub
-	case OpBor:
-		return OpCPUBor
-	case OpXor:
-		return OpCPUXor
-	case OpMul:
-		return OpCPUMul
-	case OpQuo:
-		return OpCPUQuo
-	case OpRem:
-		return OpCPURem
-	case OpShl:
-		return OpCPUShl
-	case OpShr:
-		return OpCPUShr
-	case OpBand:
-		return OpCPUBand
-	case OpBandn:
-		return OpCPUBandn
-
-	/* ---------- Expressions ---------- */
-	case OpEval:
-		return OpCPUEval
-	case OpBinary1:
-		return OpCPUBinary1
-	case OpIndex1:
-		return OpCPUIndex1
-	case OpIndex2:
-		return OpCPUIndex2
-	case OpSelector:
-		return OpCPUSelector
-	case OpSlice:
-		return OpCPUSlice
-	case OpStar:
-		return OpCPUStar
-	case OpRef:
-		return OpCPURef
-	case OpTypeAssert1:
-		return OpCPUTypeAssert1
-	case OpTypeAssert2:
-		return OpCPUTypeAssert2
-	case OpStaticTypeOf:
-		return OpCPUStaticTypeOf
-	case OpCompositeLit:
-		return OpCPUCompositeLit
-	case OpArrayLit:
-		return OpCPUArrayLit
-	case OpSliceLit:
-		return OpCPUSliceLit
-	case OpSliceLit2:
-		return OpCPUSliceLit2
-	case OpMapLit:
-		return OpCPUMapLit
-	case OpStructLit:
-		return OpCPUStructLit
-	case OpFuncLit:
-		return OpCPUFuncLit
-	case OpConvert:
-		return OpCPUConvert
-
-	/* ---------- Types ---------- */
-	case OpFieldType:
-		return OpCPUFieldType
-	case OpArrayType:
-		return OpCPUArrayType
-	case OpSliceType:
-		return OpCPUSliceType
-	case OpPointerType:
-		return OpCPUPointerType
-	case OpInterfaceType:
-		return OpCPUInterfaceType
-	case OpChanType:
-		return OpCPUChanType
-	case OpFuncType:
-		return OpCPUFuncType
-	case OpMapType:
-		return OpCPUMapType
-	case OpStructType:
-		return OpCPUStructType
-
-	/* ---------- Statements ---------- */
-	case OpAssign:
-		return OpCPUAssign
-	case OpAddAssign:
-		return OpCPUAddAssign
-	case OpSubAssign:
-		return OpCPUSubAssign
-	case OpMulAssign:
-		return OpCPUMulAssign
-	case OpQuoAssign:
-		return OpCPUQuoAssign
-	case OpRemAssign:
-		return OpCPURemAssign
-	case OpBandAssign:
-		return OpCPUBandAssign
-	case OpBandnAssign:
-		return OpCPUBandnAssign
-	case OpBorAssign:
-		return OpCPUBorAssign
-	case OpXorAssign:
-		return OpCPUXorAssign
-	case OpShlAssign:
-		return OpCPUShlAssign
-	case OpShrAssign:
-		return OpCPUShrAssign
-	case OpDefine:
-		return OpCPUDefine
-	case OpInc:
-		return OpCPUInc
-	case OpDec:
-		return OpCPUDec
-
-	/* ---------- Decls ---------- */
-	case OpValueDecl:
-		return OpCPUValueDecl
-	case OpTypeDecl:
-		return OpCPUTypeDecl
-
-	/* ---------- Boucles / Sticky ---------- */
-	case OpSticky:
-		return OpCPUSticky
-	case OpBody:
-		return OpCPUBody
-	case OpForLoop:
-		return OpCPUForLoop
-	case OpRangeIter:
-		return OpCPURangeIter
-	case OpRangeIterString:
-		return OpCPURangeIterString
-	case OpRangeIterMap:
-		return OpCPURangeIterMap
-	case OpRangeIterArrayPtr:
-		return OpCPURangeIterArrayPtr
-	case OpReturnCallDefers:
-		return OpCPUReturnCallDefers
-	case OpVoid:
-		return 0
-	}
-	return 1
-}
-
-func (m *Machine) PrintOpStats() {
-	fmt.Printf("\n%-20s | %-10s | %-15s | %-10s\n", "Opcode", "Count", "Cumulative CPU", "Alloc (KB)")
-	fmt.Println(strings.Repeat("-", 70))
-
-	var total int64
-	for _, stat := range opStats {
-		total += stat.Count
-	}
-
-	for op, stat := range opStats {
-		allocKB := float64(stat.Allocations) / 1024
-		fmt.Printf("%-20s | %-10d | %-15d | %-10.2f\n",
-			op.String(), stat.Count, stat.CumulativeCPU, allocKB)
 	}
 }
 
