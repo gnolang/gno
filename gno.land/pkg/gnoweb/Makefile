@@ -57,14 +57,14 @@ test:
 	go test -v ./...
 
 # Format process
-fmt: fmt.go fmt.js
+fmt: fmt.go fmt.front
 fmt.go:; go fmt ./...
-fmt.js:; $(MAKE) -C frontend fmt
+fmt.front:; $(MAKE) -C frontend fmt
 
 # Lint process
-lint: lint.go lint.js
+lint: lint.go lint.front
 lint.go:; $(golangci_lint) --config ../../../.github/golangci.yml run ./...
-lint.js:; $(MAKE) -C frontend lint
+lint.front:; $(MAKE) -C frontend lint
 
 # Generate process
 generate: css ts static
