@@ -102,7 +102,7 @@ func (b *TxBuilder) SetSend(amount string) *TxBuilder {
 	}
 	if amount == "" {
 		return b
-	}
+	} // XXX: should not include coin values that are <= 0. it will
 	b.send = amount
 	return b
 }
