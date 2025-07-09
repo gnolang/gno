@@ -9,9 +9,11 @@ import (
 )
 
 type petition struct {
-	publisher   users.UserData
+	publisher   *users.UserData
 	title       string
 	description string
+	signatures  []*users.UserData
+	target      int
 }
 
 var (

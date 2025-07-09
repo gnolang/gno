@@ -1,8 +1,8 @@
 package change
 
 import (
-	"strings"
 	"net/url"
+	"strings"
 )
 
 func splitAtCharacter(fullpath string, s string) (string, string) {

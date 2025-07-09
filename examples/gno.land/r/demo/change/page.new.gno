@@ -16,6 +16,7 @@ func renderNewPage(_ map[string]string) string {
 	content += `<gno-form path="submit">` + br
 	content += `  <gno-input name="title" placeholder="Title of the petition" />` + br
 	content += `  <gno-input name="description" placeholder="Describe the cause" />` + br
+	content += `  <gno-input name="target" placeholder="Target number of signatures" />` + br
 	content += "</gno-form>" + br
 
 	return content
