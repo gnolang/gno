@@ -2,25 +2,17 @@ package change
 
 import (
 	"gno.land/p/moul/md"
-
-	"strconv"
 )
 
-func renderMainPage(x string, y map[string]string) string {
+func renderMainPage(_ map[string]string) string {
 	// content starts with topBar
-	content := renderTopBar(x, y)
+	content := renderTopBar()
 
 	// main page
 	content += md.H1("Change starts now.") + br
 
-	// counter only if 10+ people joined, because else its weird
-	userLen := len(users)
-	if userLen >= 10 {
-		content += "Joins " + md.Bold(strconv.Itoa(userLen)) + " users." + br
-	}
-
 	// petition button
-	content += md.H2(md.Link("Start a petition", "")) + br + md.HorizontalRule() + br
+	content += md.H2(md.Link("Start a petition", here + ":new")) + br + md.HorizontalRule() + br
 
 	// lil message
 	content += md.H2("How do we help you make a difference") + br

@@ -2,47 +2,52 @@ package change
 
 import (
 	"gno.land/p/moul/md"
+	"gno.land/r/sys/users"
 
-	"strings"
 	"std"
+	"strings"
 )
 
-type user struct {
-	addr address
+type petition struct {
+	publisher   users.UserData
+	title       string
+	description string
 }
 
 var (
-	here = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
-	users = []user{}
+	here         = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
+	petitions    = []*petition{}
 	bigSeparator = strings.Repeat("‎ ", 10)
 
-	pages = map[string]func(string, map[string]string) string {
-		"": renderMainPage,
+	pagesRouter = map[string]func(map[string]string) string{
+		"":       renderMainPage,
 		"search": renderSearchPage,
+		"new":    renderNewPage,
+		"submit": renderSubmitPage,
 	}
 )
 
 const br = "\n\n"
 
-func renderTopBar(_ string, params map[string]string) string {
+func renderTopBar() string {
 	var content string
 
 	// home
-	content += md.Link("r/change", here + ":new") + bigSeparator
+	content += md.Link("r/change", here) + bigSeparator
 
 	// search
-	content += md.Link("Search", here + ":search") + bigSeparator
+	content += md.Link("Search", here+":search") + bigSeparator
 
 	// start
-	content += md.Link("Start a petition", here + ":new") + bigSeparator
+	content += md.Link("Start a petition", here+":new") + bigSeparator
 
 	return content + br
 }
 
 func Render(query string) string {
 	x, y := ParseQuerry(query)
-	if page, ok := pages[x]; ok {
-		return page(x, y)
+	if page, ok := pagesRouter[x]; ok {
+		return page(y)
 	}
-	return renderMainPage(x, y)
+	return renderMainPage(y)
 }

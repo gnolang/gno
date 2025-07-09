@@ -1,6 +1,9 @@
 package change
 
-import "strings"
+import (
+	"strings"
+	"net/url"
+)
 
 func splitAtCharacter(fullpath string, s string) (string, string) {
 	i := strings.Index(fullpath, s)
@@ -18,6 +21,10 @@ func ParseQuerry(fullpath string) (path string, params map[string]string) {
 	paramList := strings.Split(oneParam, "&")
 	for _, v := range paramList {
 		x, y := splitAtCharacter(v, "=")
+		y, err := url.QueryUnescape(y)
+		if err != nil {
+			panic(err)
+		}
 		params[x] = y
 	}
 	return
