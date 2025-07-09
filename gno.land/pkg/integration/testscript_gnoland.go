@@ -42,7 +42,7 @@ import (
 
 var flagFormatGnofiles = flag.Bool("txtar-fmt", false, "format gno files within txtar")
 
-const nodeMaxLifespan = time.Second * 30
+const nodeDefaultLifespan = time.Second * 60
 
 var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
@@ -50,6 +50,7 @@ type envKey int
 
 const (
 	envKeyFileOpts envKey = iota
+	envKeyContext
 	envKeyGenesis
 	envKeyLogger
 	envKeyPkgsLoader
@@ -125,10 +126,13 @@ func (nm *NodesManager) Delete(sid string) {
 // Specific file opts
 type FileOpts struct {
 	NoFormat bool
+	Timeout  time.Duration
 }
 
 func NewDefaultFileOpts() FileOpts {
-	return FileOpts{}
+	return FileOpts{
+		Timeout: time.Second * 120,
+	}
 }
 
 func SetEnvFileOpts(env *testscript.Env, opts FileOpts) {
@@ -165,6 +169,12 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		if _, ok := env.Values[envKeyFileOpts]; !ok {
 			env.Values[envKeyFileOpts] = NewDefaultFileOpts()
 		}
+
+		fopts := env.Values[envKeyFileOpts].(FileOpts)
+
+		ctx, cancel := context.WithTimeout(context.Background(), fopts.Timeout)
+		env.Values[envKeyContext] = ctx
+		env.Defer(cancel)
 
 		cmdKind, isSet := env.Values[envKeyExecCommand].(CommandKind)
 		if !isSet {
@@ -244,8 +254,8 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		})
 
 		// format gno files if requested
-		fopts := env.Values[envKeyFileOpts].(FileOpts)
 		if *flagFormatGnofiles && !fopts.NoFormat {
+			// we need to defer this to ensure loadeer have fully loaded all the files
 			env.Defer(func() {
 				if err := fmtGnoFiles(t, loader, env, p.Dir); err != nil {
 					t.Logf("unable to format gno files from txtar: %s", err)
@@ -297,6 +307,8 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			cmd, cmdargs = args[0], args[1:]
 		}
 
+		ctx := ts.Value(envKeyContext).(context.Context)
+
 		var err error
 		switch cmd {
 		case "":
@@ -313,8 +325,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
-			timeout := fs.Duration("timeout", time.Second*30, "configure node max lifespan")
-
+			timeout := fs.Duration("timeout", nodeDefaultLifespan, "node specific timeout until it stop")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -352,7 +363,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			dbdir := ts.Getenv("GNO_DBDIR")
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 
-			ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+			ctx, cancel := context.WithTimeout(ctx, *timeout)
 			ts.Defer(cancel)
 
 			start := time.Now()
@@ -385,11 +396,14 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				break
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), nodeMaxLifespan)
-			ts.Defer(cancel)
+			fs := flag.NewFlagSet("restart", flag.ContinueOnError)
+			timeout := fs.Duration("timeout", nodeDefaultLifespan, "node specific timeout until it stop")
 
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 			dbdir := ts.Getenv("GNO_DBDIR")
+
+			ctx, cancel := context.WithTimeout(ctx, *timeout)
+			ts.Defer(cancel)
 			nodep := runNode(ts, ctx, &ProcessNodeConfig{
 				ValidatorKey: priv,
 				DBDir:        dbdir,
@@ -842,6 +856,8 @@ func tsValidateError(ts *testscript.TestScript, cmd string, neg bool, err error)
 }
 
 func fmtGnoFiles(t *testing.T, loader *PkgsLoader, env *testscript.Env, dir string) error {
+	t.Helper()
+
 	r, err := loader.NewFmtResolver()
 	if err != nil {
 		return fmt.Errorf("unable to create fmt resolver: %w", err)
@@ -901,7 +917,7 @@ func fmtGnoFiles(t *testing.T, loader *PkgsLoader, env *testscript.Env, dir stri
 
 	// Write new data
 	if _, err = f.Write(txtar.Format(txa)); err != nil {
-		return fmt.Errorf("unable write formated txtar: %s", err)
+		return fmt.Errorf("unable write formated txtar: %w", err)
 	}
 
 	return nil

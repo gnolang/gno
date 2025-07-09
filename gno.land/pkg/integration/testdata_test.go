@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	gno_integration "github.com/gnolang/gno/gnovm/pkg/integration"
 	"github.com/rogpeppe/go-internal/testscript"
@@ -23,6 +24,7 @@ type testFileOpts struct {
 
 	noParallel bool
 	skip       bool
+	timeout    time.Duration
 }
 
 func newDefaultTestFileOpts() *testFileOpts {
@@ -33,9 +35,8 @@ func newTestFlagsOpts(fs *flag.FlagSet) *testFileOpts {
 	topts := newDefaultTestFileOpts()
 	fs.BoolVar(&topts.noParallel, "no-parallel", topts.noParallel, "disable parallel testing")
 	fs.BoolVar(&topts.skip, "skip", topts.skip, "skip this test")
-
-	fopts := NewDefaultFileOpts()
-	fs.BoolVar(&topts.NoFormat, "no-fmt", fopts.NoFormat, "disable format in this file")
+	fs.BoolVar(&topts.NoFormat, "no-fmt", topts.NoFormat, "disable format in this file")
+	fs.DurationVar(&topts.timeout, "timeout", 0, "configure file test timeout")
 
 	return topts
 }
@@ -54,7 +55,7 @@ func TestTestdata(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mf, err := parseDirFlags(".txtar", "txtar:opts", p.Dir, newTestFlagsOpts)
+	mf, err := ParseDirFlags(".txtar", "txtar:opts", p.Dir, newTestFlagsOpts)
 	require.NoError(t, err)
 
 	// Set up gnoland for testscript
@@ -98,7 +99,7 @@ func TestTestdata(t *testing.T) {
 type tShim struct {
 	*testing.T
 	forceSeq bool // force sequential tests
-	mflags   mapFlags[*testFileOpts]
+	mflags   MapFlags[*testFileOpts]
 }
 
 func (ts tShim) getOpts() *testFileOpts {
@@ -107,7 +108,6 @@ func (ts tShim) getOpts() *testFileOpts {
 		return topts
 	}
 
-	fmt.Println("unknown test", name)
 	return newDefaultTestFileOpts()
 }
 
@@ -140,9 +140,48 @@ func (ts tShim) Verbose() bool {
 	return testing.Verbose()
 }
 
+type MapFlags[T any] map[string]T
+
+func ParseDirFlags[T any](ext, prefix, dir string, newT func(*flag.FlagSet) T) (MapFlags[T], error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading dir %q: %w", dir, err)
+	}
+
+	mf := MapFlags[T]{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ext) {
+			continue
+		}
+
+		fpath := filepath.Join(dir, entry.Name())
+		f, err := os.Open(fpath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to open file %q: %w", fpath, err)
+		}
+
+		args, err := captureTopLevelLineArgs(f, prefix)
+		f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("invalid file flags %q: %w", entry.Name(), err)
+		}
+
+		fs := flag.NewFlagSet("txtar:opts", flag.ContinueOnError)
+		t := newT(fs)
+		if err := fs.Parse(args); err != nil {
+			return nil, fmt.Errorf("unable to parse flags in %q: %w", entry.Name(), err)
+		}
+
+		name := strings.TrimSuffix(entry.Name(), ext)
+		mf[name] = t
+	}
+
+	return mf, nil
+}
+
 // ParseTopLevelFlags parses top-level lines starting with # ts:opts <flags>.
 // Each # ts:opts line overrides previous flags.
-func captureTopLevelFlags(r io.Reader, prefix string) ([]string, error) {
+func captureTopLevelLineArgs(r io.Reader, prefix string) ([]string, error) {
 	scanner := bufio.NewScanner(r)
 
 	args := []string{}
@@ -167,43 +206,4 @@ func captureTopLevelFlags(r io.Reader, prefix string) ([]string, error) {
 	}
 
 	return args, nil
-}
-
-type mapFlags[T any] map[string]T
-
-func parseDirFlags[T any](ext, prefix, dir string, newT func(*flag.FlagSet) T) (mapFlags[T], error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("reading dir %q: %w", dir, err)
-	}
-
-	mf := mapFlags[T]{}
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ext) {
-			continue
-		}
-
-		fpath := filepath.Join(dir, entry.Name())
-		f, err := os.Open(fpath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to open file %q: %w", fpath, err)
-		}
-
-		args, err := captureTopLevelFlags(f, prefix)
-		f.Close()
-		if err != nil {
-			return nil, fmt.Errorf("invalid file flags %q: %w", entry.Name(), err)
-		}
-
-		fs := flag.NewFlagSet("txtar:opts", flag.ContinueOnError)
-		t := newT(fs)
-		if err := fs.Parse(args); err != nil {
-			return nil, fmt.Errorf("unable to parse flags in %q: %w", entry.Name(), err)
-		}
-
-		name := strings.TrimSuffix(entry.Name(), ext)
-		mf[name] = t
-	}
-
-	return mf, nil
 }
