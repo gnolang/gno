@@ -35,9 +35,9 @@ Used for **local development and testing**. When set, this field allows local
 replacement of the package, but will cause `addpkg` to **fail on-chain**. Useful
 for overriding dependencies during local testing.
 
-#### `uploader`  
+#### `creator`  
 
-Specifies the address that will be set as the uploader of the package (origin 
+Specifies the address that will be set as the creator of the package (origin 
 of the transaction). This field is used only during **genesis (block 0)** and
 replaces the default deployer address if set. Primarily used in monorepo setups.
 If not specified, it's automatically set to the address that initiated the `addpkg`
@@ -79,10 +79,10 @@ private = true
   old = "gno.land/r/test/v3"
   new = "../.."
 
-[upload_metadata]
-    uploader = "g1xyz..."
+[addpkg]
+    creator = "g1xyz..."
     height = 123
 ```
 
 Note that this example isn't realistic because we should either replace,
-upload metadata, or do neither, but never both at the same time.
+configure addpkg settings, or do neither, but never both at the same time.
