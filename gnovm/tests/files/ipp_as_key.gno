@@ -4,8 +4,8 @@ package main
 // match their paths.
 
 import (
-	tutu "github.com/gnolang/gno/_test/tata"
-	titi "github.com/gnolang/gno/_test/toto"
+	tutu "filetests/extern/tata"
+	titi "filetests/extern/toto"
 )
 
 func main() {
