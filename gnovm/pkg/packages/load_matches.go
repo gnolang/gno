@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -42,51 +40,28 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		ImportsSpecs: ImportsMap{},
 	}
 
-	stdlibsPath := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
-	if strings.HasPrefix(filepath.Clean(pkg.Dir), stdlibsPath) {
-		libPath, err := filepath.Rel(stdlibsPath, pkg.Dir)
-		if err != nil {
-			pkg.Errors = append(pkg.Errors, &Error{
-				Pos: pkg.Dir,
-				Msg: err.Error(),
-			})
-			return pkg
-		}
-		pkg.ImportPath = filepath.ToSlash(libPath)
-	}
-
-	// FIXME: concurrency + don't overwrite
+	// get package from modcache if the dir is in it
 	modCachePath := gnomod.ModCachePath()
 	if strings.HasPrefix(filepath.Clean(pkg.Dir), modCachePath) {
 		pkgPath, err := filepath.Rel(modCachePath, pkg.Dir)
 		if err != nil {
 			pkg.Errors = append(pkg.Errors, &Error{
 				Pos: pkg.Dir,
-				Msg: fmt.Errorf("pkgpath from cache dir: %w", err).Error(),
+				Msg: fmt.Errorf("failed to derive pkgpath from cache dir path: %w", err).Error(),
 			})
 			return pkg
 		}
-		pkg.ImportPath = path.Clean(filepath.ToSlash(pkgPath))
-		_, err = os.Stat(pkg.Dir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				if err := DownloadPackage(out, pkgPath, pkg.Dir, fetcher); err != nil {
-					pkg.Errors = append(pkg.Errors, &Error{
-						Pos: pkg.Dir,
-						Msg: err.Error(),
-					})
-					return pkg
-				}
-			} else {
-				pkg.Errors = append(pkg.Errors, &Error{
-					Pos: pkg.Dir,
-					Msg: fmt.Errorf("stat: %w", err).Error(),
-				})
-				return pkg
-			}
+		pkg.ImportPath = pkgPath
+		if err := DownloadPackage(out, pkgPath, fetcher); err != nil {
+			pkg.Errors = append(pkg.Errors, &Error{
+				Pos: pkg.Dir,
+				Msg: err.Error(),
+			})
+			return pkg
 		}
 	}
 
+	// derive import path
 	stdlibDir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs")
 	if strings.HasPrefix(pkg.Dir, stdlibDir) {
 		// get package path from dir

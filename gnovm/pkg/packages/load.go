@@ -121,9 +121,9 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 		// fmt.Fprintf(conf.Out, "gno: visiting deps of %q at %q\n", pkg.ImportPath, pkg.Dir)
 
-		// don't load test deps if test flag is not set
+		// load tests deps if test flag is set and the package is not a dep
 		importKinds := []FileKind{FileKindPackageSource}
-		if conf.Test {
+		if conf.Test && len(pkg.Match) != 0 {
 			importKinds = append(importKinds, FileKindTest, FileKindXTest, FileKindFiletest)
 		}
 
