@@ -34,7 +34,7 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0]=
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
@@ -44,8 +44,8 @@ func main(cur realm,) {
 //     -                "@type": "/gno.PointerValue",
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
-//     -                    "Hash": "ff7ee2df0e65a933be3dce7550bf361d29e83bc0",
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
+//     -                    "Hash": "257ca6e0ad33b6ca40478156cb7c5f5262f7dffb",
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11:0"
 //     -                },
 //     -                "Index": "0",
 //     -                "TV": null
@@ -55,16 +55,16 @@ func main(cur realm,) {
 //     @@ -42,7 +32,7 @@
 //          ],
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0",
 //     -        "ModTime": "10",
 //     +        "ModTime": "14",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6:0",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4:0]=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4:0",
 //              "IsEscaped": true,
 //     -        "ModTime": "12",
 //     -        "RefCount": "3"
@@ -73,5 +73,5 @@ func main(cur realm,) {
 //          },
 //          "Value": {
 //              "T": {
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11:0]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12:0]

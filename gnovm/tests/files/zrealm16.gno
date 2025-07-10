@@ -35,43 +35,43 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:15]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:15:0]=
 //     @@ -13,7 +13,7 @@
 //                      "Base": {
 //                          "@type": "/gno.RefValue",
 //                          "Escaped": true,
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
-//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4:0"
+//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0"
 //                      },
 //                      "Index": "0",
 //                      "TV": null
 //     @@ -32,7 +32,7 @@
 //          ],
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:15",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:15:0",
 //     -        "ModTime": "0",
 //     +        "ModTime": "17",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14:0",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0]=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
 //     +        "ModTime": "17",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6:0",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
 //          "Value": {
 //              "T": {
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4:0]=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4:0",
 //              "IsEscaped": true,
 //     -        "ModTime": "15",
 //     -        "RefCount": "3"
