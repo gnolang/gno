@@ -48,8 +48,22 @@ func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [
 // UpdateClient will update the given IBC v2 light client with a new header.
 // Can also be used to submit a misbehavior (clientMessage can be a header or
 // a misbehavior, maybe split into 2 functions would make more sense here).
-func UpdateClient(clientID string, clientMessage []byte) {
-	// TODO
+func UpdateClient(clientID string, clientMessage any) {
+	c := store.getClient(clientID)
+	if c == nil {
+		panic(ufmt.Sprintf("client %s not found", clientID))
+	}
+	// TODO check if relayer address is in whitelist
+	// Similarly to ibc-v2 go implementation, for safety we're going to restrict
+	// the UpdateClient call to a set of predefined relayers addresses.
+
+	err := c.lightClient.VerifyClientMessage(c.id, clientMessage)
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO check for misbehavior
+	// TODO emit events for updated client
 }
 
 // UpdateClient upgrades the client to a new client state if this new client
