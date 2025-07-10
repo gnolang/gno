@@ -28,11 +28,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./sys/users/admin.gno:19:func ProposeNewController(addr std.Address) dao.ProposalRequest {
 ./sys/users/admin.gno:28:func ProposeControllerRemoval(addr std.Address) dao.ProposalRequest {
 ./sys/users/admin.gno:37:func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.ProposalRequest {
-./sys/users/users.gno:10:func ResolveName(name string) (data *UserData, isCurrent bool) {
-./sys/users/users.gno:25:func ResolveAddress(addr std.Address) *UserData {
-./sys/users/users.gno:41:func ResolveAny(input string) (*UserData, bool) {
-./sys/users/users.gno:51:func GetReadonlyAddrStore() *rotree.ReadOnlyTree {
-./sys/users/users.gno:56:func GetReadOnlyNameStore() *rotree.ReadOnlyTree {
 ./sys/users/errors.gno:33:func NewErrNotWhitelisted() ErrNotWhitelisted {
 ./sys/params/unlock.gno:12:func ProposeUnlockTransferRequest() dao.ProposalRequest {
 ./sys/params/unlock.gno:16:func ProposeLockTransferRequest() dao.ProposalRequest {
