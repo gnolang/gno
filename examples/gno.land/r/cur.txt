@@ -2,7 +2,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
          | grep -v -E 'func [A-Z][A-Za-z0-9_]*\s*\(\s*cur\s+realm' > cur.txt
 
 
-./moul/microposts/realm.gno:11:func CreatePost(text string) {
 ./nt/commondao/iterator.gno:11:func NewIterator(rootID uint64, options ...IteratorOption) Iterator {
 ./nt/commondao/render.gno:22:func Render(path string) string {
 ./nt/commondao/options.gno:55:func AllowListing(allow bool) Option {
@@ -11,12 +10,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./nt/commondao/options.gno:76:func AllowVoting(allow bool) Option {
 ./nt/commondao/options.gno:83:func AllowExecution(allow bool) Option {
 ./nt/commondao/public.gno:29:func IsInvited(addr std.Address) bool {
-./nt/commondao/public.gno:35:func New(name string, options ...Option) *commondao.CommonDAO {
-./nt/commondao/public.gno:50:func NewSubDAO(name string, parentID uint64, options ...Option) *commondao.CommonDAO {
-./nt/commondao/public.gno:70:func GetOptions(daoID uint64) *Options {
-./nt/commondao/public.gno:79:func IsOwner(addr std.Address, daoID uint64) bool {
-./nt/commondao/public.gno:106:func Get(daoID uint64) *commondao.CommonDAO {
-./nt/commondao/public.gno:112:func GetSize(rootID uint64) int {
 ./nt/commondao/iterator_options.gno:8:func WithOffset(offset uint) IteratorOption {
 ./nt/commondao/iterator_options.gno:16:func WithCount(count uint) IteratorOption {
 ./ursulovic/registry/registry.gno:21:func MainAddress() std.Address {
