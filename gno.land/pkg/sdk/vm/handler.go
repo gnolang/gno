@@ -245,8 +245,8 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 
 // queryStorage returns the storage size and deposit for a realm
 func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	filepath := string(req.Data)
-	result, err := vh.vm.QueryStorage(ctx, filepath)
+	pkgpath := string(req.Data)
+	result, err := vh.vm.QueryStorage(ctx, pkgpath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return

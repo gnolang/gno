@@ -184,7 +184,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
 		case DirectiveStorage:
-			rlmDiff := realmDiffsString(m.Store.RealmDiffs())
+			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
 			match(dir, rlmDiff)
 		case DirectiveTypeCheckError:
 			hasTypeCheckErrorDirective = true
@@ -208,8 +208,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	return "", returnErr
 }
 
-// returns a deterministically sorted string representation of realm diffs map
-func realmDiffsString(m map[string]int64) string {
+// returns a sorted string representation of realm diffs map
+func realmDiffsString(m map[string]gno.RealmStorageDiff) string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -218,7 +218,7 @@ func realmDiffsString(m map[string]int64) string {
 
 	var sb strings.Builder
 	for _, k := range keys {
-		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
+		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k].Diff()))
 	}
 	return sb.String()
 }

@@ -343,7 +343,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
 	send := msg.Send
-	deposit := msg.MaxDeposit
+	maxDeposit := msg.MaxDeposit
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
 
@@ -456,7 +456,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	// use the parameters before executing the message, as they may change during execution.
 	// The message should not fail due to parameter changes in the same transaction.
-	err = vm.processStorageDeposit(ctx, creator, deposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {
 		return err
 	}
@@ -1020,20 +1020,19 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 // or an invariant violation happens during deposit or storage adjustments.
 
 func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
-	realmDiffs := gnostore.RealmDiffs()
+	realmDiffs := gnostore.RealmStorageDiffs()
 	depositAmt := deposit.AmountOf(ugnot.Denom)
 	if depositAmt == 0 {
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
 	}
 	price := std.MustParseCoin(params.StoragePrice)
 
-	for rlmPath, diff := range realmDiffs {
+	for rlmPath, rd := range realmDiffs {
+		diff := rd.Diff()
+		rlm := rd.Realm()
 		if diff == 0 {
 			continue
 		}
-
-		rlm := gnostore.GetPackageRealm(rlmPath)
-
 		if diff > 0 {
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
@@ -1111,8 +1110,8 @@ func (vm *VMKeeper) refundStorageDeposit(ctx sdk.Context, caller crypto.Address,
 	if err != nil {
 		return fmt.Errorf("unable to return deposit %s, %w", rlm.Path, err)
 	}
-	rlm.Deposit -= uint64(depositUnlocked)
-	rlm.Storage -= uint64(released)
+	rlm.Deposit = overflow.Subp(rlm.Deposit, uint64(depositUnlocked))
+	rlm.Storage = overflow.Subp(rlm.Storage, uint64(released))
 
 	return nil
 }

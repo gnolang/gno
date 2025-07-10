@@ -56,7 +56,7 @@ type Store interface {
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
-	RealmDiffs() map[string]int64 // returns storage changes per realm within the message
+	RealmStorageDiffs() map[string]RealmStorageDiff // returns storage changes per realm within the message
 
 	// UNSTABLE
 	GetAllocator() *Allocator
@@ -154,7 +154,20 @@ type defaultStore struct {
 	gasConfig GasConfig
 
 	// realm storage changes on message level.
-	realmDiffs map[string]int64 // maps realm path to size diff
+	realmStorageDiffs map[string]RealmStorageDiff // maps realm path to size diff
+}
+
+// RealmDiff contains a Realm pointer. We need to read data
+type RealmStorageDiff struct {
+	realm *Realm
+	diff  int64
+}
+
+func (rd RealmStorageDiff) Diff() int64 {
+	return rd.diff
+}
+func (rd RealmStorageDiff) Realm() *Realm {
+	return rd.realm
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -169,7 +182,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// reset at the message level
-		realmDiffs: make(map[string]int64),
+		realmStorageDiffs: make(map[string]RealmStorageDiff),
 
 		// store configuration
 		pkgGetter:      nil,
@@ -211,7 +224,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		current: nil,
 		opslog:  nil,
 		// reset at the message level
-		realmDiffs: make(map[string]int64),
+		realmStorageDiffs: make(map[string]RealmStorageDiff),
 	}
 	ds2.SetCachePackage(Uverse())
 
@@ -979,8 +992,8 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 }
 
 // It resturns storage changes per realm within message
-func (ds *defaultStore) RealmDiffs() map[string]int64 {
-	return ds.realmDiffs
+func (ds *defaultStore) RealmStorageDiffs() map[string]RealmStorageDiff {
+	return ds.realmStorageDiffs
 }
 
 // Unstable.
@@ -989,7 +1002,7 @@ func (ds *defaultStore) RealmDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.realmDiffs = make(map[string]int64)
+	ds.realmStorageDiffs = make(map[string]RealmStorageDiff)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
 }
