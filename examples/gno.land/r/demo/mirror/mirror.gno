@@ -6,7 +6,7 @@ import (
 
 var store avl.Tree
 
-func Register(pkgpath string, rndr func(string) string) {
+func Register(_ realm, pkgpath string, rndr func(string) string) {
 	if store.Has(pkgpath) {
 		return
 	}

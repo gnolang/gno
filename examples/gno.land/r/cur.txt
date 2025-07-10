@@ -2,14 +2,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
          | grep -v -E 'func [A-Z][A-Za-z0-9_]*\s*\(\s*cur\s+realm' > cur.txt
 
 
-./demo/counter/counter.gno:7:func Increment() int {
-./demo/counter/counter.gno:12:func Render(_ string) string {
-./demo/releases_example/example.gno:19:func NewRelease(name, url, notes string) {
-./demo/releases_example/example.gno:27:func UpdateAdmin(address_XXX std.Address) {
-./demo/releases_example/example.gno:35:func Render(path string) string {
-./demo/games/shifumi/shifumi.gno:65:func NewGame(player std.Address) int {
-./demo/games/shifumi/shifumi.gno:72:func Play(idx, move int) {
-./demo/games/shifumi/shifumi.gno:82:func Render(path string) string {
 ./demo/mirror/mirror.gno:9:func Register(pkgpath string, rndr func(string) string) {
 ./demo/mirror/mirror.gno:21:func Render(path string) string {
 ./n2p5/home/home.gno:45:func Render(path string) string {
