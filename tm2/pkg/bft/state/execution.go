@@ -118,7 +118,10 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// validate the validator updates and convert to tendermint types
 	abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
-	abciValUpdates = filterValidatorUpdates(abciValUpdates, *state.ConsensusParams.Validator, blockExec.logger)
+	err = validateValidatorUpdates(abciValUpdates, *state.ConsensusParams.Validator)
+	if err != nil {
+		return state, fmt.Errorf("Error in validator updates: %w", err)
+	}
 	if len(abciValUpdates) > 0 {
 		blockExec.logger.Info("Updates to validators", "updates", abciValUpdates)
 	}
@@ -314,36 +317,26 @@ func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCo
 	return commitInfo
 }
 
-func filterValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
-	params abci.ValidatorParams, logger *slog.Logger,
-) []abci.ValidatorUpdate {
-	filteredUpdates := make([]abci.ValidatorUpdate, 0, len(abciUpdates))
-
+func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
+	params abci.ValidatorParams,
+) error {
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.Power < 0 {
-			logger.Error("Invalid voting power - ignoring validator update",
-				"validator", valUpdate.Address,
-				"power", valUpdate.Power)
-			continue
+			return fmt.Errorf("voting power can't be negative %v", valUpdate)
 		} else if valUpdate.Power == 0 {
 			// continue, since this is deleting the validator, and thus there is no
 			// pubkey to check
-			filteredUpdates = append(filteredUpdates, valUpdate)
 			continue
 		}
 
 		// Check if validator's pubkey matches an ABCI type in the consensus params
 		pubkeyTypeURL := amino.GetTypeURL(valUpdate.PubKey)
 		if !params.IsValidPubKeyTypeURL(pubkeyTypeURL) {
-			logger.Error("Unsupported pubkey type - ignoring validator update",
-				"validator", valUpdate.Address,
-				"pubkeyTypeURL", pubkeyTypeURL)
-			continue
+			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
+				valUpdate, pubkeyTypeURL)
 		}
-
-		filteredUpdates = append(filteredUpdates, valUpdate)
 	}
-	return filteredUpdates
+	return nil
 }
 
 // updateState returns a new State updated according to the header and responses.
