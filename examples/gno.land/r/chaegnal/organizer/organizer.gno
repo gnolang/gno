@@ -15,7 +15,9 @@ import (
 const (
 	VoteYay = 1 // VoteYay represented yes votes
 	VoteNay = 0 // VoteNay represented no votes
+)
 
+const (
 	MemberRank = iota // memberRank represents the basic right of user
 	AdminRank         // adminRank represents the rank of admin with heightened rights
 )
