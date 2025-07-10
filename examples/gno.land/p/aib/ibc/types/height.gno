@@ -25,3 +25,31 @@ type Height struct {
 func (h Height) String() string {
 	return ufmt.Sprintf("%d/%d", h.RevisionNumber, h.RevisionHeight)
 }
+
+// GTE Helper comparison function returns true if h >= other
+func (h Height) GTE(other Height) bool {
+	cmp := h.Compare(other)
+	return cmp >= 0
+}
+
+// Compare implements a method to compare two heights. When comparing two heights a, b
+// we can call a.Compare(b) which will return
+// -1 if a < b
+// 0  if a = b
+// 1  if a > b
+//
+// It first compares based on revision numbers, whichever has the higher revision number is the higher height
+// If revision number is the same, then the revision height is compared
+func (h Height) Compare(height Height) int64 {
+	// TODO
+	// var a, b big.Int
+	// if h.RevisionNumber != height.RevisionNumber {
+	// a.SetUint64(h.RevisionNumber)
+	// b.SetUint64(height.RevisionNumber)
+	// } else {
+	// a.SetUint64(h.RevisionHeight)
+	// b.SetUint64(height.RevisionHeight)
+	// }
+	// return int64(a.Cmp(&b))
+	return 0
+}
