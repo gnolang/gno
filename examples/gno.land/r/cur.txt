@@ -2,9 +2,7 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
          | grep -v -E 'func [A-Z][A-Za-z0-9_]*\s*\(\s*cur\s+realm' > cur.txt
 
 
-./n2p5/loci/loci.gno:35:func Render(path string) string {
 ./moul/microposts/realm.gno:11:func CreatePost(text string) {
-./moul/microposts/realm.gno:19:func Render(_ string) string {
 ./nt/commondao/iterator.gno:11:func NewIterator(rootID uint64, options ...IteratorOption) Iterator {
 ./nt/commondao/render.gno:22:func Render(path string) string {
 ./nt/commondao/options.gno:55:func AllowListing(allow bool) Option {
