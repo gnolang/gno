@@ -158,12 +158,12 @@ func renderAbout() string {
 	out := `
 Welcome, gnomes!
 
-The Hall of Realms is a simple & permissionless dashboard for gnomes to share 
+The Hall of Realms is a simple & permissionless dashboard for gnomes to share
 their work with the community.
 
 Here, anyone is welcome to submit their own code. This realm utilizes a common
-Gno pattern - the registry pattern - to allow anyone to programmatically submit 
-their work. 
+Gno pattern - the registry pattern - to allow anyone to programmatically submit
+their work.
 
 Simply import the Hall of Realms in your code, and call the "Register()" function
 inside your realm init, as shown below:

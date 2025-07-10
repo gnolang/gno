@@ -5,7 +5,7 @@ run:
   tests: true
   modules-download-mode: readonly
   allow-parallel-runners: false
-  go: ""
+  go: "1.23"
 
 output:
   path-prefix: ""
