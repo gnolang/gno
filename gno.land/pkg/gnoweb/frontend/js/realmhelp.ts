@@ -1,4 +1,9 @@
-import { debounce, escapeShellSpecialChars } from "./utils";
+import {
+  debounce,
+  escapeShellSpecialChars,
+  setCookie,
+  getCookie,
+} from "./utils";
 
 class Help {
   private DOM: {
@@ -49,9 +54,15 @@ class Help {
     this.bindEvents();
   }
 
-  private restoreValue(storageKey: string, inputElement: HTMLInputElement | HTMLSelectElement | null, updateCallback: (value: string) => void): void {
+  private restoreValue(
+    storageKey: string,
+    inputElement: HTMLInputElement | HTMLSelectElement | null,
+    updateCallback: (value: string) => void,
+    storageStrategy: (key: string) => string | null = (key: string) =>
+      localStorage.getItem(key)
+  ): void {
     if (inputElement) {
-      const storedValue = localStorage.getItem(storageKey);
+      const storedValue = storageStrategy(storageKey);
       if (storedValue) {
         inputElement.value = storedValue;
         updateCallback(storedValue);
@@ -60,7 +71,12 @@ class Help {
   }
 
   private restoreAddress(): void {
-    this.restoreValue("helpAddressInput", this.DOM.addressInput, (value) => this.funcList.forEach((func) => func.updateAddr(value)));
+    this.restoreValue(
+      "helpAddressInput",
+      this.DOM.addressInput,
+      (value) => this.funcList.forEach((func) => func.updateAddr(value)),
+      getCookie
+    );
   }
 
   private restoreMode(): void {
@@ -70,13 +86,15 @@ class Help {
   private bindEvents(): void {
     const { addressInput, cmdModeSelect } = this.DOM;
 
+    // Address input
     const debouncedUpdate = debounce((addressInput: HTMLInputElement) => {
       const address = addressInput.value;
-      localStorage.setItem("helpAddressInput", address);
+      setCookie("helpAddressInput", address, 365);
       this.funcList.forEach((func) => func.updateAddr(address));
     }, 50);
     addressInput?.addEventListener("input", () => debouncedUpdate(addressInput));
 
+    // Command mode select
     cmdModeSelect?.addEventListener("change", (e) => {
       const target = e.target as HTMLSelectElement;
       const mode = target.value;
