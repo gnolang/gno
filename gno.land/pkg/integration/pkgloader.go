@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnofmt"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
@@ -29,6 +30,20 @@ func NewPkgsLoader() *PkgsLoader {
 		visited: make(map[string]struct{}),
 		patchs:  make(map[string]string),
 	}
+}
+
+func (pl *PkgsLoader) NewFmtResolver() (gnofmt.Resolver, error) {
+	mpkgs, err := pl.LoadPackages()
+	if err != nil {
+		return nil, err
+	}
+
+	res := gnofmt.NewMockResolver()
+	for _, mpkg := range mpkgs {
+		res.AddPackage(gnofmt.NewPackage(mpkg))
+	}
+
+	return res, nil
 }
 
 func (pl *PkgsLoader) List() gnomod.PkgList {

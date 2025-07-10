@@ -58,13 +58,14 @@ gno = "0.9"
 -- foo20wrapper/foo20wrapper.gno --
 package foo20wrapper
 
-import "gno.land/r/registry"
-import "gno.land/r/foo20"
+import (
+	"gno.land/r/foo20"
+	"gno.land/r/registry"
+)
 
 func init() {
-	  registry.Register(cross, "foo20", foo20.Transfer)
+	registry.Register(cross, "foo20", foo20.Transfer)
 }
-
 -- foo20/gnomod.toml --
 module = "gno.land/r/foo20"
 gno = "0.9"

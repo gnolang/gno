@@ -49,11 +49,11 @@ stderr 'out of gas.* location: CPUCycles'
 package main
 
 func main() {
-	for {}
+	for {
+	}
 
 	println("hey")
 }
-
 -- r1/gnomod.toml --
 module = "gno.land/r/demo/r1"
 gno = "0.9"
@@ -62,11 +62,11 @@ gno = "0.9"
 package f1
 
 func init() {
-	for {}
+	for {
+	}
 }
 
 func main() {}
-
 -- r2/gnomod.toml --
 module = "gno.land/r/demo/r2"
 gno = "0.9"
@@ -74,7 +74,8 @@ gno = "0.9"
 package r2
 
 func Render(s string) string {
-	for {}
+	for {
+	}
 
 	return "hello world!"
 }

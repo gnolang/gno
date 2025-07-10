@@ -86,11 +86,9 @@ package main
 
 import "gno.land/r/test/borrowrealm"
 
-
 func main() {
- 	borrowrealm.Object.Mutate()
+	borrowrealm.Object.Mutate()
 }
-
 -- run/object_mutation_rooted_at_caller.gno --
 package main
 
@@ -166,8 +164,8 @@ gno = "0.9"
 package borrowrealm
 
 import (
-	"gno.land/p/test/utils"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/test/utils"
 )
 
 var Object ObjectImplem
@@ -240,9 +238,8 @@ func MutateObjectWithBorrowCrossing(cur realm) {
 }
 
 func Render(_ string) string {
- 	return ufmt.Sprintf("Object.value = %d, value = %d\n", Object.value, value)
+	return ufmt.Sprintf("Object.value = %d, value = %d\n", Object.value, value)
 }
-
 -- utils/gnomod.toml --
 module = "gno.land/p/test/utils"
 gno = "0.9"

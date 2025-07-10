@@ -20,8 +20,6 @@ func Add(a, b int) int {
 func add2(a, b int) int {
 	return a + b
 }
-
-
 -- foo/foo_test.gno --
 package foo
 
