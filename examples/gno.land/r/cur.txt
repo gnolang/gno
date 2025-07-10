@@ -6,19 +6,8 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./nt/commondao/options.gno:62:func AllowRender(allow bool) Option {
 ./nt/commondao/options.gno:69:func AllowChildren(allow bool) Option {
 ./nt/commondao/options.gno:76:func AllowVoting(allow bool) Option {
-./nt/commondao/options.gno:83:func AllowExecution(allow bool) Option {
-./nemanya/home/home.gno:139:func UpdateLink(name, newURL string) {
-./nemanya/home/home.gno:154:func UpdateAboutMe(text string) {
-./nemanya/home/home.gno:162:func AddGnoProject(name, description, url, imageURL string) {
-./nemanya/home/home.gno:176:func DeleteGnoProject(projectName string) {
-./nemanya/home/home.gno:188:func AddOtherProject(name, description, url, imageURL string) {
-./nemanya/home/home.gno:202:func RemoveOtherProject(projectName string) {
-./nemanya/home/home.gno:218:func SponsorGnoProject(projectName string) {
-./nemanya/home/home.gno:241:func SponsorOtherProject(projectName string) {
-./nemanya/home/home.gno:264:func Withdraw() string {
-./nemanya/config/config.gno:28:func SetAddress(a std.Address) error {
-./nemanya/config/config.gno:41:func SetBackup(a std.Address) error {
-./leon/hor/datasource.gno:11:func NewDatasource() Datasource {
+./nt/commondao/options.gno:83:func AllowExecution(allow bool) Option {}
+
 ./agherasie/forms/forms.gno:19:func CreateForm(title string, description string, openAt string, closeAt string, data string) string {
 ./agherasie/forms/forms.gno:93:func SubmitForm(formID string, answers string) {
 ./docs/buttons/buttons.gno:15:func UpdateMOTD(newmotd string) {
