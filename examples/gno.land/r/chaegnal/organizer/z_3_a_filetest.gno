@@ -4,12 +4,13 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 )
 
-const (
-	owner = "Chaegnal"
-	user  = "Ghhv"
+var (
+	owner = testutils.TestAddress("Chaegnal")
+	user  = testutils.TestAddress("Ghhv")
 )
 
 func init() {

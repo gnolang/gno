@@ -4,8 +4,13 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 	"gno.land/r/chaegnal/organizer/group"
+)
+
+var (
+	owner = testutils.TestAddress("Chaegnal")
 )
 
 func init() {
@@ -14,7 +19,7 @@ func init() {
 
 // Test the error case when anyone other than the owner tries to delete the group
 func main() {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetOriginCaller(owner)
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
 	group.DeleteFriendGroup(cross, "1", "Ghhv")

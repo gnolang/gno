@@ -4,11 +4,16 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 )
 
+var (
+	owner = testutils.TestAddress("Chaegnal")
+)
+
 func init() {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetOriginCaller(owner)
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer"))
 }
 

@@ -4,12 +4,13 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 	"gno.land/r/chaegnal/organizer/group"
 )
 
-const (
-	owner = "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g"
+var (
+	owner = testutils.TestAddress("Chaegnal")
 )
 
 func init() {
@@ -22,8 +23,8 @@ func main() {
 	testing.SetOriginCaller(owner)
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	group.CreateProposals(cross, "1", "test", "test", "", "", owner)
-	group.VoteOnProposal(cross, "1", "1", "2", owner)
+	group.CreateProposals(cross, "1", "test", "test", "", "", owner.String())
+	group.VoteOnProposal(cross, "1", "1", "2", owner.String())
 
 }
 

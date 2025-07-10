@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 	"gno.land/r/chaegnal/organizer/group"
 )
 
-const (
-	owner = "Chaegnal"
-	user  = "Ghhv"
+var (
+	owner = testutils.TestAddress("Chaegnal")
+	user  = testutils.TestAddress("Ghhv")
 )
 
 func init() {
@@ -26,15 +27,15 @@ func main() {
 
 	testing.SetOriginCaller(user)
 	organizer.AskJoinFriendGroup(cross, 1)
-	group.AcceptAwaitingMember(cross, "1", owner, std.Address(user))
+	group.AcceptAwaitingMember(cross, "1", owner.String(), std.Address(user))
 
 	testing.SetOriginCaller(owner)
-	group.MakeAdmin(cross, "1", owner, user)
-	group.RemoveAdminRank(cross, "1", owner, user)
+	group.MakeAdmin(cross, "1", owner.String(), user)
+	group.RemoveAdminRank(cross, "1", owner.String(), user)
 
 	raw, _ := organizer.ListGroups.Groups.Get(seqid.ID(1).String())
 	retrieved := raw.(organizer.FriendGroup)
-	rank, _ := retrieved.Rank.Get(user)
+	rank, _ := retrieved.Rank.Get(user.String())
 	if rank.(int) != organizer.AdminRank {
 		println("PASS: admin successfully demoted")
 	}

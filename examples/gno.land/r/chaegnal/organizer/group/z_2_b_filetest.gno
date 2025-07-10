@@ -4,13 +4,14 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 	"gno.land/r/chaegnal/organizer/group"
 )
 
-const (
-	owner = "Chaegnal"
-	user  = "Ghhv"
+var (
+	owner = testutils.TestAddress("Chaegnal")
+	user  = testutils.TestAddress("Ghhv")
 )
 
 func init() {
@@ -24,7 +25,7 @@ func main() {
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
 	testing.SetOriginCaller(user)
-	group.SwitchOwner(cross, "1", user, user)
+	group.SwitchOwner(cross, "1", user.String(), user)
 }
 
 // Error:

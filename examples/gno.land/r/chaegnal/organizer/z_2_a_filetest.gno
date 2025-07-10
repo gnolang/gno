@@ -5,12 +5,13 @@ import (
 	"strconv"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 )
 
-const (
-	owner = "Chaegnal"
-	user  = "Ghhv"
+var (
+	owner = testutils.TestAddress("Chaegnal")
+	user  = testutils.TestAddress("Ghhv")
 )
 
 func init() {
@@ -26,7 +27,7 @@ func main() {
 	organizer.AskJoinFriendGroup(cross, 1)
 
 	group := organizer.GetGroupFromId(strconv.Itoa(1))
-	if group.WaitList.Has(user) {
+	if group.WaitList.Has(user.String()) {
 		println("PASS: 'Ghhv' is in the waitlist")
 	}
 }

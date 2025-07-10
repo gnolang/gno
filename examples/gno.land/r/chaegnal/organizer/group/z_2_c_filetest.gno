@@ -4,13 +4,14 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/chaegnal/organizer"
 	"gno.land/r/chaegnal/organizer/group"
 )
 
-const (
-	owner = "Chaegnal"
-	user  = "Ghhv"
+var (
+	owner = testutils.TestAddress("Chaegnal")
+	user  = testutils.TestAddress("Ghhv")
 )
 
 func init() {
@@ -26,10 +27,10 @@ func main() {
 	testing.SetOriginCaller(user)
 	organizer.AskJoinFriendGroup(cross, 1)
 
-	group.AcceptAwaitingMember(cross, "1", owner, std.Address(user))
+	group.AcceptAwaitingMember(cross, "1", owner.String(), std.Address(user))
 
 	testing.SetOriginCaller(owner)
-	group.SwitchOwner(cross, "1", owner, user)
+	group.SwitchOwner(cross, "1", owner.String(), user)
 }
 
 // Error:
