@@ -2,17 +2,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
          | grep -v -E 'func [A-Z][A-Za-z0-9_]*\s*\(\s*cur\s+realm' > cur.txt
 
 
-./demo/mirror/mirror.gno:9:func Register(pkgpath string, rndr func(string) string) {
-./demo/mirror/mirror.gno:21:func Render(path string) string {
-./n2p5/home/home.gno:45:func Render(path string) string {
-./n2p5/config/config.gno:59:func Owner() std.Address {
-./n2p5/config/config.gno:64:func BackupOwners() []string {
-./n2p5/config/config.gno:69:func Admins() []string {
-./n2p5/config/config.gno:74:func IsAdmin(addr std.Address) bool {
-./n2p5/config/config.gno:87:func Render(path string) string {
-./n2p5/haystack/haystack.gno:9:func Render(path string) string {
-./n2p5/haystack/haystack.gno:17:func Add(needleHex string) {
-./n2p5/haystack/haystack.gno:26:func Get(hashHex string) string {
 ./n2p5/loci/loci.gno:35:func Render(path string) string {
 ./moul/microposts/realm.gno:11:func CreatePost(text string) {
 ./moul/microposts/realm.gno:19:func Render(_ string) string {
