@@ -21,14 +21,13 @@ func RenderHome(w *mux.ResponseWriter, r *mux.Request) {
 
 func (c *client) Render() string {
 	var s string
-	s += ufmt.Sprintf("## Client %s\n", c.id)
+	s += ufmt.Sprintf("\n## Client %s\n", c.id)
 	s += ufmt.Sprintf("- Type: %s\n", c.typ)
 	s += ufmt.Sprintf("- Creator: %s\n", c.creator)
 	s += ufmt.Sprintf("- CounterpartyClientID: %s\n", c.counterpartyClientID)
 	var merklePrefix string
-	for m := range c.counterpartyMerklePrefix {
-		merklePrefix += ufmt.Sprint(m)
-		merklePrefix += " "
+	for _, m := range c.counterpartyMerklePrefix {
+		merklePrefix += "'" + string(m) + "' "
 	}
 	s += ufmt.Sprintf("- CounterpartyMerklePrefix: %s\n", merklePrefix)
 	return s
