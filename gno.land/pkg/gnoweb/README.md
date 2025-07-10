@@ -47,6 +47,11 @@ When running in development mode (with `make dev`), static assets are **not embe
 they are served from a directory specified by the `GNOWEB_ASSETDIR` environment variable or the `AssetDir`
 preprocessor variable (set via `-ldflags`).
 
+### Editor Integration
+
+We use Biome for frontend linting and formatting.
+
+You can either install the appropriate Biome extension for your editor by following the official guide. Or simply run `make lint` or `make fmt` (that will automatically run `biome` under the hood).
 
 ## Generate
 
