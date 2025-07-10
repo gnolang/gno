@@ -11,12 +11,28 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	gno_integration "github.com/gnolang/gno/gnovm/pkg/integration"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/stretchr/testify/require"
 )
+
+var (
+	flagInMemoryTS = flag.Bool("ts-inmemory", false,
+		"Make txtar run in memory, without running any side process, forcing test to run sequentially")
+	flagSeqTS = flag.Bool("ts-seq", false,
+		"forcing tests to run sequentially")
+)
+
+func init() {
+	if t, err := strconv.ParseBool(os.Getenv("INMEMORY_TS")); err == nil {
+		*flagInMemoryTS = t
+	}
+
+	if t, err := strconv.ParseBool(os.Getenv("SEQ_TS")); err == nil {
+		*flagSeqTS = t
+	}
+}
 
 // Specific file opts
 type testFileOpts struct {
@@ -24,7 +40,6 @@ type testFileOpts struct {
 
 	noParallel bool
 	skip       bool
-	timeout    time.Duration
 }
 
 func newDefaultTestFileOpts() *testFileOpts {
@@ -33,19 +48,24 @@ func newDefaultTestFileOpts() *testFileOpts {
 
 func newTestFlagsOpts(fs *flag.FlagSet) *testFileOpts {
 	topts := newDefaultTestFileOpts()
-	fs.BoolVar(&topts.noParallel, "no-parallel", topts.noParallel, "disable parallel testing")
-	fs.BoolVar(&topts.skip, "skip", topts.skip, "skip this test")
-	fs.BoolVar(&topts.NoFormat, "no-fmt", topts.NoFormat, "disable format in this file")
-	fs.DurationVar(&topts.timeout, "timeout", 0, "configure file test timeout")
+
+	// File specific opts
+	fs.BoolVar(&topts.NoFormat, "no-fmt", topts.NoFormat,
+		"Disable formatting of Gno files in this test file. Use this to preserve original formatting")
+	fs.DurationVar(&topts.Timeout, "timeout", topts.Timeout,
+		"Set a custom timeout for this test file")
+
+	// Test specific opts
+	fs.BoolVar(&topts.noParallel, "no-parallel", topts.noParallel,
+		"Disable parallel execution for this test file. This is handled natively using t.Parallel")
+	fs.BoolVar(&topts.skip, "skip", topts.skip,
+		"Skip this test file entirely")
 
 	return topts
 }
 
 func TestTestdata(t *testing.T) {
 	t.Parallel()
-
-	flagInMemoryTS, _ := strconv.ParseBool(os.Getenv("INMEMORY_TS"))
-	flagSeqTS, _ := strconv.ParseBool(os.Getenv("SEQ_TS"))
 
 	p := gno_integration.NewTestingParams(t, "testdata")
 	p.RequireUniqueNames = true
@@ -63,7 +83,7 @@ func TestTestdata(t *testing.T) {
 	require.NoError(t, err)
 
 	mode := CommandKindTesting
-	if flagInMemoryTS {
+	if *flagInMemoryTS {
 		mode = CommandKindInMemory
 	}
 
@@ -90,7 +110,7 @@ func TestTestdata(t *testing.T) {
 
 	ts := tShim{
 		T:        t,
-		forceSeq: flagInMemoryTS || flagSeqTS,
+		forceSeq: *flagInMemoryTS || *flagSeqTS,
 		mflags:   mf,
 	}
 	testscript.RunT(ts, p)

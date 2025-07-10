@@ -31,7 +31,7 @@
 // # Formatting Gno Files in Txtar
 //
 // Gno source files within txtar archives can be formatted automatically by running tests with
-// the `-txtar-fmt` flag. If a file uses the `-no-fmt` flag, formatting is skipped for that file.
+// the `-ts-fmt` flag. If a file uses the `-no-fmt` flag, formatting is skipped for that file.
 //
 // # Additional Command Overview
 //

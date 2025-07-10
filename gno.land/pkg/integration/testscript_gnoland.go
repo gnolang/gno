@@ -40,7 +40,7 @@ import (
 	"golang.org/x/tools/txtar"
 )
 
-var flagFormatGnofiles = flag.Bool("txtar-fmt", false, "format gno files within txtar")
+var flagFormatGnofiles = flag.Bool("ts-fmt", false, "format gno files within txtar")
 
 const nodeDefaultLifespan = time.Second * 60
 
