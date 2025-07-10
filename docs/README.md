@@ -43,7 +43,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
 - [Configuring Gno Projects](resources/configuring-gno-projects.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
-- [Testing Gno](builders/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
+- [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
 - [Gno Memory Model](resources/gno-memory-model.md) - A peak under the hood of the Gno Virtual Machine.
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the Gno.land ecosystem, from technical concepts to tools and components.
