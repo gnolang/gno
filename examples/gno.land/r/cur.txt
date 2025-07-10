@@ -2,22 +2,11 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
          | grep -v -E 'func [A-Z][A-Za-z0-9_]*\s*\(\s*cur\s+realm' > cur.txt
 
 
-./nt/commondao/iterator.gno:11:func NewIterator(rootID uint64, options ...IteratorOption) Iterator {
-./nt/commondao/render.gno:22:func Render(path string) string {
 ./nt/commondao/options.gno:55:func AllowListing(allow bool) Option {
 ./nt/commondao/options.gno:62:func AllowRender(allow bool) Option {
 ./nt/commondao/options.gno:69:func AllowChildren(allow bool) Option {
 ./nt/commondao/options.gno:76:func AllowVoting(allow bool) Option {
 ./nt/commondao/options.gno:83:func AllowExecution(allow bool) Option {
-./nt/commondao/public.gno:29:func IsInvited(addr std.Address) bool {
-./nt/commondao/iterator_options.gno:8:func WithOffset(offset uint) IteratorOption {
-./nt/commondao/iterator_options.gno:16:func WithCount(count uint) IteratorOption {
-./ursulovic/registry/registry.gno:21:func MainAddress() std.Address {
-./ursulovic/registry/registry.gno:25:func BackupAddress() std.Address {
-./ursulovic/registry/registry.gno:29:func SetMainAddress(addr std.Address) error {
-./ursulovic/registry/registry.gno:40:func SetBackupAddress(addr std.Address) error {
-./gfanton/gnomaze/maze.gno:426:func Render(path string) string {
-./nemanya/home/home.gno:70:func Render(path string) string {
 ./nemanya/home/home.gno:139:func UpdateLink(name, newURL string) {
 ./nemanya/home/home.gno:154:func UpdateAboutMe(text string) {
 ./nemanya/home/home.gno:162:func AddGnoProject(name, description, url, imageURL string) {
@@ -27,54 +16,15 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./nemanya/home/home.gno:218:func SponsorGnoProject(projectName string) {
 ./nemanya/home/home.gno:241:func SponsorOtherProject(projectName string) {
 ./nemanya/home/home.gno:264:func Withdraw() string {
-./nemanya/config/config.gno:20:func Address() std.Address {
-./nemanya/config/config.gno:24:func Backup() std.Address {
 ./nemanya/config/config.gno:28:func SetAddress(a std.Address) error {
 ./nemanya/config/config.gno:41:func SetBackup(a std.Address) error {
-./leon/home/home.gno:24:func Render(_ string) string {
-./leon/home/home.gno:107:func RenderSVGGnome() string { // exported for your pleasure :)
-./leon/config/render.gno:18:func Banner() string {
-./leon/config/render.gno:22:func Render(path string) (out string) {
-./leon/config/config.gno:83:func IsAuthorized(addr std.Address) bool {
 ./leon/hor/datasource.gno:11:func NewDatasource() Datasource {
-./leon/hor/render.gno:19:func Render(path string) string {
-./leon/hor/render.gno:118:func RenderExhibWidget(itemsToRender int) string {
 ./agherasie/forms/forms.gno:19:func CreateForm(title string, description string, openAt string, closeAt string, data string) string {
-./agherasie/forms/forms.gno:27:func GetForms() string {
-./agherasie/forms/forms.gno:46:func GetFormByID(id string) string {
-./agherasie/forms/forms.gno:79:func GetAnswer(formID string, authorID string) string {
 ./agherasie/forms/forms.gno:93:func SubmitForm(formID string, answers string) {
-./agherasie/forms/forms.gno:102:func Render(path string) string {
-./docs/avl_pager_with_params/render.gno:26:func Render(path string) string {
-./docs/avl_pager/avl_pager.gno:24:func Render(path string) string {
-./docs/txlink/txlink.gno:28:func Render(_ string) string {
 ./docs/buttons/buttons.gno:15:func UpdateMOTD(newmotd string) {
-./docs/buttons/buttons.gno:20:func Render(path string) string {
-./docs/markdown/markdown.gno:7:func Render(path string) string {
-./docs/optional_render/optional_render.gno:3:func Info() string {
-./docs/optional_render/optional_render.gno:6:func Render(path string) string { ... }`
-./docs/source/source.gno:5:func Render(_ string) string {
-./docs/docs.gno:5:func Render(_ string) string {
-./docs/resolveusers/resolve.gno:7:func Render(path string) string {
-./docs/safeobjects/safeobjects.gno:49:func Render(_ string) string {
-./docs/minisocial/minisocial.gno:3:func Render(_ string) string {
 ./docs/adder/adder.gno:17:func Add(n int) {
-./docs/adder/adder.gno:23:func Render(path string) string {
 ./docs/complexargs/complexargs.gno:24:func SetSlice(newSlice []int) {
 ./docs/complexargs/complexargs.gno:29:func SetMyObject(newCoolObject CustomType) {
-./docs/complexargs/complexargs.gno:33:func Render(_ string) string {
-./docs/img_embed/img_embed.gno:4:func Render(path string) string {
-./docs/hello/hello.gno:6:func Render(path string) string {
-./docs/routing/routing.gno:11:func Render(path string) string {
-./docs/events/events.gno:5:func Render(_ string) string {
-./docs/events/events.gno:23:func Emit(CustomEventValue string) {
-./manfred/home/home.gno:3:func Render(path string) string {
-./grepsuzette/home/render.gno:3:func Render(path string) string {
-./sys/names/render.gno:3:func Render(_ string) string {
-./sys/names/verifier.gno:22:func IsAuthorizedAddressForNamespace(address_XXX std.Address, namespace string) bool {
-./sys/names/verifier.gno:36:func IsEnabled() bool {
-./sys/txfees/render.gno:8:func Render(path string) string {
-./sys/users/render.gno:5:func Render(_ string) string {
 ./sys/users/admin.gno:19:func ProposeNewController(addr std.Address) dao.ProposalRequest {
 ./sys/users/admin.gno:28:func ProposeControllerRemoval(addr std.Address) dao.ProposalRequest {
 ./sys/users/admin.gno:37:func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.ProposalRequest {
@@ -93,56 +43,13 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./sys/params/params.gno:64:func NewSysParamBytesPropRequest(module, submodule, name string, value []byte) dao.ProposalRequest {
 ./sys/params/params.gno:72:func NewSysParamStringsPropRequest(module, submodule, name string, value []string) dao.ProposalRequest {
 ./sys/params/params.gno:80:func NewSysParamStringsPropRequestWithTitle(module, submodule, name, title string, value []string) dao.ProposalRequest {
-./sys/validators/v2/validators.gno:90:func Render(_ string) string {
 ./sys/validators/v2/poc.gno:15:func NewPropRequest(changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
-./sys/validators/v2/poc.gno:43:func IsValidator(addr std.Address) bool {
-./sys/validators/v2/poc.gno:48:func GetValidator(addr std.Address) validators.Validator {
-./sys/validators/v2/poc.gno:57:func GetValidators() []validators.Validator {
-./sys/validators/v2/gnosdk.gno:9:func GetChanges(from int64) []validators.Validator {
-./mason/home/home.gno:62:func Render(path string) string {
-./devrels/config/config.gno:17:func Render(_ string) string {
-./stefann/registry/registry.gno:23:func MainAddr() std.Address {
-./stefann/registry/registry.gno:27:func BackupAddr() std.Address {
 ./stefann/registry/registry.gno:31:func SetMainAddr(addr std.Address) error {
 ./stefann/registry/registry.gno:42:func SetBackupAddr(addr std.Address) error {
 ./miko/calculator/calculator.gno:164:func ComputeResult(expression string) string {
-./miko/calculator/calculator.gno:210:func Render(path string) string {
-./matijamarjanovic/home/home.gno:94:func Render(path string) string {
-./matijamarjanovic/home/config.gno:20:func Address() std.Address {
-./matijamarjanovic/home/config.gno:24:func Backup() std.Address {
-./matijamarjanovic/tokenhub/getters.gno:16:func GetUserTokenBalances(userNameOrAddress string) string {
-./matijamarjanovic/tokenhub/getters.gno:21:func GetUserTokenBalancesNonZero(userNameOrAddress string) string {
-./matijamarjanovic/tokenhub/getters.gno:26:func GetUserNFTBalances(userNameOrAddress string) string {
-./matijamarjanovic/tokenhub/getters.gno:31:func GetUserMultiTokenBalances(userNameOrAddress string) string {
-./matijamarjanovic/tokenhub/getters.gno:36:func GetUserMultiTokenBalancesNonZero(userNameOrAddress string) string {
-./matijamarjanovic/tokenhub/getters.gno:41:func GetToken(key string) *grc20.Token {
-./matijamarjanovic/tokenhub/getters.gno:46:func MustGetToken(key string) *grc20.Token {
-./matijamarjanovic/tokenhub/getters.gno:51:func GetNFT(key string) grc721.IGRC721 {
-./matijamarjanovic/tokenhub/getters.gno:60:func MustGetNFT(key string) grc721.IGRC721 {
-./matijamarjanovic/tokenhub/getters.gno:69:func GetMultiToken(key string) grc1155.IGRC1155 {
-./matijamarjanovic/tokenhub/getters.gno:79:func MustGetMultiToken(key string) grc1155.IGRC1155 {
-./matijamarjanovic/tokenhub/getters.gno:88:func GetAllNFTs() string {
-./matijamarjanovic/tokenhub/getters.gno:98:func GetAllTokens() string {
-./matijamarjanovic/tokenhub/getters.gno:108:func GetAllTokenWithDetails() string {
-./matijamarjanovic/tokenhub/getters.gno:119:func GetAllMultiTokens() string {
-./matijamarjanovic/tokenhub/getters.gno:129:func GetAllRegistered() string {
-./matijamarjanovic/tokenhub/render.gno:22:func Render(path string) string {
-./jjoptimist/home/home.gno:63:func Render(path string) string {
-./jjoptimist/home/config.gno:23:func GetConfig() Config {
 ./jjoptimist/home/config.gno:27:func UpdateConfig(newTitle, newDescription, newGithub string) {
-./sunspirit/home/home.gno:10:func Render(path string) string {
-./sunspirit/md/md.gno:8:func Render(path string) string {
 ./jaekwon/dao/dao.gno:14:func DAOName(name string, i int) string {
-./morgan/home/home.gno:12:func Render(path string) string {
-./morgan/guestbook/guestbook.gno:83:func Render(maxID string) string {
-./morgan/chess/discovery.gno:45:func CategoryFromString(s string) Category {
-./morgan/chess/discovery.gno:79:func GetPlayer(player string) string {
-./morgan/chess/discovery.gno:243:func Leaderboard(category string) string {
-./morgan/chess/discovery.gno:268:func ListGames(filters string) string {
-./morgan/chess/chess.gno:231:func GetGame(id string) string {
 ./morgan/chess/time.gno:18:func NewTimeControl(seconds, incr int) *TimeControl {
-./gnoland/home/home.gno:20:func Render(_ string) string {
-./gnoland/coins/coins.gno:64:func Render(path string) string {
 ./gnoland/blog/admin.gno:26:func AdminSetAdminAddr(_ realm, addr std.Address) {
 ./gnoland/blog/admin.gno:31:func AdminSetInPause(_ realm, state bool) {
 ./gnoland/blog/admin.gno:36:func AdminAddModerator(_ realm, addr std.Address) {
@@ -155,34 +62,19 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./gnoland/blog/admin.gno:104:func ModDelCommenter(_ realm, addr std.Address) {
 ./gnoland/blog/admin.gno:109:func ModDelComment(_ realm, slug string, index int) {
 ./gnoland/blog/gnoblog.gno:14:func AddComment(_ realm, postSlug, comment string) {
-./gnoland/blog/gnoblog.gno:23:func Render(path string) string {
-./gnoland/blog/gnoblog.gno:27:func RenderLastPostsWidget(limit int) string {
 ./gnoland/blog/gnoblog.gno:31:func PostExists(slug string) bool {
 ./gnoland/ghverify/contract.gno:104:func SetOwner(owner std.Address) {
-./gnoland/ghverify/contract.gno:136:func Render(_ string) string {
-./gnoland/users/v1/render.gno:15:func Render(path string) string {
 ./gnoland/users/v1/admin.gno:37:func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 ./gnoland/users/v1/admin.gno:51:func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
 ./gnoland/users/v1/admin.gno:74:func ProposeDeleteUser(addr std.Address, desc string) dao.ProposalRequest {
 ./gnoland/users/v1/admin.gno:90:func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
-./gnoland/users/users.gno:22:func Render(_ string) string {
-./gnoland/users/users.gno:26:func LatestRelease() string {
 ./gnoland/users/users.gno:31:func ProposeNewRelease(newVerPkgPath, note string) dao.ProposalRequest {
-./gnoland/monit/monit.gno:47:func Render(_ string) string {
 ./gnoland/valopers/admin.gno:11:func Auth() *authz.Authorizer {
 ./gnoland/valopers/admin.gno:37:func NewInstructionsProposalCallback(newInstructions string) func() error {
 ./gnoland/valopers/admin.gno:46:func NewMinFeeProposalCallback(newMinFee int64) func() error {
-./gnoland/valopers/valopers.gno:160:func GetByAddr(address_XXX std.Address) Valoper {
-./gnoland/valopers/valopers.gno:172:func Render(fullPath string) string {
-./gnoland/faucet/faucet.gno:51:func GetPerTransferLimit() int64 {
-./gnoland/faucet/faucet.gno:59:func Render(_ string) string {
-./gnoland/events/render.gno:17:func RenderEventWidget(eventsToRender int) (string, error) {
-./gnoland/events/render.gno:126:func Render(path string) string {
 ./gnoland/events/events.gno:48:func AddEvent(name, description, link, location, startTime, endTime string) (string, error) {
 ./gnoland/events/events.gno:87:func DeleteEvent(id string) {
 ./gnoland/events/events.gno:105:func EditEvent(id string, name, description, link, location, startTime, endTime string) {
-./gnoland/events/events.gno:151:func GetEventByID(id string) (*Event, int, error) {
-./gnoland/pages/pages.gno:15:func Render(path string) string {
 ./gnoland/pages/admin.gno:21:func AdminSetAdminAddr(addr std.Address) {
 ./gnoland/pages/admin.gno:26:func AdminSetInPause(state bool) {
 ./gnoland/pages/admin.gno:31:func AdminAddModerator(addr std.Address) {
@@ -190,9 +82,6 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./gnoland/pages/admin.gno:41:func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 ./gnoland/pages/admin.gno:52:func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 ./x/benchmark/storage/forum.gno:26:func AddPost(title, content string) {
-./x/benchmark/storage/forum.gno:36:func GetPost(boardId, postId int) string {
-./x/benchmark/storage/forum.gno:49:func GetPostSize(boardId int) int {
-./x/benchmark/storage/forum.gno:62:func GetBoardSize() int {
 ./x/nir1218_evaluation_proposal/contribution.gno:29:func NewContribution(id int, contributor std.Address) *Contribution {
 ./x/nir1218_evaluation_proposal/points.gno:9:func NewPoints(t int64, f map[string]int32) Points {
 ./x/nir1218_evaluation_proposal/pull_request.gno:21:func NewPullRequest(id int, name string, description string, status string, category string) *PullRequest {
@@ -200,29 +89,21 @@ in /r:  grep -rn --include="*.gno"  --exclude="*_test.gno" --exclude="*_filetest
 ./x/nir1218_evaluation_proposal/vote.gno:15:func NewVote(voter std.Address, option string) Vote {
 ./x/nir1218_evaluation_proposal/category.gno:15:func NewCategory(name string, criteria []string) *Category {
 ./x/nir1218_evaluation_proposal/committee.gno:18:func NewCommittee() *Committee {
-./x/manfred_outfmt/outfmt.gno:67:func Render(path string) string {
 ./x/map_delete/map_delete.gno:11:func DeleteMap(k uint64) {
-./x/map_delete/map_delete.gno:15:func GetMap(k uint64) bool {
 ./gov/dao/types.gno:35:func NewProposalRequest(title string, description string, executor Executor) ProposalRequest {
 ./gov/dao/types.gno:43:func NewProposalRequestWithFilter(title string, description string, executor Executor, filter Filter) ProposalRequest {
 ./gov/dao/types.gno:112:func NewProposals() *Proposals {
 ./gov/dao/types.gno:142:func NewSimpleExecutor(callback func() error, description string) *SimpleExecutor {
 ./gov/dao/types.gno:164:func NewSafeExecutor(e Executor) *SafeExecutor {
-./gov/dao/proxy.gno:23:func Render(p string) string {
-./gov/dao/proxy.gno:150:func InAllowedDAOs(pkg string) bool {
 ./gov/dao/v3/impl/govdao.gno:19:func NewGovDAO() *GovDAO {
 ./gov/dao/v3/impl/types.gno:25:func NewProposalsStatuses() ProposalsStatuses {
 ./gov/dao/v3/impl/types.gno:166:func StringifyVotes(ps *proposalStatus) string {
 ./gov/dao/v3/impl/types.gno:204:func StringifyProposal(p *dao.Proposal) string {
 ./gov/dao/v3/impl/render.gno:20:func NewRender(d *GovDAO) *render {
-./gov/dao/v3/impl/impl.gno:19:func Render(in string) string {
 ./gov/dao/v3/impl/impl.gno:24:func AddMember(addr std.Address) {
-./gov/dao/v3/impl/impl.gno:42:func GetInstance() *GovDAO {
 ./gov/dao/v3/impl/prop_requests.gno:29:func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
 ./gov/dao/v3/impl/prop_requests.gno:118:func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
 ./gov/dao/v3/init/init.gno:11:func Init() {
 ./gov/dao/v3/init/init.gno:21:func InitWithUsers(addrs ...std.Address) {
 ./gov/dao/v3/memberstore/types.gno:35:func NewMembersByTier() MembersByTier {
-./gov/dao/v3/memberstore/memberstore.gno:97:func Render(string) string {
-./gov/dao/v3/memberstore/memberstore.gno:124:func Get() MembersByTier {
 ./gov/dao/v3/memberstore/prop_requests.gno:9:func NewChangeTiersRequest(tiers TiersByName) dao.ProposalRequest {
