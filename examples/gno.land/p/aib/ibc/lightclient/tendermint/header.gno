@@ -1,0 +1,344 @@
+package tendermint
+
+import (
+	"errors"
+	"time"
+
+	"gno.land/p/aib/ibc/types"
+	"gno.land/p/demo/ufmt"
+)
+
+// MsgHeader defines the Tendermint client consensus Header.
+// It encapsulates all the information necessary to update from a trusted
+// Tendermint ConsensusState. The inclusion of TrustedHeight and
+// TrustedValidators allows this update to process correctly, so long as the
+// ConsensusState for the TrustedHeight exists, this removes race conditions
+// among relayers The SignedHeader and ValidatorSet are the new untrusted update
+// fields for the client. The TrustedHeight is the height of a stored
+// ConsensusState on the client that will be used to verify the new untrusted
+// header. The Trusted ConsensusState must be within the unbonding period of
+// current time in order to correctly verify, and the TrustedValidators must
+// hash to TrustedConsensusState.NextValidatorsHash since that is the last
+// trusted validator set at the TrustedHeight.
+type MsgHeader struct {
+	Header            *Header       `json:"header,omitempty"`
+	Commit            *Commit       `json:"commit,omitempty"`
+	ValidatorSet      *ValidatorSet `json:"validator_set,omitempty"`
+	TrustedHeight     types.Height  `json:"trusted_height"`
+	TrustedValidators *ValidatorSet `json:"trusted_validators,omitempty"`
+}
+
+// ValidateBasic calls the SignedHeader ValidateBasic function and checks
+// that validatorsets are not nil.
+// NOTE: TrustedHeight and TrustedValidators may be empty when creating client
+// with MsgCreateClient
+func (h MsgHeader) ValidateBasic() error {
+	if h.Header == nil {
+		return ufmt.Errorf("tendermint header cannot be nil")
+	}
+	if h.Commit == nil {
+		return errors.New("missing commit")
+	}
+	if err := h.Header.ValidateBasic(); err != nil {
+		return ufmt.Errorf("invalid header: %w", err)
+	}
+	if err := h.Commit.ValidateBasic(); err != nil {
+		return ufmt.Errorf("invalid commit: %w", err)
+	}
+	// TODO deal with
+	// tmSignedHeader, err := cmttypes.SignedHeaderFromProto(h.SignedHeader)
+	// if err != nil {
+	// return errorsmod.Wrap(err, "header is not a tendermint header")
+	// }
+	// if err := tmSignedHeader.ValidateBasic(h.Header.GetChainID()); err != nil {
+	// return errorsmod.Wrap(err, "header failed basic validation")
+	// }
+
+	// TrustedHeight is less than Header for updates and misbehaviour
+	if h.TrustedHeight.GTE(h.GetHeight()) {
+		return ufmt.Errorf("TrustedHeight %d must be less than header height %d",
+			h.TrustedHeight, h.GetHeight())
+	}
+
+	if h.ValidatorSet == nil {
+		return ufmt.Errorf("validator set is nil")
+	}
+	// TODO deal with that
+	// tmValset, err := cmttypes.ValidatorSetFromProto(h.ValidatorSet)
+	// if err != nil {
+	// return ufmt.Errorf("validator set is not tendermint validator set")
+	// }
+	// if !bytes.Equal(h.Header.ValidatorsHash, tmValset.Hash()) {
+	// return ufmt.Errorf("validator set does not match hash")
+	// }
+	return nil
+}
+
+// GetHeight returns the current height. It returns 0 if the tendermint
+// header is nil.
+// NOTE: the header.Header is checked to be non nil in ValidateBasic.
+func (h MsgHeader) GetHeight() types.Height {
+	revision := ParseChainID(h.Header.ChainID)
+	return types.Height{
+		RevisionNumber: revision,
+		RevisionHeight: uint64(h.Header.Height),
+	}
+}
+
+// Misbehaviour is a wrapper over two conflicting Headers
+// that implements Misbehaviour interface expected by ICS-02
+type Misbehaviour struct {
+	Header1 *MsgHeader `json:"header_1,omitempty"`
+	Header2 *MsgHeader `json:"header_2,omitempty"`
+}
+
+type ValidatorSet struct {
+	Validators       []*Validator `json:"validators,omitempty"`
+	Proposer         *Validator   `json:"proposer,omitempty"`
+	TotalVotingPower int64        `json:"total_voting_power,omitempty"`
+}
+
+type Validator struct {
+	Address          []byte `json:"address,omitempty"`
+	PubKey           []byte `json:"pub_key"`
+	VotingPower      int64  `json:"voting_power,omitempty"`
+	ProposerPriority int64  `json:"proposer_priority,omitempty"`
+}
+
+// Header defines the structure of a block header.
+type Header struct {
+	// basic block info
+	Version Consensus `json:"version"`
+	ChainID string    `json:"chain_id,omitempty"`
+	Height  int64     `json:"height,omitempty"`
+	Time    time.Time `json:"time"`
+	// prev block info
+	LastBlockId BlockID `json:"last_block_id"`
+	// hashes of block data
+	LastCommitHash []byte `json:"last_commit_hash,omitempty"`
+	DataHash       []byte `json:"data_hash,omitempty"`
+	// hashes from the app output from the prev block
+	ValidatorsHash     []byte `json:"validators_hash,omitempty"`
+	NextValidatorsHash []byte `json:"next_validators_hash,omitempty"`
+	ConsensusHash      []byte `json:"consensus_hash,omitempty"`
+	AppHash            []byte `json:"app_hash,omitempty"`
+	LastResultsHash    []byte `json:"last_results_hash,omitempty"`
+	// consensus info
+	EvidenceHash    []byte `json:"evidence_hash,omitempty"`
+	ProposerAddress []byte `json:"proposer_address,omitempty"`
+}
+
+const (
+	// BlockProtocol versions all block data structures and processing.
+	// This includes validity of blocks and state updates.
+	BlockProtocol uint64 = 11
+	AddressSize          = 20
+	// MaxSignatureSize is a maximum allowed signature size for the Proposal
+	// and Vote.
+	// XXX: secp256k1 does not have Size nor MaxSize defined.
+	MaxSignatureSize = 64
+)
+
+// ValidateBasic performs stateless validation on a Header returning an error
+// if any validation fails.
+//
+// NOTE: Timestamp validation is subtle and handled elsewhere.
+func (h Header) ValidateBasic() error {
+	if h.Version.Block != BlockProtocol {
+		return ufmt.Errorf("block protocol is incorrect: got: %d, want: %d ", h.Version.Block, BlockProtocol)
+	}
+	if len(h.ChainID) > MaxChainIDLen {
+		return ufmt.Errorf("chainID is too long; got: %d, max: %d", len(h.ChainID), MaxChainIDLen)
+	}
+
+	if h.Height < 0 {
+		return errors.New("negative Height")
+	} else if h.Height == 0 {
+		return errors.New("zero Height")
+	}
+
+	if err := h.LastBlockId.ValidateBasic(); err != nil {
+		return ufmt.Errorf("wrong LastBlockID: %w", err)
+	}
+
+	if err := ValidateHash(h.LastCommitHash); err != nil {
+		return ufmt.Errorf("wrong LastCommitHash: %v", err)
+	}
+
+	if err := ValidateHash(h.DataHash); err != nil {
+		return ufmt.Errorf("wrong DataHash: %v", err)
+	}
+
+	if err := ValidateHash(h.EvidenceHash); err != nil {
+		return ufmt.Errorf("wrong EvidenceHash: %v", err)
+	}
+
+	if len(h.ProposerAddress) != AddressSize {
+		return ufmt.Errorf(
+			"invalid ProposerAddress length; got: %d, expected: %d",
+			len(h.ProposerAddress), AddressSize,
+		)
+	}
+
+	// Basic validation of hashes related to application data.
+	// Will validate fully against state in state#ValidateBlock.
+	if err := ValidateHash(h.ValidatorsHash); err != nil {
+		return ufmt.Errorf("wrong ValidatorsHash: %v", err)
+	}
+	if err := ValidateHash(h.NextValidatorsHash); err != nil {
+		return ufmt.Errorf("wrong NextValidatorsHash: %v", err)
+	}
+	if err := ValidateHash(h.ConsensusHash); err != nil {
+		return ufmt.Errorf("wrong ConsensusHash: %v", err)
+	}
+	// NOTE: AppHash is arbitrary length
+	if err := ValidateHash(h.LastResultsHash); err != nil {
+		return ufmt.Errorf("wrong LastResultsHash: %v", err)
+	}
+
+	return nil
+}
+
+// Commit contains the evidence that a block was committed by a set of validators.
+type Commit struct {
+	Height     int64       `json:"height,omitempty"`
+	Round      int32       `json:"round,omitempty"`
+	BlockID    BlockID     `json:"block_id"`
+	Signatures []CommitSig `json:"signatures"`
+}
+
+// ValidateBasic performs basic validation that doesn't involve state data.
+// Does not actually check the cryptographic signatures.
+func (commit *Commit) ValidateBasic() error {
+	if commit.Height < 0 {
+		return errors.New("negative Height")
+	}
+	if commit.Round < 0 {
+		return errors.New("negative Round")
+	}
+
+	if commit.Height >= 1 {
+		if commit.BlockID.IsZero() {
+			return errors.New("commit cannot be for nil block")
+		}
+
+		if len(commit.Signatures) == 0 {
+			return errors.New("no signatures in commit")
+		}
+		for i, commitSig := range commit.Signatures {
+			if err := commitSig.ValidateBasic(); err != nil {
+				return ufmt.Errorf("wrong CommitSig #%d: %v", i, err)
+			}
+		}
+	}
+	return nil
+}
+
+// CommitSig is a part of the Vote included in a Commit.
+type CommitSig struct {
+	BlockIdFlag      BlockIDFlag `json:"block_id_flag,omitempty"`
+	ValidatorAddress []byte      `json:"validator_address,omitempty"`
+	Timestamp        time.Time   `json:"timestamp"`
+	Signature        []byte      `json:"signature,omitempty"`
+}
+
+// ValidateBasic performs basic validation.
+func (cs CommitSig) ValidateBasic() error {
+	switch cs.BlockIdFlag {
+	case BlockIDFlagAbsent:
+	case BlockIDFlagCommit:
+	case BlockIDFlagNil:
+	default:
+		return ufmt.Errorf("unknown BlockIDFlag: %v", cs.BlockIdFlag)
+	}
+
+	switch cs.BlockIdFlag {
+	case BlockIDFlagAbsent:
+		if len(cs.ValidatorAddress) != 0 {
+			return errors.New("validator address is present")
+		}
+		if !cs.Timestamp.IsZero() {
+			return errors.New("time is present")
+		}
+		if len(cs.Signature) != 0 {
+			return errors.New("signature is present")
+		}
+	default:
+		if len(cs.ValidatorAddress) != AddressSize {
+			return ufmt.Errorf("expected ValidatorAddress size to be %d bytes, got %d bytes",
+				AddressSize,
+				len(cs.ValidatorAddress),
+			)
+		}
+		// NOTE: Timestamp validation is subtle and handled elsewhere.
+		if len(cs.Signature) == 0 {
+			return errors.New("signature is missing")
+		}
+		if len(cs.Signature) > MaxSignatureSize {
+			return ufmt.Errorf("signature is too big (max: %d)", MaxSignatureSize)
+		}
+	}
+
+	return nil
+}
+
+// BlockIdFlag indicates which BlockID the signature is for
+type BlockIDFlag int32
+
+const (
+	BlockIDFlagUnknown BlockIDFlag = 0
+	BlockIDFlagAbsent  BlockIDFlag = 1
+	BlockIDFlagCommit  BlockIDFlag = 2
+	BlockIDFlagNil     BlockIDFlag = 3
+)
+
+// BlockID
+type BlockID struct {
+	Hash          []byte        `json:"hash,omitempty"`
+	PartSetHeader PartSetHeader `json:"part_set_header"`
+}
+
+// IsZero returns true if this is the BlockID of a nil block.
+func (blockID BlockID) IsZero() bool {
+	return len(blockID.Hash) == 0 &&
+		blockID.PartSetHeader.IsZero()
+}
+
+// ValidateBasic performs basic validation.
+func (blockID BlockID) ValidateBasic() error {
+	// Hash can be empty in case of POLBlockID in Proposal.
+	if err := ValidateHash(blockID.Hash); err != nil {
+		return ufmt.Errorf("wrong Hash")
+	}
+	if err := blockID.PartSetHeader.ValidateBasic(); err != nil {
+		return ufmt.Errorf("wrong PartSetHeader: %v", err)
+	}
+	return nil
+}
+
+// PartsetHeader
+type PartSetHeader struct {
+	Total uint32 `json:"total,omitempty"`
+	Hash  []byte `json:"hash,omitempty"`
+}
+
+func (psh PartSetHeader) IsZero() bool {
+	return psh.Total == 0 && len(psh.Hash) == 0
+}
+
+// ValidateBasic performs basic validation.
+func (psh PartSetHeader) ValidateBasic() error {
+	// Hash can be empty in case of POLBlockID.PartSetHeader in Proposal.
+	if err := ValidateHash(psh.Hash); err != nil {
+		return ufmt.Errorf("wrong Hash: %w", err)
+	}
+	return nil
+}
+
+// Consensus captures the consensus rules for processing a block in the blockchain,
+// including all blockchain data structures and the rules of the application's
+// state transition machine.
+type Consensus struct {
+	Block uint64 `json:"block,omitempty"`
+	App   uint64 `json:"app,omitempty"`
+}
