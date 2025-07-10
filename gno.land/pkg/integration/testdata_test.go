@@ -179,8 +179,7 @@ func ParseDirFlags[T any](ext, prefix, dir string, newT func(*flag.FlagSet) T) (
 	return mf, nil
 }
 
-// ParseTopLevelFlags parses top-level lines starting with # ts:opts <flags>.
-// Each # ts:opts line overrides previous flags.
+// ParseTopLevelFlags parses top-level lines starting with # <prefix> <flags>.
 func captureTopLevelLineArgs(r io.Reader, prefix string) ([]string, error) {
 	scanner := bufio.NewScanner(r)
 
