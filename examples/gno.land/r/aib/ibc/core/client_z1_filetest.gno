@@ -40,7 +40,11 @@ func main() {
 	// RegisterCounterparty on clientID1
 	core.RegisterCounterparty(cross, clientID1, [][]byte{[]byte("prefix1"), []byte("prefix2")}, "counter-party-id")
 
-	println(core.Render(""))
+	println(core.Render("clients"))
+	println("-----------")
+	println(core.Render("clients/1"))
+	println("-----------")
+	println(core.Render("clients/" + clientID1))
 }
 
 // Output:
@@ -58,3 +62,13 @@ func main() {
 // - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // - CounterpartyClientID:
 // - CounterpartyMerklePrefix:
+//
+// -----------
+// client 1 not found
+// -----------
+//
+// ## Client 07-tendermint-1
+// - Type: 07-tendermint
+// - Creator: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// - CounterpartyClientID: counter-party-id
+// - CounterpartyMerklePrefix: 'prefix1' 'prefix2'
