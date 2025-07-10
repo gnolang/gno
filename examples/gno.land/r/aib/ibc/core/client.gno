@@ -18,6 +18,9 @@ type client struct {
 
 // CreateClient generates a new client identifier and invokes the associated
 // light client module in order to initialize the client.
+//
+// TODO: why I don't need to declare 'cur realm' for this func? Because it
+// creates a new object and does not modify an existing one ?
 func CreateClient(clientType string, clientState, consensusState any) string {
 	c := store.addClient(clientType, std.OriginCaller())
 	err := c.lightClient.Initialize(c.id, clientState, consensusState)
@@ -30,7 +33,7 @@ func CreateClient(clientType string, clientState, consensusState any) string {
 // RegisterCounterparty will register the IBC v2 counterparty info for the
 // given clientID. It must be called by the same relayer that called
 // CreateClient.
-func RegisterCounterparty(clientID string, counterpartyMerklePrefix [][]byte, counterpartyClientID string) {
+func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [][]byte, counterpartyClientID string) {
 	c := store.getClient(clientID)
 	if c == nil {
 		panic(ufmt.Sprintf("client %s not found", clientID))
