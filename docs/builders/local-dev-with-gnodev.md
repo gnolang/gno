@@ -207,12 +207,5 @@ After running gnodev, you can access several components:
 2. A local blockchain instance for testing
 3. The web-based gnodev UI to monitor your node
 
-## Conclusion
-
-That's it! 🎉
-
-We covered the main features of `gnodev`. Next, we will go onto a full development
-example, where we build a minimal social media app.
-
 [^1]: The default deployer address is `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`,
 a.k.a. `test1` - the mnemonic phrase for this address is publicly known.
