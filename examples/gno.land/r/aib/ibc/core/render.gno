@@ -8,15 +8,31 @@ import (
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", RenderHome)
+	router.HandleFunc("clients", RenderClients)
+	router.HandleFunc("clients/{id}", RenderClient)
 	return router.Render(path)
 }
 
 func RenderHome(w *mux.ResponseWriter, r *mux.Request) {
+	w.Write("Hello IBC!")
+}
+
+func RenderClients(w *mux.ResponseWriter, r *mux.Request) {
 	store.clientByID.Iterate("", "", func(key string, v any) bool {
 		c := v.(*client)
 		w.Write(c.Render())
 		return false
 	})
+}
+
+func RenderClient(w *mux.ResponseWriter, r *mux.Request) {
+	id := r.GetVar("id")
+	c, found := store.clientByID.Get(id)
+	if !found {
+		w.Write(ufmt.Sprintf("client %s not found", id))
+		return
+	}
+	w.Write(c.(*client).Render())
 }
 
 func (c *client) Render() string {
