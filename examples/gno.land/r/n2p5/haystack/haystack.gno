@@ -14,7 +14,7 @@ Put a Needle in the Haystack.
 
 // Add takes a fixed-length hex-encoded needle bytes and adds it to the haystack key-value store.
 // If storage encounters an error, it will panic.
-func Add(needleHex string) {
+func Add(_ realm, needleHex string) {
 	err := storage.Add(needleHex)
 	if err != nil {
 		panic(err)
