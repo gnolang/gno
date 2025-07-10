@@ -19,6 +19,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Routing for Render paths](/r/docs/routing) - Route Render paths with the ^p/demo/mux^ package.
 - [Embed images](/r/docs/img_embed) - Demonstrates how to embed an image in a realm render.
 - [Markdown](/r/docs/markdown) - Documentation for Gno Flavored Markdown syntax and features.
+- [p/moul/md Package Demo](/r/docs/moul_md) - Learn how to programmatically generate markdown using the p/moul/md package.
 - [Emitting Gno Events](/r/docs/events) - Emit Gno Events to make life off-chain easier.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.
 - [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
