@@ -1,6 +1,8 @@
 package tendermint
 
 import (
+	"errors"
+
 	"gno.land/p/aib/ibc/lightclient"
 	"gno.land/p/aib/ibc/types"
 	"gno.land/p/demo/avl"
@@ -29,8 +31,14 @@ func (tm *TMLightClient) Initialize(clientID string, clientState, consensusState
 }
 
 func (tm *TMLightClient) VerifyClientMessage(clientID string, clientMsg any) error {
-	// TODO
-	return nil
+	switch msg := clientMsg.(type) {
+	case *MsgHeader:
+		return tm.verifyHeader(msg)
+	case *Misbehaviour:
+		return tm.verifyMisbehavior(msg)
+	default:
+		return errors.New("unknown client message type")
+	}
 }
 
 func (tm *TMLightClient) CheckForMisbehaviour(clientID string, clientMsg any) bool {
