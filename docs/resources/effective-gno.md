@@ -121,6 +121,15 @@ func Foobar() {
 
 - TODO: suggest MustXXX and AssertXXX flows in p/.
 
+### Write `crossing` functions to make memory safe
+
+Crossing is a concept that allows developers to specify if a function is meant to
+change memory in the realm they're defined in or not.
+
+msgcall > must be crossing
+methods on receivers > automatically crossing
+
+
 ### Understand the importance of `init()`
 
 In Gno, the `init()` function isn't just a function, it's a cornerstone. It's
