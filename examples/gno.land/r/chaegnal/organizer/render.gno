@@ -18,7 +18,7 @@ const (
 func displayJoiningStatus(group FriendGroup, adr std.Address) string {
 	var out string
 
-	if adr != "" {
+	if adr.IsValid() {
 		if group.DAO.Members().Has(adr) {
 			out += md.Paragraph("You already are part of this group")
 		} else if group.WaitList.Has(adr.String()) {
