@@ -1,11 +1,13 @@
 package commondao
 
 import (
-	"gno.land/p/nt/commondao"
+	"std"
+
 	"gno.land/p/moul/md"
+	"gno.land/p/nt/commondao"
 )
 
-const (
+var (
 	DAO *commondao.CommonDAO
 )
 
@@ -15,16 +17,14 @@ func CreateDao(title string) {
 	// Creates DAO with Active and Finished proposal storage
 	// Creates a member storage
 	// Other options can be added, can be found in 'p/nt/commondao/commondao_options'
-	DAO: commondao.New(
-			commondao.WithName(title), // adds a name to the common DAO
-			commondao.WithMember(caller), // Adds the creator of the DAO to its member storage
-		),
+	DAO = commondao.New(
+		commondao.WithName(title),    // adds a name to the common DAO
+		commondao.WithMember(caller), // adds the creator of the DAO to its member storage
+	)
 }
 
-func Render() string {
-	out string
-
-	out += md.H1("A CommonDao Example")
+func Render(_ string) string {
+	out := md.H1("A CommonDao Example")
 
 	return out
 }

@@ -1,17 +1,24 @@
 package commondao
 
+import (
+	"std"
+	"time"
+
+	"gno.land/p/nt/commondao"
+)
+
 // Must implement a proposal struct and define the five methods below
-struct Proposal {
-	Title string
-	Description string
+type Proposal struct {
+	TitleProp       string
+	DescriptionProp string
 }
 
 func (c *Proposal) Title() string {
-	return c.Title
+	return c.TitleProp
 }
 
 func (c *Proposal) Body() string {
-	return c.Description
+	return c.DescriptionProp
 }
 
 // The voting period allowed for each proposal created
@@ -35,12 +42,12 @@ func (p *Proposal) Execute() error {
 func CreateProposal(title, desc string) {
 	caller := std.PreviousRealm().Address()
 
-	prop := &Proposal {
-		Title: title,
-		Description: desc,
+	prop := &Proposal{
+		TitleProp:       title,
+		DescriptionProp: desc,
 	}
 
-		proposal := DAO.MustPropose(caller, def) // Panics if the creation of the proposal fails, use Propose() if you don't want the possible panic
+	DAO.MustPropose(caller, prop) // Panics if the creation of the proposal fails, use Propose() if you don't want the possible panic
 }
 
 // Allows member of the DAO to vote YES or NO on a proposal and give their reasoning
@@ -65,5 +72,5 @@ func ExecutionPassedProposals(proposalID uint64) {
 	//	- Tally the votes
 	//	- Run our previously defined Execute()
 	//	- Set the proposal status and move it out of Active Proposal if necessary
-	DAO.Execute(proposalID uint64)
+	DAO.Execute(proposalID)
 }
