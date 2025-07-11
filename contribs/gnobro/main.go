@@ -24,7 +24,7 @@ import (
 	"github.com/charmbracelet/wish/bubbletea"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/browser"
+	"github.com/gnolang/gno/contribs/gnobro/pkg/browser"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
