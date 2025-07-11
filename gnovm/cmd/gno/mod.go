@@ -200,12 +200,12 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		fmt.Fprint(stdout, "digraph gno {\n")
 	}
 
-	hasErrs := false
+	errCount := uint(0)
 
 	for _, pkg := range pkgs {
 		for _, err := range pkg.Errors {
-			hasErrs = true
 			fmt.Fprintf(io.Err(), "%s: %v", pkg.ImportPath, err)
+			errCount++
 		}
 		// XXX: ignore xtests and filetests for now as they should be treated as their own packages
 		deps := pkg.ImportsSpecs.Merge(packages.FileKindPackageSource, packages.FileKindTest)
@@ -222,8 +222,8 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		fmt.Fprint(stdout, "}\n")
 	}
 
-	if hasErrs {
-		return errors.New("load error(s)")
+	if errCount != 0 {
+		return errors.New("%d load error(s)")
 	}
 
 	return nil
