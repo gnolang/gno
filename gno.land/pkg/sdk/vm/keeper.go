@@ -402,8 +402,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	// Patch gnomod.toml metadata
 	gm.Module = pkgPath // XXX: if gm.Module != msg.Package.Path { panic() }?
-	gm.UploadMetadata.Uploader = creator.String()
-	gm.UploadMetadata.Height = int(ctx.BlockHeight())
+	gm.AddPkg.Creator = creator.String()
+	gm.AddPkg.Height = int(ctx.BlockHeight())
 	// Re-encode gnomod.toml in memPkg
 	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
@@ -627,7 +627,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
-	memPkg.Path = chainDomain + "/r/" + msg.Caller.String() + "/run"
+	memPkg.Path = chainDomain + "/e/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
