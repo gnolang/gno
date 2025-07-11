@@ -45,12 +45,6 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if len(args) != 2 {
 		return flag.ErrHelp
 	}
-	if cfg.RootCfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
-	if cfg.RootCfg.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
 
 	nameOrBech32 := args[0]
 	sourcePath := args[1] // can be a file path, a dir path, or '-' for stdin
@@ -65,13 +59,6 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		return err
 	}
 	caller := info.GetAddress()
-
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
 
 	memPkg := &std.MemPackage{}
 	if sourcePath == "-" { // stdin
@@ -119,11 +106,18 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		Caller:  caller,
 		Package: memPkg,
 	}
+
+	// Create initial transaction for gas estimation
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
+		Fee:        std.Fee{}, // Will be set by gas estimation or parsing
 		Signatures: nil,
 		Memo:       cfg.RootCfg.Memo,
+	}
+
+	// Handle gas estimation or manual fee setting
+	if err := client.EstimateOrSetFee(cfg.RootCfg, &tx); err != nil {
+		return errors.Wrap(err, "setting transaction fee")
 	}
 
 	if cfg.RootCfg.Broadcast {

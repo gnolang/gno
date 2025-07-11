@@ -83,16 +83,17 @@ In Gno, there are four types of messages that can change on-chain state:
 - `Run` - executes a Gno script against on-chain code
 
 A Gno.land transaction contains two main things:
-- A base configuration where variables such as `gas-fee`, `gas-wanted`, and others
-  are defined
+- A base configuration where variables such as chain ID, remote address, and 
+  optionally gas parameters are defined
 - A list of messages to execute on the chain
 
 Currently, `gnokey` supports single-message transactions, while multiple-message
 transactions can be created in Go programs, supported by the
 [gnoclient](https://github.com/gnolang/gno/tree/master/gno.land/pkg/gnoclient) package.
 
-We will need some testnet coins (GNOTs) for each state-changing call. Visit the [Faucet
-Hub](https://faucet.gno.land) to get GNOTs for the Gno testnets that are currently live.
+We will need some testnet coins (GNOTs) for each state-changing call. Visit 
+the [Faucet Hub](https://faucet.gno.land) to get GNOTs for the Gno testnets 
+that are currently live.
 
 Let's delve deeper into each of these message types.
 
@@ -148,16 +149,16 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-pkgdir` - local path where your is located
 - `-broadcast` - enables broadcasting the transaction to the chain
 - `-deposit` - a deposit amount of GNOT to send along with the transaction
-- `-gas-wanted` - the upper limit for units of gas for the execution of the
-  transaction
-- `-gas-fee` - amount of GNOTs to pay per gas unit
+- `-gas-wanted` - the upper limit for units of gas (optional, defaults to auto)
+- `-gas-fee` - amount of GNOTs to pay per gas unit (optional, defaults to auto)
 - `-chain-id` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath`, `-pkgdir`, and `-deposit` flags are unique to the `addpkg`
-subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
-`-remote` are used for setting the base transaction configuration. These flags
-will be repeated throughout the tutorial.
+subcommand, while `-broadcast`, `-chain-id`, and `-remote` are used for setting 
+the base transaction configuration. Gas parameters (`-gas-wanted`, `-gas-fee`) are 
+optional and use automatic estimation by default. These base flags will be 
+repeated throughout the tutorial.
 
 Next, let's configure the `addpkg` subcommand to publish this package to the
 [Staging](../resources/gnoland-networks.md) chain. Assuming we are in
@@ -168,8 +169,6 @@ gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
 -deposit "" \
--gas-fee 10000000ugnot \
--gas-wanted 8000000 \
 -broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443"
@@ -183,8 +182,6 @@ gnokey maketx addpkg \
 -pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
 -send "" \
--gas-fee 10000000ugnot \
--gas-wanted 200000 \
 -broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443"
@@ -245,8 +242,6 @@ gnokey maketx call \
 -pkgpath "gno.land/r/demo/wugnot" \
 -func "Deposit" \
 -send "1000ugnot" \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
@@ -283,8 +278,6 @@ gnokey maketx call \
 -pkgpath "gno.land/r/demo/wugnot" \
 -func "BalanceOf" \
 -args "<your_address>" \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
@@ -331,8 +324,6 @@ our `maketx send` subcommand:
 gnokey maketx send \
 -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
 -send 100ugnot \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
 -broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
@@ -391,8 +382,6 @@ func main() {
 Now we will be able to provide this to the `maketx run` subcommand:
 ```bash
 gnokey maketx run \
--gas-fee 1000000ugnot \
--gas-wanted 20000000 \
 -broadcast \
 -chainid staging \
 -remote "https://rpc.gno.land:443" \
@@ -582,8 +571,6 @@ without the `-broadcast` flag, while redirecting the output to a local file:
 gnokey maketx call \
 -pkgpath "gno.land/r/demo/userbook" \
 -func "SignUp" \
--gas-fee 1000000ugnot \
--gas-wanted 2000000 \
 mykey > userbook.tx
 ```
 
@@ -979,9 +966,30 @@ In practice, this is shorthand for listing packages under `gno.land/p/foo` &
 
 ### Gas parameters
 
-When using `gnokey` to send transactions, you'll need to specify gas parameters:
+Gnokey supports **automatic gas estimation** by default, making transactions 
+easier to send without manually specifying gas parameters:
 
 ```bash
+# Automatic gas estimation (default)
+gnokey maketx call \
+  --pkgpath "gno.land/r/demo/boards" \
+  --func "CreateBoard" \
+  --args "MyBoard" "Board description" \
+  --remote https://rpc.gno.land:443 \
+  --chainid staging \
+  YOUR_KEY_NAME
+```
+
+#### Manual Gas Control (Optional)
+
+For advanced users who want to control gas parameters manually, you can 
+specify:
+
+- `--gas-wanted` - Maximum gas units to consume (or "auto" for estimation)
+- `--gas-fee` - Fee per gas unit (or "auto" for automatic pricing)
+
+```bash
+# Manual gas specification
 gnokey maketx call \
   --pkgpath "gno.land/r/demo/boards" \
   --func "CreateBoard" \
@@ -991,7 +999,25 @@ gnokey maketx call \
   --remote https://rpc.gno.land:443 \
   --chainid staging \
   YOUR_KEY_NAME
+
+# Partial auto mode (estimate gas amount, set fee manually)
+gnokey maketx call \
+  --pkgpath "gno.land/r/demo/boards" \
+  --func "CreateBoard" \
+  --args "MyBoard" "Board description" \
+  --gas-fee 1000000ugnot \
+  --gas-wanted auto \
+  --remote https://rpc.gno.land:443 \
+  --chainid staging \
+  YOUR_KEY_NAME
 ```
 
-For detailed information about gas fees, including recommended values and 
-optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
+**Why use automatic gas estimation?**
+- **Convenience**: No need to guess gas requirements
+- **Accuracy**: Simulates your transaction to determine exact gas needed
+- **Safety**: Automatically adds a buffer to prevent "out of gas" errors
+- **Cost optimization**: Avoids overpaying for gas
+
+For detailed information about gas fees, including manual control and 
+optimization strategies, see the 
+[Gas Fees documentation](../resources/gas-fees.md).
