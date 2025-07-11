@@ -12,8 +12,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
-	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/contribs/gnobro/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnobro/pkg/events"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"

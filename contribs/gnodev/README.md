@@ -177,53 +177,13 @@ FLAGS
 ```
 
 
-## `gnobro`: realm interface
-`gnobro` is a terminal user interface (TUI) that allows you to browse realms within your terminal. It
-automatically connects to `gnodev` for real-time development. In addition to hot reload, it also has the
-ability to execute commands and interact with your realm.
+## Related Tools
 
+### `gnobro`: Terminal UI for Realm Browsing
+`gnobro` is a terminal user interface (TUI) that allows you to browse realms within your terminal. It can automatically connect to `gnodev` for real-time development with hot reload capabilities and the ability to execute commands and interact with your realm.
 
-## Usage
-**gnobro** [**options**] [**PKG_PATH **]
-
-Run gnobro followed by any specific options and/or a target pacakge path.
-
-Use `gnobro -h` for a detailed list of options.
-
-Example:
-```
-gnobro gno.land/r/demo/home
-```
-
-### `gnobro -h`
-[embedmd]:# (.tmp/gnobro-usage.txt)
-```txt
-USAGE
-  gnobro [flags] [pkg_path]
-
-Gnobro is a terminal user interface (TUI) that allows you to browse realms within your
-terminal. It automatically connects to Gnodev for real-time development. In
-addition to hot reload, it also has the ability to execute commands and interact
-with your realm.
-
-
-FLAGS
-  -account ...                            default local account to use
-  -banner=false                           if enabled, display a banner
-  -chainid dev                            chainid
-  -default-realm gno.land/r/gnoland/home  default realm to display when gnobro starts and no argument is provided
-  -dev=true                               enable dev mode and connect to gnodev for realtime update
-  -dev-remote ...                         dev endpoint, if empty will default to `ws://<target>:8888`
-  -jsonlog=false                          display server log as json format
-  -readonly=false                         readonly mode, no commands allowed
-  -remote 127.0.0.1:26657                 remote gno.land URL
-  -ssh ...                                ssh server listener address
-  -ssh-key .ssh/id_ed25519                ssh host key path
-
-```
+`gnobro` is available as a separate tool in the `contribs/gnobro` directory. For more information, see the [gnobro README](../gnobro/README.md).
 
 ## Installation
 Run `make install` to install `gnodev`.
-
-Run `make install.gnobro` to install `gnobro`.
 
