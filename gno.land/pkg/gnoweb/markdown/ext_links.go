@@ -102,6 +102,11 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		// Create a new GnoLink node wrapping the original link.
 		gnoLink := &GnoLink{Link: link}
 
+		// Copie la classe CSS si elle existe
+		if classAttr, ok := link.AttributeString("class"); ok {
+			gnoLink.SetAttributeString("class", classAttr)
+		}
+
 		// Replace the original link with the GnoLink wrapper.
 		parent, next := node.Parent(), node.NextSibling()
 		parent.RemoveChild(parent, node)
@@ -212,6 +217,10 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		}
 		if n.Title != nil {
 			attrs = append(attrs, attr{"title", string(n.Title)})
+		}
+		// Ajoute la classe CSS si elle existe
+		if classAttr, ok := n.AttributeString("class"); ok {
+			attrs = append(attrs, attr{"class", classAttr.(string)})
 		}
 
 		// Write opening tag <a>.

@@ -222,6 +222,22 @@ Currently, only a short list of content providers are supported:
 
 ## Gno-Specific Features
 
+### Buttons
+
+Buttons are created using the ±{text}(url)± syntax.
+
+±±±markdown
+{Click me}(https://example.com)
+±±±
+
+{Click me}(https://example.com)
+
+±±±markdown
+<gno-button href="https://example.com">Click me</gno-button>
+±±±
+
+Or another way to add a button: <gno-button href="https://example.com">is like that</gno-button>.
+
 ### HTML Support
 
 By design, most typical HTML support is disabled in Gno's markdown implementation. This is an intentional decision for both security and ecosystem cohesion.
