@@ -47,7 +47,7 @@ func Render(path string) string {
 
 func init() {
 	hor.Register(cross, "Leon's Home Realm", "")
-	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+	mirror.Register(cross, std.CurrentRealm().PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"

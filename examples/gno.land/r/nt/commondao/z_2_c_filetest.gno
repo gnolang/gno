@@ -13,8 +13,6 @@ func main() {
 	// Calling with a user that was not invited
 	testing.SetRealm(std.NewUserRealm(user))
 
-	commondao.New("Foo")
+	commondao.New(cross, "Foo")
 }
 
-// Error:
-// unauthorized
