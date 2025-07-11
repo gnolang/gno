@@ -75,6 +75,8 @@ type VMKeeper struct {
 	gnoStore gno.Store
 	// used for typechecking
 	gnoTestStore gno.Store
+	// typecheck cache
+	typecheckCache gno.TypeCheckCache
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -111,6 +113,9 @@ func (vm *VMKeeper) Initialize(
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
+
+	// initillize typecheck
+	vm.typecheckCache = make(gno.TypeCheckCache)
 
 	// Initialize a basic test store for type checking test files.
 	// XXX: It should be better initlized elsewhere above.
@@ -377,6 +382,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Getter:     gnostore,
 		TestGetter: vm.gnoTestStore,
 		Mode:       gno.TCLatestStrict,
+		Cache:      vm.typecheckCache,
 	}
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
