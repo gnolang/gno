@@ -912,6 +912,11 @@ func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) bool {
 // difference with assertNoPrivateDeps is that this take a seen map
 // to avoid infinite recursion on circular references & optimize repeated checks.
 func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, seen map[Object]struct{}) bool {
+
+	//////////////////////////////////////////////////////////////////////////
+	// WIP PRINT STATEMENTS ARE FOR DEBUG AND HELPING ME UNDERSTAND THE FLOW//
+	//////////////////////////////////////////////////////////////////////////
+
 	if _, exists := seen[obj]; exists {
 		return false
 	}
