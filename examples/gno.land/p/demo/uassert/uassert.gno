@@ -120,6 +120,39 @@ func AbortsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 	return true
 }
 
+// AbortsContains asserts that the code inside the specified func aborts
+// (panics when crossing another realm) and the abort message contains the specified substring.
+func AbortsContains(t TestingT, substr string, f any, msgs ...string) bool {
+	t.Helper()
+
+	var didAbort bool
+	var abortValue any
+	var r any
+
+	if fn, ok := f.(func()); ok {
+		r = revive(fn)
+	} else if fn, ok := f.(func(realm)); ok {
+		r = revive(func() { fn(cross) })
+	} else {
+		panic("f must be of type func() or func(realm)")
+	}
+	if r != nil {
+		didAbort = true
+		abortValue = r
+	}
+
+	if !didAbort {
+		return fail(t, msgs, "func should abort")
+	}
+
+	abortStr := ufmt.Sprintf("%v", abortValue)
+	if !strings.Contains(abortStr, substr) {
+		return fail(t, msgs, "func should abort with message containing:\t%q\n\tActual abort value:\t%q", substr, abortStr)
+	}
+
+	return true
+}
+
 // NotAborts asserts that the code inside the specified func does NOT abort
 // when crossing an execution boundary.
 // Note: Consider using NotPanics which checks for both panics and aborts.
@@ -168,6 +201,23 @@ func PanicsWithMessage(t TestingT, msg string, f any, msgs ...string) bool {
 	panicStr := ufmt.Sprintf("%v", panicValue)
 	if panicStr != msg {
 		return fail(t, msgs, "func should panic with message:\t%q\n\tActual panic value:\t%q", msg, panicStr)
+	}
+	return true
+}
+
+// PanicsContains asserts that the code inside the specified func panics
+// locally within the same execution realm and the panic message contains the specified substring.
+func PanicsContains(t TestingT, substr string, f any, msgs ...string) bool {
+	t.Helper()
+
+	didPanic, panicValue := checkDidPanic(f)
+	if !didPanic {
+		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
+	}
+
+	panicStr := ufmt.Sprintf("%v", panicValue)
+	if !strings.Contains(panicStr, substr) {
+		return fail(t, msgs, "func should panic with message containing:\t%q\n\tActual panic value:\t%q", substr, panicStr)
 	}
 	return true
 }
