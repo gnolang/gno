@@ -138,7 +138,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 
 			// During genesis (block height 0), automatically create accounts for signers
-			// if they don't exist. This allows packages with custom uploaders to be loaded.
+			// if they don't exist. This allows packages with custom creators to be loaded.
 			if ctx.BlockHeight() == 0 {
 				for _, signer := range tx.GetSigners() {
 					if acck.GetAccount(ctx, signer) == nil {
