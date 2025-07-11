@@ -402,6 +402,8 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 	return err
 }
 
+var mcache = map[string]*types.Package{}
+
 // Assumes that the code is Gno 0.9.
 // If not, first use `gno lint` to transpile the code.
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
@@ -484,7 +486,13 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+
+	pkg, ok := mcache[mpkg.Path]
+	if !ok {
+		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+		mcache[mpkg.Path] = pkg
+	}
+
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -500,8 +508,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 
 	// STEP 4: Type-check Gno0.9 AST in Go (w/ tests, but not xxx_tests).
 	if len(pgofs) < len(gofs) {
+		key := "09:" + mpkg.Path
 		gimp.testing = true // use tgetter for stdlibs, default to getter.
-		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+		pkg, ok = mcache[key]
+		if !ok {
+			pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+			mcache[key] = pkg
+			mcache[mpkg.Path] = pkg // override prvious cache for no reason
+		}
 		// Fail early: there's no point checking the others.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -528,7 +542,15 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		_gofs2 = append(_gofs, gmgof)
 	}
 	gimp.testing = true // use tgetter for stdlibs, default to getter.
-	_, _ = gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
+
+	key := "useless:" + mpkg.Path
+	gimp.testing = true // use tgetter for stdlibs, default to getter.
+	pkg, ok = mcache[key]
+	if !ok {
+		upkg, _ := gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
+		mcache[key] = upkg
+	}
+
 	/* NOTE: Uncomment to fail earlier.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
