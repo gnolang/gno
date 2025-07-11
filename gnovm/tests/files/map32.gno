@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/map_test
-package map_test
+// PKGPATH: gno.land/r/mapkey
+package mapkey
 
 type Bar struct {
 	name string
@@ -25,11 +25,11 @@ func main() {
 }
 
 // Output:
-// map{(struct{(struct{("a" string)} gno.land/r/map_test.Bar),(1 int)} gno.land/r/map_test.Foo):(1 int)}
+// map{(struct{(struct{("a" string)} gno.land/r/mapkey.Bar),(1 int)} gno.land/r/mapkey.Foo):(1 int)}
 
 // Realm:
-// finalizerealm["gno.land/r/map_test"]
-// c[02f0842ff638606e376be560152a77adbd377f56:8]={
+// finalizerealm["gno.land/r/mapkey"]
+// c[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:8]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -43,23 +43,23 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "02f0842ff638606e376be560152a77adbd377f56:8",
+//         "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:8",
 //         "ModTime": "0",
-//         "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:7",
+//         "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7",
 //         "RefCount": "1"
 //     }
 // }
-// c[02f0842ff638606e376be560152a77adbd377f56:7]={
+// c[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7]={
 //     "Fields": [
 //         {
 //             "T": {
 //                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/map_test.Bar"
+//                 "ID": "gno.land/r/mapkey.Bar"
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "a4e915a3f8a66544fda53ad59e464d0e2d8615ea",
-//                 "ObjectID": "02f0842ff638606e376be560152a77adbd377f56:8"
+//                 "Hash": "7bfb3c98655cc8320fb2b037dc18cdb19a2a184e",
+//                 "ObjectID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:8"
 //             }
 //         },
 //         {
@@ -71,13 +71,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "02f0842ff638606e376be560152a77adbd377f56:7",
+//         "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7",
 //         "ModTime": "0",
-//         "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:4",
+//         "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4",
 //         "RefCount": "1"
 //     }
 // }
-// u[02f0842ff638606e376be560152a77adbd377f56:4]=
+// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4]=
 //     @@ -1,10 +1,31 @@
 //      {
 //          "List": {
@@ -87,12 +87,12 @@ func main() {
 //     +                "Key": {
 //     +                    "T": {
 //     +                        "@type": "/gno.RefType",
-//     +                        "ID": "gno.land/r/map_test.Foo"
+//     +                        "ID": "gno.land/r/mapkey.Foo"
 //     +                    },
 //     +                    "V": {
 //     +                        "@type": "/gno.RefValue",
-//     +                        "Hash": "e38d41c819dfc57e9fce8018a38ea67f31813a17",
-//     +                        "ObjectID": "02f0842ff638606e376be560152a77adbd377f56:7"
+//     +                        "Hash": "faf067a62585266c9bfac0c93d2d03573c24fceb",
+//     +                        "ObjectID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7"
 //     +                    }
 //     +                },
 //     +                "Value": {
@@ -106,9 +106,9 @@ func main() {
 //     +        ]
 //          },
 //          "ObjectInfo": {
-//              "ID": "02f0842ff638606e376be560152a77adbd377f56:4",
+//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:3",
+//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:3",
 //              "RefCount": "1"
 //          }

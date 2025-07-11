@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/map_test
-package map_test
+// PKGPATH: gno.land/r/mapkey
+package mapkey
 
 type myInt struct {
 	num int
@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// map{(struct{(1 int)} gno.land/r/map_test.myInt):(1 int)}
+// map{(struct{(1 int)} gno.land/r/mapkey.myInt):(1 int)}

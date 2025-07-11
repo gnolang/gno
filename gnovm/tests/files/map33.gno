@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/map_test
-package map_test
+// PKGPATH: gno.land/r/mapkey
+package mapkey
 
 var i = 1
 var m1 = map[*int]string{&i: "value"}

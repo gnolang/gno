@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/map_test
-package map_test
+// PKGPATH: gno.land/r/mapkey
+package mapkey
 
 var (
 	m = map[*int]int{}
@@ -12,12 +12,12 @@ func main() {
 }
 
 // Realm:
-// finalizerealm["gno.land/r/map_test"]
-// c[02f0842ff638606e376be560152a77adbd377f56:7]={
+// finalizerealm["gno.land/r/mapkey"]
+// c[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7]={
 //     "ObjectInfo": {
-//         "ID": "02f0842ff638606e376be560152a77adbd377f56:7",
+//         "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7",
 //         "ModTime": "0",
-//         "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:4",
+//         "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4",
 //         "RefCount": "1"
 //     },
 //     "Value": {
@@ -28,7 +28,7 @@ func main() {
 //         }
 //     }
 // }
-// u[02f0842ff638606e376be560152a77adbd377f56:4]=
+// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4]=
 //     @@ -1,10 +1,39 @@
 //      {
 //          "List": {
@@ -47,8 +47,8 @@ func main() {
 //     +                        "@type": "/gno.PointerValue",
 //     +                        "Base": {
 //     +                            "@type": "/gno.RefValue",
-//     +                            "Hash": "e6404f3da482cc2c2d6d9bab5cd8a092e91c9d25",
-//     +                            "ObjectID": "02f0842ff638606e376be560152a77adbd377f56:7"
+//     +                            "Hash": "707048547d382f3872ac35d41c3bfc2ac692d6ad",
+//     +                            "ObjectID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:7"
 //     +                        },
 //     +                        "Index": "0",
 //     +                        "TV": null
@@ -65,10 +65,9 @@ func main() {
 //     +        ]
 //          },
 //          "ObjectInfo": {
-//              "ID": "02f0842ff638606e376be560152a77adbd377f56:4",
+//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:3",
+//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:3",
 //              "RefCount": "1"
 //          }
-

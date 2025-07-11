@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/map_test
-package map_test
+// PKGPATH: gno.land/r/mapkey
+package mapkey
 
 var (
 	m = map[*int]int{}
@@ -12,8 +12,8 @@ func main() {
 }
 
 // Realm:
-// finalizerealm["gno.land/r/map_test"]
-// u[02f0842ff638606e376be560152a77adbd377f56:4]=
+// finalizerealm["gno.land/r/mapkey"]
+// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4]=
 //     @@ -1,10 +1,39 @@
 //      {
 //          "List": {
@@ -33,7 +33,7 @@ func main() {
 //     +                        "Base": {
 //     +                            "@type": "/gno.RefValue",
 //     +                            "Escaped": true,
-//     +                            "ObjectID": "02f0842ff638606e376be560152a77adbd377f56:5"
+//     +                            "ObjectID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5"
 //     +                        },
 //     +                        "Index": "0",
 //     +                        "TV": null
@@ -50,21 +50,21 @@ func main() {
 //     +        ]
 //          },
 //          "ObjectInfo": {
-//              "ID": "02f0842ff638606e376be560152a77adbd377f56:4",
+//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4",
 //     -        "ModTime": "0",
 //     +        "ModTime": "7",
-//              "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:3",
+//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:3",
 //              "RefCount": "1"
 //          }
-// u[02f0842ff638606e376be560152a77adbd377f56:5]=
+// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5]=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "02f0842ff638606e376be560152a77adbd377f56:5",
+//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
 //     +        "ModTime": "7",
-//              "OwnerID": "02f0842ff638606e376be560152a77adbd377f56:2",
+//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:2",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
