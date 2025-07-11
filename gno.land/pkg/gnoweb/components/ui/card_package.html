@@ -1,0 +1,48 @@
+{{ define "ui/card_package" }}
+<article data-type="{{ .Type }}" class="list-item">
+    <div class="list-item__content">
+      <span class="list-item__title">
+        {{ if eq .Type.String "pure" }}
+          <svg class="w-5 h-5 text-gray-600">
+            <use href="#ico-pure"></use>
+          </svg>
+        {{ else }}
+          <svg class="w-5 h-5 text-gray-600">
+            <use href="#ico-realm"></use>
+          </svg>
+        {{ end }}
+        <h3
+          class="js-list-range-title font-bold text-200 overflow-hidden text-ellipsis whitespace-nowrap"
+        >
+          <a href="{{ .URL }}" class="hover:underline text-green-600">
+            {{ .Title }}
+          </a>
+        </h3>
+      </span>
+      <p class="list-item__description">
+        {{ with .Description }}
+          {{ . }}
+        {{ else }}
+          <a href="{{ .URL }}" class="hover:underline">
+            Explore {{ .Title }} {{ .Type.String }}
+          </a>
+        {{ end }}
+      </p>
+    </div>
+    {{ if or .Date .Size }}
+      <div class="list-item__footer">
+        {{ if .Date }}
+          <time
+            datetime="{{ .Date.Format "2006-01-02" }}"
+            class="list-item__date"
+          >
+            {{ FormatRelativeTime .Date }}
+          </time>
+        {{ end }}
+        {{ if .Size }}
+          <span class="list-item__size">{{ .Size }}b</span>
+        {{ end }}
+      </div>
+    {{ end }}
+  </article>
+{{ end }}
