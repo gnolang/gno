@@ -36,6 +36,8 @@ func NewDefaultMarkdownRendererConfig(chromaOptions []chromahtml.Option) *Markdo
 
 			extension.Strikethrough,
 			extension.Table,
+			extension.TaskList,
+			extension.Footnote,
 
 			md.NewGnoExtension(
 				md.WithImageValidator(allowSvgDataImage),
