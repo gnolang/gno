@@ -30,7 +30,16 @@ stderr 'cannot persist reference of object from private realm'
 stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist reference of object from private realm'
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveValueFromPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptySliceOfPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
 
 gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
@@ -57,7 +66,13 @@ stderr 'cannot persist reference of object from private realm'
 stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosureToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist reference of object from private realm'
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosure2ToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilPointerToPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/privaterealm.GetTreePointer()'
 stdout 'gno.land/p/demo/avl.Tree'
@@ -121,7 +136,36 @@ func SaveMapToPublicRealm(cur realm) {
 }
 
 func SaveStructToPublicRealm(cur realm) {
-    publicrealm.SaveYourStruct(cross, privateStruct)
+    publicrealm.SaveYourInterface(cross, privateStruct)
+}
+
+func SaveValueFromPrivateStructToPublicRealm(cur realm) {
+    // Save a value from the private struct to public realm
+    // This instance is NOT stored in private realm's global vars
+    // but uses a private type, which should still be forbidden
+    pvData := PrivateData{
+        Name:  "value from private struct",
+        Value: 0,
+        Tree:  avl.NewTree(),
+    }
+    publicrealm.SaveYourInterface(cross, pvData)
+}
+
+func SaveArrayOfPrivateStructToPublicRealm(cur realm) {
+    // This is not allowed, as it uses a private type
+    pvData := PrivateData{
+        Name:  "array of private struct",
+        Value: 0,
+        Tree:  avl.NewTree(),
+    }
+    arr := [3]*PrivateData{&pvData, &pvData, &pvData}
+    publicrealm.SaveYourInterface(cross, arr)
+}
+
+func SaveEmptySliceOfPrivateStructToPublicRealm(cur realm) {
+    // This is not allowed, as it uses a private type
+    arr := []*PrivateData{}
+    publicrealm.SaveYourInterface(cross, arr)
 }
 
 func SaveMixedStructToPublicRealmWithoutRef(cur realm) {
@@ -174,6 +218,18 @@ func SaveNestedToPublicRealmAfterSaving(cur realm) {
 
 func SaveClosureToPublicRealm(cur realm) {
 	publicrealm.SaveYourClosure(cross, ThisISTheClosure)
+}
+
+func SaveClosure2ToPublicRealm(cur realm) {
+    constructor := func() PrivateData {
+        return PrivateData{Name: "constructed", Value: 42}
+    }
+	publicrealm.SaveYourInterface(cross, constructor)
+}
+
+func SaveNilPointerToPrivateStructToPublicRealm(cur realm) {
+    var nilPtr *PrivateData
+    publicrealm.SaveYourInterface(cross, nilPtr)
 }
 
 func ThisISTheClosure() *avl.Tree {
@@ -244,10 +300,6 @@ func SaveYourSlice(cur realm, slice []string) {
 
 func SaveYourMap(cur realm, m map[string]int) {
     savedMap = m
-}
-
-func SaveYourStruct(cur realm, s interface{}) {
-    savedInterface = s
 }
 
 func SaveYourMixedStruct(cur realm, mixed *PublicStruct) {
