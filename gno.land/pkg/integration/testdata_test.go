@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"flag"
 	"os"
 	"strconv"
 	"testing"
@@ -11,25 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	flagInMemoryTS = flag.Bool("ts-inmemory", false,
-		"Make txtar run in memory, without running any side process, forcing test to run sequentially")
-	flagSeqTS = flag.Bool("ts-seq", false,
-		"forcing tests to run sequentially")
-)
-
-func init() {
-	if t, err := strconv.ParseBool(os.Getenv("INMEMORY_TS")); err == nil {
-		*flagInMemoryTS = t
-	}
-
-	if t, err := strconv.ParseBool(os.Getenv("SEQ_TS")); err == nil {
-		*flagSeqTS = t
-	}
-}
-
 func TestTestdata(t *testing.T) {
 	t.Parallel()
+
+	flagInMemoryTS, _ := strconv.ParseBool(os.Getenv("INMEMORY_TS"))
+	flagSeqTS, _ := strconv.ParseBool(os.Getenv("SEQ_TS"))
 
 	p := gno_integration.NewTestingParams(t, "testdata")
 
@@ -43,7 +28,7 @@ func TestTestdata(t *testing.T) {
 	require.NoError(t, err)
 
 	mode := commandKindTesting
-	if *flagInMemoryTS {
+	if flagInMemoryTS {
 		mode = commandKindInMemory
 	}
 
@@ -59,7 +44,7 @@ func TestTestdata(t *testing.T) {
 		return nil
 	}
 
-	if *flagInMemoryTS || *flagSeqTS {
+	if flagInMemoryTS || flagSeqTS {
 		testscript.RunT(tSeqShim{t}, p)
 	} else {
 		testscript.Run(t, p)
