@@ -9,7 +9,7 @@ on:
         type: string
       tests-ts-seq: # execute txtar sequentially
         required: false
-        type: bool
+        type: boolean
       go-version:
         description: "Go version to use"
         required: false

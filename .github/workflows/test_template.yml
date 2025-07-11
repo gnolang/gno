@@ -12,7 +12,7 @@ on:
         type: string
       tests-ts-seq: # execute txtar sequentially
         required: false
-        type: bool
+        type: boolean
       tests-extra-args:
         required: false
         type: string
