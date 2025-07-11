@@ -166,6 +166,15 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			hasError = true
 			continue
 		}
+		// XXX(morgan): one big cause of slowness is the fact that after having
+		// two stores (testgs, prodgs), LoadImports wasn't called on both of
+		// them. TODO: devise a strategy to avoid actually calling them both,
+		// as it's often redundant
+		if err := test.LoadImports(prodgs, mpkg, abortOnError); err != nil {
+			printError(io.Err(), dir, pkgPath, err)
+			hasError = true
+			continue
+		}
 
 		// Wrap in cache wrap so execution of the linter
 		// doesn't impact other packages.
