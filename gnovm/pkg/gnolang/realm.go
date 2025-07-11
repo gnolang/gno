@@ -389,11 +389,21 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
+	for _, oo := range rlm.newDeleted {
+		fmt.Printf("newDeleted: %s - %s\n", oo, oo.GetObjectID())
+	}
+	for _, oo := range rlm.newEscaped {
+		fmt.Printf("newEscaped: %s - %s\n", oo, oo.GetObjectID())
+	}
+	for _, oo := range rlm.updated {
+		fmt.Printf("newCreated: %s - %s\n", oo, oo.GetObjectID())
+	}
 	// log realm boundaries in opslog.
 	store.LogFinalizeRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
 	rlm.processNewCreatedMarks(store, 0)
+
 	// decrement recursively for deleted descendants.
 	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
@@ -767,9 +777,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		} else {
 			if !uo.GetIsDeleted() {
 				// Perform private ownership check.
-				if hasPrivateDeps(uo, rlm, store) {
-					panic("cannot persist reference of object from private realm")
-				}
+				rlm.assertNoPrivateDeps(uo, store)
 				rlm.saveUnsavedObjectRecursively(store, uo)
 			}
 		}
@@ -892,6 +900,58 @@ func (rlm *Realm) clearMarks() {
 	rlm.updated = nil
 	rlm.deleted = nil
 	rlm.escaped = nil
+}
+
+// panic if any private dependencies are found.
+func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) bool {
+	seen := make(map[Object]struct{})
+	return rlm.assertNoPrivateDeps2(obj, store, seen)
+}
+
+// assertNoPrivateDeps2 checks for private dependencies.
+// difference with assertNoPrivateDeps is that this take a seen map
+// to avoid infinite recursion on circular references & optimize repeated checks.
+func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, seen map[Object]struct{}) bool {
+	if _, exists := seen[obj]; exists {
+		return false
+	}
+	seen[obj] = struct{}{}
+
+	objID := obj.GetObjectID()
+	if objID.PkgID != rlm.ID && objID.Private {
+		panic("cannot persist reference of object from private realm")
+	}
+
+	if hiv, ok := obj.(*HeapItemValue); ok {
+		if hiv.Value.T != nil {
+			fmt.Printf("hiv.Value.T type: %T - hiv.Value.V type: %T\n", hiv.Value.T, hiv.Value.V)
+			pkgPath := ""
+			//TODO: Array, Map, Channel, Interface, Tuple ?
+			switch t := hiv.Value.T.(type) {
+			case *DeclaredType, *PointerType:
+				pkgPath = t.GetPkgPath()
+			case *FuncType:
+				if v, ok := hiv.Value.V.(*FuncValue); ok {
+					pkgPath = v.PkgPath
+				}
+			case *SliceType:
+				pkgPath = t.Elem().GetPkgPath()
+			}
+			fmt.Printf("pkgPath: %q\n", pkgPath)
+			if pkgPath != "" && pkgPath != rlm.Path && IsRealmPath(pkgPath) && GetPkgPrivateStatus(pkgPath) {
+				panic("cannot persist object of type defined in a private realm")
+			}
+		}
+	}
+
+	children := getChildObjects2(store, obj)
+	for _, child := range children {
+		if rlm.assertNoPrivateDeps2(child, store, seen) {
+			return true
+		}
+	}
+
+	return false
 }
 
 //----------------------------------------
@@ -1657,30 +1717,4 @@ func getOwner(store Store, oo Object) Object {
 		}
 	}
 	return po
-}
-
-func hasPrivateDeps(obj Object, rlm *Realm, store Store) bool {
-	visited := make(map[Object]struct{})
-	return hasPrivateDepsWithVisited(obj, rlm, store, visited)
-}
-
-func hasPrivateDepsWithVisited(obj Object, rlm *Realm, store Store, visited map[Object]struct{}) bool {
-	if _, exists := visited[obj]; exists {
-		return false
-	}
-	visited[obj] = struct{}{}
-
-	objID := obj.GetObjectID()
-	if objID.PkgID != rlm.ID && objID.Private {
-		return true
-	}
-
-	children := getChildObjects2(store, obj)
-	for _, child := range children {
-		if hasPrivateDepsWithVisited(child, rlm, store, visited) {
-			return true
-		}
-	}
-
-	return false
 }
