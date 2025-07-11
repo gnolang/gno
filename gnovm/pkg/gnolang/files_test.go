@@ -141,7 +141,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, out, out)
+		opts = test.NewTestOptions(rootDir, out, out, nil)
 		opts.Verbose = true
 		return
 	}

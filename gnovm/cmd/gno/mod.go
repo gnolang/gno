@@ -11,11 +11,11 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/mod/module"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -162,13 +162,16 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-type modGraphCfg struct{}
+type modGraphCfg struct {
+	format string
+}
 
 func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
 	// /out std
 	// /out remote
 	// /out _test processing
 	// ...
+	fs.StringVar(&c.format, "format", "", "Output format, must be one of 'dot' or empty. Empty is a minimalist format.")
 }
 
 func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
@@ -180,17 +183,49 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	stdout := io.Out()
-
-	pkgs, err := gno.ReadPkgListFromDir(args[0], gno.MPAnyAll)
+	loadConf := packages.LoadConfig{
+		Fetcher: testPackageFetcher,
+		Deps:    true,
+		Test:    true,
+		Out:     io.Err(),
+	}
+	pkgs, err := packages.Load(loadConf, args...)
 	if err != nil {
 		return err
 	}
+
+	stdout := io.Out()
+
+	if cfg.format == "dot" {
+		fmt.Fprint(stdout, "digraph gno {\n")
+	}
+
+	errCount := uint(0)
+
 	for _, pkg := range pkgs {
-		for _, dep := range pkg.Imports {
-			fmt.Fprintf(stdout, "%s %s\n", pkg.Name, dep)
+		for _, err := range pkg.Errors {
+			fmt.Fprintf(io.Err(), "%s: %v", pkg.ImportPath, err)
+			errCount++
+		}
+		// XXX: ignore xtests and filetests for now as they should be treated as their own packages
+		deps := pkg.ImportsSpecs.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+		for _, dep := range deps {
+			if cfg.format == "dot" {
+				fmt.Fprintf(stdout, "    %q -> %q;\n", pkg.ImportPath, dep.PkgPath)
+			} else {
+				fmt.Fprintf(stdout, "%s %s\n", pkg.ImportPath, dep.PkgPath)
+			}
 		}
 	}
+
+	if cfg.format == "dot" {
+		fmt.Fprint(stdout, "}\n")
+	}
+
+	if errCount != 0 {
+		return errors.New("%d load error(s)")
+	}
+
 	return nil
 }
 
@@ -210,32 +245,21 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("can't use %s flag with a custom package fetcher", remoteOverridesArgName)
 	}
 
-	path, err := os.Getwd()
-	if err != nil {
-		return err
+	loadCfg := packages.LoadConfig{
+		Fetcher:    fetcher,
+		Deps:       true,
+		Test:       true,
+		AllowEmpty: true,
+		Out:        io.Err(),
 	}
-
-	gnoMod, err := gnomod.ParseDir(path)
-	if err != nil {
-		return err
-	}
-
-	// sanitize gno.mod
-	gnoMod.Sanitize()
-
-	// validate gno.mod
-	if err := gnoMod.Validate(); err != nil {
-		return fmt.Errorf("validate: %w", err)
-	}
-
-	if err := downloadDeps(io, path, gnoMod, fetcher, make(map[string]struct{})); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := packages.Load(loadCfg, "./...")
+	return err
 }
 
 func parseRemoteOverrides(arg string) (map[string]string, error) {
+	if arg == "" {
+		return map[string]string{}, nil
+	}
 	pairs := strings.Split(arg, ",")
 	res := make(map[string]string, len(pairs))
 	for _, pair := range pairs {
@@ -319,7 +343,7 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		pkgs, err := gno.ReadPkgListFromDir(wd, gno.MPAnyAll)
+		pkgs, err := packages.ReadPkgListFromDir(wd, gno.MPAnyAll)
 		if err != nil {
 			return err
 		}

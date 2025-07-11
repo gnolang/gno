@@ -114,7 +114,7 @@ func (vm *VMKeeper) Initialize(
 
 	// Initialize a basic test store for type checking test files.
 	// XXX: It should be better initlized elsewhere above.
-	_, vm.gnoTestStore = test.TestStore(gnoenv.RootDir(), io.Discard)
+	_, vm.gnoTestStore = test.TestStore(gnoenv.RootDir(), io.Discard, nil)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
