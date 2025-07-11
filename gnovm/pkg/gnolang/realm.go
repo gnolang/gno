@@ -28,7 +28,7 @@ is provided a home package, for example
 a "realm package", and functions and methods declared there
 have special privileges.
 
-Every "realm package" should define at last one package-level variable:
+Every "realm package" should define at least one package-level variable:
 
 ```go
 // PKGPATH: gno.land/r/alice
@@ -84,7 +84,28 @@ var (
 	// fixed memory caps. For now though it isn't a problem:
 	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+	// Cache for Private Status
+	pkgPrivateStatusCache = make(map[string]bool, 100)
 )
+
+func SetPkgPrivateStatus(path string, private bool) {
+	pkgIDFromPkgPathCacheMu.Lock()
+	defer pkgIDFromPkgPathCacheMu.Unlock()
+
+	pkgPrivateStatusCache[path] = private
+}
+
+// GetPkgPrivateStatus retrieves the Private status for a given path.
+func GetPkgPrivateStatus(path string) bool {
+	pkgIDFromPkgPathCacheMu.Lock()
+	defer pkgIDFromPkgPathCacheMu.Unlock()
+
+	private, ok := pkgPrivateStatusCache[path]
+	if !ok {
+		return false // Default to false if not found.
+	}
+	return private
+}
 
 func PkgIDFromPkgPath(path string) PkgID {
 	pkgIDFromPkgPathCacheMu.Lock()
@@ -102,14 +123,16 @@ func PkgIDFromPkgPath(path string) PkgID {
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
-	return ObjectIDFromPkgID(pkgID)
+	oid := ObjectIDFromPkgID(pkgID, GetPkgPrivateStatus(path))
+	return oid
 }
 
 // Returns the ObjectID of the PackageValue associated with pkgID.
-func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
+func ObjectIDFromPkgID(pkgID PkgID, private bool) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
-		NewTime: 1, // by realm logic.
+		NewTime: 1,       // by realm logic.
+		Private: private, // whether the package is private.
 	}
 }
 
@@ -121,9 +144,10 @@ var nilRealm = (*Realm)(nil)
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
 type Realm struct {
-	ID   PkgID
-	Path string
-	Time uint64
+	ID      PkgID
+	Path    string
+	Private bool
+	Time    uint64
 
 	newCreated []Object
 	newDeleted []Object
@@ -139,9 +163,10 @@ type Realm struct {
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
-		ID:   id,
-		Path: path,
-		Time: 0,
+		ID:      id,
+		Path:    path,
+		Time:    0,
+		Private: false,
 	}
 }
 
@@ -161,6 +186,14 @@ func (rlm *Realm) String() string {
 			"Realm{Path:%q,Time:%d}#%X",
 			rlm.Path, rlm.Time, rlm.ID.Bytes())
 	}
+}
+
+func (rlm *Realm) SetPrivate(private bool) {
+	if rlm == nil {
+		return
+	}
+	rlm.Private = private
+	SetPkgPrivateStatus(rlm.Path, private)
 }
 
 //----------------------------------------
@@ -196,7 +229,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
 	}
-
 	// XXX check if this boosts performance
 	// XXX with broad integration benchmarking.
 	// XXX if co == xo {
@@ -361,11 +393,21 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
+	for _, oo := range rlm.newDeleted {
+		fmt.Printf("newDeleted: %s - %s\n", oo, oo.GetObjectID())
+	}
+	for _, oo := range rlm.newEscaped {
+		fmt.Printf("newEscaped: %s - %s\n", oo, oo.GetObjectID())
+	}
+	for _, oo := range rlm.updated {
+		fmt.Printf("newCreated: %s - %s\n", oo, oo.GetObjectID())
+	}
 	// log realm boundaries in opslog.
 	store.LogFinalizeRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
 	rlm.processNewCreatedMarks(store, 0)
+
 	// decrement recursively for deleted descendants.
 	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
@@ -738,6 +780,8 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !uo.GetIsDeleted() {
+				// Perform private ownership check.
+				rlm.assertNoPrivateDeps(uo, store)
 				rlm.saveUnsavedObjectRecursively(store, uo)
 			}
 		}
@@ -862,6 +906,63 @@ func (rlm *Realm) clearMarks() {
 	rlm.escaped = nil
 }
 
+// panic if any private dependencies are found.
+func (rlm *Realm) assertNoPrivateDeps(obj Object, store Store) bool {
+	seen := make(map[Object]struct{})
+	return rlm.assertNoPrivateDeps2(obj, store, seen)
+}
+
+// assertNoPrivateDeps2 checks for private dependencies.
+// difference with assertNoPrivateDeps is that this take a seen map
+// to avoid infinite recursion on circular references & optimize repeated checks.
+func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, seen map[Object]struct{}) bool {
+
+	//////////////////////////////////////////////////////////////////////////
+	// WIP PRINT STATEMENTS ARE FOR DEBUG AND HELPING ME UNDERSTAND THE FLOW//
+	//////////////////////////////////////////////////////////////////////////
+
+	if _, exists := seen[obj]; exists {
+		return false
+	}
+	seen[obj] = struct{}{}
+
+	objID := obj.GetObjectID()
+	if objID.PkgID != rlm.ID && objID.Private {
+		panic("cannot persist reference of object from private realm")
+	}
+
+	if hiv, ok := obj.(*HeapItemValue); ok {
+		if hiv.Value.T != nil {
+			fmt.Printf("hiv.Value.T type: %T - hiv.Value.V type: %T\n", hiv.Value.T, hiv.Value.V)
+			pkgPath := ""
+			//TODO: Array, Map, Channel, Interface, Tuple ?
+			switch t := hiv.Value.T.(type) {
+			case *DeclaredType, *PointerType:
+				pkgPath = t.GetPkgPath()
+			case *FuncType:
+				if v, ok := hiv.Value.V.(*FuncValue); ok {
+					pkgPath = v.PkgPath
+				}
+			case *SliceType:
+				pkgPath = t.Elem().GetPkgPath()
+			}
+			fmt.Printf("pkgPath: %q\n", pkgPath)
+			if pkgPath != "" && pkgPath != rlm.Path && IsRealmPath(pkgPath) && GetPkgPrivateStatus(pkgPath) {
+				panic("cannot persist object of type defined in a private realm")
+			}
+		}
+	}
+
+	children := getChildObjects2(store, obj)
+	for _, child := range children {
+		if rlm.assertNoPrivateDeps2(child, store, seen) {
+			return true
+		}
+	}
+
+	return false
+}
+
 //----------------------------------------
 // getSelfOrChildObjects
 
@@ -962,6 +1063,9 @@ func getChildObjects2(store Store, val Value) []Object {
 	objs := make([]Object, 0, len(chos))
 	for _, child := range chos {
 		if ref, ok := child.(RefValue); ok {
+			if ref.ObjectID.IsZero() {
+				continue
+			}
 			oo := store.GetObject(ref.ObjectID)
 			objs = append(objs, oo)
 		} else if oo, ok := child.(Object); ok {
@@ -1479,6 +1583,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	rlm.Time++
 	nxtid := ObjectID{
 		PkgID:   rlm.ID,
+		Private: rlm.Private,
 		NewTime: rlm.Time, // starts at 1.
 	}
 	return nxtid

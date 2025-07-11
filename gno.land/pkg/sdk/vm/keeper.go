@@ -392,6 +392,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
+	if gm.Private && !gno.IsRealmPath(pkgPath) {
+		return ErrInvalidPackage("private packages must be realm packages")
+	}
 	if gm.Draft && ctx.BlockHeight() > 0 {
 		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
 	}

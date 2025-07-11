@@ -31,14 +31,14 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:13]=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:13:0]=
 //     @@ -1,20 +1,15 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:13",
+//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:13:0",
 //     -        "ModTime": "15",
 //     +        "ModTime": "16",
-//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2",
+//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2:0",
 //              "RefCount": "1"
 //          },
 //          "Value": {
@@ -50,16 +50,16 @@ func main(cur realm) {
 //     -        },
 //     -        "V": {
 //     -            "@type": "/gno.RefValue",
-//     -            "Hash": "aaaeb6f8300dcabad1eab1a62126b5482205aa1a",
-//     -            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:16"
+//     -            "Hash": "64eec0183b76dc8d0d5124773189b8564f30bf7c",
+//     -            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:16:0"
 //     +            "@type": "/gno.PrimitiveType",
 //     +            "value": "32"
 //              }
 //          }
 //      }
-// d[0edc46caf30c00efd87b6c272673239eafbd051e:16]
+// d[0edc46caf30c00efd87b6c272673239eafbd051e:16:0]
 // finalizerealm["gno.land/r/crossrealm"]
-// u[dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8]=
+// u[dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8:0]=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "Fields": [
@@ -72,9 +72,9 @@ func main(cur realm) {
 //     @@ -10,7 +10,7 @@
 //          ],
 //          "ObjectInfo": {
-//              "ID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8",
+//              "ID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8:0",
 //     -        "ModTime": "0",
 //     +        "ModTime": "8",
-//              "OwnerID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7",
+//              "OwnerID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7:0",
 //              "RefCount": "1"
 //          }
