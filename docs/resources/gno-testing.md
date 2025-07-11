@@ -8,7 +8,7 @@
 
 In this tutorial, you will learn how to run and test your Gno code locally, by
 using the `gno` binary. For this example, we will use the `Counter` code from a
-[previous tutorial](anatomy-of-a-gno-package.md).
+[previous tutorial](../builders/anatomy-of-a-gno-package.md).
 
 ## Setup
 
@@ -50,7 +50,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
@@ -73,7 +73,7 @@ func TestIncrement(t *testing.T) {
 	}
 
 	// Call Increment
-	value := Increment(42)
+	value := Increment(cross, 42)
 
 	// Check result
 	if value != 42 {
@@ -137,7 +137,7 @@ import "strconv"
 
 var count int
 
-func Increment(change int) int {
+func Increment(_ realm, change int) int {
 	count += change
 	return count
 }
