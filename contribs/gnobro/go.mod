@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/gnobro
 
-go 1.23.0
+go 1.23.6
 
 toolchain go1.23.8
 
@@ -13,11 +13,11 @@ require (
 	github.com/charmbracelet/ssh v0.0.0-20240725163421-eb71b85b27aa
 	github.com/charmbracelet/wish v1.4.1
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+	github.com/gnolang/gno/contribs/gnodev v0.0.0-20250711100953-38654e0b60d9
 	github.com/gorilla/websocket v1.5.3
 	github.com/lrstanley/bubblezone v1.0.0
 	github.com/muesli/reflow v0.3.0
 	github.com/sahilm/fuzzy v0.1.1
-	github.com/stretchr/testify v1.10.0
 	golang.org/x/sync v0.13.0
 )
 
@@ -74,6 +74,7 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
+	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
@@ -94,7 +95,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
@@ -109,3 +110,5 @@ require (
 )
 
 replace github.com/gnolang/gno => ../..
+
+replace github.com/gnolang/gno/contribs/gnodev => ../gnodev

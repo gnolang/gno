@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	emitter "github.com/gnolang/gno/contribs/gnobro/pkg/emitter"
-	events "github.com/gnolang/gno/contribs/gnobro/pkg/events"
+	emitter "github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	events "github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 
 	"github.com/fsnotify/fsnotify"

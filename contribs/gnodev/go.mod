@@ -4,14 +4,12 @@ go 1.23.6
 
 replace github.com/gnolang/gno => ../..
 
-replace github.com/gnolang/gno/contribs/gnobro => ../gnobro
-
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
-	github.com/gnolang/gno/contribs/gnobro v0.0.0-00010101000000-000000000000
+	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-isatty v0.0.20
 	github.com/muesli/termenv v0.16.0
 	github.com/stretchr/testify v1.10.0
@@ -41,7 +39,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect

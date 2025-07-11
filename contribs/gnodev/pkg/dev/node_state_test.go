@@ -7,7 +7,7 @@ import (
 	"time"
 
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock/emitter"
-	"github.com/gnolang/gno/contribs/gnobro/pkg/events"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
