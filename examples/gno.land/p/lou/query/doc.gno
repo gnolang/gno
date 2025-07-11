@@ -12,13 +12,17 @@ Example:
 	)
 
 	func Render(rawPath string) string {
-		queryMode := query.ParseQueryParams("mode", rawPath)
-		if queryMode == "" {
-			queryMode = "grid" // default
+		mode, err := query.GetQueryValueFromURL("mode", rawPath)
+		if err != nil || mode == "" {
+			mode = "grid" // default value
 		}
+
 		// Handle queryMode value
-		out := md.Link("list mode", query.UpdateQuery(rawPath, "mode", "list")) + "\n\n"
-		out += md.Link("grid mode", query.UpdateQuery(rawPath, "mode", "grid")) +"\n\n"
+		listURL, _ := query.UpdateQueryValue(rawPath, "mode", "list")
+		gridURL, _ := query.UpdateQueryValue(rawPath, "mode", "grid")
+
+		out := md.Link("list mode", listURL) + "\n\n"
+		out += md.Link("grid mode", gridURL) + "\n\n"
 		return out
 	}
 
