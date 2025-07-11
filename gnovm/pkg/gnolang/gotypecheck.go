@@ -9,6 +9,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
@@ -143,6 +144,25 @@ func (m TypeCheckMode) RequiresLatestGnoMod() bool {
 	return m == TCLatestStrict || m == TCGenesisStrict
 }
 
+// TypeCheckCache is a permanent cache for packages imported using MPFProd,
+// excluding tests.
+type TypeCheckCache map[string]*types.Package
+
+type TypeCheckOptions struct {
+	// Getter is the normal package import getter, without test stdlibs.
+	Getter MemPackageGetter
+	// TestGetter is the package import getter for test stdlibs with overrides
+	// when importing from *_test.gno|*_filetest.gno.
+	TestGetter MemPackageGetter
+	// Mode is the [TypeCheckMode]. Refer to the type documentation.
+	Mode TypeCheckMode
+
+	// Cache is an optional permanent cache of already imported standard
+	// libraries. Packages found in the Cache won't need to be type checked
+	// again.
+	Cache TypeCheckCache
+}
+
 // TypeCheckMemPackage performs type validation and checking on the given
 // mpkg. To retrieve dependencies, it uses getter.
 //
@@ -152,17 +172,18 @@ func (m TypeCheckMode) RequiresLatestGnoMod() bool {
 //   - tcmode: TypeCheckMode, see comments above.
 //   - getter: the normal package import getter without test stdlibs.
 //   - tgetter: getter for test stdlibs with overrides when gimp.testing (importing from *_test.gno|*_filetest.gno).
-func TypeCheckMemPackage(mpkg *std.MemPackage, getter, tgetter MemPackageGetter, tcmode TypeCheckMode) (
+func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	pkg *types.Package, errs error,
 ) {
 	var gimp *gnoImporter
 	gimp = &gnoImporter{
-		pkgPath: mpkg.Path,
-		tcmode:  tcmode,
-		testing: false, // only true for imports from testing files.
-		getter:  gimpGetterWrapper{nil, getter},
-		tgetter: gimpGetterWrapper{mpkg, tgetter},
-		cache:   map[string]*gnoImporterResult{},
+		pkgPath:   mpkg.Path,
+		tcmode:    opts.Mode,
+		testing:   false, // only true for imports from testing files.
+		getter:    gimpGetterWrapper{nil, opts.Getter},
+		tgetter:   gimpGetterWrapper{mpkg, opts.TestGetter},
+		cache:     map[string]*gnoImporterResult{},
+		permCache: opts.Cache,
 		cfg: &types.Config{
 			Error: func(err error) {
 				gimp.Error(err)
@@ -188,15 +209,16 @@ type gnoImporterResult struct {
 // gimp.
 type gnoImporter struct {
 	// when importing self (from xxx_test package) include *_test.gno.
-	pkgPath string
-	tcmode  TypeCheckMode
-	testing bool             // if true, use tgetter for stdlibs.
-	getter  MemPackageGetter // used for stdlbis if !.testing, and everything else.
-	tgetter MemPackageGetter // used for stdlibs if .testing
-	cache   map[string]*gnoImporterResult
-	cfg     *types.Config
-	errors  []error  // there may be many for a single import
-	stack   []string // stack of pkgpaths for cyclic import detection
+	pkgPath   string
+	tcmode    TypeCheckMode
+	testing   bool             // if true, use tgetter for stdlibs.
+	getter    MemPackageGetter // used for stdlibs if !.testing, and everything else.
+	tgetter   MemPackageGetter // used for stdlibs if .testing
+	cache     map[string]*gnoImporterResult
+	permCache TypeCheckCache
+	cfg       *types.Config
+	errors    []error  // there may be many for a single import
+	stack     []string // stack of pkgpaths for cyclic import detection
 }
 
 // Unused, but satisfies the Importer interface.
@@ -220,7 +242,8 @@ func cacheKey(pkgPath string, testing bool) string {
 // ImportFrom returns the imported package for the given import
 // pkgPath when imported by a package file located in dir.
 func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopkg *types.Package, err error) {
-	if result, ok := gimp.cache[cacheKey(pkgPath, gimp.testing)]; ok {
+	ck := cacheKey(pkgPath, gimp.testing)
+	if result, ok := gimp.cache[ck]; ok {
 		if result.pending {
 			idx := slices.Index(gimp.stack, pkgPath)
 			cycle := gimp.stack[idx:]
@@ -234,10 +257,29 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		}
 	}
 	result := &gnoImporterResult{pending: true}
-	gimp.cache[cacheKey(pkgPath, gimp.testing)] = result
+	gimp.cache[ck] = result
 	gimp.stack = append(gimp.stack, pkgPath)
 	defer func() {
 		gimp.stack = gimp.stack[:len(gimp.stack)-1]
+	}()
+	// In a vast majority of cases, we can use the permCache if it is set.
+	canPerm := gimp.permCache != nil &&
+		((!gimp.testing && pkgPath != gimp.pkgPath) || IsStdlib(pkgPath))
+	if canPerm {
+		pkg := gimp.permCache[ck]
+		if pkg != nil {
+			result.pkg = pkg
+			result.err = nil
+			result.pending = false
+			return pkg, nil
+		}
+	}
+	start := time.Now()
+	defer func() {
+		ts := time.Since(start)
+		if ts > (time.Millisecond * 100) {
+			fmt.Printf("import %20s: %s\n", pkgPath, ts)
+		}
 	}()
 	var mpkg *std.MemPackage
 	if gimp.testing && (IsStdlib(pkgPath) || pkgPath == gimp.pkgPath) {
@@ -305,6 +347,9 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, errs
 	}
+	if canPerm {
+		gimp.permCache[ck] = pkg
+	}
 	result.pkg = pkg
 	result.err = nil
 	result.pending = false
@@ -356,6 +401,8 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 	})
 	return err
 }
+
+var mcache = map[string]*types.Package{}
 
 // Assumes that the code is Gno 0.9.
 // If not, first use `gno lint` to transpile the code.
@@ -439,7 +486,13 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+
+	pkg, ok := mcache[mpkg.Path]
+	if !ok {
+		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+		mcache[mpkg.Path] = pkg
+	}
+
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -455,8 +508,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 
 	// STEP 4: Type-check Gno0.9 AST in Go (w/ tests, but not xxx_tests).
 	if len(pgofs) < len(gofs) {
+		key := "09:" + mpkg.Path
 		gimp.testing = true // use tgetter for stdlibs, default to getter.
-		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+		pkg, ok = mcache[key]
+		if !ok {
+			pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+			mcache[key] = pkg
+			mcache[mpkg.Path] = pkg // override prvious cache for no reason
+		}
 		// Fail early: there's no point checking the others.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -483,7 +542,15 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		_gofs2 = append(_gofs, gmgof)
 	}
 	gimp.testing = true // use tgetter for stdlibs, default to getter.
-	_, _ = gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
+
+	key := "useless:" + mpkg.Path
+	gimp.testing = true // use tgetter for stdlibs, default to getter.
+	pkg, ok = mcache[key]
+	if !ok {
+		upkg, _ := gimp.cfg.Check(mpkg.Path+"_test", gofset, _gofs2, nil)
+		mcache[key] = upkg
+	}
+
 	/* NOTE: Uncomment to fail earlier.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)

@@ -75,6 +75,8 @@ type VMKeeper struct {
 	gnoStore gno.Store
 	// used for typechecking
 	gnoTestStore gno.Store
+	// typecheck cache
+	typecheckCache gno.TypeCheckCache
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -111,6 +113,9 @@ func (vm *VMKeeper) Initialize(
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
+
+	// initillize typecheck
+	vm.typecheckCache = make(gno.TypeCheckCache)
 
 	// Initialize a basic test store for type checking test files.
 	// XXX: It should be better initlized elsewhere above.
@@ -373,12 +378,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
-	tcmode := gno.TCLatestStrict
+	opts := gno.TypeCheckOptions{
+		Getter:     gnostore,
+		TestGetter: vm.gnoTestStore,
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.typecheckCache,
+	}
 	if ctx.BlockHeight() == 0 {
-		tcmode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
+		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
+	_, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -638,9 +648,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
-	tcmode := gno.TCLatestRelaxed
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
+	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
+		Getter:     gnostore,
+		TestGetter: vm.gnoTestStore,
+		Mode:       gno.TCLatestRelaxed,
+	})
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}

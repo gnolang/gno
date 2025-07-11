@@ -323,7 +323,7 @@ func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err 
 	if err != nil {
 		return err
 	}
-	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+	imports := importsMap.Merge(packages.FileKindPackageSource)
 	for _, imp := range imports {
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.

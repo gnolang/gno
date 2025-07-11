@@ -3,11 +3,38 @@ package main
 import (
 	"context"
 	"os"
+	"runtime/pprof"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func main() {
+	cpup := os.Getenv("CPUPROFILE")
+	if cpup != "" {
+		f, err := os.Create(cpup)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			panic(err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
+	memp := os.Getenv("MEMPROFILE")
+	if memp != "" {
+		defer func() {
+			f, err := os.Create(memp)
+			if err != nil {
+				panic(err)
+			}
+			defer f.Close()
+			pprof.Lookup("heap").WriteTo(f, 0)
+		}()
+	}
+
 	cmd := newGnocliCmd(commands.NewDefaultIO())
 
 	cmd.Execute(context.Background(), os.Args[1:])
