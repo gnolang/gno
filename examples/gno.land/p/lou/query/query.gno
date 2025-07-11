@@ -91,7 +91,7 @@ func UpdateQueryFirstValues(rawPath string, updates map[string]string) (string, 
 	}
 	q := u.Query()
 	for k, v := range updates {
-		q.Update(k, v)
+		q.Set(k, v)
 	}
 	u.RawQuery = q.Encode()
 	return u.String(), nil
