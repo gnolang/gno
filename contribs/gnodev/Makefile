@@ -19,7 +19,7 @@ lint:
 test:
 	go test $(GOTEST_FLAGS) -v ./...
 
-embedmd_filters = grep -v "exit status 1" | grep -v -- " -root" | grep -v -- " -home"
+embedmd_filters = grep -v "exit status 1" | grep -v -- " -root" | grep -v -- " -home" | sed 's/^\(  -[^ ]* [^ ]*\) \{2,\}/\1\t/'
 generate:
 	mkdir -p .tmp
 	go build .

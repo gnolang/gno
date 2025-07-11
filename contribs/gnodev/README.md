@@ -105,31 +105,31 @@ By default, the current directory and the "example" folder from "gnoroot" will b
 
 
 FLAGS
-  -C ...                                                  change directory context before running gnodev
-  -add-account ...                                        add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
-  -balance-file ...                                       load the provided balance file (refer to the documentation for format)
-  -chain-domain gno.land                                  set node ChainDomain
-  -chain-id dev                                           set node ChainID
-  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5    default key name or Bech32 address for deploying packages
-  -genesis ...                                            load the given genesis file
-  -interactive=false                                      enable gnodev interactive mode
-  -lazy-loader=true                                       enable lazy loader
-  -log-format console                                     log output format, can be `json` or `console`
-  -max-gas 10000000000                                    set the maximum gas per block
-  -no-replay=false                                        do not replay previous transactions upon reload
-  -no-watch=false                                         do not watch for file changes
-  -no-web=false                                           disable gnoweb
-  -node-rpc-listener 127.0.0.1:26657                      listening address for GnoLand RPC node
-  -paths ...                                              additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
-  -resolver ...                                           list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
-  -txs-file ...                                           load the provided transactions file (refer to the documentation for format)
-  -unsafe-api=true                                        enable /reset and /reload endpoints which are not safe to expose publicly
-  -v=false                                                enable verbose output for development
-  -web-help-remote ...                                    gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
-  -web-home ...                                           gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
-  -web-html=false                                         gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8888                            gnoweb: web server listener address
-  -web-with-html=false                                    gnoweb: enable HTML parsing in markdown rendering
+  -C ...	change directory context before running gnodev
+  -add-account ...	add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
+  -balance-file ...	load the provided balance file (refer to the documentation for format)
+  -chain-domain gno.land	set node ChainDomain
+  -chain-id dev	set node ChainID
+  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
+  -genesis ...	load the given genesis file
+  -interactive=false 	enable gnodev interactive mode
+  -lazy-loader=true 	enable lazy loader
+  -log-format console	log output format, can be `json` or `console`
+  -max-gas 10000000000	set the maximum gas per block
+  -no-replay=false 	do not replay previous transactions upon reload
+  -no-watch=false 	do not watch for file changes
+  -no-web=false 	disable gnoweb
+  -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
+  -paths ...	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
+  -resolver ...	list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
+  -txs-file ...	load the provided transactions file (refer to the documentation for format)
+  -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
+  -v=false 	enable verbose output for development
+  -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
+  -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
+  -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
+  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
 
 ```
 
@@ -149,30 +149,30 @@ Additionally, you can specify an additional package directory to load.
 
 
 FLAGS
-  -add-account ...                                        add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
-  -balance-file ...                                       load the provided balance file (refer to the documentation for format)
-  -chain-domain gno.land                                  set node ChainDomain
-  -chain-id dev                                           set node ChainID
-  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5    default key name or Bech32 address for deploying packages
-  -genesis ...                                            load the given genesis file
-  -interactive=false                                      enable gnodev interactive mode
-  -lazy-loader=false                                      enable lazy loader
-  -log-format json                                        log output format, can be `json` or `console`
-  -max-gas 10000000000                                    set the maximum gas per block
-  -no-replay=false                                        do not replay previous transactions upon reload
-  -no-watch=false                                         do not watch for file changes
-  -no-web=false                                           disable gnoweb
-  -node-rpc-listener 127.0.0.1:26657                      listening address for GnoLand RPC node
-  -paths gno.land/**                                      additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
-  -resolver ...                                           list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
-  -txs-file ...                                           load the provided transactions file (refer to the documentation for format)
-  -unsafe-api=false                                       enable /reset and /reload endpoints which are not safe to expose publicly
-  -v=false                                                enable verbose output for development
-  -web-help-remote ...                                    gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
-  -web-home :none:                                        gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
-  -web-html=false                                         gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8888                            gnoweb: web server listener address
-  -web-with-html=false                                    gnoweb: enable HTML parsing in markdown rendering
+  -add-account ...	add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time
+  -balance-file ...	load the provided balance file (refer to the documentation for format)
+  -chain-domain gno.land	set node ChainDomain
+  -chain-id dev	set node ChainID
+  -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
+  -genesis ...	load the given genesis file
+  -interactive=false 	enable gnodev interactive mode
+  -lazy-loader=false 	enable lazy loader
+  -log-format json	log output format, can be `json` or `console`
+  -max-gas 10000000000	set the maximum gas per block
+  -no-replay=false 	do not replay previous transactions upon reload
+  -no-watch=false 	do not watch for file changes
+  -no-web=false 	disable gnoweb
+  -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
+  -paths gno.land/**	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
+  -resolver ...	list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
+  -txs-file ...	load the provided transactions file (refer to the documentation for format)
+  -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
+  -v=false 	enable verbose output for development
+  -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
+  -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
+  -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
+  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
 
 ```
 

@@ -37,7 +37,7 @@ fmt: ## Format code
 lint: ## Run linter
 	$(golangci_lint) --config ../../.github/golangci.yml run ./...
 
-embedmd_filters = grep -v "exit status 1"
+embedmd_filters = grep -v "exit status 1" | sed 's/^\(  -[^ ]* [^ ]*\) \{2,\}/\1\t/'
 generate: ## Generate documentation
 	mkdir -p .tmp
 	go build .
