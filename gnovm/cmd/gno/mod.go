@@ -162,13 +162,16 @@ func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-type modGraphCfg struct{}
+type modGraphCfg struct {
+	format string
+}
 
 func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
 	// /out std
 	// /out remote
 	// /out _test processing
 	// ...
+	fs.StringVar(&c.format, "format", "", "Output format, must be one of 'dot' or empty. Empty is a minimalist format.")
 }
 
 func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
@@ -180,17 +183,49 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	stdout := io.Out()
-
-	pkgs, err := packages.ReadPkgListFromDir(args[0], gno.MPAnyAll)
+	loadConf := packages.LoadConfig{
+		Fetcher: testPackageFetcher,
+		Deps:    true,
+		Test:    true,
+		Out:     io.Err(),
+	}
+	pkgs, err := packages.Load(loadConf, args...)
 	if err != nil {
 		return err
 	}
+
+	stdout := io.Out()
+
+	if cfg.format == "dot" {
+		fmt.Fprint(stdout, "digraph gno {\n")
+	}
+
+	hasErrs := false
+
 	for _, pkg := range pkgs {
-		for _, dep := range pkg.Imports {
-			fmt.Fprintf(stdout, "%s %s\n", pkg.Name, dep)
+		for _, err := range pkg.Errors {
+			hasErrs = true
+			fmt.Fprintf(io.Err(), "%s: %v", pkg.ImportPath, err)
+		}
+		// XXX: ignore xtests and filetests for now as they should be treated as their own packages
+		deps := pkg.ImportsSpecs.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+		for _, dep := range deps {
+			if cfg.format == "dot" {
+				fmt.Fprintf(stdout, "    %q -> %q;\n", pkg.ImportPath, dep.PkgPath)
+			} else {
+				fmt.Fprintf(stdout, "%s %s\n", pkg.ImportPath, dep.PkgPath)
+			}
 		}
 	}
+
+	if cfg.format == "dot" {
+		fmt.Fprint(stdout, "}\n")
+	}
+
+	if hasErrs {
+		return errors.New("load error(s)")
+	}
+
 	return nil
 }
 
