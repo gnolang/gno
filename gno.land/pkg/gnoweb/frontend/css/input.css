@@ -689,18 +689,21 @@
     @apply opacity-0;
   }
 
-  .link-external {
-    @apply text-[.7em];
-  }
-  .link-internal {
-    @apply font-[400] text-[.8em];
-  }
-  .link-tx {
-    @apply text-[.8em];
+  .tooltip {
+    @apply inline align-middle;
   }
 
-  .tooltip {
-    @apply inline align-text-top;
+  .link-external {
+    @apply text-[.65em];
+  }
+  .link-internal {
+    @apply font-[400] text-[.75em];
+  }
+  .link-tx {
+    @apply text-[.75em] align-top;
+  }
+  .link-user {
+    @apply text-[.75em];
   }
 
   /* link with image only shoud display the link badge on the image */
