@@ -51,7 +51,8 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 	out += md.Paragraph("In V1, usernames must follow these rules, in order to prevent username squatting:")
 	items := []string{
-		"Must start with 3 characters",
+		"Must start with 3 letters",
+		"Letters must be lowercase",
 		"Must end with 3 numbers",
 		"Have a maximum length of 20 characters",
 		"With the only special character allowed being `_`",

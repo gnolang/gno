@@ -12,6 +12,10 @@ other functions creating a call stack beginning at origin with a user Account.
 A "P" Package is created when a Package is added to "gno.land/p/...". "P"
 Packages are immutable and cannot be modified by any message after creation.
 
+Ephemeral packages are created when users execute "gno.land/e/..." paths using
+`gnokey maketx run`. These are temporary, user-executed code that run in the
+user's realm context and are not stored on-chain.
+
 Realm and "P" Packages have an Account and Address derived from its package
 path. Users too have an Account and Address determined cryptographically from a
 BIP39 mnemonic phrase or secret.
