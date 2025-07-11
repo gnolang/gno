@@ -1,6 +1,8 @@
 # gnobro
 
-`gnobro` is a terminal UI to explore realms in your browser.
+`gnobro` is a terminal UI to explore realms in your browser. It provides an
+alternative to [gnoweb](../../gno.land/cmd/gnoweb) for developers who prefer
+working in the terminal.
 
 ## Installation
 
@@ -10,7 +12,8 @@ The minimum Go version required to build `gnobro` is **1.23**.
 
 ### Installation instructions
 
-To install `gnobro`, run `make install.gnobro` from the root of the Gno repository.
+To install `gnobro`, run `make install.gnobro` from the root of the Gno
+repository.
 
 ## Usage
 
@@ -70,4 +73,5 @@ make test
 
 ## Related Tools
 
-- [gnodev](../gnodev): The Gno development tool that gnobro can connect to for real-time updates
+- [gnodev](../gnodev): The Gno development tool that gnobro can connect to for
+  real-time updates
