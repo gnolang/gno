@@ -287,16 +287,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	// else, load package.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			pv := oo.(*PackageValue)
-			_ = pv.GetBlock(ds) // preload
-			// get package associated realm if nil.
-			if pv.IsRealm() && pv.Realm == nil {
-				rlm := ds.GetPackageRealm(pkgPath)
-				pv.Realm = rlm
-			}
-			// Rederive pv.fBlocksMap.
-			pv.deriveFBlocksMap(ds)
-			return pv
+			return oo.(*PackageValue)
 		}
 	}
 	// otherwise, fetch from pkgGetter.
@@ -420,11 +411,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			if debug {
-				if _, ok := oo.(*PackageValue); ok {
-					panic("packages must be fetched with GetPackage()")
-				}
-			}
 			return oo
 		}
 	}
@@ -465,11 +451,26 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+
+		if pv, ok := oo.(*PackageValue); ok {
+			ds.fillPackage(pv)
+		}
+
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
 		return oo
 	}
 	return nil
+}
+
+func (ds *defaultStore) fillPackage(pv *PackageValue) {
+	pv.GetBlock(ds) // preload
+	if pv.IsRealm() && pv.Realm == nil {
+		rlm := ds.GetPackageRealm(pv.PkgPath)
+		pv.Realm = rlm
+	}
+	// Rederive pv.fBlocksMap.
+	pv.deriveFBlocksMap(ds)
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
