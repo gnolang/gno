@@ -21,12 +21,22 @@ cd gno/gno.land
 make install.gnoland
 ```
 
-### Run gnoland
+### Start a new network
 
 ```bash
 gnoland start -lazy
 ```
 
+### Join an existing network
+
+- XXX: create a profile on r/gnoland/valopers
+- XXX: create a validation-only session key
+- XXX: get approved by govdao
+- XXX: profit
+
+### Interact
+
 Once running, you can interact with it using:
 - [gnokey](../gnokey) – CLI wallet & tool
 - [gnoweb](../gnoweb) – Web-based interface
+- XXX: faucet
