@@ -16,6 +16,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -31,6 +32,9 @@ type testCmd struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	coverage            bool
+	coverageOutput      string
+	show                string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -176,6 +180,27 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.coverage,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
+
+	fs.StringVar(
+		&c.coverageOutput,
+		"coverprofile",
+		"",
+		"write coverage profile to file",
+	)
+
+	fs.StringVar(
+		&c.show,
+		"show",
+		"",
+		"show coverage visualization for files matching pattern (e.g., '*.gno' or 'arithmetic.gno')",
+	)
 }
 
 func execTest(cmd *testCmd, args []string, io commands.IO) error {
@@ -216,6 +241,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	if cmd.verbose {
 		stdout = io.Out()
 	}
+
 	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err())
 	opts.RunFlag = cmd.run
 	opts.Sync = cmd.updateGoldenTests
@@ -224,6 +250,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	opts.Coverage = cmd.coverage
+	opts.CoverageOutput = cmd.coverageOutput
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
 	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
@@ -310,6 +338,19 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
 		return fail()
+	}
+
+	// print coverage results
+	if cmd.coverage {
+		coverageTracker := test.GetCoverageTracker()
+		coverageTracker.PrintCoverage()
+
+		// Show coverage visualization if requested
+		if cmd.show != "" {
+			if err := coverage.ShowCoverage(coverageTracker, cmd.show, cmd.rootDir); err != nil {
+				io.ErrPrintfln("Warning: failed to show coverage visualization: %v", err)
+			}
+		}
 	}
 
 	return nil
