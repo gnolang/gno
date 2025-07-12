@@ -123,3 +123,43 @@ func (z *Uint) Sgt(x *Uint) bool {
 		return z.Gt(x)
 	}
 }
+
+// Max selects the maximum value between elements, then stores the result in z.
+// 3 if Max(1, 3, 2)
+func (z *Uint) Max(x *Uint, ys...*Uint) *Uint {
+	lenys := len(ys)
+	
+	var best *Uint = x
+	if lenys == 0 {
+		goto copyResult
+	}
+	for n := 0; n < lenys; n++ {
+		if best == nil || ys[n] != nil && ys[n].Gt(best) {
+			best = ys[n]
+		}
+	}
+copyResult:
+	if best != nil {
+		copy(z.arr[:], best.arr[:])
+	}
+	return z
+}
+
+func (z *Uint) Min(x *Uint, ys...*Uint) *Uint {
+	lenys := len(ys)
+	
+	var best *Uint = x
+	if lenys == 0 {
+		goto copyResult
+	}
+	for n := 0; n < lenys; n++ {
+		if best == nil || ys[n] != nil && ys[n].Lt(best) {
+			best = ys[n]
+		}
+	}
+copyResult:
+	if best != nil {
+		copy(z.arr[:], best.arr[:])
+	}
+	return z
+}
