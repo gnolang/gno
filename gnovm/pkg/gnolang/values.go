@@ -1542,6 +1542,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, pbz...)
 	case *PointerType:
 		fillValueTV(store, tv)
+		// nil pointer.
+		if tv.V == nil {
+			bz = append(bz, nilStr...)
+			return MapKey(bz)
+		}
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 		bz = append(bz, uintptrToBytes(&ptr)...)
 	case FieldType:
