@@ -8,7 +8,7 @@ import (
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 
-	"gno.land/r/demo/profile"
+	"gno.land/r/gnoland/profiles"
 	susers "gno.land/r/sys/users"
 )
 
@@ -109,7 +109,7 @@ func renderUserPage(path string) string {
 		out += md.H2("Bio")
 		out += profile.GetStringField(data.Addr(), "Bio", "No bio defined.")
 		out += "\n\n"
-		out += ufmt.Sprintf("[Update bio](%s)", txlink.Realm("gno.land/r/demo/profile").Call("SetStringField", "field", "Bio"))
+		out += ufmt.Sprintf("[Update bio](%s)", txlink.Realm("gno.land/r/gnoland/profiles").Call("SetStringField", "field", "Bio"))
 		out += "\n\n"
 	}
 
