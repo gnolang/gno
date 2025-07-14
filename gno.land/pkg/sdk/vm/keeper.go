@@ -1016,8 +1016,8 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 // - Charges the caller a deposit proportional to newly used storage (positive size difference).
 // - Returns the deposit to the caller for released storage (negative size difference).
 //
-// An error is returned if there's insufficient deposit, a transfer error occurs,
-// or an invariant violation happens during deposit or storage adjustments.
+// Returns an aggregated error if any realm processing fails due to insufficient deposit,
+// transfer errors.
 
 func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
 	realmDiffs := gnostore.RealmStorageDiffs()
@@ -1026,7 +1026,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
 	}
 	price := std.MustParseCoin(params.StoragePrice)
-
+	var allErrs error
 	for rlmPath, rd := range realmDiffs {
 		diff := rd.Diff()
 		rlm := rd.Realm()
@@ -1037,12 +1037,19 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
 			if depositAmt < requiredDeposit {
-				return fmt.Errorf("not enough deposit to cover the storage usage: requires %d%s for %d bytes", requiredDeposit, ugnot.Denom, diff)
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"not enough deposit to cover the storage usage: requires %d%s for %d bytes",
+					requiredDeposit, ugnot.Denom, diff))
+				continue
 			}
 			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, diff)
 			if err != nil {
-				return err
+				allErrs = goerrors.Join(allErrs, fmt.Errorf(
+					"lockStorageDeposit failed for realm %s: %w",
+					rlmPath, err))
+				continue
 			}
+			depositAmt -= requiredDeposit
 			// Emit event for storage deposit lock
 			d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
 			evt := gnostd.GnoEvent{
@@ -1058,12 +1065,14 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// release storage used and return deposit
 			released := -diff
 			if rlm.Storage < uint64(released) {
-				panic(fmt.Sprintf("not enough storage to be released for realm %s, realm storage %d bytes; requested release: %d bytes",
+				panic(fmt.Sprintf(
+					"not enough storage to be released for realm %s, realm storage %d bytes; requested release: %d bytes",
 					rlmPath, rlm.Storage, released))
 			}
 			depositUnlocked := overflow.Mulp(released, price.Amount)
 			if rlm.Deposit < uint64(depositUnlocked) {
-				panic(fmt.Sprintf("not enough deposit to be unlocked for realm %s, realm deposit %d%s; required to unlock: %d%s",
+				panic(fmt.Sprintf(
+					"not enough deposit to be unlocked for realm %s, realm deposit %d%s; required to unlock: %d%s",
 					rlmPath, rlm.Deposit, ugnot.Denom, depositUnlocked, ugnot.Denom))
 			}
 
@@ -1084,6 +1093,9 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			ctx.EventLogger().EmitEvent(evt)
 		}
 		gnostore.SetPackageRealm(rlm)
+	}
+	if allErrs != nil {
+		return fmt.Errorf("storage deposit processing encountered one or more errors: %w", allErrs)
 	}
 	return nil
 }
