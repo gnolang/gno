@@ -295,11 +295,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// Remove filetest from name, as that can lead to the package not being
 	// parsed correctly when using RunMemPackage.
 	fname = strings.ReplaceAll(fname, "_filetest", "")
-	tcopts := gno.TypeCheckOptions{
-		Getter:     m.Store,
-		TestGetter: m.Store,
-		Mode:       gno.TCLatestRelaxed,
-	}
 
 	// Use last element after / (works also if slash is missing).
 	if !gno.IsRealmPath(pkgPath) { // Simple case - pure package.
@@ -320,7 +315,13 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, tcopts); err != nil {
+			fmt.Println("XXX", fname)
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+			}); err != nil {
+				fmt.Println(err)
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
@@ -354,7 +355,11 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, tcopts); err != nil {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}

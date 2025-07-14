@@ -3631,7 +3631,14 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// package values are already there that weren't
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
-			pv := pn.NewPackage() // temporary
+			pv := &PackageValue{
+				Block: &Block{
+					Source: pn,
+				},
+				PkgName:    pn.PkgName,
+				PkgPath:    pn.PkgPath,
+				fBlocksMap: make(map[string]*Block),
+			}
 			store = store.BeginTransaction(nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
