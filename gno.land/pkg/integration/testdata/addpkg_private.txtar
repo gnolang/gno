@@ -119,6 +119,7 @@ type PrivateData struct {
     Tree  *avl.Tree
 }
 
+// PrivateData2 is to avoid this issue: https://github.com/gnolang/gno/issues/4507
 type PrivateData2 struct {
     Name  string
     Value int
@@ -243,28 +244,29 @@ func SaveArrayToPublicRealm3(cur realm) {
 }
 
 func SaveMapWithPrivateKeyToPublicRealm(cur realm) {
-    m := make(map[PrivateData]string)
-    key := PrivateData{Name: "key", Value: 100}
+    m := make(map[PrivateData2]string)
+    key := PrivateData2{Name: "key", Value: 100}
     m[key] = "public value"
+    publicrealm.SaveYourInterface(cross, m)
 }
 
 func SaveMapWithPrivateValueToPublicRealm(cur realm) {
-    m := make(map[string]PrivateData)
-    value := PrivateData{Name: "value", Value: 200}
+    m := make(map[string]PrivateData2)
+    value := PrivateData2{Name: "value", Value: 200}
     m["pubkey"] = value
     publicrealm.SaveYourInterface(cross, m)
 }
 
 func SaveMapWithBothPrivateToPublicRealm(cur realm) {
-    m := make(map[PrivateData]PrivateData)
-    key := PrivateData{Name: "key", Value: 1}
-    value := PrivateData{Name: "value", Value: 2}
+    m := make(map[PrivateData2]PrivateData2)
+    key := PrivateData2{Name: "key", Value: 1}
+    value := PrivateData2{Name: "value", Value: 2}
     m[key] = value
     publicrealm.SaveYourInterface(cross, m)
 }
 
 func SaveEmptyMapWithPrivateTypesToPublicRealm(cur realm) {
-    m := make(map[PrivateData]*PrivateData)
+    m := make(map[PrivateData2]*PrivateData2)
     publicrealm.SaveYourInterface(cross, m)
 }
 

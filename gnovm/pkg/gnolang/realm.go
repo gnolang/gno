@@ -929,23 +929,8 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, seen map[Object]
 
 	if hiv, ok := obj.(*HeapItemValue); ok {
 		if hiv.Value.T != nil {
-			//fmt.Printf("hiv.Value.T type: %T - hiv.Value.V type: %T\n", hiv.Value.T, hiv.Value.V)
-			pkgPath := ""
-			//TODO: Map, Channel, Interface, Tuple ?
-			switch t := hiv.Value.T.(type) {
-			case *DeclaredType, *PointerType:
-				pkgPath = t.GetPkgPath()
-			case *FuncType:
-				if v, ok := hiv.Value.V.(*FuncValue); ok {
-					pkgPath = v.PkgPath
-				}
-			case *SliceType, *ArrayType, *MapType:
-				pkgPath = t.Elem().GetPkgPath()
-			}
-			fmt.Printf("pkgPath: %q\n", pkgPath)
-			if pkgPath != "" && pkgPath != rlm.Path && IsRealmPath(pkgPath) && GetPkgPrivateStatus(pkgPath) {
-				panic("cannot persist object of type defined in a private realm")
-			}
+			fmt.Printf("hiv.Value.V: %T - hiv.Type: %T\n", hiv.Value.V, hiv.Value.T)
+			rlm.assertNoPrivateType(hiv.Value.T, hiv.Value.V)
 		}
 	}
 
@@ -957,6 +942,35 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, seen map[Object]
 	}
 
 	return false
+}
+
+// TODO: Interface type,
+func (rlm *Realm) assertNoPrivateType(t Type, val Value) {
+	pkgPath := ""
+	fmt.Printf("%T - %T\n", t, val)
+	switch tt := t.(type) {
+	case *FuncType:
+		if fv, ok := val.(*FuncValue); ok {
+			pkgPath = fv.PkgPath
+		}
+	case *FieldType:
+		rlm.assertNoPrivateType(tt.Type, nil)
+	// TODO: what if the elem is a func value ?
+	case *SliceType, *ArrayType, *ChanType:
+		rlm.assertNoPrivateType(tt.Elem(), nil)
+	case *tupleType:
+		for _, et := range tt.Elts {
+			rlm.assertNoPrivateType(et, nil)
+		}
+	case *MapType:
+		rlm.assertNoPrivateType(tt.Key, nil)
+		rlm.assertNoPrivateType(tt.Elem(), nil)
+	default:
+		pkgPath = tt.GetPkgPath()
+	}
+	if pkgPath != "" && pkgPath != rlm.Path && IsRealmPath(pkgPath) && GetPkgPrivateStatus(pkgPath) {
+		panic("cannot persist object of type defined in a private realm")
+	}
 }
 
 //----------------------------------------
