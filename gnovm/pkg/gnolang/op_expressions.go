@@ -23,7 +23,8 @@ func (m *Machine) doOpIndex1() {
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		}
 	default:
-		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		// NOTE: nilRealm is OK, not setting a map (w/ new key).
+		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 	xv.SetReadonly(ro)
