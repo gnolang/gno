@@ -79,9 +79,11 @@ func (t *TickRatioTree) GetRatio(key int32) (*u256.Uint, bool) {
 		return nil, false
 	}
 
-	if tv, ok := value.(TreeValue); ok {
+	tv, ok := value.(TreeValue)
+	if ok {
 		return tv.value, true
 	}
+	println("[TickRatioTree.GetRatio] value is not TreeValue")
 
 	return nil, false
 }
@@ -162,8 +164,8 @@ func (t *BinaryLogTree) GetLog(idx int) (*u256.Uint, bool) {
 //   - The function relies on a precomputed map `tickRatioMap` to optimize calculations.
 //   - Handles rounding by adding 1 if the remainder of the division is non-zero.
 func TickMathGetSqrtRatioAtTick(tick int32) *u256.Uint { // uint160 sqrtPriceX96
+	assertValidTickRange(tick)
 	absTick := abs(tick)
-	assertValidTickRange(absTick)
 
 	ratio := u256.MustFromDecimal(consts.Q128)
 	initialBit := int32(0x1)
@@ -173,11 +175,14 @@ func TickMathGetSqrtRatioAtTick(tick int32) *u256.Uint { // uint160 sqrtPriceX96
 	}
 
 	calculateRatio := func(mask int32) *u256.Uint {
-		if value, exists := tickRatioTree.GetRatio(mask); exists && absTick&mask != 0 {
+		value, exists := tickRatioTree.GetRatio(mask)
+		if exists && absTick&mask != 0 {
 			return new(u256.Uint).Rsh(
 				new(u256.Uint).Mul(ratio, value),
 				128,
 			)
+		} else if exists == false {
+			println("[TickMathGetSqrtRatioAtTick] ratio not found for mask:", mask)
 		}
 		return ratio
 	}
@@ -189,12 +194,15 @@ func TickMathGetSqrtRatioAtTick(tick int32) *u256.Uint { // uint160 sqrtPriceX96
 	if tick > 0 {
 		maxUint256 := u256.MustFromDecimal(consts.MAX_UINT256)
 		if ratio.IsZero() {
+			println("[TickMathGetSqrtRatioAtTick] ratio is zero")
 			return u256.Zero()
 		}
 		ratio = new(u256.Uint).Div(maxUint256, ratio)
 	}
 
-	upper128Bits := new(u256.Uint).Rsh(ratio, 32)   // ratio >> 32
+	// direct modification of ratio objects is restricted
+	ratioClone := ratio.Clone()
+	upper128Bits := ratioClone.Rsh(ratioClone, 32)  // ratio >> 32
 	lower32Bits := ratio.Mod(ratio, shift1By32Left) // ratio % (1 << 32)
 
 	var roundUp *u256.Uint
@@ -208,24 +216,23 @@ func TickMathGetSqrtRatioAtTick(tick int32) *u256.Uint { // uint160 sqrtPriceX96
 }
 
 func TickMathGetTickAtSqrtRatio(sqrtPriceX96 *u256.Uint) int32 {
-	cond1 := sqrtPriceX96.Gte(u256.MustFromDecimal(consts.MIN_SQRT_RATIO))
-	cond2 := sqrtPriceX96.Lt(u256.MustFromDecimal(consts.MAX_SQRT_RATIO))
-	if !(cond1 && cond2) {
+	sqrtPrice := new(u256.Uint).Set(sqrtPriceX96)
+	isAboveMin := sqrtPrice.Gte(u256.MustFromDecimal(consts.MIN_SQRT_RATIO))
+	isBelowMax := sqrtPrice.Lt(u256.MustFromDecimal(consts.MAX_SQRT_RATIO))
+	if !(isAboveMin && isBelowMax) {
 		panic(newErrorWithDetail(
 			errOutOfRange,
-			ufmt.Sprintf("sqrtPriceX96 is out of range, sqrtPriceX96: %s", sqrtPriceX96.ToString()),
+			ufmt.Sprintf("sqrtPriceX96(%s) is out of range", sqrtPrice.ToString()),
 		))
 	}
 
-	ratio := new(u256.Uint).Lsh(sqrtPriceX96, 32)
+	scaledPrice := new(u256.Uint).Lsh(sqrtPrice, 32)
+	leadingBitPosition, normalizedPrice := findMSB(scaledPrice)
+	normalizedPrice = adjustRatio(scaledPrice, leadingBitPosition)
+	logBase2Value := calculateLog2(leadingBitPosition, normalizedPrice)
+	tickValue := getTickValue(logBase2Value, sqrtPrice)
 
-	msb, adjustedRatio := findMSB(ratio)
-	adjustedRatio = adjustRatio(ratio, msb)
-
-	log2 := calculateLog2(msb, adjustedRatio)
-	tick := getTickValue(log2, sqrtPriceX96)
-
-	return tick
+	return tickValue
 }
 
 // findMSB computes the MSB (most significant bit) of the given ratio.
@@ -354,11 +361,17 @@ func abs(x int32) int32 {
 }
 
 // assertValidTickRange validates that the absolute tick value is within the acceptable range.
-func assertValidTickRange(absTick int32) {
-	if absTick > consts.MAX_TICK {
+func assertValidTickRange(tick int32) {
+	if tick > consts.MAX_TICK {
 		panic(newErrorWithDetail(
 			errOutOfRange,
-			ufmt.Sprintf("abs tick is out of range (larger than 887272), abs tick: %d", absTick),
+			ufmt.Sprintf("tick is out of range (larger than 887272), tick: %d", tick),
+		))
+	}
+	if tick < consts.MIN_TICK {
+		panic(newErrorWithDetail(
+			errOutOfRange,
+			ufmt.Sprintf("tick is out of range (smaller than -887272), tick: %d", tick),
 		))
 	}
 }

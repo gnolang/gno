@@ -4,12 +4,9 @@ import (
 	"std"
 	"testing"
 
-	pl "gno.land/r/gnoswap/v1/pool"
-
-	"gno.land/p/gnoswap/consts"
 	"gno.land/r/gnoswap/v1/common"
-
 	"gno.land/r/gnoswap/v1/gns"
+	pl "gno.land/r/gnoswap/v1/pool"
 )
 
 func TestManagePoolTiers(t *testing.T) {
@@ -22,21 +19,21 @@ func TestManagePoolTiers(t *testing.T) {
 
 func testCreatePool(t *testing.T) {
 	t.Run("create pool", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*2)
-		std.TestSkipHeights(1)
+		gns.Approve(poolAddr, pl.GetPoolCreationFee()*2)
+		testing.SkipHeights(1)
 
 		pl.CreatePool(barPath, fooPath, 500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
 		pl.CreatePool(barPath, fooPath, 100, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testSetPoolTierByAdmin(t *testing.T) {
 	t.Run("set pool tier by admin", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 		SetPoolTierByAdmin("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500", 2)
 
 		if poolTier.CurrentTier("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500") != 2 {
@@ -47,7 +44,7 @@ func testSetPoolTierByAdmin(t *testing.T) {
 
 func testChangePoolTierByAdmin(t *testing.T) {
 	t.Run("change pool tier by admin", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 		ChangePoolTierByAdmin("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500", 3)
 
 		if poolTier.CurrentTier("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500") != 3 {
@@ -58,7 +55,7 @@ func testChangePoolTierByAdmin(t *testing.T) {
 
 func testSetAnotherPoolTier3(t *testing.T) {
 	t.Run("set another pool tier 3", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 		SetPoolTierByAdmin("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:100", 3)
 
 		if poolTier.CurrentTier("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:100") != 3 {
@@ -69,7 +66,7 @@ func testSetAnotherPoolTier3(t *testing.T) {
 
 func testRemovePoolTierByAdmin(t *testing.T) {
 	t.Run("remove pool tier by admin", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 		RemovePoolTierByAdmin("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
 
 		if poolTier.CurrentTier("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500") != 0 {

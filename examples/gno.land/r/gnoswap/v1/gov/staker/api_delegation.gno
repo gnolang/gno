@@ -10,12 +10,12 @@ import (
 )
 
 // GetTotalxGnsSupply returns the total amount of xGNS supply.
-func GetTotalxGnsSupply() uint64 {
+func GetTotalxGnsSupply() int64 {
 	return xgns.TotalSupply()
 }
 
 // GetTotalVoteWeight returns the total amount of xGNS used for voting.
-func GetTotalVoteWeight() uint64 {
+func GetTotalVoteWeight() int64 {
 	return xgns.VotingSupply()
 }
 
@@ -63,6 +63,6 @@ func GetDelegationAmountFromTo(from, to std.Address) uint64 {
 }
 
 // GetRealmGnsBalance returns the amount of GNS in the current realm.
-func GetRealmGnsBalance() uint64 {
-	return gns.BalanceOf(std.CurrentRealm().Address())
+func GetRealmGnsBalance() int64 {
+	return gns.BalanceOf(std.OriginCaller())
 }

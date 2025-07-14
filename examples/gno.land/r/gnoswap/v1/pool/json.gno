@@ -82,7 +82,7 @@ func newRpcPool(poolPath string) RpcPool {
 	rpcPool.Liquidity = pool.liquidity.ToString()
 
 	rpcPool.Ticks = RpcTicks{}
-	pool.ticks.Iterate("", "", func(tickStr string, iTickInfo interface{}) bool {
+	pool.ticks.Iterate("", "", func(tickStr string, iTickInfo any) bool {
 		tick, _ := strconv.Atoi(tickStr)
 		tickInfo := iTickInfo.(TickInfo)
 
@@ -101,7 +101,7 @@ func newRpcPool(poolPath string) RpcPool {
 	})
 
 	rpcPool.TickBitmaps = RpcTickBitmaps{}
-	pool.tickBitmaps.Iterate("", "", func(tickStr string, iTickBitmap interface{}) bool {
+	pool.tickBitmaps.Iterate("", "", func(tickStr string, iTickBitmap any) bool {
 		tick, _ := strconv.Atoi(tickStr)
 		pool.setTickBitmap(int16(tick), iTickBitmap.(*u256.Uint))
 
@@ -109,7 +109,7 @@ func newRpcPool(poolPath string) RpcPool {
 	})
 
 	rpcPositions := []RpcPosition{}
-	pool.positions.Iterate("", "", func(posKey string, iPositionInfo interface{}) bool {
+	pool.positions.Iterate("", "", func(posKey string, iPositionInfo any) bool {
 		owner, tickLower, tickUpper := posKeyDivide(posKey)
 		posInfo := iPositionInfo.(PositionInfo)
 

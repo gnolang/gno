@@ -37,7 +37,7 @@ func tid(id uint64) grc721.TokenID {
 // Output:
 //   - bool: true if the token ID exists, false otherwise
 func Exists(tid grc721.TokenID) bool {
-	_, err := gnft.OwnerOf(tid)
+	_, err := nft.OwnerOf(tid)
 	if err != nil {
 		return false
 	}

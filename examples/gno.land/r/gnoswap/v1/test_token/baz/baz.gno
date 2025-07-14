@@ -12,43 +12,47 @@ import (
 )
 
 var (
-	Token, privateLedger = grc20.NewToken("Baz", "BAZ", 6)
-	UserTeller           = Token.CallerTeller()
+	token, privateLedger = grc20.NewToken("Baz", "BAZ", 6)
 	owner                = ownable.NewWithAddress("g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d") // ADMIN
 )
 
 func init() {
 	privateLedger.Mint(owner.Owner(), 100_000_000_000_000)
-	getter := func() *grc20.Token { return Token }
-	grc20reg.Register(getter, "")
+	grc20reg.Register(cross, token, "")
 }
 
-func TotalSupply() uint64 {
-	return UserTeller.TotalSupply()
+func TotalSupply() int64 {
+	userTeller := token.CallerTeller()
+	return userTeller.TotalSupply()
 }
 
-func BalanceOf(owner std.Address) uint64 {
-	return UserTeller.BalanceOf(owner)
+func BalanceOf(owner std.Address) int64 {
+	userTeller := token.CallerTeller()
+	return userTeller.BalanceOf(owner)
 }
 
-func Allowance(owner, spender std.Address) uint64 {
-	return UserTeller.Allowance(owner, spender)
+func Allowance(owner, spender std.Address) int64 {
+	userTeller := token.CallerTeller()
+	return userTeller.Allowance(owner, spender)
 }
 
-func Transfer(to std.Address, amount uint64) {
-	checkErr(UserTeller.Transfer(to, amount))
+func Transfer(cur realm, to std.Address, amount int64) {
+	userTeller := token.CallerTeller()
+	checkErr(userTeller.Transfer(to, amount))
 }
 
-func Approve(spender std.Address, amount uint64) {
-	checkErr(UserTeller.Approve(spender, amount))
+func Approve(cur realm, spender std.Address, amount int64) {
+	userTeller := token.CallerTeller()
+	checkErr(userTeller.Approve(spender, amount))
 }
 
-func TransferFrom(from, to std.Address, amount uint64) {
-	checkErr(UserTeller.TransferFrom(from, to, amount))
+func TransferFrom(cur realm, from, to std.Address, amount int64) {
+	userTeller := token.CallerTeller()
+	checkErr(userTeller.TransferFrom(from, to, amount))
 }
 
-func Burn(from std.Address, amount uint64) {
-	owner.AssertCallerIsOwner()
+func Burn(cur realm, from std.Address, amount int64) {
+	owner.AssertOwnedByPrevious()
 	checkErr(privateLedger.Burn(from, amount))
 }
 
@@ -58,10 +62,11 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return Token.RenderHome()
+		return token.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := std.Address(parts[1])
-		balance := UserTeller.BalanceOf(owner)
+		userTeller := token.CallerTeller()
+		balance := userTeller.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

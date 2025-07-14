@@ -24,9 +24,7 @@ var re = regexp.MustCompile(`\[gno\.land/r/[^\]]+\]`)
 // - Allowance
 // - RenderHome
 func GetToken(path string) *grc20.Token {
-	tokenGetter := grc20reg.MustGet(path) // if token is not registered, it will panic
-
-	return tokenGetter()
+	return grc20reg.MustGet(path)
 }
 
 // GetTokenTeller returns a grc20.Teller instance
@@ -36,9 +34,7 @@ func GetToken(path string) *grc20.Token {
 // - Approve
 // - TransferFrom
 func GetTokenTeller(path string) grc20.Teller {
-	tokenGetter := grc20reg.MustGet(path) // if token is not registered, it will panic
-	token := tokenGetter()
-	return token.CallerTeller()
+	return GetToken(path).CallerTeller()
 }
 
 // IsRegistered returns nil if token is registered to grc20reg
@@ -53,12 +49,14 @@ func IsRegistered(path string) error {
 
 // MustRegistered is a helper function to check if token is registered to grc20reg
 // if token is not registered, it will panic
-func MustRegistered(path string) {
-	if err := IsRegistered(path); err != nil {
-		panic(newErrorWithDetail(
-			errNotRegistered,
-			ufmt.Sprintf("token(%s)", path),
-		))
+func MustRegistered(paths ...string) {
+	for _, path := range paths {
+		if err := IsRegistered(path); err != nil {
+			panic(newErrorWithDetail(
+				errNotRegistered,
+				ufmt.Sprintf("token(%s)", path),
+			))
+		}
 	}
 }
 
@@ -85,16 +83,28 @@ func extractTokenPathsFromRender(render string) []string {
 }
 
 // TotalSupply returns the total supply of the token
-func TotalSupply(path string) uint64 {
+func TotalSupply(path string) int64 {
 	return GetToken(path).TotalSupply()
 }
 
 // BalanceOf returns the balance of the token for the given address
-func BalanceOf(path string, addr std.Address) uint64 {
+func BalanceOf(path string, addr std.Address) int64 {
 	return GetToken(path).BalanceOf(addr)
 }
 
 // Allowance returns the allowance of the token for the given owner and spender
-func Allowance(path string, owner, spender std.Address) uint64 {
+func Allowance(path string, owner, spender std.Address) int64 {
 	return GetToken(path).Allowance(owner, spender)
+}
+
+// Transfer transfers tokens to the given address.
+// It is a wrapper of grc20.Teller.Transfer.
+func Transfer(cur realm, path string, to std.Address, amount int64) error {
+	return GetTokenTeller(path).Transfer(to, amount)
+}
+
+// TransferFrom transfers tokens from the given address to the given address.
+// It is a wrapper of grc20.Teller.TransferFrom.
+func TransferFrom(cur realm, path string, from, to std.Address, amount int64) error {
+	return GetTokenTeller(path).TransferFrom(from, to, amount)
 }

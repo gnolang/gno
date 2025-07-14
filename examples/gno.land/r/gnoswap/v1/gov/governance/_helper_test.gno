@@ -3,11 +3,14 @@ package governance
 import (
 	"std"
 
+	"gno.land/p/demo/json"
+
 	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/access"
 )
 
 var (
-	admin std.Address = consts.ADMIN
+	admin, _ = access.GetAddress(access.ROLE_ADMIN)
 
 	fooPath string = "gno.land/r/onbloc/foo"
 	barPath string = "gno.land/r/onbloc/bar"
@@ -31,6 +34,10 @@ var (
 	rouRealm = std.NewCodeRealm(consts.ROUTER_PATH)
 	stkRealm = std.NewCodeRealm(consts.STAKER_PATH)
 	govRealm = std.NewCodeRealm(consts.GOV_GOVERNANCE_PATH)
+
+	govStakerAddr, _     = access.GetAddress(access.ROLE_GOV_STAKER)
+	communityPoolAddr, _ = access.GetAddress(access.ROLE_COMMUNITY_POOL)
+	launchpadAddr, _     = access.GetAddress(access.ROLE_LAUNCHPAD)
 )
 
 /* HELPER */
@@ -43,4 +50,8 @@ func ugnotBalanceOf(addr std.Address) uint64 {
 	}
 
 	return uint64(coins.AmountOf("ugnot"))
+}
+
+func unmarshal(data string) *json.Node {
+	return json.Must(json.Unmarshal([]byte(data)))
 }

@@ -39,13 +39,13 @@ func TestMore02(t *testing.T) {
 
 func testInit(t *testing.T) {
 	t.Run("initialize", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		// set unstaking fee to 0
 		SetUnStakingFeeByAdmin(0)
 
 		// set pool creation fee to 0
-		pl.SetPoolCreationFeeByAdmin(0)
+		cross(pl.SetPoolCreationFeeByAdmin)(0)
 
 		// set community pool distribution to 0% (give it to devOps)
 		en.ChangeDistributionPctByAdmin(
@@ -59,21 +59,21 @@ func testInit(t *testing.T) {
 
 func testCreatePool(t *testing.T) {
 	t.Run("create pool", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		pl.CreatePool(barPath, bazPath, 100, "79228162514264337593543950337")
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarBaz100Pos01(t *testing.T) {
 	t.Run("mint position 01, bar:baz:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		baz.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,    // token0
 			bazPath,    // token1
 			fee100,     // fee
@@ -88,18 +88,18 @@ func testMintBarBaz100Pos01(t *testing.T) {
 			adminAddr,
 			"",
 		)
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarBaz100Pos02(t *testing.T) {
 	t.Run("mint position 02, bar:baz:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		baz.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,    // token0
 			bazPath,    // token1
 			fee100,     // fee
@@ -114,18 +114,18 @@ func testMintBarBaz100Pos02(t *testing.T) {
 			adminAddr,
 			"",
 		)
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarBaz100Pos03(t *testing.T) {
 	t.Run("mint position 03, bar:baz:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		baz.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,    // token0
 			bazPath,    // token1
 			fee100,     // fee
@@ -140,18 +140,18 @@ func testMintBarBaz100Pos03(t *testing.T) {
 			adminAddr,
 			"",
 		)
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarBaz100Pos04(t *testing.T) {
 	t.Run("mint position 04, bar:baz:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		baz.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,    // token0
 			bazPath,    // token1
 			fee100,     // fee
@@ -166,16 +166,16 @@ func testMintBarBaz100Pos04(t *testing.T) {
 			adminAddr,
 			"",
 		)
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testCreateBarExternal(t *testing.T) {
 	t.Run("create external incentive bar 365 days", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.STAKER_ADDR, consts.UINT64_MAX)
-		gns.Approve(consts.STAKER_ADDR, depositGnsAmount)
+		bar.Approve(stakerAddr, consts.UINT64_MAX)
+		gns.Approve(stakerAddr, depositGnsAmount)
 
 		CreateExternalIncentive(
 			"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:100",
@@ -190,10 +190,10 @@ func testCreateBarExternal(t *testing.T) {
 
 func testCreateBazExternal(t *testing.T) {
 	t.Run("create external incentive baz 365 days", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		baz.Approve(consts.STAKER_ADDR, consts.UINT64_MAX)
-		gns.Approve(consts.STAKER_ADDR, depositGnsAmount)
+		baz.Approve(stakerAddr, consts.UINT64_MAX)
+		gns.Approve(stakerAddr, depositGnsAmount)
 
 		CreateExternalIncentive(
 			"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:100",
@@ -211,20 +211,20 @@ func testCreateBazExternal(t *testing.T) {
 
 	// make external start
 	leftHeight := 978 - std.ChainHeight()
-	std.TestSkipHeights(leftHeight + 5) // skip 5 block more
+	testing.SkipHeights(leftHeight + 5) // skip 5 block more
 }
 
 func testStakeTokenPos01ToWarmUp100(t *testing.T) {
 	t.Run("stake position 01", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(1))
+		gnft.Approve(stakerAddr, positionIdFrom(1))
 		StakeToken(1, "")
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 
 	t.Run("collect reward for 01 block", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		userOldBar := bar.BalanceOf(admin)
 		userOldBaz := baz.BalanceOf(admin)
@@ -245,15 +245,15 @@ func testStakeTokenPos01ToWarmUp100(t *testing.T) {
 		// 30% is reward
 		// 23(rewardPerBlock) * 30% = 6.9
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 
 	t.Run("make it warm up 50%", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
-		std.TestSkipHeights(216001)
+		testing.SetRealm(adminRealm)
+		testing.SkipHeights(216001)
 		CollectReward(1, false)
 
-		std.TestSkipHeights(1) // 1 block for 50% warm up
+		testing.SkipHeights(1) // 1 block for 50% warm up
 
 		userOldBar := bar.BalanceOf(admin)
 		userOldBaz := baz.BalanceOf(admin)
@@ -274,15 +274,15 @@ func testStakeTokenPos01ToWarmUp100(t *testing.T) {
 		// 50% is reward
 		// 23(rewardPerBlock) * 50% = 11.5
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 
 	t.Run("make it warm up 70%", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
-		std.TestSkipHeights(432000)
+		testing.SetRealm(adminRealm)
+		testing.SkipHeights(432000)
 		CollectReward(1, false)
 
-		std.TestSkipHeights(1) // 1 block for 70% warm up
+		testing.SkipHeights(1) // 1 block for 70% warm up
 
 		userOldBar := bar.BalanceOf(admin)
 		userOldBaz := baz.BalanceOf(admin)
@@ -304,15 +304,15 @@ func testStakeTokenPos01ToWarmUp100(t *testing.T) {
 		// 70% is reward
 		// 23(rewardPerBlock) * 70% = 16.1
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 
 	t.Run("make it warm up 100%", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
-		std.TestSkipHeights(1296000)
+		testing.SetRealm(adminRealm)
+		testing.SkipHeights(1296000)
 		CollectReward(1, false)
 
-		std.TestSkipHeights(1) // 1 block for 100% warm up
+		testing.SkipHeights(1) // 1 block for 100% warm up
 
 		userOldBar := bar.BalanceOf(admin)
 		userOldBaz := baz.BalanceOf(admin)
@@ -331,37 +331,37 @@ func testStakeTokenPos01ToWarmUp100(t *testing.T) {
 		// position 01 is in 100% warm up period
 		// 100% is reward
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testStakeTokenPos02ToWarmUp70_Pos03ToWarmUp50_Pos04ToWarmUp30(t *testing.T) {
 	t.Run("stake position 02", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(2))
+		gnft.Approve(stakerAddr, positionIdFrom(2))
 		StakeToken(2, "")
-		std.TestSkipHeights(432001) // 70%
+		testing.SkipHeights(432001) // 70%
 	})
 
 	t.Run("stake position 03", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(3))
+		gnft.Approve(stakerAddr, positionIdFrom(3))
 		StakeToken(3, "")
-		std.TestSkipHeights(216001) //  50%
+		testing.SkipHeights(216001) //  50%
 	})
 
 	t.Run("stake position 04", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(4))
+		gnft.Approve(stakerAddr, positionIdFrom(4))
 		StakeToken(4, "")
-		std.TestSkipHeights(1) // 30%
+		testing.SkipHeights(1) // 30%
 	})
 
 	t.Run("collect reward for all positions_01_to_04", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		CollectReward(1, false)
 		CollectReward(2, false)
@@ -372,7 +372,7 @@ func testStakeTokenPos02ToWarmUp70_Pos03ToWarmUp50_Pos04ToWarmUp30(t *testing.T)
 
 func testSkip1BlockAndCollectReward(t *testing.T) {
 	t.Run("skip 1 block", func(t *testing.T) {
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 		// 1 block skipped
 
 		// bar reward of 1 block 23148 will be distributed to all positions
@@ -383,7 +383,7 @@ func testSkip1BlockAndCollectReward(t *testing.T) {
 	})
 
 	t.Run("collect reward for position 01", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		oldBar := bar.BalanceOf(admin)
 		oldBaz := baz.BalanceOf(admin)
@@ -404,7 +404,7 @@ func testSkip1BlockAndCollectReward(t *testing.T) {
 	})
 
 	t.Run("collect reward for position 02", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		oldBar := bar.BalanceOf(admin)
 		oldBaz := baz.BalanceOf(admin)
@@ -425,7 +425,7 @@ func testSkip1BlockAndCollectReward(t *testing.T) {
 	})
 
 	t.Run("collect reward for position 03", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		oldBar := bar.BalanceOf(admin)
 		oldBaz := baz.BalanceOf(admin)
@@ -446,7 +446,7 @@ func testSkip1BlockAndCollectReward(t *testing.T) {
 	})
 
 	t.Run("collect reward for position 04", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		oldBar := bar.BalanceOf(admin)
 		oldBaz := baz.BalanceOf(admin)

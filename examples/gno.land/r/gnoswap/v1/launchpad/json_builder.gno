@@ -2,117 +2,108 @@ package launchpad
 
 import (
 	"std"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
 )
 
-// TimeInfoBuilder adds TimeInfo fields to JSON
-func TimeInfoBuilder(b *json.NodeBuilder, prefix string, info TimeInfo) *json.NodeBuilder {
+// timeInfoBuilder adds TimeInfo fields to JSON
+func timeInfoBuilder(b *json.NodeBuilder, prefix string, info *BlockTimeInfo) *json.NodeBuilder {
 	return b.
-		WriteString(prefix+"Height", ufmt.Sprintf("%d", info.height)).
-		WriteString(prefix+"Time", ufmt.Sprintf("%d", info.time))
+		WriteString(prefix+"Height", ufmt.Sprintf("%d", info.BlockHeight())).
+		WriteString(prefix+"Time", ufmt.Sprintf("%d", info.BlockTime()))
 }
 
-// ProjectStatsBuilder adds ProjectStats fields to JSON
-func ProjectStatsBuilder(b *json.NodeBuilder, stats ProjectStats) *json.NodeBuilder {
+// projectStatsBuilder adds ProjectStats fields to JSON
+func projectStatsBuilder(b *json.NodeBuilder, project *Project) *json.NodeBuilder {
 	return b.
-		WriteString("totalDeposit", ufmt.Sprintf("%d", stats.totalDeposit)).
-		WriteString("actualDeposit", ufmt.Sprintf("%d", stats.actualDeposit)).
-		WriteString("totalParticipant", ufmt.Sprintf("%d", stats.totalParticipant)).
-		WriteString("actualParticipant", ufmt.Sprintf("%d", stats.actualParticipant)).
-		WriteString("totalCollected", ufmt.Sprintf("%d", stats.totalCollected))
+		WriteString("totalDeposit", ufmt.Sprintf("%d", project.TotalDepositAmount())).
+		WriteString("actualDeposit", ufmt.Sprintf("%d", project.CurrentDepositAmount())).
+		WriteString("totalParticipant", ufmt.Sprintf("%d", project.TotalDepositCount())).
+		WriteString("actualParticipant", ufmt.Sprintf("%d", project.CurrentDepositCount())).
+		WriteString("totalCollected", ufmt.Sprintf("%d", project.TotalCollectedAmount()))
 }
 
-// RefundInfoBuilder adds RefundInfo fields to JSON
-func RefundInfoBuilder(b *json.NodeBuilder, info RefundInfo) *json.NodeBuilder {
+// refundInfoBuilder adds RefundInfo fields to JSON
+func refundInfoBuilder(b *json.NodeBuilder, project *Project) *json.NodeBuilder {
 	return b.
-		WriteString("refundedAmount", ufmt.Sprintf("%d", info.amount)).
-		WriteString("refundedHeight", ufmt.Sprintf("%d", info.height)).
-		WriteString("refundedTime", ufmt.Sprintf("%d", info.time))
+		WriteString("refundedAmount", ufmt.Sprintf("%d", project.RemainingAmount()))
 }
 
 // TierBuilder adds Tier fields to JSON
-func TierBuilder(b *json.NodeBuilder, prefix string, tier Tier) *json.NodeBuilder {
-	b.WriteString(prefix+"CollectWaitDuration", ufmt.Sprintf("%d", tier.collectWaitDuration))
-	b.WriteString(prefix+"TierAmount", ufmt.Sprintf("%d", tier.tierAmount))
-	if tier.tierAmountPerBlockX128 != nil {
-		b.WriteString(prefix+"TierAmountPerBlockX128", tier.tierAmountPerBlockX128.ToString())
-	}
-	TimeInfoBuilder(b, prefix+"Started", tier.started)
-	TimeInfoBuilder(b, prefix+"Ended", tier.ended)
-	b.WriteString(prefix+"TotalDepositAmount", ufmt.Sprintf("%d", tier.totalDepositAmount))
-	b.WriteString(prefix+"ActualDepositAmount", ufmt.Sprintf("%d", tier.actualDepositAmount))
-	b.WriteString(prefix+"TotalParticipant", ufmt.Sprintf("%d", tier.totalParticipant))
-	b.WriteString(prefix+"ActualParticipant", ufmt.Sprintf("%d", tier.actualParticipant))
-	b.WriteString(prefix+"UserCollectedAmount", ufmt.Sprintf("%d", tier.userCollectedAmount))
-	b.WriteString(prefix+"CalculatedAmount", ufmt.Sprintf("%d", tier.calculatedAmount))
+func tierBuilder(b *json.NodeBuilder, prefix string, tier *ProjectTier) *json.NodeBuilder {
+	// Add tiers info
+	b.WriteString(prefix+"Id", tier.id)
+	b.WriteString(prefix+"TierAmount", ufmt.Sprintf("%d", tier.TotalDistributeAmount()))
+	b.WriteString(prefix+"TierAmountPerBlockX128", tier.DistributeAmountPerBlockX128().ToString())
+	timeInfoBuilder(b, prefix+"Started", tier.startBlockTimeInfo)
+	timeInfoBuilder(b, prefix+"Ended", tier.endBlockTimeInfo)
+	b.WriteString(prefix+"TotalDepositAmount", ufmt.Sprintf("%d", tier.TotalDepositAmount()))
+	b.WriteString(prefix+"ActualDepositAmount", ufmt.Sprintf("%d", tier.CurrentDepositAmount()))
+	b.WriteString(prefix+"TotalParticipant", ufmt.Sprintf("%d", tier.TotalDepositCount()))
+	b.WriteString(prefix+"ActualParticipant", ufmt.Sprintf("%d", tier.CurrentDepositCount()))
+	b.WriteString(prefix+"UserCollectedAmount", ufmt.Sprintf("%d", tier.TotalCollectedAmount()))
 	return b
 }
 
 // ProjectBuilder adds Project fields to JSON
-func ProjectBuilder(b *json.NodeBuilder, project Project) *json.NodeBuilder {
+func projectBuilder(b *json.NodeBuilder, project *Project) *json.NodeBuilder {
 	b.WriteString("name", project.name)
 	b.WriteString("tokenPath", project.tokenPath)
 	b.WriteString("depositAmount", ufmt.Sprintf("%d", project.depositAmount))
 	b.WriteString("recipient", project.recipient.String())
 
-	tokenPathList, amountList := makeConditionsToStr(project.conditions)
-	b.WriteString("conditionsToken", tokenPathList)
-	b.WriteString("conditionsAmount", amountList)
+	tokenPaths := []string{}
+	amounts := []string{}
 
-	// Add tier ratios
-	for _, duration := range []uint64{30, 90, 180} {
-		b.WriteString(ufmt.Sprintf("tier%dRatio", duration),
-			ufmt.Sprintf("%d", project.tiersRatios[duration]))
+	for _, condition := range project.getConditions() {
+		tokenPaths = append(tokenPaths, condition.TokenPath())
+		amounts = append(amounts, ufmt.Sprintf("%d", condition.MinimumAmount()))
 	}
+	b.WriteString("conditionsToken", strings.Join(tokenPaths, ","))
+	b.WriteString("conditionsAmount", strings.Join(amounts, ","))
 
 	// Add time info
-	TimeInfoBuilder(b, "created", project.created)
-	TimeInfoBuilder(b, "started", project.started)
-	TimeInfoBuilder(b, "ended", project.ended)
-
-	// Add stats
-	ProjectStatsBuilder(b, project.stats)
+	timeInfoBuilder(b, "created", project.CreatedBlockTimeInfo())
+	timeInfoBuilder(b, "started", project.standardTier().startBlockTimeInfo)
+	timeInfoBuilder(b, "ended", project.standardTier().endBlockTimeInfo)
 
 	// Add refund info
-	RefundInfoBuilder(b, project.refund)
-
-	// Add tiers info
-	for _, duration := range []uint64{30, 90, 180} {
-		if tier, exists := project.tiers[duration]; exists {
-			TierBuilder(b, ufmt.Sprintf("tier%d", duration), tier)
-		}
-	}
+	refundInfoBuilder(b, project)
 
 	return b
 }
 
 // DepositBuilder adds Deposit fields to JSON
-func DepositBuilder(b *json.NodeBuilder, deposit Deposit) *json.NodeBuilder {
+func depositBuilder(b *json.NodeBuilder, deposit *Deposit) *json.NodeBuilder {
 	return b.
-		WriteString("projectId", deposit.projectId).
-		WriteString("tier", deposit.tier).
-		WriteString("depositor", deposit.depositor.String()).
-		WriteString("amount", ufmt.Sprintf("%d", deposit.amount)).
-		WriteString("depositHeight", ufmt.Sprintf("%d", deposit.depositHeight)).
-		WriteString("depositTime", ufmt.Sprintf("%d", deposit.depositTime)).
-		WriteString("depositCollectHeight", ufmt.Sprintf("%d", deposit.depositCollectHeight)).
-		WriteString("depositCollectTime", ufmt.Sprintf("%d", deposit.depositCollectTime)).
-		WriteString("claimableHeight", ufmt.Sprintf("%d", deposit.claimableHeight)).
-		WriteString("claimableTime", ufmt.Sprintf("%d", deposit.claimableTime)).
-		WriteString("rewardCollected", ufmt.Sprintf("%d", deposit.rewardCollected)).
-		WriteString("rewardCollectHeight", ufmt.Sprintf("%d", deposit.rewardCollectHeight)).
-		WriteString("rewardCollectTime", ufmt.Sprintf("%d", deposit.rewardCollectTime))
+		WriteString("depositId", deposit.id).
+		WriteString("projectId", deposit.ProjectID()).
+		WriteString("tier", ufmt.Sprintf("%d", deposit.Tier())).
+		WriteString("depositor", deposit.Depositor().String()).
+		WriteString("amount", ufmt.Sprintf("%d", deposit.DepositAmount())).
+		WriteString("depositHeight", ufmt.Sprintf("%d", deposit.DepositHeight())).
+		WriteString("depositTime", ufmt.Sprintf("%d", deposit.DepositTime()))
 }
 
 // MetaBuilder adds metadata fields to JSON
-func MetaBuilder() *json.NodeBuilder {
+func metaBuilder() *json.NodeBuilder {
 	height := std.ChainHeight()
 	now := time.Now().Unix()
 
 	return json.Builder().
 		WriteString("height", ufmt.Sprintf("%d", height)).
 		WriteString("now", ufmt.Sprintf("%d", now))
+}
+
+// Marshals a JSON node to a string, panics if marshalling fails
+func marshal(data *json.Node) string {
+	b, err := json.Marshal(data)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return string(b)
 }

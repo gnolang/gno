@@ -4,21 +4,30 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/json"
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/wugnot"
 
 	"gno.land/p/gnoswap/consts"
+
+	"gno.land/r/gnoswap/v1/access"
 )
 
 var (
-	admin std.Address = consts.ADMIN
+	admin, _             = access.GetAddress(access.ROLE_ADMIN)
+	stakerAddr, _        = access.GetAddress(access.ROLE_STAKER)
+	communityPoolAddr, _ = access.GetAddress(access.ROLE_COMMUNITY_POOL)
+	govStakerAddr, _     = access.GetAddress(access.ROLE_GOV_STAKER)
+	protocolFeeAddr, _   = access.GetAddress(access.ROLE_PROTOCOL_FEE)
+	launchpadAddr, _     = access.GetAddress(access.ROLE_LAUNCHPAD)
+	devOpsAddr, _        = access.GetAddress(access.ROLE_DEVOPS)
 
-	fooPath string = "gno.land/r/onbloc/foo"
-	barPath string = "gno.land/r/onbloc/bar"
-	bazPath string = "gno.land/r/onbloc/baz"
-	quxPath string = "gno.land/r/onbloc/qux"
-
-	oblPath string = "gno.land/r/onbloc/obl"
+	fooPath  string = "gno.land/r/onbloc/foo"
+	barPath  string = "gno.land/r/onbloc/bar"
+	bazPath  string = "gno.land/r/onbloc/baz"
+	quxPath  string = "gno.land/r/onbloc/qux"
+	oblPath  string = "gno.land/r/onbloc/obl"
+	usdcPath string = "gno.land/r/onbloc/usdc"
 
 	ugnotDenom string = "ugnot"
 	ugnotPath  string = "ugnot"
@@ -53,8 +62,8 @@ func makeFakeAddress(name string) std.Address {
 func ugnotTransfer(t *testing.T, from, to std.Address, amount uint64) {
 	t.Helper()
 
-	std.TestSetRealm(std.NewUserRealm(from))
-	std.TestSetOriginSend(std.Coins{{ugnotDenom, int64(amount)}}, nil)
+	testing.SetRealm(std.NewUserRealm(from))
+	testing.SetOriginSend(std.Coins{{ugnotDenom, int64(amount)}})
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 
 	banker.SendCoins(from, to, std.Coins{{ugnotDenom, int64(amount)}})
@@ -74,7 +83,7 @@ func ugnotBalanceOf(t *testing.T, addr std.Address) uint64 {
 
 func ugnotMint(t *testing.T, addr std.Address, denom string, amount int64) {
 	t.Helper()
-	std.TestIssueCoins(addr, std.Coins{{ugnotDenom, int64(amount)}})
+	testing.IssueCoins(addr, std.Coins{{ugnotDenom, int64(amount)}})
 }
 
 func ugnotBurn(t *testing.T, addr std.Address, denom string, amount int64) {
@@ -85,21 +94,25 @@ func ugnotBurn(t *testing.T, addr std.Address, denom string, amount int64) {
 
 func ugnotFaucet(t *testing.T, to std.Address, amount uint64) {
 	t.Helper()
-	faucetAddress := consts.ADMIN
-	std.TestSetOriginCaller(faucetAddress)
+	// faucet address is admin
+	testing.SetOriginCaller(admin)
 
-	if ugnotBalanceOf(t, faucetAddress) < amount {
-		ugnotMint(t, faucetAddress, ugnotPath, int64(amount))
-		std.TestSetOriginSend(std.Coins{{ugnotPath, int64(amount)}}, nil)
+	if ugnotBalanceOf(t, admin) < amount {
+		ugnotMint(t, admin, ugnotPath, int64(amount))
+		testing.SetOriginSend(std.Coins{{ugnotPath, int64(amount)}})
 	}
-	ugnotTransfer(t, faucetAddress, to, amount)
+	ugnotTransfer(t, admin, to, amount)
 }
 
 func ugnotDeposit(t *testing.T, addr std.Address, amount uint64) {
 	t.Helper()
-	std.TestSetRealm(std.NewUserRealm(addr))
+	testing.SetRealm(std.NewUserRealm(addr))
 	wugnotAddr := consts.WUGNOT_ADDR
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(addr, wugnotAddr, std.Coins{{ugnotDenom, int64(amount)}})
-	wugnot.Deposit()
+	wugnot.Deposit(cross)
+}
+
+func unmarshal(data string) *json.Node {
+	return json.Must(json.Unmarshal([]byte(data)))
 }

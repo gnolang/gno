@@ -13,7 +13,7 @@ import (
 
 // Retrieves a proposal by its ID
 func mustGetProposal(proposalId uint64) ProposalInfo {
-	result, exists := proposals.Get(formatUint(proposalId))
+	proposal, exists := governanceState.GetProposal(proposalId)
 	if !exists {
 		panic(addDetailToError(
 			errDataNotFound,
@@ -21,19 +21,21 @@ func mustGetProposal(proposalId uint64) ProposalInfo {
 		))
 	}
 
-	return result.(ProposalInfo)
+	return proposal
 }
 
 // Retrieves a vote by its key
 func mustGetVote(key string) bool {
-	vote, exists := votes.Get(key)
+	// Parse the vote key to get proposal ID and voter
+	pid, voter := divideVoteKeyToProposalIdAndUser(key)
+	vote, exists := governanceState.GetVote(pid, std.Address(voter))
 	if !exists {
 		panic(addDetailToError(
 			errDataNotFound,
 			ufmt.Sprintf("voteKey(%s) not found", key),
 		))
 	}
-	return vote.(bool)
+	return vote
 }
 
 // Helper function to validate and get vote information
@@ -62,11 +64,11 @@ func mustGetVoteInfo(voteKey string) voteWithWeight {
 }
 
 // Iterates over an AVL tree and applies a callback function to each element
-func iterTree(tree *avl.Tree, cb func(key string, value interface{}) bool) {
+func iterTree(tree *avl.Tree, cb func(key string, value any) bool) {
 	tree.Iterate("", "", cb)
 }
 
-// Converts a string to an integer, panics if conversion fails
+// strToInt Converts a string to an integer, panics if conversion fails
 func strToInt(str string) int {
 	res, err := strconv.Atoi(str)
 	if err != nil {
@@ -120,7 +122,7 @@ func getPrev() (string, string) {
 }
 
 // Formats an unsigned integer to a string
-func formatUint(v interface{}) string {
+func formatUint(v any) string {
 	switch v := v.(type) {
 	case uint8:
 		return strconv.FormatUint(uint64(v), 10)
@@ -138,22 +140,39 @@ func formatBool(v bool) string {
 	return strconv.FormatBool(v)
 }
 
-// Parses a string to an integer, panics if parsing fails
-func parseInt(s string) int {
-	num, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		panic(ufmt.Sprintf("invalid int value: %s", s))
-	}
-	return int(num)
-}
+// numberKind represents the type of number to parse
+type numberKind int
 
-// Parses a string to an unsigned 64-bit integer, panics if parsing fails
-func parseUint64(s string) uint64 {
-	num, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		panic(ufmt.Sprintf("invalid uint64 value: %s", s))
+const (
+	kindInt numberKind = iota
+	kindInt64
+	kindUint64
+)
+
+// Parses a string to a number (int, int64, or uint64), panics if parsing fails
+func parseNumber(s string, kind numberKind) any {
+	switch kind {
+	case kindInt:
+		num, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			panic(ufmt.Sprintf("invalid int value: %s", s))
+		}
+		return int(num)
+	case kindInt64:
+		num, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			panic(ufmt.Sprintf("invalid int64 value: %s", s))
+		}
+		return num
+	case kindUint64:
+		num, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			panic(ufmt.Sprintf("invalid uint64 value: %s", s))
+		}
+		return num
+	default:
+		panic(ufmt.Sprintf("unsupported number kind: %v", kind))
 	}
-	return num
 }
 
 // Parses a string to a boolean, panics if parsing fails
@@ -166,4 +185,9 @@ func parseBool(s string) bool {
 	default:
 		panic(ufmt.Sprintf("invalid bool value: %s", s))
 	}
+}
+
+// parseUint64 helper function to parse string to uint64
+func parseUint64(s string) uint64 {
+	return parseNumber(s, kindUint64).(uint64)
 }

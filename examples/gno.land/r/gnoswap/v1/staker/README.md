@@ -1,3 +1,50 @@
+# Staker
+
+## Overview
+
+The **Staker** contract manages LP token staking and reward distribution in GnoSwap. It incentivizes liquidity provision by enabling users to stake LP tokens and earn rewards through both protocol-native and external incentive programs.
+
+## Key Features
+
+- **LP Token Staking**: Users can stake LP tokens to earn rewards.
+- **[Warm-up Periods](https://docs.gnoswap.io/references/warm-up-periods)**: A dynamic multiplier reward mechanism applied to staked positions based on its total duration staked in range.
+- **Reward Collection**: Stakers can claim accumulated rewards from their staked positions.
+- **Unstaking Mechanism**: Users can withdraw their staked LP tokens and collect all pending rewards at any time.
+- **External Incentive Creation**: Users can create additional reward incentives for specific liquidity pools.
+- **External Incentive Termination**: The creator or an admin can end an external incentive and refund remaining rewards.
+- **Support for Native and Wrapped Tokens**: Handles rewards in both `GNOT` and `WUGNOT`.
+- **Protocol and User-Defined Incentives**: Supports both internal (protocol-native) and external (user-created) incentives.
+- **Flexible Reward Distribution**: Implements various reward mechanisms tailored to different incentive types.
+- **Security and Safety Checks**: Ensures proper staking, unstaking, and reward distribution.
+
+## Functionality
+
+1. **Stake LP Tokens**
+   - Users deposit LP tokens into the staking contract.
+   - Staked tokens qualify for reward accumulation based on the incentive model.
+
+2. **Collect Rewards**
+   - Users claim earned rewards at any time.
+   - Rewards are distributed proportionally to staked amounts and duration.
+
+3. **Unstake LP Tokens**
+   - Users can withdraw their staked LP tokens at any time.
+   - All pending rewards are collected upon unstaking.
+
+4. **Create External Incentives**
+   - Users can allocate additional rewards to encourage liquidity provision in specific pools.
+   - External incentives can be configured with custom reward parameters.
+
+5. **End External Incentives**
+   - Incentive creators or governance admins can terminate an incentive.
+   - Any remaining unclaimed rewards are refunded to the creator.
+
+## Importance in GnoSwap Tokenomics
+
+The **Staker** is a crucial component of GnoSwap’s tokenomics, encouraging long-term liquidity provision and community-driven reward programs. By allowing both protocol-driven and user-created incentives, it enhances overall ecosystem sustainability and growth.
+
+For more details, visit [GnoSwap Docs](https://docs.gnoswap.io/contracts/staker/staker.gno).
+
 # Staker Reward
 
 ## Abstract

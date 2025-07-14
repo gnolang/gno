@@ -14,6 +14,7 @@ import (
 // - byHeight: ExternalIncentive primarily indexed by startHeight
 // - byEndHeight: ExternalIncentive primarily indexed by endHeight
 // - byCreator: ExternalIncentive primarily indexed by creator
+// - targetPoolPath: The target pool path for this incentive collection
 //
 //   - unclaimablePeriods:
 //     For each unclaimable period(start, end) for this pool,
@@ -25,16 +26,19 @@ type Incentives struct {
 	byEndHeight *avl.Tree // (endHeight, startHeight, creator, rewardToken) => ExternalIncentive
 	byCreator   *avl.Tree // (creator, startHeight, endHeight, rewardToken) => ExternalIncentive
 
+	targetPoolPath string // The target pool path for this incentive collection
+
 	unclaimablePeriods *UintTree // startHeight => endHeight
 }
 
 // NewIncentives creates a new Incentives instance.
-func NewIncentives() Incentives {
+func NewIncentives(targetPoolPath string) Incentives {
 	result := Incentives{
 		byTime:             avl.NewTree(),
 		byHeight:           avl.NewTree(),
 		byEndHeight:        avl.NewTree(),
 		byCreator:          avl.NewTree(),
+		targetPoolPath:     targetPoolPath,
 		unclaimablePeriods: NewUintTree(),
 	}
 
@@ -45,7 +49,7 @@ func NewIncentives() Incentives {
 
 // Get incentive by time
 func (self *Incentives) Get(startTime, endTime int64, creator std.Address, rewardToken string) (*ExternalIncentive, bool) {
-	byTimeId := incentiveIdByTime(startTime, endTime, creator, rewardToken)
+	byTimeId := incentiveIdByTime(startTime, endTime, creator, rewardToken, self.targetPoolPath)
 	value, ok := self.byTime.Get(byTimeId)
 	if !ok {
 		return nil, false
@@ -68,8 +72,8 @@ func (self *Incentives) GetAllInHeights(startHeight, endHeight int64) map[string
 	// Iterate all incentives that has start height less than endHeight
 	self.byHeight.ReverseIterate(
 		"",
-		EncodeUint(uint64(endHeight)),
-		func(key string, value interface{}) bool {
+		EncodeInt64(endHeight),
+		func(key string, value any) bool {
 			incentive := value.(*ExternalIncentive)
 			if incentive.endHeight < startHeight {
 				// incentive is already ended
@@ -82,9 +86,9 @@ func (self *Incentives) GetAllInHeights(startHeight, endHeight int64) map[string
 	)
 	// Iterate all incentives that has end height greater than startHeight
 	self.byEndHeight.Iterate(
-		EncodeUint(uint64(startHeight)),
+		EncodeInt64(startHeight),
 		"",
-		func(key string, value interface{}) bool {
+		func(key string, value any) bool {
 			incentive := value.(*ExternalIncentive)
 			if incentive.startHeight > endHeight {
 				// incentive is not started yet
@@ -105,16 +109,38 @@ func (self *Incentives) create(
 	creator std.Address,
 	incentive *ExternalIncentive,
 ) {
-	byTimeId := incentiveIdByTime(incentive.startTimestamp, incentive.endTimestamp, creator, incentive.rewardToken)
+	byTimeId := incentiveIdByTime(incentive.startTimestamp, incentive.endTimestamp, creator, incentive.rewardToken, self.targetPoolPath)
 	if self.byTime.Has(byTimeId) {
 		panic(addDetailToError(
 			errIncentiveAlreadyExists,
-			ufmt.Sprintf("staker.gno__addExternalIncentive() || incentiveId(%s) already exists", byTimeId),
+			ufmt.Sprintf("incentiveId(%s) already exists", byTimeId),
 		))
 	}
 
-	byHeightId, byCreatorId := incentiveIdByHeight(incentive.startHeight, incentive.endHeight, creator, incentive.rewardToken)
-	byEndHeightId, _ := incentiveIdByHeight(incentive.endHeight, incentive.startHeight, creator, incentive.rewardToken)
+	byHeightId, byCreatorId := incentiveIdByHeight(incentive.startHeight, incentive.endHeight, creator, incentive.rewardToken, self.targetPoolPath)
+	byEndHeightId, _ := incentiveIdByHeight(incentive.endHeight, incentive.startHeight, creator, incentive.rewardToken, self.targetPoolPath)
+
+	self.byTime.Set(byTimeId, incentive)
+	self.byHeight.Set(byHeightId, incentive)
+	self.byEndHeight.Set(byEndHeightId, incentive)
+	self.byCreator.Set(byCreatorId, incentive)
+}
+
+// starts incentive unclaimable period for this pool
+func (self *Incentives) update(
+	creator std.Address,
+	incentive *ExternalIncentive,
+) {
+	byTimeId := incentiveIdByTime(incentive.startTimestamp, incentive.endTimestamp, creator, incentive.rewardToken, self.targetPoolPath)
+	if !self.byTime.Has(byTimeId) {
+		panic(addDetailToError(
+			errIncentiveNotFound,
+			ufmt.Sprintf("incentiveId(%s) not found", byTimeId),
+		))
+	}
+
+	byHeightId, byCreatorId := incentiveIdByHeight(incentive.startHeight, incentive.endHeight, creator, incentive.rewardToken, self.targetPoolPath)
+	byEndHeightId, _ := incentiveIdByHeight(incentive.endHeight, incentive.startHeight, creator, incentive.rewardToken, self.targetPoolPath)
 
 	self.byTime.Set(byTimeId, incentive)
 	self.byHeight.Set(byHeightId, incentive)
@@ -131,7 +157,7 @@ func (self *Incentives) startUnclaimablePeriod(startHeight int64) {
 // ignores if currently not in unclaimable period
 func (self *Incentives) endUnclaimablePeriod(endHeight int64) {
 	startHeight := int64(0)
-	self.unclaimablePeriods.ReverseIterate(0, endHeight, func(key int64, value interface{}) bool {
+	self.unclaimablePeriods.ReverseIterate(0, endHeight, func(key int64, value any) bool {
 		if value.(int64) != 0 {
 			// Already ended, no need to update
 			// keeping startHeight as 0 to indicate this
@@ -154,7 +180,7 @@ func (self *Incentives) endUnclaimablePeriod(endHeight int64) {
 }
 
 // calculate unclaimable reward by checking unclaimable periods
-func (self *Incentives) calculateUnclaimableReward(incentiveId string) uint64 {
+func (self *Incentives) calculateUnclaimableReward(incentiveId string) int64 {
 	incentive, ok := self.GetByIncentiveId(incentiveId)
 	if !ok {
 		return 0
@@ -162,7 +188,7 @@ func (self *Incentives) calculateUnclaimableReward(incentiveId string) uint64 {
 
 	blocks := int64(0)
 
-	self.unclaimablePeriods.ReverseIterate(0, incentive.startHeight, func(key int64, value interface{}) bool {
+	self.unclaimablePeriods.ReverseIterate(0, incentive.startHeight, func(key int64, value any) bool {
 		endHeight := value.(int64)
 		if endHeight == 0 {
 			endHeight = incentive.endHeight
@@ -174,7 +200,7 @@ func (self *Incentives) calculateUnclaimableReward(incentiveId string) uint64 {
 		return true
 	})
 
-	self.unclaimablePeriods.Iterate(incentive.startHeight, incentive.endHeight, func(key int64, value interface{}) bool {
+	self.unclaimablePeriods.Iterate(incentive.startHeight, incentive.endHeight, func(key int64, value any) bool {
 		startHeight := key
 		endHeight := value.(int64)
 		if endHeight == 0 {
@@ -184,5 +210,5 @@ func (self *Incentives) calculateUnclaimableReward(incentiveId string) uint64 {
 		return false
 	})
 
-	return uint64(blocks) * incentive.rewardPerBlock
+	return int64(blocks) * incentive.rewardPerBlock
 }

@@ -6,18 +6,19 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/gnoswap/consts"
 
 	"gno.land/r/demo/wugnot"
-
-	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/access"
 	"gno.land/r/gnoswap/v1/common"
-
+	en "gno.land/r/gnoswap/v1/emission"
 	"gno.land/r/gnoswap/v1/gns"
 	"gno.land/r/gnoswap/v1/gov/xgns"
-
-	en "gno.land/r/gnoswap/v1/emission"
+	"gno.land/r/gnoswap/v1/halt"
 	"gno.land/r/gnoswap/v1/referral"
 )
+
+var govStaker, _ = access.GetAddress(access.ROLE_GOV_STAKER)
 
 // lockedGNS represents a locked GNS with its amount, unlock time, and collected status
 type lockedGNS struct {
@@ -26,31 +27,19 @@ type lockedGNS struct {
 	collected bool
 }
 
-const SECONDS_IN_7_DAYS = uint64(604800)
+const (
+	SECONDS_IN_7_DAYS = uint64(604800)
+)
 
 var (
 	addrLockedGns = avl.NewTree() // address -> []lockedGNS
 	lockedAmount  = uint64(0)
+	minimumAmount = uint64(1_000_000)
 )
-
-var minimumAmount = uint64(1_000_000)
 
 // Delegate delegates GNS tokens to a specified address.
 // ref: https://docs.gnoswap.io/contracts/governance/staker.gno#delegate
-func Delegate(to std.Address, amount uint64, referrer string) {
-	if running {
-		cleanDelegationStatHistory()
-	}
-
-	if amount == 0 {
-		panic(addDetailToError(
-			errInvalidAmount,
-			"delegation amount cannot be 0",
-		))
-	}
-
-	CollectReward()
-
+func Delegate(cur realm, to std.Address, amount uint64, referrer string) {
 	if !to.IsValid() {
 		panic(addDetailToError(
 			errInvalidAddress,
@@ -73,26 +62,34 @@ func Delegate(to std.Address, amount uint64, referrer string) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	referral.TryRegister(caller, referrer)
-
-	gnsBalance := gns.BalanceOf(caller)
-	if gnsBalance < amount {
+	gnsBalanceOfCaller := gns.BalanceOf(caller)
+	if uint64(gnsBalanceOfCaller) < amount {
 		panic(addDetailToError(
 			errNotEnoughBalance,
-			ufmt.Sprintf("invalid GNS balance(%d) to delegate(%d)", gnsBalance, amount),
+			ufmt.Sprintf("invalid GNS balance(%d) to delegate(%d)", gnsBalanceOfCaller, amount),
 		))
 	}
 
-	rewardState.addStake(uint64(std.ChainHeight()), caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
+	// Transfer the caller's GNS to GovStaker
+	gns.TransferFrom(cross, caller, std.CurrentRealm().Address(), int64(amount))
 
-	// GNS // caller -> GovStaker
-	gns.TransferFrom(caller, std.CurrentRealm().Address(), amount)
+	success := referral.TryRegister(cross, caller, referrer)
+	actualReferrer := referrer
+	if !success {
+		actualReferrer = referral.GetReferral(caller.String())
+	}
+	en.MintAndDistributeGns(cross)
+
+	if running {
+		cleanDelegationStatHistory()
+	}
+	rewardState.addStake(uint64(std.ChainHeight()), caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
 
 	// actual delegate
 	delegate(to, amount)
 
 	// xGNS mint to caller
-	xgns.Mint(caller, amount)
+	xgns.Mint(cross, caller, int64(amount))
 
 	prevAddr, prevPkgPath := getPrev()
 	std.Emit(
@@ -102,19 +99,13 @@ func Delegate(to std.Address, amount uint64, referrer string) {
 		"from", caller.String(),
 		"to", to.String(),
 		"amount", formatUint(amount),
-		"referrer", referrer,
+		"referrer", actualReferrer,
 	)
 }
 
 // Redelegate redelegates xGNS from existing delegate to another.
 // ref: https://docs.gnoswap.io/contracts/governance/staker.gno#redelegate
-func Redelegate(from, to std.Address, amount uint64) {
-	if running {
-		cleanDelegationStatHistory()
-	}
-
-	CollectReward()
-
+func Redelegate(cur realm, from, to std.Address, amount uint64) {
 	if !from.IsValid() {
 		panic(addDetailToError(
 			errInvalidAddress,
@@ -144,16 +135,22 @@ func Redelegate(from, to std.Address, amount uint64) {
 	}
 
 	caller := std.PreviousRealm().Address()
-
-	delegated := xgns.BalanceOf(caller)
-	if delegated < amount {
+	delegatedBalanceOfCaller := xgns.BalanceOf(caller)
+	if uint64(delegatedBalanceOfCaller) < amount {
 		panic(addDetailToError(
 			errNotEnoughBalance,
-			ufmt.Sprintf("not enough xGNS delegated(%d) to redelegate(%d)", delegated, amount),
+			ufmt.Sprintf("not enough xGNS delegated(%d) to redelegate(%d)", delegatedBalanceOfCaller, amount),
 		))
 	}
 
-	undelegate(from, amount)
+	en.MintAndDistributeGns(cross)
+
+	if running {
+		cleanDelegationStatHistory()
+	}
+
+	CollectReward(cur)
+	unDelegate(from, amount)
 	delegate(to, amount)
 
 	prevAddr, prevPkgPath := getPrev()
@@ -169,11 +166,7 @@ func Redelegate(from, to std.Address, amount uint64) {
 
 // Undelegate undelegates xGNS from the existing delegate.
 // ref: https://docs.gnoswap.io/contracts/governance/staker.gno#undelegate
-func Undelegate(from std.Address, amount uint64) {
-	if running {
-		cleanDelegationStatHistory()
-	}
-
+func Undelegate(cur realm, from std.Address, amount uint64) {
 	if !from.IsValid() {
 		panic(addDetailToError(
 			errInvalidAddress,
@@ -196,28 +189,33 @@ func Undelegate(from std.Address, amount uint64) {
 	}
 
 	caller := std.PreviousRealm().Address()
-	delegated := xgns.BalanceOf(caller)
-
-	if delegated < amount {
+	delegatedBalanceOfCaller := xgns.BalanceOf(caller)
+	if uint64(delegatedBalanceOfCaller) < amount {
 		panic(addDetailToError(
 			errNotEnoughBalance,
-			ufmt.Sprintf("not enough xGNS delegated(%d) to undelegate(%d)", delegated, amount),
+			ufmt.Sprintf("not enough xGNS delegated(%d) to undelegate(%d)", delegatedBalanceOfCaller, amount),
 		))
 	}
 
-	reward, protocolFeeRewards := rewardState.removeStake(caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
+	en.MintAndDistributeGns(cross)
 
-	// burn equivalent amount of xGNS
-	xgns.Burn(caller, amount)
-
-	gns.Transfer(caller, reward)
-
-	for tokenPath, amount := range protocolFeeRewards {
-		transferProtocolFee(tokenPath, from, amount)
+	if running {
+		cleanDelegationStatHistory()
 	}
 
-	// actual undelegate
-	undelegate(from, amount)
+	reward, protocolFeeRewards := rewardState.removeStake(caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
+	gns.Transfer(cross, caller, int64(reward))
+
+	for tokenPath, rewardAmount := range protocolFeeRewards {
+		if rewardAmount > 0 {
+			transferProtocolFee(tokenPath, from, rewardAmount)
+		}
+	}
+
+	// actual unDelegate
+	unDelegate(from, amount)
+	// burn equivalent amount of xGNS
+	xgns.Burn(cross, caller, int64(amount))
 
 	// lock up
 	userLocked := lockedGNS{
@@ -246,12 +244,22 @@ func Undelegate(from std.Address, amount uint64) {
 
 // CollectUndelegatedGns collects the amount of the undelegated GNS.
 // ref: https://docs.gnoswap.io/contracts/governance/staker.gno#collectundelegatedgns
-func CollectUndelegatedGns() uint64 {
-	common.IsHalted()
-	en.MintAndDistributeGns()
+func CollectUndelegatedGns(cur realm) uint64 {
+	currentLevel := halt.GetCurrentHaltLevel()
+	if currentLevel != halt.LvMainnetSafeMode {
+		// Check if withdrawals are specifically halted, not just if the system is halted
+		if err := halt.IsHalted(halt.OpTypeWithdraw); err != nil {
+			panic(err)
+		}
+
+		if halt.IsContractHalted(halt.OpTypeGovStaker) {
+			panic("gov/staker contract operations are currently disabled")
+		}
+	}
+
+	en.MintAndDistributeGns(cross)
 
 	caller := std.PreviousRealm().Address()
-
 	value, exists := addrLockedGns.Get(caller.String())
 	if !exists {
 		return 0
@@ -270,7 +278,7 @@ func CollectUndelegatedGns() uint64 {
 	for _, locked := range lockedList {
 		if currentTime >= locked.unlock { // passed 7 days
 			// transfer GNS to caller
-			gns.Transfer(caller, locked.amount)
+			gns.Transfer(cross, caller, int64(locked.amount))
 			lockedAmount -= locked.amount
 			collected += locked.amount
 		} else {
@@ -292,7 +300,7 @@ func CollectUndelegatedGns() uint64 {
 			"CollectUndelegatedGns",
 			"prevAddr", prevAddr,
 			"prevRealm", prevPkgPath,
-			"from", consts.GOV_STAKER_ADDR.String(),
+			"from", govStaker.String(),
 			"to", caller.String(),
 			"collectedAmount", formatUint(collected),
 		)
@@ -303,104 +311,123 @@ func CollectUndelegatedGns() uint64 {
 
 // CollectReward collects the rewards from the protocol fee contract based on the holdings of xGNS.
 // ref: https://docs.gnoswap.io/contracts/governance/staker.gno#collectreward
-func CollectReward() {
-	common.IsHalted()
-	en.MintAndDistributeGns()
+func CollectReward(cur realm) {
+	currentLevel := halt.GetCurrentHaltLevel()
+	if currentLevel != halt.LvMainnetSafeMode {
+		// Check if withdrawals are specifically halted, not just if the system is halted
+		if err := halt.IsHalted(halt.OpTypeWithdraw); err != nil {
+			panic(err)
+		}
+
+		if halt.IsContractHalted(halt.OpTypeGovStaker) {
+			panic("gov/staker contract operations are currently disabled")
+		}
+	}
 
 	prevAddr, prevPkgPath := getPrev()
 	caller := std.PreviousRealm().Address()
 
+	en.MintAndDistributeGns(cross)
+
 	reward, protocolFeeRewards := rewardState.claim(caller, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
 
-	// XXX (@notJoon): There could be cases where the reward pool is empty, In such case,
-	// it seems appropriate to return 0 and continue processing.
-	//
-	// This isn't necessarily an abnormal situation, particularly
-	// since it could be because rewards haven't occurred yet or
-	// have already been fully collected.
-	//
-	// still, this is a tangled with the policy issue, so should be discussed.
-
 	if reward > 0 {
+		if currentGNSBalance < reward {
+			panic(addDetailToError(
+				errNotEnoughBalance,
+				ufmt.Sprintf("not enough GNS balance(%d) to collect(%d)", currentGNSBalance, reward),
+			))
+		}
+
 		currentGNSBalance -= reward
-		gns.Transfer(caller, reward)
+		gns.Transfer(cross, caller, int64(reward))
 		std.Emit(
 			"CollectEmissionReward",
 			"prevAddr", prevAddr,
 			"prevRealm", prevPkgPath,
-			"from", consts.GOV_STAKER_ADDR.String(),
+			"from", govStaker.String(),
 			"to", caller.String(),
 			"emissionRewardAmount", formatUint(reward),
 		)
 	}
 
 	for tokenPath, amount := range protocolFeeRewards {
-		if tokenPath == consts.WUGNOT_PATH {
-			if amount > 0 {
-				if currentProtocolFeeBalance[tokenPath] < amount {
-					panic(addDetailToError(
-						errNotEnoughBalance,
-						ufmt.Sprintf("not enough %s balance(%d) to collect(%d)", tokenPath, currentProtocolFeeBalance[tokenPath], amount),
-					))
-				}
-				currentProtocolFeeBalance[tokenPath] -= amount
-				wugnot.Withdraw(amount)
-				banker := std.NewBanker(std.BankerTypeRealmSend)
-				banker.SendCoins(consts.GOV_STAKER_ADDR, caller, std.Coins{{"ugnot", int64(amount)}})
-
-			}
-		} else {
+		if amount > 0 {
 			transferProtocolFee(tokenPath, caller, amount)
+			std.Emit(
+				"CollectProtocolFeeReward",
+				"prevAddr", prevAddr,
+				"prevRealm", prevPkgPath,
+				"tokenPath", tokenPath,
+				"from", govStaker.String(),
+				"to", caller.String(),
+				"collectedAmount", formatUint(amount),
+			)
 		}
-
-		std.Emit(
-			"CollectProtocolFeeReward",
-			"prevAddr", prevAddr,
-			"prevRealm", prevPkgPath,
-			"tokenPath", tokenPath,
-			"from", consts.GOV_STAKER_ADDR.String(),
-			"to", caller.String(),
-			"collectedAmount", formatUint(amount),
-		)
 	}
 }
 
 // CollectRewardFromLaunchPad collects the rewards from the protocol fee contract based on the holdings of xGNS in the launchpad contract.
 // Only launchpad contract can call this function
 // ref: https://docs.gnoswap.io/contracts/governance/staker.gno#collectrewardfromlaunchpad
-func CollectRewardFromLaunchPad(to std.Address) {
+func CollectRewardFromLaunchPad(cur realm, to std.Address) {
 	assertCallerIsLaunchpad()
 
-	common.IsHalted()
-	en.MintAndDistributeGns()
+	currentLevel := halt.GetCurrentHaltLevel()
+	if currentLevel != halt.LvMainnetSafeMode {
+		// Check if withdrawals are specifically halted, not just if the system is halted
+		if err := halt.IsHalted(halt.OpTypeWithdraw); err != nil {
+			panic(err)
+		}
+
+		if halt.IsContractHalted(halt.OpTypeGovStaker) {
+			panic("gov/staker contract operations are currently disabled")
+		}
+	}
+	if !isLaunchpadProjectWallet(to) {
+		panic(addDetailToError(
+			errInvalidAddress,
+			ufmt.Sprintf("%s is not project wallet from launchpad", to.String()),
+		))
+	}
+
+	en.MintAndDistributeGns(cross)
 
 	prevAddr, prevPkgPath := getPrev()
-
 	emissionReward, protocolFeeRewards := rewardState.claim(to, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
-
 	if emissionReward > 0 {
-		gns.Transfer(to, emissionReward)
+		if currentGNSBalance < emissionReward {
+			panic(addDetailToError(
+				errNotEnoughBalance,
+				ufmt.Sprintf("not enough GNS balance(%d) to collect(%d)", currentGNSBalance, emissionReward),
+			))
+		}
+
+		currentGNSBalance -= emissionReward
+		gns.Transfer(cross, to, int64(emissionReward))
 		std.Emit(
 			"CollectEmissionFromLaunchPad",
 			"prevAddr", prevAddr,
 			"prevRealm", prevPkgPath,
-			"from", consts.GOV_STAKER_ADDR.String(),
+			"from", govStaker.String(),
 			"to", to.String(),
 			"emissionRewardAmount", formatUint(emissionReward),
 		)
 	}
 
 	for tokenPath, amount := range protocolFeeRewards {
-		transferProtocolFee(tokenPath, to, amount)
-		std.Emit(
-			"CollectProtocolFeeFromLaunchPad",
-			"prevAddr", prevAddr,
-			"prevRealm", prevPkgPath,
-			"tokenPath", tokenPath,
-			"from", consts.GOV_STAKER_ADDR.String(),
-			"to", to.String(),
-			"collectedAmount", formatUint(amount),
-		)
+		if amount > 0 {
+			transferProtocolFee(tokenPath, to, amount)
+			std.Emit(
+				"CollectProtocolFeeFromLaunchPad",
+				"prevAddr", prevAddr,
+				"prevRealm", prevPkgPath,
+				"tokenPath", tokenPath,
+				"from", govStaker.String(),
+				"to", to.String(),
+				"collectedAmount", formatUint(amount),
+			)
+		}
 	}
 }
 
@@ -418,8 +445,19 @@ func transferProtocolFee(tokenPath string, to std.Address, amount uint64) {
 			ufmt.Sprintf("invalid amount %d to transfer protocol fee", amount),
 		))
 	}
+	if currentProtocolFeeBalance[tokenPath] < amount {
+		panic(addDetailToError(
+			errNotEnoughBalance,
+			ufmt.Sprintf("not enough %s balance(%d) to collect(%d)", tokenPath, currentProtocolFeeBalance[tokenPath], amount),
+		))
+	}
 
 	currentProtocolFeeBalance[tokenPath] -= amount
-	token := common.GetTokenTeller(tokenPath)
-	checkTransferError(token.Transfer(to, amount))
+	if tokenPath == consts.WUGNOT_PATH {
+		wugnot.Withdraw(cross, int64(amount))
+		banker := std.NewBanker(std.BankerTypeRealmSend)
+		banker.SendCoins(govStaker, to, std.Coins{{"ugnot", int64(amount)}})
+	} else {
+		checkTransferError(common.Transfer(cross, tokenPath, to, int64(amount)))
+	}
 }

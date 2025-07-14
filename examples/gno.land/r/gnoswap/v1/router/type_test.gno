@@ -15,13 +15,13 @@ func TestTrySwapTypeFromStr(t *testing.T) {
 	}{
 		{
 			name:    "valid EXACT_IN",
-			input:   "EXACT_IN",
+			input:   rawExactIn,
 			want:    ExactIn,
 			wantErr: false,
 		},
 		{
 			name:    "valid EXACT_OUT",
-			input:   "EXACT_OUT",
+			input:   rawExactOut,
 			want:    ExactOut,
 			wantErr: false,
 		},

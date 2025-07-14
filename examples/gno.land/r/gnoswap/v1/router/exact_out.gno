@@ -27,7 +27,7 @@ func NewExactOutSwapOperation(pp ExactOutParams) *ExactOutSwapOperation {
 
 // ExactOutSwapRoute is a function that performs an exact-out swap operation.
 // exact-out swap means that the user wants to swap an exact amount of output tokens for input tokens.
-func ExactOutSwapRoute(
+func ExactOutSwapRoute(cur realm,
 	inputToken string,
 	outputToken string,
 	amountOut string,
@@ -37,8 +37,13 @@ func ExactOutSwapRoute(
 	deadline int64,
 	referrer string,
 ) (string, string) {
-	checkDeadline(deadline)
-	commonSwapSetup()
+	if err := checkDeadline(deadline); err != nil {
+		panic(addDetailToError(errExpired, err.Error()))
+	}
+
+	if err := commonSwapSetup(); err != nil {
+		panic(addDetailToError(errInvalidInput, err.Error()))
+	}
 
 	baseParams := BaseSwapParams{
 		InputToken:  inputToken,
@@ -68,7 +73,11 @@ func ExactOutSwapRoute(
 	)
 
 	prevAddr, prevPkgPath := getPrev()
-	referral.TryRegister(std.Address(prevAddr), referrer)
+	success := referral.TryRegister(cross, std.Address(prevAddr), referrer)
+	actualReferrer := referrer
+	if !success {
+		actualReferrer = referral.GetReferral(prevAddr)
+	}
 	std.Emit(
 		"ExactOutSwap",
 		"prevAddr", prevAddr,
@@ -80,6 +89,7 @@ func ExactOutSwapRoute(
 		"quote", pp.QuoteArr,
 		"resultInputAmount", inputAmount,
 		"resultOutputAmount", outputAmount,
+		"referrer", actualReferrer,
 	)
 
 	return inputAmount, outputAmount
@@ -95,7 +105,7 @@ func (op *ExactOutSwapOperation) Validate() error {
 	// when it's an ExactOut
 	op.amountSpecified = i256.Zero().Neg(amountOut)
 
-	routes, quotes, err := tryParseRoutes(op.params.RouteArr, op.params.QuoteArr)
+	routes, quotes, err := validateRoutesAndQuotes(op.params.RouteArr, op.params.QuoteArr)
 	if err != nil {
 		return err
 	}
@@ -129,7 +139,6 @@ func (op *ExactOutSwapOperation) handleNativeTokenWrapping() error {
 	return op.baseSwapOperation.handleNativeTokenWrapping(
 		op.params.InputToken,
 		op.params.OutputToken,
-		ExactOut,
-		op.amountSpecified,
+		i256.MustFromDecimal(op.params.AmountInMax),
 	)
 }

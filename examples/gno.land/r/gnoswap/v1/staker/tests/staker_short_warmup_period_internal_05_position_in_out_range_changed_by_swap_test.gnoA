@@ -34,10 +34,10 @@ func TestShortWarmUpInternalPositionInOutRangeChangedBySwap(t *testing.T) {
 
 func testInit(t *testing.T) {
 	t.Run("initialize", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		deletePoolTier(t, MUST_EXISTS_IN_TIER_1)
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 
 		// override warm-up period for testing
 		changeWarmup(t, 0, 150)
@@ -52,25 +52,25 @@ func testInit(t *testing.T) {
 
 func testCreatePool(t *testing.T) {
 	t.Run("create pool", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*3)
+		gns.Approve(poolAddr, pl.GetPoolCreationFee()*3)
 
 		pl.CreatePool(barPath, quxPath, 100, "79228162514264337593543950337")
 		SetPoolTierByAdmin(poolPath, 1)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarQux100_1(t *testing.T) {
 	t.Run("mint position 01, bar:qux:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,    // token0
 			quxPath,    // token1
 			fee100,     // fee
@@ -87,18 +87,18 @@ func testMintBarQux100_1(t *testing.T) {
 		)
 
 		uassert.Equal(t, positionId, uint64(1))
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarQux100_2(t *testing.T) {
 	t.Run("mint position 02, bar:qux:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,      // token0
 			quxPath,      // token1
 			fee100,       // fee
@@ -115,13 +115,13 @@ func testMintBarQux100_2(t *testing.T) {
 		)
 
 		uassert.Equal(t, positionId, uint64(2))
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testStakeToken_1_2(t *testing.T) {
 	t.Run("stake position 01, 02", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(1))
 		StakeToken(1, "")
@@ -129,13 +129,13 @@ func testStakeToken_1_2(t *testing.T) {
 		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(2))
 		StakeToken(2, "")
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 
 		// clear reward
 		CollectReward(1, false)
 		CollectReward(2, false)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 
 	/*
@@ -151,7 +151,7 @@ func testStakeToken_1_2(t *testing.T) {
 	*/
 
 	t.Run("collect reward position 01, while in-range", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		beforeGns := gns.BalanceOf(admin)
 		CollectReward(1, false)
@@ -164,7 +164,7 @@ func testStakeToken_1_2(t *testing.T) {
 	})
 
 	t.Run("collect reward position 02, while in-range", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		beforeGns := gns.BalanceOf(admin)
 		CollectReward(2, false)
@@ -182,15 +182,15 @@ func testMakePosition1OutRange(t *testing.T) {
 		uassert.Equal(t, poolTick, int32(0))
 
 		// ROUTER SWAP
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
 
-		bar.Approve(consts.ROUTER_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.ROUTER_ADDR, consts.UINT64_MAX)
+		bar.Approve(routerAddr, consts.UINT64_MAX)
+		qux.Approve(routerAddr, consts.UINT64_MAX)
 
-		tokenIn, tokenOut := rr.ExactInSwapRoute(
+		tokenIn, tokenOut := cross(rr.ExactInSwapRoute)(
 			barPath,
 			quxPath,
 			"10000",
@@ -202,7 +202,7 @@ func testMakePosition1OutRange(t *testing.T) {
 		)
 		uassert.Equal(t, tokenIn, "10000")
 		uassert.Equal(t, tokenOut, "-9884")
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 
 		// position-01 became out-range
 		// position-01 is only in-range position
@@ -211,7 +211,7 @@ func testMakePosition1OutRange(t *testing.T) {
 
 func testCheckRewardAfter1Block(t *testing.T) {
 	t.Run("check reward position 01, out-range", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		beforeGns := gns.BalanceOf(admin)
 		CollectReward(1, false)
@@ -220,7 +220,7 @@ func testCheckRewardAfter1Block(t *testing.T) {
 	})
 
 	t.Run("check reward position 02, in-range", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		beforeGns := gns.BalanceOf(admin)
 		CollectReward(2, false)

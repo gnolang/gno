@@ -4,15 +4,12 @@ import (
 	"errors"
 	"std"
 	"strings"
-	"time"
 
 	"gno.land/p/demo/ufmt"
-	prbac "gno.land/p/gnoswap/rbac"
-	u256 "gno.land/p/gnoswap/uint256"
 
-	"gno.land/r/gnoswap/v1/common"
-	en "gno.land/r/gnoswap/v1/emission"
-	gs "gno.land/r/gnoswap/v1/gov/staker"
+	prbac "gno.land/p/gnoswap/rbac"
+	"gno.land/r/gnoswap/v1/access"
+	"gno.land/r/gnoswap/v1/rbac"
 )
 
 // CheckerType defines available predefined permission checker types
@@ -112,6 +109,96 @@ func (r RoleChangeAction) String() string {
 	}
 }
 
+func handleRoleChangeProposal(
+	cur realm,
+	title string,
+	desc string,
+	proposer std.Address,
+	execution string,
+) uint64 {
+	roleChangeData := strings.TrimPrefix(execution, ROLE_PREFIX)
+
+	parts := strings.Split(roleChangeData, ":")
+	if len(parts) < 5 {
+		panic(addDetailToError(
+			errInvalidInput,
+			ufmt.Sprintf("invalid role change data: %s", roleChangeData),
+		))
+	}
+
+	roleName := parts[0]
+	permissionName := parts[1]
+	action := RoleChangeActionFromString(parts[2])
+	checkerType := checkerTypeFromString(parts[3])
+	addr := ""
+	if len(parts) > 4 {
+		addr = parts[4]
+	}
+
+	tokenPath := ""
+	if len(parts) > 5 {
+		tokenPath = parts[5]
+	}
+
+	minAmount := uint64(0)
+	if len(parts) > 6 {
+		minAmount = parseNumber(parts[6], kindUint64).(uint64)
+	}
+
+	addresses := parseAddresses(addr)
+
+	// Use state transition to create proposal
+	transition := CreateProposalTransition(proposer, RoleChange, title, desc)
+	if err := applyTransition(transition); err != nil {
+		panic(err)
+	}
+
+	// Get the new proposal ID from the updated state
+	newProposalId := governanceState.GetProposalCounter()
+	proposal, exists := governanceState.GetProposal(newProposalId)
+	if !exists {
+		panic(ufmt.Sprintf("proposal(%d) not found", newProposalId))
+	}
+
+	// Set role change info
+	proposal.RoleChange = RoleChangeInfo{
+		RoleName:       roleName,
+		PermissionName: permissionName,
+		Action:         action,
+		CheckerType:    checkerType,
+		Addresses:      addresses,
+		TokenPath:      tokenPath,
+		MinAmount:      minAmount,
+	}
+
+	// Update the proposal in state with role change info
+	governanceState = governanceState.WithUpdatedProposal(newProposalId, func(p ProposalInfo) ProposalInfo {
+		return proposal
+	})
+
+	// Proposal already stored in state
+
+	prevAddr, prevPkgPath := getPrev()
+	std.Emit(
+		"ProposeRoleChange",
+		"prevAddr", prevAddr,
+		"prevRealm", prevPkgPath,
+		"title", title,
+		"description", desc,
+		"roleName", roleName,
+		"permissionName", permissionName,
+		"action", action.String(),
+		"checkerType", checkerType.String(),
+		"proposalId", formatUint(newProposalId),
+		"quorumAmount", formatUint(proposal.QuorumAmount),
+		"maxVotingWeight", proposal.MaxVotingWeight.ToString(),
+		"configVersion", formatUint(proposal.ConfigVersion),
+		"createdAt", formatUint(proposal.State.CreatedAt),
+	)
+
+	return newProposalId
+}
+
 func getPermissionChecker(info RoleChangeInfo) prbac.PermissionChecker {
 	switch info.CheckerType {
 	case SingleAddressChecker:
@@ -149,123 +236,6 @@ func getPermissionChecker(info RoleChangeInfo) prbac.PermissionChecker {
 	}
 }
 
-// proposeRoleChange creates a new role change proposal with string parameters.
-// The action and checkerType parameters should be case-insensitive strings matching their respective types.
-// The addresses parameter should be a colon-separated string of addresses.
-func ProposeRoleChange(
-	title string,
-	description string,
-	roleName string,
-	permissionName string,
-	action string,
-	checkerType string,
-	addresses string,
-	tokenPath string,
-	minAmount uint64,
-) uint64 {
-	// Convert string parameters to their respective types
-	roleChangeAction := RoleChangeActionFromString(action)
-	checkerTypeEnum := checkerTypeFromString(checkerType)
-	addressList := parseAddresses(addresses)
-
-	return proposeRoleChange(
-		title,
-		description,
-		roleName,
-		permissionName,
-		roleChangeAction,
-		checkerTypeEnum,
-		addressList,
-		tokenPath,
-		minAmount,
-	)
-}
-
-// proposeRoleChange creates a new role change proposal
-func proposeRoleChange(
-	title string,
-	description string,
-	roleName string,
-	permissionName string,
-	action RoleChangeAction,
-	checkerType CheckerType,
-	addresses []std.Address,
-	tokenPath string,
-	minAmount uint64,
-) uint64 {
-	common.IsHalted()
-
-	en.MintAndDistributeGns()
-	updateProposalsState()
-
-	proposer := std.PreviousRealm().Address()
-
-	enough, balance, wanted := checkEnoughXGnsToPropose(proposer)
-	if !enough {
-		panic(addDetailToError(
-			errNotEnoughBalance,
-			ufmt.Sprintf("proposer(%s) has not enough xGNS, balance(%d), wanted(%d)", proposer.String(), balance, wanted),
-		))
-	}
-
-	now := uint64(time.Now().Unix())
-	votingMax, possibleAddressWithWeight := gs.GetPossibleVotingAddressWithWeight(now - config.VotingWeightSmoothingDuration)
-
-	maxVotingWeight := u256.NewUint(votingMax)
-	quorumAmount := maxVotingWeight.Uint64() * config.Quorum / 100
-
-	proposal := ProposalInfo{
-		Proposer:     proposer,
-		ProposalType: RoleChange,
-		State: ProposalState{
-			Created:   true,
-			CreatedAt: now,
-			Upcoming:  true,
-		},
-		Yea:                       u256.Zero(),
-		Nay:                       u256.Zero(),
-		MaxVotingWeight:           maxVotingWeight,
-		PossibleAddressWithWeight: possibleAddressWithWeight,
-		ConfigVersion:             uint64(configVersions.Size()),
-		QuorumAmount:              quorumAmount,
-		Title:                     title,
-		Description:               description,
-		RoleChange: RoleChangeInfo{
-			RoleName:       roleName,
-			PermissionName: permissionName,
-			Action:         action,
-			CheckerType:    checkerType,
-			Addresses:      addresses,
-			TokenPath:      tokenPath,
-			MinAmount:      minAmount,
-		},
-	}
-
-	proposalId++
-	proposals.Set(formatUint(proposalId), proposal)
-	latestProposalByProposer.Set(proposer.String(), proposalId)
-
-	prevAddr, prevPkgPath := getPrev()
-	std.Emit(
-		"ProposeRoleChange",
-		"prevAddr", prevAddr,
-		"prevRealm", prevPkgPath,
-		"title", title,
-		"description", description,
-		"roleName", roleName,
-		"permissionName", permissionName,
-		"action", action.String(),
-		"checkerType", checkerType.String(),
-		"proposalId", formatUint(proposalId),
-		"quorumAmount", formatUint(proposal.QuorumAmount),
-		"maxVotingWeight", proposal.MaxVotingWeight.ToString(),
-		"configVersion", formatUint(proposal.ConfigVersion),
-		"createdAt", formatUint(proposal.State.CreatedAt),
-	)
-
-	return proposalId
-}
-
 // parseAddresses parses a colon-separated string of addresses into an array of std.Address.
 // Example input: "addr1:addr2:addr3"
 func parseAddresses(addressStr string) []std.Address {
@@ -276,15 +246,57 @@ func parseAddresses(addressStr string) []std.Address {
 	addrStrings := strings.Split(addressStr, ":")
 	addresses := make([]std.Address, 0, len(addrStrings))
 
-	for _, addr := range addrStrings {
-		addr = strings.TrimSpace(addr)
-		if addr == "" {
+	for _, addrStr := range addrStrings {
+		addrStr = strings.TrimSpace(addrStr)
+		if addrStr == "" {
 			continue
 		}
 
-		address := std.Address(addr)
-		addresses = append(addresses, address)
+		addr := std.Address(addrStr)
+		addresses = append(addresses, addr)
 	}
 
 	return addresses
+}
+
+/////////// EXECUTE PROPOSAL ///////////
+
+func executeAddRole(cur realm, roleInfo RoleChangeInfo) error {
+	if roleInfo.CheckerType == SingleAddressChecker && len(roleInfo.Addresses) == 1 {
+		return access.CreateRole(cross, roleInfo.RoleName, roleInfo.Addresses[0])
+	}
+
+	return errors.New("invalid checker type or addresses for role creation")
+}
+
+func executeRemoveRole(cur realm, info RoleChangeInfo) error {
+	panic("TODO")
+}
+
+func executeAddPermission(cur realm, roleInfo RoleChangeInfo) error {
+	if !access.RoleExists(roleInfo.RoleName) {
+		return ufmt.Errorf("role %s does not exist", roleInfo.RoleName)
+	}
+
+	// Create and add the permission checker
+	checker := getPermissionChecker(roleInfo)
+	return rbac.RegisterPermission(cross, roleInfo.RoleName, roleInfo.PermissionName, checker)
+}
+
+func executeRemovePermission(cur realm, roleInfo RoleChangeInfo) error {
+	if !access.RoleExists(roleInfo.RoleName) {
+		return ufmt.Errorf("role %s does not exist", roleInfo.RoleName)
+	}
+
+	return rbac.RemovePermission(cross, roleInfo.RoleName, roleInfo.PermissionName)
+}
+
+func executeUpdatePermission(cur realm, roleInfo RoleChangeInfo) error {
+	if !access.RoleExists(roleInfo.RoleName) {
+		return ufmt.Errorf("role %s does not exist", roleInfo.RoleName)
+	}
+
+	// Update the permission checker
+	checker := getPermissionChecker(roleInfo)
+	return rbac.UpdatePermission(cross, roleInfo.RoleName, roleInfo.PermissionName, checker)
 }

@@ -42,6 +42,7 @@ var fixedPointQ128 = u256.MustFromDecimal(consts.Q128)
 // Returns swapped amount0, amount1 in string
 // ref: https://docs.gnoswap.io/contracts/pool/pool.gno#swap
 func Swap(
+	cur realm,
 	token0Path string,
 	token1Path string,
 	fee uint32,
@@ -57,7 +58,7 @@ func Swap(
 		if err := common.RouterOnly(caller); err != nil {
 			panic(newErrorWithDetail(
 				errNoPermission,
-				ufmt.Sprintf("only router(%s) can call pool swap(), called from %s", consts.ROUTER_ADDR, caller.String()),
+				ufmt.Sprintf("only router(%s) can call pool swap(), called from %s", routerAddr, caller.String()),
 			))
 		}
 	}
@@ -85,7 +86,7 @@ func Swap(
 	feeGrowthGlobalX128 := getFeeGrowthGlobal(pool, zeroForOne)
 	feeProtocol := getFeeProtocol(slot0Start, zeroForOne)
 	cache := newSwapCache(feeProtocol, pool.liquidity.Clone())
-	state := newSwapState(amounts, feeGrowthGlobalX128, cache.liquidityStart, slot0Start)
+	state := newSwapState(amounts, feeGrowthGlobalX128, cache.liquidityStart.Clone(), slot0Start)
 
 	comp := SwapComputation{
 		AmountSpecified:   amounts,
@@ -130,6 +131,7 @@ func Swap(
 		"feeGrowthGlobal1X128", pool.FeeGrowthGlobal1X128().ToString(),
 		"balanceToken0", pool.BalanceToken0().ToString(),
 		"balanceToken1", pool.BalanceToken1().ToString(),
+		"ticks", pool.Ticks(),
 	)
 
 	return result.Amount0.ToString(), result.Amount1.ToString()
@@ -137,6 +139,7 @@ func Swap(
 
 // DrySwap simulates a swap and returns the amount0, amount1 that would be received and a boolean indicating if the swap is possible
 func DrySwap(
+	cur realm,
 	token0Path string,
 	token1Path string,
 	fee uint32,
@@ -247,12 +250,12 @@ func computeSwap(pool *Pool, comp SwapComputation) (*SwapResult, error) {
 		if state.protocolFee.Gt(u256.Zero()) {
 			result.NewProtocolFees.token0 = new(u256.Uint).Add(result.NewProtocolFees.token0, state.protocolFee)
 		}
-		result.FeeGrowthGlobal0X128 = state.feeGrowthGlobalX128
+		result.FeeGrowthGlobal0X128 = state.feeGrowthGlobalX128.Clone()
 	} else {
 		if state.protocolFee.Gt(u256.Zero()) {
 			result.NewProtocolFees.token1 = new(u256.Uint).Add(result.NewProtocolFees.token1, state.protocolFee)
 		}
-		result.FeeGrowthGlobal1X128 = state.feeGrowthGlobalX128
+		result.FeeGrowthGlobal1X128 = state.feeGrowthGlobalX128.Clone()
 	}
 
 	return result, nil
@@ -344,7 +347,7 @@ func computeSwapStep(
 	step := computeSwapStepInit(state, pool, zeroForOne)
 
 	// determining the price target for this step
-	sqrtRatioTargetX96 := computeTargetSqrtRatio(step, sqrtPriceLimitX96, zeroForOne)
+	sqrtRatioTargetX96 := computeTargetSqrtRatio(step, sqrtPriceLimitX96, zeroForOne).Clone()
 
 	// computing the amounts to be swapped at this step
 	var newState SwapState
@@ -408,9 +411,9 @@ func computeSwapStepInit(state SwapState, pool *Pool, zeroForOne bool) StepCompu
 
 	// prevent overshoot the min/max tick
 	step.clampTickNext()
-
 	// get the price for the next tick
-	step.sqrtPriceNextX96 = common.TickMathGetSqrtRatioAtTick(step.tickNext)
+	sqrtPrice := common.TickMathGetSqrtRatioAtTick(step.tickNext).ToString()
+	step.sqrtPriceNextX96 = u256.MustFromDecimal(sqrtPrice)
 	return step
 }
 
@@ -522,12 +525,12 @@ func tickTransition(step StepComputations, zeroForOne bool, state SwapState, poo
 func (p *Pool) swapTransfers(zeroForOne bool, payer, recipient std.Address, amount0, amount1 *i256.Int) {
 	if zeroForOne {
 		// payer > POOL
-		p.safeTransferFrom(payer, consts.POOL_ADDR, p.token0Path, amount0.Abs(), true)
+		p.safeTransferFrom(payer, poolAddr, p.token0Path, amount0.Abs(), true)
 		// POOL > recipient
 		p.safeTransfer(recipient, p.token1Path, amount1, false)
 	} else {
 		// payer > POOL
-		p.safeTransferFrom(payer, consts.POOL_ADDR, p.token1Path, amount1.Abs(), false)
+		p.safeTransferFrom(payer, poolAddr, p.token1Path, amount1.Abs(), false)
 		// POOL > recipient
 		p.safeTransfer(recipient, p.token0Path, amount0, true)
 	}

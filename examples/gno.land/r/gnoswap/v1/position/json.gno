@@ -98,6 +98,8 @@ func (p RpcPosition) JSON(owner std.Address) *json.Node {
 		"token1Owed":               json.StringNode("token1Owed", p.TokensOwed1),
 		"token0Balance":            json.StringNode("token0Balance", p.Token0Balance),
 		"token1Balance":            json.StringNode("token1Balance", p.Token1Balance),
+		"calculatedToken0Balance":  json.StringNode("calculatedToken0Balance", p.CalculatedToken0Balance),
+		"calculatedToken1Balance":  json.StringNode("calculatedToken1Balance", p.CalculatedToken1Balance),
 		"fee0Unclaimed":            json.StringNode("fee0Unclaimed", p.FeeUnclaimed0),
 		"fee1Unclaimed":            json.StringNode("fee1Unclaimed", p.FeeUnclaimed1),
 	})

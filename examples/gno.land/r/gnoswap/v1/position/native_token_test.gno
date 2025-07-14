@@ -1,6 +1,7 @@
 package position
 
 import (
+	"errors"
 	"std"
 	"strconv"
 	"testing"
@@ -13,18 +14,18 @@ func TestTransferUGNOT(t *testing.T) {
 	tests := []struct {
 		name        string
 		action      func(t *testing.T, from, to std.Address)
-		verify      func(t *testing.T, to std.Address) uint64
+		verify      func(t *testing.T, to std.Address) int64
 		from        std.Address
 		to          std.Address
 		expected    string
 		shouldPanic bool
 	}{
 		{
-			name: "Success - Zero amount",
+			name: "transferUGNOT is success by zero amount",
 			action: func(t *testing.T, from, to std.Address) {
 				transferUGNOT(from, to, 0)
 			},
-			verify: func(t *testing.T, to std.Address) uint64 {
+			verify: func(t *testing.T, to std.Address) int64 {
 				return ugnotBalanceOf(t, to)
 			},
 			from:        alice,
@@ -33,16 +34,16 @@ func TestTransferUGNOT(t *testing.T) {
 			shouldPanic: false,
 		},
 		{
-			name: "Success - Valid transfer",
+			name: "transferUGNOT is success by valid transfer",
 			action: func(t *testing.T, from, to std.Address) {
 				ugnotFaucet(t, from, 100)
-				std.TestSetRealm(std.NewUserRealm(from))
+				testing.SetRealm(std.NewUserRealm(from))
 				transferUGNOT(from, to, 100)
 			},
-			verify: func(t *testing.T, to std.Address) uint64 {
+			verify: func(t *testing.T, to std.Address) int64 {
 				return ugnotBalanceOf(t, to)
 			},
-			from:        consts.POSITION_ADDR,
+			from:        positionAddr,
 			to:          bob,
 			expected:    "100",
 			shouldPanic: false,
@@ -50,37 +51,16 @@ func TestTransferUGNOT(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			defer func() {
-				r := recover()
-				if r == nil {
-					if tc.shouldPanic {
-						t.Errorf(">>> %s: expected panic but got none", tc.name)
-						return
-					}
-				} else {
-					switch r.(type) {
-					case string:
-						if r.(string) != tc.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tc.name, r, tc.expected)
-						}
-					case error:
-						if r.(error).Error() != tc.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tc.name, r.(error).Error(), tc.expected)
-						}
-					default:
-						t.Errorf(">>> %s: got panic %v, want %v", tc.name, r, tc.expected)
-					}
-				}
-			}()
-
 			if !tc.shouldPanic {
 				tc.action(t, tc.from, tc.to)
 				if tc.verify != nil {
 					balance := tc.verify(t, tc.to)
-					uassert.Equal(t, tc.expected, strconv.FormatUint(balance, 10))
+					uassert.Equal(t, tc.expected, strconv.FormatInt(balance, 10))
 				}
 			} else {
-				tc.action(t, tc.from, tc.to)
+				uassert.PanicsWithMessage(t, tc.expected, func() {
+					tc.action(t, tc.from, tc.to)
+				})
 			}
 		})
 	}
@@ -88,47 +68,48 @@ func TestTransferUGNOT(t *testing.T) {
 
 func TestWrapInPosition(t *testing.T) {
 	tests := []struct {
-		name        string
-		action      func(t *testing.T, from, to std.Address) error
-		verify      func(t *testing.T, to std.Address) uint64
-		from        std.Address
-		to          std.Address
-		expected    string
-		shouldPanic bool
+		name           string
+		action         func(t *testing.T, from, to std.Address) error
+		verify         func(t *testing.T, to std.Address) int64
+		from           std.Address
+		to             std.Address
+		expected       string
+		shouldPanic    bool
+		expectedErrMsg string
 	}{
 		{
-			name: "Failure - Amount less than minimum",
+			name: "wrap is failed by amount less than minimum",
 			action: func(t *testing.T, from, to std.Address) error {
 				return wrap(999, to)
 			},
-			verify:      nil,
-			from:        alice,
-			to:          bob,
-			expected:    "amount(999) < minimum(1000)",
-			shouldPanic: true,
+			verify:         nil,
+			from:           alice,
+			to:             bob,
+			expectedErrMsg: "amount(999) < minimum(1000)",
+			shouldPanic:    true,
 		},
 		{
-			name: "Failure - Zero amount",
+			name: "wrap is failed by zero amount",
 			action: func(t *testing.T, from, to std.Address) error {
 				return wrap(0, to)
 			},
-			verify:      nil,
-			from:        alice,
-			to:          bob,
-			expected:    "amount(0) < minimum(1000)",
-			shouldPanic: true,
+			verify:         nil,
+			from:           alice,
+			to:             bob,
+			expectedErrMsg: "amount(0) < minimum(1000)",
+			shouldPanic:    true,
 		},
 		{
-			name: "Success - Valid amount",
+			name: "wrap is success by valid amount",
 			action: func(t *testing.T, from, to std.Address) error {
 				ugnotFaucet(t, from, 1000)
-				std.TestSetRealm(std.NewUserRealm(from))
+				testing.SetRealm(std.NewUserRealm(from))
 				return wrap(1000, to)
 			},
-			verify: func(t *testing.T, to std.Address) uint64 {
+			verify: func(t *testing.T, to std.Address) int64 {
 				return TokenBalance(t, wugnotPath, to)
 			},
-			from:        consts.POSITION_ADDR,
+			from:        positionAddr,
 			to:          bob,
 			expected:    "1000",
 			shouldPanic: false,
@@ -136,37 +117,14 @@ func TestWrapInPosition(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			defer func() {
-				r := recover()
-				if r != nil {
-					switch r.(type) {
-					case string:
-						if r.(string) != tc.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tc.name, r, tc.expected)
-						}
-					case error:
-						if r.(error).Error() != tc.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tc.name, r.(error).Error(), tc.expected)
-						}
-					default:
-						t.Errorf(">>> %s: got panic %v, want %v", tc.name, r, tc.expected)
-					}
-				}
-			}()
-
 			if !tc.shouldPanic {
 				err := tc.action(t, tc.from, tc.to)
 				if err == nil && tc.verify != nil {
 					balance := tc.verify(t, tc.to)
-					uassert.Equal(t, tc.expected, strconv.FormatUint(balance, 10))
+					uassert.Equal(t, tc.expected, strconv.FormatInt(balance, 10))
 				}
 			} else {
-				err := tc.action(t, tc.from, tc.to)
-				if err != nil {
-					uassert.Equal(t, tc.expected, err.Error())
-				} else {
-					t.Errorf(">>> %s: expected panic but got none", tc.name)
-				}
+				uassert.ErrorIs(t, tc.action(t, tc.from, tc.to), errors.New(tc.expectedErrMsg))
 			}
 		})
 	}
@@ -176,37 +134,39 @@ func TestUnWrap(t *testing.T) {
 	tests := []struct {
 		name        string
 		action      func(t *testing.T, from, to std.Address) error
-		verify      func(t *testing.T, to std.Address) uint64
+		verify      func(t *testing.T, to std.Address) int64
 		from        std.Address
 		to          std.Address
 		expected    string
 		shouldPanic bool
 	}{
 		{
-			name: "Failure - Zero amount",
+			name: "unwrap is failed by zero amount",
 			action: func(t *testing.T, from, to std.Address) error {
 				return unwrap(0, to)
 			},
 			verify:      nil,
 			from:        alice,
 			to:          bob,
-			expected:    "amount(0) is zero",
+			expected:    "amount(0) is zero or negative",
 			shouldPanic: true,
 		},
 		{
-			name: "Success - Valid amount",
+			name: "unwrap is success by valid amount",
 			action: func(t *testing.T, from, to std.Address) error {
 				ugnotFaucet(t, from, 1000)
-				std.TestSetRealm(std.NewUserRealm(from))
-				wrap(1000, to)
-				std.TestSetRealm(std.NewUserRealm(to))
+
+				testing.SetRealm(std.NewUserRealm(from))
+				err := wrap(1000, to)
+				uassert.Nil(t, err, "wrap should not return error")
+
 				TokenApprove(t, wugnotPath, to, from, 1000)
 				return unwrap(1000, to)
 			},
-			verify: func(t *testing.T, to std.Address) uint64 {
-				return TokenBalance(t, wugnotPath, to)
+			verify: func(t *testing.T, to std.Address) int64 {
+				return ugnotBalanceOf(t, to)
 			},
-			from:        consts.POSITION_ADDR,
+			from:        positionAddr,
 			to:          bob,
 			expected:    "1000",
 			shouldPanic: false,
@@ -214,29 +174,11 @@ func TestUnWrap(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			defer func() {
-				r := recover()
-				if r != nil {
-					switch r.(type) {
-					case string:
-						if r.(string) != tc.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tc.name, r, tc.expected)
-						}
-					case error:
-						if r.(error).Error() != tc.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tc.name, r.(error).Error(), tc.expected)
-						}
-					default:
-						t.Errorf(">>> %s: got panic %v, want %v", tc.name, r, tc.expected)
-					}
-				}
-			}()
-
 			if !tc.shouldPanic {
 				err := tc.action(t, tc.from, tc.to)
 				if err == nil && tc.verify != nil {
 					balance := tc.verify(t, tc.to)
-					uassert.Equal(t, tc.expected, strconv.FormatUint(balance, 10))
+					uassert.Equal(t, tc.expected, strconv.FormatInt(balance, 10))
 				}
 			} else {
 				err := tc.action(t, tc.from, tc.to)
@@ -257,22 +199,22 @@ func TestIsNative(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "Native Token - GNOT",
+			name:     "isNative is success by native token",
 			token:    "gnot",
 			expected: true,
 		},
 		{
-			name:     "Non-Native Token",
+			name:     "isNative is failed by non-native token",
 			token:    "usdt",
 			expected: false,
 		},
 		{
-			name:     "Empty Token",
+			name:     "isNative is failed by empty token",
 			token:    "",
 			expected: false,
 		},
 		{
-			name:     "Similar but Different Token",
+			name:     "isNative is failed by similar but different token",
 			token:    "GNOT",
 			expected: false,
 		},
@@ -293,22 +235,22 @@ func TestIsWrappedToken(t *testing.T) {
 		expected  bool
 	}{
 		{
-			name:      "Success - Token is Wrapped WUGNOT",
+			name:      "isWrappedToken is success by wrapped WUGNOT",
 			tokenPath: consts.WRAPPED_WUGNOT,
 			expected:  true,
 		},
 		{
-			name:      "Fail - Token is not Wrapped WUGNOT",
+			name:      "isWrappedToken is failed by non-wrapped WUGNOT",
 			tokenPath: "gno.land/r/demo/ugnot",
 			expected:  false,
 		},
 		{
-			name:      "Fail - Empty tokenPath",
+			name:      "isWrappedToken is failed by empty tokenPath",
 			tokenPath: "",
 			expected:  false,
 		},
 		{
-			name:      "Fail - Similar but Different Token Path",
+			name:      "isWrappedToken is failed by similar but different tokenPath",
 			tokenPath: "gno.land/r/demo/Wugnot",
 			expected:  false,
 		},
@@ -333,33 +275,37 @@ func TestSafeWrapNativeToken(t *testing.T) {
 		name          string
 		amountDesired string
 		userAddress   std.Address
-		sentAmount    uint64
+		sentAmount    int64
 		expectPanic   bool
-		expectedWrap  uint64
+		expectedWrap  int64
+		expectedError string
 	}{
 		{
-			name:          "Panic - Zero UGNOT",
+			name:          "safeWrapNativeToken is failed by zero UGNOT",
 			amountDesired: "50",
 			userAddress:   alice,
 			sentAmount:    0,
 			expectPanic:   true,
+			expectedError: "[GNOSWAP-POSITION-008] can not wrap less than minimum amount || amount(50) < minimum(1000)",
 		},
 		{
-			name:          "Panic - Insufficient UGNOT",
+			name:          "safeWrapNativeToken is failed by insufficient UGNOT",
 			amountDesired: "150",
 			userAddress:   alice,
 			sentAmount:    100,
 			expectPanic:   true,
+			expectedError: "[GNOSWAP-POSITION-008] can not wrap less than minimum amount || amount(150) < minimum(1000)",
 		},
 		{
-			name:          "Panic - Invalid Desired Amount",
+			name:          "safeWrapNativeToken is failed by invalid desired amount",
 			amountDesired: "invalid",
 			userAddress:   alice,
 			sentAmount:    200,
 			expectPanic:   true,
+			expectedError: "[GNOSWAP-POSITION-003] wrap, unwrap failed || strconv.ParseInt: parsing \"invalid\": invalid syntax",
 		},
 		{
-			name:          "Successful wrap - Exact Amount",
+			name:          "safeWrapNativeToken is success by exact amount",
 			amountDesired: "1050",
 			userAddress:   alice,
 			sentAmount:    1050,
@@ -367,7 +313,7 @@ func TestSafeWrapNativeToken(t *testing.T) {
 			expectedWrap:  1050,
 		},
 		{
-			name:          "Excess Refund",
+			name:          "safeWrapNativeToken is success by excess refund",
 			amountDesired: "1000",
 			userAddress:   alice,
 			sentAmount:    1500,
@@ -375,7 +321,7 @@ func TestSafeWrapNativeToken(t *testing.T) {
 			expectedWrap:  1000,
 		},
 		{
-			name:          "Boundary Test - Exact Match",
+			name:          "safeWrapNativeToken is success by boundary test",
 			amountDesired: "1000",
 			userAddress:   alice,
 			sentAmount:    1000,
@@ -383,52 +329,43 @@ func TestSafeWrapNativeToken(t *testing.T) {
 			expectedWrap:  1000,
 		},
 		{
-			name:          "Zero Desired Amount", // unable to catch this panic
+			name:          "safeWrapNativeToken is success by zero desired amount", // unable to catch this panic
 			amountDesired: "0",
 			userAddress:   alice,
 			sentAmount:    100,
-			expectPanic:   true,
+			expectPanic:   false,
+			expectedWrap:  0,
 		},
 		{
-			name:          "Wrap Error Test",
+			name:          "safeWrapNativeToken is failed by wrap error",
 			amountDesired: "100",
 			userAddress:   alice,
 			sentAmount:    100,
 			expectPanic:   true, // Simulate wrap error internally
+			expectedError: "[GNOSWAP-POSITION-008] can not wrap less than minimum amount || amount(100) < minimum(1000)",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				if r := recover(); r != nil {
-					if !tt.expectPanic {
-						t.Errorf("unexpected panic: %v", r)
-					}
-				} else {
-					if tt.expectPanic {
-						t.Errorf("expected panic but did not occur")
-					}
-				}
-			}()
-
-			amount, err := strconv.ParseUint(tt.amountDesired, 10, 64)
-			if err != nil {
-				panic("can not parse amount")
-			}
+			// we ignore the error here because we need to test
+			// the invalid amount case
+			amount, _ := strconv.ParseInt(tt.amountDesired, 10, 64)
 			if amount > 0 {
-				ugnotFaucet(t, consts.POSITION_ADDR, amount)
+				ugnotFaucet(t, positionAddr, amount)
 			}
-			std.TestSetRealm(std.NewUserRealm(consts.POSITION_ADDR))
+			testing.SetRealm(std.NewUserRealm(positionAddr))
 
-			transferUGNOT(consts.POSITION_ADDR, consts.POSITION_ADDR, amount)
-
-			// Perform wrapping
-			wrappedAmount := safeWrapNativeToken(tt.amountDesired, tt.userAddress)
+			transferUGNOT(positionAddr, positionAddr, amount)
 
 			// Verify wrapped amount
 			if !tt.expectPanic {
+				wrappedAmount := safeWrapNativeToken(tt.amountDesired, tt.userAddress)
 				uassert.Equal(t, tt.expectedWrap, wrappedAmount)
+			} else {
+				uassert.PanicsWithMessage(t, tt.expectedError, func() {
+					safeWrapNativeToken(tt.amountDesired, tt.userAddress)
+				})
 			}
 		})
 	}

@@ -1,7 +1,6 @@
 package emission
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -13,27 +12,27 @@ func TestMintAndDistributeGns(t *testing.T) {
 		setup       func()
 		shouldPanic bool
 		panicMsg    string
-		verify      func(distributed uint64)
+		verify      func(distributed int64)
 	}{
 		{
 			name: "no block passed",
-			verify: func(distributed uint64) {
-				uassert.Equal(t, uint64(0), distributed)
+			verify: func(distributed int64) {
+				uassert.Equal(t, int64(0), distributed)
 			},
 		},
 		{
 			name: "block passed",
 			setup: func() {
-				std.TestSkipHeights(123)
+				testing.SkipHeights(123)
 			},
-			verify: func(distributed uint64) {
+			verify: func(distributed int64) {
 				uassert.True(t, distributed > 0)
 			},
 		},
 		{
 			name: "same block",
-			verify: func(distributed uint64) {
-				uassert.Equal(t, uint64(0), distributed)
+			verify: func(distributed int64) {
+				uassert.Equal(t, int64(0), distributed)
 			},
 		},
 	}
@@ -46,14 +45,16 @@ func TestMintAndDistributeGns(t *testing.T) {
 
 			if tt.shouldPanic {
 				uassert.PanicsWithMessage(t, tt.panicMsg, func() {
-					MintAndDistributeGns()
+					MintAndDistributeGns(cross)
 				})
 			} else {
-				distributed := MintAndDistributeGns()
+				distributed := MintAndDistributeGns(cross)
 				if tt.verify != nil {
 					tt.verify(distributed)
 				}
 			}
 		})
+
+		resetObject(t)
 	}
 }

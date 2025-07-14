@@ -39,6 +39,7 @@ var (
 	errIncentiveNotFound           = errors.New("[GNOSWAP-STAKER-030] incentive not found")
 	errWarmUpAmountNotFound        = errors.New("[GNOSWAP-STAKER-031] warm-up amount not found")
 	errOverflow                    = errors.New("[GNOSWAP-STAKER-032] overflow")
+	errUnauthorized                = errors.New("[GNOSWAP-STAKER-033] unauthorized access")
 )
 
 func addDetailToError(err error, detail string) string {

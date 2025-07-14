@@ -35,12 +35,12 @@ func TestShortWarmUpRemoveTier(t *testing.T) {
 
 func testInit(t *testing.T) {
 	t.Run("init pool tiers", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		// init pool tiers
 		// tier 1
 		deletePoolTier(t, MUST_EXISTS_IN_TIER_1)
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 
 		// override warm-up period for testing
 		changeWarmup(t, 0, 150)
@@ -52,7 +52,7 @@ func testInit(t *testing.T) {
 		SetUnStakingFeeByAdmin(0)
 
 		// set pool creation fee to 0
-		pl.SetPoolCreationFeeByAdmin(0)
+		cross(pl.SetPoolCreationFeeByAdmin)(0)
 
 		// set community pool distribution to 0% (give it to devOps)
 		en.ChangeDistributionPctByAdmin(
@@ -69,34 +69,34 @@ func testDoubleMint(t *testing.T) {
 		en.MintAndDistributeGns()
 		en.MintAndDistributeGns()
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testPoolInitCreatePool(t *testing.T) {
 	t.Run("create pool", func(t *testing.T) {
 
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*3)
+		gns.Approve(poolAddr, pl.GetPoolCreationFee()*3)
 
 		pl.CreatePool(barPath, quxPath, 100, "79228162514264337593543950337")
 		SetPoolTierByAdmin(`gno.land/r/onbloc/bar:gno.land/r/onbloc/qux:100`, 1)
 
 		pl.CreatePool(barPath, bazPath, 3000, "79228162514264337593543950337")
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarQux100_1(t *testing.T) {
 	t.Run("mint bar:qux:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,      // token0
 			quxPath,      // token1
 			fee100,       // fee
@@ -115,18 +115,18 @@ func testMintBarQux100_1(t *testing.T) {
 		uassert.Equal(t, positionId, uint64(1))
 		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(positionId)), adminAddr)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarBaz100_2(t *testing.T) {
 	t.Run("mint bar:baz:3000", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		baz.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,      // token0
 			bazPath,      // token1
 			fee3000,      // fee
@@ -145,50 +145,50 @@ func testMintBarBaz100_2(t *testing.T) {
 		uassert.Equal(t, positionId, uint64(2))
 		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(positionId)), adminAddr)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testStakeToken_1(t *testing.T) {
 	t.Run("stake token 01", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(1))
+		gnft.Approve(stakerAddr, positionIdFrom(1))
 		StakeToken(1, "")
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testSetPoolTier(t *testing.T) {
 	t.Run("set pool tier", func(t *testing.T) {
-		std.TestSkipHeights(100) // this reward should go to bar:qux:100
+		testing.SkipHeights(100) // this reward should go to bar:qux:100
 
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 		SetPoolTierByAdmin(`gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000`, 2)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testStakeToken_2(t *testing.T) {
 	t.Run("stake token 02", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(2))
+		gnft.Approve(stakerAddr, positionIdFrom(2))
 		StakeToken(2, "")
 
 		// clear reward
 		CollectReward(1, false)
 		CollectReward(2, false)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testRemovePoolTier(t *testing.T) {
 	t.Run("check reward for position 01", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		beforeGns := gns.BalanceOf(admin)
 		CollectReward(1, false) // position 01 is in tier1 pool
@@ -205,9 +205,9 @@ func testRemovePoolTier(t *testing.T) {
 	})
 
 	t.Run("remove pool tier", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 		RemovePoolTierByAdmin(`gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000`)
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 		// tier2 pool has been removed, only 1 pool exist in tier 1
 
 		beforeGns := gns.BalanceOf(admin)

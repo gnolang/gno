@@ -83,8 +83,12 @@ func instantiateWarmup(currentHeight int64) []Warmup {
 	return warmups
 }
 
-func (warmup *Warmup) apply(poolReward uint64, positionLiquidity, stakedLiquidity *u256.Uint) (uint64, uint64) {
-	poolRewardUint := u256.NewUint(poolReward)
+func (warmup *Warmup) apply(poolReward int64, positionLiquidity, stakedLiquidity *u256.Uint) (int64, int64) {
+	if stakedLiquidity.IsZero() {
+		return 0, 0
+	}
+	
+	poolRewardUint := u256.NewUintFromInt64(poolReward)
 	perPositionReward := u256.Zero().Mul(poolRewardUint, positionLiquidity)
 	perPositionReward = u256.Zero().Div(perPositionReward, stakedLiquidity)
 	rewardRatio := u256.NewUint(warmup.WarmupRatio)
@@ -93,7 +97,7 @@ func (warmup *Warmup) apply(poolReward uint64, positionLiquidity, stakedLiquidit
 	totalReward = u256.Zero().Div(totalReward, u256.NewUint(100))
 	totalPenalty := u256.Zero().Mul(perPositionReward, penaltyRatio)
 	totalPenalty = u256.Zero().Div(totalPenalty, u256.NewUint(100))
-	return totalReward.Uint64(), totalPenalty.Uint64()
+	return int64(totalReward.Uint64()), int64(totalPenalty.Uint64())
 }
 
 func (self *Deposit) FindWarmup(currentHeight int64) int {

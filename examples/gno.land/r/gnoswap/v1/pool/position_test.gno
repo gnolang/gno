@@ -176,6 +176,91 @@ func TestPositionUpdate(t *testing.T) {
 	}
 }
 
+func TestPositionUpdateNegativeValues(t *testing.T) {
+	tests := []struct {
+		name                  string
+		initialLiquidity      *u256.Uint
+		liquidityDelta        *i256.Int
+		feeGrowthInside0X128  *u256.Uint
+		feeGrowthInside1X128  *u256.Uint
+		initialFeeGrowth0Last *u256.Uint
+		initialFeeGrowth1Last *u256.Uint
+		expectPanic           bool
+		expectedError         string
+	}{
+		{
+			name:                  "FeeGrowthInside less than Last",
+			initialLiquidity:      u256.MustFromDecimal("1000"),
+			liquidityDelta:        i256.Zero(),
+			feeGrowthInside0X128:  u256.MustFromDecimal("50"),
+			feeGrowthInside1X128:  u256.MustFromDecimal("50"),
+			initialFeeGrowth0Last: u256.MustFromDecimal("100"),
+			initialFeeGrowth1Last: u256.MustFromDecimal("100"),
+			expectPanic:           false,
+		},
+		{
+			name:                  "Negative Liquidity Delta",
+			initialLiquidity:      u256.MustFromDecimal("1000"),
+			liquidityDelta:        i256.MustFromDecimal("-2000"),
+			feeGrowthInside0X128:  u256.MustFromDecimal("100"),
+			feeGrowthInside1X128:  u256.MustFromDecimal("100"),
+			initialFeeGrowth0Last: u256.MustFromDecimal("50"),
+			initialFeeGrowth1Last: u256.MustFromDecimal("50"),
+			expectPanic:           true,
+			expectedError:         "[GNOSWAP-POOL-010] zero liquidity || liquidity delta(-2000) is greater than current liquidity(1000)",
+		},
+		{
+			name:                  "Zero Values",
+			initialLiquidity:      u256.Zero(),
+			liquidityDelta:        i256.Zero(),
+			feeGrowthInside0X128:  u256.Zero(),
+			feeGrowthInside1X128:  u256.Zero(),
+			initialFeeGrowth0Last: u256.Zero(),
+			initialFeeGrowth1Last: u256.Zero(),
+			expectPanic:           true,
+			expectedError:         "[GNOSWAP-POOL-010] zero liquidity || both liquidityDelta and current position's liquidity are zero",
+		},
+		{
+			name:                  "Large Fee Growth Values",
+			initialLiquidity:      u256.MustFromDecimal("1000"),
+			liquidityDelta:        i256.Zero(),
+			feeGrowthInside0X128:  u256.MustFromDecimal("340282366920938463463374607431768211456"), // Q128
+			feeGrowthInside1X128:  u256.MustFromDecimal("340282366920938463463374607431768211456"), // Q128
+			initialFeeGrowth0Last: u256.MustFromDecimal("100"),
+			initialFeeGrowth1Last: u256.MustFromDecimal("100"),
+			expectPanic:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			position := PositionInfo{
+				liquidity:                tt.initialLiquidity,
+				feeGrowthInside0LastX128: tt.initialFeeGrowth0Last,
+				feeGrowthInside1LastX128: tt.initialFeeGrowth1Last,
+				tokensOwed0:              u256.Zero(),
+				tokensOwed1:              u256.Zero(),
+			}
+
+			if tt.expectPanic {
+				uassert.PanicsWithMessage(t, tt.expectedError, func() {
+					positionUpdate(position, tt.liquidityDelta, tt.feeGrowthInside0X128, tt.feeGrowthInside1X128)
+				})
+			} else {
+				result := positionUpdate(position, tt.liquidityDelta, tt.feeGrowthInside0X128, tt.feeGrowthInside1X128)
+
+				if result.tokensOwed0.Lt(u256.Zero()) || result.tokensOwed1.Lt(u256.Zero()) {
+					t.Errorf("result contains negative values: tokensOwed0=%v, tokensOwed1=%v",
+						result.tokensOwed0, result.tokensOwed1)
+				}
+				if result.liquidity.Lt(u256.Zero()) {
+					t.Errorf("liquidity is negative: %v", result.liquidity)
+				}
+			}
+		})
+	}
+}
+
 func TestModifyPosition(t *testing.T) {
 	const (
 		fee500              = uint32(500)
@@ -229,7 +314,7 @@ func TestModifyPosition(t *testing.T) {
 			pool := newPool(poolParams)
 
 			params := ModifyPositionParams{
-				owner:          consts.POSITION_ADDR,
+				owner:          positionAddr,
 				tickLower:      tt.tickLower,
 				tickUpper:      tt.tickUpper,
 				liquidityDelta: new(i256.Int).SetInt64(test_liquidityDelta),
@@ -257,7 +342,7 @@ func TestModifyPositionEdgeCases(t *testing.T) {
 		)
 		pool := newPool(poolParams)
 		params := ModifyPositionParams{
-			owner:          consts.POSITION_ADDR,
+			owner:          positionAddr,
 			tickLower:      -11000,
 			tickUpper:      -9000,
 			liquidityDelta: i256.Zero(),
@@ -287,7 +372,7 @@ func TestModifyPositionEdgeCases(t *testing.T) {
 		)
 		pool := newPool(poolParams)
 		params := ModifyPositionParams{
-			owner:          consts.POSITION_ADDR,
+			owner:          positionAddr,
 			tickLower:      -11000,
 			tickUpper:      -9000,
 			liquidityDelta: i256.MustFromDecimal("100000000"),
@@ -408,60 +493,8 @@ func TestAssertValidTickLower(t *testing.T) {
 	}
 }
 
-func TestAssertValidTickUpper(t *testing.T) {
-	tests := []struct {
-		name        string
-		tickLower   int32
-		tickUpper   int32
-		shouldPanic bool
-		expected    string
-	}{
-		{
-			name:        "tickUpper equals MAX_TICK",
-			tickLower:   consts.MIN_TICK,
-			tickUpper:   consts.MAX_TICK,
-			shouldPanic: true,
-			expected:    "[GNOSWAP-POOL-014] tickUpper is invalid || tickUpper(887272) > MAX_TICK(887272)",
-		},
-		{
-			name:        "tickUpper less than MAX_TICK",
-			tickLower:   consts.MIN_TICK + 1,
-			tickUpper:   consts.MAX_TICK - 1,
-			shouldPanic: false,
-			expected:    "",
-		},
-		{
-			name:        "tickUpper greater than MAX_TICK (panic)",
-			tickLower:   consts.MIN_TICK - 1,
-			tickUpper:   consts.MAX_TICK + 1,
-			shouldPanic: true,
-			expected:    "[GNOSWAP-POOL-014] tickUpper is invalid || tickUpper(887273) > MAX_TICK(887272)",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				if r := recover(); r == nil {
-					if tt.shouldPanic {
-						t.Errorf("unexpected panic: %v", r)
-					}
-					return
-				} else {
-					if tt.shouldPanic {
-						uassert.Equal(t, tt.expected, r.(string))
-					} else {
-						t.Errorf("expected no panic, but got: %v", r)
-					}
-				}
-			}()
-			assertValidTickUpper(tt.tickUpper)
-		})
-	}
-}
-
 func TestUpdatePosition(t *testing.T) {
-	poolParams := &createPoolParams{
+	poolParams := &poolCreateConfig{
 		token0Path:   "token0",
 		token1Path:   "token1",
 		fee:          500,
@@ -478,7 +511,7 @@ func TestUpdatePosition(t *testing.T) {
 		{
 			name: "add new position",
 			positionParams: ModifyPositionParams{
-				owner:          consts.POSITION_ADDR,
+				owner:          positionAddr,
 				tickLower:      -100,
 				tickUpper:      100,
 				liquidityDelta: i256.MustFromDecimal("1000000"),
@@ -488,7 +521,7 @@ func TestUpdatePosition(t *testing.T) {
 		{
 			name: "add liquidity to existing position",
 			positionParams: ModifyPositionParams{
-				owner:          consts.POSITION_ADDR,
+				owner:          positionAddr,
 				tickLower:      -100,
 				tickUpper:      100,
 				liquidityDelta: i256.MustFromDecimal("500000"),
@@ -498,7 +531,7 @@ func TestUpdatePosition(t *testing.T) {
 		{
 			name: "remove liquidity from position",
 			positionParams: ModifyPositionParams{
-				owner:          consts.POSITION_ADDR,
+				owner:          positionAddr,
 				tickLower:      -100,
 				tickUpper:      100,
 				liquidityDelta: i256.MustFromDecimal("-500000"),

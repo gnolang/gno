@@ -85,11 +85,13 @@ func (p *Pool) GetTickInitialized(tick int32) bool {
 // Example:
 //
 // ```gno
+//
 //	feeGrowth0, feeGrowth1 := pool.getFeeGrowthInside(
 //	    100, 200, 150, globalFeeGrowth0, globalFeeGrowth1,
 //	)
 //	println("Fee Growth Inside (Token 0):", feeGrowth0)
 //	println("Fee Growth Inside (Token 1):", feeGrowth1)
+//
 // ```
 func (p *Pool) getFeeGrowthInside(
 	tickLower int32,
@@ -152,8 +154,10 @@ func (p *Pool) getFeeGrowthInside(
 // Example:
 //
 // ```gno
+//
 //	flipped := pool.tickUpdate(10, 5, liquidityDelta, feeGrowth0, feeGrowth1, true, maxLiquidity)
 //	println("Tick flipped:", flipped)
+//
 // ```
 func (p *Pool) tickUpdate(
 	tick int32,
@@ -284,8 +288,10 @@ func (p *Pool) getTick(tick int32) TickInfo {
 // Example:
 //
 // ```gno
+//
 //	tickInfo := pool.mustGetTick(10)
 //	ufmt.Println("Tick Info:", tickInfo)
+//
 // ```
 func (p *Pool) mustGetTick(tick int32) TickInfo {
 	tickStr := strconv.Itoa(int(tick))
@@ -303,6 +309,10 @@ func (p *Pool) mustGetTick(tick int32) TickInfo {
 // calculateMaxLiquidityPerTick calculates the maximum liquidity
 // per tick for a given tick spacing.
 func calculateMaxLiquidityPerTick(tickSpacing int32) *u256.Uint {
+	// Floor MIN_TICK and MAX_TICK to the nearest multiple of tickSpacing
+	// This ensures that the tick range is properly aligned with the tickSpacing
+	// For example, if tickSpacing is 60 and MIN_TICK is -887272:
+	// -887272 / 60 = -14787.866... -> -14787 * 60 = -887220
 	minTick := (consts.MIN_TICK / tickSpacing) * tickSpacing
 	maxTick := (consts.MAX_TICK / tickSpacing) * tickSpacing
 	numTicks := uint64((maxTick-minTick)/tickSpacing) + 1
@@ -343,6 +353,7 @@ func calculateMaxLiquidityPerTick(tickSpacing int32) *u256.Uint {
 // Example:
 //
 // ```gno
+//
 //	feeGrowth0, feeGrowth1 := getFeeGrowthBelowX128(
 //	    100, 150, globalFeeGrowth0, globalFeeGrowth1, lowerTickInfo,
 //	)
@@ -398,6 +409,7 @@ func getFeeGrowthBelowX128(
 //	    200, 150, globalFeeGrowth0, globalFeeGrowth1, upperTickInfo,
 //	)
 //	println("Fee Growth Above:", feeGrowth0, feeGrowth1)
+//
 // ```
 func getFeeGrowthAboveX128(
 	tickUpper, tickCurrent int32,
@@ -443,7 +455,7 @@ func assertValidTickLower(tickLower int32) {
 }
 
 func assertValidTickUpper(tickUpper int32) {
-	if tickUpper >= consts.MAX_TICK {
+	if tickUpper > consts.MAX_TICK {
 		panic(newErrorWithDetail(
 			errTickUpperInvalid,
 			ufmt.Sprintf("tickUpper(%d) > MAX_TICK(%d)", tickUpper, consts.MAX_TICK),

@@ -8,6 +8,7 @@ import (
 
 	"gno.land/p/gnoswap/consts"
 	"gno.land/r/gnoswap/v1/common"
+	"gno.land/r/gnoswap/v1/halt"
 )
 
 func getPrev() (string, string) {
@@ -20,7 +21,9 @@ func getPrevAddr() std.Address {
 }
 
 func assertShouldNotBeHalted() {
-	common.IsHalted()
+	if err := halt.IsHalted(); err != nil {
+		panic(err)
+	}
 }
 
 func assertCallerIsEmission() {
@@ -65,7 +68,7 @@ func milliToSec(ms int64) int64 {
 	return ms / consts.MILLISECONDS_PER_SECOND
 }
 
-func formatUint(v interface{}) string {
+func formatUint(v any) string {
 	switch v := v.(type) {
 	case uint8:
 		return strconv.FormatUint(uint64(v), 10)
@@ -78,7 +81,7 @@ func formatUint(v interface{}) string {
 	}
 }
 
-func formatInt(v interface{}) string {
+func formatInt(v any) string {
 	switch v := v.(type) {
 	case int32:
 		return strconv.FormatInt(int64(v), 10)

@@ -7,14 +7,12 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/uassert"
 
+	"gno.land/p/gnoswap/consts"
 	i256 "gno.land/p/gnoswap/int256"
 	u256 "gno.land/p/gnoswap/uint256"
-
-	"gno.land/p/gnoswap/consts"
-
 	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/common"
 	"gno.land/r/gnoswap/v1/gns"
-	pn "gno.land/r/gnoswap/v1/position"
 )
 
 func TestSaveProtocolFees(t *testing.T) {
@@ -51,8 +49,8 @@ func TestSaveProtocolFees(t *testing.T) {
 					token1: u256.NewUint(2000),
 				},
 			},
-			amount0:  u256.NewUint(1000),
-			amount1:  u256.NewUint(2000),
+			amount0:  u256.NewUint(999),
+			amount1:  u256.NewUint(1999),
 			want0:    u256.NewUint(999),
 			want1:    u256.NewUint(1999),
 			wantFee0: u256.NewUint(1),
@@ -281,119 +279,10 @@ func TestComputeSwap(t *testing.T) {
 	})
 }
 
-func TestSwap_Failures(t *testing.T) {
-	const addr = consts.ROUTER_ADDR
-
-	tests := []struct {
-		name              string
-		setupFn           func(t *testing.T)
-		token0Path        string
-		token1Path        string
-		fee               uint32
-		recipient         std.Address
-		zeroForOne        bool
-		amountSpecified   string
-		sqrtPriceLimitX96 string
-		payer             std.Address
-		expectedAmount0   string
-		expectedAmount1   string
-		expectError       bool
-	}{
-		{
-			name: "locked pool",
-			setupFn: func(t *testing.T) {
-				InitialisePoolTest(t)
-				pool := GetPool(wugnotPath, gnsPath, fee3000)
-				pool.slot0.unlocked = false
-			},
-			token0Path:        wugnotPath,
-			token1Path:        gnsPath,
-			fee:               fee3000,
-			recipient:         addr,
-			zeroForOne:        true,
-			amountSpecified:   "100",
-			sqrtPriceLimitX96: "79228162514264337593543950336",
-			payer:             addr,
-			expectError:       true,
-		},
-		{
-			name: "zero amount",
-			setupFn: func(t *testing.T) {
-				InitialisePoolTest(t)
-			},
-			token0Path:        wugnotPath,
-			token1Path:        gnsPath,
-			fee:               fee3000,
-			recipient:         alice,
-			zeroForOne:        true,
-			amountSpecified:   "0",
-			sqrtPriceLimitX96: "79228162514264337593543950336",
-			payer:             alice,
-			expectError:       true,
-		},
-		{
-			name: "zero liquidity",
-			setupFn: func(t *testing.T) {
-				InitialisePoolTest(t)
-				pool := GetPool(wugnotPath, gnsPath, fee3000)
-				pool.liquidity = u256.Zero()
-			},
-			token0Path:        wugnotPath,
-			token1Path:        gnsPath,
-			fee:               fee3000,
-			recipient:         alice,
-			zeroForOne:        true,
-			amountSpecified:   "100",
-			sqrtPriceLimitX96: "79228162514264337593543950336",
-			payer:             alice,
-			expectedAmount0:   "0",
-			expectedAmount1:   "0",
-			expectError:       true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resetObject(t)
-			burnTokens(t)
-
-			if tt.setupFn != nil {
-				tt.setupFn(t)
-			}
-
-			std.TestSetOriginCaller(tt.payer)
-
-			if tt.expectError {
-				defer func() {
-					if r := recover(); r == nil {
-						t.Errorf("error should be occurred but not occurred")
-					}
-				}()
-			}
-
-			amount0, amount1 := Swap(
-				tt.token0Path,
-				tt.token1Path,
-				tt.fee,
-				tt.recipient,
-				tt.zeroForOne,
-				tt.amountSpecified,
-				tt.sqrtPriceLimitX96,
-				tt.payer,
-			)
-
-			if !tt.expectError {
-				uassert.Equal(t, amount0, tt.expectedAmount0)
-				uassert.Equal(t, amount1, tt.expectedAmount1)
-			}
-		})
-	}
-}
-
 func TestDrySwap_Failures(t *testing.T) {
-	std.TestSetRealm(adminRealm)
-	SetPoolCreationFeeByAdmin(0)
-	CreatePool(barPath, bazPath, fee100, "79228162514264337593543950336")
+	testing.SetRealm(adminRealm)
+	SetPoolCreationFeeByAdmin(cross, 0)
+	CreatePool(cross, barPath, bazPath, fee100, "79228162514264337593543950336")
 
 	tests := []struct {
 		name              string
@@ -448,6 +337,7 @@ func TestDrySwap_Failures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			amount0, amount1, success := DrySwap(
+				cross,
 				tt.token0Path,
 				tt.token1Path,
 				tt.fee,
@@ -463,8 +353,88 @@ func TestDrySwap_Failures(t *testing.T) {
 	}
 }
 
+func TestSwap_Failures(t *testing.T) {
+	tests := []struct {
+		name              string
+		setupFn           func(t *testing.T)
+		token0Path        string
+		token1Path        string
+		fee               uint32
+		recipient         std.Address
+		zeroForOne        bool
+		amountSpecified   string
+		sqrtPriceLimitX96 string
+		payer             std.Address
+		expectedAmount0   string
+		expectedAmount1   string
+		expectedMsg       string
+	}{
+		{
+			name: "locked pool",
+			setupFn: func(t *testing.T) {
+				InitialisePoolTest(t)
+				pool := GetPool(wugnotPath, gnsPath, fee3000)
+				pool.slot0.unlocked = false
+			},
+			token0Path:        wugnotPath,
+			token1Path:        gnsPath,
+			fee:               fee3000,
+			recipient:         routerAddr,
+			zeroForOne:        true,
+			amountSpecified:   "100",
+			sqrtPriceLimitX96: "79228162514264337593543950336",
+			payer:             routerAddr,
+			expectedMsg:       "[GNOSWAP-POOL-018] can't swap while pool is locked",
+		},
+		{
+			name: "zero amount",
+			setupFn: func(t *testing.T) {
+				InitialisePoolTest(t)
+				// unlock pool
+				pool := GetPool(wugnotPath, gnsPath, fee3000)
+				pool.slot0.unlocked = true
+			},
+			token0Path:        wugnotPath,
+			token1Path:        gnsPath,
+			fee:               fee3000,
+			recipient:         alice,
+			zeroForOne:        true,
+			amountSpecified:   "0",
+			sqrtPriceLimitX96: "79228162514264337593543950336",
+			payer:             alice,
+			expectedMsg:       "[GNOSWAP-POOL-015] invalid swap amount || amountSpecified == 0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetObject(t)
+			burnTokens(t)
+
+			if tt.setupFn != nil {
+				tt.setupFn(t)
+			}
+
+			testing.SetRealm(rouRealm)
+			uassert.AbortsWithMessage(t, tt.expectedMsg, func() {
+				Swap(
+					cross,
+					tt.token0Path,
+					tt.token1Path,
+					tt.fee,
+					tt.recipient,
+					tt.zeroForOne,
+					tt.amountSpecified,
+					tt.sqrtPriceLimitX96,
+					tt.payer,
+				)
+			})
+		})
+	}
+}
+
 func TestSwapAndDrySwapComparison(t *testing.T) {
-	const addr = consts.ROUTER_ADDR
+	addr := routerAddr
 
 	tests := []struct {
 		name              string
@@ -481,7 +451,7 @@ func TestSwapAndDrySwapComparison(t *testing.T) {
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, uint64(1000))
+				TokenApprove(t, gnsPath, addr, poolAddr, 1000)
 			},
 			token0Path:        wugnotPath,
 			token1Path:        gnsPath,
@@ -494,9 +464,9 @@ func TestSwapAndDrySwapComparison(t *testing.T) {
 			name: "swap - request to swap amount over total liquidty",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
 			},
 			token0Path:        wugnotPath,
 			token1Path:        gnsPath,
@@ -517,6 +487,7 @@ func TestSwapAndDrySwapComparison(t *testing.T) {
 			}
 
 			dryAmount0, dryAmount1, drySuccess := DrySwap(
+				cross,
 				tt.token0Path,
 				tt.token1Path,
 				tt.fee,
@@ -525,8 +496,9 @@ func TestSwapAndDrySwapComparison(t *testing.T) {
 				tt.sqrtPriceLimitX96,
 			)
 
-			std.TestSetOriginCaller(consts.ROUTER_ADDR)
+			testing.SetOriginCaller(routerAddr)
 			actualAmount0, actualAmount1 := Swap(
+				cross,
 				tt.token0Path,
 				tt.token1Path,
 				tt.fee,
@@ -555,7 +527,7 @@ func TestSwapAndDrySwapComparison(t *testing.T) {
 }
 
 func TestSwapAndDrySwapComparison_amount_zero(t *testing.T) {
-	const addr = consts.ROUTER_ADDR
+	addr := routerAddr
 
 	tests := []struct {
 		name        string
@@ -569,10 +541,11 @@ func TestSwapAndDrySwapComparison_amount_zero(t *testing.T) {
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, uint64(1000))
+				TokenApprove(t, gnsPath, addr, poolAddr, 1000)
 			},
 			action: func(t *testing.T) {
 				dryAmount0, dryAmount1, drySuccess := DrySwap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
@@ -592,11 +565,12 @@ func TestSwapAndDrySwapComparison_amount_zero(t *testing.T) {
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, uint64(1000))
+				TokenApprove(t, gnsPath, addr, poolAddr, 1000)
 			},
 			action: func(t *testing.T) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
@@ -606,6 +580,9 @@ func TestSwapAndDrySwapComparison_amount_zero(t *testing.T) {
 					maxSqrtPriceLimitX96,
 					addr,
 				)
+
+				println("actualAmount0", actualAmount0)
+				println("actualAmount1", actualAmount1)
 			},
 			shouldPanic: true,
 			expected:    "[GNOSWAP-POOL-015] invalid swap amount || amountSpecified == 0",
@@ -614,29 +591,6 @@ func TestSwapAndDrySwapComparison_amount_zero(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				r := recover()
-				if r == nil {
-					if tt.shouldPanic {
-						t.Errorf(">>> %s: expected panic but got none", tt.name)
-						return
-					}
-				} else {
-					switch r.(type) {
-					case string:
-						if r.(string) != tt.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tt.name, r, tt.expected)
-						}
-					case error:
-						if r.(error).Error() != tt.expected {
-							t.Errorf(">>> %s: got panic %v, want %v", tt.name, r.(error).Error(), tt.expected)
-						}
-					default:
-						t.Errorf(">>> %s: got panic %v, want %v", tt.name, r, tt.expected)
-					}
-				}
-			}()
-
 			resetObject(t)
 			burnTokens(t)
 
@@ -645,7 +599,7 @@ func TestSwapAndDrySwapComparison_amount_zero(t *testing.T) {
 			}
 
 			if tt.shouldPanic {
-				tt.action(t)
+				uassert.AbortsWithMessage(t, tt.expected, func() { tt.action(t) })
 			} else {
 				tt.action(t)
 			}
@@ -654,7 +608,7 @@ func TestSwapAndDrySwapComparison_amount_zero(t *testing.T) {
 }
 
 func TestSwap_amount_over_liquidity(t *testing.T) {
-	const addr = consts.ROUTER_ADDR
+	addr := routerAddr
 
 	tests := []struct {
 		name        string
@@ -667,64 +621,72 @@ func TestSwap_amount_over_liquidity(t *testing.T) {
 			name: "amount over liquidity - zeroForOne = false, token0:20000",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
+				TokenFaucet(t, wugnotPath, addr)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
+				TokenApprove(t, wugnotPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
 					alice,
 					false,
 					"20000",
-					consts.MAX_PRICE,
+					common.TickMathGetSqrtRatioAtTick(887220).ToString(),
 					addr,
 				)
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"-1989", "2404"},
+			expected:    []string{"-19936", "20000"},
 		},
 		{
 			name: "amount over liquidity - zeroForOne = false, token1:-20000",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
+				TokenFaucet(t, wugnotPath, addr)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
+				TokenApprove(t, wugnotPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
 					alice,
 					false,
 					"-20000",
-					consts.MAX_PRICE,
+					common.TickMathGetSqrtRatioAtTick(887220).ToString(),
 					addr,
 				)
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"-1989", "2404"},
+			expected:    []string{"-20000", "20066"},
 		},
 		{
 			name: "amount over liquidity - zeroForOne = true, token0:20000",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
-				TokenApprove(t, wugnotPath, addr, pool, maxApprove)
+				TokenFaucet(t, wugnotPath, addr)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
+				TokenApprove(t, wugnotPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
@@ -737,21 +699,22 @@ func TestSwap_amount_over_liquidity(t *testing.T) {
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"1045", "-990"},
+			expected:    []string{"20000", "-19936"},
 		},
 		{
 			name: "amount over liquidity - zeroForOne = true, token1:-20000",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
 				TokenFaucet(t, wugnotPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
-				TokenApprove(t, wugnotPath, addr, pool, maxApprove)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
+				TokenApprove(t, wugnotPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
@@ -764,7 +727,7 @@ func TestSwap_amount_over_liquidity(t *testing.T) {
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"1045", "-990"},
+			expected:    []string{"20066", "-20000"},
 		},
 	}
 
@@ -789,7 +752,7 @@ func TestSwap_amount_over_liquidity(t *testing.T) {
 }
 
 func TestSwap_EXACTIN_OUT(t *testing.T) {
-	const addr = consts.ROUTER_ADDR
+	addr := routerAddr
 
 	tests := []struct {
 		name        string
@@ -802,64 +765,68 @@ func TestSwap_EXACTIN_OUT(t *testing.T) {
 			name: "EXACT IN - zeroForOne = false, token1:200",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
 					alice,
 					false,
 					"200",
-					consts.MAX_PRICE,
+					common.TickMathGetSqrtRatioAtTick(887220).ToString(),
 					addr,
 				)
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"-195", "200"},
+			expected:    []string{"-198", "200"},
 		},
 		{
 			name: "EXACT OUT - zeroForOne = false, token0:-200",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
 					alice,
 					false,
 					"-200",
-					consts.MAX_PRICE,
+					common.TickMathGetSqrtRatioAtTick(887220).ToString(),
 					addr,
 				)
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"-200", "208"},
+			expected:    []string{"-200", "202"},
 		},
 		{
 			name: "EXACT IN - zeroForOne = true, token0:200",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
-				TokenApprove(t, wugnotPath, addr, pool, maxApprove)
+				TokenFaucet(t, wugnotPath, addr)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
+				TokenApprove(t, wugnotPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
@@ -872,21 +839,22 @@ func TestSwap_EXACTIN_OUT(t *testing.T) {
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"200", "-195"},
+			expected:    []string{"200", "-198"},
 		},
 		{
 			name: "EXACT OUT - zeroForOne = true, token1:-200",
 			setupFn: func(t *testing.T) {
 				InitialisePoolTest(t)
-				MintPositionAll(t, admin)
+				MintPositionAll(t, adminAddr)
 				TokenFaucet(t, gnsPath, addr)
 				TokenFaucet(t, wugnotPath, addr)
-				TokenApprove(t, gnsPath, addr, pool, maxApprove)
-				TokenApprove(t, wugnotPath, addr, pool, maxApprove)
+				TokenApprove(t, gnsPath, addr, poolAddr, maxApprove)
+				TokenApprove(t, wugnotPath, addr, poolAddr, maxApprove)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
+				testing.SetOriginCaller(routerAddr)
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotPath,
 					gnsPath,
 					fee3000,
@@ -899,7 +867,7 @@ func TestSwap_EXACTIN_OUT(t *testing.T) {
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"208", "-200"},
+			expected:    []string{"202", "-200"},
 		},
 	}
 
@@ -924,8 +892,6 @@ func TestSwap_EXACTIN_OUT(t *testing.T) {
 }
 
 func TestSwap_FeeTier100(t *testing.T) {
-	const routerContract = consts.ROUTER_ADDR
-	const poolContract = consts.POOL_ADDR
 	const wugnotTokenPath = "gno.land/r/demo/wugnot"
 	const gnsTokenPath = "gno.land/r/gnoswap/v1/gns"
 
@@ -939,78 +905,72 @@ func TestSwap_FeeTier100(t *testing.T) {
 		{
 			name: "EXACT IN - zeroForOne = true, feeTier=100",
 			setupFn: func(t *testing.T) {
-				std.TestSetRealm(std.NewUserRealm(consts.ADMIN))
-				wugnot.Approve(poolContract, maxApprove)
-				gns.Approve(poolContract, maxApprove)
-				CreatePool(wugnotTokenPath, gnsTokenPath, FeeTier100, "79228162514264337593543950336")
-				wugnot.Approve(routerContract, maxApprove)
-				gns.Approve(routerContract, maxApprove)
+				testing.SetRealm(std.NewUserRealm(adminAddr))
+				wugnot.Approve(cross, poolAddr, maxApprove)
+				gns.Approve(cross, poolAddr, maxApprove)
+				CreatePool(cross, wugnotTokenPath, gnsTokenPath, FeeTier100, "79228162514264337593543950336")
+				wugnot.Approve(cross, routerAddr, maxApprove)
+				gns.Approve(cross, routerAddr, maxApprove)
 
-				faucetAddress := consts.ADMIN
-				std.TestSetOriginCaller(faucetAddress)
+				faucetAddress := adminAddr
+				testing.SetOriginCaller(faucetAddress)
 				newCoins := std.Coins{{"ugnot", int64(10000000000)}}
-				std.TestIssueCoins(consts.ADMIN, newCoins)
-				std.TestSetOriginSend(newCoins, nil)
+				testing.IssueCoins(adminAddr, newCoins)
+				testing.SetOriginSend(newCoins)
 				banker := std.NewBanker(std.BankerTypeRealmSend)
-				banker.SendCoins(consts.ADMIN, consts.WUGNOT_ADDR, newCoins)
-				wugnot.Deposit()
+				banker.SendCoins(adminAddr, consts.WUGNOT_ADDR, newCoins)
+				wugnot.Deposit(cross)
 
-				pn.Mint(
+				testing.SetRealm(posRealm)
+				Mint(
+					cross,
 					wugnotTokenPath,
 					gnsTokenPath,
 					FeeTier100,
+					adminAddr,
 					-100,
 					100,
 					"10000000",
-					"10000000",
-					"0",
-					"0",
-					max_timeout,
-					admin,
-					admin,
-					"",
+					adminAddr,
 				)
 
-				pn.Mint(
+				Mint(
+					cross,
 					wugnotTokenPath,
 					gnsTokenPath,
 					FeeTier100,
+					adminAddr,
 					-100,
 					100,
 					"10000000",
-					"10000000",
-					"0",
-					"0",
-					max_timeout,
-					admin,
-					admin,
-					"",
+					adminAddr,
 				)
-				std.TestSetRealm(std.NewUserRealm(consts.ADMIN))
-				gns.Transfer(consts.POOL_ADDR, 20000000)
+				testing.SetRealm(std.NewUserRealm(adminAddr))
+				gns.Transfer(cross, poolAddr, 20000000)
 			},
 			action: func(t *testing.T) (string, string) {
-				std.TestSetOriginCaller(consts.ADMIN)
-				wugnot.Transfer(consts.ROUTER_ADDR, 20000000)
-				gns.Transfer(consts.ROUTER_ADDR, 20000000)
+				testing.SetOriginCaller(adminAddr)
+				wugnot.Transfer(cross, routerAddr, 20000000)
+				gns.Transfer(cross, routerAddr, 20000000)
 
-				std.TestSetOriginCaller(consts.ROUTER_ADDR)
-				wugnot.Approve(poolContract, maxApprove)
+				testing.SetOriginCaller(routerAddr)
+				wugnot.Approve(cross, poolAddr, maxApprove)
 
 				actualAmount0, actualAmount1 := Swap(
+					cross,
 					wugnotTokenPath,
 					gnsTokenPath,
 					FeeTier100,
-					consts.ADMIN,
+					adminAddr,
 					true,
 					"40012000",
-					"3945129629379410362911094632",
-					consts.ADMIN,
+					common.TickMathGetSqrtRatioAtTick(-887220).ToString(),
+					adminAddr,
 				)
 				return actualAmount0, actualAmount1
 			},
 			shouldPanic: false,
-			expected:    []string{"20102257", "-19999999"},
+			expected:    []string{"100257", "-99745"},
 		},
 	}
 

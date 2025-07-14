@@ -1,24 +1,40 @@
 package launchpad
 
-const (
-	minimumGnsAmount = 1_000_000
+import (
+	"gno.land/p/gnoswap/consts"
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 const (
-	TIMESTAMP_180DAYS = uint64(180 * 24 * 60 * 60) // 15552000
-	TIMESTAMP_14DAYS  = uint64(14 * 24 * 60 * 60)  // 1209600
-	TIMESTAMP_90DAYS  = uint64(90 * 24 * 60 * 60)  // 7776000
-	TIMESTAMP_7DAYS   = uint64(7 * 24 * 60 * 60)   // 604800
-	TIMESTAMP_30DAYS  = uint64(30 * 24 * 60 * 60)  // 2592000
-	TIMESTAMP_3DAYS   = uint64(3 * 24 * 60 * 60)   // 259200
-	TIMESTAMP_DAY     = uint64(24 * 60 * 60)       // 86400
+	projectTier30  = int64(30)
+	projectTier90  = int64(90)
+	projectTier180 = int64(180)
 
-	TIER30      = uint64(30)
-	TIER90      = uint64(90)
-	TIER180     = uint64(180)
-	TOTAL_TIERS = 3
+	dayTime = int64(24 * 60 * 60) // 86400
 
-	PAD_SEP = "*PAD*"
+	minimumDepositAmount = int64(1_000_000)
 
-	MINIMUM_DEPOSIT_AMOUNT = uint64(1_000_000)
+	stringSplitterPad = "*PAD*"
+
+	projectMinimumStartDelayTime = int64(60 * 60) // 1 hour
 )
+
+var projectTierDurations = []int64{
+	projectTier30,
+	projectTier90,
+	projectTier180,
+}
+
+var projectTierDurationTimes = map[int64]int64{
+	projectTier30:  dayTime * projectTier30,  // 30 days
+	projectTier90:  dayTime * projectTier90,  // 90 days
+	projectTier180: dayTime * projectTier180, // 180 days
+}
+
+var projectTierRewardCollectableDuration = map[int64]int64{
+	projectTier30:  dayTime * 3,  // 3 days
+	projectTier90:  dayTime * 7,  // 7 days
+	projectTier180: dayTime * 14, // 14 days
+}
+
+var q128 = u256.MustFromDecimal(consts.Q128)

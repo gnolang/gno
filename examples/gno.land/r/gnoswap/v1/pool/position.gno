@@ -40,11 +40,13 @@ var Q128 = u256.MustFromDecimal(consts.Q128)
 // Example:
 //
 // ```gno
+//
 //	owner := std.Address("0x123456789")
 //	positionKey := getPositionKey(owner, 100, 200)
 //	println("Position Key:", positionKey)
 //
 //	// Output: base64-encoded string representing "0x123456789__100__200"
+//
 // ```
 //
 // Notes:
@@ -75,27 +77,48 @@ func positionUpdate(
 ) PositionInfo {
 	position.valueOrZero()
 
-	var liquidityNext *u256.Uint
-	if liquidityDelta.IsZero() {
-		if position.liquidity.IsZero() {
+	if position.liquidity.IsZero() && liquidityDelta.IsZero() {
+		panic(newErrorWithDetail(
+			errZeroLiquidity,
+			"both liquidityDelta and current position's liquidity are zero",
+		))
+	}
+
+	// check negative liquidity
+	if liquidityDelta.IsNeg() {
+		// absolute value of negative liquidity delta must be less than current liquidity
+		absDelta := i256.Zero().Set(liquidityDelta).Abs()
+		currentLiquidity := position.liquidity
+		if absDelta.Gt(currentLiquidity) {
 			panic(newErrorWithDetail(
 				errZeroLiquidity,
-				"both liquidityDelta and current position's liquidity are zero",
+				ufmt.Sprintf("liquidity delta(%s) is greater than current liquidity(%s)",
+					liquidityDelta.ToString(), position.liquidity.ToString()),
 			))
 		}
+	}
 
+	var liquidityNext *u256.Uint
+	if liquidityDelta.IsZero() {
 		liquidityNext = position.liquidity
 	} else {
 		liquidityNext = liquidityMathAddDelta(position.liquidity, liquidityDelta)
 	}
 
-	tokensOwed0 := u256.Zero()
+	// validate negative feeGrowth before calculation
 	diff0 := new(u256.Uint).Sub(feeGrowthInside0X128, position.feeGrowthInside0LastX128)
-	tokensOwed0 = u256.MulDiv(diff0, position.liquidity, Q128)
+	diff1 := new(u256.Uint).Sub(feeGrowthInside1X128, position.feeGrowthInside1LastX128)
+
+	// calculate tokensOwed
+	tokensOwed0 := u256.Zero()
+	if !diff0.IsZero() {
+		tokensOwed0 = u256.MulDiv(diff0, position.liquidity, Q128)
+	}
 
 	tokensOwed1 := u256.Zero()
-	diff1 := new(u256.Uint).Sub(feeGrowthInside1X128, position.feeGrowthInside1LastX128)
-	tokensOwed1 = u256.MulDiv(diff1, position.liquidity, Q128)
+	if !diff1.IsZero() {
+		tokensOwed1 = u256.MulDiv(diff1, position.liquidity, Q128)
+	}
 
 	if !(liquidityDelta.IsZero()) {
 		position.liquidity = liquidityNext
@@ -103,6 +126,8 @@ func positionUpdate(
 
 	position.feeGrowthInside0LastX128 = feeGrowthInside0X128
 	position.feeGrowthInside1LastX128 = feeGrowthInside1X128
+
+	// add tokensOwed only when it's greater than 0
 	if tokensOwed0.Gt(u256.Zero()) || tokensOwed1.Gt(u256.Zero()) {
 		position.tokensOwed0 = position.tokensOwed0.Add(position.tokensOwed0, tokensOwed0)
 		position.tokensOwed1 = position.tokensOwed1.Add(position.tokensOwed1, tokensOwed1)
@@ -291,8 +316,10 @@ func (p *Pool) modifyPosition(params ModifyPositionParams) (PositionInfo, *u256.
 // Example Usage:
 //
 // ```gno
+//
 //	updatedPosition := pool.updatePosition(positionParams, currentTick)
-// 	println("Updated Position Info:", updatedPosition)
+//	println("Updated Position Info:", updatedPosition)
+//
 // ```
 func (p *Pool) updatePosition(positionParams ModifyPositionParams, tick int32) PositionInfo {
 	feeGrowthGlobal0X128 := p.FeeGrowthGlobal0X128().Clone()

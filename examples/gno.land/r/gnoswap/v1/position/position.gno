@@ -9,9 +9,14 @@ import (
 	u256 "gno.land/p/gnoswap/uint256"
 
 	"gno.land/r/demo/wugnot"
-	en "gno.land/r/gnoswap/v1/emission"
+	"gno.land/r/gnoswap/v1/access"
 	pl "gno.land/r/gnoswap/v1/pool"
 	"gno.land/r/gnoswap/v1/referral"
+)
+
+var (
+	positionAddr, _ = access.GetAddress(access.ROLE_POSITION)
+	stakerAddr, _   = access.GetAddress(access.ROLE_STAKER)
 )
 
 const (
@@ -67,6 +72,7 @@ const (
 //
 // ref: https://docs.gnoswap.io/contracts/position/position.gno#mint
 func Mint(
+	cur realm,
 	token0 string,
 	token1 string,
 	fee uint32,
@@ -91,9 +97,9 @@ func Mint(
 	}
 	checkDeadline(deadline)
 
-	referral.TryRegister(caller, referrer)
+	referral.TryRegister(cross, caller, referrer)
 
-	en.MintAndDistributeGns()
+	mintAndDistributeGnsCallback()
 
 	mintInput := MintInput{
 		token0:         token0,
@@ -121,14 +127,14 @@ func Mint(
 	id, liquidity, amount0, amount1 := mint(mintParams)
 
 	// refund leftover wrapped tokens
-	if processedInput.tokenPair.token0IsNative && processedInput.tokenPair.wrappedAmount > amount0.Uint64() {
-		err = unwrap(processedInput.tokenPair.wrappedAmount-amount0.Uint64(), caller)
+	if processedInput.tokenPair.token0IsNative && processedInput.tokenPair.wrappedAmount > amount0.Int64() {
+		err = unwrap(processedInput.tokenPair.wrappedAmount-amount0.Int64(), caller)
 		if err != nil {
 			panic(newErrorWithDetail(errWrapUnwrap, err.Error()))
 		}
 	}
-	if processedInput.tokenPair.token1IsNative && processedInput.tokenPair.wrappedAmount > amount1.Uint64() {
-		err = unwrap(processedInput.tokenPair.wrappedAmount-amount1.Uint64(), caller)
+	if processedInput.tokenPair.token1IsNative && processedInput.tokenPair.wrappedAmount > amount1.Int64() {
+		err = unwrap(processedInput.tokenPair.wrappedAmount-amount1.Int64(), caller)
 		if err != nil {
 			panic(newErrorWithDetail(errWrapUnwrap, err.Error()))
 		}
@@ -140,8 +146,8 @@ func Mint(
 		"Mint",
 		"prevAddr", prevAddr,
 		"prevRealm", prevPkgPath,
-		"tickLower", formatInt(int64(processedInput.tickLower)),
-		"tickUpper", formatInt(int64(processedInput.tickUpper)),
+		"tickLower", formatInt(processedInput.tickLower),
+		"tickUpper", formatInt(processedInput.tickUpper),
 		"poolPath", processedInput.poolPath,
 		"mintTo", mintTo.String(),
 		"caller", caller.String(),
@@ -150,6 +156,8 @@ func Mint(
 		"amount0", amount0.ToString(),
 		"amount1", amount1.ToString(),
 		"sqrtPriceX96", poolSqrtPriceX96,
+		"token0Balance", pl.PoolGetBalanceToken0(processedInput.poolPath),
+		"token1Balance", pl.PoolGetBalanceToken1(processedInput.poolPath),
 	)
 
 	return id, liquidity.ToString(), amount0.ToString(), amount1.ToString()
@@ -159,6 +167,7 @@ func Mint(
 // Returns position ID, liquidity, amount0, amount1, poolPath
 // ref: https://docs.gnoswap.io/contracts/position/position.gno#increaseliquidity
 func IncreaseLiquidity(
+	cur realm,
 	positionId uint64,
 	amount0DesiredStr string,
 	amount1DesiredStr string,
@@ -173,7 +182,7 @@ func IncreaseLiquidity(
 	assertValidNumberString(amount1MinStr)
 	checkDeadline(deadline)
 
-	en.MintAndDistributeGns()
+	mintAndDistributeGnsCallback()
 
 	position := MustGetPosition(positionId)
 	token0, token1, _ := splitOf(position.poolKey)
@@ -181,9 +190,10 @@ func IncreaseLiquidity(
 	if err != nil {
 		panic(newErrorWithDetail(err, ufmt.Sprintf("token0(%s), token1(%s)", token0, token1)))
 	}
+
 	caller := getPrevAddr()
 
-	wrappedAmount := uint64(0)
+	wrappedAmount := int64(0)
 	if isWrappedToken(token0) {
 		wrappedAmount = safeWrapNativeToken(amount0DesiredStr, caller)
 	} else if isWrappedToken(token1) {
@@ -198,20 +208,24 @@ func IncreaseLiquidity(
 		amount0Min:     amount0Min,
 		amount1Min:     amount1Min,
 		deadline:       deadline,
+		caller:         caller,
 	}
 
 	_, liquidity, amount0, amount1, poolPath := increaseLiquidity(increaseLiquidityParams)
 
-	if isWrappedToken(token0) && wrappedAmount > amount0.Uint64() {
+	amount0Int64 := amount0.Int64()
+	amount1Int64 := amount1.Int64()
+
+	if isWrappedToken(token0) && wrappedAmount > amount0Int64 {
 		// unwrap leftover wugnot
-		err = unwrap(wrappedAmount-amount0.Uint64(), caller)
+		err = unwrap(wrappedAmount-amount0Int64, caller)
 		if err != nil {
 			panic(newErrorWithDetail(errWrapUnwrap, err.Error()))
 		}
 	}
-	if isWrappedToken(token1) && wrappedAmount > amount1.Uint64() {
+	if isWrappedToken(token1) && wrappedAmount > amount1Int64 {
 		// unwrap leftover wugnot
-		err = unwrap(wrappedAmount-amount1.Uint64(), caller)
+		err = unwrap(wrappedAmount-amount1Int64, caller)
 		if err != nil {
 			panic(newErrorWithDetail(errWrapUnwrap, err.Error()))
 		}
@@ -229,7 +243,7 @@ func IncreaseLiquidity(
 		"amount0", amount0.ToString(),
 		"amount1", amount1.ToString(),
 		"sqrtPriceX96", pl.PoolGetSlot0SqrtPriceX96(poolPath),
-		"positionLiquidity", position.liquidity.ToString(),
+		"positionLiquidity", PositionGetPositionLiquidityStr(positionId),
 		"token0Balance", pl.PoolGetBalanceToken0(poolPath),
 		"token1Balance", pl.PoolGetBalanceToken1(poolPath),
 	)
@@ -242,6 +256,7 @@ func IncreaseLiquidity(
 // Returns position ID, liquidity, fee0, fee1, amount0, amount1, poolPath
 // ref: https://docs.gnoswap.io/contracts/position/position.gno#decreaseliquidity
 func DecreaseLiquidity(
+	cur realm,
 	positionId uint64,
 	liquidityStr string,
 	amount0MinStr string,
@@ -249,12 +264,13 @@ func DecreaseLiquidity(
 	deadline int64,
 	unwrapResult bool,
 ) (uint64, string, string, string, string, string, string) {
+	caller := getPrevAddr()
+
 	assertOnlyNotHalted()
-	isAuthorizedForToken(positionId)
+	assertAuthorizedForToken(caller, positionId)
 	checkDeadline(deadline)
 	assertValidLiquidityAmount(liquidityStr)
-
-	en.MintAndDistributeGns()
+	mintAndDistributeGnsCallback()
 
 	amount0Min := u256.MustFromDecimal(amount0MinStr)
 	amount1Min := u256.MustFromDecimal(amount1MinStr)
@@ -265,6 +281,7 @@ func DecreaseLiquidity(
 		amount1Min:   amount1Min,
 		deadline:     deadline,
 		unwrapResult: unwrapResult,
+		caller:       caller,
 	}
 
 	positionId, liquidity, fee0, fee1, amount0, amount1, poolPath := decreaseLiquidity(decreaseLiquidityParams)
@@ -295,27 +312,43 @@ func DecreaseLiquidity(
 // CollectFee collects swap fee from the position
 // Returns position ID, afterFee0, afterFee1, poolPath, origFee0, origFee1
 // ref: https://docs.gnoswap.io/contracts/position/position.gno#collectfee
-func CollectFee(postionId uint64, unwrapResult bool) (uint64, string, string, string, string, string) {
-	assertOnlyNotHalted()
-	assertTokenExists(postionId)
-	isAuthorizedForToken(postionId)
+func CollectFee(
+	cur realm,
+	positionId uint64,
+	unwrapResult bool,
+) (uint64, string, string, string, string, string) {
+	caller := getPrevAddr()
 
-	en.MintAndDistributeGns()
+	return collectFee(cur, positionId, unwrapResult, caller)
+}
+
+func collectFee(
+	cur realm,
+	positionId uint64,
+	unwrapResult bool,
+	caller std.Address,
+) (uint64, string, string, string, string, string) {
+	assertOnlyNotHalted()
+	assertTokenExists(positionId)
+	assertAuthorizedForToken(caller, positionId)
+	mintAndDistributeGnsCallback()
 
 	// verify position
-	position := MustGetPosition(postionId)
+	position := MustGetPosition(positionId)
 	token0, token1, fee := splitOf(position.poolKey)
 
 	pl.Burn(
+		cross,
 		token0,
 		token1,
 		fee,
 		position.tickLower,
 		position.tickUpper,
 		ZERO_LIQUIDITY_FOR_FEE_COLLECTION, // burn '0' liquidity to collect fee
+		caller,
 	)
 
-	currentFeeGrowth, err := getCurrentFeeGrowth(position)
+	currentFeeGrowth, err := getCurrentFeeGrowth(position, caller)
 	if err != nil {
 		panic(newErrorWithDetail(err, "failed to get current fee growth"))
 	}
@@ -327,11 +360,11 @@ func CollectFee(postionId uint64, unwrapResult bool) (uint64, string, string, st
 
 	// check user wugnot amount
 	// need this value to unwrap fee
-	caller := getPrevAddr()
 	userWugnot := wugnot.BalanceOf(caller)
 
 	// collect fee
 	amount0, amount1 := pl.Collect(
+		cross,
 		token0, token1, fee,
 		caller,
 		position.tickLower, position.tickUpper,
@@ -342,17 +375,18 @@ func CollectFee(postionId uint64, unwrapResult bool) (uint64, string, string, st
 	// instead of the actual amount so we can burn the token
 	position.tokensOwed0 = new(u256.Uint).Sub(tokensOwed0, u256.MustFromDecimal(amount0))
 	position.tokensOwed1 = new(u256.Uint).Sub(tokensOwed1, u256.MustFromDecimal(amount1))
-	mustUpdatePosition(postionId, position)
+	mustUpdatePosition(positionId, position)
 
 	// handle withdrawal fee
 	withoutFee0, withoutFee1 := pl.CollectWithdrawalFee(
-		postionId,
+		cross,
+		positionId,
 		token0,
 		amount0,
 		token1,
 		amount1,
 		position.poolKey,
-		std.PreviousRealm().Address(),
+		caller,
 	)
 
 	// UNWRAP
@@ -365,17 +399,21 @@ func CollectFee(postionId uint64, unwrapResult bool) (uint64, string, string, st
 		"CollectSwapFee",
 		"prevAddr", prevAddr,
 		"prevRealm", prevPkgPath,
-		"lpPositionId", formatUint(postionId),
+		"lpPositionId", formatUint(positionId),
 		"feeAmount0", withoutFee0,
 		"feeAmount1", withoutFee1,
 		"poolPath", position.poolKey,
 		"unwrapResult", formatBool(unwrapResult),
 	)
 
-	return postionId, withoutFee0, withoutFee1, position.poolKey, amount0, amount1
+	return positionId, withoutFee0, withoutFee1, position.poolKey, amount0, amount1
 }
 
-func SetPositionOperator(id uint64, operator std.Address) {
+func SetPositionOperator(
+	cur realm,
+	id uint64,
+	operator std.Address,
+) {
 	caller := getPrevRealm().PkgPath()
 	if caller != consts.STAKER_PATH {
 		panic(newErrorWithDetail(
@@ -417,9 +455,9 @@ func computePositionKey(
 	return encoded
 }
 
-func getCurrentFeeGrowth(position Position) (FeeGrowthInside, error) {
+func getCurrentFeeGrowth(position Position, owner std.Address) (FeeGrowthInside, error) {
 	pool := pl.GetPoolFromPoolPath(position.poolKey)
-	positionKey := computePositionKey(GetOrigPkgAddr(), position.tickLower, position.tickUpper)
+	positionKey := computePositionKey(owner, position.tickLower, position.tickUpper)
 
 	feeGrowthInside0 := new(u256.Uint).Set(pool.PositionFeeGrowthInside0LastX128(positionKey))
 	feeGrowthInside1 := new(u256.Uint).Set(pool.PositionFeeGrowthInside1LastX128(positionKey))

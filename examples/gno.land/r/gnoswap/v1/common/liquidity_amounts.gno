@@ -31,14 +31,15 @@ func toAscendingOrder(a, b *u256.Uint) (*u256.Uint, *u256.Uint) {
 // Notes:
 //   - The function first checks if the value is not nil to avoid potential runtime errors.
 //   - The mask ensures that only the lower 128 bits of the value are retained.
-//   - If the input value is already within the uint128 range, it remains unchanged.
+//   - If the input value is already within the uint128 range, it is returned unchanged.
+//   - If masking is required, a new instance is returned without modifying the input.
 //   - MAX_UINT128 is a constant representing `2^128 - 1`.
 func toUint128(value *u256.Uint) *u256.Uint {
 	assertOnlyNotNil(value)
 	if value.Gt(u256.MustFromDecimal(consts.MAX_UINT128)) {
 		mask := new(u256.Uint).Lsh(u256.One(), consts.Q128_RESOLUTION)
 		mask = new(u256.Uint).Sub(mask, u256.One())
-		value = value.And(value, mask)
+		return new(u256.Uint).And(value, mask)
 	}
 	return value
 }
@@ -161,10 +162,6 @@ func computeLiquidityForAmount1(sqrtRatioAX96, sqrtRatioBX96, amount1 *u256.Uint
 //   - The function ensures that liquidity calculations handle edge cases when the current price
 //     is outside the specified range by returning liquidity based on the dominant token.
 func GetLiquidityForAmounts(sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, amount0, amount1 *u256.Uint) *u256.Uint {
-	if amount0.IsZero() || amount1.IsZero() {
-		return u256.Zero()
-	}
-
 	sqrtRatioAX96, sqrtRatioBX96 = toAscendingOrder(sqrtRatioAX96.Clone(), sqrtRatioBX96.Clone())
 	var liquidity *u256.Uint
 
@@ -281,12 +278,14 @@ func computeAmount1ForLiquidity(sqrtRatioAX96, sqrtRatioBX96, liquidity *u256.Ui
 // Example:
 // ```
 // amount0, amount1 := GetAmountsForLiquidity(
+//
 //	u256.MustFromDecimal("79228162514264337593543950336"),  // sqrtRatioX96 (1.0 in Q64.96)
 //	u256.MustFromDecimal("39614081257132168796771975168"),  // sqrtRatioAX96 (0.5 in Q64.96)
 //	u256.MustFromDecimal("158456325028528675187087900672"), // sqrtRatioBX96 (2.0 in Q64.96)
 //	u256.MustFromDecimal("1000000"),                        // Liquidity
+//
 // )
-// 
+//
 // println("Token0:", amount0, "Token1:", amount1)
 //
 // // Output:

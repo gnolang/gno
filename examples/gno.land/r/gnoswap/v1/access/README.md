@@ -11,18 +11,17 @@ The `access` package provides a configuration-based wrapper around the `p/rbac` 
 
 ## Predefined Roles
 
-| Role Name | Value | Description |
-|-----------|-------|-------------|
-| `ROLE_ADMIN` | `admin` | Admin role |
-| `ROLE_GOVERNANCE` | `governance` | Governance role |
+| Role Name         | Value        | Description            |
+| ----------------- | ------------ | ---------------------- |
+| `ROLE_ADMIN`      | `admin`      | Admin role             |
+| `ROLE_GOVERNANCE` | `governance` | Governance role        |
 | `ROLE_GOV_STAKER` | `gov_staker` | Governance staker role |
-| `ROLE_ROUTER` | `router` | Router role |
-| `ROLE_POOL` | `pool` | Pool role |
-| `ROLE_POSITION` | `position` | Position role |
-| `ROLE_STAKER` | `staker` | Staker role |
-| `ROLE_LAUNCHPAD` | `launchpad` | Launchpad role |
-| `ROLE_EMISSION` | `emission` | Emission role |
-| `ROLE_USER` | `user` | User role |
+| `ROLE_ROUTER`     | `router`     | Router role            |
+| `ROLE_POOL`       | `pool`       | Pool role              |
+| `ROLE_POSITION`   | `position`   | Position role          |
+| `ROLE_STAKER`     | `staker`     | Staker role            |
+| `ROLE_LAUNCHPAD`  | `launchpad`  | Launchpad role         |
+| `ROLE_EMISSION`   | `emission`   | Emission role          |
 
 ## API Overview
 
@@ -63,30 +62,24 @@ func GetRoles() []string
 
 `XXXOnly` functions are used to check if the caller has the given role.
 
-It follows the pattern of `XXXOnly(caller std.Address, newXXX ...std.Address) error`.
+It follows the pattern of `XXXOnly(caller std.Address) error`.
 
 For example, `AdminOnly` function is defined as follows:
 
 ```go
 // Check if caller has admin role
-func AdminOnly(caller std.Address, newAdmin ...std.Address) error
+func AdminOnly(caller std.Address) error
 ```
 
 Parameters:
 
 - `caller`: The address to check for role permission
-- `newAddress` (optional): New address to update the role with
 
 Example usage:
 
 ```go
 // Simple permission check
 if err := access.AdminOnly(callerAddr); err != nil {
-    return err
-}
-
-// Check permission and update role address
-if err := access.AdminOnly(currentAdmin, newAdminAddr); err != nil {
     return err
 }
 ```

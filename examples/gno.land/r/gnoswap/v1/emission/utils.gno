@@ -7,7 +7,8 @@ import (
 	"gno.land/p/demo/ufmt"
 
 	"gno.land/r/gnoswap/v1/access"
-	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/gnoswap/v1/halt"
 )
 
 const MAX_BPS_PCT uint64 = 10000
@@ -72,22 +73,46 @@ func assertDistributionTarget(target int) {
 
 // assertOnlyNotHalted panics if the contract is halted.
 func assertOnlyNotHalted() {
-	common.IsHalted()
+	currentLevel := halt.GetCurrentHaltLevel()
+	if currentLevel != halt.LvMainnetSafeMode {
+		if err := halt.IsHalted(halt.OpTypeWithdraw); err != nil {
+			panic(err.Error())
+		}
+
+		if halt.IsContractHalted(halt.OpTypeEmission) {
+			panic("emission contract operations are currently disabled")
+		}
+	}
 }
 
 // assertSumDistributionPct ensures the sum of all distribution percentages is 100%
-func assertSumDistributionPct(pct01, pct02, pct03, pct04 uint64) {
+func assertSumDistributionPct(pct01, pct02, pct03, pct04 int64) {
 	sum := pct01 + pct02 + pct03 + pct04
-
-	if sum != MAX_BPS_PCT {
+	if sum != 10000 {
 		panic(addDetailToError(
-			errInvalidEmissionPct,
-			ufmt.Sprintf("sum of all pct should be 100%% (10000 bps), got %d", sum),
+			errInvalidEmissionTarget,
+			ufmt.Sprintf("sum of percentages must be 10000, got %d", sum),
 		))
 	}
 }
 
-func formatUint(v interface{}) string {
+// assertNoDuplicateTargets ensures no duplicate targets are provided
+func assertNoDuplicateTargets(target01, target02, target03, target04 int) {
+	targets := []int{target01, target02, target03, target04}
+	seen := make(map[int]bool)
+
+	for _, target := range targets {
+		if seen[target] {
+			panic(addDetailToError(
+				errDuplicateTarget,
+				ufmt.Sprintf("target %d appears multiple times", target),
+			))
+		}
+		seen[target] = true
+	}
+}
+
+func formatUint(v any) string {
 	switch v := v.(type) {
 	case uint8:
 		return strconv.FormatUint(uint64(v), 10)
@@ -100,7 +125,7 @@ func formatUint(v interface{}) string {
 	}
 }
 
-func formatInt(v interface{}) string {
+func formatInt(v any) string {
 	switch v := v.(type) {
 	case int32:
 		return strconv.FormatInt(int64(v), 10)

@@ -5,98 +5,89 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 func TestCreateProposalJsonNode(t *testing.T) {
-	propAddr := testutils.TestAddress("proposal")
-	title := "Test Proposal"
-	desc := "This is a test proposal"
-
-	testProposal := ProposalInfo{
-		ConfigVersion: 1,
-		Proposer:      propAddr,
-		ProposalType:  Text,
-		Title:         title,
-		Description:   desc,
-	}
-
-	result := createProposalJsonNode(123, testProposal)
-
-	expectedFields := []struct {
-		key      string
-		expected string
+	tt := []struct {
+		name           string
+		proposal       ProposalInfo
+		expectedFields []struct {
+			key      string
+			expected string
+		}
+		expectedError error
 	}{
-		{"id", "123"},
-		{"configVersion", "1"},
-		{"proposer", propAddr.String()},
-		{"type", Text.String()},
-		{"title", title},
-		{"description", desc},
+		{
+			name: "create proposal json node success",
+			proposal: ProposalInfo{
+				ConfigVersion: 1,
+				Proposer:      testutils.TestAddress("proposal"),
+				ProposalType:  Text,
+				Title:         "Test Proposal",
+				Description:   "This is a test proposal",
+			},
+			expectedFields: []struct {
+				key      string
+				expected string
+			}{
+				{"id", "123"},
+				{"configVersion", "1"},
+				{"proposer", "g1wpex7ur0wdskch6lta047h6lta047h6ljhqtj2"}, // proposal address
+				{"type", Text.String()},
+				{"title", "Test Proposal"},
+				{"description", "This is a test proposal"},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "create proposal json node success with empty fields",
+			proposal: ProposalInfo{
+				ConfigVersion: 1,
+				Proposer:      testutils.TestAddress("proposal"),
+				Title:         "",
+				Description:   "",
+			},
+			expectedFields: []struct {
+				key      string
+				expected string
+			}{
+				{"id", "123"},
+				{"configVersion", "1"},
+				{"proposer", "g1wpex7ur0wdskch6lta047h6lta047h6ljhqtj2"}, // proposal address
+				{"type", ""},
+				{"title", ""},
+				{"description", ""},
+			},
+			expectedError: nil,
+		},
 	}
 
-	for _, field := range expectedFields {
-		node, err := result.GetKey(field.key)
-		uassert.NoError(t, err)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			result := createProposalJsonNode(123, tc.proposal)
 
-		value, err := node.GetString()
-		uassert.NoError(t, err)
-		uassert.Equal(t, value, field.expected)
-	}
+			// then
+			for _, field := range tc.expectedFields {
+				node, err := result.GetKey(field.key)
+				uassert.NoError(t, err)
 
-	encodedFields := []string{"status", "vote", "extra"}
-	for _, field := range encodedFields {
-		node, err := result.GetKey(field)
-		if err != nil {
-			t.Errorf("field not found: %s", field)
-			continue
-		}
-
-		value, err := node.GetString()
-		if err != nil {
-			t.Errorf("failed to get value: %s", err)
-			continue
-		}
-
-		decodedValue := b64Decode(value)
-	}
-}
-
-func TestCreateProposalJsonNode_CheckRequiredFields(t *testing.T) {
-	emptyProposal := ProposalInfo{
-		ConfigVersion: 0,
-		Proposer:      testutils.TestAddress("proposal"),
-		ProposalType:  Text,
-		Title:         "",
-		Description:   "",
-	}
-
-	result := createProposalJsonNode(0, emptyProposal)
-
-	requiredFields := []string{
-		"id", "configVersion", "proposer", "status",
-		"type", "title", "description", "vote", "extra",
-	}
-
-	for _, field := range requiredFields {
-		_, err := result.GetKey(field)
-		uassert.NoError(t, err)
+				value, err := node.GetString()
+				uassert.NoError(t, err)
+				uassert.Equal(t, value, field.expected)
+			}
+		})
 	}
 }
 
 func TestGetProposalStatus(t *testing.T) {
-	proposals = avl.NewTree()
-
-	// Test Case 1: Non-existent proposal
-	status := getProposalStatus(999)
-	uassert.Equal(t, status, "")
-
-	// Test Case 2: Active proposal
 	now := uint64(time.Now().Unix())
-	proposal := ProposalInfo{
+	defaultProposal := ProposalInfo{
 		ConfigVersion: 1,
 		State: ProposalState{
 			CreatedAt:  now,
@@ -115,72 +106,183 @@ func TestGetProposalStatus(t *testing.T) {
 		},
 	}
 
-	proposals.Set("1", proposal)
-
-	status = getProposalStatus(1)
-
-	node, err := json.Unmarshal([]byte(status))
-	uassert.NoError(t, err)
-	uassert.True(t, node.IsObject())
-
-	tests := []struct {
-		key      string
-		expected string
-	}{
-		{"createdAt", strconv.FormatUint(now, 10)},
-		{"upcoming", "false"},
-		{"active", "true"},
-		{"passed", "false"},
-		{"passedAt", "0"},
-		{"rejected", "false"},
-		{"rejectedAt", "0"},
-		{"canceled", "false"},
-		{"canceledAt", "0"},
-		{"executed", "false"},
-		{"executedAt", "0"},
-		{"expired", "false"},
-		{"expiredAt", "0"},
-	}
-
-	for _, tc := range tests {
-		uassert.True(t, node.HasKey(tc.key))
-
-		value, err := node.GetKey(tc.key)
-		uassert.NoError(t, err)
-		uassert.True(t, value.IsString())
-
-		str, err := value.GetString()
-		uassert.NoError(t, err)
-		uassert.Equal(t, str, tc.expected)
-	}
-
-	// Test Case 3: State transition
-	proposal.State.Active = false
-	proposal.State.Passed = true
-	proposal.State.PassedAt = now + 500
-	proposal.State.Executed = true
-	proposal.State.ExecutedAt = now + 1000
-
-	proposals.Set("2", proposal)
-
-	status = getProposalStatus(2)
-	node2, err := json.Unmarshal([]byte(status))
-	uassert.NoError(t, err)
-
-	// Test node traversal using ObjectEach
-	expectedFields := map[string]string{
-		"active":     "false",
-		"passed":     "true",
-		"passedAt":   strconv.FormatUint(now+500, 10),
-		"executed":   "true",
-		"executedAt": strconv.FormatUint(now+1000, 10),
-	}
-
-	node2.ObjectEach(func(key string, value *json.Node) {
-		if expected, ok := expectedFields[key]; ok {
-			str, err := value.GetString()
-			uassert.NoError(t, err)
-			uassert.Equal(t, str, expected)
+	tt := []struct {
+		name            string
+		proposalId      uint64
+		proposal        ProposalInfo
+		inputProposalId uint64
+		expectedFields  []struct {
+			key      string
+			expected string
 		}
-	})
+	}{
+		{
+			name:            "get proposal status success",
+			proposalId:      1,
+			proposal:        defaultProposal,
+			inputProposalId: 1,
+			expectedFields: []struct {
+				key      string
+				expected string
+			}{
+				{"createdAt", strconv.FormatUint(now, 10)},
+				{"upcoming", "false"},
+				{"active", "true"},
+				{"passed", "false"},
+				{"passedAt", "0"},
+				{"rejected", "false"},
+				{"rejectedAt", "0"},
+				{"canceled", "false"},
+				{"canceledAt", "0"},
+				{"executed", "false"},
+				{"executedAt", "0"},
+				{"expired", "false"},
+				{"expiredAt", "0"},
+				{"votingStart", strconv.FormatUint(now+86400, 10)},
+				{"votingEnd", strconv.FormatUint(now+691200, 10)},
+			},
+		},
+		{
+			name:            "get proposal status empty by non-existent proposal",
+			proposalId:      1,
+			proposal:        defaultProposal,
+			inputProposalId: 999,
+			expectedFields: []struct {
+				key      string
+				expected string
+			}{},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			// Create a new governance state with test config
+			testConfig := Config{
+				VotingStartDelay: uint64(86400),
+				VotingPeriod:     uint64(604800),
+			}
+
+			// Save original state and create test state
+			originalState := governanceState
+			testState := NewGovernanceState(testConfig)
+
+			// Add proposal to test state
+			testState = testState.WithNewProposal(tc.proposal.Proposer, tc.proposal)
+
+			// Temporarily replace global state
+			governanceState = testState
+
+			// Restore original state after test
+			defer func() {
+				governanceState = originalState
+			}()
+
+			// when
+			status := getProposalStatus(tc.inputProposalId)
+
+			jsonNode, err := json.Unmarshal([]byte(status))
+			if err != nil {
+				jsonNode = json.Builder().Node()
+			}
+
+			// then
+			expectedFields := map[string]string{}
+			for _, field := range tc.expectedFields {
+				expectedFields[field.key] = field.expected
+			}
+
+			jsonNode.ObjectEach(func(key string, value *json.Node) {
+				if expected, ok := expectedFields[key]; ok {
+					str, err := value.GetString()
+					uassert.NoError(t, err)
+					uassert.Equal(t, str, expected)
+				} else {
+					t.Errorf("unexpected field: %s", key)
+				}
+			})
+		})
+	}
+}
+
+func TestGetProposalVotes(t *testing.T) {
+	tt := []struct {
+		name            string
+		proposalId      uint64
+		proposal        ProposalInfo
+		inputProposalId uint64
+		expectedFields  []struct {
+			key      string
+			expected string
+		}
+	}{
+		{
+			name:       "get proposal votes success",
+			proposalId: 1,
+			proposal: ProposalInfo{
+				MaxVotingWeight: u256.NewUint(1000000000000000000),
+				QuorumAmount:    500000000000000000,
+				Yea:             u256.NewUint(1000000000000000000),
+				Nay:             u256.NewUint(0),
+			},
+			inputProposalId: 1,
+			expectedFields: []struct {
+				key      string
+				expected string
+			}{
+				{"quorum", "500000000000000000"},
+				{"max", "1000000000000000000"},
+				{"yes", "1000000000000000000"},
+				{"no", "0"},
+			},
+		},
+		{
+			name:            "get proposal votes empty by non-existent proposal",
+			proposalId:      1,
+			proposal:        ProposalInfo{},
+			inputProposalId: 999,
+			expectedFields: []struct {
+				key      string
+				expected string
+			}{},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			// Save original state and create test state
+			originalState := governanceState
+			testState := NewGovernanceState(Config{})
+
+			// Add proposal to test state
+			testState = testState.WithNewProposal(tc.proposal.Proposer, tc.proposal)
+
+			// Temporarily replace global state
+			governanceState = testState
+
+			// Restore original state after test
+			defer func() {
+				governanceState = originalState
+			}()
+
+			// when
+			votes := getProposalVotes(tc.inputProposalId)
+
+			jsonNode, err := json.Unmarshal([]byte(votes))
+			if err != nil {
+				jsonNode = json.Builder().Node()
+			}
+
+			// then
+			for _, field := range tc.expectedFields {
+				node, err := jsonNode.GetKey(field.key)
+				uassert.NoError(t, err)
+
+				value, err := node.GetString()
+				uassert.NoError(t, err)
+				uassert.Equal(t, value, field.expected)
+			}
+		})
+	}
 }

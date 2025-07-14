@@ -12,9 +12,9 @@ import (
 // NOTE: input parameter positionId can be string, int, uint64, or grc721.TokenID
 // if positionId is nil or not supported, it will panic
 // if input type is not supported, it will panic
-// input: positionId interface{}
+// input: positionId any
 // output: grc721.TokenID
-func PositionIdFrom(positionId interface{}) grc721.TokenID {
+func PositionIdFrom(positionId any) grc721.TokenID {
 	if positionId == nil {
 		panic(newErrorWithDetail(
 			errInvalidPositionId,

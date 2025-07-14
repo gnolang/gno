@@ -9,16 +9,23 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+const (
+	rawUnknown  = "UNKNOWN"
+	rawExactIn  = "EXACT_IN"
+	rawExactOut = "EXACT_OUT"
+)
+
 type SwapType string
 
 const (
+	Unknown SwapType = rawUnknown
 	// ExactIn represents a swap type where the input amount is exact and the output amount may vary.
 	// Used when a user wants to swap a specific amount of input tokens.
-	ExactIn SwapType = "EXACT_IN"
+	ExactIn SwapType = rawExactIn
 
 	// ExactOut represents a swap type where the output amount is exact and the input amount may vary.
 	// Used when a user wants to swap a specific amount of output tokens.
-	ExactOut SwapType = "EXACT_OUT"
+	ExactOut SwapType = rawExactOut
 )
 
 // trySwapTypeFromStr attempts to convert a string into a `SwapType`.
@@ -27,9 +34,9 @@ const (
 // into their corresponding `SwapType` enum values.
 func trySwapTypeFromStr(swapType string) (SwapType, error) {
 	switch swapType {
-	case "EXACT_IN":
+	case rawExactIn:
 		return ExactIn, nil
-	case "EXACT_OUT":
+	case rawExactOut:
 		return ExactOut, nil
 	default:
 		return "", ufmt.Errorf("unknown swapType: expected ExactIn or ExactOut, got %s", swapType)
@@ -39,9 +46,9 @@ func trySwapTypeFromStr(swapType string) (SwapType, error) {
 func (s SwapType) String() string {
 	switch s {
 	case ExactIn:
-		return "EXACT_IN"
+		return rawExactIn
 	case ExactOut:
-		return "EXACT_OUT"
+		return rawExactOut
 	default:
 		return ""
 	}
@@ -60,20 +67,22 @@ type SingleSwapParams struct {
 	amountSpecified *i256.Int
 }
 
+func (p SingleSwapParams) TokenIn() string  { return p.tokenIn }
+func (p SingleSwapParams) TokenOut() string { return p.tokenOut }
+func (p SingleSwapParams) Fee() uint32      { return p.fee }
+
 // SwapParams contains parameters for executing a multi-hop swap opration.
 // It extends the `SingleSwapParams` with recipient information for more complex swaps
 // that involve multiple pools.
 type SwapParams struct {
-	tokenIn   string      // token to being spent
-	tokenOut  string      // token to being received
-	fee       uint32      // fee of the pool used to swap
+	SingleSwapParams
 	recipient std.Address // address to receive the token
-
-	// Amount specified for the swap:
-	//  - Positive: exact input amount (tokenIn)
-	//  - Negative: exact output amount (tokenOut)
-	amountSpecified *i256.Int
 }
+
+func (p SwapParams) TokenIn() string        { return p.tokenIn }
+func (p SwapParams) TokenOut() string       { return p.tokenOut }
+func (p SwapParams) Fee() uint32            { return p.fee }
+func (p SwapParams) Recipient() std.Address { return p.recipient }
 
 // newSwapParams creates a new `SwapParams` instance with the provided parameters.
 //
@@ -88,21 +97,30 @@ type SwapParams struct {
 //   - *SwapParams: new `SwapParams` instance
 func newSwapParams(tokenIn, tokenOut string, fee uint32, recipient std.Address, amountSpecified *i256.Int) *SwapParams {
 	return &SwapParams{
-		tokenIn:         tokenIn,
-		tokenOut:        tokenOut,
-		fee:             fee,
-		recipient:       recipient,
-		amountSpecified: amountSpecified,
+		SingleSwapParams: SingleSwapParams{
+			tokenIn:         tokenIn,
+			tokenOut:        tokenOut,
+			fee:             fee,
+			amountSpecified: amountSpecified,
+		},
+		recipient: recipient,
 	}
 }
 
 // SwapResult encapsulates the outcome of a swap operation
 type SwapResult struct {
-	AmountIn        *u256.Uint
-	AmountOut       *u256.Uint
 	Routes          []string
 	Quotes          []string
+	AmountIn        *u256.Uint
+	AmountOut       *u256.Uint
 	AmountSpecified *i256.Int
+}
+
+// SwapParamsInterface defines the common interface for swap parameters
+type SwapParamsI interface {
+	TokenIn() string
+	TokenOut() string
+	Fee() uint32
 }
 
 // SwapCallbackData contains the callback data required for swap execution.
@@ -113,6 +131,17 @@ type SwapCallbackData struct {
 	tokenOut string      // token to receive
 	fee      uint32      // fee of the pool used to swap
 	payer    std.Address // address to spend the token
+}
+
+// newSwapCallbackData creates a new SwapCallbackData from a SwapParamsInterface.
+// It takes a payer address as an additional parameter to specify who will pay for the swap.
+func newSwapCallbackData(params SwapParamsI, payer std.Address) SwapCallbackData {
+	return SwapCallbackData{
+		tokenIn:  params.TokenIn(),
+		tokenOut: params.TokenOut(),
+		fee:      params.Fee(),
+		payer:    payer,
+	}
 }
 
 type ExactInParams struct {

@@ -30,6 +30,15 @@ type Position struct {
 	burned bool // whether the position has been burned(≈ actuall we don't burn lp token even its empty, just update flag)
 }
 
+func (p Position) PoolKey() string { return p.poolKey }
+func (p Position) Liquidity() *u256.Uint { return p.liquidity }
+func (p Position) TickLower() int32 { return p.tickLower }
+func (p Position) TickUpper() int32 { return p.tickUpper }
+func (p Position) TokensOwed0() *u256.Uint { return p.tokensOwed0 }
+func (p Position) TokensOwed1() *u256.Uint { return p.tokensOwed1 }
+func (p Position) Token0Balance() *u256.Uint { return p.token0Balance }
+func (p Position) Token1Balance() *u256.Uint { return p.token1Balance }
+
 // isClear reports whether the position is empty
 func (p Position) isClear() bool {
 	return p.liquidity.IsZero() && p.tokensOwed0.IsZero() && p.tokensOwed1.IsZero()
@@ -69,21 +78,23 @@ func newMintParams(input ProcessedMintInput, mintInput MintInput) MintParams {
 }
 
 type IncreaseLiquidityParams struct {
-	positionId     uint64     // positionId of the position to increase liquidity
-	amount0Desired *u256.Uint // desired amount of token0 to be minted
-	amount1Desired *u256.Uint // desired amount of token1 to be minted
-	amount0Min     *u256.Uint // minimum amount of token0 to be minted
-	amount1Min     *u256.Uint // minimum amount of token1 to be minted
-	deadline       int64      // time by which the transaction must be included to effect the change
+	positionId     uint64      // positionId of the position to increase liquidity
+	amount0Desired *u256.Uint  // desired amount of token0 to be minted
+	amount1Desired *u256.Uint  // desired amount of token1 to be minted
+	amount0Min     *u256.Uint  // minimum amount of token0 to be minted
+	amount1Min     *u256.Uint  // minimum amount of token1 to be minted
+	deadline       int64       // time by which the transaction must be included to effect the change
+	caller         std.Address // address to call the function
 }
 
 type DecreaseLiquidityParams struct {
-	positionId   uint64     // positionId of the position to decrease liquidity
-	liquidity    string     // amount of liquidity to decrease
-	amount0Min   *u256.Uint // minimum amount of token0 to be minted
-	amount1Min   *u256.Uint // minimum amount of token1 to be minted
-	deadline     int64      // time by which the transaction must be included to effect the change
-	unwrapResult bool       // whether to unwrap the token if it's wrapped native token
+	positionId   uint64      // positionId of the position to decrease liquidity
+	liquidity    string      // amount of liquidity to decrease
+	amount0Min   *u256.Uint  // minimum amount of token0 to be minted
+	amount1Min   *u256.Uint  // minimum amount of token1 to be minted
+	deadline     int64       // time by which the transaction must be included to effect the change
+	unwrapResult bool        // whether to unwrap the token if it's wrapped native token
+	caller       std.Address // address to call the function
 }
 
 type MintInput struct {
@@ -106,7 +117,7 @@ type TokenPair struct {
 	token1         string
 	token0IsNative bool
 	token1IsNative bool
-	wrappedAmount  uint64
+	wrappedAmount  int64
 }
 
 type ProcessedMintInput struct {

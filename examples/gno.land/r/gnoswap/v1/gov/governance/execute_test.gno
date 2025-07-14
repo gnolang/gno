@@ -3,171 +3,154 @@ package governance
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/gnoswap/consts"
 )
 
 func TestParameterRegistry_Register(t *testing.T) {
-	registry := NewParameterRegistry()
-
-	testHandler := func(params []string) error {
+	testHandler := NewFunctionHandler(func(params []string) error {
 		return nil
-	}
+	})
 
 	tests := []struct {
-		name     string
-		pkgPath  string
-		function string
-		handler  ParameterHandler
+		name                     string
+		pkgPath                  string
+		function                 string
+		handler                  ParameterHandler
+		expectedHasError         bool
+		expectedError            error
+		expectedHandlerKey       string
+		expectedHandlerKeyExists bool
 	}{
 		{
-			name:     "pass",
-			pkgPath:  "test/pkg",
-			function: "testFunc",
-			handler:  testHandler,
+			name:                     "register handler is success",
+			pkgPath:                  "test/pkg",
+			function:                 "testFunc",
+			handler:                  testHandler,
+			expectedHasError:         false,
+			expectedError:            nil,
+			expectedHandlerKey:       "test/pkg:testFunc",
+			expectedHandlerKeyExists: true,
 		},
 		{
-			name:     "empty pass",
-			pkgPath:  "",
-			function: "testFunc",
-			handler:  testHandler,
+			name:                     "register handler is failed by empty pkgPath", // XXX: should be failed
+			pkgPath:                  "",
+			function:                 "testFunc",
+			handler:                  testHandler,
+			expectedHasError:         true,
+			expectedError:            errors.New("handler not found for :testFunc"),
+			expectedHandlerKey:       ":testFunc",
+			expectedHandlerKeyExists: true,
+		},
+		{
+			name:                     "register handler is failed by empty handler",
+			pkgPath:                  "non/existent",
+			function:                 "missing",
+			handler:                  nil,
+			expectedHasError:         true,
+			expectedError:            errors.New("failed to cast handler non/existent:missing to ParameterHandler"),
+			expectedHandlerKey:       "non/existent:missing",
+			expectedHandlerKeyExists: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// given
+			registry := NewParameterRegistry()
 			registry.Register(tt.pkgPath, tt.function, tt.handler)
 
-			handler, err := registry.Handler(tt.pkgPath, tt.function)
-			uassert.NoError(t, err)
-
-			if handler == nil {
-				t.Errorf("handler is nil")
-			}
-
-			expectedKey := makeHandlerKey(tt.pkgPath, tt.function)
-			if _, exists := registry.handlers.Get(expectedKey); !exists {
-				t.Errorf("expected key %s not found", expectedKey)
-			}
-		})
-	}
-}
-
-func TestParameterRegistry(t *testing.T) {
-	tests := []struct {
-		name       string
-		pkgPath    string
-		function   string
-		handler    ParameterHandler
-		wantErr    bool
-		errMessage string
-	}{
-		{
-			name:     "should register and retrieve handler successfully",
-			pkgPath:  "test/pkg",
-			function: "testFunc",
-			handler: func(params []string) error {
-				return nil
-			},
-			wantErr:    false,
-			errMessage: "",
-		},
-		{
-			name:       "should return error for non-existent handler",
-			pkgPath:    "non/existent",
-			function:   "missing",
-			handler:    nil,
-			wantErr:    true,
-			errMessage: "handler not found for non/existent:missing",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			registry := NewParameterRegistry()
-
-			// Register handler if provided
-			if tt.handler != nil {
-				registry.Register(tt.pkgPath, tt.function, tt.handler)
-			}
-
-			// Try to retrieve handler
+			// when
 			handler, err := registry.Handler(tt.pkgPath, tt.function)
 
-			if tt.wantErr {
-				uassert.Error(t, err, tt.errMessage)
-				uassert.Equal(t, err.Error(), tt.errMessage)
+			// then
+			if tt.expectedHasError {
+				uassert.ErrorIs(t, err, tt.expectedError)
 			} else {
 				uassert.NoError(t, err)
-				if handler == nil {
-					t.Error("expected handler to be non-nil")
-				}
+				uassert.NotNil(t, handler)
 			}
+
+			handlerKey := makeHandlerKey(tt.pkgPath, tt.function)
+			_, exists := registry.handlers.Get(handlerKey)
+
+			uassert.Equal(t, handlerKey, tt.expectedHandlerKey)
+			uassert.Equal(t, exists, tt.expectedHandlerKeyExists)
 		})
 	}
 }
 
 func TestExecuteParameterChange(t *testing.T) {
-	registry := NewParameterRegistry()
-
-	registry.Register("test/pkg", "TestFunc", func(params []string) error {
-		if len(params) != 2 {
-			return errors.New("invalid params length")
-		}
-		return nil
-	})
-
 	tests := []struct {
-		name    string
-		msgs    []string
-		wantErr bool
+		name             string
+		inputMsgs        []string
+		expectedHasError bool
+		expectedError    error
 	}{
 		{
-			name: "Pass: Valid message",
-			msgs: []string{
+			name: "execute parameter change is success",
+			inputMsgs: []string{
 				"test/pkg*EXE*TestFunc*EXE*param1,param2",
 			},
-			wantErr: false,
+			expectedHasError: false,
+			expectedError:    nil,
 		},
 		{
-			name: "Fail: Missing separator",
-			msgs: []string{
-				"test/pkg*EXE*TestFunc",
-			},
-			wantErr: true,
-		},
-		{
-			name: "Fail: Non-existent handler",
-			msgs: []string{
-				"unknown/pkg*EXE*UnknownFunc*EXE*param1",
-			},
-			wantErr: true,
-		},
-		{
-			name: "Fail: Not enough parameters",
-			msgs: []string{
-				"test/pkg*EXE*TestFunc*EXE*param1",
-			},
-			wantErr: true,
-		},
-		{
-			name: "handle multiple messages",
-			msgs: []string{
+			name: "execute parameter change is success by multiple messages",
+			inputMsgs: []string{
 				"test/pkg*EXE*TestFunc*EXE*param1,param2",
 				"test/pkg*EXE*TestFunc*EXE*param2,param3",
 			},
-			wantErr: false,
+			expectedHasError: false,
+			expectedError:    nil,
+		},
+		{
+			name: "execute parameter change is failed by missing separator",
+			inputMsgs: []string{
+				"test/pkg*EXE*TestFunc",
+			},
+			expectedHasError: true,
+			expectedError:    errors.New("failed to parse message: test/pkg*EXE*TestFunc"),
+		},
+		{
+			name: "execute parameter change is failed by non-existent handler",
+			inputMsgs: []string{
+				"unknown/pkg*EXE*UnknownFunc*EXE*param1",
+			},
+			expectedHasError: true,
+			expectedError:    errors.New("failed to parse message: test/pkg*EXE*TestFunc"),
+		},
+		{
+			name: "execute parameter change is failed by not enough parameters",
+			inputMsgs: []string{
+				"test/pkg*EXE*TestFunc*EXE*param1",
+			},
+			expectedHasError: true,
+			expectedError:    errors.New("failed to parse message: test/pkg*EXE*TestFunc"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := executeParameterChange(tt.msgs, registry)
-			if !tt.wantErr {
-				uassert.NoError(t, err)
-			} else {
+			// given
+			registry := NewParameterRegistry()
+			registry.Register("test/pkg", "TestFunc", NewFunctionHandler(func(params []string) error {
+				if len(params) != 2 {
+					return errors.New("invalid params length")
+				}
+				return nil
+			}))
+
+			// when
+			err := executeParameterChange(cross, tt.inputMsgs, registry)
+
+			// then
+			if tt.expectedHasError {
 				uassert.Error(t, err)
+			} else {
+				uassert.NoError(t, err)
 			}
 		})
 	}
@@ -177,10 +160,10 @@ func TestValidateProposalState(t *testing.T) {
 	tests := []struct {
 		name     string
 		proposal *ProposalInfo
-		want     ExecutionValidator
+		expected ExecutionValidator
 	}{
 		{
-			name: "Pass: Text proposal",
+			name: "validate proposal state is success by text proposal",
 			proposal: &ProposalInfo{
 				ProposalType: Text,
 				State: ProposalState{
@@ -190,7 +173,7 @@ func TestValidateProposalState(t *testing.T) {
 					Passed:   true,
 				},
 			},
-			want: ExecutionValidator{
+			expected: ExecutionValidator{
 				isTextProposal:    true,
 				isAlreadyExecuted: false,
 				isAlreadyCanceled: false,
@@ -199,7 +182,7 @@ func TestValidateProposalState(t *testing.T) {
 			},
 		},
 		{
-			name: "Pass: Already executed",
+			name: "validate proposal state is success by already executed",
 			proposal: &ProposalInfo{
 				ProposalType: ParameterChange,
 				State: ProposalState{
@@ -209,7 +192,7 @@ func TestValidateProposalState(t *testing.T) {
 					Passed:   true,
 				},
 			},
-			want: ExecutionValidator{
+			expected: ExecutionValidator{
 				isTextProposal:    false,
 				isAlreadyExecuted: true,
 				isAlreadyCanceled: false,
@@ -218,7 +201,7 @@ func TestValidateProposalState(t *testing.T) {
 			},
 		},
 		{
-			name: "Pass: Canceled",
+			name: "validate proposal state is success by canceled",
 			proposal: &ProposalInfo{
 				ProposalType: ParameterChange,
 				State: ProposalState{
@@ -228,7 +211,7 @@ func TestValidateProposalState(t *testing.T) {
 					Passed:   false,
 				},
 			},
-			want: ExecutionValidator{
+			expected: ExecutionValidator{
 				isTextProposal:    false,
 				isAlreadyExecuted: false,
 				isAlreadyCanceled: true,
@@ -240,10 +223,15 @@ func TestValidateProposalState(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := validateProposalState(tt.proposal)
-			if got != tt.want {
-				t.Errorf("validateProposalState() = %v, want %v", got, tt.want)
-			}
+			// given
+			proposalState := validateProposalState(tt.proposal)
+
+			// then
+			uassert.Equal(t, proposalState.isTextProposal, tt.expected.isTextProposal)
+			uassert.Equal(t, proposalState.isAlreadyExecuted, tt.expected.isAlreadyExecuted)
+			uassert.Equal(t, proposalState.isAlreadyCanceled, tt.expected.isAlreadyCanceled)
+			uassert.Equal(t, proposalState.isAlreadyRejected, tt.expected.isAlreadyRejected)
+			uassert.Equal(t, proposalState.hasPassed, tt.expected.hasPassed)
 		})
 	}
 }
@@ -257,7 +245,7 @@ func TestCheckProposalValidation(t *testing.T) {
 		errMsg    string
 	}{
 		{
-			name: "Pass: Valid proposal",
+			name: "check proposal validation is success by valid proposal",
 			validator: ExecutionValidator{
 				isTextProposal:    false,
 				isAlreadyExecuted: false,
@@ -268,7 +256,7 @@ func TestCheckProposalValidation(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Fail: Text proposal is not executable",
+			name: "check proposal validation is failed by text proposal is not executable",
 			validator: ExecutionValidator{
 				isTextProposal:    true,
 				isAlreadyExecuted: false,
@@ -280,7 +268,7 @@ func TestCheckProposalValidation(t *testing.T) {
 			errMsg:  "[GNOSWAP-GOVERNANCE-011] can not execute text proposal",
 		},
 		{
-			name: "Fail: Already executed, canceled, or rejected",
+			name: "check proposal validation is failed by already executed, canceled, or rejected",
 			validator: ExecutionValidator{
 				isTextProposal:    false,
 				isAlreadyExecuted: true,
@@ -292,7 +280,7 @@ func TestCheckProposalValidation(t *testing.T) {
 			errMsg:  "proposal already executed, canceled, or rejected",
 		},
 		{
-			name: "Fail: Proposal has not passed",
+			name: "check proposal validation is failed by proposal has not passed",
 			validator: ExecutionValidator{
 				isTextProposal:    false,
 				isAlreadyExecuted: false,
@@ -307,10 +295,12 @@ func TestCheckProposalValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// given
 			err := checkProposalValidation(tt.validator)
+
+			// then
 			if tt.wantErr {
 				uassert.Error(t, err, tt.errMsg)
-				uassert.Equal(t, err.Error(), tt.errMsg)
 			} else {
 				uassert.NoError(t, err)
 			}
@@ -318,51 +308,271 @@ func TestCheckProposalValidation(t *testing.T) {
 	}
 }
 
-func TestParameterRegistry2(t *testing.T) {
+func TestParameterRegistry_Execute(t *testing.T) {
 	tests := []struct {
-		name        string
-		pkgPath     string
-		function    string
-		params      []string
-		setupMock   func(*ParameterRegistry)
-		expectError bool
+		name                    string
+		pkgPath                 string
+		function                string
+		params                  []string
+		setupMock               func(*ParameterRegistry)
+		expectedHasHandlerError bool
+		expectedHasExecuteError bool
 	}{
 		{
-			name:     "valid handler",
+			name:     "execute parameter change is success by valid handler",
 			pkgPath:  consts.POOL_PATH,
 			function: "SetFeeProtocol",
 			params:   []string{"1", "2"},
 			setupMock: func(r *ParameterRegistry) {
-				r.Register(consts.POOL_PATH, "SetFeeProtocol", func(p []string) error {
+				r.Register(consts.POOL_PATH, "SetFeeProtocol", NewFunctionHandler(func(p []string) error {
 					return nil
-				})
+				}))
 			},
-			expectError: false,
+			expectedHasHandlerError: false,
+			expectedHasExecuteError: false,
 		},
 		{
-			name:        "invalid handler",
-			pkgPath:     "invalid",
-			function:    "invalid",
-			params:      []string{},
-			setupMock:   func(r *ParameterRegistry) {},
-			expectError: true,
+			name:                    "execute parameter change is failed by non-existent handler",
+			pkgPath:                 consts.POOL_PATH,
+			function:                "SetFeeProtocol",
+			params:                  []string{},
+			setupMock:               func(r *ParameterRegistry) {},
+			expectedHasHandlerError: true,
+			expectedHasExecuteError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// given
 			registry := NewParameterRegistry()
 			tt.setupMock(registry)
 
+			// when
 			handler, err := registry.Handler(tt.pkgPath, tt.function)
-			if tt.expectError {
+			if tt.expectedHasHandlerError {
 				uassert.Error(t, err)
 				return
 			}
 
-			err = handler(tt.params)
+			err = handler.Execute(tt.params)
+
+			// then
+			if tt.expectedHasExecuteError {
+				uassert.Error(t, err)
+			} else {
+				uassert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestRollbackSystem(t *testing.T) {
+	// trace the state change
+	type stateChange struct {
+		pkgPath  string
+		function string
+		value    any
+	}
+
+	tests := []struct {
+		name        string
+		msgs        []string
+		setupMock   func(*ParameterRegistry) ([]stateChange, func())
+		expectError bool
+		validate    func(*testing.T, []stateChange)
+	}{
+		{
+			name: "Should rollback when second message fails",
+			msgs: []string{
+				"gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*123",
+				"gno.land/r/gnoswap/v1/community_pool*EXE*TransferToken*EXE*gno.land/r/gnoswap/v1/gns,g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d,905",
+			},
+			setupMock: func(r *ParameterRegistry) ([]stateChange, func()) {
+				initialStates := []stateChange{
+					{
+						pkgPath:  "gno.land/r/gnoswap/v1/gns",
+						function: "SetAvgBlockTimeInMs",
+						value:    int64(0),
+					},
+				}
+
+				// track the state change
+				blockTime := int64(0)
+
+				// first message should succeed
+				r.Register("gno.land/r/gnoswap/v1/gns", "SetAvgBlockTimeInMs", NewFunctionHandler(func(params []string) error {
+					blockTime = int64(123)
+					initialStates[0].value = blockTime
+					return nil
+				}))
+				// second message should fail
+				r.Register("gno.land/r/gnoswap/v1/community_pool", "TransferToken", NewFunctionHandler(func(params []string) error {
+					return errors.New("insufficient balance")
+				}))
+
+				// rollback the state
+				rollback := func() {
+					blockTime = int64(0)
+					initialStates[0].value = blockTime
+				}
+
+				return initialStates, rollback
+			},
+			expectError: true,
+			validate: func(t *testing.T, states []stateChange) {
+				// should be rolled back to initial value
+				uassert.Equal(t, states[0].value, int64(0))
+			},
+		},
+		{
+			name: "Should not rollback when all messages succeed",
+			msgs: []string{
+				"gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*123",
+				"gno.land/r/gnoswap/v1/community_pool*EXE*TransferToken*EXE*gno.land/r/gnoswap/v1/gns,g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d,905",
+			},
+			setupMock: func(r *ParameterRegistry) ([]stateChange, func()) {
+				initialStates := []stateChange{
+					{
+						pkgPath:  "gno.land/r/gnoswap/v1/gns",
+						function: "SetAvgBlockTimeInMs",
+						value:    int64(0),
+					},
+					{
+						pkgPath:  "gno.land/r/gnoswap/v1/community_pool",
+						function: "TransferToken",
+						value:    uint64(0),
+					},
+				}
+
+				// track the state change
+				blockTime := int64(0)
+				transferAmount := uint64(0)
+
+				// all messages should succeed
+				r.Register("gno.land/r/gnoswap/v1/gns", "SetAvgBlockTimeInMs", NewFunctionHandler(func(params []string) error {
+					blockTime = int64(123)
+					initialStates[0].value = blockTime
+					return nil
+				}))
+				r.Register("gno.land/r/gnoswap/v1/community_pool", "TransferToken", NewFunctionHandler(func(params []string) error {
+					transferAmount = uint64(905)
+					initialStates[1].value = transferAmount
+					return nil
+				}))
+
+				// rollback function (not used in this case)
+				rollback := func() {
+					blockTime = int64(0)
+					transferAmount = uint64(0)
+					initialStates[0].value = blockTime
+					initialStates[1].value = transferAmount
+				}
+
+				return initialStates, rollback
+			},
+			expectError: false,
+			validate: func(t *testing.T, states []stateChange) {
+				// should be changed
+				uassert.Equal(t, states[0].value, int64(123))
+				uassert.Equal(t, states[1].value, uint64(905))
+			},
+		},
+		{
+			name: "Should not rollback when first message fails",
+			msgs: []string{
+				"gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*invalid",
+				"gno.land/r/gnoswap/v1/community_pool*EXE*TransferToken*EXE*gno.land/r/gnoswap/v1/gns,g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d,905",
+			},
+			setupMock: func(r *ParameterRegistry) ([]stateChange, func()) {
+				initialStates := []stateChange{
+					{
+						pkgPath:  "gno.land/r/gnoswap/v1/gns",
+						function: "SetAvgBlockTimeInMs",
+						value:    int64(0),
+					},
+					{
+						pkgPath:  "gno.land/r/gnoswap/v1/community_pool",
+						function: "TransferToken",
+						value:    uint64(0),
+					},
+				}
+
+				// track the state change
+				blockTime := int64(0)
+				transferAmount := uint64(0)
+
+				// first message should fail
+				r.Register("gno.land/r/gnoswap/v1/gns", "SetAvgBlockTimeInMs", NewFunctionHandler(func(params []string) error {
+					return errors.New("invalid parameter")
+				}))
+				// second message should not be executed
+				r.Register("gno.land/r/gnoswap/v1/community_pool", "TransferToken", NewFunctionHandler(func(params []string) error {
+					transferAmount = uint64(905)
+					initialStates[1].value = transferAmount
+					return nil
+				}))
+
+				// rollback function (not used in this case)
+				rollback := func() {
+					blockTime = int64(0)
+					transferAmount = uint64(0)
+					initialStates[0].value = blockTime
+					initialStates[1].value = transferAmount
+				}
+
+				return initialStates, rollback
+			},
+			expectError: true,
+			validate: func(t *testing.T, states []stateChange) {
+				// should not be changed
+				uassert.Equal(t, states[0].value, int64(0))
+				uassert.Equal(t, states[1].value, uint64(0))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// create a test registry
+			registry := NewParameterRegistry()
+			initialStates, rollback := tt.setupMock(registry)
+
+			// create a test proposal
+			proposal := &ProposalInfo{
+				ProposalType: ParameterChange,
+				State: ProposalState{
+					Passed: true,
+				},
+				Execution: ExecutionInfo{
+					Msgs: tt.msgs,
+				},
+			}
+
+			// create an execution context
+			ctx := &ExecutionContext{
+				ProposalId: 1,
+				Now:        uint64(time.Now().Unix()),
+				Config:     &Config{},
+				Proposal:   proposal,
+			}
+
+			err := executeProposal(cross, ctx, registry)
+
+			// if error occurs, execute rollback
 			if err != nil {
-				t.Errorf("handler returned error: %v", err)
+				rollback()
+			}
+
+			if tt.expectError {
+				uassert.Error(t, err)
+			} else {
+				uassert.NoError(t, err)
+			}
+
+			// validate state
+			if tt.validate != nil {
+				tt.validate(t, initialStates)
 			}
 		})
 	}

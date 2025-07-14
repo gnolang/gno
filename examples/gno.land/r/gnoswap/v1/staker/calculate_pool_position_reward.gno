@@ -20,10 +20,10 @@ func isAbleToCalculateEmissionReward(prev int64, current int64) bool {
 // Internal reward is the GNS reward, external reward is the reward for other incentives.
 // Penalties are the amount that is deducted from the reward due to the position's warmup.
 type Reward struct {
-	Internal        uint64
-	InternalPenalty uint64
-	External        map[string]uint64 // Incentive ID -> TokenAmount
-	ExternalPenalty map[string]uint64 // Incentive ID -> TokenAmount
+	Internal        int64
+	InternalPenalty int64
+	External        map[string]int64 // Incentive ID -> TokenAmount
+	ExternalPenalty map[string]int64 // Incentive ID -> TokenAmount
 }
 
 // calculate position reward by each warmup
@@ -49,17 +49,17 @@ func calcPositionReward(currentHeight int64, positionId uint64) Reward {
 		PositionId:    positionId,
 	})
 
-	internal := uint64(0)
+	internal := int64(0)
 	for _, reward := range rewards {
 		internal += reward.Internal
 	}
 
-	internalPenalty := uint64(0)
+	internalPenalty := int64(0)
 	for _, reward := range rewards {
 		internalPenalty += reward.InternalPenalty
 	}
 
-	externalReward := make(map[string]uint64)
+	externalReward := make(map[string]int64)
 	for _, reward := range rewards {
 		if reward.External != nil {
 			for incentive, reward := range reward.External {
@@ -68,7 +68,7 @@ func calcPositionReward(currentHeight int64, positionId uint64) Reward {
 		}
 	}
 
-	externalPenalty := make(map[string]uint64)
+	externalPenalty := make(map[string]int64)
 	for _, reward := range rewards {
 		if reward.ExternalPenalty != nil {
 			for incentive, penalty := range reward.ExternalPenalty {
@@ -113,10 +113,10 @@ func calculatePositionReward(param CalcPositionRewardParam) []Reward {
 	lastCollectHeight := deposit.lastCollectHeight
 
 	// Initializes reward/penalty arrays for rewards and penalties for each warmup
-	internalRewards := make([]uint64, len(deposit.warmups))
-	internalPenalties := make([]uint64, len(deposit.warmups))
-	externalRewards := make([]map[string]uint64, len(deposit.warmups))
-	externalPenalties := make([]map[string]uint64, len(deposit.warmups))
+	internalRewards := make([]int64, len(deposit.warmups))
+	internalPenalties := make([]int64, len(deposit.warmups))
+	externalRewards := make([]map[string]int64, len(deposit.warmups))
+	externalPenalties := make([]map[string]int64, len(deposit.warmups))
 
 	if param.PoolTier.CurrentTier(poolPath) != 0 {
 		// Internal incentivized pool.
@@ -128,8 +128,8 @@ func calculatePositionReward(param CalcPositionRewardParam) []Reward {
 	allIncentives := pool.incentives.GetAllInHeights(lastCollectHeight, param.CurrentHeight)
 
 	for i := range externalRewards {
-		externalRewards[i] = make(map[string]uint64)
-		externalPenalties[i] = make(map[string]uint64)
+		externalRewards[i] = make(map[string]int64)
+		externalPenalties[i] = make(map[string]int64)
 	}
 
 	for incentiveId, incentive := range allIncentives {
@@ -157,7 +157,7 @@ func calculatePositionReward(param CalcPositionRewardParam) []Reward {
 }
 
 // calculates internal unclaimable reward for the pool
-func processUnClaimableReward(poolPath string, endHeight int64) uint64 {
+func processUnClaimableReward(poolPath string, endHeight int64) int64 {
 	pool, ok := pools.Get(poolPath)
 	if !ok {
 		return 0

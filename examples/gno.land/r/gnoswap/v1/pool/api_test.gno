@@ -7,26 +7,21 @@ import (
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/uassert"
 
-	"gno.land/p/gnoswap/consts"
 	"gno.land/r/gnoswap/v1/common"
 )
 
-func TestInitTwoPools(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(consts.ADMIN))
-	SetPoolCreationFeeByAdmin(0)
-
+func TestInitTwoPools_GetPools(t *testing.T) {
+	testing.SetRealm(std.NewUserRealm(adminAddr))
+	SetPoolCreationFeeByAdmin(cross, 0)
 	// foo:bar
-	CreatePool("gno.land/r/onbloc/bar", "gno.land/r/onbloc/foo", FeeTier500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
+	CreatePool(cross, "gno.land/r/onbloc/bar", "gno.land/r/onbloc/foo", FeeTier500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
 
 	// bar:baz
-	CreatePool(barPath, bazPath, fee500, "130621891405341611593710811006") // tick 10000
+	CreatePool(cross, barPath, bazPath, fee500, "130621891405341611593710811006") // tick 10000
 
 	uassert.Equal(t, pools.Size(), 2)
-}
 
-func TestApiGetPools(t *testing.T) {
 	getPools := ApiGetPools()
-
 	root, err := json.Unmarshal([]byte(getPools))
 	if err != nil {
 		panic(err.Error())
@@ -38,9 +33,7 @@ func TestApiGetPools(t *testing.T) {
 	}
 
 	uassert.Equal(t, 2, response.Size()) // should be same as the number of pools
-}
 
-func TestApiGetPool(t *testing.T) {
 	t.Run("existing pool", func(t *testing.T) {
 		getPool := ApiGetPool("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
 		uassert.Equal(t, getPool, `{"stat":{"height":123,"timestamp":1234567890},"response":{"poolPath":"gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500","token0Path":"gno.land/r/onbloc/bar","token1Path":"gno.land/r/onbloc/foo","token0Balance":"0","token1Balance":"0","fee":500,"tickSpacing":10,"maxLiquidityPerTick":"1917569901783203986719870431555990","sqrtPriceX96":"48055510970269007215549348797","tick":-10000,"feeProtocol":0,"unlocked":true,"feeGrowthGlobal0X128":"0","feeGrowthGlobal1X128":"0","token0ProtocolFee":"0","token1ProtocolFee":"0","liquidity":"0","ticks":{},"tickBitmaps":{},"positions":[]}}`)
@@ -50,30 +43,7 @@ func TestApiGetPool(t *testing.T) {
 		getPool := ApiGetPool("gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000")
 		uassert.Equal(t, getPool, "")
 	})
-}
 
-func TestMakeStatNode(t *testing.T) {
-	t.Run("default block height and timestamp", func(t *testing.T) {
-		statNode := newStatNode().JSON()
-
-		statHeight, _ := statNode.GetKey("height")
-		uassert.Equal(t, statHeight.String(), "123")
-
-		statTimestamp, _ := statNode.GetKey("timestamp")
-		uassert.Equal(t, statTimestamp.String(), "1234567890")
-	})
-
-	t.Run("increase block height and timestamp", func(t *testing.T) {
-		std.TestSkipHeights(1)
-
-		statNode := newStatNode().JSON()
-
-		statHeight, _ := statNode.GetKey("height")
-		uassert.Equal(t, statHeight.String(), "124")
-	})
-}
-
-func TestRpcMakePool(t *testing.T) {
 	t.Run("existing pool", func(t *testing.T) {
 		rpcPool := newRpcPool("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
 		uassert.Equal(t, rpcPool.PoolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -109,5 +79,26 @@ func TestRpcMakePool(t *testing.T) {
 		}()
 
 		newRpcPool("gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000")
+	})
+}
+
+func TestMakeStatNode(t *testing.T) {
+	t.Run("default block height and timestamp", func(t *testing.T) {
+		statNode := newStatNode().JSON()
+
+		statHeight, _ := statNode.GetKey("height")
+		uassert.Equal(t, statHeight.String(), "123")
+
+		statTimestamp, _ := statNode.GetKey("timestamp")
+		uassert.Equal(t, statTimestamp.String(), "1234567890")
+	})
+
+	t.Run("increase block height and timestamp", func(t *testing.T) {
+		testing.SkipHeights(1)
+
+		statNode := newStatNode().JSON()
+
+		statHeight, _ := statNode.GetKey("height")
+		uassert.Equal(t, statHeight.String(), "124")
 	})
 }

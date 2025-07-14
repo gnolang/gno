@@ -1,7 +1,6 @@
 package staker
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -28,7 +27,7 @@ func (m *mockEnv) IsAdmin() bool {
 
 func TestCleanDelegationStatHistory(t *testing.T) {
 	mock := &mockEnv{height: 1000, isAdmin: true}
-	std.TestSetOriginCaller(testAddr1)
+	testing.SetOriginCaller(testAddr1)
 	delegationSnapShotHistory = avl.NewTree()
 
 	addr := testAddr.String()

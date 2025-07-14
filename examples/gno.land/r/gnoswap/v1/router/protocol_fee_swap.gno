@@ -4,7 +4,9 @@ import (
 	"std"
 
 	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/access"
 	"gno.land/r/gnoswap/v1/common"
+	"gno.land/r/gnoswap/v1/halt"
 
 	"gno.land/p/demo/ufmt"
 
@@ -27,9 +29,9 @@ func GetSwapFee() uint64 {
 
 // SetSwapFeeByAdmin modifies the swap fee
 // Only admin can execute this function
-func SetSwapFeeByAdmin(fee uint64) {
+func SetSwapFeeByAdmin(cur realm, fee uint64) {
 	caller := getPrevAddr()
-	if err := common.AdminOnly(caller); err != nil {
+	if err := access.AdminOnly(caller); err != nil {
 		panic(err)
 	}
 
@@ -52,9 +54,9 @@ func SetSwapFeeByAdmin(fee uint64) {
 // SetSwapFee modifies the swap fee
 // Only governance contract can execute this function via proposal
 // ref: https://docs.gnoswap.io/contracts/router/protocol_fee_swap.gno#setswapfee
-func SetSwapFee(fee uint64) {
+func SetSwapFee(cur realm, fee uint64) {
 	caller := getPrevAddr()
-	if err := common.GovernanceOnly(caller); err != nil {
+	if err := access.GovernanceOnly(caller); err != nil {
 		panic(err)
 	}
 
@@ -75,7 +77,9 @@ func SetSwapFee(fee uint64) {
 }
 
 func setSwapFee(fee uint64) error {
-	common.IsHalted()
+	if err := halt.IsHalted(); err != nil {
+		panic(err)
+	}
 
 	// 10000 (bps) = 100%
 	if fee > 10000 {
@@ -99,13 +103,16 @@ func handleSwapFee(
 		return amount
 	}
 
+	if outputToken == consts.GNOT {
+		outputToken = consts.WRAPPED_WUGNOT
+	}
+
 	feeAmount := new(u256.Uint).Mul(amount, u256.NewUint(swapFee))
 	feeAmount.Div(feeAmount, u256.NewUint(10000))
-	feeAmountUint64 := feeAmount.Uint64()
+	feeAmountInt64 := feeAmount.Int64()
 
-	outputTeller := common.GetTokenTeller(outputToken)
-	outputTeller.TransferFrom(std.PreviousRealm().Address(), consts.PROTOCOL_FEE_ADDR, feeAmountUint64)
-	pf.AddToProtocolFee(outputToken, feeAmountUint64)
+	common.TransferFrom(cross, outputToken, std.PreviousRealm().Address(), protocolFeeAddr, feeAmountInt64)
+	pf.AddToProtocolFee(cross, outputToken, uint64(feeAmountInt64))
 
 	prevAddr, prevPkgPath := getPrev()
 
@@ -114,7 +121,7 @@ func handleSwapFee(
 		"prevAddr", prevAddr,
 		"prevRealm", prevPkgPath,
 		"tokenPath", outputToken,
-		"amount", formatUint(feeAmountUint64),
+		"amount", formatInt64(feeAmountInt64),
 	)
 
 	toUserAfterProtocol := new(u256.Uint).Sub(amount, feeAmount)

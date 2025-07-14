@@ -8,12 +8,12 @@ func TestHandleUnstakingFee(t *testing.T) {
 	tests := []struct {
 		name        string
 		tokenPath   string
-		amount      uint64
+		amount      int64
 		internal    bool
 		positionId  uint64
 		poolPath    string
-		expectedFee uint64
-		expectedNet uint64
+		expectedFee int64
+		expectedNet int64
 	}{
 		{
 			name:        "No fee configured",
@@ -39,7 +39,7 @@ func TestHandleUnstakingFee(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			unstakingFee = tc.expectedFee // Set the fee globally for the test
+			unstakingFee = uint64(tc.expectedFee) // Set the fee globally for the test
 
 			netAmount := handleUnStakingFee(tc.tokenPath, tc.amount, tc.internal, tc.positionId, tc.poolPath)
 

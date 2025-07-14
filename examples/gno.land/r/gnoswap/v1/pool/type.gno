@@ -266,7 +266,7 @@ func (t *TickInfo) valueOrZero() {
 	t.secondsPerLiquidityOutsideX128 = t.secondsPerLiquidityOutsideX128.NilToZero()
 }
 
-func newPool(poolInfo *createPoolParams) *Pool {
+func newPool(poolInfo *poolCreateConfig) *Pool {
 	maxLiquidityPerTick := calculateMaxLiquidityPerTick(poolInfo.tickSpacing)
 	tick := common.TickMathGetTickAtSqrtRatio(poolInfo.SqrtPriceX96())
 	slot0 := newSlot0(poolInfo.SqrtPriceX96(), tick, slot0FeeProtocol, true)
@@ -291,7 +291,7 @@ func newPool(poolInfo *createPoolParams) *Pool {
 
 var tickCrossHook func(poolPath string, tickId int32, zeroForOne bool)
 
-func SetTickCrossHook(hook func(poolPath string, tickId int32, zeroForOne bool)) {
+func SetTickCrossHook(cur realm, hook func(poolPath string, tickId int32, zeroForOne bool)) {
 	if tickCrossHook != nil {
 		panic("tickCrossHook already set")
 	}

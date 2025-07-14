@@ -142,7 +142,7 @@ func rpcMakePosition(positionId uint64) RpcPosition {
 
 	unclaimedFee0 := i256.Zero()
 	unclaimedFee1 := i256.Zero()
-	burned := isBurned(positionId)
+	burned := IsBurned(positionId)
 	if !burned {
 		unclaimedFee0, unclaimedFee1 = unclaimedFee(positionId)
 	}
@@ -172,6 +172,10 @@ func rpcMakePosition(positionId uint64) RpcPosition {
 		FeeUnclaimed0:            unclaimedFee0.ToString(),
 		FeeUnclaimed1:            unclaimedFee1.ToString(),
 	}
+}
+
+func UnclaimedFee(positionId uint64) (*i256.Int, *i256.Int) {
+	return unclaimedFee(positionId)
 }
 
 func unclaimedFee(positionId uint64) (*i256.Int, *i256.Int) {
@@ -249,7 +253,7 @@ func subIn256(x, y *i256.Int) *i256.Int {
 	return diff
 }
 
-func isBurned(positionId uint64) bool {
+func IsBurned(positionId uint64) bool {
 	position := MustGetPosition(positionId)
 	return position.burned
 }

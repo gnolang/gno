@@ -27,9 +27,10 @@ func TestIncentiveIdByTime(t *testing.T) {
 	endTime := int64(67890)
 	creator := std.Address("g1xyz")
 	rewardToken := "gns"
+	poolPath := "g1xyz:pool1"
 
-	expected := "00000000000000012345:00000000000000067890:g1xyz:gns"
-	actual := incentiveIdByTime(startTime, endTime, creator, rewardToken)
+	expected := "00000000000000012345:00000000000000067890:g1xyz:gns:g1xyz:pool1"
+	actual := incentiveIdByTime(startTime, endTime, creator, rewardToken, poolPath)
 
 	if actual != expected {
 		t.Errorf("incentiveIdByTime() = %s; want %s", actual, expected)
@@ -41,11 +42,11 @@ func TestIncentiveIdByHeight(t *testing.T) {
 	endHeight := int64(456)
 	creator := std.Address("g1xyz")
 	rewardToken := "gns"
+	poolPath := "g1xyz:pool1"
+	expectedByHeight := "00000000000000000123:00000000000000000456:g1xyz:gns:g1xyz:pool1"
+	expectedByCreator := "g1xyz:00000000000000000123:00000000000000000456:gns:g1xyz:pool1"
 
-	expectedByHeight := "00000000000000000123:00000000000000000456:g1xyz:gns"
-	expectedByCreator := "g1xyz:00000000000000000123:00000000000000000456:gns"
-
-	actualByHeight, actualByCreator := incentiveIdByHeight(startHeight, endHeight, creator, rewardToken)
+	actualByHeight, actualByCreator := incentiveIdByHeight(startHeight, endHeight, creator, rewardToken, poolPath)
 
 	if actualByHeight != expectedByHeight {
 		t.Errorf("incentiveIdByHeight() byHeightId = %s; want %s", actualByHeight, expectedByHeight)

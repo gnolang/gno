@@ -1,0 +1,213 @@
+package staker
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/gnoswap/consts"
+
+	"gno.land/r/gnoswap/v1/access"
+	en "gno.land/r/gnoswap/v1/emission"
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/gnoswap/v1/gov/xgns"
+	lp "gno.land/r/gnoswap/v1/launchpad"
+	pf "gno.land/r/gnoswap/v1/protocol_fee"
+
+	// grc20 tokens
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/obl"
+	"gno.land/r/onbloc/qux"
+)
+
+// Admin -> Alice : 1_000_000
+// Bob -> Bob : 5_000_000
+// Launchpad xgns : 1_000_000
+// Total Staked GNS : 7_000_000
+// Protocol Fee
+// 1. bar -> 1000 : ( reward/1staked = 1000 / 7 )
+// 2. qux -> 2500 : ( reward/1staked = 2500 / 7 )
+func TestGovernanceStakerRewardProtocolFee(t *testing.T) {
+	aliceAddr := testutils.TestAddress("alice")
+	bobAddr := testutils.TestAddress("bob")
+	adminAddr := consts.ADMIN
+
+	bobRealm := std.NewUserRealm(bobAddr)
+	adminRealm := std.NewUserRealm(adminAddr)
+
+	delegateAmountFromAdminToAlice := uint64(1_000_000)
+	delegateAmountFromBobToBot := uint64(5_000_000)
+
+	t.Run("delegate from admin to alice", func(t *testing.T) {
+		testing.SkipHeights(1)
+		testing.SetRealm(adminRealm)
+		gns.Approve(govStakerAddr, delegateAmountFromAdminToAlice)
+		// Delegate : 1, reward : x
+		Delegate(aliceAddr, delegateAmountFromAdminToAlice, "")
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetTotalxGnsSupply())
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetTotalVoteWeight())
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetTotalDelegated())
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetTotalDelegatedFrom(adminAddr))
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetTotalDelegatedTo(aliceAddr))
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetDelegationAmountFromTo(adminAddr, aliceAddr))
+
+		data := unmarshal(GetDelegationHistory(adminAddr))
+		uassert.Equal(t, "g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh", data.MustKey("delegationHistory").MustArray()[0].MustKey("to").MustString())
+		uassert.Equal(t, "1000000", data.MustKey("delegationHistory").MustArray()[0].MustKey("amount").MustString())
+		uassert.Equal(t, "true", data.MustKey("delegationHistory").MustArray()[0].MustKey("add").MustString())
+	})
+
+	t.Run("mock protocol fee test", func(t *testing.T) {
+		testing.SetRealm(adminRealm)
+		bar.Transfer(protocolFeeAddr, 1000)
+		qux.Transfer(protocolFeeAddr, 2500)
+
+		testing.SkipHeights(1)
+		testing.SetRealm(stakerRealm)
+		// bar -> 1000 : ( reward/1staked = 1000 / 6 )
+		pf.AddToProtocolFee(barPath, 1000)
+		// qux -> 2500 : ( reward/1staked = 2500 / 6 )
+		pf.AddToProtocolFee(quxPath, 2500)
+
+		uassert.Equal(t, uint64(1000), bar.BalanceOf(protocolFeeAddr))
+		uassert.Equal(t, uint64(2500), qux.BalanceOf(protocolFeeAddr))
+		uassert.Equal(t, uint64(1000), pf.GetAmountOfToken(barPath))
+		uassert.Equal(t, uint64(2500), pf.GetAmountOfToken(quxPath))
+
+		data := unmarshal(pf.ApiGetTokenListWithAmountOverZero())
+		uassert.Equal(t, "125", data.MustKey("height").MustString())
+		uassert.Equal(t, "1000", data.MustKey(barPath).MustString())
+		uassert.Equal(t, "2500", data.MustKey(quxPath).MustString())
+
+		uassert.Equal(t, uint64(0), pf.GetAccuTransferToGovStakerByTokenPath(barPath))
+		uassert.Equal(t, uint64(0), pf.GetAccuTransferToGovStakerByTokenPath(quxPath))
+	})
+
+	t.Run("delegate from bob to bob", func(t *testing.T) {
+		testing.SkipHeights(1)
+		testing.SetRealm(adminRealm)
+		gns.Transfer(bobAddr, delegateAmountFromBobToBot)
+
+		testing.SetRealm(bobRealm)
+		gns.Approve(govStakerAddr, delegateAmountFromBobToBot)
+		// previous compute : protocolFee distribution
+		// admin
+		// - bar : 1000 / 1 * 1 = 1000
+		// - qux : 2500 / 1 * 1 = 2500
+		// Delegate : 5, total delegate : 6
+		Delegate(bobAddr, delegateAmountFromBobToBot, "")
+
+		uassert.Equal(t, delegateAmountFromAdminToAlice+delegateAmountFromBobToBot, GetTotalxGnsSupply())
+		uassert.Equal(t, delegateAmountFromAdminToAlice+delegateAmountFromBobToBot, GetTotalVoteWeight())
+		uassert.Equal(t, delegateAmountFromAdminToAlice+delegateAmountFromBobToBot, GetTotalDelegated())
+
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetTotalDelegatedFrom(adminAddr))
+		uassert.Equal(t, delegateAmountFromBobToBot, GetTotalDelegatedFrom(bobAddr))
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetTotalDelegatedTo(aliceAddr))
+		uassert.Equal(t, delegateAmountFromBobToBot, GetTotalDelegatedTo(bobAddr))
+		uassert.Equal(t, delegateAmountFromAdminToAlice, GetDelegationAmountFromTo(adminAddr, aliceAddr))
+		uassert.Equal(t, delegateAmountFromBobToBot, GetDelegationAmountFromTo(bobAddr, bobAddr))
+
+		uassert.Equal(t, uint64(0), GetDelegationAmountFromTo(bobAddr, aliceAddr))
+
+		data := unmarshal(GetDelegationHistory(bobAddr))
+		uassert.Equal(t, "126", data.MustKey("delegationHistory").MustArray()[0].MustKey("height").MustString())
+		uassert.Equal(t, "1234567905", data.MustKey("delegationHistory").MustArray()[0].MustKey("timestamp").MustString())
+		uassert.Equal(t, "5000000", data.MustKey("delegationHistory").MustArray()[0].MustKey("amount").MustString())
+		uassert.Equal(t, "true", data.MustKey("delegationHistory").MustArray()[0].MustKey("add").MustString())
+	})
+
+	t.Run("mock protocol fee test", func(t *testing.T) {
+		testing.SetRealm(adminRealm)
+		bar.Transfer(protocolFeeAddr, 1000)
+		qux.Transfer(protocolFeeAddr, 2500)
+
+		testing.SkipHeights(1)
+		testing.SetRealm(stakerRealm)
+		// bar -> 1000 : ( reward/1staked = 1000 / 6 )
+		pf.AddToProtocolFee(barPath, 1000)
+		// qux -> 2500 : ( reward/1staked = 2500 / 6 )
+		pf.AddToProtocolFee(quxPath, 2500)
+
+		uassert.Equal(t, uint64(1000), bar.BalanceOf(protocolFeeAddr))
+		uassert.Equal(t, uint64(2500), qux.BalanceOf(protocolFeeAddr))
+
+		uassert.Equal(t, uint64(1000), pf.GetAmountOfToken(barPath))
+		uassert.Equal(t, uint64(2500), pf.GetAmountOfToken(quxPath))
+
+		data := unmarshal(pf.ApiGetTokenListWithAmountOverZero())
+		uassert.Equal(t, "127", data.MustKey("height").MustString())
+		uassert.Equal(t, "1000", data.MustKey(barPath).MustString())
+		uassert.Equal(t, "2500", data.MustKey(quxPath).MustString())
+
+		uassert.Equal(t, uint64(0), pf.GetAccuTransferToGovStakerByTokenPath(barPath))
+		uassert.Equal(t, uint64(0), pf.GetAccuTransferToGovStakerByTokenPath(quxPath))
+	})
+
+	t.Run("skip dummy block test", func(t *testing.T) {
+		testing.SkipHeights(10)
+		en.MintAndDistributeGns()
+
+		uassert.Equal(t, uint64(1000), bar.BalanceOf(protocolFeeAddr))
+		uassert.Equal(t, uint64(2500), qux.BalanceOf(protocolFeeAddr))
+	})
+
+	t.Run("check bob addr", func(t *testing.T) {
+		gcr := GetClaimableRewardByAddress(bobAddr)
+		// 1000 / 6 * 5 = 833
+		// 2500 / 6 * 5 = 2083
+		data := unmarshal(gcr)
+		uassert.Equal(t, "137", data.MustKey("height").MustString())
+		uassert.Equal(t, "0", data.MustKey("emissionReward").MustString())
+		uassert.Equal(t, "833", data.MustKey("protocolFees").MustArray()[0].MustKey("amount").MustString())
+		uassert.Equal(t, "2083", data.MustKey("protocolFees").MustArray()[1].MustKey("amount").MustString())
+	})
+
+	t.Run("check admin addr", func(t *testing.T) {
+		gcr := GetClaimableRewardByAddress(adminAddr)
+		// 1000 + (1000 / 6 * 1 = 166)
+		// 2500 + (2500 / 6 * 1 = 416)
+		data := unmarshal(gcr)
+		uassert.Equal(t, "137", data.MustKey("height").MustString())
+		uassert.Equal(t, "0", data.MustKey("emissionReward").MustString())
+		uassert.Equal(t, "1166", data.MustKey("protocolFees").MustArray()[0].MustKey("amount").MustString())
+		uassert.Equal(t, "2916", data.MustKey("protocolFees").MustArray()[1].MustKey("amount").MustString())
+	})
+
+	t.Run("collect reward - bob", func(t *testing.T) {
+		// protocol fee has bar, qux
+		uassert.Equal(t, uint64(0), bar.BalanceOf(bobAddr))
+		uassert.Equal(t, uint64(0), qux.BalanceOf(bobAddr))
+
+		testing.SetRealm(bobRealm)
+		CollectReward()
+
+		uassert.Equal(t, uint64(833), bar.BalanceOf(bobAddr))
+		uassert.Equal(t, uint64(2083), qux.BalanceOf(bobAddr))
+	})
+
+	t.Run("same block - should not duplicated deduct reward", func(t *testing.T) {
+		uassert.Equal(t, uint64(833), bar.BalanceOf(bobAddr))
+		uassert.Equal(t, uint64(2083), qux.BalanceOf(bobAddr))
+
+		testing.SetRealm(bobRealm)
+		CollectReward()
+
+		uassert.Equal(t, uint64(833), bar.BalanceOf(bobAddr))
+		uassert.Equal(t, uint64(2083), qux.BalanceOf(bobAddr))
+	})
+
+	t.Run("collect reward - admin", func(t *testing.T) {
+		beforeBarBalance := bar.BalanceOf(adminAddr)
+		beforeQuxBalance := qux.BalanceOf(adminAddr)
+
+		testing.SetRealm(adminRealm)
+		CollectReward()
+
+		uassert.Equal(t, uint64(1166), bar.BalanceOf(adminAddr)-beforeBarBalance)
+		uassert.Equal(t, uint64(2916), qux.BalanceOf(adminAddr)-beforeQuxBalance)
+	})
+}

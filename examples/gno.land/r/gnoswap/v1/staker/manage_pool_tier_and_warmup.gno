@@ -5,7 +5,8 @@ import (
 
 	"gno.land/p/demo/ufmt"
 
-	"gno.land/r/gnoswap/v1/common"
+	"gno.land/r/gnoswap/v1/access"
+	"gno.land/r/gnoswap/v1/halt"
 
 	en "gno.land/r/gnoswap/v1/emission"
 	pl "gno.land/r/gnoswap/v1/pool"
@@ -16,25 +17,25 @@ const (
 )
 
 // SetPoolTierByAdmin sets the tier of a pool by an admin
-func SetPoolTierByAdmin(poolPath string, tier uint64) {
+func SetPoolTierByAdmin(cur realm, poolPath string, tier uint64) {
 	assertOnlyAdmin()
 	assertMustNotHalted()
 	assertPoolMustExist(poolPath)
 
-	setPoolTier(poolPath, tier)
+	setPoolTier(cur, poolPath, tier)
 }
 
 // SetPoolTier sets the tier of a pool by governance
-func SetPoolTier(poolPath string, tier uint64) {
+func SetPoolTier(cur realm, poolPath string, tier uint64) {
 	assertOnlyGovernance()
 	assertMustNotHalted()
 	assertPoolMustExist(poolPath)
 
-	setPoolTier(poolPath, tier)
+	setPoolTier(cur, poolPath, tier)
 }
 
-func setPoolTier(poolPath string, tier uint64) {
-	en.MintAndDistributeGns()
+func setPoolTier(cur realm, poolPath string, tier uint64) {
+	en.MintAndDistributeGns(cross)
 
 	currentHeight := std.ChainHeight()
 	pools.GetOrCreate(poolPath)
@@ -52,25 +53,25 @@ func setPoolTier(poolPath string, tier uint64) {
 }
 
 // ChangePoolTierByAdmin changes the tier of a pool by an admin
-func ChangePoolTierByAdmin(poolPath string, tier uint64) {
+func ChangePoolTierByAdmin(cur realm, poolPath string, tier uint64) {
 	assertOnlyAdmin()
 	assertMustNotHalted()
 	assertPoolMustExist(poolPath)
 
-	changePoolTier(poolPath, tier)
+	changePoolTier(cur, poolPath, tier)
 }
 
 // ChangePoolTier changes the tier of a pool by governance
-func ChangePoolTier(poolPath string, tier uint64) {
+func ChangePoolTier(cur realm, poolPath string, tier uint64) {
 	assertOnlyGovernance()
 	assertMustNotHalted()
 	assertPoolMustExist(poolPath)
 
-	changePoolTier(poolPath, tier)
+	changePoolTier(cur, poolPath, tier)
 }
 
-func changePoolTier(poolPath string, tier uint64) {
-	en.MintAndDistributeGns()
+func changePoolTier(cur realm, poolPath string, tier uint64) {
+	en.MintAndDistributeGns(cross)
 
 	prevTier := poolTier.CurrentTier(poolPath)
 	currentHeight := std.ChainHeight()
@@ -89,25 +90,25 @@ func changePoolTier(poolPath string, tier uint64) {
 }
 
 // RemovePoolTierByAdmin removes the tier of a pool by an admin
-func RemovePoolTierByAdmin(poolPath string) {
+func RemovePoolTierByAdmin(cur realm, poolPath string) {
 	assertOnlyAdmin()
 	assertMustNotHalted()
 	assertPoolMustExist(poolPath)
 
-	removePoolTier(poolPath)
+	removePoolTier(cur, poolPath)
 }
 
 // RemovePoolTier removes the tier of a pool by governance
-func RemovePoolTier(poolPath string) {
+func RemovePoolTier(cur realm, poolPath string) {
 	assertOnlyGovernance()
 	assertMustNotHalted()
 	assertPoolMustExist(poolPath)
 
-	removePoolTier(poolPath)
+	removePoolTier(cur, poolPath)
 }
 
-func removePoolTier(poolPath string) {
-	en.MintAndDistributeGns()
+func removePoolTier(cur realm, poolPath string) {
+	en.MintAndDistributeGns(cross)
 
 	currentHeight := std.ChainHeight()
 	poolTier.changeTier(currentHeight, pools, poolPath, NOT_EMISSION_TARGET_TIER)
@@ -123,23 +124,23 @@ func removePoolTier(poolPath string) {
 }
 
 // SetWarmUpByAdmin sets the warmup percentage and block duration by an admin
-func SetWarmUpByAdmin(pct, blockDuration int64) {
+func SetWarmUpByAdmin(cur realm, pct, blockDuration int64) {
 	assertOnlyAdmin()
 	assertMustNotHalted()
 
-	setWarmUp(pct, blockDuration)
+	setWarmUp(cur, pct, blockDuration)
 }
 
 // SetWarmUp sets the warmup percentage and block duration by governance
-func SetWarmUp(pct, blockDuration int64) {
+func SetWarmUp(cur realm, pct, blockDuration int64) {
 	assertOnlyGovernance()
 	assertMustNotHalted()
 
-	setWarmUp(pct, blockDuration)
+	setWarmUp(cur, pct, blockDuration)
 }
 
-func setWarmUp(pct, blockDuration int64) {
-	en.MintAndDistributeGns()
+func setWarmUp(cur realm, pct, blockDuration int64) {
+	en.MintAndDistributeGns(cross)
 
 	modifyWarmup(pctToIndex(pct), blockDuration)
 
@@ -178,13 +179,15 @@ func assertPoolMustExist(poolPath string) {
 }
 
 func assertOnlyAdmin() {
-	common.AdminOnly(getPrevAddr())
+	access.AdminOnly(getPrevAddr())
 }
 
 func assertOnlyGovernance() {
-	common.GovernanceOnly(getPrevAddr())
+	access.GovernanceOnly(getPrevAddr())
 }
 
 func assertMustNotHalted() {
-	common.IsHalted()
+	if err := halt.IsHalted(); err != nil {
+		panic(err)
+	}
 }

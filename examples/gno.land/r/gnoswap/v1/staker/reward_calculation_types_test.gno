@@ -77,9 +77,9 @@ func TestUintTree(t *testing.T) {
 	tree.set(300, "c")
 
 	var keys []uint64
-	var values []interface{}
+	var values []any
 
-	tree.Iterate(100, 300, func(key int64, value interface{}) bool {
+	tree.Iterate(100, 300, func(key int64, value any) bool {
 		keys = append(keys, uint64(key))
 		values = append(values, value)
 		return false
@@ -87,7 +87,7 @@ func TestUintTree(t *testing.T) {
 
 	// Verify results
 	expectedKeys := []uint64{100, 200}
-	expectedValues := []interface{}{"a", "b"}
+	expectedValues := []any{"a", "b"}
 
 	if !compareUintSlices(t, keys, expectedKeys) || !compareInterfaces(t, values, expectedValues) {
 		t.Errorf("UintTree.Iterate() keys = %v, values = %v; want keys = %v, values = %v", keys, values, expectedKeys, expectedValues)
@@ -109,7 +109,7 @@ func compareUintSlices(t *testing.T, a, b []uint64) bool {
 }
 
 // Helper function to compare slices of interfaces
-func compareInterfaces(t *testing.T, a, b []interface{}) bool {
+func compareInterfaces(t *testing.T, a, b []any) bool {
 	t.Helper()
 	if len(a) != len(b) {
 		return false

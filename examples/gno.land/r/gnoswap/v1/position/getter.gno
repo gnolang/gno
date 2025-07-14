@@ -63,10 +63,7 @@ func PositionIsInRange(positionId uint64) bool {
 	poolPath := position.poolKey
 	poolCurrentTick := pl.PoolGetSlot0Tick(poolPath)
 
-	if position.tickLower <= poolCurrentTick && poolCurrentTick <= position.tickUpper {
-		return true
-	}
-	return false
+	return position.tickLower <= poolCurrentTick && poolCurrentTick < position.tickUpper
 }
 
 func PositionGetPositionOwner(positionId uint64) std.Address {

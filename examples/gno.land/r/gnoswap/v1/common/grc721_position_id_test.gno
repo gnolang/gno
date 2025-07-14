@@ -9,7 +9,7 @@ import (
 func TestPositionIdFrom(t *testing.T) {
 	tests := []struct {
 		name      string
-		input     interface{}
+		input     any
 		want      grc721.TokenID
 		wantPanic bool
 	}{

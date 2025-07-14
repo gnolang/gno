@@ -27,7 +27,7 @@ func NewExactInSwapOperation(pp ExactInParams) *ExactInSwapOperation {
 
 // ExactInSwapRoute is a function that performs an exact-in swap operation.
 // exact-in swap means that the user wants to swap an exact amount of input tokens for output tokens.
-func ExactInSwapRoute(
+func ExactInSwapRoute(cur realm,
 	inputToken string,
 	outputToken string,
 	amountIn string,
@@ -37,8 +37,13 @@ func ExactInSwapRoute(
 	deadline int64,
 	referrer string,
 ) (string, string) {
-	checkDeadline(deadline)
-	commonSwapSetup()
+	if err := checkDeadline(deadline); err != nil {
+		panic(addDetailToError(errExpired, err.Error()))
+	}
+
+	if err := commonSwapSetup(); err != nil {
+		panic(addDetailToError(errInvalidInput, err.Error()))
+	}
 
 	baseParams := BaseSwapParams{
 		InputToken:  inputToken,
@@ -76,7 +81,13 @@ func ExactInSwapRoute(
 	)
 
 	prevAddr, prevPkgPath := getPrev()
-	referral.TryRegister(std.Address(prevAddr), referrer)
+	success := referral.TryRegister(cross, std.Address(prevAddr), referrer)
+
+	// get the actual referral address that was used
+	actualReferrer := referrer
+	if !success {
+		actualReferrer = referral.GetReferral(prevAddr)
+	}
 
 	std.Emit(
 		"ExactInSwap",
@@ -89,7 +100,7 @@ func ExactInSwapRoute(
 		"quote", pp.QuoteArr,
 		"resultInputAmount", inputAmount,
 		"resultOutputAmount", outputAmount,
-		"referrer", referrer,
+		"referrer", actualReferrer,
 	)
 
 	return inputAmount, outputAmount
@@ -105,7 +116,7 @@ func (op *ExactInSwapOperation) Validate() error {
 	// obtained from above.
 	op.amountSpecified = amountIn
 
-	routes, quotes, err := tryParseRoutes(op.params.RouteArr, op.params.QuoteArr)
+	routes, quotes, err := validateRoutesAndQuotes(op.params.RouteArr, op.params.QuoteArr)
 	if err != nil {
 		return err
 	}
@@ -139,7 +150,6 @@ func (op *ExactInSwapOperation) handleNativeTokenWrapping() error {
 	return op.baseSwapOperation.handleNativeTokenWrapping(
 		op.params.InputToken,
 		op.params.OutputToken,
-		ExactIn,
 		op.amountSpecified,
 	)
 }

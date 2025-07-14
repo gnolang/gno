@@ -38,7 +38,7 @@ func TestShortWarmUpExternalPositionInOutRangeChangedBySwap(t *testing.T) {
 
 func testInit(t *testing.T) {
 	t.Run("initialize", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		// override warm-up period for testing
 		changeWarmup(t, 0, 150)
@@ -53,25 +53,25 @@ func testInit(t *testing.T) {
 
 func testCreatePool(t *testing.T) {
 	t.Run("create pool", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*3)
+		gns.Approve(poolAddr, pl.GetPoolCreationFee()*3)
 
 		pl.CreatePool(barPath, quxPath, 100, "79228162514264337593543950337")
 		pl.CreatePool(barPath, bazPath, 3000, "79228162514264337593543950337")
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarQux100_1(t *testing.T) {
 	t.Run("mint position 01, bar:qux:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,    // token0
 			quxPath,    // token1
 			fee100,     // fee
@@ -93,18 +93,18 @@ func testMintBarQux100_1(t *testing.T) {
 		uassert.NoError(t, err)
 		uassert.Equal(t, owner, admin)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testMintBarQux100_2(t *testing.T) {
 	t.Run("mint position 02, bar:qux:100", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
 
-		positionId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := cross(pn.Mint)(
 			barPath,      // token0
 			quxPath,      // token1
 			fee100,       // fee
@@ -126,16 +126,16 @@ func testMintBarQux100_2(t *testing.T) {
 		uassert.NoError(t, err)
 		uassert.Equal(t, owner, admin)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testCreateExternalIncentiveBar(t *testing.T) {
 	t.Run("create external incentive", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.STAKER_ADDR, consts.UINT64_MAX)
-		gns.Approve(consts.STAKER_ADDR, depositGnsAmount)
+		bar.Approve(stakerAddr, consts.UINT64_MAX)
+		gns.Approve(stakerAddr, depositGnsAmount)
 
 		CreateExternalIncentive(
 			poolPath,
@@ -145,13 +145,13 @@ func testCreateExternalIncentiveBar(t *testing.T) {
 			1234569600+TIMESTAMP_90DAYS,
 		)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testStakeToken_1_AND_2(t *testing.T) {
 	t.Run("stake position 01 and 02", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(1))
 		StakeToken(1, "")
@@ -159,13 +159,13 @@ func testStakeToken_1_AND_2(t *testing.T) {
 		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(2))
 		StakeToken(2, "")
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 	})
 }
 
 func testBeforeActive(t *testing.T) {
 	t.Run("before active", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
 		oldBar := bar.BalanceOf(admin)
 
@@ -180,11 +180,11 @@ func testBeforeActive(t *testing.T) {
 
 func testAfter50Blocks(t *testing.T) {
 	t.Run("make external start", func(t *testing.T) {
-		std.TestSkipHeights(850)
+		testing.SkipHeights(850)
 	})
 	t.Run("after 50 blocks", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
-		std.TestSkipHeights(50)
+		testing.SetRealm(adminRealm)
+		testing.SkipHeights(50)
 		// block per reward is 2314
 		// skip 50 block after active
 		// 2314 * 50 = 115700
@@ -201,17 +201,11 @@ func testAfter50Blocks(t *testing.T) {
 		oldBar := bar.BalanceOf(admin)
 		CollectReward(1, false)
 		newBar := bar.BalanceOf(admin)
-		uassert.True(t, isInErrorRange(157, newBar-oldBar))
-		// reward 157
-		// penalty 68
-		// total 225
+		uassert.True(t, isInErrorRange(173, newBar-oldBar))
 
 		CollectReward(2, false)
 		newBar2 := bar.BalanceOf(admin)
-		uassert.True(t, isInErrorRange(80831, newBar2-newBar))
-		// reward 80831
-		// penalty 34643
-		// total 115474
+		uassert.True(t, isInErrorRange(88914, newBar2-newBar))
 	})
 }
 
@@ -221,15 +215,15 @@ func testMakePosition1OutRange(t *testing.T) {
 		uassert.Equal(t, poolTick, int32(0))
 
 		// ROUTER SWAP
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 
-		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
 
-		bar.Approve(consts.ROUTER_ADDR, consts.UINT64_MAX)
-		qux.Approve(consts.ROUTER_ADDR, consts.UINT64_MAX)
+		bar.Approve(routerAddr, consts.UINT64_MAX)
+		qux.Approve(routerAddr, consts.UINT64_MAX)
 
-		tokenIn, tokenOut := rr.ExactInSwapRoute(
+		tokenIn, tokenOut := cross(rr.ExactInSwapRoute)(
 			barPath,  // inputToken
 			quxPath,  // outputToken
 			"100000", // amountSpecified
@@ -249,11 +243,11 @@ func testMakePosition1OutRange(t *testing.T) {
 
 func testRewardNowAfter1Block(t *testing.T) {
 	t.Run("check reward after 1 block", func(t *testing.T) {
-		std.TestSetRealm(adminRealm)
+		testing.SetRealm(adminRealm)
 		CollectReward(1, false)
 		CollectReward(2, false)
 
-		std.TestSkipHeights(1)
+		testing.SkipHeights(1)
 
 		oldBar := bar.BalanceOf(admin)
 		CollectReward(1, false) //

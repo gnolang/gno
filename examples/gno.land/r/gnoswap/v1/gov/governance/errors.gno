@@ -23,6 +23,11 @@ var (
 	errUnableToVoteOutOfPeriod                        = errors.New("[GNOSWAP-GOVERNANCE-014] unable to vote out of voting period")
 	errInvalidMessageFormat                           = errors.New("[GNOSWAP-GOVERNANCE-015] invalid message format")
 	errProposalNotPassed                              = errors.New("[GNOSWAP-GOVERNANCE-016] proposal not passed")
+	errInvalidAddress                                 = errors.New("[GNOSWAP-GOVERNANCE-017] invalid address")
+	errExecutionWindowNotStarted                      = errors.New("[GNOSWAP-GOVERNANCE-018] execution window not started")
+	errAlreadyActiveProposal                          = errors.New("[GNOSWAP-GOVERNANCE-019] already active proposal")
+	errProposalNotFound                               = errors.New("[GNOSWAP-GOVERNANCE-020] proposal not found")
+	errProposalNotExecutable                          = errors.New("[GNOSWAP-GOVERNANCE-021] proposal not executable")
 )
 
 func addDetailToError(err error, detail string) string {

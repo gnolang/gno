@@ -1,6 +1,7 @@
 package staker
 
 import (
+	"bytes"
 	"encoding/base64"
 	"std"
 
@@ -34,82 +35,102 @@ func incentiveIdCompute(caller std.Address, targetPoolPath, rewardToken string, 
 	return encoded
 }
 
+// writeDelimitedString writes a string followed by a delimiter to the buffer
+func writeDelimitedString(buf *bytes.Buffer, s string, delimiter byte) {
+	buf.WriteString(s)
+	buf.WriteByte(delimiter)
+}
+
+// buildIncentiveId builds an incentive ID by joining components with delimiters
+func buildIncentiveId(components []string) string {
+	var buf bytes.Buffer
+
+	for i, component := range components {
+		buf.WriteString(component)
+		if i < len(components)-1 {
+			buf.WriteByte(':')
+		}
+	}
+
+	return buf.String()
+}
+
 // incentiveIdByTime generates a unique incentive ID based on time intervals,
-// creator address, and reward token.
+// creator address, reward token, and target pool path.
 //
 // The generated ID is a plain string in the following format:
-// "startTime:endTime:creator:rewardToken".
+// "startTime:endTime:creator:rewardToken:targetPoolPath".
 //
 // Parameters:
 // - startTime (uint64): The starting time of the incentive.
 // - endTime (uint64): The ending time of the incentive.
 // - creator (std.Address): The address of the incentive creator.
 // - rewardToken (string): The reward token associated with the incentive.
+// - targetPoolPath (string): The target pool path for the incentive.
 //
 // Returns:
 // - string: A plain string representing the incentive ID.
 //
 // Example:
-// Input: startTime=12345, endTime=67890, creator="g1xyz", rewardToken="gns"
-// Output: "000000000000012345:000000000000067890:g1xyz:gns"
-func incentiveIdByTime(startTime, endTime int64, creator std.Address, rewardToken string) string {
-	startTimeEncode := EncodeUint(uint64(startTime))
-	endTimeEncode := EncodeUint(uint64(endTime))
-	creatorEncode := creator.String()
+// Input: startTime=12345, endTime=67890, creator="g1xyz", rewardToken="gns", targetPoolPath="pool1"
+// Output: "000000000000012345:000000000000067890:g1xyz:gns:pool1"
+func incentiveIdByTime(startTime, endTime int64, creator std.Address, rewardToken string, targetPoolPath string) string {
+	components := []string{
+		EncodeInt64(startTime),
+		EncodeInt64(endTime),
+		creator.String(),
+		rewardToken,
+		targetPoolPath,
+	}
 
-	byTimeId := []byte(startTimeEncode)
-	byTimeId = append(byTimeId, ':')
-	byTimeId = append(byTimeId, endTimeEncode...)
-	byTimeId = append(byTimeId, ':')
-	byTimeId = append(byTimeId, creatorEncode...)
-	byTimeId = append(byTimeId, ':')
-	byTimeId = append(byTimeId, rewardToken...)
-
-	return string(byTimeId)
+	return buildIncentiveId(components)
 }
 
 // incentiveIdByHeight generates two unique incentive IDs based on height intervals,
-// creator address, and reward token.
+// creator address, reward token, and target pool path.
 //
 // The first ID (byHeightId) has the format:
-// "startHeight:endHeight:creator:rewardToken".
+// "startHeight:endHeight:creator:rewardToken:targetPoolPath".
 //
 // The second ID (byCreatorId) has the format:
-// "creator:startHeight:endHeight:rewardToken".
+// "creator:startHeight:endHeight:rewardToken:targetPoolPath".
 //
 // Parameters:
 // - startHeight (uint64): The starting blockchain height of the incentive.
 // - endHeight (uint64): The ending blockchain height of the incentive.
 // - creator (std.Address): The address of the incentive creator.
 // - rewardToken (string): The reward token associated with the incentive.
+// - targetPoolPath (string): The target pool path for the incentive.
 //
 // Returns:
 // - string: The first ID (byHeightId).
 // - string: The second ID (byCreatorId).
 //
 // Example:
-// Input: startHeight=123, endHeight=456, creator="g1xyz", rewardToken="gns"
-// Output: "000000000000000123:000000000000000456:g1xyz:gns", "g1xyz:000000000000000123:000000000000000456:gns"
-func incentiveIdByHeight(startHeight, endHeight int64, creator std.Address, rewardToken string) (string, string) {
-	startHeightEncode := EncodeUint(uint64(startHeight))
-	endHeightEncode := EncodeUint(uint64(endHeight))
+// Input: startHeight=123, endHeight=456, creator="g1xyz", rewardToken="gns", targetPoolPath="pool1"
+// Output: "000000000000000123:000000000000000456:g1xyz:gns:pool1", "g1xyz:000000000000000123:000000000000000456:gns:pool1"
+func incentiveIdByHeight(startHeight, endHeight int64, creator std.Address, rewardToken string, targetPoolPath string) (string, string) {
+	startHeightEncode := EncodeInt64(startHeight)
+	endHeightEncode := EncodeInt64(endHeight)
 	creatorEncode := creator.String()
 
-	byHeightId := []byte(startHeightEncode)
-	byHeightId = append(byHeightId, ':')
-	byHeightId = append(byHeightId, endHeightEncode...)
-	byHeightId = append(byHeightId, ':')
-	byHeightId = append(byHeightId, creatorEncode...)
-	byHeightId = append(byHeightId, ':')
-	byHeightId = append(byHeightId, rewardToken...)
+	// byHeightId components
+	heightComponents := []string{
+		startHeightEncode,
+		endHeightEncode,
+		creatorEncode,
+		rewardToken,
+		targetPoolPath,
+	}
 
-	byCreatorId := []byte(creatorEncode)
-	byCreatorId = append(byCreatorId, ':')
-	byCreatorId = append(byCreatorId, startHeightEncode...)
-	byCreatorId = append(byCreatorId, ':')
-	byCreatorId = append(byCreatorId, endHeightEncode...)
-	byCreatorId = append(byCreatorId, ':')
-	byCreatorId = append(byCreatorId, rewardToken...)
+	// byCreatorId components
+	creatorComponents := []string{
+		creatorEncode,
+		startHeightEncode,
+		endHeightEncode,
+		rewardToken,
+		targetPoolPath,
+	}
 
-	return string(byHeightId), string(byCreatorId)
+	return buildIncentiveId(heightComponents), buildIncentiveId(creatorComponents)
 }

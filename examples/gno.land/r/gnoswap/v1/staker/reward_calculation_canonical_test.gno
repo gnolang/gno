@@ -40,7 +40,7 @@ func TestCanonicalSimple(t *testing.T) {
 	canonical.NextBlock()
 
 	// gnousdc takes the entire emission
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	expected := canonical.PerBlockEmission * 30 / 100
 	canonical.AssertEmulatedRewardOf(0, expected)
@@ -65,7 +65,7 @@ func TestCanonicalLargeStakedLiquidity(t *testing.T) {
 
 	canonical.NextBlock()
 
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	expected := canonical.PerBlockEmission * 30 / 100
 	canonical.AssertEmulatedRewardOf(0, expected)
@@ -106,7 +106,7 @@ func TestCanonicalLargeStakedLiquidity_2(t *testing.T) {
 
 	canonical.NextBlock()
 
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	expected := canonical.PerBlockEmission / 100 * 30
 	canonical.AssertEmulatedRewardOf(0, expected/9)
@@ -141,7 +141,7 @@ func TestCanonicalTickCross_0(t *testing.T) {
 	canonical.NextBlock()
 
 	// gnousdc takes the entire emission
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	expected := canonical.PerBlockEmission * 30 / 100
 	canonical.AssertEmulatedRewardOf(0, expected)
@@ -153,7 +153,7 @@ func TestCanonicalTickCross_0(t *testing.T) {
 	canonical.NextBlock()
 
 	// gnousdc still takes the entire emission, independent from position inrangeness
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	canonical.AssertEmulatedRewardOf(0, 0)
 	canonical.AssertCanonicalRewardOf(0, 0)
@@ -164,7 +164,7 @@ func TestCanonicalTickCross_0(t *testing.T) {
 	canonical.NextBlock()
 
 	// gnousdc still takes the entire emission, independent from position inrangeness
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	canonical.AssertEmulatedRewardOf(0, 0)
 	canonical.AssertCanonicalRewardOf(0, 0)
@@ -175,7 +175,7 @@ func TestCanonicalTickCross_0(t *testing.T) {
 	canonical.NextBlock()
 
 	// gnousdc still takes the entire emission, independent from position inrangeness
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	canonical.AssertEmulatedRewardOf(0, 0)
 	canonical.AssertCanonicalRewardOf(0, 0)
@@ -186,7 +186,7 @@ func TestCanonicalTickCross_0(t *testing.T) {
 	canonical.NextBlock()
 
 	// gnousdc still takes the entire emission, independent from position inrangeness
-	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, canonical.PerBlockEmission)
+	canonical.AssertCanonicalInternalRewardPerPool(gnousdc, int64(canonical.PerBlockEmission))
 
 	// The position is now inrange, so it takes the entire emission
 	canonical.AssertEmulatedRewardOf(0, expected)
@@ -672,8 +672,8 @@ func TestCanonicalExternalReward_3(t *testing.T) {
 
 	canonical.AssertEmulatedExternalRewardOf(uint64(0), incentiveId, expected)
 
-	if canonical.UnclaimableExternalRewardOf(uint64(0), incentiveId) != uint64(100000000/4*2) {
-		t.Errorf("UnclaimableExternalRewardOf(uint64(0), incentiveId) = %d; want %d", canonical.UnclaimableExternalRewardOf(uint64(0), incentiveId), uint64(100000000/4*2))
+	if canonical.UnclaimableExternalRewardOf(uint64(0), incentiveId) != int64(100000000/4*2) {
+		t.Errorf("UnclaimableExternalRewardOf(uint64(0), incentiveId) = %d; want %d", canonical.UnclaimableExternalRewardOf(uint64(0), incentiveId), int64(100000000/4*2))
 	}
 }
 
@@ -1155,7 +1155,7 @@ func TestCanonicalTickCross_9(t *testing.T) {
 
 	tick := int32(0)
 	for i := 0; i < 20; i++ {
-		canonicalRewardMap := make(map[uint64]uint64)
+		canonicalRewardMap := make(map[uint64]int64)
 		for j := 0; j < 20; j++ {
 			tick = (tick + 10007) % 700
 			canonical.MoveTick(gnousdc, tick)
@@ -1214,7 +1214,7 @@ func TestCanonicalTickCross_10(t *testing.T) {
 
 	tick := int32(0)
 	for i := 0; i < 20; i++ {
-		canonicalRewardMap := make(map[uint64]uint64)
+		canonicalRewardMap := make(map[uint64]int64)
 		for j := 0; j < 20; j++ {
 			tick = (tick + 10007) % 700
 			canonical.MoveTick(gnousdc, -tick)
@@ -1241,6 +1241,9 @@ func TestCanonicalEmissionChange_0(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
+	if err != nil {
+		t.Errorf("StakeToken failed: %s", err.Error())
+	}
 
 	canonical.NextBlock()
 
@@ -1417,7 +1420,7 @@ func events(
 }
 
 func TestCanonicalSimulation_0(t *testing.T) {
-	t.Skip("gets affect by previous")
+	t.Skip("PASS: need to run manually")
 	wugnotgns := events(
 		"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000",
 		1,
@@ -1481,7 +1484,7 @@ func TestCanonicalSimulation_0(t *testing.T) {
 	eventId := 0
 
 	for i := 0; i < 10; i++ {
-		canonicalRewardMap := make(map[uint64]uint64)
+		canonicalRewardMap := make(map[uint64]int64)
 		for j := 0; j < 100; j++ {
 			var event SimulationEvent
 			for {

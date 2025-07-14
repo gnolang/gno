@@ -18,6 +18,9 @@ var (
 
 	testRealm1Addr = testutils.TestAddress("test_realm1")
 	testRealm2Addr = testutils.TestAddress("test_realm2")
+
+	adminAddr, _ = GetAddress(ROLE_ADMIN)
+	adminRealm   = std.NewUserRealm(adminAddr)
 )
 
 func TestInitialize(t *testing.T) {
@@ -46,36 +49,49 @@ func TestInitialize(t *testing.T) {
 }
 
 func TestUpdateRoleAddress(t *testing.T) {
+	testing.SetRealm(adminRealm)
+
 	t.Run("update success", func(t *testing.T) {
 		cfg := newConfig()
 		cfg.roles["another_test_admin"] = testAdminAddr
-		err := initialize(cfg)
-		uassert.NoError(t, err)
 
-		err = UpdateRoleAddress("another_test_admin", testRealm1Addr)
-		uassert.NoError(t, err)
+		func(cur realm) {
+			err := initialize(cfg)
+			uassert.NoError(t, err)
 
-		actual := GetCurrentConfig()
-		adminAddr := actual.roles["another_test_admin"]
-		uassert.Equal(t, testRealm1Addr, adminAddr, ufmt.Sprintf("expected %s, got %s", testRealm1Addr, adminAddr))
+			err = UpdateRoleAddress(cur, "another_test_admin", testRealm1Addr)
+			uassert.NoError(t, err)
 
-		err = rbac.CheckPermission("another_test_admin", PERM_ACCESS, adminAddr)
-		uassert.NoError(t, err)
+			actual := GetCurrentConfig()
+			adminAddr := actual.roles["another_test_admin"]
+			uassert.Equal(t, testRealm1Addr, adminAddr)
+
+			err = rbac.CheckPermission("another_test_admin", PERM_ACCESS, adminAddr)
+			uassert.NoError(t, err)
+		}(cross)
 	})
 
 	t.Run("update fails while uninitialized", func(t *testing.T) {
-		currentConfig = nil
-		err := UpdateRoleAddress("another_test_admin", testRealm1Addr)
-		uassert.Error(t, err)
+		func(cur realm) {
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoswap/v1/access"))
+
+			currentConfig = nil
+			err := UpdateRoleAddress(cur, "another_test_admin", testRealm1Addr)
+			uassert.Error(t, err)
+		}(cross)
 	})
 
 	t.Run("update fails while update non-existent role", func(t *testing.T) {
-		cfg := newConfig()
-		err := initialize(cfg)
-		uassert.NoError(t, err)
+		func(cur realm) {
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoswap/v1/access"))
 
-		err = UpdateRoleAddress("non_existent_role", testRealm1Addr)
-		uassert.Error(t, err)
+			cfg := newConfig()
+			err := initialize(cfg)
+			uassert.NoError(t, err)
+
+			err = UpdateRoleAddress(cur, "non_existent_role", testRealm1Addr)
+			uassert.Error(t, err)
+		}(cross)
 	})
 }
 
@@ -234,6 +250,7 @@ func TestMultiRoleValidation(t *testing.T) {
 }
 
 func TestCreateRole(t *testing.T) {
+	testing.SetRealm(adminRealm)
 	testNewRoleAddr := testutils.TestAddress("test_new_role")
 	testAnotherAddr := testutils.TestAddress("test_another_role")
 
@@ -242,7 +259,7 @@ func TestCreateRole(t *testing.T) {
 		err := initialize(cfg)
 		uassert.NoError(t, err)
 
-		err = CreateRole("custom_role", testNewRoleAddr)
+		err = CreateRole(cross, "custom_role", testNewRoleAddr)
 		uassert.NoError(t, err)
 
 		// verify role was created correctly
@@ -261,21 +278,23 @@ func TestCreateRole(t *testing.T) {
 
 	t.Run("create role fails while uninitialized", func(t *testing.T) {
 		currentConfig = nil
-		err := CreateRole("failed_role", testNewRoleAddr)
+		err := CreateRole(cross, "failed_role", testNewRoleAddr)
 		uassert.Error(t, err)
 	})
 
 	t.Run("create duplicate role fails", func(t *testing.T) {
+		testing.SetRealm(adminRealm)
+
 		cfg := newConfig()
 		err := initialize(cfg)
 		uassert.NoError(t, err)
 
 		// create first role
-		err = CreateRole("duplicate_role", testNewRoleAddr)
+		err = CreateRole(cross, "duplicate_role", testNewRoleAddr)
 		uassert.NoError(t, err)
 
 		// attempt to create same role again
-		err = CreateRole("duplicate_role", testAnotherAddr)
+		err = CreateRole(cross, "duplicate_role", testAnotherAddr)
 		uassert.Error(t, err)
 	})
 }
@@ -372,7 +391,7 @@ func TestGetAddress(t *testing.T) {
 
 	t.Run("get address from uninitialized config", func(t *testing.T) {
 		currentConfig = nil
-		addr, err := GetAddress("role_foo")
+		_, err := GetAddress("role_foo")
 		uassert.Error(t, err)
 	})
 }
@@ -386,7 +405,7 @@ func TestSetConfig(t *testing.T) {
 		cfg.roles["test_manager"] = testManagerAddr
 		cfg.roles["test_analyst"] = testAnalystAddr
 
-		err := SetConfig(cfg)
+		err := setConfig(cfg)
 		uassert.NoError(t, err)
 
 		actual := GetCurrentConfig()
@@ -395,67 +414,169 @@ func TestSetConfig(t *testing.T) {
 	})
 
 	t.Run("fail with nil config", func(t *testing.T) {
-		err := SetConfig(nil)
+		err := setConfig(nil)
 		uassert.Error(t, err)
 	})
 }
 
 func TestSetRole(t *testing.T) {
+	testing.SetRealm(adminRealm)
+	testNewRoleAddr := testutils.TestAddress("test_new_role")
+	testAnotherAddr := testutils.TestAddress("test_another_role")
+
 	testAuditorAddr := testutils.TestAddress("test_auditor")
 	testReviewerAddr := testutils.TestAddress("test_reviewer")
 
 	t.Run("success with new role", func(t *testing.T) {
-		cfg := newConfig()
-		err := initialize(cfg)
-		uassert.NoError(t, err)
+		func(cur realm) {
+			cfg := newConfig()
+			err := initialize(cfg)
+			uassert.NoError(t, err)
 
-		err = SetRole("test_auditor", testAuditorAddr)
-		uassert.NoError(t, err)
+			err = SetRole(cur, "test_auditor", testAuditorAddr)
+			uassert.NoError(t, err)
 
-		actual := GetCurrentConfig()
-		uassert.Equal(t, testAuditorAddr, actual.roles["test_auditor"])
+			actual := GetCurrentConfig()
+			uassert.Equal(t, testAuditorAddr, actual.roles["test_auditor"])
 
-		// verify permission is set correctly
-		err = rbac.CheckPermission("test_auditor", PERM_ACCESS, testAuditorAddr)
-		uassert.NoError(t, err)
+			// verify permission is set correctly
+			err = rbac.CheckPermission("test_auditor", PERM_ACCESS, testAuditorAddr)
+			uassert.NoError(t, err)
+		}(cross)
+	})
+
+	t.Run("set new role success", func(t *testing.T) {
+		func(cur realm) {
+			cfg := newConfig()
+			err := initialize(cfg)
+			uassert.NoError(t, err)
+
+			err = SetRole(cur, "custom_role_2", testNewRoleAddr)
+			uassert.NoError(t, err)
+
+			// verify role was set correctly
+			actual := GetCurrentConfig()
+			roleAddr := actual.roles["custom_role_2"]
+			uassert.Equal(t, testNewRoleAddr, roleAddr)
+
+			// verify permission is set correctly
+			err = rbac.CheckPermission("custom_role_2", PERM_ACCESS, testNewRoleAddr)
+			uassert.NoError(t, err)
+
+			// verify different address cannot access the role
+			err = rbac.CheckPermission("custom_role_2", PERM_ACCESS, testAnotherAddr)
+			uassert.Error(t, err)
+		}(cross)
 	})
 
 	t.Run("success updating existing role", func(t *testing.T) {
-		cfg := newConfig()
-		cfg.roles["test_reviewer"] = testReviewerAddr
-		err := initialize(cfg)
-		uassert.NoError(t, err)
+		func(cur realm) {
+			cfg := newConfig()
+			cfg.roles["test_reviewer"] = testReviewerAddr
+			err := initialize(cfg)
+			uassert.NoError(t, err)
 
-		newReviewerAddr := testutils.TestAddress("test_reviewer_new")
-		err = SetRole("test_reviewer", newReviewerAddr)
-		uassert.NoError(t, err)
+			newReviewerAddr := testutils.TestAddress("test_reviewer_new")
+			err = SetRole(cur, "test_reviewer", newReviewerAddr)
+			uassert.NoError(t, err)
 
-		// verify address was updated
-		actual := GetCurrentConfig()
-		uassert.Equal(t, newReviewerAddr, actual.roles["test_reviewer"])
+			// verify address was updated
+			actual := GetCurrentConfig()
+			uassert.Equal(t, newReviewerAddr, actual.roles["test_reviewer"])
 
-		// verify old address cannot access anymore
-		err = rbac.CheckPermission("test_reviewer", PERM_ACCESS, testReviewerAddr)
-		uassert.Error(t, err)
+			// verify old address cannot access anymore
+			err = rbac.CheckPermission("test_reviewer", PERM_ACCESS, testReviewerAddr)
+			uassert.Error(t, err)
 
-		// verify new address can access
-		err = rbac.CheckPermission("test_reviewer", PERM_ACCESS, newReviewerAddr)
-		uassert.NoError(t, err)
+			// verify new address can access
+			err = rbac.CheckPermission("test_reviewer", PERM_ACCESS, newReviewerAddr)
+			uassert.NoError(t, err)
+		}(cross)
 	})
 
-	t.Run("fail with empty role name", func(t *testing.T) {
-		cfg := newConfig()
-		err := initialize(cfg)
-		uassert.NoError(t, err)
+	t.Run("set role fails while uninitialized", func(t *testing.T) {
+		func(cur realm) {
+			testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoswap/v1/access"))
 
-		err = SetRole("", testAuditorAddr)
-		uassert.Error(t, err)
+			currentConfig = nil
+			err := SetRole(cur, "failed_role", testNewRoleAddr)
+			uassert.Error(t, err)
+		}(cross)
+	})
+
+	t.Run("fail with non-admin address", func(t *testing.T) {
+		func(cur realm) {
+			testing.SetRealm(std.NewUserRealm(testutils.TestAddress("non_admin")))
+			err := SetRole(cur, "test_auditor", testAuditorAddr)
+			uassert.Error(t, err)
+		}(cross)
+	})
+}
+
+func TestDeleteRole(t *testing.T) {
+	testing.SetRealm(adminRealm)
+	testRoleAddr := testutils.TestAddress("test_role_to_delete")
+
+	t.Run("success delete existing role", func(t *testing.T) {
+		func(cur realm) {
+			cfg := newConfig()
+			cfg.roles["test_role_to_delete"] = testRoleAddr
+			err := initialize(cfg)
+			uassert.NoError(t, err)
+
+			// Verify role exists before deletion
+			exists := RoleExists("test_role_to_delete")
+			uassert.Equal(t, true, exists)
+
+			// Delete the role
+			err = DeleteRole(cur, "test_role_to_delete")
+			uassert.NoError(t, err)
+
+			// Verify role no longer exists
+			exists = RoleExists("test_role_to_delete")
+			uassert.Equal(t, false, exists)
+
+			// Verify permission is removed
+			err = rbac.CheckPermission("test_role_to_delete", PERM_ACCESS, testRoleAddr)
+			uassert.Error(t, err)
+		}(cross)
+	})
+
+	t.Run("fail to delete non-existent role", func(t *testing.T) {
+		func(cur realm) {
+			cfg := newConfig()
+			err := initialize(cfg)
+			uassert.NoError(t, err)
+
+			err = DeleteRole(cur, "non_existent_role")
+			uassert.Error(t, err)
+		}(cross)
+	})
+
+	t.Run("fail to delete admin role", func(t *testing.T) {
+		func(cur realm) {
+			err := DeleteRole(cur, ROLE_ADMIN)
+			uassert.Error(t, err)
+		}(cross)
 	})
 
 	t.Run("fail while uninitialized", func(t *testing.T) {
 		currentConfig = nil
-		err := SetRole("test_auditor", testAuditorAddr)
-		uassert.Error(t, err)
+		func(cur realm) {
+			err := DeleteRole(cur, "any_role")
+			uassert.Error(t, err)
+		}(cross)
+	})
+
+	t.Run("fail with empty role name", func(t *testing.T) {
+		func(cur realm) {
+			cfg := newConfig()
+			err := initialize(cfg)
+			uassert.NoError(t, err)
+
+			err = DeleteRole(cur, "")
+			uassert.Error(t, err)
+		}(cross)
 	})
 }
 
@@ -478,6 +599,7 @@ func TestInitializeDefaultRoles(t *testing.T) {
 			ROLE_STAKER:     consts.STAKER_ADDR,
 			ROLE_LAUNCHPAD:  consts.LAUNCHPAD_ADDR,
 			ROLE_EMISSION:   consts.EMISSION_ADDR,
+			ROLE_GOV_XGNS:   consts.GOV_XGNS_ADDR,
 		}
 
 		for role, expectedAddr := range expectedRoles {
@@ -485,35 +607,6 @@ func TestInitializeDefaultRoles(t *testing.T) {
 			uassert.Equal(t, true, exists, ufmt.Sprintf("Role %s should exist", role))
 			uassert.Equal(t, expectedAddr, actualAddr, ufmt.Sprintf("Role %s should have address %s, got %s", role, expectedAddr, actualAddr))
 		}
-	})
-}
-
-func TestAdminOnly(t *testing.T) {
-	t.Skip()
-	t.Run("success with admin address", func(t *testing.T) {
-		err := AdminOnly(consts.ADMIN)
-		uassert.NoError(t, err)
-	})
-
-	t.Run("fail with non-admin address", func(t *testing.T) {
-		nonAdmin := testutils.TestAddress("non_admin")
-		err := AdminOnly(nonAdmin)
-		uassert.Error(t, err)
-	})
-
-	t.Run("success update admin address", func(t *testing.T) {
-		newAdmin := testutils.TestAddress("new_admin")
-		// set new admin address with the current admin address
-		err := AdminOnly(consts.ADMIN, newAdmin)
-		uassert.NoError(t, err)
-
-		// check permission with the new admin address
-		err = AdminOnly(newAdmin)
-		uassert.NoError(t, err)
-
-		// previous admin address cannot access anymore
-		err = AdminOnly(consts.ADMIN)
-		uassert.Error(t, err)
 	})
 }
 

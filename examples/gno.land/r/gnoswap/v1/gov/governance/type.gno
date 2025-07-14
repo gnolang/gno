@@ -18,10 +18,10 @@ type Config struct {
 	// Over how many seconds the voting weight is averaged for proposal voting as creation/cancellation threshold
 	VotingWeightSmoothingDuration uint64
 
-	// Percentags of x gns total supply at the time of proposal creation
+	// Percentages of x gns total supply at the time of proposal creation
 	Quorum uint64
 
-	// The munimum amount of average votes required to create a proposal
+	// The minimum amount of average votes required to create a proposal
 	ProposalCreationThreshold uint64
 
 	// How much time must pass after the end of a voting period before a proposal can be executed

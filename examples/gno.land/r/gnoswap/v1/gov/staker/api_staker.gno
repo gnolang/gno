@@ -16,7 +16,7 @@ func GetLockedAmount() uint64 {
 // - total locked amount
 // - claimable amount
 func GetLockedInfoByAddress(addr std.Address) string {
-	lockeds, exist := addrLockedGns.Get(addr.String())
+	lockedList, exist := addrLockedGns.Get(addr.String())
 	if !exist {
 		return ""
 	}
@@ -25,15 +25,20 @@ func GetLockedInfoByAddress(addr std.Address) string {
 
 	totalLocked := uint64(0)
 	claimableAmount := uint64(0)
+	nextClaimableTime := uint64(0)
 
-	for _, locked := range lockeds.([]lockedGNS) {
+	for _, locked := range lockedList.([]lockedGNS) {
 		amount := locked.amount
-		unlock := locked.unlock
+		unlockTime := locked.unlock
 
 		totalLocked += amount
 
-		if now >= unlock {
+		if now >= unlockTime {
 			claimableAmount += amount
+		} else {
+			if nextClaimableTime == 0 || unlockTime < nextClaimableTime {
+				nextClaimableTime = unlockTime
+			}
 		}
 	}
 
@@ -42,16 +47,19 @@ func GetLockedInfoByAddress(addr std.Address) string {
 		WriteString("now", formatInt(time.Now().Unix())).
 		WriteString("totalLocked", formatUint(totalLocked)).
 		WriteString("claimableAmount", formatUint(claimableAmount)).
+		WriteString("nextClaimableTime", formatUint(nextClaimableTime)).
 		Node()
 
 	return marshal(data)
 }
 
+// GetClaimableRewardByAddress gets the claimable reward of an address.
 func GetClaimableRewardByAddress(addr std.Address) string {
-	rewardState.finalize(collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
+	func(cur realm) {
+		rewardState.finalize(collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
+	}(cross)
 
 	emissionReward, protocolFeeRewards := rewardState.CalculateReward(addr)
-
 	if emissionReward == 0 && len(protocolFeeRewards) == 0 {
 		return ""
 	}

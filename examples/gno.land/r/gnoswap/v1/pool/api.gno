@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"gno.land/p/demo/json"
+
 	"gno.land/p/demo/ufmt"
 )
 
 func ApiGetPools() string {
 	rpcPools := []RpcPool{}
-	pools.Iterate("", "", func(poolPath string, value interface{}) bool {
+	pools.Iterate("", "", func(poolPath string, value any) bool {
 		rpcPool := newRpcPool(poolPath)
 		rpcPools = append(rpcPools, rpcPool)
 

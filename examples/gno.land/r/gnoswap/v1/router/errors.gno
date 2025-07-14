@@ -20,6 +20,7 @@ var (
 	errWugnotMinimum          = errors.New("[GNOSWAP-ROUTER-011] less than minimum amount	")
 	errQuoteParser            = errors.New("[GNOSWAP-ROUTER-012] quote parse failed")
 	errHopsOutOfRange         = errors.New("[GNOSWAP-ROUTER-013] number of hops must be 1~3")
+	errSameTokenSwap          = errors.New("[GNOSWAP-ROUTER-014] cannot swap same token")
 )
 
 func addDetailToError(err error, detail string) string {

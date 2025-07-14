@@ -2,7 +2,7 @@ package pool
 
 func PoolGetPoolList() []string {
 	poolPaths := []string{}
-	pools.Iterate("", "", func(poolPath string, _ interface{}) bool {
+	pools.Iterate("", "", func(poolPath string, _ any) bool {
 		poolPaths = append(poolPaths, poolPath)
 
 		return false

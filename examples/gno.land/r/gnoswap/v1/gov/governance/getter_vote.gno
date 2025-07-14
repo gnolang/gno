@@ -36,5 +36,5 @@ func divideVoteKeyToProposalIdAndUser(voteKey string) (proposalId uint64, user s
 		))
 	}
 
-	return parseUint64(parts[0]), std.Address(parts[1])
+	return parseNumber(parts[0], kindUint64).(uint64), std.Address(parts[1])
 }
