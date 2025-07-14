@@ -119,6 +119,11 @@ type PrivateData struct {
     Tree  *avl.Tree
 }
 
+type PrivateData2 struct {
+    Name  string
+    Value int
+}
+
 var privateStruct *PrivateData
 
 func init() {
