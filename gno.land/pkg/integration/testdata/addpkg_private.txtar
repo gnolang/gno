@@ -59,6 +59,24 @@ stderr 'cannot persist reference of object from private realm'
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayToPublicRealm3 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithPrivateKeyToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithPrivateValueToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMapWithBothPrivateToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyMapWithPrivateTypesToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNestedToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from private realm'
 
@@ -201,6 +219,50 @@ func SaveArrayToPublicRealm(cur realm) {
     publicrealm.SaveYourArray(cross, arr)
 }
 
+func SaveArrayToPublicRealm2(cur realm) {
+    pvData1 := PrivateData{Name: "local1", Value: 1}
+    pvData2 := PrivateData{Name: "local2", Value: 2}
+    pvData3 := PrivateData{Name: "local3", Value: 3}
+
+    var arr [3]interface{}
+    arr[0] = &pvData1
+    arr[1] = &pvData2
+    arr[2] = &pvData3
+    
+    publicrealm.SaveYourArray2(cross, arr)
+}
+
+func SaveArrayToPublicRealm3(cur realm) {
+    var arr [3]*PrivateData
+    publicrealm.SaveYourInterface(cross, arr)
+}
+
+func SaveMapWithPrivateKeyToPublicRealm(cur realm) {
+    m := make(map[PrivateData]string)
+    key := PrivateData{Name: "key", Value: 100}
+    m[key] = "public value"
+}
+
+func SaveMapWithPrivateValueToPublicRealm(cur realm) {
+    m := make(map[string]PrivateData)
+    value := PrivateData{Name: "value", Value: 200}
+    m["pubkey"] = value
+    publicrealm.SaveYourInterface(cross, m)
+}
+
+func SaveMapWithBothPrivateToPublicRealm(cur realm) {
+    m := make(map[PrivateData]PrivateData)
+    key := PrivateData{Name: "key", Value: 1}
+    value := PrivateData{Name: "value", Value: 2}
+    m[key] = value
+    publicrealm.SaveYourInterface(cross, m)
+}
+
+func SaveEmptyMapWithPrivateTypesToPublicRealm(cur realm) {
+    m := make(map[PrivateData]*PrivateData)
+    publicrealm.SaveYourInterface(cross, m)
+}
+
 func SaveNestedToPublicRealm(cur realm) {
     nested := publicrealm.CreateNestedStruct(cross)
     nested.SetPrivateRef(tree)
@@ -257,6 +319,7 @@ var savedSlice []string
 var savedMap map[string]int
 var savedInterface interface{}
 var savedArray [3]*avl.Tree
+var savedArray2 [3]interface{}
 var savedChannel chan *avl.Tree
 
 type PublicStruct struct {
@@ -312,6 +375,10 @@ func SaveYourInterface(cur realm, iface interface{}) {
 
 func SaveYourArray(cur realm, arr [3]*avl.Tree) {
     savedArray = arr
+}
+
+func SaveYourArray2(cur realm, arr [3]interface{}) {
+    savedArray2 = arr
 }
 
 func SaveYourNested(cur realm, nested *NestedStruct) {

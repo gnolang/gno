@@ -929,9 +929,9 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, seen map[Object]
 
 	if hiv, ok := obj.(*HeapItemValue); ok {
 		if hiv.Value.T != nil {
-			fmt.Printf("hiv.Value.T type: %T - hiv.Value.V type: %T\n", hiv.Value.T, hiv.Value.V)
+			//fmt.Printf("hiv.Value.T type: %T - hiv.Value.V type: %T\n", hiv.Value.T, hiv.Value.V)
 			pkgPath := ""
-			//TODO: Array, Map, Channel, Interface, Tuple ?
+			//TODO: Map, Channel, Interface, Tuple ?
 			switch t := hiv.Value.T.(type) {
 			case *DeclaredType, *PointerType:
 				pkgPath = t.GetPkgPath()
@@ -939,7 +939,7 @@ func (rlm *Realm) assertNoPrivateDeps2(obj Object, store Store, seen map[Object]
 				if v, ok := hiv.Value.V.(*FuncValue); ok {
 					pkgPath = v.PkgPath
 				}
-			case *SliceType:
+			case *SliceType, *ArrayType, *MapType:
 				pkgPath = t.Elem().GetPkgPath()
 			}
 			fmt.Printf("pkgPath: %q\n", pkgPath)
