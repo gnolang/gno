@@ -84,12 +84,25 @@ stderr 'cannot persist reference of object from private realm'
 stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosureToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
-stderr 'cannot persist object of type defined in a private realm'
+stderr 'cannot persist reference of object from private realm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveClosure2ToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
 
+# these functions are allowed since they do not use private types or references to private realm objects
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfSimpleFunctionsToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist functions from private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithPrivateDataToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveArrayOfFunctionsWithTreePointerToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist functions from private realm'
+
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveNilPointerToPrivateStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
+stderr 'cannot persist object of type defined in a private realm'
+
+! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
 
 gnokey query vm/qeval --data 'gno.land/r/foobar/privaterealm.GetTreePointer()'
@@ -296,6 +309,55 @@ func SaveClosure2ToPublicRealm(cur realm) {
 	publicrealm.SaveYourInterface(cross, constructor)
 }
 
+func SaveArrayOfSimpleFunctionsToPublicRealm(cur realm) {
+    fn1 := func() string { return "hello" }
+    fn2 := func() string { return "hello" }
+    fn3 := func() string { return "hello" }
+    
+    funcArray := [3]func() string{fn1, fn2, fn3}
+    publicrealm.SaveYourInterface(cross, funcArray)
+}
+
+func SaveArrayOfFunctionsWithPrivateDataToPublicRealm(cur realm) {
+    fn1 := func() PrivateData { 
+        return PrivateData{Name: "fn1", Value: 1} 
+    }
+    fn2 := func(pd PrivateData) string { 
+        return pd.Name 
+    }
+    fn3 := func() *PrivateData { 
+        return &PrivateData{Name: "fn3", Value: 3} 
+    }
+    
+    funcArray := [3]interface{}{fn1, fn2, fn3}
+    publicrealm.SaveYourInterface(cross, funcArray)
+}
+
+func SaveArrayOfFunctionsWithTreePointerToPublicRealm(cur realm) {
+    fn1 := func() *avl.Tree { 
+        return tree
+    }
+    fn2 := func() *avl.Tree { 
+        return tree
+    }
+    fn3 := func() *avl.Tree { 
+        return tree
+    }
+    
+    funcArray := [3]func() *avl.Tree{fn1, fn2, fn3}
+    publicrealm.SaveYourInterface(cross, funcArray)
+}
+
+func SaveEmptyStructToPublicRealm(cur realm) {
+    anonymousStruct := struct {
+        PublicField    string
+    }{
+        PublicField: "test",
+    }
+        
+    publicrealm.SaveYourInterface(cross, anonymousStruct)
+}
+
 func SaveNilPointerToPrivateStructToPublicRealm(cur realm) {
     var nilPtr *PrivateData
     publicrealm.SaveYourInterface(cross, nilPtr)
@@ -350,6 +412,7 @@ type Level2 struct {
 var savedPublicStruct *PublicStruct
 var savedNested *NestedStruct
 var savedClosure func() *avl.Tree
+var savedFunctionSlice []interface{}
 
 func SaveYourTree(cur realm, ptr *avl.Tree) {
     savedTree = ptr
