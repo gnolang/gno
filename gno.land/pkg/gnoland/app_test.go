@@ -273,6 +273,20 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	return validators
 }
 
+// generateDummyKeys generates a slice of dummy private keys
+func generateDummyKeys(t *testing.T, count int) []crypto.PrivKey {
+	t.Helper()
+
+	keys := make([]crypto.PrivKey, 0, count)
+
+	for i := 0; i < count; i++ {
+		key := getDummyKey(t)
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
 func createAndSignTx(
 	t *testing.T,
 	msgs []std.Msg,
@@ -704,10 +718,7 @@ func TestEndBlocker(t *testing.T) {
 		t.Parallel()
 
 		var (
-			keys = []crypto.PrivKey{
-				getDummyKey(t),
-				getDummyKey(t),
-			}
+			keys = generateDummyKeys(t, 2)
 
 			validUpdate = abci.ValidatorUpdate{
 				Address: keys[0].PubKey().Address(),
@@ -773,11 +784,7 @@ func TestEndBlocker(t *testing.T) {
 		t.Parallel()
 
 		var (
-			keys = []crypto.PrivKey{
-				getDummyKey(t),
-				getDummyKey(t),
-				getDummyKey(t),
-			}
+			keys = generateDummyKeys(t, 3)
 
 			validUpdate = abci.ValidatorUpdate{
 				Address: keys[0].PubKey().Address(),
