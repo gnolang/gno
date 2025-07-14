@@ -159,7 +159,6 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			val := internal[idx]
 			idxBytes := int642Bytes(idx)
 			valBytes := int642Bytes(val)
-			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
 			db.Set(idxBytes, valBytes)
 		}
 
@@ -170,7 +169,6 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 			valExp := internal[idx]
 			idxBytes := int642Bytes(idx)
 			valBytes := db.Get(idxBytes)
-			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
 			if valExp == 0 {
 				if !bytes.Equal(valBytes, nil) {
 					b.Errorf("Expected %v for %v, got %X", nil, idx, valBytes)
