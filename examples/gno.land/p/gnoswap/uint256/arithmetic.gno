@@ -50,10 +50,9 @@ func (z *Uint) SubOverflow(x, y *Uint) (*Uint, bool) {
 
 // Neg returns -x mod 2^256.
 func (z *Uint) Neg(x *Uint) *Uint {
-	return z.Sub(new(Uint), x)
+	return z.Sub(Zero(), x)
 }
 
-// commented out for possible overflow
 // Mul sets z to the product x*y
 func (z *Uint) Mul(x, y *Uint) *Uint {
 	var (
@@ -86,7 +85,6 @@ func (z *Uint) MulOverflow(x, y *Uint) (*Uint, bool) {
 	return z, (p[4] | p[5] | p[6] | p[7]) != 0
 }
 
-// commented out for possible overflow
 // Div sets z to the quotient x/y for returns z.
 // If y == 0, z is set to 0
 func (z *Uint) Div(x, y *Uint) *Uint {
@@ -107,39 +105,6 @@ func (z *Uint) Div(x, y *Uint) *Uint {
 	var quot Uint
 	udivrem(quot.arr[:], x.arr[:], y)
 	return z.Set(&quot)
-}
-
-// MulMod calculates the modulo-m multiplication of x and y and
-// returns z.
-// If m == 0, z is set to 0 (OBS: differs from the big.Int)
-func (z *Uint) MulMod(x, y, m *Uint) *Uint {
-	if x.IsZero() || y.IsZero() || m.IsZero() {
-		return z.Clear()
-	}
-	p := umul(x, y)
-
-	if m.arr[3] != 0 {
-		mu := Reciprocal(m)
-		r := reduce4(p, m, mu)
-		return z.Set(&r)
-	}
-
-	var (
-		pl Uint
-		ph Uint
-	)
-
-	pl = Uint{arr: [4]uint64{p[0], p[1], p[2], p[3]}}
-	ph = Uint{arr: [4]uint64{p[4], p[5], p[6], p[7]}}
-
-	// If the multiplication is within 256 bits use Mod().
-	if ph.IsZero() {
-		return z.Mod(&pl, m)
-	}
-
-	var quot [8]uint64
-	rem := udivrem(quot[:], p[:], m)
-	return z.Set(&rem)
 }
 
 // Mod sets z to the modulus x%y for y != 0 and returns z.
@@ -173,6 +138,36 @@ func (z *Uint) Mod(x, y *Uint) *Uint {
 	return z
 }
 
+// MulMod calculates the modulo-m multiplication of x and y and
+// returns z.
+// If m == 0, z is set to 0 (OBS: differs from the big.Int)
+func (z *Uint) MulMod(x, y, m *Uint) *Uint {
+	if x.IsZero() || y.IsZero() || m.IsZero() {
+		return z.Clear()
+	}
+	p := umul(x, y)
+
+	if m.arr[3] != 0 {
+		mu := Reciprocal(m)
+		r := reduce4(p, m, mu)
+		return z.Set(&r)
+	}
+
+	var (
+		pl = Uint{arr: [4]uint64{p[0], p[1], p[2], p[3]}}
+		ph = Uint{arr: [4]uint64{p[4], p[5], p[6], p[7]}}
+	)
+
+	// If the multiplication is within 256 bits use Mod().
+	if ph.IsZero() {
+		return z.Mod(&pl, m)
+	}
+
+	var quot [8]uint64
+	rem := udivrem(quot[:], p[:], m)
+	return z.Set(&rem)
+}
+
 // DivMod sets z to the quotient x div y and m to the modulus x mod y and returns the pair (z, m) for y != 0.
 // If y == 0, both z and m are set to 0 (OBS: differs from the big.Int)
 func (z *Uint) DivMod(x, y, m *Uint) (*Uint, *Uint) {
@@ -186,6 +181,7 @@ func (z *Uint) DivMod(x, y, m *Uint) (*Uint, *Uint) {
 }
 
 // Exp sets z = base**exponent mod 2**256, and returns z.
+// All results are modulo 2^256 (wrapped).
 func (z *Uint) Exp(base, exponent *Uint) *Uint {
 	res := Uint{arr: [4]uint64{1, 0, 0, 0}}
 	multiplier := *base
@@ -473,4 +469,50 @@ func udivrem2by1(uh, ul, d, reciprocal uint64) (quot, rem uint64) {
 	}
 
 	return qh, r
+}
+
+// MustDiv is like Div but panics if y == 0.
+// Used in critical paths where division by zero must be caught.
+func (z *Uint) MustDiv(x, y *Uint) *Uint {
+	if y.IsZero() {
+		panic("division by zero")
+	}
+	return z.Div(x, y)
+}
+
+// MustMod is like Mod but panics if y == 0.
+// Used in critical paths where modulo by zero must be caught.
+func (z *Uint) MustMod(x, y *Uint) *Uint {
+	if y.IsZero() {
+		panic("modulo by zero")
+	}
+	return z.Mod(x, y)
+}
+
+// MustMulMod is like MulMod but panics if m == 0.
+// Used in critical paths where modulo by zero must be caught.
+func (z *Uint) MustMulMod(x, y, m *Uint) *Uint {
+	if m.IsZero() {
+		panic("modulo by zero")
+	}
+	return z.MulMod(x, y, m)
+}
+
+// MustDivMod is like DivMod but panics if y == 0.
+// Used in critical paths where division by zero must be caught.
+func (z *Uint) MustDivMod(x, y, m *Uint) (*Uint, *Uint) {
+	if y.IsZero() {
+		panic("division by zero")
+	}
+	return z.DivMod(x, y, m)
+}
+
+// MustMul multiplies two numbers and panics on overflow.
+// Used in critical paths of AMM where overflow must be caught.
+func (z *Uint) MustMul(x, y *Uint) *Uint {
+	result, overflow := z.MulOverflow(x, y)
+	if overflow {
+		panic("uint256: multiplication overflow")
+	}
+	return result
 }

@@ -89,6 +89,10 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 // Lsh sets z = x << n and returns z.
 func (z *Int) Lsh(x *Int, n uint) *Int {
 	z.abs.Lsh(x.abs, n)
-	z.neg = x.neg
+	if z.abs.IsZero() {
+		z.neg = false
+	} else {
+		z.neg = x.neg
+	}
 	return z
 }

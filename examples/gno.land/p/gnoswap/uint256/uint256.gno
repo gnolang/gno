@@ -9,7 +9,15 @@ import (
 )
 
 const (
-	MaxUint64 = 1<<64 - 1
+	MaxUint64   = 1<<64 - 1
+	MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+)
+
+var (
+	zero  = Zero()
+	one   = One()
+	two   = NewUint(2)
+	three = NewUint(3)
 )
 
 // Uint is represented as an array of 4 uint64, in little-endian order,
@@ -20,8 +28,14 @@ type Uint struct {
 
 // NewUint returns a new initialized Uint.
 func NewUint(val uint64) *Uint {
-	z := &Uint{arr: [4]uint64{val, 0, 0, 0}}
-	return z
+	return &Uint{arr: [4]uint64{val, 0, 0, 0}}
+}
+
+func NewUintFromInt64(val int64) *Uint {
+	if val < 0 {
+		panic("val is negative")
+	}
+	return NewUint(uint64(val))
 }
 
 // Zero returns a new Uint initialized to zero.
@@ -43,7 +57,6 @@ func (z *Uint) SetAllOne() *Uint {
 // Set sets z to x and returns z.
 func (z *Uint) Set(x *Uint) *Uint {
 	*z = *x
-
 	return z
 }
 
@@ -140,7 +153,8 @@ func (z *Uint) fromDecimal(bs string) error {
 	for i, mult := range multipliers {
 		if remaining <= 0 {
 			return nil // Done
-		} else if remaining > 19 {
+		}
+		if remaining > 19 {
 			num, err = strconv.ParseUint(bs[remaining-19:remaining], 10, 64)
 		} else {
 			// Final round
@@ -154,7 +168,17 @@ func (z *Uint) fromDecimal(bs string) error {
 			z.SetUint64(num)
 		} else {
 			base := NewUint(num)
-			z.Add(z, base.Mul(base, mult))
+			// Check for overflow in multiplication
+			mulResult, overflow := new(Uint).MulOverflow(base, mult)
+			if overflow {
+				return ErrBig256Range
+			}
+			// Check for overflow in addition
+			addResult, overflow := new(Uint).AddOverflow(z, mulResult)
+			if overflow {
+				return ErrBig256Range
+			}
+			z.Set(addResult)
 		}
 		// Chop off another 19 characters
 		if remaining > 19 {

@@ -2,7 +2,15 @@
 package int256
 
 import (
+	"errors"
+
 	"gno.land/p/gnoswap/uint256"
+)
+
+var (
+	errEmptyString                 = errors.New("empty string")
+	errStringContainsOnlySign      = errors.New("string contains only sign")
+	errInvalidSignInMiddleOfNumber = errors.New("invalid sign in middle of number")
 )
 
 var one = uint256.NewUint(1)
@@ -68,31 +76,82 @@ func MustFromDecimal(s string) *Int {
 }
 
 // SetString sets s to the value of z and returns z and a boolean indicating success.
+//
+// Note: Since we only need to check for sign characters ('+', '-'), we use a bit masking technique
+// instead of [strings.IndexAny]. Although the environment is not exactly the same as gno,
+// this approach was adopted because it showed overwhelmingly better performance compared to
+// other implementations when benchmarked in go (with gcflags set to "-N -l").
+//
+// Reference: "Bit Twiddling Hacks" by Sean Eron Anderson
+// (http://graphics.stanford.edu/~seander/bithacks.html)
+// "Determine if a word has a byte equal to n" technique is applied.
 func (z *Int) SetString(s string) (*Int, error) {
-	neg := false
-	// Remove max one leading +
-	if len(s) > 0 && s[0] == '+' {
-		neg = false
-		s = s[1:]
+	if len(s) == 0 {
+		return nil, errEmptyString
 	}
 
-	if len(s) > 0 && s[0] == '-' {
+	// check sign only in the first character
+	neg := false
+	switch s[0] {
+	case '+':
+		s = s[1:]
+	case '-':
 		neg = true
 		s = s[1:]
 	}
-	var (
-		abs *uint256.Uint
-		err error
-	)
-	abs, err = uint256.FromDecimal(s)
+
+	// check if the string is empty after removing the sign
+	if len(s) == 0 {
+		return nil, errStringContainsOnlySign
+	}
+
+	// Parallel comparison technique for sign detection
+	// Process in 8-byte chunks
+	sLen := len(s)
+	i := 0
+
+	// Process 8 bytes at a time
+	for i+7 < sLen {
+		// Convert 8 bytes into a single uint64
+		// This method processes bytes directly, so no endianness issues
+		//
+		// access up to s[i+7] is safe, then we can reduce the number of bounds checks
+		_ = s[i+7]
+		chunk := uint64(s[i]) | uint64(s[i+1])<<8
+		chunk |= uint64(s[i+2])<<16 | uint64(s[i+3])<<24
+		chunk |= uint64(s[i+4])<<32 | uint64(s[i+5])<<40
+		chunk |= uint64(s[i+6])<<48 | uint64(s[i+7])<<56
+
+		// Operation to check for '+' (0x2B)
+		// Subtracting 0x2B from each byte makes '+' bytes become 0
+		// Subtracting 0x01 makes bytes in ASCII range (0-127) have 0 in their highest bit
+		// Therefore, AND with 0x80 to check for zero bytes
+		plusTest := ((chunk ^ 0x2B2B2B2B2B2B2B2B) - 0x0101010101010101) & 0x8080808080808080
+
+		// check for '-' (0x2D)
+		minusTest := ((chunk ^ 0x2D2D2D2D2D2D2D2D) - 0x0101010101010101) & 0x8080808080808080
+
+		// If either test is non-zero, a sign character exists
+		if (plusTest | minusTest) != 0 {
+			return nil, errInvalidSignInMiddleOfNumber
+		}
+
+		i += 8
+	}
+
+	// Process remaining bytes
+	for ; i < sLen; i++ {
+		if s[i] == '+' || s[i] == '-' {
+			return nil, errInvalidSignInMiddleOfNumber
+		}
+	}
+
+	abs, err := uint256.FromDecimal(s)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Int{
-		abs,
-		neg,
-	}, nil
+	return &Int{abs, neg}, nil
 }
 
 // FromUint256 is a convenience-constructor from uint256.Uint.
@@ -119,8 +178,12 @@ func (z *Int) NilToZero() *Int {
 
 // initiateAbs sets default value for `z` or `z.abs` value if is nil
 // OBS: differs from mempooler int256. It checks not only `z.abs` but also `z`
-func (z *Int) initiateAbs() {
-	if z == nil || z.abs == nil {
+func (z *Int) initiateAbs() *Int {
+	if z == nil {
+		return NewInt(0)
+	}
+	if z.abs == nil {
 		z.abs = new(uint256.Uint)
 	}
+	return z
 }

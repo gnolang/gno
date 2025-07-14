@@ -1,151 +1,182 @@
 // REF: https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/FullMath.sol
+
+// Package fullmath implements Uniswap V3's FullMath library.
+//
+// This library provides advanced fixed-point math operations that are essential
+// for Uniswap V3's tick math and liquidity calculations. It enables precise
+// calculations of (a * b / denominator) with full 512-bit intermediate precision.
+//
+// NOTE: Unlike other arithmetic functions in the uint256 package that return errors,
+// functions in this file panic on invalid inputs to maintain behavioral compatibility
+// with the original Solidity implementation which uses require() statements.
+//
+// This design choice is intentional because:
+// 1. These functions are typically used in hot paths where error handling would add overhead
+// 2. Invalid inputs (like zero denominator) represent programming errors, not runtime conditions
+// 3. Staying close to the Solidity implementation makes protocol porting more reliable
+//
+// If you need error-returning versions, wrap these functions with appropriate error handling.
 package uint256
 
 import (
 	"gno.land/p/demo/ufmt"
 )
 
-const (
-	MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-)
+// MulDiv calculates (a * b) / denominator with full 512-bit intermediate precision.
+// This function is crucial for maintaining precision in Uniswap V3's tick math.
+//
+// The implementation uses Remco Bloemen's multiplication and division algorithm
+// which computes the 512-bit product and divides it by the denominator.
+//
+// Parameters:
+//   - a: First multiplicand
+//   - b: Second multiplicand
+//   - denominator: The divisor (must be greater than 0)
+//
+// Returns:
+//   - The result of (a * b) / denominator, rounded down
+//
+// Panics:
+//   - If denominator is 0
+//   - If the result would overflow 256 bits (i.e., if a * b / denominator > 2^256 - 1)
+func MulDiv(a, b, denominator *Uint) *Uint {
+	// Compute the 512-bit product of a * b
+	p := umul(a, b)
 
-func MulDiv(
-	a, b, denominator *Uint,
-) *Uint {
-	prod0 := Zero()
-	prod1 := Zero()
+	// Split the 512-bit product into high and low 256-bit parts
+	lo := &Uint{arr: [4]uint64{p[0], p[1], p[2], p[3]}}
+	hi := &Uint{arr: [4]uint64{p[4], p[5], p[6], p[7]}}
 
-	{
-		mm := new(Uint).MulMod(a, b, new(Uint).Not(Zero()))
-		prod0 = new(Uint).Mul(a, b)
-
-		ltBool := mm.Lt(prod0)
-		ltUint := Zero()
-		if ltBool {
-			ltUint = One()
+	// If the high part is zero, we can use simple 256-bit division
+	if hi.IsZero() {
+		if denominator.IsZero() {
+			panic(ufmt.Sprintf("denominator must be greater than 0. got %s", denominator.ToString()))
 		}
-		prod1 = new(Uint).Sub(new(Uint).Sub(mm, prod0), ltUint)
-	}
-
-	// Handle non-overflow cases, 256 by 256 division
-	if prod1.IsZero() {
-		if !(denominator.Gt(Zero())) { // require(denominator > 0);
-			panic(ufmt.Sprintf("uint256_MulDiv()__denominator(%s) > 0", denominator.ToString()))
-		}
-
-		result := new(Uint).Div(prod0, denominator)
+		result := new(Uint).Div(lo, denominator)
 		return result
 	}
 
-	// Make sure the result is less than 2**256.
-	// Also prevents denominator == 0
-	if !(denominator.Gt(prod1)) { // require(denominator > prod1)
-		panic(ufmt.Sprintf("uint256_MulDiv()__denominator(%s) > prod1(%s)", denominator.ToString(), prod1.ToString()))
+	// Ensure the result will fit in 256 bits
+	// If hi >= denominator, then (hi * 2^256 + lo) / denominator >= 2^256
+	if denominator.Lte(hi) {
+		panic(ufmt.Sprintf("overflow: denominator(%s) must be greater than hi(%s)", denominator.ToString(), hi.ToString()))
 	}
 
-	///////////////////////////////////////////////
-	// 512 by 256 division.
-	///////////////////////////////////////////////
+	// Compute the remainder of (a * b) mod denominator
+	remainder := new(Uint).MulMod(a, b, denominator)
 
-	// Make division exact by subtracting the remainder from [prod1 prod0]
-	// Compute remainder using mulmod
-	remainder := Zero()
-	remainder = new(Uint).MulMod(a, b, denominator)
-
-	// Subtract 256 bit number from 512 bit number
-	gtBool := remainder.Gt(prod0)
-	gtUint := Zero()
-	if gtBool {
-		gtUint = One()
+	// Subtract remainder from [hi, lo] to make it divisible by denominator
+	// If remainder > lo, we need to borrow from hi
+	if remainder.Gt(lo) {
+		hi = new(Uint).Sub(hi, one)
 	}
-	prod1 = new(Uint).Sub(prod1, gtUint)
-	prod0 = new(Uint).Sub(prod0, remainder)
+	lo = new(Uint).Sub(lo, remainder)
 
-	// Factor powers of two out of denominator
-	// Compute largest power of two divisor of denominator.
-	// Always >= 1.
-	twos := Zero()
-	twos = new(Uint).And(new(Uint).Neg(denominator), denominator)
-
-	// Divide denominator by power of two
+	// Factor out powers of 2 from denominator
+	// This optimization leverages the fact that division by powers of 2 is just bit shifting
+	twos := new(Uint).And(new(Uint).Neg(denominator), denominator)
 	denominator = new(Uint).Div(denominator, twos)
+	lo = new(Uint).Div(lo, twos)
 
-	// Divide [prod1 prod0] by the factors of two
-	prod0 = new(Uint).Div(prod0, twos)
-
-	// Shift in bits from prod1 into prod0. For this we need
-	// to flip `twos` such that it is 2**256 / twos.
-	// If twos is zero, then it becomes one
-	twos = new(Uint).Add(
-		new(Uint).Div(
-			new(Uint).Sub(Zero(), twos),
-			twos,
-		),
-		One(),
-	)
-	prod0 = new(Uint).Or(prod0, new(Uint).Mul(prod1, twos))
-
-	// Invert denominator mod 2**256
-	// Now that denominator is an odd number, it has an inverse
-	// modulo 2**256 such that denominator * inv = 1 mod 2**256.
-	// Compute the inverse by starting with a seed that is correct
-	// correct for four bits. That is, denominator * inv = 1 mod 2**4
+	// Find the multiplicative inverse of the odd denominator modulo 2^256
+	// Using Newton-Raphson iteration to find the inverse
+	// Start with a good initial guess: inverse = 3 * denominator XOR 2
 	inv := Zero()
-	inv = new(Uint).Mul(NewUint(3), denominator)
-	inv = new(Uint).Xor(inv, NewUint(2))
+	inv = new(Uint).Mul(three, denominator)
+	inv = new(Uint).Xor(inv, two)
 
-	// Now use Newton-Raphson iteration to improve the precision.
-	// Thanks to Hensel's lifting lemma, this also works in modular
-	// arithmetic, doubling the correct bits in each step.
+	// Newton-Raphson iteration: inv = inv * (2 - denominator * inv)
+	// Each iteration doubles the precision
+	inv = new(Uint).Mul(inv, new(Uint).Sub(two, new(Uint).Mul(denominator, inv))) // inverse mod 2^8
+	inv = new(Uint).Mul(inv, new(Uint).Sub(two, new(Uint).Mul(denominator, inv))) // inverse mod 2^16
+	inv = new(Uint).Mul(inv, new(Uint).Sub(two, new(Uint).Mul(denominator, inv))) // inverse mod 2^32
+	inv = new(Uint).Mul(inv, new(Uint).Sub(two, new(Uint).Mul(denominator, inv))) // inverse mod 2^64
+	inv = new(Uint).Mul(inv, new(Uint).Sub(two, new(Uint).Mul(denominator, inv))) // inverse mod 2^128
+	inv = new(Uint).Mul(inv, new(Uint).Sub(two, new(Uint).Mul(denominator, inv))) // inverse mod 2^256
 
-	inv = new(Uint).Mul(inv, new(Uint).Sub(NewUint(2), new(Uint).Mul(denominator, inv))) // inverse mod 2**8
-	inv = new(Uint).Mul(inv, new(Uint).Sub(NewUint(2), new(Uint).Mul(denominator, inv))) // inverse mod 2**16
-	inv = new(Uint).Mul(inv, new(Uint).Sub(NewUint(2), new(Uint).Mul(denominator, inv))) // inverse mod 2**32
-	inv = new(Uint).Mul(inv, new(Uint).Sub(NewUint(2), new(Uint).Mul(denominator, inv))) // inverse mod 2**64
-	inv = new(Uint).Mul(inv, new(Uint).Sub(NewUint(2), new(Uint).Mul(denominator, inv))) // inverse mod 2**128
-	inv = new(Uint).Mul(inv, new(Uint).Sub(NewUint(2), new(Uint).Mul(denominator, inv))) // inverse mod 2**256
+	// Compute the quotient
+	// 2^256 / twos = (2^256 - 1) / twos + 1
+	// negTwos = -twos = 2^256 - twos (mod 2^256)
+	// divResult = negTwos / twos = (2^256 - twos) / twos = 2^256/twos - 1
+	// twos = divResult + 1 = 2^256/twos
+	negTwos := new(Uint).Sub(Zero(), twos)
+	divResult := new(Uint).Div(negTwos, twos)
+	twos = new(Uint).Add(divResult, one)
 
-	// Because the division is now exact we can divide by multiplying
-	// with the modular inverse of denominator. This will give us the
-	// correct result modulo 2**256. Since the precoditions guarantee
-	// that the outcome is less than 2**256, this is the final result.
-	// We don't need to compute the high bits of the result and prod1
-	// is no longer required.
-	result := new(Uint).Mul(prod0, inv)
+	lo = new(Uint).Or(lo, new(Uint).Mul(hi, twos))
+
+	result := new(Uint).Mul(lo, inv)
 	return result
 }
 
-func MulDivRoundingUp(
-	a, b, denominator *Uint,
-) *Uint {
+// MulDivRoundingUp calculates ceil((a * b) / denominator).
+// This is useful for ensuring that rounding errors favor the protocol
+// rather than users, which is important for security.
+//
+// Parameters:
+//   - a: First multiplicand
+//   - b: Second multiplicand
+//   - denominator: The divisor (must be greater than 0)
+//
+// Returns:
+//   - The result of (a * b) / denominator, rounded up
+//
+// Panics:
+//   - If denominator is 0
+//   - If the result would overflow 256 bits
+func MulDivRoundingUp(a, b, denominator *Uint) *Uint {
 	result := MulDiv(a, b, denominator)
 
-	if new(Uint).MulMod(a, b, denominator).Gt(Zero()) {
-		if !(result.Lt(MustFromDecimal(MAX_UINT256))) { // require(result < MAX_UINT256)
-			panic(ufmt.Sprintf("uint256_MulDivRoundingUp()__result(%s) < MAX_UINT256", result.ToString()))
-		}
+	// Check if there's a remainder
+	mulModResult := new(Uint).MulMod(a, b, denominator)
 
-		result = new(Uint).Add(result, One())
+	// If there's no remainder, return the result as-is
+	if mulModResult.IsZero() {
+		return result
 	}
 
-	return result
+	// Add 1 to round up, but check for overflow
+	if result.Eq(MustFromDecimal(MAX_UINT256)) {
+		panic(ufmt.Sprintf("overflow: result(%s) + 1 would exceed MAX_UINT256", result.ToString()))
+	}
+
+	return new(Uint).Add(result, one)
 }
 
-// UnsafeMath
-// https://github.com/Uniswap/v3-core/blob/d8b1c635c275d2a9450bd6a78f3fa2484fef73eb/contracts/libraries/UnsafeMath.sol
-func DivRoundingUp(
-	x, y *Uint,
-) *Uint {
+// DivRoundingUp performs division with rounding up.
+// This is a simpler operation that doesn't require the full precision of MulDiv.
+//
+// Parameters:
+//   - x: Dividend
+//   - y: Divisor (must be greater than 0)
+//
+// Returns:
+//   - The result of x / y, rounded up
+//
+// Panics:
+//   - If y is 0
+func DivRoundingUp(x, y *Uint) *Uint {
+	if y.IsZero() {
+		panic("division by zero")
+	}
 	div := new(Uint).Div(x, y)
 	mod := new(Uint).Mod(x, y)
-
 	z := new(Uint).Add(div, gt(mod, Zero()))
 	return z
 }
 
+// gt returns one if x is greater than y, zero otherwise.
+// This is a branchless helper for conditional increment.
+//
+// Parameters:
+//   - x: First number to compare
+//   - y: Second number to compare
+//
+// Returns:
+//   - one if x > y, zero otherwise
 func gt(x, y *Uint) *Uint {
 	if x.Gt(y) {
-		return One()
+		return one
 	}
 	return Zero()
 }

@@ -2,320 +2,824 @@ package uint256
 
 import (
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
-func TestMulDiv_1(t *testing.T) {
-	// reverts if denominator is 0
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-
-	x := NewUint(5)
-	y := Zero()
-
-	shouldPanic(
-		t,
-		func() {
-			MulDiv(Q128, x, y)
+func TestFromDecimal(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		shouldPanic bool
+		panicMsg    string
+	}{
+		// Basic cases
+		{
+			name:     "zero",
+			input:    "0",
+			expected: "0",
 		},
-	)
-}
-
-func TestMulDiv_2(t *testing.T) {
-	// reverts if denominator is 0 and numerator overflows
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	x := NewUint(5)
-	y := Zero()
-
-	shouldPanic(
-		t,
-		func() {
-			MulDiv(Q128, Q128, y)
+		{
+			name:     "one",
+			input:    "1",
+			expected: "1",
 		},
-	)
-}
-
-func TestMulDiv_3(t *testing.T) {
-	// reverts if output overflows uint256
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	y := One()
-
-	shouldPanic(
-		t,
-		func() {
-			MulDiv(Q128, Q128, y)
+		{
+			name:     "max_uint64",
+			input:    "18446744073709551615",
+			expected: "18446744073709551615",
 		},
-	)
-}
-
-func TestMulDiv_4(t *testing.T) {
-	// reverts on overflow with all max inputs
-	MaxUint256 := MustFromHex("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-	MaxUint256Sub1 := MustFromDecimal("115792089237316195423570985008687907853269984665640564039457584007913129639934")
-	if MaxUint256.ToString() != "115792089237316195423570985008687907853269984665640564039457584007913129639935" {
-		t.Errorf("MustFromHex is Failed")
-	}
-	shouldPanic(
-		t,
-		func() {
-			MulDiv(MaxUint256, MaxUint256, MaxUint256Sub1)
+		{
+			name:     "max_uint128",
+			input:    "340282366920938463463374607431768211455",
+			expected: "340282366920938463463374607431768211455",
 		},
-	)
-}
+		{
+			name:     "max_uint256",
+			input:    MAX_UINT256,
+			expected: MAX_UINT256,
+		},
 
-func TestMulDiv_5(t *testing.T) {
-	// all max inputs
-	MaxUint256 := MustFromHex("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+		// Format cases
+		{
+			name:     "leading_zeros",
+			input:    "00000000000000000000000001234567890",
+			expected: "1234567890",
+		},
+		{
+			name:     "plus_sign",
+			input:    "+12345",
+			expected: "12345",
+		},
 
-	got := MulDiv(MaxUint256, MaxUint256, MaxUint256)
-
-	rst := got.Eq(MaxUint256)
-	if !rst {
-		t.Errorf("MaxUint256 * MaxUint256 / MaxUint256 is not same to MaxUint256")
+		// Error cases
+		{
+			name:        "max_uint256_plus_one",
+			input:       "115792089237316195423570985008687907853269984665640564039457584007913129639936",
+			shouldPanic: true,
+			panicMsg:    "hex number > 256 bits",
+		},
+		{
+			name:        "multiple_plus_signs",
+			input:       "++12345",
+			shouldPanic: true,
+		},
+		{
+			name:        "negative_number",
+			input:       "-12345",
+			shouldPanic: true,
+		},
+		{
+			name:        "empty_string",
+			input:       "",
+			shouldPanic: true,
+			panicMsg:    "EOF",
+		},
+		{
+			name:        "invalid_characters",
+			input:       "123abc456",
+			shouldPanic: true,
+		},
+		{
+			name:        "spaces_in_number",
+			input:       "123 456",
+			shouldPanic: true,
+		},
+		{
+			name:        "decimal_point",
+			input:       "123.456",
+			shouldPanic: true,
+		},
 	}
-}
 
-func TestMulDiv_6(t *testing.T) {
-	denom := NewUint(100)
-
-	// accurate without phantom overflow #1
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456")      // 2**128
-	Q128Const := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	expected := Q128.Div(Q128, NewUint(3))
-	x := NewUint(50)
-	x1 := MulDiv(x, Q128Const, denom)
-	y := NewUint(150)
-	y1 := MulDiv(y, Q128Const, denom)
-
-	got := MulDiv(Q128Const, x1, y1)
-
-	rst := got.Eq(expected)
-	if !rst {
-		t.Errorf("Q128/3 is not smae to Q128 * (50*Q128/100) / (150*Q128/100)")
-	}
-}
-
-func TestMulDiv_6_1(t *testing.T) {
-	denom := NewUint(100)
-
-	// accurate without phantom overflow #1_1
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	expected := new(Uint).Div(Q128, NewUint(3))
-	x := NewUint(50)
-	x1 := MulDiv(x, Q128, denom)
-	y := NewUint(150)
-	y1 := MulDiv(y, Q128, denom)
-
-	got := MulDiv(Q128, x1, y1)
-
-	rst := got.Eq(expected)
-	if !rst {
-		t.Errorf("Q128/3 is not smae to Q128 * (50*Q128/100) / (150*Q128/100)")
-	}
-}
-
-func TestMulDiv_7(t *testing.T) {
-	// accurate with phantom overflow #2
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456")      // 2**128
-	Q128Const := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	x := NewUint(4375)
-	expected := MulDiv(x, Q128Const, NewUint(1000))
-
-	y1 := NewUint(35)
-	y1.Mul(y1, Q128Const)
-
-	denom := NewUint(8)
-	denom.Mul(denom, Q128Const)
-
-	got := MulDiv(Q128Const, y1, denom)
-
-	rst := got.Eq(expected)
-	if !rst {
-		t.Errorf("4375*Q128/1000 is not smae to Q128*35*Q128/(8*Q128)")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.shouldPanic {
+				if tt.panicMsg != "" {
+					uassert.PanicsWithMessage(t, tt.panicMsg, func() {
+						MustFromDecimal(tt.input)
+					})
+				} else {
+					defer func() {
+						if r := recover(); r == nil {
+							t.Errorf("Expected panic but got none")
+						}
+					}()
+					MustFromDecimal(tt.input)
+				}
+			} else {
+				result := MustFromDecimal(tt.input)
+				uassert.Equal(t, tt.expected, result.ToString())
+			}
+		})
 	}
 }
 
-func TestMulDiv_8(t *testing.T) {
-	// accurate with phantom overflow and repeating decimal
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456")      // 2**128
-	Q128Const := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	expected := MulDiv(One(), Q128Const, NewUint(3))
+func TestFromHex(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		shouldPanic bool
+		panicMsg    string
+	}{
+		// Basic cases
+		{
+			name:     "zero",
+			input:    "0x0",
+			expected: "0",
+		},
+		{
+			name:     "one",
+			input:    "0x1",
+			expected: "1",
+		},
+		{
+			name:     "max_uint256",
+			input:    "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			expected: MAX_UINT256,
+		},
 
-	y1 := NewUint(1000)
-	y1.Mul(y1, Q128Const)
+		// Format cases
+		{
+			name:     "uppercase_0X",
+			input:    "0Xff",
+			expected: "255",
+		},
+		{
+			name:     "mixed_case",
+			input:    "0xAbCdEf",
+			expected: "11259375",
+		},
 
-	denom := NewUint(3000)
-	denom.Mul(denom, Q128Const)
+		// Error cases
+		{
+			name:        "hex_overflow_67_chars",
+			input:       "0x10000000000000000000000000000000000000000000000000000000000000000",
+			shouldPanic: true,
+			panicMsg:    "hex number > 256 bits",
+		},
+		{
+			name:        "no_0x_prefix",
+			input:       "ffffffff",
+			shouldPanic: true,
+			panicMsg:    "UnmarshalText: ffffffff: hex string without 0x prefix",
+		},
+		{
+			name:        "empty_string",
+			input:       "",
+			shouldPanic: true,
+			panicMsg:    "UnmarshalText: : empty hex string",
+		},
+		{
+			name:        "only_0x",
+			input:       "0x",
+			shouldPanic: true,
+			panicMsg:    "UnmarshalText: 0x: hex string \"0x\"",
+		},
+		{
+			name:        "invalid_hex_chars",
+			input:       "0xgg",
+			shouldPanic: true,
+			panicMsg:    "invalid hex string",
+		},
+	}
 
-	got := MulDiv(Q128Const, y1, denom)
-
-	rst := got.Eq(expected)
-	if !rst {
-		t.Errorf("1*Q128/3 is not smae to Q128*1000*Q128/(3000*Q128)")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.shouldPanic {
+				if tt.panicMsg != "" {
+					uassert.PanicsWithMessage(t, tt.panicMsg, func() {
+						MustFromHex(tt.input)
+					})
+				} else {
+					defer func() {
+						if r := recover(); r == nil {
+							t.Errorf("Expected panic but got none")
+						}
+					}()
+					MustFromHex(tt.input)
+				}
+			} else {
+				result := MustFromHex(tt.input)
+				uassert.Equal(t, tt.expected, result.ToString())
+			}
+		})
 	}
 }
 
-func TestMulDivRoundingUp_1(t *testing.T) {
-	// reverts if denominator is 0
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-
-	x := NewUint(5)
-	y := Zero()
-
-	shouldPanic(
-		t,
-		func() {
-			MulDivRoundingUp(Q128, x, y)
+func TestComparisonOperations(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation string
+		x         string
+		y         string
+		expected  bool
+	}{
+		// Equality tests
+		{
+			name:      "eq_true",
+			operation: "eq",
+			x:         "12345",
+			y:         "12345",
+			expected:  true,
 		},
-	)
-}
-
-func TestMulDivRoundingUp_2(t *testing.T) {
-	// reverts if denominator is 0 and numerator overflows
-
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	y := Zero()
-
-	shouldPanic(
-		t,
-		func() {
-			MulDivRoundingUp(Q128, Q128, y)
+		{
+			name:      "eq_false",
+			operation: "eq",
+			x:         "12345",
+			y:         "12346",
+			expected:  false,
 		},
-	)
-}
 
-func TestMulDivRoundingUp_3(t *testing.T) {
-	// reverts if output overflows uint256
-
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	y := One()
-
-	shouldPanic(
-		t,
-		func() {
-			MulDivRoundingUp(Q128, Q128, y)
+		// Less than tests
+		{
+			name:      "lt_true",
+			operation: "lt",
+			x:         "12345",
+			y:         "12346",
+			expected:  true,
 		},
-	)
-}
-
-func TestMulDivRoundingUp_4(t *testing.T) {
-	// reverts on overflow with all max inputs
-
-	MaxUint256 := MustFromHex("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-	MaxUint256Sub1 := MustFromDecimal("115792089237316195423570985008687907853269984665640564039457584007913129639934")
-
-	shouldPanic(
-		t,
-		func() {
-			MulDivRoundingUp(MaxUint256, MaxUint256, MaxUint256Sub1)
+		{
+			name:      "lt_false_greater",
+			operation: "lt",
+			x:         "12346",
+			y:         "12345",
+			expected:  false,
 		},
-	)
-}
-
-func TestMulDivRoundingUp_5(t *testing.T) {
-	// reverts if mulDiv overflows 256 bits after rounding up
-
-	x := MustFromDecimal("535006138814359")
-	y := MustFromDecimal("432862656469423142931042426214547535783388063929571229938474969")
-
-	shouldPanic(
-		t,
-		func() {
-			MulDivRoundingUp(x, y, NewUint(2))
+		{
+			name:      "lt_false_equal",
+			operation: "lt",
+			x:         "12345",
+			y:         "12345",
+			expected:  false,
 		},
-	)
-}
 
-func TestMulDivRoundingUp_6(t *testing.T) {
-	// reverts if mulDiv overflows 256 bits after rounding up case 2
-
-	x := MustFromDecimal("115792089237316195423570985008687907853269984659341747863450311749907997002549")
-	y := MustFromDecimal("115792089237316195423570985008687907853269984659341747863450311749907997002550")
-	z := MustFromDecimal("115792089237316195423570985008687907853269984653042931687443039491902864365164")
-
-	shouldPanic(
-		t,
-		func() {
-			MulDivRoundingUp(x, y, z)
+		// Greater than tests
+		{
+			name:      "gt_true",
+			operation: "gt",
+			x:         "12346",
+			y:         "12345",
+			expected:  true,
 		},
-	)
-}
+		{
+			name:      "gt_false_smaller",
+			operation: "gt",
+			x:         "12345",
+			y:         "12346",
+			expected:  false,
+		},
+		{
+			name:      "gt_false_equal",
+			operation: "gt",
+			x:         "12345",
+			y:         "12345",
+			expected:  false,
+		},
 
-func TestMulDivRoundingUp_7(t *testing.T) {
-	// all max inputs
-	MaxUint256 := MustFromHex("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+		// Less than or equal tests
+		{
+			name:      "lte_true_less",
+			operation: "lte",
+			x:         "12345",
+			y:         "12346",
+			expected:  true,
+		},
+		{
+			name:      "lte_true_equal",
+			operation: "lte",
+			x:         "12345",
+			y:         "12345",
+			expected:  true,
+		},
+		{
+			name:      "lte_false",
+			operation: "lte",
+			x:         "12346",
+			y:         "12345",
+			expected:  false,
+		},
 
-	got := MulDivRoundingUp(MaxUint256, MaxUint256, MaxUint256)
+		// Greater than or equal tests
+		{
+			name:      "gte_true_greater",
+			operation: "gte",
+			x:         "12346",
+			y:         "12345",
+			expected:  true,
+		},
+		{
+			name:      "gte_true_equal",
+			operation: "gte",
+			x:         "12345",
+			y:         "12345",
+			expected:  true,
+		},
+		{
+			name:      "gte_false",
+			operation: "gte",
+			x:         "12345",
+			y:         "12346",
+			expected:  false,
+		},
+	}
 
-	rst := got.Eq(MaxUint256)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			x := MustFromDecimal(tt.x)
+			y := MustFromDecimal(tt.y)
 
-	if !rst {
-		t.Errorf("MaxUin256*MaxUint256/MaxUint256 RoudingUp is not same to MaxUint256")
+			var result bool
+			switch tt.operation {
+			case "eq":
+				result = x.Eq(y)
+			case "lt":
+				result = x.Lt(y)
+			case "gt":
+				result = x.Gt(y)
+			case "lte":
+				result = x.Lte(y)
+			case "gte":
+				result = x.Gte(y)
+			}
+
+			uassert.Equal(t, tt.expected, result)
+		})
 	}
 }
 
-func TestMulDivRoundingUp_8(t *testing.T) {
-	// accurate without phantom overflow
-	denom := NewUint(100)
+func TestBitOperations(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation string
+		x         string
+		n         uint
+		expected  string
+	}{
+		// Left shift tests
+		{
+			name:      "lsh_zero",
+			operation: "lsh",
+			x:         "0",
+			n:         100,
+			expected:  "0",
+		},
+		{
+			name:      "lsh_one_by_zero",
+			operation: "lsh",
+			x:         "1",
+			n:         0,
+			expected:  "1",
+		},
+		{
+			name:      "lsh_one_by_one",
+			operation: "lsh",
+			x:         "1",
+			n:         1,
+			expected:  "2",
+		},
+		{
+			name:      "lsh_one_by_64",
+			operation: "lsh",
+			x:         "1",
+			n:         64,
+			expected:  "18446744073709551616",
+		},
+		{
+			name:      "lsh_one_by_255",
+			operation: "lsh",
+			x:         "1",
+			n:         255,
+			expected:  "57896044618658097711785492504343953926634992332820282019728792003956564819968",
+		},
+		{
+			name:      "lsh_one_by_256",
+			operation: "lsh",
+			x:         "1",
+			n:         256,
+			expected:  "0", // Shifts out of range
+		},
 
-	// accurate without phantom overflow #1
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456")      // 2**128
-	Q128Const := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	Q128.Div(Q128, NewUint(3))
-	expected := Q128.Add(Q128, NewUint(1))
+		// Right shift tests
+		{
+			name:      "rsh_zero",
+			operation: "rsh",
+			x:         "0",
+			n:         100,
+			expected:  "0",
+		},
+		{
+			name:      "rsh_by_zero",
+			operation: "rsh",
+			x:         "123456",
+			n:         0,
+			expected:  "123456",
+		},
+		{
+			name:      "rsh_by_one",
+			operation: "rsh",
+			x:         "123456",
+			n:         1,
+			expected:  "61728",
+		},
+		{
+			name:      "rsh_by_64",
+			operation: "rsh",
+			x:         "340282366920938463463374607431768211456", // 2^128
+			n:         64,
+			expected:  "18446744073709551616", // 2^64
+		},
+		{
+			name:      "rsh_max_by_255",
+			operation: "rsh",
+			x:         MAX_UINT256,
+			n:         255,
+			expected:  "1",
+		},
+		{
+			name:      "rsh_max_by_256",
+			operation: "rsh",
+			x:         MAX_UINT256,
+			n:         256,
+			expected:  "0", // Shifts out of range
+		},
+	}
 
-	x1 := NewUint(50)
-	x1.Mul(x1, Q128Const)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			x := MustFromDecimal(tt.x)
+			var result *Uint
 
-	y1 := NewUint(150)
-	y1.Mul(y1, Q128Const)
+			switch tt.operation {
+			case "lsh":
+				result = new(Uint).Lsh(x, tt.n)
+			case "rsh":
+				result = new(Uint).Rsh(x, tt.n)
+			}
 
-	got := MulDivRoundingUp(Q128Const, x1, y1)
-
-	rst := got.Eq(expected)
-	if !rst {
-		t.Errorf("Q128*50*Q128/100/(150*Q128/100) should be equal to Q128/3")
+			uassert.Equal(t, tt.expected, result.ToString())
+		})
 	}
 }
 
-func TestMulDivRoundingUp_9(t *testing.T) {
-	// accurate with phantom overflow #2
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456")      // 2**128
-	Q128Const := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-	x := NewUint(4375)
-	expected := MulDiv(x, Q128Const, NewUint(1000))
+func TestByteOperation(t *testing.T) {
+	tests := []struct {
+		name     string
+		x        string
+		n        uint64
+		expected string
+	}{
+		{
+			name:     "byte_0_of_max",
+			x:        MAX_UINT256,
+			n:        0,
+			expected: "255",
+		},
+		{
+			name:     "byte_31_of_max",
+			x:        MAX_UINT256,
+			n:        31,
+			expected: "255",
+		},
+		{
+			name:     "byte_32_out_of_range",
+			x:        MAX_UINT256,
+			n:        32,
+			expected: "0",
+		},
+		{
+			name:     "byte_0_of_256",
+			x:        "256",
+			n:        30,
+			expected: "1",
+		},
+		{
+			name:     "byte_31_of_single_byte",
+			x:        "255",
+			n:        31,
+			expected: "255",
+		},
+		{
+			name:     "byte_at_boundary",
+			x:        "18446744073709551616", // 2^64
+			n:        23,
+			expected: "1",
+		},
+		{
+			name:     "byte_in_middle",
+			x:        "0xff00ff00ff00ff00ff00", // Hexadecimal format without leading zeros
+			n:        15,
+			expected: "0",
+		},
+	}
 
-	y1 := NewUint(35)
-	y1.Mul(y1, Q128Const)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var x *Uint
+			if len(tt.x) >= 2 && tt.x[:2] == "0x" {
+				x = MustFromHex(tt.x)
+			} else {
+				x = MustFromDecimal(tt.x)
+			}
 
-	denom := NewUint(8)
-	denom.Mul(denom, Q128Const)
+			n := NewUint(tt.n)
+			result := x.Byte(n)
 
-	got := MulDiv(Q128Const, y1, denom)
-
-	rst := got.Eq(expected)
-	if !rst {
-		t.Errorf("4375*Q128/1000 is not smae to Q128*35*Q128/(8*Q128)")
+			uassert.Equal(t, tt.expected, result.ToString())
+		})
 	}
 }
 
-func TestMulDivRoundingUp_10(t *testing.T) {
-	// accurate with phantom overflow and repeating decimal
-
-	Q128 := MustFromDecimal("340282366920938463463374607431768211456")      // 2**128
-	Q128Const := MustFromDecimal("340282366920938463463374607431768211456") // 2**128
-
-	expected := MulDiv(One(), Q128Const, NewUint(3))
-	expected.Add(expected, One())
-
-	y1 := NewUint(1000)
-	y1.Mul(y1, Q128Const)
-
-	denom := NewUint(3000)
-	denom.Mul(denom, Q128Const)
-
-	got := MulDivRoundingUp(Q128Const, y1, denom)
-
-	rst := got.Eq(expected)
-	if !rst {
-		t.Errorf("Q128*100*Q128/300*Q128 should be eq to 1*Q128+1")
+func TestMulDiv(t *testing.T) {
+	tests := []struct {
+		name        string
+		x           string
+		y           string
+		denominator string
+		expected    string
+		shouldPanic bool
+		panicMsg    string
+	}{
+		{
+			name:        "reverts_if_denominator_is_0",
+			x:           "340282366920938463463374607431768211456", // Q128
+			y:           "5",
+			denominator: "0",
+			shouldPanic: true,
+			panicMsg:    "denominator must be greater than 0. got 0",
+		},
+		{
+			name:        "reverts_if_output_overflows_uint256",
+			x:           "340282366920938463463374607431768211456", // Q128
+			y:           "340282366920938463463374607431768211456", // Q128
+			denominator: "1",
+			shouldPanic: true,
+			panicMsg:    "overflow: denominator(1) must be greater than hi(1)",
+		},
+		{
+			name:        "all_max_inputs",
+			x:           MAX_UINT256,
+			y:           MAX_UINT256,
+			denominator: MAX_UINT256,
+			expected:    MAX_UINT256,
+		},
+		{
+			name:        "simple_case_no_remainder",
+			x:           "1000000",
+			y:           "1000000",
+			denominator: "1000",
+			expected:    "1000000000",
+		},
+		{
+			name:        "accurate_without_phantom_overflow",
+			x:           "340282366920938463463374607431768211456", // Q128
+			y:           "170141183460469231731687303715884105728", // 50 * Q128 / 100
+			denominator: "510423550381407695195061911147652317184", // 150 * Q128 / 100
+			expected:    "113427455640312821154458202477256070485", // Q128 / 3
+		},
 	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			x := MustFromDecimal(tt.x)
+			y := MustFromDecimal(tt.y)
+			denominator := MustFromDecimal(tt.denominator)
+
+			if tt.shouldPanic {
+				uassert.PanicsWithMessage(t, tt.panicMsg, func() {
+					MulDiv(x, y, denominator)
+				})
+			} else {
+				result := MulDiv(x, y, denominator)
+				uassert.Equal(t, tt.expected, result.ToString())
+			}
+		})
+	}
+}
+
+func TestMulDivRoundingUpSimple(t *testing.T) {
+	tests := []struct {
+		name        string
+		x           string
+		y           string
+		denominator string
+		expected    string
+		shouldPanic bool
+		panicMsg    string
+	}{
+		{
+			name:        "reverts_if_denominator_is_0",
+			x:           "340282366920938463463374607431768211456", // Q128
+			y:           "5",
+			denominator: "0",
+			shouldPanic: true,
+			panicMsg:    "denominator must be greater than 0. got 0",
+		},
+		{
+			name:        "rounds_up_when_remainder",
+			x:           "5",
+			y:           "2",
+			denominator: "3",
+			expected:    "4", // (5*2)/3 = 3.33, rounded up to 4
+		},
+		{
+			name:        "no_rounding_when_exact",
+			x:           "6",
+			y:           "3",
+			denominator: "2",
+			expected:    "9", // (6*3)/2 = 9, no rounding needed
+		},
+		{
+			name:        "accurate_with_rounding",
+			x:           "340282366920938463463374607431768211456",   // Q128
+			y:           "17014118346046923173168730371588410572800", // 50 * Q128
+			denominator: "51042355038140769519506191114765231718400", // 150 * Q128
+			expected:    "113427455640312821154458202477256070486",   // Q128/3 + 1
+		},
+		{
+			name:        "max_result_no_remainder",
+			x:           MAX_UINT256,
+			y:           "1",
+			denominator: "1",
+			expected:    MAX_UINT256,
+		},
+		{
+			name:        "rounding_overflow",
+			x:           MAX_UINT256,
+			y:           "2",
+			denominator: "1",
+			shouldPanic: true,
+			panicMsg:    "overflow: denominator(1) must be greater than hi(1)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			x := MustFromDecimal(tt.x)
+			y := MustFromDecimal(tt.y)
+			denominator := MustFromDecimal(tt.denominator)
+
+			if tt.shouldPanic {
+				uassert.PanicsWithMessage(t, tt.panicMsg, func() {
+					MulDivRoundingUp(x, y, denominator)
+				})
+			} else {
+				result := MulDivRoundingUp(x, y, denominator)
+				uassert.Equal(t, tt.expected, result.ToString())
+			}
+		})
+	}
+}
+
+func TestBitLenAndByteLen(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedBit  int
+		expectedByte int
+	}{
+		{
+			name:         "zero",
+			input:        "0",
+			expectedBit:  0,
+			expectedByte: 0,
+		},
+		{
+			name:         "one",
+			input:        "1",
+			expectedBit:  1,
+			expectedByte: 1,
+		},
+		{
+			name:         "byte_boundary",
+			input:        "255", // 2^8 - 1
+			expectedBit:  8,
+			expectedByte: 1,
+		},
+		{
+			name:         "word_boundary",
+			input:        "18446744073709551615", // 2^64 - 1
+			expectedBit:  64,
+			expectedByte: 8,
+		},
+		{
+			name:         "max_uint256",
+			input:        MAX_UINT256,
+			expectedBit:  256,
+			expectedByte: 32,
+		},
+		{
+			name:         "half_max",
+			input:        "57896044618658097711785492504343953926634992332820282019728792003956564819968", // 2^255
+			expectedBit:  256,
+			expectedByte: 32,
+		},
+		{
+			name:         "uneven_bits",
+			input:        "123456789",
+			expectedBit:  27,
+			expectedByte: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			x := MustFromDecimal(tt.input)
+			bitLen := x.BitLen()
+			byteLen := x.ByteLen()
+
+			uassert.Equal(t, tt.expectedBit, bitLen)
+			uassert.Equal(t, tt.expectedByte, byteLen)
+		})
+	}
+}
+
+func TestInPlaceSafety(t *testing.T) {
+	// Testing that operations don't mutate their inputs
+	t.Run("original_values_preserved", func(t *testing.T) {
+		a := MustFromDecimal("1234567890")
+		b := MustFromDecimal("9876543210")
+
+		original_a := a.Clone()
+		original_b := b.Clone()
+
+		_ = new(Uint).Add(a, b)
+
+		uassert.True(t, a.Eq(original_a))
+		uassert.True(t, b.Eq(original_b))
+	})
+
+	// Testing that chained operations work correctly
+	t.Run("chained_operations", func(t *testing.T) {
+		a := MustFromDecimal("1000000")
+		b := MustFromDecimal("2000000")
+		c := MustFromDecimal("3000000")
+
+		// (a + b) * c
+		temp := new(Uint).Add(a, b)
+		result := new(Uint).Mul(temp, c)
+
+		expected := MustFromDecimal("9000000000000")
+		uassert.True(t, result.Eq(expected))
+	})
+}
+
+func TestOperationConsistency(t *testing.T) {
+	// Testing mathematical properties
+	t.Run("addition_associativity", func(t *testing.T) {
+		a := NewUint(12345)
+		b := NewUint(67890)
+		c := NewUint(11111)
+
+		// (a + b) + c
+		path1 := new(Uint).Add(a, b)
+		path1 = new(Uint).Add(path1, c)
+
+		// a + (b + c)
+		path2 := new(Uint).Add(b, c)
+		path2 = new(Uint).Add(a, path2)
+
+		uassert.True(t, path1.Eq(path2))
+	})
+
+	t.Run("distributive_property", func(t *testing.T) {
+		a := NewUint(12345)
+		b := NewUint(67)
+		c := NewUint(89)
+
+		// a * (b + c)
+		sum := new(Uint).Add(b, c)
+		dist1 := new(Uint).Mul(a, sum)
+
+		// (a * b) + (a * c)
+		prod1 := new(Uint).Mul(a, b)
+		prod2 := new(Uint).Mul(a, c)
+		dist2 := new(Uint).Add(prod1, prod2)
+
+		uassert.True(t, dist1.Eq(dist2))
+	})
+
+	t.Run("inverse_operations", func(t *testing.T) {
+		x := MustFromDecimal("123456789012345678901234567890")
+
+		// x + y - y = x
+		y := MustFromDecimal("999999999999999999999999999999")
+		result := new(Uint).Add(x, y)
+		result = new(Uint).Sub(result, y)
+		uassert.True(t, result.Eq(x))
+
+		// x * y / y = x (when no remainder)
+		y = NewUint(12345)
+		result = new(Uint).Mul(x, y)
+		result = new(Uint).Div(result, y)
+		uassert.True(t, result.Eq(x))
+
+		// x << n >> n = x (when n < bitlen(x))
+		n := uint(10)
+		result = new(Uint).Lsh(x, n)
+		result = new(Uint).Rsh(result, n)
+		uassert.True(t, result.Eq(x))
+	})
 }

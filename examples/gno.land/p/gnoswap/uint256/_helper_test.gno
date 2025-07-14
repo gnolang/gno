@@ -4,13 +4,13 @@ import (
 	"testing"
 )
 
-func shouldEQ(t *testing.T, got, expected interface{}) {
+func shouldEQ(t *testing.T, got, expected any) {
 	if got != expected {
 		t.Errorf("got %v, expected %v", got, expected)
 	}
 }
 
-func shouldNEQ(t *testing.T, got, expected interface{}) {
+func shouldNEQ(t *testing.T, got, expected any) {
 	if got == expected {
 		t.Errorf("got %v, didn't expected %v", got, expected)
 	}
@@ -36,4 +36,17 @@ func shouldPanicWithMsg(t *testing.T, f func(), msg string) {
 		}
 	}()
 	f()
+}
+
+// for original tests
+func parseUint(s string) *Uint {
+	if len(s) >= 2 && s[:2] == "0x" {
+		return MustFromHex(s)
+	}
+	return MustFromDecimal(s)
+}
+
+// for testing.T
+func parseUintT(t *testing.T, s string) *Uint {
+	return parseUint(s)
 }

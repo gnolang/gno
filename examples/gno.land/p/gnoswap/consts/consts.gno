@@ -4,10 +4,10 @@ import (
 	"std"
 )
 
-// ADDRESS
+// INITIAL ADDRESSES
 const (
-	ADMIN   std.Address = "g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy"
-	DEV_OPS std.Address = "g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy"
+	ADMIN   std.Address = "g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d"
+	DEV_OPS std.Address = "g1mjvd83nnjee3z2g7683er55me9f09688pd4mj9"
 )
 
 // WRAP & UNWRAP
@@ -20,7 +20,7 @@ const (
 	UGNOT_MIN_DEPOSIT_TO_WRAP uint64 = 1000
 )
 
-// CONTRACT PATH & ADDRESS
+// INITIAL CONTRACT PATH & ADDRESS
 const (
 	POOL_PATH string      = "gno.land/r/gnoswap/v1/pool"
 	POOL_ADDR std.Address = "g148tjamj80yyrm309z7rk690an22thd2l3z8ank"
@@ -66,6 +66,12 @@ const (
 
 	LAUNCHPAD_PATH string      = "gno.land/r/gnoswap/v1/launchpad"
 	LAUNCHPAD_ADDR std.Address = "g122mau2lp2rc0scs8d27pkkuys4w54mdy2tuer3"
+
+	ACCESS_PATH string      = "gno.land/r/gnoswap/v1/access"
+	ACCESS_ADDR std.Address = "g1yyw4t7pywpgpq6z2p745y05qejwur97xud4arw"
+
+	HALT_PATH string      = "gno.land/r/gnoswap/v1/halt"
+	HALT_ADDR std.Address = "g1q67vstyzqycl75yv7ern98n4u8qrgc8hxkmsxt"
 )
 
 // NUMBER
@@ -83,12 +89,15 @@ const (
 	MAX_UINT64 string = "18446744073709551615"
 	UINT64_MAX uint64 = 18446744073709551615
 
+	MAX_INT64 string = "9223372036854775807"
+	INT64_MAX int64  = 9223372036854775807
+
 	MAX_UINT128 string = "340282366920938463463374607431768211455"
 	MAX_UINT160 string = "1461501637330902918203684832716283019655932542975"
 	MAX_UINT256 string = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
 
 	MAX_INT128 string = "170141183460469231731687303715884105727"
-	MAX_INT256 string = "57896044618658097711785492504343953926634992332820282019728792003956564819968"
+	MAX_INT256 string = "57896044618658097711785492504343953926634992332820282019728792003956564819967"
 
 	// Tick Related
 	MIN_TICK int32 = -887272

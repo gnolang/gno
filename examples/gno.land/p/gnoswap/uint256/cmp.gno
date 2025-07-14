@@ -78,24 +78,12 @@ func (z *Uint) Gt(x *Uint) bool {
 
 // Lte returns true if z <= x
 func (z *Uint) Lte(x *Uint) bool {
-	cond1 := z.Lt(x)
-	cond2 := z.Eq(x)
-
-	if cond1 || cond2 {
-		return true
-	}
-	return false
+	return !x.Lt(z)
 }
 
 // Gte returns true if z >= x
 func (z *Uint) Gte(x *Uint) bool {
-	cond1 := z.Gt(x)
-	cond2 := z.Eq(x)
-
-	if cond1 || cond2 {
-		return true
-	}
-	return false
+	return !z.Lt(x)
 }
 
 // Eq returns true if z == x

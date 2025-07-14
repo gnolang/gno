@@ -15,6 +15,11 @@ func (z *Uint) Uint64() uint64 {
 	return z.arr[0]
 }
 
+// Int64 returns the lower 64-bits of z
+func (z *Uint) Int64() int64 {
+	return int64(z.Uint64())
+}
+
 // Uint64WithOverflow returns the lower 64-bits of z and bool whether overflow occurred
 func (z *Uint) Uint64WithOverflow() (uint64, bool) {
 	return z.arr[0], (z.arr[1] | z.arr[2] | z.arr[3]) != 0
@@ -83,7 +88,7 @@ func (z *Uint) Dec() string {
 	return string(out[pos-len(buf):])
 }
 
-func (z *Uint) Scan(src interface{}) error {
+func (z *Uint) Scan(src any) error {
 	if src == nil {
 		z.Clear()
 		return nil
@@ -508,7 +513,7 @@ func (z *Uint) SetBytes28(in []byte) *Uint {
 
 // SetBytes29 is identical to SetBytes(in[:29]), but panics is input is too short
 func (z *Uint) SetBytes29(in []byte) *Uint {
-	_ = in[23] // bounds check hint to compiler; see golang.org/issue/14808
+	_ = in[28] // bounds check hint to compiler; see golang.org/issue/14808
 	z.arr[3] = bigEndianUint40(in[0:5])
 	z.arr[2] = binary.BigEndian.Uint64(in[5:13])
 	z.arr[1] = binary.BigEndian.Uint64(in[13:21])

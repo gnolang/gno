@@ -202,3 +202,94 @@ func TestApplyMultiplePermissions(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveRole(t *testing.T) {
+	manager := New()
+
+	t.Run("success remove non-system role", func(t *testing.T) {
+		// First register role and permission
+		err := manager.RegisterRole(editorRole)
+		uassert.NoError(t, err)
+
+		err = manager.RegisterPermission(editorRole, editPermission, editorChecker)
+		uassert.NoError(t, err)
+
+		// Check if permission is set correctly
+		err = manager.CheckPermission(editorRole, editPermission, editorAddr)
+		uassert.NoError(t, err)
+
+		// Remove role
+		err = manager.RemoveRole(editorRole)
+		uassert.NoError(t, err)
+
+		// Check if role is removed
+		err = manager.CheckPermission(editorRole, editPermission, editorAddr)
+		uassert.Error(t, err)
+	})
+
+	t.Run("fail to remove non-existent role", func(t *testing.T) {
+		err := manager.RemoveRole("non_existent_role")
+		uassert.Error(t, err)
+	})
+
+	t.Run("fail to remove system role", func(t *testing.T) {
+		// Register system role
+		err := manager.RegisterRole(adminRole)
+		uassert.NoError(t, err)
+
+		err = manager.RegisterPermission(adminRole, accessPermission, adminChecker)
+		uassert.NoError(t, err)
+
+		// Try to remove system role
+		err = manager.RemoveRole(adminRole)
+		uassert.Error(t, err)
+
+		// Check if system role still exists
+		err = manager.CheckPermission(adminRole, accessPermission, adminAddr)
+		uassert.NoError(t, err)
+	})
+
+	t.Run("remove role with multiple permissions", func(t *testing.T) {
+		// Create role with multiple permissions
+		multiRole := "multi_role"
+		err := manager.RegisterRole(multiRole)
+		uassert.NoError(t, err)
+
+		// Register multiple permissions
+		permissions := map[string]func(std.Address) error{
+			readPermission: func(caller std.Address) error {
+				if caller != userAddr {
+					return ufmt.Errorf("only user can read")
+				}
+				return nil
+			},
+			writePermission: func(caller std.Address) error {
+				if caller != userAddr {
+					return ufmt.Errorf("only user can write")
+				}
+				return nil
+			},
+		}
+
+		for perm, checker := range permissions {
+			err = manager.RegisterPermission(multiRole, perm, checker)
+			uassert.NoError(t, err)
+		}
+
+		// Check if all permissions are set correctly
+		for perm := range permissions {
+			err = manager.CheckPermission(multiRole, perm, userAddr)
+			uassert.NoError(t, err)
+		}
+
+		// Remove role
+		err = manager.RemoveRole(multiRole)
+		uassert.NoError(t, err)
+
+		// Check if all permissions are removed
+		for perm := range permissions {
+			err = manager.CheckPermission(multiRole, perm, userAddr)
+			uassert.Error(t, err)
+		}
+	})
+}

@@ -99,3 +99,7 @@ func (z *Int) Gt(x *Int) bool {
 func (z *Int) Clone() *Int {
 	return &Int{z.abs.Clone(), z.neg}
 }
+
+func (z *Int) IsOverflow() bool {
+	return z.abs.IsOverflow()
+}

@@ -16,6 +16,7 @@ type Role struct {
 	name string
 	// permissions maps permission names to their respective checker functions
 	permissions map[string]PermissionChecker
+	addresses   map[std.Address]struct{}
 }
 
 // NewRole creates a new `Role` instance with given name.
@@ -23,6 +24,7 @@ func NewRole(roleName string) *Role {
 	return &Role{
 		name:        roleName,
 		permissions: make(map[string]PermissionChecker),
+		addresses:   make(map[std.Address]struct{}),
 	}
 }
 

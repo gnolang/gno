@@ -1,11 +1,9 @@
 package int256
 
 import (
-	"gno.land/p/gnoswap/uint256"
-)
-
-import (
 	"testing"
+
+	"gno.land/p/gnoswap/uint256"
 )
 
 func TestOr(t *testing.T) {
@@ -15,27 +13,21 @@ func TestOr(t *testing.T) {
 	}{
 		{
 			name: "all zeroes",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
+			x:    Int{abs: uint256.Zero(), neg: false},
+			y:    Int{abs: uint256.Zero(), neg: false},
+			want: Int{abs: uint256.Zero(), neg: false},
 		},
 		{
 			name: "all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
+			x:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			y:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			want: Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
 		},
 		{
 			name: "mixed",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-		},
-		{
-			name: "one operand all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0x5555555555555555, 0xAAAAAAAAAAAAAAAA, 0xFFFFFFFFFFFFFFFF, 0x0000000000000000}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
+			x:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			y:    Int{abs: uint256.NewUint(0), neg: false},
+			want: Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
 		},
 	}
 
@@ -58,45 +50,45 @@ func TestAnd(t *testing.T) {
 	}{
 		{
 			name: "all zeroes",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
+			x:    Int{abs: uint256.Zero(), neg: false},
+			y:    Int{abs: uint256.Zero(), neg: false},
+			want: Int{abs: uint256.Zero(), neg: false},
 		},
 		{
 			name: "all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
+			x:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			y:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			want: Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
 		},
 		{
 			name: "mixed",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
+			x:    Int{abs: uint256.Zero(), neg: false},
+			y:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			want: Int{abs: uint256.Zero(), neg: false},
 		},
 		{
 			name: "mixed 2",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
+			x:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			y:    Int{abs: uint256.Zero(), neg: false},
+			want: Int{abs: uint256.Zero(), neg: false},
 		},
 		{
 			name: "mixed 3",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
+			x:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			y:    Int{abs: uint256.Zero(), neg: false},
+			want: Int{abs: uint256.Zero(), neg: false},
 		},
 		{
 			name: "one operand zero",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0, 0, 0, 0}}, neg: false},
+			x:    Int{abs: uint256.Zero(), neg: false},
+			y:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			want: Int{abs: uint256.Zero(), neg: false},
 		},
 		{
 			name: "one operand all ones",
-			x:    Int{abs: &uint256.Uint{arr: [4]uint64{^uint64(0), ^uint64(0), ^uint64(0), ^uint64(0)}}, neg: false},
-			y:    Int{abs: &uint256.Uint{arr: [4]uint64{0x5555555555555555, 0xAAAAAAAAAAAAAAAA, 0xFFFFFFFFFFFFFFFF, 0x0000000000000000}}, neg: false},
-			want: Int{abs: &uint256.Uint{arr: [4]uint64{0x5555555555555555, 0xAAAAAAAAAAAAAAAA, 0xFFFFFFFFFFFFFFFF, 0x0000000000000000}}, neg: false},
+			x:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			y:    Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
+			want: Int{abs: uint256.NewUint(0).SetAllOne(), neg: false},
 		},
 	}
 
@@ -182,6 +174,11 @@ func TestLsh(t *testing.T) {
 		{"-2", 0, "-2"},
 		{"-4", 0, "-4"},
 		{"-8", 0, "-8"},
+		{"-1", 255, "-57896044618658097711785492504343953926634992332820282019728792003956564819968"},
+		{"-1", 256, "0"},
+		{"-2", 255, "0"},
+		{"-4", 254, "0"},
+		{"-8", 253, "0"},
 	}
 
 	for _, tc := range tests {

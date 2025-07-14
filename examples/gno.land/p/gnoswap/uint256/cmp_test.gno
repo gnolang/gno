@@ -118,6 +118,72 @@ func TestSGT(t *testing.T) {
 	}
 }
 
+func TestLte(t *testing.T) {
+	tests := []struct {
+		x, y string
+		want bool
+	}{
+		{"0", "0", true},    // equal
+		{"0", "1", true},    // less than
+		{"1", "0", false},   // greater than
+		{"10", "10", true},  // equal
+		{"10", "11", true},  // less than
+		{"11", "10", false}, // greater than
+	}
+
+	for _, tc := range tests {
+		x, err := FromDecimal(tc.x)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		y, err := FromDecimal(tc.y)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		got := x.Lte(y)
+		if got != tc.want {
+			t.Errorf("Lte(%s, %s) = %v, want %v", tc.x, tc.y, got, tc.want)
+		}
+	}
+}
+
+func TestGte(t *testing.T) {
+	tests := []struct {
+		x, y string
+		want bool
+	}{
+		{"0", "0", true},    // equal
+		{"0", "1", false},   // less than
+		{"1", "0", true},    // greater than
+		{"10", "10", true},  // equal
+		{"10", "11", false}, // less than
+		{"11", "10", true},  // greater than
+	}
+
+	for _, tc := range tests {
+		x, err := FromDecimal(tc.x)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		y, err := FromDecimal(tc.y)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		got := x.Gte(y)
+		if got != tc.want {
+			t.Errorf("Gte(%s, %s) = %v, want %v", tc.x, tc.y, got, tc.want)
+		}
+	}
+}
+
 func TestEq(t *testing.T) {
 	tests := []struct {
 		x    string
@@ -130,7 +196,7 @@ func TestEq(t *testing.T) {
 		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", "115792089237316195423570985008687907853269984665640564039457584007913129639935", true},
 	}
 
-	for i, tc := range tests {
+	for _, tc := range tests {
 		var x *Uint
 		var err error
 

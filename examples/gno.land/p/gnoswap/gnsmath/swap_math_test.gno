@@ -112,12 +112,12 @@ func TestSwapMathComputeSwapStepStr(t *testing.T) {
 		},
 		{
 			name:            "entire input amount taken as fee",
-			currentX96:      u256.MustFromDecimal("2413"),
+			currentX96:      u256.MustFromDecimal("4295128739"),
 			targetX96:       u256.MustFromDecimal("79887613182836312"),
 			liquidity:       u256.MustFromDecimal("1985041575832132834610021537970"),
 			amountRemaining: i256.MustFromDecimal("10"),
 			feePips:         1872,
-			sqrtNextX96:     u256.MustFromDecimal("2413"),
+			sqrtNextX96:     u256.MustFromDecimal("4295128739"),
 			chkSqrtNextX96: func(sqrtRatioNextX96, priceTarget *u256.Uint) {
 				uassert.True(t, sqrtRatioNextX96.Eq(priceTarget))
 			},
@@ -197,6 +197,23 @@ func TestSwapMathComputeSwapStepStrFail(t *testing.T) {
 			feeAmount:       "5988667735148",
 			shouldPanic:     true,
 			expectedMessage: "SwapMathComputeSwapStepStr: invalid input",
+		},
+		{
+			name:            "feePips exceeds maximum allowed value",
+			currentX96:      encodePriceSqrtTest(t, "1", "1"),
+			targetX96:       encodePriceSqrtTest(t, "101", "100"),
+			liquidity:       u256.MustFromDecimal("2000000000000000000"),
+			amountRemaining: i256.MustFromDecimal("1000000000000000000"),
+			feePips:         1000001,
+			sqrtNextX96:     encodePriceSqrtTest(t, "101", "100"),
+			chkSqrtNextX96: func(sqrtRatioNextX96, priceTarget *u256.Uint) {
+				uassert.True(t, sqrtRatioNextX96.Eq(priceTarget))
+			},
+			amountIn:        "9975124224178055",
+			amountOut:       "9925619580021728",
+			feeAmount:       "5988667735148",
+			shouldPanic:     true,
+			expectedMessage: "SwapMathComputeSwapStepStr: feePips must be less than or equal to 1000000",
 		},
 	}
 

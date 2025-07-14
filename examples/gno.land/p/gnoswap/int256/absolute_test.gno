@@ -103,3 +103,82 @@ func TestAbsLt(t *testing.T) {
 		}
 	}
 }
+
+func TestInt_AbsOverflow(t *testing.T) {
+	tests := []struct {
+		name         string
+		x            *Int
+		wantResult   string
+		wantOverflow bool
+	}{
+		{
+			name:         "zero",
+			x:            Zero(),
+			wantResult:   "0",
+			wantOverflow: false,
+		},
+		{
+			name:         "positive number",
+			x:            NewInt(100),
+			wantResult:   "100",
+			wantOverflow: false,
+		},
+		{
+			name:         "negative number",
+			x:            NewInt(-100),
+			wantResult:   "100",
+			wantOverflow: false,
+		},
+		{
+			name:         "max_int256",
+			x:            MustFromDecimal("57896044618658097711785492504343953926634992332820282019728792003956564819967"),
+			wantResult:   "57896044618658097711785492504343953926634992332820282019728792003956564819967",
+			wantOverflow: false,
+		},
+		{
+			name:         "min_int256",
+			x:            MustFromDecimal("-57896044618658097711785492504343953926634992332820282019728792003956564819968"),
+			wantResult:   "-57896044618658097711785492504343953926634992332820282019728792003956564819968",
+			wantOverflow: true,
+		},
+		{
+			name:         "min_int256 + 1",
+			x:            MustFromDecimal("-57896044618658097711785492504343953926634992332820282019728792003956564819967"),
+			wantResult:   "57896044618658097711785492504343953926634992332820282019728792003956564819967",
+			wantOverflow: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			z := new(Int)
+			gotResult, gotOverflow := z.AbsOverflow(tt.x)
+
+			if gotOverflow != tt.wantOverflow {
+				t.Errorf("overflow = %v, want %v", gotOverflow, tt.wantOverflow)
+				return
+			}
+
+			if gotResult == nil {
+				t.Error("unexpected nil result")
+				return
+			}
+
+			if gotResult.ToString() != tt.wantResult {
+				t.Errorf("result = %v, want %v", gotResult.ToString(), tt.wantResult)
+			}
+
+			// abs value must be GTE 0 (if there is no overflow)
+			if !tt.wantOverflow && gotResult.neg && !gotResult.IsZero() {
+				t.Error("absolute value cannot be negative")
+			}
+
+			// original value must not be modified
+			originalValue := tt.x.ToString()
+			if tt.x.ToString() != originalValue {
+				t.Errorf("original value was modified: got %v, want %v",
+					tt.x.ToString(), originalValue)
+			}
+		})
+	}
+}

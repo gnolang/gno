@@ -1,31 +1,30 @@
 package gnsmath
 
 import (
-	"gno.land/p/gnoswap/consts"
 	u256 "gno.land/p/gnoswap/uint256"
 )
 
 var (
 	msbShifts = []bitShift{
-		{u256.MustFromDecimal(consts.Q128), 128}, // 2^128
-		{u256.MustFromDecimal(consts.Q64), 64},   // 2^64
-		{u256.NewUint(0x100000000), 32},          // 2^32
-		{u256.NewUint(0x10000), 16},              // 2^16
-		{u256.NewUint(0x100), 8},                 // 2^8
-		{u256.NewUint(0x10), 4},                  // 2^4
-		{u256.NewUint(0x4), 2},                   // 2^2
-		{u256.NewUint(0x2), 1},                   // 2^1
+		{new(u256.Uint).Lsh(u256.One(), 128), 128}, // 2^128
+		{new(u256.Uint).Lsh(u256.One(), 64), 64},   // 2^64
+		{new(u256.Uint).Lsh(u256.One(), 32), 32},   // 2^32
+		{new(u256.Uint).Lsh(u256.One(), 16), 16},   // 2^16
+		{new(u256.Uint).Lsh(u256.One(), 8), 8},     // 2^8
+		{new(u256.Uint).Lsh(u256.One(), 4), 4},     // 2^4
+		{new(u256.Uint).Lsh(u256.One(), 2), 2},     // 2^2
+		{new(u256.Uint).Lsh(u256.One(), 1), 1},     // 2^1
 	}
 
 	lsbShifts = []bitShift{
-		{u256.MustFromDecimal(consts.MAX_UINT128), 128},
-		{u256.MustFromDecimal(consts.MAX_UINT64), 64},
-		{u256.MustFromDecimal(consts.MAX_UINT32), 32},
-		{u256.MustFromDecimal(consts.MAX_UINT16), 16},
-		{u256.MustFromDecimal(consts.MAX_UINT8), 8},
-		{u256.NewUint(0xf), 4},
-		{u256.NewUint(0x3), 2},
-		{u256.NewUint(0x1), 1},
+		{new(u256.Uint).Sub(new(u256.Uint).Lsh(u256.One(), 128), u256.One()), 128}, // 2^128 - 1
+		{new(u256.Uint).Sub(new(u256.Uint).Lsh(u256.One(), 64), u256.One()), 64},   // 2^64 - 1
+		{new(u256.Uint).Sub(new(u256.Uint).Lsh(u256.One(), 32), u256.One()), 32},   // 2^32 - 1
+		{new(u256.Uint).Sub(new(u256.Uint).Lsh(u256.One(), 16), u256.One()), 16},   // 2^16 - 1
+		{new(u256.Uint).Sub(new(u256.Uint).Lsh(u256.One(), 8), u256.One()), 8},     // 2^8 - 1
+		{u256.NewUint(0xf), 4}, // 2^4 - 1 = 15
+		{u256.NewUint(0x3), 2}, // 2^2 - 1 = 3
+		{u256.NewUint(0x1), 1}, // 2^1 - 1 = 1
 	}
 )
 
@@ -41,10 +40,12 @@ func BitMathMostSignificantBit(x *u256.Uint) uint8 {
 		panic(errMSBZeroInput)
 	}
 
+	temp := x.Clone()
 	r := uint8(0)
+
 	for _, s := range msbShifts {
-		if x.Gte(s.bitPattern) {
-			x = new(u256.Uint).Rsh(x, s.shift)
+		if temp.Gte(s.bitPattern) {
+			temp.Rsh(temp, s.shift)
 			r += uint8(s.shift)
 		}
 	}
@@ -59,12 +60,15 @@ func BitMathLeastSignificantBit(x *u256.Uint) uint8 {
 		panic(errLSBZeroInput)
 	}
 
+	temp := x.Clone()
+	hasSetBits := new(u256.Uint)
 	r := uint8(255)
+
 	for _, s := range lsbShifts {
-		if new(u256.Uint).And(x, s.bitPattern).Gt(u256.Zero()) {
+		if !hasSetBits.And(temp, s.bitPattern).IsZero() {
 			r -= uint8(s.shift)
 		} else {
-			x = new(u256.Uint).Rsh(x, s.shift)
+			temp.Rsh(temp, s.shift)
 		}
 	}
 
