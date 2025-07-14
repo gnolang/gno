@@ -701,19 +701,23 @@ func TestEndBlocker(t *testing.T) {
 	})
 
 	t.Run("negative power filtered out", func(t *testing.T) {
+		t.Parallel()
+
 		var (
-			key1 = getDummyKey(t)
-			key2 = getDummyKey(t)
+			keys = []crypto.PrivKey{
+				getDummyKey(t),
+				getDummyKey(t),
+			}
 
 			validUpdate = abci.ValidatorUpdate{
-				Address: key1.PubKey().Address(),
-				PubKey:  key1.PubKey(),
+				Address: keys[0].PubKey().Address(),
+				PubKey:  keys[0].PubKey(),
 				Power:   1,
 			}
 
 			invalidUpdate = abci.ValidatorUpdate{
-				Address: key2.PubKey().Address(),
-				PubKey:  key2.PubKey(),
+				Address: keys[1].PubKey().Address(),
+				PubKey:  keys[1].PubKey(),
 				Power:   -1, // Invalid negative power
 			}
 
@@ -769,19 +773,21 @@ func TestEndBlocker(t *testing.T) {
 		t.Parallel()
 
 		var (
-			key1 = getDummyKey(t)
-			key2 = getDummyKey(t)
-			key3 = getDummyKey(t)
+			keys = []crypto.PrivKey{
+				getDummyKey(t),
+				getDummyKey(t),
+				getDummyKey(t),
+			}
 
 			validUpdate = abci.ValidatorUpdate{
-				Address: key1.PubKey().Address(),
-				PubKey:  key1.PubKey(),
+				Address: keys[0].PubKey().Address(),
+				PubKey:  keys[0].PubKey(),
 				Power:   1,
 			}
 
 			invalidUpdate = abci.ValidatorUpdate{
-				Address: key2.PubKey().Address(), // Address from key1
-				PubKey:  key3.PubKey(),           // PubKey from key2 (mismatch)
+				Address: keys[1].PubKey().Address(), // Address from key1
+				PubKey:  keys[2].PubKey(),           // PubKey from key2 (mismatch)
 				Power:   1,
 			}
 
