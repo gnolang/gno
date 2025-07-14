@@ -207,8 +207,9 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 			fmt.Fprintf(io.Err(), "%s: %v", pkg.ImportPath, err)
 			errCount++
 		}
-		// XXX: ignore xtests and filetests for now as they should be treated as their own packages
-		deps := pkg.ImportsSpecs.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+		// XXX: xtests and filetests should probably be treated as their own packages since they can/will have cycles
+		// when considered as part of the source package
+		deps := pkg.ImportsSpecs.Merge()
 		for _, dep := range deps {
 			if cfg.format == "dot" {
 				fmt.Fprintf(stdout, "    %q -> %q;\n", pkg.ImportPath, dep.PkgPath)
