@@ -6,3 +6,5 @@ gno test .
 stderr '\?       \. 	\[no test files\]'
 
 -- empty.gno --
+
+-- gnowork.toml --

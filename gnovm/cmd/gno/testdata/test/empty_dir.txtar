@@ -9,3 +9,5 @@ gno test ./...
 
 ! stdout .+
 stderr 'no packages to test'
+
+-- gnowork.toml --

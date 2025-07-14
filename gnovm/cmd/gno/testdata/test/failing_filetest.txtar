@@ -17,3 +17,5 @@ func main() {
 
 // Output:
 // blah
+
+-- gnowork.toml --

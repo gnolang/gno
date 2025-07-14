@@ -85,6 +85,9 @@ func expandPatterns(gnoRoot string, workspaceRoot string, out io.Writer, pattern
 
 		switch patKind {
 		case patternKindDirectory:
+			if _, err := os.Stat(pat); err != nil {
+				return nil, fmt.Errorf("%s: %w", match, err)
+			}
 			addPkgDir(pat, &match)
 
 		case patternKindRemote:
@@ -99,7 +102,7 @@ func expandPatterns(gnoRoot string, workspaceRoot string, out io.Writer, pattern
 		case patternKindRecursiveLocal:
 			dirs, err := expandRecursive(workspaceRoot, pat)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %w", pat, err)
+				return nil, fmt.Errorf("%s: %w", match, err)
 			}
 			if len(dirs) == 0 {
 				fmt.Fprintf(out, "gno: warning: %q matched no packages\n", match)

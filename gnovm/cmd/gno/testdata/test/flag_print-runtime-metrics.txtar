@@ -20,3 +20,5 @@ func TestTimeout(t *testing.T) {
 		println("plop")
 	}
 }
+
+-- gnowork.toml --

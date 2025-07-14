@@ -96,3 +96,5 @@ func main() {
 // Output:
 // With WorkingNew: 42
 // With BuggedNew: 42
+
+-- gnowork.toml --

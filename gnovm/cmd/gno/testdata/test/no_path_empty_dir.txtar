@@ -4,3 +4,5 @@ gno test
 
 ! stdout .+
 stderr '[no test files]'
+
+-- gnowork.toml --

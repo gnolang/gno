@@ -70,3 +70,5 @@ func TestBadRecoverSkip(t *testing.T) {
 	t.Skip("skipped")
 	panic("bad panic!")
 }
+
+-- gnowork.toml --

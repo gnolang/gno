@@ -8,6 +8,7 @@ import (
 	goio "io"
 	"io/fs"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -199,7 +200,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	pkgs, err := packages.Load(loadConf, args...)
 	if err != nil {
-		return fmt.Errorf("load packages: %w", err)
+		return err
 	}
 
 	if len(pkgs) == 0 {
@@ -251,8 +252,24 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			continue
 		}
 
+		// Relativize and prepend dot to pkg dir if possible
+		// XXX: use pkg import path instead of this when printing if possible
+		prettyDir := pkg.Dir
+		if filepath.IsAbs(pkg.Dir) {
+			cwd, err := os.Getwd()
+			if err == nil {
+				relDir, err := filepath.Rel(cwd, pkg.Dir)
+				if err == nil {
+					prettyDir = relDir
+					if prettyDir != "." && !strings.HasPrefix(prettyDir, "."+string(filepath.Separator)) {
+						prettyDir = "." + string(filepath.Separator) + prettyDir
+					}
+				}
+			}
+		}
+
 		if len(pkg.Files[packages.FileKindTest]) == 0 && len(pkg.Files[packages.FileKindXTest]) == 0 && len(pkg.Files[packages.FileKindFiletest]) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
+			io.ErrPrintfln("?       %s \t[no test files]", prettyDir)
 			continue
 		}
 
@@ -285,7 +302,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 		// Read MemPackage with all files.
 		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
-
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
@@ -300,9 +316,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			} else if cmd.verbose {
 				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
 			}
+
 			///////////////////////////////////
 			// Run the tests found in the mpkg.
-			errs := test.Test(mpkg, pkg.Dir, opts)
+			errs := test.Test(mpkg, prettyDir, opts)
 			if errs != nil {
 				didError = true
 				io.ErrPrintln(errs)
@@ -314,13 +331,13 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 		if didPanic || didError {
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", prettyDir, dstr)
 			testErrCount++
 			if cmd.failfast {
 				return fail()
 			}
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", prettyDir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {

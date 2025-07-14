@@ -18,3 +18,5 @@ import "testing"
 func TestPanic(t *testing.T) {
 	panic("hello world")
 }
+
+-- gnowork.toml --

@@ -7,3 +7,4 @@ stderr 'expected ''package'', found ''EOF'''
 
 -- empty.gno --
 -- empty_filetest.gno --
+-- gnowork.toml --

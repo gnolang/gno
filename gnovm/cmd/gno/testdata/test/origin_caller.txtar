@@ -22,3 +22,5 @@ func TestOriginCaller(t *testing.T) {
     t.Error("std.OriginCaller() from (non-filetest) test cases should not return a valid address")
   }
 }
+
+-- gnowork.toml --
