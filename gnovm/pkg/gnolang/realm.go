@@ -136,6 +136,10 @@ func ObjectIDFromPkgID(pkgID PkgID, private bool) ObjectID {
 	}
 }
 
+// --------------------------------------------------------------------------------
+// Realm
+var nilRealm = (*Realm)(nil)
+
 // NOTE: A nil realm is special and has limited functionality; enough to
 // support methods that don't require persistence. This is the default realm
 // when a machine starts with a non-realm package.
