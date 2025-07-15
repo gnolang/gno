@@ -389,15 +389,6 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
-	for _, oo := range rlm.newDeleted {
-		fmt.Printf("newDeleted: %s - %s\n", oo, oo.GetObjectID())
-	}
-	for _, oo := range rlm.newEscaped {
-		fmt.Printf("newEscaped: %s - %s\n", oo, oo.GetObjectID())
-	}
-	for _, oo := range rlm.updated {
-		fmt.Printf("newCreated: %s - %s\n", oo, oo.GetObjectID())
-	}
 	// log realm boundaries in opslog.
 	store.LogFinalizeRealm(rlm.Path)
 	// increment recursively for created descendants.
