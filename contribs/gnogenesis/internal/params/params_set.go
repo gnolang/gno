@@ -23,10 +23,10 @@ func newParamsSetCmd(paramsCfg *paramsCfg, io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "set",
-			ShortUsage: "params set <key> <value>",
+			ShortUsage: "params set <key> <...values>",
 			ShortHelp:  "edits the Gno node configuration",
 			LongHelp: "Edits params configuration of the given genesis path " +
-				"by setting the option specified at <key> to the given <value>",
+				"by setting the option specified at <key> to the given <values>",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
