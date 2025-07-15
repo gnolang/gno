@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"std"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -23,8 +24,8 @@ type Blog struct {
 	AuthorsIndex     *avl.Tree // authorAddress --> int
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
-	customHeader  []HeaderPreset // TO DO
-	previewFooter string         // additional text, e.g. "via @lou" or txlink calls
+	CustomHeader  *[]HeaderPreset
+	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
 	DisableLikes  bool
 	UserResolver  *UserResolver
 }
@@ -37,11 +38,11 @@ func (b Blog) Prefix() string {
 	return b.prefix
 }
 
-func NewBlog(title, prefix string) (*Blog, error) {
+func NewBlog(title, prefix string, owner std.Address) (*Blog, error) {
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
-	auth := authorizable.NewAuthorizableWithAddress("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
+	auth := authorizable.NewAuthorizableWithAddress(owner)
 	return &Blog{
 		Authorizable:     auth,
 		title:            title,
@@ -54,14 +55,16 @@ func NewBlog(title, prefix string) (*Blog, error) {
 		TagsSorted:       avl.NewTree(),
 		AuthorsIndex:     avl.NewTree(),
 		AuthorsSorted:    avl.NewTree(),
-		previewFooter:    "",
+		PreviewFooter:    "",
 		DisableLikes:     false,
 		UserResolver:     nil,
+		CustomHeader:     nil,
 	}, nil
 }
 
 func (b *Blog) AddPost(post *Post) error {
 	b.Authorizable.AssertPreviousOnAuthList()
+
 	post.id = b.PostId.Next()
 	if _, err := b.GetPostBySlug(post.Slug()); err == nil {
 		return ErrPostAlreadyExists
@@ -69,18 +72,22 @@ func (b *Blog) AddPost(post *Post) error {
 	if err := CheckAddr(post.Publisher()); err != nil {
 		return err
 	}
+
 	post.DisableLikes = b.DisableLikes
 	if b.UserResolver != nil {
 		post.UserResolver = b.UserResolver
+		post.authors = post.resolveAuthors(post.Authors())
+		post.publisher, _ = CheckUser(post.Publisher(), b.UserResolver)
 	}
-	post.authors = post.resolveAuthors(post.Authors())
-	post.publisher, _ = CheckUser(post.Publisher(), b.UserResolver)
 
 	b.addToIndex(post)
-	added := b.Posts.Set(b.PostId.String(), post)
+	added := b.Posts.Set(post.ID(), post)
 	addedSlug := b.PostsBySlug.Set(post.Slug(), post)
 	addedUpdated := b.PostsByUpdatedAt.Set(post.UpdatedAt().String(), post)
 	if !added || !addedSlug || !addedUpdated {
+		// println(added)
+		// println(addedSlug)
+		// println(addedUpdated)
 		return ErrPostAddFailed
 	}
 	return nil
@@ -179,6 +186,14 @@ func (b *Blog) SetDisablePostLikes(disable bool) {
 
 func (b *Blog) SetUserResolver(resolver UserResolver) {
 	b.UserResolver = &resolver
+}
+
+func (b *Blog) SetCustomHeader(presets []HeaderPreset) {
+	b.CustomHeader = &presets
+}
+
+func (b *Blog) SetPreviewFooter(input string) {
+	b.PreviewFooter = input
 }
 
 func (b *Blog) addToIndex(post *Post) {

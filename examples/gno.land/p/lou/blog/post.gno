@@ -121,10 +121,15 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 }
 
 func (p *Post) UpdatePost(newPost *Post) {
+	if p.UserResolver != nil {
+		p.authors = p.resolveAuthors(p.Authors())
+		p.publisher, _ = CheckUser(p.Publisher(), p.UserResolver)
+	} else {
+		p.authors = newPost.authors
+	}
 	p.slug = newPost.slug
 	p.title = newPost.title
 	p.body = newPost.body
-	p.authors = newPost.authors
 	p.tags = newPost.tags
 	p.CommentsId = newPost.CommentsId
 	p.Comments = newPost.Comments
@@ -132,6 +137,7 @@ func (p *Post) UpdatePost(newPost *Post) {
 	p.DisableLikes = newPost.DisableLikes
 	p.previewFooter = newPost.previewFooter
 	p.updatedAt = time.Now()
+
 }
 
 func (p *Post) AddComment(comment *Comment) error {
