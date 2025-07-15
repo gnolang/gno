@@ -6,14 +6,16 @@ import (
 	"strconv"
 )
 
+// TransactionType type of a transaction in the EVM
 type TransactionType uint
 
+// Transactions list of all transactions
 type Transactions []Transaction
 
 const (
-	CreateContract TransactionType = iota
-	PayMoney
-	ExecuteContract
+	CreateContract  TransactionType = iota // account creation
+	PayMoney                               // money transfer
+	ExecuteContract                        // contract execution
 )
 
 type Transaction interface {

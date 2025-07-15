@@ -62,6 +62,7 @@ func rotl(x uint64, n int) uint64 {
 	return (x << n) | (x >> (64 - n))
 }
 
+// Perform the Keccak-256 hashing algorithm
 func Keccak256(input []byte) []byte {
 	var state [25]uint64
 	var block [rate]byte

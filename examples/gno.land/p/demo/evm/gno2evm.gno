@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
+// Transform an Gno adress into it's unique Ethereum adress as uint256
 func GnoAddressToUint256(gnoddr std.Address) (*uint256.Uint, error) {
 	prefix, bytes, ok := std.DecodeBech32(gnoddr)
 	if !ok || prefix != "g" {

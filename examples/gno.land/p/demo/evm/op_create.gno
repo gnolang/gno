@@ -102,6 +102,7 @@ func opCreate2(s *State) error {
 
 	initCode := getByteCopyFromMemory(s.memory, offset, size)
 
+	// compute new adress
 	initCodeKeccak256 := uint256.Zero().SetBytes(keccak256.Keccak256(initCode))
 	rawNewAddress256 := initCodeKeccak256.Add(initCodeKeccak256, uint256.NewUint(0xff))
 	rawNewAddress256 = rawNewAddress256.Add(rawNewAddress256, uint256.NewUint(s.callerAddress))

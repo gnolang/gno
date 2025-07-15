@@ -10,34 +10,27 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
+// Accounts is a map of EVM addresses to Account pointers
 type Accounts map[uint64]*Account
+
+// AccountType represents the type of an account: caller or contract
 type AccountType uint
 
 const (
-	CallerAccount AccountType = iota
-	ContractAccount
+	CallerAccount   AccountType = iota // Externally owned account
+	ContractAccount                    // Smart contract account
 )
 
-func (x AccountType) String() string {
-	switch x {
-	case CallerAccount:
-		return "Caller Account"
-	case ContractAccount:
-		return "Contract Account"
-	default:
-		return "Unknown Account type"
-	}
-}
-
+// Account represents an EVM account
 type Account struct {
-	AccountType AccountType
-	EvmAddress  uint64
-	GnoAddress  std.Address
-	Balance     *uint256.Uint
-	Nonce       uint64
-	Gas         uint
-	Storage     map[uint64]*uint256.Uint
-	Code        []byte
+	AccountType AccountType              // Type of the account: Caller or Contract
+	EvmAddress  uint64                   // Unique EVM address (uint64)
+	GnoAddress  std.Address              // Corresponding Gno address
+	Balance     *uint256.Uint            // Account balance in Wei
+	Nonce       uint64                   // Nonce for transaction ordering
+	Gas         uint                     // Available gas
+	Storage     map[uint64]*uint256.Uint // Contract key-value storage
+	Code        []byte                   // Smart contract bytecode (if any)
 }
 
 func mustHex(str string) []byte {
@@ -48,6 +41,7 @@ func mustHex(str string) []byte {
 	return x
 }
 
+// Clone creates a deep copy of the Accounts map, cloning each Account within it.
 func (c *Accounts) Clone() *Accounts {
 	accs := make(Accounts)
 	if len(*c) == 0 {
@@ -85,6 +79,8 @@ func (c *Account) executeCallHex(env *Env, gasLimit int, f string, code []byte, 
 	return st.getResult(), st.gasConsumed, nil
 }
 
+// Call executes raw byte code (hex string) deducting the valueToSend from the caller's account
+// Returns the output, gas consumed, and any error
 func (c *Account) Call(env *Env, gasLimit int, valueToSend *uint256.Uint, code string, f string, args ...*uint256.Uint) ([]byte, uint, error) {
 	byteCode, err := hex.DecodeString(code)
 	if err != nil {
@@ -97,6 +93,8 @@ func (c *Account) Call(env *Env, gasLimit int, valueToSend *uint256.Uint, code s
 	return c.executeCallHex(env, gasLimit, f, byteCode, args...)
 }
 
+// CallContract call an already deployed contract (by address), transferring the valueToSend from caller's account to the contract account
+// Returns the output, gas consumed, and any error
 func (c *Account) CallContract(env *Env, gasLimit int, contractAddress uint64, valueToSend *uint256.Uint, f string, args ...*uint256.Uint) ([]byte, uint, error) {
 	contract, ok := env.Accounts[contractAddress]
 	if !ok || contract.AccountType != ContractAccount {
@@ -110,6 +108,8 @@ func (c *Account) CallContract(env *Env, gasLimit int, contractAddress uint64, v
 	return c.executeCallHex(env, gasLimit, f, contract.Code, args...)
 }
 
+// CreateContract create a new contract from only it's creation code, transferring the valueToSend from caller's account to the newly created contract account
+// Returns the output, gas consumed, and any error
 func (c *Account) CreateContract(env *Env, gasLimit int, code string, valueToSend *uint256.Uint) (uint64, uint, error) {
 	byteCode, err := hex.DecodeString(code)
 	if err != nil {
@@ -166,6 +166,9 @@ func (c *Account) CreateContract(env *Env, gasLimit int, code string, valueToSen
 	return 0, gasConsumed, nil
 }
 
+// PushCaller creates a new caller account with the given Gno address,
+// assigns a new EVM address, and adds it to the Accounts map.
+// Returns the assigned EVM address.
 func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) {
 	for env.NextAccountId = env.NextAccountId + 1; (*c)[env.NextAccountId] != nil; env.NextAccountId = env.NextAccountId + 1 {
 	}
@@ -182,6 +185,8 @@ func (c *Accounts) PushCaller(env *Env, gnoAddress std.Address) (uint64, error) 
 	return env.NextAccountId, nil
 }
 
+// String returns a string representation of the Account,
+// including its type, address, balance, nonce, gas, and partial code bytes.
 func (c *Account) String() string {
 	res := "AccountType: " + c.AccountType.String()
 	res += ", EvmAddress: " + uint256.NewUint(c.EvmAddress).Hex()
@@ -206,7 +211,8 @@ func (c *Account) Eq(a Account) bool {
 	return c.String() == a.String()
 }
 
-func (c *Account) Clone() *Account {
+// Clone creates a deep copy of the Account, including storage, balance, and code
+func (c *Accounts) Clone() *Accounts {
 	storageCopy := make(map[uint64]*uint256.Uint)
 	if len(c.Storage) > 0 {
 		for k, v := range c.Storage {
