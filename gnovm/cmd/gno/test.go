@@ -16,6 +16,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	vmcoverage "github.com/gnolang/gno/gnovm/pkg/test/coverage/vm"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -360,9 +361,21 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			io.ErrPrintfln("Coverage report written to: %s", cmd.coverageOutput)
 		}
 
-		// TODO: Implement VM coverage visualization
+		// Show coverage visualization for specific files
 		if cmd.show != "" {
-			io.ErrPrintfln("Coverage visualization not yet implemented for VM-level coverage")
+			// Get the coverage tracker from test options
+			if opts.CoverageTracker != nil {
+				if tracker, ok := opts.CoverageTracker.(*vmcoverage.Tracker); ok {
+					err := tracker.ShowFileCoverage(cmd.rootDir, cmd.show, io.Err())
+					if err != nil {
+						io.ErrPrintfln("Error showing coverage: %v", err)
+					}
+				} else {
+					io.ErrPrintfln("Coverage tracker is not a VM tracker")
+				}
+			} else {
+				io.ErrPrintfln("No coverage data available - did you run with -cover flag?")
+			}
 		}
 	}
 
