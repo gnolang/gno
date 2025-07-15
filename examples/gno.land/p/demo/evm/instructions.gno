@@ -9,18 +9,18 @@ type instructions struct {
 	instructions []byte
 	length       int
 	err          error
-	stop         bool
+	isStopped    bool
 }
 
-func (i *instructions) Reset(l []byte) {
+func (i *instructions) reset(l []byte) {
 	i.rip = 0
 	i.instructions = l
 	i.length = len(l)
 	i.err = nil
 }
 
-func (i *instructions) Increment(more ...int) *instructions {
-	if i.Ill() {
+func (i *instructions) increment(more ...int) *instructions {
+	if i.ill() {
 		return i
 	}
 	x := 1
@@ -35,49 +35,49 @@ func (i *instructions) Increment(more ...int) *instructions {
 	return i
 }
 
-func (i instructions) Current() byte {
-	if i.Ill() {
+func (i instructions) current() byte {
+	if i.ill() {
 		return 0
 	}
 	return i.instructions[i.rip]
 }
 
-func (i instructions) Ill() bool {
+func (i instructions) ill() bool {
 	return i.err != nil
 }
 
-func (i instructions) Error() error {
+func (i instructions) error() error {
 	return i.err
 }
 
-func (i instructions) IsDone() bool {
-	return i.Ill() || i.stop
+func (i instructions) isDone() bool {
+	return i.ill() || i.isStopped
 }
 
-func (i *instructions) Stop() {
-	i.stop = true
+func (i *instructions) stop() {
+	i.isStopped = true
 }
 
 // read n bytes and jump to rip + n
-func (i *instructions) Read(n int) (*uint256.Uint, error) {
-	if i.Ill() {
+func (i *instructions) read(n int) (*uint256.Uint, error) {
+	if i.ill() {
 		return uint256.Zero(), i.err
 	}
 	if i.rip+n > i.length {
 		return uint256.Zero(), outOfBounds
 	}
 	x := uint256.Zero().SetBytes(i.instructions[i.rip : i.rip+n])
-	i.Increment(n - 1)
+	i.increment(n - 1)
 	return x, nil
 }
 
-func (i instructions) At(n int) byte {
-	if i.Ill() || n >= i.length || n < 0 {
+func (i instructions) at(n int) byte {
+	if i.ill() || n >= i.length || n < 0 {
 		return 0
 	}
 	return i.instructions[n]
 }
 
-func (i instructions) EndOfCode() bool {
+func (i instructions) endOfCode() bool {
 	return i.rip >= i.length
 }

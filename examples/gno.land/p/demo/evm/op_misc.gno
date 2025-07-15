@@ -16,11 +16,11 @@ func opPush0(s *State) error {
 
 func opPush(n int) func(*State) error {
 	return func(s *State) error {
-		s.code.Increment()
-		if s.code.Ill() {
+		s.code.increment()
+		if s.code.ill() {
 			return errors.New("can't PUSH" + strconv.Itoa(n) + ": " + outOfBounds.Error())
 		}
-		stackData, err := s.code.Read(n)
+		stackData, err := s.code.read(n)
 		if err != nil {
 			return errors.New("can't PUSH" + strconv.Itoa(n) + ": " + err.Error())
 		}
@@ -109,7 +109,7 @@ func opJump(s *State) error {
 		return err
 	}
 	inc := int(dest.Uint64())
-	opDest := OpCode(s.code.At(inc))
+	opDest := OpCode(s.code.at(inc))
 	if opDest != JUMPDEST {
 		opData, ok := opCodes[opDest]
 		opCodeStr := "0x" + strconv.FormatUint(uint64(opDest), 16)
@@ -139,7 +139,7 @@ func opJumpi(s *State) error {
 		return nil
 	}
 	inc := int(dest.Uint64())
-	opDest := OpCode(s.code.At(inc))
+	opDest := OpCode(s.code.at(inc))
 	if opDest != JUMPDEST {
 		opData, ok := opCodes[opDest]
 		opCodeStr := "0x" + strconv.FormatUint(uint64(opDest), 16)
@@ -251,7 +251,7 @@ func opReturn(s *State) error {
 		}
 		s.result = append(s.result, s.memory[off.Uint64():end.Uint64()]...)
 	}
-	s.code.Stop()
+	s.code.stop()
 	return nil
 }
 

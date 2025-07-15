@@ -170,7 +170,7 @@ func (s State) getResult() []byte {
 
 // setCode sets the contract bytecode to be executed by resetting the code instructions.
 func (s *State) setCode(code []byte) {
-	s.code.Reset(code)
+	s.code.reset(code)
 }
 
 // setEnv sets the external environment reference for this State.
@@ -218,8 +218,8 @@ func (s *State) loadStagedChangesIntoEnv(env *Env) {
 // executeByteCode runs the contract bytecode until a STOP opcode or end of code is reached.
 // It updates gas consumption and checks for out-of-gas or invalid instruction errors.
 func (s *State) executeByteCode() error {
-	for !s.code.EndOfCode() && s.code.Current() != byte(STOP) {
-		opData, ok := opCodes[OpCode(s.code.Current())]
+	for !s.code.endOfCode() && s.code.current() != byte(STOP) {
+		opData, ok := opCodes[OpCode(s.code.current())]
 		if !ok {
 			return invalidInstruction
 		}
@@ -231,13 +231,13 @@ func (s *State) executeByteCode() error {
 		if s.gasLimit >= 0 && s.gasLimit < int(s.gasConsumed) {
 			return outOfGas
 		}
-		if s.code.IsDone() { // break before increment to avoid out of bounds
+		if s.code.isDone() { // break before increment to avoid out of bounds
 			break
 		}
-		if s.code.Ill() {
+		if s.code.ill() {
 			return s.code.err
 		}
-		s.code.Increment()
+		s.code.increment()
 	}
 	return nil
 }

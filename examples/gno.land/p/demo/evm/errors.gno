@@ -17,5 +17,5 @@ var (
 )
 
 func notImplemented(s *State) error {
-	return errors.New("op code 0x" + strconv.FormatInt(int64(s.code.Current()), 16) + " not implemented")
+	return errors.New("op code 0x" + strconv.FormatInt(int64(s.code.current()), 16) + " not implemented")
 }

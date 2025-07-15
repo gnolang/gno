@@ -24,6 +24,7 @@ type Env struct {
 	TargetGas       uint64                   // Target gas limit per block (EIP-1559)
 }
 
+// Create a new environnement, with default values.
 func NewEnv() *Env {
 	return &Env{
 		Logs:            []LogEntry{},
