@@ -21,6 +21,18 @@ const (
 	ContractAccount                    // Smart contract account
 )
 
+// AccountType as string
+func (x AccountType) String() string {
+	switch x {
+	case CallerAccount:
+		return "Caller Account"
+	case ContractAccount:
+		return "Contract Account"
+	default:
+		return "Unknown Account type"
+	}
+}
+
 // Account represents an EVM account
 type Account struct {
 	AccountType AccountType              // Type of the account: Caller or Contract
@@ -212,7 +224,7 @@ func (c *Account) Eq(a Account) bool {
 }
 
 // Clone creates a deep copy of the Account, including storage, balance, and code
-func (c *Accounts) Clone() *Accounts {
+func (c *Account) Clone() *Account {
 	storageCopy := make(map[uint64]*uint256.Uint)
 	if len(c.Storage) > 0 {
 		for k, v := range c.Storage {
