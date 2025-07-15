@@ -83,6 +83,13 @@ type MachineOptions struct {
 	SkipPackage   bool // don't get/set package or realm.
 }
 
+const (
+	startingOpSize = 1024
+	// sizeof(TypedValue) is 40 at time of writing; this ensures that the values
+	// slice occupies 1000 bytes by default.
+	startingValuesSize = 25
+)
+
 // the machine constructor gets spammed
 // this causes a significant part of the runtime and memory
 // to be occupied by *Machine
@@ -90,8 +97,8 @@ type MachineOptions struct {
 var machinePool = sync.Pool{
 	New: func() any {
 		return &Machine{
-			Ops:    make([]Op, VMSliceSize),
-			Values: make([]TypedValue, VMSliceSize),
+			Ops:    make([]Op, startingOpSize),
+			Values: make([]TypedValue, startingValuesSize),
 		}
 	},
 }
@@ -150,15 +157,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	return mm
 }
 
-const (
-	VMSliceSize = 1024
-)
-
-var (
-	opZeroed    [VMSliceSize]Op
-	valueZeroed [VMSliceSize]TypedValue
-)
-
 // Release resets some of the values of *Machine and puts back m into the
 // machine pool; for this reason, Release() should be called as a finalizer,
 // and m should not be used after this call. Only Machines initialized with this
@@ -168,9 +166,9 @@ func (m *Machine) Release() {
 	m.NumOps = 0
 	m.NumValues = 0
 
-	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
-	copy(ops, opZeroed[:])
-	copy(values, valueZeroed[:])
+	ops, values := m.Ops[:startingOpSize:startingOpSize], m.Values[:startingValuesSize:startingValuesSize]
+	clear(ops)
+	clear(values)
 	*m = Machine{Ops: ops, Values: values}
 
 	machinePool.Put(m)
@@ -1759,9 +1757,7 @@ func (m *Machine) PushValue(tv TypedValue) {
 	}
 	if len(m.Values) == m.NumValues {
 		// TODO tune. also see PushOp().
-		newValues := make([]TypedValue, len(m.Values)*2)
-		copy(newValues, m.Values)
-		m.Values = newValues
+		m.Values = slices.Grow(m.Values, len(m.Values)*2)
 	}
 	m.Values[m.NumValues] = tv
 	m.NumValues++

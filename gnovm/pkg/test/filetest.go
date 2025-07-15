@@ -315,13 +315,11 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Validate Gno syntax and type check.
 		if tcheck {
-			fmt.Println("XXX", fname)
 			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
 				Getter:     m.Store,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 			}); err != nil {
-				fmt.Println(err)
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
