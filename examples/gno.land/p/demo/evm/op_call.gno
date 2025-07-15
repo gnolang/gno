@@ -12,13 +12,13 @@ func getCallsVariables(stack *evmStack) (gas *uint256.Uint, addr *uint256.Uint, 
 		err = tooFewStack
 		return
 	}
-	gas, _ = stack.Pop()
-	addr, _ = stack.Pop()
-	moneyToGive, _ = stack.Pop()
-	argsOffset, _ = stack.Pop()
-	argsSize, _ = stack.Pop()
-	retOffset, _ = stack.Pop()
-	retSize, _ = stack.Pop()
+	gas, _ = stack.pop()
+	addr, _ = stack.pop()
+	moneyToGive, _ = stack.pop()
+	argsOffset, _ = stack.pop()
+	argsSize, _ = stack.pop()
+	retOffset, _ = stack.pop()
+	retSize, _ = stack.pop()
 	return
 }
 
@@ -27,12 +27,12 @@ func getDelegateCallVariables(stack *evmStack) (gas *uint256.Uint, addr *uint256
 		err = tooFewStack
 		return
 	}
-	gas, _ = stack.Pop()
-	addr, _ = stack.Pop()
-	argsOffset, _ = stack.Pop()
-	argsSize, _ = stack.Pop()
-	retOffset, _ = stack.Pop()
-	retSize, _ = stack.Pop()
+	gas, _ = stack.pop()
+	addr, _ = stack.pop()
+	argsOffset, _ = stack.pop()
+	argsSize, _ = stack.pop()
+	retOffset, _ = stack.pop()
+	retSize, _ = stack.pop()
 	return
 }
 
@@ -49,7 +49,7 @@ func opCall(s *State) error {
 
 	// check for enough money
 	if s.tmp.accounts[s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 	if s.gasLimit >= 0 && int(gas.Uint64()) > s.gasLimit-int(s.gasConsumed) {
@@ -79,7 +79,7 @@ func opCall(s *State) error {
 		// get the contrat code
 		contract := tmpState.tmp.accounts[addr.Uint64()]
 		if contract == nil || contract.AccountType != ContractAccount {
-			s.stack.Push(uint256.Zero())
+			s.stack.push(uint256.Zero())
 			return nil
 		}
 		contractCode := contract.Code
@@ -92,11 +92,11 @@ func opCall(s *State) error {
 
 	// check for error, and push 1 or 0 if success
 	if err != nil {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
-	s.stack.Push(uint256.One())
+	s.stack.push(uint256.One())
 	res = tmpState.getResult()
 
 	// extend memory as needed, and copy the result (res) in parent process
@@ -139,7 +139,7 @@ func opCallCode(s *State) error {
 
 	// check for enough money
 	if s.tmp.accounts[s.callerAddress].Balance.Cmp(moneyToGive) == -1 {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 	if s.gasLimit >= 0 && int(gas.Uint64()) > s.gasLimit-int(s.gasConsumed) {
@@ -168,7 +168,7 @@ func opCallCode(s *State) error {
 		// get the contrat code
 		contract := tmpState.tmp.accounts[addr.Uint64()]
 		if contract == nil || contract.AccountType != ContractAccount {
-			s.stack.Push(uint256.Zero())
+			s.stack.push(uint256.Zero())
 			return nil
 		}
 		contractCode := contract.Code
@@ -181,11 +181,11 @@ func opCallCode(s *State) error {
 
 	// check for error, and push 1 or 0 if success
 	if err != nil {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
-	s.stack.Push(uint256.One())
+	s.stack.push(uint256.One())
 	res = tmpState.getResult()
 
 	// extend memory as needed, and copy the result (res) in parent process
@@ -246,7 +246,7 @@ func opDelegateCall(s *State) error {
 		// get the contrat code
 		contract := tmpState.tmp.accounts[addr.Uint64()]
 		if contract == nil || contract.AccountType != ContractAccount {
-			s.stack.Push(uint256.Zero())
+			s.stack.push(uint256.Zero())
 			return nil
 		}
 		contractCode := contract.Code
@@ -259,11 +259,11 @@ func opDelegateCall(s *State) error {
 
 	// check for error, and push 1 or 0 if success
 	if err != nil {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
-	s.stack.Push(uint256.One())
+	s.stack.push(uint256.One())
 	res = tmpState.getResult()
 
 	// extend memory as needed, and copy the result (res) in parent process
@@ -324,7 +324,7 @@ func opStaticCall(s *State) error {
 		// get the contrat code
 		contract := tmpState.tmp.accounts[addr.Uint64()]
 		if contract == nil || contract.AccountType != ContractAccount {
-			s.stack.Push(uint256.Zero())
+			s.stack.push(uint256.Zero())
 			return nil
 		}
 		contractCode := contract.Code
@@ -337,11 +337,11 @@ func opStaticCall(s *State) error {
 
 	// check for error, and push 1 or 0 if success
 	if err != nil {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
-	s.stack.Push(uint256.One())
+	s.stack.push(uint256.One())
 	res = tmpState.getResult()
 
 	// extend memory as needed, and copy the result (res) in parent process
@@ -379,24 +379,24 @@ func extendMemory(s *State, retOffset *uint256.Uint, retSize *uint256.Uint, memo
 
 func opReturnDataSize(s *State) error {
 	if s.lastCallState != nil {
-		s.stack.Push(uint256.NewUint(uint64(len(s.lastCallState.result))))
+		s.stack.push(uint256.NewUint(uint64(len(s.lastCallState.result))))
 	} else {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 	}
 	return nil
 }
 
 func opReturnDataCopy(s *State) error {
 
-	destOffset, err := s.stack.Pop()
+	destOffset, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	offset, err := s.stack.Pop()
+	offset, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	size, err := s.stack.Pop()
+	size, err := s.stack.pop()
 	if err != nil {
 		return err
 	}

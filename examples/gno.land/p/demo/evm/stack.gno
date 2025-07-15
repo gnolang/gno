@@ -11,14 +11,14 @@ type evmStack struct {
 	length uint
 }
 
-func NewevmStack() *evmStack {
+func newEvmStack() *evmStack {
 	return &evmStack{
 		data:   make([]*uint256.Uint, 0),
 		length: 0,
 	}
 }
 
-func (s evmStack) Print() (res string) {
+func (s evmStack) print() (res string) {
 	if s.length == 0 {
 		res = "stack is empty!\n"
 	}
@@ -28,12 +28,12 @@ func (s evmStack) Print() (res string) {
 	return
 }
 
-func (s *evmStack) Push(b *uint256.Uint) {
+func (s *evmStack) push(b *uint256.Uint) {
 	s.data = append(s.data, b)
 	s.length++
 }
 
-func (s *evmStack) Pop() (*uint256.Uint, error) {
+func (s *evmStack) pop() (*uint256.Uint, error) {
 	if s.length == 0 {
 		return uint256.Zero(), errors.New("stack is empty")
 	}
@@ -43,14 +43,14 @@ func (s *evmStack) Pop() (*uint256.Uint, error) {
 	return top, nil
 }
 
-func (s *evmStack) Top() (*uint256.Uint, error) {
+func (s *evmStack) top() (*uint256.Uint, error) {
 	if s.length == 0 {
 		return nil, errors.New("stack is empty")
 	}
 	return s.data[s.length-1], nil
 }
 
-func (s *evmStack) Peek(n int) (*uint256.Uint, error) {
+func (s *evmStack) peek(n int) (*uint256.Uint, error) {
 	if s.length == 0 {
 		return nil, errors.New("stack is empty")
 	}
@@ -60,7 +60,7 @@ func (s *evmStack) Peek(n int) (*uint256.Uint, error) {
 	return s.data[int(s.length)-1-n], nil
 }
 
-func (s *evmStack) Len() int {
+func (s *evmStack) len() int {
 	return len(s.data)
 }
 

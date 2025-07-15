@@ -8,79 +8,79 @@ import (
 
 func opOperation(f func(a, b *uint256.Uint) *uint256.Uint) func(s *State) error {
 	return func(s *State) error {
-		a, err := s.stack.Pop()
+		a, err := s.stack.pop()
 		if err != nil {
 			return errors.New("can't do operation: empty stack")
 		}
-		b, err := s.stack.Pop()
+		b, err := s.stack.pop()
 		if err != nil {
 			return errors.New("can't do operation: stack of size 1")
 		}
-		s.stack.Push(f(a, b).Clone())
+		s.stack.push(f(a, b).Clone())
 		return nil
 	}
 }
 
 func opExp(s *State) error {
-	a, err := s.stack.Pop()
+	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't do operation: empty stack")
 	}
-	b, err := s.stack.Pop()
+	b, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't do operation: stack of size 1")
 	}
-	s.stack.Push(a.Exp(a, b).Clone())
+	s.stack.push(a.Exp(a, b).Clone())
 	s.gasConsumed += 50 * uint((b.BitLen()+7)/8)
 	return nil
 }
 
 func opAddmod(s *State) error {
-	a, err := s.stack.Pop()
+	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't ADDMOD: empty stack")
 	}
 
-	b, err := s.stack.Pop()
+	b, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't ADDMOD: stack of size 1")
 	}
 
-	n, err := s.stack.Pop()
+	n, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't ADDMOD: stack of size 2")
 	}
 
-	s.stack.Push(a.Add(a, b).Mod(a, n))
+	s.stack.push(a.Add(a, b).Mod(a, n))
 	return nil
 }
 
 func opMulmod(s *State) error {
-	a, err := s.stack.Pop()
+	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't MULMOD: empty stack")
 	}
 
-	b, err := s.stack.Pop()
+	b, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't MULMOD: stack of size 1")
 	}
 
-	n, err := s.stack.Pop()
+	n, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't MULMOD: stack of size 2")
 	}
 
-	s.stack.Push(a.MulMod(a, b, n))
+	s.stack.push(a.MulMod(a, b, n))
 	return nil
 }
 
 func opNot(s *State) error {
-	a, err := s.stack.Pop()
+	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't NOT: empty stack")
 	}
-	s.stack.Push(a.Not(a))
+	s.stack.push(a.Not(a))
 	return nil
 }
 
@@ -88,11 +88,11 @@ func opNot(s *State) error {
 // IN: `[offset, number]`
 // OUT: `[byte]`
 func opByte(s *State) error {
-	off, err := s.stack.Pop()
+	off, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't XOR: empty stack")
 	}
-	number, err := s.stack.Pop()
+	number, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't XOR: stack of size 1")
 	}
@@ -105,16 +105,16 @@ func opByte(s *State) error {
 	} else {
 		res = uint256.NewUint(uint64(bytes[off64]))
 	}
-	s.stack.Push(res)
+	s.stack.push(res)
 	return nil
 }
 
 func opSlt(s *State) error {
-	y, err := s.stack.Pop()
+	y, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	x, err := s.stack.Pop()
+	x, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -122,26 +122,26 @@ func opSlt(s *State) error {
 	ySign := y.Sign()
 	if xSign != ySign {
 		if xSign < ySign { // if x and y have different signs
-			s.stack.Push(uint256.One())
+			s.stack.push(uint256.One())
 		} else {
-			s.stack.Push(uint256.Zero())
+			s.stack.push(uint256.Zero())
 		}
 		return nil
 	}
 	if x.Cmp(y) < 0 { // same sign & compare as unsigned
-		s.stack.Push(uint256.One())
+		s.stack.push(uint256.One())
 	} else {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 	}
 	return nil
 }
 
 func opSgt(s *State) error {
-	y, err := s.stack.Pop()
+	y, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	x, err := s.stack.Pop()
+	x, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -149,26 +149,26 @@ func opSgt(s *State) error {
 	ySign := y.Sign()
 	if xSign != ySign {
 		if xSign > ySign {
-			s.stack.Push(uint256.One())
+			s.stack.push(uint256.One())
 		} else {
-			s.stack.Push(uint256.Zero())
+			s.stack.push(uint256.Zero())
 		}
 		return nil
 	}
 	if x.Cmp(y) > 0 {
-		s.stack.Push(uint256.One())
+		s.stack.push(uint256.One())
 	} else {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 	}
 	return nil
 }
 
 func opSar(s *State) error {
-	shift, err := s.stack.Pop()
+	shift, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	value, err := s.stack.Pop()
+	value, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -179,10 +179,10 @@ func opSar(s *State) error {
 			// Max negative shift: all bits set
 			value.SetAllOne()
 		}
-		s.stack.Push(value.Clone())
+		s.stack.push(value.Clone())
 		return nil
 	}
 	n := uint(shift.Uint64())
-	s.stack.Push(value.SRsh(value, n))
+	s.stack.push(value.SRsh(value, n))
 	return nil
 }

@@ -13,22 +13,22 @@ func opCreate(s *State) error {
 	}
 
 	// pop arguments from stack
-	value, err := s.stack.Pop()
+	value, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	offset, err := s.stack.Pop()
+	offset, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	size, err := s.stack.Pop()
+	size, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
 
 	// check balance
 	if s.tmp.accounts[s.callerAddress].Balance.Cmp(value) == -1 {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
@@ -47,7 +47,7 @@ func opCreate(s *State) error {
 
 	// creation failed
 	if err != nil {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
@@ -62,7 +62,7 @@ func opCreate(s *State) error {
 		Code:        runtimeCode,
 	}
 
-	s.stack.Push(uint256.NewUint(s.env.NextAccountId))
+	s.stack.push(uint256.NewUint(s.env.NextAccountId))
 	s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, value)
 	s.tmp.warmAccountAddress = append(s.tmp.warmAccountAddress, *uint256.NewUint(s.env.NextAccountId))
 	minWordSize := (size.Uint64() + 31) / 32
@@ -77,26 +77,26 @@ func opCreate2(s *State) error {
 	}
 
 	// pop arguments from stack
-	value, err := s.stack.Pop()
+	value, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	offset, err := s.stack.Pop()
+	offset, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	size, err := s.stack.Pop()
+	size, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	salt, err := s.stack.Pop()
+	salt, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
 
 	// check balance
 	if s.tmp.accounts[s.callerAddress].Balance.Cmp(value) == -1 {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
@@ -115,7 +115,7 @@ func opCreate2(s *State) error {
 
 	// check if address already exists
 	if acc := s.tmp.accounts[newAccountAddr256]; acc != nil && (len(acc.Code) > 0 || acc.Balance.Sign() > 0 || acc.Nonce > 0) {
-		s.stack.Push(uint256.Zero()) // address in use
+		s.stack.push(uint256.Zero()) // address in use
 		return nil
 	}
 
@@ -129,7 +129,7 @@ func opCreate2(s *State) error {
 
 	// creation failed
 	if err != nil {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
@@ -144,7 +144,7 @@ func opCreate2(s *State) error {
 		Code:        runtimeCode,
 	}
 
-	s.stack.Push(uint256.NewUint(newAccountAddr256))
+	s.stack.push(uint256.NewUint(newAccountAddr256))
 	s.tmp.accounts[s.callerAddress].Balance.Sub(s.tmp.accounts[s.callerAddress].Balance, value)
 	s.tmp.warmAccountAddress = append(s.tmp.warmAccountAddress, *uint256.NewUint(newAccountAddr256))
 	minWordSize := (size.Uint64() + 31) / 32

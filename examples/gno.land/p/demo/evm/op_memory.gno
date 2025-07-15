@@ -24,13 +24,13 @@ func getByteCopyFromMemory(memory []byte, offset *uint256.Uint, size *uint256.Ui
 // > IN: `[offset]`
 // > OUT: `[result]`
 func opMload(s *State) error {
-	off, err := s.stack.Pop()
+	off, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
 	off64 := off.Uint64()
 	if off64+32 > uint64(len(s.memory)) {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
 
@@ -39,19 +39,19 @@ func opMload(s *State) error {
 	if len(read) < 32 {
 		read = append(read, make([]byte, 32-len(read))...)
 	}
-	s.stack.Push(uint256.Zero().SetBytes(read))
+	s.stack.push(uint256.Zero().SetBytes(read))
 	return nil
 }
 
 // Write data in memory at offset.
 // > IN: `[offset, data]`
 func opMstore(s *State) error {
-	off, err := s.stack.Pop()
+	off, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
 	off64 := off.Uint64()
-	val, err := s.stack.Pop()
+	val, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -79,12 +79,12 @@ func opMstore(s *State) error {
 // Write first byte of data in memory at offset.
 // > IN: `[offset, data]`
 func opMstore8(s *State) error {
-	off, err := s.stack.Pop()
+	off, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
 	off64 := off.Uint64()
-	val, err := s.stack.Pop()
+	val, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -111,22 +111,22 @@ func opMstore8(s *State) error {
 // Get the memory size.
 // > OUT: `[size]`
 func opMsize(s *State) error {
-	s.stack.Push(uint256.NewUint(uint64(len(s.memory))))
+	s.stack.push(uint256.NewUint(uint64(len(s.memory))))
 	return nil
 }
 
 // opMcopy copies a segment of memory from a source offset to a destination offset for a specified size.
 // It expands the memory if needed and accounts for gas consumption.
 func opMcopy(s *State) error {
-	dst, err := s.stack.Pop()
+	dst, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	src, err := s.stack.Pop()
+	src, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	size, err := s.stack.Pop()
+	size, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -149,26 +149,26 @@ func opTload(s *State) error {
 		return errors.New("can't modify transient memory from staticCall")
 	}
 
-	key, err := s.stack.Pop()
+	key, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
 
 	read, ok := s.transientStorage[*key]
 	if !ok {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 	}
-	s.stack.Push(read.Clone())
+	s.stack.push(read.Clone())
 	return nil
 }
 
 // opTstore stores a value into the transient storage at the given key.
 func opTstore(s *State) error {
-	key, err := s.stack.Pop()
+	key, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	value, err := s.stack.Pop()
+	value, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func opTstore(s *State) error {
 // It tracks whether the storage slot is warm and charges gas accordingly.
 // If the key does not exist, it pushes zero.
 func opSload(s *State) error {
-	key, err := s.stack.Pop()
+	key, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -199,10 +199,10 @@ func opSload(s *State) error {
 
 	read, ok := s.tmp.accounts[s.callerAddress].Storage[key.Uint64()]
 	if !ok {
-		s.stack.Push(uint256.Zero())
+		s.stack.push(uint256.Zero())
 		return nil
 	}
-	s.stack.Push(read.Clone())
+	s.stack.push(read.Clone())
 	return nil
 }
 
@@ -212,11 +212,11 @@ func opSstore(s *State) error {
 	if s.context == staticContext {
 		return errors.New("can't modify memory from staticCall")
 	}
-	key, err := s.stack.Pop()
+	key, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	value, err := s.stack.Pop()
+	value, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func opSstore(s *State) error {
 // opCalldataload loads 32 bytes from the call data at the given offset and pushes it onto the stack.
 // If the requested range exceeds the call data size, it pads with zeros.
 func opCalldataload(s *State) error {
-	off, err := s.stack.Pop()
+	off, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -253,28 +253,28 @@ func opCalldataload(s *State) error {
 	if len(read) < 32 {
 		read = append(read, make([]byte, 32-len(read))...)
 	}
-	s.stack.Push(uint256.Zero().SetBytes(read))
+	s.stack.push(uint256.Zero().SetBytes(read))
 	return nil
 }
 
 // opCalldatasize pushes the size of the call data onto the stack.
 func opCalldatasize(s *State) error {
-	s.stack.Push(uint256.NewUint(uint64(len(s.callData))))
+	s.stack.push(uint256.NewUint(uint64(len(s.callData))))
 	return nil
 }
 
 // opCalldatacopy copies a portion of call data to memory starting at the given destination offset.
 // It expands memory as needed and charges gas accordingly.
 func opCalldatacopy(s *State) error {
-	dest, err := s.stack.Pop()
+	dest, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	src, err := s.stack.Pop()
+	src, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	size, err := s.stack.Pop()
+	size, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -311,20 +311,20 @@ func opCalldatacopy(s *State) error {
 // Memory is expanded as needed.
 // btw: EXTCODESIZE can't be implemented, it only copy 0's in memory
 func opExtCodeCopy(s *State) error {
-	_, err := s.stack.Pop() // address of contract code to copy
+	_, err := s.stack.pop() // address of contract code to copy
 	if err != nil {
 		return err
 	}
 
-	dest, err := s.stack.Pop()
+	dest, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
-	_, err = s.stack.Pop() // offset of contract code to copy
+	_, err = s.stack.pop() // offset of contract code to copy
 	if err != nil {
 		return err
 	}
-	size, err := s.stack.Pop()
+	size, err := s.stack.pop()
 	if err != nil {
 		return err
 	}
@@ -355,9 +355,9 @@ func opCodeCopy(s *State) error {
 	if s.stack.length < 3 {
 		return tooFewStack
 	}
-	memOff, _ := s.stack.Pop()
-	codeOff, _ := s.stack.Pop()
-	size, _ := s.stack.Pop()
+	memOff, _ := s.stack.pop()
+	codeOff, _ := s.stack.pop()
+	size, _ := s.stack.pop()
 
 	var memCost uint64
 	codeLen := uint256.NewUint(uint64(s.code.length))

@@ -51,7 +51,7 @@ type State struct {
 func newEmptyState() *State {
 	return &State{
 		context:       callContext,
-		stack:         *NewevmStack(),
+		stack:         *newEvmStack(),
 		memory:        []byte{}, // make([]byte, 1024)
 		result:        []byte{}, // make([]byte, 1024)
 		code:          instructions{},
@@ -81,7 +81,7 @@ func newStateFromEnv(env *Env) *State {
 
 	return &State{
 		context:       callContext,
-		stack:         *NewevmStack(),
+		stack:         *newEvmStack(),
 		memory:        []byte{}, // make([]byte, 1024)
 		result:        []byte{}, // make([]byte, 1024)
 		code:          instructions{},
@@ -114,7 +114,7 @@ func (s *State) clone() *State {
 
 	return &State{
 		context:       s.context,
-		stack:         *NewevmStack(),
+		stack:         *newEvmStack(),
 		memory:        []byte{},
 		result:        []byte{},
 		code:          instructions{},
