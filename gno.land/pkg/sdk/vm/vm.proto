@@ -30,6 +30,9 @@ message m_addpkg {
 message InvalidPkgPathError {
 }
 
+message NoRenderDeclError {
+}
+
 message PkgExistError {
 }
 
@@ -40,5 +43,11 @@ message InvalidExprError {
 }
 
 message TypeCheckError {
-	repeated string errors = 1 [json_name = "Errors"];
+	repeated string errors = 1;
+}
+
+message UnauthorizedUserError {
+}
+
+message InvalidPackageError {
 }

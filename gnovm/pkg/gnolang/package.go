@@ -46,6 +46,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	// Nodes
 	ValuePath{},
 	Location{},
+	Span{},
+	Pos{},
+	NameSource{},
 	// Name(""),
 	Attributes{},
 	NameExpr{},
