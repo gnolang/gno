@@ -163,6 +163,8 @@ type TestOptions struct {
 	CoverageOutput string
 	// TestPackagePath is the path of the package being tested (used for coverage)
 	TestPackagePath string
+	// CoverageTracker is the VM coverage tracker (set after Test completes)
+	CoverageTracker gno.CoverageTracker
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -389,6 +391,9 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// generate coverage report
 	if opts.Coverage && vmTracker != nil {
+		// Store the tracker in options for later access
+		opts.CoverageTracker = vmTracker
+
 		report := vmTracker.GenerateReport()
 
 		// Print to console
