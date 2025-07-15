@@ -16,11 +16,10 @@ func PackageDir(importPath string) string {
 	return filepath.Join(gnomod.ModCachePath(), filepath.FromSlash(importPath))
 }
 
-// DownloadPackageToCache downloads a remote gno package by pkg path and store it in the modcache
-func DownloadPackageToCache(out io.Writer, pkgPath string, fetcher pkgdownload.PackageFetcher) error {
-	modCachePath := gnomod.ModCachePath()
+// LockCache ensure the modcache dir exists, attempts to lock it and returns a filelock.
+func LockCache(modCachePath string) (*flock.Flock, error) {
 	if err := os.MkdirAll(modCachePath, 0o774); err != nil {
-		return fmt.Errorf("ensure modcache dir exists: %w", err)
+		return nil, fmt.Errorf("ensure modcache dir exists: %w", err)
 	}
 
 	flpath := filepath.Join(modCachePath, ".lock")
@@ -28,10 +27,22 @@ func DownloadPackageToCache(out io.Writer, pkgPath string, fetcher pkgdownload.P
 	// XXX: use TryLockContext to support concurrency instead of erroring out
 	locked, err := fl.TryLock()
 	if err != nil {
-		return fmt.Errorf("lock modcache: %w", err)
+		return nil, fmt.Errorf("lock modcache: %w", err)
 	}
 	if !locked {
-		return fmt.Errorf("modcache already locked")
+		return nil, fmt.Errorf("modcache already locked")
+	}
+
+	return fl, nil
+}
+
+// DownloadPackageToCache downloads a remote gno package by pkg path and store it in the modcache
+func DownloadPackageToCache(out io.Writer, pkgPath string, fetcher pkgdownload.PackageFetcher) error {
+	modCachePath := gnomod.ModCachePath()
+
+	fl, err := LockCache(modCachePath)
+	if err != nil {
+		return err
 	}
 	defer fl.Unlock()
 
