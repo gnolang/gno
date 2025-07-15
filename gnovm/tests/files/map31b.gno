@@ -13,7 +13,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/mapkey"]
-// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4]=
+// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4:0]=
 //     @@ -1,10 +1,39 @@
 //      {
 //          "List": {
@@ -33,7 +33,7 @@ func main() {
 //     +                        "Base": {
 //     +                            "@type": "/gno.RefValue",
 //     +                            "Escaped": true,
-//     +                            "ObjectID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5"
+//     +                            "ObjectID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5:0"
 //     +                        },
 //     +                        "Index": "0",
 //     +                        "TV": null
@@ -50,21 +50,21 @@ func main() {
 //     +        ]
 //          },
 //          "ObjectInfo": {
-//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4",
+//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:4:0",
 //     -        "ModTime": "0",
 //     +        "ModTime": "7",
-//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:3",
+//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:3:0",
 //              "RefCount": "1"
 //          }
-// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5]=
+// u[2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5:0]=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5",
+//              "ID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:5:0",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
 //     +        "ModTime": "7",
-//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:2",
+//              "OwnerID": "2a17fa0a22a6e119cfaf6e864b74063e0e4d464d:2:0",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
