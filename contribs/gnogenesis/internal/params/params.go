@@ -33,8 +33,8 @@ func NewParamsCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "params",
 			ShortUsage: "<subcommand> [flags]",
-			ShortHelp:  "manages the initial genesis transactions",
-			LongHelp:   "Manages genesis transactions through input files",
+			ShortHelp:  "manages the initial genesis params",
+			LongHelp:   "Manages genesis params fields, use `get -h` for more informations about available params",
 		},
 		cfg,
 		commands.HelpExec,
