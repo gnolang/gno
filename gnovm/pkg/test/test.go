@@ -178,25 +178,6 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	return opts
 }
 
-// createTestStore creates a test store with the given options, including coverage settings
-func createTestStore(opts *TestOptions) (gno.Store, error) {
-	storeOpts := StoreOptions{
-		Coverage: opts.Coverage,
-	}
-
-	// Get the global coverage tracker if coverage is enabled
-	if opts.Coverage {
-		storeOpts.CoverageTracker = coverage.GetGlobalTracker()
-		// Pass the package path being tested to prevent re-loading it
-		if opts.TestPackagePath != "" {
-			storeOpts.TestedPackagePath = opts.TestPackagePath
-		}
-	}
-
-	_, testStore := StoreWithOptions(opts.RootDir, opts.WriterForStore(), storeOpts)
-	return testStore, nil
-}
-
 // proxyWriter is a simple wrapper around a io.Writer, it exists so that the
 // underlying writer can be swapped with another when necessary.
 type proxyWriter struct {
@@ -250,7 +231,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
-	// initialize coverage tracker
+	// initialize coverage tracker if enabled
 	if opts.Coverage {
 		coverageTracker := coverage.GetGlobalTracker()
 		coverageTracker.Reset()
@@ -258,35 +239,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// Set the package being tested
 		opts.TestPackagePath = mpkg.Path
 
-		// Recreate test store with coverage options
-		// Instrument the package files BEFORE creating the test store
-		instrumentedPkg := *mpkg // Create a copy
-		for i, file := range instrumentedPkg.Files {
-			// Skip non-gno files and test files
-			if !strings.HasSuffix(file.Name, ".gno") || strings.HasSuffix(file.Name, "_test.gno") {
-				continue
-			}
-
-			// Use full path for coverage tracking
-			fullPath := filepath.Join(instrumentedPkg.Path, file.Name)
-			instrumenter := coverage.NewInstrumentationEngine(coverageTracker, fullPath)
-			instrumentedContent, err := instrumenter.InstrumentFile([]byte(file.Body))
-			if err != nil {
-				return fmt.Errorf("failed to instrument file %s: %w", file.Name, err)
-			}
-			instrumentedPkg.Files[i].Body = string(instrumentedContent)
-			if opts.Verbose {
-				fmt.Fprintf(opts.Error, "Instrumented file: %s\n", file.Name)
-			}
-		}
-		mpkg = &instrumentedPkg
-
-		testStore, err := createTestStore(opts)
-		if err != nil {
-			return err
-		}
-
-		opts.TestStore = testStore
+		// Coverage registration is now done in cmd/gno/test.go before type checking
 	}
 
 	// Create a common tcw/tgs for both the `pkg` tests as well as the
@@ -311,6 +264,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		// will run the mempackage ourselves in the next line.
 		SkipPackage: true,
 	})
+
 	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
 	// If testing with only filetests, there will be no files.
 	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
@@ -451,11 +405,7 @@ func (opts *TestOptions) runTestFiles(
 	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
 
-	if opts.Coverage {
-		// Always run the instrumented package, even if it exists in the store
-		// This ensures coverage instrumentation is preserved
-		m.RunMemPackage(mpkg, true)
-	} else if tgs.GetMemPackage(mpkg.Path) == nil {
+	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
 		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))

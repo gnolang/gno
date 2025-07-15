@@ -1,8 +1,6 @@
 package testing
 
 import (
-	"log"
-
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 )
@@ -37,7 +35,6 @@ func X_instrumentCode(code string, filename string) string {
 	instrumenter := coverage.NewInstrumentationEngine(coverageTracker, filename)
 	instrumented, err := instrumenter.InstrumentFile([]byte(code))
 	if err != nil {
-		log.Printf("Failed to instrument code: %v\n", err)
 		return code
 	}
 	return string(instrumented)

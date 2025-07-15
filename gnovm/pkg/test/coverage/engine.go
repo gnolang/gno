@@ -7,6 +7,10 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"regexp"
+	"strings"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // InstrumentationEngine orchestrates the application of instrumentation rules
@@ -47,8 +51,11 @@ func NewInstrumentationEngine(tracker *Tracker, filename string) *Instrumentatio
 
 // InstrumentFile applies all instrumentation rules following the axiom system
 func (engine *InstrumentationEngine) InstrumentFile(content []byte) ([]byte, error) {
+	// Pre-process content to fix bare import statements
+	contentStr := engine.preprocessBareImports(string(content))
+
 	// Parse with comments preserved (Principle P2: Minimal Intrusion)
-	f, err := parser.ParseFile(engine.fset, engine.filename, string(content), parser.ParseComments)
+	f, err := parser.ParseFile(engine.fset, engine.filename, contentStr, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("parsing failed: %w", err)
 	}
@@ -59,16 +66,32 @@ func (engine *InstrumentationEngine) InstrumentFile(content []byte) ([]byte, err
 		return content, nil // Return original content
 	}
 
-	// Ensure testing import (infrastructure requirement)
-	if err := engine.ensureTestingImport(f); err != nil {
-		return nil, err
-	}
-
-	// Apply all instrumentation rules
+	// First pass: Apply all instrumentation rules to see if we need testing import
 	ast.Walk(engine, f)
 
-	// Apply statement-level instrumentations (2-phase approach)
-	engine.applyStatementInstrumentations(f)
+	// Check if any instrumentations were added
+	hasInstrumentations := len(engine.pendingInstrumentations) > 0
+
+	// Check if file has any executable code (functions, methods)
+	hasExecutableCode := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.FuncDecl:
+			hasExecutableCode = true
+			return false
+		}
+		return true
+	})
+
+	// Only add testing import if we have instrumentations or executable code
+	if hasInstrumentations || hasExecutableCode {
+		if err := engine.ensureTestingImport(f); err != nil {
+			return nil, err
+		}
+
+		// Apply statement-level instrumentations (2-phase approach)
+		engine.applyStatementInstrumentations(f)
+	}
 
 	// Format output preserving comments (Principle P2)
 	var buf bytes.Buffer
@@ -121,7 +144,7 @@ func (engine *InstrumentationEngine) createMarkLineStmt(filename string, line in
 					NamePos: token.NoPos,
 				},
 				Sel: &ast.Ident{
-					Name:    "MarkLine",
+					Name:    "markLine",
 					NamePos: token.NoPos,
 				},
 			},
@@ -247,31 +270,55 @@ func (engine *InstrumentationEngine) registerNodeIfExecutable(n ast.Node) {
 
 // ensureTestingImport adds testing import if not present
 func (engine *InstrumentationEngine) ensureTestingImport(f *ast.File) error {
-	for _, imp := range f.Imports {
-		if imp.Path.Value == "\"testing\"" {
-			return nil
-		}
+	// Use astutil.AddImport which handles all the complexity of adding imports correctly
+	if !astutil.AddImport(engine.fset, f, "testing") {
+		// Import was already present
+		return nil
 	}
 
-	importSpec := &ast.ImportSpec{
-		Path: &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: "\"testing\"",
-		},
-	}
-
-	for _, decl := range f.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-			genDecl.Specs = append(genDecl.Specs, importSpec)
-			return nil
-		}
-	}
-
-	importDecl := &ast.GenDecl{
-		Tok:   token.IMPORT,
-		Specs: []ast.Spec{importSpec},
-	}
-
-	f.Decls = append([]ast.Decl{importDecl}, f.Decls...)
+	// Import was added successfully
 	return nil
+}
+
+// preprocessBareImports fixes bare import statements (just "import" with no specs)
+func (engine *InstrumentationEngine) preprocessBareImports(content string) string {
+	lines := strings.Split(content, "\n")
+	result := make([]string, 0, len(lines))
+
+	// Regular expression to match bare import statements
+	bareImportRe := regexp.MustCompile(`^\s*import\s*$`)
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+
+		// Check if this is a bare import line
+		if bareImportRe.MatchString(line) {
+			// Look ahead to see if the next line is a comment or empty
+			hasValidImport := false
+			for j := i + 1; j < len(lines); j++ {
+				nextLine := strings.TrimSpace(lines[j])
+				if nextLine == "" {
+					continue
+				}
+				// Check if it's a comment
+				if strings.HasPrefix(nextLine, "//") {
+					continue
+				}
+				// Check if it's an import spec
+				if strings.HasPrefix(nextLine, `"`) || strings.HasPrefix(nextLine, "(") {
+					hasValidImport = true
+				}
+				break
+			}
+
+			// If no valid import follows, skip this bare import line
+			if !hasValidImport {
+				continue
+			}
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
 }

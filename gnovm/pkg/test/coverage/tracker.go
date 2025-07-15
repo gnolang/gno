@@ -2,6 +2,9 @@ package coverage
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 )
 
 // Tracker tracks the coverage data for multiple files.
@@ -35,6 +38,60 @@ func (ct *Tracker) RegisterExecutableLine(filename string, line int) {
 		ct.allLines[filename] = make(map[int]bool)
 	}
 	ct.allLines[filename][line] = true
+}
+
+// RegisterFile parses a file and registers all executable lines without instrumentation
+func (ct *Tracker) RegisterFile(filename string, content []byte) error {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, content, parser.ParseComments)
+	if err != nil {
+		return fmt.Errorf("parsing file %s: %w", filename, err)
+	}
+
+	// Walk the AST to find executable lines
+	ast.Inspect(f, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+
+		// Register lines for executable nodes
+		switch node := n.(type) {
+		case *ast.FuncDecl:
+			if node.Body != nil {
+				line := fset.Position(node.Body.Lbrace).Line
+				ct.RegisterExecutableLine(filename, line)
+			}
+		case *ast.IfStmt:
+			line := fset.Position(node.If).Line
+			ct.RegisterExecutableLine(filename, line)
+		case *ast.ForStmt:
+			line := fset.Position(node.For).Line
+			ct.RegisterExecutableLine(filename, line)
+		case *ast.RangeStmt:
+			line := fset.Position(node.For).Line
+			ct.RegisterExecutableLine(filename, line)
+		case *ast.SwitchStmt:
+			line := fset.Position(node.Switch).Line
+			ct.RegisterExecutableLine(filename, line)
+		case *ast.TypeSwitchStmt:
+			line := fset.Position(node.Switch).Line
+			ct.RegisterExecutableLine(filename, line)
+		case *ast.SelectStmt:
+			line := fset.Position(node.Select).Line
+			ct.RegisterExecutableLine(filename, line)
+		case *ast.CaseClause:
+			if len(node.Body) > 0 {
+				line := fset.Position(node.Body[0].Pos()).Line
+				ct.RegisterExecutableLine(filename, line)
+			}
+		case *ast.AssignStmt, *ast.ExprStmt, *ast.ReturnStmt, *ast.BranchStmt:
+			line := fset.Position(node.Pos()).Line
+			ct.RegisterExecutableLine(filename, line)
+		}
+		return true
+	})
+
+	return nil
 }
 
 // ValidateInvariants checks that all coverage invariants hold
