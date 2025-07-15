@@ -66,8 +66,6 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		}
 	}
 
-	// fmt.Fprintf(conf.Out, "gno: workspace root is %q\n", conf.WorkspaceRoot)
-
 	// sanity assert
 	if !filepath.IsAbs(conf.WorkspaceRoot) {
 		panic(fmt.Errorf("workspace root should be absolute at this point, got %q", conf.WorkspaceRoot))
@@ -117,8 +115,6 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 			continue
 		}
 
-		// fmt.Fprintf(conf.Out, "gno: visiting deps of %q at %q\n", pkg.ImportPath, pkg.Dir)
-
 		// load tests deps if test flag is set and the package is not a dep
 		importKinds := []FileKind{FileKindPackageSource}
 		if conf.Test && len(pkg.Match) != 0 {
@@ -136,13 +132,9 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 				continue
 			}
 
-			// fmt.Fprintf(conf.Out, "gno: resolving dep %q\n", imp.PkgPath)
-
 			// check if this is a stdlib and load it from gnoroot if available
 			// XXX: use a fetcher middleware?
 			if gnolang.IsStdlib(imp.PkgPath) {
-				// fmt.Fprintf(conf.Out, "gno: loading stdlib %q\n", imp.PkgPath)
-
 				dir := filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs", filepath.FromSlash(imp.PkgPath))
 				dirInfo, err := os.Stat(dir)
 				if err != nil || !dirInfo.IsDir() {
