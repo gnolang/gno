@@ -9,5 +9,5 @@ func X_t1() int {
 }
 
 func X_t2(m *gno.Machine) int {
-	return m.NumOps
+	return len(m.Ops)
 }

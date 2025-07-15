@@ -202,7 +202,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		t := getTypeOf(x)
 		m.PushValue(asValue(t))
 	case *IndexExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
@@ -210,7 +210,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		xt := m.ReapValues(start)[0].GetType()
 		m.PushValue(asValue(xt.Elem()))
 	case *SelectorExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
@@ -289,7 +289,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		case VPBlock:
 			switch dxt.(type) {
 			case *PackageType:
-				start := m.NumValues
+				start := len(m.Values)
 				m.PushOp(OpHalt)
 				m.PushExpr(x.X)
 				m.PushOp(OpEval)
@@ -314,7 +314,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				panic(fmt.Sprintf("struct type %v has no field %s",
 					reflect.TypeOf(baseOf(xt)), x.Sel))
 			case *TypeType:
-				start := m.NumValues
+				start := len(m.Values)
 				m.PushOp(OpHalt)
 				m.PushExpr(x.X)
 				m.PushOp(OpEval)
@@ -380,7 +380,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		}
 
 	case *SliceExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
@@ -398,7 +398,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			}))
 		}
 	case *StarExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)
@@ -412,7 +412,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic("unexpected star expression")
 		}
 	case *RefExpr:
-		start := m.NumValues
+		start := len(m.Values)
 		m.PushOp(OpHalt)
 		m.PushExpr(x.X)
 		m.PushOp(OpStaticTypeOf)

@@ -66,8 +66,8 @@ func (m *Machine) doOpExec(op Op) {
 	case OpBody:
 		bs := m.LastBlock().GetBodyStmt()
 		if bs.NextBodyIndex == -2 { // init
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex = 0
@@ -88,8 +88,8 @@ func (m *Machine) doOpExec(op Op) {
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex = -1
@@ -157,8 +157,8 @@ func (m *Machine) doOpExec(op Op) {
 				return
 			}
 			bs.ListLen = ll
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -253,8 +253,8 @@ func (m *Machine) doOpExec(op Op) {
 			r, size := utf8.DecodeRuneInString(sv)
 			bs.NextRune = r
 			bs.StrIndex += size
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -349,8 +349,8 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			// initialize bs.
 			bs.NextItem = mv.List.Head
-			bs.NumOps = m.NumOps
-			bs.NumValues = m.NumValues
+			bs.NumOps = len(m.Ops)
+			bs.NumValues = len(m.Values)
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -664,8 +664,8 @@ EXEC_SWITCH:
 			m.GotoJump(int(cs.FrameDepth), int(cs.BlockDepth))
 			last := m.LastBlock()
 			bs := last.GetBodyStmt()
-			m.NumOps = bs.NumOps
-			m.NumValues = bs.NumValues
+			m.Ops = m.Ops[:bs.NumOps]
+			m.Values = m.Values[:bs.NumValues]
 			m.Exprs = m.Exprs[:bs.NumExprs]
 			m.Stmts = m.Stmts[:bs.NumStmts]
 			bs.NextBodyIndex = cs.BodyIndex
