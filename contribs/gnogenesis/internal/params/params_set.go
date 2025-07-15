@@ -24,7 +24,7 @@ func newParamsSetCmd(paramsCfg *paramsCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "set",
 			ShortUsage: "params set <key> <...values>",
-			ShortHelp:  "edits the Gno node configuration",
+			ShortHelp:  "edit the Gno genesis params fields value",
 			LongHelp: "Edits params configuration of the given genesis path " +
 				"by setting the option specified at <key> to the given <values>",
 		},

@@ -20,10 +20,9 @@ func newParamsGetCmd(paramsCfg *paramsCfg, io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "get",
-			ShortUsage: "params get <key> <value>",
-			ShortHelp:  "edits the Gno node configuration",
-			LongHelp: "Edits params configuration of the given genesis path " +
-				"by getting the option specified at <key> to the given <value>",
+			ShortUsage: "params get <key>",
+			ShortHelp:  "show the Gno genesis params fields value",
+			LongHelp:   "Shows the Gno genesis params value by fetching the option specified at <key>",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
