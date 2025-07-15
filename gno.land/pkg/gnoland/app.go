@@ -377,6 +377,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
 		acc := cfg.acck.GetAccount(ctx, addr)
+		if acc == nil {
+			panic(fmt.Errorf("unrestricted address must be one of the genesis accounts: invalid account %q", addr))
+		}
+
 		accr := acc.(*GnoAccount)
 		accr.SetUnrestricted()
 		cfg.acck.SetAccount(ctx, acc)
