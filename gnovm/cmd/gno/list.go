@@ -26,7 +26,7 @@ func newListCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "list",
 			ShortUsage: "gno list [flags] <pattern> [patterns...]",
-			ShortHelp:  "List lists the named packages, one per line.",
+			ShortHelp:  "lists the named packages",
 			LongHelp:   "List lists the named packages, one per line.",
 		},
 		cfg,
