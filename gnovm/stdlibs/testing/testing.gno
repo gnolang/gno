@@ -59,14 +59,4 @@ type PB = base.PB
 
 type InternalTest = base.InternalTest
 
-func MarkLine(filename string, line int) {
-	markLine(filename, line)
-}
-
-// markLine marks a line as executed
-func markLine(filename string, line int)
-
-// instrumentCode instruments the code for coverage
-func instrumentCode(code string, filename string) string
-
 var RunTest = base.RunTest

@@ -22,6 +22,25 @@ func (m *Machine) doOpEval() {
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
 	}
+
+	// Track expression evaluation for coverage
+	if m.CoverageTracker.IsEnabled() && x != nil {
+		// Get location information from the expression
+		if line := x.GetLine(); line > 0 {
+			// Get package and file info from current context
+			if m.Package != nil {
+				pkgPath := m.Package.PkgPath
+				// Try to get file name from the location
+				if lb := m.LastBlock(); lb != nil {
+					if src := lb.GetSource(m.Store); src != nil {
+						if loc := src.GetLocation(); !loc.IsZero() {
+							m.CoverageTracker.TrackExecution(pkgPath, loc.File, line)
+						}
+					}
+				}
+			}
+		}
+	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {

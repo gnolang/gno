@@ -12,7 +12,6 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
-	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -48,9 +47,6 @@ type StoreOptions struct {
 
 	// Coverage enables code coverage instrumentation
 	Coverage bool
-
-	// CoverageTracker is the global coverage tracker to use
-	CoverageTracker *coverage.Tracker
 
 	// TestedPackagePath is the path of the package being tested (for coverage)
 	// This is used to prevent loading the package from disk when it's already instrumented

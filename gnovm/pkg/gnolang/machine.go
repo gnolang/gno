@@ -48,6 +48,9 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+
+	// Coverage tracking
+	CoverageTracker CoverageTracker
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -81,6 +84,9 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+
+	// Coverage tracking
+	CoverageTracker CoverageTracker
 }
 
 // the machine constructor gets spammed
@@ -131,6 +137,14 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+
+	// Initialize coverage tracker
+	if opts.CoverageTracker != nil {
+		mm.CoverageTracker = opts.CoverageTracker
+	} else {
+		mm.CoverageTracker = DefaultCoverageTracker()
+	}
+
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -171,7 +185,7 @@ func (m *Machine) Release() {
 	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
 	copy(ops, opZeroed[:])
 	copy(values, valueZeroed[:])
-	*m = Machine{Ops: ops, Values: values}
+	*m = Machine{Ops: ops, Values: values, CoverageTracker: DefaultCoverageTracker()}
 
 	machinePool.Put(m)
 }

@@ -16,7 +16,6 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
-	"github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -256,10 +255,9 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	// If coverage is enabled, recreate the test store with coverage options
 	if cmd.coverage {
 		storeOpts := test.StoreOptions{
-			WithExamples:    true,
-			Testing:         true,
-			Coverage:        true,
-			CoverageTracker: test.GetCoverageTracker(),
+			WithExamples: true,
+			Testing:      true,
+			Coverage:     true,
 		}
 		opts.BaseStore, opts.TestStore = test.StoreWithOptions(cmd.rootDir, opts.WriterForStore(), storeOpts)
 	}
@@ -314,26 +312,8 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Ignore {
-				// Register package files for coverage if enabled
+				// Update opts with proper test store for coverage
 				if cmd.coverage {
-					// Store coverage metadata for runtime tracking
-					coverageTracker := test.GetCoverageTracker()
-
-					// Register production files for coverage without instrumentation
-					prodPkg := gno.MPFProd.FilterMemPackage(mpkg)
-					for _, file := range prodPkg.Files {
-						if strings.HasSuffix(file.Name, ".gno") {
-							fullPath := filepath.Join(prodPkg.Path, file.Name)
-							err := coverageTracker.RegisterFile(fullPath, []byte(file.Body))
-							if err != nil {
-								io.ErrPrintfln("WARNING: failed to register file for coverage: %v", err)
-							} else if cmd.verbose {
-								io.ErrPrintfln("Registered file for coverage: %s", fullPath)
-							}
-						}
-					}
-
-					// Update opts with proper test store for coverage
 					opts.TestPackagePath = mpkg.Path
 				}
 				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, opts.TestStore, gno.TCLatestRelaxed)
@@ -375,14 +355,14 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 	// print coverage results
 	if cmd.coverage {
-		coverageTracker := test.GetCoverageTracker()
-		coverageTracker.PrintCoverage()
+		// VM coverage will be printed by test.Test() when coverageOutput is set
+		if cmd.coverageOutput != "" && cmd.verbose {
+			io.ErrPrintfln("Coverage report written to: %s", cmd.coverageOutput)
+		}
 
-		// Show coverage visualization if requested
+		// TODO: Implement VM coverage visualization
 		if cmd.show != "" {
-			if err := coverage.ShowCoverage(coverageTracker, cmd.show, cmd.rootDir); err != nil {
-				io.ErrPrintfln("Warning: failed to show coverage visualization: %v", err)
-			}
+			io.ErrPrintfln("Coverage visualization not yet implemented for VM-level coverage")
 		}
 	}
 
