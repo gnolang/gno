@@ -21,10 +21,8 @@ var (
 	ErrEmptyComment = errors.New("content of comment cannot be empty")
 
 	ErrDeleteFailed        = errors.New("delete operation failed")
-	ErrPostAddFailed       = errors.New("failed to add post")
 	ErrUnlikeFailed        = errors.New("failed to unlike post")
 	ErrCommentDeleteFailed = errors.New("failed to delete comment")
-	ErrCommentAddFailed    = errors.New("failed to add comment")
 
 	ErrInvalidCaller = errors.New("invalid caller address")
 )

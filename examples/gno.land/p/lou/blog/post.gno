@@ -146,9 +146,7 @@ func (p *Post) AddComment(comment *Comment) error {
 	p.CommentsId.Next()
 	p.CommentsSize++
 	comment.SetID(p.CommentsId)
-	if !p.Comments.Set(p.CommentsId.String(), comment) {
-		return ErrCommentAddFailed
-	}
+	p.Comments.Set(p.CommentsId.String(), comment)
 	return nil
 }
 
@@ -168,9 +166,7 @@ func (p *Post) AddReply(parentID string, reply *Comment) error {
 	p.CommentsId.Next()
 	p.CommentsSize++
 	reply.SetID(p.CommentsId)
-	if !parent.Replies.Set(p.CommentsId.String(), reply) {
-		return ErrCommentAddFailed
-	}
+	parent.Replies.Set(p.CommentsId.String(), reply)
 	return nil
 }
 
