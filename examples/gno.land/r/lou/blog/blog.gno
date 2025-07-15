@@ -4,6 +4,8 @@ import (
 	"std"
 
 	"gno.land/p/lou/blog"
+
+	"gno.land/r/sys/users"
 )
 
 var (
@@ -16,10 +18,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	myBlog.SetUserResolver(myResolver)
 }
 
 func Render(path string) string {
 	out := ""
 	out += myBlog.Render(path)
 	return out
+}
+
+func myResolver(input string) (string, bool) {
+	data, ok := users.ResolveAny(input)
+	if !ok || data == nil {
+		return "", false
+	}
+	return data.Name(), true
 }

@@ -2,20 +2,9 @@ package blog
 
 import (
 	"gno.land/p/lou/blog"
-
-	"gno.land/r/sys/users"
 )
 
-func myResolver(input string) (string, bool) {
-	data, ok := users.ResolveAny(input)
-	if !ok || data == nil {
-		return "", false
-	}
-	return data.Name(), true
-}
-
 func CreateSampleBlog() *blog.Blog {
-	myBlog.SetUserResolver(myResolver)
 	post1, err := blog.NewPost(
 		"ai-future",
 		"The Future of AI",

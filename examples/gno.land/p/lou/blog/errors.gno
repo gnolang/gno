@@ -7,6 +7,9 @@ var (
 
 	ErrPostNotFound    = errors.New("post not found")
 	ErrCommentNotFound = errors.New("comment not found")
+	ErrLikesDisabled   = errors.New("likes are disabled")
+	ErrAlreadyLiked    = errors.New("this address has already liked")
+	ErrNotLiked        = errors.New("this address hasn't liked yet")
 
 	ErrInvalidPostID    = errors.New("invalid post ID")
 	ErrInvalidCommentID = errors.New("invalid comment ID")
@@ -19,6 +22,7 @@ var (
 
 	ErrDeleteFailed        = errors.New("delete operation failed")
 	ErrPostAddFailed       = errors.New("failed to add post")
+	ErrUnlikeFailed        = errors.New("failed to unlike post")
 	ErrCommentDeleteFailed = errors.New("failed to delete comment")
 	ErrCommentAddFailed    = errors.New("failed to add comment")
 

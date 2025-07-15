@@ -5,15 +5,18 @@ import (
 	"strings"
 
 	"gno.land/p/lou/blog"
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
 )
 
 func AddCommentToPostById(_ realm, id, comment string) {
 	var err error
-	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
+	post, err := myBlog.GetPostByID(id)
 	if err != nil {
 		panic(err)
 	}
-	post, err := myBlog.GetPostByID(id)
+
+	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
 	if err != nil {
 		panic(err)
 	}
@@ -24,12 +27,12 @@ func AddCommentToPostById(_ realm, id, comment string) {
 
 func AddCommentToPostBySlug(_ realm, slug, comment string) {
 	var err error
-	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
+	post, err := myBlog.GetPostBySlug(slug)
 	if err != nil {
 		panic(err)
 	}
 
-	post, err := myBlog.GetPostBySlug(slug)
+	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
 	if err != nil {
 		panic(err)
 	}
@@ -54,8 +57,57 @@ func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags strin
 	if err != nil {
 		panic(err)
 	}
+	actionLinks := md.Link("Like", txlink.Call("LikePostBySlug", "slug", post.Slug()))
+	post.SetPreviewFooter(actionLinks + "\n\n")
 	if err := myBlog.AddPost(post); err != nil {
 		// panic(err) panics everytime
 		println(err)
+	}
+}
+
+func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags string) {
+	var err error
+	var post *blog.Post
+	authorsField := strings.Split(authors, " ")
+	tagsField := strings.Split(tags, " ")
+
+	_, err = myBlog.GetPostByID(id)
+	if err != nil {
+		panic(err)
+	}
+	post, err = blog.NewPost(
+		slug,
+		title,
+		body,
+		publicationDate,
+		std.OriginCaller().String(),
+		authorsField,
+		tagsField,
+	)
+	if err != nil {
+		panic(err)
+	}
+	if err := myBlog.UpdatePostById(id, post); err != nil {
+		panic(err)
+	}
+}
+
+func LikePostBySlug(_ realm, slug string) {
+	post, err := myBlog.GetPostBySlug(slug)
+	if err != nil {
+		panic(err)
+	}
+	if err := post.LikePost(std.OriginCaller().String()); err != nil {
+		panic(err)
+	}
+}
+
+func UnlikePostBySlug(_ realm, slug string) {
+	post, err := myBlog.GetPostBySlug(slug)
+	if err != nil {
+		panic(err)
+	}
+	if err := post.UnlikePost(std.OriginCaller().String()); err != nil {
+		panic(err)
 	}
 }

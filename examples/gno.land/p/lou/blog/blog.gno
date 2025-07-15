@@ -24,10 +24,9 @@ type Blog struct {
 	AuthorsIndex     *avl.Tree // authorAddress --> int
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
-	CustomHeader  *[]HeaderPreset
-	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
-	DisableLikes  bool
-	UserResolver  *UserResolver
+	CustomHeader *[]HeaderPreset
+	DisableLikes bool
+	UserResolver *UserResolver
 }
 
 func (b Blog) Title() string {
@@ -55,7 +54,6 @@ func NewBlog(title, prefix string, owner std.Address) (*Blog, error) {
 		TagsSorted:       avl.NewTree(),
 		AuthorsIndex:     avl.NewTree(),
 		AuthorsSorted:    avl.NewTree(),
-		PreviewFooter:    "",
 		DisableLikes:     false,
 		UserResolver:     nil,
 		CustomHeader:     nil,
@@ -85,14 +83,14 @@ func (b *Blog) AddPost(post *Post) error {
 	addedSlug := b.PostsBySlug.Set(post.Slug(), post)
 	addedUpdated := b.PostsByUpdatedAt.Set(post.UpdatedAt().String(), post)
 	if !added || !addedSlug || !addedUpdated {
-		return ErrPostAddFailed // all values are always false (?)
+		return ErrPostAddFailed // all bool values are always false (?)
 	}
 	return nil
 }
 
-func (b *Blog) UpdatePostById(id seqid.ID, newPost *Post) error {
+func (b *Blog) UpdatePostById(id string, newPost *Post) error {
 	b.Authorizable.AssertPreviousOnAuthList()
-	post, err := b.GetPostByID(id.String())
+	post, err := b.GetPostByID(id)
 	if err != nil {
 		return err
 	}
@@ -187,10 +185,6 @@ func (b *Blog) SetUserResolver(resolver UserResolver) {
 
 func (b *Blog) SetCustomHeader(presets []HeaderPreset) {
 	b.CustomHeader = &presets
-}
-
-func (b *Blog) SetPreviewFooter(input string) {
-	b.PreviewFooter = input
 }
 
 func (b *Blog) addToIndex(post *Post) {
