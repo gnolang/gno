@@ -327,7 +327,7 @@ func (h *WebHandler) buildContributions(username string) ([]components.UserContr
 			h.Logger.Warn("bad contribution URL", "path", raw, "error", err)
 			continue
 		}
-		ctype := components.UserContributionTypePackage
+		ctype := components.UserContributionTypePure
 		if u.IsRealm() {
 			ctype = components.UserContributionTypeRealm
 			realmCount++
@@ -578,12 +578,16 @@ func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *componen
 	// Update header mode
 	indexData.HeaderData.Mode = indexData.Mode
 
-	return http.StatusOK, components.DirectoryView(
+	packageType := components.UserContributionTypeRealm
+	if gnourl.IsPure() {
+		packageType = components.UserContributionTypePure
+	}
+
+	return http.StatusOK, components.ExplorerView(
 		gnourl.Path,
 		paths,
 		len(paths),
-		components.DirLinkTypeFile,
-		indexData.Mode,
+		components.UserContributionType(packageType),
 	)
 }
 

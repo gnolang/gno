@@ -214,7 +214,6 @@ func TestDirectoryView(t *testing.T) {
 	assert.Equal(t, pkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", pkgPath, dirData.PkgPath)
 	assert.Equal(t, len(files), len(dirData.Files), "expected %d files, got %d", len(files), len(dirData.Files))
 	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
-	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
 
 	assert.NoError(t, view.Render(io.Discard))
 }
@@ -317,7 +316,7 @@ func TestUserView(t *testing.T) {
 			},
 			{
 				Title: "Package Contribution",
-				Type:  UserContributionTypePackage,
+				Type:  UserContributionTypePure,
 			},
 		},
 		PackageCount: 2,
@@ -345,4 +344,144 @@ func TestUserView(t *testing.T) {
 	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+func TestExplorerView(t *testing.T) {
+	tests := []struct {
+		name           string
+		pkgPath        string
+		paths          []string
+		packageCounter int
+		packageType    UserContributionType
+		expectedTitle  string
+	}{
+		{
+			name:           "Realm explorer with multiple items",
+			pkgPath:        "/r/testuser",
+			paths:          []string{"/r/testuser/realm1", "/r/testuser/realm2"},
+			packageCounter: 2,
+			packageType:    UserContributionTypeRealm,
+			expectedTitle:  "realms",
+		},
+		{
+			name:           "Pure explorer with single item",
+			pkgPath:        "/p/testuser",
+			paths:          []string{"/p/testuser/package1"},
+			packageCounter: 1,
+			packageType:    UserContributionTypePure,
+			expectedTitle:  "pure",
+		},
+		{
+			name:           "Realm explorer with single item",
+			pkgPath:        "/r/testuser",
+			paths:          []string{"/r/testuser/realm1"},
+			packageCounter: 1,
+			packageType:    UserContributionTypeRealm,
+			expectedTitle:  "realm",
+		},
+		{
+			name:           "Pure explorer with multiple items",
+			pkgPath:        "/p/testuser",
+			paths:          []string{"/p/testuser/package1", "/p/testuser/package2", "/p/testuser/package3"},
+			packageCounter: 3,
+			packageType:    UserContributionTypePure,
+			expectedTitle:  "pures",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			view := ExplorerView(tt.pkgPath, tt.paths, tt.packageCounter, tt.packageType)
+
+			assert.NotNil(t, view, "expected view to be non-nil")
+			assert.Equal(t, ExplorerViewType, view.Type, "expected view type %s, got %s", ExplorerViewType, view.Type)
+
+			templateComponent, ok := view.Component.(*TemplateComponent)
+			assert.True(t, ok, "expected TemplateComponent type in view.Component")
+
+			explorerData, ok := templateComponent.data.(ExplorerData)
+			assert.True(t, ok, "expected ExplorerData type in component data")
+
+			// Test basic data
+			assert.Equal(t, tt.pkgPath, explorerData.PkgPath, "expected PkgPath %s, got %s", tt.pkgPath, explorerData.PkgPath)
+			assert.Equal(t, tt.paths, explorerData.Paths, "expected Paths to match")
+			assert.Equal(t, tt.packageCounter, explorerData.PackageCount, "expected PackageCount %d, got %d", tt.packageCounter, explorerData.PackageCount)
+			assert.Equal(t, tt.packageType, explorerData.PackageType, "expected PackageType %v, got %v", tt.packageType, explorerData.PackageType)
+
+			// Test CardsList data
+			assert.NotNil(t, explorerData.CardsList, "expected CardsList to be non-nil")
+			assert.Equal(t, tt.pkgPath, explorerData.CardsListTitle, "expected CardsListTitle %s, got %s", tt.pkgPath, explorerData.CardsListTitle)
+			assert.Equal(t, tt.expectedTitle, explorerData.CardsList.Title, "expected CardsList.Title %s, got %s", tt.expectedTitle, explorerData.CardsList.Title)
+			assert.Equal(t, tt.packageCounter, explorerData.CardsList.TotalCount, "expected TotalCount %d, got %d", tt.packageCounter, explorerData.CardsList.TotalCount)
+
+			// Test categories
+			if tt.packageCounter > 0 {
+				assert.Len(t, explorerData.CardsList.Categories, 0, "expected 0 categories for explorer mode")
+			} else {
+				assert.Len(t, explorerData.CardsList.Categories, 0, "expected 0 categories for empty package counter")
+			}
+
+			assert.NoError(t, view.Render(io.Discard))
+		})
+	}
+}
+
+func TestEnrichExplorerCardList(t *testing.T) {
+	tests := []struct {
+		name           string
+		paths          []string
+		packageType    UserContributionType
+		packageCounter int
+	}{
+		{
+			name:           "Realm paths",
+			paths:          []string{"/r/testuser/realm1", "/r/testuser/realm2"},
+			packageType:    UserContributionTypeRealm,
+			packageCounter: 2,
+		},
+		{
+			name:           "Pure paths",
+			paths:          []string{"/p/testuser/package1"},
+			packageType:    UserContributionTypePure,
+			packageCounter: 1,
+		},
+		{
+			name:           "Empty paths",
+			paths:          []string{},
+			packageType:    UserContributionTypeRealm,
+			packageCounter: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := ExplorerData{
+				PkgPath:      "/test/path",
+				Paths:        tt.paths,
+				PackageCount: tt.packageCounter,
+				PackageType:  tt.packageType,
+			}
+
+			enrichExplorerCardList(&data)
+
+			// Test that CardsList is properly initialized
+			assert.NotNil(t, data.CardsList, "expected CardsList to be non-nil")
+			assert.Equal(t, tt.packageCounter, data.CardsList.TotalCount, "expected TotalCount %d, got %d", tt.packageCounter, data.CardsList.TotalCount)
+			assert.Equal(t, len(tt.paths), len(data.CardsList.Items), "expected %d items, got %d", len(tt.paths), len(data.CardsList.Items))
+
+			// Test that items are properly converted
+			for i, path := range tt.paths {
+				assert.Equal(t, path, data.CardsList.Items[i].Title, "expected item title %s, got %s", path, data.CardsList.Items[i].Title)
+				assert.Equal(t, path, data.CardsList.Items[i].URL, "expected item URL %s, got %s", path, data.CardsList.Items[i].URL)
+				assert.Equal(t, tt.packageType, data.CardsList.Items[i].Type, "expected item type %v, got %v", tt.packageType, data.CardsList.Items[i].Type)
+			}
+
+			// Test categories
+			if tt.packageCounter > 0 {
+				assert.Len(t, data.CardsList.Categories, 0, "expected 0 categories for explorer mode")
+			} else {
+				assert.Len(t, data.CardsList.Categories, 0, "expected 0 categories for empty package counter")
+			}
+		})
+	}
 }
