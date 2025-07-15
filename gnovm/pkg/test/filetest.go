@@ -209,7 +209,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 }
 
 // returns a sorted string representation of realm diffs map
-func realmDiffsString(m map[string]gno.RealmStorageDiff) string {
+func realmDiffsString(m map[string]int64) string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -218,7 +218,7 @@ func realmDiffsString(m map[string]gno.RealmStorageDiff) string {
 
 	var sb strings.Builder
 	for _, k := range keys {
-		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k].Diff()))
+		sb.WriteString(fmt.Sprintf("%s: %d\n", k, m[k]))
 	}
 	return sb.String()
 }

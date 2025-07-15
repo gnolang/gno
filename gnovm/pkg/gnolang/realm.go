@@ -394,13 +394,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 
 	// Update storage differences.
 	realmDiffs := store.RealmStorageDiffs()
-	rd, ok := realmDiffs[rlm.Path]
-	if ok {
-		rd.diff += rlm.sumDiff
-	} else {
-		rd = RealmStorageDiff{realm: rlm, diff: rlm.sumDiff}
-	}
-	realmDiffs[rlm.Path] = rd
+	realmDiffs[rlm.Path] += rlm.sumDiff
 	rlm.sumDiff = 0
 }
 

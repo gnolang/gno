@@ -954,5 +954,4 @@ func Echo(cur realm, msg string){
 	depDeltaTest := env.bankk.GetCoins(ctx, depAddrTest).Sub(depTest)
 	depDeltaFoo := env.bankk.GetCoins(ctx, depAddrFoo).Sub(depFoo)
 	assert.True(t, depDeltaTest.Add(depDeltaFoo).IsEqual(msg2.MaxDeposit))
-
 }

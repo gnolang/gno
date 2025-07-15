@@ -1027,12 +1027,11 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	}
 	price := std.MustParseCoin(params.StoragePrice)
 	var allErrs error
-	for rlmPath, rd := range realmDiffs {
-		diff := rd.Diff()
-		rlm := rd.Realm()
+	for rlmPath, diff := range realmDiffs {
 		if diff == 0 {
 			continue
 		}
+		rlm := gnostore.GetPackageRealm(rlmPath)
 		if diff > 0 {
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
