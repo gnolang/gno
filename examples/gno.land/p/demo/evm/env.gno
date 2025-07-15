@@ -8,7 +8,7 @@ const nbPrecompiledContract = 0x0a
 
 // Env is a global environnement to evaluate your EVM state
 type Env struct {
-	Logs            []LogEntry               // Logs emitted during execution (for events)
+	Logs            []logEntry               // Logs emitted during execution (for events)
 	Accounts        Accounts                 // List of accounts (EOA and contracts)
 	NextAccountId   uint64                   // Next account ID for contract creation
 	Coinbase        *uint256.Uint            // Miner address
@@ -27,7 +27,7 @@ type Env struct {
 // Create a new environnement, with default values.
 func NewEnv() *Env {
 	return &Env{
-		Logs:            []LogEntry{},
+		Logs:            []logEntry{},
 		Accounts:        Accounts{},
 		NextAccountId:   nbPrecompiledContract + 1,
 		Coinbase:        uint256.Zero(),

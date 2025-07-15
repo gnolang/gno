@@ -8,28 +8,28 @@ type contextType uint
 
 // gasPrice defines the cost of one gas unit in wei.
 const (
-	GasPrice    uint64      = 10
+	gasPrice    uint64      = 10
 	callContext contextType = iota
 	staticContext
-) // one gas cost 10 wei
+)
 
-// LogEntry represents an event log entry with topics and data.
-type LogEntry struct {
-	Topics [][]byte // Indexed topics for filtering logs
-	Data   []byte   // Raw data associated with the log entry
+// logEntry represents an event log entry with topics and data.
+type logEntry struct {
+	topics [][]byte // Indexed topics for filtering logs
+	data   []byte   // Raw data associated with the log entry
 }
 
 // tmpEnv stores temporary execution environment data such as storage, logs, warm storage slots, and accounts.
 type tmpEnv struct {
 	warmStorage        []uint256.Uint // List of storage slots accessed ("warm" slots)
 	warmAccountAddress []uint256.Uint // List of account addresses accessed ("warm" address)
-	logs               []LogEntry     // Event logs generated during execution
+	logs               []logEntry     // Event logs generated during execution
 	accounts           Accounts       // Temporary accounts state
 	transactions       Transactions   // Temporary list of transactions that happened on the chain
 }
 
 // State represents the full EVM execution state during a transaction or message call.
-type State struct {
+type state struct {
 	context          contextType
 	originAddress    uint64                         // Address of the caller that inititated the transaction
 	callerAddress    uint64                         // Address of the caller executing this state
@@ -43,13 +43,13 @@ type State struct {
 	tmp              tmpEnv                         // Temporary execution environment data
 	gasConsumed      uint                           // Total gas consumed so far during execution
 	gasLimit         int                            // Maximum gas allowed for execution
-	lastCallState    *State                         // Pointer to the previous call's state, if any
+	lastCallState    *state                         // Pointer to the previous call's state, if any
 	env              *Env                           // Reference to the external environment contextF
 }
 
 // newEmptyState initializes and returns a new State with empty/default values.
-func newEmptyState() *State {
-	return &State{
+func newEmptyState() *state {
+	return &state{
 		context:       callContext,
 		stack:         *newEvmStack(),
 		memory:        []byte{}, // make([]byte, 1024)
@@ -58,7 +58,7 @@ func newEmptyState() *State {
 		callerAddress: 0,
 		callValue:     uint256.Zero(),
 		tmp: tmpEnv{
-			logs:         []LogEntry{},
+			logs:         []logEntry{},
 			warmStorage:  []uint256.Uint{},
 			accounts:     Accounts{},
 			transactions: []Transaction{},
@@ -71,15 +71,15 @@ func newEmptyState() *State {
 }
 
 // newStateFromEnv creates a new State initialized from a given external Env, copying storage, logs, and accounts.
-func newStateFromEnv(env *Env) *State {
+func newStateFromEnv(env *Env) *state {
 
-	logsCopy := make([]LogEntry, len(env.Logs))
+	logsCopy := make([]logEntry, len(env.Logs))
 	copy(logsCopy, env.Logs)
 
 	transactionsCopy := make(Transactions, len(env.Transaction))
 	copy(transactionsCopy, env.Transaction)
 
-	return &State{
+	return &state{
 		context:       callContext,
 		stack:         *newEvmStack(),
 		memory:        []byte{}, // make([]byte, 1024)
@@ -102,8 +102,8 @@ func newStateFromEnv(env *Env) *State {
 
 // clone creates a deep copy of the current State, including storage, logs, warm storage, and accounts.
 // Note that stack, memory, and code are reset/empty in the clone.
-func (s *State) clone() *State {
-	logsCopy := make([]LogEntry, len(s.tmp.logs))
+func (s *state) clone() *state {
+	logsCopy := make([]logEntry, len(s.tmp.logs))
 	copy(logsCopy, s.tmp.logs)
 
 	warmStorageCopy := make([]uint256.Uint, len(s.tmp.warmStorage))
@@ -112,7 +112,7 @@ func (s *State) clone() *State {
 	transactionsCopy := make(Transactions, len(s.tmp.transactions))
 	copy(transactionsCopy, s.tmp.transactions)
 
-	return &State{
+	return &state{
 		context:       s.context,
 		stack:         *newEvmStack(),
 		memory:        []byte{},
@@ -135,8 +135,8 @@ func (s *State) clone() *State {
 }
 
 // reapply a state at the end of a sub context
-func (s *State) applyStateAfterReturn(tmpState *State) {
-	logsCopy := make([]LogEntry, len(tmpState.tmp.logs))
+func (s *state) applyStateAfterReturn(tmpState *state) {
+	logsCopy := make([]logEntry, len(tmpState.tmp.logs))
 	copy(logsCopy, tmpState.tmp.logs)
 
 	warmStorageCopy := make([]uint256.Uint, len(tmpState.tmp.warmStorage))
@@ -157,49 +157,49 @@ func (s *State) applyStateAfterReturn(tmpState *State) {
 //==// GETTERS //==//
 
 // getStackData returns a slice of pointers to the current data on the stack.
-func (s State) getStackData() []*uint256.Uint {
+func (s state) getStackData() []*uint256.Uint {
 	return s.stack.data
 }
 
 // getResult returns the result (output) byte slice of the current execution.
-func (s State) getResult() []byte {
+func (s state) getResult() []byte {
 	return s.result
 }
 
 //==// SETTERS //==//
 
 // setCode sets the contract bytecode to be executed by resetting the code instructions.
-func (s *State) setCode(code []byte) {
+func (s *state) setCode(code []byte) {
 	s.code.reset(code)
 }
 
 // setEnv sets the external environment reference for this State.
-func (s *State) setEnv(env *Env) {
+func (s *state) setEnv(env *Env) {
 	s.env = env
 }
 
 // setGasLimit sets the maximum gas limit for this execution State.
-func (s *State) setGasLimit(gas int) {
+func (s *state) setGasLimit(gas int) {
 	s.gasLimit = gas
 }
 
 // setCallerAddress sets the address of the caller initiating the execution.
-func (s *State) setCallerAddress(callerAddress uint64) {
+func (s *state) setCallerAddress(callerAddress uint64) {
 	s.callerAddress = callerAddress
 }
 
 // setOriginAddress sets the address of the caller initiating the execution.
-func (s *State) setOriginAddress(callerAddress uint64) {
+func (s *state) setOriginAddress(callerAddress uint64) {
 	s.originAddress = callerAddress
 }
 
 // setCallValue sets the amount of wei sent with the call.
-func (s *State) setCallValue(wei *uint256.Uint) {
+func (s *state) setCallValue(wei *uint256.Uint) {
 	s.callValue = wei.Clone()
 }
 
 // setCallData appends input call data bytes to the existing call data.
-func (s *State) setCallData(data []byte) {
+func (s *state) setCallData(data []byte) {
 	s.callData = make([]byte, len(data))
 	copy(s.callData, data)
 
@@ -208,8 +208,8 @@ func (s *State) setCallData(data []byte) {
 //==// USEFULL //==//
 
 // loadStagedChangesIntoEnv copies all staged storage, logs, and accounts changes from the temporary execution environment back into the external Env.
-func (s *State) loadStagedChangesIntoEnv(env *Env) {
-	env.Logs = make([]LogEntry, len(s.tmp.logs))
+func (s *state) loadStagedChangesIntoEnv(env *Env) {
+	env.Logs = make([]logEntry, len(s.tmp.logs))
 	copy(env.Logs, s.tmp.logs)
 
 	env.Accounts = *s.tmp.accounts.Clone()
@@ -217,7 +217,7 @@ func (s *State) loadStagedChangesIntoEnv(env *Env) {
 
 // executeByteCode runs the contract bytecode until a STOP opcode or end of code is reached.
 // It updates gas consumption and checks for out-of-gas or invalid instruction errors.
-func (s *State) executeByteCode() error {
+func (s *state) executeByteCode() error {
 	for !s.code.endOfCode() && s.code.current() != byte(STOP) {
 		opData, ok := opCodes[OpCode(s.code.current())]
 		if !ok {

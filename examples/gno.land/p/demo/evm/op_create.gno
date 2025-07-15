@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-func opCreate(s *State) error {
+func opCreate(s *state) error {
 	if s.context == staticContext {
 		return errors.New("can't create from staticCall")
 	}
@@ -71,7 +71,7 @@ func opCreate(s *State) error {
 	return nil
 }
 
-func opCreate2(s *State) error {
+func opCreate2(s *state) error {
 	if s.context == staticContext {
 		return errors.New("can't create2 from staticCall")
 	}

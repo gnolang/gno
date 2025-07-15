@@ -17,40 +17,40 @@ const (
 	pPointEvaluation
 )
 
-var precompiled = map[precompiledAddress]func(s *State) error{
-	(pEcRecover): func(s *State) error {
+var precompiled = map[precompiledAddress]func(s *state) error{
+	(pEcRecover): func(s *state) error {
 		return nil
 	},
-	(pSha256): func(s *State) error {
+	(pSha256): func(s *state) error {
 		res := sha256.Sum256(s.callData)
 		s.result = res[:]
 		s.gasConsumed = uint(60 + 12*(len(s.callData)+31)/32)
 		return nil
 	},
-	(pRipemd160): func(s *State) error {
+	(pRipemd160): func(s *state) error {
 		return nil
 	},
-	(pIdentity): func(s *State) error {
+	(pIdentity): func(s *state) error {
 		s.result = s.callData
 		s.gasConsumed = uint(15 + 3*(len(s.callData)+31)/32)
 		return nil
 	},
-	(pModexp): func(s *State) error {
+	(pModexp): func(s *state) error {
 		return nil
 	},
-	(pEcAdd): func(s *State) error {
+	(pEcAdd): func(s *state) error {
 		return nil
 	},
-	(pEcMul): func(s *State) error {
+	(pEcMul): func(s *state) error {
 		return nil
 	},
-	(pEcPairing): func(s *State) error {
+	(pEcPairing): func(s *state) error {
 		return nil
 	},
-	(pBlake2f): func(s *State) error {
+	(pBlake2f): func(s *state) error {
 		return nil
 	},
-	(pPointEvaluation): func(s *State) error {
+	(pPointEvaluation): func(s *state) error {
 		return nil
 	},
 }

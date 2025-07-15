@@ -23,7 +23,7 @@ func getByteCopyFromMemory(memory []byte, offset *uint256.Uint, size *uint256.Ui
 // Retrieve data stored in memory, at offset.
 // > IN: `[offset]`
 // > OUT: `[result]`
-func opMload(s *State) error {
+func opMload(s *state) error {
 	off, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func opMload(s *State) error {
 
 // Write data in memory at offset.
 // > IN: `[offset, data]`
-func opMstore(s *State) error {
+func opMstore(s *state) error {
 	off, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func opMstore(s *State) error {
 
 // Write first byte of data in memory at offset.
 // > IN: `[offset, data]`
-func opMstore8(s *State) error {
+func opMstore8(s *state) error {
 	off, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -110,14 +110,14 @@ func opMstore8(s *State) error {
 
 // Get the memory size.
 // > OUT: `[size]`
-func opMsize(s *State) error {
+func opMsize(s *state) error {
 	s.stack.push(uint256.NewUint(uint64(len(s.memory))))
 	return nil
 }
 
 // opMcopy copies a segment of memory from a source offset to a destination offset for a specified size.
 // It expands the memory if needed and accounts for gas consumption.
-func opMcopy(s *State) error {
+func opMcopy(s *state) error {
 	dst, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func opMcopy(s *State) error {
 
 // opTload loads a value from the transient storage at the given key and pushes it onto the stack.
 // If the key does not exist, it pushes zero.
-func opTload(s *State) error {
+func opTload(s *state) error {
 	if s.context == staticContext {
 		return errors.New("can't modify transient memory from staticCall")
 	}
@@ -163,7 +163,7 @@ func opTload(s *State) error {
 }
 
 // opTstore stores a value into the transient storage at the given key.
-func opTstore(s *State) error {
+func opTstore(s *state) error {
 	key, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func opTstore(s *State) error {
 // opSload loads a value from persistent storage at the given key and pushes it onto the stack.
 // It tracks whether the storage slot is warm and charges gas accordingly.
 // If the key does not exist, it pushes zero.
-func opSload(s *State) error {
+func opSload(s *state) error {
 	key, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -208,7 +208,7 @@ func opSload(s *State) error {
 
 // opSstore stores a value into persistent storage at the given key.
 // It tracks whether the storage slot is warm and charges gas accordingly.
-func opSstore(s *State) error {
+func opSstore(s *state) error {
 	if s.context == staticContext {
 		return errors.New("can't modify memory from staticCall")
 	}
@@ -238,7 +238,7 @@ func opSstore(s *State) error {
 
 // opCalldataload loads 32 bytes from the call data at the given offset and pushes it onto the stack.
 // If the requested range exceeds the call data size, it pads with zeros.
-func opCalldataload(s *State) error {
+func opCalldataload(s *state) error {
 	off, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -258,14 +258,14 @@ func opCalldataload(s *State) error {
 }
 
 // opCalldatasize pushes the size of the call data onto the stack.
-func opCalldatasize(s *State) error {
+func opCalldatasize(s *state) error {
 	s.stack.push(uint256.NewUint(uint64(len(s.callData))))
 	return nil
 }
 
 // opCalldatacopy copies a portion of call data to memory starting at the given destination offset.
 // It expands memory as needed and charges gas accordingly.
-func opCalldatacopy(s *State) error {
+func opCalldatacopy(s *state) error {
 	dest, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -310,7 +310,7 @@ func opCalldatacopy(s *State) error {
 // This implementation only copies zeros (no actual code) and accounts for gas usage.
 // Memory is expanded as needed.
 // btw: EXTCODESIZE can't be implemented, it only copy 0's in memory
-func opExtCodeCopy(s *State) error {
+func opExtCodeCopy(s *state) error {
 	_, err := s.stack.pop() // address of contract code to copy
 	if err != nil {
 		return err
@@ -351,7 +351,7 @@ func opExtCodeCopy(s *State) error {
 
 // opCodeCopy copies bytecode from the current contract code into memory at a specified offset and size.
 // It expands memory as necessary and burns gas based on memory expansion and size copied.
-func opCodeCopy(s *State) error {
+func opCodeCopy(s *state) error {
 	if s.stack.length < 3 {
 		return tooFewStack
 	}

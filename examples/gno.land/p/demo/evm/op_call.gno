@@ -36,7 +36,7 @@ func getDelegateCallVariables(stack *evmStack) (gas *uint256.Uint, addr *uint256
 	return
 }
 
-func opCall(s *State) error {
+func opCall(s *state) error {
 	// get the values pushed in stack
 	gas, addr, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getCallsVariables(&s.stack)
 	if err != nil {
@@ -130,7 +130,7 @@ func opCall(s *State) error {
 }
 
 // DEPRECATED
-func opCallCode(s *State) error {
+func opCallCode(s *state) error {
 	// get the values pushed in stack
 	gas, addr, moneyToGive, argsOffset, argsSize, retOffset, retSize, err := getCallsVariables(&s.stack)
 	if err != nil {
@@ -212,7 +212,7 @@ func opCallCode(s *State) error {
 	return nil
 }
 
-func opDelegateCall(s *State) error {
+func opDelegateCall(s *state) error {
 	// get the values pushed in stack
 	gas, addr, argsOffset, argsSize, retOffset, retSize, err := getDelegateCallVariables(&s.stack)
 	if err != nil {
@@ -290,7 +290,7 @@ func opDelegateCall(s *State) error {
 	return nil
 }
 
-func opStaticCall(s *State) error {
+func opStaticCall(s *state) error {
 	// get the values pushed in stack
 	gas, addr, argsOffset, argsSize, retOffset, retSize, err := getDelegateCallVariables(&s.stack)
 	if err != nil {
@@ -365,7 +365,7 @@ func opStaticCall(s *State) error {
 	return nil
 }
 
-func extendMemory(s *State, retOffset *uint256.Uint, retSize *uint256.Uint, memoryCost *uint64) {
+func extendMemory(s *state, retOffset *uint256.Uint, retSize *uint256.Uint, memoryCost *uint64) {
 	memLen := uint64(len(s.memory))
 	farest := retOffset.Uint64() + retSize.Uint64()
 	if farest > memLen {
@@ -377,7 +377,7 @@ func extendMemory(s *State, retOffset *uint256.Uint, retSize *uint256.Uint, memo
 	}
 }
 
-func opReturnDataSize(s *State) error {
+func opReturnDataSize(s *state) error {
 	if s.lastCallState != nil {
 		s.stack.push(uint256.NewUint(uint64(len(s.lastCallState.result))))
 	} else {
@@ -386,7 +386,7 @@ func opReturnDataSize(s *State) error {
 	return nil
 }
 
-func opReturnDataCopy(s *State) error {
+func opReturnDataCopy(s *state) error {
 
 	destOffset, err := s.stack.pop()
 	if err != nil {

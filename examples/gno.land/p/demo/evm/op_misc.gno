@@ -9,13 +9,13 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-func opPush0(s *State) error {
+func opPush0(s *state) error {
 	s.stack.push(uint256.Zero())
 	return nil
 }
 
-func opPush(n int) func(*State) error {
-	return func(s *State) error {
+func opPush(n int) func(*state) error {
+	return func(s *state) error {
 		s.code.increment()
 		if s.code.ill() {
 			return errors.New("can't PUSH" + strconv.Itoa(n) + ": " + outOfBounds.Error())
@@ -29,8 +29,8 @@ func opPush(n int) func(*State) error {
 	}
 }
 
-func opSwap(n int) func(*State) error {
-	return func(s *State) error {
+func opSwap(n int) func(*state) error {
+	return func(s *state) error {
 		sLen := s.stack.len()
 		if sLen <= n {
 			return errors.New("can't SWAP" + strconv.Itoa(n) + ": stack too small")
@@ -41,8 +41,8 @@ func opSwap(n int) func(*State) error {
 	}
 }
 
-func opDup(n int) func(*State) error {
-	return func(s *State) error {
+func opDup(n int) func(*state) error {
+	return func(s *state) error {
 		if s.stack.len() < n {
 			return errors.New("can't DUP" + strconv.Itoa(n) + ": stack too small")
 		}
@@ -56,13 +56,13 @@ func opDup(n int) func(*State) error {
 	}
 }
 
-func opPop(s *State) error {
+func opPop(s *state) error {
 	_, err := s.stack.pop()
 	return err
 }
 
-func opLog(nTopics int) func(*State) error {
-	return func(s *State) error {
+func opLog(nTopics int) func(*state) error {
+	return func(s *state) error {
 		if s.context == staticContext {
 			return errors.New("can't log from staticCall")
 		}
@@ -95,15 +95,15 @@ func opLog(nTopics int) func(*State) error {
 		}
 		data := make([]byte, size)
 		copy(data, s.memory[offset:offset+size])
-		s.tmp.logs = append(s.tmp.logs, LogEntry{
-			Topics: topics,
-			Data:   data,
+		s.tmp.logs = append(s.tmp.logs, logEntry{
+			topics: topics,
+			data:   data,
 		})
 		return nil
 	}
 }
 
-func opJump(s *State) error {
+func opJump(s *state) error {
 	dest, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -122,11 +122,11 @@ func opJump(s *State) error {
 	return nil
 }
 
-func opNop(s *State) error {
+func opNop(s *state) error {
 	return nil
 }
 
-func opJumpi(s *State) error {
+func opJumpi(s *state) error {
 	dest, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -152,7 +152,7 @@ func opJumpi(s *State) error {
 	return nil
 }
 
-func opIszero(s *State) error {
+func opIszero(s *state) error {
 	num, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -165,7 +165,7 @@ func opIszero(s *State) error {
 	return nil
 }
 
-func opKeccak256(s *State) error {
+func opKeccak256(s *state) error {
 	off, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -190,18 +190,18 @@ func opKeccak256(s *State) error {
 	return nil
 }
 
-func opPc(s *State) error {
+func opPc(s *state) error {
 	s.stack.push(uint256.NewUint(uint64(s.code.rip)))
 	return nil
 }
 
-func opCodeSize(s *State) error {
+func opCodeSize(s *state) error {
 	s.stack.push(uint256.NewUint(uint64(s.code.length)))
 	return nil
 }
 
 // EXTCODESIZE can't be implemented, it only push 0 on stack
-func opExtCodeSize(s *State) error {
+func opExtCodeSize(s *state) error {
 	_, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -210,7 +210,7 @@ func opExtCodeSize(s *State) error {
 	return nil
 }
 
-func opGas(s *State) error {
+func opGas(s *state) error {
 	if s.gasLimit < 0 {
 		s.stack.push(uint256.Zero())
 	} else {
@@ -219,22 +219,22 @@ func opGas(s *State) error {
 	return nil
 }
 
-func opTimestamp(s *State) error {
+func opTimestamp(s *state) error {
 	s.stack.push(uint256.NewUint(uint64(time.Now().Unix())))
 	return nil
 }
 
-func opPrevRandao(s *State) error {
+func opPrevRandao(s *state) error {
 	s.stack.push(s.env.BlockDifficulty.Clone())
 	return nil
 }
 
-func opGaslimit(s *State) error {
+func opGaslimit(s *state) error {
 	s.stack.push(uint256.NewUint(uint64(s.gasLimit)))
 	return nil
 }
 
-func opReturn(s *State) error {
+func opReturn(s *state) error {
 	if s.stack.len() < 2 {
 		return tooFewStack
 	}
@@ -255,7 +255,7 @@ func opReturn(s *State) error {
 	return nil
 }
 
-func opRevert(s *State) error {
+func opRevert(s *state) error {
 	_ = opInvalid(s)
 	err := opReturn(s)
 	if err != nil {
@@ -264,27 +264,27 @@ func opRevert(s *State) error {
 	return revertError
 }
 
-func opInvalid(s *State) error {
+func opInvalid(s *state) error {
 	return invalidPanic
 }
 
-func opCaller(s *State) error {
+func opCaller(s *state) error {
 	s.stack.push(uint256.NewUint(s.callerAddress))
 	return nil
 }
 
-func opCallvalue(s *State) error {
+func opCallvalue(s *state) error {
 	s.stack.push(s.callValue.Clone())
 	return nil
 }
 
-func opGasprice(s *State) error {
-	s.stack.push(uint256.NewUint(GasPrice))
+func opGasprice(s *state) error {
+	s.stack.push(uint256.NewUint(gasPrice))
 	return nil
 }
 
 // TODO: tests
-func opChainId(s *State) error {
+func opChainId(s *state) error {
 	if s.env != nil && s.env.ChainID != nil {
 		s.stack.push(s.env.ChainID.Clone())
 	} else {
@@ -294,19 +294,19 @@ func opChainId(s *State) error {
 }
 
 // TODO: tests
-func opSelfBalance(s *State) error {
+func opSelfBalance(s *state) error {
 	s.stack.push(s.tmp.accounts[s.callerAddress].Balance.Clone())
 	return nil
 }
 
 // TODO: tests
-func opNumber(s *State) error {
+func opNumber(s *state) error {
 	blockNumber := uint64(time.Now().Unix())
 	s.stack.push(uint256.NewUint(blockNumber))
 	return nil
 }
 
-func opBaseFee(s *State) error {
+func opBaseFee(s *state) error {
 	prevBaseFee := uint64(202700000000) // wei
 	includedGas := uint64(30000000)
 	targetGas := uint64(15000000)
@@ -328,7 +328,7 @@ func opBaseFee(s *State) error {
 	return nil
 }
 
-func opBlobBaseFee(s *State) error {
+func opBlobBaseFee(s *state) error {
 	if s.env != nil && s.env.BlobBaseFee != nil {
 		s.stack.push(s.env.BlobBaseFee.Clone())
 	} else {
@@ -337,7 +337,7 @@ func opBlobBaseFee(s *State) error {
 	return nil
 }
 
-func opBlobHash(s *State) error {
+func opBlobHash(s *state) error {
 	index, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -356,7 +356,7 @@ func opBlobHash(s *State) error {
 	return nil
 }
 
-func opCoinbase(s *State) error {
+func opCoinbase(s *state) error {
 	if s.env != nil && s.env.Coinbase != nil {
 		s.stack.push(s.env.Coinbase.Clone()) // miner address -> coinbase
 	} else {
@@ -365,7 +365,7 @@ func opCoinbase(s *State) error {
 	return nil
 }
 
-func opBlockHash(s *State) error {
+func opBlockHash(s *state) error {
 	blockNumber, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -390,7 +390,7 @@ func opBlockHash(s *State) error {
 	return nil
 }
 
-func opExtCodeHash(s *State) error {
+func opExtCodeHash(s *state) error {
 	addr256, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -417,12 +417,12 @@ func opExtCodeHash(s *State) error {
 	return nil
 }
 
-func opAddress(s *State) error {
+func opAddress(s *state) error {
 	s.stack.push(uint256.NewUint(s.callerAddress))
 	return nil
 }
 
-func opBalance(s *State) error {
+func opBalance(s *state) error {
 	addr, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -448,7 +448,7 @@ func opBalance(s *State) error {
 	return nil
 }
 
-func opOrigin(s *State) error {
+func opOrigin(s *state) error {
 	s.stack.push(uint256.NewUint(s.originAddress))
 	return nil
 }

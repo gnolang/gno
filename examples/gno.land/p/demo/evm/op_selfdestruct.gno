@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-func opSelfDestruct(s *State) error {
+func opSelfDestruct(s *state) error {
 	if s.context == staticContext {
 		return errors.New("can't selfdestruct from staticCall")
 	}

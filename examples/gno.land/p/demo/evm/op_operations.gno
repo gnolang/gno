@@ -6,8 +6,8 @@ import (
 	"gno.land/p/demo/uint256"
 )
 
-func opOperation(f func(a, b *uint256.Uint) *uint256.Uint) func(s *State) error {
-	return func(s *State) error {
+func opOperation(f func(a, b *uint256.Uint) *uint256.Uint) func(s *state) error {
+	return func(s *state) error {
 		a, err := s.stack.pop()
 		if err != nil {
 			return errors.New("can't do operation: empty stack")
@@ -21,7 +21,7 @@ func opOperation(f func(a, b *uint256.Uint) *uint256.Uint) func(s *State) error 
 	}
 }
 
-func opExp(s *State) error {
+func opExp(s *state) error {
 	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't do operation: empty stack")
@@ -35,7 +35,7 @@ func opExp(s *State) error {
 	return nil
 }
 
-func opAddmod(s *State) error {
+func opAddmod(s *state) error {
 	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't ADDMOD: empty stack")
@@ -55,7 +55,7 @@ func opAddmod(s *State) error {
 	return nil
 }
 
-func opMulmod(s *State) error {
+func opMulmod(s *state) error {
 	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't MULMOD: empty stack")
@@ -75,7 +75,7 @@ func opMulmod(s *State) error {
 	return nil
 }
 
-func opNot(s *State) error {
+func opNot(s *state) error {
 	a, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't NOT: empty stack")
@@ -87,7 +87,7 @@ func opNot(s *State) error {
 // Retrieve a byte from a word.
 // IN: `[offset, number]`
 // OUT: `[byte]`
-func opByte(s *State) error {
+func opByte(s *state) error {
 	off, err := s.stack.pop()
 	if err != nil {
 		return errors.New("can't XOR: empty stack")
@@ -109,7 +109,7 @@ func opByte(s *State) error {
 	return nil
 }
 
-func opSlt(s *State) error {
+func opSlt(s *state) error {
 	y, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func opSlt(s *State) error {
 	return nil
 }
 
-func opSgt(s *State) error {
+func opSgt(s *state) error {
 	y, err := s.stack.pop()
 	if err != nil {
 		return err
@@ -163,7 +163,7 @@ func opSgt(s *State) error {
 	return nil
 }
 
-func opSar(s *State) error {
+func opSar(s *state) error {
 	shift, err := s.stack.pop()
 	if err != nil {
 		return err

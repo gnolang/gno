@@ -16,6 +16,6 @@ var (
 	revertError        = errors.New("reverted")
 )
 
-func notImplemented(s *State) error {
+func notImplemented(s *state) error {
 	return errors.New("op code 0x" + strconv.FormatInt(int64(s.code.current()), 16) + " not implemented")
 }
