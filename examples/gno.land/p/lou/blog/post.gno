@@ -127,6 +127,7 @@ func (p *Post) UpdatePost(newPost *Post) {
 	} else {
 		p.authors = newPost.authors
 	}
+
 	p.slug = newPost.slug
 	p.title = newPost.title
 	p.body = newPost.body
@@ -137,7 +138,6 @@ func (p *Post) UpdatePost(newPost *Post) {
 	p.DisableLikes = newPost.DisableLikes
 	p.previewFooter = newPost.previewFooter
 	p.updatedAt = time.Now()
-
 }
 
 func (p *Post) AddComment(comment *Comment) error {

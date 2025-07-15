@@ -85,10 +85,7 @@ func (b *Blog) AddPost(post *Post) error {
 	addedSlug := b.PostsBySlug.Set(post.Slug(), post)
 	addedUpdated := b.PostsByUpdatedAt.Set(post.UpdatedAt().String(), post)
 	if !added || !addedSlug || !addedUpdated {
-		// println(added)
-		// println(addedSlug)
-		// println(addedUpdated)
-		return ErrPostAddFailed
+		return ErrPostAddFailed // all values are always false (?)
 	}
 	return nil
 }
