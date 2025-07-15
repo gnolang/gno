@@ -65,7 +65,7 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 	toks, err := ParseHTMLTokens(bytes.NewReader(line))
 
-	if err != nil || len(toks) != 1 {
+	if err != nil {
 		return nil, parser.NoChildren
 	}
 
@@ -75,10 +75,11 @@ func (b *svgBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 	}
 
 	node := NewSvgNode()
-	return node, parser.NoChildren
+	return node, parser.Continue
 }
 
 func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
+	print("Does not yet enter Continue") // debug
 	line, segment := reader.PeekLine()
 
 	if len(line) == 0 {
@@ -125,7 +126,7 @@ func (b *svgBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.C
 	seg.ForceNewline = true // EOF as newline
 	node.Lines().Append(seg)
 	// reader.AdvanceLine()
-	return parser.Continue | parser.NoChildren // Continue parsing
+	return parser.Continue /*| parser.NoChildren*/ // Continue parsing
 }
 
 func (b *svgBlockParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {}
@@ -135,7 +136,7 @@ func (b *svgBlockParser) CanInterruptParagraph() bool {
 }
 
 func (b *svgBlockParser) CanAcceptIndentedLine() bool {
-	return false
+	return true
 }
 
 // svgRenderer renders the Svg node.
@@ -159,15 +160,18 @@ func (r *svgRenderer) render(w util.BufWriter, source []byte, node ast.Node, ent
 	if !entering {
 		return ast.WalkContinue, nil
 	}
-
-	fmt.Fprintln(w, "<object>")
+	fmt.Fprintln(w, "entered extension") // debug
+	fmt.Fprintln(w, `<svg>`)
 	l := node.Lines().Len()
+	print("len: ", l)
+	w.Write([]byte(`<a xlink:href="http://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ&start_radio=1">`)) // debug test to check if links would work
+	w.Write([]byte(`<rect width=20 height=20 fill="red"/>`))                                                        // debug test to check if links would work
 	for i := 0; i < l; i++ {
 		line := node.Lines().At(i)
 		w.Write(line.Value(source))
 	}
 
-	fmt.Fprintln(w, "</object>")
+	fmt.Fprintln(w, `</svg>`)
 	return ast.WalkContinue, nil
 }
 
