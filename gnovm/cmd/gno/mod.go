@@ -253,8 +253,23 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		AllowEmpty: true,
 		Out:        io.Err(),
 	}
-	_, err := packages.Load(loadCfg, "./...")
-	return err
+	pkgs, err := packages.Load(loadCfg, "./...")
+	if err != nil {
+		return err
+	}
+
+	errCount := uint(0)
+	for _, pkg := range pkgs {
+		for _, err := range pkg.Errors {
+			fmt.Fprintf(io.Err(), "%s: %v", pkg.ImportPath, err)
+			errCount++
+		}
+	}
+	if errCount != 0 {
+		return fmt.Errorf("%d build error(s)", errCount)
+	}
+
+	return nil
 }
 
 func parseRemoteOverrides(arg string) (map[string]string, error) {
