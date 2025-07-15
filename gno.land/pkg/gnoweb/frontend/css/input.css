@@ -265,13 +265,17 @@
   }
 
   .realm-view li > input[type="checkbox"]:first-child:disabled {
-    @apply cursor-not-allowed;
+    @apply cursor-not-allowed bg-gray-50 checked:bg-gray-50 border-gray-200;
   }
 
   .realm-view li > input[type="checkbox"]:first-child::after {
     content: "";
     @apply absolute m-auto w-3 h-3 bg-light opacity-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
     clip-path: polygon(25% 36%, 43% 54%, 76% 18%, 89% 29%, 44% 78%, 13% 49%);
+  }
+
+  .realm-view li > input[type="checkbox"]:first-child:disabled::after {
+    @apply bg-green-600;
   }
 
   .realm-view li > input[type="checkbox"]:first-child:checked::after {
@@ -293,7 +297,7 @@
   }
 
   .realm-view li[id^="fn:"]:target::before {
-    @apply opacity-100 duration-75 delay-100;
+    @apply opacity-100 duration-75 delay-150;
   }
 
   /* Columns */
