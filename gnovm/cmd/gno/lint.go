@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -166,11 +167,12 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			hasError = true
 			continue
 		}
-		// XXX(morgan): one big cause of slowness is the fact that after having
-		// two stores (testgs, prodgs), LoadImports wasn't called on both of
-		// them. TODO: devise a strategy to avoid actually calling them both,
-		// as it's often redundant
-		if err := test.LoadImports(prodgs, mpkg, abortOnError); err != nil {
+		// TODO(morgan): devise a strategy to avoid actually calling them on
+		// both stores, as it's redundant whenever the packages in the two
+		// stores match (very frequently).
+		if err := test.LoadImportsWithKinds(prodgs, mpkg, abortOnError, []packages.FileKind{
+			packages.FileKindPackageSource,
+		}); err != nil {
 			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
 			continue

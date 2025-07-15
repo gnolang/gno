@@ -244,6 +244,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	tcError := ""
 	fname = filepath.Base(fname)
+	if opts.tcCache == nil {
+		opts.tcCache = make(gno.TypeCheckCache)
+	}
 
 	// Eagerly load imports.
 	// LoadImports is run using opts.Store, rather than the transaction store;
@@ -319,6 +322,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				Getter:     m.Store,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
 			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
@@ -357,6 +361,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				Getter:     m.Store,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
 			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}

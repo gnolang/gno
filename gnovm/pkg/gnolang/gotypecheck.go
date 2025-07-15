@@ -9,7 +9,6 @@ import (
 	"path"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
@@ -274,13 +273,6 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 			return pkg, nil
 		}
 	}
-	start := time.Now()
-	defer func() {
-		ts := time.Since(start)
-		if ts > (time.Millisecond * 100) {
-			fmt.Printf("import %20s: %s\n", pkgPath, ts)
-		}
-	}()
 	var mpkg *std.MemPackage
 	if gimp.testing && (IsStdlib(pkgPath) || pkgPath == gimp.pkgPath) {
 		mpkg = gimp.tgetter.GetMemPackage(pkgPath)
