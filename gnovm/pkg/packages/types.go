@@ -3,17 +3,13 @@ package packages
 import (
 	"fmt"
 	"go/scanner"
-	"go/token"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"golang.org/x/mod/modfile"
 )
 
-// TODO: self-review this file
-
-// ported from https://cs.opensource.google/go/go/+/refs/tags/go1.23.2:src/cmd/go/internal/load/pkg.go
 type Package struct {
 	Dir        string                `json:",omitempty"` // directory containing package sources
 	ImportPath string                `json:",omitempty"` // import path of package in dir
@@ -34,8 +30,6 @@ type Error struct {
 	Msg string
 }
 
-type ErrorKind string
-
 func (err Error) Error() string {
 	sb := strings.Builder{}
 	if err.Pos != "" {
@@ -46,7 +40,7 @@ func (err Error) Error() string {
 	return sb.String()
 }
 
-func FromErr(err error, fset *token.FileSet, root string, prependRoot bool) []*Error {
+func fromErr(err error, root string, prependRoot bool) []*Error {
 	switch err := err.(type) {
 	case scanner.ErrorList:
 		res := make([]*Error, 0, len(err))
@@ -87,22 +81,7 @@ func FromErr(err error, fset *token.FileSet, root string, prependRoot bool) []*E
 	}
 }
 
-const (
-	UnknownError ErrorKind = "Unknown"
-	ListError              = "List"
-	ParseError             = "Parse"
-	TypeError              = "Type"
-)
-
 type FilesMap map[FileKind][]string
-
-func (fm FilesMap) Size() int {
-	total := 0
-	for _, kind := range GnoFileKinds() {
-		total += len(fm[kind])
-	}
-	return total
-}
 
 // Merge merges imports, it removes duplicates and sorts the result
 func (fm FilesMap) Merge(kinds ...FileKind) []string {
@@ -117,19 +96,7 @@ func (fm FilesMap) Merge(kinds ...FileKind) []string {
 }
 
 func sortPaths(imports []string) {
-	sort.Slice(imports, func(i, j int) bool {
-		return imports[i] < imports[j]
+	slices.SortStableFunc(imports, func(a, b string) int {
+		return strings.Compare(a, b)
 	})
-}
-
-func Inject(pkgsMap map[string]*Package, pkgs []*Package) {
-	for _, pkg := range pkgs {
-		if pkg.ImportPath == "" {
-			continue
-		}
-		if _, ok := pkgsMap[pkg.ImportPath]; ok {
-			continue
-		}
-		pkgsMap[pkg.ImportPath] = pkg
-	}
 }

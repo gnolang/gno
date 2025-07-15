@@ -71,7 +71,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		rel, err := filepath.Rel(stdlibDir, pkg.Dir)
 		if err != nil {
 			// return partial package if can't find lib pkgpath
-			pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, false)...)
+			pkg.Errors = append(pkg.Errors, fromErr(err, pkg.Dir, false)...)
 			return pkg
 		}
 		pkg.ImportPath = filepath.ToSlash(rel)
@@ -82,7 +82,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		mod, err := gnomod.ParseDir(pkg.Dir)
 		if err != nil {
 			// return partial package if invalid gnomod
-			pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, false)...)
+			pkg.Errors = append(pkg.Errors, fromErr(err, pkg.Dir, false)...)
 			return pkg
 		}
 		pkg.Ignore = mod.Ignore
@@ -105,7 +105,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 		return gnolang.ReadMemPackage(pkg.Dir, pkg.ImportPath, mptype)
 	}()
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
+		pkg.Errors = append(pkg.Errors, fromErr(err, pkg.Dir, true)...)
 		return pkg
 	}
 
@@ -121,7 +121,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 
 		fileKind, err := GetFileKind(file.Name, file.Body, fset)
 		if err != nil {
-			pkg.Errors = append(pkg.Errors, FromErr(err, fset, fpath, false)...)
+			pkg.Errors = append(pkg.Errors, fromErr(err, fpath, false)...)
 			continue
 		}
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], file.Name)
@@ -129,7 +129,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 
 	imps, err := Imports(mpkg, fset)
 	if err != nil {
-		pkg.Errors = append(pkg.Errors, FromErr(err, fset, pkg.Dir, true)...)
+		pkg.Errors = append(pkg.Errors, fromErr(err, pkg.Dir, true)...)
 		return pkg
 	}
 	pkg.ImportsSpecs = imps
