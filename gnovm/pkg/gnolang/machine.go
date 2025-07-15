@@ -16,7 +16,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
-
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -2301,6 +2300,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		iv := m.PopValue()
 		xv := m.PopValue()
 		pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+
 		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
 		xv := m.PopValue()
