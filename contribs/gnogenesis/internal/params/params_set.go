@@ -50,12 +50,7 @@ func newParamsSetCmd(paramsCfg *paramsCfg, io commands.IO) *commands.Command {
 	return cmd
 }
 
-func execParamsSet(
-	cfg *paramsCfg,
-	io commands.IO,
-	args []string,
-) error {
-
+func execParamsSet(cfg *paramsCfg, io commands.IO, args []string) error {
 	genesis, loadErr := types.GenesisDocFromFile(cfg.GenesisPath)
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
@@ -155,7 +150,7 @@ func saveStringToValue(vals []string, dstValue reflect.Value) error {
 			for _, ss := range strings.Split(val, ",") {
 				addr, err := crypto.AddressFromBech32(ss)
 				if err != nil {
-					return fmt.Errorf("unable to parse address %q: %w", vals[0], err)
+					return fmt.Errorf("unable to parse address %q: %w", ss, err)
 				}
 				addrs = append(addrs, addr)
 			}

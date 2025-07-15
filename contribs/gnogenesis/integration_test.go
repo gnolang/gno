@@ -14,7 +14,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
@@ -40,14 +39,14 @@ func TestIntegration(t *testing.T) {
 
 	genesisfile := filepath.Join(t.TempDir(), "genesis.json")
 
-	// generate file
+	// Generate file
 	runGnoGenesisCommand(t, ctx, "generate",
 		"-chain-id", chainid,
 		"-genesis-time", genesisTime,
 		"-output-path", genesisfile,
 	)
 
-	// create keybase
+	// Create keybase
 	gnoHomeDir := filepath.Join(t.TempDir(), "gno")
 
 	pk := ed25519.GenPrivKey()
@@ -65,7 +64,7 @@ func TestIntegration(t *testing.T) {
 		"--power", "1",
 	)
 
-	// dummy account
+	// Dummy account
 	dKeys := common.GetDummyKeys(t, 3)
 
 	// Generate balance sheet
@@ -108,7 +107,7 @@ func TestIntegration(t *testing.T) {
 	io := commands.NewTestIO()
 
 	// XXX: Add the whole example folders (?), keep this commented until we
-	// feel it's usefull, other integrations tests should already cover this.
+	// feel it's useful, other integrations tests should already cover this.
 	//
 	// io.SetIn(strings.NewReader("\n")) // send an empty password
 	// examplesDir := filepath.Join(gnoroot, "examples")
@@ -148,7 +147,7 @@ func Render(_ string) string { return "bar" }
 		"--genesis-path", genesisfile,
 		barDir)
 
-	genesis, err := types.GenesisDocFromFile(genesisfile)
+	genesis, err := bft.GenesisDocFromFile(genesisfile)
 	require.NoError(t, err)
 
 	file, err := os.ReadFile(genesisfile)

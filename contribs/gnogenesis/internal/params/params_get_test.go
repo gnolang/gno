@@ -19,6 +19,8 @@ func TestParamsGetCmd(t *testing.T) {
 	t.Parallel()
 
 	makeGenesis := func(t *testing.T) (string, gnoland.GnoGenesisState, func()) {
+		t.Helper()
+
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		genesis := common.GetDefaultGenesis()
 		appState := genesis.AppState.(gnoland.GnoGenesisState)

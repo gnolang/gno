@@ -34,13 +34,13 @@ type parsedField struct {
 // This path can be later used with GeneratorGetFieldAtPath to retrieve or manipulate
 // the actual struct field at runtime, ensuring a direct mapping between the generated
 // CLI command and its underlying field.
-func (gen *FieldsGenerator) GenerateFrom(s any, exec ExecMethod) []*Command {
+func (g *FieldsGenerator) GenerateFrom(s any, exec ExecMethod) []*Command {
 	rv := reflect.ValueOf(s)
-	fields := gen.generateFields(rv, []string{}, 0)
+	fields := g.generateFields(rv, []string{}, 0)
 
 	cmds := make([]*Command, 0, len(fields))
 	for _, meta := range fields {
-		if meta.depth < gen.Depth {
+		if meta.depth < g.Depth {
 			continue
 		}
 
