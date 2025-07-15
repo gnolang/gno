@@ -101,8 +101,8 @@ func (pdb *PebbleDB) DeleteSync(key []byte) {
 }
 
 // Implements DB.
-func (pdb *PebbleDB) Close() {
-	pdb.db.Close()
+func (pdb *PebbleDB) Close() error {
+	return pdb.db.Close()
 }
 
 // Implements DB.
