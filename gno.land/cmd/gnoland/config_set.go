@@ -36,14 +36,15 @@ func newConfigSetCmd(io commands.IO) *commands.Command {
 	)
 
 	// Add subcommand helpers
-	helperGen := metadataHelperGenerator{
+	gen := commands.FieldsGenerator{
 		MetaUpdate: func(meta *commands.Metadata, inputType string) {
 			meta.ShortUsage = fmt.Sprintf("config set %s <%s>", meta.Name, inputType)
 		},
 		TagNameSelector: "json",
 		TreeDisplay:     true,
 	}
-	cmd.AddSubCommands(generateSubCommandHelper(helperGen, config.Config{}, func(_ context.Context, args []string) error {
+
+	cmd.AddSubCommands(gen.GenerateFrom(config.Config{}, func(_ context.Context, args []string) error {
 		return execConfigEdit(cfg, io, args)
 	})...)
 
@@ -100,7 +101,7 @@ func updateConfigField(config *config.Config, key, value string) error {
 	path := strings.Split(key, ".")
 
 	// Get the editable field
-	field, err := getFieldAtPath(configValue, path)
+	field, err := commands.GetFieldByPath(configValue, "toml", path)
 	if err != nil {
 		return err
 	}
