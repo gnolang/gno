@@ -1,0 +1,109 @@
+# Test for gnokey maketx auto gas functionality (default behavior)
+
+loadpkg gno.land/r/gastest $WORK/gastest
+
+# start a new node
+gnoland start
+
+# Test 1: Simple call with default auto gas estimation (no flags needed)
+gnokey maketx call -pkgpath gno.land/r/gastest -func SimpleCall -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 2: Complex call with default auto gas (no flags needed)
+gnokey maketx call -pkgpath gno.land/r/gastest -func ComplexCall -args 100 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 3: Add package with default auto gas (no flags needed)
+gnokey maketx addpkg -pkgdir $WORK/newpkg -pkgpath gno.land/r/newpkg -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 4: Run with default auto gas (no flags needed)
+gnokey maketx run test1 $WORK/script/simple.gno -broadcast -chainid=tendermint_test
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 5: Auto gas should handle panics gracefully during simulation
+! gnokey maketx call -pkgpath gno.land/r/gastest -func PanicCall -broadcast -chainid=tendermint_test test1
+stderr 'intentional panic'
+
+# Test 6: Verify that auto gas works without broadcast (simulate only)
+gnokey maketx call -pkgpath gno.land/r/gastest -func SimpleCall -simulate only test1
+stdout '"gas_wanted":"[0-9]+"'
+
+# Test 7: Send transaction with default auto gas (no flags needed)
+gnokey maketx send -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -send 1000ugnot -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 8: Test explicit --gas-wanted=auto flag
+gnokey maketx call -pkgpath gno.land/r/gastest -func SimpleCall --gas-wanted auto -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 9: Test explicit --gas-fee=auto flag
+gnokey maketx call -pkgpath gno.land/r/gastest -func ComplexCall -args 100 --gas-fee auto -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 10: Test both explicit auto flags
+gnokey maketx send -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -send 1000ugnot --gas-wanted auto --gas-fee auto -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: [0-9]+'
+stdout 'GAS USED:   [0-9]+'
+
+# Test 11: Test manual gas override
+gnokey maketx call -pkgpath gno.land/r/gastest -func SimpleCall --gas-wanted 200000 --gas-fee 1000000ugnot -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+stdout 'GAS WANTED: 200000'
+stdout 'GAS USED:   [0-9]+'
+
+-- gastest/gastest.gno --
+package gastest
+
+import (
+	"strings"
+)
+
+func SimpleCall(cur realm) string {
+	return "simple call executed"
+}
+
+func ComplexCall(cur realm, iterations int) string {
+	// Do some work to consume gas
+	result := ""
+	for i := 0; i < iterations; i++ {
+		result = strings.Join([]string{result, "x"}, "")
+	}
+	return "complex call executed"
+}
+
+func PanicCall(cur realm) {
+	panic("intentional panic")
+}
+
+-- newpkg/newpkg.gno --
+package newpkg
+
+func Render() string {
+	return "new package"
+}
+
+-- newpkg/gnomod.toml --
+module = "gno.land/r/newpkg"
+gno = "0.9"
+
+-- script/simple.gno --
+package main
+
+func main() {
+	println("Hello from auto gas!")
+}

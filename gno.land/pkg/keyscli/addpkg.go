@@ -71,12 +71,6 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	if cfg.PkgDir == "" {
 		return errors.New("pkgdir not specified")
 	}
-	if cfg.RootCfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
-	if cfg.RootCfg.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
 
 	if len(args) != 1 {
 		return flag.ErrHelp
@@ -107,23 +101,24 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		panic(err)
-	}
 	// construct msg & tx and marshal.
 	msg := vm.MsgAddPackage{
 		Creator: creator,
 		Package: memPkg,
 		Deposit: deposit,
 	}
+
+	// Create transaction
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
+		Fee:        std.Fee{}, // Will be set by EstimateOrSetFee
 		Signatures: nil,
 		Memo:       cfg.RootCfg.Memo,
+	}
+
+	// Handle gas estimation or manual fee setting
+	if err := client.EstimateOrSetFee(cfg.RootCfg, &tx); err != nil {
+		return errors.Wrap(err, "setting transaction fee")
 	}
 
 	if cfg.RootCfg.Broadcast {

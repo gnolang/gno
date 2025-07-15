@@ -59,12 +59,6 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	if cfg.RootCfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
-	if cfg.RootCfg.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
 	if cfg.Send == "" {
 		return errors.New("send (amount) must be specified")
 	}
@@ -97,24 +91,24 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
-
 	// construct msg & tx and marshal.
 	msg := bank.MsgSend{
 		FromAddress: fromAddr,
 		ToAddress:   toAddr,
 		Amount:      send,
 	}
+
+	// Create transaction
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
+		Fee:        std.Fee{}, // Will be set by EstimateOrSetFee
 		Signatures: nil,
 		Memo:       cfg.RootCfg.Memo,
+	}
+
+	// Handle gas estimation or manual fee setting
+	if err := EstimateOrSetFee(cfg.RootCfg, &tx); err != nil {
+		return errors.Wrap(err, "setting transaction fee")
 	}
 
 	if cfg.RootCfg.Broadcast {
