@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gnolang/gno/_test/ct1"
+	"filetests/extern/ct1"
 )
 
 type T struct {

@@ -23,7 +23,8 @@ func (m *Machine) doOpIndex1() {
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		}
 	default:
-		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		// NOTE: nilRealm is OK, not setting a map (w/ new key).
+		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 	xv.SetReadonly(ro)
@@ -650,10 +651,10 @@ func (m *Machine) doOpFuncLit() {
 	// to *FuncValue. Later during doOpCall a block
 	// will be created that copies these values for
 	// every invocation of the function.
-	var captures []TypedValue
+	captures := make([]TypedValue, 0, len(x.HeapCaptures))
 	if m.Stage == StagePre {
 		// TODO static block items aren't heap items.
-		captures = append(captures, make([]TypedValue, len(x.HeapCaptures))...)
+		// continue
 	} else {
 		for _, nx := range x.HeapCaptures {
 			ptr := lb.GetPointerToDirect(m.Store, nx.Path)

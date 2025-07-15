@@ -17,4 +17,4 @@ func main() {
 // some error
 
 // TypeCheckError:
-// main/errors2_filetest.gno:12:2: declared and not used: b
+// main/errors2.gno:12:2: declared and not used: b
