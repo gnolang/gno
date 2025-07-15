@@ -148,7 +148,7 @@ type RpcMarketInfo struct {
 }
 
 // GetMarketInfo returns comprehensive information about a market
-func GetRpcMarketInfo(marketId string) RpcMarketInfo {
+func GetRpcMarketInfo(cur realm, marketId string) RpcMarketInfo {
 	market, params := GetMarket(marketId)
 
 	// Get price from oracle
@@ -159,8 +159,8 @@ func GetRpcMarketInfo(marketId string) RpcMarketInfo {
 	}
 
 	// Get APRs using utility functions
-	borrowAPR := CalculateBorrowAPR(marketId)
-	supplyAPR := CalculateSupplyAPR(marketId)
+	borrowAPR := CalculateBorrowAPR(cur, marketId)
+	supplyAPR := CalculateSupplyAPR(cur, marketId)
 
 	// Calculate utilization rate
 	var utilization *u256.Uint
@@ -184,14 +184,14 @@ func GetRpcMarketInfo(marketId string) RpcMarketInfo {
 	if loanTokenInfo != nil {
 		loanTokenName = loanTokenInfo.GetName()
 		loanTokenSymbol = loanTokenInfo.GetSymbol()
-		loanTokenDecimals = loanTokenInfo.GetDecimals()
+		loanTokenDecimals = uint(loanTokenInfo.GetDecimals())
 	}
 
 	collateralTokenInfo := GetToken(collateralToken)
 	if collateralTokenInfo != nil {
 		collateralTokenName = collateralTokenInfo.GetName()
 		collateralTokenSymbol = collateralTokenInfo.GetSymbol()
-		collateralTokenDecimals = collateralTokenInfo.GetDecimals()
+		collateralTokenDecimals = uint(collateralTokenInfo.GetDecimals())
 	}
 
 	return RpcMarketInfo{

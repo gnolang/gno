@@ -48,7 +48,7 @@ func init() {
 /* ADMIN FUNCTIONS */
 
 // RegisterIRM registers a new interest rate model
-func RegisterIRM(irm IRM) {
+func RegisterIRM(cur realm, irm IRM) {
 	// Get IRM name
 	name := irm.Name()
 
@@ -64,8 +64,8 @@ func RegisterIRM(irm IRM) {
 	emitRegisterIRM(std.PreviousRealm().PkgPath(), name)
 }
 
-func EnableIRM(irm string) {
-	Ownable.AssertCallerIsOwner()
+func EnableIRM(cur realm, irm string) {
+	Ownable.AssertOwnedByPrevious()
 
 	// Check if IRM exists in registry
 	if _, exists := irmRegistry.Get(irm); !exists {
@@ -79,8 +79,8 @@ func EnableIRM(irm string) {
 	enabledIRMs.Set(irm, true)
 }
 
-func EnableLLTV(lltv *u256.Uint) {
-	Ownable.AssertCallerIsOwner()
+func EnableLLTV(cur realm, lltv *u256.Uint) {
+	Ownable.AssertOwnedByPrevious()
 
 	// Convert LLTV to string for use as key in tree
 	lltvStr := lltv.ToString()
@@ -98,8 +98,8 @@ func EnableLLTV(lltv *u256.Uint) {
 	enabledLLTVs.Set(lltvStr, true)
 }
 
-func SetFeeRecipient(newFeeRecipient std.Address) {
-	Ownable.AssertCallerIsOwner()
+func SetFeeRecipient(cur realm, newFeeRecipient std.Address) {
+	Ownable.AssertOwnedByPrevious()
 
 	if newFeeRecipient == feeRecipient {
 		panic(ErrAlreadySet)
@@ -111,7 +111,7 @@ func SetFeeRecipient(newFeeRecipient std.Address) {
 /* MARKET CREATION */
 
 // CreateMarket initializes a new lending market with basic parameters
-func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
+func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, lltv int64) {
 	if poolPath == "" {
 		panic(ErrZeroAddress)
 	}
@@ -173,7 +173,7 @@ func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
 
 // Supply tokens to a market
 // Either assets or shares must be non-zero (XOR)
-func Supply(marketId string, assets, shares uint64) {
+func Supply(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
 	}
@@ -233,7 +233,7 @@ func Supply(marketId string, assets, shares uint64) {
 
 	// Handle token transfer using GRC20 interface
 	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
-	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), assetsU256.Uint64()); err != nil {
+	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), assetsU256.Int64()); err != nil {
 		panic(err)
 	}
 
@@ -242,7 +242,7 @@ func Supply(marketId string, assets, shares uint64) {
 
 // Withdraw tokens from a market
 // Either assets or shares must be non-zero (XOR)
-func Withdraw(marketId string, assets, shares uint64) {
+func Withdraw(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
 	}
@@ -312,7 +312,7 @@ func Withdraw(marketId string, assets, shares uint64) {
 
 	// Handle token transfer using GRC20 interface
 	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
-	if err := tokenTeller.Transfer(caller, assetsU256.Uint64()); err != nil {
+	if err := tokenTeller.Transfer(caller, assetsU256.Int64()); err != nil {
 		panic(err)
 	}
 
@@ -323,7 +323,7 @@ func Withdraw(marketId string, assets, shares uint64) {
 
 // Borrow assets from a market using collateral
 // Either assets or shares must be non-zero (not both)
-func Borrow(marketId string, assets, shares uint64) {
+func Borrow(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
 	}
@@ -399,7 +399,7 @@ func Borrow(marketId string, assets, shares uint64) {
 
 	// Transfer borrowed tokens to caller
 	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
-	if err := tokenTeller.Transfer(caller, assetsU256.Uint64()); err != nil {
+	if err := tokenTeller.Transfer(caller, assetsU256.Int64()); err != nil {
 		panic(err)
 	}
 
@@ -408,7 +408,7 @@ func Borrow(marketId string, assets, shares uint64) {
 
 // Repay borrowed tokens to a market
 // Either assets or shares must be non-zero (XOR)
-func Repay(marketId string, assets, shares uint64) {
+func Repay(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
 	}
@@ -473,7 +473,7 @@ func Repay(marketId string, assets, shares uint64) {
 
 	// Handle token transfer using GRC20 interface
 	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
-	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), assetsU256.Uint64()); err != nil {
+	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), assetsU256.Int64()); err != nil {
 		panic(err)
 	}
 
@@ -484,7 +484,7 @@ func Repay(marketId string, assets, shares uint64) {
 
 // SupplyCollateral supplies collateral to a market
 // The collateral can be used to borrow assets from the market
-func SupplyCollateral(marketId string, amount uint64) {
+func SupplyCollateral(cur realm, marketId string, amount uint64) {
 	// Check if market exists
 	if _, exists := markets.Get(marketId); !exists {
 		panic(ErrMarketNotCreated)
@@ -507,7 +507,7 @@ func SupplyCollateral(marketId string, amount uint64) {
 
 	// Handle token transfer using GRC20 interface
 	tokenTeller := GetTokenCallerTeller(params.GetCollateralToken())
-	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), amount); err != nil {
+	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), int64(amount)); err != nil {
 		panic(err)
 	}
 
@@ -516,7 +516,7 @@ func SupplyCollateral(marketId string, amount uint64) {
 
 // WithdrawCollateral withdraws collateral from a market
 // The withdrawal will fail if it would make the user's position unhealthy
-func WithdrawCollateral(marketId string, amount uint64) {
+func WithdrawCollateral(cur realm, marketId string, amount uint64) {
 	// Check if market exists
 	if _, exists := markets.Get(marketId); !exists {
 		panic(ErrMarketNotCreated)
@@ -562,7 +562,7 @@ func WithdrawCollateral(marketId string, amount uint64) {
 
 	// Handle token transfer using GRC20 interface
 	tokenTeller := GetTokenCallerTeller(params.GetCollateralToken())
-	if err := tokenTeller.Transfer(caller, amount); err != nil {
+	if err := tokenTeller.Transfer(caller, int64(amount)); err != nil {
 		panic(err)
 	}
 
@@ -573,7 +573,7 @@ func WithdrawCollateral(marketId string, amount uint64) {
 
 // Liquidate liquidates a position that is below the liquidation threshold.
 // It takes either seizedAssets (collateral to seize) or repaidShares (debt to repay), but not both.
-func Liquidate(marketId string, borrower std.Address, seizedAssets, repaidShares uint64) (uint64, uint64) {
+func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, repaidShares uint64) (uint64, uint64) {
 	// Check that exactly one of seizedAssets or repaidShares is non-zero
 	if (seizedAssets == 0) == (repaidShares == 0) {
 		panic(ErrInconsistentAmount)
@@ -672,13 +672,13 @@ func Liquidate(marketId string, borrower std.Address, seizedAssets, repaidShares
 	// Transfer seized collateral to liquidator
 	caller := std.PreviousRealm().Address()
 	tokenTeller := GetTokenCallerTeller(params.GetCollateralToken())
-	if err := tokenTeller.Transfer(caller, seizedAssetsU256.Uint64()); err != nil {
+	if err := tokenTeller.Transfer(caller, seizedAssetsU256.Int64()); err != nil {
 		panic(err)
 	}
 
 	// Transfer repaid assets from liquidator to contract
 	tokenTeller = GetTokenCallerTeller(params.GetLoanToken())
-	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), repaidAssets.Uint64()); err != nil {
+	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), repaidAssets.Int64()); err != nil {
 		panic(err)
 	}
 
@@ -690,7 +690,7 @@ func Liquidate(marketId string, borrower std.Address, seizedAssets, repaidShares
 
 /* INTEREST ACCRUAL */
 
-func AccrueInterest(marketId string) {
+func AccrueInterest(cur realm, marketId string) {
 	// Check if market exists
 	if _, exists := markets.Get(marketId); !exists {
 		panic(ErrMarketNotCreated)

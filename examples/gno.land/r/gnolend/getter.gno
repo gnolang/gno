@@ -294,71 +294,71 @@ func GetFeeRecipient() string {
 }
 
 // GetExpectedMarketBalances returns the expected market balances after interest accrual as strings
-func GetExpectedMarketBalances(marketId string) (string, string, string, string) {
-	totalSupplyAssets, totalSupplyShares, totalBorrowAssets, totalBorrowShares := ExpectedMarketBalances(marketId)
+func GetExpectedMarketBalances(cur realm, marketId string) (string, string, string, string) {
+	totalSupplyAssets, totalSupplyShares, totalBorrowAssets, totalBorrowShares := ExpectedMarketBalances(cur, marketId)
 	return totalSupplyAssets.ToString(), totalSupplyShares.ToString(),
 		totalBorrowAssets.ToString(), totalBorrowShares.ToString()
 }
 
 // GetExpectedTotalSupplyAssets returns the expected total supply assets after interest accrual as a string
-func GetExpectedTotalSupplyAssets(marketId string) string {
-	return ExpectedTotalSupplyAssets(marketId).ToString()
+func GetExpectedTotalSupplyAssets(cur realm, marketId string) string {
+	return ExpectedTotalSupplyAssets(cur, marketId).ToString()
 }
 
 // GetExpectedTotalBorrowAssets returns the expected total borrow assets after interest accrual as a string
-func GetExpectedTotalBorrowAssets(marketId string) string {
-	return ExpectedTotalBorrowAssets(marketId).ToString()
+func GetExpectedTotalBorrowAssets(cur realm, marketId string) string {
+	return ExpectedTotalBorrowAssets(cur, marketId).ToString()
 }
 
 // GetExpectedTotalSupplyShares returns the expected total supply shares after interest accrual as a string
-func GetExpectedTotalSupplyShares(marketId string) string {
-	return ExpectedTotalSupplyShares(marketId).ToString()
+func GetExpectedTotalSupplyShares(cur realm, marketId string) string {
+	return ExpectedTotalSupplyShares(cur, marketId).ToString()
 }
 
 // GetExpectedSupplyAssets returns the expected supply assets balance of a user after interest accrual as a string
-func GetExpectedSupplyAssets(marketId string, user string) string {
-	return ExpectedSupplyAssets(marketId, user).ToString()
+func GetExpectedSupplyAssets(cur realm, marketId string, user string) string {
+	return ExpectedSupplyAssets(cur, marketId, user).ToString()
 }
 
 // GetExpectedBorrowAssets returns the expected borrow assets balance of a user after interest accrual as a string
-func GetExpectedBorrowAssets(marketId string, user string) string {
-	return ExpectedBorrowAssets(marketId, user).ToString()
+func GetExpectedBorrowAssets(cur realm, marketId string, user string) string {
+	return ExpectedBorrowAssets(cur, marketId, user).ToString()
 }
 
 // GetBorrowRate returns the current borrow rate per second as a string (WAD-scaled)
-func GetBorrowRate(marketId string) string {
-	borrowRate := CalculateBorrowRate(marketId)
+func GetBorrowRate(cur realm, marketId string) string {
+	borrowRate := CalculateBorrowRate(cur, marketId)
 	return borrowRate.ToString()
 }
 
 // GetSupplyRate returns the current supply rate per second as a string (WAD-scaled)
-func GetSupplyRate(marketId string) string {
-	supplyRate := CalculateSupplyRate(marketId)
+func GetSupplyRate(cur realm, marketId string) string {
+	supplyRate := CalculateSupplyRate(cur, marketId)
 	return supplyRate.ToString()
 }
 
 // GetBorrowAPR returns the current annualized borrow rate as a string (WAD-scaled)
-func GetBorrowAPR(marketId string) string {
-	borrowAPR := CalculateBorrowAPR(marketId)
+func GetBorrowAPR(cur realm, marketId string) string {
+	borrowAPR := CalculateBorrowAPR(cur, marketId)
 	return borrowAPR.ToString()
 }
 
 // GetSupplyAPR returns the current annualized supply rate as a string (WAD-scaled)
-func GetSupplyAPR(marketId string) string {
-	supplyAPR := CalculateSupplyAPR(marketId)
+func GetSupplyAPR(cur realm, marketId string) string {
+	supplyAPR := CalculateSupplyAPR(cur, marketId)
 	return supplyAPR.ToString()
 }
 
 // GetLoanAmount returns the current loan amount for a user in a market as a string
-func GetLoanAmount(marketId string, user string) string {
-	amount := CalculateLoanAmount(marketId, user)
+func GetLoanAmount(cur realm, marketId string, user string) string {
+	amount := CalculateLoanAmount(cur, marketId, user)
 	return amount.ToString()
 }
 
 // GetUserLoans returns a list of all loans for a user in the format:
 // [token1, amount1, token2, amount2, ...]
-func GetUserLoans(user string) []string {
-	loans := CalculateUserLoans(user)
+func GetUserLoans(cur realm, user string) []string {
+	loans := CalculateUserLoans(cur, user)
 	result := make([]string, 0, loans.Size()*2) // pre-allocate for pairs
 
 	loans.Iterate("", "", func(key string, value interface{}) bool {
@@ -374,7 +374,7 @@ func GetUserLoans(user string) []string {
 // GetHealthFactor returns the health factor for a user's position as a string
 // A health factor > 1 means the position is healthy
 // A health factor < 1 means the position is eligible for liquidation
-func GetHealthFactor(marketId string, userAddr string) string {
-	healthFactor := CalculateHealthFactor(marketId, userAddr)
+func GetHealthFactor(cur realm, marketId string, userAddr string) string {
+	healthFactor := CalculateHealthFactor(cur, marketId, userAddr)
 	return healthFactor.ToString()
 }

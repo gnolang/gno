@@ -11,16 +11,14 @@ import (
 // GetTokenTeller returns a GRC20 token teller for the given token path
 // Panics if the token is not registered
 func GetTokenCallerTeller(path string) grc20.Teller {
-	tokenGetter := grc20reg.MustGet(path) // panics if token not registered
-	token := tokenGetter()
+	token := grc20reg.MustGet(path) // panics if token not registered
 	return token.CallerTeller()
 }
 
 // GetToken returns a GRC20 token instance
 // Panics if the token is not registered
 func GetToken(path string) *grc20.Token {
-	tokenGetter := grc20reg.MustGet(path)
-	return tokenGetter()
+	return grc20reg.MustGet(path)
 }
 
 // Helper function to check if two tokens exist together in a Gnoswap pool

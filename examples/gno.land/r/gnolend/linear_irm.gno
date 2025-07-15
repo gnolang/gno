@@ -32,5 +32,5 @@ func (irm *LinearIRM) BorrowRate(totalSupplyAssets, totalBorrowAssets *u256.Uint
 }
 
 func init() {
-	RegisterIRM(&LinearIRM{})
+	RegisterIRM(cross, &LinearIRM{})
 }

@@ -6,8 +6,8 @@ import (
 
 // INITIAL ADDRESSES
 const (
-	ADMIN   std.Address = "g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d"
-	DEV_OPS std.Address = "g1mjvd83nnjee3z2g7683er55me9f09688pd4mj9"
+	ADMIN   std.Address = "g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy"
+	DEV_OPS std.Address = "g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy"
 )
 
 // WRAP & UNWRAP

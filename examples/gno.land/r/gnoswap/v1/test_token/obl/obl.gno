@@ -13,7 +13,7 @@ import (
 
 var (
 	token, privateLedger = grc20.NewToken("Obl", "OBL", 6)
-	owner                = ownable.NewWithAddress("g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d") // ADMIN
+	owner                = ownable.NewWithAddress("g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy") // ADMIN
 )
 
 func init() {
