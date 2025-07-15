@@ -31,7 +31,7 @@ type parsedField struct {
 // GenerateFrom generates a list of CLI subcommands for each field in the struct `s`,
 // using field tags and metadata for help texts and names. Each generated command
 // includes its full path in the struct as a dot-separated string (e.g., "foo.bar.baz").
-// This path can be later used with GeneratorGetFieldAtPath to retrieve or manipulate
+// This path can be later used with `GetFieldByPath` to retrieve or manipulate
 // the actual struct field at runtime, ensuring a direct mapping between the generated
 // CLI command and its underlying field.
 func (g *FieldsGenerator) GenerateFrom(s any, exec ExecMethod) []*Command {
