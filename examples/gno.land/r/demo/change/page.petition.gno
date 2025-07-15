@@ -69,7 +69,7 @@ func renderPetitionPage(params map[string]string) string {
 		signContent += "Target of " + md.Bold(strconv.Itoa(petition.target)) + " signatures exceeded by " + md.Bold(strconv.Itoa(-neededSigns)) + " signatures !" + br
 	}
 
-	tx := txlink.Call("")
+	tx := txlink.Call("Sign", "id", strconv.Itoa(petition.id))
 	signContent += md.H2(md.Link("Sign this petition now", tx))
 
 	if len(petition.signatures) != 0 {
