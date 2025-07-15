@@ -1,9 +1,9 @@
 # Run gno test on an empty dir
 
-gno test .
+! gno test .
 
 ! stdout .+
-stderr '[no test files]'
+stderr 'gnomod.toml doesn''t exist'
 
 gno test ./...
 

@@ -20,3 +20,6 @@ func TestPanic(t *testing.T) {
 }
 
 -- gnowork.toml --
+-- gnomod.toml --
+module = "gno.test/p/integ/panic"
+gno = "0.9"

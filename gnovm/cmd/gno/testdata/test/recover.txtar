@@ -72,3 +72,6 @@ func TestBadRecoverSkip(t *testing.T) {
 }
 
 -- gnowork.toml --
+-- gnomod.toml --
+module = "gno.test/p/integ/recover"
+gno = "0.9"
