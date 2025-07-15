@@ -224,7 +224,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 	}
 
 	if errCount != 0 {
-		return errors.New("%d load error(s)")
+		return errors.New("%d build error(s)", errCount)
 	}
 
 	return nil
