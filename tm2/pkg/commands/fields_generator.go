@@ -148,9 +148,8 @@ func (g *FieldsGenerator) generateFields(rv reflect.Value, parents []string, dep
 // the provided path (a slice of field names, e.g., ["foo", "bar", "baz"]) and returns
 // a pointer to the reflect.Value of the target field
 //
-// This function is designed to work in tandem with GenerateFrom: the path provided to
-// GeneratorGetFieldAtPath should match the path generated for each command in GenerateFrom,
-// enabling precise access to the struct field corresponding to a CLI command.
+// This function is designed to work in tandem with `GenerateFrom`: the path provided to
+// `GetFieldByPath` should match the path generated for each command in `GenerateFrom`.
 func GetFieldByPath(currentValue reflect.Value, selTag string, path []string) (*reflect.Value, error) {
 	// Examine the current section to determine if it's part of the current struct
 	field := fieldByName(currentValue, selTag, path[0])
