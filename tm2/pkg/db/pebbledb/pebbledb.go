@@ -161,8 +161,8 @@ func (mBatch *pebbleDBBatch) Close() {
 }
 
 // Implements DB.
-func (db *PebbleDB) Iterator(start, end []byte) db.Iterator {
-	it, err := db.db.NewIter(&pebble.IterOptions{
+func (pdb *PebbleDB) Iterator(start, end []byte) db.Iterator {
+	it, err := pdb.db.NewIter(&pebble.IterOptions{
 		LowerBound: start,
 		UpperBound: end,
 	})
