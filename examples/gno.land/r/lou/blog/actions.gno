@@ -60,8 +60,7 @@ func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags strin
 	actionLinks := md.Link("Like", txlink.Call("LikePostBySlug", "slug", post.Slug()))
 	post.SetPreviewFooter(actionLinks + "\n\n")
 	if err := myBlog.AddPost(post); err != nil {
-		// panic(err) panics everytime
-		println(err)
+		panic(err)
 	}
 }
 

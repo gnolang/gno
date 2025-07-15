@@ -79,12 +79,9 @@ func (b *Blog) AddPost(post *Post) error {
 	}
 
 	b.addToIndex(post)
-	added := b.Posts.Set(post.ID(), post)
-	addedSlug := b.PostsBySlug.Set(post.Slug(), post)
-	addedUpdated := b.PostsByUpdatedAt.Set(post.UpdatedAt().String(), post)
-	if !added || !addedSlug || !addedUpdated {
-		return ErrPostAddFailed // all bool values are always false (?)
-	}
+	b.Posts.Set(post.ID(), post)
+	b.PostsBySlug.Set(post.Slug(), post)
+	b.PostsByUpdatedAt.Set(post.UpdatedAt().String(), post)
 	return nil
 }
 
