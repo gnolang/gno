@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"runtime"
 	"runtime/pprof"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -31,6 +32,7 @@ func main() {
 				panic(err)
 			}
 			defer f.Close()
+			runtime.GC()
 			pprof.Lookup("heap").WriteTo(f, 0)
 		}()
 	}

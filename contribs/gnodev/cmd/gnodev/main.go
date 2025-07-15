@@ -7,6 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
+	"runtime/pprof"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -82,6 +85,37 @@ For more information and flags usage description, use 'gnodev local -h'.`,
 		}
 
 		return
+	}
+
+	cpup := os.Getenv("CPUPROFILE")
+	if cpup != "" {
+		f, err := os.Create(cpup)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			panic(err)
+		}
+		go func() {
+			time.Sleep(60 * time.Second)
+			pprof.StopCPUProfile()
+		}()
+		defer pprof.StopCPUProfile()
+	}
+
+	memp := os.Getenv("MEMPROFILE")
+	if memp != "" {
+		defer func() {
+			f, err := os.Create(memp)
+			if err != nil {
+				panic(err)
+			}
+			defer f.Close()
+			runtime.GC()
+			pprof.Lookup("heap").WriteTo(f, 0)
+		}()
 	}
 
 	if err := cmd.Run(context.Background()); err != nil {

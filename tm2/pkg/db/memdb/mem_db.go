@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -181,7 +182,7 @@ func (db *MemDB) ReverseIterator(start, end []byte) dbm.Iterator {
 func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
 	keys := []string{}
 	for key := range db.db {
-		inDomain := dbm.IsKeyInDomain([]byte(key), start, end)
+		inDomain := dbm.IsKeyInDomain(unsafe.Slice(unsafe.StringData(key), len(key)), start, end)
 		if inDomain {
 			keys = append(keys, key)
 		}
