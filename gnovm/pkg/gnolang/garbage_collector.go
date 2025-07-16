@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -34,10 +35,12 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	fmt.Println("===GarbageCollect...")
 	// times objects are visited for gc
 	var visitCount int64
 
 	defer func() {
+		fmt.Println("===defer gc..., visitCount: ", visitCount)
 		gasCPU := overflow.Mulp(visitCount*VisitCpuFactor, GasFactorCPU)
 		visitCount = 0
 		if m.GasMeter != nil {
@@ -56,7 +59,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	m.GCCycle += 1
 
 	// Construct visitor callback.
-	vis := GCVisitorFn(m.GCCycle, m.Alloc, visitCount)
+	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
 
 	// Visit blocks
 	for _, block := range m.Blocks {
@@ -113,7 +116,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 // Returns a visitor that bumps the GCCycle counter
 // and stops if alloc is out of memory.
-func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
+func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	var vis func(value Value) bool
 
 	vis = func(v Value) bool {
@@ -136,7 +139,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 			}
 		}
 
-		visitCount++ // Count operations for gas calculation
+		*visitCount++ // Count operations for gas calculation
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
