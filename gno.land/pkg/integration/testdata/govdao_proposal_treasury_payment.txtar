@@ -73,7 +73,7 @@ import (
 
 func main() {
 	payment := treasury.NewCoinsPayment(
-		std.Coins{std.Coin{Denom: "ugnot", Amount: 42}},
+		std.NewCoins(std.NewCoin("ugnot", 42)),
 		std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
 	)
 	preq := impl.NewTreasuryPaymentRequest(
