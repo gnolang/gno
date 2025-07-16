@@ -196,15 +196,15 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
-		// Check if gnomod.toml specifies an uploader
+		// Check if gnomod.toml specifies a creator
 		packageCreator := creator
-		if mod, err := gno.ParseCheckGnoMod(mpkg); err == nil && mod != nil && mod.UploadMetadata.Uploader != "" {
-			// Parse the uploader address from gnomod.toml
-			uploaderAddr, err := crypto.AddressFromBech32(mod.UploadMetadata.Uploader)
+		if mod, err := gno.ParseCheckGnoMod(mpkg); err == nil && mod != nil && mod.AddPkg.Creator != "" {
+			// Parse the creator address from gnomod.toml
+			creatorAddr, err := crypto.AddressFromBech32(mod.AddPkg.Creator)
 			if err != nil {
-				return nil, fmt.Errorf("invalid uploader address %q in package %q: %w", mod.UploadMetadata.Uploader, pkg.Dir, err)
+				return nil, fmt.Errorf("invalid creator address %q in package %q: %w", mod.AddPkg.Creator, pkg.Dir, err)
 			}
-			packageCreator = uploaderAddr
+			packageCreator = creatorAddr
 		}
 
 		tx, err := LoadPackage(mpkg, packageCreator, fee, nil)
@@ -234,9 +234,9 @@ func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit
 	tx.Fee = fee
 	tx.Msgs = []std.Msg{
 		vmm.MsgAddPackage{
-			Creator: creator,
-			Package: mpkg,
-			Deposit: deposit,
+			Creator:    creator,
+			Package:    mpkg,
+			MaxDeposit: deposit,
 		},
 	}
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
