@@ -10,6 +10,7 @@ import (
 	"io"
 	"iter"
 	"log/slog"
+	"maps"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -34,7 +35,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
@@ -76,8 +77,8 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
-	// used for typechecking
-	gnoTestStore gno.Store
+	// committed typecheck cache
+	typeCheckCache gno.TypeCheckCache
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -91,11 +92,12 @@ func NewVMKeeper(
 	prmk ParamsKeeperI,
 ) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey: baseKey,
-		iavlKey: iavlKey,
-		acck:    acck,
-		bank:    bank,
-		prmk:    prmk,
+		baseKey:        baseKey,
+		iavlKey:        iavlKey,
+		acck:           acck,
+		bank:           bank,
+		prmk:           prmk,
+		typeCheckCache: gno.TypeCheckCache{},
 	}
 
 	return vmk
@@ -114,10 +116,6 @@ func (vm *VMKeeper) Initialize(
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
-
-	// Initialize a basic test store for type checking test files.
-	// XXX: It should be better initlized elsewhere above.
-	_, vm.gnoTestStore = test.TestStore(gnoenv.RootDir(), io.Discard)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -151,6 +149,9 @@ type stdlibCache struct {
 var (
 	cachedStdlibOnce sync.Once
 	cachedStdlib     stdlibCache
+	// XXX: this is shared across different goroutines, in txtar tests.
+	// need to find a better way, or put a lock.
+	sharedTypeCheckCache gno.TypeCheckCache
 )
 
 // LoadStdlib loads the Gno standard library into the given store.
@@ -158,24 +159,27 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlib = stdlibCache{
 			dir:  stdlibDir,
-			base: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
-			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
+			base: dbadapter.StoreConstructor(memdb.NewMemDB(), stypes.StoreOptions{}),
+			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), stypes.StoreOptions{}),
 		}
 
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
 		gs.SetNativeResolver(stdlibs.NativeResolver)
 		loadStdlib(gs, stdlibDir)
 		cachedStdlib.gno = gs
+		sharedTypeCheckCache = make(gno.TypeCheckCache)
 	})
 
 	if stdlibDir != cachedStdlib.dir {
 		panic(fmt.Sprintf(
 			"cannot load cached stdlib: cached stdlib is in dir %q; wanted to load stdlib in dir %q",
-			cachedStdlib.dir, stdlibDir))
+			cachedStdlib.dir, stdlibDir,
+		))
 	}
 
 	gs := vm.getGnoTransactionStore(ctx)
 	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
+	vm.typeCheckCache = sharedTypeCheckCache
 }
 
 // LoadStdlib loads the Gno standard library into the given store.
@@ -221,9 +225,12 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	m.RunMemPackage(memPkg, true)
 }
 
-type gnoStoreContextKeyType struct{}
+type vmkContextKey int
 
-var gnoStoreContextKey gnoStoreContextKeyType
+const (
+	vmkContextKeyStore vmkContextKey = iota
+	vmkContextKeyTypeCheckCache
+)
 
 func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
 	base := ctx.Store(vm.baseKey)
@@ -234,15 +241,32 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 }
 
 func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
-	return ctx.WithValue(gnoStoreContextKey, vm.newGnoTransactionStore(ctx))
+	return ctx.
+		WithValue(vmkContextKeyTypeCheckCache, maps.Clone(vm.typeCheckCache)).
+		WithValue(vmkContextKeyStore, vm.newGnoTransactionStore(ctx))
 }
 
 func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
+	tcc := vm.getTypeCheckCache(ctx)
+	for k, v := range tcc {
+		if vm.typeCheckCache[k] != nil {
+			continue
+		}
+		// only add stdlibs to the type check cache.
+		rawK, _, _ := strings.Cut(k, ":")
+		if gno.IsStdlib(rawK) {
+			vm.typeCheckCache[k] = v
+		}
+	}
 	vm.getGnoTransactionStore(ctx).Write()
 }
 
+func (vm *VMKeeper) getTypeCheckCache(ctx sdk.Context) gno.TypeCheckCache {
+	return ctx.Value(vmkContextKeyTypeCheckCache).(gno.TypeCheckCache)
+}
+
 func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
-	txStore := ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
+	txStore := ctx.Value(vmkContextKeyStore).(gno.TransactionStore)
 	txStore.ClearObjectCache()
 	return txStore
 }
@@ -377,12 +401,21 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
-	tcmode := gno.TCLatestStrict
+	_, gts := test.StoreWithOptions(gnoenv.RootDir(), io.Discard, test.StoreOptions{
+		Testing:     true,
+		SourceStore: gnostore,
+	})
+	opts := gno.TypeCheckOptions{
+		Getter:     gnostore,
+		TestGetter: gts,
+		Mode:       gno.TCLatestStrict,
+		Cache:      vm.getTypeCheckCache(ctx),
+	}
 	if ctx.BlockHeight() == 0 {
-		tcmode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
+		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
 	}
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
+	_, err = gno.TypeCheckMemPackage(memPkg, opts)
 	if err != nil {
 		return ErrTypeCheck(err)
 	}
@@ -605,7 +638,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		return
 	}
 	if err, ok := r.(error); ok {
-		var oog types.OutOfGasError
+		var oog stypes.OutOfGasError
 		if goerrors.As(err, &oog) {
 			if repanicOutOfGas {
 				panic(oog)
@@ -657,9 +690,17 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
-	tcmode := gno.TCLatestRelaxed
 	// Validate Gno syntax and type check.
-	_, err = gno.TypeCheckMemPackage(memPkg, gnostore, vm.gnoTestStore, tcmode)
+	_, gts := test.StoreWithOptions(gnoenv.RootDir(), io.Discard, test.StoreOptions{
+		Testing:     true,
+		SourceStore: gnostore,
+	})
+	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
+		Getter:     gnostore,
+		TestGetter: gts,
+		Mode:       gno.TCLatestRelaxed,
+		Cache:      vm.getTypeCheckCache(ctx),
+	})
 	if err != nil {
 		return "", ErrTypeCheck(err)
 	}
