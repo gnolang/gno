@@ -34,7 +34,7 @@ func (cb *CoinsBanker) Send(p Payment) error {
 	}
 
 	// Send the coins.
-	return panictoerr.PanicAbortToError(func() {
+	return panictoerr.PanicToError(func() {
 		cb.banker.SendCoins(cb.owner, payment.toAddress, payment.coins)
 	})
 }

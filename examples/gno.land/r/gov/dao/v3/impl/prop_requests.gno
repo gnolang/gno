@@ -170,7 +170,11 @@ func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) 
 	// NOTE: Should this be filtered by tier?
 	return dao.NewProposalRequest(
 		"Treasury Payment",
-		"This proposal is looking to send a payment using the treasury.",
+		ufmt.Sprintf(
+			"This proposal is looking to send a payment using the treasury.\n\nReason: %s\n\nPayment: %s",
+			reason,
+			payment.String(),
+		),
 		e,
 	)
 }
