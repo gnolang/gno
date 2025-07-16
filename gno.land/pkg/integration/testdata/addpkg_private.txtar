@@ -105,6 +105,8 @@ stderr 'cannot persist object of type defined in a private realm'
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyStructToPublicRealm -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object of type defined in a private realm'
 
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test $test1_user_addr msgrun/run.gno
+
 gnokey query vm/qeval --data 'gno.land/r/foobar/privaterealm.GetTreePointer()'
 stdout 'gno.land/p/demo/avl.Tree'
 
@@ -479,7 +481,7 @@ func (n *NestedStruct) SetPrivateRef(ref *avl.Tree) {
     n.Level1.Level2.PrivateRef = ref
 }
 
--- msgrun/create_proposal.gno --
+-- msgrun/run.gno --
 package main
 
 import "gno.land/r/foobar/publicrealm"
