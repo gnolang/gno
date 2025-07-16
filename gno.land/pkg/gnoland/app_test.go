@@ -1310,4 +1310,8 @@ func TestPruneStrategyNothing(t *testing.T) {
 
 	// Make sure loading a past version doesn't fail
 	assert.NoError(t, cms.LoadVersion(1))
+
+	err = db.Close()
+	require.NoError(t, err)
+
 }
