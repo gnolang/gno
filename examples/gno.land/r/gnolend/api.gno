@@ -10,23 +10,23 @@ func ApiGetMarketInfo(cur realm, marketId string) string {
 	return marshal(marketInfo.JSON())
 }
 
-func ApiGetMarket(marketId string) string {
-	market, _ := GetMarket(marketId)
+func ApiGetMarket(cur realm, marketId string) string {
+	market, _ := GetMarket(cur, marketId)
 	return marshal(market.ToRpc().JSON())
 }
 
-func ApiGetMarketParams(marketId string) string {
-	_, params := GetMarket(marketId)
+func ApiGetMarketParams(cur realm, marketId string) string {
+	_, params := GetMarket(cur, marketId)
 	return marshal(params.ToRpc().JSON())
 }
 
-func ApiGetPosition(marketId, userAddr string) string {
-	position := GetPosition(marketId, userAddr)
+func ApiGetPosition(cur realm, marketId, userAddr string) string {
+	position := GetPosition(cur, marketId, userAddr)
 	return marshal(position.ToRpc().JSON())
 }
 
 func ApiListMarketsInfo(cur realm) string {
-	marketList := GetMarketList()
+	marketList := GetMarketList(cur)
 	markets := json.ArrayNode("", []*json.Node{})
 
 	for _, marketId := range marketList {

@@ -11,7 +11,7 @@ func ExpectedMarketBalances(cur realm, marketId string) (*u256.Uint, *u256.Uint,
 	AccrueInterest(cur, marketId)
 
 	// Get the updated market state
-	market, _ := GetMarket(marketId)
+	market, _ := GetMarket(cur, marketId)
 
 	// Return the current market balances
 	return market.TotalSupplyAssets, market.TotalSupplyShares,
@@ -22,7 +22,7 @@ func ExpectedMarketBalances(cur realm, marketId string) (*u256.Uint, *u256.Uint,
 func ExpectedTotalSupplyAssets(cur realm, marketId string) *u256.Uint {
 	// Call AccrueInterest first and get the updated value
 	AccrueInterest(cur, marketId)
-	market, _ := GetMarket(marketId)
+	market, _ := GetMarket(cur, marketId)
 	return market.TotalSupplyAssets
 }
 
@@ -30,7 +30,7 @@ func ExpectedTotalSupplyAssets(cur realm, marketId string) *u256.Uint {
 func ExpectedTotalBorrowAssets(cur realm, marketId string) *u256.Uint {
 	// Call AccrueInterest first and get the updated value
 	AccrueInterest(cur, marketId)
-	market, _ := GetMarket(marketId)
+	market, _ := GetMarket(cur, marketId)
 	return market.TotalBorrowAssets
 }
 
@@ -38,7 +38,7 @@ func ExpectedTotalBorrowAssets(cur realm, marketId string) *u256.Uint {
 func ExpectedTotalSupplyShares(cur realm, marketId string) *u256.Uint {
 	// Call AccrueInterest first and get the updated value
 	AccrueInterest(cur, marketId)
-	market, _ := GetMarket(marketId)
+	market, _ := GetMarket(cur, marketId)
 	return market.TotalSupplyShares
 }
 
@@ -49,8 +49,8 @@ func ExpectedSupplyAssets(cur realm, marketId string, user string) *u256.Uint {
 	AccrueInterest(cur, marketId)
 
 	// Get updated position and market data
-	position := GetPosition(marketId, user)
-	market, _ := GetMarket(marketId)
+	position := GetPosition(cur, marketId, user)
+	market, _ := GetMarket(cur, marketId)
 
 	return ToAssetsDown(position.SupplyShares, market.TotalSupplyAssets, market.TotalSupplyShares)
 }
@@ -62,8 +62,8 @@ func ExpectedBorrowAssets(cur realm, marketId string, user string) *u256.Uint {
 	AccrueInterest(cur, marketId)
 
 	// Get updated position and market data
-	position := GetPosition(marketId, user)
-	market, _ := GetMarket(marketId)
+	position := GetPosition(cur, marketId, user)
+	market, _ := GetMarket(cur, marketId)
 
 	return ToAssetsUp(position.BorrowShares, market.TotalBorrowAssets, market.TotalBorrowShares)
 }
@@ -76,7 +76,7 @@ func CalculateBorrowRate(cur realm, marketId string) *u256.Uint {
 		panic(ErrMarketNotCreated)
 	}
 
-	market, params := GetMarket(marketId)
+	market, params := GetMarket(cur, marketId)
 
 	// If no borrows or no IRM, rate is zero
 	if market.TotalBorrowAssets.IsZero() || params.IRM == "" {
@@ -84,7 +84,7 @@ func CalculateBorrowRate(cur realm, marketId string) *u256.Uint {
 	}
 
 	// Get IRM and calculate current borrow rate
-	irm := GetIRM(params.IRM)
+	irm := GetIRM(cur, params.IRM)
 	return irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
 }
 
@@ -96,7 +96,7 @@ func CalculateSupplyRate(cur realm, marketId string) *u256.Uint {
 		panic(ErrMarketNotCreated)
 	}
 
-	market, params := GetMarket(marketId)
+	market, params := GetMarket(cur, marketId)
 
 	// If no borrows or no supply or no IRM, rate is zero
 	if market.TotalBorrowAssets.IsZero() || market.TotalSupplyAssets.IsZero() || params.IRM == "" {
@@ -104,7 +104,7 @@ func CalculateSupplyRate(cur realm, marketId string) *u256.Uint {
 	}
 
 	// Get borrow rate
-	irm := GetIRM(params.IRM)
+	irm := GetIRM(cur, params.IRM)
 	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
 
 	// Calculate utilization rate: totalBorrow / totalSupply
@@ -155,8 +155,8 @@ func CalculateLoanAmount(cur realm, marketId string, user string) *u256.Uint {
 	AccrueInterest(cur, marketId)
 
 	// Get updated position and market data
-	position := GetPosition(marketId, user)
-	market, _ := GetMarket(marketId)
+	position := GetPosition(cur, marketId, user)
+	market, _ := GetMarket(cur, marketId)
 
 	// Calculate current borrowed value using ToAssetsUp for safety
 	return ToAssetsUp(
@@ -174,7 +174,7 @@ func CalculateUserLoans(cur realm, user string) *avl.Tree {
 	loans := avl.NewTree()
 
 	// Get all market IDs
-	marketIds := GetMarketList()
+	marketIds := GetMarketList(cur)
 
 	// Iterate through all markets using a regular for loop
 	for _, marketId := range marketIds {
@@ -184,7 +184,7 @@ func CalculateUserLoans(cur realm, user string) *avl.Tree {
 		// If user has a loan in this market
 		if !loanAmount.IsZero() {
 			// Get the borrow token from market parameters
-			_, params := GetMarket(marketId)
+			_, params := GetMarket(cur, marketId)
 			borrowToken := params.GetLoanToken()
 
 			// Get existing amount for this token if any
@@ -208,14 +208,14 @@ func CalculateUserLoans(cur realm, user string) *avl.Tree {
 // - A health factor < 1 means the position is eligible for liquidation
 // - The lower the health factor, the higher the risk of liquidation
 func CalculateHealthFactor(cur realm, marketId string, userAddr string) *u256.Uint {
-	position := GetPosition(marketId, userAddr)
+	position := GetPosition(cur, marketId, userAddr)
 
 	// If no borrows, position is maximally healthy (return a very large number)
 	if position.BorrowShares.IsZero() {
 		return new(u256.Uint).Mul(WAD, u256.NewUint(100)) // 100 * WAD
 	}
 
-	market, params := GetMarket(marketId)
+	market, params := GetMarket(cur, marketId)
 
 	// Calculate current borrowed value
 	borrowed := ToAssetsUp(

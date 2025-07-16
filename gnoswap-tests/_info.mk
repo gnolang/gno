@@ -15,16 +15,19 @@ ADDR_GNFT := g1wxv2rdfn53qc84nt3nn646f9yh3nly8lm7j89t
 
 # username address
 ADDR_GNOSWAP := g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy
+ADDR_ADMIN := g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy
+ADDR_TEST := g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy
 
 # INCENTIVE_START
 TOMORROW_MIDNIGHT := $(shell (gdate -ud 'tomorrow 00:00:00' +%s))
 INCENTIVE_END := $(shell expr $(TOMORROW_MIDNIGHT) + 7776000) # 7776000 SECONDS = 90 DAY
 
-MAX_UINT64 := 18446744073709551615
+# MAX_UINT64 := 18446744073709551615
+MAX_APPROVE := 9223372036854775806
 TX_EXPIRE := 9999999999
 
 MAKEFILE := $(shell realpath $(firstword $(MAKEFILE_LIST)))
-ROOT_DIR:=$(shell dirname $(MAKEFILE))/../examples/gno.land
+ROOT_DIR:=$(shell dirname $(MAKEFILE))/../
 
 
 # TODO: change below 2 values based on which chain to deploy

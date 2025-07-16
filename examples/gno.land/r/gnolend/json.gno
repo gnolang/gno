@@ -149,7 +149,7 @@ type RpcMarketInfo struct {
 
 // GetMarketInfo returns comprehensive information about a market
 func GetRpcMarketInfo(cur realm, marketId string) RpcMarketInfo {
-	market, params := GetMarket(marketId)
+	market, params := GetMarket(cur, marketId)
 
 	// Get price from oracle
 	price, err := GetPrice(marketId)
