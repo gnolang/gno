@@ -152,9 +152,9 @@ func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) 
 	}
 
 	cb := func(_ realm) error {
-    return panictoerr.PanicToError(func() {
-      treasury.Send(cross, payment)
-    })
+		return panictoerr.PanicToError(func() {
+			treasury.Send(cross, payment)
+		})
 	}
 
 	// NOTE: Should this be a NewSafeExecutor instead?
