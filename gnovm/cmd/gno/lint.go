@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -81,7 +80,13 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 	)
 	testbs, testgs := test.StoreWithOptions(
 		cmd.rootDir, goio.Discard,
-		test.StoreOptions{PreprocessOnly: true, WithExtern: false, WithExamples: true, Testing: true},
+		test.StoreOptions{
+			PreprocessOnly: true,
+			WithExtern:     false,
+			WithExamples:   true,
+			Testing:        true,
+			SourceStore:    prodgs,
+		},
 	)
 	ppkgs := map[string]processedPackage{}
 	cache := make(gno.TypeCheckCache)
@@ -163,16 +168,6 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// Perform imports using the parent store.
 		abortOnError := true
 		if err := test.LoadImports(testgs, mpkg, abortOnError); err != nil {
-			printError(io.Err(), dir, pkgPath, err)
-			hasError = true
-			continue
-		}
-		// TODO(morgan): devise a strategy to avoid actually calling them on
-		// both stores, as it's redundant whenever the packages in the two
-		// stores match (very frequently).
-		if err := test.LoadImportsWithKinds(prodgs, mpkg, abortOnError, []packages.FileKind{
-			packages.FileKindPackageSource,
-		}); err != nil {
 			printError(io.Err(), dir, pkgPath, err)
 			hasError = true
 			continue

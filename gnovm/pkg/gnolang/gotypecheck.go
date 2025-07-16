@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"os"
 	"path"
 	"slices"
 	"strings"
@@ -239,8 +238,6 @@ func cacheKey(pkgPath string, testing bool) string {
 	}
 }
 
-var logf, _ = os.Create("loggo.txt")
-
 // ImportFrom returns the imported package for the given import
 // pkgPath when imported by a package file located in dir.
 func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopkg *types.Package, err error) {
@@ -273,15 +270,9 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 			result.pkg = pkg
 			result.err = nil
 			result.pending = false
-			fmt.Fprintf(logf, "cache hit: %q\n", pkgPath)
-			logf.Sync()
 			return pkg, nil
 		}
-		fmt.Fprintf(logf, "cache miss: %q\n", pkgPath)
-	} else {
-		fmt.Fprintf(logf, "cannot perm cache %q\n", pkgPath)
 	}
-	logf.Sync()
 	var mpkg *std.MemPackage
 	if gimp.testing && (IsStdlib(pkgPath) || pkgPath == gimp.pkgPath) {
 		mpkg = gimp.tgetter.GetMemPackage(pkgPath)

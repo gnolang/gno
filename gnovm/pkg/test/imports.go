@@ -44,6 +44,11 @@ type StoreOptions struct {
 
 	// When fixing code from an earler gno version. Not supported for stdlibs.
 	FixFrom string
+
+	// SourceStore, if given, is used to process imports, whenever a custom
+	// version doesn't exist in the testing standard libraries.
+	// This ignores the value of WithExtern.
+	SourceStore gno.Store
 }
 
 // This store without options supports stdlibs without test/stdlibs overrides.
@@ -87,6 +92,8 @@ func TestStore(
 		},
 	)
 }
+
+var loggo, _ = os.Create("loggo.txt")
 
 // ========================================
 // StoreWithOptions is a variant of [Store] which additionally accepts a
@@ -178,6 +185,30 @@ func StoreWithOptions(
 		}
 
 		// Load normal stdlib.
+		if opts.SourceStore != nil {
+			// Only perform actual loading if there exists a testing stdlib.
+			if gno.IsStdlib(pkgPath) {
+				loc := testStdlibLocation(rootDir, pkgPath)
+				if osm.DirExists(loc) {
+					pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly, opts.Testing)
+					if pn != nil {
+						return
+					}
+				}
+			}
+			// Get the package from the source store.
+			pv = opts.SourceStore.GetPackage(pkgPath, true)
+			if pv != nil {
+				pn = pv.GetPackageNode(opts.SourceStore)
+				mp := opts.SourceStore.GetMemPackage(pkgPath)
+				if mp != nil {
+					store.AddMemPackage(mp, mp.Type.(gno.MemPackageType))
+				}
+			} else {
+				pn = nil
+			}
+			return
+		}
 		if gno.IsStdlib(pkgPath) {
 			pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly, opts.Testing)
 			if pn != nil {
@@ -225,16 +256,30 @@ func StoreWithOptions(
 	return
 }
 
+func stdlibLocation(rootDir, pkgPath string) string {
+	return filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
+}
+
+func testStdlibLocation(rootDir, pkgPath string) string {
+	return filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath)
+}
+
 // if !testing, result must be safe for production type-checking.
-func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool, testing bool) (*gno.PackageNode, *gno.PackageValue) {
+func loadStdlib(
+	rootDir, pkgPath string,
+	store gno.Store,
+	stdout io.Writer,
+	preprocessOnly bool,
+	testing bool,
+) (*gno.PackageNode, *gno.PackageValue) {
 	dirs := []string{
 		// Normal stdlib path.
-		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
+		stdlibLocation(rootDir, pkgPath),
 	}
 	var mPkgType gno.MemPackageType
 	if testing {
 		// Override path. Definitions here override the previous if duplicate.
-		dirs = append(dirs, filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath))
+		dirs = append(dirs, testStdlibLocation(rootDir, pkgPath))
 		mPkgType = gno.MPStdlibTest
 	} else {
 		mPkgType = gno.MPStdlibProd
@@ -293,17 +338,6 @@ func (e *stackWrappedError) String() string {
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
 func LoadImports(store gno.Store, mpkg *std.MemPackage, abortOnError bool) (err error) {
-	return LoadImportsWithKinds(store, mpkg, abortOnError, []packages.FileKind{
-		packages.FileKindPackageSource,
-		packages.FileKindTest,
-		packages.FileKindXTest,
-	})
-}
-
-// LoadImportsWithKinds is like LoadImports, but it allows to specify the
-// fileKinds from which to load the imports. It is useful when only the imports
-// from non-test files are desired, for instance.
-func LoadImportsWithKinds(store gno.Store, mpkg *std.MemPackage, abortOnError bool, fileKinds []packages.FileKind) (err error) {
 	// If this gets out of hand (e.g. with nested catchPanic with need for
 	// selective catching) then pass in a bool instead.
 	// See also cmd/gno/common.go.
@@ -336,7 +370,11 @@ func LoadImportsWithKinds(store gno.Store, mpkg *std.MemPackage, abortOnError bo
 	if err != nil {
 		return err
 	}
-	imports := importsMap.Merge(packages.FileKindPackageSource)
+	imports := importsMap.Merge(
+		packages.FileKindPackageSource,
+		packages.FileKindTest,
+		packages.FileKindXTest,
+	)
 	for _, imp := range imports {
 		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.

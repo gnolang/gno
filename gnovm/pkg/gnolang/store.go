@@ -320,7 +320,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 					// (for other types, .T == nil even after definition).
 				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
-					ds.SetCacheType(t)
+					ds.SetType(t)
 				}
 			}
 			return pv

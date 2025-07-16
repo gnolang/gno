@@ -99,7 +99,7 @@ For more information and flags usage description, use 'gnodev local -h'.`,
 			panic(err)
 		}
 		go func() {
-			time.Sleep(60 * time.Second)
+			time.Sleep(10 * time.Second)
 			pprof.StopCPUProfile()
 		}()
 		defer pprof.StopCPUProfile()

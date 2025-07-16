@@ -74,8 +74,6 @@ type VMKeeper struct {
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
-	// used for typechecking
-	gnoTestStore gno.Store
 	// committed typecheck cache
 	typeCheckCache gno.TypeCheckCache
 }
@@ -115,10 +113,6 @@ func (vm *VMKeeper) Initialize(
 	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeResolver(stdlibs.NativeResolver)
-
-	// Initialize a basic test store for type checking test files.
-	// XXX: It should be better initlized elsewhere above.
-	_, vm.gnoTestStore = test.TestStore(gnoenv.RootDir(), io.Discard)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -403,9 +397,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
+	_, gts := test.StoreWithOptions(gnoenv.RootDir(), io.Discard, test.StoreOptions{
+		Testing:     true,
+		SourceStore: gnostore,
+	})
 	opts := gno.TypeCheckOptions{
 		Getter:     gnostore,
-		TestGetter: vm.gnoTestStore,
+		TestGetter: gts,
 		Mode:       gno.TCLatestStrict,
 		Cache:      vm.getTypeCheckCache(ctx),
 	}
@@ -674,9 +672,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
+	_, gts := test.StoreWithOptions(gnoenv.RootDir(), io.Discard, test.StoreOptions{
+		Testing:     true,
+		SourceStore: gnostore,
+	})
 	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
 		Getter:     gnostore,
-		TestGetter: vm.gnoTestStore,
+		TestGetter: gts,
 		Mode:       gno.TCLatestRelaxed,
 		Cache:      vm.getTypeCheckCache(ctx),
 	})
