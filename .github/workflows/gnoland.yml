@@ -26,6 +26,9 @@ jobs:
     with:
       modulepath: "gno.land"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
+      # FIXME(gfanton): run txtar integration test sequentially using `ts-seq` to avoid timeout, this is a
+      # temporary fix for until cache is properly implemented on typecheck
+      tests-ts-seq: true
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
