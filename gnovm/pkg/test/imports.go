@@ -93,8 +93,6 @@ func TestStore(
 	)
 }
 
-var loggo, _ = os.Create("loggo.txt")
-
 // ========================================
 // StoreWithOptions is a variant of [Store] which additionally accepts a
 // [StoreOptions] argument.
