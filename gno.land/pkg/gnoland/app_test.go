@@ -1313,5 +1313,4 @@ func TestPruneStrategyNothing(t *testing.T) {
 
 	err = db.Close()
 	require.NoError(t, err)
-
 }
