@@ -2,9 +2,8 @@
 
 My text and a button here {my button}(https://example.com)
 
-Another way to add button <gno-button href="https://example.com">is like that</gno-button>
-
+Another way to add a button: <gno-button href="https://example.com">like this</gno-button>
 
 -- output.html --
 <p>My text and a button here <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">my button<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
-<p>Another way to add button <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">is like that<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p>Another way to add a button: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">like this<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>

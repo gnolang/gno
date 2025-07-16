@@ -378,6 +378,52 @@
   .realm-view .gno-button {
     @apply bg-green-600 text-light cursor-pointer hover:opacity-90 hover:no-underline inline-block py-2 px-3 rounded-sm;
   }
+
+  /* Button variants */
+  .realm-view .gno-button-caution {
+    @apply bg-red-600 text-light hover:bg-red-600/90;
+  }
+
+  .realm-view .gno-button-warning {
+    @apply bg-yellow-600 text-light hover:bg-yellow-600/90;
+  }
+
+  .realm-view .gno-button-info {
+    @apply bg-blue-600 text-light hover:bg-blue-600/90;
+  }
+
+  .realm-view .gno-button-note {
+    @apply bg-purple-600 text-light hover:bg-purple-600/90;
+  }
+
+  .realm-view .gno-button-outline {
+    @apply bg-transparent border hover:text-light;
+    --btn-color: theme(colors.green.600);
+    color: var(--btn-color);
+    border-color: var(--btn-color);
+  }
+  .realm-view .gno-button-outline:hover {
+    background-color: var(--btn-color);
+  }
+
+  .realm-view .gno-button-caution.gno-button-outline {
+    --btn-color: theme(colors.red.600);
+  }
+
+  .realm-view .gno-button-warning.gno-button-outline {
+    --btn-color: theme(colors.yellow.600);
+  }
+
+  .realm-view .gno-button-info.gno-button-outline {
+    --btn-color: theme(colors.blue.600);
+  }
+
+  .realm-view .gno-button-note.gno-button-outline {
+    --btn-color: theme(colors.purple.600);
+  }
+  .realm-view a.gno-button > span:first-of-type {
+    @apply ml-1;
+  }
 }
 
 @layer components {

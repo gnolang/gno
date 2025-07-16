@@ -1,0 +1,36 @@
+-- input.md --
+
+# Outline Button Variants
+
+## Simple outline buttons
+
+{Info | outline}(https://example.com)
+
+{Cancel | outline}(https://example.com)
+
+{Delete | caution outline}(https://example.com)
+
+{Warning | warning outline}(https://example.com)
+
+{Details | info outline}(https://example.com)
+
+{Note | note outline}(https://example.com)
+
+## Multiple outline options
+
+{Delete | caution outline}(https://example.com)
+
+{Info | info outline}(https://example.com)
+
+-- output.html --
+<h1>Outline Button Variants</h1>
+<h2>Simple outline buttons</h2>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-outline">Info<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-outline">Cancel<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-caution gno-button-outline">Delete<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-warning gno-button-outline">Warning<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-info gno-button-outline">Details<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-note gno-button-outline">Note<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<h2>Multiple outline options</h2>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-caution gno-button-outline">Delete<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-info gno-button-outline">Info<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>

@@ -1,0 +1,16 @@
+-- input.md --
+
+# Error Tests and Edge Cases
+
+## Invalid options ignored
+
+{Click me | invalid}(https://example.com)
+
+{Button | caution invalid info}(https://example.com)
+
+
+-- output.html --
+<h1>Error Tests and Edge Cases</h1>
+<h2>Invalid options ignored</h2>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">Click me<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-caution gno-button-info">Button<span class="link-external js-tooltip tooltip" data-tooltip="External link">↗</span></a></p>
