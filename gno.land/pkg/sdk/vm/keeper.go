@@ -225,7 +225,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 type vmkContextKey int
 
 const (
-	vmkContextKeyStore = iota
+	vmkContextKeyStore vmkContextKey = iota
 	vmkContextKeyTypeCheckCache
 )
 
