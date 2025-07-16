@@ -423,7 +423,7 @@ func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWit
 	for _, pkg := range pkgs {
 		msg := vm.MsgAddPackage{
 			Creator: n.config.DefaultCreator,
-			Deposit: n.config.DefaultDeposit,
+			Send:    n.config.DefaultDeposit,
 			Package: &pkg.MemPackage,
 		}
 
@@ -433,13 +433,13 @@ func (n *Node) generateTxs(fee std.Fee, pkgs []packages.Package) []gnoland.TxWit
 			}
 
 			if m.Deposit != nil {
-				msg.Deposit = m.Deposit
+				msg.Send = m.Deposit
 			}
 
 			n.logger.Debug("applying pkgs modifier",
 				"path", pkg.Path,
 				"creator", msg.Creator,
-				"deposit", msg.Deposit,
+				"send", msg.Send,
 			)
 		}
 
