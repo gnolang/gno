@@ -478,3 +478,15 @@ func CreateNestedStruct(cur realm) *NestedStruct {
 func (n *NestedStruct) SetPrivateRef(ref *avl.Tree) {
     n.Level1.Level2.PrivateRef = ref
 }
+
+-- msgrun/create_proposal.gno --
+package main
+
+import "gno.land/r/foobar/publicrealm"
+
+func main() {
+	closure := func() string {
+		return "This code should not run."
+	}
+	publicrealm.SaveYourInterface(cross, closure)
+}
