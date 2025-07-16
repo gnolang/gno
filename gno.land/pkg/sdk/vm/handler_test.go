@@ -264,17 +264,24 @@ func TestVmHandlerQuery_File(t *testing.T) {
 		input               []byte
 		expectedResult      string
 		expectedResultMatch string
-		expectedErrorMatch  string
+		expectedError       error
 		expectedPanicMatch  string
+		expectedLogMatch    string
 		// XXX: expectedEvents
 	}{
 		// valid queries
 		{input: []byte(`gno.land/r/hello/hello.gno`), expectedResult: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 		{input: []byte(`gno.land/r/hello/README.md`), expectedResult: "# Hello"},
-		{input: []byte(`gno.land/r/hello/doesnotexist.gno`), expectedErrorMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
+		{input: []byte(`gno.land/r/hello/doesnotexist.gno`),
+			expectedError:    &InvalidFileError{},
+			expectedLogMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
 		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\ngnomod.toml\nhello.gno"},
-		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `package "gno.land/r/doesnotexist" is not available`},
-		{input: []byte(`gno.land/r/doesnotexist/hello.gno`), expectedErrorMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`},
+		{input: []byte(`gno.land/r/doesnotexist`),
+			expectedError:    &InvalidPackageError{},
+			expectedLogMatch: `package "gno.land/r/doesnotexist" is not available`},
+		{input: []byte(`gno.land/r/doesnotexist/hello.gno`),
+			expectedError:    &InvalidFileError{},
+			expectedLogMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`},
 	}
 
 	for _, tc := range tt {
@@ -317,7 +324,8 @@ func TestVmHandlerQuery_File(t *testing.T) {
 				}
 			}()
 			res := vmHandler.Query(env.ctx, req)
-			if tc.expectedErrorMatch == "" {
+
+			if tc.expectedError == nil {
 				assert.True(t, res.IsOK(), "should not have error")
 				if tc.expectedResult != "" {
 					assert.Equal(t, string(res.Data), tc.expectedResult)
@@ -327,8 +335,11 @@ func TestVmHandlerQuery_File(t *testing.T) {
 				}
 			} else {
 				assert.False(t, res.IsOK(), "should have an error")
-				errmsg := res.Error.Error()
-				assert.Regexp(t, tc.expectedErrorMatch, errmsg)
+				assert.ErrorIs(t, res.Error, tc.expectedError)
+			}
+
+			if tc.expectedLogMatch != "" {
+				assert.Regexp(t, tc.expectedLogMatch, res.Log)
 			}
 		})
 	}
