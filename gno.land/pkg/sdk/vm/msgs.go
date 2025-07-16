@@ -57,6 +57,9 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if msg.Package.Path == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
+	if !msg.Send.IsValid() {
+		return std.ErrInvalidCoins(msg.Send.String())
+	}
 	if !msg.MaxDeposit.IsValid() {
 		return std.ErrInvalidCoins(msg.MaxDeposit.String())
 	}
@@ -126,6 +129,12 @@ func (msg MsgCall) ValidateBasic() error {
 	}
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
+	}
+	if !msg.Send.IsValid() {
+		return std.ErrInvalidCoins(msg.Send.String())
+	}
+	if !msg.MaxDeposit.IsValid() {
+		return std.ErrInvalidCoins(msg.MaxDeposit.String())
 	}
 	return nil
 }
@@ -197,7 +206,12 @@ func (msg MsgRun) ValidateBasic() error {
 			return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 		}
 	}
-
+	if !msg.Send.IsValid() {
+		return std.ErrInvalidCoins(msg.Send.String())
+	}
+	if !msg.MaxDeposit.IsValid() {
+		return std.ErrInvalidCoins(msg.MaxDeposit.String())
+	}
 	return nil
 }
 
