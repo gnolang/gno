@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/wugnot_test
-package wugnot_test
+// PKGPATH: gno.land/r/test
+package test
 
 import (
 	"fmt"

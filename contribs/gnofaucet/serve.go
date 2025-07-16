@@ -146,7 +146,12 @@ func (c *serveCfg) generateFaucetConfig() *config.Config {
 	return cfg
 }
 
-func serveFaucet(ctx context.Context, cfg *serveCfg, io commands.IO, extraMiddlewares ...faucet.Middleware) error {
+func serveFaucet(
+	ctx context.Context,
+	cfg *serveCfg,
+	io commands.IO,
+	opts ...faucet.Option,
+) error {
 	// Parse static gas values.
 	// It is worth noting that this is temporary,
 	// and will be removed once gas estimation is enabled
@@ -183,26 +188,18 @@ func serveFaucet(ctx context.Context, cfg *serveCfg, io commands.IO, extraMiddle
 		),
 	)
 
-	// Start throttled faucet.
-	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-
-	st.start(ctx)
-
-	// Prepare the middlewares
-	middlewares := []faucet.Middleware{
-		getIPMiddleware(cfg.isBehindProxy, st),
+	faucetOpts := []faucet.Option{
+		faucet.WithLogger(logger),
+		faucet.WithConfig(cfg.generateFaucetConfig()),
 	}
-
-	middlewares = append(middlewares, extraMiddlewares...)
+	faucetOpts = append(faucetOpts, opts...)
 
 	// Create a new faucet with
 	// static gas estimation
 	f, err := faucet.NewFaucet(
 		static.New(gasFee, gasWanted),
 		cli,
-		faucet.WithLogger(logger),
-		faucet.WithConfig(cfg.generateFaucetConfig()),
-		faucet.WithMiddlewares(middlewares),
+		faucetOpts...,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create faucet, %w", err)
