@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/lou/blog"
 
+	"gno.land/r/leon/hor"
 	"gno.land/r/sys/users"
 )
 
@@ -13,15 +14,12 @@ var (
 )
 
 func init() {
-	var err error
-	myBlog, err = blog.NewBlog(
+	myBlog, _ = blog.NewBlog(
 		"Lou's Blog",
 		std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"),
 		blog.WithUserResolver(myResolver),
 	)
-	if err != nil {
-		panic(err)
-	}
+	hor.Register(cross, "Lou's blog realm", "")
 }
 
 func Render(path string) string {

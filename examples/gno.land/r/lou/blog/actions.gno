@@ -11,7 +11,7 @@ import (
 
 func AddCommentToPostById(_ realm, id, comment string) {
 	var err error
-	post, err := myBlog.GetPostByID(id)
+	post, err := myBlog.GetPostById(id)
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +70,7 @@ func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags s
 	authorsField := strings.Split(authors, " ")
 	tagsField := strings.Split(tags, " ")
 
-	_, err = myBlog.GetPostByID(id)
+	_, err = myBlog.GetPostById(id)
 	if err != nil {
 		panic(err)
 	}
@@ -91,22 +91,14 @@ func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags s
 	}
 }
 
-func LikePostBySlug(_ realm, slug string) {
-	post, err := myBlog.GetPostBySlug(slug)
-	if err != nil {
-		panic(err)
-	}
-	if err := post.LikePost(std.OriginCaller().String()); err != nil {
+func DeletePost(_ realm, id string) {
+	if err := myBlog.DeletePostById(id); err != nil {
 		panic(err)
 	}
 }
 
-func UnlikePostBySlug(_ realm, slug string) {
-	post, err := myBlog.GetPostBySlug(slug)
-	if err != nil {
-		panic(err)
-	}
-	if err := post.UnlikePost(std.OriginCaller().String()); err != nil {
+func ToggleLikePostBySlug(_ realm, slug string) {
+	if err := myBlog.LikePostBySlug(slug); err != nil {
 		panic(err)
 	}
 }

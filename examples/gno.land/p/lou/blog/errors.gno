@@ -25,5 +25,5 @@ var (
 	ErrCommentDeleteFailed = errors.New("failed to delete comment")
 
 	ErrInvalidCaller = errors.New("invalid caller address")
-	ErrNotSuperUser  = errors.New("address is not owner")
+	ErrNotSuperuser  = errors.New("address is not owner")
 )

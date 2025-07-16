@@ -122,7 +122,7 @@ func (b *Blog) AddPost(post *Post) error {
 func (b *Blog) UpdatePostById(id string, newPost *Post) error {
 	b.Authorizable.AssertPreviousOnAuthList()
 
-	post, err := b.GetPostByID(id)
+	post, err := b.GetPostById(id)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 func (b *Blog) DeletePostById(id string) error {
 	b.Authorizable.AssertPreviousOnAuthList()
 
-	post, err := b.GetPostByID(id)
+	post, err := b.GetPostById(id)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,34 @@ func (b *Blog) DeletePost(post *Post) error {
 	return nil
 }
 
-func (b Blog) GetPostByID(id string) (*Post, error) {
+func (b *Blog) LikePostById(id string) error { // toggles between like and unlike
+	b.Authorizable.AssertPreviousOnAuthList()
+
+	post, err := b.GetPostById(id)
+	if err != nil {
+		return err
+	}
+	if err := post.LikePost(std.PreviousRealm().Address().String()); err != nil {
+		post.UnlikePost(std.PreviousRealm().Address().String())
+	}
+	return nil
+
+}
+
+func (b *Blog) LikePostBySlug(slug string) error { // toggles between like and unlike
+	b.Authorizable.AssertPreviousOnAuthList()
+
+	post, err := b.GetPostBySlug(slug)
+	if err != nil {
+		return err
+	}
+	if err := post.LikePost(std.PreviousRealm().Address().String()); err != nil {
+		post.UnlikePost(std.PreviousRealm().Address().String())
+	}
+	return nil
+}
+
+func (b Blog) GetPostById(id string) (*Post, error) {
 	post, found := b.Posts.Get(id)
 	if !found {
 		return nil, ErrPostNotFound
