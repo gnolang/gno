@@ -79,9 +79,10 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
 
+	name := tryResolveAddr(addr)
 	return dao.NewProposalRequestWithFilter(
-		"New Member Proposal",
-		"This proposal is looking to add a new member to the board.",
+		ufmt.Sprintf("New %s Member Proposal", tier),
+		ufmt.Sprintf("This is a proposal to add `%s` to **%s**.\n#### `%s`'s Portfolio:\n\n%s\n", name, tier, name, portfolio),
 		e,
 		FilterByTier{Tier: tier},
 	)
@@ -104,7 +105,11 @@ func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.Pr
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, reason))
 
-	return dao.NewProposalRequest("Member Withdrawn", "This proposal is looking to remove a member from the board.", e)
+	return dao.NewProposalRequest(
+		"Member Withdrawal Proposal",
+		ufmt.Sprintf("This is a proposal to remove %s from the GovDAO", tryResolveAddr(addr)),
+		e,
+	)
 }
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
@@ -126,8 +131,8 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
 
 	return dao.NewProposalRequestWithFilter(
-		"Member Promotion",
-		"This proposal is looking to promote a member to an upper tier.",
+		"Member Promotion Proposal",
+		ufmt.Sprintf("This is a proposal to promote %s from **%s** to **%s**.", tryResolveAddr(addr), fromTier, toTier),
 		e,
 		FilterByTier{Tier: toTier},
 	)

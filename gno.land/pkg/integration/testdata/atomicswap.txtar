@@ -20,18 +20,20 @@ gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func NewCoinSwap -gas-fe
 stdout '(1 int)'
 stdout ".*$test2_user_addr.*$test3_user_addr.*12345ugnot.*"
 stdout 'OK!'
+stdout 'EVENTS:     \[.*\{"key":"Deposit","value":"451400ugnot"\}.*\]'
 
 gnokey query vm/qrender --data 'gno.land/r/demo/atomicswap:'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008987655ugnot'
+stdout 'coins.*:.*1008536255ugnot'
 gnokey query auth/accounts/$test3_user_addr
 stdout 'coins.*:.*1010000000ugnot'
 
 gnokey maketx call -pkgpath gno.land/r/demo/atomicswap -func Claim -gas-fee 1000000ugnot -gas-wanted 10000000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test3
 stdout 'OK!'
+stdout 'EVENTS:     \[.*\{"key":"Deposit","value":"500ugnot"\}.*\]'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008987655ugnot'
+stdout 'coins.*:.*1008536255ugnot'
 gnokey query auth/accounts/$test3_user_addr
-stdout 'coins.*:.*1009012345ugnot'
+stdout 'coins.*:.*1009011845ugnot'
