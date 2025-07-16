@@ -160,6 +160,8 @@ type ObjectInfo struct {
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
 
+	LastObjectSize int64 //
+
 	// MemRefCount int // consider for optimizations.
 	// Object has been modified and needs to be saved
 	isDirty bool
@@ -183,18 +185,19 @@ type ObjectInfo struct {
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
-		lastGCCycle:  oi.lastGCCycle,
+		ID:             oi.ID,
+		Hash:           oi.Hash.Copy(),
+		OwnerID:        oi.OwnerID,
+		ModTime:        oi.ModTime,
+		RefCount:       oi.RefCount,
+		IsEscaped:      oi.IsEscaped,
+		LastObjectSize: oi.LastObjectSize,
+		isDirty:        oi.isDirty,
+		isDeleted:      oi.isDeleted,
+		isNewReal:      oi.isNewReal,
+		isNewEscaped:   oi.isNewEscaped,
+		isNewDeleted:   oi.isNewDeleted,
+		lastGCCycle:    oi.lastGCCycle,
 	}
 }
 

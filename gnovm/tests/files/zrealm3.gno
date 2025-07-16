@@ -25,7 +25,7 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:10:0]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:10:0](394)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -58,14 +58,16 @@ func main(cur realm,) {
 //     ],
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10:0",
+//         "LastObjectSize": "394",
 //         "ModTime": "0",
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9:0",
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:9:0]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:9:0](343)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9:0",
+//         "LastObjectSize": "343",
 //         "ModTime": "0",
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3:0",
 //         "RefCount": "1"
@@ -82,17 +84,17 @@ func main(cur realm,) {
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3:0]=
-//     @@ -1,7 +1,7 @@
-//      {
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3:0](0)=
+//     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3:0",
+//              "LastObjectSize": "393",
 //     -        "ModTime": "6",
 //     +        "ModTime": "8",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2:0",
 //              "RefCount": "1"
 //          },
-//     @@ -17,8 +17,8 @@
+//     @@ -18,8 +18,8 @@
 //                  "@type": "/gno.PointerValue",
 //                  "Base": {
 //                      "@type": "/gno.RefValue",
@@ -103,5 +105,5 @@ func main(cur realm,) {
 //                  },
 //                  "Index": "0",
 //                  "TV": null
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8:0]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7:0](-342)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8:0](-393)
