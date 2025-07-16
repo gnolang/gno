@@ -110,7 +110,7 @@ func (c *Comment) SetFooter(footer string) {
 	c.footer = footer
 }
 
-func (c *Comment) Render(blogPrefix string, depth int, resolver *UserResolver) string {
+func (c *Comment) Render(blogPrefix string, depth int, resolver UserResolver) string {
 	prefix := ""
 	for i := 0; i < depth; i++ {
 		prefix += "> "

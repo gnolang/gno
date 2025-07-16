@@ -21,24 +21,22 @@ func CheckAddr(addr string) error {
 	return nil
 }
 
-func CheckUser(addr string, resolver *UserResolver) (string, error) {
+func CheckUser(addr string, resolver UserResolver) (string, error) {
 	if CheckAddr(addr) != nil {
 		return "", ErrInvalidCaller
 	}
 	if !isRegistered(addr, resolver) {
 		return addr, nil
 	}
-	resolveUser := *resolver
-	userData, _ := resolveUser(addr)
+	userData, _ := resolver(addr)
 	return userData, nil
 }
 
-func isRegistered(addr string, resolver *UserResolver) bool { // TO FIX
+func isRegistered(addr string, resolver UserResolver) bool {
 	if resolver == nil {
 		return false
 	}
-	resolveUser := *resolver
-	userData, _ := resolveUser(addr)
+	userData, _ := resolver(addr)
 	if userData == "" {
 		return false
 	}

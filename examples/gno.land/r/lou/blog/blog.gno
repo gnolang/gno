@@ -14,11 +14,15 @@ var (
 
 func init() {
 	var err error
-	myBlog, err = blog.NewBlog("Lou's Blog", "/r/lou/blog", std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"))
+	myBlog, err = blog.NewBlog(
+		"Lou's Blog",
+		"/r/lou/blog",
+		std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"),
+		blog.WithUserResolver(myResolver),
+	)
 	if err != nil {
 		panic(err)
 	}
-	myBlog.SetUserResolver(myResolver)
 }
 
 func Render(path string) string {

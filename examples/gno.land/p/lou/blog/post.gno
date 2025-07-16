@@ -27,9 +27,10 @@ type Post struct {
 	Comments     *avl.Tree // id --> *Comment
 	CommentsSize int
 
-	PreviewFooter string // additional text, e.g. "via @lou" or txlink calls
-	DisableLikes  bool
-	UserResolver  *UserResolver
+	PreviewFooter   string // additional text, e.g. "via @lou" or txlink calls
+	DisableLikes    bool
+	DisableComments bool
+	UserResolver    UserResolver
 }
 
 func (p Post) ID() string {
@@ -97,22 +98,23 @@ func NewPost(slug, title, body, publicationDate, caller string, authors, tags []
 	}
 
 	return &Post{
-		slug:          slug,
-		title:         title,
-		body:          body,
-		createdAt:     publishedAt,
-		updatedAt:     publishedAt,
-		publishedAt:   time.Now(),
-		tags:          tags,
-		authors:       authors,
-		publisher:     caller,
-		likes:         avl.NewTree(),
-		CommentsId:    seqid.ID(0),
-		Comments:      avl.NewTree(),
-		CommentsSize:  0,
-		PreviewFooter: "",
-		DisableLikes:  false,
-		UserResolver:  nil,
+		slug:            slug,
+		title:           title,
+		body:            body,
+		createdAt:       publishedAt,
+		updatedAt:       publishedAt,
+		publishedAt:     time.Now(),
+		tags:            tags,
+		authors:         authors,
+		publisher:       caller,
+		likes:           avl.NewTree(),
+		CommentsId:      seqid.ID(0),
+		Comments:        avl.NewTree(),
+		CommentsSize:    0,
+		PreviewFooter:   "",
+		DisableLikes:    false,
+		DisableComments: false,
+		UserResolver:    nil,
 	}, nil
 }
 
@@ -132,6 +134,7 @@ func (p *Post) UpdatePost(newPost *Post) {
 	p.Comments = newPost.Comments
 	p.likes = newPost.likes
 	p.DisableLikes = newPost.DisableLikes
+	p.DisableComments = newPost.DisableComments
 	p.PreviewFooter = newPost.PreviewFooter
 	p.updatedAt = time.Now()
 }
@@ -226,6 +229,10 @@ func (p *Post) UnlikePost(addr string) error {
 	return nil
 }
 
+func (p *Post) SetPreviewFooter(footer string) {
+	p.PreviewFooter = footer
+}
+
 func (p Post) GetCommentByID(id string) (*Comment, error) {
 	comment, found := p.Comments.Get(id)
 	if found {
@@ -259,10 +266,6 @@ func (p Post) GetCommentsByAuthor(author string) []*Comment {
 	return comments
 }
 
-func (p *Post) SetPreviewFooter(footer string) {
-	p.PreviewFooter = footer
-}
-
 func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 	out := md.H2(md.Link(p.Title(), prefix+":posts/"+p.Slug())) + "\n\n"
 	out += md.H5(md.Italic("/"+p.Slug())) + "\n\n"
@@ -277,11 +280,11 @@ func (p Post) RenderPreview(gridMode bool, timeFmt, prefix string) string {
 	if len(p.Tags()) > 0 {
 		out += md.Bold("tags:") + " `" + strings.Join(p.Tags(), "`, `") + "`\n\n"
 	}
-	out += md.Bold(md.Link("comments ("+strconv.Itoa(p.CommentsSize), prefix+":posts/"+p.Slug()+"#comments"))
-	if p.DisableLikes {
-		out += ") "
-	} else {
-		out += ufmt.Sprintf(") | ❤️ (%d)\n\n", p.Likes())
+	if !p.DisableComments {
+		out += md.Bold(md.Link("comments ("+strconv.Itoa(p.CommentsSize), prefix+":posts/"+p.Slug()+"#comments")) + ") "
+	}
+	if !p.DisableLikes {
+		out += ufmt.Sprintf("| ❤️ (%d)\n\n", p.Likes())
 	}
 	if p.PreviewFooter != "" {
 		out += p.PreviewFooter + "\n\n"
@@ -306,9 +309,13 @@ func (p Post) RenderPost(prefix string) string {
 	}
 	out += md.Bold("Publisher:") + " " + md.Link(p.Publisher(), "/u/"+p.Publisher()) + "\n\n"
 	out += md.Bold("Tags:") + " " + renderTagLinks(prefix, p.Tags()) + "\n\n"
-	out += ufmt.Sprintf("❤️ %d\n\n", p.Likes())
-	out += md.HorizontalRule()
-	out += p.RenderComments(prefix)
+	if !p.DisableLikes {
+		out += ufmt.Sprintf("❤️ %d\n\n", p.Likes())
+	}
+	if !p.DisableComments {
+		out += md.HorizontalRule()
+		out += p.RenderComments(prefix)
+	}
 	return out
 }
 

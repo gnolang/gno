@@ -24,9 +24,10 @@ type Blog struct {
 	AuthorsIndex     *avl.Tree // authorAddress --> int
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author
 
-	CustomHeader *[]HeaderPreset
-	DisableLikes bool
-	UserResolver *UserResolver
+	CustomHeader    *[]HeaderPreset
+	DisableLikes    bool
+	DisableComments bool
+	UserResolver    UserResolver
 }
 
 func (b Blog) Title() string {
@@ -37,12 +38,12 @@ func (b Blog) Prefix() string {
 	return b.prefix
 }
 
-func NewBlog(title, prefix string, owner std.Address) (*Blog, error) {
+func NewBlog(title, prefix string, owner std.Address, opts ...Options) (*Blog, error) {
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
 	auth := authorizable.NewAuthorizableWithAddress(owner)
-	return &Blog{
+	blog := &Blog{
 		Authorizable:     auth,
 		title:            title,
 		prefix:           prefix,
@@ -55,9 +56,37 @@ func NewBlog(title, prefix string, owner std.Address) (*Blog, error) {
 		AuthorsIndex:     avl.NewTree(),
 		AuthorsSorted:    avl.NewTree(),
 		DisableLikes:     false,
+		DisableComments:  false,
 		UserResolver:     nil,
 		CustomHeader:     nil,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(blog)
+	}
+	return blog, nil
+}
+
+type Options func(*Blog)
+
+func WithDisableLikes() Options {
+	return func(b *Blog) {
+		b.DisableLikes = true
+		b.SetDisablePostLikes(true)
+	}
+}
+
+func WithDisableComments() Options {
+	return func(b *Blog) {
+		b.DisableComments = true
+		b.SetDisableComments(true)
+	}
+}
+
+func WithUserResolver(resolver UserResolver) Options {
+	return func(b *Blog) {
+		b.UserResolver = resolver
+	}
 }
 
 func (b *Blog) AddPost(post *Post) error {
@@ -72,6 +101,7 @@ func (b *Blog) AddPost(post *Post) error {
 	}
 
 	post.DisableLikes = b.DisableLikes
+	post.DisableComments = b.DisableComments
 	if b.UserResolver != nil {
 		post.UserResolver = b.UserResolver
 		post.authors = post.resolveAuthors(post.Authors())
@@ -176,8 +206,27 @@ func (b *Blog) SetDisablePostLikes(disable bool) {
 	})
 }
 
+func (b *Blog) SetDisableComments(disable bool) {
+	b.DisableComments = disable
+	b.Posts.Iterate("", "", func(_ string, value any) bool {
+		post := value.(*Post)
+		post.DisableComments = disable
+		return false
+	})
+	b.PostsBySlug.Iterate("", "", func(_ string, value any) bool {
+		post := value.(*Post)
+		post.DisableComments = disable
+		return false
+	})
+	b.PostsByUpdatedAt.Iterate("", "", func(_ string, value any) bool {
+		post := value.(*Post)
+		post.DisableComments = disable
+		return false
+	})
+}
+
 func (b *Blog) SetUserResolver(resolver UserResolver) {
-	b.UserResolver = &resolver
+	b.UserResolver = resolver
 }
 
 func (b *Blog) SetCustomHeader(presets []HeaderPreset) {

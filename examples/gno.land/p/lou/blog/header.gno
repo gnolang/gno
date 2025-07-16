@@ -3,6 +3,7 @@ package blog
 import (
 	"time"
 
+	"gno.land/p/lou/query"
 	"gno.land/p/moul/md"
 )
 
@@ -20,7 +21,7 @@ func RenderModeToggle(rawPath string) string {
 }
 
 func RenderTimeFormat(rawPath string) string {
-	time := parseQueryParams("time", rawPath)
+	time := query.GetQuery("time", rawPath)
 	if time == "" {
 		time = "relative"
 	}
@@ -28,8 +29,8 @@ func RenderTimeFormat(rawPath string) string {
 }
 
 func RenderSortAlpha(rawPath string) string {
-	sort := parseQueryParams("sort", rawPath)
-	order := parseQueryParams("order", rawPath)
+	sort := query.GetQuery("sort", rawPath)
+	order := query.GetQuery("order", rawPath)
 	if order == "" {
 		order = "desc"
 	}
@@ -42,8 +43,8 @@ func RenderSortAlpha(rawPath string) string {
 }
 
 func RenderSortRecent(rawPath string) string {
-	sort := parseQueryParams("sort", rawPath)
-	order := parseQueryParams("order", rawPath)
+	sort := query.GetQuery("sort", rawPath)
+	order := query.GetQuery("order", rawPath)
 	if order == "" {
 		order = "desc"
 	}
@@ -56,8 +57,8 @@ func RenderSortRecent(rawPath string) string {
 }
 
 func RenderSortUpdate(rawPath string) string {
-	sort := parseQueryParams("sort", rawPath)
-	order := parseQueryParams("order", rawPath)
+	sort := query.GetQuery("sort", rawPath)
+	order := query.GetQuery("order", rawPath)
 	if order == "" {
 		order = "desc"
 	}
@@ -66,8 +67,8 @@ func RenderSortUpdate(rawPath string) string {
 }
 
 func RenderSortCommon(rawPath string) string {
-	sort := parseQueryParams("sort", rawPath)
-	order := parseQueryParams("order", rawPath)
+	sort := query.GetQuery("sort", rawPath)
+	order := query.GetQuery("order", rawPath)
 	if order == "" {
 		order = "desc"
 	}
@@ -113,10 +114,11 @@ func RenderTimeRangeLinks(rawPath string, presets *[]TimeRangePreset) string {
 		timePresets = &DefaultTimeRanges
 	}
 	for i, r := range *timePresets {
-		out += md.Link(r.Label, updateQueryMulti(rawPath, map[string]string{
+		link, _ := query.UpdateQueryFirstValues(rawPath, map[string]string{
 			"start": r.Start,
 			"end":   r.End,
-		}))
+		})
+		out += md.Link(r.Label, link)
 		if i < len(*timePresets)-1 {
 			out += ", "
 		}

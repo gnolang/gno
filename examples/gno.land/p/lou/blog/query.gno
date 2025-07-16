@@ -1,8 +1,9 @@
 package blog
 
 import (
-	"net/url"
 	"time"
+
+	"gno.land/p/lou/query"
 )
 
 type RenderOptions struct {
@@ -19,10 +20,10 @@ type RenderOptions struct {
 }
 
 func ParseRenderOptions(rawPath string) RenderOptions {
-	sort := parseQueryParams("sort", rawPath)
-	order := parseQueryParams("order", rawPath)
-	mode := parseQueryParams("mode", rawPath)
-	timeFmt := parseQueryParams("time", rawPath)
+	sort := query.GetQuery("sort", rawPath)
+	order := query.GetQuery("order", rawPath)
+	mode := query.GetQuery("mode", rawPath)
+	timeFmt := query.GetQuery("time", rawPath)
 	startTime, endTime := parseTimeRange(rawPath)
 
 	return RenderOptions{
@@ -40,51 +41,60 @@ func ParseRenderOptions(rawPath string) RenderOptions {
 }
 
 func GetGridFmtPath(rawPath string) string {
-	return updateQuery(rawPath, "mode", "grid")
+	link, _ := query.UpdateQueryValue(rawPath, "mode", "grid")
+	return link
 }
 
 func GetListFmtPath(rawPath string) string {
-	return updateQuery(rawPath, "mode", "list")
+	link, _ := query.UpdateQueryValue(rawPath, "mode", "list")
+	return link
 }
 
 func GetSortByPublishedPath(rawPath, order string) string {
-	return updateQueryMulti(rawPath, map[string]string{
+	link, _ := query.UpdateQueryFirstValues(rawPath, map[string]string{
 		"sort":  "recent",
 		"order": toggle(order),
 	})
+	return link
 }
 
 func GetTimeFmtPath(rawPath, timeFormat string) string {
-	return updateQuery(rawPath, "time", timeFormat)
+	link, _ := query.UpdateQueryValue(rawPath, "time", timeFormat)
+	return link
 }
 
 func GetTimeStartPath(rawPath, startTime string) string {
-	return updateQuery(rawPath, "start", startTime)
+	link, _ := query.UpdateQueryValue(rawPath, "start", startTime)
+	return link
 }
 
 func GetTimeEndPath(rawPath, endTime string) string {
-	return updateQuery(rawPath, "end", endTime)
+	link, _ := query.UpdateQueryValue(rawPath, "end", endTime)
+	return link
 }
 
 func GetSortByUpdatedPath(rawPath, order string) string {
-	return updateQueryMulti(rawPath, map[string]string{
+	link, _ := query.UpdateQueryFirstValues(rawPath, map[string]string{
 		"sort":  "update",
 		"order": toggle(order),
 	})
+	return link
 }
 
 func GetSortByAlphabeticalPath(rawPath, order string) string {
-	return updateQueryMulti(rawPath, map[string]string{
+	link, _ := query.UpdateQueryFirstValues(rawPath, map[string]string{
 		"sort":  "alpha",
 		"order": toggle(order),
 	})
+	return link
 }
 
 func GetSortByCommonPath(rawPath, order string) string {
-	return updateQueryMulti(rawPath, map[string]string{
+	link, _ := query.UpdateQueryFirstValues(rawPath, map[string]string{
 		"sort":  "common",
 		"order": toggle(order),
 	})
+	return link
 }
 
 func toggle(current string) string {
@@ -108,8 +118,8 @@ func toggleTimeFormat(current string) string {
 }
 
 func parseTimeRange(rawPath string) (*time.Time, *time.Time) {
-	startStr := parseQueryParams("start", rawPath)
-	endStr := parseQueryParams("end", rawPath)
+	startStr := query.GetQuery("start", rawPath)
+	endStr := query.GetQuery("end", rawPath)
 	var start, end *time.Time
 
 	if startStr != "" {
@@ -123,58 +133,4 @@ func parseTimeRange(rawPath string) (*time.Time, *time.Time) {
 		}
 	}
 	return start, end
-}
-
-func parseQueryParams(query, rawPath string) string {
-	u, err := url.Parse(rawPath)
-	if err != nil {
-		return ""
-	}
-	return u.Query().Get(query)
-}
-
-func parseQueryMap(rawPath string) map[string]string {
-	u, err := url.Parse(rawPath)
-	if err != nil {
-		return map[string]string{}
-	}
-	params := make(map[string]string)
-	for key, vals := range u.Query() {
-		if len(vals) > 0 {
-			params[key] = vals[0]
-		}
-	}
-	return params
-}
-
-func buildQueryPath(rawPath string, params map[string]string) string {
-	u, err := url.Parse(rawPath)
-	if err != nil {
-		return rawPath
-	}
-	q := url.Values{}
-	for k, v := range params {
-		q.Set(k, v)
-	}
-	u.RawQuery = q.Encode()
-	return u.String()
-}
-
-func updateQueryMulti(rawPath string, updates map[string]string) string {
-	params := parseQueryMap(rawPath)
-	for k, v := range updates {
-		params[k] = v
-	}
-	return buildQueryPath(rawPath, params)
-}
-
-func updateQuery(rawPath, key, value string) string {
-	u, err := url.Parse(rawPath)
-	if err != nil {
-		return rawPath
-	}
-	query := u.Query()
-	query.Set(key, value)
-	u.RawQuery = query.Encode()
-	return u.String()
 }

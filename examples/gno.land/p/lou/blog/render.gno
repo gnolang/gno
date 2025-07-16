@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/lou/query"
 	"gno.land/p/moul/md"
 )
 
@@ -35,7 +36,6 @@ func RenderBlogHeader(prefix, rawPath string) string {
 		{"time-range", "", func(p string) string { return RenderTimeRangeLinks(p, nil) }},
 		{"reset", "", func(p string) string { return md.Link("🗘 reset", prefix) }},
 	}
-
 	return SetCustomHeader(rawPath, headerPresets)
 }
 
@@ -179,7 +179,9 @@ func (b Blog) RenderCommenters(res *mux.ResponseWriter, req *mux.Request) {
 
 func (b Blog) RenderListings(field, value string, req *mux.Request) string {
 	options := ParseRenderOptions(req.RawPath)
-	options.IsGrid = false
+	if query.GetQuery("mode", req.RawPath) == "" {
+		options.IsGrid = false
+	}
 	if value == "" {
 		return b.renderListingIndex(field, options, req)
 	}
