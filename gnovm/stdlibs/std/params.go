@@ -18,6 +18,7 @@ type ParamsInterface interface {
 	SetUint64(key string, val uint64)
 	SetBytes(key string, val []byte)
 	SetStrings(key string, val []string)
+	GetStrings(key string) []string
 }
 
 func X_setParamString(m *gno.Machine, key, val string) {
