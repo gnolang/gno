@@ -57,7 +57,7 @@ func main() {
 	addr := std.Address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	tier := "T2"
 	portfolio := "this is my portfolio"
-	
+
 	preq := impl.NewAddMemberRequest(cross, addr, tier, portfolio)
 	dao.MustCreateProposal(cross, preq)
 }
