@@ -690,6 +690,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
 
+	gm := new(gnomod.File)
+	gm.Module = memPkg.Path
+	gm.Gno = gno.GnoVerLatest
+	gm.Private = true
+	memPkg.SetFile("gnomod.toml", gm.WriteString())
+
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.
