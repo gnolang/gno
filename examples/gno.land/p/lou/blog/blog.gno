@@ -2,6 +2,7 @@ package blog
 
 import (
 	"std"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -38,10 +39,13 @@ func (b Blog) Prefix() string {
 	return b.prefix
 }
 
-func NewBlog(title, prefix string, owner std.Address, opts ...Options) (*Blog, error) {
+func NewBlog(title string, owner std.Address, opts ...Options) (*Blog, error) {
+	pkgPath := std.CurrentRealm().PkgPath()
+	prefix := strings.Split(pkgPath, "gno.land")[1]
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
 	}
+
 	auth := authorizable.NewAuthorizableWithAddress(owner)
 	blog := &Blog{
 		Authorizable:     auth,

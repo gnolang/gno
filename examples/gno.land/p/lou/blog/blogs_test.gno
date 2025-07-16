@@ -23,7 +23,7 @@ func testUserResolver(input string) (string, bool) {
 }
 
 func TestBlogRenderBasic(t *testing.T) {
-	blogTest, err := NewBlog("Test Blog", "/r/test/blog", std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"))
+	blogTest, err := NewBlog("Test Blog", std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"))
 	urequire.NoError(t, err, "creating blog")
 	blogTest.SetUserResolver(testUserResolver)
 
@@ -65,7 +65,7 @@ func TestBlogRenderBasic(t *testing.T) {
 }
 
 func TestCommentThreadRender(t *testing.T) {
-	blogTest, err := NewBlog("Thread Test", "/r/test/blog", std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"))
+	blogTest, err := NewBlog("Thread Test", std.Address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"))
 	urequire.NoError(t, err, "creating blog")
 	blogTest.SetUserResolver(testUserResolver)
 
