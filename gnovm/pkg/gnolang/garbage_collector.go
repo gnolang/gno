@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -35,13 +34,14 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
-	fmt.Println("===GarbageCollect...")
 	// times objects are visited for gc
 	var visitCount int64
 
 	defer func() {
-		fmt.Println("===defer gc..., visitCount: ", visitCount)
 		gasCPU := overflow.Mulp(visitCount*VisitCpuFactor, GasFactorCPU)
+		if debug {
+			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
+		}
 		visitCount = 0
 		if m.GasMeter != nil {
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
