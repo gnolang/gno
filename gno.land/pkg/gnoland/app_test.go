@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
@@ -32,8 +35,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Tests that NewAppWithOptions works even when only providing a simple DB.
@@ -1293,7 +1294,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 	// Reopen the same DB
 	db, err := dbm.NewDB(
 		"gnolang",
-		dbm.GoLevelDBBackend,
+		dbm.PebbleDBBackend,
 		filepath.Join(appDir, bftCfg.DefaultDBDir),
 	)
 	require.NoError(t, err)
