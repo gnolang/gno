@@ -102,9 +102,21 @@ type TimeRangePreset struct {
 }
 
 var DefaultTimeRanges = []TimeRangePreset{
-	{"past year", "2024-01-01", "2024-12-31"}, // change to adjust based on time.Now()
-	{"this year", "2025-01-01", "2025-12-31"}, // change to adjust based on time.Now()
-	{"last 30 days", time.Now().AddDate(0, 0, -30).Format("2006-01-02"), time.Now().Format("2006-01-02")},
+	{
+		"past year",
+		now.AddDate(-1, 0, 0).Format("2006-01-02"),
+		time.Now().Format("2006-01-02"),
+	},
+	{
+		"this year",
+		time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02"),
+		time.Now().Format("2006-01-02"),
+	},
+	{
+		"last 30 days",
+		time.Now().AddDate(0, 0, -30).Format("2006-01-02"),
+		time.Now().Format("2006-01-02"),
+	},
 }
 
 func RenderTimeRangeLinks(rawPath string, presets *[]TimeRangePreset) string {

@@ -9,38 +9,6 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-func AddCommentToPostById(_ realm, id, comment string) {
-	var err error
-	post, err := myBlog.GetPostById(id)
-	if err != nil {
-		panic(err)
-	}
-
-	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
-	if err != nil {
-		panic(err)
-	}
-	if err := post.AddComment(comm); err != nil {
-		panic(err)
-	}
-}
-
-func AddCommentToPostBySlug(_ realm, slug, comment string) {
-	var err error
-	post, err := myBlog.GetPostBySlug(slug)
-	if err != nil {
-		panic(err)
-	}
-
-	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
-	if err != nil {
-		panic(err)
-	}
-	if err := post.AddComment(comm); err != nil {
-		panic(err)
-	}
-}
-
 func CreatePost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	authorsField := strings.Split(authors, " ")
 	tagsField := strings.Split(tags, " ")
@@ -91,14 +59,30 @@ func UpdatePost(_ realm, id, slug, title, body, publicationDate, authors, tags s
 	}
 }
 
-func DeletePost(_ realm, id string) {
-	if err := myBlog.DeletePostById(id); err != nil {
+func DeletePost(_ realm, slug string) {
+	if err := myBlog.DeletePostBySlug(slug); err != nil {
 		panic(err)
 	}
 }
 
 func ToggleLikePostBySlug(_ realm, slug string) {
 	if err := myBlog.LikePostBySlug(slug); err != nil {
+		panic(err)
+	}
+}
+
+func AddCommentToPostBySlug(_ realm, slug, comment string) {
+	var err error
+	post, err := myBlog.GetPostBySlug(slug)
+	if err != nil {
+		panic(err)
+	}
+
+	comm, err := blog.NewComment(std.PreviousRealm().Address().String(), comment)
+	if err != nil {
+		panic(err)
+	}
+	if err := post.AddComment(comm); err != nil {
 		panic(err)
 	}
 }
