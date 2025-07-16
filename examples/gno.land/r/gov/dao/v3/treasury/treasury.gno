@@ -6,17 +6,29 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	t "gno.land/p/nt/treasury"
 
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/gov/dao"
 )
 
-var treasury *t.Treasury
+var (
+	treasury  *t.Treasury
+	tokenKeys = []string{
+		// TODO: Add the default GRC20 tokens we want to support here.
+	}
+)
 
 func init() {
-	// Define a lister for the GRC20Banker that returns a static list
-	// of GRC20 tokens.
-	grc20Lister := func() []*grc20.Token {
-		tokens := []*grc20.Token{
-			// TODO: Add the GRC20 tokens we want to support.
+	// Define a token lister for the GRC20Banker.
+	// For now, GovDAO uses a static list of tokens.
+	grc20Lister := func() map[string]*grc20.Token {
+		// Get the GRC20 tokens from the registry.
+		tokens := map[string]*grc20.Token{}
+		for _, key := range tokenKeys {
+			// Get the token by its key.
+			token := grc20reg.Get(key)
+			if token != nil {
+				tokens[key] = token
+			}
 		}
 
 		return tokens
@@ -44,7 +56,7 @@ func init() {
 }
 
 // Send sends a payment using the treasury instance.
-func Send(cur realm, payment t.Payment) {
+func Send(_ realm, payment t.Payment) {
 	// NOTE: Replace this by cur.Previous().PkgPath() when it will be implemented.
 	pkgPath := std.PreviousRealm().PkgPath()
 
@@ -102,4 +114,15 @@ func ListBankerIDs() []string {
 
 func Render(path string) string {
 	return treasury.Render(path)
+}
+
+// TestingSetTokenKeys sets the token registry keys for testing purposes.
+func TestingSetTokenKeys(_ realm, keys []string) {
+	// Ensure that this function can only be called from the treasury_test realm.
+	caller := std.PreviousRealm().PkgPath()
+	if caller != "gno.land/r/gov/dao/v3/treasury_test" {
+		panic("only the treasury_test realm can set token keys, current:" + caller)
+	}
+
+	tokenKeys = keys
 }

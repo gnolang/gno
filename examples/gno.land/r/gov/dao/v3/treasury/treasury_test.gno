@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
@@ -18,12 +19,13 @@ import (
 )
 
 var (
-	user1Addr    = testutils.TestAddress("g1user1")
-	user2Addr    = testutils.TestAddress("g1user2")
-	treasuryAddr = std.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury")
-	allowed      = std.NewCodeRealm("gno.land/r/test/allowed")
-	notAllowed   = std.NewCodeRealm("gno.land/r/test/notallowed")
-	mintAmount   = int64(1000)
+	user1Addr       = testutils.TestAddress("g1user1")
+	user2Addr       = testutils.TestAddress("g1user2")
+	treasuryAddr    = std.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury")
+	originalRealm   = std.CurrentRealm()
+	allowedRealm    = std.NewCodeRealm("gno.land/r/test/allowed")
+	notAllowedRealm = std.NewCodeRealm("gno.land/r/test/notallowed")
+	mintAmount      = int64(1000)
 )
 
 // Define a dummy trs_pkg.Payment type for testing purposes.
@@ -41,7 +43,7 @@ func init() {
 	// Register allowed Realm path.
 	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.NewGovDAO(),
-		AllowedDAOs: []string{allowed.PkgPath()},
+		AllowedDAOs: []string{allowedRealm.PkgPath()},
 	})
 }
 
@@ -62,27 +64,51 @@ func ugnotBalance(t *testing.T, addr std.Address) int64 {
 	return coins.AmountOf("ugnot")
 }
 
-func createGRC20Token(t *testing.T, name string, toMint []std.Address) *grc20.Token {
+// Define a keyedToken type to hold the token and its key.
+type keyedToken struct {
+	key   string
+	token *grc20.Token
+}
+
+func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint std.Address) []keyedToken {
 	t.Helper()
 
-	// Create the token.
-	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(name, symbol, 0)
+	var (
+		keyedTokens = make([]keyedToken, 0, len(tokenNames))
+		keys        = make([]string, 0, len(tokenNames))
+	)
 
-	// Register the token.
-	grc20reg.Register(cross, token, symbol)
+	for _, name := range tokenNames {
+		// Create the token.
+		symbol := strings.ToUpper(name)
+		token, ledger := grc20.NewToken(name, symbol, 0)
 
-	// Mint tokens to the specified addresses.
-	for _, addr := range toMint {
-		ledger.Mint(addr, mintAmount)
+		// Register the token.
+		grc20reg.Register(cross, token, symbol)
+
+		// Mint tokens to the specified address.
+		ledger.Mint(toMint, mintAmount)
+
+		// Add the token and key to the lists.
+		key := fqname.Construct(std.CurrentRealm().PkgPath(), symbol)
+		keyedTokens = append(keyedTokens, keyedToken{key: key, token: token})
+		keys = append(keys, key)
 	}
 
-	return token
+	// Save the current Realm to restore it later.
+	currentRealm := std.CurrentRealm()
+	testing.SetRealm(originalRealm)
+	treasury.TestingSetTokenKeys(cross, keys)
+
+	// Restore the current Realm.
+	testing.SetRealm(currentRealm)
+
+	return keyedTokens
 }
 
 func TestAllowedDAOs(t *testing.T) {
 	// Set the current Realm to the not allowed one.
-	testing.SetRealm(notAllowed)
+	testing.SetRealm(notAllowedRealm)
 
 	// Define a dummy payment to test sending.
 	dummyP := &dummyPayment{bankerID: "Dummy"}
@@ -90,12 +116,12 @@ func TestAllowedDAOs(t *testing.T) {
 	// Try to send, it should abort because the Realm is not allowed.
 	uassert.AbortsWithMessage(
 		t,
-		"this Realm is not allowed to send payment: "+notAllowed.PkgPath(),
+		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
 		func() { treasury.Send(cross, dummyP) },
 	)
 
 	// Set the current Realm to the allowed one.
-	testing.SetRealm(allowed)
+	testing.SetRealm(allowedRealm)
 
 	// Try to send, it should not abort because the Realm is allowed,
 	// but because the dummy banker ID is not registered.
@@ -108,7 +134,7 @@ func TestAllowedDAOs(t *testing.T) {
 
 func TestRegisteredBankers(t *testing.T) {
 	// Set the current Realm to the allowed one.
-	testing.SetRealm(allowed)
+	testing.SetRealm(allowedRealm)
 
 	// Define the expected banker IDs.
 	expectedBankerIDs := []string{
@@ -143,7 +169,7 @@ func TestRegisteredBankers(t *testing.T) {
 
 func TestSendGRC20Payment(t *testing.T) {
 	// Set the current Realm to the allowed one.
-	testing.SetRealm(allowed)
+	testing.SetRealm(allowedRealm)
 
 	// Try to send a GRC20 payment with a not registered token, it should abort.
 	uassert.AbortsWithMessage(
@@ -155,29 +181,29 @@ func TestSendGRC20Payment(t *testing.T) {
 	)
 
 	// Create 3 GRC20 tokens and register them.
-	tokens := []*grc20.Token{
-		createGRC20Token(t, "TestToken0", []std.Address{treasuryAddr}),
-		createGRC20Token(t, "TestToken1", []std.Address{treasuryAddr}),
-		createGRC20Token(t, "TestToken2", []std.Address{treasuryAddr}),
-	}
+	keyedTokens := registerGRC20Tokens(
+		t,
+		[]string{"TestToken0", "TestToken1", "TestToken2"},
+		treasuryAddr,
+	)
 
 	const txAmount = 42
 
 	// For each token-user pair.
 	for i, userAddr := range []std.Address{user1Addr, user2Addr} {
-		for _, token := range tokens {
+		for _, keyed := range keyedTokens {
 			// Check that the treasury has the expected balance before sending.
-			uassert.Equal(t, token.BalanceOf(treasuryAddr), mintAmount-int64(txAmount*i))
+			uassert.Equal(t, keyed.token.BalanceOf(treasuryAddr), mintAmount-int64(txAmount*i))
 
 			// Check that the user has no balance before sending.
-			uassert.Equal(t, token.BalanceOf(userAddr), int64(0))
+			uassert.Equal(t, keyed.token.BalanceOf(userAddr), int64(0))
 
 			// Try to send a GRC20 payment with a registered token, it should not abort.
 			uassert.NotAborts(t, func() {
 				treasury.Send(
 					cross,
 					trs_pkg.NewGRC20Payment(
-						token.GetSymbol(),
+						keyed.key,
 						txAmount,
 						userAddr,
 					),
@@ -185,10 +211,10 @@ func TestSendGRC20Payment(t *testing.T) {
 			})
 
 			// Check that the user has the expected balance after sending.
-			uassert.Equal(t, token.BalanceOf(userAddr), int64(txAmount))
+			uassert.Equal(t, keyed.token.BalanceOf(userAddr), int64(txAmount))
 
 			// Check that the treasury has the expected balance after sending.
-			uassert.Equal(t, token.BalanceOf(treasuryAddr), mintAmount-int64(txAmount*(i+1)))
+			uassert.Equal(t, keyed.token.BalanceOf(treasuryAddr), mintAmount-int64(txAmount*(i+1)))
 		}
 	}
 
@@ -197,18 +223,18 @@ func TestSendGRC20Payment(t *testing.T) {
 
 	// Test Balances method for the GRC20Banker.
 	balances := treasury.Balances(grc20BankerID)
-	uassert.Equal(t, len(balances), len(tokens))
+	uassert.Equal(t, len(balances), len(keyedTokens))
 
 	compared := 0
 	for _, balance := range balances {
-		for _, token := range tokens {
-			if balance.Denom == token.GetSymbol() {
-				uassert.Equal(t, balance.Amount, token.BalanceOf(treasuryAddr))
+		for _, keyed := range keyedTokens {
+			if balance.Denom == keyed.key {
+				uassert.Equal(t, balance.Amount, keyed.token.BalanceOf(treasuryAddr))
 				compared++
 			}
 		}
 	}
-	uassert.Equal(t, compared, len(tokens))
+	uassert.Equal(t, compared, len(keyedTokens))
 
 	// Check the history of the GRC20Banker.
 	history := treasury.History(grc20BankerID, 0)
@@ -217,7 +243,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	// Try to send a dummy payment with the GRC20 banker ID, it should abort.
 	uassert.AbortsWithMessage(
 		t,
-		"failed to send payment: invalid payment type: unknown",
+		"failed to send payment: invalid payment type",
 		func() {
 			treasury.Send(cross, &dummyPayment{bankerID: grc20BankerID})
 		},
@@ -231,7 +257,7 @@ func TestSendGRC20Payment(t *testing.T) {
 			treasury.Send(
 				cross,
 				trs_pkg.NewGRC20Payment(
-					tokens[0].GetSymbol(),
+					keyedTokens[0].key,
 					mintAmount*42, // Try to send more than the treasury has.
 					user1Addr,
 				),
@@ -246,7 +272,7 @@ func TestSendGRC20Payment(t *testing.T) {
 
 func TestSendCoinPayment(t *testing.T) {
 	// Set the current Realm to the allowed one.
-	testing.SetRealm(allowed)
+	testing.SetRealm(allowedRealm)
 
 	// Issue initial ugnot coins to the treasury address.
 	testing.IssueCoins(treasuryAddr, ugnotCoins(t, mintAmount))

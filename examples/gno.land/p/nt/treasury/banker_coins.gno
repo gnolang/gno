@@ -5,7 +5,6 @@ import (
 	"std"
 
 	"gno.land/p/aeddi/panictoerr"
-	"gno.land/p/demo/ufmt"
 )
 
 var ErrNoStdBankerProvided = errors.New("no std banker provided")
@@ -31,11 +30,11 @@ func (cb *CoinsBanker) Send(p Payment) error {
 	// Check if payment is of type coinsPayment.
 	payment, ok := p.(coinsPayment)
 	if !ok {
-		return ufmt.Errorf("%v: %T", ErrInvalidPaymentType, payment)
+		return ErrInvalidPaymentType
 	}
 
 	// Send the coins.
-	return panictoerr.PanicToError(func() {
+	return panictoerr.PanicAbortToError(func() {
 		cb.banker.SendCoins(cb.owner, payment.toAddress, payment.coins)
 	})
 }

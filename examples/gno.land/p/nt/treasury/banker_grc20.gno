@@ -21,8 +21,8 @@ type GRC20Banker struct {
 	lister TokenListerFunc // Allows to list tokens from methods that require it.
 }
 
-// TokenListerFunc is a function type that returns a list of GRC20 tokens.
-type TokenListerFunc func() []*grc20.Token
+// TokenListerFunc is a function type that returns a map of GRC20 tokens.
+type TokenListerFunc func() map[string]*grc20.Token
 
 var _ Banker = (*GRC20Banker)(nil)
 
@@ -39,22 +39,16 @@ func (gb *GRC20Banker) Send(p Payment) error {
 
 	payment, ok := p.(grc20Payment)
 	if !ok {
-		return ufmt.Errorf("%v: %T", ErrInvalidPaymentType, payment)
+		return ErrInvalidPaymentType
 	}
 
 	// Get the GRC20 tokens using the lister.
 	tokens := gb.lister()
 
-	// Find the token corresponding to the payment symbol.
-	var token *grc20.Token
-	for i := range tokens {
-		if tokens[i].GetSymbol() == payment.symbol {
-			token = tokens[i]
-			break
-		}
-	}
-	if token == nil {
-		return ufmt.Errorf("%v: %s", ErrGRC20TokenNotFound, payment.symbol)
+	// Look for the token corresponding to the payment tokenKey.
+	token, ok := tokens[payment.tokenKey]
+	if !ok {
+		return ufmt.Errorf("%v: %s", ErrGRC20TokenNotFound, payment.tokenKey)
 	}
 
 	// Send the token.
@@ -68,9 +62,9 @@ func (gb *GRC20Banker) Balances() []Balance {
 
 	// Convert GRC20 tokens to []Balance.
 	var balances []Balance
-	for _, token := range tokens {
+	for key, token := range tokens {
 		balances = append(balances, Balance{
-			Denom:  token.GetSymbol(),
+			Denom:  key,
 			Amount: token.BalanceOf(gb.owner),
 		})
 	}
@@ -108,7 +102,7 @@ func NewGRC20BankerWithOwner(owner std.Address, lister TokenListerFunc) (*GRC20B
 
 // grc20Payment represents a payment that is issued by a GRC20Banker.
 type grc20Payment struct {
-	symbol    string      // The symbol of the GRC20 token.
+	tokenKey  string      // The key associated with the GRC20 token.
 	amount    int64       // The amount of token to send.
 	toAddress std.Address // The recipient of the payment.
 }
@@ -123,13 +117,13 @@ func (grc20Payment) BankerID() string {
 // String implements Payment.
 func (gp grc20Payment) String() string {
 	amount := strconv.Itoa(int(gp.amount))
-	return amount + gp.symbol + " to " + gp.toAddress.String()
+	return amount + gp.tokenKey + " to " + gp.toAddress.String()
 }
 
 // NewGRC20Payment creates a new grc20Payment.
-func NewGRC20Payment(symbol string, amount int64, toAddress std.Address) Payment {
+func NewGRC20Payment(tokenKey string, amount int64, toAddress std.Address) Payment {
 	return grc20Payment{
-		symbol:    symbol,
+		tokenKey:  tokenKey,
 		amount:    amount,
 		toAddress: toAddress,
 	}
