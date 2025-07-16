@@ -31,8 +31,8 @@ var (
 	hasSigned   avl.Tree // address -> struct{}
 )
 
-func init() {
-	Sign("You reached the end of the guestbook!")
+func init(cur realm) {
+	Sign(cur, "You reached the end of the guestbook!")
 }
 
 const (
@@ -42,8 +42,7 @@ const (
 )
 
 // Sign signs the guestbook, with the specified message.
-func Sign(message string) {
-	crossing()
+func Sign(cur realm, message string) {
 	prev := std.PreviousRealm()
 	switch {
 	case !prev.IsUser():

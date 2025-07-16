@@ -27,11 +27,11 @@ This will:
 - Use esbuild in watch mode to automatically transpile and bundle TypeScript changes.
 
 You can customize the behavior of the Go server using the `DEV_REMOTE` and
-`CHAIN_ID` environment variables. For example, to use `portal-loop` as the
+`CHAIN_ID` environment variables. For example, to use `staging` as the
 target, run:
 
 ```sh
-CHAIN_ID=portal-loop DEV_REMOTE=https://rpc.gno.land make dev
+CHAIN_ID=staging DEV_REMOTE=https://rpc.gno.land make dev
 ```
 
 ## Generate

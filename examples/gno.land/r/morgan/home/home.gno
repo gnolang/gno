@@ -7,7 +7,7 @@ const staticHome = `# morgan's (gn)home
 - [📝 sign my guestbook](/r/morgan/guestbook)
 `
 
-func init() { cross(hor.Register)("Morgan's Home Realm", "") }
+func init() { hor.Register(cross, "Morgan's Home Realm", "") }
 
 func Render(path string) string {
 	return staticHome

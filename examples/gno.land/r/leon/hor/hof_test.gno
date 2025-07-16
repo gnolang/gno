@@ -25,48 +25,54 @@ const (
 )
 
 var (
-	admin      = Ownable.Owner()
-	adminRealm = std.NewUserRealm(admin)
+	admin      std.Address = "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" // hardcoded from config.OwnableMain
+	adminRealm std.Realm
 	alice      = testutils.TestAddress("alice")
 )
+
+func init() {
+	adminRealm = std.NewUserRealm(admin)
+}
 
 func TestRegister(t *testing.T) {
 	// Test user realm register
 	aliceRealm := std.NewUserRealm(alice)
 	testing.SetRealm(aliceRealm)
 
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Test register while paused
 	testing.SetRealm(adminRealm)
-	Pausable.Pause()
+	err := Pausable.Pause()
+	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(std.NewCodeRealm(rlmPath))
 
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Unpause
 	testing.SetRealm(adminRealm)
-	Pausable.Unpause()
+	err = Pausable.Unpause()
+	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(std.NewCodeRealm(rlmPath))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	// Find registered items
 	uassert.True(t, itemExists(t, rlmPath))
 
 	// Test register with invalid title
 	testing.SetRealm(std.NewCodeRealm(rlmPath2))
-	cross(Register)(invalidTitle, validDesc)
+	Register(cross, invalidTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath2))
 
 	// Test register with invalid description
 	testing.SetRealm(std.NewCodeRealm(rlmPath2))
-	cross(Register)(validTitle, invalidDescription)
+	Register(cross, validTitle, invalidDescription)
 	uassert.False(t, itemExists(t, rlmPath2))
 }
 
@@ -80,7 +86,7 @@ func TestUpvote(t *testing.T) {
 	testing.SetRealm(adminRealm)
 
 	urequire.NotPanics(t, func() {
-		cross(Upvote)(rlmPath)
+		Upvote(cross, rlmPath)
 	})
 
 	// Check both trees for 1 upvote
@@ -88,7 +94,7 @@ func TestUpvote(t *testing.T) {
 
 	// Check double upvote
 	uassert.AbortsWithMessage(t, ErrDoubleUpvote.Error(), func() {
-		cross(Upvote)(rlmPath)
+		Upvote(cross, rlmPath)
 	})
 }
 
@@ -103,7 +109,7 @@ func TestDownvote(t *testing.T) {
 	testing.SetRealm(userRealm)
 
 	urequire.NotPanics(t, func() {
-		cross(Downvote)(rlmPath)
+		Downvote(cross, rlmPath)
 	})
 
 	// Check both trees for 1 upvote
@@ -111,7 +117,7 @@ func TestDownvote(t *testing.T) {
 
 	// Check double downvote
 	uassert.AbortsWithMessage(t, ErrDoubleDownvote.Error(), func() {
-		cross(Downvote)(rlmPath)
+		Downvote(cross, rlmPath)
 	})
 }
 
@@ -121,14 +127,14 @@ func TestDelete(t *testing.T) {
 	testing.SetOriginCaller(admin)
 
 	uassert.AbortsWithMessage(t, ErrNoSuchItem.Error(), func() {
-		cross(Delete)("nonexistentpkgpath")
+		Delete(cross, "nonexistentpkgpath")
 	})
 
 	i, _ := exhibition.items.Get(rlmPath)
 	_ = i.(*Item).id
 
 	uassert.NotPanics(t, func() {
-		cross(Delete)(rlmPath)
+		Delete(cross, rlmPath)
 	})
 
 	uassert.False(t, exhibition.items.Has(rlmPath))
@@ -182,13 +188,13 @@ func TestSortByUpvote(t *testing.T) {
 
 	// Add items
 	testing.SetRealm(std.NewCodeRealm(rlmPath3))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	testing.SetRealm(std.NewCodeRealm(rlmPath4))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	testing.SetRealm(std.NewCodeRealm(rlmPath5))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	user1 := testutils.TestAddress("user1")
 	user2 := testutils.TestAddress("user2")
@@ -196,18 +202,18 @@ func TestSortByUpvote(t *testing.T) {
 
 	testing.SetOriginCaller(user1)
 	testing.SetRealm(std.NewUserRealm(user1))
-	cross(Upvote)(rlmPath3)
-	cross(Upvote)(rlmPath4)
-	cross(Upvote)(rlmPath5)
+	Upvote(cross, rlmPath3)
+	Upvote(cross, rlmPath4)
+	Upvote(cross, rlmPath5)
 
 	testing.SetOriginCaller(user2)
 	testing.SetRealm(std.NewUserRealm(user2))
-	cross(Upvote)(rlmPath4)
-	cross(Upvote)(rlmPath5)
+	Upvote(cross, rlmPath4)
+	Upvote(cross, rlmPath5)
 
 	testing.SetOriginCaller(user3)
 	testing.SetRealm(std.NewUserRealm(user3))
-	cross(Upvote)(rlmPath5)
+	Upvote(cross, rlmPath5)
 
 	// We are displaying data in reverse order in render, so items should be sorted in reverse order
 	_, firstRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(0)
@@ -240,13 +246,13 @@ func TestSortByDownvote(t *testing.T) {
 
 	// Add items
 	testing.SetRealm(std.NewCodeRealm(rlmPath3))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	testing.SetRealm(std.NewCodeRealm(rlmPath4))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	testing.SetRealm(std.NewCodeRealm(rlmPath5))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	user1 := testutils.TestAddress("user1")
 	user2 := testutils.TestAddress("user2")
@@ -254,18 +260,18 @@ func TestSortByDownvote(t *testing.T) {
 
 	testing.SetOriginCaller(user1)
 	testing.SetRealm(std.NewUserRealm(user1))
-	cross(Downvote)(rlmPath3)
-	cross(Downvote)(rlmPath4)
-	cross(Downvote)(rlmPath5)
+	Downvote(cross, rlmPath3)
+	Downvote(cross, rlmPath4)
+	Downvote(cross, rlmPath5)
 
 	testing.SetOriginCaller(user2)
 	testing.SetRealm(std.NewUserRealm(user2))
-	cross(Downvote)(rlmPath4)
-	cross(Downvote)(rlmPath5)
+	Downvote(cross, rlmPath4)
+	Downvote(cross, rlmPath5)
 
 	testing.SetOriginCaller(user3)
 	testing.SetRealm(std.NewUserRealm(user3))
-	cross(Downvote)(rlmPath5)
+	Downvote(cross, rlmPath5)
 
 	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
 	_, firstRawValue := exhibition.itemsSortedByDownvotes.GetByIndex(0)
@@ -302,15 +308,15 @@ func TestSortByCreation(t *testing.T) {
 
 	testing.SkipHeights(10)
 	testing.SetRealm(std.NewCodeRealm(rlmPath3))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	testing.SkipHeights(10)
 	testing.SetRealm(std.NewCodeRealm(rlmPath4))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	testing.SkipHeights(10)
 	testing.SetRealm(std.NewCodeRealm(rlmPath5))
-	cross(Register)(validTitle, validDesc)
+	Register(cross, validTitle, validDesc)
 
 	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
 	_, firstRawValue := exhibition.itemsSortedByCreation.GetByIndex(0)

@@ -65,7 +65,7 @@ import (
 
 func main() {
 	pr := params.ProposeUnlockTransferRequest()
-  pid := cross(dao.MustCreateProposal)(pr)
+  pid := dao.MustCreateProposal(cross, pr)
   println(pid.String())
 }
 
@@ -78,7 +78,7 @@ import (
 )
 
 func main() {
-	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
@@ -92,7 +92,7 @@ import (
 )
 
 func main() {
-	ok := cross(dao.ExecuteProposal)(dao.ProposalID(0))
+	ok := dao.ExecuteProposal(cross, dao.ProposalID(0))
   if ok {
     println("OK!")
   }

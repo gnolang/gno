@@ -24,37 +24,37 @@ func init() {
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(std.NewUserRealm(alice))
-	cross(users.Register)("alice123")
+	users.Register(cross, "alice123")
 
 	// Prop to change name
 	testing.SetOriginCaller(c)
 	testing.SetRealm(std.NewUserRealm(c))
 	pr := users.ProposeNewName(alice, "alice_new123")
-	cross(dao.MustCreateProposal)(pr)
+	dao.MustCreateProposal(cross, pr)
 }
 
 func main() {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(cross(dao.Render)(""))
+	println(dao.Render(""))
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 	println("--")
 
-	cross(dao.ExecuteProposal)(dao.ProposalID(0))
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 
 	println("--")
-	println(cross(dao.Render)("0"))
+	println(dao.Render("0"))
 
 	data, _ := susers.ResolveName("alice_new123")
 	println(data.Addr())
@@ -62,78 +62,89 @@ func main() {
 
 // Output:
 // --
-// # Active Proposals:
-// ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
+// # GovDAO Proposals
+// ### [Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`](/r/gov/dao:0)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Status: ACTIVE
+//
+// Tiers eligible to vote: T1, T2, T3
+//
+// ---
+//
+//
+// --
+// ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
 //
 //
-// ### Proposal Status:
 //
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
+// ---
+//
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
 //
+// [Detailed voting list](/r/gov/dao:0/votes)
 //
-// --
-// ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
+// ---
 //
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
 //
-//
-//
-//
-// ### Proposal Status:
-//
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
-//
-//
+// WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
-//
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
 //
 //
-// ### Proposal Status:
 //
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
+// ---
+//
+// ### Stats
+// - **Proposal is open for votes**
+// - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
 //
+// [Detailed voting list](/r/gov/dao:0/votes)
 //
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Proposal with id: 0
-// ### Title: Propose a new name using users/v1 realm
-//
-// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// ## Prop #0 - User Registry V1: Rename user `alice123` to `alice_new123`
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
 //
 //
-// ### Proposal Status:
 //
+// ---
+//
+// ### Stats
 // - **PROPOSAL HAS BEEN ACCEPTED**
-// - Allowed tiers to vote: T1 T2 T3
+// - Tiers eligible to vote: T1, T2, T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
 //
+// [Detailed voting list](/r/gov/dao:0/votes)
 //
+// ---
+//
+// ### Actions
+// [Vote YES](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=YES&pid=0) | [Vote NO](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=NO&pid=0) | [Vote ABSTAIN](/r/gov/dao$help&func=MustVoteOnProposalSimple&option=ABSTAIN&pid=0)
+//
+// WARNING: Please double check transaction data before voting.
 // g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh

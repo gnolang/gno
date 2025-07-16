@@ -5,7 +5,7 @@
 package rand
 
 import (
-	"testing"
+	testing "testing/base"
 )
 
 func BenchmarkPCG_DXSM(b *testing.B) {

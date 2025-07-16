@@ -1,6 +1,9 @@
 package repl
 
 import (
+	"bytes"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,7 +24,11 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:   "import \"fmt\"\nimport \"os\"",
-				Result: "import \"fmt\"\nimport \"os\"\n",
+				Result: "",
+			},
+			{
+				Line:   "fmt.Println(\"hello\")",
+				Result: "hello",
 			},
 		},
 	},
@@ -30,11 +37,15 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:   "const test2, test3 = \"test_string2\", \"test_string3\"",
-				Result: "const test2, test3 = \"test_string2\", \"test_string3\"\n",
+				Result: "",
 			},
 			{
 				Line:   "const test = \"test_string\"",
-				Result: "const test = \"test_string\"\n",
+				Result: "",
+			},
+			{
+				Line:   "println(test, test2, test3)",
+				Result: "test_string test_string2 test_string3",
 			},
 		},
 	},
@@ -43,11 +54,15 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:   "type MyStruct struct { count int}",
-				Result: "type MyStruct struct{ count int }\n",
+				Result: "",
 			},
 			{
 				Line:   "func (s *MyStruct) Add(){s.count++}",
-				Result: "func (s *MyStruct) Add()\t{ s.count++ }\n",
+				Result: "",
+			},
+			{
+				Line:   "s := MyStruct{1}; s.Add(); println(s.count)",
+				Result: "2",
 			},
 		},
 	},
@@ -56,11 +71,49 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:   "var test2, test3 string = \"test_string2\", \"test_string3\"",
-				Result: "var test2, test3 string = \"test_string2\", \"test_string3\"\n",
+				Result: "",
 			},
 			{
 				Line:   "var test int = 42",
-				Result: "var test int = 42\n",
+				Result: "",
+			},
+			{
+				Line:   "println(test, test2, test3)",
+				Result: "42 test_string2 test_string3",
+			},
+		},
+	},
+	{
+		Name: "Add new define",
+		CodeSteps: []step{
+			{
+				Line:   "var test2, test3 string = \"test_string2\", \"test_string3\"",
+				Result: "",
+			},
+			{
+				Line:   "test := 42",
+				Result: "",
+			},
+			{
+				Line:   "println(test, test2, test3)",
+				Result: "42 test_string2 test_string3",
+			},
+		},
+	},
+	{
+		Name: "Re-assign",
+		CodeSteps: []step{
+			{
+				Line:   "var test2, test3 string = \"test_string2\", \"test_string3\"",
+				Result: "",
+			},
+			{
+				Line:   "test2 = \"something_new\"",
+				Result: "",
+			},
+			{
+				Line:   "println(test2, test3)",
+				Result: "something_new test_string3",
 			},
 		},
 	},
@@ -69,12 +122,12 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:  "importasdasd",
-				Error: "test/test1.gno:7:2-14: name importasdasd not declared",
+				Error: "name importasdasd not declared",
 			},
 			{
 				Line: "var a := 1",
 				// we cannot check the entire error because it is different depending on the used Go version.
-				Error: "error parsing code:",
+				Error: "<repl>:1:14: expected type, found ':='",
 			},
 		},
 	},
@@ -83,15 +136,15 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:   "func sum(a,b int)int{return a+b}",
-				Result: "func sum(a, b int) int\t{ return a + b }\n",
+				Result: "",
 			},
 			{
 				Line:   "import \"fmt\"",
-				Result: "import \"fmt\"\n",
+				Result: "",
 			},
 			{
 				Line:   "fmt.Println(sum(1,1))",
-				Result: "2\n",
+				Result: "2",
 			},
 		},
 	},
@@ -100,11 +153,11 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:   "import \"fmt\"\nfunc sum(a,b int)int{return a+b}",
-				Result: "import \"fmt\"\nfunc sum(a, b int) int\t{ return a + b }\n",
+				Result: "",
 			},
 			{
 				Line:   "fmt.Println(sum(1,1))",
-				Result: "2\n",
+				Result: "2",
 			},
 		},
 	},
@@ -120,11 +173,11 @@ var fixtures = []struct {
 					return fib(n-2) + fib(n-1)
 				}
 				`,
-				Result: "func fib(n int) int {\n\tif n < 2 {\n\t\treturn n\n\t}\n\treturn fib(n-2) + fib(n-1)\n}\n",
+				Result: "",
 			},
 			{
 				Line:   "println(fib(24))",
-				Result: "46368\n",
+				Result: "46368",
 			},
 		},
 	},
@@ -139,27 +192,27 @@ var fixtures = []struct {
 					magicConst = 19
 				)
 				`,
-				Result: "const (\n\toneConst\t= 1\n\ttenConst\t= 10\n\tmagicConst\t= 19\n)\n",
+				Result: "",
 			},
 			{
 				Line:   "var outVar int",
-				Result: "var outVar int\n",
+				Result: "",
 			},
 			{
 				Line: `
 				type MyStruct struct {
 					counter int
 				}
-				
+
 				func (s *MyStruct) Add() {
 					s.counter++
 				}
-				
+
 				func (s *MyStruct) Get() int {
 					return s.counter
 				}
 				`,
-				Result: "type MyStruct struct {\n\tcounter int\n}\nfunc (s *MyStruct) Add() {\n\ts.counter++\n}\nfunc (s *MyStruct) Get() int {\n\treturn s.counter\n}\n",
+				Result: "",
 			},
 			{
 				Line: `
@@ -172,7 +225,7 @@ var fixtures = []struct {
 
 				println(outVar)
 				`,
-				Result: "42\n",
+				Result: "42",
 			},
 		},
 	},
@@ -182,49 +235,28 @@ func TestRepl(t *testing.T) {
 	for _, fix := range fixtures {
 		fix := fix
 		t.Run(fix.Name, func(t *testing.T) {
-			r := NewRepl()
+			outbuf := new(bytes.Buffer)
+			errbuf := new(bytes.Buffer)
+			r := NewRepl(WithIO(os.Stdin, outbuf, errbuf))
 			for _, cs := range fix.CodeSteps {
-				out, err := r.Process(cs.Line)
-				if cs.Error == "" {
-					require.NoError(t, err)
-				} else {
-					require.Error(t, err)
-					require.Contains(t, err.Error(), cs.Error)
-				}
+				r.RunStatements(cs.Line)
+				errstr := stripTrailingNL(errbuf.String())
+				require.Equal(t, cs.Error, errstr)
+				outstr := stripTrailingNL(outbuf.String())
+				require.Equal(t, cs.Result, outstr)
 
-				require.Equal(t, cs.Result, out)
+				// clear bufs.
+				errbuf.Reset()
+				outbuf.Reset()
 			}
 		})
 	}
 }
 
-func TestReplOpts(t *testing.T) {
-	t.Parallel()
-
-	require := require.New(t)
-
-	r := NewRepl(WithStd(nil, nil, nil), WithStore(nil))
-	require.Nil(r.storeFunc())
-	require.Nil(r.stderr)
-	require.Nil(r.stdin)
-	require.Nil(r.stdout)
-
-	_, err := r.Process("import \"fmt\"")
-	require.NoError(err)
-}
-
-func TestReplReset(t *testing.T) {
-	t.Parallel()
-
-	require := require.New(t)
-
-	r := NewRepl()
-
-	_, err := r.Process("println(\"hi\")")
-	require.NoError(err)
-	o := r.Src()
-	require.Contains(o, "generated by 'gno repl'")
-	r.Reset()
-	o = r.Src()
-	require.NotContains(o, "generated by 'gno repl'")
+func stripTrailingNL(s string) string {
+	if strings.HasSuffix(s, "\n") {
+		return s[:len(s)-1]
+	} else {
+		return s
+	}
 }

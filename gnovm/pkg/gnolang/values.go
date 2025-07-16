@@ -485,7 +485,7 @@ type FuncValue struct {
 	Name       Name         // name of function/method
 	Parent     Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
-	FileName   Name         // file name where declared
+	FileName   string       // file name where declared
 	PkgPath    string       // package path in which func declared
 	NativePkg  string       // for native bindings through NativeResolver
 	NativeName Name         // not redundant with Name; this cannot be changed in userspace
@@ -582,8 +582,8 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 			return nil
 		}
 		pv := fv.GetPackage(store)
-		fb := pv.fBlocksMap[fv.FileName]
-		if fb == nil {
+		fb, ok := pv.fBlocksMap[fv.FileName]
+		if !ok {
 			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 		}
 		fv.Parent = fb
@@ -723,6 +723,7 @@ func (mv *MapValue) GetLength() int {
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+	// If NaN, instead of computing map key, just append to List.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		return PointerValue{
@@ -743,6 +744,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
+	// If key is NaN, return default
 	kmk := key.ComputeMapKey(store, false)
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
@@ -752,6 +754,7 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
+	// if key is NaN, do nothing.
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
@@ -775,12 +778,12 @@ type PackageValue struct {
 	Block      Value
 	PkgName    Name
 	PkgPath    string
-	FNames     []Name
+	FNames     []string
 	FBlocks    []Value
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
 	// NOTE: Realm is persisted separately.
 
-	fBlocksMap map[Name]*Block
+	fBlocksMap map[string]*Block
 }
 
 // IsRealm returns true if pv represents a realm.
@@ -788,23 +791,22 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
-func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
+func (pv *PackageValue) getFBlocksMap() map[string]*Block {
 	if pv.fBlocksMap == nil {
-		pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
+		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	}
 	return pv.fBlocksMap
 }
 
-// to call after loading *PackageValue.
+// called after loading *PackageValue.
 func (pv *PackageValue) deriveFBlocksMap(store Store) {
-	if pv.fBlocksMap != nil {
-		panic("should not happen")
+	if pv.fBlocksMap == nil {
+		pv.fBlocksMap = make(map[string]*Block, len(pv.FNames))
 	}
-	pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
 	for i := range pv.FNames {
 		fname := pv.FNames[i]
 		fblock := pv.GetFileBlock(store, fname)
-		pv.fBlocksMap[fname] = fblock
+		pv.fBlocksMap[fname] = fblock // idempotent.
 	}
 }
 
@@ -835,21 +837,21 @@ func (pv *PackageValue) GetValueAt(store Store, path ValuePath) TypedValue {
 		TV)
 }
 
-func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
-	for _, fname := range pv.FNames {
+func (pv *PackageValue) AddFileBlock(fname string, fb *Block) {
+	for _, fn := range pv.FNames {
 		if fname == fn {
 			panic(fmt.Sprintf(
 				"duplicate file block for file %s",
-				fn))
+				fname))
 		}
 	}
-	pv.FNames = append(pv.FNames, fn)
+	pv.FNames = append(pv.FNames, fname)
 	pv.FBlocks = append(pv.FBlocks, fb)
-	pv.getFBlocksMap()[fn] = fb
+	pv.getFBlocksMap()[fname] = fb
 	fb.SetOwner(pv)
 }
 
-func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
+func (pv *PackageValue) GetFileBlock(store Store, fname string) *Block {
 	if fb, ex := pv.getFBlocksMap()[fname]; ex {
 		return fb
 	}
@@ -891,6 +893,10 @@ func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 // Convenience
 func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgCryptoAddr(pv.PkgPath)
+}
+
+func (pv *PackageValue) GetPkgStorageDepositAddr() crypto.Address {
+	return DeriveStorageDepositCryptoAddr(pv.PkgPath)
 }
 
 // ----------------------------------------
@@ -1896,10 +1902,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
+	return tv.GetPointerAtIndex(nilRealm, nilAllocator, store, &iv)
 }
 
-func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -1941,6 +1947,15 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			panic(&Exception{Value: typedString("uninitialized map index")})
 		}
 		mv := tv.V.(*MapValue)
+
+		// if key already exist,
+		// no need to attach it.
+		exist := false
+		key := iv.ComputeMapKey(store, false)
+		if _, ok := mv.vmap[key]; ok {
+			exist = true
+		}
+
 		pv := mv.GetPointerForKey(alloc, store, iv)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
@@ -1948,6 +1963,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				// this will get assigned over, so no alloc.
 				*(pv.TV) = defaultTypedValue(nil, vt)
 			}
+		}
+		// attach mapkey object
+		if !exist {
+			rlm.DidUpdate(mv, nil, iv.GetFirstObject(store))
 		}
 		return pv
 	default:
@@ -1971,6 +1990,17 @@ func (tv *TypedValue) GetType() Type {
 
 func (tv *TypedValue) GetFunc() *FuncValue {
 	return tv.V.(*FuncValue)
+}
+
+func (tv *TypedValue) GetUnboundFunc() *FuncValue {
+	switch fv := tv.V.(type) {
+	case *FuncValue:
+		return fv
+	case *BoundMethodValue:
+		return fv.Func
+	default:
+		panic(fmt.Sprintf("expected function or bound method but got %T", tv.V))
+	}
 }
 
 func (tv *TypedValue) GetLength() int {
@@ -2263,7 +2293,7 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 		if !isHeap {
 			continue
 		}
-		// indicates must always be heap item.
+		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
 			V: &HeapItemValue{},
@@ -2441,45 +2471,38 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 	return &b.bodyStmt
 }
 
-// Used by faux blocks like IfCond and SwitchStmt upon clause match.
+// Used by faux blocks like IfCond and SwitchStmt upon clause match.  e.g.
+// source: IfCond, b.Source: IfStmt.  Also used by repl to expand block size
+// dynamically. In that case source == b.Source.
+// See also PackageNode.PrepareNewValues().
 func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
-	// XXX make more efficient by only storing new names in source.
-	numNames := source.GetNumNames()
-	if len(b.Values) > int(numNames) {
+	sb := source.GetStaticBlock()
+	numNames := int(sb.GetNumNames())
+	if len(b.Values) > numNames {
 		panic(fmt.Sprintf(
 			"unexpected block size shrinkage: %v vs %v",
 			len(b.Values), numNames))
 	}
-	if debug {
-		if len(b.Values) >= int(numNames) {
-			panic(fmt.Sprintf(
-				"unexpected block size shrinkage: %v vs %v",
-				len(b.Values), numNames))
-		}
-	}
-	if int(numNames) == len(b.Values) {
+	if numNames == len(b.Values) {
 		return // nothing to do
 	}
-	alloc.AllocateBlockItems(int64(numNames) - int64(len(b.Values)))
-	values := make([]TypedValue, numNames)
-	copy(values, b.Values)
-	// NOTE this is a bit confusing because of the faux offset.
-	// The heap item values are always false for the old names.
-	// Keep in sync with NewBlock().
-	// XXX pass allocator in for heap items.
+	oldNames := len(b.Values)
+	newNames := numNames - oldNames
+	alloc.AllocateBlockItems(int64(newNames))
 	heapItems := source.GetHeapItems()
-	for i := len(b.Values); i < int(numNames); i++ {
-		isHeap := heapItems[i]
-		if !isHeap {
-			continue
-		}
-		// indicates must always be heap item.
-		values[i] = TypedValue{
-			T: heapItemType{},
-			V: &HeapItemValue{},
+	bvalues := b.Values
+	for i := len(b.Values); i < numNames; i++ {
+		tv := sb.Values[i]
+		if heapItems[i] {
+			bvalues = append(bvalues, TypedValue{
+				T: heapItemType{},
+				V: alloc.NewHeapItem(tv),
+			})
+		} else {
+			bvalues = append(bvalues, tv)
 		}
 	}
-	b.Values = values
+	b.Values = bvalues
 	b.Source = source // otherwise new variables won't show in print or debugger.
 }
 
@@ -2489,6 +2512,10 @@ type RefValue struct {
 	Escaped  bool      `json:",omitempty"`
 	PkgPath  string    `json:",omitempty"`
 	Hash     ValueHash `json:",omitempty"`
+}
+
+func RefValueFromPackage(pv *PackageValue) RefValue {
+	return RefValue{PkgPath: pv.PkgPath}
 }
 
 func (rv RefValue) GetObjectID() ObjectID {

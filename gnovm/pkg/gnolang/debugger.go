@@ -721,7 +721,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
-		return x.GetPointerAtIndex(m.Alloc, m.Store, &index).Deref(), nil
+		return x.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &index).Deref(), nil
 	default:
 		err = fmt.Errorf("expression not supported: %v", n)
 	}
@@ -816,7 +816,7 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		}
 	}
 	// Fallback: search a global value.
-	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name), true); v != nil {
+	if v := sblocks[0].Source.GetSlot(m.Store, Name(name), true); v != nil {
 		return *v, true
 	}
 	return tv, false

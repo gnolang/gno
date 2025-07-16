@@ -161,7 +161,12 @@ func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 		Output:  stdout,
 		Error:   stderr,
 	}
-	opts.BaseStore, opts.TestStore = Store(rootDir, opts.WriterForStore())
+	opts.BaseStore, opts.TestStore = StoreWithOptions(
+		rootDir, opts.WriterForStore(), StoreOptions{
+			WithExtern:   false,
+			WithExamples: true,
+			Testing:      true,
+		})
 	return opts
 }
 
@@ -211,14 +216,45 @@ func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
 // are to be updated.
 // opts is a required set of options, which is often shared among different
 // tests; you can use [NewTestOptions] for a common base configuration.
+// It is assumed that mpkg is already type-checked, even filetests.
 func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
 
 	var errs error
 
+	// Create a common tcw/tgs for both the `pkg` tests as well as the
+	// `pkg_test` tests. This allows us to "export" symbols from the pkg
+	// tests and import them from the `pkg_test` tests.
+	tcw := opts.BaseStore.CacheWrap()
+	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil)
+
+	// Let opts.TestStore load itself.
+	// This needs to happen before LoadImports, as LoadImports will
+	// otherwise only load without *_test.gno files (but we want them for
+	// mpkg since we're running tests on them).
+	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: mpkg.Path,
+		Output:  opts.WriterForStore(),
+		Store:   tgs,
+		Context: Context("", mpkg.Path, nil),
+		// When testing examples we will find them, so pv, pn, file
+		// block nodes would otherwise become set, but for running
+		// tests on packages not known by the store, it will construct
+		// new packages by default, which we don't want.  Instead we
+		// will run the mempackage ourselves in the next line.
+		SkipPackage: true,
+	})
+	// Filter out xxx_test *_test.gno and *_filetest.gno and run.
+	// If testing with only filetests, there will be no files.
+	tmpkg := gno.MPFTest.FilterMemPackage(mpkg)
+	if !tmpkg.IsEmptyOf(".gno") {
+		_, _ = m2.RunMemPackageWithOverrides(tmpkg, true)
+	}
+
 	// Eagerly load imports.
-	if err := LoadImports(opts.TestStore, mpkg); err != nil {
+	abortOnError := true
+	if err := LoadImports(tgs, mpkg, abortOnError); err != nil {
 		return err
 	}
 
@@ -229,15 +265,9 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
-		// Create a common cw/gs for both the `pkg` tests as well as the `pkg_test`
-		// tests. This allows us to "export" symbols from the pkg tests and
-		// import them from the `pkg_test` tests.
-		cw := opts.BaseStore.CacheWrap()
-		gs := opts.TestStore.BeginTransaction(cw, cw, nil)
-
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(mpkg, tset, gs)
+			err := opts.runTestFiles(mpkg, tset, tgs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -245,13 +275,20 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Test xxx_test pkg.
 		if len(itset.Files) > 0 {
-			itPkg := &std.MemPackage{
+			var mpkgType gno.MemPackageType
+			if gno.IsStdlib(mpkg.Path) {
+				mpkgType = gno.MPStdlibIntegration
+			} else {
+				mpkgType = gno.MPUserIntegration
+			}
+			itmpkg := &std.MemPackage{
+				Type:  mpkgType,
 				Name:  mpkg.Name + "_test",
 				Path:  mpkg.Path + "_test",
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, gs)
+			err := opts.runTestFiles(itmpkg, itset, tgs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -275,8 +312,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			if opts.Verbose {
 				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
 			}
-
-			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
+			tcheck := false // already type-checked e.g. by cmd/gno/test.go
+			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
+			// isolate the state between them
+			changed, err := opts.runFiletest(
+				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
 				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
@@ -302,10 +342,13 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	return errs
 }
 
+// Runs *_test.go tests.
+// Not the same as pkg/test/filetest runFiletests()
+// which runs *_filetest.go tests.
 func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,
-	gs gno.TransactionStore,
+	tgs gno.TransactionStore,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -331,17 +374,17 @@ func (opts *TestOptions) runTestFiles(
 	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(gs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 	m.Alloc = alloc
-	if gs.GetMemPackage(mpkg.Path) == nil {
-		m.RunMemPackage(mpkg, true)
+	if tgs.GetMemPackage(mpkg.Path) == nil {
+		m.RunMemPackage(mpkg, false)
 	} else {
-		m.SetActivePackage(gs.GetPackage(mpkg.Path, false))
+		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))
 	}
 	pv := m.Package
 
 	// Load the test files into package and save.
-	m.RunFiles(files.Files...)
+	// m.RunFiles(files.Files...)
 
 	for _, tf := range tests {
 		// TODO(morgan): we could theoretically use wrapping on the baseStore
@@ -352,13 +395,53 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(gs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
-		testingpv := m.Store.GetPackage("testing", false)
+		testingpv := m.Store.GetPackage("testing/base", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
+		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
+
+		var runTestX gno.Expr
+		var runTest gno.TypedValue
+		var runTestF string
+		var runTestCur gno.Expr
+		if testfv.IsCrossing() {
+			// Run a test with cur passed a special way.
+			//
+			// > TestSomething(cur realm, t *testing.T) {...}
+			//
+			// Normally this isn't possible because
+			// stdlibs/testing/base is a non-realm, so it cannot
+			// have `cur`. And while a realm could call `func(cur
+			// realm){...}(cross)`, some *_test.gno test cases want
+			// `cur` to refer to the realm package, while
+			// `cur.Previous()` to refer to no realm--while the
+			// `func(cur realm){...}(cross)` method would have both
+			// previous to be the current realm.
+
+			// Extract unexposed testing.runTestWithRealm.
+			m.SetActivePackage(testingpv)
+			runTestX = gno.Nx("runTest_cur")
+			runTest = m.Eval(runTestX)[0]
+			runTestF = "F_cur"
+			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(mpkg.Path))
+			m.SetActivePackage(pv)
+		} else {
+			// The normal way to test if `cur` isn't needed such as
+			// in p package tests, or in realm package tests where
+			// no non-crossing calls are made directly in the body
+			// of the test func decl.
+			//
+			// > TestSomething(t *testing.T) {...}
+			runTestX = gno.Sel(testingcx, "RunTest")
+			runTest = m.Eval(runTestX)[0]
+			runTestF = "F"
+			runTestCur = gno.Nx("nil")
+		}
+		runTestCX := gno.NewConstExpr(runTestX, runTest)
 
 		if opts.Debug {
 			fileContent := func(ppath, name string) string {
@@ -378,7 +461,7 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),                 // Call testing.RunTest
+			runTestCX,                                     // Call testing.RunTest
 			gno.Str(opts.RunFlag),                         // run flag
 			gno.Nx(strconv.FormatBool(opts.Verbose)),      // is verbose?
 			gno.Nx(strconv.FormatBool(opts.FailfastFlag)), // stop as soon as a test fails
@@ -388,7 +471,8 @@ func (opts *TestOptions) runTestFiles(
 					// XXX Consider this.
 					// {Key: gno.X("Name"), Value: gno.Str(mpkg.Path + "/" + tf.Filename + "." + tf.Name)},
 					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
-					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
+					{Key: gno.X(runTestF), Value: gno.Nx(tf.Name)},
+					{Key: gno.X("Cur"), Value: runTestCur},
 				},
 			},
 		))
@@ -466,12 +550,15 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 	for _, tf := range tfiles.Files {
 		for _, d := range tf.Decls {
 			if fd, ok := d.(*gno.FuncDecl); ok {
+				if fd.IsMethod {
+					continue
+				}
 				fname := string(fd.Name)
 				if strings.HasPrefix(fname, "Test") {
 					tf := testFunc{
 						Package:  pkgName,
 						Name:     fname,
-						Filename: string(tf.Name),
+						Filename: tf.FileName,
 					}
 					rt = append(rt, tf)
 				}

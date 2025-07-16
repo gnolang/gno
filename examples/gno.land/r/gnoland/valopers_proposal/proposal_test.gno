@@ -12,9 +12,7 @@ import (
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
-var (
-	g1user = testutils.TestAddress("g1user")
-)
+var g1user = testutils.TestAddress("g1user")
 
 func init() {
 	daoinit.InitWithUsers(g1user)
@@ -38,8 +36,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
-			cross(valopers.Register)(moniker, description, g1user, pubKey)
-			cross(valopers.UpdateKeepRunning)(g1user, false)
+			valopers.Register(cross, moniker, description, g1user, pubKey)
+			valopers.UpdateKeepRunning(cross, g1user, false)
 		})
 
 		urequire.NotPanics(t, func() {
@@ -49,10 +47,10 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
-			pr := NewValidatorProposalRequest(g1user)
+		urequire.AbortsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
+			pr := NewValidatorProposalRequest(cur, g1user)
 
-			cross(dao.MustCreateProposal)(pr)
+			dao.MustCreateProposal(cross, pr)
 		})
 	})
 
@@ -61,7 +59,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
-			cross(valopers.UpdateKeepRunning)(g1user, true)
+			valopers.UpdateKeepRunning(cross, g1user, true)
 		})
 
 		var valoper valopers.Valoper
@@ -74,13 +72,14 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
-		urequire.NotPanics(t, func() {
-			pr := NewValidatorProposalRequest(g1user)
+		urequire.NotPanics(t, func(cur realm) {
+			testing.SetRealm(std.NewUserRealm(g1user))
+			pr := NewValidatorProposalRequest(cur, g1user)
 
-			pid = cross(dao.MustCreateProposal)(pr)
+			pid = dao.MustCreateProposal(cross, pr)
 		})
 
-		proposal, err := cross(dao.GetProposal)(pid) // index starts from 0
+		proposal, err := dao.GetProposal(cross, pid) // index starts from 0
 		urequire.NoError(t, err, "proposal not found")
 
 		description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
@@ -103,21 +102,21 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		urequire.NotPanics(t, func() {
 			// Vote the proposal created in the previous test
-			cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+			dao.MustVoteOnProposal(cross, dao.VoteRequest{
 				Option:     dao.YesVote,
 				ProposalID: dao.ProposalID(0),
 			})
 
 			// Execute the proposal
-			cross(dao.ExecuteProposal)(dao.ProposalID(0))
+			dao.ExecuteProposal(cross, dao.ProposalID(0))
 		})
 
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
-			pr := cross(NewValidatorProposalRequest)(g1user)
-			cross(dao.MustCreateProposal)(pr)
+			pr := NewValidatorProposalRequest(cross, g1user)
+			dao.MustCreateProposal(cross, pr)
 		})
 	})
 }
@@ -136,12 +135,12 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
-		pr := cross(ProposeNewInstructionsProposalRequest)(newInstructions)
+		pr := ProposeNewInstructionsProposalRequest(cross, newInstructions)
 
-		pid = cross(dao.MustCreateProposal)(pr)
+		pid = dao.MustCreateProposal(cross, pr)
 	})
 
-	proposal, err := cross(dao.GetProposal)(pid) // index starts from 0
+	proposal, err := dao.GetProposal(cross, pid) // index starts from 0
 	urequire.NoError(t, err, "proposal not found")
 	if proposal == nil {
 		panic("PROPOSAL NOT FOUND")
@@ -164,12 +163,12 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
-		pr := cross(ProposeNewMinFeeProposalRequest)(newMinFee)
+		pr := ProposeNewMinFeeProposalRequest(cross, newMinFee)
 
-		pid = cross(dao.MustCreateProposal)(pr)
+		pid = dao.MustCreateProposal(cross, pr)
 	})
 
-	proposal, err := cross(dao.GetProposal)(pid) // index starts from 0
+	proposal, err := dao.GetProposal(cross, pid) // index starts from 0
 	urequire.NoError(t, err, "proposal not found")
 	// Check that the proposal is correct
 	urequire.Equal(t, description, proposal.Description())

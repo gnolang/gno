@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/r/demo/tests/crossrealm_b"
@@ -9,14 +9,12 @@ type Struct struct {
 	A int
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	s := &Struct{A: 100}
-	cross(crossrealm_b.SetObject)(func() { println(&s.A) })
+	crossrealm_b.SetObject(cross, func() { println(&s.A) })
 	s.A = 123
 	println(s)
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): s<~VPBlock(1,0)>.A
+// cannot directly modify readonly tainted object (w/o method): s<~VPBlock(1,1)>.A

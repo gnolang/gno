@@ -51,8 +51,8 @@ func MustReadFile(path string) *FileNode {
 	return n
 }
 
-func MustParseFile(filename string, body string) *FileNode {
-	n, err := ParseFile(filename, body)
+func MustParseFile(fname string, body string) *FileNode {
+	n, err := ParseFile(fname, body)
 	if err != nil {
 		panic(err)
 	}
@@ -67,8 +67,8 @@ func ReadFile(path string) (*FileNode, error) {
 	return ParseFile(path, string(bz))
 }
 
-func ParseExpr(expr string) (retx Expr, err error) {
-	x, err := parser.ParseExpr(expr)
+func ParseExpr(code string) (expr Expr, err error) {
+	x, err := parser.ParseExpr(code)
 	if err != nil {
 		return nil, err
 	}
@@ -90,48 +90,116 @@ func ParseExpr(expr string) (retx Expr, err error) {
 	return Go2Gno(fset, x).(Expr), nil
 }
 
-func MustParseExpr(expr string) Expr {
-	x, err := ParseExpr(expr)
+func MustParseExpr(code string) Expr {
+	x, err := ParseExpr(code)
 	if err != nil {
 		panic(err)
 	}
 	return x
 }
 
+func ParseStmts(code string) (stmts []Stmt, err error) {
+	// Go only parses exprs and files,
+	// so wrap in a func body.
+	fset := token.NewFileSet()
+	code = fmt.Sprintf("func(){%s}", code)
+	x, err := parser.ParseExprFrom(fset, "<repl>", code, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	gostmts := x.(*ast.FuncLit).Body.List
+
+	// recover from Go2Gno.
+	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
+	defer func() {
+		if r := recover(); r != nil {
+			if rerr, ok := r.(error); ok {
+				err = rerr
+			} else {
+				err = fmt.Errorf("%v", r)
+			}
+			return
+		}
+	}()
+	// parse with Go2Gno.
+	for _, gostmt := range gostmts {
+		var stmt Stmt
+		nn := Go2Gno(fset, gostmt)
+		switch nn := nn.(type) {
+		case Stmt:
+			stmt = nn
+		case Expr:
+			stmt = &ExprStmt{X: nn}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected AST type %v (%T)", nn, nn))
+		}
+		stmts = append(stmts, stmt)
+	}
+	return stmts, nil
+}
+
+func MustParseStmts(code string) []Stmt {
+	stmts, err := ParseStmts(code)
+	if err != nil {
+		panic(err)
+	}
+	return stmts
+}
+
+func ParseDecls(code string) (decls []Decl, err error) {
+	// Go only parses exprs and files,
+	// so wrap in a func body.
+	code = fmt.Sprintf("package repl\n%s", code)
+	fn, err := ParseFile("repl.gno", code)
+	if err != nil {
+		return nil, err
+	}
+	return fn.Decls, nil
+}
+
+func MustParseDecls(code string) []Decl {
+	decls, err := ParseDecls(code)
+	if err != nil {
+		panic(err)
+	}
+	return decls
+}
+
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
-func ParseFile(filename string, body string) (fn *FileNode, err error) {
+func ParseFile(fname string, body string) (fn *FileNode, err error) {
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	astf, err := parser.ParseFile(fs, filename, body, parseOpts)
+	astf, err := parser.ParseFile(fs, fname, body, parseOpts)
 	if err != nil {
 		return nil, err
 	}
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
 
-	// XXX Disable this when running with -debug or similar.
-	if true {
-		// Recover from Go2Gno.
-		// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
-		defer func() {
-			if r := recover(); r != nil {
-				if rerr, ok := r.(error); ok {
-					err = errors.Wrap(rerr, "parsing file")
-				} else {
-					err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
-				}
-				return
+	// NOTE: DO NOT Disable this when running with -debug or similar.
+	// Global environment variables are a vector for attack and should not
+	// be relied upon for critical production systems.  Recovers from
+	// Go2Gno and returns an error.
+	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
+	defer func() {
+		if r := recover(); r != nil {
+			if rerr, ok := r.(error); ok {
+				err = errors.Wrap(rerr, "parsing file")
+			} else {
+				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
 			}
-		}()
-	}
+			return
+		}
+	}()
 	// Parse with Go2Gno.
 	fn = Go2Gno(fs, astf).(*FileNode)
-	fn.Name = Name(filename)
+	fn.FileName = fname
 	return fn, nil
 }
 
@@ -471,9 +539,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			}
 		}
 		return &FileNode{
-			Name:    "", // filled later.
-			PkgName: pkgName,
-			Decls:   decls,
+			FileName: "", // filled later.
+			PkgName:  pkgName,
+			Decls:    decls,
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}

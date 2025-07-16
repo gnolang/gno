@@ -9,13 +9,17 @@ import (
 	"net/http"
 	"path"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
+
+const ReadmeFileName = "README.md"
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
@@ -94,13 +98,15 @@ func NewWebHandler(logger *slog.Logger, cfg *WebHandlerConfig) (*WebHandler, err
 func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
 
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		h.Get(w, r)
+	case http.MethodPost:
+		h.Post(w, r)
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
-
-	w.Header().Add("Content-Type", "text/html; charset=utf-8")
-	h.Get(w, r)
 }
 
 // Get processes a GET HTTP request.
@@ -146,11 +152,14 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set the header mode based on the URL type and context
-	if IsHomePath(r.RequestURI) {
+	switch {
+	case IsHomePath(r.RequestURI):
 		indexData.Mode = components.ViewModeHome
-	} else if gnourl.IsPure() {
+	case gnourl.IsPure():
 		indexData.Mode = components.ViewModePackage
-	} else {
+	case gnourl.IsUser():
+		indexData.Mode = components.ViewModeUser
+	default:
 		indexData.Mode = components.ViewModeRealm
 	}
 
@@ -162,6 +171,37 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
 		h.Logger.Error("failed to render index component", "error", err)
 	}
+}
+
+// Post processes a POST HTTP request.
+func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		h.Logger.Debug("request completed",
+			"url", r.URL.String(),
+			"elapsed", time.Since(start).String())
+	}()
+
+	// Parse the form data
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Error("failed to parse form", "error", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the URL
+	gnourl, err := weburl.ParseFromURL(r.URL)
+	if err != nil {
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		http.Error(w, "invalid path", http.StatusNotFound)
+		return
+	}
+
+	// Use form data as query
+	gnourl.Query = r.PostForm
+
+	// Redirect to the new URL
+	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
 }
 
 // prepareIndexBodyView prepares the data and main view for the index.
@@ -191,7 +231,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
-	case gnourl.IsRealm(), gnourl.IsPure():
+	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
@@ -233,6 +273,11 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components
 		return h.GetDirectoryView(gnourl, indexData)
 	}
 
+	// Handle User page
+	if gnourl.IsUser() {
+		return h.GetUserView(gnourl)
+	}
+
 	// Ultimately get realm view
 	return h.GetRealmView(gnourl, indexData)
 }
@@ -244,8 +289,8 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 	switch {
 	case err == nil: // ok
 	case errors.Is(err, ErrRenderNotDeclared):
-		// XXX: We should display paths list along realm informations
-		return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
+		// No Render() declared: fall back to directory view (which will show README.md if present)
+		return h.GetDirectoryView(gnourl, indexData)
 	case errors.Is(err, ErrClientPathNotFound):
 		// No realm exists here, try to display underlying paths
 		return h.GetPathsListView(gnourl, indexData)
@@ -264,6 +309,97 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 	})
 }
 
+// buildContributions returns the sorted list of contributions (packages and realms) for a user.
+func (h *WebHandler) buildContributions(username string) ([]components.UserContribution, int, error) {
+	prefix := "@" + username
+	paths, err := h.Client.QueryPaths(prefix, 10000)
+	if err != nil {
+		h.Logger.Error("unable to query contributions", "user", username, "error", err)
+		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
+	}
+
+	contribs := make([]components.UserContribution, 0, len(paths))
+	realmCount := 0
+	for _, raw := range paths {
+		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
+		u, err := weburl.Parse(trimmed)
+		if err != nil {
+			h.Logger.Warn("bad contribution URL", "path", raw, "error", err)
+			continue
+		}
+		ctype := components.UserContributionTypePackage
+		if u.IsRealm() {
+			ctype = components.UserContributionTypeRealm
+			realmCount++
+		}
+		contribs = append(contribs, components.UserContribution{
+			Title: path.Base(raw),
+			URL:   raw,
+			Type:  components.UserContributionType(ctype),
+			// TODO: size, description, date...
+		})
+	}
+
+	sort.Slice(contribs, func(i, j int) bool {
+		return contribs[i].Title < contribs[j].Title
+	})
+	return slices.Clip(contribs), realmCount, nil
+}
+
+// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+// createUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address
+func CreateUsernameFromBech32(username string) string {
+	_, _, err := bech32.Decode(username)
+	if err == nil {
+		// If it's a valid bech32 address, create a shortened version
+		username = username[:4] + "..." + username[len(username)-4:]
+	}
+
+	return username
+}
+
+// GetUserView returns the user profile view for a given GnoURL.
+func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
+	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	var content bytes.Buffer
+
+	// Render user profile realm
+	if _, err := h.Client.RenderRealm(&content, &weburl.GnoURL{Path: "/r/" + username + "/home"}, h.MarkdownRenderer); err != nil {
+		h.Logger.Debug("unable to render user realm", "error", err)
+	}
+
+	// Build contributions
+	contribs, realmCount, err := h.buildContributions(username)
+	if err != nil {
+		h.Logger.Error("unable to build contributions", "error", err)
+		return http.StatusInternalServerError, components.StatusErrorComponent(err.Error())
+	}
+
+	// Compute package counts
+	pkgCount := len(contribs)
+	pureCount := pkgCount - realmCount
+
+	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
+	// Try to decode the bech32 address
+	username = CreateUsernameFromBech32(username)
+
+	//TODO: get from user r/profile and use placeholder if not set
+	handlename := "Gnome " + username
+
+	data := components.UserData{
+		Username:      username,
+		Handlename:    handlename,
+		Contributions: contribs,
+		PackageCount:  pkgCount,
+		RealmCount:    realmCount,
+		PureCount:     pureCount,
+		Content:       components.NewReaderComponent(&content),
+		// TODO: add bio, pic, links, teams, etc.
+	}
+
+	return http.StatusOK, components.UserView(data)
+}
+
 func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(gnourl.Path)
 	if err != nil {
@@ -278,6 +414,10 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 			continue
 		}
 
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			// Don't make an entry field for "cur realm". The signature will still show it.
+			fun.Params = fun.Params[1:]
+		}
 		fsigs = append(fsigs, fun)
 	}
 
@@ -315,6 +455,28 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 	})
 }
 
+// renderReadme renders the README.md file and returns the component and the raw content
+func (h *WebHandler) renderReadme(gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
+	if !h.Client.HasFile(pkgPath, ReadmeFileName) {
+		return nil, nil
+	}
+
+	var rawBuffer bytes.Buffer
+	_, err := h.Client.SourceFile(&rawBuffer, pkgPath, ReadmeFileName, true)
+	if err != nil {
+		h.Logger.Error("fetch README.md", "path", pkgPath, "error", err)
+		return nil, nil
+	}
+
+	raw := rawBuffer.Bytes()
+	var buf bytes.Buffer
+	if _, err := h.MarkdownRenderer.Render(&buf, gnourl, raw); err != nil {
+		h.Logger.Error("render README.md", "error", err)
+		return nil, nil
+	}
+	return components.NewReaderComponent(&buf), raw
+}
+
 func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
 	files, err := h.Client.Sources(pkgPath)
@@ -336,26 +498,62 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	}
 
 	if fileName == "" {
-		fileName = files[0] // fallback on the first file
+		// Prefer README.md, then .gno files, otherwise first file
+		if i := slices.IndexFunc(files, func(f string) bool {
+			return f == "README.md" || strings.HasSuffix(f, ".gno")
+		}); i >= 0 {
+			fileName = files[i] // prefer .gno files and README.md
+		} else {
+			fileName = files[0] // fallback to first file - might be a .toml file
+		}
 	}
 
-	var source bytes.Buffer
-	meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
-	if err != nil {
-		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+	// Standard file rendering
+	var (
+		source     bytes.Buffer
+		fileSource components.Component
+		fileLines  int
+		sizeKb     float64
+	)
+
+	// Check whether the file is a markdown file
+	switch fileName {
+	case ReadmeFileName:
+		// Try to render README.md with markdown processing
+		readmeComp, raw := h.renderReadme(gnourl, pkgPath)
+		if readmeComp != nil && raw != nil {
+			fileSource = readmeComp
+			fileLines = bytes.Count(raw, []byte("\n")) + 1
+			sizeKb = float64(len(raw)) / 1024.0
+			break
+		}
+		// Fall through to default case if markdown rendering fails
+		fallthrough
+
+	default:
+		// Fetch raw source file
+		meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
+		if err != nil {
+			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+
+		fileSource = components.NewReaderComponent(&source)
+		sizeKb = meta.SizeKb
+		fileLines = meta.Lines
 	}
 
-	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
+	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKb)
+
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
 		Files:        files,
 		FileName:     fileName,
 		FileCounter:  len(files),
-		FileLines:    meta.Lines,
+		FileLines:    fileLines,
 		FileSize:     fileSizeStr,
 		FileDownload: gnourl.Path + "$download&file=" + fileName,
-		FileSource:   components.NewReaderComponent(&source),
+		FileSource:   fileSource,
 	})
 }
 
@@ -392,32 +590,26 @@ func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *componen
 func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	files, err := h.Client.Sources(pkgPath)
-
-	// Set header mode based on URL type
-	if gnourl.IsPure() {
-		indexData.Mode = components.ViewModePackage
-	}
-
 	if err != nil {
 		if !errors.Is(err, ErrClientPathNotFound) {
-			h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
 			return GetClientErrorStatusPage(gnourl, err)
 		}
-
 		return h.GetPathsListView(gnourl, indexData)
 	}
-
 	if len(files) == 0 {
-		h.Logger.Debug("no files available", "path", gnourl.Path)
+		h.Logger.Debug("no files available", "path", pkgPath)
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
-
+	// get the README.md file if it exists
+	readmeComp, _ := h.renderReadme(gnourl, pkgPath)
 	return http.StatusOK, components.DirectoryView(
-		gnourl.Path,
+		pkgPath,
 		files,
 		len(files),
 		components.DirLinkTypeSource,
 		indexData.Mode,
+		readmeComp,
 	)
 }
 

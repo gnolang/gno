@@ -1,5 +1,5 @@
 // Shim for Go's "testing" package to support minimal testing types.
-package base
+package testing
 
 import (
 	"fmt"
@@ -80,6 +80,8 @@ func NewT(name string) *T {
 }
 
 type testingFunc func(*T)
+
+type testingFunc_cur func(realm, *T) // (jae) Special case in gnovm/pkg/test
 
 // Not yet implemented:
 // func (t *T) Cleanup(f func()) {
@@ -286,8 +288,10 @@ type PB struct{}
 func (pb *PB) Next() bool { panic("not yet implemented") }
 
 type InternalTest struct {
-	Name string
-	F    testingFunc
+	Name  string
+	F     testingFunc
+	F_cur testingFunc_cur // (jae) Special case in gnovm/pkg/test.
+	Cur   realm           // (jae) Ditto. This won't work except through gnovm/pkg/test.
 }
 
 func (t *T) shouldRun(name string) bool {
@@ -313,6 +317,29 @@ func RunTest(runFlag string, verbose bool, failfast bool, test InternalTest) (re
 	}
 
 	tRunner(t, test.F, verbose)
+	if !t.verbose && t.Failed() {
+		// use printFailure to print output log of this
+		// and/or any subtests that may have failed.
+		t.printFailure()
+	}
+
+	report := t.report()
+	return report.marshal()
+}
+
+// (jae) Special case in gnovm/pkg/test.
+func runTest_cur(runFlag string, verbose bool, failfast bool, test InternalTest) (ret string) {
+	t := &T{
+		name:     test.Name,
+		verbose:  verbose,
+		failfast: failfast,
+	}
+
+	if runFlag != "" {
+		t.runFilter = splitRegexp(runFlag)
+	}
+
+	tRunner_cur(t, test.F_cur, test.Cur, verbose)
 	if !t.verbose && t.Failed() {
 		// use printFailure to print output log of this
 		// and/or any subtests that may have failed.
@@ -381,4 +408,47 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	}
 
 	fn(t)
+}
+
+func tRunner_cur(t *T, fn testingFunc_cur, next realm, verbose bool) {
+	if !t.shouldRun(t.name) {
+		return
+	}
+
+	start := unixNano()
+
+	defer func() {
+		err, st := recoverWithStacktrace()
+		switch err.(type) {
+		case nil:
+		case SkipErr:
+		default:
+			t.Fail()
+			fmt.Fprintf(os.Stderr, "panic: %v\nStacktrace:\n%s\n", err, st)
+		}
+
+		dur := unixNano() - start
+		t.dur = formatDur(dur)
+
+		if t.verbose {
+			switch {
+			case t.Failed():
+				fmt.Fprintf(os.Stderr, "--- FAIL: %s (%s)\n", t.name, t.dur)
+			case t.skipped:
+				fmt.Fprintf(os.Stderr, "--- SKIP: %s (%s)\n", t.name, t.dur)
+			case t.verbose:
+				fmt.Fprintf(os.Stderr, "--- PASS: %s (%s)\n", t.name, t.dur)
+			}
+		}
+	}()
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "=== RUN   %s\n", t.name)
+	}
+
+	// (jae) handled by gnovm/pkg/test and gnovm preprocessor.
+	// Normally the first argument must be `cur` or `cross`,
+	// but from this package it is possible to pass a realm
+	// value without crossing.
+	fn(next, t)
 }

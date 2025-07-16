@@ -5,7 +5,7 @@ run:
   tests: true
   modules-download-mode: readonly
   allow-parallel-runners: false
-  go: ""
+  go: "1.23"
 
 output:
   path-prefix: ""
@@ -30,7 +30,6 @@ linters:
     - gosec # Security problems
     - gofmt # Whether the code was gofmt-ed
     - goimports # Unused imports
-    - goconst # Repeated strings that could be replaced by a constant
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
     - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13

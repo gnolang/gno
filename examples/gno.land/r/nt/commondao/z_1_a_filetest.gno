@@ -15,7 +15,7 @@ const (
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	println(commondao.IsInvited(user))
 }
