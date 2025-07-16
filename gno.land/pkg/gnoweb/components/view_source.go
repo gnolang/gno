@@ -4,7 +4,10 @@ import (
 	"strings"
 )
 
-const SourceViewType ViewType = "source-view"
+const (
+	SourceViewType ViewType = "source-view"
+	ReadmeFileName string   = "README.md"
+)
 
 type SourceData struct {
 	PkgPath      string
@@ -17,11 +20,28 @@ type SourceData struct {
 	FileSource   Component
 }
 
+// WrappedSource returns a Component: raw for README.md, or code_wrapper otherwise.
+func (d SourceData) WrappedSource() Component {
+	if d.FileName == ReadmeFileName {
+		return d.FileSource
+	}
+	return NewTemplateComponent("ui/code_wrapper", d.FileSource)
+}
+
+// ArticleClasses returns the CSS classes based on file type.
+func (d SourceData) ArticleClasses() string {
+	if d.FileName == ReadmeFileName {
+		return "realm-view bg-light px-4 pt-6 pb-4 rounded lg:col-span-7"
+	}
+	return "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900"
+}
+
 type SourceTocData struct {
 	Icon         string
 	ReadmeFile   SourceTocItem
 	GnoFiles     []SourceTocItem
 	GnoTestFiles []SourceTocItem
+	TomlFiles    []SourceTocItem
 }
 
 type SourceTocItem struct {
@@ -53,7 +73,7 @@ func SourceView(data SourceData) *View {
 		}
 
 		switch {
-		case file == "README.md":
+		case file == ReadmeFileName:
 			tocData.ReadmeFile = item
 
 		case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):
@@ -61,15 +81,18 @@ func SourceView(data SourceData) *View {
 
 		case strings.HasSuffix(file, ".gno"):
 			tocData.GnoFiles = append(tocData.GnoFiles, item)
+
+		case strings.HasSuffix(file, ".toml"):
+			tocData.TomlFiles = append(tocData.TomlFiles, item)
 		}
 	}
 
 	toc := NewTemplateComponent("ui/toc_source", tocData)
-	content := NewTemplateComponent("ui/code_wrapper", data.FileSource)
+	content := data.WrappedSource()
 	viewData := sourceViewParams{
 		Article: ArticleData{
 			ComponentContent: content,
-			Classes:          "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
+			Classes:          data.ArticleClasses(),
 		},
 		ComponentTOC: toc,
 		Files:        data.Files,

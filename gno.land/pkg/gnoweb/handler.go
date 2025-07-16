@@ -19,6 +19,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 )
 
+const ReadmeFileName = "README.md"
+
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
 	Domain     string
@@ -287,8 +289,8 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 	switch {
 	case err == nil: // ok
 	case errors.Is(err, ErrRenderNotDeclared):
-		// XXX: We should display paths list along realm informations
-		return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
+		// No Render() declared: fall back to directory view (which will show README.md if present)
+		return h.GetDirectoryView(gnourl, indexData)
 	case errors.Is(err, ErrClientPathNotFound):
 		// No realm exists here, try to display underlying paths
 		return h.GetPathsListView(gnourl, indexData)
@@ -453,6 +455,28 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 	})
 }
 
+// renderReadme renders the README.md file and returns the component and the raw content
+func (h *WebHandler) renderReadme(gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
+	if !h.Client.HasFile(pkgPath, ReadmeFileName) {
+		return nil, nil
+	}
+
+	var rawBuffer bytes.Buffer
+	_, err := h.Client.SourceFile(&rawBuffer, pkgPath, ReadmeFileName, true)
+	if err != nil {
+		h.Logger.Error("fetch README.md", "path", pkgPath, "error", err)
+		return nil, nil
+	}
+
+	raw := rawBuffer.Bytes()
+	var buf bytes.Buffer
+	if _, err := h.MarkdownRenderer.Render(&buf, gnourl, raw); err != nil {
+		h.Logger.Error("render README.md", "error", err)
+		return nil, nil
+	}
+	return components.NewReaderComponent(&buf), raw
+}
+
 func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
 	files, err := h.Client.Sources(pkgPath)
@@ -474,26 +498,62 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	}
 
 	if fileName == "" {
-		fileName = files[0] // fallback on the first file
+		// Prefer README.md, then .gno files, otherwise first file
+		if i := slices.IndexFunc(files, func(f string) bool {
+			return f == "README.md" || strings.HasSuffix(f, ".gno")
+		}); i >= 0 {
+			fileName = files[i] // prefer .gno files and README.md
+		} else {
+			fileName = files[0] // fallback to first file - might be a .toml file
+		}
 	}
 
-	var source bytes.Buffer
-	meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
-	if err != nil {
-		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+	// Standard file rendering
+	var (
+		source     bytes.Buffer
+		fileSource components.Component
+		fileLines  int
+		sizeKb     float64
+	)
+
+	// Check whether the file is a markdown file
+	switch fileName {
+	case ReadmeFileName:
+		// Try to render README.md with markdown processing
+		readmeComp, raw := h.renderReadme(gnourl, pkgPath)
+		if readmeComp != nil && raw != nil {
+			fileSource = readmeComp
+			fileLines = bytes.Count(raw, []byte("\n")) + 1
+			sizeKb = float64(len(raw)) / 1024.0
+			break
+		}
+		// Fall through to default case if markdown rendering fails
+		fallthrough
+
+	default:
+		// Fetch raw source file
+		meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
+		if err != nil {
+			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+
+		fileSource = components.NewReaderComponent(&source)
+		sizeKb = meta.SizeKb
+		fileLines = meta.Lines
 	}
 
-	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
+	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKb)
+
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
 		Files:        files,
 		FileName:     fileName,
 		FileCounter:  len(files),
-		FileLines:    meta.Lines,
+		FileLines:    fileLines,
 		FileSize:     fileSizeStr,
 		FileDownload: gnourl.Path + "$download&file=" + fileName,
-		FileSource:   components.NewReaderComponent(&source),
+		FileSource:   fileSource,
 	})
 }
 
@@ -530,32 +590,26 @@ func (h *WebHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *componen
 func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	files, err := h.Client.Sources(pkgPath)
-
-	// Set header mode based on URL type
-	if gnourl.IsPure() {
-		indexData.Mode = components.ViewModePackage
-	}
-
 	if err != nil {
 		if !errors.Is(err, ErrClientPathNotFound) {
-			h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
 			return GetClientErrorStatusPage(gnourl, err)
 		}
-
 		return h.GetPathsListView(gnourl, indexData)
 	}
-
 	if len(files) == 0 {
-		h.Logger.Debug("no files available", "path", gnourl.Path)
+		h.Logger.Debug("no files available", "path", pkgPath)
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
-
+	// get the README.md file if it exists
+	readmeComp, _ := h.renderReadme(gnourl, pkgPath)
 	return http.StatusOK, components.DirectoryView(
-		gnourl.Path,
+		pkgPath,
 		files,
 		len(files),
 		components.DirLinkTypeSource,
 		indexData.Mode,
+		readmeComp,
 	)
 }
 

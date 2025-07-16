@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	gopath "path"
+	"slices"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -135,6 +136,15 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string, isRaw boo
 	}
 
 	return &fileMeta, nil
+}
+
+// HasFile checks if fileName exists in the list of source files for pkgPath.
+func (s *HTMLWebClient) HasFile(pkgPath, fileName string) bool {
+	files, err := s.Sources(pkgPath)
+	if err != nil {
+		return false
+	}
+	return slices.Contains(files, fileName)
 }
 
 // Sources lists all source files available in a specified
@@ -285,11 +295,15 @@ func init() {
 					// Quoted version strings
 					{Pattern: `"[^"]*"`, Type: chroma.LiteralString, Mutator: nil},
 					// Versions (v1.2.3, v0.0.0-yyyymmddhhmmss-abcdefabcdef) as well as 0.9 version
-					{Pattern: `\b(v?\d+\.\d+(?:\.\d+)?(?:-[0-9]{14}-[a-f0-9]+)?)\b`,
-						Type: chroma.LiteralNumber, Mutator: nil},
+					{
+						Pattern: `\b(v?\d+\.\d+(?:\.\d+)?(?:-[0-9]{14}-[a-f0-9]+)?)\b`,
+						Type:    chroma.LiteralNumber, Mutator: nil,
+					},
 					// Module paths: module/example.com, example.com/something
-					{Pattern: `[a-zA-Z0-9._~\-\/]+(\.[a-zA-Z]{2, Type:})+(/[^\s]+)?`,
-						Type: chroma.NameNamespace, Mutator: nil},
+					{
+						Pattern: `[a-zA-Z0-9._~\-\/]+(\.[a-zA-Z]{2, Type:})+(/[^\s]+)?`,
+						Type:    chroma.NameNamespace, Mutator: nil,
+					},
 					// Operator (=> in replace directive)
 					{Pattern: `=>`, Type: chroma.Operator, Mutator: nil},
 					// Everything else (bare words, etc.)
