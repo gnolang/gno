@@ -16,7 +16,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
-	vmcoverage "github.com/gnolang/gno/gnovm/pkg/test/coverage/vm"
+	vmcoverage "github.com/gnolang/gno/gnovm/pkg/test/coverage"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 

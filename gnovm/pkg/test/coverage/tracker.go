@@ -1,4 +1,4 @@
-package vm
+package coverage
 
 import (
 	"sync"

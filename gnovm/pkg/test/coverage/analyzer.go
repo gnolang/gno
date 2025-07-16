@@ -1,4 +1,4 @@
-package vm
+package coverage
 
 import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
