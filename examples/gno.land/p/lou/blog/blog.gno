@@ -117,6 +117,7 @@ func (b *Blog) AddPost(post *Post) error {
 
 func (b *Blog) UpdatePostById(id string, newPost *Post) error {
 	b.Authorizable.AssertPreviousOnAuthList()
+
 	post, err := b.GetPostByID(id)
 	if err != nil {
 		return err
@@ -131,6 +132,7 @@ func (b *Blog) UpdatePostById(id string, newPost *Post) error {
 
 func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 	b.Authorizable.AssertPreviousOnAuthList()
+
 	post, err := b.GetPostBySlug(slug)
 	if err != nil {
 		return err
@@ -145,6 +147,7 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 
 func (b *Blog) DeletePostById(id string) error {
 	b.Authorizable.AssertPreviousOnAuthList()
+
 	post, err := b.GetPostByID(id)
 	if err != nil {
 		return err
@@ -154,6 +157,7 @@ func (b *Blog) DeletePostById(id string) error {
 
 func (b *Blog) DeletePostBySlug(slug string) error {
 	b.Authorizable.AssertPreviousOnAuthList()
+
 	post, err := b.GetPostBySlug(slug)
 	if err != nil {
 		return err
@@ -188,6 +192,8 @@ func (b Blog) GetPostBySlug(slug string) (*Post, error) {
 }
 
 func (b *Blog) SetDisablePostLikes(disable bool) {
+	b.Authorizable.AssertPreviousOnAuthList()
+
 	b.DisableLikes = disable
 	b.Posts.Iterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
@@ -207,6 +213,8 @@ func (b *Blog) SetDisablePostLikes(disable bool) {
 }
 
 func (b *Blog) SetDisableComments(disable bool) {
+	b.Authorizable.AssertPreviousOnAuthList()
+
 	b.DisableComments = disable
 	b.Posts.Iterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
@@ -226,11 +234,26 @@ func (b *Blog) SetDisableComments(disable bool) {
 }
 
 func (b *Blog) SetUserResolver(resolver UserResolver) {
+	b.Authorizable.AssertPreviousOnAuthList()
 	b.UserResolver = resolver
 }
 
 func (b *Blog) SetCustomHeader(presets []HeaderPreset) {
+	b.Authorizable.AssertPreviousOnAuthList()
 	b.CustomHeader = &presets
+}
+
+func (b Blog) Mention(role, recipient string) string {
+	if role == "author" {
+		return md.Bold(md.Link("@"+recipient, b.Prefix()+":authors/"+recipient))
+	}
+	if role == "commenter" {
+		return md.Bold(md.Link("@"+recipient, b.Prefix()+":commenters/"+recipient))
+	}
+	if role == "tag" {
+		return md.Bold(md.Link("#"+recipient, b.Prefix()+":tags/"+recipient))
+	}
+	return ""
 }
 
 func (b *Blog) addToIndex(post *Post) {
@@ -254,19 +277,6 @@ func (b *Blog) addToIndex(post *Post) {
 		b.AuthorsIndex.Set(author, newCount)
 		b.AuthorsSorted.Set(ufmt.Sprintf("%05d::%s", newCount, author), newCount)
 	}
-}
-
-func (b Blog) Mention(role, recipient string) string {
-	if role == "author" {
-		return md.Bold(md.Link("@"+recipient, b.Prefix()+":authors/"+recipient))
-	}
-	if role == "commenter" {
-		return md.Bold(md.Link("@"+recipient, b.Prefix()+":commenters/"+recipient))
-	}
-	if role == "tag" {
-		return md.Bold(md.Link("#"+recipient, b.Prefix()+":tags/"+recipient))
-	}
-	return ""
 }
 
 func (b Blog) filterPostsStartEnd(tree *avl.Tree, start, end *time.Time) *avl.Tree {
