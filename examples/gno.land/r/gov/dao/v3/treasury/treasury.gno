@@ -120,7 +120,7 @@ func Render(path string) string {
 func TestingSetTokenKeys(_ realm, keys []string) {
 	// Ensure that this function can only be called from the treasury_test realm.
 	caller := std.PreviousRealm().PkgPath()
-	if caller != "gno.land/r/gov/dao/v3/treasury_test" {
+	if caller != "gno.land/r/gov/dao/v3/treasury/test" {
 		panic("only the treasury_test realm can set token keys, current:" + caller)
 	}
 
