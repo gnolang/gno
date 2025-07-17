@@ -11,7 +11,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -52,22 +51,9 @@ var flagMap = [256]flag{
 	'0': flagZero,
 }
 
-// the different len modifiers
-type lengthModifier uint8
-
-const (
-	lenNo lengthModifier = iota
-	lenHH
-	lenH
-	lenL
-	lenLL
-	lenZ
-)
-
 type printerMeta struct {
 	flags     flag
 	padding   int
-	length    lengthModifier
 	width     uint
 	precision int
 }
@@ -79,12 +65,9 @@ type printer struct {
 }
 
 func strtoi(s string) (int, string) {
-	var i int
-	for idx, c := range s {
-		if c < '0' || c > '9' {
-			i = idx
-			return
-		}
+	i := 0
+	for i < len(s) && (s[i] < '0' || s[i] > '9') {
+		i++
 	}
 	if i == 0 {
 		return 0, s
@@ -104,14 +87,6 @@ func ptrForward(ptr *int, runes []rune, inc int) {
 		return
 	}
 	*ptr += inc
-}
-
-var lenMap = map[string]lengthModifier{
-	"ll": lenLL,
-	"l":  lenL,
-	"h":  lenH,
-	"hh": lenHH,
-	"z":  lenZ,
 }
 
 func parseDigit(r rune) int {
@@ -147,7 +122,6 @@ func parseNumber(runes []rune, start int, end int) (int, int, bool) {
 // Parse the printf flags, precisions... all formatting data, stored in "p.meta".
 //
 // Supported metadata:
-//     length | the length modifier ("%ld", "%hhd", ...) // unused in go printf
 //  precision | number after the '.' character, mostly used in float precision ("%.2f", "%.3d", ...)
 //       flag | the flags are the characters before the flag ("%#x", "%+d", "%0f", ...)
 //    padding | the padding is the number you put after the flag ("%3d", "%5f", ...)
@@ -192,33 +166,6 @@ func (p *printer) parse(runes []rune, index *int, end int) {
 					p.meta.precision = 0
 				}
 			}
-
-		case 'h', 'l', 'z':
-			// Use lookahead to check for double-character length modifiers
-			// like 'hh' (char) or 'll' (long long) without iterating through options
-			if *index+1 < end {
-				next := runes[*index+1]
-				if c == 'h' && next == 'h' {
-					p.meta.length = lenHH
-					*index += 2 // Skip both characters
-					continue
-				} else if c == 'l' && next == 'l' {
-					p.meta.length = lenLL
-					*index += 2 // Skip both characters
-					continue
-				}
-			}
-
-			// Handle single-character length modifiers
-			switch c {
-			case 'h':
-				p.meta.length = lenH
-			case 'l':
-				p.meta.length = lenL
-			case 'z':
-				p.meta.length = lenZ
-			}
-			*index++
 
 		default:
 			// Found a non-metadata character (likely a verb), exit parsing
