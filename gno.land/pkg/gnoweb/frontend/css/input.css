@@ -560,7 +560,7 @@
 	}
 
 	/* toc */
-	
+
 	.toc-expend-btn:has(#toc-expend:checked) + nav {
 		@apply block;
 	}
