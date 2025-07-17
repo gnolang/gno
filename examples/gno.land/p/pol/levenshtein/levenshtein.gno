@@ -15,16 +15,14 @@ import (
 )
 
 func min3(a, b, c uint) uint {
-	if a < b {
-		if a < c {
-			return a
-		}
-		return c
+	min := a
+	if b < min {
+		min = b
 	}
-	if b < c {
-		return b
+	if c < min {
+		min = c
 	}
-	return c
+	return min
 }
 
 // Return the levenstein distance between 2 strings
