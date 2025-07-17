@@ -14,7 +14,8 @@ func HTMLEscapeString(s string) string {
 	return template.HTMLEscapeString(s)
 }
 
-// ParseHTMLToken parse line for tokens
+// ParseHTMLTokens parses an HTML stream and returns a slice of html.Token.
+// It stops at EOF or on error.
 func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 	tokenizer := html.NewTokenizer(r)
 	tokenizer.AllowCDATA(false)

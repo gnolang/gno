@@ -3,18 +3,32 @@
 ## Introduction
 
 All modern popular programming languages are designed for a single programmer
-user.  Programming languages support the importing of program libraries
-natively for components of the single user's program, but this does not hold
-true for interacting with components of another user's (other) program. Gno is
-an extension of the Go language for multi-user programming. Gno allows a
-massive number of programmers to iteratively and interactively develop a single
-shared program such as Gno.land.
+user.  Programming languages support the importing of program libraries natively
+for components of the single user's program, but this does not hold true for
+interacting with components of another user's (other) program. Gno is an
+extension of the Go language for multi-user programming. Gno allows a massive
+number of programmers to iteratively and interactively develop a single shared
+program such as Gno.land.
 
 The added dimension of the program domain means the language should be extended
 to best express the complexities of programming in the inter-realm (inter-user)
 domain. In other words, Go is a restricted subset of the Gno language in the
 single-user context. (In this analogy client requests for Go web servers don't
 count as they run outside of the server program).
+
+### Interrealm Programming Context
+
+For an overview of the different package types in Gno (`/p/`, `/r/`, and 
+`/e/`), see [Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md).
+
+Interrealm programming refers to the ability of one realm to call functions 
+in another realm. This can occur between:
+- Regular realms (`/r/`) calling other regular realms
+- Ephemeral realms (`/e/`) calling regular realms
+
+The key concept is that code executing in one realm context can interact with 
+and call functions in other realms, enabling complex multi-user interactions 
+while maintaining clear boundaries and permissions.
 
 ### Realm Write Access
 
@@ -29,11 +43,12 @@ Go's language rules for value access through selector/index expressions are the
 same within the same realm, but exposed values through selector/index
 expressions are read-only when performed by an external realm; a realm cannot
 directly modify another realm's objects. Thus, a Gno package's global variables
-even when exposed (e.g. `package realm1; var MyGlobal int = 1`) is safe from external
-manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For users to
-manipulate them a function or method *must* be provided.
+even when exposed (e.g. `package realm1; var MyGlobal int = 1`) is safe from 
+external manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For
+users to manipulate them a function or method *must* be provided.
 
-Realm crossing occurs when a crossing function(declared as `fn(cur realm, ...){...}`) 
+Realm crossing occurs when a crossing function(declared as 
+`fn(cur realm, ...){...}`) 
 is called with the Gno `fn(cross, ...)` syntax.
 
 ```go
@@ -124,14 +139,15 @@ A function declared in a realm package when called:
    first argument). The new realm is called the "current realm".
  * otherwise follows the same rules as for p packages.
 
-The `cur realm` argument must appear as the first argument of a function's parameter list.
-It is illegal to use anywhere else, and cannot be used in p packages. Functions
-that start with the `cur realm` argument as first argument are called "crossing functions".
+The `cur realm` argument must appear as the first argument of a function's 
+parameter list. It is illegal to use anywhere else, and cannot be used in p
+packages. Functions that start with the `cur realm` argument as first argument
+are called "crossing functions".
 
 A crossing function declared in a realm different from the last explicitly
 crossed realm *must* be called like `fn(cross, ...)`. That is, functions of
-calls that result in explicit realm crossings must use `cross` as the first argument
-(`cross` is a keyword reserved specifically for this purpose).
+calls that result in explicit realm crossings must use `cross` as the first 
+argument (`cross` is a keyword reserved specifically for this purpose).
 
 `std.CurrentRealm()` returns the current realm that was last explicitly crossed
 to.
@@ -139,9 +155,10 @@ to.
 `std.PreviousRealm()` returns the realm explicitly crossed to before that.
 
 A crossing function declared in the same realm package as the callee may be
-called like `fn(cross, ...)` or `fn(cur, ...)`. When called with `fn(cur, ...)` there 
-will be no realm crossing, but when called like `fn(cross, ...)` there is technically a
-realm crossing and the current realm and previous realm returned are the same.
+called like `fn(cross, ...)` or `fn(cur, ...)`. When called with `fn(cur, ...)`
+there will be no realm crossing, but when called like `fn(cross, ...)` there is
+technically a realm crossing and the current realm and previous realm returned
+are the same. 
 
 The current realm and previous realm do not depend on any implicit crossing to
 the receiver's borrowed/storage realm even if the borrowed realm is the last
@@ -157,8 +174,8 @@ else's pen it is still your signature; signature:pen :: current:borrowed)
 
 A crossing method declared in a realm cannot modify the receiver if the object
 resides in a different realm. However not all methods are required to be
-crossing methods, and crossing methods may still read the state of the
-receiver (and in general anything reachable is readable).
+crossing methods, and crossing methods may still read the state of the receiver
+(and in general anything reachable is readable).
 
 New unreal objects reachable from the borrowed realm (or current realm if there
 was no method call that borrowed) become persisted in the borrowed realm (or
@@ -218,8 +235,8 @@ future Gno versions.
 `panic()` behaves the same within the same realm boundary, but when a panic
 crosses a realm boundary (as defined in [Realm
 Finalization](#realm-finalization)) the Machine aborts the program. This is
-because in a multi-user environment it isn't safe to let the caller recover
-from realm panics that often leave the state in an invalid state.
+because in a multi-user environment it isn't safe to let the caller recover from
+realm panics that often leave the state in an invalid state.
 
 This would be sufficient, but we also want to write our tests to be able
 to detect such aborts and make assertions. For this reason Gno provides
@@ -252,9 +269,9 @@ P package code cannot contain crossing functions. P package code also cannot
 import R realm packages. But code can call named crossing functions e.g. 
 those passed in as parameters.
 
-You must declare a public realm function to be a crossing function if it is intended
-to be called by end users, because users cannot MsgCall non-crossing functions
-(for safety/consistency) or p package functions (there's no point).
+You must declare a public realm function to be a crossing function if it is 
+intended to be called by end users, because users cannot MsgCall non-crossing
+functions (for safety/consistency) or p package functions (there's no point).
 
 Utility functions that are a common sequence of non-crossing logic can be
 offered in realm packages as non-crossing functions. These can also import and
@@ -320,14 +337,14 @@ func AnotherPublic(cur realm) {
 ### MsgRun
 
 ```go
-// PKGPATH: gno.land/r/g1user/run
+// PKGPATH: gno.land/e/g1user/run
 
 import "gno.land/r/realmA"
 
 func main() {
     // There is assumed to be in "frame -1"
     // a crossing from UserRealm(g1user) to
-    // CodeRealm(gno.land/r/g1user/run) before
+    // CodeRealm(gno.land/e/g1user/run) before
     // main() is called, so crossing() here
     // is redundant.
     // crossing()
@@ -340,8 +357,8 @@ func main() {
 
     // Returns (
     //     addr:g1user,
-    //     pkgpath:"gno.land/r/g1user/run"
-    // ) == std.NewCodeRealm("gno.land/r/g1user/run")
+    //     pkgpath:"gno.land/e/g1user/run"
+    // ) == std.NewUserRealm(g1user, "gno.land/e/g1user/run")
     std.CurrentRealm()
 
     realmA.PublicNoncrossing()
@@ -390,7 +407,7 @@ func DerivePkgAddr(pkgPath string) Address {
 ```
 
 1. `std.DerivePkgAddr("gno.land/r/name123/realm")` - bech32 from hash(path)
-2. `std.DerivePkgAddr("gno.land/r/g1user/run")` - bech32 substring "g1user"
+2. `std.DerivePkgAddr("gno.land/e/g1user/run")` - bech32 substring "g1user"
 
 Therefore in the MsgRun file's `init()` function the previous realm and current
 realm have different pkgpaths (the origin caller always has empty pkgpath) but
@@ -429,7 +446,7 @@ var _ = std.PreviousRealm()
 ```
 
 ```go
-// PKGPATH: gno.land/r/g1user/run
+// PKGPATH: gno.land/e/g1user/run
 
 func init() {
     // Returns (
@@ -440,16 +457,17 @@ func init() {
 
     // Returns (
     //     addr:g1user,
-    //     pkgpath:"gno.land/r/g1user/run"
-    // ) == std.NewCodeRealm("gno.land/r/g1user/run")
+    //     pkgpath:"gno.land/e/g1user/run"
+    // ) == std.NewCodeRealm("gno.land/e/g1user/run")
     std.CurrentRealm()
 }
 ```
 
-The same applies for p package initialization. Initialization and tests are the
-only times that `std.CurrentRealm()` will return a p package path that starts
-with "/p/" instead of "/r/". The package is technically still mutable during
-initialization.
+The same applies for pure package (`/p/`) initialization. During initialization 
+and tests, `std.CurrentRealm()` can return a package path that starts with 
+"/p/". This is because the package is technically still mutable during its 
+initialization phase. After initialization, pure packages become immutable and 
+cannot maintain state.
 
 ### Testing overrides with stdlibs/testing
 
@@ -530,7 +548,7 @@ func init() {
 func main() {
     // There is assumed to be in "frame -1"
     // a crossing from UserRealm(g1user) to
-    // CodeRealm(gno.land/r/test/test) before
+    // CodeRealm("gno.land/r/test/test") before
     // main() is called, so crossing() here
     // is redundant.
     // crossing()

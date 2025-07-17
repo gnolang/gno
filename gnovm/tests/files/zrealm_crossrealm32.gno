@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"std"
@@ -23,5 +23,5 @@ func main() {
 }
 
 // Output:
-// current realm:  CodeRealm{ g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p, gno.land/r/crossrealm_test }
-// previous realm:  CodeRealm{ g1vla5mffzum6060t99u4xhm8mnhgxr0sz4k574p, gno.land/r/crossrealm_test }
+// current realm:  CodeRealm{ g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan, gno.land/r/crossrealm }
+// previous realm:  CodeRealm{ g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan, gno.land/r/crossrealm }

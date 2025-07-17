@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/testutils_test
-package testutils_test
+// PKGPATH: gno.land/r/testutils
+package testutils
 
 import (
 	"gno.land/p/demo/testutils"
