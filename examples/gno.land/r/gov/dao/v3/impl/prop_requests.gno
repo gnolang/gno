@@ -143,6 +143,8 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 }
 
 func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+	// NOTE: Should we only allow members (from a specific tier?) to create treasury payment requests?
+
 	if !treasury.HasBanker(payment.BankerID()) {
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
@@ -157,7 +159,6 @@ func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) 
 		})
 	}
 
-	// NOTE: Should this be a NewSafeExecutor instead?
 	e := dao.NewSimpleExecutor(
 		cb,
 		ufmt.Sprintf(
@@ -167,7 +168,7 @@ func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) 
 		),
 	)
 
-	// NOTE: Should this be filtered by tier?
+	// NOTE: Should we only allow members (from a specific tier?) to vote on treasury payments?
 	return dao.NewProposalRequest(
 		"Treasury Payment",
 		ufmt.Sprintf(
