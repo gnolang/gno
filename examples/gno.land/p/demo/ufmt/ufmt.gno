@@ -34,7 +34,7 @@ func (b *buffer) writeRune(r rune) {
 	*b = utf8.AppendRune(*b, r)
 }
 
-// the different flags
+// bitmap representing different flags
 type flag uint8
 
 const (
