@@ -7,7 +7,7 @@ import (
 
 func main() {
 	// CreateClient
-	core.CreateClient(lightclient.Solomachine, nil, nil)
+	core.CreateClient(cross, lightclient.Solomachine, nil, nil)
 }
 
 // Error:
