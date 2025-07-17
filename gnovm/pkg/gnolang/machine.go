@@ -2577,3 +2577,41 @@ func (m *Machine) ExceptionStacktrace() string {
 	}
 	return builder.String()
 }
+
+// trackCoverageForNode tracks code coverage for expressions and statements.
+// It accepts only Node types (which includes Expr and Stmt) to ensure type safety.
+func (m *Machine) trackCoverageForNode(node Node) {
+	if node == nil {
+		return
+	}
+
+	line := node.GetLine()
+	if line <= 0 {
+		return
+	}
+
+	if m.Package == nil {
+		return
+	}
+
+	if len(m.Blocks) == 0 {
+		return
+	}
+
+	lb := m.LastBlock()
+	if lb == nil {
+		return
+	}
+
+	src := lb.GetSource(m.Store)
+	if src == nil {
+		return
+	}
+
+	loc := src.GetLocation()
+	if loc.IsZero() {
+		return
+	}
+
+	m.CoverageTracker.TrackExecution(m.Package.PkgPath, loc.File, line)
+}
