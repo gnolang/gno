@@ -146,3 +146,21 @@ func (t *Tracker) Clear() {
 	t.coverage = make(map[string]map[string]map[int]int64)
 	// Note: we keep executable lines as they don't change
 }
+
+// SetCoverageData sets the coverage data directly.
+// This is useful for loading cached coverage data.
+func (t *Tracker) SetCoverageData(data map[string]map[string]map[int]int64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.coverage = data
+}
+
+// SetExecutableLines sets the executable lines data directly.
+// This is useful for loading cached coverage data.
+func (t *Tracker) SetExecutableLines(data map[string]map[string]map[int]bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.executableLines = data
+}
