@@ -169,15 +169,34 @@ func World() {
 			files:   []string{},
 			wantErr: true,
 		},
+		{
+			name:  "line jump command",
+			input: ":3\nq\n",
+			files: []string{"test/package/file1.gno"},
+			checkOut: func(t *testing.T, output string) {
+				// Should show that we're viewing from line 3
+				if !strings.Contains(output, "Line 3") {
+					t.Error("Expected to show line 3 indicator")
+				}
+			},
+		},
+		{
+			name:  "invalid line jump",
+			input: ":abc\nq\n",
+			files: []string{"test/package/file1.gno"},
+			checkOut: func(t *testing.T, output string) {
+				if !strings.Contains(output, "Invalid line number") {
+					t.Error("Expected invalid line number error")
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create input/output buffers
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
-			// Create viewer
 			viewer := NewInteractiveViewer(tracker, tmpDir, tt.files, input, output)
 
 			// Start interactive session
