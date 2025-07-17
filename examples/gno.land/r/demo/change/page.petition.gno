@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-func Sign(_ realm, id int) {
+func SignPetition(_ realm, petitionId int) {
 	// check if address is user
 	addr := std.PreviousRealm().Address()
 	user := users.ResolveAddress(addr)
@@ -18,25 +18,47 @@ func Sign(_ realm, id int) {
 		panic("expected address to be a connected user")
 	}
 
-	err := checkPetitionId(id)
+	err := checkPetitionId(petitionId)
 	if err != nil {
 		panic(err)
 	}
 
+	s := &petitions[petitionId].signatures
+
 	idToRemove := -1
 
-	for i, e := range petitions[id].signatures {
+	for i, e := range *s {
 		if e == user {
 			idToRemove = i
 			break
 		}
 	}
 	if idToRemove == -1 {
-		petitions[id].signatures = append(petitions[id].signatures, user)
+		*s = append(*s, user)
 	} else {
-		petitions[id].signatures[idToRemove] = petitions[id].signatures[len(petitions[id].signatures)-1]
-		petitions[id].signatures = petitions[id].signatures[:len(petitions[id].signatures)-1]
+		(*s)[idToRemove] = (*s)[len(*s)-1]
+		*s = (*s)[:len(*s)-1]
 	}
+}
+
+func CommentPetition(_ realm, petitionId int, content string) {
+	// check if address is user
+	addr := std.PreviousRealm().Address()
+	user := users.ResolveAddress(addr)
+	if user == nil {
+		panic("expected address to be a connected user")
+	}
+
+	err := checkPetitionId(petitionId)
+	if err != nil {
+		panic(err)
+	}
+
+	c := &petitions[petitionId].comments
+	*c = append(*c, comment{
+		publisher: user,
+		content:   content,
+	})
 }
 
 func renderPetitionPage(params map[string]string) string {
@@ -73,13 +95,23 @@ func renderPetitionPage(params map[string]string) string {
 	signContent += md.H2(md.Link("Sign this petition now", tx))
 
 	if len(petition.signatures) != 0 {
-		signContent += md.H4("Already signed by :")
-		for _, e := range petition.signatures {
+		signContent += md.H4("Last 5 signatures :")
+		for i, e := range petition.signatures {
+			if i >= 5 {
+				break
+			}
 			signContent += " - " + e.RenderLink("") + br
 		}
 	}
 
 	content += md.Columns([]string{petitionContent, signContent})
+
+	content += md.H3("Comments (" + strconv.Itoa(len(petition.comments)) + "):")
+	for _, e := range petition.comments {
+		content += md.HorizontalRule() + br
+		content += md.H4(e.publisher.RenderLink("")) + br
+		content += e.content + br
+	}
 
 	return content
 }

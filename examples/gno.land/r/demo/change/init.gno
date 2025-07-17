@@ -26,6 +26,12 @@ type petition struct {
 	signatures  []*users.UserData
 	target      int
 	id          int
+	comments    []comment
+}
+
+type comment struct {
+	publisher *users.UserData
+	content   string
 }
 
 func (p petition) LString() string {
