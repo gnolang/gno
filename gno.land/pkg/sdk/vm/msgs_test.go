@@ -31,7 +31,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 		{
 			name:            "valid message",
 			msg:             NewMsgAddPackage(creator, pkgPath, files),
-			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}","name":"test.gno"}],"info":null,"name":"test","path":"gno.land/r/namespace/test","type":null}}`,
+			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}","name":"test.gno"}],"info":null,"name":"test","path":"gno.land/r/namespace/test","type":null},"send":""}`,
 			expectErr:       nil,
 		},
 		{
@@ -43,7 +43,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 					Path:  pkgPath,
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: 1000,
 				}},
@@ -59,7 +59,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 					Path:  "",
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: 1000,
 				}},
@@ -75,7 +75,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 					Path:  pkgPath,
 					Files: files,
 				},
-				Deposit: std.Coins{std.Coin{
+				MaxDeposit: std.Coins{std.Coin{
 					Denom:  "ugnot",
 					Amount: -1000, // invalid amount
 				}},
@@ -210,7 +210,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 
 	caller := crypto.AddressFromPreimage([]byte("addr1"))
 	pkgName := "main"
-	pkgPath := "gno.land/r/" + caller.String() + "/run"
+	pkgPath := "gno.land/e/" + caller.String() + "/run"
 	pkgFiles := []*std.MemFile{
 		{
 			Name: "main.gno",
