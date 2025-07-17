@@ -41,7 +41,7 @@ func Pubkey2Address(publicKey string) (std.Address, error) {
 	// so in order to obtain the useful bytes we need to take the last N bytes
 	// depending on the key type
 	// for PubKeySecp256k1 (key size is 33 bytes), so we take the last 33 bytes
-	// PubKeyEd25519 (key size is 32 bytes), so we take the last 33 bytes
+	// PubKeyEd25519 (key size is 32 bytes), so we take the last 32 bytes
 
 	switch {
 	case strings.Contains(string(bz), "/tm.PubKeySecp256k1"):
@@ -68,7 +68,3 @@ func AddressMatchesKey(address, publicKey string) (bool, error) {
 	}
 	return computedAddress.String() == address, nil
 }
-
-///tm.PubKeyEd25519"
-// 8-pZ��,��mu[�O[�'S?�E68
-//                        ��
