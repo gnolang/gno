@@ -14,17 +14,6 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-func min3(a, b, c uint) uint {
-	min := a
-	if b < min {
-		min = b
-	}
-	if c < min {
-		min = c
-	}
-	return min
-}
-
 // Distance computes the Levenshtein distance between two strings.
 //
 // The Levenshtein distance is a measure of the similarity between two strings,
@@ -178,4 +167,15 @@ func SeveralPickFromString(xStr string, xs []Levenshteinable, n uint) []Levensht
 // It runs in O(n) time.
 func SeveralPick(x Levenshteinable, xs []Levenshteinable, n uint) []Levenshteinable {
 	return SeveralPickFromString(x.LString(), xs, n)
+}
+
+func min3(a, b, c uint) uint {
+	min := a
+	if b < min {
+		min = b
+	}
+	if c < min {
+		min = c
+	}
+	return min
 }

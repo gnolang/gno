@@ -17,7 +17,7 @@ func TestExample(t *testing.T) {
 }
 
 type person struct {
-	name string
+	name     string
 	lastName string
 }
 
