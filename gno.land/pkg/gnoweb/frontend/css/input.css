@@ -77,7 +77,6 @@
 	.realm-view h2 {
 		@apply text-500 md:text-600;
 	}
-
 	.realm-view h2,
 	.realm-view h2 * {
 		@apply font-bold;
@@ -244,7 +243,7 @@
 	.realm-view > .realm-view__btns:first-child + * {
 		@apply !mt-0;
 	}
-  
+
 	.realm-view :is(h1, h2, h3, h4, sup, .footnote-backref) {
 		@apply scroll-mt-24;
 	}
@@ -293,7 +292,7 @@
 		@apply align-middle;
 	}
 
-	.realm-view li[id^="fn:"]{
+	.realm-view li[id^="fn:"] {
 		@apply relative z-1;
 	}
 
@@ -611,7 +610,7 @@
 	}
 
 	.dev-mode .toc-nav {
-		@apply font-mono;
+		text-align: center;
 	}
 
 	.main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
