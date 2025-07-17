@@ -63,6 +63,15 @@ This can create a “cleanup reward” scenario where the person who deletes dat
 gains the released deposit. It also gives the realm developer flexibility to
 design and manage user storage.
 
+### Global Storage Price Parameter
+
+The storage price is a global parameter governed by the GovDAO'
+
+```
+storagePriceDefault = "100ugnot" // cost per byte
+// e.g., 1 GNOT per 10KB (≈ 1B GNOT = 10TB)
+```
+
 ### Example
 
 The Clear() function removes the content stored in the realm gno.land/r/foo.
