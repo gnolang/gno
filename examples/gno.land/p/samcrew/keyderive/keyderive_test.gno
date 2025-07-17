@@ -21,7 +21,6 @@ func TestPubkeyToAddress(t *testing.T) {
 		{inputKey: "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp2fyjt37gl0h9pel3tgwwlfcynzllk7gmja2s8khaah5z7ars7qlhc9874", expected: "g19355aeqzalykcamgk83dzz64mj0sp0ydmnngnp"},
 		{inputKey: "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p", expected: "g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"},
 		{inputKey: "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj", expected: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
-		
 	}
 
 	for _, tc := range testCases {
