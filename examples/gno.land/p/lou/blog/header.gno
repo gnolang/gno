@@ -104,7 +104,7 @@ type TimeRangePreset struct {
 var DefaultTimeRanges = []TimeRangePreset{
 	{
 		"past year",
-		now.AddDate(-1, 0, 0).Format("2006-01-02"),
+		time.Now().AddDate(-1, 0, 0).Format("2006-01-02"),
 		time.Now().Format("2006-01-02"),
 	},
 	{
