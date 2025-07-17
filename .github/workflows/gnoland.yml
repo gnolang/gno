@@ -53,3 +53,13 @@ jobs:
           # Check if there are changes after running generate.gnoweb
           git diff --exit-code || \
              (echo "\`gnoweb generate\` out of date, please run \`make gnoweb.generate\` within './gno.land'" && exit 1)
+
+  gnoweb_front_lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/Jod
+      - uses: actions/checkout@v4
+      - run: make -C gno.land/pkg/gnoweb/frontend lint.ci
