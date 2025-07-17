@@ -702,17 +702,20 @@
 	}
 
 	.link-external {
-		@apply text-[.7em];
+		@apply text-[.65em];
 	}
 	.link-internal {
-		@apply font-[400] text-[.8em];
+		@apply font-[400] text-[.75em];
 	}
 	.link-tx {
-		@apply text-[.8em];
+		@apply text-[.75em] align-top;
+	}
+	.link-user {
+		@apply text-[.75em];
 	}
 
 	.tooltip {
-		@apply inline align-text-top;
+		@apply inline align-middle;
 	}
 
 	/* link with image only shoud display the link badge on the image */
