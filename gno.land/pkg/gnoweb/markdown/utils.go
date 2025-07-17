@@ -54,7 +54,7 @@ func GetWordArticle(word string) string {
 	if len(word) == 0 {
 		return "a"
 	}
-	
+
 	// Check if the first letter is a vowel (a, e, i, o, u)
 	firstChar := unicode.ToLower(rune(word[0]))
 	if firstChar == 'a' || firstChar == 'e' || firstChar == 'i' || firstChar == 'o' || firstChar == 'u' {

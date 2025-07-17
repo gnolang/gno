@@ -660,4 +660,3 @@ func (e *formExtension) Extend(m goldmark.Markdown) {
 }
 
 var ExtForms = &formExtension{}
-
