@@ -25,7 +25,19 @@ func min3(a, b, c uint) uint {
 	return min
 }
 
-// Return the levenstein distance between 2 strings
+// Distance computes the Levenshtein distance between two strings.
+//
+// The Levenshtein distance is a measure of the similarity between two strings,
+// defined as the minimum number of single-character edits (insertions,
+// deletions, or substitutions) required to change one string into the other.
+//
+// For example, the Levenshtein distance between "Float" and "Boats" is 3:
+//   - Remove 's' from "Boats" → "Boat"
+//   - Insert 'l' → "Bloat"
+//   - Substitute 'b' with 'f' → "Float"
+//
+// This implementation uses a memory-efficient dynamic programming approach
+// that computes the distance in O(len(a) * len(b)) time and O(min(len(a), len(b))) space.
 func Distance(a, b string) uint {
 	// make sure a is the longest
 	if len(a) < len(b) {
