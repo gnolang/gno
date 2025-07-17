@@ -121,13 +121,54 @@ func Foobar() {
 
 - TODO: suggest MustXXX and AssertXXX flows in p/.
 
-### Write `crossing` functions to make memory safe
+### Write `crossing` functions to make your app memory safe
 
-Crossing is a concept that allows developers to specify if a function is meant to
-change memory in the realm they're defined in or not.
+Crossing is an important concept in Gno that allows developers to specify if a
+function is meant to change memory in the realm they're defined in.
 
-msgcall > must be crossing
-methods on receivers > automatically crossing
+Crossing is somewhat like switching contexts in the traditional system; only the
+current context executor can change its own memory.
+
+There are two types of realms in Gno - user realms, and code realms.
+The user realm is defined by a realm struct that does not have a pkgpath defined (MsgRun is an extension of the user realm)
+and the other is just a normal realm with a pkgpath. When a user calls a function
+living in a different realm, the crossing also needs to happen - the execution crosses
+the realm boundary between the user and the code realm. 
+
+Check out working with realms page.
+
+Let's look at some basic rules related to crossing:
+- Functions called directly with `MsgCall` or `MsgRun` need to be crossing
+- Primitive variables and non-pointer objects cannot be modified without first crossing
+into the realm that owns it. 
+- To specify a crossing function, it must be defined with the first argument of type realm,
+with anything else following. Read more here (link to interrealm spec).
+
+
+
+```go
+
+package app // gno.land/r/demo/app
+
+var message string
+
+// UpdateMessage changes local memory, i.e. the 'message' variable
+// This is why the function must be crossing - when called, the context crosses
+// from the user (realm) to the "r/demo/app" realm. 
+func UpdateMessage(_ realm, newMessage string) {
+	message = newMessage
+}
+```
+
+
+more docs coming soon, keep an eye out on `r/docs`. 
+
+crossing cases: getters, modifying memory
+
+
+
+methods on receivers > automatically crossing, but curr realm doesn't change
+explain `cross`
 
 
 ### Understand the importance of `init()`
