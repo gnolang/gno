@@ -333,9 +333,7 @@ func TestFormString(t *testing.T) {
 		{
 			name: "Without Inputs",
 			form: md.Form{},
-			expected: `<gno-form>
-</gno-form>
-`,
+			expected: "",
 		},
 		{
 			name: "With Quote Character",

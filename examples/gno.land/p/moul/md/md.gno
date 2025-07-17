@@ -389,8 +389,12 @@ func (f *Form) AddInput(inputType FormInputType, name, placeholder string) {
 //
 // </gno-form>
 func (f Form) String() string {
+	// Check if no inputs
+	if len(f.Inputs) == 0 {
+		return ""
+	}
 	var sb strings.Builder
-
+	
 	// Write the begin of the form
 	str := "<gno-form"
 	if f.Path != "" {
@@ -408,13 +412,13 @@ func (f Form) String() string {
 		}
 
 		// Write the line
-		sb.WriteString("  <gno-input name=\"" +
+		sb.WriteString(`  <gno-input name="` +
 			escapeValue(v.Name) +
-			"\" type=\"" +
+			`" type="` +
 			string(x) +
-			"\" placeholder=\"" +
+			`" placeholder="` +
 			escapeValue(v.PlaceHolder) +
-			"\" />\n",
+			`" />` + "\n",
 		)
 	}
 
