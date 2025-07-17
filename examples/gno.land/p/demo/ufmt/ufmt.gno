@@ -72,9 +72,12 @@ type printer struct {
 }
 
 func strtoi(s string) (int, string) {
-	i := 0
-	for i < len(s) && unicode.IsDigit(rune(s[i])) {
-		i++
+	var i int
+	for idx, c := range s {
+		if c < '0' || c > '9' {
+			i = idx
+			return
+		}
 	}
 	if i == 0 {
 		return 0, s
