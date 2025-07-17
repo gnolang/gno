@@ -420,6 +420,18 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
    - Each textarea must have a unique name
    - Textareas are rendered with labels and proper styling
 
+4. **Select Fields**
+   - Created with ±<gno-select>± tag (similar to radio buttons)
+   - Required attributes:
+     - ±name±: Unique identifier for the select group (required). Use underscores to separate words.
+     - ±value±: The value to submit and display text (required)
+   - Optional attributes:
+     - ±description±: Description of the select group (optional)
+     - ±selected±: Set to "true" to pre-select the option (optional)
+   - Multiple ±<gno-select>± elements with the same ±name± form a select group
+   - All options with the same ±name± form a group where only one can be selected
+   - The ±value± attribute serves both as the submitted value and the displayed text
+
 #### Example Use Cases
 
 1. Form with Path and Query Parameters
@@ -505,7 +517,24 @@ Checkboxes allow users to select multiple options. Use ±checked="true"± to pre
 
 Textareas are perfect for longer text input. The ±rows± attribute controls the height (4-10 rows, default is 4).
 
-6. Complex Form with Mixed Elements
+6. Form with Select Options
+±±±markdown
+<gno-form>
+  <gno-select name="country" value="United States" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-select name="country" value="United States" description="Select your country" selected="true" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+</gno-form>
+
+Select options work like radio buttons but with a more semantic meaning. All ±<gno-select>± elements with the same ±name± form a group where only one can be selected. Use ±selected="true"± to pre-select an option. The ±value± attribute serves both as the submitted value and the displayed text.
+
+7. Complex Form with Mixed Elements
 ±±±markdown
 <gno-form path="contact">
   <gno-input name="name" type="text" placeholder="Your full name" description="Your Information" />
@@ -519,6 +548,10 @@ Textareas are perfect for longer text input. The ±rows± attribute controls the
   <gno-input name="interests" type="checkbox" value="tech" description="What do you like to do?" />
   <gno-input name="interests" type="checkbox" value="sports" />
   <gno-input name="interests" type="checkbox" value="music"/>
+  
+  <gno-select name="country" value="us" text="United States" description="Select your country" />
+  <gno-select name="country" value="fr" text="France" />
+  <gno-select name="country" value="de" text="Germany" />
   
   <gno-textarea name="message" placeholder="Tell us about yourself" rows="5" />
 </gno-form>
@@ -537,6 +570,10 @@ Textareas are perfect for longer text input. The ±rows± attribute controls the
   <gno-input name="interests" type="checkbox" value="sports" />
   <gno-input name="interests" type="checkbox" value="music"/>
   
+  <gno-select name="country" value="us" text="United States" description="Select your country" />
+  <gno-select name="country" value="fr" text="France" />
+  <gno-select name="country" value="de" text="Germany" />
+  
   <gno-textarea name="message" placeholder="Tell us about yourself" rows="5" />
 </gno-form>
 
@@ -547,11 +584,13 @@ This example shows how to combine all form element types in a single form.
 1. **Validation Rules**:
    - Every ±<gno-input>± must have a ±name± attribute
    - Every ±<gno-textarea>± must have a ±name± attribute
-   - Duplicate attribute names are not allowed
+   - Every ±<gno-select>± must have a ±name± and ±value± attribute
+   - Duplicate attribute names are not allowed (except for radio, checkbox, and select groups)
    - Forms must be properly closed
    - Nested forms will not render
    - Radio and checkbox inputs must have a ±value± attribute
    - The ±checked± attribute is only valid for radio and checkbox inputs
+   - The ±selected± attribute is only valid for ±<gno-select>± elements
    - Textarea ±rows± attribute must be between 2 and 10 (defaults to 4 if invalid or not specified)
 
 2. **Security Features**:
