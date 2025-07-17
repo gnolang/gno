@@ -15,8 +15,6 @@ package keyderive
 import (
 	"crypto/ripemd160"
 	"crypto/sha256"
-
-	//"errors"
 	"std"
 	"strings"
 )
