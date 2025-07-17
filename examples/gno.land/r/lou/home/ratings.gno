@@ -39,7 +39,7 @@ func NewRating(_ realm, rating uint64, commentStr string) string {
 	return ufmt.Sprintf("Successfully added a #%d rating!", rating)
 }
 
-func UpdateRating(_ realm, rating uint64, commentStr string) string {
+func UpdateRating(cur realm, rating uint64, commentStr string) string {
 	checkCaller()
 	caller := std.PreviousRealm().Address()
 
@@ -51,15 +51,15 @@ func UpdateRating(_ realm, rating uint64, commentStr string) string {
 	if commentStr == "" && oldComment.Comment() != nil {
 		commentStr = *oldComment.Comment()
 	}
-	return NewRating(rating, commentStr) + "\nSuccessfully updated rating!\n"
+	return NewRating(cur, rating, commentStr) + "\nSuccessfully updated rating!\n"
 }
 
-func UpdateByID(_ realm, comment string, id seqid.ID, rating uint64) string {
+func UpdateByID(cur realm, comment string, id seqid.ID, rating uint64) string {
 	caller := std.PreviousRealm().Address()
 
 	if key, found := findRatingByID(id); found {
 		if key == caller.String() {
-			return UpdateRating(rating, comment)
+			return UpdateRating(cur, rating, comment)
 		}
 	}
 	panic("not authorized to update this rating")
