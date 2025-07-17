@@ -41,15 +41,20 @@ func (t *Tracker) ShowFileCoverage(rootDir, pattern string, w io.Writer) error {
 		return fmt.Errorf("no files matching pattern: %s", pattern)
 	}
 
-	// Show coverage for each matched file
-	for _, fc := range matchedFiles {
-		if err := t.showSingleFileCoverage(rootDir, fc, w); err != nil {
-			return err
+	// If multiple files matched, use interactive viewer
+	if len(matchedFiles) > 1 {
+		// Convert to file paths for interactive viewer
+		var filePaths []string
+		for _, fc := range matchedFiles {
+			filePaths = append(filePaths, fmt.Sprintf("%s/%s", fc.Package, fc.FileName))
 		}
-		fmt.Fprintln(w) // Add spacing between files
+
+		viewer := NewInteractiveViewer(t, rootDir, filePaths, os.Stdin, w)
+		return viewer.Start()
 	}
 
-	return nil
+	// Single file - show directly
+	return t.showSingleFileCoverage(rootDir, matchedFiles[0], w)
 }
 
 // showSingleFileCoverage displays coverage for a single file
