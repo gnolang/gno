@@ -327,7 +327,7 @@ func (p *printer) doPrintf(format string, args []any) {
 			writeString(p, verb, arg)
 		case 'c':
 			writeChar(p, verb, arg)
-		case 'd', 'i':
+		case 'd':
 			writeInt(p, verb, arg)
 		case 'e', 'E', 'f', 'F', 'g', 'G':
 			writeFloat(p, verb, arg)
