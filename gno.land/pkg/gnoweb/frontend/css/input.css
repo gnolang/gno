@@ -238,8 +238,9 @@
 
 	.realm-view input,
 	.realm-view button,
-	.realm-view textarea {
-		@apply px-4 py-2 border border-gray-300;
+	.realm-view textarea,
+	.realm-view select {
+		@apply appearance-none px-4 py-2 border border-gray-300 bg-light;
 	}
 
 	.realm-view > *:first-child:not(.realm-view__btns),
@@ -274,21 +275,28 @@
 	.realm-view .gno-form_header {
 		@apply flex justify-between text-gray-300 text-50 mb-6;
 	}
-	.realm-view .gno-form_input label {
+	.realm-view .gno-form_input label,
+	.realm-view .gno-form_select label {
 		@apply absolute top-0 left-2 -translate-y-1/2 text-gray-300 text-50 bg-light px-1 hidden;
 	}
-	.realm-view .gno-form_input {
+	.realm-view .gno-form_input,
+	.realm-view .gno-form_select {
 		@apply relative;
 	}
 	.realm-view .gno-form_input:has(input:focus) label,
 	.realm-view .gno-form_input:has(input:not(:placeholder-shown)) label,
 	.realm-view .gno-form_input:has(textarea:not(:placeholder-shown)) label,
-	.realm-view .gno-form_input:has(textarea:focus) label {
+	.realm-view .gno-form_input:has(textarea:focus) label,
+	.realm-view .gno-form_select:has(select:focus) label,
+	.realm-view
+		.gno-form_select:has(select option:not([value=""]):checked)
+		label {
 		@apply block;
 	}
 
 	.realm-view .gno-form_input input,
-	.realm-view .gno-form_input textarea {
+	.realm-view .gno-form_input textarea,
+	.realm-view .gno-form_select select {
 		@apply block p-2 rounded-sm border-gray-200 focus:border-gray-300 hover:border-gray-300 text-gray-600 outline-none my-4 w-full placeholder:text-gray-400;
 	}
 
@@ -299,6 +307,10 @@
 
 	.realm-view .gno-form textarea {
 		@apply resize-none;
+	}
+
+	.realm-view .gno-form_select select:has(option[value=""]:checked) {
+		@apply text-gray-400;
 	}
 
 	.realm-view .gno-form_description {

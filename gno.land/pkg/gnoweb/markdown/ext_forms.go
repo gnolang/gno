@@ -28,6 +28,7 @@ const (
 	tagGnoForm     = "gno-form"
 	tagGnoInput    = "gno-input"
 	tagGnoTextarea = "gno-textarea"
+	tagGnoSelect   = "gno-select"
 )
 
 var (
@@ -75,6 +76,14 @@ type FormTextarea struct {
 	Description string // New attribute for description span
 }
 
+type FormSelect struct {
+	Error       error
+	Name        string
+	Value       string // Value and display text for this option
+	Selected    bool   // Whether this option is selected
+	Description string // New attribute for description span
+}
+
 // FormElement interface for form elements
 type FormElement interface {
 	GetError() error
@@ -82,6 +91,7 @@ type FormElement interface {
 
 func (in *FormInput) GetError() error    { return in.Error }
 func (ta *FormTextarea) GetError() error { return ta.Error }
+func (sel *FormSelect) GetError() error  { return sel.Error }
 
 func (in FormInput) String() string {
 	if in.Error != nil {
@@ -111,6 +121,21 @@ func (ta FormTextarea) String() string {
 
 	if ta.Description != "" {
 		base += fmt.Sprintf(" (description=%s)", ta.Description)
+	}
+
+	return base
+}
+
+func (sel FormSelect) String() string {
+	if sel.Error != nil {
+		return fmt.Sprintf("(err=%s)", sel.Error)
+	}
+
+	base := fmt.Sprintf("(name=%s) (value=%s) (selected=%t)",
+		sel.Name, sel.Value, sel.Selected)
+
+	if sel.Description != "" {
+		base += fmt.Sprintf(" (description=%s)", sel.Description)
 	}
 
 	return base
@@ -146,6 +171,8 @@ func (n *FormNode) Dump(source []byte, level int) {
 			kv[fmt.Sprintf("input_%d", i)] = e.String()
 		case *FormTextarea:
 			kv[fmt.Sprintf("textarea_%d", i)] = e.String()
+		case *FormSelect:
+			kv[fmt.Sprintf("select_%d", i)] = e.String()
 		}
 	}
 
@@ -174,6 +201,18 @@ func (n *FormNode) NewErrorTextarea(err error) (textarea *FormTextarea) {
 	textarea = n.NewTextarea()
 	textarea.Error = err
 	return textarea
+}
+
+func (n *FormNode) NewSelect() (sel *FormSelect) {
+	sel = &FormSelect{}
+	n.Elements = append(n.Elements, sel)
+	return sel
+}
+
+func (n *FormNode) NewErrorSelect(err error) (sel *FormSelect) {
+	sel = n.NewSelect()
+	sel.Error = err
+	return sel
 }
 
 // parseFormTag parses a form tag and returns the tag information
@@ -255,7 +294,7 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		return parser.Continue
 	}
 
-	if tok.Data != tagGnoInput && tok.Data != tagGnoTextarea {
+	if tok.Data != tagGnoInput && tok.Data != tagGnoTextarea && tok.Data != tagGnoSelect {
 		formNode.NewErrorInput(ErrFormUnexpectedOrInvalidTag)
 		return parser.Continue
 	}
@@ -368,6 +407,31 @@ func (p *formParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 		// Set default rows if not specified
 		if formTextarea.Rows == 0 {
 			formTextarea.Rows = defaultTextareaRows
+		}
+
+	case tagGnoSelect:
+		formSelect := formNode.NewSelect()
+		if tok.Type != html.SelfClosingTagToken {
+			formNode.NewErrorSelect(ErrFormUnexpectedOrInvalidTag)
+			return parser.Continue
+		}
+
+		for _, attr := range tok.Attr {
+			switch attr.Key {
+			case "name":
+				formSelect.Name = strings.TrimSpace(attr.Val)
+			case "value":
+				formSelect.Value = strings.TrimSpace(attr.Val)
+			case "description":
+				formSelect.Description = strings.TrimSpace(attr.Val)
+			case "selected":
+				formSelect.Selected = strings.TrimSpace(attr.Val) == "true"
+			}
+		}
+
+		if formSelect.Name == "" {
+			formSelect.Error = ErrFormInputMissingName
+			return parser.Continue
 		}
 
 	default:
@@ -511,6 +575,66 @@ func (r *formRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 				HTMLEscapeString(e.Placeholder),
 				e.Rows)
 			fmt.Fprintln(w, "</div>")
+
+		case *FormSelect:
+			// Check if we already rendered a select for this name
+			selectRendered := false
+			for j := 0; j < i; j++ {
+				if prevElement, ok := n.Elements[j].(*FormSelect); ok && prevElement.Name == e.Name {
+					selectRendered = true
+					break
+				}
+			}
+
+			// If this is the first select element with this name, render the select container
+			if !selectRendered {
+				// Show description span if available (only for the first element)
+				if e.Description != "" {
+					descID := fmt.Sprintf("desc_%s_%d", e.Name, i)
+					fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
+						HTMLEscapeString(descID), HTMLEscapeString(e.Description))
+					lastDescID = descID // Update last description ID
+				}
+
+				// Start the select container
+				// Format the name to be more readable (capitalize first letter, replace underscores with spaces)
+				labelText := strings.Title(strings.ReplaceAll(e.Name, "_", " "))
+				fmt.Fprintf(w, `<div class="gno-form_select"><label for="%s"> %s </label>`+"\n",
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(labelText))
+				fmt.Fprintf(w, `<select id="%s" name="%s"`,
+					HTMLEscapeString(e.Name),
+					HTMLEscapeString(e.Name))
+				if lastDescID != "" {
+					fmt.Fprintf(w, ` aria-labelledby="%s"`, HTMLEscapeString(lastDescID))
+				}
+				fmt.Fprintf(w, `>`+"\n")
+
+				// Add a default option with the label
+				article := GetWordArticle(labelText)
+				fmt.Fprintf(w, `<option value="" >Select %s %s</option>`+"\n", article, HTMLEscapeString(labelText))
+
+				// Collect all options for this select name
+				for k := i; k < len(n.Elements); k++ {
+					if optionElement, ok := n.Elements[k].(*FormSelect); ok && optionElement.Name == e.Name {
+						fmt.Fprintf(w, `<option value="%s"`,
+							HTMLEscapeString(optionElement.Value))
+						if optionElement.Selected {
+							fmt.Fprintf(w, ` selected`)
+						}
+						fmt.Fprintf(w, `>%s</option>`+"\n",
+							HTMLEscapeString(optionElement.Value))
+					}
+				}
+
+				// Close the select
+				fmt.Fprintf(w, `</select>`+"\n")
+
+				// SVG icon for select
+				fmt.Fprintf(w, `<svg class="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><use href="#ico-arrow"></use></svg>`+"\n")
+
+				fmt.Fprintln(w, "</div>")
+			}
 		}
 	}
 
@@ -536,3 +660,4 @@ func (e *formExtension) Extend(m goldmark.Markdown) {
 }
 
 var ExtForms = &formExtension{}
+
