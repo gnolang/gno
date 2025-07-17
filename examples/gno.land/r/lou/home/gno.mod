@@ -1,1 +1,5 @@
-module gno.land/r/lou/home
+module = "gno.land/r/lou/home"
+gno = "0.9"
+
+[upload_metadata]
+  uploader = "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"

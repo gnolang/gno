@@ -1,4 +1,4 @@
-module = "gno.land/p/lou/ascii"
+module = "gno.land/p/lou/comment"
 gno = "0.9"
 
 [upload_metadata]

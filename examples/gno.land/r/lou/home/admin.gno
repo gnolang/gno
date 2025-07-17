@@ -26,9 +26,7 @@ func CreateToken(name, symbol string, decimals uint) {
 	ledger.Mint(admin, 100000)
 }
 
-func ResetRatings() {
-	crossing()
-
+func ResetRatings(_ realm) {
 	Ownable.AssertOwnedByPrevious()
 
 	ratings = avl.NewTree()

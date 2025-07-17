@@ -23,9 +23,7 @@ func init() {
 	ratingID = seqid.ID(0)
 }
 
-func NewRating(rating uint64, commentStr string) string {
-	crossing()
-
+func NewRating(_ realm, rating uint64, commentStr string) string {
 	caller := std.PreviousRealm().Address()
 	if _, exists := ratings.Get(caller.String()); exists {
 		panic(caller.String() + " has already rated and update instead")
@@ -41,9 +39,7 @@ func NewRating(rating uint64, commentStr string) string {
 	return ufmt.Sprintf("Successfully added a #%d rating!", rating)
 }
 
-func UpdateRating(rating uint64, commentStr string) string {
-	crossing()
-
+func UpdateRating(_ realm, rating uint64, commentStr string) string {
 	checkCaller()
 	caller := std.PreviousRealm().Address()
 
@@ -58,9 +54,7 @@ func UpdateRating(rating uint64, commentStr string) string {
 	return NewRating(rating, commentStr) + "\nSuccessfully updated rating!\n"
 }
 
-func UpdateByID(comment string, id seqid.ID, rating uint64) string {
-	crossing()
-
+func UpdateByID(_ realm, comment string, id seqid.ID, rating uint64) string {
 	caller := std.PreviousRealm().Address()
 
 	if key, found := findRatingByID(id); found {
@@ -71,9 +65,7 @@ func UpdateByID(comment string, id seqid.ID, rating uint64) string {
 	panic("not authorized to update this rating")
 }
 
-func DeleteRating(id seqid.ID) string {
-	crossing()
-
+func DeleteRating(_ realm, id seqid.ID) string {
 	caller := std.PreviousRealm().Address()
 
 	if Ownable.OwnedByPrevious() {
