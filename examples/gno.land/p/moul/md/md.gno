@@ -349,11 +349,12 @@ type Form struct {
 
 func escapeValue(text string) string {
 	replacer := strings.NewReplacer(
-		`>`, `\>`,
-		`<`, `\<`,
-		`"`, `\"`,
-		`'`, `\'`,
-		`\`, `\\`,
+		`<`, "&#x3c",
+		`=`, "&#x3d",
+		`>`, "&#x3e",
+		`"`, "&#x22",
+		`\`, "&#x5c",
+		`/`, "&#x2f",
 	)
 	return replacer.Replace(text)
 }

@@ -343,7 +343,7 @@ func TestFormString(t *testing.T) {
 				},
 			},
 			expected: `<gno-form>
-  <gno-input name="name" type="text" placeholder="foo\" bar=\"toto" />
+  <gno-input name="name" type="text" placeholder="foo&#x22 bar&#x3d&#x22toto" />
 </gno-form>
 `,
 		},
@@ -388,6 +388,18 @@ func TestFormString(t *testing.T) {
 			},
 			expected: `<gno-form>
   <gno-input name="invalid" type="text" placeholder="" />
+</gno-form>
+`,
+		},
+		{
+			name: "Injection",
+			form: md.Form{
+				Inputs: []md.FormInput{
+					md.FormInput{Name: "test", PlaceHolder: "\" /> <injection />", Type: md.FormText},
+				},
+			},
+			expected: `<gno-form>
+  <gno-input name="test" type="text" placeholder="&#x22 &#x2f&#x3e &#x3cinjection &#x2f&#x3e" />
 </gno-form>
 `,
 		},
