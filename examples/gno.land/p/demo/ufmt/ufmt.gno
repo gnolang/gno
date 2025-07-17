@@ -45,6 +45,13 @@ const (
 	flagPlus
 )
 
+var flagMap = [256]flag{
+	'-': flagMinus,
+	'+': flagPlus,
+	' ': flagSpace,
+	'0': flagZero,
+}
+
 // the different len modifiers
 type lengthModifier uint8
 
@@ -135,13 +142,6 @@ func parseNumber(runes []rune, start int, end int) (int, int, bool) {
 	}
 
 	return num, i, true
-}
-
-var flagMap = [256]flag{
-	'-': flagMinus,
-	'+': flagPlus,
-	' ': flagSpace,
-	'0': flagZero,
 }
 
 // Parse the printf flags, precisions... all formatting data, stored in "p.meta".
