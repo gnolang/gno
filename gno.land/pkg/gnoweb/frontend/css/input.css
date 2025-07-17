@@ -36,6 +36,7 @@
 			"zero" on;
 		text-size-adjust: 100%;
 		-moz-osx-font-smoothing: grayscale;
+		-webkit-font-smoothing: antialiased;
 		font-variant-ligatures: contextual common-ligatures;
 		font-kerning: normal;
 		text-rendering: optimizeLegibility;
@@ -54,7 +55,7 @@
 	}
 
 	.realm-view a {
-		@apply relative text-green-600 font-medium hover:underline;
+		@apply relative inline-block text-green-600 font-medium hover:underline;
 	}
 
 	.realm-view h1,
@@ -102,6 +103,18 @@
 		@apply my-5;
 	}
 
+	.realm-view img {
+		@apply max-w-full my-8 border border-gray-100 select-none rounded;
+	}
+
+	.realm-view p:has(> a:only-child > img) {
+		@apply my-8;
+	}
+
+	.realm-view p:has(> a:only-child > img) img {
+		@apply my-0;
+	}
+
 	.realm-view strong {
 		@apply font-bold text-gray-900;
 	}
@@ -126,10 +139,6 @@
 	.realm-view ul li,
 	.realm-view ol li {
 		@apply mb-2;
-	}
-
-	.realm-view img {
-		@apply max-w-full my-8 border border-gray-100 select-none rounded;
 	}
 
 	.realm-view figure {
@@ -257,6 +266,14 @@
 		@apply bg-green-600 text-light;
 	}
 
+	summary::-webkit-details-marker {
+		display: none;
+	}
+
+	summary::marker {
+		display: none;
+	}
+
 	/* MD components */
 	/* Columns */
 	.realm-view .gno-columns {
@@ -301,7 +318,7 @@
 		@apply mb-0;
 	}
 	.realm-view .gno-alert > summary {
-		@apply flex items-center gap-x-2 my-2 font-bold list-none;
+		@apply flex items-center gap-x-2 my-1 font-bold list-none;
 	}
 	.realm-view .gno-alert > summary svg {
 		@apply h-6 w-6;
@@ -543,6 +560,7 @@
 	}
 
 	/* toc */
+
 	.toc-expend-btn:has(#toc-expend:checked) + nav {
 		@apply block;
 	}
@@ -551,6 +569,10 @@
 	}
 
 	/* sidebar */
+	.sidebar__container:has(ul:empty) {
+		@apply hidden;
+	}
+
 	.dev-mode .toc-expend-btn {
 		@apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
 	}
