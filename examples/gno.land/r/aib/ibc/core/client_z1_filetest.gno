@@ -32,9 +32,9 @@ func main() {
 			NextValidatorsHash: valhash[:],
 		}
 	)
-	clientID1 := core.CreateClient(lightclient.Tendermint, clientState, consensusState)
+	clientID1 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
 	println("CreateClient", clientID1)
-	clientID2 := core.CreateClient(lightclient.Tendermint, clientState, consensusState)
+	clientID2 := core.CreateClient(cross, lightclient.Tendermint, clientState, consensusState)
 	println("CreateClient", clientID2)
 
 	// RegisterCounterparty on clientID1

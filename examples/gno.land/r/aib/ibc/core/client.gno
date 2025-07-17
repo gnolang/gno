@@ -18,10 +18,7 @@ type client struct {
 
 // CreateClient generates a new client identifier and invokes the associated
 // light client module in order to initialize the client.
-//
-// TODO: why I don't need to declare 'cur realm' for this func? Because it
-// creates a new object and does not modify an existing one ?
-func CreateClient(clientType string, clientState, consensusState any) string {
+func CreateClient(cur realm, clientType string, clientState, consensusState any) string {
 	c := store.addClient(clientType, std.OriginCaller())
 	err := c.lightClient.Initialize(c.id, clientState, consensusState)
 	if err != nil {
@@ -48,7 +45,7 @@ func RegisterCounterparty(cur realm, clientID string, counterpartyMerklePrefix [
 // UpdateClient will update the given IBC v2 light client with a new header.
 // Can also be used to submit a misbehavior (clientMessage can be a header or
 // a misbehavior, maybe split into 2 functions would make more sense here).
-func UpdateClient(clientID string, clientMessage any) {
+func UpdateClient(cur realm, clientID string, clientMessage any) {
 	c := store.getClient(clientID)
 	if c == nil {
 		panic(ufmt.Sprintf("client %s not found", clientID))
@@ -68,13 +65,13 @@ func UpdateClient(clientID string, clientMessage any) {
 
 // UpdateClient upgrades the client to a new client state if this new client
 // was committed to by the old client at the specified upgrade height.
-func UpgradeClient(clientID string, clientState, consensusState []byte,
+func UpgradeClient(cur realm, clientID string, clientState, consensusState []byte,
 	proofUpgradeClient, proofUpgradeConsensusState []byte) {
 	// TODO
 }
 
 // RecoverClient recovers a frozen or expired client.
 // NOTE(tb): This must be a permissioned function called by a gov proposal.
-func RecoverClient(clientID string) {
+func RecoverClient(cur realm, clientID string) {
 	// TODO
 }
