@@ -895,6 +895,10 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 	return DerivePkgCryptoAddr(pv.PkgPath)
 }
 
+func (pv *PackageValue) GetPkgStorageDepositAddr() crypto.Address {
+	return DeriveStorageDepositCryptoAddr(pv.PkgPath)
+}
+
 // ----------------------------------------
 // TypedValue (is not a value, but a tuple)
 
