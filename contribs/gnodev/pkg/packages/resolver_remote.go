@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	gopath "path"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -43,8 +42,9 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	}
 
 	if err := qres.Response.Error; err != nil {
-		if errors.Is(err, vm.InvalidPkgPathError{}) ||
-			strings.HasSuffix(err.Error(), "is not available") { // XXX: find a better to check this
+		if errors.Is(err, vm.InvalidFileError{}) ||
+			errors.Is(err, vm.InvalidPkgPathError{}) ||
+			errors.Is(err, vm.InvalidPackageError{}) { // XXX: find a better to check this
 			return nil, ErrResolverPackageNotFound
 		}
 
