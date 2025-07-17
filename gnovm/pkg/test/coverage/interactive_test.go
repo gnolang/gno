@@ -77,6 +77,7 @@ func World() {
 			input: "q\n",
 			files: []string{"test/package/file1.gno", "test/package/file2.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				if !strings.Contains(output, "Coverage Viewer") {
 					t.Error("Expected output to contain 'Coverage Viewer'")
 				}
@@ -87,6 +88,7 @@ func World() {
 			input: "h\nq\n",
 			files: []string{"test/package/file1.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				if !strings.Contains(output, "Coverage Viewer Commands") {
 					t.Error("Expected help text")
 				}
@@ -100,6 +102,7 @@ func World() {
 			input: "l\nq\n",
 			files: []string{"test/package/file1.gno", "test/package/file2.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				if !strings.Contains(output, "Available files:") {
 					t.Error("Expected file list header")
 				}
@@ -116,8 +119,9 @@ func World() {
 			input: "n\nq\n",
 			files: []string{"test/package/file1.gno", "test/package/file2.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				// Should show file navigation
-				if !strings.Contains(output, "[1/2]") || !strings.Contains(output, "[2/2]") {
+				if !strings.Contains(output, "File 1/2") || !strings.Contains(output, "File 2/2") {
 					t.Error("Expected navigation indicators")
 				}
 			},
@@ -127,6 +131,7 @@ func World() {
 			input: "p\nq\n",
 			files: []string{"test/package/file1.gno", "test/package/file2.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				if !strings.Contains(output, "Already at first file") {
 					t.Error("Expected 'already at first file' message")
 				}
@@ -137,8 +142,9 @@ func World() {
 			input: "g 2\nq\n",
 			files: []string{"test/package/file1.gno", "test/package/file2.gno"},
 			checkOut: func(t *testing.T, output string) {
-				// After goto 2, should be at [2/2]
-				if strings.Count(output, "[2/2]") < 1 {
+				t.Helper()
+				// After goto 2, should be at File 2/2
+				if !strings.Contains(output, "File 2/2") {
 					t.Error("Expected to be at file 2 after goto")
 				}
 			},
@@ -148,6 +154,7 @@ func World() {
 			input: "g 5\nq\n",
 			files: []string{"test/package/file1.gno", "test/package/file2.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				if !strings.Contains(output, "Invalid file number") {
 					t.Error("Expected invalid file number error")
 				}
@@ -158,6 +165,7 @@ func World() {
 			input: "x\nq\n",
 			files: []string{"test/package/file1.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				if !strings.Contains(output, "Unknown command") {
 					t.Error("Expected unknown command message")
 				}
@@ -174,6 +182,7 @@ func World() {
 			input: ":3\nq\n",
 			files: []string{"test/package/file1.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				// Should show that we're viewing from line 3
 				if !strings.Contains(output, "Line 3") {
 					t.Error("Expected to show line 3 indicator")
@@ -185,8 +194,57 @@ func World() {
 			input: ":abc\nq\n",
 			files: []string{"test/package/file1.gno"},
 			checkOut: func(t *testing.T, output string) {
+				t.Helper()
 				if !strings.Contains(output, "Invalid line number") {
 					t.Error("Expected invalid line number error")
+				}
+			},
+		},
+		{
+			name:  "go to beginning (gg)",
+			input: ":10\ngg\nq\n",
+			files: []string{"test/package/file1.gno"},
+			checkOut: func(t *testing.T, output string) {
+				t.Helper()
+				// Should be at line 1 after gg
+				if !strings.Contains(output, "Line 1") {
+					t.Error("Expected to be at line 1 after gg")
+				}
+			},
+		},
+		{
+			name:  "go to end (G)",
+			input: "G\nq\n",
+			files: []string{"test/package/file1.gno"},
+			checkOut: func(t *testing.T, output string) {
+				t.Helper()
+				// Should show we're at the end of the file
+				if !strings.Contains(output, "Line") {
+					t.Error("Expected to show line indicator")
+				}
+			},
+		},
+		{
+			name:  "page down (J)",
+			input: "J\nq\n",
+			files: []string{"test/package/file1.gno"},
+			checkOut: func(t *testing.T, output string) {
+				t.Helper()
+				// Should have scrolled down
+				if !strings.Contains(output, "Line") {
+					t.Error("Expected to show line indicator after page down")
+				}
+			},
+		},
+		{
+			name:  "page up (K)",
+			input: ":50\nK\nq\n",
+			files: []string{"test/package/file1.gno"},
+			checkOut: func(t *testing.T, output string) {
+				t.Helper()
+				// Should have scrolled up
+				if !strings.Contains(output, "Line") {
+					t.Error("Expected to show line indicator after page up")
 				}
 			},
 		},

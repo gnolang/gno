@@ -8,11 +8,13 @@ import (
 )
 
 func TestCache_SaveAndLoad(t *testing.T) {
-	cache, err := NewCache()
+	// Create a unique cache directory for this test
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	cache, err := NewCacheWithDir(cacheDir)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
-	defer cache.Clear()
+	defer cache.Close()
 
 	testDir := t.TempDir()
 	testFile := filepath.Join(testDir, "test.gno")
@@ -59,11 +61,13 @@ func TestCache_SaveAndLoad(t *testing.T) {
 }
 
 func TestCache_InvalidateOnFileChange(t *testing.T) {
-	cache, err := NewCache()
+	// Create a unique cache directory for this test
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	cache, err := NewCacheWithDir(cacheDir)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
-	defer cache.Clear()
+	defer cache.Close()
 
 	testDir := t.TempDir()
 	testFile := filepath.Join(testDir, "test.gno")
@@ -98,11 +102,13 @@ func TestCache_InvalidateOnFileChange(t *testing.T) {
 }
 
 func TestCache_ClearEntry(t *testing.T) {
-	cache, err := NewCache()
+	// Create a unique cache directory for this test
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	cache, err := NewCacheWithDir(cacheDir)
 	if err != nil {
 		t.Fatalf("Failed to create cache: %v", err)
 	}
-	defer cache.Clear()
+	defer cache.Close()
 
 	testDir := t.TempDir()
 	coverage := map[string]map[string]map[int]int64{

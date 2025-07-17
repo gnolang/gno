@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,6 +32,11 @@ type Cache struct {
 // NewCache creates a new coverage cache.
 func NewCache() (*Cache, error) {
 	cacheDir := filepath.Join(os.TempDir(), "gno-coverage-cache")
+	return NewCacheWithDir(cacheDir)
+}
+
+// NewCacheWithDir creates a new coverage cache with a specific directory.
+func NewCacheWithDir(cacheDir string) (*Cache, error) {
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
@@ -105,7 +111,7 @@ func (c *Cache) Load(targetDir string) (*CacheEntry, error) {
 	key := c.generateCacheKey(targetDir)
 
 	data, err := c.db.Get(key, nil)
-	if err == leveldb.ErrNotFound {
+	if errors.Is(err, leveldb.ErrNotFound) {
 		return nil, nil // Cache miss
 	}
 	if err != nil {

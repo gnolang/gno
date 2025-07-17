@@ -55,8 +55,8 @@ func (iv *InteractiveViewer) Start() error {
 	// Main interaction loop
 	for {
 		// Show prompt
-		fmt.Fprintf(iv.writer, "\n%s[%d/%d] n/p=nav files, :n=jump line, l=list, h=help, q=quit > %s",
-			ColorBold, iv.currentIdx+1, len(iv.files), ColorReset)
+		fmt.Fprintf(iv.writer, "\n%s[File %d/%d, Line %d] n/p=files, :n=line, J/K=page, gg/G=top/end, h=help > %s",
+			ColorBold, iv.currentIdx+1, len(iv.files), iv.currentLine, ColorReset)
 
 		// Read command
 		if !iv.scanner.Scan() {
@@ -94,24 +94,6 @@ func (iv *InteractiveViewer) Start() error {
 				fmt.Fprintf(iv.writer, "%sAlready at first file%s\n", ColorRed, ColorReset)
 			}
 
-		case 'g': // Goto file number
-			parts := strings.Fields(cmd)
-			if len(parts) > 1 {
-				if num, err := strconv.Atoi(parts[1]); err == nil && num >= 1 && num <= len(iv.files) {
-					iv.currentIdx = num - 1
-					iv.currentLine = 1 // Reset line position for new file
-					iv.clearScreen()
-					if err := iv.displayCurrentFile(); err != nil {
-						return err
-					}
-				} else {
-					fmt.Fprintf(iv.writer, "%sInvalid file number. Range: 1-%d%s\n",
-						ColorRed, len(iv.files), ColorReset)
-				}
-			} else {
-				fmt.Fprintf(iv.writer, "%sUsage: g <number>%s\n", ColorRed, ColorReset)
-			}
-
 		case ':': // Vim-style line navigation
 			if len(cmd) > 1 {
 				lineStr := cmd[1:]
@@ -126,6 +108,68 @@ func (iv *InteractiveViewer) Start() error {
 				}
 			} else {
 				fmt.Fprintf(iv.writer, "%sUsage: :<line number>%s\n", ColorRed, ColorReset)
+			}
+
+		case 'J': // Page down
+			iv.currentLine += iv.viewHeight
+			iv.clearScreen()
+			if err := iv.displayCurrentFileAtLine(); err != nil {
+				return err
+			}
+
+		case 'K': // Page up
+			iv.currentLine -= iv.viewHeight
+			if iv.currentLine < 1 {
+				iv.currentLine = 1
+			}
+			iv.clearScreen()
+			if err := iv.displayCurrentFileAtLine(); err != nil {
+				return err
+			}
+
+		case 'g': // Either goto file or beginning of file
+			if cmd == "gg" {
+				// Go to beginning of file
+				iv.currentLine = 1
+				iv.clearScreen()
+				if err := iv.displayCurrentFileAtLine(); err != nil {
+					return err
+				}
+			} else if strings.HasPrefix(cmd, "g ") {
+				// Original goto file number functionality
+				parts := strings.Fields(cmd)
+				if len(parts) > 1 {
+					if num, err := strconv.Atoi(parts[1]); err == nil && num >= 1 && num <= len(iv.files) {
+						iv.currentIdx = num - 1
+						iv.currentLine = 1 // Reset line position for new file
+						iv.clearScreen()
+						if err := iv.displayCurrentFile(); err != nil {
+							return err
+						}
+					} else {
+						fmt.Fprintf(iv.writer, "%sInvalid file number. Range: 1-%d%s\n",
+							ColorRed, len(iv.files), ColorReset)
+					}
+				}
+			} else {
+				fmt.Fprintf(iv.writer, "%sUnknown command. Use 'gg' for beginning of file or 'g <number>' for file navigation%s\n", ColorRed, ColorReset)
+			}
+
+		case 'G': // Go to end of file
+			// We'll need to get the total lines count for the current file
+			report := iv.tracker.GenerateReport()
+			currentFile := iv.files[iv.currentIdx]
+			for _, fc := range report.Files {
+				fullName := fmt.Sprintf("%s/%s", fc.Package, fc.FileName)
+				if fullName == currentFile {
+					// Set to a large number, it will be adjusted in displayCurrentFileAtLine
+					iv.currentLine = 99999
+					iv.clearScreen()
+					if err := iv.displayCurrentFileAtLine(); err != nil {
+						return err
+					}
+					break
+				}
 			}
 
 		case 'l': // List all files
@@ -230,6 +274,10 @@ func (iv *InteractiveViewer) showHelp() {
 		{"p, k", "Go to previous file"},
 		{"g <number>", "Go to specific file by number"},
 		{":<line>", "Jump to specific line in current file"},
+		{"gg", "Go to beginning of current file"},
+		{"G", "Go to end of current file"},
+		{"J", "Page down (scroll down one screen)"},
+		{"K", "Page up (scroll up one screen)"},
 		{"l", "List all files with coverage"},
 		{"h, ?", "Show this help"},
 		{"q", "Quit viewer"},
@@ -280,6 +328,14 @@ func (iv *InteractiveViewer) showFileWithLineOffset(fc *FileCoverage) error {
 	}
 
 	totalLines := len(lines)
+
+	// Adjust current line if it's beyond the file
+	if iv.currentLine > totalLines {
+		iv.currentLine = totalLines
+	}
+	if iv.currentLine < 1 {
+		iv.currentLine = 1
+	}
 
 	// Calculate display range
 	startLine := iv.currentLine - 1 // Convert to 0-based index
