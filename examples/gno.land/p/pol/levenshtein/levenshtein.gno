@@ -71,17 +71,23 @@ func Distance(a, b string) uint {
 	return line[len(b)]
 }
 
-// The general interface for levenshteinable string.
-// You need to use LString, because String is used to convert your object into a string.
-// LString is only when you want to compare the results.
+// Levenshteinable is an interface for types that can be compared using
+// Levenshtein distance. It provides the LString method, which returns
+// the string representation used for comparison.
+//
+// Note: This differs from the standard String() method, which may be used
+// for display or debugging.
 type Levenshteinable interface {
 	LString() string
 }
 
-// Pick the best object that is the closest using
-// levenstein string distance with the original
-// string.
-// O(n) complexity.
+// PickFromString returns the Levenshteinable object from the slice xs
+// that is closest in Levenshtein distance to the input string xStr.
+//
+// It returns the best match along with its distance. If xs is empty,
+// it returns (nil, 0).
+//
+// This function runs in O(n) time, where n is the length of the slice.
 func PickFromString(xStr string, xs []Levenshteinable) (Levenshteinable, uint) {
 	// check for empty list
 	if len(xs) == 0 {
@@ -103,9 +109,11 @@ func PickFromString(xStr string, xs []Levenshteinable) (Levenshteinable, uint) {
 	return best, bestDistance
 }
 
-// Pick the best object that is the closest using levenstein string
-// distance with the original string object.
-// O(n) complexity.
+// Pick returns the Levenshteinable object from the slice xs that is
+// closest in Levenshtein distance to the input object x.
+//
+// This is a convenience wrapper around PickFromString(x.LString(), xs).
+// It runs in O(n) time.
 func Pick(x Levenshteinable, xs []Levenshteinable) (Levenshteinable, uint) {
 	return PickFromString(x.LString(), xs)
 }
@@ -118,9 +126,13 @@ func padLeftNum(n uint, width int) string {
 	return s
 }
 
-// Pick the n best elements in a list of Levenshteinable elements, using
-// the levenstein distance between the original string.
-// O(n) complexity.
+// SeveralPickFromString returns the n closest Levenshteinable objects
+// to the input string xStr from the slice xs, using Levenshtein distance.
+//
+// If xs is empty, it returns nil. If n is 0, it returns an empty slice.
+//
+// The result is not guaranteed to be sorted by distance.
+// This function runs in O(n) time using an AVL tree for efficient selection.
 func SeveralPickFromString(xStr string, xs []Levenshteinable, n uint) []Levenshteinable {
 	// error casing
 	if len(xs) == 0 {
@@ -159,9 +171,11 @@ func SeveralPickFromString(xStr string, xs []Levenshteinable, n uint) []Levensht
 	return out
 }
 
-// Pick the n best elements in a list of Levenshteinable elements, using
-// the levenstein distance between the original object's string.
-// O(n) complexity.
+// SeveralPick returns the n closest Levenshteinable objects to the
+// input object x from the slice xs, using Levenshtein distance.
+//
+// This is a convenience wrapper around SeveralPickFromString(x.LString(), xs, n).
+// It runs in O(n) time.
 func SeveralPick(x Levenshteinable, xs []Levenshteinable, n uint) []Levenshteinable {
 	return SeveralPickFromString(x.LString(), xs, n)
 }
