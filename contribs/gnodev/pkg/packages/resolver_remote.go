@@ -44,7 +44,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	if err := qres.Response.Error; err != nil {
 		if errors.Is(err, vm.InvalidFileError{}) ||
 			errors.Is(err, vm.InvalidPkgPathError{}) ||
-			errors.Is(err, vm.InvalidPackageError{}) { // XXX: find a better to check this
+			errors.Is(err, vm.InvalidPackageError{}) {
 			return nil, ErrResolverPackageNotFound
 		}
 
