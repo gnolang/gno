@@ -560,6 +560,7 @@
 	}
 
 	/* toc */
+	
 	.toc-expend-btn:has(#toc-expend:checked) + nav {
 		@apply block;
 	}
@@ -568,6 +569,10 @@
 	}
 
 	/* sidebar */
+	.sidebar__container:has(ul:empty) {
+		@apply hidden;
+	}
+
 	.dev-mode .toc-expend-btn {
 		@apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
 	}
