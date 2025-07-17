@@ -14,16 +14,17 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -78,7 +79,8 @@ type VMKeeper struct {
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
 	// committed typecheck cache
-	typeCheckCache gno.TypeCheckCache
+	typeCheckCache  gno.TypeCheckCache
+	testStdlibCache testStdlibCache
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -98,6 +100,10 @@ func NewVMKeeper(
 		bank:           bank,
 		prmk:           prmk,
 		typeCheckCache: gno.TypeCheckCache{},
+		testStdlibCache: testStdlibCache{
+			rootDir: gnoenv.RootDir(),
+			cache:   map[string]*std.MemPackage{},
+		},
 	}
 
 	return vmk
@@ -191,14 +197,6 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 func loadStdlib(store gno.Store, stdlibDir string) {
 	stdlibInitList := stdlibs.InitOrder()
 	for _, lib := range stdlibInitList {
-		parts := strings.Split(lib, "/")
-		if len(parts) > 0 && parts[0] == "testing" {
-			// XXX: testing and sub testing packages are skipped for
-			// now while it uses testing-only packages
-			// like fmt and encoding/json
-			continue
-		}
-
 		loadStdlibPackage(lib, stdlibDir, store)
 	}
 }
@@ -223,6 +221,63 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
+}
+
+type testStdlibCache struct {
+	rootDir  string
+	cache    map[string]*std.MemPackage // nil = no test package, use source; otherwise result from test stdlib
+	cacheMtx sync.RWMutex
+}
+
+type testStdlibGetter struct {
+	*testStdlibCache
+	source gno.MemPackageGetter
+}
+
+func (tsc *testStdlibCache) memPackageGetter(source gno.Store) gno.MemPackageGetter {
+	return testStdlibGetter{testStdlibCache: tsc, source: source}
+}
+
+func (tsg testStdlibGetter) GetMemPackage(pkgPath string) *std.MemPackage {
+	// Only stdlibs have alternative versions.
+	if !gno.IsStdlib(pkgPath) {
+		return tsg.source.GetMemPackage(pkgPath)
+	}
+
+	tsg.cacheMtx.RLock()
+	res, ok := tsg.cache[pkgPath]
+	tsg.cacheMtx.RUnlock()
+	// fast path: if cache was hit, return the mempackage from tsg.source (if
+	// nil) or
+	if ok {
+		if res == nil {
+			return tsg.source.GetMemPackage(pkgPath)
+		}
+		return res
+	}
+
+	// Cache miss: load package, and join it with the base package if necessary.
+	sourceMpkg := tsg.source.GetMemPackage(pkgPath)
+	// load from directory. NOTE: pkgPath is validated by `!gno.IsStdlib`,
+	// hence it cannot contain path traversals like `../`.
+	dir := filepath.Join(tsg.rootDir, "gnovm", "tests", "stdlibs", pkgPath)
+	testMpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPStdlibTest)
+	if err != nil {
+		tsg.cacheMtx.Lock()
+		tsg.cache[pkgPath] = nil
+		tsg.cacheMtx.Unlock()
+		return sourceMpkg
+	}
+	if sourceMpkg != nil {
+		testMpkg.Files = slices.Concat(sourceMpkg.Files, testMpkg.Files)
+	}
+	if pkgPath == "testing" {
+		spew.Dump(sourceMpkg)
+	}
+	tsg.cacheMtx.Lock()
+	tsg.cache[pkgPath] = testMpkg
+	tsg.cacheMtx.Unlock()
+	return testMpkg
 }
 
 type vmkContextKey int
@@ -401,13 +456,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
-	_, gts := test.StoreWithOptions(gnoenv.RootDir(), io.Discard, test.StoreOptions{
-		Testing:     true,
-		SourceStore: gnostore,
-	})
 	opts := gno.TypeCheckOptions{
 		Getter:     gnostore,
-		TestGetter: gts,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
 		Mode:       gno.TCLatestStrict,
 		Cache:      vm.getTypeCheckCache(ctx),
 	}
@@ -691,13 +742,9 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	_, gts := test.StoreWithOptions(gnoenv.RootDir(), io.Discard, test.StoreOptions{
-		Testing:     true,
-		SourceStore: gnostore,
-	})
 	_, err = gno.TypeCheckMemPackage(memPkg, gno.TypeCheckOptions{
 		Getter:     gnostore,
-		TestGetter: gts,
+		TestGetter: vm.testStdlibCache.memPackageGetter(gnostore),
 		Mode:       gno.TCLatestRelaxed,
 		Cache:      vm.getTypeCheckCache(ctx),
 	})
