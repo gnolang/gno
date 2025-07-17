@@ -44,6 +44,9 @@ type StoreOptions struct {
 
 	// When fixing code from an earler gno version. Not supported for stdlibs.
 	FixFrom string
+
+	// Loaded packages
+	Packages packages.PkgList
 }
 
 // This store without options supports stdlibs without test/stdlibs overrides.
@@ -54,6 +57,7 @@ type StoreOptions struct {
 func ProdStore(
 	rootDir string,
 	output io.Writer,
+	pkgs packages.PkgList,
 ) (
 	baseStore storetypes.CommitStore,
 	gnoStore gno.Store,
@@ -64,6 +68,7 @@ func ProdStore(
 		StoreOptions{
 			WithExamples: true,
 			Testing:      false,
+			Packages:     pkgs,
 		},
 	)
 }
@@ -74,6 +79,7 @@ func ProdStore(
 func TestStore(
 	rootDir string,
 	output io.Writer,
+	pkgs packages.PkgList,
 ) (
 	baseStore storetypes.CommitStore,
 	gnoStore gno.Store,
@@ -84,6 +90,7 @@ func TestStore(
 		StoreOptions{
 			WithExamples: true,
 			Testing:      true,
+			Packages:     pkgs,
 		},
 	)
 }
@@ -183,28 +190,37 @@ func StoreWithOptions(
 			return
 		}
 
-		// if examples package...
+		loadFromDir := func(dir string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+			mpkg := gno.MustReadMemPackage(dir, pkgPath, gno.MPUserProd)
+			if mpkg.IsEmpty() {
+				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+			}
+			send := std.Coins{}
+			ctx := Context("", pkgPath, send)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				PkgPath:       pkgPath,
+				Output:        output,
+				Store:         store,
+				Context:       ctx,
+				ReviveEnabled: true,
+				SkipPackage:   true,
+			})
+			return _processMemPackage(m2, mpkg, true)
+		}
+
+		// If available in loaded packages
+		if pkg := opts.Packages.Get(pkgPath); pkg != nil {
+			return loadFromDir(pkg.Dir)
+		}
+
 		if opts.WithExamples {
+			// if examples package...
 			examplePath := filepath.Join(rootDir, "examples", pkgPath)
 			if osm.DirExists(examplePath) {
-				mpkg := gno.MustReadMemPackage(examplePath, pkgPath, gno.MPUserProd)
-				if mpkg.IsEmpty() {
-					panic(fmt.Sprintf("found an empty package %q", pkgPath))
-				}
-
-				send := std.Coins{}
-				ctx := Context("", pkgPath, send)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath:       pkgPath,
-					Output:        output,
-					Store:         store,
-					Context:       ctx,
-					ReviveEnabled: true,
-					SkipPackage:   true,
-				})
-				return _processMemPackage(m2, mpkg, true)
+				return loadFromDir(examplePath)
 			}
 		}
+
 		return nil, nil
 	}
 

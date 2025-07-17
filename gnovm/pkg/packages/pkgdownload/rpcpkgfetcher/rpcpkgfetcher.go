@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
