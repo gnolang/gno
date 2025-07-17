@@ -283,8 +283,8 @@ X
 
 func TestFormExample(t *testing.T) {
 	form := md.Form{}
-	form.AddInput("name", "Enter your name")
-	form.AddInput("email", "Enter your email")
+	form.AddInput(md.FormText, "name", "Enter your name")
+	form.AddInput(md.FormText, "email", "Enter your email")
 
 	got := form.String()
 	expected := `<gno-form>
@@ -370,10 +370,22 @@ func TestFormString(t *testing.T) {
 `,
 		},
 		{
-			name: "With invalide input",
+			name: "With invalid input",
 			form: md.Form{
 				Inputs: []md.FormInput{
-					md.FormInput{Name: "invalid", PlaceHolder: "", Type: md.FormInputType(42)},
+					md.FormInput{Name: "invalid", PlaceHolder: "", Type: md.FormInputType("megaprout")},
+				},
+			},
+			expected: `<gno-form>
+  <gno-input name="invalid" type="text" placeholder="" />
+</gno-form>
+`,
+		},
+		{
+			name: "With invalid input 2",
+			form: md.Form{
+				Inputs: []md.FormInput{
+					md.FormInput{Name: "invalid", PlaceHolder: "", Type: md.FormInputType("")},
 				},
 			},
 			expected: `<gno-form>

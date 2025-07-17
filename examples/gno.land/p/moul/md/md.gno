@@ -302,47 +302,33 @@ func ColumnsN(content []string, colsPerRow int, padded bool) string {
 
 // FormInputType defines the type of a form input element.
 // It is used to differentiate between types such as text, number, email, etc.
-type FormInputType uint
-
-func escapeValue(text string) string {
-	replacer := strings.NewReplacer(
-		`>`, `\>`,
-		`<`, `\<`,
-		`"`, `\"`,
-		`'`, `\'`,
-		`\`, `\\`,
-	)
-	return replacer.Replace(text)
-}
+type FormInputType string
 
 const (
 	// FormText represents a plain text input.
 	// Example: "hello"
-	FormText     FormInputType = iota
+	FormText FormInputType = "text"
 
 	// FormNumber represents a numeric input.
 	// Example: 42
-	FormNumber
+	FormNumber = "number"
 
 	// FormEmail represents an input that expects an email address.
 	// Must match regex: '^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$'
-	FormEmail
+	FormEmail = "email"
 
 	// FormTel represents a telephone number input.
 	// Example: "+33 6 12 34 56 78"
-	FormTel
+	FormTel = "tel"
 
 	// FormPassword represents a password input.
 	// The value is hidden from display.
-	FormPassword
+	FormPassword = "password"
 )
 
-var input2str = map[FormInputType]string{
-	FormText:     "text",
-	FormNumber:   "number",
-	FormEmail:    "email",
-	FormTel:      "tel",
-	FormPassword: "password",
+// Used to check for the validity of a FormInput in O(n)
+var validFormInputSet = map[FormInputType]struct{}{
+	FormText: {}, FormNumber: {}, FormEmail: {}, FormTel: {}, FormPassword: {},
 }
 
 // FormInput represents a single form input field.
@@ -361,6 +347,17 @@ type Form struct {
 	Inputs []FormInput
 }
 
+func escapeValue(text string) string {
+	replacer := strings.NewReplacer(
+		`>`, `\>`,
+		`<`, `\<`,
+		`"`, `\"`,
+		`'`, `\'`,
+		`\`, `\\`,
+	)
+	return replacer.Replace(text)
+}
+
 // SetPath defines the form submission path.
 // This path determines the endpoint to which the form will send data.
 // If unset, the form uses the current page path.
@@ -368,56 +365,28 @@ func (f *Form) SetPath(path string) {
 	f.Path = path
 }
 
-func (f *Form) addInput(t FormInputType, n, p string) {
+// AddInput adds a generic input to the form.
+// The inputType can be as follows:
+// - `FormText` - adds a text input field to the form.
+// - `FormNumber` - adds a numeric input field to the form.
+// - `FormEmail` - adds an email input field to the form.
+// - `FormTel` - adds a telephone number input field to the form.
+// - `FormPassword` - adds a password input field to the form.
+func (f *Form) AddInput(inputType FormInputType, name, placeholder string) {
 	f.Inputs = append(f.Inputs, FormInput{
-		Name:        n,
-		PlaceHolder: p,
-		Type:        t,
+		Name:        name,
+		PlaceHolder: placeholder,
+		Type:        inputType,
 	})
-}
-
-// AddInput adds a generic text input to the form.
-// Equivalent to AddTextInput.
-func (f *Form) AddInput(name, placeholder string) {
-	f.addInput(FormText, name, placeholder)
-}
-
-// AddTextInput adds a text input field to the form.
-// Example: a string like "hello"
-func (f *Form) AddTextInput(name, placeholder string) {
-	f.addInput(FormText, name, placeholder)
-}
-
-// AddNumberInput adds a numeric input field to the form.
-// Example: an integer like 42
-func (f *Form) AddNumberInput(name, placeholder string) {
-	f.addInput(FormNumber, name, placeholder)
-}
-
-// AddEmailInput adds an email input field to the form.
-// The email must match the standard email format.
-// Example: "example@domain.com"
-func (f *Form) AddEmailInput(name, placeholder string) {
-	f.addInput(FormEmail, name, placeholder)
-}
-
-// AddTelInput adds a telephone number input field to the form.
-// Example: "+33 6 12 34 56 78"
-func (f *Form) AddTelInput(name, placeholder string) {
-	f.addInput(FormTel, name, placeholder)
-}
-
-// AddPasswordInput adds a password input field to the form.
-// The input is visually hidden during typing.
-func (f *Form) AddPasswordInput(name, placeholder string) {
-	f.addInput(FormPassword, name, placeholder)
 }
 
 // String returns the form as a Gno-formatted string.
 // It generates the <gno-form> block with all included inputs.
 // Example output:
 // <gno-form path="/submit">
-//   <gno-input name="email" placeholder="Your email" type="email" />
+//
+//	<gno-input name="email" placeholder="Your email" type="email" />
+//
 // </gno-form>
 func (f Form) String() string {
 	var sb strings.Builder
@@ -433,16 +402,16 @@ func (f Form) String() string {
 	// Generate input lines
 	for _, v := range f.Inputs {
 		// Use text by default
-		x, ok := input2str[v.Type]
-		if !ok {
-			x = input2str[FormText]
+		x := v.Type
+		if _, ok := validFormInputSet[v.Type]; !ok {
+			x = FormText
 		}
 
 		// Write the line
 		sb.WriteString("  <gno-input name=\"" +
 			escapeValue(v.Name) +
 			"\" type=\"" +
-			escapeValue(x) +
+			string(x) +
 			"\" placeholder=\"" +
 			escapeValue(v.PlaceHolder) +
 			"\" />\n",
