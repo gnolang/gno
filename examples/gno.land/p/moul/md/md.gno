@@ -248,7 +248,6 @@ func EscapeText(text string) string {
 		".", `\.`,
 		"!", `\!`,
 		"`", "\\`",
-		`"`, `\"`,
 	)
 	return replacer.Replace(text)
 }
@@ -304,6 +303,17 @@ func ColumnsN(content []string, colsPerRow int, padded bool) string {
 // FormInputType defines the type of a form input element.
 // It is used to differentiate between types such as text, number, email, etc.
 type FormInputType uint
+
+func escapeValue(text string) string {
+	replacer := strings.NewReplacer(
+		`>`, `\>`,
+		`<`, `\<`,
+		`"`, `\"`,
+		`'`, `\'`,
+		`\`, `\\`,
+	)
+	return replacer.Replace(text)
+}
 
 const (
 	// FormText represents a plain text input.
@@ -415,7 +425,7 @@ func (f Form) String() string {
 	// Write the begin of the form
 	str := "<gno-form"
 	if f.Path != "" {
-		str += " path=\"" + EscapeText(f.Path) + "\""
+		str += " path=\"" + escapeValue(f.Path) + "\""
 	}
 	str += ">\n"
 	sb.WriteString(str)
@@ -430,11 +440,11 @@ func (f Form) String() string {
 
 		// Write the line
 		sb.WriteString("  <gno-input name=\"" +
-			EscapeText(v.Name) +
+			escapeValue(v.Name) +
 			"\" type=\"" +
-			EscapeText(x) +
+			escapeValue(x) +
 			"\" placeholder=\"" +
-			EscapeText(v.PlaceHolder) +
+			escapeValue(v.PlaceHolder) +
 			"\" />\n",
 		)
 	}
