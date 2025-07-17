@@ -2,6 +2,7 @@ package dao
 
 import (
 	"std"
+	"strconv"
 )
 
 // dao is the actual govDAO implementation, having all the needed business logic
@@ -53,7 +54,7 @@ func ExecuteProposal(cur realm, pid ProposalID) bool {
 	if err != nil {
 		panic(err.Error())
 	}
-	if err := prop.executor.Execute(); err != nil {
+	if err := prop.executor.Execute(cross); err != nil {
 		panic(err.Error())
 	}
 	return true
@@ -77,6 +78,10 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 
 	pid := proposals.SetProposal(p)
 	dao.PostCreateProposal(r, pid)
+
+	std.Emit("ProposalCreated",
+		"id", strconv.FormatInt(int64(pid), 10),
+	)
 
 	return pid, nil
 }

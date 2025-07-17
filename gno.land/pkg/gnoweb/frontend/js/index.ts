@@ -1,8 +1,8 @@
 (() => {
-  interface Module {
-    selector: string;
-    path: string;
-  }
+	interface Module {
+		selector: string;
+		path: string;
+	}
 
   const modules: Record<string, Module> = {
     copy: {

@@ -1,15 +1,12 @@
 package gnolang
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
-	gofmt "go/format"
 	"go/parser"
 	"go/token"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -57,7 +54,7 @@ func PrepareGno0p9(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage
 		return errs
 	}
 	// Write AST transforms to mpkg.
-	err := WriteToMemPackage(gofset, gofs, mpkg)
+	err := WriteToMemPackage(gofset, gofs, mpkg, false)
 	if err != nil {
 		errs = multierr.Append(errs, err)
 	}
@@ -683,7 +680,7 @@ func TranspileGno0p9(mpkg *std.MemPackage, dir string, pn *PackageNode, fnames [
 	gofset := token.NewFileSet()
 	var errs error
 	var xall int = 0 // number translated from part 1
-	xforms12 := make(map[string]struct{})
+	var xforms12 = make(map[string]struct{})
 	for _, fname := range fnames {
 		if !strings.HasSuffix(fname, ".gno") {
 			panic(fmt.Sprintf("expected a .gno file but got %q", fname))
@@ -967,42 +964,4 @@ func transpileGno0p9_part2(pkgPath string, fs *token.FileSet, fname string, gof 
 	}
 
 	return err
-}
-
-// ========================================
-// WriteToMemPackage writes Go AST to a mempackage
-// This is useful for preparing prior version code for the preprocessor.
-func WriteToMemPackage(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage) error {
-	for _, gof := range gofs {
-		fpath := gofset.File(gof.Pos()).Name()
-		_, fname := filepath.Split(fpath)
-		mfile := mpkg.GetFile(fname)
-		if mfile == nil {
-			if strings.HasPrefix(fname, ".") {
-				// Hidden files like .gnobuiltins.gno that
-				// start with a dot should not get written to
-				// the mempackage.
-				continue
-			} else {
-				return fmt.Errorf("missing memfile %q", mfile)
-			}
-		}
-		err := WriteToMemFile(gofset, gof, mfile)
-		if err != nil {
-			return fmt.Errorf("writing to mempackage %q: %w",
-				mpkg.Path, err)
-		}
-	}
-	return nil
-}
-
-func WriteToMemFile(gofset *token.FileSet, gof *ast.File, mfile *std.MemFile) error {
-	var buf bytes.Buffer
-	err := gofmt.Node(&buf, gofset, gof)
-	if err != nil {
-		return fmt.Errorf("writing to memfile %q: %w",
-			mfile.Name, err)
-	}
-	mfile.Body = buf.String()
-	return nil
 }

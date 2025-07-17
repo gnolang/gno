@@ -1,19 +1,20 @@
 @font-face {
-  font-family: "Roboto";
-  font-style: normal;
-  font-weight: 900;
-  font-display: swap;
-  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
-    url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
+	font-family: "Roboto";
+	font-style: normal;
+	font-weight: 900;
+	font-display: swap;
+	src:
+		url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+		url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
 @font-face {
-  font-family: "Inter var";
-  font-weight: 100 900;
-  font-display: block;
-  font-variant: normal;
-  font-style: oblique 0deg 10deg;
-  src: url("./fonts/intervar/Intervar.woff2") format("woff2");
+	font-family: "Inter var";
+	font-weight: 100 900;
+	font-display: block;
+	font-variant: normal;
+	font-style: oblique 0deg 10deg;
+	src: url("./fonts/intervar/Intervar.woff2") format("woff2");
 }
 
 @tailwind base;
@@ -391,365 +392,369 @@
 }
 
 @layer components {
-  /* header */
-  .sidemenu .peer:checked + label > svg {
-    @apply text-green-600;
-  }
+	/* header */
+	.sidemenu .peer:checked + label > svg {
+		@apply text-green-600;
+	}
 
-  /* filter */
-  .filter-list :is(li, article) {
-    @apply hidden;
-  }
+	/* filter */
+	.filter-list :is(li, article) {
+		@apply hidden;
+	}
 
-  .filter-list:has(input[value="packages"]:checked) :is(li, article) {
-    @apply flex;
-  }
+	.filter-list:has(input[value="packages"]:checked) :is(li, article) {
+		@apply flex;
+	}
 
-  .filter-list:has(input[value="realms"]:checked)
-    :is(li[data-type="realm"], article[data-type="realm"]) {
-    @apply flex;
-  }
+	.filter-list:has(input[value="realms"]:checked)
+		:is(li[data-type="realm"], article[data-type="realm"]) {
+		@apply flex;
+	}
 
-  .filter-list:has(input[value="pures"]:checked)
-    :is(li[data-type="pure"], article[data-type="pure"]) {
-    @apply flex;
-  }
+	.filter-list:has(input[value="pures"]:checked)
+		:is(li[data-type="pure"], article[data-type="pure"]) {
+		@apply flex;
+	}
 
-  .filter-list label:has(input:checked) {
-    @apply text-gray-600;
-  }
+	.filter-list label:has(input:checked) {
+		@apply text-gray-600;
+	}
 
-  .filter-list label:has(input:checked)::after {
-    @apply absolute content-[''] -bottom-2 left-0 w-full h-1 bg-green-600 rounded-t-sm;
-  }
+	.filter-list label:has(input:checked)::after {
+		@apply absolute content-[''] -bottom-2 left-0 w-full h-1 bg-green-600 rounded-t-sm;
+	}
 
-  .range {
-    @apply grid grid-cols-1 gap-2;
-  }
+	.range {
+		@apply grid grid-cols-1 gap-2;
+	}
 
-  .range::before {
-    @apply hidden col-span-full text-200 font-bold text-gray-600 pt-2 pb-2 w-full text-center;
-  }
-  .range::after {
-    @apply hidden col-span-full text-100 pb-2 w-full text-center;
-    content: "Add a package to your namespace to get started";
-  }
+	.range::before {
+		@apply hidden col-span-full text-200 font-bold text-gray-600 pt-2 pb-2 w-full text-center;
+	}
+	.range::after {
+		@apply hidden col-span-full text-100 pb-2 w-full text-center;
+		content: "Add a package to your namespace to get started";
+	}
 
-  .range:empty::before {
-    @apply block;
-    content: "No packages found";
-  }
+	.range:empty::before {
+		@apply block;
+		content: "No packages found";
+	}
 
-  .range:empty::after {
-    @apply block;
-    content: "Add a package to your namespace to get started";
-  }
+	.range:empty::after {
+		@apply block;
+		content: "Add a package to your namespace to get started";
+	}
 
-  .filter-list:has(input[value="realms"]:checked)
-    .range:not(:has(> [data-type="realm"]))::before {
-    @apply block;
-    content: "No realms found";
-  }
+	.filter-list:has(input[value="realms"]:checked)
+		.range:not(:has(> [data-type="realm"]))::before {
+		@apply block;
+		content: "No realms found";
+	}
 
-  .filter-list:has(input[value="realms"]:checked)
-    .range:not(:has(> [data-type="realm"]))::after {
-    @apply block;
-    content: "Add a realm to your namespace to get started";
-  }
+	.filter-list:has(input[value="realms"]:checked)
+		.range:not(:has(> [data-type="realm"]))::after {
+		@apply block;
+		content: "Add a realm to your namespace to get started";
+	}
 
-  .filter-list:has(input[value="realms"]:checked)
-    .range:not(:has(> [data-type="realm"])),
-  .filter-list:has(input[value="pures"]:checked)
-    .range:not(:has(> [data-type="pure"])),
-  .range:empty {
-    @apply block;
-  }
+	.filter-list:has(input[value="realms"]:checked)
+		.range:not(:has(> [data-type="realm"])),
+	.filter-list:has(input[value="pures"]:checked)
+		.range:not(:has(> [data-type="pure"])),
+	.range:empty {
+		@apply block;
+	}
 
-  .filter-list:has(input[value="pures"]:checked)
-    .range:not(:has(> [data-type="pure"]))::before {
-    @apply block;
-    content: "No pures found";
-  }
+	.filter-list:has(input[value="pures"]:checked)
+		.range:not(:has(> [data-type="pure"]))::before {
+		@apply block;
+		content: "No pures found";
+	}
 
-  .filter-list:has(input[value="pures"]:checked)
-    .range:not(:has(> [data-type="pure"]))::after {
-    @apply block;
-    content: "Add a pure to your namespace to get started";
-  }
+	.filter-list:has(input[value="pures"]:checked)
+		.range:not(:has(> [data-type="pure"]))::after {
+		@apply block;
+		content: "Add a pure to your namespace to get started";
+	}
 
-  .filter-list:has(input[value="display-grid"]:checked) .range {
-    @apply md:grid-cols-2 xl:grid-cols-4 md:gap-3;
-  }
+	.filter-list:has(input[value="display-grid"]:checked) .range {
+		@apply md:grid-cols-2 xl:grid-cols-4 md:gap-3;
+	}
 
-  .filter-list:has(input[value="display-list"]:checked) .range .list-item {
-    @apply flex-row md:gap-4;
-  }
+	.list-item {
+		@apply flex flex-col gap-6 md:gap-2 p-1 rounded bg-gray-50;
+	}
 
-  .filter-list:has(input[value="display-list"]:checked)
-    .range
-    .list-item__content {
-    @apply flex-row gap-2 lg:flex-[5] flex-none min-w-0;
-  }
+	.list-item__content {
+		@apply flex flex-col bg-light rounded-sm h-full w-full p-2;
+	}
 
-  .filter-list:has(input[value="display-list"]:checked)
-    .range
-    .list-item__title {
-    @apply mb-0 w-1/3 overflow-hidden text-ellipsis whitespace-nowrap;
-  }
+	.list-item__title {
+		@apply flex gap-2 items-center overflow-hidden w-full mb-1;
+	}
 
-  .list-item {
-    @apply flex flex-col gap-6 md:gap-2 p-1 rounded bg-gray-50;
-  }
+	.list-item__description {
+		@apply w-full overflow-hidden text-ellipsis;
+	}
 
-  .list-item__content {
-    @apply flex flex-col bg-light rounded-sm h-full w-full p-2;
-  }
+	.list-item__footer {
+		@apply flex gap-1 w-full justify-between px-2 pb-1 text-50;
+	}
 
-  .list-item__title {
-    @apply flex gap-2 items-center overflow-hidden w-full mb-1;
-  }
-  .list-item__description {
-    @apply w-full overflow-hidden text-ellipsis;
-  }
+	.list-item__size {
+		@apply text-right;
+	}
 
-  .filter-list:has(input[value="display-grid"]:checked)
-    .list-item__description {
-    @apply line-clamp-2;
-  }
+	.list-item__date {
+		@apply whitespace-nowrap overflow-hidden text-ellipsis;
+	}
 
-  .filter-list:has(input[value="display-list"]:checked)
-    .list-item__description {
-    @apply whitespace-nowrap;
-  }
+	.filter-list:has(input[value="display-list"]:checked) .range .list-item {
+		@apply flex-row md:gap-4;
+	}
 
-  .list-item__footer {
-    @apply flex gap-1 w-full justify-between px-2 pb-1 text-50;
-  }
+	.filter-list:has(input[value="display-list"]:checked)
+		.range
+		.list-item__content {
+		@apply flex-row gap-2 lg:flex-[5] flex-none min-w-0;
+	}
 
-  .filter-list:has(input[value="display-list"]:checked)
-    .range
-    .list-item__footer {
-    @apply hidden lg:flex items-center pb-0 md:flex-[1] pl-0 min-w-0;
-  }
+	.filter-list:has(input[value="display-list"]:checked)
+		.range
+		.list-item__title {
+		@apply mb-0 w-1/3 overflow-hidden text-ellipsis whitespace-nowrap;
+	}
 
-  .list-item__size {
-    @apply text-right;
-  }
+	.filter-list:has(input[value="display-grid"]:checked)
+		.list-item__description {
+		@apply line-clamp-2;
+	}
 
-  .filter-list:has(input[value="display-list"]:checked) .list-item__size {
-    @apply hidden xl:block xl:flex-[2] min-w-0;
-  }
+	.filter-list:has(input[value="display-list"]:checked)
+		.list-item__description {
+		@apply whitespace-nowrap;
+	}
 
-  .list-item__date {
-    @apply whitespace-nowrap overflow-hidden text-ellipsis;
-  }
+	.filter-list:has(input[value="display-list"]:checked)
+		.range
+		.list-item__footer {
+		@apply hidden lg:flex items-center pb-0 md:flex-[1] pl-0 min-w-0;
+	}
 
-  .filter-list:has(input[value="display-list"]:checked) .list-item__date {
-    @apply xl:flex-[5] min-w-0;
-  }
+	.filter-list:has(input[value="display-list"]:checked) .list-item__size {
+		@apply hidden xl:block xl:flex-[2] min-w-0;
+	}
 
-  /* toc */
-  .toc-expend-btn:has(#toc-expend:checked) + nav {
-    @apply block;
-  }
-  .toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
-    @apply rotate-180;
-  }
+	.filter-list:has(input[value="display-list"]:checked) .list-item__date {
+		@apply xl:flex-[5] min-w-0;
+	}
 
-  /* sidebar */
-  .main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
-  .main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
-  .main-header:has(#sidemenu-docs:checked) + main #sidebar #sidebar-docs,
-  .main-header:has(#sidemenu-meta:checked) + main #sidebar #sidebar-meta {
-    @apply block;
-  }
+	/* toc */
+	.toc-expend-btn:has(#toc-expend:checked) + nav {
+		@apply block;
+	}
+	.toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
+		@apply rotate-180;
+	}
 
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    .realm-view,
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    .main-navigation {
-    @apply md:col-span-6;
-  }
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    #sidebar,
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    .sidemenu {
-    @apply md:col-span-4;
-  }
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    #sidebar::before {
-    @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
-  }
+	/* sidebar */
+	.dev-mode .toc-expend-btn {
+		@apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
+	}
 
-  /* Tooltip */
-  .tooltip {
-    --tooltip-left: 0;
-    --tooltip-right: initial;
-    @apply relative inline;
-  }
+	.dev-mode #sidebar-summary {
+		@apply bg-light lg:bg-transparent;
+	}
 
-  .tooltip::after {
-    content: attr(data-tooltip);
-    left: var(--tooltip-left);
-    right: var(--tooltip-right);
-    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
-  }
+	.dev-mode .toc-nav {
+		@apply font-mono;
+	}
 
-  .tooltip:hover::after {
-    @apply visible opacity-100 delay-300 scale-100;
-  }
+	.main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
+	.main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
+	.main-header:has(#sidemenu-docs:checked) + main #sidebar #sidebar-docs,
+	.main-header:has(#sidemenu-meta:checked) + main #sidebar #sidebar-meta {
+		@apply block;
+	}
 
-  /* chroma */
-  main :is(.source-code) > pre {
-    @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
-  }
-  main .realm-view > pre a {
-    @apply hover:no-underline;
-  }
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		+ main
+		.realm-view,
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		.main-navigation {
+		@apply md:col-span-6;
+	}
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		+ main
+		#sidebar,
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		.sidemenu {
+		@apply md:col-span-4;
+	}
+	:is(
+			.main-header:has(#sidemenu-source:checked),
+			.main-header:has(#sidemenu-docs:checked),
+			.main-header:has(#sidemenu-meta:checked)
+		)
+		+ main
+		#sidebar::before {
+		@apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+	}
 
-  main :is(.realm-view, .source-code) > pre .chroma-ln:target {
-    @apply !bg-transparent;
-  }
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-lnlinks:hover),
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-ln:target)
-    .chroma-cl,
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-lnlinks:hover)
-    .chroma-cl {
-    @apply !bg-gray-100 rounded;
-  }
-  main :is(.realm-view, .source-code) > pre .chroma-ln {
-    @apply scroll-mt-24;
-  }
+	/* Tooltip */
+	.tooltip {
+		--tooltip-left: 0;
+		--tooltip-right: initial;
+		@apply relative inline;
+	}
 
-  .dev-mode .toc-expend-btn {
-    @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
-  }
-  .dev-mode #sidebar-summary {
-    @apply bg-light lg:bg-transparent;
-  }
-  .dev-mode .toc-nav {
-    @apply font-mono;
-  }
+	.tooltip::after {
+		content: attr(data-tooltip);
+		left: var(--tooltip-left);
+		right: var(--tooltip-right);
+		@apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
+	}
+
+	.tooltip:hover::after {
+		@apply visible opacity-100 delay-300 scale-100;
+	}
+
+	/* chroma */
+	main :is(.source-code) > pre {
+		@apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+	}
+	main .realm-view > pre a {
+		@apply hover:no-underline;
+	}
+
+	main :is(.realm-view, .source-code) > pre .chroma-ln:target {
+		@apply !bg-transparent;
+	}
+	main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
+	main
+		:is(.realm-view, .source-code)
+		> pre
+		.chroma-line:has(.chroma-lnlinks:hover),
+	main
+		:is(.realm-view, .source-code)
+		> pre
+		.chroma-line:has(.chroma-ln:target)
+		.chroma-cl,
+	main
+		:is(.realm-view, .source-code)
+		> pre
+		.chroma-line:has(.chroma-lnlinks:hover)
+		.chroma-cl {
+		@apply !bg-gray-100 rounded;
+	}
+	main :is(.realm-view, .source-code) > pre .chroma-ln {
+		@apply scroll-mt-24;
+	}
 }
 
 @layer utilities {
-  .italic-subtle {
-    font-style: oblique 14deg;
-  }
+	.italic-subtle {
+		font-style: oblique 14deg;
+	}
 
-  .word-break {
-    overflow-wrap: break-word;
-    word-break: break-word;
-  }
+	.word-break {
+		overflow-wrap: break-word;
+		word-break: break-word;
+	}
 
-  .quotes {
-    @apply italic-subtle text-gray-600 border-l-4 border-l-gray-300 pl-4 my-6 [quotes:"""_""""_"''_"''"];
-  }
+	.quotes {
+		@apply italic-subtle text-gray-600 border-l-4 border-l-gray-300 pl-4 my-6 [quotes:"""_""""_"''_"''"];
+	}
 
-  .quotes::before,
-  .quotes::after {
-    @apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem];
-  }
+	.quotes::before,
+	.quotes::after {
+		@apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem];
+	}
 
-  .quotes::after {
-    @apply [content:close-quote];
-  }
+	.quotes::after {
+		@apply [content:close-quote];
+	}
 
-  .text-stroke {
-    -webkit-text-stroke: currentColor;
-    -webkit-text-stroke-width: 0.6px;
-  }
+	.text-stroke {
+		-webkit-text-stroke: currentColor;
+		-webkit-text-stroke-width: 0.6px;
+	}
 
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+	.no-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
 
-  .is-loading {
-    @apply opacity-0;
-  }
+	.is-loading {
+		@apply opacity-0;
+	}
 
-  .link-external {
-    @apply text-[.7em];
-  }
-  .link-internal {
-    @apply font-[400] text-[.8em];
-  }
-  .link-tx {
-    @apply text-[.8em];
-  }
+	.link-external {
+		@apply text-[.7em];
+	}
+	.link-internal {
+		@apply font-[400] text-[.8em];
+	}
+	.link-tx {
+		@apply text-[.8em];
+	}
 
-  .tooltip {
-    @apply inline align-text-top;
-  }
+	.tooltip {
+		@apply inline align-text-top;
+	}
 
-  /* link with image only shoud display the link badge on the image */
-  .realm-view
-    a:has(> img:first-child):has(.tooltip:last-child):not(:has(> :nth-child(3)))
-    > .tooltip,
-  .realm-view
-    a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
-      :has(> :nth-child(4))
-    )
-    > .tooltip {
-    @apply absolute bottom-2 left-2 bg-light px-1 rounded-full ml-0;
-  }
-  .realm-view
-    a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
-      :has(> :nth-child(4))
-    )
-    > .tooltip:first-of-type {
-    @apply absolute bottom-1 left-6;
-  }
+	/* link with image only shoud display the link badge on the image */
+	.realm-view a:has(> img:first-child):has(.tooltip:last-child):not(
+			:has(> :nth-child(3))
+		)
+		> .tooltip,
+	.realm-view
+		a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
+			:has(> :nth-child(4))
+		)
+		> .tooltip {
+		@apply absolute bottom-2 left-2 bg-light px-1 rounded-full ml-0;
+	}
+	.realm-view
+		a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
+			:has(> :nth-child(4))
+		)
+		> .tooltip:first-of-type {
+		@apply absolute bottom-1 left-6;
+	}
 
-  .realm-view a > span:first-of-type {
-    @apply ml-0.5;
-  }
+	.realm-view a > span:first-of-type {
+		@apply ml-0.5;
+	}
 
-  .field-content {
-    field-sizing: content;
-  }
+	.field-content {
+		field-sizing: content;
+	}
 }
 
 /* supports rules */
 @supports not (field-sizing: content) {
-  .focus-no-field-sizing\:w-20:focus {
-    width: 5rem !important;
-  }
+	.focus-no-field-sizing\:w-20:focus {
+		width: 5rem !important;
+	}
 }
