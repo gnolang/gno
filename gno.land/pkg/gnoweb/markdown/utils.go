@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"io"
+	"strings"
 
 	"html/template"
 
@@ -38,6 +39,7 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 	}
 }
 
+// ExtractAttr extracts an attribute from a slice of html.Attribute
 func ExtractAttr(attrs []html.Attribute, key string) (val string, ok bool) {
 	for _, attr := range attrs {
 		if key == attr.Key {
@@ -46,4 +48,19 @@ func ExtractAttr(attrs []html.Attribute, key string) (val string, ok bool) {
 	}
 
 	return "", false
+}
+
+// extractOptions extracts and validates options from the second part of split content
+func (p *buttonParser) ExtractOptions(parts []string) []string {
+	if len(parts) != 2 {
+		return []string{}
+	}
+
+	options := []string{}
+	for _, opt := range strings.Fields(parts[1]) {
+		if allowedButtonOptions[opt] {
+			options = append(options, opt)
+		}
+	}
+	return options
 }

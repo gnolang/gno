@@ -567,10 +567,10 @@ Buttons are created using the ±{text}(url)± syntax.
 {Click me}(https://example.com)
 
 ±±±markdown
-<gno-button href="https://example.com">Click me</gno-button>
+<gno-button href="https://example.com" content="Click me" />
 ±±±
 
-<gno-button href="https://example.com">Click me</gno-button>
+<gno-button href="https://example.com" content="Click me"/>
 
 #### Button variants
 
@@ -593,20 +593,20 @@ You can use variants with the syntax ±{text | options}(url)± (note the spaces 
 {Note | note}(https://example.com)
 
 ±±±markdown
-<gno-button href="https://example.com">Default</gno-button>
-<gno-button href="https://example.com" variant="outline">Outline</gno-button>
-<gno-button href="https://example.com" variant="caution">Caution</gno-button>
-<gno-button href="https://example.com" variant="warning">Warning</gno-button>
-<gno-button href="https://example.com" variant="info">Info</gno-button>
-<gno-button href="https://example.com" variant="note">Note</gno-button>
+<gno-button href="https://example.com" content="Default" />
+<gno-button href="https://example.com" content="Outline" variant="outline" />
+<gno-button href="https://example.com" content="Caution" variant="caution" />
+<gno-button href="https://example.com" content="Warning" variant="warning" />
+<gno-button href="https://example.com" content="Info" variant="info" />
+<gno-button href="https://example.com" content="Note" variant="note" />
 ±±±
 
-<gno-button href="https://example.com">Default</gno-button>
-<gno-button href="https://example.com" variant="outline">Outline</gno-button>
-<gno-button href="https://example.com" variant="caution">Caution</gno-button>
-<gno-button href="https://example.com" variant="warning">Warning</gno-button>
-<gno-button href="https://example.com" variant="info">Info</gno-button>
-<gno-button href="https://example.com" variant="note">Note</gno-button>
+<gno-button href="https://example.com" content="Default"/>
+<gno-button href="https://example.com" content="Outline" variant="outline" />
+<gno-button href="https://example.com" content="Caution" variant="caution" />
+<gno-button href="https://example.com" content="Warning" variant="warning" />
+<gno-button href="https://example.com" content="Info" variant="info" />
+<gno-button href="https://example.com" content="Note" variant="note" />
 
 #### Multiple options
 
@@ -614,11 +614,11 @@ You can combine several options:
 
 ±±±markdown
 {Delete | caution outline}(https://example.com)
-<gno-button href="https://example.com" variant="info outline">Info Outline</gno-button>
+<gno-button href="https://example.com" content="Info Outline" variant="info outline"/>
 ±±±
 
 {Delete | caution outline}(https://example.com)
-<gno-button href="https://example.com" variant="info outline">Caution Outline</gno-button>
+<gno-button href="https://example.com" content="Caution Outline" variant="info outline" />
 
 ---
 

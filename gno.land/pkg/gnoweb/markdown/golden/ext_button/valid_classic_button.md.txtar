@@ -1,0 +1,9 @@
+-- input.md --
+
+My text and a button here {my button}(https://example.com)
+
+ici <gno-button href="https://example.com" content="like this" />
+
+-- output.html --
+<p>My text and a button here <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">my button<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p>ici <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">like this<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>

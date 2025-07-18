@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/net/html"
+
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -39,7 +41,7 @@ func (p *buttonParser) Trigger() []byte {
 	return []byte{'{', '<'}
 }
 
-// Parse parses button syntax: {text}(url), {text|options}(url) and <gno-button href="url">text</gno-button>
+// Parse parses button syntax: {text}(url), {text|options}(url) and <gno-button href="url" content="..."/>
 func (p *buttonParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	line, seg := block.PeekLine()
 	if len(line) == 0 {
@@ -51,9 +53,10 @@ func (p *buttonParser) Parse(parent ast.Node, block text.Reader, pc parser.Conte
 		return p.parseCurlyButton(line, seg, block)
 	}
 
-	// Parse <gno-button href="url">text</gno-button> syntax
-	if bytes.HasPrefix(line, []byte("<gno-button")) {
-		return p.parseGnoButton(line, seg, block)
+	// Parse <gno-button href="url" content="..."/> syntax
+	trimmedLine := bytes.TrimSpace(line)
+	if bytes.HasPrefix(trimmedLine, []byte("<gno-button")) {
+		return p.parseGnoButton(trimmedLine, seg, block)
 	}
 
 	return nil
@@ -80,7 +83,7 @@ func (p *buttonParser) parseCurlyButton(line []byte, seg text.Segment, block tex
 	// Split content and extract label/options
 	parts := pipeRegex.Split(content, 2)
 	label := strings.TrimSpace(parts[0])
-	options := p.extractOptions(parts)
+	options := p.ExtractOptions(parts)
 
 	// Create link and text node
 	link := p.createButtonLink(url, options)
@@ -96,70 +99,51 @@ func (p *buttonParser) parseCurlyButton(line []byte, seg text.Segment, block tex
 	return link
 }
 
-// parseGnoButton parses <gno-button href="url" variant="...">text</gno-button> syntax
+// parseGnoButton parses <gno-button href="url" content="..." variant="..."/> syntax
 func (p *buttonParser) parseGnoButton(line []byte, seg text.Segment, block text.Reader) ast.Node {
-	// Extract URL from href attribute
-	hrefIndex := bytes.Index(line, []byte("href=\""))
-	if hrefIndex == -1 {
-		return nil
-	}
-	urlStart := hrefIndex + 6 // len('href="')
-	urlEnd := bytes.Index(line[urlStart:], []byte("\""))
-	if urlEnd == -1 {
-		return nil
-	}
-	url := string(line[urlStart : urlStart+urlEnd])
+    toks, err := ParseHTMLTokens(bytes.NewReader(line))
+    if err != nil || len(toks) != 1 {
+        return nil
+    }
+    tok := toks[0]
 
-	// Extract variant attribute if present
-	options := []string{}
-	variantIndex := bytes.Index(line, []byte("variant=\""))
-	if variantIndex != -1 {
-		variantStart := variantIndex + 9 // len('variant="')
-		variantEnd := bytes.Index(line[variantStart:], []byte("\""))
-		if variantEnd != -1 {
-			variantValue := string(line[variantStart : variantStart+variantEnd])
-			for _, opt := range strings.Fields(variantValue) {
-				if allowedButtonOptions[opt] {
-					options = append(options, opt)
-				}
-			}
-		}
-	}
+    // We only want self-closing tags <gno-button … />
+    if tok.Type != html.SelfClosingTagToken || tok.Data != "gno-button" {
+        return nil
+    }
 
-	// Find text boundaries
-	textStart := bytes.Index(line, []byte(">"))
-	closeIndex := bytes.Index(line, []byte("</gno-button>"))
-	if textStart == -1 || closeIndex == -1 {
-		return nil
-	}
+    // Extract the href attribute and content (mandatory attributes)
+    href, ok := ExtractAttr(tok.Attr, "href")
+    if !ok {
+        return nil
+    }
+    label, ok := ExtractAttr(tok.Attr, "content")
+    if !ok {
+        return nil
+    }
+    variantStr, _ := ExtractAttr(tok.Attr, "variant")
 
-	// Create link and text node
-	link := p.createButtonLink(url, options)
-	textNode := ast.NewText()
-	textNode.Segment = text.Segment{
-		Start: seg.Start + textStart + 1,
-		Stop:  seg.Start + closeIndex,
-	}
-	link.AppendChild(link, textNode)
+    // Validate the variants
+    options := []string{}
+    for _, opt := range strings.Fields(variantStr) {
+        if allowedButtonOptions[opt] {
+            options = append(options, opt)
+        }
+    }
 
-	// Advance the reader
-	block.Advance(closeIndex + len([]byte("</gno-button>")))
-	return link
-}
+    // Create the button link
+    link := p.createButtonLink(href, options)
 
-// extractOptions extracts and validates options from the second part of split content
-func (p *buttonParser) extractOptions(parts []string) []string {
-	if len(parts) != 2 {
-		return []string{}
-	}
+    // Create and add the text node with the button label
+    textNode := ast.NewText()
+    idx := max(0, bytes.Index(line, []byte(label)))
+    startOffset := seg.Start + idx
+    textNode.Segment = text.Segment{Start: startOffset, Stop: startOffset + len(label)}
+    link.AppendChild(link, textNode)
 
-	options := []string{}
-	for _, opt := range strings.Fields(parts[1]) {
-		if allowedButtonOptions[opt] {
-			options = append(options, opt)
-		}
-	}
-	return options
+    // Advance the reader
+    block.Advance(len(line))
+    return link
 }
 
 // createButtonLink creates a link node with gno-button class and optional variants
@@ -176,7 +160,6 @@ func (p *buttonParser) createButtonLink(url string, options []string) *ast.Link 
 	return link
 }
 
-// buttonExtension is the extension that adds button support
 type buttonExtension struct{}
 
 var _ goldmark.Extender = (*buttonExtension)(nil)
@@ -184,7 +167,7 @@ var _ goldmark.Extender = (*buttonExtension)(nil)
 // Extend registers the button parsers
 func (e *buttonExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
-		parser.WithInlineParsers(util.Prioritized(NewButtonParser(), 300)),
+		parser.WithInlineParsers(util.Prioritized(NewButtonParser(), 200)),
 	)
 }
 
