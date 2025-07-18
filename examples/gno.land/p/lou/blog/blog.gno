@@ -25,10 +25,10 @@ type Blog struct {
 	AuthorsIndex     *avl.Tree // authorAddress --> int
 	AuthorsSorted    *avl.Tree // "<count>::author" --> author (To sort from most/least common authors)
 
-	CustomHeader    *[]HeaderPreset
+	CustomHeader    *[]HeaderPreset // header.gno
 	DisableLikes    bool
 	DisableComments bool
-	UserResolver    UserResolver
+	UserResolver    UserResolver // moderation.gno
 }
 
 func (b Blog) Title() string {

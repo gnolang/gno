@@ -7,11 +7,13 @@ import (
 	"gno.land/p/moul/md"
 )
 
+// HeaderLink applies to a function that transform the rawPath to make the suggested query changes (when header is interacted with)
+// will typically returns a md.Link as string
 type HeaderLink func(rawPath string) string
 
 type HeaderPreset struct {
-	Label   string
-	Default string
+	Label   string // title of header (can be your query value, etc...)
+	Default string // default value, if none just ""
 	Render  HeaderLink
 }
 
@@ -80,7 +82,7 @@ func RenderSortCommon(rawPath string) string {
 		GetSortByCommonPath(rawPath, order))
 }
 
-func SetCustomHeader(rawPath string, presets []HeaderPreset) string {
+func RenderHeader(rawPath string, presets []HeaderPreset) string {
 	out := ""
 	for i, preset := range presets {
 		if preset.Render != nil {
@@ -95,10 +97,11 @@ func SetCustomHeader(rawPath string, presets []HeaderPreset) string {
 	return out
 }
 
+// TimeRangePreset struct is used for any customisation of the time range feature
 type TimeRangePreset struct {
-	Label string
-	Start string
-	End   string
+	Label string // title of time range
+	Start string // start time in form of string (check compatibility through `tryParseFlexibleDate`)
+	End   string // end time ^^
 }
 
 var DefaultTimeRanges = []TimeRangePreset{
