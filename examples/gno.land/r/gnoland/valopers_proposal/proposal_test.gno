@@ -4,7 +4,6 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 	"gno.land/r/gnoland/valopers"
@@ -12,7 +11,7 @@ import (
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
-var g1user = testutils.TestAddress("g1user")
+var g1user = std.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
 
 func init() {
 	daoinit.InitWithUsers(g1user)
