@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/test
-package test
+package avl
 
 import (
 	"gno.land/p/demo/avl"
