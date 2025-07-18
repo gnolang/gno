@@ -1,4 +1,4 @@
-package uassert_test
+package uassert
 
 import (
 	"errors"
