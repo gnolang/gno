@@ -37,7 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const nodeMaxLifespan = time.Second * 30
+const nodeMaxLifespan = time.Second * 120
 
 var defaultUserBalance = std.Coins{std.NewCoin(ugnot.Denom, 10e8)}
 
