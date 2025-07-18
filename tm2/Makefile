@@ -1,7 +1,8 @@
+include ../misc/makehelp/makeHelpMsgs.mk
+
 .PHONY: help
-help:
-	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
+help: # Print this help message
+	@$(call RUN_MAKEFILE_HELP,..,)
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
@@ -29,22 +30,22 @@ _build.logjack:;    go build -o build/logjack    ./pkg/autofile/cmd
 _build.iaviewer:;   go build -o build/iaviewer   ./pkg/iavl/cmd/iaviewer
 
 .PHONY: clean
-clean:
+clean: # Remove the ./build directory and its contents
 	rm -rf ./build/
 
 .PHONY: fmt
-fmt:
+fmt: # Format all Go files in this directory using gofumpt and goimports
 	go fmt ./...
 	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
 .PHONY: lint
-lint:
+lint: # Run golangci-lint with shared config on all packages
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 ########################################
 # Test suite
 .PHONY: test
-test: _test.pkg.amino _test.pkg.bft _test.pkg.db _test.pkg.others _test.flappy
+test: _test.pkg.amino _test.pkg.bft _test.pkg.db _test.pkg.others _test.flappy # Run all test subtargets (amino, bft, db, others, flappy)
 
 _test.flappy:
 	# flappy tests should work "sometimes" (at least once).
@@ -58,6 +59,6 @@ _test.pkg.bft:;     go test $(GOTEST_FLAGS) ./pkg/bft/...
 _test.pkg.db:;      go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/...
 
 .PHONY: generate
-generate:
+generate: # Run Go generate with verbose output, then format generated code
 	go generate -x ./...
 	$(MAKE) fmt
