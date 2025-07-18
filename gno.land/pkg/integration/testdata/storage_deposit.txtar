@@ -1,0 +1,102 @@
+# test the storage deposit
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -broadcast -chainid=tendermint_test test1
+stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"502500ugnot\"},{\"key\":\"Storage\",\"value\":\"5025 bytes\"}\],\"pkg_path\":\"gno.land/r/foo\"}\]'
+
+gnokey query vm/qstorage --data gno.land/r/foo
+
+stdout 'storage: 5025, deposit: 502500'
+
+## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
+gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"200ugnot\"},{\"key\":\"ReleaseStorage\",\"value\":\"2 bytes\"}\],\"pkg_path\":\"gno.land/r/foo\"}\]'
+
+gnokey query vm/qstorage --data gno.land/r/foo
+stdout 'storage: 5023, deposit: 502300'
+
+
+## restart server
+gnoland restart
+
+## remove an object
+
+ gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+ stdout OK!
+ stdout 'EVENTS:     \[{\"type\":\"UnlockDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"2700ugnot\"},{\"key\":\"ReleaseStorage\",\"value\":\"27 bytes\"}\],\"pkg_path\":\"gno.land/r/foo\"}\]'
+
+ gnokey query vm/qstorage --data gno.land/r/foo
+ stdout 'storage: 4996, deposit: 499600'
+
+
+ gnokey query auth/accounts/$test1_user_addr
+ stdout '"coins": "9999996500400ugnot"'
+
+## test storage deposit for package gno.land/p/foo
+gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 302900ugnot -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'EVENTS:     \[{\"type\":\"StorageDeposit\",\"attrs\":\[{\"key\":\"Deposit\",\"value\":\"302900ugnot\"},{\"key\":\"Storage\",\"value\":\"3029 bytes\"}\],\"pkg_path\":\"gno.land/p/foo\"}\]'
+
+gnokey query vm/qstorage --data gno.land/p/foo
+stdout 'storage: 3029, deposit: 302900'
+
+-- realm/gnomod.toml --
+module = "gno.land/r/foo"
+
+gno = "0.9"
+
+-- realm/storage.gno --
+package foo
+
+var record Foo
+
+func init(){
+	NewFoo(cross,"hello")
+}
+
+type Foo struct{
+  name string
+}
+
+func NewFoo(cur realm, name string){
+
+  record = Foo{name}
+}
+func SetName(cur realm, n string){
+
+  record.name = n
+}
+
+func GetName()string {
+  return record.name
+}
+
+func Clear(cur realm){
+  record = Foo{}
+}
+
+
+-- package/gnomod.toml --
+module = "gno.land/p/foo"
+
+gno = "0.9"
+
+-- package/storage.gno --
+package foo
+
+type Foo struct{
+  name string
+}
+
+var record Foo
+
+func init(){
+	NewFoo("hello")
+}
+
+func NewFoo(name string){
+  record = Foo{name}
+}

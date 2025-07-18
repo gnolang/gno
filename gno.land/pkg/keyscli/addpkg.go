@@ -16,11 +16,11 @@ import (
 )
 
 type MakeAddPkgCfg struct {
-	RootCfg *client.MakeTxCfg
-
-	PkgPath string
-	PkgDir  string
-	Deposit string
+	RootCfg    *client.MakeTxCfg
+	PkgPath    string
+	PkgDir     string
+	Send       string
+	MaxDeposit string
 }
 
 func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
@@ -57,10 +57,17 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.Deposit,
-		"deposit",
+		&c.Send,
+		"send",
 		"",
-		"deposit coins",
+		"send amount",
+	)
+
+	fs.StringVar(
+		&c.MaxDeposit,
+		"max-deposit",
+		"",
+		"max storage deposit",
 	)
 }
 
@@ -94,15 +101,19 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 	creator := info.GetAddress()
 	// info.GetPubKey()
-
+	// Parse send amount.
+	send, err := std.ParseCoins(cfg.Send)
+	if err != nil {
+		return errors.Wrap(err, "parsing send coins")
+	}
 	// parse deposit.
-	deposit, err := std.ParseCoins(cfg.Deposit)
+	deposit, err := std.ParseCoins(cfg.MaxDeposit)
 	if err != nil {
 		panic(err)
 	}
 
 	// open files in directory as MemPackage.
-	memPkg := gno.MustReadMemPackage(cfg.PkgDir, cfg.PkgPath)
+	memPkg := gno.MustReadMemPackage(cfg.PkgDir, cfg.PkgPath, gno.MPUserAll)
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
@@ -115,9 +126,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 	// construct msg & tx and marshal.
 	msg := vm.MsgAddPackage{
-		Creator: creator,
-		Package: memPkg,
-		Deposit: deposit,
+		Creator:    creator,
+		Package:    memPkg,
+		Send:       send,
+		MaxDeposit: deposit,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

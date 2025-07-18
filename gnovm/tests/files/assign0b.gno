@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gnolang/gno/_test/net/http"
+	"filetests/extern/net/http"
 )
 
 func main() {
@@ -15,4 +15,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(github.com/gnolang/gno/_test/net/http) package{})).DefaultClient.Timeout
+// cannot directly modify readonly tainted object (w/o method): (const (ref(filetests/extern/net/http) package{})).DefaultClient.Timeout
