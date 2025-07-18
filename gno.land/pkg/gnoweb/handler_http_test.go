@@ -906,22 +906,22 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 
 			// Create a custom mock client that returns package documentation
 			mockClient := &packageDocTestClient{
-				MockWebClient: *gnoweb.NewMockWebClient(mockPackage),
-				packageDoc:    tc.packageDoc,
+				MockClient: *gnoweb.NewMockClient(mockPackage),
+				packageDoc: tc.packageDoc,
 			}
 
 			// Create config with the mock client
-			config := &gnoweb.WebHandlerConfig{
-				WebClient: mockClient,
-				MarkdownRenderer: gnoweb.NewMarkdownRenderer(
+			config := &gnoweb.HTTPHandlerConfig{
+				ClientAdapter: mockClient,
+				Renderer: gnoweb.NewHTMLRenderer(
 					log.NewTestingLogger(t),
-					gnoweb.NewDefaultMarkdownRendererConfig(nil),
+					gnoweb.NewDefaultRenderConfig(),
 				),
 				Aliases: map[string]gnoweb.AliasTarget{},
 			}
 
 			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-			handler, err := gnoweb.NewWebHandler(logger, config)
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
 			require.NoError(t, err)
 
 			req, err := http.NewRequest(http.MethodGet, "/r/test_package_doc$help", nil)
@@ -938,13 +938,13 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 
 // packageDocTestClient is a mock client that returns custom package documentation
 type packageDocTestClient struct {
-	gnoweb.MockWebClient
+	gnoweb.MockClient
 	packageDoc string
 }
 
 func (c *packageDocTestClient) Doc(path string) (*doc.JSONDocumentation, error) {
 	// Get the base documentation from the mock
-	baseDoc, err := c.MockWebClient.Doc(path)
+	baseDoc, err := c.MockClient.Doc(path)
 	if err != nil {
 		return nil, err
 	}

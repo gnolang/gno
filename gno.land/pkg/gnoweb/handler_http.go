@@ -456,7 +456,7 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 		var buf bytes.Buffer
 		// Unescape the markdown text to handle escaped backticks
 		unescapedDoc := markdown.UnescapeMarkdown(jdoc.PackageDoc)
-		if _, err := h.MarkdownRenderer.Render(&buf, gnourl, []byte(unescapedDoc)); err != nil {
+		if _, err := h.Renderer.RenderRealm(&buf, gnourl, []byte(unescapedDoc)); err != nil {
 			h.Logger.Warn("unable to render package doc markdown", "error", err)
 			packageDocHTML = jdoc.PackageDoc // fallback to raw markdown
 		} else {
@@ -470,7 +470,7 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 			var buf bytes.Buffer
 			// Unescape the markdown text to handle escaped backticks
 			unescapedDoc := markdown.UnescapeMarkdown(fn.Doc)
-			if _, err := h.MarkdownRenderer.Render(&buf, gnourl, []byte(unescapedDoc)); err != nil {
+			if _, err := h.Renderer.RenderRealm(&buf, gnourl, []byte(unescapedDoc)); err != nil {
 				h.Logger.Warn("unable to render function doc markdown", "function", fn.Name, "error", err)
 				// Keep the original markdown if rendering fails
 			} else {
