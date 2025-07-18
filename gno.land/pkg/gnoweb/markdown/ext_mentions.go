@@ -56,6 +56,52 @@ func isValidEmailBoundary(text []byte, start int) bool {
 		(prev >= '0' && prev <= '9') || prev == '_' || prev == '-' || prev == '.')
 }
 
+// findG1Address finds a valid g1 address in the given text starting at the specified position
+func getG1Address(text []byte, startPos int) (string, int, bool) {
+	if len(text) < startPos+2 || text[startPos] != 'g' || text[startPos+1] != '1' {
+		return "", 0, false
+	}
+	
+	if m := gnoPattern.FindIndex(text[startPos:]); m != nil && m[0] == 0 {
+		addr := string(text[startPos : startPos+m[1]])
+		if isValidWordBoundary(text, startPos, startPos+m[1]) && IsValidBech32Address(addr) {
+			return addr, m[1], true
+		}
+	}
+	
+	return "", 0, false
+}
+
+// tryFindG1Address tries to find a g1 address at the given position and creates a link if found
+func findG1Address(line []byte, segStart int, linePos int, seg text.Segment, parent ast.Node, block text.Reader) ast.Node {
+	if foundAddr, length, found := getG1Address(line, linePos); found {
+		start := segStart
+		stop := start + length
+		advance := length
+		var spaceNode ast.Node
+		
+		if linePos > 0 {
+			// This is a space-prefixed address
+			spaceNode = ast.NewTextSegment(text.NewSegment(seg.Start, seg.Start+1))
+			start = segStart + 1
+			advance = length + 1
+		}
+		
+		// Create the link
+		linkNode := createMentionLink(start, stop, "/u/"+foundAddr, nil)
+		
+		block.Advance(advance)
+		
+		if spaceNode != nil {
+			parent.AppendChild(parent, spaceNode)
+		}
+		
+		return linkNode
+	}
+	
+	return nil
+}
+
 // createMentionLink creates a link node for mentions and addresses
 func createMentionLink(start, stop int, destination string, block text.Reader) ast.Node {
 	link := ast.NewLink()
@@ -80,7 +126,7 @@ type mentionParser struct{}
 
 // Trigger returns the bytes that trigger this parser
 func (p *mentionParser) Trigger() []byte {
-	return []byte{'@', ' '}
+	return []byte{'@', ' ', 'g'}
 }
 
 // Parse parses both @ mentions and g1 addresses
@@ -93,25 +139,24 @@ func (p *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Cont
 		return nil
 	}
 
-	// Handle g1 addresses preceded by a space
-	if line[0] == ' ' && len(line) > 2 && line[1] == 'g' && line[2] == '1' {
-		sub := line[1:]
-		if m := gnoPattern.FindIndex(sub); m != nil && m[0] == 0 {
-			addr := string(sub[:m[1]])
-			if isValidWordBoundary(sub, m[0], m[1]) && IsValidBech32Address(addr) {
-				// To keep the space before the link
-				spaceNode := ast.NewTextSegment(text.NewSegment(seg.Start, seg.Start+1))
-
-				start := seg.Start + 1
-				stop := start + m[1]
-
-				linkNode := createMentionLink(start, stop, "/u/"+addr, nil)
-
-				block.Advance(m[1] + 1)
-
-				parent.AppendChild(parent, spaceNode)
+	// Handle g1 addresses
+	// Check for g1 address (at start of line)
+	if len(line) > 1 && line[0] == 'g' && line[1] == '1' {
+		// Check if this is at the start of the line
+		source := block.Source()
+		isStartOfLine := seg.Start == 0 || source[seg.Start-1] == '\n'
+		
+		if isStartOfLine {
+			if linkNode := findG1Address(line, seg.Start, 0, seg, parent, block); linkNode != nil {
 				return linkNode
 			}
+		}
+	}
+	
+	// Check for g1 address (preceded by space)
+	if len(line) > 2 && line[0] == ' ' && line[1] == 'g' && line[2] == '1' {
+		if linkNode := findG1Address(line, seg.Start, 1, seg, parent, block); linkNode != nil {
+			return linkNode
 		}
 	}
 
