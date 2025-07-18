@@ -7,6 +7,9 @@
 // - Supports basic Markdown syntax such as bold, italic, strikethrough, headers, and lists.
 // - Manages multiline support in lists (e.g., bullet, ordered, and todo lists).
 // - Includes advanced helpers like inline images with links and nested list prefixes.
+//
+// For a comprehensive example of how to use these helpers, see:
+// https://gno.land/r/docs/moul_md
 package md
 
 import (
