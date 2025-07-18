@@ -282,6 +282,9 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	oid := ObjectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		pv := oo.(*PackageValue)
+		if pv.fBlocksMap == nil {
+			pv.deriveFBlocksMap(ds)
+		}
 		return pv
 	}
 	// else, load package.
