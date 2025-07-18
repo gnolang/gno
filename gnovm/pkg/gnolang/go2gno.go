@@ -102,8 +102,8 @@ func ParseStmts(code string) (stmts []Stmt, err error) {
 	// Go only parses exprs and files,
 	// so wrap in a func body.
 	fset := token.NewFileSet()
-	code = fmt.Sprintf("func(){%s}", code)
-	x, err := parser.ParseExprFrom(fset, "<repl>", code, parser.SkipObjectResolution)
+	code = fmt.Sprintf("func(){%s}\n", code)
+	x, err := parser.ParseExprFrom(fset, "repl.gno", code, parser.SkipObjectResolution)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +121,7 @@ func ParseStmts(code string) (stmts []Stmt, err error) {
 			return
 		}
 	}()
+
 	// parse with Go2Gno.
 	for _, gostmt := range gostmts {
 		var stmt Stmt
@@ -150,7 +151,7 @@ func MustParseStmts(code string) []Stmt {
 func ParseDecls(code string) (decls []Decl, err error) {
 	// Go only parses exprs and files,
 	// so wrap in a func body.
-	code = fmt.Sprintf("package repl\n%s", code)
+	code = fmt.Sprintf("package repl\n%s\n", code)
 	fn, err := ParseFile("repl.gno", code)
 	if err != nil {
 		return nil, err
