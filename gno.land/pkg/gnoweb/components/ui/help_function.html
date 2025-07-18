@@ -6,7 +6,7 @@
       <h2 class="text-400 text-gray-800 font-bold mb-1" id="overview">
         Overview
       </h2>
-      <p class="text-200">{{ . }}</p>
+      <div class="text-200">{{ noescape_string . }}</div>
     </div>
   {{ end }}
 
@@ -51,7 +51,7 @@
       </div>
 
       {{ with .Doc }}
-        <p class="text-gray-600 text-200">{{ . }}</p>
+        <div class="text-gray-600 text-200">{{ noescape_string . }}</div>
       {{ end }}
       <div class="mb-1 mt-6">
         <div class="flex flex-col gap-1 items-stretch text-gray-400">
