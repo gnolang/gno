@@ -905,14 +905,24 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 			}
 
 			// Create a custom mock client that returns package documentation
-			mockClient := &packageDocTestClient{
-				MockClient: *gnoweb.NewMockClient(mockPackage),
-				packageDoc: tc.packageDoc,
+			mockClient := *gnoweb.NewMockClient(mockPackage)
+			client := &stubClient{
+				docFunc: func(path string) (*doc.JSONDocumentation, error) {
+					// Get the base documentation from the mock
+					baseDoc, err := mockClient.Doc(path)
+					if err != nil {
+						return nil, err
+					}
+
+					// Add the package documentation
+					baseDoc.PackageDoc = tc.packageDoc
+					return baseDoc, nil
+				},
 			}
 
 			// Create config with the mock client
 			config := &gnoweb.HTTPHandlerConfig{
-				ClientAdapter: mockClient,
+				ClientAdapter: client,
 				Renderer: gnoweb.NewHTMLRenderer(
 					log.NewTestingLogger(t),
 					gnoweb.NewDefaultRenderConfig(),
@@ -934,22 +944,4 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 			assert.Contains(t, rr.Body.String(), tc.shouldContain)
 		})
 	}
-}
-
-// packageDocTestClient is a mock client that returns custom package documentation
-type packageDocTestClient struct {
-	gnoweb.MockClient
-	packageDoc string
-}
-
-func (c *packageDocTestClient) Doc(path string) (*doc.JSONDocumentation, error) {
-	// Get the base documentation from the mock
-	baseDoc, err := c.MockClient.Doc(path)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the package documentation
-	baseDoc.PackageDoc = c.packageDoc
-	return baseDoc, nil
 }
