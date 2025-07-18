@@ -118,10 +118,10 @@ func Render(path string) string {
 
 // TestingSetTokenKeys sets the token registry keys for testing purposes.
 func TestingSetTokenKeys(_ realm, keys []string) {
-	// Ensure that this function can only be called from the treasury_test realm.
+	// Ensure that this function can only be called from the treasury/test realm.
 	caller := std.PreviousRealm().PkgPath()
 	if caller != "gno.land/r/gov/dao/v3/treasury/test" {
-		panic("only the treasury_test realm can set token keys, current:" + caller)
+		panic("only the treasury/test realm can set token keys, current:" + caller)
 	}
 
 	tokenKeys = keys
