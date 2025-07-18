@@ -62,14 +62,14 @@ func (g *game) winner() int {
 
 // NewGame creates a new game where player1 is the caller and player2 the argument.
 // A new game index is returned.
-func NewGame(player std.Address) int {
+func NewGame(_ realm, player std.Address) int {
 	games.Set(id.Next().String(), &game{player1: std.PreviousRealm().Address(), player2: player})
 	return int(id)
 }
 
 // Play executes a move for the game at index idx, where move can be:
 // 1 (rock), 2 (paper), 3 (scissors).
-func Play(idx, move int) {
+func Play(_ realm, idx, move int) {
 	v, ok := games.Get(seqid.ID(idx).String())
 	if !ok {
 		panic("game not found")

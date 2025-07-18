@@ -25,7 +25,7 @@ func Backup() std.Address {
 	return backup
 }
 
-func SetAddress(a std.Address) error {
+func SetAddress(_ realm, a std.Address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}
@@ -38,7 +38,7 @@ func SetAddress(a std.Address) error {
 	return nil
 }
 
-func SetBackup(a std.Address) error {
+func SetBackup(_ realm, a std.Address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}

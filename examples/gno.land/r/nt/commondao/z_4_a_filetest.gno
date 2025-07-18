@@ -23,9 +23,9 @@ func init() {
 	// Create a couple of DAOs
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
-	commondao.New("A")
-	daoID = commondao.New(name).ID()
-	commondao.New("C")
+	commondao.New(cross, "A")
+	daoID = commondao.New(cross, name).ID()
+	commondao.New(cross, "C")
 }
 
 func main() {
@@ -40,6 +40,5 @@ func main() {
 	println(dao.ID() == daoID)
 }
 
-// Output:
-// true
-// true
+// Error:
+// unauthorized

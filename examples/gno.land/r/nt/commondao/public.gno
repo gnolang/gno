@@ -11,7 +11,7 @@ import (
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
-func Invite(cur realm, invitee std.Address) {
+func Invite(_ realm, invitee std.Address) {
 	if !invitee.IsValid() {
 		panic("invalid address")
 	}
@@ -32,7 +32,7 @@ func IsInvited(addr std.Address) bool {
 
 // New creates a new CommonDAO.
 // An invitation is required to be able to create new DAOs.
-func New(name string, options ...Option) *commondao.CommonDAO {
+func New(_ realm, name string, options ...Option) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
@@ -47,7 +47,7 @@ func New(name string, options ...Option) *commondao.CommonDAO {
 }
 
 // NewSubDAO creates a new SubDAO.
-func NewSubDAO(name string, parentID uint64, options ...Option) *commondao.CommonDAO {
+func NewSubDAO(_ realm, name string, parentID uint64, options ...Option) *commondao.CommonDAO {
 	caller := std.CurrentRealm().Address()
 	assertIsOwner(caller, parentID)
 
@@ -120,7 +120,7 @@ func GetSize(rootID uint64) int {
 }
 
 // Vote submits a vote for a DAO proposal.
-func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
+func Vote(_ realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowVoting {
@@ -137,7 +137,7 @@ func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason
 }
 
 // Execute executes a DAO proposal.
-func Execute(cur realm, daoID, proposalID uint64) {
+func Execute(_ realm, daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowExecution {
