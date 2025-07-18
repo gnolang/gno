@@ -126,8 +126,47 @@ func Foobar() {
 Crossing is an important concept in Gno that allows developers to specify if a
 function is meant to change memory in the realm they're defined in.
 
-Crossing is somewhat like switching contexts in the traditional system; only the
-current context executor can change its own memory.
+Crossing means entering another realm’s execution context so that you can mutate its state.
+
+There are two main types:
+- Explicit crossing
+- Implicit crossing
+
+Any function called by `MsgCall` or `MsgRun` directly must be crossing. 
+When a function is called by a user, a crossing happens: between the user realm
+and the code realm. Read more about the user/code realms [here](./realms.md).
+This is 
+between the user realm and the code realm.
+
+#### Explicit Realm Crossing
+
+When you want to call a function in another realm to modify its state, 
+you must use a crossing function — a function that declares a special 
+first parameter of type `realm`. 
+
+A crossing function may look like this:
+
+```go
+package alice
+
+var number = 0
+
+func ChangeState(_ realm, arg1 int) { // and any other arguments and return values
+	number = 1    
+}   
+```
+
+You then invoke this function by using the built-in `cross` keyword to satisfy
+the first argument, like so:
+
+```go
+import "gno.land/r/test/alice"
+
+realm1.ChangeState(cross, 2)
+```
+
+This will allow the caller to
+
 
 There are two types of realms in Gno - user realms, and code realms.
 The user realm is defined by a realm struct that does not have a pkgpath defined (MsgRun is an extension of the user realm)

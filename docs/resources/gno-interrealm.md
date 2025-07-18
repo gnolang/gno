@@ -14,7 +14,7 @@ The added dimension of the program domain means the language should be extended
 to best express the complexities of programming in the inter-realm (inter-user)
 domain. In other words, Go is a restricted subset of the Gno language in the
 single-user context. (In this analogy client requests for Go web servers don't
-count as they run outside of the server program).
+count as they run outside the server program).
 
 ### Interrealm Programming Context
 
@@ -48,7 +48,7 @@ external manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For
 users to manipulate them a function or method *must* be provided.
 
 Realm crossing occurs when a crossing function(declared as 
-`fn(cur realm, ...){...}`) 
+`fn(_ realm, ...){...}`) 
 is called with the Gno `fn(cross, ...)` syntax.
 
 ```go
@@ -115,7 +115,7 @@ be protected from external realm direct modification, but the return object
 could be passed back to the realm for mutation; or the object may be mutated
 through its own methods.
 
-## `fn(cross, ...)` and `fn(cur realm, ...){...}` Specification
+## `fn(cross, ...)` and `fn(_ realm, ...){...}` Specification
 
 Gno extends Go's type system with interrealm rules. These rules can be
 checked during the static type-checking phase (but at the moment they are
@@ -135,14 +135,14 @@ A function declared in p packages when called:
 A function declared in a realm package when called:
 
  * explicitly crosses to the realm in which the function is declared if the
-   function is declared as `fn(cur realm, ...){...}` (with `cur realm` as the 
+   function is declared as `fn(_ realm, ...){...}` (with `_ realm` as the 
    first argument). The new realm is called the "current realm".
  * otherwise follows the same rules as for p packages.
 
-The `cur realm` argument must appear as the first argument of a function's 
+The `_ realm` argument must appear as the first argument of a function's 
 parameter list. It is illegal to use anywhere else, and cannot be used in p
-packages. Functions that start with the `cur realm` argument as first argument
-are called "crossing functions".
+packages. Functions that start with the `_ realm` argument as first argument
+are called "crossing functions". 
 
 A crossing function declared in a realm different from the last explicitly
 crossed realm *must* be called like `fn(cross, ...)`. That is, functions of
@@ -193,7 +193,7 @@ A realm package's initialization (including `init()` calls) execute with current
 realm of itself, and it `std.PreviousRealm()` will panic unless the call stack
 includes a crossing function called like `fn(cross, ...)`.
 
-### `fn(cross, ...)` and `fn(cur realm, ...){...}` Design Goals
+### `fn(cross, ...)` and `fn(_ realm, ...){...}` Design Goals
 
 P package code should behave the same even when copied verbatim in a realm
 package.
@@ -225,17 +225,16 @@ the caller's current realm. Otherwise two mutable (upgradeable) realms cannot
 export trust unto the chain because functions declared in those two realms can
 be upgraded.
 
-Both `fn(cross, ...)` and `fn(cur realm, ...){...}` may become special syntax in
+Both `fn(cross, ...)` and `fn(_ realm, ...){...}` may become special syntax in
 future Gno versions.
 
-## `attach()`
 
 ## `panic()` and `revive(fn)`
 
 `panic()` behaves the same within the same realm boundary, but when a panic
 crosses a realm boundary (as defined in [Realm
-Finalization](#realm-finalization)) the Machine aborts the program. This is
-because in a multi-user environment it isn't safe to let the caller recover from
+Finalization](#realm-boundaries)) the Machine aborts the program. This is
+because in a multi-user environment, it isn't safe to let the caller recover from
 realm panics that often leave the state in an invalid state.
 
 This would be sufficient, but we also want to write our tests to be able
@@ -244,8 +243,7 @@ the `revive(fn)` builtin.
 
 ```go
 abort := revive(func() {
-    cross(func() {
-        crossing()
+    cross(func(_ realm) {
         panic("cross-realm panic")
     })
 })
@@ -262,6 +260,10 @@ and the behavior will change such that `fn()` is run in transactional
 was an abort.
 
 TL;DR: `revive(fn)` is Gno's builtin for STM (software transactional memory).
+
+## `attach()`
+
+Coming soon.
 
 ## Application
 
@@ -308,7 +310,7 @@ functions of other realms is still possible with MsgRun.
 ```go
 // PKGPATH: gno.land/r/test/test
 
-func Public(cur realm) {
+func Public(_ realm) {
 
     // Returns (
     //     addr:<origin_caller>,
@@ -329,7 +331,7 @@ func Public(cur realm) {
     AnotherPublic(cur)
 }
 
-func AnotherPublic(cur realm) {
+func AnotherPublic(_ realm) {
     ...
 }
 ```
@@ -488,7 +490,7 @@ package myrealm
 
 import (
     "std"
-    "stdlibs/testing"
+    "testing"
 )
 
 func TestFoo(t *testing.T) {
@@ -551,7 +553,6 @@ func main() {
     // CodeRealm("gno.land/r/test/test") before
     // main() is called, so crossing() here
     // is redundant.
-    // crossing()
 
     // Returns (
     //     addr:g1user,
