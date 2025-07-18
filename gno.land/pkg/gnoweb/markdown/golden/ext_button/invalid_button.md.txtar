@@ -1,0 +1,36 @@
+-- input.md --
+
+# Error Tests and Edge Cases
+
+## Invalid options ignored
+
+{Click me | invalid}(https://example.com)
+
+{ Button | caution invalid info }(https://example.com)
+
+## Incomplete tag
+
+<gno-button content="test"/>
+
+<gno-button href="https://example.com" />
+
+## Wrong tag 
+<gno-button href="https://example.com">test</gno-button>
+<gno-button href="https://example.com">
+test
+</gno-button>
+
+
+-- output.html --
+<h1>Error Tests and Edge Cases</h1>
+<h2>Invalid options ignored</h2>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">Click me<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p><a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-caution gno-button-info">Button<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<h2>Incomplete tag</h2>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h2>Wrong tag</h2>
+<p><!-- raw HTML omitted -->test<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+test
+<!-- raw HTML omitted --></p>

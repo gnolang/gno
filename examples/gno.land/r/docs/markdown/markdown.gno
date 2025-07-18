@@ -221,7 +221,6 @@ Currently, only a short list of content providers are supported:
 
 
 ## Gno-Specific Features
-
 ### HTML Support
 
 By design, most typical HTML support is disabled in Gno's markdown implementation. This is an intentional decision for both security and ecosystem cohesion.
@@ -554,6 +553,74 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > This is a note
 > > [!NOTE]
 > > This is a scoped note
+
+---
+
+### Buttons
+
+Buttons are created using the ±{text}(url)± syntax.
+
+±±±markdown
+{Click me}(https://example.com)
+±±±
+
+{Click me}(https://example.com)
+
+±±±markdown
+<gno-button href="https://example.com" content="Click me" />
+±±±
+
+<gno-button href="https://example.com" content="Click me"/>
+
+#### Button variants
+
+You can use variants with the syntax ±{text | options}(url)± (note the spaces around the pipe):
+
+±±±markdown
+{Default}(https://example.com)
+{Outline | outline}(https://example.com)
+{Caution | caution}(https://example.com)
+{Warning | warning}(https://example.com)
+{Info | info}(https://example.com)
+{Note | note}(https://example.com)
+±±±
+
+{Default}(https://example.com)
+{Outline | outline}(https://example.com)
+{Caution | caution}(https://example.com)
+{Warning | warning}(https://example.com)
+{Info | info}(https://example.com)
+{Note | note}(https://example.com)
+
+±±±markdown
+<gno-button href="https://example.com" content="Default" />
+<gno-button href="https://example.com" content="Outline" variant="outline" />
+<gno-button href="https://example.com" content="Caution" variant="caution" />
+<gno-button href="https://example.com" content="Warning" variant="warning" />
+<gno-button href="https://example.com" content="Info" variant="info" />
+<gno-button href="https://example.com" content="Note" variant="note" />
+±±±
+
+<gno-button href="https://example.com" content="Default"/>
+<gno-button href="https://example.com" content="Outline" variant="outline" />
+<gno-button href="https://example.com" content="Caution" variant="caution" />
+<gno-button href="https://example.com" content="Warning" variant="warning" />
+<gno-button href="https://example.com" content="Info" variant="info" />
+<gno-button href="https://example.com" content="Note" variant="note" />
+
+#### Multiple options
+
+You can combine several options:
+
+±±±markdown
+{Delete | caution outline}(https://example.com)
+<gno-button href="https://example.com" content="Info Outline" variant="info outline"/>
+±±±
+
+{Delete | caution outline}(https://example.com)
+<gno-button href="https://example.com" content="Caution Outline" variant="info outline" />
+
+---
 
 ### Usernames
 

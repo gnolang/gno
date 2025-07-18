@@ -1,0 +1,26 @@
+-- input.md --
+# Inline Button Syntax
+
+Default button: <gno-button href="https://example.com" content="Submit"/>
+
+Outline button: <gno-button href="https://example.com" content="Info" variant="outline"/>
+
+Caution button: <gno-button href="https://example.com" content="Delete" variant="caution"/>
+
+Warning button: <gno-button href="https://example.com" content="Warning" variant="warning"/>
+
+Info button: <gno-button href="https://example.com" content="Details" variant="info"/>
+
+Note button: <gno-button href="https://example.com" content="Note" variant="note"/>
+
+Multiple variants: <gno-button href="https://example.com" content="Delete" variant="caution outline"/>
+
+-- output.html --
+<h1>Inline Button Syntax</h1>
+<p>Default button: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button">Submit<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p>Outline button: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-outline">Info<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p>Caution button: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-caution">Delete<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p>Warning button: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-warning">Warning<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p>Info button: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-info">Details<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p>Note button: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-note">Note<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
+<p>Multiple variants: <a href="https://example.com" rel="noopener nofollow ugc" class="gno-button gno-button-caution gno-button-outline">Delete<span class="link-external js-tooltip tooltip font-sans" data-tooltip="External link">↗</span></a></p>
