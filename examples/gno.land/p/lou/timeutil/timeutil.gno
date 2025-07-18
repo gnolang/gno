@@ -6,20 +6,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func formatTime(t time.Time, format string) string {
-	switch format {
-	case "relative":
-		return calculateTimeSince(t)
-	case "short":
-		return t.Format("02 Jan 2006")
-	case "full":
-		return t.Format("January 02, 2006 at 3:04 PM")
-	default:
-		return calculateTimeSince(t)
-	}
-}
-
-func calculateTimeSince(t time.Time) string {
+func CalculateTimeSince(t time.Time) string {
 	duration := time.Since(t)
 	switch {
 	case duration < time.Minute:
@@ -52,13 +39,17 @@ func calculateTimeSince(t time.Time) string {
 	}
 }
 
-func tryParseFlexibleDate(s string) *time.Time {
+func TryParseFlexibleDate(s string) *time.Time {
 	formats := []string{
 		time.RFC3339, // rfc3339 format
 		"2006-01-02", // date only
 		"2006-01",    // year and month
 		"2006",       // year only
 	}
+	return ParseFlexibleDate(s, formats)
+}
+
+func ParseFlexibleDate(s string, formats []string) *time.Time {
 	for _, format := range formats {
 		if t, err := time.Parse(format, s); err == nil {
 			return &t
