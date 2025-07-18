@@ -133,10 +133,10 @@ There are two main types:
 - Implicit crossing
 
 Any function called by `MsgCall` or `MsgRun` directly must be crossing. 
-When a function is called by a user, a crossing happens: between the user realm
-and the code realm. Read more about the user/code realms [here](./realms.md).
-This is 
-between the user realm and the code realm.
+When a user calls a function, a crossing happens: between the user realm
+and the code realm. This also implies that getter/readonly functions should 
+generally only be called via [queries](../users/interact-with-gnokey.md#querying-a-gnoland-network).
+Read more about user/code realms [here](./realms.md).
 
 #### Explicit Realm Crossing
 
@@ -152,7 +152,12 @@ package alice
 var number = 0
 
 func ChangeState(_ realm, arg1 int) { // and any other arguments and return values
-	number = 1    
+	number = arg1
+	// Since calling this function guarantees that crossing will happen
+	// The execution context called in this function will be: 
+	// std.CurrentRealm() > gno.land/r/test/alice
+	// std.PreviousRealm() > caller realm
+	// Thus, allowing the change of state for the `number` var.
 }   
 ```
 
@@ -162,48 +167,10 @@ the first argument, like so:
 ```go
 import "gno.land/r/test/alice"
 
-realm1.ChangeState(cross, 2)
+alice.ChangeState(cross, 2)
 ```
 
-This will allow the caller to
-
-
-There are two types of realms in Gno - user realms, and code realms.
-The user realm is defined by a realm struct that does not have a pkgpath defined (MsgRun is an extension of the user realm)
-and the other is just a normal realm with a pkgpath. When a user calls a function
-living in a different realm, the crossing also needs to happen - the execution crosses
-the realm boundary between the user and the code realm. 
-
-Check out working with realms page.
-
-Let's look at some basic rules related to crossing:
-- Functions called directly with `MsgCall` or `MsgRun` need to be crossing
-- Primitive variables and non-pointer objects cannot be modified without first crossing
-into the realm that owns it. 
-- To specify a crossing function, it must be defined with the first argument of type realm,
-with anything else following. Read more here (link to interrealm spec).
-
-
-
-```go
-
-package app // gno.land/r/demo/app
-
-var message string
-
-// UpdateMessage changes local memory, i.e. the 'message' variable
-// This is why the function must be crossing - when called, the context crosses
-// from the user (realm) to the "r/demo/app" realm. 
-func UpdateMessage(_ realm, newMessage string) {
-	message = newMessage
-}
-```
-
-
-more docs coming soon, keep an eye out on `r/docs`. 
-
-crossing cases: getters, modifying memory
-
+This will allow the caller to "cross into" the `alice` realm and change it's state.
 
 
 methods on receivers > automatically crossing, but curr realm doesn't change
