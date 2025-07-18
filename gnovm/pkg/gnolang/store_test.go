@@ -186,3 +186,126 @@ func TestFindByPrefix(t *testing.T) {
 		})
 	}
 }
+
+// TestGetPackageWithNilFBlocksMap tests the fix for the "file block missing" error
+// that occurs when a cached package has a nil fBlocksMap.
+func TestGetPackageWithNilFBlocksMap(t *testing.T) {
+	// Setup store
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	store := NewStore(nil, tm2Store, tm2Store)
+
+	// Create a package with multiple files
+	memPkg := &std.MemPackage{
+		Type: MPUserProd,
+		Name: "testpkg",
+		Path: "gno.land/p/demo/testpkg",
+		Files: []*std.MemFile{
+			{
+				Name: "file1.gno",
+				Body: `package testpkg
+
+type MyType struct {
+	Value int
+}
+
+func NewMyType(v int) MyType {
+	return MyType{Value: v}
+}`,
+			},
+			{
+				Name: "file2.gno",
+				Body: `package testpkg
+
+func Add(a, b int) int {
+	return a + b
+}`,
+			},
+		},
+	}
+
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.land/p/demo/testpkg",
+		Store:   store,
+		Output:  io.Discard,
+	})
+
+	// run the package to create PackageNode and PackageValue
+	_, pv := m.RunMemPackage(memPkg, true)
+	require.NotNil(t, pv)
+
+	// simulate the problematic scenario:
+	//  1. Get the package from cache
+	//  2. Clear its fBlocksMap to simulate the bug condition
+	pkgPath := "gno.land/p/demo/testpkg"
+	oid := ObjectIDFromPkgPath(pkgPath)
+
+	// get from cache and clear fBlocksMap
+	if cachedObj, exists := store.cacheObjects[oid]; exists {
+		cachedPv := cachedObj.(*PackageValue)
+		cachedPv.fBlocksMap = nil // Simulate the bug condition
+	}
+
+	// try to get the package
+	// this would have caused "file block missing" error before the fix
+	retrievedPv := store.GetPackage(pkgPath, false)
+	require.NotNil(t, retrievedPv)
+
+	assert.NotNil(t, retrievedPv.fBlocksMap, "fBlocksMap should be initialized after GetPackage")
+	assert.Len(t, retrievedPv.fBlocksMap, 2, "fBlocksMap should contain entries for both files")
+
+	for _, fileName := range []string{"file1.gno", "file2.gno"} {
+		fblock := retrievedPv.GetFileBlock(store, fileName)
+		assert.NotNil(t, fblock, "Should be able to get file block for %s", fileName)
+	}
+}
+
+// TestGetPackageFromCacheMultipleTimes tests that repeated calls to GetPackage
+// with a nil fBlocksMap package in cache work correctly.
+func TestGetPackageFromCacheMultipleTimes(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	store := NewStore(nil, tm2Store, tm2Store)
+
+	memPkg := &std.MemPackage{
+		Type: MPUserProd,
+		Name: "simple",
+		Path: "gno.land/p/demo/simple",
+		Files: []*std.MemFile{
+			{
+				Name: "simple.gno",
+				Body: `package simple
+
+const Version = "1.0.0"`,
+			},
+		},
+	}
+
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.land/p/demo/simple",
+		Store:   store,
+		Output:  io.Discard,
+	})
+
+	_, pv := m.RunMemPackage(memPkg, true)
+	require.NotNil(t, pv)
+
+	pkgPath := "gno.land/p/demo/simple"
+	oid := ObjectIDFromPkgPath(pkgPath)
+
+	// clear fBlocksMap in cache
+	if cachedObj, exists := store.cacheObjects[oid]; exists {
+		cachedPv := cachedObj.(*PackageValue)
+		cachedPv.fBlocksMap = nil
+	}
+
+	// get package multiple times
+	for i := range 3 {
+		pv := store.GetPackage(pkgPath, false)
+		require.NotNil(t, pv, "GetPackage should succeed on iteration %d", i)
+		assert.NotNil(t, pv.fBlocksMap, "fBlocksMap should be initialized on iteration %d", i)
+
+		fblock := pv.GetFileBlock(store, "simple.gno")
+		assert.NotNil(t, fblock, "Should be able to get file block on iteration %d", i)
+	}
+}
