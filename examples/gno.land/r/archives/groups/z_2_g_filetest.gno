@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/groups_test
-package groups_test
+package groups
 
 // SEND: 1000000ugnot
 
@@ -7,6 +7,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
 	users "gno.land/r/gnoland/users/v1"
 )
@@ -14,16 +15,21 @@ import (
 var gid groups.GroupID
 
 func main() {
-	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	caller := std.OriginCaller()
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register(cross, "gnouser123")
+
 	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
+
+	// delete group via anon user
+	test2 := testutils.TestAddress("test2")
+	testing.SetOriginCaller(test2)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
+
 	groups.DeleteGroup(cross, gid)
 	println(groups.Render(""))
 }
 
-// Output:
-// 1
-// List of all Groups:
-//
-//
+// Error:
+// unauthorized to delete group

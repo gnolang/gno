@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/groups_test
-package groups_test
+package groups
 
 // SEND: 1000000ugnot
 
@@ -14,16 +14,16 @@ import (
 var gid groups.GroupID
 
 func main() {
-	caller := std.OriginCaller()
-	testing.SetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register(cross, "gnouser123")
-
 	gid = groups.CreateGroup(cross, "test_group")
-
 	println(gid)
-	groups.DeleteGroup(cross, 20)
 	println(groups.Render(""))
 }
 
-// Error:
-// group id (20) does not exists
+// Output:
+// 1
+// List of all Groups:
+//
+//  * [test_group](/r/demo/groups:test_group)
+//

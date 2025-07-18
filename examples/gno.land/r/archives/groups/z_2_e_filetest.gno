@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/groups_test
-package groups_test
+package groups
 
 // SEND: 1000000ugnot
 
@@ -18,6 +18,7 @@ func main() {
 	users.Register(cross, "gnouser123")
 	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
+	groups.DeleteGroup(cross, gid)
 	println(groups.Render(""))
 }
 
@@ -25,5 +26,4 @@ func main() {
 // 1
 // List of all Groups:
 //
-//  * [test_group](/r/demo/groups:test_group)
 //

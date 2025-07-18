@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/demo/bank1
 
-package bank1
+package banktest
 
 import (
 	"std"

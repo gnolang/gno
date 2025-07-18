@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/demo/groups_test
-package groups_test
+package groups
 
 // SEND: 1000000ugnot
 
@@ -19,10 +19,11 @@ func main() {
 	users.Register(cross, "gnouser123")
 
 	gid = groups.CreateGroup(cross, "test_group")
+
 	println(gid)
-	groups.AddMember(cross, 2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
+	groups.DeleteGroup(cross, 20)
 	println(groups.Render(""))
 }
 
 // Error:
-// group id (2) does not exists
+// group id (20) does not exists

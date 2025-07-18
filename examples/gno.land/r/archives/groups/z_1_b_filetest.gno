@@ -1,13 +1,12 @@
 // PKGPATH: gno.land/r/demo/groups_test
-package groups_test
+package groups
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
 	users "gno.land/r/gnoland/users/v1"
 )
@@ -15,18 +14,15 @@ import (
 var gid groups.GroupID
 
 func main() {
+	caller := std.OriginCaller()
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register(cross, "gnouser123")
+
 	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
-
-	// delete member via anon user
-	test2 := testutils.TestAddress("test2")
-	testing.SetOriginCaller(test2)
-	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
-
-	groups.DeleteMember(cross, gid, 0)
+	groups.AddMember(cross, 2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
 	println(groups.Render(""))
 }
 
 // Error:
-// r/gnoland/users: non-user call
+// group id (2) does not exists

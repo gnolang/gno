@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/demo/bank1
 // SEND: 100000000ugnot
 
-package bank1
+package banktest
 
 import (
 	"std"
