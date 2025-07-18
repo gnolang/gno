@@ -79,6 +79,13 @@ func IsRealmPath(pkgPath string) bool {
 	return true
 }
 
+// IsEphemeralPath determines whether the given pkgpath is for an ephemeral realm.
+// Ephemeral realms are temporary and don't persist state between transactions.
+func IsEphemeralPath(pkgPath string) bool {
+	match := Re_gnoUserPkgPath.Match(pkgPath)
+	return match != nil && match.Get("LETTER") == "e"
+}
+
 // IsGnoRunPath returns true if it's a run (MsgRun) package path.
 // DerivePkgAddr() returns the embedded address such that the run package can
 // receive coins on behalf of the user.

@@ -77,6 +77,24 @@ interface.
 The process of uploading code to the blockchain. On Gno.land, this is done using
 the `gnokey maketx addpkg` command or through compatible wallets.
 
+## E
+
+### Ephemeral Package
+A temporary, user-executed code package created when using `gnokey maketx run`. 
+Ephemeral packages are stored under the `/e/` path with the pattern 
+`domain/e/{user-address}/run`. They execute in the user's realm context and 
+allow complex interactions that aren't possible with simple function calls. 
+Unlike realms and pure packages, ephemeral packages are not permanently stored 
+on-chain.
+
+### EOA
+See [Externally Owned Account](#externally-owned-account-eoa).
+
+### Externally Owned Account (EOA)
+A user account controlled by a private key, as opposed to a smart contract 
+account. EOAs can initiate transactions and are the only accounts that can 
+sign transactions on Gno.land.
+
 ## F
 
 ### Faucet Hub
@@ -200,8 +218,9 @@ See [Gno Packages](../resources/gno-packages.md).
 
 ### Package Path
 A unique identifier of code on the Gno.land blockchain, following the format:
-`gno.land/[r|p]/[namespace]/[name]`. The package path determines where the code
-is stored and how it can be imported or accessed.
+`gno.land/[r|p|e]/[namespace]/[name]`. The package path determines where the code
+is stored and how it can be imported or accessed. The first component indicates
+the package type: `r` for realms, `p` for pure packages, and `e` for ephemeral packages.
 
 ### Portal Loop
 Former testing network that was replaced by the Staging network.

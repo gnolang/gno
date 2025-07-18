@@ -19,8 +19,8 @@ mkdir minisocial
 cd minisocial
 ```
 
-Next, initialize a `gno.mod` file. This file declares the package path of your
-realm and is used by Gno tools. Run the following command to create a `gno.mod` file:
+Next, initialize a `gnomod.toml` file. This file declares the package path of your
+realm and is used by Gno tools. Run the following command to create a `gnomod.toml` file:
 
 ```sh
 gno mod init gno.land/r/example/minisocial

@@ -67,9 +67,9 @@ func TestGenesis_Verify(t *testing.T) {
 	}
 }
 
-func TestLoadPackagesFromDir_Uploader(t *testing.T) {
+func TestLoadPackagesFromDir_Creator(t *testing.T) {
 	defaultCreator := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	customUploader := crypto.MustAddressFromString("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	customCreator := crypto.MustAddressFromString("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 	tests := []struct {
 		name     string
@@ -84,7 +84,7 @@ func TestLoadPackagesFromDir_Uploader(t *testing.T) {
 		verify        func(t *testing.T, txs []TxWithMetadata)
 	}{
 		{
-			name: "package without uploader uses default",
+			name: "package without creator uses default",
 			packages: []struct {
 				dir      string
 				gnomod   string
@@ -115,7 +115,7 @@ func Hello() string {
 			},
 		},
 		{
-			name: "package with uploader uses custom address",
+			name: "package with creator uses custom address",
 			packages: []struct {
 				dir      string
 				gnomod   string
@@ -127,8 +127,8 @@ func Hello() string {
 					gnomod: `module = "gno.land/p/test/pkg2"
 gno = "0.9"
 
-[upload_metadata]
-uploader = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+[addpkg]
+creator = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 `,
 					goFile: `package pkg2
 
@@ -144,12 +144,12 @@ func World() string {
 				require.Len(t, txs, 1)
 				msg, ok := txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 				require.True(t, ok)
-				assert.Equal(t, customUploader, msg.Creator)
+				assert.Equal(t, customCreator, msg.Creator)
 				assert.Equal(t, "gno.land/p/test/pkg2", msg.Package.Path)
 			},
 		},
 		{
-			name: "mixed packages with and without uploader",
+			name: "mixed packages with and without creator",
 			packages: []struct {
 				dir      string
 				gnomod   string
@@ -174,8 +174,8 @@ func Hello() string {
 					gnomod: `module = "gno.land/p/test/pkg2"
 gno = "0.9"
 
-[upload_metadata]
-uploader = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+[addpkg]
+creator = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 `,
 					goFile: `package pkg2
 
@@ -196,11 +196,11 @@ func World() string {
 					creators[msg.Package.Path] = msg.Creator
 				}
 				assert.Equal(t, defaultCreator, creators["gno.land/p/test/pkg1"])
-				assert.Equal(t, customUploader, creators["gno.land/p/test/pkg2"])
+				assert.Equal(t, customCreator, creators["gno.land/p/test/pkg2"])
 			},
 		},
 		{
-			name: "invalid uploader address",
+			name: "invalid creator address",
 			packages: []struct {
 				dir      string
 				gnomod   string
@@ -212,8 +212,8 @@ func World() string {
 					gnomod: `module = "gno.land/p/test/pkg"
 gno = "0.9"
 
-[upload_metadata]
-uploader = "invalid_address"
+[addpkg]
+creator = "invalid_address"
 `,
 					goFile: `package pkg
 
@@ -225,10 +225,10 @@ func Test() string {
 				},
 			},
 			expectError:   true,
-			errorContains: "invalid uploader address",
+			errorContains: "invalid creator address",
 		},
 		{
-			name: "empty uploader address uses default",
+			name: "empty creator address uses default",
 			packages: []struct {
 				dir      string
 				gnomod   string
@@ -240,8 +240,8 @@ func Test() string {
 					gnomod: `module = "gno.land/p/test/pkg"
 gno = "0.9"
 
-[upload_metadata]
-uploader = ""
+[addpkg]
+creator = ""
 `,
 					goFile: `package pkg
 
@@ -295,7 +295,7 @@ func Test() string {
 
 func TestLoadPackagesFromDir_Realm(t *testing.T) {
 	defaultCreator := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	customUploader := crypto.MustAddressFromString("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	customCreator := crypto.MustAddressFromString("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 	tests := []struct {
 		name     string
@@ -308,7 +308,7 @@ func TestLoadPackagesFromDir_Realm(t *testing.T) {
 		verify func(t *testing.T, txs []TxWithMetadata)
 	}{
 		{
-			name: "realm with uploader",
+			name: "realm with creator",
 			packages: []struct {
 				dir      string
 				gnomod   string
@@ -316,32 +316,32 @@ func TestLoadPackagesFromDir_Realm(t *testing.T) {
 				fileName string
 			}{
 				{
-					dir: "uploadertest",
-					gnomod: `module = "gno.land/r/test/uploadertest"
+					dir: "creatortest",
+					gnomod: `module = "gno.land/r/test/creatortest"
 gno = "0.9"
 
-[upload_metadata]
-uploader = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+[addpkg]
+creator = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 `,
-					goFile: `package uploadertest
+					goFile: `package creatortest
 
 import "std"
 
-var realmUploader string
+var realmCreator string
 
 func init() {
-	realmUploader = string(std.GetOrigCaller())
+	realmCreator = string(std.GetOrigCaller())
 }
 
-func GetUploader() string {
-	return realmUploader
+func GetCreator() string {
+	return realmCreator
 }
 
 func Render(path string) string {
-	return "Realm uploader: " + realmUploader
+	return "Realm creator: " + realmCreator
 }
 `,
-					fileName: "uploadertest.gno",
+					fileName: "creatortest.gno",
 				},
 			},
 			verify: func(t *testing.T, txs []TxWithMetadata) {
@@ -349,9 +349,9 @@ func Render(path string) string {
 				require.Len(t, txs, 1)
 				msg, ok := txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
 				require.True(t, ok)
-				assert.Equal(t, customUploader, msg.Creator)
-				assert.Equal(t, "gno.land/r/test/uploadertest", msg.Package.Path)
-				assert.Equal(t, "uploadertest", msg.Package.Name)
+				assert.Equal(t, customCreator, msg.Creator)
+				assert.Equal(t, "gno.land/r/test/creatortest", msg.Package.Path)
+				assert.Equal(t, "creatortest", msg.Package.Name)
 
 				// Find .gno file
 				var gnoFile *std.MemFile
@@ -362,11 +362,11 @@ func Render(path string) string {
 					}
 				}
 				require.NotNil(t, gnoFile)
-				assert.Equal(t, "uploadertest.gno", gnoFile.Name)
+				assert.Equal(t, "creatortest.gno", gnoFile.Name)
 			},
 		},
 		{
-			name: "multiple packages with different uploaders",
+			name: "multiple packages with different creators",
 			packages: []struct {
 				dir      string
 				gnomod   string
@@ -378,8 +378,8 @@ func Render(path string) string {
 					gnomod: `module = "gno.land/p/test/pkg1"
 gno = "0.9"
 
-[upload_metadata]
-uploader = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+[addpkg]
+creator = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 `,
 					goFile: `package pkg1
 
@@ -394,8 +394,8 @@ func Hello() string {
 					gnomod: `module = "gno.land/p/test/pkg2"
 gno = "0.9"
 
-[upload_metadata]
-uploader = "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"
+[addpkg]
+creator = "g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"
 `,
 					goFile: `package pkg2
 
@@ -431,8 +431,8 @@ func Test() string {
 					creators[msg.Package.Path] = msg.Creator
 				}
 
-				// Verify uploaders
-				assert.Equal(t, customUploader, creators["gno.land/p/test/pkg1"])
+				// Verify creators
+				assert.Equal(t, customCreator, creators["gno.land/p/test/pkg1"])
 				assert.Equal(t, crypto.MustAddressFromString("g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"), creators["gno.land/p/test/pkg2"])
 				assert.Equal(t, defaultCreator, creators["gno.land/p/test/pkg3"])
 			},

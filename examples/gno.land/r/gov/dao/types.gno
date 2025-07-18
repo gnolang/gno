@@ -6,13 +6,12 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 )
 
 type ProposalID int64
 
 func (pid ProposalID) String() string {
-	return ufmt.Sprintf("%v", int64(pid))
+	return seqid.ID(pid).String()
 }
 
 // VoteOption is the limited voting option for a DAO proposal
@@ -119,9 +118,7 @@ func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
 	if updated {
 		panic("fatal error: Override proposals is not allowed")
 	}
-
 	ps.seq = ps.seq.Next()
-
 	return pid
 }
 
