@@ -39,6 +39,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	defer func() {
 		gasCPU := overflow.Mulp(visitCount*VisitCpuFactor, GasFactorCPU)
+		if debug {
+			debug.Printf("GasConsumed for GC: %v\n", gasCPU)
+		}
 		visitCount = 0
 		if m.GasMeter != nil {
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
@@ -56,7 +59,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	m.GCCycle += 1
 
 	// Construct visitor callback.
-	vis := GCVisitorFn(m.GCCycle, m.Alloc, visitCount)
+	vis := GCVisitorFn(m.GCCycle, m.Alloc, &visitCount)
 
 	// Visit blocks
 	for _, block := range m.Blocks {
@@ -113,7 +116,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 // Returns a visitor that bumps the GCCycle counter
 // and stops if alloc is out of memory.
-func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
+func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 	var vis func(value Value) bool
 
 	vis = func(v Value) bool {
@@ -136,7 +139,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount int64) Visitor {
 			}
 		}
 
-		visitCount++ // Count operations for gas calculation
+		*visitCount++ // Count operations for gas calculation
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
