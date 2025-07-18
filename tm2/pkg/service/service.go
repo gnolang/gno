@@ -98,8 +98,8 @@ Typical usage:
 type BaseService struct {
 	Logger  *slog.Logger
 	name    string
-	started uint32 // atomic
-	stopped uint32 // atomic
+	started atomic.Bool
+	stopped atomic.Bool
 	quit    chan struct{}
 
 	// The "subclass" of BaseService
@@ -129,24 +129,26 @@ func (bs *BaseService) SetLogger(l *slog.Logger) {
 // returned if the service is already running or stopped. Not to start the
 // stopped service, you need to call Reset.
 func (bs *BaseService) Start() error {
-	if atomic.CompareAndSwapUint32(&bs.started, 0, 1) {
-		if atomic.LoadUint32(&bs.stopped) == 1 {
-			bs.Logger.Error(fmt.Sprintf("Not starting %v -- already stopped", bs.name), "impl", bs.impl)
-			// revert flag
-			atomic.StoreUint32(&bs.started, 0)
-			return ErrAlreadyStopped
-		}
-		bs.Logger.Info(fmt.Sprintf("Starting %v", bs.name), "impl", bs.impl)
-		err := bs.impl.OnStart()
-		if err != nil {
-			// revert flag
-			atomic.StoreUint32(&bs.started, 0)
-			return err
-		}
-		return nil
+	if !bs.started.CompareAndSwap(false, true) {
+		bs.Logger.Debug(fmt.Sprintf("Not starting %v -- already started", bs.name), "impl", bs.impl)
+		return ErrAlreadyStarted
 	}
-	bs.Logger.Debug(fmt.Sprintf("Not starting %v -- already started", bs.name), "impl", bs.impl)
-	return ErrAlreadyStarted
+
+	if bs.stopped.Load() {
+		bs.Logger.Error(fmt.Sprintf("Not starting %v -- already stopped", bs.name), "impl", bs.impl)
+		// revert started flag
+		bs.started.Store(false)
+		return ErrAlreadyStopped
+	}
+
+	bs.Logger.Info(fmt.Sprintf("Starting %v", bs.name), "impl", bs.impl)
+	err := bs.impl.OnStart()
+	if err != nil {
+		// revert started flag
+		bs.started.Store(false)
+		return err
+	}
+	return nil
 }
 
 // OnStart implements Service by doing nothing.
@@ -157,20 +159,23 @@ func (bs *BaseService) OnStart() error { return nil }
 // Stop implements Service by calling OnStop (if defined) and closing quit
 // channel. An error will be returned if the service is already stopped.
 func (bs *BaseService) Stop() error {
-	if atomic.CompareAndSwapUint32(&bs.stopped, 0, 1) {
-		if atomic.LoadUint32(&bs.started) == 0 {
-			bs.Logger.Warn(fmt.Sprintf("Not stopping %v -- have not been started yet", bs.name), "impl", bs.impl)
-			// revert flag
-			atomic.StoreUint32(&bs.stopped, 0)
-			return ErrNotStarted
-		}
-		bs.Logger.Info(fmt.Sprintf("Stopping %v", bs.name), "impl", bs.impl)
-		bs.impl.OnStop()
-		close(bs.quit)
-		return nil
+	if !bs.stopped.CompareAndSwap(false, true) {
+		bs.Logger.Debug(fmt.Sprintf("Stopping %v (ignoring: already stopped)", bs.name), "impl", bs.impl)
+		return ErrAlreadyStopped
 	}
-	bs.Logger.Debug(fmt.Sprintf("Stopping %v (ignoring: already stopped)", bs.name), "impl", bs.impl)
-	return ErrAlreadyStopped
+
+	if !bs.started.Load() {
+		bs.Logger.Warn(fmt.Sprintf("Not stopping %v -- have not been started yet", bs.name), "impl", bs.impl)
+		// revert stopped flag
+		bs.stopped.Store(false)
+		return ErrNotStarted
+	}
+
+	bs.Logger.Info(fmt.Sprintf("Stopping %v", bs.name), "impl", bs.impl)
+	bs.impl.OnStop()
+	close(bs.quit)
+
+	return nil
 }
 
 // OnStop implements Service by doing nothing.
@@ -181,13 +186,13 @@ func (bs *BaseService) OnStop() {}
 // Reset implements Service by calling OnReset callback (if defined). An error
 // will be returned if the service is running.
 func (bs *BaseService) Reset() error {
-	if !atomic.CompareAndSwapUint32(&bs.stopped, 1, 0) {
+	if !bs.stopped.CompareAndSwap(true, false) {
 		bs.Logger.Debug(fmt.Sprintf("Can't reset %v. Not stopped", bs.name), "impl", bs.impl)
 		return fmt.Errorf("can't reset running %s", bs.name)
 	}
 
 	// whether or not we've started, we can reset
-	atomic.CompareAndSwapUint32(&bs.started, 1, 0)
+	bs.started.CompareAndSwap(true, false)
 
 	bs.quit = make(chan struct{})
 	return bs.impl.OnReset()
@@ -201,7 +206,7 @@ func (bs *BaseService) OnReset() error {
 // IsRunning implements Service by returning true or false depending on the
 // service's state.
 func (bs *BaseService) IsRunning() bool {
-	return atomic.LoadUint32(&bs.started) == 1 && atomic.LoadUint32(&bs.stopped) == 0
+	return bs.started.Load() && !bs.stopped.Load()
 }
 
 // Wait blocks until the service is stopped.

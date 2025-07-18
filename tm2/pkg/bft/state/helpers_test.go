@@ -97,7 +97,7 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types.PrivValida
 			Power:   1000,
 			Name:    fmt.Sprintf("test%d", i),
 		}
-		privVals[valAddr.String()] = types.NewMockPVWithParams(pk, false, false)
+		privVals[valAddr.String()] = types.NewMockPVWithPrivKey(pk)
 	}
 	s, _ := sm.MakeGenesisState(&types.GenesisDoc{
 		ChainID:    chainID,
