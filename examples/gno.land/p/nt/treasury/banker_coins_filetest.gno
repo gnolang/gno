@@ -50,29 +50,6 @@ func main() {
 
 	println("Ugnot balance:", cbanker.Balances()[0].Amount)
 
-	// TODO: Uncomment lines bellow when the revive will be available in the filetest.
-	// See: https://github.com/gnolang/gno/blob/master/docs/resources/gno-interrealm.md#panic-and-revivefn
-	//
-	// unknownCoin := treasury.NewCoinsPayment(
-	// 	std.NewCoins(std.NewCoin("unknowncoin", 10)),
-	// 	destAddr,
-	// )
-	// err = cbanker.Send(unknownCoin)
-	// println("Unknown coin payment error:", err)
-	// if err == nil {
-	// 	panic("expected error for unknown coin, but got none")
-	// }
-	//
-	// unsufficientFunds := treasury.NewCoinsPayment(
-	// 	std.NewCoins(std.NewCoin("ugnot", 1000)),
-	// 	destAddr,
-	// )
-	// err = cbanker.Send(unsufficientFunds)
-	// println("Unknown coin payment error:", err)
-	// if err == nil {
-	// 	panic("expected error for insufficient funds, but got none")
-	// }
-
 	// Send a payment with an invalid type.
 	invalidPaymentType := treasury.NewGRC20Payment("", 0, destAddr)
 	err = cbanker.Send(invalidPaymentType)
