@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/r/demo/tests/crossrealm_b"
@@ -21,4 +21,4 @@ func main(cur realm) {
 }
 
 // Output:
-// &(struct{(123 int)} gno.land/r/crossrealm_test.Struct) 1
+// &(struct{(123 int)} gno.land/r/crossrealm.Struct) 1

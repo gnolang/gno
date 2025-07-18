@@ -255,7 +255,19 @@ func EscapeText(text string) string {
 // Columns returns a formatted row of columns using the Gno syntax.
 // If you want a specific number of columns per row (<=4), use ColumnsN.
 // Check /r/docs/markdown#columns for more info.
-func Columns(contentByColumn []string) string {
+// If padded=true & the final <gno-columns> tag is missing column content, an empty
+// column element will be placed to keep the cols per row constant.
+// Padding works only with colsPerRow > 0.
+func Columns(contentByColumn []string, padded bool) string {
+	if len(contentByColumn) == 0 {
+		return ""
+	}
+	maxCols := 4
+	if padded && len(contentByColumn)%maxCols != 0 {
+		missing := maxCols - len(contentByColumn)%maxCols
+		contentByColumn = append(contentByColumn, make([]string, missing)...)
+	}
+
 	var sb strings.Builder
 	sb.WriteString("<gno-columns>\n")
 
@@ -270,6 +282,8 @@ func Columns(contentByColumn []string) string {
 	return sb.String()
 }
 
+const maxColumnsPerRow = 4
+
 // ColumnsN splits content into multiple rows of N columns each and formats them.
 // If colsPerRow <= 0, all items are placed in one <gno-columns> block.
 // If padded=true & the final <gno-columns> tag is missing column content, an empty
@@ -277,8 +291,11 @@ func Columns(contentByColumn []string) string {
 // Padding works only with colsPerRow > 0.
 // Note: On standard-size screens, gnoweb handles a max of 4 cols per row.
 func ColumnsN(content []string, colsPerRow int, padded bool) string {
-	if len(content) == 0 || colsPerRow <= 0 {
-		return Columns(content)
+	if len(content) == 0 {
+		return ""
+	}
+	if colsPerRow <= 0 {
+		return Columns(content, padded)
 	}
 
 	var sb strings.Builder
@@ -295,7 +312,7 @@ func ColumnsN(content []string, colsPerRow int, padded bool) string {
 			row = append(row, make([]string, colsPerRow-len(row))...)
 		}
 
-		sb.WriteString(Columns(row))
+		sb.WriteString(Columns(row, false))
 	}
 	return sb.String()
 }

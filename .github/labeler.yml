@@ -21,7 +21,7 @@
 ":book:  documentation":
   - changed-files:
       - any-glob-to-any-file:
-          - docs/**/*"
+          - docs/**/*
 
 "amino":
   - changed-files:
@@ -32,3 +32,48 @@
   - changed-files:
       - any-glob-to-any-file:
           - gno.land/pkg/gnoweb/**/*
+
+"🛠️ gnodev":
+  - changed-files:
+      - any-glob-to-any-file:
+          - contribs/gnodev/**/*
+
+"📄 top-level-md":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "README*"
+          - "CHANGELOG*"
+          - "LICENSE*"
+
+"🤝 contribs":
+  - all:
+      - changed-files:
+          - all-globs-to-any-file:
+              - contribs/**/*
+          - all-globs-to-all-files:
+              - "!contribs/gnodev/**/*"
+
+"🚀 ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - ".codecov.yml"
+
+"🐳 devops":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Dockerfile*"
+          - "misc/deployments/**/*"
+          - "misc/loop/**/*"
+          - "docker-compose*.yml"
+          - "*.dockerfile"
+          - "Makefile"
+
+"🐹 golang":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/go.mod"
+          - "**/go.sum"
+          - ".go-version"
+          - "go.work*"

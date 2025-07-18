@@ -3,7 +3,7 @@
 package tree
 
 import (
-	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
+	"filetests/extern/timtadh/data_structures/types"
 )
 
 func pop(stack []types.TreeNode) ([]types.TreeNode, types.TreeNode) {
