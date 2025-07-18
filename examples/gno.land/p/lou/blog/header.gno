@@ -109,7 +109,7 @@ var DefaultTimeRanges = []TimeRangePreset{
 	},
 	{
 		"this year",
-		time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02"),
+		time.Date(time.Now().Year(), 1, 1, 0, 0, 0, 0, time.Now().Location()).Format("2006-01-02"),
 		time.Now().Format("2006-01-02"),
 	},
 	{

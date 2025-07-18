@@ -19,11 +19,11 @@ type Blog struct {
 	PostId           seqid.ID
 	Posts            *avl.Tree // id --> *Post
 	PostsBySlug      *avl.Tree // slug --> *Post
-	PostsByUpdatedAt *avl.Tree // updatedAt --> *Post
+	PostsByUpdatedAt *avl.Tree // "<id>::updatedAt" --> *Post (To ensure no overlay)
 	TagsIndex        *avl.Tree // tagName --> int
-	TagsSorted       *avl.Tree // "<count>::tag" --> tag
+	TagsSorted       *avl.Tree // "<count>::tag" --> tag (To sort from most/least common tags)
 	AuthorsIndex     *avl.Tree // authorAddress --> int
-	AuthorsSorted    *avl.Tree // "<count>::author" --> author
+	AuthorsSorted    *avl.Tree // "<count>::author" --> author (To sort from most/least common authors)
 
 	CustomHeader    *[]HeaderPreset
 	DisableLikes    bool
@@ -115,7 +115,7 @@ func (b *Blog) AddPost(post *Post) error {
 	b.addToIndex(post)
 	b.Posts.Set(post.ID(), post)
 	b.PostsBySlug.Set(post.Slug(), post)
-	b.PostsByUpdatedAt.Set(post.UpdatedAt().String(), post)
+	b.PostsByUpdatedAt.Set(post.ID()+"::"+post.UpdatedAt().String(), post)
 	return nil
 }
 
@@ -127,7 +127,7 @@ func (b *Blog) UpdatePostById(id string, newPost *Post) error {
 		return err
 	}
 	postBySlug, _ := b.PostsBySlug.Get(post.Slug())
-	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt().String())
+	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.ID() + "::" + post.UpdatedAt().String())
 	post.UpdatePost(newPost)
 	postBySlug.(*Post).UpdatePost(newPost)
 	postByUpdated.(*Post).UpdatePost(newPost)
@@ -142,7 +142,7 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 		return err
 	}
 	postById, _ := b.Posts.Get(post.ID())
-	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.UpdatedAt().String())
+	postByUpdated, _ := b.PostsByUpdatedAt.Get(post.ID() + "::" + post.UpdatedAt().String())
 	post.UpdatePost(newPost)
 	postById.(*Post).UpdatePost(newPost)
 	postByUpdated.(*Post).UpdatePost(newPost)
@@ -172,7 +172,7 @@ func (b *Blog) DeletePostBySlug(slug string) error {
 func (b *Blog) DeletePost(post *Post) error {
 	_, removed := b.Posts.Remove(post.ID())
 	_, removedSlug := b.PostsBySlug.Remove(post.Slug())
-	_, removedUpdated := b.PostsByUpdatedAt.Remove(post.UpdatedAt().String())
+	_, removedUpdated := b.PostsByUpdatedAt.Remove(post.ID() + "::" + post.UpdatedAt().String())
 	if !removed || !removedSlug || !removedUpdated {
 		return ErrDeleteFailed
 	}
