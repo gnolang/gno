@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/gnolang/gno/_test/net/http"
-	"github.com/gnolang/gno/_test/net/http/httptest"
+	"filetests/extern/net/http"
+	"filetests/extern/net/http/httptest"
 )
 
 func main() {
@@ -46,4 +46,4 @@ func assertValue() {
 // Output:
 // int is not of type string
 // nil is not of type string
-// *github.com/gnolang/gno/_test/net/http/httptest.ResponseRecorder doesn't implement interface {Push func(string, *github.com/gnolang/gno/_test/net/http.PushOptions) .uverse.error} (missing method Push)
+// *filetests/extern/net/http/httptest.ResponseRecorder doesn't implement interface {Push func(string, *filetests/extern/net/http.PushOptions) .uverse.error} (missing method Push)
