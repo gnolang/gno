@@ -390,9 +390,13 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 		},
 		Types: []*doc.JSONType{
 			{
-				Name:      "myStruct",
-				Signature: "type myStruct struct{ a int }",
-				Doc:       "myStruct is a struct for testing\n",
+				Name: "myStruct",
+				Type: "struct{ a int }",
+				Doc:  "myStruct is a struct for testing\n",
+				Kind: "struct",
+				Fields: []*doc.JSONField{
+					{Name: "a", Type: "int", Doc: ""},
+				},
 			},
 		},
 	}
