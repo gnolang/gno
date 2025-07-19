@@ -36,6 +36,7 @@
           "resources/gnoland-networks",
           "resources/users-and-teams",
           "resources/gas-fees",
+          "resources/storage-deposit",
           "resources/gno-stdlibs",
           "resources/configuring-gno-projects",
           "resources/gno-testing",
