@@ -90,7 +90,8 @@ Here's an example of sending a transaction with gas parameters:
 gnokey maketx call \
   -pkgpath "gno.land/r/demo/boards" \
   -func "CreateBoard" \
-  -args "MyBoard" "Board description" \
+  -args "MyBoard" \
+  -args "Board description" \
   -gas-fee 1000000ugnot \
   -gas-wanted 2000000 \
   -remote https://rpc.gno.land:443 \

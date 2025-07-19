@@ -1,5 +1,5 @@
 
-## Overview of storage deposit
+## Storage deposits
 
 In Gno.land, storage is a paid resource. To persist data in a realm (such as
 setting variables or storing objects), users must lock GNOT tokens as a storage
@@ -7,8 +7,6 @@ deposit. This ensures efficient, accountable use of on-chain storage.
 
 Storage costs are settled per message, and tokens are locked or refunded
 depending on the net change in data usage.
-
-## How it works
 
 ### What is a Storage Deposit?
 
@@ -22,9 +20,7 @@ Deleting data → GNOT refunded
 ### Purpose
 
 - Pay for persistent storage: Store objects like structs or strings in realms.
-
 - Encourage cleanup: Reclaim deposits by deleting unneeded data.
-
 - Flexibility: Realm developers can design their own cleanup or reward logic.
 
 ### Storage Settlement Flow
@@ -37,24 +33,14 @@ Deleting data → GNOT refunded
 
 4 System locks or refunds GNOT accordingly.
 
-### Tracking Storage
+### Max deposit flag
 
-Use this command to inspect current storage usage and deposit in a realm:
-
-```bash
-gnokey query vm/qstorage --data gno.land/r/foo
-```
-
-Sample Output:
-
-```
-storage: 5025, deposit: 502500
-
-```
-
-storage: total bytes used
-
-deposit: total GNOT locked for that storage
+With the optional `-max-deposit flag` in gnokey, users can specify the maximum
+storage deposit that may be locked when deploying a package—since the package
+consumes on-chain storage—or when executing a `MsgCall` or `MsgRun`. The
+transaction will fail if the chain attempts to lock more tokens than the
+specified limit, protecting users from locking more tokens than they are willing
+to tolerate.
 
 ### Anyone Can Free Storage
 
@@ -66,11 +52,16 @@ design and manage user storage.
 ### Global Storage Price Parameter
 
 The storage price is a global parameter governed by the GovDAO'
-
+The default value is defined in gno.land/pkg/sdk/vm/params.go.
 ```
 storagePriceDefault = "100ugnot" // cost per byte
 // e.g., 1 GNOT per 10KB (≈ 1B GNOT = 10TB)
 ```
+
+### Tracking Storage
+
+We can inspect current storage usage and deposit in a realm.
+It is explained [here](../user/interact-with-gnokey.md#`vm/qstorage`)
 
 ### Example
 

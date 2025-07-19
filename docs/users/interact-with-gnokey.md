@@ -655,6 +655,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qdoc` - Returns the JSON of the doc for a given pkgpath, suitable for printing
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
+- `vm/qstorage` - returns storage usage and deposit locked in a realm
 
 Let's see how we can use them.
 
@@ -975,6 +976,29 @@ gno.land/p/foo/svg
 
 In practice, this is shorthand for listing packages under `gno.land/p/foo` &
 `gno.land/r/foo`.
+
+## `vm/qstorage`
+
+Use this command to inspect current storage usage and deposit in a realm:
+
+```bash
+gnokey query vm/qstorage --data gno.land/r/foo
+```
+
+Sample Output:
+
+```
+storage: 5025, deposit: 502500
+
+```
+
+storage: total bytes used
+
+deposit: total GNOT locked for that storage
+
+The storage price can be also calculated directly using this output
+(e.g., deposit / storage, 502500/5025 = 100ugnot) instead of querying the price
+per byte from the params realm.
 
 ### Gas parameters
 
