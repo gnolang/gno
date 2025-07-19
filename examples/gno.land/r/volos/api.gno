@@ -1,36 +1,36 @@
-package gnolend
+package volos
 
 import (
 	"gno.land/p/demo/json"
 	u256 "gno.land/p/gnoswap/uint256"
 )
 
-func ApiGetMarketInfo(cur realm, marketId string) string {
-	marketInfo := GetRpcMarketInfo(cur, marketId)
+func ApiGetMarketInfo(marketId string) string {
+	marketInfo := GetRpcMarketInfo(marketId)
 	return marshal(marketInfo.JSON())
 }
 
-func ApiGetMarket(cur realm, marketId string) string {
-	market, _ := GetMarket(cur, marketId)
+func ApiGetMarket(marketId string) string {
+	market, _ := GetMarket(marketId)
 	return marshal(market.ToRpc().JSON())
 }
 
-func ApiGetMarketParams(cur realm, marketId string) string {
-	_, params := GetMarket(cur, marketId)
+func ApiGetMarketParams(marketId string) string {
+	_, params := GetMarket(marketId)
 	return marshal(params.ToRpc().JSON())
 }
 
-func ApiGetPosition(cur realm, marketId, userAddr string) string {
-	position := GetPosition(cur, marketId, userAddr)
+func ApiGetPosition(marketId, userAddr string) string {
+	position := GetPosition(marketId, userAddr)
 	return marshal(position.ToRpc().JSON())
 }
 
-func ApiListMarketsInfo(cur realm) string {
-	marketList := GetMarketList(cur)
+func ApiListMarketsInfo() string {
+	marketList := GetMarketList()
 	markets := json.ArrayNode("", []*json.Node{})
 
 	for _, marketId := range marketList {
-		marketInfo := GetRpcMarketInfo(cur, marketId)
+		marketInfo := GetRpcMarketInfo(marketId)
 		marketWrapper := json.ObjectNode("", map[string]*json.Node{
 			marketId: marketInfo.JSON(),
 		})
@@ -40,16 +40,16 @@ func ApiListMarketsInfo(cur realm) string {
 	return marshal(markets)
 }
 
-func ApiGetLoanAmount(cur realm, marketId string, user string) string {
-	amount := GetLoanAmount(cur, marketId, user)
+func ApiGetLoanAmount(marketId string, user string) string {
+	amount := GetLoanAmount(marketId, user)
 	amountNode := json.ObjectNode("", map[string]*json.Node{
 		"amount": json.StringNode("", amount),
 	})
 	return marshal(amountNode)
 }
 
-func ApiGetUserLoans(cur realm, user string) string {
-	loans := CalculateUserLoans(cur, user)
+func ApiGetUserLoans(user string) string {
+	loans := CalculateUserLoans(user)
 	result := json.ArrayNode("", []*json.Node{})
 
 	loans.Iterate("", "", func(key string, value interface{}) bool {
@@ -68,8 +68,8 @@ func ApiGetUserLoans(cur realm, user string) string {
 }
 
 // ApiGetHealthFactor returns the health factor for a user's position as JSON
-func ApiGetHealthFactor(cur realm, marketId, userAddr string) string {
-	healthFactor := GetHealthFactor(cur, marketId, userAddr)
+func ApiGetHealthFactor(marketId, userAddr string) string {
+	healthFactor := GetHealthFactor(marketId, userAddr)
 	healthFactorNode := json.ObjectNode("", map[string]*json.Node{
 		"healthFactor": json.StringNode("", healthFactor),
 	})

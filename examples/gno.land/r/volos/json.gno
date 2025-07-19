@@ -1,4 +1,4 @@
-package gnolend
+package volos
 
 import (
 	"gno.land/p/demo/json"
@@ -148,8 +148,8 @@ type RpcMarketInfo struct {
 }
 
 // GetMarketInfo returns comprehensive information about a market
-func GetRpcMarketInfo(cur realm, marketId string) RpcMarketInfo {
-	market, params := GetMarket(cur, marketId)
+func GetRpcMarketInfo(marketId string) RpcMarketInfo {
+	market, params := GetMarket(marketId)
 
 	// Get price from oracle
 	price, err := GetPrice(marketId)
@@ -159,8 +159,8 @@ func GetRpcMarketInfo(cur realm, marketId string) RpcMarketInfo {
 	}
 
 	// Get APRs using utility functions
-	borrowAPR := CalculateBorrowAPR(cur, marketId)
-	supplyAPR := CalculateSupplyAPR(cur, marketId)
+	borrowAPR := CalculateBorrowAPR(marketId)
+	supplyAPR := CalculateSupplyAPR(marketId)
 
 	// Calculate utilization rate
 	var utilization *u256.Uint

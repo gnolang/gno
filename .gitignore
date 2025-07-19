@@ -42,8 +42,8 @@ coverage.out
 .tmp/
 wal/
 
-# GnoSwap and GnoLend specific
+# GnoSwap and Volos specific
 gnoswap-tests/_info.mk
-gnolend-tests/_info.mk
+volos-tests/_info.mk
 examples/gno.land/p/gnoswap/consts
 examples/gno.land/r/gnoswap/v1/test_token/bar/bar.gno

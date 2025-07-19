@@ -1,4 +1,4 @@
-package gnolend
+package volos
 
 import (
 	u256 "gno.land/p/gnoswap/uint256"
@@ -17,7 +17,7 @@ var ORACLE_PRICE_SCALE = u256.MustFromDecimal("100000000000000000000000000000000
 // The price is returned as a sqrtPriceX96e36 (36 decimals) in terms of loan token per collateral token
 func GetPrice(poolPath string) (*u256.Uint, error) {
 	// Get market params to determine token ordering
-	_, params := GetMarket(cross, poolPath)
+	_, params := GetMarket(poolPath)
 
 	// Get the sqrt price from the pool
 	sqrtPriceX96Str := pool.PoolGetSlot0SqrtPriceX96(poolPath)

@@ -1,4 +1,4 @@
-package gnolend
+package volos
 
 import (
 	"errors"
@@ -35,4 +35,9 @@ var (
 
 	// Oracle errors
 	ErrPriceNotAvailable = errors.New("price not available from pool")
+
+	// Transfer errors
+	ErrInsufficientAllowance = errors.New("insufficient allowance")
+	ErrTransferFailed        = errors.New("transfer failed")
+	ErrBalanceVerificationFailed = errors.New("balance verification failed")
 )

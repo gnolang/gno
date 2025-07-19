@@ -1,4 +1,4 @@
-package gnolend
+package volos
 
 import (
 	"gno.land/p/gnoswap/uint256"
