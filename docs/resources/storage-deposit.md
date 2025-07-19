@@ -33,14 +33,6 @@ Deleting data → GNOT refunded
 
 4 System locks or refunds GNOT accordingly.
 
-### Max deposit flag
-
-With the optional `-max-deposit flag` in gnokey, users can specify the maximum
-storage deposit that may be locked when deploying a package—since the package
-consumes on-chain storage—or when executing a `MsgCall` or `MsgRun`. The
-transaction will fail if the chain attempts to lock more tokens than the
-specified limit, protecting users from locking more tokens than they are willing
-to tolerate.
 
 ### Anyone Can Free Storage
 
@@ -52,7 +44,7 @@ design and manage user storage.
 ### Global Storage Price Parameter
 
 The storage price is a global parameter governed by the GovDAO'
-The default value is defined in gno.land/pkg/sdk/vm/params.go.
+The default value is defined in `gno.land/pkg/sdk/vm/params.go`.
 ```
 storagePriceDefault = "100ugnot" // cost per byte
 // e.g., 1 GNOT per 10KB (≈ 1B GNOT = 10TB)
@@ -60,8 +52,8 @@ storagePriceDefault = "100ugnot" // cost per byte
 
 ### Tracking Storage
 
-We can inspect current storage usage and deposit in a realm.
-It is explained [here](../user/interact-with-gnokey.md#`vm/qstorage`)
+You can inspect the current storage usage and deposit in a realm.
+See more usage [examples](../users/interact-with-gnokey.md#vmqstorage).
 
 ### Example
 
