@@ -234,7 +234,7 @@ func Supply(cur realm, marketId string, assets, shares uint64) {
 	// Handle token transfer using GRC20 interface
 	safeTransferFrom(params.GetLoanToken(), caller, assetsU256.Int64())
 
-	emitDeposit(marketId, caller, assetsU256)
+	emitSupply(marketId, caller, assetsU256)
 }
 
 // Withdraw tokens from a market

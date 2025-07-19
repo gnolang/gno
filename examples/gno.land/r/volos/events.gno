@@ -10,7 +10,7 @@ import (
 const (
 	// Market events
 	CreateMarketEvent       = "CreateMarket"
-	DepositEvent            = "Deposit"
+	SupplyEvent             = "Supply"
 	WithdrawEvent           = "Withdraw"
 	BorrowEvent             = "Borrow"
 	RepayEvent              = "Repay"
@@ -72,9 +72,9 @@ func emitCreateMarket(marketId string, loanToken string, collateralToken string)
 	)
 }
 
-func emitDeposit(marketId string, user std.Address, amount *u256.Uint) {
+func emitSupply(marketId string, user std.Address, amount *u256.Uint) {
 	std.Emit(
-		DepositEvent,
+		SupplyEvent,
 		EventMarketIDKey, marketId,
 		EventUserKey, user.String(),
 		EventAmountKey, amount.ToString(),
