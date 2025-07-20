@@ -1,13 +1,14 @@
 package callee
 
 import (
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
+
 	"gno.land/p/demo/avl"
 )
 
 var (
 	localVar         string
-	customVarPointer = &Custom{
+	CustomVarPointer = &Custom{
 		caller: "Pointer!",
 		tree:   avl.NewTree(),
 	}
@@ -15,7 +16,20 @@ var (
 
 type Custom struct {
 	caller string
-	tree   avl.Tree
+	tree   *avl.Tree
+}
+
+func Caller() string {
+	return std.PreviousRealm().PkgPath()
+}
+
+func GetCustom() *Custom {
+	return CustomVarPointer
+}
+
+func (c *Custom) UpdateCaller(s string) string {
+	localVar = s
+	return localVar
 }
 
 // UpdateLocalVarCrossing is callable
