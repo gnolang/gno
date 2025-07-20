@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
@@ -32,9 +31,7 @@ type DevClient struct {
 	Handler       func(typ events.Type, data any) error
 	HandlerStatus func(status ClientStatus, remote string)
 
-	connMu sync.RWMutex
-	status ClientStatus
-	conn   *websocket.Conn
+	conn *websocket.Conn
 }
 
 func (c *DevClient) updateStatus(s ClientStatus, remote string) {
