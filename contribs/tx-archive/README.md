@@ -1,4 +1,4 @@
-<h2 align="center">⚛️ Tendermint2 Backup / Restore ⚛️</h2>
+# ⚛️ Tendermint2 Backup / Restore ⚛️
 
 ## Overview
 

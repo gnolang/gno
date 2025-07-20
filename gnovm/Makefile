@@ -1,7 +1,8 @@
+include ../misc/makehelp/makeHelpMsgs.mk
+
 .PHONY: help
-help:
-	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
+help: # Print this help message
+	@$(call RUN_MAKEFILE_HELP,..,)
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
@@ -33,53 +34,53 @@ VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shel
 ########################################
 # Dev tools
 .PHONY: build
-build:
+build: # Build the gno CLI binary into ./build/gno using current version and GNOROOT metadata
 	go build $(GOBUILD_FLAGS) -o build/gno ./cmd/gno
 
 .PHONY: install
-install:
+install: # Install the gno CLI binary into $GOBIN with embedded version and GNOROOT metadata
 	go install $(GOBUILD_FLAGS) ./cmd/gno
 
 .PHONY: clean
-clean:
+clean: # Remove the build output directory (./build)
 	rm -rf build
 
 ########################################
 # Dev tools
 .PHONY: lint
-lint:
+lint: # Run golangci-lint on all Go packages in the repo using shared configuration
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
-fmt:
+fmt: # Format all Go and Gno files in this directory and subtrees using gofumpt, gno fmt and goimports
 	go fmt ./...
 	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/...
 	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
 # Benchmarking the VM's opcode and storage access
 .PHONY: opcode storage build_opcode build_storage
-build.bench.opcode:
+build.bench.opcode: # Build the benchmarking binary with opcode benchmarking enabled
 	go build -tags "benchmarkingops" -o build/gnobench ./cmd/benchops
 
-build.bench.storage:
+build.bench.storage: # Build the benchmarking binary with storage benchmarking enabled
 	go build -tags "benchmarkingstorage" -o build/gnobench ./cmd/benchops
 
 # Extract the latest commit hash
 COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)
 
 # Run target
-run.bench.opcode: build.bench.opcode
+run.bench.opcode: build.bench.opcode # Run opcode benchmark and output results to CSV with commit hash in filename
 	./build/gnobench -out opcode_results_$(COMMIT_HASH).csv
 
 # Run target
-run.bench.storage: build.bench.storage
+run.bench.storage: build.bench.storage # Run storage benchmark and output results to CSV with commit hash in filename
 	./build/gnobench -out store_results_$(COMMIT_HASH).csv
 
 
 ########################################
 # Test suite
 .PHONY: test
-test: _test.filetest _test.cmd _test.pkg _test.stdlibs
+test: _test.filetest _test.cmd _test.pkg _test.stdlibs # Run all major test targets (cmd, pkg, stdlibs, and file-based tests)
 
 .PHONY: _test.cmd
 _test.cmd:
@@ -88,7 +89,7 @@ _test.cmd:
 # Run tests on ./cmd/, saving the result of the coverage in
 # GOTEST_COVER_PROFILE.
 .PHONY: test.cmd.coverage
-test.cmd.coverage:
+test.cmd.coverage: # Run tests in ./cmd/... with atomic coverage collection and emit coverage data files
 	$(eval export TXTARCOVERDIR := $(shell mktemp -d --tmpdir gnovm-make.XXXXXXX))
 	go test ./cmd/... -covermode atomic -test.gocoverdir='$(TXTARCOVERDIR)' $(GOTEST_FLAGS)
 	@echo "coverage results:"
@@ -99,7 +100,7 @@ test.cmd.coverage:
 # Run test.cmd.coverage, then view the result in the HTML browser render
 # and delete the original file.
 .PHONY: test.cmd.coverage_view
-test.cmd.coverage_view: test.cmd.coverage
+test.cmd.coverage_view: test.cmd.coverage # Run coverage test, then open a browser to view the result and clean up
 	go tool cover -html='$(GOTEST_COVER_PROFILE)'
 	rm '$(GOTEST_COVER_PROFILE)'
 
@@ -123,7 +124,7 @@ _test.filetest:
 ########################################
 # Code gen
 .PHONY: generate
-generate: _dev.generate _dev.docs fmt
+generate: _dev.generate _dev.docs fmt # Run Go code generation and embed help text into markdown files, then format and fix imports
 
 .PHONY: _dev.docs
 _dev.docs:

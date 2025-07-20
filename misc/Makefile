@@ -1,7 +1,8 @@
+include ../misc/makehelp/makeHelpMsgs.mk
+
 .PHONY: help
-help:
-	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
+help: # Print this help message
+	@$(call RUN_MAKEFILE_HELP,..,)
 
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
@@ -27,24 +28,29 @@ VERIFY_MOD_SUMS ?= false
 ########################################
 # Dev tools
 .PHONY: lint
-lint:
+lint: # Run golangci-lint using the shared configuration on all code under ./misc
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
-fmt:
+fmt: # Format all Go files in the current directory using gofumpt
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
 ########################################
 # Test suite
 .PHONY: test
-test: _test.genstd
+test: _test.makefile_help _test.genstd # Run the genstd and makefile_help test suites
+
+
+.PHONY: _test.makefile_help
+_test.makefile_help:
+	go test makehelp/makefile_help.go makehelp/makefile_help_test.go $(GOTEST_FLAGS)
 
 .PHONY: _test.genstd
 _test.genstd:
 	go test ./genstd/... $(GOTEST_FLAGS)
 
 .PHONY: tidy
-tidy:
+tidy: # Run mod_tidy.sh to clean up and optionally verify go.mod files
 	# Give execute permissions
 	chmod +x ./mod_tidy.sh
 	# Tidy go mods

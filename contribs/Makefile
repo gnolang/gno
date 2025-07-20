@@ -1,7 +1,10 @@
+include ../misc/makehelp/makeHelpMsgs.mk
+
+progs_with_generate := $(patsubst %/Makefile,%,$(shell grep -l '^generate:' */Makefile))
+
 .PHONY: help
-help:
-	@echo "Available make commands:"
-	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
+help: # Print this help message
+	@$(call RUN_MAKEFILE_HELP,..,$(patsubst %/,%,$(programs)) $(patsubst %,2:%,$(progs_with_generate)))
 
 programs=$(wildcard */)
 
@@ -27,20 +30,20 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: install
-install:
+install:  # Print instructions for installing one or all subpackages
 	@echo 'To install a tool, go to the subdirectory, then run `make install`.'
 	@echo 'To do a full installation, run `make install_all`.'
 
-install_all: $(addprefix install.,$(programs))
-install.%:
+install_all: $(addprefix install.,$(programs))  # Install all subpackages
+install.%:  # Install subpackage %
 	@echo "[+] make -C $(subst install.,,$@) install"
 	$(MAKE) --no-print-directory -C $(subst install.,,$@) install
 .PHONY: install_all
 
 ########################################
 # Test suite
-test: $(addprefix test.,$(programs))
-test.%:
+test: $(addprefix test.,$(programs)) # Test all subpackages
+test.%:  # Test subpackage %
 	@echo "[+] make -C $(subst test.,,$@) install"
 	$(MAKE) --no-print-directory -C $(subst test.,,$@) test
 .PHONY: test
@@ -48,8 +51,8 @@ test.%:
 ########################################
 # Lint
 .PHONY: lint
-lint: $(addprefix lint.,$(programs))
-lint.%:
+lint: $(addprefix lint.,$(programs)) # Lint all subpackages
+lint.%:  # Lint subpackage %
 	@echo "[+] make -C $(subst lint.,,$@) install"
 	$(MAKE) --no-print-directory -C $(subst lint.,,$@) lint
 
@@ -58,16 +61,16 @@ lint.%:
 rundep=go run -modfile ../misc/devdeps/go.mod
 
 .PHONY: fmt
-fmt:
+fmt: # Format all Go files in this directory and subdirectories
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
 .PHONY: tidy
-tidy:
+tidy: # Run 'go mod tidy' in all Go modules within this directory and subdirectories
 	find . -name go.mod -execdir go mod tidy -v \;
 
 
-generate: $(addprefix generate.,$(programs))
-generate.%:
+generate: $(addprefix generate.,$(progs_with_generate)) # Generate documentation (for applicable tools)
+generate.%: # %2:Generate documentation for %
 	@if grep '^generate:' $(subst generate.,,$@)/Makefile; then \
 	  echo "[+] make -C $(subst generate.,,$@) generate"; \
 	  $(MAKE) --no-print-directory -C $(subst generate.,,$@) generate; \
