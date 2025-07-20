@@ -10,7 +10,6 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
 )
 
 type Color struct {
@@ -63,6 +62,31 @@ func init() {
 	}
 }
 
+func Render(path string) string {
+	req := realmpath.Parse(path)
+	query := req.Query
+
+	out := md.H1("r/place")
+	displayCurrentPosition(path)
+
+	selectedColor := query.Get("color")
+
+	if selectedColor == "" {
+		selectedColor = "W"
+	}
+
+	out += displayColorTable(selectedColor)
+
+	out += renderAccountManagement(selectedColor)
+
+	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", generateSVG())
+
+	out += displayColorList(query, req)
+
+	return out
+}
+
+// Helpers
 func renderAccountManagement(selectedColor string) string {
 	out := md.H2(md.Link("Submit", txlink.Call("Submit", "x", xStr, "y", yStr, "colorName", selectedColor)) + " | " +
 		md.Link("Delete account", txlink.Call("DeleteYourself")) + "\n\n")
@@ -106,29 +130,5 @@ func displayColorList(query url.Values, req *realmpath.Request) string {
 			out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", squareSvg) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
 		}
 	}
-	return out
-}
-
-func Render(path string) string {
-	req := realmpath.Parse(path)
-	query := req.Query
-
-	out := md.H1("r/place")
-	displayCurrentPosition(path)
-
-	selectedColor := query.Get("color")
-
-	if selectedColor == "" {
-		selectedColor = "W"
-	}
-
-	out += displayColorTable(selectedColor)
-
-	out += renderAccountManagement(selectedColor)
-
-	out += ufmt.Sprintf("![Pixel Canvas](data:image/svg+xml;base64,%s)", generateSVG())
-
-	out += displayColorList(query, req)
-
 	return out
 }
