@@ -27,3 +27,4 @@ generate:
 	(go run . local -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-local-usage.txt
 	(go run . staging -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-staging-usage.txt
 	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
+	rm -f ./gnodev

@@ -43,6 +43,7 @@ generate: ## Generate documentation
 	go build .
 	(go run . -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnobro-usage.txt
 	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
+	rm -f ./gnobro
 
 clean: ## Clean build artifacts
 	rm -rf build/
