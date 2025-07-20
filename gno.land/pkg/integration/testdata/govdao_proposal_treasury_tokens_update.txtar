@@ -42,7 +42,7 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
 
-# verify no balances are found even though the treasury address got tokens
+# verify the balances associated with the tokens update proposal
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:GRC20'
 stdout '| Denom | Amount |'
 stdout '| gno.land/r/demo/grc20factory.TOKEN1 | 42 |'
