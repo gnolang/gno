@@ -29,7 +29,7 @@ var (
 
 // Register a new user when clicking submit for the first time
 // Panics if the user is banned or already registered
-func Register() {
+func Register(cur realm) {
 	caller := std.PreviousRealm().Address()
 
 	if banned.Has(caller.String()) {
@@ -49,19 +49,9 @@ func Register() {
 	users.Set(caller.String(), newMember)
 }
 
-// isAdmin returns true if the user linked to the address is an administrator
-func isAdmin(address std.Address) bool {
-	user, ok := retrieveMember(address)
-	if !ok {
-		return false
-	}
-
-	return user.Rank == adminRank
-}
-
 // SetNewAdmin promotes a member to the admin rank
 // Only admin can use it
-func SetNewAdmin(address std.Address) {
+func SetNewAdmin(cur realm, address std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("must be an admin")
 	}
@@ -80,7 +70,7 @@ func SetNewAdmin(address std.Address) {
 
 // DeleteYourself removes the callers from the list of registered users
 // Panics if caller is the last admin of the board
-func DeleteYourself() {
+func DeleteYourself(cur realm) {
 	addr := std.PreviousRealm().Address()
 
 	if users.Has(addr.String()) {
@@ -96,7 +86,7 @@ func DeleteYourself() {
 
 // BanMembers removes users from the users list and adds them to a blacklist
 // Only admin can use it and they cannot ban fellow admins
-func BanMember(adr std.Address) {
+func BanMember(cur realm, adr std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
 	}
@@ -112,7 +102,7 @@ func BanMember(adr std.Address) {
 // UnbanMember removes a user from the blacklist
 // Only admin can use it
 // Previously banned user must be registered again manually
-func UnbanMember(adr std.Address) {
+func UnbanMember(cur realm, adr std.Address) {
 	if !isAdmin(std.PreviousRealm().Address()) {
 		panic("only admin can ban members")
 	}
@@ -122,6 +112,16 @@ func UnbanMember(adr std.Address) {
 	}
 
 	banned.Remove(adr.String())
+}
+
+// isAdmin returns true if the user linked to the address is an administrator
+func isAdmin(address std.Address) bool {
+	user, ok := retrieveMember(address)
+	if !ok {
+		return false
+	}
+
+	return user.Rank == adminRank
 }
 
 // setDefaultAdmin set the first admins of the realm
