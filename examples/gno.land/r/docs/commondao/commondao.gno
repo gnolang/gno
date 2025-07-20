@@ -14,9 +14,9 @@ var DAO *commondao.CommonDAO
 func CreateDao(title string) {
 	caller := std.PreviousRealm().Address()
 
-	// Creates DAO with Active and Finished proposal storage
-	// Creates a member storage
-	// Other options can be added, can be found in 'p/nt/commondao/commondao_options'
+	// Creates a DAO with Active and Finished proposal storage
+	// Also, it creates a member storage
+	// Other options can be added, all of which can be found in 'p/nt/commondao/commondao_options'
 	DAO = commondao.New(
 		commondao.WithName(title),    // adds a name to the common DAO
 		commondao.WithMember(caller), // adds the creator of the DAO to its member storage
