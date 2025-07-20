@@ -32,10 +32,11 @@ func (c *Proposal) VotingPeriod() time.Duration {
 }
 
 // Tally determines whether the proposal passes based on voting results
+// There are multiple ways to tally votes, pick the one most suited to your use case
 func (c *Proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
 	yesCount := r.VoteCount(commondao.ChoiceYes)
 	noCount := r.VoteCount(commondao.ChoiceNo)
-	return yesCount > noCount, nil // Here a simple majority woudl lead to the proposal being passed
+	return yesCount > noCount, nil // Here a simple majority would lead to the proposal being passed
 }
 
 // Execute will execute what you decide once the proposal is considered passed
