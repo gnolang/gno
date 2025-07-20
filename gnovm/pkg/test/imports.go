@@ -51,6 +51,11 @@ type StoreOptions struct {
 	// TestedPackagePath is the path of the package being tested (for coverage)
 	// This is used to prevent loading the package from disk when it's already instrumented
 	TestedPackagePath string
+
+	// SourceStore, if given, is used to process imports, whenever a custom
+	// version doesn't exist in the testing standard libraries.
+	// This ignores the value of WithExtern.
+	SourceStore gno.Store
 }
 
 // This store without options supports stdlibs without test/stdlibs overrides.
@@ -185,9 +190,35 @@ func StoreWithOptions(
 		}
 
 		// Load normal stdlib.
-		pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly, opts.Testing)
-		if pn != nil {
+		if opts.SourceStore != nil {
+			// Only perform actual loading if there exists a testing stdlib.
+			if gno.IsStdlib(pkgPath) {
+				loc := testStdlibLocation(rootDir, pkgPath)
+				if osm.DirExists(loc) {
+					pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly, opts.Testing)
+					if pn != nil {
+						return
+					}
+				}
+			}
+			// Get the package from the source store.
+			pv = opts.SourceStore.GetPackage(pkgPath, true)
+			if pv != nil {
+				pn = pv.GetPackageNode(opts.SourceStore)
+				mp := opts.SourceStore.GetMemPackage(pkgPath)
+				if mp != nil {
+					store.AddMemPackage(mp, mp.Type.(gno.MemPackageType))
+				}
+			} else {
+				pn = nil
+			}
 			return
+		}
+		if gno.IsStdlib(pkgPath) {
+			pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly, opts.Testing)
+			if pn != nil {
+				return
+			}
 		}
 
 		// if examples package...
@@ -244,16 +275,30 @@ func StoreWithOptions(
 	return
 }
 
+func stdlibLocation(rootDir, pkgPath string) string {
+	return filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
+}
+
+func testStdlibLocation(rootDir, pkgPath string) string {
+	return filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath)
+}
+
 // if !testing, result must be safe for production type-checking.
-func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool, testing bool) (*gno.PackageNode, *gno.PackageValue) {
+func loadStdlib(
+	rootDir, pkgPath string,
+	store gno.Store,
+	stdout io.Writer,
+	preprocessOnly bool,
+	testing bool,
+) (*gno.PackageNode, *gno.PackageValue) {
 	dirs := []string{
 		// Normal stdlib path.
-		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
+		stdlibLocation(rootDir, pkgPath),
 	}
 	var mPkgType gno.MemPackageType
 	if testing {
 		// Override path. Definitions here override the previous if duplicate.
-		dirs = append(dirs, filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath))
+		dirs = append(dirs, testStdlibLocation(rootDir, pkgPath))
 		mPkgType = gno.MPStdlibTest
 	} else {
 		mPkgType = gno.MPStdlibProd
@@ -350,7 +395,11 @@ func LoadImportsWithOptions(store gno.Store, mpkg *std.MemPackage, abortOnError 
 	if err != nil {
 		return err
 	}
-	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+	imports := importsMap.Merge(
+		packages.FileKindPackageSource,
+		packages.FileKindTest,
+		packages.FileKindXTest,
+	)
 	for _, imp := range imports {
 		// Skip loading the package being tested itself as it's already instrumented
 		// This is crucial for coverage to work correctly

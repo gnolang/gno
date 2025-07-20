@@ -168,6 +168,7 @@ type TestOptions struct {
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
+	tcCache        gno.TypeCheckCache
 }
 
 // WriterForStore is the writer that should be passed to [Store], so that
