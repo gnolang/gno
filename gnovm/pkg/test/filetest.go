@@ -263,6 +263,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 	tcError := ""
 	fname = filepath.Base(fname)
+	if opts.tcCache == nil {
+		opts.tcCache = make(gno.TypeCheckCache)
+	}
 
 	// Eagerly load imports.
 	// LoadImports is run using opts.Store, rather than the transaction store;
@@ -334,7 +337,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
@@ -368,7 +376,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, m.Store, m.Store, gno.TCLatestRelaxed); err != nil {
+			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+				Getter:     m.Store,
+				TestGetter: m.Store,
+				Mode:       gno.TCLatestRelaxed,
+				Cache:      opts.tcCache,
+			}); err != nil {
 				tcError = fmt.Sprintf("%v", err.Error())
 			}
 		}
