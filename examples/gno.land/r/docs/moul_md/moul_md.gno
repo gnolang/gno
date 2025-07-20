@@ -19,7 +19,7 @@ func Render(path string) string {
 		renderBestPractices(),
 		renderSeeAlso(),
 	}
-	
+
 	output := ""
 	for _, section := range sections {
 		output += section
@@ -70,14 +70,14 @@ md.H3("Subsection")
 md.H4("Sub-subsection")
 md.H5("Minor heading")
 md.H6("Smallest heading")`
-	
+
 	result := md.H1("Main Title") +
 		md.H2("Section") +
 		md.H3("Subsection") +
 		md.H4("Sub-subsection") +
 		md.H5("Minor heading") +
 		md.H6("Smallest heading")
-	
+
 	return md.H2("Headers") +
 		md.Paragraph("The package supports all six levels of markdown headers:") +
 		"\n" +
@@ -89,7 +89,7 @@ md.H6("Smallest heading")`
 
 func renderLists() string {
 	output := md.H2("Lists") + "\n"
-	
+
 	// Bullet Lists
 	bulletCode := `items := []string{
     "First item",
@@ -97,7 +97,7 @@ func renderLists() string {
     "Third item with\nmultiple lines",
 }
 md.BulletList(items)`
-	
+
 	output += md.H3("Bullet Lists") +
 		md.LanguageCodeBlock("go", bulletCode) +
 		"\nResult:\n" +
@@ -106,7 +106,7 @@ md.BulletList(items)`
 			"Second item",
 			"Third item with\nmultiple lines",
 		}) + "\n"
-	
+
 	// Ordered Lists
 	orderedCode := `steps := []string{
     "First step",
@@ -114,7 +114,7 @@ md.BulletList(items)`
     "Third step with\nadditional details",
 }
 md.OrderedList(steps)`
-	
+
 	output += md.H3("Ordered Lists") +
 		md.LanguageCodeBlock("go", orderedCode) +
 		"\nResult:\n" +
@@ -123,7 +123,7 @@ md.OrderedList(steps)`
 			"Second step",
 			"Third step with\nadditional details",
 		}) + "\n"
-	
+
 	// Todo Lists
 	todoCode := `tasks := []string{
     "Completed task",
@@ -133,7 +133,7 @@ md.OrderedList(steps)`
 }
 completed := []bool{true, true, false, false}
 md.TodoList(tasks, completed)`
-	
+
 	output += md.H3("Todo Lists") +
 		md.LanguageCodeBlock("go", todoCode) +
 		"\nResult:\n" +
@@ -146,7 +146,7 @@ md.TodoList(tasks, completed)`
 			},
 			[]bool{true, true, false, false},
 		) + "\n"
-	
+
 	// Nested Lists
 	nestedCode := `md.BulletItem("Parent item") +
 md.Nested(
@@ -158,23 +158,23 @@ md.Nested(
     ),
     "  ",
 )`
-	
+
 	nestedResult := md.BulletItem("Parent item") +
 		md.Nested(
 			md.BulletItem("Nested item 1")+
-			md.BulletItem("Nested item 2")+
-			md.Nested(
-				md.BulletItem("Deeply nested"),
-				"    ",
-			),
+				md.BulletItem("Nested item 2")+
+				md.Nested(
+					md.BulletItem("Deeply nested"),
+					"    ",
+				),
 			"  ",
 		)
-	
+
 	output += md.H3("Nested Lists") +
 		md.LanguageCodeBlock("go", nestedCode) +
 		"\nResult:\n" +
 		nestedResult + "\n"
-	
+
 	return output
 }
 
@@ -241,19 +241,19 @@ func renderBlockquotes() string {
 
 func renderAdvancedFeatures() string {
 	output := md.H2("Advanced Features") + "\n"
-	
+
 	// Collapsible Sections
 	output += md.H3("Collapsible Sections") +
 		md.LanguageCodeBlock("go", `md.CollapsibleSection("Click to expand", "Hidden content here!")`) +
 		"\nResult:\n" +
 		md.CollapsibleSection("Click to expand", "Hidden content here!") + "\n"
-	
+
 	// Two Columns
 	columnsCode := `md.Columns([]string{
     "Left column content",
     "Right column content",
 }, false)`
-	
+
 	output += md.H3("Two Columns") +
 		md.LanguageCodeBlock("go", columnsCode) +
 		"\nResult:\n" +
@@ -261,13 +261,13 @@ func renderAdvancedFeatures() string {
 			"Left column content",
 			"Right column content",
 		}, false) + "\n"
-	
+
 	// Multiple Columns
 	multiColumnsCode := `md.ColumnsN([]string{
     "Item 1", "Item 2", "Item 3",
     "Item 4", "Item 5", "Item 6",
 }, 3, true)`
-	
+
 	output += md.H3("Multiple Columns (3 per row)") +
 		md.LanguageCodeBlock("go", multiColumnsCode) +
 		"\nResult:\n" +
@@ -275,7 +275,7 @@ func renderAdvancedFeatures() string {
 			"Item 1", "Item 2", "Item 3",
 			"Item 4", "Item 5", "Item 6",
 		}, 3, true) + "\n"
-	
+
 	return output
 }
 
@@ -345,7 +345,7 @@ profile := RenderProfile(
     []string{"Complete Gno tutorial", "Build first realm", "Deploy to testnet", "Write documentation"},
     []bool{true, true, false, false},
 )`
-	
+
 	// Generate actual result - First row
 	avatarSection := md.Image("John Doe avatar", "/public/imgs/gnoland.svg") + "\n\n" +
 		md.H3("Basic Info") +
@@ -355,30 +355,30 @@ profile := RenderProfile(
 			md.Bold("Status:") + " 🟢 Active",
 			md.Bold("Joined:") + " January 2024",
 		})
-	
+
 	bioSection := md.H3("Bio") +
 		md.Blockquote("Passionate Gno developer building the future of smart contracts. Love working with blockchain technology and contributing to open source.")
-	
+
 	// Second row
 	tasksSection := md.H3("Current Tasks") +
 		md.TodoList(
 			[]string{"Complete Gno tutorial", "Build first realm", "Deploy to testnet", "Write documentation"},
 			[]bool{true, true, false, false},
 		)
-	
+
 	linksSection := md.H3("Links") +
 		md.BulletList([]string{
 			md.Link("GitHub", "https://github.com/johndoe"),
 			md.Link("Portfolio", "https://example.com/johndoe"),
 			md.Link("LinkedIn", "https://linkedin.com/in/johndoe"),
 		})
-	
+
 	result := md.H1("User Profile: John Doe") +
 		md.HorizontalRule() +
 		md.Columns([]string{avatarSection, bioSection}, true) +
 		"\n" +
 		md.Columns([]string{tasksSection, linksSection}, true)
-	
+
 	return md.H2("Practical Example") +
 		md.Paragraph("Here's a complete example showing how to build a rich user profile page using columns, images, and various md features:") +
 		"\n" +
@@ -395,7 +395,7 @@ func renderBestPractices() string {
 		"Use " + md.InlineCode("md.Paragraph()") + " to ensure proper spacing between elements",
 		"Leverage " + md.InlineCode("md.ColumnsN()") + " for responsive layouts",
 	}
-	
+
 	return md.H2("Best Practices") +
 		md.OrderedList(practices) +
 		"\n"
@@ -406,7 +406,7 @@ func renderSeeAlso() string {
 		md.Link("gno.land/p/moul/md", "https://gno.land/p/moul/md") + " - The md package source code",
 		md.Link("Markdown on Gno", "https://gno.land/r/docs/markdown") + " - Comprehensive guide on Gno Flavored Markdown syntax",
 	}
-	
+
 	return md.H2("See Also") +
 		md.BulletList(links)
 }
@@ -418,7 +418,7 @@ func renderExample(title, code, result string) string {
 		output += md.H3(title)
 	}
 	output += md.LanguageCodeBlock("go", code) + "\n"
-	output += md.Paragraph("Result: " + result) + "\n"
+	output += md.Paragraph("Result: "+result) + "\n"
 	return output
 }
 
