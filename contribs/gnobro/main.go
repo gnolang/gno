@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"net"
 	"net/url"
@@ -210,10 +211,10 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 	}
 
 	bcfg := browser.DefaultConfig()
+	bcfg.DevMode = cfg.dev
 	bcfg.Readonly = cfg.readonly
 	bcfg.Renderer = lipgloss.DefaultRenderer()
 	bcfg.URLDefaultValue = path
-	bcfg.URLPrefix = gnoPrefix
 	bcfg.URLPrefix = gnoPrefix
 
 	if cfg.sshListener == "" {
@@ -231,6 +232,14 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
+	file, err := os.OpenFile("/tmp/gnobro.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+	}
+	defer file.Close()
+
+	logger := newLogger(file, true)
+
 	model := browser.New(bcfg, gnocl)
 	p := tea.NewProgram(model,
 		tea.WithContext(ctx),
@@ -246,14 +255,20 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 		}
 
 		var devcl browser.DevClient
+		devcl.Logger = logger
 		devcl.Handler = func(typ events.Type, data any) error {
 			switch typ {
 			case events.EvtReload, events.EvtReset, events.EvtTxResult:
-				p.Send(browser.RefreshRealm())
+				p.Send(browser.RefreshRealmMsg())
 			default:
 			}
 
 			return nil
+		}
+
+		devcl.HandlerStatus = func(s browser.ClientStatus, remote string) {
+			logger.Info("updating status", "status", s)
+			p.Send(browser.DevClientStatusUpdateMsg(s, remote))
 		}
 
 		errgs.Go(func() error {
