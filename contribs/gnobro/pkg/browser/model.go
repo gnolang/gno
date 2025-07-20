@@ -38,6 +38,7 @@ type Config struct {
 	Renderer        *lipgloss.Renderer
 	Readonly        bool
 	Banner          ModelBanner
+	DevMode         bool
 }
 
 const DefaultGnoLandPrefix = "gno.land/"
@@ -83,6 +84,10 @@ type model struct {
 	listFuncs    FuncListModel
 	commandInput textinput.Model
 	commandFocus bool
+
+	// Dev
+	devMode         bool
+	devClientStatus ClientStatus
 }
 
 func initURLInput(prefix string, r *lipgloss.Renderer) textinput.Model {
@@ -147,6 +152,8 @@ func New(cfg Config, client *gnoclient.Client) tea.Model {
 		zone:     zone.New(),
 		pageurls: map[string]string{},
 		history:  clist.New(),
+
+		devMode: cfg.DevMode,
 	}
 }
 
@@ -159,12 +166,21 @@ type fetchRealmMsg struct {
 	realmPath string
 }
 
-func FetchRealm(path string) tea.Cmd {
-	return func() tea.Msg { return fetchRealmMsg{path} }
+func FetchRealmMsg(path string) tea.Msg {
+	return fetchRealmMsg{path}
 }
 
-func RefreshRealm() tea.Cmd {
-	return func() tea.Msg { return fetchRealmMsg{""} }
+func RefreshRealmMsg() tea.Msg {
+	return fetchRealmMsg{""}
+}
+
+type clientStatusUpdateMsg struct {
+	status ClientStatus
+	remote string
+}
+
+func DevClientStatusUpdateMsg(s ClientStatus, remote string) tea.Msg {
+	return clientStatusUpdateMsg{s, remote}
 }
 
 type renderUpdateMsg struct {
@@ -291,7 +307,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// If no error or empty response is returned, simply refresh the page.
 		m.messageDisplay = false
-		return m, RefreshRealm()
+		return m, send(RefreshRealmMsg())
 
 	case renderUpdateMsg:
 		m.taskLoader.Done()
@@ -327,6 +343,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.taskLoader.Active() {
 			m.taskLoader, cmd = m.taskLoader.Update(msg)
 		}
+
+	case clientStatusUpdateMsg:
+		m.devClientStatus = msg.status
+		return m, cmd
 
 	case tea.MouseMsg:
 		cmd = m.updateMouse(msg)
@@ -369,7 +389,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.YPosition = headerHeight + 1
 
 			if value := m.urlInput.Value(); value != "" {
-				cmd = RefreshRealm()
+				cmd = send(RefreshRealmMsg())
 				m.updateHistory()
 			}
 		} else {
@@ -436,7 +456,7 @@ func (m *model) updateKey(msg tea.KeyMsg) tea.Cmd {
 			m.ExtendCommandInput()
 		}
 	case "alt+r":
-		cmd = RefreshRealm()
+		cmd = send(RefreshRealmMsg())
 	case "enter":
 		// Update command on focus
 		if m.commandInput.Focused() && !m.messageDisplay {
@@ -577,4 +597,8 @@ func (m *model) getCurrentPath() string {
 	}
 
 	return gopath.Join(m.urlPrefix, path)
+}
+
+func send(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg { return msg }
 }
