@@ -24,6 +24,7 @@ const (
 
 	white = "rgb(250,250,250)"
 
+	// default moderators wallets
 	chaeWallet = "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g"
 	ghhvWallet = "g1d2hvkqhqckhzpaum09c002fesdw89qrcg9zqws"
 	louWallet  = "g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs"
