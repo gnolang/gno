@@ -1,6 +1,6 @@
-// Package place is a package that reproduce the concept of r/place
+// Package place is a package that reproduces the concept of Reddit's r/place.
 // Users can interact with a grid composed of many pixels to color them
-// When combined, those pixels can form images !
+// When combined, those pixels can form images
 package place
 
 import (
