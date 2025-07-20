@@ -16,7 +16,7 @@ func (m *model) moveToRealm(realm string) tea.Cmd {
 	m.urlInput.CursorEnd()
 
 	// return command update
-	return tea.Sequence(RefreshRealm(), m.urlInput.Focus())
+	return tea.Sequence(send(RefreshRealmMsg()), m.urlInput.Focus())
 }
 
 func (m *model) updateHistory() {
