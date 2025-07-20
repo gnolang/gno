@@ -125,8 +125,6 @@ func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, llt
 	lltvUint := u256.NewUint(uint64(lltv))
 	lltvWad := MulDivDown(lltvUint, WAD, u256.NewUint(100)) // This will give us (lltv * 1e18) / 100
 
-	println("lltvWad:", lltvWad.ToString())
-
 	// Create market params
 	params := MarketParams{
 		PoolPath:     poolPath,
@@ -682,7 +680,6 @@ func accrueInterest(marketId string) {
 	now := time.Now().Unix()
 	elapsed := now - market.LastUpdate
 
-	println("elapsed:", elapsed)
 	if elapsed == 0 {
 		return
 	}
@@ -777,9 +774,6 @@ func isHealthy(marketId string, userAddr string) bool {
 
 	// Calculate max borrow allowed
 	maxBorrow := WMulDown(MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), params.LLTV)
-
-	println("maxBorrow:", maxBorrow.ToString())
-	println("borrowed:", borrowed.ToString())
 
 	// Position is healthy if borrowed <= maxBorrow
 	return borrowed.Cmp(maxBorrow) <= 0
