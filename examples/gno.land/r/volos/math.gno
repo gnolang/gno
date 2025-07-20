@@ -4,9 +4,6 @@ import (
 	"gno.land/p/gnoswap/uint256"
 )
 
-// WAD represents a decimal with 18 decimals (i.e. 1e18)
-var WAD = uint256.NewUint(1000000000000000000)
-
 // WMulDown returns (x * y) / WAD rounded down
 func WMulDown(x, y *uint256.Uint) *uint256.Uint {
 	return uint256.MulDiv(x, y, WAD)

@@ -152,11 +152,8 @@ func GetRpcMarketInfo(marketId string) RpcMarketInfo {
 	market, params := GetMarket(marketId)
 
 	// Get price from oracle
-	price, err := GetPrice(marketId)
-	priceStr := ""
-	if err == nil {
-		priceStr = price.ToString()
-	}
+	price := GetPrice(marketId)
+	priceStr := price.ToString()
 
 	// Get APRs using utility functions
 	borrowAPR := CalculateBorrowAPR(marketId)

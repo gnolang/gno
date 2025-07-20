@@ -3,7 +3,7 @@ include ../gnoswap-tests/_info.mk
 include ../gnoswap-tests/test.mk
 
 # Complete flow that includes both GNS-WUGNOT and BAR-WUGNOT operations
-full-workflow: pool-create-gns-wugnot-default mint-gns-gnot market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
+full-workflow: pool-create-gns-wugnot-default mint-gns-gnot enable-irm enable-lltv market-create-gns-wugnot supply-assets-gns-wugnot supply-collateral-gns-wugnot borrow-gns \
 	pool-create-bar-wugnot-default mint-bar-wugnot market-create-bar-wugnot supply-assets-bar-wugnot supply-collateral-bar-wugnot borrow-bar \
 	check-position-gns-wugnot check-position-bar-wugnot
 	@echo "************ WORKFLOW FINISHED ************"
@@ -12,6 +12,12 @@ full-workflow: pool-create-gns-wugnot-default mint-gns-gnot market-create-gns-wu
 enable-irm:
 	$(info ************ Enable linear IRM ************)
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func EnableIRM -args "linear" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo
+
+# Enable LLTV (75% = 75 as int64)
+enable-lltv:
+	$(info ************ Enable LLTV 75% ************)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func EnableLLTV -args 75 -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
 # Test market creation with GNS and WUGNOT
@@ -29,29 +35,34 @@ market-create-bar-wugnot:
 # Test getting pool price for GNS-WUGNOT market
 market-get-price-gns-wugnot:
 	$(info ************ Test getting pool price for GNS-WUGNOT market ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func GetMarketPrice -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetMarketPrice(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000\")"
 	@echo
 
 # Test getting market info for GNS-WUGNOT pair
 market-get-gns-wugnot:
 	$(info ************ Test getting market info for GNS-WUGNOT pair ************)
 	# GET TOTAL SUPPLY ASSETS
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func GetTotalSupplyAssets -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetTotalSupplyAssets(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000\")"
+	@echo
 
 	# GET TOTAL SUPPLY SHARES
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func GetTotalSupplyShares -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetTotalSupplyShares(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000\")"
+	@echo
 
 	# GET TOTAL BORROW ASSETS
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func GetTotalBorrowAssets -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetTotalBorrowAssets(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000\")"
+	@echo
 
 	# GET TOTAL BORROW SHARES
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func GetTotalBorrowShares -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetTotalBorrowShares(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000\")"
+	@echo
 
 	# GET LIQUIDATION LTV
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func GetLLTV -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetLLTV(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000\")"
+	@echo
 
 	# GET MARKET FEE
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/volos -func GetFee -args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetFee(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000\")"
 	@echo
 
 # Test supplying assets to GNS-WUGNOT market
@@ -108,19 +119,19 @@ check-position-gns-wugnot:
 # Check GNS balance
 check-gns-balance:
 	$(info ************ Check GNS balance ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/gns -func BalanceOf -args $(ADMIN) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/gnoswap/v1/gns.BalanceOf(\"$(ADMIN)\")"
 	@echo
 
 # Check Volos contract GNS balance
 check-volos-gns-balance:
 	$(info ************ Check Volos contract GNS balance ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/gns -func BalanceOf -args $(ADDR_VOLOS) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/gnoswap/v1/gns.BalanceOf(\"$(ADDR_VOLOS)\")"
 	@echo
 
 # Check Volos contract WUGNOT balance
 check-volos-wugnot-balance:
 	$(info ************ Check Volos contract WUGNOT balance ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args $(ADDR_VOLOS) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/demo/wugnot.BalanceOf(\"$(ADDR_VOLOS)\")"
 	@echo
 
 # Test accruing interest on GNS-WUGNOT market
@@ -132,7 +143,7 @@ accrue-interest-gns-wugnot:
 # Check WUGNOT balance
 check-wugnot-balance:
 	$(info ************ Check WUGNOT balance ************)
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func BalanceOf -args $(ADMIN) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/demo/wugnot.BalanceOf(\"$(ADMIN)\")"
 	@echo
 
 # Wrap UGNOT to WUGNOT
@@ -235,4 +246,10 @@ check-position-bar-wugnot:
 
 	# Check health factor
 	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetHealthFactor(\"gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/test_token/bar:3000\", \"$(ADMIN)\")"
+	@echo
+
+# Check volos owner
+check-volos-owner:
+	$(info ************ Check volos owner ************)
+	gnokey query vm/qeval -remote $(GNOLAND_RPC_URL) -data "gno.land/r/volos.GetOwner()"
 	@echo

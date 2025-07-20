@@ -12,6 +12,8 @@ var (
 	ErrZeroAddress           = errors.New("zero address")
 	ErrSameToken             = errors.New("loan and collateral tokens cannot be the same")
 	ErrIRMNotEnabled         = errors.New("IRM not enabled")
+	ErrIRMAlreadyRegistered  = errors.New("IRM already registered")
+	ErrIRMNotRegistered      = errors.New("IRM not registered")
 	ErrLLTVNotEnabled        = errors.New("LLTV not enabled")
 	ErrMaxFeeExceeded        = errors.New("max fee exceeded")
 	ErrNotOwner              = errors.New("not owner")

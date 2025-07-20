@@ -53,12 +53,10 @@ func GetMarket(marketId string) (Market, MarketParams) {
 	if !exists {
 		panic(ErrMarketNotCreated)
 	}
-
 	params, exists := marketParams.Get(marketId)
 	if !exists {
 		panic(ErrMarketNotCreated)
 	}
-
 	return market.(Market), params.(MarketParams)
 }
 
@@ -124,7 +122,7 @@ func GetMarketParamsLLTV(marketId string) string {
 func GetIRM(name string) IRM {
 	irm, exists := irmRegistry.Get(name)
 	if !exists {
-		panic("IRM not registered: " + name)
+		panic(ErrIRMNotRegistered)
 	}
 	return irm.(IRM)
 }
@@ -233,11 +231,7 @@ func GetIRMCount() int {
 // GetMarketPrice returns the current price from the Gnoswap pool
 // Returns price in terms of loan token per collateral token
 func GetMarketPrice(marketId string) string {
-	price, err := GetPrice(marketId)
-	if err != nil {
-		panic(err)
-	}
-
+	price := GetPrice(marketId)
 	return price.ToString()
 }
 
@@ -377,4 +371,9 @@ func GetUserLoans(user string) []string {
 func GetHealthFactor(marketId string, userAddr string) string {
 	healthFactor := CalculateHealthFactor(marketId, userAddr)
 	return healthFactor.ToString()
+}
+
+// GetOwner returns the current owner of the volos realm
+func GetOwner() string {
+	return Ownable.Owner().String()
 }

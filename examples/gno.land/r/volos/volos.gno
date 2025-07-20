@@ -42,10 +42,8 @@ func init() {
 	irmRegistry = avl.NewTree()
 
 	// Set initial owner
-	Ownable = ownable.New()
+	Ownable = ownable.NewWithOrigin()
 }
-
-/* ADMIN FUNCTIONS */
 
 // RegisterIRM registers a new interest rate model
 func RegisterIRM(cur realm, irm IRM) {
@@ -54,7 +52,7 @@ func RegisterIRM(cur realm, irm IRM) {
 
 	// Check if IRM is already registered
 	if _, exists := irmRegistry.Get(name); exists {
-		panic("IRM already registered")
+		panic(ErrIRMAlreadyRegistered)
 	}
 
 	// Register the IRM
@@ -64,12 +62,14 @@ func RegisterIRM(cur realm, irm IRM) {
 	emitRegisterIRM(std.PreviousRealm().PkgPath(), name)
 }
 
+/* GOVERNANCE FUNCTIONS */
+
 func EnableIRM(cur realm, irm string) {
 	Ownable.AssertOwnedByPrevious()
 
 	// Check if IRM exists in registry
 	if _, exists := irmRegistry.Get(irm); !exists {
-		panic("IRM not registered: " + irm)
+		panic(ErrIRMNotRegistered)
 	}
 
 	if _, exists := enabledIRMs.Get(irm); exists {
@@ -79,20 +79,23 @@ func EnableIRM(cur realm, irm string) {
 	enabledIRMs.Set(irm, true)
 }
 
-func EnableLLTV(cur realm, lltv *u256.Uint) {
+func EnableLLTV(cur realm, lltv int64) {
 	Ownable.AssertOwnedByPrevious()
 
+	// Check if LLTV is greater than 100%
+	if lltv > 100 {
+		panic(ErrMaxFeeExceeded) // Reuse fee error since both are percentages
+	}
+
+	// Convert LLTV percentage to WAD-scaled value (e.g., 75% -> 0.75 * 1e18)
+	lltvUint := u256.NewUint(uint64(lltv))
+	lltvWad := MulDivDown(lltvUint, WAD, u256.NewUint(100)) // This will give us (lltv * 1e18) / 100
+
 	// Convert LLTV to string for use as key in tree
-	lltvStr := lltv.ToString()
+	lltvStr := lltvWad.ToString()
 
 	if _, exists := enabledLLTVs.Get(lltvStr); exists {
 		panic(ErrAlreadySet)
-	}
-
-	// Check if LLTV is greater than 100%
-	maxLLTV := u256.NewUint(100)
-	if lltv.Gt(maxLLTV) {
-		panic(ErrMaxFeeExceeded) // Reuse fee error since both are percentages
 	}
 
 	enabledLLTVs.Set(lltvStr, true)
@@ -141,6 +144,12 @@ func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, llt
 		panic(ErrMarketAlreadyCreated)
 	}
 
+	// Check if IRM is whitelisted
+	IsIRMEnabled(irm)
+
+	// Check if LLTV is whitelisted 
+	IsLLTVEnabled(lltvWad.ToString())
+
 	// Create market with initial values
 	market := Market{
 		TotalSupplyAssets: new(u256.Uint),
@@ -161,7 +170,7 @@ func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, llt
 	// Get IRM from registry and verify it exists
 	irmInstance := GetIRM(irm)
 	if irmInstance == nil {
-		panic("IRM not found: " + irm)
+		panic(ErrIRMNotRegistered)
 	}
 
 	emitCreateMarket(marketId, params.GetLoanToken(), params.GetCollateralToken())
@@ -174,11 +183,6 @@ func CreateMarket(cur realm, poolPath string, isToken0Loan bool, irm string, llt
 func Supply(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
-	}
-
-	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
 	}
 
 	// Convert inputs to uint256
@@ -217,10 +221,7 @@ func Supply(cur realm, marketId string, assets, shares uint64) {
 	position.SupplyShares = new(u256.Uint).Add(position.SupplyShares, sharesToMint)
 
 	// Get market's positions tree and update position
-	marketPositionsInterface, exists := positions.Get(marketId)
-	if !exists {
-		panic(ErrMarketNotCreated)
-	}
+	marketPositionsInterface, _ := positions.Get(marketId)
 	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(caller.String(), position)
 
@@ -240,11 +241,6 @@ func Supply(cur realm, marketId string, assets, shares uint64) {
 func Withdraw(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
-	}
-
-	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
 	}
 
 	// Convert inputs to uint256
@@ -288,10 +284,7 @@ func Withdraw(cur realm, marketId string, assets, shares uint64) {
 	position.SupplyShares = new(u256.Uint).Sub(position.SupplyShares, sharesToBurn)
 
 	// Get market's positions tree and update position
-	marketPositionsInterface, exists := positions.Get(marketId)
-	if !exists {
-		panic(ErrMarketNotCreated)
-	}
+	marketPositionsInterface, _ := positions.Get(marketId)
 	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(caller.String(), position)
 
@@ -318,11 +311,6 @@ func Withdraw(cur realm, marketId string, assets, shares uint64) {
 func Borrow(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
-	}
-
-	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
 	}
 
 	// Convert inputs to uint256
@@ -372,10 +360,7 @@ func Borrow(cur realm, marketId string, assets, shares uint64) {
 	position.BorrowShares = new(u256.Uint).Add(position.BorrowShares, sharesToMint)
 
 	// Get market's positions tree and update position temporarily to check health
-	marketPositionsInterface, exists := positions.Get(marketId)
-	if !exists {
-		panic(ErrMarketNotCreated)
-	}
+	marketPositionsInterface, _ := positions.Get(marketId)
 	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(caller.String(), position)
 
@@ -400,11 +385,6 @@ func Borrow(cur realm, marketId string, assets, shares uint64) {
 func Repay(cur realm, marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
-	}
-
-	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
 	}
 
 	// Convert inputs to uint256
@@ -448,10 +428,7 @@ func Repay(cur realm, marketId string, assets, shares uint64) {
 	position.BorrowShares = new(u256.Uint).Sub(position.BorrowShares, sharesToBurn)
 
 	// Get market's positions tree and update position
-	marketPositionsInterface, exists := positions.Get(marketId)
-	if !exists {
-		panic(ErrMarketNotCreated)
-	}
+	marketPositionsInterface, _ := positions.Get(marketId)
 	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(caller.String(), position)
 
@@ -471,11 +448,6 @@ func Repay(cur realm, marketId string, assets, shares uint64) {
 // SupplyCollateral supplies collateral to a market
 // The collateral can be used to borrow assets from the market
 func SupplyCollateral(cur realm, marketId string, amount uint64) {
-	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
-	}
-
 	caller := std.PreviousRealm().Address()
 
 	_, params := GetMarket(marketId)
@@ -500,11 +472,6 @@ func SupplyCollateral(cur realm, marketId string, amount uint64) {
 // WithdrawCollateral withdraws collateral from a market
 // The withdrawal will fail if it would make the user's position unhealthy
 func WithdrawCollateral(cur realm, marketId string, amount uint64) {
-	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
-	}
-
 	caller := std.PreviousRealm().Address()
 
 	_, params := GetMarket(marketId)
@@ -527,10 +494,7 @@ func WithdrawCollateral(cur realm, marketId string, amount uint64) {
 	position.Collateral = new(u256.Uint).Sub(position.Collateral, amountU256)
 
 	// Get market's positions tree and update position
-	marketPositionsInterface, exists := positions.Get(marketId)
-	if !exists {
-		panic(ErrMarketNotCreated)
-	}
+	marketPositionsInterface, _ := positions.Get(marketId)
 	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(caller.String(), position)
 
@@ -571,10 +535,7 @@ func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, r
 	borrowerPos := GetPosition(marketId, borrower.String())
 
 	// Get collateral price from oracle
-	collateralPrice, err := GetPrice(marketId)
-	if err != nil {
-		panic(err)
-	}
+	collateralPrice := GetPrice(marketId)
 
 	// Check if position is unhealthy
 	if isHealthy(marketId, borrower.String()) {
@@ -669,11 +630,6 @@ func AccrueInterest(cur realm, marketId string) {
 // accrueInterest accrues interest for a market using its IRM
 func accrueInterest(marketId string) {
 
-	// Check if market exists	// Check if market exists
-	if _, exists := markets.Get(marketId); !exists {
-		panic(ErrMarketNotCreated)
-	}
-
 	market, params := GetMarket(marketId)
 
 	// Calculate elapsed time
@@ -695,20 +651,13 @@ func accrueInterest(marketId string) {
 	irm := GetIRM(params.IRM)
 	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
 
-	println("borrowRate:", borrowRate.ToString())
-
 	// Calculate accrued interest using Taylor series approximation of e^(rate * time) - 1
 	// wTaylorCompounded returns the sum of first 3 terms: x*n + (x*n)^2/2 + (x*n)^3/6
 	// This approximates continuous compound interest more accurately than simple interest
 	elapsedUint := u256.NewUint(uint64(elapsed))
 	wtc := WTaylorCompounded(borrowRate, elapsedUint)
 
-	println("wtc:", wtc.ToString())
 	interest := WMulDown(market.TotalBorrowAssets, wtc)
-
-	println("interest:", interest.ToString())
-
-	println("market.TotalBorrowAssets:", market.TotalBorrowAssets.ToString())
 
 	// Update market state
 	market.TotalBorrowAssets = new(u256.Uint).Add(market.TotalBorrowAssets, interest)
@@ -767,10 +716,7 @@ func isHealthy(marketId string, userAddr string) bool {
 		market.TotalBorrowShares,
 	)
 
-	collateralPrice, err := GetPrice(params.PoolPath)
-	if err != nil {
-		panic(err)
-	}
+	collateralPrice := GetPrice(params.PoolPath)
 
 	// Calculate max borrow allowed
 	maxBorrow := WMulDown(MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), params.LLTV)

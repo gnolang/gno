@@ -133,3 +133,23 @@ func Min(a, b *u256.Uint) *u256.Uint {
 	}
 	return b
 }
+
+// IsLLTVEnabled checks if a specific LLTV value is whitelisted
+// Panics if the LLTV is not enabled
+func IsLLTVEnabled(lltv string) {
+	_, exists := enabledLLTVs.Get(lltv)
+	if !exists {
+		panic(ErrLLTVNotEnabled)
+	}
+}
+
+// IsIRMEnabled checks if a specific IRM is whitelisted
+// Panics if the IRM is not enabled
+func IsIRMEnabled(irm string) {
+	_, exists := enabledIRMs.Get(irm)
+	if !exists {
+		panic(ErrIRMNotEnabled)
+	}
+}
+
+
