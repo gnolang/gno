@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net"
 	"net/url"
@@ -23,6 +22,7 @@ import (
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
+	"github.com/docker/docker/daemon/logger"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gnolang/gno/contribs/gnobro/pkg/browser"
@@ -232,14 +232,6 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
-	file, err := os.OpenFile("/tmp/gnobro.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Fatalf("Failed to open log file: %v", err)
-	}
-	defer file.Close()
-
-	logger := newLogger(file, true)
-
 	model := browser.New(bcfg, gnocl)
 	p := tea.NewProgram(model,
 		tea.WithContext(ctx),
@@ -255,7 +247,6 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 		}
 
 		var devcl browser.DevClient
-		devcl.Logger = logger
 		devcl.Handler = func(typ events.Type, data any) error {
 			switch typ {
 			case events.EvtReload, events.EvtReset, events.EvtTxResult:
