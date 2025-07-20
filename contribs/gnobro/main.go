@@ -22,7 +22,6 @@ import (
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
-	"github.com/docker/docker/daemon/logger"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gnolang/gno/contribs/gnobro/pkg/browser"
@@ -258,7 +257,6 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 		}
 
 		devcl.HandlerStatus = func(s browser.ClientStatus, remote string) {
-			logger.Info("updating status", "status", s)
 			p.Send(browser.DevClientStatusUpdateMsg(s, remote))
 		}
 
