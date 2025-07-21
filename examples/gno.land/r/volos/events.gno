@@ -2,6 +2,7 @@ package volos
 
 import (
 	"std"
+	"strconv"
 
 	u256 "gno.land/p/gnoswap/uint256"
 )
@@ -30,6 +31,7 @@ const (
 	EventLiquidate          = "liquidate"
 	EventSupplyCollateral   = "supply_collateral"
 	EventWithdrawCollateral = "withdraw_collateral"
+    AuthorizationSetEvent = "authorization_set"
 )
 
 // Event keys
@@ -60,6 +62,9 @@ const (
 	EventFeeKey      = "fee"
 	EventPkgPathKey  = "pkgpath"
 	EventNameKey     = "name"
+    EventAuthorizerKey    = "authorizer"
+    EventAuthorizedKey    = "authorized"
+    EventIsAuthorizedKey  = "is_authorized"
 )
 
 // Event emission helper functions
@@ -153,5 +158,15 @@ func emitWithdrawCollateral(marketId string, caller std.Address, amount uint64) 
 		EventMarketIDKey, marketId,
 		EventUserKey, caller.String(),
 		EventAmountKey, u256.NewUint(amount).ToString(),
+	)
+}
+
+// emitAuthorizationSet emits an event when authorization is set or revoked
+func emitAuthorizationSet(authorizer std.Address, authorized std.Address, isAuthorized bool) {
+	std.Emit(
+		AuthorizationSetEvent,
+		EventAuthorizerKey, authorizer.String(),
+		EventAuthorizedKey, authorized.String(),
+		EventIsAuthorizedKey, strconv.FormatBool(isAuthorized),
 	)
 }

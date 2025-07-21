@@ -24,6 +24,8 @@ var (
 	Ownable      *ownable.Ownable
 	feeRecipient std.Address
 	irmRegistry  *avl.Tree // irmName -> IRM
+	// Authorization: authorizer -> (AVL tree: authorized -> bool)
+	authorizers *avl.Tree
 )
 
 /* INITIALIZATION */
@@ -40,6 +42,9 @@ func init() {
 
 	// Initialize IRM registry
 	irmRegistry = avl.NewTree()
+
+	// Initialize authorization mapping
+	authorizers = avl.NewTree()
 
 	// Set initial owner
 	Ownable = ownable.NewWithOrigin()
@@ -621,6 +626,55 @@ func Liquidate(cur realm, marketId string, borrower std.Address, seizedAssets, r
 	return seizedAssetsU256.Uint64(), repaidAssets.Uint64()
 }
 
+/* AUTHORIZATION */
+
+// getAuthorizeds gets or creates the authorized AVL tree for an authorizer
+func getAuthorizeds(authorizer std.Address) *avl.Tree {
+	if authorizedsTree, exists := authorizers.Get(authorizer.String()); exists {
+		return authorizedsTree.(*avl.Tree)
+	}
+	authorizeds := avl.NewTree()
+	authorizers.Set(authorizer.String(), authorizeds)
+	return authorizeds
+}
+
+// SetAuthorization allows authorized to act on behalf of msg.sender
+func SetAuthorization(cur realm, authorized std.Address, isAuth bool) {
+	authorizer := std.CurrentRealm().Address()
+	authorizeds := getAuthorizeds(authorizer)
+
+	// Check if authorization is already set to the same value
+	if currentAuth, exists := authorizeds.Get(authorized.String()); exists {
+		if currentAuth.(bool) == isAuth {
+			panic(ErrAlreadySet)
+		}
+	}
+
+	authorizeds.Set(authorized.String(), isAuth)
+	emitAuthorizationSet(authorizer, authorized, isAuth)
+}
+
+// IsAuthorized checks if authorized can act on behalf of authorizer
+func IsAuthorized(authorizer std.Address, authorized std.Address) bool {
+	if authorizedsTree, exists := authorizers.Get(authorizer.String()); exists {
+		authorizeds := authorizedsTree.(*avl.Tree)
+		if auth, exists := authorizeds.Get(authorized.String()); exists {
+			return auth.(bool)
+		}
+	}
+	return false
+}
+
+// isSenderAuthorized checks if msg.sender can act on behalf of onBehalf
+func isSenderAuthorized(onBehalf std.Address) bool {
+	sender := std.CurrentRealm().Address()
+	if sender == onBehalf {
+		return true
+	}
+	return IsAuthorized(onBehalf, sender)
+}
+
+
 /* INTEREST ACCRUAL */
 
 func AccrueInterest(cur realm, marketId string) {
@@ -724,3 +778,4 @@ func isHealthy(marketId string, userAddr string) bool {
 	// Position is healthy if borrowed <= maxBorrow
 	return borrowed.Cmp(maxBorrow) <= 0
 }
+

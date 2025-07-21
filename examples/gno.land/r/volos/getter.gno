@@ -377,3 +377,8 @@ func GetHealthFactor(marketId string, userAddr string) string {
 func GetOwner() string {
 	return Ownable.Owner().String()
 }
+
+// GetIsAuthorized checks if authorized can act on behalf of authorizer
+func GetIsAuthorized(authorizer string, authorized string) bool {
+	return IsAuthorized(std.Address(authorizer), std.Address(authorized))
+}
