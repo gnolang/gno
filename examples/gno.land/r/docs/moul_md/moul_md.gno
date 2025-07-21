@@ -2,7 +2,7 @@ package moul_md
 
 import "gno.land/p/moul/md"
 
-// this package demonstrates the usage of gno.land/p/moul/md package.
+// This package demonstrates the usage of the gno.land/p/moul/md package.
 
 func Render(path string) string {
 	sections := []string{
