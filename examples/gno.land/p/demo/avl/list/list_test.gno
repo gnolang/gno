@@ -221,6 +221,24 @@ func TestList_DeleteRange(t *testing.T) {
 	}
 }
 
+func TestList_ReadOnlyTree(t *testing.T) {
+	var l List
+	l.Append(1, 2, 3)
+
+	rotree := l.ReadOnlyTree()
+	expected := 3
+
+	// Reverse iterate through the ReadOnlyTree
+	rotree.ReverseIterateByOffset(0, rotree.Size(), func(key string, value any) bool {
+		intValue := value.(int)
+		if intValue != expected {
+			t.Errorf("ReadOnlyTree expected %d, got %d", expected, intValue)
+		}
+		expected--
+		return false
+	})
+}
+
 func TestList_EmptyOperations(t *testing.T) {
 	var l List
 

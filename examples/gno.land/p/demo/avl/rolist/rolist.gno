@@ -44,6 +44,7 @@ package rolist
 
 import (
 	"gno.land/p/demo/avl/list"
+	"gno.land/p/demo/avl/rotree"
 )
 
 // IReadOnlyList defines the read-only operations available on a list.
@@ -52,6 +53,7 @@ type IReadOnlyList interface {
 	Get(index int) any
 	Slice(startIndex, endIndex int) []any
 	ForEach(fn func(index int, value any) bool)
+	ReadOnlyTree() *rotree.ReadOnlyTree
 }
 
 // ReadOnlyList wraps a list.List and provides read-only access.
@@ -61,8 +63,10 @@ type ReadOnlyList struct {
 }
 
 // Verify interface implementations
-var _ IReadOnlyList = (*ReadOnlyList)(nil)
-var _ IReadOnlyList = (interface{ list.IList })(nil) // is subset of list.IList
+var (
+	_ IReadOnlyList = (*ReadOnlyList)(nil)
+	_ IReadOnlyList = (interface{ list.IList })(nil) // is subset of list.IList
+)
 
 // Wrap creates a new ReadOnlyList from an existing list.List and a safety transformation function.
 // If makeEntrySafeFn is nil, values will be returned as-is without transformation.
@@ -116,4 +120,9 @@ func (rol *ReadOnlyList) ForEach(fn func(index int, value any) bool) {
 	rol.list.ForEach(func(index int, value any) bool {
 		return fn(index, rol.getSafeValue(value))
 	})
+}
+
+// ReadOnlyTree returns a read-only pointer to the underlying AVL tree.
+func (rol *ReadOnlyList) ReadOnlyTree() *rotree.ReadOnlyTree {
+	return rol.list.ReadOnlyTree()
 }
