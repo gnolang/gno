@@ -28,8 +28,9 @@ func TestTransfer(cur realm, t *testing.T) {
 		Mint(cross, VolosDAOAddress, alice, 1000)
 	})
 
-	testing.SetRealm(std.NewUserRealm(alice))
-	Transfer(cur, bob, 200)
+	crossThrough(std.NewUserRealm(alice), func() {
+		Transfer(cross, bob, 200)
+	})
 
 	urequire.Equal(t, int64(800), BalanceOf(alice))
 	urequire.Equal(t, int64(200), BalanceOf(bob))
@@ -41,11 +42,9 @@ func TestApproveAndTransferFrom(cur realm, t *testing.T) {
 	crossThrough(std.NewCodeRealm(VolosDAO), func() {
 		Mint(cross, VolosDAOAddress, alice, 1000)
 	})
-	println(BalanceOf(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	crossThrough(std.NewUserRealm(alice), func() {
 		Approve(cross, bob, 300)
-		println(std.CurrentRealm().Address())
-		println(Allowance(alice, bob))
 	})
 	urequire.Equal(t, int64(300), Allowance(alice, bob))
 

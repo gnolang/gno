@@ -60,7 +60,7 @@ func Allowance(owner, spender std.Address) int64 {
 
 // Transfer tokens from caller to recipient.
 func Transfer(cur realm, to std.Address, amount int64) {
-	teller := Token.RealmTeller()
+	teller := Token.CallerTeller()
 	if err := teller.Transfer(to, amount); err != nil {
 		panic(err)
 	}
@@ -68,10 +68,7 @@ func Transfer(cur realm, to std.Address, amount int64) {
 
 // Approve a spender to spend tokens on behalf of the caller.
 func Approve(cur realm, spender std.Address, amount int64) {
-	teller := Token.RealmTeller()
-	println(std.CurrentRealm().Address())
-	println(spender)
-	println(amount)
+	teller := Token.CallerTeller()
 	if err := teller.Approve(spender, amount); err != nil {
 		panic(err)
 	}
@@ -79,7 +76,7 @@ func Approve(cur realm, spender std.Address, amount int64) {
 
 // Transfer tokens from an owner to a recipient, using the caller's allowance.
 func TransferFrom(cur realm, owner, to std.Address, amount int64) {
-	teller := Token.RealmTeller()
+	teller := Token.CallerTeller()
 	if err := teller.TransferFrom(owner, to, amount); err != nil {
 		panic(err)
 	}
