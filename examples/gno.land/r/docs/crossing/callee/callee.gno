@@ -23,7 +23,7 @@ func Caller() string {
 	return std.PreviousRealm().PkgPath()
 }
 
-func GetCustom() *Custom {
+func GetCustom(_ realm) *Custom {
 	return CustomVarPointer
 }
 
