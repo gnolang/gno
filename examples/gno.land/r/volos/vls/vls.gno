@@ -9,16 +9,16 @@ import (
 )
 
 var (
-	volosDAO = "gno.land/r/volosgov"
-	volosDAOAddress = std.DerivePkgAddr(volosDAO)
+	VolosDAO = "gno.land/r/volosgov"
+	VolosDAOAddress = std.DerivePkgAddr(VolosDAO)
 	Token, ledger = grc20.NewToken("Volos Governance Token", "VLS", 6)
 
 	Auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			volosDAO,
+			VolosDAO,
 			func(title string, action authz.PrivilegedAction) error {
 				// only allow the governance contract to execute privileged actions
-				if std.CurrentRealm().Address() != volosDAOAddress {
+				if std.CurrentRealm().Address() != VolosDAOAddress {
 					return ufmt.Errorf("only governance contract can execute: %s", title)
 				}
 				return action()
@@ -36,7 +36,7 @@ var (
 // is equal to the caller's token balance. If the caller had previously delegated to
 // someone else, that delegation is revoked first.
 func Delegate(cur realm, delegatee std.Address) {
-	delegator := std.PreviousRealm().Address()
+	delegator := std.CurrentRealm().Address()
 	delegatorStr := delegator.String()
 	oldDelegatee, _ := delegations.Get(delegatorStr)
 	amount := Token.BalanceOf(delegator)
@@ -101,17 +101,17 @@ func Allowance(owner, spender std.Address) int64 {
 // Transfer tokens from caller to recipient. The voting power of the caller and the recipient
 // is updated accordingly.
 func Transfer(cur realm, to std.Address, amount int64) {
-	teller := Token.CallerTeller()
+	teller := Token.RealmTeller()
 	if err := teller.Transfer(to, amount); err != nil {
 		panic(err)
 	}
-	updateVotingPowerOnBalanceChange(std.PreviousRealm().Address(), -amount)
+	updateVotingPowerOnBalanceChange(std.CurrentRealm().Address(), -amount)
 	updateVotingPowerOnBalanceChange(to, amount)
 }
 
 // Approve a spender to spend tokens on behalf of the caller.
 func Approve(cur realm, spender std.Address, amount int64) {
-	teller := Token.CallerTeller()
+	teller := Token.RealmTeller()
 	if err := teller.Approve(spender, amount); err != nil {
 		panic(err)
 	}
@@ -120,7 +120,7 @@ func Approve(cur realm, spender std.Address, amount int64) {
 // Transfer tokens from an owner to a recipient, using the caller's allowance. The voting power
 // of the owner and the recipient is updated accordingly.
 func TransferFrom(cur realm, owner, to std.Address, amount int64) {
-	teller := Token.CallerTeller()
+	teller := Token.RealmTeller()
 	if err := teller.TransferFrom(owner, to, amount); err != nil {
 		panic(err)
 	}
@@ -129,16 +129,16 @@ func TransferFrom(cur realm, owner, to std.Address, amount int64) {
 }
 
 // Public wrapper functions that handle authorization
-func Mint(cur realm, volosDAO std.Address, to std.Address, amount int64) {
-	if err := Auth.Authority().Authorize(volosDAO, "mint", func() error {
+func Mint(cur realm, VolosDAO std.Address, to std.Address, amount int64) {
+	if err := Auth.Authority().Authorize(VolosDAO, "mint", func() error {
 		return mint(to, amount)
 	}); err != nil {
 		panic(err)
 	}
 }
 
-func Burn(cur realm, volosDAO std.Address, from std.Address, amount int64) {
-	if err := Auth.Authority().Authorize(volosDAO, "burn", func() error {
+func Burn(cur realm, VolosDAO std.Address, from std.Address, amount int64) {
+	if err := Auth.Authority().Authorize(VolosDAO, "burn", func() error {
 		return burn(from, amount)
 	}); err != nil {
 		panic(err)
@@ -146,7 +146,7 @@ func Burn(cur realm, volosDAO std.Address, from std.Address, amount int64) {
 }
 
 func UpdateGovernance(cur realm, newAddr std.Address) {
-	if err := Auth.Authority().Authorize(volosDAOAddress, "update_governance", func() error {
+	if err := Auth.Authority().Authorize(VolosDAOAddress, "update_governance", func() error {
 		return updateGovernance(newAddr)
 	}); err != nil {
 		panic(err)
@@ -170,10 +170,11 @@ func burn(from std.Address, amount int64) error {
 }
 
 func updateGovernance(newAddr std.Address) error {
-	if std.CurrentRealm().Address() != volosDAOAddress {
+	if std.CurrentRealm().Address() != VolosDAOAddress {
 		return ufmt.Errorf("only current governance contract can update governance")
 	}
-	volosDAOAddress = newAddr
+	VolosDAOAddress = newAddr
+	VolosDAO = newAddr.String()
 	Auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
 			newAddr.String(),
@@ -181,7 +182,7 @@ func updateGovernance(newAddr std.Address) error {
 				if std.CurrentRealm().Address() != newAddr {
 					return ufmt.Errorf("only governance contract can execute: %s", title)
 				}
-				emitGovernanceUpdated(volosDAOAddress.String(), newAddr.String())
+				emitGovernanceUpdated(VolosDAOAddress.String(), newAddr.String())
 				return action()
 			},
 		),
