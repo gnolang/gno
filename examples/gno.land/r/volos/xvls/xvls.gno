@@ -17,12 +17,10 @@ import (
 )
 
 var (
-	// Only the staker contract can mint/burn xVLS.
 	StakerContract        = "gno.land/r/volos/staker"
 	StakerContractAddress = std.DerivePkgAddr(StakerContract)
 	token, ledger        = grc20.NewToken("Staked Volos Governance Token", "xVLS", 6)
 
-	// Auth is the contract authority for privileged actions (mint/burn)
 	Auth = authz.NewWithMembers(StakerContractAddress)
 
 	// Launchpad address (if you want to exclude it from voting supply)
