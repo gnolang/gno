@@ -2,16 +2,17 @@ package vls
 
 import (
 	"std"
-	"gno.land/p/moul/authz"
+
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc20" 
+	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/authz"
 )
 
 var (
-	VolosDAO = "gno.land/r/volosgov"
+	VolosDAO        = "gno.land/r/volosgov"
 	VolosDAOAddress = std.DerivePkgAddr(VolosDAO)
-	Token, ledger = grc20.NewToken("Volos Governance Token", "VLS", 6)
+	Token, ledger   = grc20.NewToken("Volos Governance Token", "VLS", 6)
 
 	Auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
@@ -28,8 +29,8 @@ var (
 )
 
 var (
-	delegations = avl.NewTree() 	// delegations: delegator address (string) -> delegatee address (string)
-	votingPower = avl.NewTree() 	// votingPower: delegatee address (string) -> voting power (int64)
+	delegations = avl.NewTree() // delegations: delegator address (string) -> delegatee address (string)
+	votingPower = avl.NewTree() // votingPower: delegatee address (string) -> voting power (int64)
 )
 
 // Delegate assigns the caller's voting power to a delegatee address. The voting power

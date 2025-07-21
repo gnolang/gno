@@ -4,6 +4,7 @@ import (
 	"std"
 	"strconv"
 )
+
 const (
 	DelegateChangedEvent    = "DelegateChanged"
 	VotingPowerChangedEvent = "VotingPowerChanged"
@@ -11,13 +12,13 @@ const (
 )
 
 const (
-	EventDelegatorKey  = "delegator"
-	EventFromKey       = "from"
-	EventToKey         = "to"
-	EventDelegateeKey  = "delegatee"
-	EventVotesKey      = "votes"
-	EventOldGovKey     = "old_governance"
-	EventNewGovKey     = "new_governance"
+	EventDelegatorKey = "delegator"
+	EventFromKey      = "from"
+	EventToKey        = "to"
+	EventDelegateeKey = "delegatee"
+	EventVotesKey     = "votes"
+	EventOldGovKey    = "old_governance"
+	EventNewGovKey    = "new_governance"
 )
 
 func emitDelegateChanged(delegator, from, to string) {

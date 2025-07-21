@@ -1,18 +1,14 @@
 package vls
 
 import (
-	"testing"
 	"std"
+	"testing"
+
 	"gno.land/p/demo/urequire"
 )
 
-// Helper to create addresses for testing
-func addr(name string) std.Address {
-	return std.DerivePkgAddr("test/" + name)
-}
-
 func TestMintAndBalance(cur realm, t *testing.T) {
-	alice := addr("alice")
+	alice := std.DerivePkgAddr("alice")
 	testing.SetRealm(std.NewCodeRealm(VolosDAO))
 	Mint(cur, VolosDAOAddress, alice, 1000)
 	urequire.Equal(t, int64(1000), BalanceOf(alice))
@@ -20,8 +16,8 @@ func TestMintAndBalance(cur realm, t *testing.T) {
 }
 
 func TestTransfer(cur realm, t *testing.T) {
-	alice := addr("alice2")
-	bob := addr("bob2")
+	alice := std.DerivePkgAddr("alice2")
+	bob := std.DerivePkgAddr("bob2")
 	testing.SetRealm(std.NewCodeRealm(VolosDAO))
 	Mint(cur, VolosDAOAddress, alice, 1000)
 
@@ -33,8 +29,8 @@ func TestTransfer(cur realm, t *testing.T) {
 }
 
 func TestApproveAndTransferFrom(cur realm, t *testing.T) {
-	alice := addr("alice3")
-	bob := addr("bob3")
+	alice := std.DerivePkgAddr("alice3")
+	bob := std.DerivePkgAddr("bob3")
 	testing.SetRealm(std.NewCodeRealm(VolosDAO))
 	Mint(cur, VolosDAOAddress, alice, 1000)
 
@@ -51,7 +47,7 @@ func TestApproveAndTransferFrom(cur realm, t *testing.T) {
 }
 
 func TestBurn(cur realm, t *testing.T) {
-	alice := addr("alice4")
+	alice := std.DerivePkgAddr("alice4")
 	testing.SetRealm(std.NewCodeRealm(VolosDAO))
 	Mint(cur, VolosDAOAddress, alice, 500)
 	Burn(cur, VolosDAOAddress, alice, 200)
@@ -60,8 +56,8 @@ func TestBurn(cur realm, t *testing.T) {
 }
 
 func TestDelegationAndVotingPower(cur realm, t *testing.T) {
-	alice := addr("alice5")
-	bob := addr("bob5")
+	alice := std.DerivePkgAddr("alice5")
+	bob := std.DerivePkgAddr("bob5")
 	testing.SetRealm(std.NewCodeRealm(VolosDAO))
 	Mint(cur, VolosDAOAddress, alice, 1000)
 	Mint(cur, VolosDAOAddress, bob, 500)
@@ -70,14 +66,14 @@ func TestDelegationAndVotingPower(cur realm, t *testing.T) {
 	Delegate(cur, bob)
 
 	testing.SetRealm(std.NewUserRealm(alice))
-	Delegate(cur, bob) 
+	Delegate(cur, bob)
 
 	urequire.Equal(t, int64(0), GetVotingPower(alice))
 	urequire.Equal(t, int64(1500), GetVotingPower(bob))
 }
 
 func TestUpdateGovernance(cur realm, t *testing.T) {
-	newGov := addr("newgov")
+	newGov := std.DerivePkgAddr("newgov")
 	testing.SetRealm(std.NewCodeRealm(VolosDAO))
 	UpdateGovernance(cur, newGov)
 	urequire.Equal(t, newGov, VolosDAOAddress)
