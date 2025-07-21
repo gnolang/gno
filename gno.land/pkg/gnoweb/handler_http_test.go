@@ -882,6 +882,16 @@ func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
 			packageDoc:    "",
 			shouldContain: "Function",
 		},
+		{
+			name:          "omit injected HTML link",
+			packageDoc:    "<a href=\"http://inject.com\"\\>text</a\\>",
+			shouldContain: "<!-- raw HTML omitted -->",
+		},
+		{
+			name:          "omit injected HTML image",
+			packageDoc:    "<img src=\"inject.png\"\\>",
+			shouldContain: "<!-- raw HTML omitted -->",
+		},
 	}
 
 	for _, tc := range testCases {
