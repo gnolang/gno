@@ -143,7 +143,7 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 	)
 }
 
-func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.ProposalRequest {
 	if !treasury.HasBanker(payment.BankerID()) {
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
 	}
@@ -180,7 +180,7 @@ func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) 
 
 // NewTreasuryGRC20TokensUpdate creates a proposal request to update the list of GRC20 tokens registry
 // keys used by the treasury. The new list, if voted and accepted, will overwrite the current one.
-func NewTreasuryGRC20TokensUpdate(_ realm, newTokenKeys []string) dao.ProposalRequest {
+func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		return panictoerr.PanicToError(func() {
 			treasury.SetTokenKeys(cross, newTokenKeys)

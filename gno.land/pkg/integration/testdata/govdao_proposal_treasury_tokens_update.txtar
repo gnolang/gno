@@ -81,7 +81,6 @@ import (
 
 func main() {
 	tureq := impl.NewTreasuryGRC20TokensUpdate(
-		cross,
 		[]string{
 			"gno.land/r/demo/grc20factory.TOKEN1",
 			"gno.land/r/demo/grc20factory.TOKEN2",
