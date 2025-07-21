@@ -1,9 +1,10 @@
 package gnolang
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
+	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -16,22 +17,25 @@ to generate the final gnomod.toml file. */}}
 module = "{{.PkgPath}}"
 gno = "{{.GnoVersion}}"`
 
+var gnomodTemplateOnce = sync.OnceValue(func() *template.Template {
+	return template.Must(template.New("").Parse(gnomodTemplate))
+})
+
 func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
 func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }
 func GenGnoModDefault(pkgPath string) string { return genGnoMod(pkgPath, GnoVerDefault) }
 func GenGnoModMissing(pkgPath string) string { return genGnoMod(pkgPath, GnoVerMissing) }
 
 func genGnoMod(pkgPath string, gnoVersion string) string {
-	buf := new(bytes.Buffer)
-	tmpl := template.Must(template.New("").Parse(gnomodTemplate))
-	err := tmpl.Execute(buf, struct {
+	var bld strings.Builder
+	err := gnomodTemplateOnce().Execute(&bld, struct {
 		PkgPath    string
 		GnoVersion string
 	}{pkgPath, gnoVersion})
 	if err != nil {
 		panic(fmt.Errorf("generating gnomod.toml: %w", err))
 	}
-	return string(buf.Bytes())
+	return bld.String()
 }
 
 const (

@@ -228,6 +228,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	cache := make(gno.TypeCheckCache, 64)
 
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
 	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
@@ -281,7 +282,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 				modulePath, _ := determinePkgPath(nil, pkg.Dir, cmd.rootDir)
 				modstr := gno.GenGnoModLatest(modulePath)
 				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
-
 				if err != nil {
 					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
 				}
@@ -306,7 +306,12 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Ignore {
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, opts.TestStore, gno.TCLatestRelaxed)
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
+					Getter:     opts.TestStore,
+					TestGetter: opts.TestStore,
+					Mode:       gno.TCLatestRelaxed,
+					Cache:      cache,
+				})
 				if errs != nil {
 					didError = true
 					// already printed in lintTypeCheck.
