@@ -278,6 +278,7 @@ func (a *ContractAuthority) Authorize(caller std.Address, title string, action P
 	// Wrap the action to ensure it can only be executed by the contract
 	wrappedAction := func() error {
 		current := std.CurrentRealm().Address()
+		println("current", std.CurrentRealm().PkgPath(), "contractAddr", a.contractAddr)
 		if current != a.contractAddr {
 			return errors.New("action can only be executed by the contract")
 		}

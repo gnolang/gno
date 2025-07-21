@@ -1,15 +1,15 @@
 package vls
 
-import "std"
+import (
+	"errors"
+)
 
 var (
-	ErrOnlyGovernanceCanExecute = std.Errorf("only governance contract can execute")
-	ErrOnlyGovernanceCanUpdate  = std.Errorf("only current governance contract can update governance")
-	ErrInsufficientBalance      = std.Errorf("insufficient balance")
-	ErrInsufficientAllowance    = std.Errorf("insufficient allowance")
-	ErrInvalidAmount            = std.Errorf("invalid amount")
-	ErrInvalidAddress           = std.Errorf("invalid address")
-	ErrMintOverflow             = std.Errorf("mint overflow")
-	ErrCannotTransferToSelf     = std.Errorf("cannot transfer to self")
-	ErrAirdropTreeEmpty         = std.Errorf("airdrop tree is empty")
-) 
+	ErrOnlyGovernanceCanExecute = errors.New("only governance contract can execute")
+	ErrOnlyGovernanceCanUpdate  = errors.New("only current governance contract can update governance")
+	ErrInsufficientBalance      = errors.New("insufficient balance")
+	ErrInsufficientAllowance    = errors.New("insufficient allowance")
+	ErrInvalidAmount            = errors.New("invalid amount")
+	ErrInvalidAddress           = errors.New("invalid address")
+	ErrMintOverflow             = errors.New("mint overflow")
+)
