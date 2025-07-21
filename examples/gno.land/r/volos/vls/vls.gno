@@ -9,12 +9,13 @@ import (
 )
 
 var (
-	volosDAOAddress = std.DerivePkgAddr("gno.land/r/volosgov")
+	volosDAO = "gno.land/r/volosgov"
+	volosDAOAddress = std.DerivePkgAddr(volosDAO)
 	Token, ledger = grc20.NewToken("Volos Governance Token", "VLS", 6)
 
 	Auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/volosgov",
+			volosDAO,
 			func(title string, action authz.PrivilegedAction) error {
 				// only allow the governance contract to execute privileged actions
 				if std.CurrentRealm().Address() != volosDAOAddress {
@@ -101,7 +102,9 @@ func Allowance(owner, spender std.Address) int64 {
 // is updated accordingly.
 func Transfer(cur realm, to std.Address, amount int64) {
 	teller := Token.CallerTeller()
-	must(teller.Transfer(to, amount))
+	if err := teller.Transfer(to, amount); err != nil {
+		panic(err)
+	}
 	updateVotingPowerOnBalanceChange(std.PreviousRealm().Address(), -amount)
 	updateVotingPowerOnBalanceChange(to, amount)
 }
@@ -109,51 +112,66 @@ func Transfer(cur realm, to std.Address, amount int64) {
 // Approve a spender to spend tokens on behalf of the caller.
 func Approve(cur realm, spender std.Address, amount int64) {
 	teller := Token.CallerTeller()
-	must(teller.Approve(spender, amount))
+	if err := teller.Approve(spender, amount); err != nil {
+		panic(err)
+	}
 }
 
 // Transfer tokens from an owner to a recipient, using the caller's allowance. The voting power
 // of the owner and the recipient is updated accordingly.
 func TransferFrom(cur realm, owner, to std.Address, amount int64) {
 	teller := Token.CallerTeller()
-	must(teller.TransferFrom(owner, to, amount))
+	if err := teller.TransferFrom(owner, to, amount); err != nil {
+		panic(err)
+	}
 	updateVotingPowerOnBalanceChange(owner, -amount)
 	updateVotingPowerOnBalanceChange(to, amount)
 }
 
-// Mint tokens. The voting power of the recipient is updated accordingly.
+// Public wrapper functions that handle authorization
 func Mint(cur realm, volosDAO std.Address, to std.Address, amount int64) {
-	must(Auth.Authority().Authorize(volosDAO, "mint", func() error {
-		err := ledger.Mint(to, amount)
-		if err == nil {
-			updateVotingPowerOnBalanceChange(to, amount)
-		}
-		return err
-	}))
+	if err := Auth.Authority().Authorize(volosDAO, "mint", func() error {
+		return mint(to, amount)
+	}); err != nil {
+		panic(err)
+	}
 }
 
-// Burn tokens. The voting power of the caller is updated accordingly.
 func Burn(cur realm, volosDAO std.Address, from std.Address, amount int64) {
-	must(Auth.Authority().Authorize(volosDAO, "burn", func() error {
-		err := ledger.Burn(from, amount)
-		if err == nil {
-			updateVotingPowerOnBalanceChange(from, -amount)
-		}
-		return err
-	}))
+	if err := Auth.Authority().Authorize(volosDAO, "burn", func() error {
+		return burn(from, amount)
+	}); err != nil {
+		panic(err)
+	}
 }
 
-// Approve a spender to spend tokens on behalf of the caller.
-func Approve(cur realm, volosDAO std.Address, owner, spender std.Address, amount int64) {
-	must(Auth.Authority().Authorize(volosDAO, "approve", func() error {
-		return ledger.Approve(owner, spender, amount)
-	}))
-}
-
-// Update the governance contract address.
 func UpdateGovernance(cur realm, newAddr std.Address) {
+	if err := Auth.Authority().Authorize(volosDAOAddress, "update_governance", func() error {
+		return updateGovernance(newAddr)
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func mint(to std.Address, amount int64) error {
+	if err := ledger.Mint(to, amount); err != nil {
+		return err
+	}
+	updateVotingPowerOnBalanceChange(to, amount)
+	return nil
+}
+
+func burn(from std.Address, amount int64) error {
+	if err := ledger.Burn(from, amount); err != nil {
+		return err
+	}
+	updateVotingPowerOnBalanceChange(from, -amount)
+	return nil
+}
+
+func updateGovernance(newAddr std.Address) error {
 	if std.CurrentRealm().Address() != volosDAOAddress {
-		panic("only current governance contract can update governance")
+		return ufmt.Errorf("only current governance contract can update governance")
 	}
 	volosDAOAddress = newAddr
 	Auth = authz.NewWithAuthority(
@@ -168,6 +186,7 @@ func UpdateGovernance(cur realm, newAddr std.Address) {
 			},
 		),
 	)
+	return nil
 }
 
 // Call this after every transfer/mint/burn to keep voting power in sync
@@ -180,11 +199,4 @@ func updateVotingPowerOnBalanceChange(addr std.Address, delta int64) {
 	newVotes := oldVotes.(int64) + delta
 	votingPower.Set(delegatee.(string), newVotes)
 	emitVotingPowerChanged(delegatee.(string), newVotes)
-}
-
-// helper for panics on error
-func must(err error) {
-	if err != nil {
-		panic(err.Error())
-	}
 }

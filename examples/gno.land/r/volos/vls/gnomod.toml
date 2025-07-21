@@ -1,2 +1,2 @@
 module = "gno.land/r/volos/vls"
-gnomod = "0.9"
+gno = "0.9"
