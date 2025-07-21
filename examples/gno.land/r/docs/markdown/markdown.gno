@@ -153,8 +153,6 @@ Horizontal rules are created using three or more asterisks, hyphens, or undersco
 
 ---
 
-<!-- XXX: add again this feature that was removed -->
-<!--
 ### Task Lists
 
 Gno supports task lists for tracking to-do items:
@@ -162,11 +160,44 @@ Gno supports task lists for tracking to-do items:
 ±±±markdown
 - [x] Completed task
 - [ ] Pending task
+- [ ] Another pending task
+- [x] Another completed task
 ±±±
 
 - [x] Completed task
 - [ ] Pending task
--->
+- [ ] Another pending task
+- [x] Another completed task
+
+### Footnotes
+
+Gno supports footnotes for adding references and citations:
+
+±±±markdown
+Here is a sentence with a footnote[^1].
+
+[^1]: This is the footnote content.
+±±±
+
+Here is a sentence with a footnote[^1].
+
+[^1]: This is the footnote content.
+
+You can also use multiple footnotes in the same document:
+
+±±±markdown
+This is the first sentence with a footnote[^1].
+This is another sentence with a different footnote[^2].
+
+[^1]: First footnote content.
+[^2]: Second footnote content with more details.
+±±±
+
+This is the first sentence with a footnote[^1].
+This is another sentence with a different footnote[^2].
+
+[^1]: First footnote content.
+[^2]: Second footnote content with more details.
 
 ## Tables
 
@@ -615,6 +646,10 @@ The markdown support in Gno is being actively developed. Future enhancements may
 Markdown on Gno provides a familiar syntax for developers who have experience with GitHub Flavored Markdown, while adding blockchain-specific extensions that make it more powerful in the context of the Gno platform.
 
 As the Gno ecosystem grows, expect the markdown capabilities to expand accordingly, providing even richer formatting and interactive elements for documentation and user interfaces.
+
+## See Also
+
+For programmatic markdown generation using Go code, check out the [±p/moul/md± demo](/r/docs/moul_md) which demonstrates how to use the ±p/moul/md± package to generate markdown content in your Gno realms.
 `
 	output = strings.ReplaceAll(output, "±", "`")
 	return output

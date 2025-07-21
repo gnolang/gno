@@ -3,18 +3,22 @@ package impl
 import (
 	"std"
 
+	"gno.land/p/aeddi/panictoerr"
 	"gno.land/p/demo/ufmt"
+	trs_pkg "gno.land/p/nt/treasury"
+
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(cur realm, newLaw *Law) dao.ProposalRequest {
+func NewChangeLawRequest(_ realm, newLaw *Law) dao.ProposalRequest {
 	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	cb := func(cur realm) error {
+	cb := func(_ realm) error {
 		law = newLaw
 		return nil
 	}
@@ -30,7 +34,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 		panic("proposer is not a member")
 	}
 
-	cb := func(cur realm) error {
+	cb := func(_ realm) error {
 		// dao.UpdateImpl() must be cross-called from v3/impl but
 		// what calls this cb function is r/gov/dao.
 		// therefore we must cross back into v3/impl and then
@@ -47,7 +51,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(_ realm, addr std.Address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -70,7 +74,7 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	cb := func(cur realm) error {
+	cb := func(_ realm) error {
 		member.RemoveInvitationPoint()
 		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
 
@@ -88,7 +92,7 @@ func NewAddMemberRequest(cur realm, addr std.Address, tier string, portfolio str
 	)
 }
 
-func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.ProposalRequest {
+func NewWithdrawMemberRequest(_ realm, addr std.Address, reason string) dao.ProposalRequest {
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -98,7 +102,7 @@ func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.Pr
 		panic("T1 user removals must contains a reason.")
 	}
 
-	cb := func(cur realm) error {
+	cb := func(_ realm) error {
 		memberstore.Get().RemoveMember(addr)
 		return nil
 	}
@@ -113,7 +117,7 @@ func NewWithdrawMemberRequest(cur realm, addr std.Address, reason string) dao.Pr
 }
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
-	cb := func(cur realm) error {
+	cb := func(_ realm) error {
 		prevTier := memberstore.Get().RemoveMember(addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
@@ -135,6 +139,41 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 		ufmt.Sprintf("This is a proposal to promote %s from **%s** to **%s**.", tryResolveAddr(addr), fromTier, toTier),
 		e,
 		FilterByTier{Tier: toTier},
+	)
+}
+
+func NewTreasuryPaymentRequest(_ realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+	if !treasury.HasBanker(payment.BankerID()) {
+		panic("banker not registered in treasury with ID: " + payment.BankerID())
+	}
+
+	if reason == "" {
+		panic("treasury payment request requires a reason")
+	}
+
+	cb := func(_ realm) error {
+		return panictoerr.PanicToError(func() {
+			treasury.Send(cross, payment)
+		})
+	}
+
+	e := dao.NewSimpleExecutor(
+		cb,
+		ufmt.Sprintf(
+			"A payment will be sent by the GovDAO treasury.\n\nReason: %s\n\nPayment: %s.",
+			reason,
+			payment.String(),
+		),
+	)
+
+	return dao.NewProposalRequest(
+		"Treasury Payment",
+		ufmt.Sprintf(
+			"This proposal is looking to send a payment using the treasury.\n\nReason: %s\n\nPayment: %s",
+			reason,
+			payment.String(),
+		),
+		e,
 	)
 }
 
