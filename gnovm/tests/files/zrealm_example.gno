@@ -11,9 +11,7 @@ func init() {
 	gPlot = &dom.Plot{Name: "First Plot"}
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	gPlot.AddPost("TEST_TITLE", "TEST_BODY")
 	println(gPlot.String())
 }
@@ -26,7 +24,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/example"]
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:14]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:14](256)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -40,12 +38,13 @@ func main() {
 //     ],
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:14",
+//         "LastObjectSize": "256",
 //         "ModTime": "0",
 //         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:13",
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:13]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:13](484)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -81,14 +80,16 @@ func main() {
 //     ],
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:13",
+//         "LastObjectSize": "484",
 //         "ModTime": "0",
 //         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:12",
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:12]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:12](343)={
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:12",
+//         "LastObjectSize": "343",
 //         "ModTime": "0",
 //         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:11",
 //         "RefCount": "1"
@@ -105,7 +106,7 @@ func main() {
 //         }
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:11]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:11](682)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -170,14 +171,16 @@ func main() {
 //     ],
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:11",
+//         "LastObjectSize": "682",
 //         "ModTime": "0",
 //         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:10",
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:10]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:10](342)={
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:10",
+//         "LastObjectSize": "342",
 //         "ModTime": "0",
 //         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9",
 //         "RefCount": "1"
@@ -194,8 +197,8 @@ func main() {
 //         }
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:9]=
-//     @@ -7,12 +7,22 @@
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:9](135)=
+//     @@ -7,13 +7,23 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/p/demo/avl.Node"
 //                      }
@@ -214,18 +217,19 @@ func main() {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9",
+//              "LastObjectSize": "254",
 //     -        "ModTime": "0",
 //     +        "ModTime": "9",
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
 //              "RefCount": "1"
 //          }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:8]=
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:8](5)=
 //     @@ -17,11 +17,12 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "26d848664a18b9656977e1a343672fa667890bac",
-//     +                "Hash": "543a4c092422658607a07f8bf0e0533d04ef7fe2",
+//     +                "Hash": "90966262bf536f809e84456091dcb7e547af4017",
 //                      "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9"
 //                  }
 //              },
@@ -234,10 +238,10 @@ func main() {
 //                  "T": {
 //                      "@type": "/gno.PrimitiveType",
 //                      "value": "32"
-//     @@ -30,7 +31,7 @@
-//          ],
+//     @@ -31,7 +32,7 @@
 //          "ObjectInfo": {
 //              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:8",
+//              "LastObjectSize": "448",
 //     -        "ModTime": "0",
 //     +        "ModTime": "9",
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",

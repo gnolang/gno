@@ -47,7 +47,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
-	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id", Height: 42}, log.NewNoopLogger())
 
 	prmk := pm.NewParamsKeeper(iavlCapKey)
 	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount)
@@ -57,6 +57,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	prmk.Register(authm.ModuleName, acck)
 	prmk.Register(bankm.ModuleName, bankk)
 	prmk.Register(ModuleName, vmk)
+	vmk.SetParams(ctx, DefaultParams())
 
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)

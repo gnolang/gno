@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -11,50 +10,45 @@ import (
 const (
 	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	name  = "Foo"
-	slug1 = "foo"
-	slug2 = "bar"
-	path  = "foo/bar"
 )
 
-var rootID, parentID uint64
+var rootID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
 	testing.SetRealm(std.NewUserRealm(user))
 
-	// Create root DAO with a subDAO
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	// Create root DAO with subDAOs
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 	rootDAO := commondao.New("Root DAO")
-	parentDAO := commondao.NewSubDAO("Parent DAO", slug1, rootDAO)
-	commondao.NewSubDAO(name, slug2, parentDAO)
+	fooDAO := commondao.NewSubDAO("A", rootDAO.ID())
+	barDAO := commondao.NewSubDAO("B", fooDAO.ID())
+	commondao.NewSubDAO("C", barDAO.ID())
+	commondao.NewSubDAO("D", fooDAO.ID())
 
 	rootID = rootDAO.ID()
-	parentID = parentDAO.ID()
 }
 
 func main() {
-	crossing()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	iter := commondao.NewIterator(rootID, commondao.WithCount(2))
 
-	dao := commondao.GetSubDAO(rootID, path)
+	println("Count =", iter.Count())
 
-	if dao == nil {
-		panic("expected subDAO to be found")
+	for iter.Next() {
+		if dao := iter.DAO(); dao != nil {
+			println(dao.Name())
+		}
 	}
-
-	println(dao.Name() == name)
-	println(dao.Slug() == slug2)
-	println(dao.Parent().ID() == parentID)
 }
 
 // Output:
-// true
-// true
-// true
+// Count = 2
+// A
+// B

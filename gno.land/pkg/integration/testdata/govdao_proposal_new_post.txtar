@@ -12,19 +12,15 @@ gnoland start
 
 # call gov/dao render to check everything is working as expected and the loader worked
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
-stdout 'data: # Active Proposals:'
+stdout 'data: # GovDAO Proposals'
 
 # add the proposal
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
-# call gov/dao render to check everything the proposal was created
+# call gov/dao render to check the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
-stdout '- Post Title: title'
-stdout '- Post Publication Date: 1987-06-24T18:25:43.511Z'
-stdout '- Authors: author'
-stdout '- Tags: tag1, tag2'
-
+stdout 'This propoposal is looking to add a new post to gnoland blog'
 
 # vote on the proposal
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test member
@@ -47,8 +43,8 @@ import (
 )
 
 func main() {
-	preq := gnoblog.NewPostProposalRequest("slug", "title", "body", "1987-06-24T18:25:43.511Z", "author", "tag1, tag2")
-	cross(dao.MustCreateProposal)(preq)
+	preq := gnoblog.NewPostProposalRequest(cross, "slug", "title", "body", "1987-06-24T18:25:43.511Z", "author", "tag1, tag2")
+	dao.MustCreateProposal(cross, preq)
 }
 
 -- loader/load_govdao.gno --
@@ -69,7 +65,7 @@ func init() {
 
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
 
-	cross(dao.UpdateImpl)(dao.UpdateRequest{
+	dao.UpdateImpl(cross, dao.UpdateRequest{
 		DAO:         impl.GetInstance(),
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})

@@ -131,7 +131,7 @@ func TestUpdates(t *testing.T) {
 	p2 := &Person{Name: "Bob", Username: "bob456"}
 
 	id1 := c.Set(p1)
-	id2 := c.Set(p2)
+	c.Set(p2)
 
 	tests := []struct {
 		name      string
@@ -254,7 +254,7 @@ func TestEdgeCases(t *testing.T) {
 				if entry == nil {
 					return false
 				}
-				id, err := seqid.FromString(entry.ID)
+				_, err := seqid.FromString(entry.ID)
 				if err != nil {
 					return false
 				}
@@ -330,7 +330,7 @@ func TestIndexOptions(t *testing.T) {
 					return v.(*Person).Username
 				}, UniqueIndex)
 
-				id1 := c.Set(&Person{Username: "Alice"})
+				c.Set(&Person{Username: "Alice"})
 				return c.Set(&Person{Username: "Alice"}) // Should fail
 			},
 			wantID: false,
@@ -342,7 +342,7 @@ func TestIndexOptions(t *testing.T) {
 					return v.(*Person).Email
 				}, UniqueIndex|CaseInsensitiveIndex)
 
-				id1 := c.Set(&Person{Email: "test@example.com"})
+				c.Set(&Person{Email: "test@example.com"})
 				return c.Set(&Person{Email: "TEST@EXAMPLE.COM"}) // Should fail
 			},
 			wantID: false,
@@ -372,7 +372,7 @@ func TestIndexOptions(t *testing.T) {
 					return v.(*Person).Name
 				}, UniqueIndex|CaseInsensitiveIndex|SparseIndex)
 
-				id1 := c.Set(&Person{Name: "Alice"})
+				c.Set(&Person{Name: "Alice"})
 				return c.Set(&Person{Name: "ALICE"}) // Should fail
 			},
 			wantID: false,

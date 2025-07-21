@@ -16,9 +16,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 	return boardI.(*Board).id, true
 }
 
-func CreateBoard(name string) BoardID {
-	crossing()
-
+func CreateBoard(cur realm, name string) BoardID {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -45,9 +43,7 @@ func checkAnonFee() bool {
 	return false
 }
 
-func CreateThread(bid BoardID, title string, body string) PostID {
-	crossing()
-
+func CreateThread(cur realm, bid BoardID, title string, body string) PostID {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -66,9 +62,7 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 	return thread.id
 }
 
-func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
-	crossing()
-
+func CreateReply(cur realm, bid BoardID, threadid, postid PostID, body string) PostID {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -99,9 +93,7 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
-func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-	crossing()
-
+func CreateRepost(cur realm, bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -132,9 +124,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 	return repost.id
 }
 
-func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
-	crossing()
-
+func DeletePost(cur realm, bid BoardID, threadid, postid PostID, reason string) {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -167,9 +157,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 	}
 }
 
-func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
-	crossing()
-
+func EditPost(cur realm, bid BoardID, threadid, postid PostID, title, body string) {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}

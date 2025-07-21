@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -203,10 +204,26 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 					c.Delete()
 					return false // don't attempt to traverse children
 				}
-			case *ast.ExprStmt:
-				if isBuiltinCallExpr(node.X, "crossing") {
-					// crossing() statement - remove.
-					c.Delete()
+				if node.Recv == nil && node.Name.Name == "init" && node.Type.Params.NumFields() == 1 {
+					p0 := node.Type.Params.List[0]
+					if id, ok := p0.Type.(*ast.Ident); ok && id.Name == "realm" {
+						node.Type.Params = nil
+						node.Body.List = slices.Insert(node.Body.List, 0, ast.Stmt(&ast.AssignStmt{
+							Lhs: []ast.Expr{p0.Names[0]},
+							Tok: token.DEFINE,
+							Rhs: []ast.Expr{&ast.CallExpr{
+								// converted later
+								Fun:  &ast.Ident{Name: "realm"},
+								Args: []ast.Expr{&ast.Ident{Name: "nil"}},
+							}},
+						}))
+					}
+				}
+			case *ast.Ident:
+				switch node.Name {
+				case "cross":
+					// it's a realm; we don't have much to add aside from this, for now.
+					node.Name = "nil"
 				}
 			case *ast.CallExpr:
 				// is function call to a native function?
@@ -220,19 +237,35 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 		// post
 		func(c *astutil.Cursor) bool {
 			switch node := c.Node().(type) {
+			case *ast.Field:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					// convert type in struct field or param in general.
+					node.Type = ct
+				}
+			case *ast.TypeSpec:
+				if ct := convertBuiltinType(node.Type, fset, f); ct != nil {
+					node.Type = ct
+				}
+			case *ast.StarExpr:
+				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
+					node.X = ct
+				}
+			case *ast.SliceExpr:
+				if ct := convertBuiltinType(node.X, fset, f); ct != nil {
+					node.X = ct
+				}
 			case *ast.CallExpr:
 				id, ok := node.Fun.(*ast.Ident)
 				if !ok {
 					break
 				}
+				if ct := convertBuiltinType(id, fset, f); ct != nil {
+					node.Fun = ct
+					break
+				}
 				// perform in post as the first arg in these functions may be a closure or
 				// other type which needs earlier processing.
 				switch id.Name {
-				case "cross":
-					if len(node.Args) != 1 {
-						panic(fmt.Sprintf("invalid cross() call with %d args", len(node.Args)))
-					}
-					c.Replace(node.Args[0])
 				case "istypednil":
 					if len(node.Args) != 1 {
 						panic(fmt.Sprintf("invalid istypednil() call with %d args", len(node.Args)))
@@ -276,16 +309,27 @@ func() (__revive_recover any) {
 	return node.(*ast.File), errs.Err()
 }
 
-func isBuiltinCallExpr(x ast.Expr, name string) bool {
-	cx, ok := x.(*ast.CallExpr)
+func convertBuiltinType(ide ast.Expr, fset *token.FileSet, f *ast.File) ast.Expr {
+	id, ok := ide.(*ast.Ident)
 	if !ok {
-		return false
+		return nil
 	}
-	fnName, ok := cx.Fun.(*ast.Ident)
-	if ok && fnName.Name == name {
-		return true
+	switch id.Name {
+	case "realm",
+		"address",
+		"gnocoin",
+		"gnocoins":
+		astutil.AddNamedImport(fset, f, "__transpile_builtin", TranspileImportPath("builtin"))
+		return &ast.SelectorExpr{
+			X: &ast.Ident{
+				Name: "__transpile_builtin",
+			},
+			Sel: &ast.Ident{
+				Name: string(id.Name[0]-('a'-'A')) + id.Name[1:],
+			},
+		}
 	}
-	return false
+	return nil
 }
 
 func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) bool {

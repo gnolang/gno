@@ -5,8 +5,9 @@
 ! stdout .+
 stderr 'ok      \. 	\d+\.\d\ds'
 
--- gno.mod --
-module gno.land/r/origin_caller
+-- gnomod.toml --
+module = "origin_caller"
+gno = "0.9"
 
 -- origin_caller_test.gno --
 package origin_caller

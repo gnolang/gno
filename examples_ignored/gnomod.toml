@@ -1,0 +1,3 @@
+module = "gno.land/r/examples_ignored"
+gno = "0.9"
+ignore = true

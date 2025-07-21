@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 // This tests that panics that cross realm boundaries abort the transaction.
 
@@ -26,7 +26,7 @@ func (sb *StructB) Panic() {
 func init() {
 	// save StructB{} in crossrealm_b.
 	sb := &StructB{}
-	cross(crossrealm_b.SetObject)(sb)
+	crossrealm_b.SetObject(cross, sb)
 }
 
 func main() {

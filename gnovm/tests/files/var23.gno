@@ -6,7 +6,7 @@ func main() {
 }
 
 // Error:
-// main/files/var23.gno:3:5: assignment mismatch: 3 variable(s) but 2 value(s)
+// main/var23.gno:3:5-19: assignment mismatch: 3 variable(s) but 2 value(s)
 
 // TypeCheckError:
-// main/files/var23.gno:3:11: missing init expr for c
+// main/var23.gno:3:11: missing init expr for c

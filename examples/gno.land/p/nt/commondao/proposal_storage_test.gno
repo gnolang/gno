@@ -53,7 +53,7 @@ func TestProposalStorageIterate(t *testing.T) {
 		s.Add(p)
 	}
 
-	s.Iterate(0, s.Size(), func(p *Proposal) bool {
+	s.Iterate(0, s.Size(), false, func(p *Proposal) bool {
 		uassert.Equal(t, ids[i], p.ID(), "expect proposal ID to match")
 
 		i++
@@ -61,4 +61,14 @@ func TestProposalStorageIterate(t *testing.T) {
 	})
 
 	uassert.Equal(t, len(ids), i, "expect storage to iterate all proposals")
+
+	i = s.Size() - 1
+	s.Iterate(0, s.Size(), true, func(p *Proposal) bool {
+		uassert.Equal(t, ids[i], p.ID(), "expect proposal ID to match")
+
+		i--
+		return i == -1
+	})
+
+	uassert.Equal(t, -1, i, "expect storage to iterate all proposals in reverse order")
 }

@@ -7,7 +7,6 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 )
 
 func TestManagedGroup(t *testing.T) {
@@ -15,15 +14,6 @@ func TestManagedGroup(t *testing.T) {
 	u2 := std.NewCodeRealm("gno.land/r/test/test/u2")
 	u3 := std.NewCodeRealm("gno.land/r/test/test/u3")
 	u4 := std.NewCodeRealm("gno.land/r/test/test/u4")
-
-	probe := func(msg string) {
-		ufmt.Println("probing: " + msg)
-		c := std.CurrentRealm()
-		p := std.PreviousRealm()
-
-		ufmt.Println("current realm " + string(c.Address()) + c.PkgPath())
-		ufmt.Println("previous realm" + string(p.Address()) + p.PkgPath())
-	}
 
 	// testUsingPreviousRealm sets the realm to "gno.land/r/test/test"
 	// and uses the SetRealm in the test as the previous caller

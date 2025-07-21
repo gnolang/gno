@@ -69,7 +69,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 }
 */
 
-func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
+func X_getRealm(m *gno.Machine, height int) (addr, pkgPath string) {
 	// NOTE: keep in sync with test/stdlibs/std.getRealm
 
 	var (
@@ -150,7 +150,7 @@ func currentPkgPath(m *gno.Machine) (pkgPath string) {
 
 // currentRealm retrieves the current realm's address and pkgPath.
 // It's not a native binding; but is used within this package to clarify usage.
-func currentRealm(m *gno.Machine) (address, pkgPath string) {
+func currentRealm(m *gno.Machine) (addr, pkgPath string) {
 	return X_getRealm(m, 0)
 }
 

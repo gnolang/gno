@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"gno.land/r/demo/tests/crossrealm_b"
@@ -9,13 +9,11 @@ type Struct struct {
 	A int
 }
 
-func main() {
-	crossing()
-
+func main(cur realm) {
 	a := 1
 	s := &Struct{A: 100}
-	cross(crossrealm_b.SetClosure)(func() {})
-	cross(crossrealm_b.SetObject)(&a)
+	crossrealm_b.SetClosure(cross, func() {})
+	crossrealm_b.SetObject(cross, &a)
 	//cross(crossrealm_b.SetObject)(&s.A)
 	//cross(crossrealm_b.SetObject)(func() { &s.A })
 	s.A = 123
@@ -23,4 +21,4 @@ func main() {
 }
 
 // Output:
-// &(struct{(123 int)} gno.land/r/crossrealm_test.Struct) 1
+// &(struct{(123 int)} gno.land/r/crossrealm.Struct) 1

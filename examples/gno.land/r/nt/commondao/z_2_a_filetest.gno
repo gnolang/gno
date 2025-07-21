@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -14,24 +13,19 @@ const (
 	name  = "Foo"
 )
 
-var realm std.Address
+var realmAddr = std.DerivePkgAddr("gno.land/r/test")
 
 func init() {
-	// Init `commondao_test` realm address
-	realm = std.CurrentRealm().Address()
-
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 }
 
 func main() {
-	crossing()
-
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
 	dao := commondao.New(name)
 	if dao == nil {
@@ -39,11 +33,13 @@ func main() {
 	}
 
 	println(dao.Name() == name)
-	println(commondao.IsOwner(realm, dao.ID()))
+	println(commondao.IsOwner(realmAddr, dao.ID()))
 	println(commondao.IsInvited(user))
+	println(commondao.GetOptions(dao.ID()) != nil)
 }
 
 // Output:
 // true
 // true
 // false
+// true

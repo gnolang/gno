@@ -13,9 +13,9 @@ gnokey maketx call -pkgpath gno.land/r/demo/xx -func GetOutcastChildAge -gas-fee
 stdout OK!
 stdout '(10 int)'
 
--- gno.mod --
-module gno.land/r/demo/xx
-
+-- gnomod.toml --
+module = "gno.land/r/demo/xx"
+gno = "0.9"
 -- realm.gno --
 package xx
 
@@ -30,9 +30,7 @@ type Child struct {
 
 var parent Parent
 
-func DefineFamily() {
-	crossing()
-
+func DefineFamily(cur realm) {
 	parent = Parent{
 		children: []Child{
 			{age: 10},
@@ -42,9 +40,7 @@ func DefineFamily() {
 	parent.outcastChild = &parent.children[0]
 }
 
-func GetOutcastChildAge() int {
-	crossing()
-
+func GetOutcastChildAge(cur realm) int {
 	if parent.outcastChild == nil {
 		return -1
 	}

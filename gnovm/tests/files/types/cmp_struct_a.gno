@@ -17,7 +17,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_a.gno:15:25: [2][]int is not comparable
+// main/cmp_struct_a.gno:15:25-31: [2][]int is not comparable
 
 // TypeCheckError:
-// main/files/types/cmp_struct_a.gno:15:25: invalid operation: a == b (struct containing [2][2][]int cannot be compared); main/files/types/cmp_struct_a.gno:16:25: invalid operation: a == c (struct containing [2][2][]int cannot be compared)
+// main/cmp_struct_a.gno:15:25: invalid operation: a == b (struct containing [2][2][]int cannot be compared); main/cmp_struct_a.gno:16:25: invalid operation: a == c (struct containing [2][2][]int cannot be compared)

@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/access1.gno:8:10: cannot access gno.land/p/demo/testutils.testVar2 from main
+// main/access1.gno:8:10-28: cannot access gno.land/p/demo/testutils.testVar2 from main
 
 // TypeCheckError:
-// main/files/access1.gno:8:20: name testVar2 not exported by package testutils
+// main/access1.gno:8:20: name testVar2 not exported by package testutils
