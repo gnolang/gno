@@ -10,7 +10,7 @@ func main() {
 }
 
 // Output:
-// # p/moul/md Package Demo
+// # Package Demo: `p/moul/md`
 // This document demonstrates the features of the [gno\.land/p/moul/md](https://gno.land/p/moul/md) package, showing both the source code and the rendered result for each feature.
 //
 //
