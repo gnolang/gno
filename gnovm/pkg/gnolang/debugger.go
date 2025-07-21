@@ -293,7 +293,7 @@ func debugUpdateLocation(m *Machine) {
 	loc := m.LastBlock().GetSource(m.Store).GetLocation()
 
 	if loc.PkgPath == "repl" {
-		loc.File = "repl.gno"
+		loc.File = "<repl>"
 	}
 
 	if m.Debugger.loc.PkgPath == "" ||

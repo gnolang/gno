@@ -65,7 +65,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
 	r.pv = r.pn.NewPackage()
 	r.fn = &gno.FileNode{
-		FileName: "repl.gno",
+		FileName: "<repl>",
 		PkgName:  "repl",
 		Decls:    nil,
 	}
