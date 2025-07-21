@@ -192,7 +192,7 @@ func NewTreasuryGRC20TokensUpdate(_ realm, newTokenKeys []string) dao.ProposalRe
 	e := dao.NewSimpleExecutor(
 		cb,
 		ufmt.Sprintf(
-			"The list of GRC20 tokens used by the treasury will be updated.\n\nNew Token Keys:\n%s.",
+			"The list of GRC20 tokens used by the treasury will be updated.\n\nNew Token Keys:\n%s.\n",
 			bulletList,
 		),
 	)
