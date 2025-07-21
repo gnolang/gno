@@ -10,6 +10,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/txlink"
 )
 
 type Color struct {

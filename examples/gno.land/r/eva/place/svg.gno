@@ -59,7 +59,7 @@ func generateSVG() string {
 func Submit(cur realm, x uint64, y uint64, colorName string) {
 	user, ok := retrieveMember(std.PreviousRealm().Address())
 	if !ok {
-		Register()
+		Register(cross)
 		user, _ = retrieveMember(std.PreviousRealm().Address())
 	}
 
