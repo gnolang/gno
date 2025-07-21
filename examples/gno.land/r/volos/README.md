@@ -1,4 +1,4 @@
-# Volos
+# Volos (ex GnoLend)
 
 Volos is the first lending protocol built using Gnolang, implementing financial primitives for decentralized lending and borrowing. The protocol features lending markets with configurable parameters, variable interest rate models, collateralized borrowing with health monitoring, and liquidation mechanisms for undercollateralized positions. It employs a shares-based accounting system to track user positions, calculates interest based on utilization metrics, and maintains system solvency through real-time risk assessment.
 
@@ -32,6 +32,6 @@ The system calculates borrowing capacity based on collateral values derived from
    - In Gnoswap test files: Ensure the admin addresses align with your test environment
    - To avoid manual token minting, you can aloso modify the admin address in `p/gnoswap/consts.gno` to match your preferred test account
 
-4. Run tests:
+4. Run Make file tests:
 
    Before running Volos tests, you'll need to first initialize a WUGNOT-GNS pool in Gnoswap and mint at least one liquidity position. This provides the price oracle that Volos depends on. After that's done, you can proceed with testing the Volos functions.
