@@ -646,6 +646,10 @@ The markdown support in Gno is being actively developed. Future enhancements may
 Markdown on Gno provides a familiar syntax for developers who have experience with GitHub Flavored Markdown, while adding blockchain-specific extensions that make it more powerful in the context of the Gno platform.
 
 As the Gno ecosystem grows, expect the markdown capabilities to expand accordingly, providing even richer formatting and interactive elements for documentation and user interfaces.
+
+## See Also
+
+For programmatic markdown generation using Go code, check out the [±p/moul/md± demo](/r/docs/moul_md) which demonstrates how to use the ±p/moul/md± package to generate markdown content in your Gno realms.
 `
 	output = strings.ReplaceAll(output, "±", "`")
 	return output
