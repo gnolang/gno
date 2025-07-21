@@ -2,9 +2,11 @@ package events
 
 import (
 	"bytes"
+
 	"time"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 )
 
 const (
@@ -52,51 +54,39 @@ func renderHome(admin bool) string {
 	output += "---\n\n"
 
 	var (
-		inProgress = ""
-		upcoming   = ""
-		past       = ""
+		inProgress []string
+		upcoming   []string
+		past       []string
 		now        = time.Now()
 	)
 
 	for _, e := range events {
 		if now.Before(e.startTime) {
-			upcoming += e.Render(admin)
+			upcoming = append(upcoming, e.Render(admin))
 		} else if now.After(e.endTime) {
-			past += e.Render(admin)
+			past = append(past, e.Render(admin))
 		} else {
-			inProgress += e.Render(admin)
+			inProgress = append(inProgress, e.Render(admin))
 		}
 	}
 
-	if upcoming != "" {
+	if len(upcoming) != 0 {
 		// Add upcoming events
 		output += "## Upcoming events\n\n"
-		output += "<div class='columns-3'>"
-
-		output += upcoming
-
-		output += "</div>\n\n"
+		output += md.ColumnsN(upcoming, 3, true)
 		output += "---\n\n"
 	}
 
-	if inProgress != "" {
+	if len(inProgress) != 0 {
 		output += "## Currently in progress\n\n"
-		output += "<div class='columns-3'>"
-
-		output += inProgress
-
-		output += "</div>\n\n"
+		output += md.ColumnsN(inProgress, 3, true)
 		output += "---\n\n"
 	}
 
-	if past != "" {
+	if len(past) != 0 {
 		// Add past events
 		output += "## Past events\n\n"
-		output += "<div class='columns-3'>"
-
-		output += past
-
-		output += "</div>\n\n"
+		output += md.ColumnsN(past, 3, true)
 	}
 
 	return output
@@ -106,7 +96,6 @@ func renderHome(admin bool) string {
 func (e Event) Render(admin bool) string {
 	var buf bytes.Buffer
 
-	buf.WriteString("<div>\n\n")
 	buf.WriteString(ufmt.Sprintf("### %s\n\n", e.name))
 	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
 	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
@@ -129,8 +118,6 @@ func (e Event) Render(admin bool) string {
 	if e.link != "" {
 		buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 	}
-
-	buf.WriteString("</div>")
 
 	return buf.String()
 }

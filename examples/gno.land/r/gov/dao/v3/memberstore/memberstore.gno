@@ -2,8 +2,10 @@ package memberstore
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
 )
 
@@ -89,13 +91,40 @@ func init() {
 			return t3.BasePower
 		},
 	})
+
+}
+
+func Render(string) string {
+	var sb strings.Builder
+
+	sb.WriteString("# Memberstore Govdao v3:\n\n")
+
+	members.Iterate("", "", func(tn string, ti interface{}) bool {
+		tree, ok := ti.(*avl.Tree)
+		if !ok {
+			return false
+		}
+
+		tier, ok := Tiers.GetTier(tn)
+		if !ok {
+			return false
+		}
+
+		tp := (tier.PowerHandler(members, Tiers) * float64(members.GetTierSize(tn)))
+
+		sb.WriteString(ufmt.Sprintf("- Tier %v contains %v members with power: %v\n", tn, tree.Size(), tp))
+
+		return false
+	})
+
+	return sb.String()
 }
 
 // Get gets the Members store
 func Get() MembersByTier {
-	realm := std.PreviousRealm().PkgPath()
-	if !dao.InAllowedDAOs(realm) {
-		panic("this Realm is not allowed to get the Members data: " + realm)
+	currealm := std.CurrentRealm().PkgPath()
+	if !dao.InAllowedDAOs(currealm) {
+		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}
 
 	return members

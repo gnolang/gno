@@ -1,24 +1,30 @@
 # Running a local dev node
 
-## Prerequisites
 
-- `gnokey` & `gnodev` set up. See [Installation](installation.md).
+## Installation
+
+To install `gnodev`, simply clone the monorepo, and run `make install`:
+
+```
+git clone git@github.com:gnolang/gno.git
+cd gno && make install
+```
 
 ## Overview
 
 In this tutorial, you will learn how to run up a local development node with
-`gnodev`. By spinning up a local gno.land
+`gnodev`. By spinning up a local Gno.land
 node, users can simulate the blockchain environment locally on their machines,
 allowing them to easily see how their code behaves before deploying it to a
-remote gno.land network.
+remote Gno.land network.
 
-This tutorial will show you how to use gnodev,
-a local development solution stack offering a built-in gno.land node with a
-hot-reload feature for packages and realms, as well as a built-in instance of [gnoweb](../users/explore-with-gnoweb.md).
+This tutorial will show you how to use gnodev, a local development solution stack
+offering a built-in Gno.land node with a hot-reload feature for packages and 
+realms, as well as a built-in instance of [gnoweb](../users/explore-with-gnoweb.md).
 
 ## Primary features
 
-Apart from providing a built-in gno.land node and a `gnoweb` instance, `gnodev`
+Apart from providing a built-in Gno.land node and a `gnoweb` instance, `gnodev`
 also provides an array of other useful features. Let's explore the three most
 prominent ones:
 1. Automatic package deployment
@@ -43,10 +49,11 @@ via the `-deploy-key` flag.
 
 #### Detecting package paths
 
-If the current working directory contains a `gno.mod` file, `gnodev` deploys the
-package to the `pkgpath` specified inside.
+If the current working directory contains a `gnomod.toml` file, `gnodev` deploys the
+package to the `pkgpath` specified inside. Check out [this page](../resources/configuring-gno-projects.md)
+for more info.
 
-If no `gno.mod` file is found, `gnodev` searches for a `.gno` file containing a
+If no `gnomod.toml` file is found, `gnodev` searches for a `.gno` file containing a
 package name and deploys it under `gno.land/r/dev/<pkgname>`.
 
 #### Deploying example packages
@@ -55,7 +62,7 @@ In addition to your working directory, `gnodev` automatically deploys all packag
 and realms located in the [examples/ folder](https://github.com/gnolang/gno/tree/master/examples)
 from the monorepo it was installed from. This makes all packages in the `examples/`
 folder available for use during development. `gnodev` also provides the option
-to resolve packages from a remote testnet, which can be set via the `-resolver` flag. // XX should we include this here?
+to resolve packages from a remote testnet, which can be set via the `-resolver` flag.
 
 ### 2. Premining balances
 
@@ -92,11 +99,11 @@ example.
 
 ## Practical example
 
-Let's use the local file structure we set up in the [previous tutorial](running-testing-gno.md#setup):
+Let's use the local file structure we set up in the [previous tutorial](anatomy-of-a-gno-package.md):
 
 ```
 counter/
-    ├─ gno.mod
+    ├─ gnomod.toml
     ├─ counter.gno
 ```
 
@@ -148,8 +155,8 @@ My amazing counter value: 0
 
 To interact with our `counter` realm, let's create a simple transaction calling
 the `Increment()` function with `gnokey`, using the key we created in the
-[previous tutorial](creating-a-keypair.md). Running the following command
-in your terminal will execute the transaction:
+[in with `gnokey`](../users/interact-with-gnokey.md#generating-a-key-pair).
+Running the following command in your terminal will execute the transaction:
 
 ```
 gnokey maketx call \

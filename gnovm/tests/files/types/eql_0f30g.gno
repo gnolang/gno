@@ -8,4 +8,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f30g.gno:7:10: []int can only be compared to nil
+// main/eql_0f30g.gno:7:10-16: []int can only be compared to nil
+
+// TypeCheckError:
+// main/eql_0f30g.gno:7:15: invalid operation: a == b (mismatched types [2]int and []int)

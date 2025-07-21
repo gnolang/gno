@@ -1,15 +1,11 @@
-# Interacting with gno.land using gnokey
+# Interacting with Gno.land using gnokey
 
 `gnokey` is the official command-line wallet and utility for interacting with
-gno.land networks. It allows you to manage keys, query the blockchain, send
+Gno.land networks. It allows you to manage keys, query the blockchain, send
 transactions, and deploy smart contracts. This guide will help you get started
 with the essential operations.
 
 ## Installing gnokey
-
-You can install `gnokey` through various methods:
-
-### Option 1: Install from source
 
 To build and install from source, you'll need:
 - Git
@@ -24,10 +20,6 @@ cd gno
 # Install gnokey
 make install
 ```
-
-### Option 2: Download prebuilt binaries
-
-Coming soon.
 
 ## Managing key pairs
 
@@ -90,7 +82,7 @@ In Gno, there are four types of messages that can change on-chain state:
 - `Send` - sends coins from one address to another
 - `Run` - executes a Gno script against on-chain code
 
-A gno.land transaction contains two main things:
+A Gno.land transaction contains two main things:
 - A base configuration where variables such as `gas-fee`, `gas-wanted`, and others
   are defined
 - A list of messages to execute on the chain
@@ -168,7 +160,7 @@ subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
 will be repeated throughout the tutorial.
 
 Next, let's configure the `addpkg` subcommand to publish this package to the
-[Portal Loop](../resources/gnoland-networks.md) testnet. Assuming we are in
+[Staging](../resources/gnoland-networks.md) chain. Assuming we are in
 the `example/p/` folder, the command will look like this:
 
 ```bash
@@ -179,7 +171,7 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443"
 ```
 
@@ -194,7 +186,7 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443"
 mykey
 ```
@@ -218,7 +210,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
 
-Congratulations! You have just uploaded a pure package to the Portal Loop network.
+Congratulations! You have just uploaded a pure package to the Staging network.
 If you wish to deploy to a different network, find the list of all network
 configurations in the [Network Configuration](../resources/gnoland-networks.md) section.
 
@@ -242,7 +234,7 @@ does not use gas.
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Portal Loop](../resources/gnoland-networks.md) testnet, under the `gno.land/r/demo/wugnot` path.
+[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/demo/wugnot` path.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -256,7 +248,7 @@ gnokey maketx call \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
 ```
@@ -266,8 +258,8 @@ In this command, we have specified three main things:
 - The function that we want to call on the realm with the `-func` flag
 - The amount of `ugnot` we want to send to be wrapped, using the `-send` flag
 
-Apart from this, we have also specified the Portal Loop chain ID, `portal-loop`,
-as well as the Portal Loop remote address, `https://rpc.gno.land:443`.
+Apart from this, we have also specified the Staging chain ID, `staging`,
+as well as the Staging remote address, `https://rpc.gno.land:443`.
 
 After running the command, we can expect an output similar to the following:
 ```bash
@@ -294,7 +286,7 @@ gnokey maketx call \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
 ```
@@ -342,7 +334,7 @@ gnokey maketx send \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
 ```
@@ -352,7 +344,7 @@ the publicly-known `test1` address, and `100ugnot` for the coins we want to send
 respectively.
 
 To check the balance of a specific address, check out the `bank/balances` query
-in the [Querying a network](querying-a-network.md#bankbalances) section.
+in the [Querying a network](#bankbalances) section.
 
 ## `Run`
 
@@ -402,7 +394,7 @@ gnokey maketx run \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey ./script.gno
 ```
@@ -464,15 +456,12 @@ func Render(_ string) string {
 }
 ```
 
-This realm is deployed to [`gno.land/r/docs/examples/run/foo`](https://gno.land/r/docs/examples/run/foo/package.gno)
-on the Portal Loop testnet.
-
 1. Calling realm functions multiple times in a loop:
 ```go
 package main
 
 import (
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -497,7 +486,7 @@ package main
 import (
   "strconv"
 
-  "gno.land/r/docs/examples/run/foo"
+  "gno.land/r/docs/examples/foo"
 )
 
 func main() {
@@ -522,7 +511,7 @@ func main() {
 ```go
 package main
 
-import "gno.land/r/docs/examples/run/foo"
+import "gno.land/r/docs/examples/foo"
 
 func main() {
 	println(foo.MainFoo.String())
@@ -536,7 +525,7 @@ which is not currently possible with the `Call` message.
 
 `gnokey` provides a way to create a transaction, sign it, and later
 broadcast it to a chain in the most secure fashion. This approach, while more
-complicated than the standard approach shown [in a previous tutorial](making-transactions.md),
+complicated than the standard approach shown [in another section](#making-transactions),
 grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking))
 support.
 
@@ -558,7 +547,7 @@ with the separation of steps as follows:
 ## 1. Fetching account information from the chain
 
 First, we need to fetch data for the account we are using to sign the transaction,
-using the [auth/accounts](querying-a-network.md#authaccounts) query:
+using the [auth/accounts](#authaccounts) query:
 
 ```bash
 gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
@@ -586,7 +575,7 @@ of the transaction, preventing replay attacks.
 
 ## 2. Creating an unsigned transaction locally
 
-To create the transaction you want, you can use the [`call` API](making-transactions.md#call),
+To create the transaction you want, you can use the [`call` API](#call),
 without the `-broadcast` flag, while redirecting the output to a local file:
 
 ```bash
@@ -613,7 +602,7 @@ To sign, we must set the correct flags for the subcommand:
 ```bash
 gnokey sign \
 -tx-path userbook.tx \
--chainid "portal-loop" \
+-chainid "staging" \
 -account-number 468 \
 -account-sequence 0 \
 mykey
@@ -649,15 +638,15 @@ Make sure the signature is in the `hex` format.
 gnokey verify -docpath userbook.tx mykey <signature>
 ```
 
-# Querying a gno.land network
+# Querying a Gno.land network
 
-gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
-a gno.land network without spending any gas. All queries need to be pointed towards
+Gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
+a Gno.land network without spending any gas. All queries need to be pointed towards
 a specific remote address from which the state will be retrieved.
 
 To send ABCI queries, you can use the `gnokey query` subcommand, and provide it
 with the appropriate query. The `query` subcommand allows us to send different
-types of queries to a gno.land network.
+types of queries to a Gno.land network.
 
 Below is a list of queries a user can make with `gnokey`:
 - `auth/accounts/{ADDRESS}` - returns information about an account
@@ -679,7 +668,7 @@ we can run the following command:
 gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
-With this, we are asking the Portal Loop network to deliver information about the
+With this, we are asking the Staging network to deliver information about the
 specified address. If everything went correctly, we should get output similar to the following:
 
 ```bash
@@ -708,7 +697,7 @@ to hold account data. It contains the following information:
 - `address` - the address of the account
 - `coins` - the list of coins the account owns
 - `public_key` - the TM2 public key of the account, from which the address is derived
-- `account_number` - a unique identifier for the account on the gno.land chain
+- `account_number` - a unique identifier for the account on the Gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
 
 ## `bank/balances`
@@ -778,7 +767,7 @@ files found within the `wugnot` realm:
 
 ```bash
 height: 0
-data: gno.mod
+data: gnomod.toml
 wugnot.gno
 z0_filetest.gno
 ```
@@ -936,6 +925,58 @@ gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx
 To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
+## `vm/qpaths`
+
+`vm/qpaths` lists all existing package paths prefixed with the specified string 
+using `--data=<prefix>`. If no paths are provided, all known paths will be 
+listed, including those from `stdlibs`. You can specify an additional *limit* 
+parameter at the end of the path using `<path>?limit=<x>` to restrict the number 
+of results to `x` elements. If `0` is specified as *limit*, then, no limit will 
+be applied, with a hard limit of `10_000`. The default *limit* is `1_000`.
+  
+A simple example:
+```bash
+gnokey query vm/qpaths --data "gno.land/r/gnoland"
+```
+
+Would output: 
+```bash
+height: 0
+data: gno.land/r/gnoland/blog
+gno.land/r/gnoland/coins
+gno.land/r/gnoland/events
+gno.land/r/gnoland/home
+gno.land/r/gnoland/pages
+gno.land/r/gnoland/users
+gno.land/r/gnoland/users/v1
+```
+
+The result limit can also be specified in the following manner (mind the added 
+quotes):
+```bash
+gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland"
+```
+
+You can also specify a string prefixed with `@` to list username's sub-packages
+including `/p` and `/r`.
+
+For example:
+```bash
+gnokey query vm/qpaths --data "@foo"
+```
+
+```bash
+height: 0
+data: gno.land/r/foo
+gno.land/r/foo/art/gnoface
+gno.land/r/foo/art/millipede
+gno.land/p/foo/ui
+gno.land/p/foo/svg
+```
+
+In practice, this is shorthand for listing packages under `gno.land/p/foo` & 
+`gno.land/r/foo`.
+
 ### Gas parameters
 
 When using `gnokey` to send transactions, you'll need to specify gas parameters:
@@ -948,16 +989,9 @@ gnokey maketx call \
   --gas-fee 1000000ugnot \
   --gas-wanted 2000000 \
   --remote https://rpc.gno.land:443 \
-  --chainid portal-loop \
+  --chainid staging \
   YOUR_KEY_NAME
 ```
 
-For detailed information about gas fees, including recommended values and optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
-
-## Conclusion
-
-That's it! 🎉
-
-In this tutorial, you've learned to use `gnokey` to query a gno.land
-network.
-
+For detailed information about gas fees, including recommended values and 
+optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).

@@ -15,7 +15,7 @@ package aa
 import "gno.land/r/demo/bb"
 
 func init() {
-	bb.Call()
+	bb.Call(cross)
 }
 
 -- examples/gno.land/r/demo/aa/a_test.gno --
@@ -30,7 +30,7 @@ package bb
 
 var called int
 
-func Call() {
+func Call(cur realm) {
 	called++
 }
 

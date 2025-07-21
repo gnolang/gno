@@ -6,7 +6,6 @@ import (
 	"errors"
 	"regexp"
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
@@ -24,13 +23,9 @@ const (
 var (
 	ErrValoperExists      = errors.New("valoper already exists")
 	ErrValoperMissing     = errors.New("valoper does not exist")
-	ErrAddressExists      = errors.New("valoper updated address exists")
-	ErrSameAddress        = errors.New("valoper updated address is the same")
 	ErrInvalidAddress     = errors.New("invalid address")
-	ErrOriginCaller       = errors.New("origin call is not the same")
 	ErrInvalidMoniker     = errors.New("moniker is not valid")
 	ErrInvalidDescription = errors.New("description is not valid")
-	ErrInvalidPubKey      = errors.New("invalid public key")
 )
 
 var (
@@ -38,9 +33,8 @@ var (
 	instructions string                               // markdown instructions for valoper's registration
 	minFee       = std.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
 
-	monikerMaxLengthMiddle     = ufmt.Sprintf("%d", MonikerMaxLength-2)
-	validateMonikerRe          = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
-	validateListeningAddressRe = regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`)                                        // <protocol>://<hostname>:<port> where <protocol> is optional
+	monikerMaxLengthMiddle = ufmt.Sprintf("%d", MonikerMaxLength-2)
+	validateMonikerRe      = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
 )
 
 // Valoper represents a validator operator profile
@@ -59,40 +53,44 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 	return v.auth
 }
 
-func AddToAuthList(address std.Address, member std.Address) {
-	v := GetByAddr(address)
-
-	if err := v.Auth().AddToAuthList(member); err != nil {
+func AddToAuthList(cur realm, address_XXX std.Address, member std.Address) {
+	v := GetByAddr(address_XXX)
+	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
-func DeleteFromAuthList(address std.Address, member std.Address) {
-	v := GetByAddr(address)
-
-	if err := v.Auth().DeleteFromAuthList(member); err != nil {
+func DeleteFromAuthList(cur realm, address_XXX std.Address, member std.Address) {
+	v := GetByAddr(address_XXX)
+	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
 		panic(err)
 	}
 }
 
 // Register registers a new valoper
-func Register(moniker string, description string, address std.Address, pubKey string) {
-	if err := validateSentCoins(); err != nil {
-		panic(err)
+func Register(cur realm, moniker string, description string, address_XXX std.Address, pubKey string) {
+	// Check if a fee is enforced
+	if !minFee.IsZero() {
+		sentCoins := std.OriginSend()
+
+		// Coins must be sent and cover the min fee
+		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
+			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
+		}
 	}
 
 	// Check if the valoper is already registered
-	if isValoper(address) {
+	if isValoper(address_XXX) {
 		panic(ErrValoperExists)
 	}
 
 	v := Valoper{
 		Moniker:     moniker,
 		Description: description,
-		Address:     address,
+		Address:     address_XXX,
 		PubKey:      pubKey,
 		KeepRunning: true,
-		auth:        authorizable.NewAuthorizable(),
+		auth:        authorizable.NewAuthorizableWithOrigin(),
 	}
 
 	if err := v.Validate(); err != nil {
@@ -107,60 +105,60 @@ func Register(moniker string, description string, address std.Address, pubKey st
 }
 
 // UpdateMoniker updates an existing valoper's moniker
-func UpdateMoniker(address std.Address, moniker string) {
+func UpdateMoniker(cur realm, address_XXX std.Address, moniker string) {
 	// Check that the moniker is not empty
 	if err := validateMoniker(moniker); err != nil {
 		panic(err)
 	}
 
-	v := GetByAddr(address)
+	v := GetByAddr(address_XXX)
 
 	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
+	v.Auth().AssertPreviousOnAuthList()
 
 	// Update the moniker
 	v.Moniker = moniker
 
 	// Save the valoper info
-	valopers.Set(address.String(), v)
+	valopers.Set(address_XXX.String(), v)
 }
 
 // UpdateDescription updates an existing valoper's description
-func UpdateDescription(address std.Address, description string) {
+func UpdateDescription(cur realm, address_XXX std.Address, description string) {
 	// Check that the description is not empty
 	if err := validateDescription(description); err != nil {
 		panic(err)
 	}
 
-	v := GetByAddr(address)
+	v := GetByAddr(address_XXX)
 
 	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
+	v.Auth().AssertPreviousOnAuthList()
 
 	// Update the description
 	v.Description = description
 
 	// Save the valoper info
-	valopers.Set(address.String(), v)
+	valopers.Set(address_XXX.String(), v)
 }
 
 // UpdateKeepRunning updates an existing valoper's active status
-func UpdateKeepRunning(address std.Address, keepRunning bool) {
-	v := GetByAddr(address)
+func UpdateKeepRunning(cur realm, address_XXX std.Address, keepRunning bool) {
+	v := GetByAddr(address_XXX)
 
 	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
+	v.Auth().AssertPreviousOnAuthList()
 
 	// Update status
 	v.KeepRunning = keepRunning
 
 	// Save the valoper info
-	valopers.Set(address.String(), v)
+	valopers.Set(address_XXX.String(), v)
 }
 
 // GetByAddr fetches the valoper using the address, if present
-func GetByAddr(address std.Address) Valoper {
-	valoperRaw, exists := valopers.Get(address.String())
+func GetByAddr(address_XXX std.Address) Valoper {
+	valoperRaw, exists := valopers.Get(address_XXX.String())
 	if !exists {
 		panic(ErrValoperMissing)
 	}
@@ -247,19 +245,10 @@ func (v Valoper) Render() string {
 }
 
 // isValoper checks if the valoper exists
-func isValoper(address std.Address) bool {
-	_, exists := valopers.Get(address.String())
+func isValoper(address_XXX std.Address) bool {
+	_, exists := valopers.Get(address_XXX.String())
 
 	return exists
-}
-
-func validateSentCoins() error {
-	sentCoins := std.OriginSend()
-
-	if len(sentCoins) == 1 && sentCoins[0].IsGTE(minFee) {
-		return nil
-	}
-	return errors.New("payment must not be less than " + strconv.Itoa(int(minFee.Amount)))
 }
 
 // validateMoniker checks if the moniker is valid
@@ -293,8 +282,8 @@ func validateDescription(description string) error {
 }
 
 // validateBech32 checks if the value is a valid bech32 address
-func validateBech32(address std.Address) error {
-	if !std.Address.IsValid(address) {
+func validateBech32(address_XXX std.Address) error {
+	if !std.Address.IsValid(address_XXX) {
 		return ErrInvalidAddress
 	}
 

@@ -7,7 +7,6 @@ import (
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -175,9 +174,9 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 // It creates and returns a list of transactions based on these packages.
 func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWithMetadata, error) {
 	// list all packages from target path
-	pkgs, err := gnomod.ListPkgs(dir)
+	pkgs, err := gno.ReadPkgListFromDir(dir, gno.MPUserAll)
 	if err != nil {
-		return nil, fmt.Errorf("listing gno packages: %w", err)
+		return nil, fmt.Errorf("listing gno packages from gnomod: %w", err)
 	}
 
 	// Sort packages by dependencies.
@@ -186,11 +185,29 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 		return nil, fmt.Errorf("sorting packages: %w", err)
 	}
 
-	// Filter out draft packages.
-	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
-	txs := make([]TxWithMetadata, 0, len(nonDraftPkgs))
-	for _, pkg := range nonDraftPkgs {
-		tx, err := LoadPackage(pkg, creator, fee, nil)
+	// Filter out ignore packages.
+	nonIgnoredPkgs := sortedPkgs.GetNonIgnoredPkgs()
+	txs := make([]TxWithMetadata, 0, len(nonIgnoredPkgs))
+
+	for _, pkg := range nonIgnoredPkgs {
+		// XXX: as addpkg require gno.mod, we should probably check this here
+		mpkg, err := gno.ReadMemPackage(pkg.Dir, pkg.Name, gno.MPUserAll)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
+		}
+
+		// Check if gnomod.toml specifies a creator
+		packageCreator := creator
+		if mod, err := gno.ParseCheckGnoMod(mpkg); err == nil && mod != nil && mod.AddPkg.Creator != "" {
+			// Parse the creator address from gnomod.toml
+			creatorAddr, err := crypto.AddressFromBech32(mod.AddPkg.Creator)
+			if err != nil {
+				return nil, fmt.Errorf("invalid creator address %q in package %q: %w", mod.AddPkg.Creator, pkg.Dir, err)
+			}
+			packageCreator = creatorAddr
+		}
+
+		tx, err := LoadPackage(mpkg, packageCreator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
@@ -204,12 +221,11 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 }
 
 // LoadPackage loads a single package into a `std.Tx`
-func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
+func LoadPackage(mpkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
-	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
-	err := memPkg.Validate()
+	err := gno.ValidateMemPackageAny(mpkg)
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}
@@ -218,9 +234,9 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Fee = fee
 	tx.Msgs = []std.Msg{
 		vmm.MsgAddPackage{
-			Creator: creator,
-			Package: memPkg,
-			Deposit: deposit,
+			Creator:    creator,
+			Package:    mpkg,
+			MaxDeposit: deposit,
 		},
 	}
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
@@ -244,4 +260,20 @@ func DefaultGenState() GnoGenesisState {
 		VM:       vmm.DefaultGenesisState(),
 	}
 	return gs
+}
+
+func ValidateGenState(state GnoGenesisState) error {
+	if err := auth.ValidateGenesis(state.Auth); err != nil {
+		return fmt.Errorf("unable to validate auth state: %w", err)
+	}
+
+	if err := bank.ValidateGenesis(state.Bank); err != nil {
+		return fmt.Errorf("unable to validate bank state: %w", err)
+	}
+
+	if err := vmm.ValidateGenesis(state.VM); err != nil {
+		return fmt.Errorf("unable to validate vm state: %w", err)
+	}
+
+	return nil
 }

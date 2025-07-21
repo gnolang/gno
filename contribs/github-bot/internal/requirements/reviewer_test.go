@@ -91,61 +91,80 @@ func Test_deduplicateReviews(t *testing.T) {
 func TestReviewByUser(t *testing.T) {
 	t.Parallel()
 
-	reviewers := github.Reviewers{
-		Users: []*github.User{
-			{Login: github.String("notTheRightOne")},
-			{Login: github.String("user")},
-			{Login: github.String("anotherOne")},
-		},
-	}
+	var (
+		user1    = &github.User{Login: github.String("user1")}
+		user2    = &github.User{Login: github.String("user2")}
+		user3    = &github.User{Login: github.String("user3")}
+		user4    = &github.User{Login: github.String("user4")}
+		prAuthor = &github.User{Login: github.String("prAuthor")}
 
-	reviews := []*github.PullRequestReview{
-		{
-			User:  &github.User{Login: github.String("notTheRightOne")},
-			State: github.String("APPROVED"),
-		}, {
-			User:  &github.User{Login: github.String("user")},
-			State: github.String("APPROVED"),
-		}, {
+		reviewers = github.Reviewers{
+			Users: []*github.User{user1, user2, user3},
+		}
+
+		reviews = []*github.PullRequestReview{
+			{User: user1, State: github.String("APPROVED")},
 			// Should be ignored in favour of the following one
-			User:  &github.User{Login: github.String("anotherOne")},
-			State: github.String("APPROVED"),
-		}, {
-			User:  &github.User{Login: github.String("anotherOne")},
-			State: github.String("CHANGES_REQUESTED"),
-		},
-	}
+			{User: user2, State: github.String("APPROVED")},
+			{User: user2, State: github.String("CHANGES_REQUESTED")},
+		}
+	)
 
 	for _, testCase := range []struct {
 		name        string
 		user        string
+		action      RequestAction
 		isSatisfied bool
-		create      bool
+		isRequested bool
 	}{
-		{"reviewer matches", "user", true, false},
-		{"reviewer matches without approval", "anotherOne", false, false},
-		{"reviewer doesn't match", "user2", false, true},
+		{"reviewer approved with RequestApply", user1.GetLogin(), RequestApply, true, false},
+		{"reviewer approved with RequestIgnore", user1.GetLogin(), RequestIgnore, true, false},
+		{"reviewer approved with RequestRemove", user1.GetLogin(), RequestRemove, true, false},
+
+		{"reviewer requested changes with RequestApply", user2.GetLogin(), RequestApply, false, false},
+		{"reviewer requested changes with RequestIgnore", user2.GetLogin(), RequestIgnore, false, false},
+		{"reviewer requested changes with RequestRemove", user2.GetLogin(), RequestIgnore, false, false},
+
+		{"reviewer not reviewed with RequestApply", user3.GetLogin(), RequestApply, false, false},
+		{"reviewer not reviewed with RequestIgnore", user3.GetLogin(), RequestIgnore, false, false},
+		{"reviewer not reviewed with RequestRemove", user3.GetLogin(), RequestRemove, false, true},
+
+		{"not a reviewer with RequestApply", user4.GetLogin(), RequestApply, false, true},
+		{"not a reviewer with RequestIgnore", user4.GetLogin(), RequestIgnore, false, false},
+		{"not a reviewer with RequestRemove", user4.GetLogin(), RequestRemove, false, false},
+
+		{"reviewer is the PR author with RequestApply", prAuthor.GetLogin(), RequestApply, false, false},
+		{"reviewer is the PR author with RequestIgnore", prAuthor.GetLogin(), RequestIgnore, false, false},
+		{"reviewer is the PR author with RequestRemove", prAuthor.GetLogin(), RequestRemove, false, false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			firstRequest := true
 			requested := false
+
+			// This is a mock HTTP client that simulates the behavior of the GitHub API.
 			mockedHTTPClient := mock.NewMockedHTTPClient(
+				// This handler simulates the request reviewers endpoint used to
+				// get the reviewers list or request a review.
 				mock.WithRequestMatchHandler(
 					mock.EndpointPattern{
 						Pattern: "/repos/pulls/0/requested_reviewers",
 						Method:  "GET",
 					},
-					http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+						// The first request is just used to get the reviewers.
 						if firstRequest {
 							w.Write(mock.MustMarshal(reviewers))
 							firstRequest = false
 						} else {
+							// A subsequent request indicates that a review was requested
+							// or a request was removed.
 							requested = true
 						}
 					}),
 				),
+				// This handler simulates the reviews endpoint.
 				mock.WithRequestMatchPages(
 					mock.EndpointPattern{
 						Pattern: "/repos/pulls/0/reviews",
@@ -155,19 +174,23 @@ func TestReviewByUser(t *testing.T) {
 				),
 			)
 
+			// Create a new GitHub client with the mocked HTTP client.
 			gh := &client.GitHub{
 				Client: github.NewClient(mockedHTTPClient),
 				Ctx:    context.Background(),
 				Logger: logger.NewNoopLogger(),
 			}
 
-			pr := &github.PullRequest{}
+			// Create a new PullRequest object with an author
+			pr := &github.PullRequest{User: prAuthor}
+
+			// Run the requirement and check if it is satisfied and if a review was requested.
 			details := treeprint.New()
-			requirement := ReviewByUser(gh, testCase.user).WithDesiredState(utils.ReviewStateApproved)
+			requirement := ReviewByUser(gh, testCase.user, testCase.action).WithDesiredState(utils.ReviewStateApproved)
 
 			assert.Equal(t, requirement.IsSatisfied(pr, details), testCase.isSatisfied, fmt.Sprintf("requirement should have a satisfied status: %t", testCase.isSatisfied))
 			assert.True(t, utils.TestLastNodeStatus(t, testCase.isSatisfied, details), fmt.Sprintf("requirement details should have a status: %t", testCase.isSatisfied))
-			assert.Equal(t, testCase.create, requested, fmt.Sprintf("requirement should have requested to create item: %t", testCase.create))
+			assert.Equal(t, testCase.isRequested, requested, fmt.Sprintf("requirement should have requested a review: %t", testCase.isRequested))
 		})
 	}
 }
@@ -176,68 +199,42 @@ func TestReviewByTeamMembers(t *testing.T) {
 	t.Parallel()
 
 	var (
-		reviewers = github.Reviewers{
-			Teams: []*github.Team{
-				{Slug: github.String("team1")},
-				{Slug: github.String("team2")},
-				{Slug: github.String("team3")},
-			},
-		}
+		user1 = &github.User{Login: github.String("user1")}
+		user2 = &github.User{Login: github.String("user2")}
+		user3 = &github.User{Login: github.String("user3")}
+		user4 = &github.User{Login: github.String("user4")}
+		user5 = &github.User{Login: github.String("user5")}
+
+		team1 = &github.Team{Slug: github.String("team1")}
+		team2 = &github.Team{Slug: github.String("team2")}
+		team3 = &github.Team{Slug: github.String("team3")}
+
 		noReviewers   = github.Reviewers{}
+		teamReviewers = github.Reviewers{
+			Teams: []*github.Team{team1, team2, team3},
+		}
 		userReviewers = github.Reviewers{
-			Users: []*github.User{
-				{Login: github.String("user1")},
-				{Login: github.String("user2")},
-				{Login: github.String("user3")},
-				{Login: github.String("user4")},
-				{Login: github.String("user5")},
-			},
+			Users: []*github.User{user1, user2, user3, user4, user5},
+		}
+
+		members = map[string][]*github.User{
+			team1.GetSlug(): {user1, user2, user3},
+			team2.GetSlug(): {user3, user4, user5},
+			team3.GetSlug(): {user4, user5},
+		}
+
+		reviews = []*github.PullRequestReview{
+			// Only later review should be counted (user1).
+			{User: user1, State: github.String("CHANGES_REQUESTED")},
+			{User: user1, State: github.String("APPROVED")},
+			{User: user2, State: github.String("APPROVED")},
+			{User: user3, State: github.String("APPROVED")},
+			{User: user4, State: github.String("CHANGES_REQUESTED")},
+			// Only later review should be counted (user5).
+			{User: user5, State: github.String("APPROVED")},
+			{User: user5, State: github.String("CHANGES_REQUESTED")},
 		}
 	)
-
-	members := map[string][]*github.User{
-		"team1": {
-			{Login: github.String("user1")},
-			{Login: github.String("user2")},
-			{Login: github.String("user3")},
-		},
-		"team2": {
-			{Login: github.String("user3")},
-			{Login: github.String("user4")},
-			{Login: github.String("user5")},
-		},
-		"team3": {
-			{Login: github.String("user4")},
-			{Login: github.String("user5")},
-		},
-	}
-
-	reviews := []*github.PullRequestReview{
-		{
-			// only later review should be counted.
-			User:  &github.User{Login: github.String("user1")},
-			State: github.String("CHANGES_REQUESTED"),
-		}, {
-			User:  &github.User{Login: github.String("user1")},
-			State: github.String("APPROVED"),
-		}, {
-			User:  &github.User{Login: github.String("user2")},
-			State: github.String("APPROVED"),
-		}, {
-			User:  &github.User{Login: github.String("user3")},
-			State: github.String("APPROVED"),
-		}, {
-			User:  &github.User{Login: github.String("user4")},
-			State: github.String("CHANGES_REQUESTED"),
-		}, {
-			// only later review should be counted.
-			User:  &github.User{Login: github.String("user5")},
-			State: github.String("APPROVED"),
-		}, {
-			User:  &github.User{Login: github.String("user5")},
-			State: github.String("CHANGES_REQUESTED"),
-		},
-	}
 
 	const (
 		notSatisfied = 0
@@ -253,17 +250,35 @@ func TestReviewByTeamMembers(t *testing.T) {
 		expectedResult byte
 	}{
 		{
-			name: "3/3 team members approved",
-			req: ReviewByTeamMembers(nil, "team1").
+			name: "3/3 team members approved with RequestApply",
+			req: ReviewByTeamMembers(nil, "team1", RequestApply).
 				WithCount(3).
 				WithDesiredState(utils.ReviewStateApproved),
 			reviews:        reviews,
-			reviewers:      reviewers,
+			reviewers:      teamReviewers,
 			expectedResult: satisfied,
 		},
 		{
+			name: "3/3 team members approved with RequestIgnore",
+			req: ReviewByTeamMembers(nil, "team1", RequestIgnore).
+				WithCount(3).
+				WithDesiredState(utils.ReviewStateApproved),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: satisfied,
+		},
+		{
+			name: "3/3 team members approved with RequestRemove",
+			req: ReviewByTeamMembers(nil, "team1", RequestRemove).
+				WithCount(3).
+				WithDesiredState(utils.ReviewStateApproved),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: satisfied | withRequest,
+		},
+		{
 			name: "3/3 team members approved (with user reviewers)",
-			req: ReviewByTeamMembers(nil, "team1").
+			req: ReviewByTeamMembers(nil, "team1", RequestApply).
 				WithCount(3).
 				WithDesiredState(utils.ReviewStateApproved),
 			reviews:        reviews,
@@ -271,40 +286,94 @@ func TestReviewByTeamMembers(t *testing.T) {
 			expectedResult: satisfied,
 		},
 		{
-			name: "1/1 team member approved",
-			req: ReviewByTeamMembers(nil, "team2").
+			name: "1/1 team member approved with RequestApply",
+			req: ReviewByTeamMembers(nil, "team2", RequestApply).
 				WithDesiredState(utils.ReviewStateApproved),
 			reviews:        reviews,
-			reviewers:      reviewers,
+			reviewers:      teamReviewers,
 			expectedResult: satisfied,
 		},
 		{
-			name: "1/2 team member approved",
-			req: ReviewByTeamMembers(nil, "team2").
+			name: "1/1 team member approved with RequestIgnore",
+			req: ReviewByTeamMembers(nil, "team2", RequestRemove).
+				WithDesiredState(utils.ReviewStateApproved),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: satisfied | withRequest,
+		},
+		{
+			name: "1/2 team member approved with RequestApply",
+			req: ReviewByTeamMembers(nil, "team2", RequestApply).
 				WithCount(2).
 				WithDesiredState(utils.ReviewStateApproved),
 			reviews:        reviews,
-			reviewers:      reviewers,
+			reviewers:      teamReviewers,
 			expectedResult: notSatisfied,
 		},
 		{
-			name: "0/1 team member approved",
-			req: ReviewByTeamMembers(nil, "team3").
+			name: "1/2 team member approved with RequestIgnore",
+			req: ReviewByTeamMembers(nil, "team2", RequestIgnore).
+				WithCount(2).
 				WithDesiredState(utils.ReviewStateApproved),
 			reviews:        reviews,
-			reviewers:      reviewers,
+			reviewers:      teamReviewers,
 			expectedResult: notSatisfied,
 		},
 		{
-			name: "0/1 team member reviewed with request",
-			req:  ReviewByTeamMembers(nil, "team3"),
+			name: "1/2 team member approved with RequestRemove",
+			req: ReviewByTeamMembers(nil, "team2", RequestRemove).
+				WithCount(2).
+				WithDesiredState(utils.ReviewStateApproved),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: notSatisfied | withRequest,
+		},
+		{
+			name: "0/1 team member approved with RequestApply",
+			req: ReviewByTeamMembers(nil, "team3", RequestApply).
+				WithDesiredState(utils.ReviewStateApproved),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: notSatisfied,
+		},
+		{
+			name: "0/1 team member approved with RequestIgnore",
+			req: ReviewByTeamMembers(nil, "team3", RequestIgnore).
+				WithDesiredState(utils.ReviewStateApproved),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: notSatisfied,
+		},
+		{
+			name: "0/1 team member approved with RequestRemove",
+			req: ReviewByTeamMembers(nil, "team3", RequestRemove).
+				WithDesiredState(utils.ReviewStateApproved),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: notSatisfied | withRequest,
+		},
+		{
+			name: "0/1 team member reviewed with request with RequestApply",
+			req:  ReviewByTeamMembers(nil, "team3", RequestApply),
 			// Show there are no current reviews, so we actually perform the request.
 			reviewers:      noReviewers,
 			expectedResult: notSatisfied | withRequest,
 		},
 		{
+			name:           "0/1 team member reviewed with request with RequestIgnore",
+			req:            ReviewByTeamMembers(nil, "team3", RequestIgnore),
+			reviewers:      noReviewers,
+			expectedResult: notSatisfied,
+		},
+		{
+			name:           "0/1 team member reviewed with request with RequestRemove",
+			req:            ReviewByTeamMembers(nil, "team3", RequestRemove),
+			reviewers:      noReviewers,
+			expectedResult: notSatisfied,
+		},
+		{
 			name: "3/3 team member approved from review list",
-			req: ReviewByTeamMembers(nil, "team1").
+			req: ReviewByTeamMembers(nil, "team1", RequestApply).
 				WithDesiredState(utils.ReviewStateApproved).
 				WithCount(3),
 			reviews:        reviews,
@@ -313,7 +382,7 @@ func TestReviewByTeamMembers(t *testing.T) {
 		},
 		{
 			name: "1/2 team member approved from review list",
-			req: ReviewByTeamMembers(nil, "team3").
+			req: ReviewByTeamMembers(nil, "team3", RequestApply).
 				WithDesiredState(utils.ReviewStateApproved).
 				WithCount(2),
 			reviews:        reviews,
@@ -322,7 +391,7 @@ func TestReviewByTeamMembers(t *testing.T) {
 		},
 		{
 			name: "team doesn't exist with request",
-			req: ReviewByTeamMembers(nil, "team4").
+			req: ReviewByTeamMembers(nil, "team4", RequestApply).
 				WithDesiredState(utils.ReviewStateApproved),
 			reviews:        reviews,
 			reviewers:      noReviewers,
@@ -330,28 +399,46 @@ func TestReviewByTeamMembers(t *testing.T) {
 		},
 		{
 			name: "3/3 team members reviewed",
-			req: ReviewByTeamMembers(nil, "team2").
+			req: ReviewByTeamMembers(nil, "team2", RequestApply).
 				WithCount(3),
 			reviews:        reviews,
-			reviewers:      reviewers,
+			reviewers:      teamReviewers,
 			expectedResult: satisfied,
 		},
 		{
-			name: "2/2 team members rejected",
-			req: ReviewByTeamMembers(nil, "team2").
+			name: "2/2 team members rejected with RequestApply",
+			req: ReviewByTeamMembers(nil, "team2", RequestApply).
 				WithCount(2).
 				WithDesiredState(utils.ReviewStateChangesRequested),
 			reviews:        reviews,
-			reviewers:      reviewers,
+			reviewers:      teamReviewers,
 			expectedResult: satisfied,
 		},
 		{
+			name: "2/2 team members rejected with RequestIgnore",
+			req: ReviewByTeamMembers(nil, "team2", RequestIgnore).
+				WithCount(2).
+				WithDesiredState(utils.ReviewStateChangesRequested),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: satisfied,
+		},
+		{
+			name: "2/2 team members rejected with RequestRemove",
+			req: ReviewByTeamMembers(nil, "team2", RequestRemove).
+				WithCount(2).
+				WithDesiredState(utils.ReviewStateChangesRequested),
+			reviews:        reviews,
+			reviewers:      teamReviewers,
+			expectedResult: satisfied | withRequest,
+		},
+		{
 			name: "1/3 team members approved",
-			req: ReviewByTeamMembers(nil, "team2").
+			req: ReviewByTeamMembers(nil, "team2", RequestApply).
 				WithCount(3).
 				WithDesiredState(utils.ReviewStateApproved),
 			reviews:        reviews,
-			reviewers:      reviewers,
+			reviewers:      teamReviewers,
 			expectedResult: notSatisfied,
 		},
 	} {
@@ -410,7 +497,7 @@ func TestReviewByTeamMembers(t *testing.T) {
 			assert.True(t, utils.TestLastNodeStatus(t, expSatisfied, details),
 				"requirement details should have a status: %t", expSatisfied)
 			assert.Equal(t, expRequested, requested,
-				"requirement should have requested to create item: %t", expRequested)
+				"requirement should have requested a review: %t", expRequested)
 		})
 	}
 }

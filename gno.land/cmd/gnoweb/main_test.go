@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,5 +103,93 @@ func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "OK") {
 		t.Errorf("Unexpected response body: %s", body)
+	}
+}
+
+func TestParseAliases(t *testing.T) {
+	t.Parallel()
+
+	var (
+		existingStatic = path.Join(t.TempDir(), "existing")
+		missingStatic  = path.Join(t.TempDir(), "missing")
+	)
+
+	_, err := os.Create(existingStatic)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name       string
+		aliasesStr string
+		mapSize    int
+		error      bool
+	}{
+		{
+			name:       "empty",
+			aliasesStr: "",
+			mapSize:    0,
+			error:      true,
+		},
+		{
+			name:       "only whitespaces",
+			aliasesStr: "    ",
+			mapSize:    0,
+			error:      true,
+		},
+		{
+			name:       "no separator",
+			aliasesStr: "alias1",
+			mapSize:    0,
+			error:      true,
+		},
+		{
+			name:       "too many separators",
+			aliasesStr: "alias1 = = target1",
+			mapSize:    0,
+			error:      true,
+		},
+		{
+			name:       "empty entry",
+			aliasesStr: "alias1 = target1, , alias3 = target3",
+			mapSize:    0,
+			error:      true,
+		},
+		{
+			name:       "valid entry",
+			aliasesStr: "alias1 = target1, alias2 = target2, alias3 = target3",
+			mapSize:    3,
+			error:      false,
+		},
+		{
+			name:       "alias existing static file",
+			aliasesStr: "alias1 = static:" + existingStatic,
+			mapSize:    1,
+			error:      false,
+		},
+		{
+			name:       "alias multiple static files",
+			aliasesStr: "alias1 = static:" + existingStatic + ", alias2 = static:" + existingStatic + ", alias3 = static:" + existingStatic,
+			mapSize:    3,
+			error:      false,
+		},
+		{
+			name:       "alias missing static file",
+			aliasesStr: "alias1 = static:" + missingStatic,
+			mapSize:    0,
+			error:      true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			aliases, err := parseAliases(tc.aliasesStr)
+			if tc.error {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tc.mapSize, len(aliases))
+		})
 	}
 }

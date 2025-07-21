@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -102,7 +101,7 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
 	authGen := auth.DefaultGenesisState()
 	authGen.Params.UnrestrictedAddrs = []crypto.Address{crypto.MustAddressFromString(DefaultAccount_Address)}
-	authGen.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+	authGen.Params.InitialGasPrice = std.GasPrice{Gas: 1000, Price: std.Coin{Amount: 1, Denom: "ugnot"}}
 	genState := gnoland.DefaultGenState()
 	genState.Balances = []gnoland.Balance{
 		{
@@ -184,15 +183,14 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
 	tmconfig.Consensus.WALDisabled = true
-	tmconfig.Consensus.SkipTimeoutCommit = true
-	tmconfig.Consensus.CreateEmptyBlocks = true
-	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Millisecond * 100
+	tmconfig.Consensus.SkipTimeoutCommit = false
+	tmconfig.Consensus.CreateEmptyBlocks = false
 	tmconfig.RPC.ListenAddress = defaultListner
 	tmconfig.P2P.ListenAddress = defaultListner
 	return tmconfig
 }
 
-func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackage) gnoland.GnoGenesisState {
+func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...std.MemPackage) gnoland.GnoGenesisState {
 	txs := make([]gnoland.TxWithMetadata, len(pkgs))
 	for i, pkg := range pkgs {
 		// Create transaction

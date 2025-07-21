@@ -557,10 +557,10 @@ func (p Position) checkCastlingSetup(typ byte) bool {
 		fg, pfg = 7<<3, PieceBlack
 	}
 
-	// cross are the squares that the king starts from,
+	// _cross are the squares that the king starts from,
 	// crosses and "lands". they are recorded as they must all be
 	// not in check by any opponent piece.
-	var cross [3]Square
+	var _cross [3]Square
 
 	if typ == 'K' {
 		if !(b[fg|4] == pfg|PieceKing &&
@@ -569,7 +569,7 @@ func (p Position) checkCastlingSetup(typ byte) bool {
 			b[fg|7] == pfg|PieceRook) {
 			return false
 		}
-		cross = [3]Square{fg | 4, fg | 5, fg | 6}
+		_cross = [3]Square{fg | 4, fg | 5, fg | 6}
 	} else {
 		if !(b[fg|4] == pfg|PieceKing &&
 			b[fg|3] == PieceEmpty &&
@@ -578,11 +578,11 @@ func (p Position) checkCastlingSetup(typ byte) bool {
 			b[fg|0] == pfg|PieceRook) {
 			return false
 		}
-		cross = [3]Square{fg | 4, fg | 3, fg | 2}
+		_cross = [3]Square{fg | 4, fg | 3, fg | 2}
 	}
 
 	testb := p.B
-	for _, sq := range cross {
+	for _, sq := range _cross {
 		testb[sq] = pfg | PieceKing
 		if testb.InCheck(c) {
 			return false

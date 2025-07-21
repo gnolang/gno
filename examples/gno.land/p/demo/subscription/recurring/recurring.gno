@@ -68,7 +68,7 @@ func (rs *RecurringSubscription) processSubscription(receiver std.Address) error
 
 // Subscribe handles the payment for the caller's subscription.
 func (rs *RecurringSubscription) Subscribe() error {
-	caller := std.PreviousRealm().Address()
+	caller := std.CurrentRealm().Address()
 
 	return rs.processSubscription(caller)
 }
@@ -90,7 +90,7 @@ func (rs *RecurringSubscription) GetExpiration(addr std.Address) (time.Time, err
 
 // UpdateAmount allows the owner of the subscription contract to change the required subscription amount.
 func (rs *RecurringSubscription) UpdateAmount(newAmount int64) error {
-	if !rs.CallerIsOwner() {
+	if !rs.OwnedByCurrent() {
 		return ErrNotAuthorized
 	}
 

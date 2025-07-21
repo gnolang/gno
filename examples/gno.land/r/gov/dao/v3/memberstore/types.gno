@@ -33,7 +33,14 @@ type MembersByTier struct {
 }
 
 func NewMembersByTier() MembersByTier {
-	return MembersByTier{avl.NewTree()}
+	return MembersByTier{Tree: avl.NewTree()}
+}
+
+func (mbt MembersByTier) DeleteAll() {
+	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
+		mbt.Remove(tn)
+		return false
+	})
 }
 
 func (mbt MembersByTier) SetTier(tier string) error {
@@ -116,7 +123,9 @@ func (mbt MembersByTier) RemoveMember(addr std.Address) (t string) {
 		}
 
 		_, removed := mst.Remove(string(addr))
-		t = tn
+		if removed {
+			t = tn
+		}
 		return removed
 	})
 

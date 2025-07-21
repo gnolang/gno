@@ -19,8 +19,8 @@ mkdir minisocial
 cd minisocial
 ```
 
-Next, initialize a `gno.mod` file. This file declares the package path of your
-realm and is used by Gno tools. Run the following command to create a `gno.mod` file:
+Next, initialize a `gnomod.toml` file. This file declares the package path of your
+realm and is used by Gno tools. Run the following command to create a `gnomod.toml` file:
 
 ```sh
 gno mod init gno.land/r/example/minisocial
@@ -124,7 +124,7 @@ included in, instead of the system time.
 :::info Lint & format
 
 The `gno` binary provides tooling which can help you write correct code.
-You can use `gno tool lint` and `gno tool fmt` to lint and format your code,
+You can use `gno lint` and `gno tool fmt` to lint and format your code,
 respectively.
 :::
 
@@ -135,10 +135,10 @@ Let's start building the "front end" of our app.
 One of the core features of Gno is that developers can simply provide a Markdown
 view of their realm state directly in Gno, removing the need for using complex
 frontend frameworks, languages, and clients. To learn more about this, check out
-[Exploring gno.land](../users/explore-with-gnoweb.md).
+[Exploring Gno.land](../users/explore-with-gnoweb.md).
 
 The easiest way to develop this part of our Gno app is to run `gnodev`, which
-contains a built-in gno.land node, a built-in instance of `gnoweb`, fast hot
+contains a built-in Gno.land node, a built-in instance of `gnoweb`, fast hot
 reload, and automatic balance premining. Using `gnodev` will allow us to see our
 code changes live.
 
@@ -369,15 +369,15 @@ ok      .       0.87s
 ## Conclusion
 
 Congratulations on completing your first Gno realm!
-Now you're equipped with the required knowledge to venture into gno.land.
+Now you're equipped with the required knowledge to venture into Gno.land.
 
-Full code of this app can be found on the Portal Loop network, on
+Full code of this app can be found on the Staging network, on
 [this link](https://gno.land/r/docs/minisocial).
 
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [gno.land user registry](https://gno.land/demo/users).
+registered in the [Gno.land user registry](https://gno.land/demo/users).
 
 We can import the `gno.land/r/sys/users` realm which provides user data and use
 it to try to resolve the address:

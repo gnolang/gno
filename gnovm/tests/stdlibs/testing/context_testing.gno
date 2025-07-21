@@ -64,6 +64,7 @@ func testIssueCoins(addr string, denom []string, amt []int64)
 func SetOriginCaller(origCaller std.Address) {
 	ctx := GetContext()
 	ctx.OriginCaller = origCaller
+	ctx.CurrentRealm = std.NewUserRealm(origCaller)
 	SetContext(ctx)
 }
 
@@ -87,10 +88,16 @@ func SetHeight(height int64) {
 
 // SetRealm sets the realm for the current frame.
 // After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
-// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+// rlm, while if a realm function is called, using PreviousRealm() will yield rlm.
+// If rlm.PkgPath() is "", implies rlm.Address() is the user address.
+// OriginCaller will also be set. This is identical to calling
+// ctx.SetOriginCaller(userAddress)
 func SetRealm(rlm std.Realm) {
 	ctx := GetContext()
 	ctx.CurrentRealm = rlm
+	if rlm.PkgPath() == "" {
+		ctx.OriginCaller = rlm.Address()
+	}
 	SetContext(ctx)
 }
 

@@ -1,7 +1,7 @@
 # Deploying Gno Packages to a Network
 
 Once you've developed and tested your Gno packages locally, the next step is
-deploying them to a gno.land network. This guide explains how to deploy both
+deploying them to a Gno.land network. This guide explains how to deploy both
 realms and pure packages using `gnokey`.
 
 ## Prerequisites
@@ -9,22 +9,22 @@ realms and pure packages using `gnokey`.
 Before deploying, you need:
 
 1. A working version of your package or realm
-2. A gno.land account with sufficient GNOT for gas fees
+2. A Gno.land account with sufficient GNOT for gas fees
 3. The `gnokey` utility installed and configured
 4. (Optional) A registered namespace for deploying under your own path
 
-In this tutorial, you will learn how to deploy Gno code to a gno.land network
+In this tutorial, you will learn how to deploy Gno code to a Gno.land network
 via the CLI using `gnokey`. We will be reusing code from a
-[previous tutorial](developing-locally/running-testing-gno.md#setup).
+[previous tutorial](anatomy-of-a-gno-package.md).
 
 ### A word about gas
 
-For any state-changing call on the gno.land network, which includes code
+For any state-changing call on the Gno.land network, which includes code
 deployment, users must pay an execution fee, commonly known as a transaction
 fee. This mechanism prevents DoS attacks and is integral to most blockchain
 networks.
 
-Transaction fees on the gno.land network are paid with gno.land's native coin,
+Transaction fees on the Gno.land network are paid with Gno.land's native coin,
 GNOT, denominated as `ugnot` (micro-GNOT, `1 GNOT = 1_000_000 ugnot`).
 
 The transaction fee is calculated as `gas-fee * gas-wanted`, where `gas-fee` is
@@ -42,8 +42,8 @@ Gno address to which you want to receive GNOT, complete the captcha and request
 tokens. Soon you should have a GNOT balance.
 
 If you don't have a Gno address, check out
-[Creating a key pair](developing-locally/creating-a-keypair.md), or create one
-via a third-party web extension wallet, such as Adena.
+[Managing keypairs](../users/interact-with-gnokey.md#managing-key-pairs), or
+create one via a third-party web extension wallet, such as Adena.
 
 ## Deploying with `gnokey`
 
@@ -51,13 +51,13 @@ Consider the following directory structure for our `Counter` realm:
 
 ```
 counter/
-    ├─ gno.mod
+    ├─ gnomod.toml
     ├─ counter.gno
     ├─ counter_test.gno
 ```
 
 Let's deploy the `Counter` realm to the
-[Portal Loop](../resources/gnoland-networks.md#portal-loop) network. For this,
+[Staging](../resources/gnoland-networks.md#staging-chain) network. For this,
 we can use the `gnokey maketx addpkg` subcommand, which executes a package
 deployment transaction.
 
@@ -65,7 +65,7 @@ We need to tell `gnokey` a couple of things:
 - `pkgpath`[^1] to which we want to deploy to on the chain,
 - `pkgdir` in which the package is found locally,
 - `gas-fee` and `gas-wanted` values,
-- the `remote` (RPC endpoint) and `chainid` of the Portal Loop network[^2],
+- the `remote` (RPC endpoint) and `chainid` of the Staging network[^2],
 - that we want to broadcast the transaction, and
 - the key or the address we want to use to deploy the package.
 
@@ -77,7 +77,7 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 MyKey
 ```
@@ -89,7 +89,7 @@ To go into more detail:
 error, try increasing the `gas-wanted` value [^4].
 
 After entering your password, you will have successfully deployed the `Counter`
-realm to the Portal Loop network:
+realm to the Staging network:
 
 ```
 OK!
@@ -102,7 +102,7 @@ TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 
 ## Choosing a Package Path
 
-When deploying to gno.land, you need to specify a package path. You have two
+When deploying to Gno.land, you need to specify a package path. You have two
 options:
 
 1. **Use your registered username** - If you've registered a username, you can deploy under `gno.land/[r|p]/YOUR_USERNAME/...`
@@ -136,7 +136,7 @@ documentation](../resources/gas-fees.md).
 ## Conclusion
 
 Congratulations! If everything went as expected, you've successfully deployed a
-realm to the Portal Loop network. To see it on `gnoweb` for the Portal Loop,
+realm to the Staging network. To see it on `gnoweb` for the Staging chain,
 append `r/<your_address>/counter` to https://gno.land in your browser.
 
 :::info
@@ -150,7 +150,7 @@ a third-party web extension wallet, such as Adena.
 [^1]: Read more about package paths [here](../resources/gno-packages.md).
 [^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
 [^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to
-users. Users can register a username using the [gno.land user registry](https://gno.land/r/gnoland/users),
+users. Users can register a username using the [Gno.land user registry](https://gno.land/r/gnoland/users),
 which will grant them access to a matching namespace for that specific network.
 [^4]: Automatic gas estimation is being worked on for `gnokey`. Follow progress
 [here](https://github.com/gnolang/gno/pull/3330).

@@ -109,18 +109,18 @@ func (x *KeyValueExpr) Copy() Node {
 	}
 }
 
-func (x *FuncLitExpr) Copy() Node {
+func (fle *FuncLitExpr) Copy() Node {
 	return &FuncLitExpr{
-		Type: *(x.Type.Copy().(*FuncTypeExpr)),
-		Body: copyStmts(x.Body),
+		Type: *(fle.Type.Copy().(*FuncTypeExpr)),
+		Body: copyStmts(fle.Body),
 	}
 }
 
 func (x *FieldTypeExpr) Copy() Node {
 	return &FieldTypeExpr{
-		Name: x.Name,
-		Type: x.Type.Copy().(Expr),
-		Tag:  copyExpr(x.Tag),
+		NameExpr: *(x.NameExpr.Copy().(*NameExpr)),
+		Type:     x.Type.Copy().(Expr),
+		Tag:      copyExpr(x.Tag),
 	}
 }
 
@@ -267,12 +267,6 @@ func (x *ReturnStmt) Copy() Node {
 	}
 }
 
-func (x *PanicStmt) Copy() Node {
-	return &PanicStmt{
-		Exception: x.Exception.Copy().(Expr),
-	}
-}
-
 func (x *SelectStmt) Copy() Node {
 	return &SelectStmt{
 		Cases: copySelectCases(x.Cases),
@@ -361,11 +355,11 @@ func (x *FileNode) Copy() Node {
 	}
 }
 
-func (x *PackageNode) Copy() Node {
+func (pn *PackageNode) Copy() Node {
 	return &PackageNode{
-		PkgPath: x.PkgPath,
-		PkgName: x.PkgName,
-		FileSet: x.FileSet.CopyFileSet(),
+		PkgPath: pn.PkgPath,
+		PkgName: pn.PkgName,
+		FileSet: pn.FileSet.CopyFileSet(),
 	}
 }
 
