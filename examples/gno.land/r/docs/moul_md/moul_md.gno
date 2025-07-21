@@ -28,7 +28,7 @@ func Render(path string) string {
 }
 
 func renderIntro() string {
-	return md.H1("p/moul/md Package Demo") +
+	return md.H1("Package Demo: `p/moul/md` ") +
 		md.Paragraph("This document demonstrates the features of the "+md.Link("gno.land/p/moul/md", "https://gno.land/p/moul/md")+" package, showing both the source code and the rendered result for each feature.") +
 		"\n" +
 		md.Blockquote(md.Bold("Note:")+" The md package provides helper functions to generate markdown programmatically, making it easier to create dynamic documentation and content.") +
