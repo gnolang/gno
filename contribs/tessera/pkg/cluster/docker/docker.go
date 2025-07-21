@@ -68,16 +68,17 @@ func NewClusterManager(name string, logger *slog.Logger) (*ClusterManager, error
 	}
 
 	return &ClusterManager{
-		client: cli,
-		logger: logger,
-		name:   name,
+		client:         cli,
+		logger:         logger,
+		name:           name,
+		containerInfos: make(map[string]ContainerInfo),
 	}, nil
 }
 
 // BuildDockerfile builds the tessera/gnoland Dockerfile
 // TODO separate this out from the cluster manager. Image building should be a separate process from
 // cluster creation and management
-func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) error {
+func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) (string, error) {
 	var (
 		buf = bytes.NewBuffer(nil)
 		tw  = tar.NewWriter(buf)
@@ -85,7 +86,7 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) e
 
 	// Add the gno root folder to the Docker build context
 	if err := addFilesToTar(tw, gnoRoot); err != nil {
-		return err
+		return "", err
 	}
 
 	tarHeader := &tar.Header{
@@ -95,12 +96,12 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) e
 
 	err := tw.WriteHeader(tarHeader)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	_, err = tw.Write(dockerFile)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Add the .dockerignore
@@ -110,20 +111,21 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) e
 		Mode: 0o644,
 	}
 
-	if err := tw.WriteHeader(ignoreHeader); err != nil {
-		return err
+	if err = tw.WriteHeader(ignoreHeader); err != nil {
+		return "", err
 	}
 
-	if _, err := tw.Write(dockerIgnore); err != nil {
-		return err
+	if _, err = tw.Write(dockerIgnore); err != nil {
+		return "", err
 	}
 
 	if err = tw.Close(); err != nil {
-		return err
+		return "", err
 	}
 
 	dockerFileTarReader := bytes.NewReader(buf.Bytes())
 
+	imageName := "tessera/gnoland:latest"
 	imageBuildRes, err := cm.client.ImageBuild(
 		ctx,
 		dockerFileTarReader,
@@ -132,11 +134,11 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) e
 			Dockerfile:  "Dockerfile",
 			Remove:      true,
 			ForceRemove: true,
-			Tags:        []string{"tessera/gnoland:latest"},
+			Tags:        []string{imageName},
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("unable to build images from Dockerfile: %w", err)
+		return "", fmt.Errorf("unable to build images from Dockerfile: %w", err)
 	}
 
 	// TODO remove
@@ -165,7 +167,7 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) e
 		cm.logger.Warn("failed to prune dangling images", "err", err)
 	}
 
-	return nil
+	return imageName, nil
 }
 
 // addFilesToTar adds all files from the source directory to the tar writer
@@ -269,13 +271,13 @@ func (cm *ClusterManager) SetupNetwork(ctx context.Context) error {
 
 // SetupSharedVolume creates a shared Docker volume for the cluster,
 // for common artifact exchange (like genesis files)
-func (cm *ClusterManager) SetupSharedVolume(ctx context.Context) error {
+func (cm *ClusterManager) SetupSharedVolume(ctx context.Context) (string, error) {
 	volumeName := cm.volumeName()
 
 	// Check if the volume already exists
 	volumes, err := cm.client.VolumeList(ctx, volume.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("unable to get Docker volume list: %w", err)
+		return "", fmt.Errorf("unable to get Docker volume list: %w", err)
 	}
 
 	for _, vol := range volumes.Volumes {
@@ -294,12 +296,12 @@ func (cm *ClusterManager) SetupSharedVolume(ctx context.Context) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create Docker volume: %w", err)
+		return "", fmt.Errorf("unable to create Docker volume: %w", err)
 	}
 
 	cm.sharedVolumePath = vol.Mountpoint
 
-	return nil
+	return cm.sharedVolumePath, nil
 }
 
 // CreateContainer creates a single cluster node container.
@@ -421,11 +423,12 @@ func (cm *ClusterManager) CreateContainer(ctx context.Context, config ContainerC
 // Returns the command output, from the container
 func (cm *ClusterManager) ExecuteCmd(
 	ctx context.Context,
-	containerName string,
+	cName string,
 	cmd []string,
 ) (string, error) {
 	// Check if the container exists
-	cName := cm.containerName(containerName)
+	// TODO check
+	// cName := cm.containerName(containerName)
 
 	containerInfo, exists := cm.containerInfos[cName]
 	if !exists {

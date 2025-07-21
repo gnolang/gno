@@ -43,7 +43,8 @@ func New(
 	}
 
 	// Build the docker images for the cluster
-	if err = manager.BuildDockerfile(ctx, gnoRoot); err != nil {
+	imageName, err := manager.BuildDockerfile(ctx, gnoRoot)
+	if err != nil {
 		return nil, fmt.Errorf("unable to build Dockerfile: %w", err)
 	}
 
@@ -53,7 +54,8 @@ func New(
 	}
 
 	// Create a shared volume (primarily for genesis access)
-	if err = manager.SetupSharedVolume(ctx); err != nil {
+	sharedVolume, err := manager.SetupSharedVolume(ctx)
+	if err != nil {
 		return nil, fmt.Errorf("unable to setup shared volume: %w", err)
 	}
 
@@ -62,8 +64,42 @@ func New(
 	logger.Debug("Creating clusters....")
 
 	// Create the genesis.json (shared)
-	// TODO
 	logger.Debug("Creating genesis.json....")
+
+	// To generate the genesis.json, a container for this purpose
+	// will be created and used
+	genesisContainerCfg := docker.ContainerConfig{
+		Name:       fmt.Sprintf("%s-genesis", clusterName),
+		Image:      imageName,
+		Entrypoint: []string{"/bin/sh", "-c", "sleep infinity"},
+		Cmd:        nil, // TODO check
+	}
+
+	if err = manager.CreateContainer(ctx, genesisContainerCfg); err != nil {
+		return nil, fmt.Errorf("unable to create genesis container: %w", err)
+	}
+
+	// Create an empty genesis.json
+	genesisPath := fmt.Sprintf("%s/genesis.json", sharedVolume)
+
+	execOutput, err := manager.ExecuteCmd(
+		ctx,
+		genesisContainerCfg.Name,
+		[]string{
+			fmt.Sprintf(
+				"gnogenesis generate -chain-id %s -genesis-time %d -output-path %s",
+				config.Genesis.ChainID,
+				config.Genesis.GenesisTime.Unix(),
+				genesisPath,
+			),
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to execute command on container: %w", err)
+	}
+
+	// TODO cleanup
+	fmt.Println(execOutput)
 
 	c.manager = manager
 

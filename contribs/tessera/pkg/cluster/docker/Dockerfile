@@ -1,5 +1,5 @@
 # Prepare the root gno dir in the image
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23-alpine AS build-gnoland
 
 WORKDIR /src
 
@@ -14,10 +14,20 @@ ENV CGO_ENABLED=0 \
 # Build gnoland binary
 RUN go build -o /gnoland ./gno.land/cmd/gnoland
 
+# Prepare the contribs dependencies
+FROM build-gnoland AS build-contribs
+
+WORKDIR /src/contribs/gnogenesis
+
+RUN go mod download -x
+
+RUN go build -o /gnogenesis .
+
 # Final minimal image
 FROM alpine:3.17
 
-COPY --from=builder /gnoland /usr/bin/gnoland
+COPY --from=build-gnoland /gnoland /usr/bin/gnoland
+COPY --from=build-contribs /gnogenesis /usr/bin/gnogenesis
 
 EXPOSE 26656 26657
 
