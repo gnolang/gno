@@ -183,6 +183,8 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		return panictoerr.PanicToError(func() {
+			// NOTE:: Consider checking if the newTokenKeys are already registered
+			// in the grc20reg before updating the treasury tokens keys.
 			treasury.SetTokenKeys(cross, newTokenKeys)
 		})
 	}
