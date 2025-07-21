@@ -69,7 +69,7 @@ type List struct {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //	println(l.Len()) // Output: 3
 func (l *List) Len() int {
@@ -80,7 +80,7 @@ func (l *List) Len() int {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1)        // adds single value
 //	l.Append(2, 3, 4)  // adds multiple values
 //	println(l.Len()) // Output: 4
@@ -95,7 +95,7 @@ func (l *List) Append(values ...any) {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //	println(l.Get(1))    // Output: 2
 //	println(l.Get(-1))   // Output: nil
@@ -114,7 +114,7 @@ func (l *List) Get(index int) any {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //
 //	l.Set(1, 42)      // updates existing index
@@ -163,7 +163,7 @@ func (l *List) Set(index int, value any) bool {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //
 //	val, ok := l.Delete(1)
@@ -197,7 +197,7 @@ func (l *List) Delete(index int) (any, bool) {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3, 4, 5)
 //
 //	println(l.Slice(1, 4))   // Output: [2 3 4]
@@ -248,7 +248,7 @@ func (l *List) ForEach(fn func(index int, value any) bool) {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3)
 //
 //	clone := l.Clone()
@@ -280,7 +280,7 @@ func (l *List) Clone() *List {
 //
 // Example:
 //
-//	l := list.New()
+//	var l list.List
 //	l.Append(1, 2, 3, 4, 5)
 //
 //	deleted := l.DeleteRange(1, 4)
