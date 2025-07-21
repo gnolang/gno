@@ -1,3 +1,20 @@
+// Package vls implements the Volos Governance Token for the Volos DAO on Gno.land.
+//
+// This contract defines a GRC20-compatible governance token (VLS) designed for use by the
+// Volos DAO. Minting and burning of tokens are strictly restricted to the governance
+// contract, ensuring that only authorized proposals or upgrades can affect the total supply.
+// The contract supports on-chain delegation, allowing users to delegate their voting power
+// to any address, including themselves. Voting power is dynamically tracked and updated
+// whenever tokens are delegated, transferred, minted, or burned, ensuring that governance
+// accurately reflects the current distribution of influence.
+//
+// The governance contract address itself can be updated by the current governance,
+// providing a secure upgrade path for future changes. All privileged actions are protected
+// by an authority model built on the authz package, which enforces that only the correct
+// contract can execute sensitive operations. Error messages are defined in a separate
+// errors.gno file for consistency and maintainability. Users must explicitly delegate to
+// themselves if they wish to use their own tokens for voting, as voting power is the sum
+// of tokens delegated to an address.
 package vls
 
 import (
@@ -20,7 +37,7 @@ var (
 			func(title string, action authz.PrivilegedAction) error {
 				// only allow the governance contract to execute privileged actions
 				if std.CurrentRealm().Address() != VolosDAOAddress {
-					return ufmt.Errorf("only governance contract can execute: %s", title)
+					return ErrOnlyGovernanceCanExecute
 				}
 				return action()
 			},
@@ -172,7 +189,7 @@ func burn(from std.Address, amount int64) error {
 
 func updateGovernance(newAddr std.Address) error {
 	if std.CurrentRealm().Address() != VolosDAOAddress {
-		return ufmt.Errorf("only current governance contract can update governance")
+		return ErrOnlyGovernanceCanUpdate
 	}
 	VolosDAOAddress = newAddr
 	VolosDAO = newAddr.String()
@@ -181,7 +198,7 @@ func updateGovernance(newAddr std.Address) error {
 			newAddr.String(),
 			func(title string, action authz.PrivilegedAction) error {
 				if std.CurrentRealm().Address() != newAddr {
-					return ufmt.Errorf("only governance contract can execute: %s", title)
+					return ErrOnlyGovernanceCanExecute
 				}
 				emitGovernanceUpdated(VolosDAOAddress.String(), newAddr.String())
 				return action()
