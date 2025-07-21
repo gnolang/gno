@@ -1,3 +1,5 @@
+// Package main
+// This is a filetest. It's somewhat similar to Go's 'Example' files/functions. It's there to showcase functionality and print the output of a specific scenario related to the package it's testing. In this case, it's related to the `Render` function.
 package main
 
 import "gno.land/r/docs/moul_md"
