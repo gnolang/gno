@@ -78,7 +78,6 @@
 	.realm-view h2 {
 		@apply text-500 md:text-600;
 	}
-
 	.realm-view h2,
 	.realm-view h2 * {
 		@apply font-bold;
@@ -242,9 +241,8 @@
 	}
 
 	.realm-view sup {
-		@apply text-50 align-super;
+		@apply text-50 align-middle pl-px;
 	}
-
 	.realm-view input,
 	.realm-view button {
 		@apply px-4 py-2 border border-gray-300;
@@ -255,7 +253,7 @@
 		@apply !mt-0;
 	}
 
-	main :is(h1, h2, h3, h4) {
+	.realm-view :is(h1, h2, h3, h4, sup, .footnote-backref) {
 		@apply scroll-mt-24;
 	}
 
@@ -275,9 +273,61 @@
 	}
 
 	/* MD components */
+	/* Checkbox */
+	.realm-view ul:has(li > input[type="checkbox"]:first-child) {
+		@apply list-none pl-0;
+	}
+
+	.realm-view li:has(> input[type="checkbox"]:first-child) {
+		@apply flex items-center gap-2;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child {
+		@apply relative appearance-none h-5 w-5 shrink-0 border border-gray-200 p-0 rounded-sm checked:bg-green-600 checked:border-transparent;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child:disabled {
+		@apply cursor-not-allowed bg-gray-50 checked:bg-gray-50 border-gray-200;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child::after {
+		content: "";
+		@apply absolute m-auto w-3 h-3 bg-light opacity-0 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2;
+		clip-path: polygon(25% 36%, 43% 54%, 76% 18%, 89% 29%, 44% 78%, 13% 49%);
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child:disabled::after {
+		@apply bg-green-600;
+	}
+
+	.realm-view li > input[type="checkbox"]:first-child:checked::after {
+		@apply opacity-100;
+	}
+
+	/* Footnote */
+	.realm-view .footnote-backref {
+		@apply align-middle;
+	}
+
+	.realm-view li[id^="fn:"] {
+		@apply relative z-1;
+	}
+
+	.realm-view li[id^="fn:"]::before {
+		content: "";
+		@apply absolute block -top-0.5 bottom-0 -left-0.5 -right-0.5 bg-green-600/10 rounded-sm z-min opacity-0;
+	}
+
+	.realm-view li[id^="fn:"]:target::before {
+		@apply opacity-100 duration-75 delay-150;
+	}
+
 	/* Columns */
 	.realm-view .gno-columns {
 		@apply flex flex-wrap gap-x-10 xxl:gap-x-12;
+	}
+	.realm-view .gno-columns > * {
+		@apply grow shrink basis-52 lg:basis-44;
 	}
 
 	.realm-view .gno-columns > * {
@@ -582,7 +632,7 @@
 	}
 
 	.dev-mode .toc-nav {
-		@apply font-mono;
+		text-align: center;
 	}
 
 	.main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
