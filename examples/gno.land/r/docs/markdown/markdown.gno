@@ -649,7 +649,7 @@ As the Gno ecosystem grows, expect the markdown capabilities to expand according
 
 ## See Also
 
-For programmatic markdown generation using Go code, check out the [`p/moul/md` demo](/r/docs/moul_md) which demonstrates how to use the `p/moul/md` package to generate markdown content in your Gno realms.
+For programmatic markdown generation using Go code, check out the [±p/moul/md± demo](/r/docs/moul_md) which demonstrates how to use the ±p/moul/md± package to generate markdown content in your Gno realms.
 `
 	output = strings.ReplaceAll(output, "±", "`")
 	return output
