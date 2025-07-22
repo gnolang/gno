@@ -2,6 +2,7 @@ package components
 
 import (
 	"html/template"
+	"strings"
 
 	// for error types
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -22,6 +23,7 @@ type HelpData struct {
 	PkgPath     string
 	PkgFullPath string
 	Doc         string
+	Domain      string
 }
 
 type HelpTocData struct {
@@ -50,7 +52,8 @@ func registerHelpFuncs(funcs template.FuncMap) {
 	}
 
 	funcs["buildHelpURL"] = func(data HelpData, fn *doc.JSONFunc) string {
-		url := "https://" + data.PkgPath + "$help&func=" + fn.Name
+		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
+		url := pkgPath + "$help&func=" + fn.Name
 		if len(fn.Params) > 0 {
 			url += "&"
 			for i, param := range fn.Params {
