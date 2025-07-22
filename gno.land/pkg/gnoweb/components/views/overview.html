@@ -17,7 +17,13 @@
     <ul class="space-y-4">
       {{ range .Functions }}
       <li id="func-{{ .Name }}" class="border-b pb-2">
-        <div class="font-mono text-lg font-semibold">func {{ .Name }}({{ range $i, $p := .Params }}{{ if $i }}, {{ end }}{{ $p.Name }} {{ $p.Type }}{{ end }}){{ if .Result }} → {{ .Result }}{{ end }}</div>
+        <div class="font-mono text-lg font-semibold">
+          func {{ .Name }}(
+            {{- range $i, $p := .Params }}{{ if $i }}, {{ end }}{{ $p.Name }} {{ $p.Type }}{{ end }}
+          ){{ if .Results }} → 
+            {{- range $i, $r := .Results }}{{ if $i }}, {{ end }}{{ $r.Type }}{{ end }}
+          {{ end }}
+        </div>
         {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
       </li>
       {{ end }}
@@ -26,6 +32,7 @@
   {{ end }}
 
   <!-- Files section -->
+  {{ if .Files }}
   <div class="mb-8">
     <h2 class="text-2xl font-bold mb-2">Source Files</h2>
     <ul>
@@ -44,5 +51,10 @@
       {{ end }}
     </ul>
   </div>
+  {{ end }}
+
+  {{ if (not .Readme) (not .Functions) (not .Files) }}
+  <div class="text-gray-400 italic">No documentation, functions or files found in this package.</div>
+  {{ end }}
 </article>
 {{ end }} 
