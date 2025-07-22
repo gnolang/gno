@@ -87,18 +87,18 @@ func visitPackage(pkg *Package, pkgs []*Package, visited, onStack map[string]boo
 // and have no direct or indirect draft dependencies.
 func (sp SortedPkgList) GetNonIgnoredPkgs() SortedPkgList {
 	res := make([]*Package, 0, len(sp))
-	ingore := make(map[string]bool)
+	ignore := make(map[string]bool)
 
 	for _, pkg := range sp {
 		if pkg.Ignore {
-			ingore[pkg.ImportPath] = true
+			ignore[pkg.ImportPath] = true
 			continue
 		}
 		dependsOnIgnored := false
 		for _, req := range pkg.ImportsSpecs.Merge(FileKindPackageSource) {
-			if ingore[req.PkgPath] {
+			if ignore[req.PkgPath] {
 				dependsOnIgnored = true
-				ingore[pkg.ImportPath] = true
+				ignore[pkg.ImportPath] = true
 				break
 			}
 		}
