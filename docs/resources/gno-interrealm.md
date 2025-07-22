@@ -47,7 +47,7 @@ even when exposed (e.g. `package realm1; var MyGlobal int = 1`) is safe from
 external manipulation (e.g.  `import "xxx/realm1"; realm1.MyGlobal = 2`). For
 users to manipulate them a function or method *must* be provided.
 
-Realm crossing occurs when a crossing function(declared as
+Realm crossing occurs when a crossing function (declared as
 `func fn(cur realm, ...){...}`) 
 is called with the Gno `fn(cross, ...)` syntax.
 
