@@ -1,5 +1,5 @@
 module = "gno.land/r/sys/users"
 gno = "0.9"
 
-[upload_metadata]
-  uploader = "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"
+[addpkg]
+  creator = "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"

@@ -13,8 +13,6 @@ import (
 	libs_runtime "github.com/gnolang/gno/gnovm/stdlibs/runtime"
 	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
 	libs_sys_params "github.com/gnolang/gno/gnovm/stdlibs/sys/params"
-	libs_testing "github.com/gnolang/gno/gnovm/stdlibs/testing"
-	libs_testing_base "github.com/gnolang/gno/gnovm/stdlibs/testing/base"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
 
@@ -497,6 +495,36 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_std.X_derivePkgAddr(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"deriveStorageDepositAddr",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			r0 := libs_std.X_deriveStorageDepositAddr(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -1136,166 +1164,6 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
-		"testing",
-		"matchString",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
-			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
-		},
-		false,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  string
-				rp1 = reflect.ValueOf(&p1).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.DeepFill(m.Store)
-			gno.Gno2GoValue(tv1, rp1)
-
-			r0, r1 := libs_testing.X_matchString(p0, p1)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
-		"testing",
-		"recoverWithStacktrace",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.AnyT()},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0, r1 := libs_testing.X_recoverWithStacktrace()
-
-			m.PushValue(r0)
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
-		"testing",
-		"unixNano",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("int64")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0 := libs_testing.X_unixNano()
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"testing/base",
-		"unixNano",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("int64")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0 := libs_testing_base.X_unixNano()
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"testing/base",
-		"recoverWithStacktrace",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.AnyT()},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
-		},
-		false,
-		func(m *gno.Machine) {
-			r0, r1 := libs_testing_base.X_recoverWithStacktrace()
-
-			m.PushValue(r0)
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
-		"testing/base",
-		"matchString",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
-			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
-		},
-		false,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  string
-				rp1 = reflect.ValueOf(&p1).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.DeepFill(m.Store)
-			gno.Gno2GoValue(tv1, rp1)
-
-			r0, r1 := libs_testing_base.X_matchString(p0, p1)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
 		"time",
 		"now",
 		[]gno.FieldTypeExpr{},
@@ -1403,9 +1271,7 @@ var initOrder = [...]string{
 	"runtime",
 	"std",
 	"sys/params",
-	"testing/base",
 	"time",
-	"testing",
 	"unicode/utf16",
 }
 

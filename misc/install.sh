@@ -87,8 +87,12 @@ install_gno() {
     fi
 
     # Build and install
-    log "Building gno..."
+    log "Building gno, gnokey, gnodev..."
     make install
+    
+    # Build and install gnobro
+    log "Building gnobro..."
+    make install.gnobro
 
     # Verify installation
     if ! command_exists gno; then
@@ -96,9 +100,18 @@ install_gno() {
         log "Is $GOBIN set in your $PATH? See https://go.dev/doc/install/source#environment"
         exit 1
     fi
+    
+    if ! command_exists gnobro; then
+        warn "gnobro installation failed. gnobro command not found."
+        warn "You can install it manually later with: make install.gnobro"
+    fi
 
     log "Installation successful! gno is now available."
     gno version
+    
+    if command_exists gnobro; then
+        log "gnobro is also available."
+    fi
 }
 
 # Function to uninstall gno
@@ -112,6 +125,7 @@ uninstall_gno() {
     rm -f "$GOPATH/bin/gno"
     rm -f "$GOPATH/bin/gnokey"
     rm -f "$GOPATH/bin/gnodev"
+    rm -f "$GOPATH/bin/gnobro"
 
     # Remove source directory
     log "Removing gno source from $GNO_DIR"
