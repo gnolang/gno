@@ -1,4 +1,3 @@
-
 ## Storage deposits
 
 In Gno.land, storage is a paid resource. To persist data in a realm (such as
@@ -12,26 +11,25 @@ depending on the net change in data usage.
 
 A storage deposit is an amount of GNOT locked to pay for the storage space your
 data occupies on-chain. The system calculates and deducts this amount after each
-message (e.g., MsgCall, MsgRun, AddPkg).
+message (e.g., `MsgCall`, `MsgRun`, `AddPkg`). Note: Gas fees are not refunded.
 
 Storing data → GNOT locked
 Deleting data → GNOT refunded
 
 ### Purpose
 
-- Pay for persistent storage: Store objects like structs or strings in realms.
-- Encourage cleanup: Reclaim deposits by deleting unneeded data.
+- Paying for persistent storage: Storing objects or primitives in realms costs GNOT.
+- Encouraging cleanup: Users can reclaim deposits by deleting unneeded data.
 - Flexibility: Realm developers can design their own cleanup or reward logic.
 
 ### Storage Settlement Flow
 
-1 Start with a message call (e.g. AddPkg)
+Below is an example of how the storage fee settlement flow works:
 
-2 Specify optional -max-deposit to limit the GNOT to be locked for storage.
-
-3 Storage delta is calculated (how much it grew or shrunk).
-
-4 System locks or refunds GNOT accordingly.
+1. Start with a message call (e.g. AddPkg)
+2. Specify optional `-max-deposit` to limit the GNOT that can be locked for storage.
+3. The storage delta is calculated by the GnoVM (how much it grew or shrunk).
+4. The system locks or refunds GNOT accordingly.
 
 
 ### Anyone Can Free Storage
@@ -44,7 +42,7 @@ design and manage user storage.
 ### Global Storage Price Parameter
 
 The storage price is a global parameter governed by the GovDAO'
-The default value is defined in `gno.land/pkg/sdk/vm/params.go`.
+The default value is defined in [`gno.land/pkg/sdk/vm/params.go`](https://github.com/gnolang/gno/blob/b99c1bf878af4f606507895f5b51a7d44b0956e0/gno.land/pkg/sdk/vm/params.go#L18).
 ```
 storagePriceDefault = "100ugnot" // cost per byte
 // e.g., 1 GNOT per 10KB (≈ 1B GNOT = 10TB)
@@ -54,36 +52,3 @@ storagePriceDefault = "100ugnot" // cost per byte
 
 You can inspect the current storage usage and deposit in a realm.
 See more usage [examples](../users/interact-with-gnokey.md#vmqstorage).
-
-### Example
-
-The Clear() function removes the content stored in the realm gno.land/r/foo.
-
-```bash
-
-gnokey maketx call \
-  -pkgpath gno.land/r/foo \
-  -func Clear \
-  -gas-fee 1000000ugnot \
-  -gas-wanted 10000000 \
-  -broadcast \
-  -remote https://rpc.gno.land:443 \
-  -chainid staging \
-  YOUR_KEY_NAME
-```
-
-You will see output similar to the following in the event:
-
-```
-GAS WANTED: 10000000
-GAS USED:   291498
-EVENTS: [
-  {
-    "type": "UnlockDeposit",
-    "attrs": [
-      {"key": "Deposit", "value": "2700ugnot"},
-      {"key": "ReleaseStorage", "value": "27 bytes"}
-    ]
-  }
-]
-```

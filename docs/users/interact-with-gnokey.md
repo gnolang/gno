@@ -147,8 +147,8 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your is located
 - `-broadcast` - enables broadcasting the transaction to the chain
-- `--send` - Amount of GNOT to send to the realm with the transaction (optional)
-- `--max-deposit` - Maximum GNOT to lock for storage deposit (optional)
+- `-send` - Amount of GNOT to send to the realm with the transaction (optional)
+- `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit
@@ -982,7 +982,7 @@ In practice, this is shorthand for listing packages under `gno.land/p/foo` &
 Use this command to inspect current storage usage and deposit in a realm:
 
 ```bash
-gnokey query vm/qstorage --data gno.land/r/foo
+gnokey query vm/qstorage --data "gno.land/r/foo"
 ```
 
 Sample Output:
