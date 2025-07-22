@@ -24,7 +24,7 @@ import (
 	"github.com/charmbracelet/wish/bubbletea"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/browser"
+	"github.com/gnolang/gno/contribs/gnobro/pkg/browser"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -210,10 +210,10 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 	}
 
 	bcfg := browser.DefaultConfig()
+	bcfg.DevMode = cfg.dev
 	bcfg.Readonly = cfg.readonly
 	bcfg.Renderer = lipgloss.DefaultRenderer()
 	bcfg.URLDefaultValue = path
-	bcfg.URLPrefix = gnoPrefix
 	bcfg.URLPrefix = gnoPrefix
 
 	if cfg.sshListener == "" {
@@ -249,11 +249,15 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 		devcl.Handler = func(typ events.Type, data any) error {
 			switch typ {
 			case events.EvtReload, events.EvtReset, events.EvtTxResult:
-				p.Send(browser.RefreshRealm())
+				p.Send(browser.RefreshRealmMsg())
 			default:
 			}
 
 			return nil
+		}
+
+		devcl.HandlerStatus = func(s browser.ClientStatus, remote string) {
+			p.Send(browser.DevClientStatusUpdateMsg(s, remote))
 		}
 
 		errgs.Go(func() error {
