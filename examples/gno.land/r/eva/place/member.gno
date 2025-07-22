@@ -134,3 +134,30 @@ func setDefaultAdmin(adr std.Address) {
 
 	users.Set(adr.String(), newMember)
 }
+
+// countAdmins counts the number of admins in r/place
+func countAdmins() int {
+	var adminCounter int
+
+	users.Iterate("", "", func(_ string, val any) bool {
+		user := val.(*User)
+
+		if user.Rank == adminRank {
+			adminCounter++
+		}
+
+		return false
+	})
+
+	return adminCounter
+}
+
+// retrieveMember returns a pointer to the User struct of the address
+func retrieveMember(address std.Address) (*User, bool) {
+	raw, ok := users.Get(address.String())
+	if !ok {
+		return nil, false
+	}
+
+	return raw.(*User), true
+}
