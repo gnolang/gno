@@ -1,7 +1,5 @@
 // PKGPATH: gno.land/r/demo/main
 
-// SEND: 300ugnot
-
 package main
 
 import (
@@ -20,15 +18,15 @@ func main() {
 
 	testing.SetOriginCaller(mainAddr)
 
-	cross(tokens.New)("test", "TEST", 4, 0, 0)
-	cross(tokens.Mint)("TEST", mainAddr, 200)
+	tokens.New(cross, "test", "TEST", 4, 0, 0)
+	tokens.Mint(cross, "TEST", mainAddr, 200)
 	println("main balance before:", tokens.BalanceOf("TEST", mainAddr))
 
-	cross(tokens.Approve)("TEST", disperseAddr, 200)
+	tokens.Approve(cross, "TEST", disperseAddr, 200)
 	println("disperse allowance before:", tokens.Allowance("TEST", mainAddr, disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
-	cross(disperse.DisperseGRC20String)(addressesStr, "150TEST,50TEST")
+	disperse.DisperseGRC20String(cross, addressesStr, "150TEST,50TEST")
 
 	println("main balance after:", tokens.BalanceOf("TEST", mainAddr))
 	println("disperse allowance after:", tokens.Allowance("TEST", mainAddr, disperseAddr))

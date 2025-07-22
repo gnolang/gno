@@ -80,6 +80,7 @@ type MachineOptions struct {
 	MaxAllocBytes int64      // or 0 for no limit.
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
+	SkipPackage   bool // don't get/set package or realm.
 }
 
 // the machine constructor gets spammed
@@ -116,8 +117,23 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		// bare store, no stdlibs.
 		store = NewStore(alloc, nil, nil)
 	}
-	pv := (*PackageValue)(nil)
-	if opts.PkgPath != "" {
+	// Get machine from pool.
+	mm := machinePool.Get().(*Machine)
+	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+	}
+	mm.Output = output
+	mm.Store = store
+	mm.Context = opts.Context
+	mm.GasMeter = vmGasMeter
+	mm.Debugger.enabled = opts.Debug
+	mm.Debugger.in = opts.Input
+	mm.Debugger.out = output
+	mm.ReviveEnabled = opts.ReviveEnabled
+	// Maybe get/set package and realm.
+	if !opts.SkipPackage && opts.PkgPath != "" {
+		pv := (*PackageValue)(nil)
 		pv = store.GetPackage(opts.PkgPath, false)
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
@@ -126,25 +142,10 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
-	}
-	context := opts.Context
-	mm := machinePool.Get().(*Machine)
-	mm.Package = pv
-	mm.Alloc = alloc
-	if mm.Alloc != nil {
-		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
-	}
-	mm.Output = output
-	mm.Store = store
-	mm.Context = context
-	mm.GasMeter = vmGasMeter
-	mm.Debugger.enabled = opts.Debug
-	mm.Debugger.in = opts.Input
-	mm.Debugger.out = output
-	mm.ReviveEnabled = opts.ReviveEnabled
-
-	if pv != nil {
-		mm.SetActivePackage(pv)
+		mm.Package = pv
+		if pv != nil {
+			mm.SetActivePackage(pv)
+		}
 	}
 	return mm
 }
@@ -196,9 +197,10 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
-	for memPkg := range ch {
-		fset := ParseMemPackage(memPkg)
-		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+	for mpkg := range ch {
+		mpkg = MPFProd.FilterMemPackage(mpkg)
+		fset := ParseMemPackage(mpkg)
+		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
@@ -224,39 +226,60 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 //----------------------------------------
 // top level Run* methods.
 
-// Parses files, sets the package if doesn't exist, runs files, saves mempkg
-// and corresponding package node, package value, and types to store. Save
+// Sorts the package, then sets the package if doesn't exist, runs files, saves
+// mpkg and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
-func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+// If save is true, mpkg must be of type.IsStorable().
+// NOTE: Production systems must separately check mpkg.type if save, typically
+// you will want to ensure that it is MPUserAll, not MPUserProd or MPUserTest.
+// NOTE: Does not validate the mpkg. Caller must validate the mpkg before
+// calling.
+func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	if bm.OpsEnabled || bm.StorageEnabled {
 		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
 		defer bm.FinishStore()
 	}
-	return m.runMemPackage(memPkg, save, false)
+	return m.runMemPackage(mpkg, save, false)
 }
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
-// declarations are filtered removing duplicate declarations.
-// To control which declaration overrides which, use [ReadMemPackageFromList],
-// putting the overrides at the top of the list.
-func (m *Machine) RunMemPackageWithOverrides(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	return m.runMemPackage(memPkg, save, true)
+// declarations are filtered removing duplicate declarations.  To control which
+// declaration overrides which, use [ReadMemPackageFromList], putting the
+// overrides at the top of the list.
+// If save is true, mpkg must be of type.IsStorable().
+// NOTE: Production systems must separately check mpkg.type if save, typically
+// you will want to ensure that it is MPUserAll, not MPUserProd or MPUserTest.
+// NOTE: Does not validate the mpkg, except when saving validates a mpkg with
+// its type.
+func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	return m.runMemPackage(mpkg, save, true)
 }
 
-func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+	// validate mpkg.Type.
+	mptype := mpkg.Type.(MemPackageType)
+	if save && !mptype.IsStorable() {
+		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
+	}
+	// If All, demote to Prod when parsing,
+	// if Test or Integration, keep it as is,
+	// but in any case save everything if save.
+	mptype = mptype.AsRunnable()
+	// sort mpkg.
+	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackage(memPkg)
+	files := ParseMemPackageAsType(mpkg, mptype)
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
-	if m.Package != nil && m.Package.PkgPath == memPkg.Path {
+	if m.Package != nil && m.Package.PkgPath == mpkg.Path {
 		pv = m.Package
-		loc := PackageNodeLocation(memPkg.Path)
+		loc := PackageNodeLocation(mpkg.Path)
 		pn = m.Store.GetBlockNode(loc).(*PackageNode)
 	} else {
-		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
+		pn = NewPackageNode(Name(mpkg.Name), mpkg.Path, &FileSet{})
 		pv = pn.NewPackage()
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
@@ -264,6 +287,8 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	m.SetActivePackage(pv)
 	// run files.
 	updates := m.runFileDecls(overrides, files.Files...)
+	// populate pv.fBlocksMap.
+	pv.deriveFBlocksMap(m.Store)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -279,8 +304,8 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	// save again after init.
 	if save {
 		m.resavePackageValues(throwaway)
-		// store mempackage
-		m.Store.AddMemPackage(memPkg)
+		// store mempackage; we already validated type.
+		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
 		if throwaway != nil {
 			m.Realm = nil
 		}
@@ -431,6 +456,8 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // Production must not use this, because realm package init
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
+// m.Package must match fns's package path.
+// XXX delete?
 func (m *Machine) RunFiles(fns ...*FileNode) {
 	pv := m.Package
 	if pv == nil {
@@ -458,14 +485,20 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
-// compile-time errors in the package.
-func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
+// compile-time errors in the package. It is also usde to preprocess files from
+// the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
+// "examples/*".
+//   - fixFrom: the version of gno to fix from.
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))
 		}
 	}
 	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	if fixFrom != "" {
+		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
+	}
 	pv := pn.NewPackage()
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
@@ -482,7 +515,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.Name, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
 	pn.PrepareNewValues(pv)
@@ -505,6 +538,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
+// m.Package must match fns's package path.
 func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
@@ -565,7 +599,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		fb := m.Alloc.NewBlock(fn, pb)
 		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
-		pv.AddFileBlock(fn.Name, fb)
+		pv.AddFileBlock(fn.FileName, fb)
 	}
 
 	// Get new values across all files in package.
@@ -577,7 +611,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
 		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.Name)
+		// fb := pv.GetFileBlock(nil, fn.FileName)
 		// get dependencies of decl.
 		deps := make(map[Name]struct{})
 		findDependentNames(decl, deps)
@@ -597,8 +631,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 					continue
 				} else { // is an undefined dependency.
 					panic(fmt.Sprintf(
-						"dependency %s not defined in fileset with files %v",
-						dep, fs.FileNames()))
+						"%s/%s:%s: dependency %s not defined in fileset with files %v",
+						pv.PkgPath, fn.FileName, decl.GetPos().String(), dep, fs.FileNames()))
 				}
 			}
 			// if dep already in loopfindr, abort.
@@ -609,7 +643,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 					continue
 				} else {
 					panic(fmt.Sprintf(
-						"loop in variable initialization: dependency trail %v circularly depends on %s", loopfindr, dep))
+						"%s/%s:%s: loop in variable initialization: dependency trail %v circularly depends on %s",
+						pv.PkgPath, fn.FileName, decl.GetPos().String(), loopfindr, dep))
 				}
 			}
 			// run dependency declaration
@@ -618,7 +653,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 			loopfindr = loopfindr[:len(loopfindr)-1]
 		}
 		// run declaration
-		fb := pv.GetFileBlock(m.Store, fn.Name)
+		fb := pv.GetFileBlock(m.Store, fn.FileName)
 		m.PushBlock(fb)
 		m.runDeclaration(decl)
 		m.PopBlock()
@@ -646,6 +681,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 // behavior, build systems are encouraged to present
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
+// If m.Realm is set `init(cur realm)` works too.
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	// Only for the init functions make the origin caller
 	// the package addr.
@@ -658,7 +694,8 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.runFunc(StageAdd, fv.Name)
+				maybeCrossing := m.Realm != nil
+				m.runFunc(StageAdd, fv.Name, maybeCrossing)
 				m.PopBlock()
 			}
 		}
@@ -716,12 +753,36 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) runFunc(st Stage, fn Name) {
+func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
+	if maybeCrossing {
+		pv := m.Package
+		pb := pv.GetBlock(m.Store)
+		pn := pb.GetSource(m.Store).(*PackageNode)
+		ft := pn.GetStaticTypeOf(m.Store, fn).(*FuncType)
+		if ft.IsCrossing() {
+			// .cur is a special keyword for non-crossing calls of
+			// a crossing function where `cur` is not available
+			// from m.RunFuncMaybeCrossing().
+			//
+			// `main(cur realm)` and `init(cur realm)` are
+			// considered to have already crossed at "frame -1", so
+			// we do not want to cross-call main, and the behavior
+			// is identical to main(), like wise init().
+			m.RunStatement(st, S(Call(Nx(fn), Nx(".cur"))))
+			return
+		}
+	}
 	m.RunStatement(st, S(Call(Nx(fn))))
 }
 
 func (m *Machine) RunMain() {
-	m.runFunc(StageRun, "main")
+	m.runFunc(StageRun, "main", false)
+}
+
+// This is used for realm filetests which may declare
+// either main() or main(cur crossing).
+func (m *Machine) RunMainMaybeCrossing() {
+	m.runFunc(StageRun, "main", true)
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -808,8 +869,10 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if debug {
 		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
-	// X must have been preprocessed.
-	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
+	// X must have been preprocessed or a predefined func lit expr.
+	if x.GetAttribute(ATTR_PREPROCESSED) == nil &&
+		x.GetAttribute(ATTR_PREPROCESS_SKIPPED) == nil &&
+		x.GetAttribute(ATTR_PREPROCESS_INCOMPLETE) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
 			x.String()))
@@ -831,21 +894,46 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	return tv.Type
 }
 
+// Runs a statement on a block. The block must not be a package node's block,
+// but it may be a file block or anything else.  New names may be declared by
+// the statement, so the block is expanded with its own source.
 func (m *Machine) RunStatement(st Stage, s Stmt) {
-	sn := m.LastBlock().GetSource(m.Store)
-	s = Preprocess(m.Store, sn, s).(Stmt)
+	lb := m.LastBlock()
+	last := lb.GetSource(m.Store)
+	switch last.(type) {
+	case *FileNode, *PackageNode:
+		// NOTE: type decls and value decls are also statements, and
+		// they add a name to m.LastBlock, except if last block is a
+		// file/package block it adds to the parent package block.
+		if d, ok := s.(Decl); ok {
+			m.RunDeclaration(d)
+			return // already pn.PrepareNewValues()'d.
+		}
+	}
+	// preprocess s and expand last if needed.
+	func() {
+		oldNames := last.GetNumNames()
+		defer func() {
+			// if preprocess panics during `a := ...`,
+			// the static block will have a new slot but not
+			// the runtime block, causing issues later.
+			newNames := last.GetNumNames()
+			if oldNames != newNames {
+				lb.ExpandWith(m.Alloc, last)
+			}
+		}()
+		s = Preprocess(m.Store, last, s).(Stmt)
+	}()
+	// run s.
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
 	m.Run(st)
 }
 
-// Runs a declaration after preprocessing d.  If d was already
-// preprocessed, call runDeclaration() instead.
-// This function is primarily for testing, so no blocknodes are
-// saved to store, and declarations are not realm compatible.
-// NOTE: to support realm persistence of types, must
-// first require the validation of blocknode locations.
+// Runs a declaration after preprocessing d.  If d was already preprocessed,
+// call runDeclaration() instead.  No blocknodes are saved to store, and
+// declarations are not realm compatible.
 func (m *Machine) RunDeclaration(d Decl) {
 	if fd, ok := d.(*FuncDecl); ok && fd.Name == "init" {
 		// XXX or, consider running it, but why would this be needed?
@@ -905,8 +993,9 @@ const (
 	OpNoop                Op = 0x02 // no-op
 	OpExec                Op = 0x03 // exec next statement
 	OpPrecall             Op = 0x04 // sets X (func) to frame
-	OpCall                Op = 0x05 // call(Frame.Func, [...])
-	OpCallNativeBody      Op = 0x06 // call body is native
+	OpEnterCrossing       Op = 0x05 // before OpCall of a crossing function
+	OpCall                Op = 0x06 // call(Frame.Func, [...])
+	OpCallNativeBody      Op = 0x07 // call body is native
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
@@ -1038,6 +1127,7 @@ const (
 	OpCPUNoop                = 1
 	OpCPUExec                = 25
 	OpCPUPrecall             = 207
+	OpCPUEnterCrossing       = 100 // XXX
 	OpCPUCall                = 256
 	OpCPUCallNativeBody      = 424
 	OpCPUDefer               = 64
@@ -1211,6 +1301,9 @@ func (m *Machine) Run(st Stage) {
 		case OpPrecall:
 			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
+		case OpEnterCrossing:
+			m.incrCPU(OpCPUEnterCrossing)
+			m.doOpEnterCrossing()
 		case OpCall:
 			m.incrCPU(OpCPUCall)
 			m.doOpCall()
@@ -1834,10 +1927,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	m.Package = pv
 
-	// If cross, always switch to pv.Realm.
+	// If with cross, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
 	if withCross {
+		// since gno 0.9 cross type-checking makes this impossible.
+		// XXX move this into if debug { ... }
 		if !fv.IsCrossing() {
 			// panic; notcrossing
 			mrpath := "<no realm>"
@@ -1856,9 +1951,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not called like cross(fn)(...).
+	// Non-crossing call of a crossing function like Public(cur, ...).
 	if fv.IsCrossing() {
 		if m.Realm != pv.Realm {
+			// Illegal crossing to external realm.
+			// (the function was variable and run-time check was necessary).
 			// panic; not explicit
 			mrpath := "<no realm>"
 			if m.Realm != nil {
@@ -1869,16 +1966,14 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				prpath = pv.Realm.Path
 			}
 			panic(fmt.Sprintf(
-				"must cross-call like cross(%s.%v)(...) from %s",
+				"cannot cur-call to external realm function %s.%v from %s",
 				prpath,
 				fv.String(),
 				mrpath,
 			))
-		} else {
-			// ok
-			// Technically OK even if recv.Realm is different.
-			return
 		}
+		// OK even if recv.Realm is different.
+		return
 	}
 
 	// Not cross nor crossing.
@@ -1900,7 +1995,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = objpv.GetRealm()
+				if objpv.IsRealm() && objpv.Realm == nil {
+					rlm = m.Store.GetPackageRealm(objpv.PkgPath)
+				} else {
+					rlm = objpv.GetRealm()
+				}
 				m.Realm = rlm
 				// DO NOT set DidCrossing here. Make
 				// DidCrossing only happen upon explicit
@@ -1929,6 +2028,35 @@ func (m *Machine) PopFrame() Frame {
 	m.Frames = m.Frames[:numFrames-1]
 
 	return f
+}
+
+// jump to target frame, and
+// set machine accordingly.
+func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
+	if depthFrames >= len(m.Frames) {
+		panic("should not happen, depthFrames exeeds total frames")
+	}
+	// pop frames if with depth not zero
+	if depthFrames != 0 {
+		// the last popped frame
+		fr := m.Frames[len(m.Frames)-depthFrames]
+		// pop frames
+		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
+		// reset
+		m.NumOps = fr.NumOps
+		m.NumValues = fr.NumValues
+		m.Exprs = m.Exprs[:fr.NumExprs]
+		m.Stmts = m.Stmts[:fr.NumStmts]
+		m.Blocks = m.Blocks[:fr.NumBlocks]
+		// pop stmts
+		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
+	}
+
+	if depthBlocks >= len(m.Blocks) {
+		panic("should not happen, depthBlocks exeeds total blocks")
+	}
+	// pop blocks
+	m.Blocks = m.Blocks[:len(m.Blocks)-depthBlocks]
 }
 
 func (m *Machine) PopFrameAndReset() {
@@ -2163,7 +2291,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+
 		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
 		xv := m.PopValue()
@@ -2331,7 +2460,6 @@ func (m *Machine) String() string {
 	if m == nil {
 		return "Machine:nil"
 	}
-
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
@@ -2342,43 +2470,31 @@ func (m *Machine) String() string {
 		obsLength        = len(m.Blocks) * 32
 		fsLength         = len(m.Frames) * 32
 		exceptionsLength = m.Exception.NumExceptions() * 32
-
-		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
+		totalLength      = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
-
 	var sb strings.Builder
 	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
-
 	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:m.NumOps], m.NumValues)
-
 	for i := m.NumValues - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
-
 	builder.WriteString("    Exprs:\n")
-
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Exprs[i])
 	}
-
 	builder.WriteString("    Stmts:\n")
-
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Stmts[i])
 	}
-
 	builder.WriteString("    Blocks:\n")
-
 	for i := len(m.Blocks) - 1; i > 0; i-- {
 		b := m.Blocks[i]
 		if b == nil {
 			continue
 		}
-
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
-
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
@@ -2387,7 +2503,6 @@ func (m *Machine) String() string {
 			bsi := b.StringIndented("            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 		}
-
 		// Update b
 		switch bp := b.Parent.(type) {
 		case nil:
@@ -2401,16 +2516,12 @@ func (m *Machine) String() string {
 			panic("should not happen")
 		}
 	}
-
 	builder.WriteString("    Blocks (other):\n")
-
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
-
 		if b == nil || b.Source == nil {
 			continue
 		}
-
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
@@ -2418,22 +2529,17 @@ func (m *Machine) String() string {
 				b.StringIndented("            "))
 		}
 	}
-
 	builder.WriteString("    Frames:\n")
-
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %s\n", i, m.Frames[i])
 	}
-
 	if m.Realm != nil {
 		fmt.Fprintf(builder, "    Realm:\n      %s\n", m.Realm.Path)
 	}
-
 	if m.Exception != nil {
 		builder.WriteString("    Exception:\n")
 		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
 	}
-
 	return builder.String()
 }
 
@@ -2441,16 +2547,13 @@ func (m *Machine) ExceptionStacktrace() string {
 	if m.Exception == nil {
 		return ""
 	}
-
 	var builder strings.Builder
-
 	last := m.Exception
 	first := m.Exception
 	var numPrevious int
 	for ; first.Previous != nil; first = first.Previous {
 		numPrevious++
 	}
-
 	builder.WriteString(first.StringWithStacktrace(m))
 	if numPrevious >= 2 {
 		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", numPrevious-1)

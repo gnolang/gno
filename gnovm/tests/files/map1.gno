@@ -11,4 +11,4 @@ func main() {
 }
 
 // TypeCheckError:
-// main/files/map1.gno:5:2: declared and not used: m
+// main/map1.gno:5:2: declared and not used: m

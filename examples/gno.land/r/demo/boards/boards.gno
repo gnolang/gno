@@ -12,7 +12,7 @@ import (
 // Realm (package) state
 
 var (
-	gRealmPath      string      // Realm package path
+	gRealmLink      txlink.Realm
 	gBoards         avl.Tree    // id -> *Board
 	gBoardsCtr      int         // increments Board.id
 	gBoardsByName   avl.Tree    // name -> *Board
@@ -25,10 +25,6 @@ var (
 var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{2,29}$`)
 
 func init() {
-	gRealmPath = std.CurrentRealm().PkgPath()
-}
-
-func txlinkCall(fn string, args ...string) string {
-	// Use gRealmPath to build TX link to allow links to be built during render calls
-	return txlink.Realm(gRealmPath).Call(fn, args...)
+	// Keep track of the realm package path to make it available on render
+	gRealmLink = txlink.Realm(std.CurrentRealm().PkgPath())
 }

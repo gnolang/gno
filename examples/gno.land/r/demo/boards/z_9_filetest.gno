@@ -19,13 +19,13 @@ var (
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	cross(users.Register)("gnouser123")
+	users.Register(cross, "gnouser123")
 
-	firstBoard = cross(boards.CreateBoard)("first_board")
-	secondBoard = cross(boards.CreateBoard)("second_board")
-	pid = cross(boards.CreateThread)(firstBoard, "First Post in (title)", "Body of the first post. (body)")
+	firstBoard = boards.CreateBoard(cross, "first_board")
+	secondBoard = boards.CreateBoard(cross, "second_board")
+	pid = boards.CreateThread(cross, firstBoard, "First Post in (title)", "Body of the first post. (body)")
 
-	cross(boards.CreateRepost)(firstBoard, pid, "First Post in (title)", "Body of the first post. (body)", secondBoard)
+	boards.CreateRepost(cross, firstBoard, pid, "First Post in (title)", "Body of the first post. (body)", secondBoard)
 }
 
 func main() {

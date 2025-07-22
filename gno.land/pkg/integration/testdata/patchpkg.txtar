@@ -16,5 +16,5 @@ package admin
 var admin = "g1abcde"
 
 func Render(path string) string {
-	return "# Hello "+admin
+	return "# Hello " + admin
 }

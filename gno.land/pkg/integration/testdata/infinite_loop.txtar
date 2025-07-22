@@ -49,16 +49,14 @@ stderr 'out of gas.* location: CPUCycles'
 package main
 
 func main() {
-	crossing()
-
 	for {}
 
 	println("hey")
 }
 
--- r1/gno.mod --
-module gno.land/r/demo/r1
-
+-- r1/gnomod.toml --
+module = "gno.land/r/demo/r1"
+gno = "0.9"
 
 -- r1/realm.gno --
 package f1
@@ -69,10 +67,9 @@ func init() {
 
 func main() {}
 
--- r2/gno.mod --
-module gno.land/r/demo/r2
-
-
+-- r2/gnomod.toml --
+module = "gno.land/r/demo/r2"
+gno = "0.9"
 -- r2/realm.gno --
 package r2
 

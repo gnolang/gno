@@ -14,4 +14,4 @@ func main() {
 }
 
 // TypeCheckError:
-// main/files/addressable_3c_err.gno:13:7: invalid operation: cannot take address of makeT().Mp (value of type *int)
+// main/addressable_3c_err.gno:13:7: invalid operation: cannot take address of makeT().Mp (value of type *int)

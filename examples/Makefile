@@ -44,6 +44,10 @@ test.fast:
 lint:
 	go run ../gnovm/cmd/gno lint -v .
 
+.PHONY: fix
+fix:
+	go run ../gnovm/cmd/gno fix -v .
+
 .PHONY: test.sync
 test.sync:
 	go run ../gnovm/cmd/gno test -v --update-golden-tests ./...

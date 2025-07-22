@@ -34,12 +34,12 @@ func init() {
 func main() {
 	testing.SetOriginCaller(g1user)
 	// Register a validator
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 	// Try to make a proposal for a non-existing validator
 
 	if err := revive(func() {
-		pr := cross(valopers_proposal.NewValidatorProposalRequest)(otherAddress)
-		cross(dao.MustCreateProposal)(pr)
+		pr := valopers_proposal.NewValidatorProposalRequest(cross, otherAddress)
+		dao.MustCreateProposal(cross, pr)
 	}); err != nil {
 		println("r: ", err)
 	}

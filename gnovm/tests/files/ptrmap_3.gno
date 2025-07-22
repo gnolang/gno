@@ -20,9 +20,7 @@ func init() {
 	AddToMap(5)
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	r := GetFromMap()
 	println(r == 5)
 

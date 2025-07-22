@@ -7,7 +7,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_f2d.gno:5:11: incompatible types in binary expression: <untyped> bigint NEQ <untyped> bigdec
+// main/shift_f2d.gno:5:11-25: incompatible types in binary expression: <untyped> bigint NEQ <untyped> bigdec
 
 // TypeCheckError:
-// main/files/types/shift_f2d.gno:5:11: invalid operation: shifted operand 1 (type float64) must be integer; main/files/types/shift_f2d.gno:5:19: invalid operation: shifted operand 1.0 (type float64) must be integer
+// main/shift_f2d.gno:5:11: invalid operation: shifted operand 1 (type float64) must be integer; main/shift_f2d.gno:5:19: invalid operation: shifted operand 1.0 (type float64) must be integer

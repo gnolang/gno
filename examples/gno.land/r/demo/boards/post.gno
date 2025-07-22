@@ -155,7 +155,7 @@ func (post *Post) GetURL() string {
 }
 
 func (post *Post) GetReplyFormURL() string {
-	return txlinkCall("CreateReply",
+	return gRealmLink.Call("CreateReply",
 		"bid", post.board.id.String(),
 		"threadid", post.threadID.String(),
 		"postid", post.id.String(),
@@ -163,14 +163,14 @@ func (post *Post) GetReplyFormURL() string {
 }
 
 func (post *Post) GetRepostFormURL() string {
-	return txlinkCall("CreateRepost",
+	return gRealmLink.Call("CreateRepost",
 		"bid", post.board.id.String(),
 		"postid", post.id.String(),
 	)
 }
 
 func (post *Post) GetDeleteFormURL() string {
-	return txlinkCall("DeletePost",
+	return gRealmLink.Call("DeletePost",
 		"bid", post.board.id.String(),
 		"threadid", post.threadID.String(),
 		"postid", post.id.String(),

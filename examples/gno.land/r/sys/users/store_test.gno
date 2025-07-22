@@ -23,7 +23,7 @@ func TestRegister(t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm(gUsersV1Path))
 
 	t.Run("valid_registration", func(t *testing.T) {
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
@@ -36,54 +36,54 @@ func TestRegister(t *testing.T) {
 	t.Run("invalid_inputs", func(t *testing.T) {
 		cleanStore(t)
 
-		uassert.ErrorContains(t, cross(RegisterUser)("", aliceAddr), ErrEmptyUsername.Error())
-		uassert.ErrorContains(t, cross(RegisterUser)(alice, ""), ErrInvalidAddress.Error())
-		uassert.ErrorContains(t, cross(RegisterUser)(alice, "invalidaddress"), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "", aliceAddr), ErrEmptyUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, alice, ""), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, alice, "invalidaddress"), ErrInvalidAddress.Error())
 
-		uassert.ErrorContains(t, cross(RegisterUser)("username with a space", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "username with a space", aliceAddr), ErrInvalidUsername.Error())
 		uassert.ErrorContains(t,
-			cross(RegisterUser)("verylongusernameverylongusernameverylongusernameverylongusername1", aliceAddr),
+			RegisterUser(cross, "verylongusernameverylongusernameverylongusernameverylongusername1", aliceAddr),
 			ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, cross(RegisterUser)("namewith^&()", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "namewith^&()", aliceAddr), ErrInvalidUsername.Error())
 	})
 
 	t.Run("addr_already_registered", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		// Try registering again
-		uassert.ErrorContains(t, cross(RegisterUser)("othername", aliceAddr), ErrAlreadyHasName.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "othername", aliceAddr), ErrAlreadyHasName.Error())
 	})
 
 	t.Run("name_taken", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		// Try registering alice's name with bob's address
-		uassert.ErrorContains(t, cross(RegisterUser)(alice, bobAddr), ErrNameTaken.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, alice, bobAddr), ErrNameTaken.Error())
 	})
 
 	t.Run("user_deleted", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		urequire.NoError(t, data.Delete())
 
 		// Try re-registering after deletion
-		uassert.ErrorContains(t, cross(RegisterUser)("newname", aliceAddr), ErrDeletedUser.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "newname", aliceAddr), ErrDeletedUser.Error())
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
 		cleanStore(t)
 
 		// Address as username
-		uassert.ErrorContains(t, cross(RegisterUser)("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", aliceAddr), ErrNameLikeAddress.Error())
 		// Beginning of address as username
-		uassert.ErrorContains(t, cross(RegisterUser)("g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
-		uassert.NoError(t, cross(RegisterUser)("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
+		uassert.ErrorContains(t, RegisterUser(cross, "g1jg8mtutu9khhfwc4nxmu", aliceAddr), ErrNameLikeAddress.Error())
+		uassert.NoError(t, RegisterUser(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5longerthananaddress", aliceAddr))
 	})
 }
 
@@ -93,7 +93,7 @@ func TestUpdateName(t *testing.T) {
 	t.Run("valid_direct_alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
@@ -105,7 +105,7 @@ func TestUpdateName(t *testing.T) {
 	t.Run("valid_double_alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
@@ -119,7 +119,7 @@ func TestUpdateName(t *testing.T) {
 	t.Run("name_taken", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 
 		data := ResolveAddress(aliceAddr)
 		uassert.Error(t, data.UpdateName(alice), ErrNameTaken.Error())
@@ -135,7 +135,7 @@ func TestUpdateName(t *testing.T) {
 	t.Run("alias_after_delete", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
 			urequire.NoError(t, data.Delete())
@@ -152,7 +152,7 @@ func TestUpdateName(t *testing.T) {
 	t.Run("invalid_inputs", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		{
 			testing.SetOriginCaller(whitelistedCallerAddr)
@@ -169,7 +169,7 @@ func TestUpdateName(t *testing.T) {
 	t.Run("address_lookalike", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 
 		{
@@ -196,7 +196,7 @@ func TestDelete(t *testing.T) {
 	t.Run("double_delete", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		urequire.NoError(t, data.Delete())
 		data = ResolveAddress(aliceAddr)
@@ -206,7 +206,7 @@ func TestDelete(t *testing.T) {
 	t.Run("valid_delete", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, cross(RegisterUser)(alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 		uassert.NoError(t, data.Delete())
 

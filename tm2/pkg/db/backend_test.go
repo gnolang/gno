@@ -62,7 +62,8 @@ func withDB(t *testing.T, dbType db.BackendType, fn func(db.DB)) {
 	db, err := db.NewDB(name, dbType, t.TempDir())
 	require.Nil(t, err)
 	fn(db)
-	db.Close()
+
+	require.NoError(t, db.Close())
 }
 
 func TestBackendsNilKeys(t *testing.T) {

@@ -11,4 +11,4 @@ func main() {
 }
 
 // TypeCheckError:
-// main/files/addressable_3a_err.gno:10:7: invalid operation: cannot take address of S{…}.i (value of type int)
+// main/addressable_3a_err.gno:10:7: invalid operation: cannot take address of S{…}.i (value of type int)

@@ -1,15 +1,15 @@
 package main
 
-import (
-	"fmt"
-	"math"
-)
-
-var NaN = math.NaN()
-
 func main() {
-	fmt.Println(map[float64]int{NaN: 1, NaN: 2})
+	var v map[string]string = nil
+	for k, v := range v {
+		println(k, v)
+	}
+	for v := range v {
+		println(v)
+	}
+	println("done") // should not panic
 }
 
 // Output:
-// map[NaN:1 NaN:2]
+// done

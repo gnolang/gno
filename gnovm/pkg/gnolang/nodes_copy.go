@@ -109,10 +109,10 @@ func (x *KeyValueExpr) Copy() Node {
 	}
 }
 
-func (x *FuncLitExpr) Copy() Node {
+func (fle *FuncLitExpr) Copy() Node {
 	return &FuncLitExpr{
-		Type: *(x.Type.Copy().(*FuncTypeExpr)),
-		Body: copyStmts(x.Body),
+		Type: *(fle.Type.Copy().(*FuncTypeExpr)),
+		Body: copyStmts(fle.Body),
 	}
 }
 
@@ -355,11 +355,11 @@ func (x *FileNode) Copy() Node {
 	}
 }
 
-func (x *PackageNode) Copy() Node {
+func (pn *PackageNode) Copy() Node {
 	return &PackageNode{
-		PkgPath: x.PkgPath,
-		PkgName: x.PkgName,
-		FileSet: x.FileSet.CopyFileSet(),
+		PkgPath: pn.PkgPath,
+		PkgName: pn.PkgName,
+		FileSet: pn.FileSet.CopyFileSet(),
 	}
 }
 

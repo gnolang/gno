@@ -153,8 +153,6 @@ Horizontal rules are created using three or more asterisks, hyphens, or undersco
 
 ---
 
-<!-- XXX: add again this feature that was removed -->
-<!--
 ### Task Lists
 
 Gno supports task lists for tracking to-do items:
@@ -162,11 +160,44 @@ Gno supports task lists for tracking to-do items:
 ±±±markdown
 - [x] Completed task
 - [ ] Pending task
+- [ ] Another pending task
+- [x] Another completed task
 ±±±
 
 - [x] Completed task
 - [ ] Pending task
--->
+- [ ] Another pending task
+- [x] Another completed task
+
+### Footnotes
+
+Gno supports footnotes for adding references and citations:
+
+±±±markdown
+Here is a sentence with a footnote[^1].
+
+[^1]: This is the footnote content.
+±±±
+
+Here is a sentence with a footnote[^1].
+
+[^1]: This is the footnote content.
+
+You can also use multiple footnotes in the same document:
+
+±±±markdown
+This is the first sentence with a footnote[^1].
+This is another sentence with a different footnote[^2].
+
+[^1]: First footnote content.
+[^2]: Second footnote content with more details.
+±±±
+
+This is the first sentence with a footnote[^1].
+This is another sentence with a different footnote[^2].
+
+[^1]: First footnote content.
+[^2]: Second footnote content with more details.
 
 ## Tables
 
@@ -356,6 +387,205 @@ My Image ![Alt](/public/imgs/gnoland.svg)
 
 ---
 
+### Forms
+
+Gno-Flavored Markdown introduces a secure form system that integrates directly with realms. The system uses custom HTML-like tags that are rendered with proper styling and validation.
+
+#### Basic Usage
+
+Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
+
+±±±markdown
+<gno-form>
+  <gno-input name="name" placeholder="Enter your name" />
+  <gno-input name="email" placeholder="Enter your email" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="name" placeholder="Enter your name" />
+  <gno-input name="email" placeholder="Enter your email" />
+</gno-form>
+
+#### Form Structure
+
+1. **Form Container**
+   - Must start with ±<gno-form>± and end with ±</gno-form>±
+   - Optional attributes:
+     - ±path±: Render path after form submission (e.g. ±path="user"± will redirect to ±:user?[params]±)
+   - Form data is always sent as query parameters
+   - Cannot be nested (forms inside forms are not allowed)
+   - Automatically includes a header showing the realm name
+
+2. **Input Fields**
+   - Created with ±<gno-input>± tag
+   - Required attributes:
+     - ±name±: Unique identifier for the input (required)
+     - ±type±: Type of input (optional, defaults to "text")
+     - ±placeholder±: Hint text shown in the input (optional, defaults to "Enter value")
+   - Supported input types:
+     - ±type="text"± (default): For text input
+     - ±type="number"±: For numeric values only (with browser validation)
+     - ±type="email"±: For email addresses (with basic browser validation)
+     - ±type="tel"±: For phone numbers (no specific validation)
+     - ±type="password"±: For password input (masked characters)
+   - Note: Input validation is handled by the browser's HTML5 validation
+   - Any other type will default to "text"
+   - Each input must have a unique name
+   - Inputs are rendered with labels and proper styling
+
+#### Example Use Cases
+
+1. Form with Path and Query Parameters
+±±±markdown
+<gno-form path="user">
+  <gno-input name="username" type="text" placeholder="Enter username" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+</gno-form>
+±±±
+
+<gno-form path="user">
+  <gno-input name="username" type="text" placeholder="Enter username" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+</gno-form>
+
+This form will submit to ±:user?username=value&age=value± on the same realm.
+
+2. Form with Query Parameters Only
+±±±markdown
+<gno-form>
+  <gno-input name="recipient" type="text" placeholder="Enter recipient address" />
+  <gno-input name="email" type="email" placeholder="Your email" />
+  <gno-input name="pswd" type="password" placeholder="Your password" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="recipient" type="text" placeholder="Enter recipient address" />
+  <gno-input name="email" type="email" placeholder="Your email" />
+  <gno-input name="pswd" type="password" placeholder="Your password" />
+</gno-form>
+
+This form will submit to ±?recipient=value&email=value&pswd=value± on the same realm.
+
+#### Important Rules
+
+1. **Validation Rules**:
+   - Every ±<gno-input>± must have a ±name± attribute
+   - Duplicate attribute names are not allowed
+   - Forms must be properly closed
+   - Nested forms will not render
+
+2. **Security Features**:
+   - Forms are processed on the realm where they are defined
+   - Each form submission is associated with its realm
+   - The realm name is displayed in the form header
+   - Input validation is handled by the realm's smart contract
+
+--- 
+
+### Alerts
+
+Alerts are a way to highlight important information in your markdown.
+
+There are five types of alerts:
+
+- INFO
+- NOTE
+- TIP
+- SUCCESS
+- WARNING
+- CAUTION
+
+**NOTE**: The default alert type is INFO (if a wrong alert type is used).
+
+The alert boxes are expandable/collapsible and can have a title. 
+By default, the alert boxes are opened. The title is optional and if not provided, the alert type will be used as the title.
+
+±±±markdown
+> [!NOTE]
+> This is a note
+±±±
+
+> [!NOTE]
+> This is a note
+
+±±±markdown
+> [!NOTE]-
+> This is a closed note
+±±±
+
+> [!NOTE]-
+> This is a closed note
+
+±±±markdown
+> [!NOTE] This is a note with title
+> This is a note with title
+±±±
+
+> [!NOTE] This is a note with title
+> This is a note with title
+
+±±±markdown
+> [!INFO]
+> This is an info
+±±±
+
+> [!INFO]
+> This is an info
+
+±±±markdown
+> [!TIP]
+> This is a tip
+±±±
+
+> [!TIP]
+> This is a tip
+
+±±±
+> [!SUCCESS]
+> This is a success
+±±±
+
+> [!SUCCESS]
+> This is a success
+
+±±±
+> [!WARNING]
+> This is a warning
+±±±
+
+> [!WARNING]
+> This is a warning
+
+±±±
+> [!CAUTION]
+> This is a caution
+±±±
+
+> [!CAUTION]
+> This is a caution
+
+±±±markdown
+> [!FOO]
+> The default alert if a wrong alert type is used
+±±±
+
+> [!FOO]
+> This is the default alert
+
+±±±markdown
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+±±±
+
+> [!NOTE]
+> This is a note
+> > [!NOTE]
+> > This is a scoped note
+
 ### Usernames
 
 XXX: TODO (add again this feature that was removed)
@@ -416,6 +646,10 @@ The markdown support in Gno is being actively developed. Future enhancements may
 Markdown on Gno provides a familiar syntax for developers who have experience with GitHub Flavored Markdown, while adding blockchain-specific extensions that make it more powerful in the context of the Gno platform.
 
 As the Gno ecosystem grows, expect the markdown capabilities to expand accordingly, providing even richer formatting and interactive elements for documentation and user interfaces.
+
+## See Also
+
+For programmatic markdown generation using Go code, check out the [±p/moul/md± demo](/r/docs/moul_md) which demonstrates how to use the ±p/moul/md± package to generate markdown content in your Gno realms.
 `
 	output = strings.ReplaceAll(output, "±", "`")
 	return output

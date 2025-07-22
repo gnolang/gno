@@ -18,27 +18,27 @@ func init() {
 	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
-func AdminSetAdminAddr(addr std.Address) {
+func AdminSetAdminAddr(_ realm, addr std.Address) {
 	assertIsAdmin()
 	adminAddr = addr
 }
 
-func AdminSetInPause(state bool) {
+func AdminSetInPause(_ realm, state bool) {
 	assertIsAdmin()
 	inPause = state
 }
 
-func AdminAddModerator(addr std.Address) {
+func AdminAddModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(addr std.Address) {
+func AdminRemoveModerator(_ realm, addr std.Address) {
 	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // XXX: delete instead?
 }
 
-func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
+func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	caller := std.OriginCaller()
@@ -49,7 +49,7 @@ func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
+func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")

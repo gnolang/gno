@@ -134,5 +134,5 @@ func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string 
 }
 
 func (board *Board) GetPostFormURL() string {
-	return txlinkCall("CreateThread", "bid", board.id.String())
+	return gRealmLink.Call("CreateThread", "bid", board.id.String())
 }

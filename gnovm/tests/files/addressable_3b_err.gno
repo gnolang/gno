@@ -13,4 +13,4 @@ func getStruct() S {
 }
 
 // TypeCheckError:
-// main/files/addressable_3b_err.gno:8:7: invalid operation: cannot take address of getStruct().i (value of type int)
+// main/addressable_3b_err.gno:8:7: invalid operation: cannot take address of getStruct().i (value of type int)

@@ -69,16 +69,11 @@ type Token struct {
 	symbol string
 	// Number of decimal places used for the token's precision.
 	decimals int
+	// Original realm of the token (e.g., "gno.land/r/demo/foo20").
+	origRealm string
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
 }
-
-// TokenGetter is a function type that returns a Token pointer. This type allows
-// bypassing a limitation where we cannot directly pass Token pointers between
-// realms. Instead, we pass this function which can then be called to get the
-// Token pointer. For more details on this limitation and workaround, see:
-// https://github.com/gnolang/gno/pull/3135
-type TokenGetter func() *Token
 
 // PrivateLedger is a struct that holds the balances and allowances for the
 // token. It provides administrative functions for minting, burning,

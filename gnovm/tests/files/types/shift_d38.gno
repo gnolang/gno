@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_d38.gno:4:10: cannot convert (const (undefined)) to type uint
+// main/shift_d38.gno:4:10-18: cannot convert (const (undefined)) to type uint
 
 // TypeCheckError:
-// main/files/types/shift_d38.gno:4:15: cannot convert nil to type uint
+// main/shift_d38.gno:4:15: cannot convert nil to type uint
