@@ -3,6 +3,54 @@ package place
 import (
 	"encoding/base64"
 	"testing"
+
+	"gno.land/p/demo/ufmt"
+)
+
+var (
+	testValidColor = []string{
+		"rgb(255,0,0)",
+		"rgb(0,0,0)",
+		"rgb(255,255,255)",
+	}
+
+	testInvalidColor = []string{
+		"rgb(255555,0,0)",
+		"rgb(0,0)",
+		"rgb(,0,0)",
+		"rgb(1,0;0)",
+		"rgb(1k,0,0)",
+		"rgb(0,256,0)",
+	}
+
+	testSubmitInvalidCoordinates = []struct {
+		x uint64
+		y uint64
+	}{
+		{1000, 1},
+		{1, 40},
+	}
+
+	testSubmitInvalidColor = []string{
+		"This color is definitly not a valid one",
+		"",
+		"red",
+		"Blue",
+	}
+
+	testValidAdress = []struct {
+		address string
+		x       uint64
+		y       uint64
+	}{
+		{"someAdress/r/eva/place:?color=G&x=9&y=2", 9, 2},
+		{"?x=19&y=1", 19, 1},
+	}
+
+	testInvalidAdress = []string{
+		"someAdress/r/eva/place:?color=G&x=9a&y=2",
+		"",
+	}
 )
 
 func Test_generateSquareSvg_valid(t *testing.T) {
@@ -26,113 +74,69 @@ func Test_generateSquareSvg_valid(t *testing.T) {
 }
 
 func Test_generateSquareSvg_invalid(t *testing.T) {
-	_, err := generateSquareSvg("rgb(255555,0,0)")
+	for _, testInput := range testInvalidColor {
+		t.Run(testInput, func(t *testing.T) {
+			_, err := generateSquareSvg(testInput)
 
-	if err == nil {
-		t.Fatal("color should be invalid")
+			if err == nil {
+				t.Fatal("color should be invalid")
+			}
+		})
 	}
 }
 
-func Test_checkColorValid_true1(t *testing.T) {
-	value := checkColorValid("rgb(255,0,0)")
+func Test_checkColorValid_true(t *testing.T) {
+	for _, testInput := range testValidColor {
+		t.Run(testInput, func(t *testing.T) {
+			value := checkColorValid(testInput)
 
-	// Verify the svg is correct
-	if value == false {
-		t.Fatalf("The color should be valid")
+			// Verify the svg is correct
+			if value == false {
+				t.Fatalf("The color should be valid")
+			}
+		})
 	}
 }
 
-func Test_checkColorValid_true2(t *testing.T) {
-	value := checkColorValid("rgb(0,0,0)")
+func Test_checkColorValid_false(t *testing.T) {
+	for _, testInput := range testInvalidColor {
+		t.Run(testInput, func(t *testing.T) {
+			value := checkColorValid(testInput)
 
-	// Verify the svg is correct
-	if value == false {
-		t.Fatalf("The color should be valid")
+			// Verify the svg is incorrect
+			if value == true {
+				t.Fatalf("The color should be invalid")
+			}
+		})
 	}
 }
 
-func Test_checkColorValid_true3(t *testing.T) {
-	value := checkColorValid("rgb(255,255,255)")
+func Test_submitInvalidCoordinates(t *testing.T) {
+	for _, testInput := range testSubmitInvalidCoordinates {
+		testName := ufmt.Sprintf("(%d,%d)", testInput.x, testInput.y)
+		t.Run(testName, func(t *testing.T) {
+			abort := revive(func() {
+				Submit(cross, testInput.x, testInput.y, "R")
+			})
 
-	// Verify the svg is correct
-	if value == false {
-		t.Fatalf("The color should be valid")
-	}
-}
-
-func Test_checkColorValid_false1(t *testing.T) {
-	value := checkColorValid("rgb(,0,0)")
-
-	// Verify the svg is correct
-	if value == true {
-		t.Fatalf("The color should be invalid")
-	}
-}
-
-func Test_checkColorValid_false2(t *testing.T) {
-	value := checkColorValid("rgb(1,0;0)")
-
-	// Verify the svg is correct
-	if value == true {
-		t.Fatalf("The color should be invalid")
-	}
-}
-
-func Test_checkColorValid_false3(t *testing.T) {
-	value := checkColorValid("rgb(1k,0,0)")
-
-	// Verify the svg is correct
-	if value == true {
-		t.Fatalf("The color should be invalid")
-	}
-}
-
-func Test_checkColorValid_false4(t *testing.T) {
-	value := checkColorValid("rgb(1222,0,0)")
-
-	// Verify the svg is correct
-	if value == true {
-		t.Fatalf("The color should be invalid")
-	}
-}
-
-func Test_submitInvalidCoordinates1(t *testing.T) {
-	abort := revive(func() {
-		Submit(cross, 1000, 1, "R")
-	})
-
-	if abort == nil {
-		t.Fatal("Invalid Submit didn't panic")
-	}
-}
-
-func Test_submitInvalidCoordinates2(t *testing.T) {
-	abort := revive(func() {
-		Submit(cross, 1, 40, "R") // 40 is the number of colomns / rows, the last assignable value is 39
-	})
-
-	if abort == nil {
-		t.Fatal("Invalid Submit didn't panic")
+			if abort == nil {
+				t.Fatal("Invalid Submit didn't panic")
+			}
+		})
 	}
 }
 
 func Test_submitInvalidColor(t *testing.T) {
-	abort := revive(func() {
-		Submit(cross, 1, 40, "This color is definitly not a valid one")
-	})
+	for _, testInput := range testSubmitInvalidColor {
+		t.Run(testInput, func(t *testing.T) {
+			abort := revive(func() {
+				Submit(cross, 0, 0, testInput)
+			})
 
-	if abort == nil {
-		t.Fatal("Invalid Submit didn't panic")
-	}
-}
-
-func Test_submitInvalidColorEmpty(t *testing.T) {
-	abort := revive(func() {
-		Submit(cross, 1, 40, "")
-	})
-
-	if abort == nil {
-		t.Fatal("Invalid Submit didn't panic")
+			if abort == nil {
+				t.Fatal("Invalid Submit didn't panic")
+			}
+		})
 	}
 }
 
@@ -147,33 +151,25 @@ func Test_submitValid(t *testing.T) {
 }
 
 func Test_parseXYValid(t *testing.T) {
-	x, y, err := parseXY("someAdress/r/eva/place:?color=G&x=9&y=2")
+	for _, testInput := range testValidAdress {
+		t.Run(testInput.address, func(t *testing.T) {
+			x, y, err := parseXY(testInput.address)
 
-	if err != nil || x != 9 || y != 2 {
-		t.Fatal("coordinates should be valid")
-	}
-}
-
-func Test_parseXYValid2(t *testing.T) {
-	x, y, err := parseXY("?x=19&y=1")
-
-	if err != nil || x != 19 || y != 1 {
-		t.Fatal("coordinates should be valid")
+			if err != nil || x != testInput.x || y != testInput.y {
+				t.Fatal("coordinates should be valid")
+			}
+		})
 	}
 }
 
 func Test_parseXYInvalid(t *testing.T) {
-	_, _, err := parseXY("someAdress/r/eva/place:?color=G&x=9a&y=2")
+	for _, testInput := range testInvalidAdress {
+		t.Run(testInput, func(t *testing.T) {
+			_, _, err := parseXY(testInput)
 
-	if err == nil {
-		t.Fatal("coordinates should be invalid")
-	}
-}
-
-func Test_parseXYInvalid2(t *testing.T) {
-	_, _, err := parseXY("")
-
-	if err == nil {
-		t.Fatal("coordinates should be invalid")
+			if err == nil {
+				t.Fatal("coordinates should be invalid")
+			}
+		})
 	}
 }
