@@ -22,7 +22,6 @@ var (
 	user1Addr       = testutils.TestAddress("g1user1")
 	user2Addr       = testutils.TestAddress("g1user2")
 	treasuryAddr    = std.DerivePkgAddr("gno.land/r/gov/dao/v3/treasury")
-	originalRealm   = std.CurrentRealm()
 	allowedRealm    = std.NewCodeRealm("gno.land/r/test/allowed")
 	notAllowedRealm = std.NewCodeRealm("gno.land/r/test/notallowed")
 	mintAmount      = int64(1000)
@@ -95,13 +94,8 @@ func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint std.Address) 
 		keys = append(keys, key)
 	}
 
-	// Save the current Realm to restore it later.
-	currentRealm := std.CurrentRealm()
-	testing.SetRealm(originalRealm)
-	treasury.TestingSetTokenKeys(cross, keys)
-
-	// Restore the current Realm.
-	testing.SetRealm(currentRealm)
+	// Set the token keys in the treasury.
+	treasury.SetTokenKeys(cross, keys)
 
 	return keyedTokens
 }
