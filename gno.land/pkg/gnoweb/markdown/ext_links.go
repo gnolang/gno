@@ -235,7 +235,7 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	if n.LinkType != GnoLinkTypeExternal &&
 		n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") { // has help webquery
 		writeHTMLTag(w, "span", []attr{
-			{"class", classLinkTx + " js-tooltip tooltip"},
+			{"class", classLinkTx + " js-tooltip tooltip font-sans"},
 			{"data-tooltip", tooltipTxLink},
 		})
 		w.WriteString(iconTxLink)
@@ -246,7 +246,7 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	if n.LinkType != GnoLinkTypePackage {
 		if info, ok := linkTypes[n.LinkType]; ok {
 			writeHTMLTag(w, "span", []attr{
-				{"class", info.class + " js-tooltip tooltip"},
+				{"class", info.class + " js-tooltip tooltip font-sans"},
 				{"data-tooltip", info.tooltip},
 			})
 			w.WriteString(info.icon)
