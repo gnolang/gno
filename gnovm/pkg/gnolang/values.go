@@ -725,17 +725,19 @@ func (mv *MapValue) GetLength() int {
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
-	kmk := key.ComputeMapKey(store, false)
-	if mli, ok := mv.vmap[kmk]; ok {
-		key2 := key.Copy(alloc)
-		// When assigning to a map item, the key is always equal to that of the
-		// last assignment; this is mostly noticeable in the case of -0 / 0:
-		// https://go.dev/play/p/iNPDR4FQlRv
-		mli.Key = key2
-		return PointerValue{
-			TV:    fillValueTV(store, &mli.Value),
-			Base:  mv,
-			Index: PointerIndexMap,
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if !isNaN {
+		if mli, ok := mv.vmap[kmk]; ok {
+			key2 := key.Copy(alloc)
+			// When assigning to a map item, the key is always equal to that of the
+			// last assignment; this is mostly noticeable in the case of -0 / 0:
+			// https://go.dev/play/p/iNPDR4FQlRv
+			mli.Key = key2
+			return PointerValue{
+				TV:    fillValueTV(store, &mli.Value),
+				Base:  mv,
+				Index: PointerIndexMap,
+			}
 		}
 	}
 	mli := mv.List.Append(alloc, *key)
@@ -750,7 +752,10 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
-	kmk := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if isNaN {
+		return
+	}
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
 		val, ok = mli.Value, true
@@ -759,7 +764,10 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
-	kmk := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(store, false)
+	if isNaN {
+		return
+	}
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
 		delete(mv.vmap, kmk)
@@ -1094,11 +1102,7 @@ func appendUint56(bz []byte, i uint64) []byte {
 
 // Returns encoded bytes for primitive values.
 // These are used for computing map keys.
-// Special handling occurs for floating point types:
-// - Negative zero is normalized to zero.
-// - NaNs have an empty byte, then an uint64 to make them uncomparable with any
-// other key.
-func (tv *TypedValue) PrimitiveMapKey(bz []byte) []byte {
+func (tv *TypedValue) PrimitiveBytes(bz []byte) []byte {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
 		if tv.GetBool() {
@@ -1124,25 +1128,9 @@ func (tv *TypedValue) PrimitiveMapKey(bz []byte) []byte {
 	case UintType, Uint64Type:
 		return binary.LittleEndian.AppendUint64(bz, tv.GetUint())
 	case Float32Type:
-		if tv.IsNaN() {
-			return appendUint56(bz, nanCounter.Add(1))
-		}
-		u32 := tv.GetFloat32()
-		// If this is negative zero, normalize to zero.
-		if u32 == (1 << 31) {
-			u32 = 0
-		}
-		return binary.LittleEndian.AppendUint32(bz, u32)
+		return binary.LittleEndian.AppendUint32(bz, tv.GetFloat32())
 	case Float64Type:
-		if tv.IsNaN() {
-			return appendUint56(bz, nanCounter.Add(1))
-		}
-		u64 := tv.GetFloat64()
-		// If this is negative zero, normalize to zero.
-		if u64 == (1 << 63) {
-			u64 = 0
-		}
-		return binary.LittleEndian.AppendUint64(bz, u64)
+		return binary.LittleEndian.AppendUint64(bz, tv.GetFloat64())
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1550,7 +1538,13 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
-func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
+// ComputeMapKey returns the value of tv, encoded as a string for usage inside
+// of a map.
+//
+// isNaN returns whether tv, or any of the values contained within (like in an
+// array or struct) are NaN's; this would make the same tv != to itself, and
+// so shouldn't be included within a vmap.
+func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1558,7 +1552,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 				panic("should not happen")
 			}
 		}
-		return MapKey(nilStr)
+		return nilStr, false
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
@@ -1568,7 +1562,34 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		bz = tv.PrimitiveMapKey(bz)
+		const (
+			fourZeroes  = "\x00\x00\x00\x00"
+			eightZeroes = fourZeroes + fourZeroes
+		)
+		// For float types, return "false" if there is a nan value,
+		// normalize to 0 if negative zero.
+		switch bt {
+		case Float32Type:
+			if tv.IsNaN() {
+				return "", true
+			}
+			if tv.GetFloat32() == (1 << 31) {
+				bz = append(bz, fourZeroes...)
+			} else {
+				bz = tv.PrimitiveBytes(bz)
+			}
+		case Float64Type:
+			if tv.IsNaN() {
+				return "", true
+			}
+			if tv.GetFloat64() == (1 << 63) {
+				bz = append(bz, eightZeroes...)
+			} else {
+				bz = tv.PrimitiveBytes(bz)
+			}
+		default:
+			bz = tv.PrimitiveBytes(bz)
+		}
 	case *PointerType:
 		fillValueTV(store, tv)
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
@@ -1583,7 +1604,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				bz = append(bz, ev.ComputeMapKey(store, omitTypes)...)
+				mk, isNaN := ev.ComputeMapKey(store, omitTypes)
+				if isNaN {
+					return "", true
+				}
+				bz = append(bz, mk...)
 				if i != al-1 {
 					bz = append(bz, ',')
 				}
@@ -1601,7 +1626,11 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
+			mk, isNaN := fv.ComputeMapKey(store, omitTypes)
+			if isNaN {
+				return "", true
+			}
+			bz = append(bz, mk...)
 			if i != sl-1 {
 				bz = append(bz, ',')
 			}
@@ -1623,7 +1652,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			"unexpected map key type %s",
 			tv.T.String()))
 	}
-	return MapKey(bz)
+	return MapKey(bz), false
 }
 
 // ----------------------------------------

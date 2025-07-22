@@ -1404,7 +1404,10 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
+			mk, isNaN := cur.Key.ComputeMapKey(store, false)
+			if !isNaN {
+				cv.vmap[mk] = cur
+			}
 		}
 		return cv
 	case TypeValue:
