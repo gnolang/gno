@@ -7,9 +7,10 @@ package governance
 import (
 	"std"
 	"time"
-	"gno.land/r/volos/gov/xvls"
-	"gno.land/p/nt/commondao"
+
 	"gno.land/p/demo/avl"
+	"gno.land/p/nt/commondao"
+	"gno.land/r/volos/gov/xvls"
 )
 
 type VolosProposalDefinition struct {
@@ -19,8 +20,8 @@ type VolosProposalDefinition struct {
 	Action            func()
 }
 
-func (v VolosProposalDefinition) Title() string         { return v.TitleField }
-func (v VolosProposalDefinition) Body() string          { return v.BodyField }
+func (v VolosProposalDefinition) Title() string               { return v.TitleField }
+func (v VolosProposalDefinition) Body() string                { return v.BodyField }
 func (v VolosProposalDefinition) VotingPeriod() time.Duration { return v.VotingPeriodField }
 
 // Tally implements the commondao.ProposalDefinition interface.

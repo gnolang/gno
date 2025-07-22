@@ -4,9 +4,10 @@ import (
 	"std"
 	"testing"
 	"time"
-	"gno.land/r/volos/gov/xvls"
+
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/r/volos/gov/xvls"
 )
 
 func crossThrough(rlm std.Realm, cr func()) {
@@ -169,4 +170,4 @@ func TestGovernance_KickAndReaddMember(cur realm, t *testing.T) {
 		AddMember(cross, alice)
 	})
 	urequire.True(t, volosGovernance.Members().Has(alice))
-} 
+}

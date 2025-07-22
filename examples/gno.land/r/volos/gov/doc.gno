@@ -17,4 +17,4 @@
 // Together, these contracts enable secure, weighted, and flexible on-chain
 // governance for the Volos protocol, with clear separation of concerns between
 // token logic, staking and delegation, and proposal and voting mechanisms.
-package gov 
+package gov

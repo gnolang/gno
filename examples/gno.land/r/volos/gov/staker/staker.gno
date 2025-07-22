@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/r/volos/gov/governance"
 	"gno.land/r/volos/gov/vls"
 	"gno.land/r/volos/gov/xvls"
-	"gno.land/r/volos/gov/governance"
 )
 
 type UnstakeInfo struct {

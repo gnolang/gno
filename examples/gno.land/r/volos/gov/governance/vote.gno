@@ -5,6 +5,7 @@ package governance
 
 import (
 	"std"
+
 	"gno.land/p/nt/commondao"
 	"gno.land/r/volos/gov/xvls"
 )
@@ -33,4 +34,4 @@ func Vote(cur realm, proposalID uint64, choice string, reason string) {
 		Context: xvls.BalanceOf(voter),
 	}
 	p.VotingRecord().AddVote(vote)
-} 
+}

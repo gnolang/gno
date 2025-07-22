@@ -10,14 +10,15 @@ package governance
 
 import (
 	"std"
-	"gno.land/p/nt/commondao"
+
 	"gno.land/p/moul/authz"
+	"gno.land/p/nt/commondao"
 )
 
 var (
-	volosGovernance *commondao.CommonDAO
+	volosGovernance   *commondao.CommonDAO
 	proposalThreshold int64 = 1000 //min xVLS required to create a proposal
-	authorizer = authz.NewWithAuthority(authz.NewMemberAuthority(
+	authorizer              = authz.NewWithAuthority(authz.NewMemberAuthority(
 		std.DerivePkgAddr("gno.land/r/volos/gov/staker"),
 		std.DerivePkgAddr("gno.land/r/volos/gov/governance"),
 	))

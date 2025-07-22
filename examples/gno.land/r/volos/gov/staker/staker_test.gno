@@ -6,9 +6,9 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/r/volos/gov/governance"
 	"gno.land/r/volos/gov/vls"
 	"gno.land/r/volos/gov/xvls"
-	"gno.land/r/volos/gov/governance"
 )
 
 func crossThrough(rlm std.Realm, cr func()) {
