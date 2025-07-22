@@ -91,6 +91,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 
 	mpkg, err := func() (mpkg *std.MemPackage, err error) {
 		// need to recover since ReadMemPackage is panicking again
+		// XXX: use a version of ReadMemPackage that doesn't panic
 		defer func() {
 			pret := recover()
 			switch cret := pret.(type) {
@@ -117,13 +118,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 	// since ReadMemPackage is restrictive we should probably consider files another way
 
 	for _, file := range mpkg.Files {
-		fpath := filepath.Join(pkg.Dir, file.Name)
-
-		fileKind, err := GetFileKind(file.Name, file.Body, fset)
-		if err != nil {
-			pkg.Errors = append(pkg.Errors, fromErr(err, fpath, false)...)
-			continue
-		}
+		fileKind := GetFileKind(file.Name, file.Body, fset)
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], file.Name)
 	}
 

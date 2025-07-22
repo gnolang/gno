@@ -8,11 +8,10 @@ import (
 
 func TestGetFileKind(t *testing.T) {
 	tcs := []struct {
-		name          string
-		filename      string
-		body          string
-		fileKind      FileKind
-		errorContains string
+		name     string
+		filename string
+		body     string
+		fileKind FileKind
 	}{
 		{
 			name:     "compiled",
@@ -51,12 +50,7 @@ func TestGetFileKind(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			out, err := GetFileKind(tc.filename, tc.body, nil)
-			if len(tc.errorContains) != 0 {
-				require.ErrorContains(t, err, tc.errorContains)
-			} else {
-				require.NoError(t, err)
-			}
+			out := GetFileKind(tc.filename, tc.body, nil)
 			require.Equal(t, tc.fileKind, out)
 		})
 	}

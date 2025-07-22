@@ -31,17 +31,17 @@ func GnoFileKinds() []FileKind {
 }
 
 // GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional
-func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, error) {
+func GetFileKind(filename string, body string, fset *token.FileSet) FileKind {
 	if !strings.HasSuffix(filename, ".gno") {
-		return FileKindOther, nil
+		return FileKindOther
 	}
 
 	if strings.HasSuffix(filename, "_filetest.gno") {
-		return FileKindFiletest, nil
+		return FileKindFiletest
 	}
 
 	if !strings.HasSuffix(filename, "_test.gno") {
-		return FileKindPackageSource, nil
+		return FileKindPackageSource
 	}
 
 	if fset == nil {
@@ -49,12 +49,12 @@ func GetFileKind(filename string, body string, fset *token.FileSet) (FileKind, e
 	}
 	ast, err := parser.ParseFile(fset, filename, body, parser.PackageClauseOnly)
 	if err != nil {
-		return FileKindTest, nil
+		return FileKindTest
 	}
 	packageName := ast.Name.Name
 
 	if strings.HasSuffix(packageName, "_test") {
-		return FileKindXTest, nil
+		return FileKindXTest
 	}
-	return FileKindTest, nil
+	return FileKindTest
 }
