@@ -77,7 +77,10 @@ func fromErr(err error, root string, prependRoot bool) []*Error {
 		}
 		return res
 	default:
-		return []*Error{{Pos: root, Msg: err.Error()}}
+		return []*Error{{
+			Pos: root,
+			Msg: fmt.Sprintf("%s (type: %T)", err.Error(), err),
+		}}
 	}
 }
 
