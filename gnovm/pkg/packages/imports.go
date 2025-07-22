@@ -49,6 +49,14 @@ func Imports(pkg *std.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 	return res, nil
 }
 
+// FileImport represents an import and it's location in the source file
+type FileImport struct {
+	PkgPath string
+	Spec    *ast.ImportSpec
+}
+
+// FileImports returns the list of gno imports in the given file src.
+// The given filename is only used when recording position information.
 func FileImports(filename string, src string, fset *token.FileSet) ([]*FileImport, error) {
 	if fset == nil {
 		fset = token.NewFileSet()
@@ -72,11 +80,6 @@ func FileImports(filename string, src string, fset *token.FileSet) ([]*FileImpor
 		}
 	}
 	return res, nil
-}
-
-type FileImport struct {
-	PkgPath string
-	Spec    *ast.ImportSpec
 }
 
 type ImportsMap map[FileKind][]*FileImport
