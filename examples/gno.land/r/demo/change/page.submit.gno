@@ -2,6 +2,7 @@ package change
 
 import (
 	"strconv"
+	"time"
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
@@ -10,7 +11,7 @@ import (
 	"std"
 )
 
-func Submit(_ realm, title, description, target string) {
+func Submit(_ realm, title, description, target, location string) {
 	// check if address is user
 	addr := std.PreviousRealm().Address()
 	user := users.ResolveAddress(addr)
@@ -31,6 +32,8 @@ func Submit(_ realm, title, description, target string) {
 		signatures:  []*users.UserData{},
 		target:      targetId,
 		id:          len(petitions),
+		location:    location,
+		date:        time.Now(),
 	})
 }
 
@@ -39,7 +42,7 @@ func renderSubmitPage(params map[string]string) string {
 	content := renderTopBar()
 
 	// check if everything good
-	var title, description, target, tx string
+	var title, description, target, location, tx string
 	title, ok := params["title"]
 	if !ok {
 		goto crappy
@@ -50,6 +53,10 @@ func renderSubmitPage(params map[string]string) string {
 	}
 	target, ok = params["target"]
 	if !ok || !isStringPositiveInt(target) {
+		goto crappy
+	}
+	location, ok = params["location"]
+	if !ok {
 		goto crappy
 	}
 
@@ -66,7 +73,7 @@ func renderSubmitPage(params map[string]string) string {
 	content += md.Bold(params["target"]) + " signatures target" + br
 
 	// submit button
-	tx = txlink.Call("Submit", "title", title, "description", description, "target", target)
+	tx = txlink.Call("Submit", "title", title, "description", description, "target", target, "location", location)
 	content += md.H2(md.Link("Submit", tx)) + br
 	content += "> [!NOTE]\n> You need to be a user to be able to submit (" + md.Link("gno.land/r/gnoland/users", "/r/gnoland/users") + ")." + br
 

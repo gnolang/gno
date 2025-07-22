@@ -2,6 +2,7 @@ package change
 
 import (
 	"std"
+	"time"
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
@@ -78,8 +79,12 @@ func renderPetitionPage(params map[string]string) string {
 	// render the content
 	petition := petitions[id]
 	content += md.H1(petition.title) + br
-	content += "> By " + petition.publisher.RenderLink("") + br
-	content += md.HorizontalRule() + br
+	content += "> By " + petition.publisher.RenderLink("")
+	content += ", " + md.Bold(petition.date.Format(time.DateTime))
+	if len(petition.location) != 0 {
+		content += " at " + md.Bold(petition.location)
+	}
+	content += br + md.HorizontalRule() + br
 
 	petitionContent := petition.description + br
 	signContent := md.H1(strconv.Itoa(len(petition.signatures))) + md.H3("verified signatures")

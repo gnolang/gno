@@ -7,6 +7,7 @@ import (
 	"std"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func truncate(s string, max int) string {
@@ -27,6 +28,8 @@ type petition struct {
 	target      int
 	id          int
 	comments    []comment
+	location    string
+	date        time.Time
 }
 
 type comment struct {
@@ -41,7 +44,7 @@ func (p petition) LString() string {
 func (p petition) MiniRender() string {
 	content := md.HorizontalRule() + br
 	content += md.H3(md.Link(p.title, here+":petition?id="+strconv.Itoa(p.id))) + br
-	content += "by " + p.publisher.RenderLink("") + ", "
+	content += "by " + p.publisher.RenderLink("") + ", " + md.Italic(p.date.Format(time.DateTime)) + br
 	content += md.Bold(strconv.Itoa(len(p.signatures))) + " / " + md.Bold(strconv.Itoa(p.target)) + " signatures." + br
 	content += md.HorizontalRule() + br
 	return content
