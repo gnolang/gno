@@ -22,7 +22,7 @@ import (
 var (
 	VolosDAO        = "gno.land/r/volosgov"
 	VolosDAOAddress = std.DerivePkgAddr(VolosDAO)
-	Token, ledger   = grc20.NewToken("Volos Governance Token", "VLS", 6)
+	token, ledger   = grc20.NewToken("Volos Governance Token", "VLS", 6)
 
 	// Use MemberAuthority for governance address
 	Auth = authz.NewWithMembers(VolosDAOAddress)
@@ -30,37 +30,37 @@ var (
 
 // Name returns the token name.
 func Name() string {
-	return Token.GetName()
+	return token.GetName()
 }
 
 // Symbol returns the token symbol.
 func Symbol() string {
-	return Token.GetSymbol()
+	return token.GetSymbol()
 }
 
 // Decimals returns the token decimals.
 func Decimals() int {
-	return Token.GetDecimals()
+	return token.GetDecimals()
 }
 
 // TotalSupply returns the total supply of the token.
 func TotalSupply() int64 {
-	return Token.TotalSupply()
+	return token.TotalSupply()
 }
 
 // BalanceOf returns the token balance of the given address.
 func BalanceOf(addr std.Address) int64 {
-	return Token.BalanceOf(addr)
+	return token.BalanceOf(addr)
 }
 
 // Allowance returns the allowance from owner to spender.
 func Allowance(owner, spender std.Address) int64 {
-	return Token.Allowance(owner, spender)
+	return token.Allowance(owner, spender)
 }
 
 // Transfer tokens from caller to recipient.
 func Transfer(cur realm, to std.Address, amount int64) {
-	teller := Token.CallerTeller()
+	teller := token.CallerTeller()
 	if err := teller.Transfer(to, amount); err != nil {
 		panic(err)
 	}
@@ -68,7 +68,7 @@ func Transfer(cur realm, to std.Address, amount int64) {
 
 // Approve a spender to spend tokens on behalf of the caller.
 func Approve(cur realm, spender std.Address, amount int64) {
-	teller := Token.CallerTeller()
+	teller := token.CallerTeller()
 	if err := teller.Approve(spender, amount); err != nil {
 		panic(err)
 	}
@@ -76,7 +76,7 @@ func Approve(cur realm, spender std.Address, amount int64) {
 
 // Transfer tokens from an owner to a recipient, using the caller's allowance.
 func TransferFrom(cur realm, owner, to std.Address, amount int64) {
-	teller := Token.CallerTeller()
+	teller := token.CallerTeller()
 	if err := teller.TransferFrom(owner, to, amount); err != nil {
 		panic(err)
 	}
@@ -85,45 +85,38 @@ func TransferFrom(cur realm, owner, to std.Address, amount int64) {
 // Public wrapper functions that handle authorization
 func Mint(cur realm, VolosDAO std.Address, to std.Address, amount int64) {
 	if err := Auth.DoByPrevious("mint", func() error {
-		return mint(to, amount)
+		if err := ledger.Mint(to, amount); err != nil {
+			return err
+		}
+
+		return nil
 	}); err != nil {
 		panic(err)
 	}
 }
 
+// Burn tokens from the caller's account.
 func Burn(cur realm, VolosDAO std.Address, from std.Address, amount int64) {
 	if err := Auth.DoByPrevious("burn", func() error {
-		return burn(from, amount)
+		if err := ledger.Burn(from, amount); err != nil {
+			return err
+		}
+
+		return nil
 	}); err != nil {
 		panic(err)
 	}
 }
 
+// Update the governance contract address.
 func UpdateGovernance(cur realm, newPkgPath string) {
 	if err := Auth.DoByPrevious("update_governance", func() error {
-		return updateGovernance(newPkgPath)
+		VolosDAOAddress = std.DerivePkgAddr(newPkgPath)
+		VolosDAO = newPkgPath
+		Auth = authz.NewWithMembers(VolosDAOAddress)
+
+		return nil
 	}); err != nil {
 		panic(err)
 	}
-}
-
-func mint(to std.Address, amount int64) error {
-	if err := ledger.Mint(to, amount); err != nil {
-		return err
-	}
-	return nil
-}
-
-func burn(from std.Address, amount int64) error {
-	if err := ledger.Burn(from, amount); err != nil {
-		return err
-	}
-	return nil
-}
-
-func updateGovernance(newPkgPath string) error {
-	VolosDAOAddress = std.DerivePkgAddr(newPkgPath)
-	VolosDAO = newPkgPath
-	Auth = authz.NewWithMembers(VolosDAOAddress)
-	return nil
 }

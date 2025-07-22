@@ -34,17 +34,14 @@ var (
 func Stake(cur realm, amount int64, delegatee std.Address) {
 	caller := std.PreviousRealm().Address()
 	if amount <= 0 {
-		panic("amount must be positive")
+		panic(ErrInvalidAmount)
 	}
 
 	if !delegatee.IsValid() {
-		panic("invalid delegatee address")
+		panic(ErrInvalidDelegatee)
 	}
 
-	teller := vls.Token.RealmTeller()
-	if err := teller.TransferFrom(caller, std.CurrentRealm().Address(), amount); err != nil {
-		panic(err)
-	}
+	vls.TransferFrom(cross, caller, std.CurrentRealm().Address(), amount)
 	xvls.Mint(cross, delegatee, amount)
 }
 
@@ -54,15 +51,15 @@ func Stake(cur realm, amount int64, delegatee std.Address) {
 func BeginUnstake(cur realm, amount int64, delegatee std.Address) {
 	caller := std.PreviousRealm().Address()
 	if amount <= 0 {
-		panic("amount must be positive")
+		panic(ErrInvalidAmount)
 	}
 
 	if !delegatee.IsValid() {
-		panic("invalid delegatee address")
+		panic(ErrInvalidDelegatee)
 	}
 
 	if xvls.BalanceOf(delegatee) < amount {
-		panic("insufficient xVLS to unstake from delegatee")
+		panic(ErrInsufficientBalance)
 	}
 
 	xvls.Burn(cross, delegatee, amount)
@@ -89,7 +86,7 @@ func WithdrawUnstaked(cur realm) {
 	key := caller.String()
 	infoAny, ok := pendingUnstakes.Get(key)
 	if !ok {
-		panic("no pending unstake")
+		panic(ErrCooldownNotFinished)
 	}
 
 	list := infoAny.([]UnstakeInfo)
@@ -108,13 +105,10 @@ func WithdrawUnstaked(cur realm) {
 	}
 
 	if totalToWithdraw == 0 {
-		panic("no matured unstake to withdraw")
+		panic(ErrCooldownNotFinished)
 	}
 
-	teller := vls.Token.RealmTeller()
-	if err := teller.Transfer(caller, totalToWithdraw); err != nil {
-		panic(err)
-	}
+	vls.Transfer(cross, caller, totalToWithdraw)
 
 	if len(remaining) == 0 {
 		pendingUnstakes.Remove(key)

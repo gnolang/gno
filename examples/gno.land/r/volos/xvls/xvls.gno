@@ -13,7 +13,6 @@ import (
 	"std"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/moul/authz"
-
 )
 
 var (
@@ -88,12 +87,12 @@ func Burn(cur realm, from std.Address, amount int64) {
 
 // Transfer is disabled for xVLS (non-transferable).
 func Transfer(cur realm, to std.Address, amount int64) {
-	panic("xVLS is non-transferable")
+	panic(ErrNonTransferable)
 }
 
 // TransferFrom is disabled for xVLS (non-transferable).
 func TransferFrom(cur realm, from, to std.Address, amount int64) {
-	panic("xVLS is non-transferable")
+	panic(ErrNonTransferable)
 }
 
 // Optionally, add a Render function for explorer integration.
