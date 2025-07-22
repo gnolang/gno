@@ -290,7 +290,7 @@ func TestDataLoad(t *testing.T) {
 				Files: FilesMap{},
 				Errors: []*Error{{
 					Pos: filepath.Join(workspace1Abs, "emptygnomod"),
-					Msg: "invalid gnomod.toml: 'module' is required",
+					Msg: "invalid gnomod.toml: 'module' is required (type: *errors.errorString)",
 				}},
 			}, {
 				ImportPath: "gno.example.com/r/wspace1/invalidpkg",
@@ -299,7 +299,7 @@ func TestDataLoad(t *testing.T) {
 				Files:      FilesMap{},
 				Errors: []*Error{{
 					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
-					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\"", filepath.Join(workspace1Abs, "invalidpkg")),
+					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\" (type: *errors.errorString)", filepath.Join(workspace1Abs, "invalidpkg")),
 				}},
 			}},
 		},
@@ -326,7 +326,7 @@ func TestDataLoad(t *testing.T) {
 				Files: FilesMap{},
 				Errors: []*Error{{
 					Pos: filepath.Join(workspace1Abs, "emptygnomod"),
-					Msg: "invalid gnomod.toml: 'module' is required",
+					Msg: "invalid gnomod.toml: 'module' is required (type: *errors.errorString)",
 				}},
 			}, {
 				ImportPath: "gno.example.com/r/wspace1/invalidpkg",
@@ -335,7 +335,7 @@ func TestDataLoad(t *testing.T) {
 				Files:      FilesMap{},
 				Errors: []*Error{{
 					Pos: filepath.Join(workspace1Abs, "invalidpkg"),
-					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\"", filepath.Join(workspace1Abs, "invalidpkg")),
+					Msg: fmt.Sprintf("%s/b.gno:0: expected package name \"invalidpkga\" but got \"invalidpkgb\" (type: *errors.errorString)", filepath.Join(workspace1Abs, "invalidpkg")),
 				}},
 			}},
 		},
