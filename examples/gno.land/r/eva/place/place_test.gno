@@ -137,7 +137,7 @@ func Test_submitInvalidColorEmpty(t *testing.T) {
 }
 
 func Test_submitValid(t *testing.T) {
-	tableColor[39][1] = Color{white, "W"}
+	tableColor[39][1] = Color{"rgb(250,250,250)", "W"}
 
 	Submit(cross, 1, 39, "R")
 

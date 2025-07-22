@@ -25,7 +25,7 @@ const (
 	rows = 40
 	cols = 40
 
-	white = "rgb(250,250,250)"
+	defaultColor = "rgb(250,250,250)"
 
 	// default moderators wallets
 	chaeWallet = "g1dzzx5qwcmawqnhhd76ehkteas5v2dg42hqnd7g"
@@ -35,14 +35,14 @@ const (
 
 var (
 	colors = []Color{
-		{"rgb(0,0,0)", "K"},     // black
-		{"rgb(255,0,0)", "R"},   // red
-		{"rgb(0,255,0)", "G"},   // green
-		{"rgb(0,0,255)", "B"},   // blue
-		{"rgb(255,255,0)", "Y"}, // yellow
-		{"rgb(0,255,255)", "C"}, // cyan
-		{"rgb(255,0,255)", "P"}, // pink
-		{white, "W"},            // white
+		{"rgb(0,0,0)", "K"},       // black
+		{"rgb(255,0,0)", "R"},     // red
+		{"rgb(0,255,0)", "G"},     // green
+		{"rgb(0,0,255)", "B"},     // blue
+		{"rgb(255,255,0)", "Y"},   // yellow
+		{"rgb(0,255,255)", "C"},   // cyan
+		{"rgb(255,0,255)", "P"},   // pink
+		{"rgb(250,250,250)", "W"}, // white
 	}
 
 	tableColor [][]Color // TODO: use a B tree for storage efficiency
@@ -60,7 +60,7 @@ func init() {
 	for y := 0; y < int(rows); y++ {
 		tableColor[y] = make([]Color, cols)
 		for x := 0; x < int(cols); x++ {
-			tableColor[y][x].rgb = white
+			tableColor[y][x].rgb = defaultColor
 			tableColor[y][x].initial = "⠀"
 		}
 	}
