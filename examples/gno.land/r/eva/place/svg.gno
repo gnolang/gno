@@ -15,6 +15,35 @@ const (
 	maxColorLength = 16 // exemple rgb(255,255,255)
 )
 
+// Submit places a tile on the tile of choice with the selected color
+// Panics if the user's cooldown timer is not 0
+func Submit(cur realm, x uint64, y uint64, colorName string) {
+	user, ok := retrieveMember(std.PreviousRealm().Address())
+	if !ok {
+		Register(cross)
+		user, _ = retrieveMember(std.PreviousRealm().Address())
+	}
+
+	if time.Now().Before(user.Timer) {
+		panic("wait until " + user.Timer.String())
+	}
+
+	foundColor, color := findColor(colorName)
+
+	if !foundColor {
+		panic("invalid color")
+	}
+
+	if x >= cols || y >= rows {
+		panic("invalid coordinates")
+	}
+
+	tableColor[y][x].rgb = color.rgb
+	tableColor[y][x].initial = color.initial
+
+	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
+}
+
 func checkColorValid(color string) bool {
 	if len(color) < minColorLength || len(color) > maxColorLength ||
 		color[:4] != "rgb(" || color[len(color)-1] != ')' {
@@ -52,33 +81,4 @@ func generateSVG() string {
 		}
 	}
 	return canvas.Base64()
-}
-
-// Submit places a tile on the tile of choice with the selected color
-// Panics if the user's cooldown timer is not 0
-func Submit(cur realm, x uint64, y uint64, colorName string) {
-	user, ok := retrieveMember(std.PreviousRealm().Address())
-	if !ok {
-		Register(cross)
-		user, _ = retrieveMember(std.PreviousRealm().Address())
-	}
-
-	if time.Now().Before(user.Timer) {
-		panic("wait until " + user.Timer.String())
-	}
-
-	foundColor, color := findColor(colorName)
-
-	if !foundColor {
-		panic("invalid color")
-	}
-
-	if x >= cols || y >= rows {
-		panic("invalid coordinates")
-	}
-
-	tableColor[y][x].rgb = color.rgb
-	tableColor[y][x].initial = color.initial
-
-	user.Timer = time.Now().Add(time.Duration(timeRefill) * time.Minute)
 }
