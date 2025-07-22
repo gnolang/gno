@@ -59,6 +59,15 @@ func DerivePkgAddr(pkgPath string) Address {
 	return Address(addr)
 }
 
+func deriveStorageDepositAddr(string) string
+
+// Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
+// in which case the address is extracted from the path.
+func DeriveStorageDepositAddr(pkgPath string) Address {
+	addr := deriveStorageDepositAddr(pkgPath)
+	return Address(addr)
+}
+
 func convertTo20Byte(in []byte) [20]byte {
 	result := [20]byte{}
 	copy(result[:], in)
