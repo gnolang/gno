@@ -12,16 +12,17 @@ import (
 type Proposal struct {
 	TitleProp       string
 	DescriptionProp string
+	CallerProp      std.Address
 }
 
 // Title returns the title of the proposal
-func (c *Proposal) Title() string {
-	return c.TitleProp
+func (p *Proposal) Title() string {
+	return p.TitleProp
 }
 
 // Body returns the full description of the proposal
-func (c *Proposal) Body() string {
-	return c.DescriptionProp
+func (p *Proposal) Body() string {
+	return p.DescriptionProp
 }
 
 // VotingPeriod defines the length of time the proposal is open for voting
@@ -35,24 +36,28 @@ func (c *Proposal) VotingPeriod() time.Duration {
 // There are multiple ways to tally votes, pick the one most suited to your use case
 func (c *Proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
 	yesCount := r.VoteCount(commondao.ChoiceYes)
-	noCount := r.VoteCount(commondao.ChoiceNo)
-	return yesCount > noCount, nil // Here a simple majority would lead to the proposal being passed
+
+	memberCount := DAO.Members().Size()
+	fivePercent := (memberCount*5 + 99) / 100 // fivePercent calculate what is 5% of the DAO's member
+
+	return yesCount >= fivePercent, nil // The proposal is considered as "passed" as soon as 5% of members voted yes
 }
 
 // Execute will execute what you decide once the proposal is considered passed
 func (p *Proposal) Execute() error {
-	return nil // Here execute does not do anything
+	return JoinDao(cross, p.CallerProp) //When the proposal is passed the creator of the proposal joins the DAO
 }
 
 // CreateProposal constructs and submits a new proposal to the DAO
 // The proposal is stored in the ActiveProposal storage
-func CreateProposal(title, desc string) {
+func CreateProposal(cur realm, title, desc string) {
 	caller := std.PreviousRealm().Address()
 
 	// Set the new proposal's title and description
 	prop := &Proposal{
 		TitleProp:       title,
 		DescriptionProp: desc,
+		CallerProp:      caller,
 	}
 
 	DAO.MustPropose(caller, prop) // Panics if the creation of the proposal fails, use Propose() if you don't want the possible panic
@@ -60,7 +65,7 @@ func CreateProposal(title, desc string) {
 
 // Vote allows a DAO member to vote on an existing proposal
 // Allows member of the DAO to vote YES or NO on a proposal and give their reasoning
-func Vote(vote bool, proposalID uint64, reason string) {
+func Vote(cur realm, vote bool, proposalID uint64, reason string) {
 	var choice commondao.VoteChoice
 
 	if vote {
@@ -71,16 +76,26 @@ func Vote(vote bool, proposalID uint64, reason string) {
 
 	caller := std.PreviousRealm().Address()
 
+	if !DAO.Members().Has(caller) {
+		panic("must register to the DAO to vote") // Panics if the voter is not a member of the DAO
+	}
+
 	DAO.Vote(caller, proposalID, choice, reason) // logs in the user's voting choice on a specified proposal
+	ExecutionPassedProposals()
 }
 
-// ExecutionPassedProposals finalizes a proposal if it has passed voting criteria
+// ExecutionPassedProposals finalizes a proposal if it passes voting criteria
 //
 // This method performs the following:
 // - Checks if the proposal is active and its deadline has passed
 // - Tallies the votes using the Tally() method
 // - If passed, executes the associated Execute() logic
 // - Updates the proposal's status and  moves it out of Active Proposal if necessary
-func ExecutionPassedProposals(proposalID uint64) {
-	DAO.Execute(proposalID)
+func ExecutionPassedProposals() {
+	DAO.ActiveProposals().Iterate(0, DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
+		if time.Now().After(p.VotingDeadline()) {
+			_ = DAO.Execute(p.ID())
+		}
+		return true
+	})
 }
