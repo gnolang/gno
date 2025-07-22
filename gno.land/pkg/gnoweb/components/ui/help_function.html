@@ -41,7 +41,7 @@
         </span>
         <span class="flex gap-x-2">
         <button
-        class="js-copy-btn mr-2 text-gray-400 hover:text-gray-600"
+        class="js-copy-btn text-gray-400 hover:text-gray-600"
         aria-label="Copy Function"
         data-copy-txt="{{ $data.PkgFullPath }}$help&func={{ .Name }}"
         title="Function anchor link"
@@ -52,7 +52,7 @@
 
           </svg>
        </button>
-        <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" class="text-400 text-gray-400 hover:text-gray-600">⚡︎</a>
+        <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" class="text-600 text-gray-400 hover:text-gray-600 font-mono">⚡︎</a>
       </span>
       </div>
 
