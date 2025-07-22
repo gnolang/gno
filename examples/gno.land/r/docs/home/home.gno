@@ -26,6 +26,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Calling non-primitive argument functions](/r/docs/complexargs) - Learn how to call functions that take in complex arguments.
 - [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
 - [Resolving usernames and addresses](/r/docs/resolveusers) - How to resolve usernames and addresses via the ^r/sys/users^ realm.
+- [Famous Solidity Patterns](/r/docs/soliditypatterns) - A list of famous patterns transpiled from Solidity to Gno.Lang
 - More coming soon!
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
