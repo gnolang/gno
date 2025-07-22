@@ -82,14 +82,14 @@ func getG1Address(text []byte, startPos int) (string, int, bool) {
 	if len(text) < startPos+2 || text[startPos] != 'g' || text[startPos+1] != '1' {
 		return "", 0, false
 	}
-	
+
 	if m := gnoPattern.FindIndex(text[startPos:]); m != nil && m[0] == 0 {
 		addr := string(text[startPos : startPos+m[1]])
 		if isValidWordBoundary(text, startPos, startPos+m[1]) && IsValidBech32Address(addr) {
 			return addr, m[1], true
 		}
 	}
-	
+
 	return "", 0, false
 }
 
@@ -100,26 +100,26 @@ func findG1Address(line []byte, segStart int, linePos int, seg text.Segment, par
 		stop := start + length
 		advance := length
 		var spaceNode ast.Node
-		
+
 		if linePos > 0 {
 			// This is a space-prefixed address
 			spaceNode = ast.NewTextSegment(text.NewSegment(seg.Start, seg.Start+1))
 			start = segStart + 1
 			advance = length + 1
 		}
-		
+
 		// Create the link
 		linkNode := createMentionLink(start, stop, "/u/"+foundAddr, nil)
-		
+
 		block.Advance(advance)
-		
+
 		if spaceNode != nil {
 			parent.AppendChild(parent, spaceNode)
 		}
-		
+
 		return linkNode
 	}
-	
+
 	return nil
 }
 
@@ -166,14 +166,14 @@ func (p *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Cont
 		// Check if this is at the start of the line
 		source := block.Source()
 		isStartOfLine := seg.Start == 0 || source[seg.Start-1] == '\n'
-		
+
 		if isStartOfLine {
 			if linkNode := findG1Address(line, seg.Start, 0, seg, parent, block); linkNode != nil {
 				return linkNode
 			}
 		}
 	}
-	
+
 	// Check for g1 address (preceded by space)
 	if len(line) > 2 && line[0] == ' ' && line[1] == 'g' && line[2] == '1' {
 		if linkNode := findG1Address(line, seg.Start, 1, seg, parent, block); linkNode != nil {
