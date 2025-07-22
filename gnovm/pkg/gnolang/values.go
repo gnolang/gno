@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
-	"sync/atomic"
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
@@ -1085,25 +1084,6 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	}
 
 	return
-}
-
-// This counter is increased each time PrimitiveMapKey encounters a NaN value.
-// It allows us to create NaN values in the map which are always != one another.
-var nanCounter atomic.Uint64
-
-// appendUint56 is used to append the 7 least significant bytes to bz.
-// It is used in place of binary.LittleEndian.AppendUint64 for nan float values,
-// so that no NaN value is equal to a float value (which will be either 4 or
-// 8 bytes long).
-func appendUint56(bz []byte, i uint64) []byte {
-	return append(bz,
-		byte(i),
-		byte(i>>8),
-		byte(i>>16),
-		byte(i>>24),
-		byte(i>>32),
-		byte(i>>40),
-		byte(i>>48))
 }
 
 // Returns encoded bytes for primitive values.
