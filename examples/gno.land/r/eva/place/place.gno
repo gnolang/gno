@@ -13,6 +13,9 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
+// This Color struct will store colors
+// initial represents the initial of this color used in the interactive table
+// rgb represents the rgb code of this color used in the display canva
 type Color struct {
 	rgb     string
 	initial string
