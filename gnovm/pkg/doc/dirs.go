@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -97,7 +97,7 @@ func getGnoModDirs(gm *gnomod.File, root string) []bfsDir {
 }
 
 func packageImportsRecursive(root string, pkgPath string) []string {
-	pkg, err := gnolang.ReadMemPackage(root, pkgPath)
+	pkg, err := gno.ReadMemPackage(root, pkgPath, gno.MPAnyProd)
 	if err != nil {
 		// ignore invalid packages
 		pkg = &std.MemPackage{}

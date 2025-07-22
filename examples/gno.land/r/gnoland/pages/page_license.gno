@@ -694,5 +694,7 @@ solutions will be better for different programs; see section 13 for the
 specific requirements.
 `
 	)
-	_ = b.NewPost("", path, title, body, "2024-04-22T00:00:00Z", nil, nil)
+	if err := b.NewPost("", path, title, body, "2024-04-22T00:00:00Z", nil, nil); err != nil {
+		panic(err)
+	}
 }

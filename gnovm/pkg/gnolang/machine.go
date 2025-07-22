@@ -80,6 +80,7 @@ type MachineOptions struct {
 	MaxAllocBytes int64      // or 0 for no limit.
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
+	SkipPackage   bool // don't get/set package or realm.
 }
 
 // the machine constructor gets spammed
@@ -116,8 +117,23 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		// bare store, no stdlibs.
 		store = NewStore(alloc, nil, nil)
 	}
-	pv := (*PackageValue)(nil)
-	if opts.PkgPath != "" {
+	// Get machine from pool.
+	mm := machinePool.Get().(*Machine)
+	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
+	}
+	mm.Output = output
+	mm.Store = store
+	mm.Context = opts.Context
+	mm.GasMeter = vmGasMeter
+	mm.Debugger.enabled = opts.Debug
+	mm.Debugger.in = opts.Input
+	mm.Debugger.out = output
+	mm.ReviveEnabled = opts.ReviveEnabled
+	// Maybe get/set package and realm.
+	if !opts.SkipPackage && opts.PkgPath != "" {
+		pv := (*PackageValue)(nil)
 		pv = store.GetPackage(opts.PkgPath, false)
 		if pv == nil {
 			pkgName := defaultPkgName(opts.PkgPath)
@@ -126,25 +142,10 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 			store.SetBlockNode(pn)
 			store.SetCachePackage(pv)
 		}
-	}
-	context := opts.Context
-	mm := machinePool.Get().(*Machine)
-	mm.Package = pv
-	mm.Alloc = alloc
-	if mm.Alloc != nil {
-		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
-	}
-	mm.Output = output
-	mm.Store = store
-	mm.Context = context
-	mm.GasMeter = vmGasMeter
-	mm.Debugger.enabled = opts.Debug
-	mm.Debugger.in = opts.Input
-	mm.Debugger.out = output
-	mm.ReviveEnabled = opts.ReviveEnabled
-
-	if pv != nil {
-		mm.SetActivePackage(pv)
+		mm.Package = pv
+		if pv != nil {
+			mm.SetActivePackage(pv)
+		}
 	}
 	return mm
 }
@@ -197,6 +198,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
+		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
@@ -226,8 +228,12 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 
 // Sorts the package, then sets the package if doesn't exist, runs files, saves
 // mpkg and corresponding package node, package value, and types to store. Save
-// is set to false for tests where package values may be native.  NOTE: Does
-// not validate the mpkg. Caller must validate the mpkg before calling.
+// is set to false for tests where package values may be native.
+// If save is true, mpkg must be of type.IsStorable().
+// NOTE: Production systems must separately check mpkg.type if save, typically
+// you will want to ensure that it is MPUserAll, not MPUserProd or MPUserTest.
+// NOTE: Does not validate the mpkg. Caller must validate the mpkg before
+// calling.
 func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	if bm.OpsEnabled || bm.StorageEnabled {
 		bm.InitMeasure()
@@ -241,17 +247,30 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
 // declarations are filtered removing duplicate declarations.  To control which
 // declaration overrides which, use [ReadMemPackageFromList], putting the
-// overrides at the top of the list.  NOTE: Does not validate the mpkg, except
-// when saving validates with type MemPackageTypeAny.
+// overrides at the top of the list.
+// If save is true, mpkg must be of type.IsStorable().
+// NOTE: Production systems must separately check mpkg.type if save, typically
+// you will want to ensure that it is MPUserAll, not MPUserProd or MPUserTest.
+// NOTE: Does not validate the mpkg, except when saving validates a mpkg with
+// its type.
 func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	return m.runMemPackage(mpkg, save, true)
 }
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+	// validate mpkg.Type.
+	mptype := mpkg.Type.(MemPackageType)
+	if save && !mptype.IsStorable() {
+		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
+	}
+	// If All, demote to Prod when parsing,
+	// if Test or Integration, keep it as is,
+	// but in any case save everything if save.
+	mptype = mptype.AsRunnable()
 	// sort mpkg.
 	mpkg.Sort()
 	// parse files.
-	files := ParseMemPackage(mpkg)
+	files := ParseMemPackageAsType(mpkg, mptype)
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -268,6 +287,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	m.SetActivePackage(pv)
 	// run files.
 	updates := m.runFileDecls(overrides, files.Files...)
+	// populate pv.fBlocksMap.
+	pv.deriveFBlocksMap(m.Store)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -283,8 +304,8 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	// save again after init.
 	if save {
 		m.resavePackageValues(throwaway)
-		// store mempackage
-		m.Store.AddMemPackage(mpkg, MemPackageTypeAny)
+		// store mempackage; we already validated type.
+		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
 		if throwaway != nil {
 			m.Realm = nil
 		}
@@ -436,6 +457,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 // must happen after persistence and realm finalization,
 // then changes from init persisted again.
 // m.Package must match fns's package path.
+// XXX delete?
 func (m *Machine) RunFiles(fns ...*FileNode) {
 	pv := m.Package
 	if pv == nil {
@@ -2008,6 +2030,35 @@ func (m *Machine) PopFrame() Frame {
 	return f
 }
 
+// jump to target frame, and
+// set machine accordingly.
+func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
+	if depthFrames >= len(m.Frames) {
+		panic("should not happen, depthFrames exeeds total frames")
+	}
+	// pop frames if with depth not zero
+	if depthFrames != 0 {
+		// the last popped frame
+		fr := m.Frames[len(m.Frames)-depthFrames]
+		// pop frames
+		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
+		// reset
+		m.NumOps = fr.NumOps
+		m.NumValues = fr.NumValues
+		m.Exprs = m.Exprs[:fr.NumExprs]
+		m.Stmts = m.Stmts[:fr.NumStmts]
+		m.Blocks = m.Blocks[:fr.NumBlocks]
+		// pop stmts
+		m.Stmts = m.Stmts[:len(m.Stmts)-depthFrames]
+	}
+
+	if depthBlocks >= len(m.Blocks) {
+		panic("should not happen, depthBlocks exeeds total blocks")
+	}
+	// pop blocks
+	m.Blocks = m.Blocks[:len(m.Blocks)-depthBlocks]
+}
+
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
 	m.NumOps = fr.NumOps
@@ -2240,7 +2291,8 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+
 		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
 		xv := m.PopValue()

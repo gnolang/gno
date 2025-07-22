@@ -20,7 +20,7 @@ func TestCreatePostSingle(cur realm, t *testing.T) {
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
-	got := Render(cur, "")
+	got := Render("")
 
 	// Content should have the text and alice's address in it
 	condition := strings.Contains(got, text1) && strings.Contains(got, aliceAddr.String())
@@ -52,7 +52,7 @@ func TestCreatePostMultiple(cur realm, t *testing.T) {
 	}
 
 	// Get the rendered page
-	got := Render(cur, "")
+	got := Render("")
 
 	// Check that all posts and their authors are present in the rendered output
 	for _, p := range posts {
