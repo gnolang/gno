@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// FileKind represent the category a gno source file falls in, can be one of:
+// FileKind represent the category a gno package file falls in, can be one of:
 //
 // - [FileKindPackageSource] -> A *.gno file that will be included in the gnovm package
 //
@@ -15,6 +15,8 @@ import (
 // - [FileKindXTest] -> A *_test.gno file with a package name ending in _test that will be used for blackbox testing
 //
 // - [FileKindFiletest] -> A *_filetest.gno file that will be used for snapshot testing
+//
+// - [FileKindOther] -> Any other file in the package, e.g.: *.toml, README.md, etc...
 type FileKind string
 
 const (
