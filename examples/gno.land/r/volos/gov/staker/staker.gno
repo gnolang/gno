@@ -13,20 +13,21 @@ package staker
 import (
 	"std"
 	"time"
+
 	"gno.land/p/demo/avl"
-	"gno.land/r/volos/vls"
-	"gno.land/r/volos/xvls"
+	"gno.land/r/volos/gov/vls"
+	"gno.land/r/volos/gov/xvls"
 )
 
 type UnstakeInfo struct {
-	Amount    int64      // Amount of VLS to be withdrawn after cooldown
-	UnlockAt  int64      // Unix timestamp when withdrawal is allowed
+	Amount    int64       // Amount of VLS to be withdrawn after cooldown
+	UnlockAt  int64       // Unix timestamp when withdrawal is allowed
 	Delegatee std.Address // Address from which xVLS was burned
 }
 
 var (
 	UnstakeLockPeriod = int64(7 * 24 * 60 * 60) // 7 days cooldown for unstaking
-	pendingUnstakes = avl.NewTree()  // staker address (string) -> []UnstakeInfo
+	pendingUnstakes   = avl.NewTree()           // staker address (string) -> []UnstakeInfo
 )
 
 // Stake locks VLS tokens from the caller and mints an equal amount of xVLS to the specified delegatee.
@@ -91,7 +92,7 @@ func WithdrawUnstaked(cur realm) {
 
 	list := infoAny.([]UnstakeInfo)
 	var (
-		remaining []UnstakeInfo
+		remaining       []UnstakeInfo
 		totalToWithdraw int64 = 0
 	)
 
@@ -115,4 +116,4 @@ func WithdrawUnstaked(cur realm) {
 	} else {
 		pendingUnstakes.Set(key, remaining)
 	}
-} 
+}

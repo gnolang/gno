@@ -11,6 +11,7 @@ package xvls
 
 import (
 	"std"
+
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/moul/authz"
 )
@@ -18,7 +19,7 @@ import (
 var (
 	StakerContract        = "gno.land/r/volos/staker"
 	StakerContractAddress = std.DerivePkgAddr(StakerContract)
-	token, ledger        = grc20.NewToken("Staked Volos Governance Token", "xVLS", 6)
+	token, ledger         = grc20.NewToken("Staked Volos Governance Token", "xVLS", 6)
 
 	Auth = authz.NewWithMembers(StakerContractAddress)
 
@@ -98,4 +99,4 @@ func TransferFrom(cur realm, from, to std.Address, amount int64) {
 // Optionally, add a Render function for explorer integration.
 func Render(path string) string {
 	return token.RenderHome()
-} 
+}

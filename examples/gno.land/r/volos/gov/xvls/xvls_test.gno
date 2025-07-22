@@ -3,8 +3,9 @@ package xvls
 import (
 	"std"
 	"testing"
-	"gno.land/p/demo/urequire"
+
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 func crossThrough(rlm std.Realm, cr func()) {
@@ -14,13 +15,13 @@ func crossThrough(rlm std.Realm, cr func()) {
 
 func TestMintAndBurnByStaker(cur realm, t *testing.T) {
 	alice := std.DerivePkgAddr("alice")
-	
+
 	crossThrough(std.NewCodeRealm(StakerContract), func() {
 		Mint(cross, alice, 1000)
 	})
 	urequire.Equal(t, int64(1000), BalanceOf(alice))
 	urequire.Equal(t, int64(1000), TotalSupply())
-	
+
 	crossThrough(std.NewCodeRealm(StakerContract), func() {
 		Burn(cross, alice, 400)
 	})
@@ -31,20 +32,20 @@ func TestMintAndBurnByStaker(cur realm, t *testing.T) {
 func TestUnauthorizedMintNoEffect(cur realm, t *testing.T) {
 	alice := std.DerivePkgAddr("alice5")
 	bob := std.DerivePkgAddr("bob5")
-	
+
 	crossThrough(std.NewCodeRealm(StakerContract), func() {
 		Mint(cross, alice, 100)
 	})
-	
+
 	urequire.Equal(t, int64(100), BalanceOf(alice))
-	urequire.Equal(t, int64(700), TotalSupply()) 
-	
+	urequire.Equal(t, int64(700), TotalSupply())
+
 	crossThrough(std.NewUserRealm(bob), func() {
 		uassert.AbortsWithMessage(t, "unauthorized", func() {
 			Mint(cross, alice, 50)
 		})
 	})
-	
+
 	urequire.Equal(t, int64(100), BalanceOf(alice))
 	urequire.Equal(t, int64(700), TotalSupply())
 }
@@ -52,20 +53,20 @@ func TestUnauthorizedMintNoEffect(cur realm, t *testing.T) {
 func TestUnauthorizedBurnNoEffect(cur realm, t *testing.T) {
 	alice := std.DerivePkgAddr("alice6")
 	bob := std.DerivePkgAddr("bob6")
-	
+
 	crossThrough(std.NewCodeRealm(StakerContract), func() {
 		Mint(cross, alice, 100)
 	})
-	
+
 	urequire.Equal(t, int64(100), BalanceOf(alice))
-	urequire.Equal(t, int64(800), TotalSupply()) 
-	
+	urequire.Equal(t, int64(800), TotalSupply())
+
 	crossThrough(std.NewUserRealm(bob), func() {
 		uassert.AbortsWithMessage(t, "unauthorized", func() {
 			Burn(cross, alice, 50)
 		})
 	})
-	
+
 	urequire.Equal(t, int64(100), BalanceOf(alice))
 	urequire.Equal(t, int64(800), TotalSupply())
 }
@@ -76,10 +77,10 @@ func TestNonTransferability(cur realm, t *testing.T) {
 	crossThrough(std.NewCodeRealm(StakerContract), func() {
 		Mint(cross, alice, 500)
 	})
-	
+
 	urequire.Equal(t, int64(500), BalanceOf(alice))
-	urequire.Equal(t, int64(1300), TotalSupply()) 
-	
+	urequire.Equal(t, int64(1300), TotalSupply())
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		uassert.AbortsWithMessage(t, "xVLS is non-transferable", func() {
 			Transfer(cross, bob, 100)
@@ -99,7 +100,7 @@ func TestVotingSupply(cur realm, t *testing.T) {
 		Mint(cross, alice, 1000)
 		Mint(cross, bob, 500)
 	})
-	
-	urequire.Equal(t, int64(2800), TotalSupply()) 
+
+	urequire.Equal(t, int64(2800), TotalSupply())
 	urequire.Equal(t, int64(2800), VotingSupply())
-} 
+}

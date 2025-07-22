@@ -6,4 +6,4 @@ import (
 
 var (
 	ErrNonTransferable = errors.New("xVLS is non-transferable")
-) 
+)

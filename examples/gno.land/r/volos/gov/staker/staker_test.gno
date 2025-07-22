@@ -3,10 +3,11 @@ package staker
 import (
 	"std"
 	"testing"
-	"gno.land/p/demo/urequire"
+
 	"gno.land/p/demo/uassert"
-	"gno.land/r/volos/vls"
-	"gno.land/r/volos/xvls"
+	"gno.land/p/demo/urequire"
+	"gno.land/r/volos/gov/vls"
+	"gno.land/r/volos/gov/xvls"
 )
 
 func crossThrough(rlm std.Realm, cr func()) {
@@ -17,10 +18,10 @@ func crossThrough(rlm std.Realm, cr func()) {
 func TestStakeToSelfAndDelegate(cur realm, t *testing.T) {
 	alice := std.DerivePkgAddr("alice")
 	bob := std.DerivePkgAddr("bob")
-	
+
 	testing.SetRealm(std.NewCodeRealm(vls.VolosDAO))
 	vls.Mint(cross, vls.VolosDAOAddress, alice, 1000)
-	
+
 	testing.SetRealm(std.NewUserRealm(alice))
 	crossThrough(std.NewUserRealm(alice), func() {
 		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/staker"), 1000)
@@ -28,7 +29,7 @@ func TestStakeToSelfAndDelegate(cur realm, t *testing.T) {
 	})
 	urequire.Equal(t, int64(400), vls.BalanceOf(alice))
 	urequire.Equal(t, int64(600), xvls.BalanceOf(alice))
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		Stake(cross, 200, bob)
 	})
@@ -39,7 +40,7 @@ func TestStakeToSelfAndDelegate(cur realm, t *testing.T) {
 
 func TestMultipleStakesAndUnstakes(cur realm, t *testing.T) {
 	alice := std.DerivePkgAddr("alice2")
-	
+
 	testing.SetRealm(std.NewCodeRealm(vls.VolosDAO))
 	vls.Mint(cross, vls.VolosDAOAddress, alice, 1000)
 	testing.SetRealm(std.NewUserRealm(alice))
@@ -50,19 +51,19 @@ func TestMultipleStakesAndUnstakes(cur realm, t *testing.T) {
 	})
 	urequire.Equal(t, int64(300), vls.BalanceOf(alice))
 	urequire.Equal(t, int64(700), xvls.BalanceOf(alice))
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		BeginUnstake(cross, 300, alice)
 		BeginUnstake(cross, 200, alice)
 	})
-	
-	testing.SkipHeights(1000000) 
+
+	testing.SkipHeights(1000000)
 	crossThrough(std.NewUserRealm(alice), func() {
 		WithdrawUnstaked(cross)
 	})
 	urequire.Equal(t, int64(800), vls.BalanceOf(alice))
 	urequire.Equal(t, int64(200), xvls.BalanceOf(alice))
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		BeginUnstake(cross, 200, alice)
 	})
@@ -81,7 +82,7 @@ func TestUnstakeAndWithdrawMultiple(cur realm, t *testing.T) {
 		BeginUnstake(cross, 200, alice)
 		BeginUnstake(cross, 300, alice)
 	})
-	
+
 	testing.SkipHeights(1000000)
 	crossThrough(std.NewUserRealm(alice), func() {
 		WithdrawUnstaked(cross)
@@ -106,7 +107,7 @@ func TestUnstakeToDelegatee(cur realm, t *testing.T) {
 		BeginUnstake(cross, 200, bob)
 	})
 	urequire.Equal(t, int64(300), xvls.BalanceOf(bob))
-	
+
 	testing.SkipHeights(1000000)
 	crossThrough(std.NewUserRealm(alice), func() {
 		WithdrawUnstaked(cross)
@@ -121,19 +122,19 @@ func TestUnstakeErrors(cur realm, t *testing.T) {
 
 	testing.SetRealm(std.NewCodeRealm(vls.VolosDAO))
 	vls.Mint(cross, vls.VolosDAOAddress, alice, 100)
-	
+
 	testing.SetRealm(std.NewUserRealm(alice))
 	crossThrough(std.NewUserRealm(alice), func() {
 		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/staker"), 100)
 		Stake(cross, 100, alice)
 	})
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		uassert.AbortsWithMessage(t, "insufficient balance", func() {
 			BeginUnstake(cross, 200, alice)
 		})
 	})
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		BeginUnstake(cross, 100, alice)
 	})
@@ -142,34 +143,34 @@ func TestUnstakeErrors(cur realm, t *testing.T) {
 			WithdrawUnstaked(cross)
 		})
 	})
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		uassert.AbortsWithMessage(t, "amount must be positive", func() {
 			Stake(cross, 0, alice)
 		})
 	})
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		uassert.AbortsWithMessage(t, "invalid delegatee address", func() {
 			Stake(cross, 10, invalid)
 		})
 	})
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		uassert.AbortsWithMessage(t, "amount must be positive", func() {
 			BeginUnstake(cross, 0, alice)
 		})
 	})
-	
+
 	crossThrough(std.NewUserRealm(alice), func() {
 		uassert.AbortsWithMessage(t, "invalid delegatee address", func() {
 			BeginUnstake(cross, 10, invalid)
 		})
 	})
-	
+
 	crossThrough(std.NewUserRealm(bob), func() {
 		uassert.AbortsWithMessage(t, "cooldown not finished", func() {
 			WithdrawUnstaked(cross)
 		})
 	})
-} 
+}

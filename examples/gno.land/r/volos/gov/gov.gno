@@ -5,7 +5,6 @@
 package gov
 
 import (
-	"std"
 	"gno.land/p/nt/commondao"
 )
 
@@ -19,4 +18,4 @@ func init() {
 		"Volos DAO",
 		"DAO for governing the Volos lending protocol on Gno.land",
 	)
-} 
+}
