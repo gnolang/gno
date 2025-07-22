@@ -82,7 +82,7 @@ func displayMembers() string {
 // dislayActiveProposals displays the active proposals of the DAO
 func displayActiveProposals() string {
 	table := mdtable.Table{
-		Headers: []string{"Address", "Title", "Description", "", "Votes"},
+		Headers: []string{"Address", "Title", "Description", "", "Votes", "Action"},
 	}
 
 	DAO.ActiveProposals().Iterate(0, DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
@@ -107,6 +107,9 @@ func displayActiveProposals() string {
 			p.Definition().Body(),
 			"Yay: " + strconv.Itoa(yay) + " / Nay: " + strconv.Itoa(nay),
 			voteYay + " | " + voteNay,
+			md.Link("Check", txlink.Call("ExecutionPassedProposals",
+				"proposalID", strconv.FormatUint(p.ID(), 10),
+			)),
 		})
 
 		return false
