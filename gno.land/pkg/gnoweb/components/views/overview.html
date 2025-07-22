@@ -1,0 +1,48 @@
+{{ define "renderOverview" }}
+<article class="code-content mt-10 mb-14 lg:col-span-10 pb-24 text-gray-900">
+  <!-- README section -->
+  {{ if .Readme }}
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold mb-2">README</h2>
+    <md-renderer class="realm-view block bg-light p-4 rounded">
+      {{ render .Readme }}
+    </md-renderer>
+  </div>
+  {{ end }}
+
+  <!-- Functions section -->
+  {{ if .Functions }}
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold mb-2">Functions</h2>
+    <ul class="space-y-4">
+      {{ range .Functions }}
+      <li id="func-{{ .Name }}" class="border-b pb-2">
+        <div class="font-mono text-lg font-semibold">func {{ .Name }}({{ range $i, $p := .Params }}{{ if $i }}, {{ end }}{{ $p.Name }} {{ $p.Type }}{{ end }}){{ if .Result }} → {{ .Result }}{{ end }}</div>
+        {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
+      </li>
+      {{ end }}
+    </ul>
+  </div>
+  {{ end }}
+
+  <!-- Files section -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold mb-2">Source Files</h2>
+    <ul>
+      {{ range .Files }}
+      <li class="border-b first:border-t">
+        <a class="py-2 flex justify-between items-center px-2 text-gray-600 line-clamp-2 hover:bg-gray-100" href="{{ $.PkgPath }}$source&file={{ . }}">
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4 shrink-0">
+              <use href="#ico-file"></use>
+            </svg>
+            {{ . }}
+          </span>
+          <span class="text-gray-300">Open</span>
+        </a>
+      </li>
+      {{ end }}
+    </ul>
+  </div>
+</article>
+{{ end }} 
