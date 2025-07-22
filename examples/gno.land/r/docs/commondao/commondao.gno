@@ -2,9 +2,12 @@ package commondao
 
 import (
 	"std"
+	"strconv"
+	"strings"
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/commondao"
 )
 
@@ -17,45 +20,43 @@ const (
 // DAO is the instance of the CommonDAO used by this realm
 var DAO *commondao.CommonDAO
 
-// CreateDao initializes a new DAO instance
-func CreateDao(title string) {
-	// Creates a DAO with Active and Finished proposal storage
-	// Also, it creates a member storage
-	// Other options can be added, all of which can be found in 'p/nt/commondao/commondao_options'
-	DAO = commondao.New(
-		commondao.WithName(title),      // adds a name to the common DAO
-		commondao.WithMember(chaegnal), // adds the creator of the DAO to its member storage
-		commondao.WithDescription("An example DAO"),
-	)
+func init() {
+	// Creation of the DAO with the given name
+	createDao("CommonDAO Documentation Realm")
+
+	// Adds two new members to the DAO
+	DAO.Members().Add(leon)
+	DAO.Members().Add(manfred)
 }
 
-func Render(_ string) string {
+func Render(url string) string {
 	out := md.H1("A CommonDao Example")
+
+	if hidden := displayHidden(url); hidden != "" {
+		out += hidden
+		return out
+	}
 
 	out += md.Paragraph("This realm is meant to demonstrate how to use the `[/p/nt/commondao](/p/nt/commondao)` pure package.")
 	out += md.Paragraph("The commondao package is meant to act as a DAO factory to use in any realms easily.")
 
 	out += md.Paragraph("In the source code, you'll find out how to create a basic DAO with where to look for more informations about more advanced options")
 
-	initDao()
+	out += displayDaoOverview()
 
-	out += md.H2("DAO Overview")
-	out += md.Bold("Title:") + " " + DAO.Name() + "\n\n"
-	out += md.Bold("Description:") + " " + DAO.Description() + "\n\n"
-
-	out += md.H3("DAO's members")
-	out += displayMembers()
 	return out
 }
 
-// initDao creates the example DAO of this realm
-func initDao() {
-	// Creation of the DAO with the given name
-	CreateDao("CommonDAO Documentation Realm")
-
-	// Adds two new members to the DAO
-	DAO.Members().Add(leon)
-	DAO.Members().Add(manfred)
+// createDao initializes a new DAO instance
+func createDao(title string) {
+	// Creates a DAO with Active and Finished proposal storage
+	// Also, it creates a member storage
+	// Other options can be added, all of which can be found in 'p/nt/commondao/commondao_options'
+	DAO = commondao.New(
+		commondao.WithName(title),                   // adds a name to the common DAO
+		commondao.WithMember(chaegnal),              // adds the creator of the DAO to its member storage
+		commondao.WithDescription("An example DAO"), // adds a description to the common DAO
+	)
 }
 
 func displayMembers() string {
@@ -64,10 +65,95 @@ func displayMembers() string {
 	}
 
 	members := DAO.Members()
-	members.IterateByOffset(0, members.Size(), func(adr std.Address) bool {
-		table.Append([]string{adr.String()})
+
+	// Iterates through the members of the DAO and adds them to the table
+	if members.Size() == 0 {
+		return md.Paragraph("The DAO has no members yet.")
+	} else {
+		members.IterateByOffset(0, members.Size(), func(adr std.Address) bool {
+			table.Append([]string{adr.String()})
+			return false
+		})
+	}
+
+	return table.String()
+}
+
+// dislayActiveProposals displays the active proposals of the DAO
+func displayActiveProposals() string {
+	table := mdtable.Table{
+		Headers: []string{"Address", "Title", "Description", "", "Votes"},
+	}
+
+	DAO.ActiveProposals().Iterate(0, DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
+		yay := p.VotingRecord().VoteCount(commondao.ChoiceYes)
+		nay := p.VotingRecord().VoteCount(commondao.ChoiceNo)
+
+		voteYay := md.Link("Yay", txlink.Call("Vote",
+			"vote", "true",
+			"proposalID", strconv.FormatUint(p.ID(), 10),
+			"reason", "default",
+		))
+
+		voteNay := md.Link("Nay", txlink.Call("Vote",
+			"vote", "false",
+			"proposalID", strconv.FormatUint(p.ID(), 10),
+			"reason", "default",
+		))
+
+		table.Append([]string{
+			p.Creator().String(),
+			p.Definition().Title(),
+			p.Definition().Body(),
+			"Yay: " + strconv.Itoa(yay) + " / Nay: " + strconv.Itoa(nay),
+			voteYay + " | " + voteNay,
+		})
+
 		return false
 	})
 
 	return table.String()
+}
+
+// displayDaoOverview displays the overview of the DAO
+func displayDaoOverview() string {
+	out := md.H2("DAO Overview")
+	out += md.Bold("Title:") + " " + DAO.Name() + "\n\n"
+	out += md.Bold("Description:") + " " + DAO.Description() + "\n\n"
+
+	out += md.H3("DAO's members")
+	out += displayMembers()
+
+	out += md.H3("DAO's Active Proposals")
+	if DAO.ActiveProposals().Size() == 0 {
+		out += md.Paragraph("The DAO has no active proposals.")
+	} else {
+		out += displayActiveProposals()
+	}
+
+	return out
+}
+
+// displayHidden checks if the URL contains the hidden parameter and displays a message if it does
+func displayHidden(url string) string {
+	if parseHidden(url) {
+		out := md.H2("You found the secret of this realm!")
+
+		out += md.Paragraph("Welld done on reading the documentation of the CommonDAO package!")
+		out += md.Paragraph("You can request to joins the DAO by clicking the button below:")
+		out += md.Link("Request to join the DAO", txlink.Call("CreateProposal",
+			"title", "Join the DAO",
+			"desc", "I want to join the DAO as a member.",
+		))
+
+		return out
+	}
+	return ""
+}
+
+// Check if the URL contains the hidden parameter
+func parseHidden(url string) bool {
+	parts := strings.SplitAfter(url, ":")
+
+	return parts[0] == "join"
 }
