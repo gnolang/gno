@@ -5,13 +5,13 @@ setting variables or storing objects), users must lock GNOT tokens as a storage
 deposit. This ensures efficient, accountable use of on-chain storage.
 
 Storage costs are settled per message, and tokens are locked or refunded
-depending on the net change in data usage.
+depending on the net change in data usage. Note: Gas fees are not refunded.
 
 ### What is a Storage Deposit?
 
 A storage deposit is an amount of GNOT locked to pay for the storage space your
 data occupies on-chain. The system calculates and deducts this amount after each
-message (e.g., `MsgCall`, `MsgRun`, `AddPkg`). Note: Gas fees are not refunded.
+message (e.g., `MsgCall`, `MsgRun`, `AddPkg`).
 
 Storing data → GNOT locked
 Deleting data → GNOT refunded
