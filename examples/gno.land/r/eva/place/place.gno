@@ -128,7 +128,7 @@ func displayColorList(query url.Values, req *realmpath.Request) string {
 		squareSvg, err := generateSquareSvg(color.rgb)
 
 		if err == nil {
-			out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", squareSvg) + "\n\n" // I would have liked using md.Link here but doing so replaces the svg image with its link
+			out += ufmt.Sprintf("[!["+color.initial+`](data:image/svg+xml;base64,%s)](`+req.String()+")", squareSvg) + " " // I would have liked using md.Link here but doing so replaces the svg image with its link
 		}
 	}
 	return out
