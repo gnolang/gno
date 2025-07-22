@@ -133,14 +133,12 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 		return nil, fmt.Errorf("recursive pattern root %q is not a directory", patternRoot)
 	}
 
-	// we swallow errors after this point as we want the most packages we can get
-
 	pkgDirs := []string{}
-	_ = fs.WalkDir(os.DirFS(patternRoot), ".", func(path string, d fs.DirEntry, err error) error {
-		// only consider valid files
+	if err := fs.WalkDir(os.DirFS(patternRoot), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return err
 		}
+
 		if d.IsDir() {
 			return nil
 		}
@@ -170,7 +168,9 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 		// XXX: include directories with .gno files and automatically derive pkgpath from gnowork.toml paths
 
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	return pkgDirs, nil
 }
