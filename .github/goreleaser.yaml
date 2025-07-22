@@ -68,7 +68,7 @@ builds:
       - amd64
       - arm64
   - id: gnodev
-    dir: ./contribs/gnodev/cmd/gnodev
+    dir: ./contribs/gnodev
     binary: gnodev
     ldflags:
       # using hardcoded ldflag
@@ -84,7 +84,7 @@ builds:
   # Gno Contribs
   # NOTE: Contribs binary will be added in a single docker image below: gnocontribs
   - id: gnobro
-    dir: ./contribs/gnodev/cmd/gnobro
+    dir: ./contribs/gnobro
     binary: gnobro
     env:
       - CGO_ENABLED=0
