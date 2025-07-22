@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gno.land/r/leon/hor"
 )
 
 // This Color struct will store colors
@@ -53,6 +55,8 @@ var (
 )
 
 func init() {
+	hor.Register(cross, "R/place", "")
+
 	setDefaultAdmin(chaeWallet)
 	setDefaultAdmin(ghhvWallet)
 	setDefaultAdmin(louWallet)
