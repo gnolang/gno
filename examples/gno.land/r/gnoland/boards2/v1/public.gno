@@ -105,7 +105,9 @@ func GetBoardIDFromName(_ realm, name string) (_ BoardID, found bool) {
 // CreateBoard creates a new board.
 //
 // Listed boards are included in the list of boards.
-// Board name must be 3 to 50 characters and contain only alphanumeric, `_` or `-` characters. Board name must start with an alphabetical character. Board name can contain uppercase and lowercase characters.
+// Board name must be 3 to 50 characters and contain only alphanumeric, `_` or `-` characters.
+// Board name must start with an alphabetical character.
+// Board name can contain uppercase and lowercase characters.
 func CreateBoard(_ realm, name string, listed bool) BoardID {
 	assertRealmIsNotLocked()
 
