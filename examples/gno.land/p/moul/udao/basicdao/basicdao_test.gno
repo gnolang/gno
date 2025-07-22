@@ -274,3 +274,198 @@ func TestPropListSlicing(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckConstraints(t *testing.T) {
+	// Test valid proposal definition
+	validDef := BasicPropDefinition{
+		title:    "Valid Proposal",
+		body:     "This is a valid proposal with content",
+		created:  time.Now(),
+		finished: time.Now().Add(24 * time.Hour),
+	}
+	
+	valid, reasons := validDef.CheckConstraints()
+	if !valid {
+		t.Errorf("expected valid proposal to pass constraints, but got reasons: %v", reasons)
+	}
+	if len(reasons) != 0 {
+		t.Errorf("expected no reasons for valid proposal, got %d reasons", len(reasons))
+	}
+	
+	// Test empty title
+	emptyTitleDef := BasicPropDefinition{
+		title:    "",
+		body:     "This has no title",
+		created:  time.Now(),
+		finished: time.Now().Add(24 * time.Hour),
+	}
+	
+	valid, reasons = emptyTitleDef.CheckConstraints()
+	if valid {
+		t.Error("expected proposal with empty title to be invalid")
+	}
+	if len(reasons) == 0 {
+		t.Error("expected reasons for invalid proposal")
+	}
+	found := false
+	for _, reason := range reasons {
+		if reason == "title cannot be empty" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'title cannot be empty' in reasons")
+	}
+	
+	// Test empty body
+	emptyBodyDef := BasicPropDefinition{
+		title:    "Valid Title",
+		body:     "",
+		created:  time.Now(),
+		finished: time.Now().Add(24 * time.Hour),
+	}
+	
+	valid, reasons = emptyBodyDef.CheckConstraints()
+	if valid {
+		t.Error("expected proposal with empty body to be invalid")
+	}
+	found = false
+	for _, reason := range reasons {
+		if reason == "body cannot be empty" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'body cannot be empty' in reasons")
+	}
+	
+	// Test invalid time order
+	invalidTimeDef := BasicPropDefinition{
+		title:    "Invalid Time",
+		body:     "This has invalid time order",
+		created:  time.Now(),
+		finished: time.Now().Add(-24 * time.Hour), // finished before created
+	}
+	
+	valid, reasons = invalidTimeDef.CheckConstraints()
+	if valid {
+		t.Error("expected proposal with invalid time order to be invalid")
+	}
+	found = false
+	for _, reason := range reasons {
+		if reason == "finished time cannot be before created time" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'finished time cannot be before created time' in reasons")
+	}
+	
+	// Test multiple invalid constraints
+	multiInvalidDef := BasicPropDefinition{
+		title:    "",
+		body:     "",
+		created:  time.Now(),
+		finished: time.Now().Add(-24 * time.Hour),
+	}
+	
+	valid, reasons = multiInvalidDef.CheckConstraints()
+	if valid {
+		t.Error("expected proposal with multiple invalid constraints to be invalid")
+	}
+	if len(reasons) != 3 {
+		t.Errorf("expected 3 constraint violations, got %d", len(reasons))
+	}
+}
+
+func TestHelperConstructors(t *testing.T) {
+	// Test NewBasicPropDefinition
+	now := time.Now()
+	later := now.Add(48 * time.Hour)
+	
+	def := NewBasicPropDefinition("Test Title", "Test Body", now, later)
+	if def.Title() != "Test Title" {
+		t.Errorf("expected title 'Test Title', got '%s'", def.Title())
+	}
+	if def.Body() != "Test Body" {
+		t.Errorf("expected body 'Test Body', got '%s'", def.Body())
+	}
+	if !def.Created().Equal(now) {
+		t.Errorf("expected created time %v, got %v", now, def.Created())
+	}
+	if !def.Finished().Equal(later) {
+		t.Errorf("expected finished time %v, got %v", later, def.Finished())
+	}
+	
+	valid, reasons := def.CheckConstraints()
+	if !valid {
+		t.Errorf("expected valid proposal, got reasons: %v", reasons)
+	}
+	
+	// Test NewSimpleProposal
+	beforeCreation := time.Now()
+	simpleDef := NewSimpleProposal("Simple Title", "Simple Body")
+	afterCreation := time.Now()
+	
+	if simpleDef.Title() != "Simple Title" {
+		t.Errorf("expected title 'Simple Title', got '%s'", simpleDef.Title())
+	}
+	if simpleDef.Body() != "Simple Body" {
+		t.Errorf("expected body 'Simple Body', got '%s'", simpleDef.Body())
+	}
+	
+	// Check that created time is within reasonable bounds
+	if simpleDef.Created().Before(beforeCreation) || simpleDef.Created().After(afterCreation) {
+		t.Errorf("created time %v not within expected range %v to %v", 
+			simpleDef.Created(), beforeCreation, afterCreation)
+	}
+	
+	// Check that finished time is approximately 24 hours after created
+	expectedFinished := simpleDef.Created().Add(24 * time.Hour)
+	timeDiff := simpleDef.Finished().Sub(expectedFinished)
+	if timeDiff < 0 {
+		timeDiff = -timeDiff
+	}
+	if timeDiff > time.Second {
+		t.Errorf("finished time %v not approximately 24 hours after created %v", 
+			simpleDef.Finished(), simpleDef.Created())
+	}
+	
+	valid, reasons = simpleDef.CheckConstraints()
+	if !valid {
+		t.Errorf("expected valid simple proposal, got reasons: %v", reasons)
+	}
+}
+
+func TestBasicDAOWithHelpers(t *testing.T) {
+	dao := NewBasicDAO()
+	
+	// Use helper to create a simple proposal
+	def := NewSimpleProposal("Helper Test", "Testing helper functions")
+	
+	prop, err := dao.Propose(def)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	
+	if prop.ID() != 1 {
+		t.Errorf("expected ID=1, got %d", prop.ID())
+	}
+	
+	if prop.Definition().Title() != "Helper Test" {
+		t.Errorf("expected title 'Helper Test', got '%s'", prop.Definition().Title())
+	}
+	
+	if prop.Definition().Body() != "Testing helper functions" {
+		t.Errorf("expected body 'Testing helper functions', got '%s'", prop.Definition().Body())
+	}
+	
+	// Verify the proposal passes constraints
+	valid, reasons := prop.Definition().CheckConstraints()
+	if !valid {
+		t.Errorf("expected valid proposal, got reasons: %v", reasons)
+	}
+}

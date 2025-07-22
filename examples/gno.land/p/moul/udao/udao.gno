@@ -1,3 +1,37 @@
+// Package udao provides composable interfaces for DAO (Decentralized Autonomous Organization) implementations.
+//
+// The package focuses on proposal management with minimal, composable interfaces that allow:
+// 1. Composable DAOs where proposals can draw voting power from multiple DAO sources
+// 2. Interchain compatibility by focusing on top-level metrics rather than internal details
+// 3. Rich feature implementations while maintaining a minimal common interface
+//
+// Core Interfaces:
+//
+// DAO: The main interface for proposal management including creation, retrieval, and execution
+//
+// PropDefinition: Defines the content and constraints of a proposal
+//
+// Proposal: Represents a complete proposal with ID, definition, state, and voting percentages
+//
+// PropList: Read-only interface for accessing collections of proposals
+//
+// Example Usage:
+//
+// A basic implementation is provided in the basicdao subpackage:
+//
+//	dao := basicdao.NewBasicDAO()
+//	proposal := basicdao.NewSimpleProposal("My Proposal", "Proposal description")
+//	prop, err := dao.Propose(proposal)
+//	if err != nil {
+//		// handle error
+//	}
+//	
+//	// Check voting status
+//	println("Yea:", prop.GetYeaPercentage())
+//	println("State:", prop.GetState())
+//
+// The interfaces are designed to be composable, allowing multiple DAO implementations
+// to coexist and interact while maintaining their own internal voting mechanisms.
 package udao
 
 import "time"
