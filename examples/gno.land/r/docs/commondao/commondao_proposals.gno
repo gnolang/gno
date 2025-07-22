@@ -44,7 +44,7 @@ func (c *Proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet
 }
 
 // Execute will execute what you decide once the proposal is considered passed
-func (p *Proposal) Execute() error {
+func (p *Proposal) Execute(cur realm) error {
 	return JoinDao(cross, p.CallerProp) //When the proposal is passed the creator of the proposal joins the DAO
 }
 
@@ -81,7 +81,7 @@ func Vote(cur realm, vote bool, proposalID uint64, reason string) {
 	}
 
 	DAO.Vote(caller, proposalID, choice, reason) // logs in the user's voting choice on a specified proposal
-	ExecutionPassedProposals()
+	ExecutionPassedProposals(cross)
 }
 
 // ExecutionPassedProposals finalizes a proposal if it passes voting criteria
@@ -91,7 +91,7 @@ func Vote(cur realm, vote bool, proposalID uint64, reason string) {
 // - Tallies the votes using the Tally() method
 // - If passed, executes the associated Execute() logic
 // - Updates the proposal's status and  moves it out of Active Proposal if necessary
-func ExecutionPassedProposals() {
+func ExecutionPassedProposals(cur realm) {
 	DAO.ActiveProposals().Iterate(0, DAO.ActiveProposals().Size(), false, func(p *commondao.Proposal) bool {
 		if time.Now().After(p.VotingDeadline()) {
 			_ = DAO.Execute(p.ID())
