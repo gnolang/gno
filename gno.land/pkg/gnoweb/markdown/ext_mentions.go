@@ -56,6 +56,27 @@ func isValidEmailBoundary(text []byte, start int) bool {
 		(prev >= '0' && prev <= '9') || prev == '_' || prev == '-' || prev == '.')
 }
 
+// isInsideMarkdownLink checks if the current position is inside a Markdown link
+func isInsideMarkdownLink(source []byte, pos int) bool {
+	for i := pos - 1; i >= 0; i-- {
+		if source[i] == '\n' {
+			return false
+		}
+		if source[i] == '[' {
+			for j := pos; j < len(source); j++ {
+				if source[j] == '\n' {
+					return false
+				}
+				if source[j] == ']' && j+1 < len(source) && source[j+1] == '(' {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return false
+}
+
 // findG1Address finds a valid g1 address in the given text starting at the specified position
 func getG1Address(text []byte, startPos int) (string, int, bool) {
 	if len(text) < startPos+2 || text[startPos] != 'g' || text[startPos+1] != '1' {
@@ -162,6 +183,11 @@ func (p *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Cont
 
 	// Handle @ mentions
 	if line[0] == '@' {
+		// Check if we're inside a Markdown link
+		if isInsideMarkdownLink(block.Source(), seg.Start) {
+			return nil
+		}
+
 		// Check email boundary
 		if !isValidEmailBoundary(block.Source(), seg.Start) {
 			return nil
