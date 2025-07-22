@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/urequire"
 	"gno.land/r/volos/gov/vls"
 	"gno.land/r/volos/gov/xvls"
+	"gno.land/r/volos/gov/governance"
 )
 
 func crossThrough(rlm std.Realm, cr func()) {
@@ -24,7 +25,7 @@ func TestStakeToSelfAndDelegate(cur realm, t *testing.T) {
 
 	testing.SetRealm(std.NewUserRealm(alice))
 	crossThrough(std.NewUserRealm(alice), func() {
-		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/staker"), 1000)
+		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/gov/staker"), 1000)
 		Stake(cross, 600, alice)
 	})
 	urequire.Equal(t, int64(400), vls.BalanceOf(alice))
@@ -45,7 +46,7 @@ func TestMultipleStakesAndUnstakes(cur realm, t *testing.T) {
 	vls.Mint(cross, vls.VolosDAOAddress, alice, 1000)
 	testing.SetRealm(std.NewUserRealm(alice))
 	crossThrough(std.NewUserRealm(alice), func() {
-		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/staker"), 1000)
+		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/gov/staker"), 1000)
 		Stake(cross, 500, alice)
 		Stake(cross, 200, alice)
 	})
@@ -76,7 +77,7 @@ func TestUnstakeAndWithdrawMultiple(cur realm, t *testing.T) {
 	vls.Mint(cross, vls.VolosDAOAddress, alice, 1000)
 	testing.SetRealm(std.NewUserRealm(alice))
 	crossThrough(std.NewUserRealm(alice), func() {
-		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/staker"), 1000)
+		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/gov/staker"), 1000)
 		Stake(cross, 400, alice)
 		Stake(cross, 300, alice)
 		BeginUnstake(cross, 200, alice)
@@ -97,7 +98,7 @@ func TestUnstakeToDelegatee(cur realm, t *testing.T) {
 	testing.SetRealm(std.NewCodeRealm(vls.VolosDAO))
 	vls.Mint(cross, vls.VolosDAOAddress, alice, 1000)
 	testing.SetRealm(std.NewUserRealm(alice))
-	vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/staker"), 1000)
+	vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/gov/staker"), 1000)
 	crossThrough(std.NewUserRealm(alice), func() {
 		Stake(cross, 500, bob)
 	})
@@ -125,7 +126,7 @@ func TestUnstakeErrors(cur realm, t *testing.T) {
 
 	testing.SetRealm(std.NewUserRealm(alice))
 	crossThrough(std.NewUserRealm(alice), func() {
-		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/staker"), 100)
+		vls.Approve(cross, std.DerivePkgAddr("gno.land/r/volos/gov/staker"), 100)
 		Stake(cross, 100, alice)
 	})
 
@@ -173,4 +174,34 @@ func TestUnstakeErrors(cur realm, t *testing.T) {
 			WithdrawUnstaked(cross)
 		})
 	})
+}
+
+func TestStaker_GovernanceMembershipIntegration(cur realm, t *testing.T) {
+	staker := std.DerivePkgAddr("gno.land/r/volos/gov/staker")
+	alice := std.DerivePkgAddr("alice_gov")
+
+	testing.SetRealm(std.NewCodeRealm(vls.VolosDAO))
+	vls.Mint(cross, vls.VolosDAOAddress, alice, 1000)
+
+	testing.SetRealm(std.NewUserRealm(alice))
+	crossThrough(std.NewUserRealm(alice), func() {
+		vls.Approve(cross, staker, 1000)
+		Stake(cross, 600, alice)
+	})
+	urequire.True(t, governance.MemberSet().Has(alice))
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		BeginUnstake(cross, 200, alice)
+	})
+	urequire.True(t, governance.MemberSet().Has(alice))
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		BeginUnstake(cross, 400, alice)
+	})
+	urequire.False(t, governance.MemberSet().Has(alice))
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		Stake(cross, 100, alice)
+	})
+	urequire.True(t, governance.MemberSet().Has(alice))
 }

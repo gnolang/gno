@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	StakerContract        = "gno.land/r/volos/staker"
+	StakerContract        = "gno.land/r/volos/gov/staker"
 	StakerContractAddress = std.DerivePkgAddr(StakerContract)
 	token, ledger         = grc20.NewToken("Staked Volos Governance Token", "xVLS", 6)
 

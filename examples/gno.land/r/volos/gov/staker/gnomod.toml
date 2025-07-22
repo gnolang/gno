@@ -1,2 +1,2 @@
-module = "gno.land/r/volos/staker"
+module = "gno.land/r/volos/gov/staker"
 gno = "0.9"

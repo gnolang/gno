@@ -17,6 +17,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/r/volos/gov/vls"
 	"gno.land/r/volos/gov/xvls"
+	"gno.land/r/volos/gov/governance"
 )
 
 type UnstakeInfo struct {
@@ -44,6 +45,7 @@ func Stake(cur realm, amount int64, delegatee std.Address) {
 
 	vls.TransferFrom(cross, caller, std.CurrentRealm().Address(), amount)
 	xvls.Mint(cross, delegatee, amount)
+	governance.AddMember(cross, delegatee)
 }
 
 // BeginUnstake burns xVLS from the delegatee and starts a cooldown period for the original staker.
@@ -64,6 +66,9 @@ func BeginUnstake(cur realm, amount int64, delegatee std.Address) {
 	}
 
 	xvls.Burn(cross, delegatee, amount)
+	if xvls.BalanceOf(delegatee) == 0 {
+		governance.RemoveMember(cross, delegatee)
+	}
 	key := caller.String()
 	var list []UnstakeInfo
 	if existing, ok := pendingUnstakes.Get(key); ok {
