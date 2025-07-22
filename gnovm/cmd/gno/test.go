@@ -254,6 +254,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}
 
 		// Relativize and prepend dot to pkg dir if possible
+		// We ignore errors since it's a cosmetic thing
 		// XXX: use pkg import path instead of this when printing if possible
 		prettyDir := pkg.Dir
 		if filepath.IsAbs(pkg.Dir) {
