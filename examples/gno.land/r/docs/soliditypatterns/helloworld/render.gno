@@ -44,7 +44,7 @@ package helloworld
 
 var message string = "Hello, World!"
 
-func SetMessage(_ realm, newMessage string) {
+func SetMessage(cur realm, newMessage string) {
     message = newMessage
 }
 ^^^
@@ -56,7 +56,7 @@ This Gno version achieves the same behavior, but with different design principle
 * There's no automatic getter for ^message^. If you want users to be able to read the message from outside, you have to **manually write a ^GetMessage()^ function** like so:
 
 ^^^go
-func GetMessage(_ realm) string {
+func GetMessage(cur realm) string {
     return message
 }
 ^^^
@@ -81,5 +81,5 @@ func GetMessage(_ realm) string {
 This HelloWorld contract is a perfect starting point. As we explore more complex examples, we'll introduce additional concepts like mappings, modifiers, and events: and see how to express each of them idiomatically in Gno.
 
 `
-	return strings.ReplaceAll(content, "^", "`")
+	return strings.ReplaceAll(content+RenderDemo(), "^", "`")
 }

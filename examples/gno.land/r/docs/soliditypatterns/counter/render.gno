@@ -46,11 +46,11 @@ package counter
 
 var count int64 = 0
 
-func Increment() {
+func Increment(cur realm) {
     count++
 }
 
-func Decrement() {
+func Decrement(cur realm) {
     count--
 }
 ^^^
@@ -65,7 +65,7 @@ Here's how we express the same logic in Gno:
 * Just like in the HelloWorld example, **if we want to allow external access to read the current value**, we must add a manual getter:
 
 ^^^go
-func GetCount() int64 {
+func GetCount(cur realm) int64 {
     return count
 }
 ^^^
@@ -94,5 +94,5 @@ func GetCount() int64 {
 This counter example adds another important concept to our toolbox: arithmetic operations and type handling. As we continue, we'll explore more complex contract patterns like access control, mappings, and enums: and how Gno handles them with its minimalistic, Go-like approach.
 
 `
-	return strings.ReplaceAll(content, "^", "`")
+	return strings.ReplaceAll(content+RenderDemo(), "^", "`")
 }
