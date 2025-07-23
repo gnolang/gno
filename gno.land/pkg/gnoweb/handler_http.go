@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -449,6 +450,35 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 		}
 	}
 
+	// Render package documentation from markdown to HTML
+	var packageDocHTML string
+	if jdoc.PackageDoc != "" {
+		var buf bytes.Buffer
+		// Unescape the markdown text to handle escaped backticks
+		unescapedDoc := markdown.UnescapeMarkdown(jdoc.PackageDoc)
+		if _, err := h.Renderer.RenderRealm(&buf, gnourl, []byte(unescapedDoc)); err != nil {
+			h.Logger.Warn("unable to render package doc markdown", "error", err)
+			packageDocHTML = jdoc.PackageDoc // fallback to raw markdown
+		} else {
+			packageDocHTML = buf.String()
+		}
+	}
+
+	// Render function documentation from markdown to HTML
+	for _, fn := range fsigs {
+		if fn.Doc != "" {
+			var buf bytes.Buffer
+			// Unescape the markdown text to handle escaped backticks
+			unescapedDoc := markdown.UnescapeMarkdown(fn.Doc)
+			if _, err := h.Renderer.RenderRealm(&buf, gnourl, []byte(unescapedDoc)); err != nil {
+				h.Logger.Warn("unable to render function doc markdown", "function", fn.Name, "error", err)
+				// Keep the original markdown if rendering fails
+			} else {
+				fn.Doc = buf.String()
+			}
+		}
+	}
+
 	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
@@ -460,7 +490,7 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
-		Doc:       jdoc.PackageDoc,
+		Doc:       packageDocHTML,
 	})
 }
 

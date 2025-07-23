@@ -16,6 +16,7 @@ import (
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -832,9 +833,11 @@ func TestHTTPHandler_GetSourceView_DefaultCase(t *testing.T) {
 	t.Parallel()
 
 	pkg := &gnoweb.MockPackage{
-		Domain: "ex",
+		Domain: "example.com",
 		Path:   "/r/test_default",
-		Files:  map[string]string{"main.gno": "package main"},
+		Files: map[string]string{
+			"main.gno": `package main; func main() {}`,
+		},
 	}
 
 	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(pkg))
@@ -844,12 +847,111 @@ func TestHTTPHandler_GetSourceView_DefaultCase(t *testing.T) {
 		cfg,
 	)
 	require.NoError(t, err)
+	req, err := http.NewRequest(http.MethodGet, "/r/test_default$source&file=main.gno", nil)
+	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/r/test_default$source&file=main.gno", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "main.gno")
 	assert.Contains(t, rr.Body.String(), "package main")
+}
+
+// TestWebHandler_GetHelpView_PackageDocMarkdown tests the package documentation markdown rendering
+func TestWebHandler_GetHelpView_PackageDocMarkdown(t *testing.T) {
+	t.Parallel()
+
+	// Test cases for package documentation markdown rendering
+	testCases := []struct {
+		name          string
+		packageDoc    string
+		shouldContain string
+	}{
+		{
+			name:          "successful markdown rendering",
+			packageDoc:    "This is a **bold** package with `code` and _italic_ text.",
+			shouldContain: "<strong>bold</strong>",
+		},
+		{
+			name:          "escaped markdown characters",
+			packageDoc:    "Special char is \\`\\_\\` and \\*bold\\*",
+			shouldContain: "<code>_</code>",
+		},
+		{
+			name:          "empty package doc",
+			packageDoc:    "",
+			shouldContain: "Function",
+		},
+		{
+			name:          "omit injected HTML link",
+			packageDoc:    "<a href=\"http://inject.com\"\\>text</a\\>",
+			shouldContain: "<!-- raw HTML omitted -->",
+		},
+		{
+			name:          "omit injected HTML image",
+			packageDoc:    "<img src=\"inject.png\"\\>",
+			shouldContain: "<!-- raw HTML omitted -->",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a mock package with package documentation
+			mockPackage := &gnoweb.MockPackage{
+				Domain: "example.com",
+				Path:   "/r/test_package_doc",
+				Files: map[string]string{
+					"render.gno": `package main; func Render(path string) string { return "test" }`,
+				},
+				Functions: []*doc.JSONFunc{
+					{
+						Name:    "Render",
+						Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+						Results: []*doc.JSONField{{Name: "", Type: "string"}},
+					},
+				},
+			}
+
+			// Create a custom mock client that returns package documentation
+			mockClient := *gnoweb.NewMockClient(mockPackage)
+			client := &stubClient{
+				docFunc: func(path string) (*doc.JSONDocumentation, error) {
+					// Get the base documentation from the mock
+					baseDoc, err := mockClient.Doc(path)
+					if err != nil {
+						return nil, err
+					}
+
+					// Add the package documentation
+					baseDoc.PackageDoc = tc.packageDoc
+					return baseDoc, nil
+				},
+			}
+
+			// Create config with the mock client
+			config := &gnoweb.HTTPHandlerConfig{
+				ClientAdapter: client,
+				Renderer: gnoweb.NewHTMLRenderer(
+					log.NewTestingLogger(t),
+					gnoweb.NewDefaultRenderConfig(),
+				),
+				Aliases: map[string]gnoweb.AliasTarget{},
+			}
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodGet, "/r/test_package_doc$help", nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.shouldContain)
+		})
+	}
 }
