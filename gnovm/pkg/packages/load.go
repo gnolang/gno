@@ -236,6 +236,8 @@ func discoverPkgsForLocalDeps(roots []string) map[string]string {
 	byDir := make(map[string]string)
 
 	for _, root := range roots {
+		root = filepath.Clean(root)
+
 		_ = fs.WalkDir(os.DirFS(root), ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return nil
