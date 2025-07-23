@@ -19,15 +19,14 @@ import (
 	"strings"
 )
 
-
-//	Pubkey2Address format gpub1.....
-//	Currently supported key formats are:
-//	- PubKeySecp256k1
-//	- PubKeyEd25519
+// Pubkey2Address format gpub1.....
+// Currently supported key formats are:
+// - PubKeySecp256k1
+// - PubKeyEd25519
 //
-//	the code to obtain bech32 address from the publicKey bytes can be seen here:
-//	https://github.com/gnolang/gno/blob/34ba1efdb4fe0e23183a3524ff306a0429de9928/tm2/pkg/crypto/secp256k1/secp256k1.go#L122-L130
-//	https://github.com/gnolang/gno/blob/34ba1efdb4fe0e23183a3524ff306a0429de9928/tm2/pkg/crypto/ed25519/ed25519.go#L121-L123
+// the code to obtain bech32 address from the publicKey bytes can be seen here:
+// https://github.com/gnolang/gno/blob/34ba1efdb4fe0e23183a3524ff306a0429de9928/tm2/pkg/crypto/secp256k1/secp256k1.go#L122-L130
+// https://github.com/gnolang/gno/blob/34ba1efdb4fe0e23183a3524ff306a0429de9928/tm2/pkg/crypto/ed25519/ed25519.go#L121-L123
 func Pubkey2Address(publicKey string) (std.Address, error) {
 	_, bz, err := std.DecodeBech32(publicKey)
 	if err != nil {
