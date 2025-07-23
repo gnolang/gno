@@ -23,10 +23,8 @@ import (
 
 type Machine struct {
 	// State
-	Ops           []Op // main operations
-	NumOps        int
+	Ops           []Op          // main operations
 	Values        []TypedValue  // buffer of values to be operated on
-	NumValues     int           // number of values
 	Exprs         []Expr        // pending expressions
 	Stmts         []Stmt        // pending statements
 	Blocks        []*Block      // block (scope) stack
@@ -83,6 +81,13 @@ type MachineOptions struct {
 	SkipPackage   bool // don't get/set package or realm.
 }
 
+const (
+	startingOpsCap = 1024
+	// sizeof(TypedValue) is 40 at time of writing; this ensures that the values
+	// slice occupies 1000 bytes by default.
+	startingValuesCap = 25
+)
+
 // the machine constructor gets spammed
 // this causes a significant part of the runtime and memory
 // to be occupied by *Machine
@@ -90,8 +95,8 @@ type MachineOptions struct {
 var machinePool = sync.Pool{
 	New: func() any {
 		return &Machine{
-			Ops:    make([]Op, VMSliceSize),
-			Values: make([]TypedValue, VMSliceSize),
+			Ops:    make([]Op, 0, startingOpsCap),
+			Values: make([]TypedValue, 0, startingValuesCap),
 		}
 	},
 }
@@ -150,27 +155,15 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	return mm
 }
 
-const (
-	VMSliceSize = 1024
-)
-
-var (
-	opZeroed    [VMSliceSize]Op
-	valueZeroed [VMSliceSize]TypedValue
-)
-
 // Release resets some of the values of *Machine and puts back m into the
 // machine pool; for this reason, Release() should be called as a finalizer,
 // and m should not be used after this call. Only Machines initialized with this
 // package's constructors should be released.
 func (m *Machine) Release() {
 	// here we zero in the values for the next user
-	m.NumOps = 0
-	m.NumValues = 0
-
-	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
-	copy(ops, opZeroed[:])
-	copy(values, valueZeroed[:])
+	ops, values := m.Ops[:0:startingOpsCap], m.Values[:0:startingValuesCap]
+	clear(ops[:startingOpsCap])
+	clear(values[:startingValuesCap])
 	*m = Machine{Ops: ops, Values: values}
 
 	machinePool.Put(m)
@@ -824,7 +817,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	// Preprocess x.
 	x = Preprocess(m.Store, last, x).(Expr)
 	// Evaluate x.
-	start := m.NumValues
+	start := len(m.Values)
 	m.PushOp(OpHalt)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
@@ -849,7 +842,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
 	// Evaluate x.
-	start := m.NumValues
+	start := len(m.Values)
 	m.PushOp(OpHalt)
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
@@ -880,7 +873,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
 	// Evaluate x.
-	start := m.NumValues
+	start := len(m.Values)
 	m.PushOp(OpHalt)
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
@@ -1613,36 +1606,28 @@ func (m *Machine) PushOp(op Op) {
 	if debug {
 		m.Printf("+o %v\n", op)
 	}
-	if len(m.Ops) == m.NumOps {
-		// TODO tune. also see PushValue().
-		newOps := make([]Op, len(m.Ops)*2)
-		copy(newOps, m.Ops)
-		m.Ops = newOps
-	}
 
-	m.Ops[m.NumOps] = op
-	m.NumOps++
+	m.Ops = append(m.Ops, op)
 }
 
 func (m *Machine) PopOp() Op {
-	numOps := m.NumOps
-	op := m.Ops[numOps-1]
+	op := m.Ops[len(m.Ops)-1]
 	if debug {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
 		// do not pop persistent op types.
 	} else {
-		m.NumOps--
+		m.Ops = m.Ops[:len(m.Ops)-1]
 	}
 	return op
 }
 
 func (m *Machine) ForcePopOp() {
 	if debug {
-		m.Printf("-o! %v\n", m.Ops[m.NumOps-1])
+		m.Printf("-o! %v\n", m.Ops[len(m.Ops)-1])
 	}
-	m.NumOps--
+	m.Ops = m.Ops[:len(m.Ops)-1]
 }
 
 // Offset starts at 1.
@@ -1732,18 +1717,18 @@ func (m *Machine) PopExpr() Expr {
 
 // Returns reference to value in Values stack.  Offset starts at 1.
 func (m *Machine) PeekValue(offset int) *TypedValue {
-	return &m.Values[m.NumValues-offset]
+	return &m.Values[len(m.Values)-offset]
 }
 
 // Returns a slice of the values stack.
 // Use or copy the result, as well as the slice.
 func (m *Machine) PeekValues(n int) []TypedValue {
-	return m.Values[m.NumValues-n : m.NumValues]
+	return m.Values[len(m.Values)-n : len(m.Values)]
 }
 
 // XXX delete?
 func (m *Machine) PeekType(offset int) Type {
-	return m.Values[m.NumValues-offset].T
+	return m.Values[len(m.Values)-offset].T
 }
 
 func (m *Machine) PushValueFromBlock(tv TypedValue) {
@@ -1757,24 +1742,17 @@ func (m *Machine) PushValue(tv TypedValue) {
 	if debug {
 		m.Printf("+v %v\n", tv)
 	}
-	if len(m.Values) == m.NumValues {
-		// TODO tune. also see PushOp().
-		newValues := make([]TypedValue, len(m.Values)*2)
-		copy(newValues, m.Values)
-		m.Values = newValues
-	}
-	m.Values[m.NumValues] = tv
-	m.NumValues++
+	m.Values = append(m.Values, tv)
 	return
 }
 
 // Resulting reference is volatile.
 func (m *Machine) PopValue() (tv *TypedValue) {
-	tv = &m.Values[m.NumValues-1]
+	tv = &m.Values[len(m.Values)-1]
 	if debug {
 		m.Printf("-v %v\n", tv)
 	}
-	m.NumValues--
+	m.Values = m.Values[:len(m.Values)-1]
 	return tv
 }
 
@@ -1785,14 +1763,14 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 // NOTE: the values are in stack order, oldest first, the opposite order of
 // multiple pop calls.  This is used for params assignment, for example.
 func (m *Machine) PopValues(n int) []TypedValue {
+	popped := m.Values[len(m.Values)-n : len(m.Values)]
+	m.Values = m.Values[:len(m.Values)-n]
 	if debug {
-		for i := range n {
-			tv := m.Values[m.NumValues-n+i]
+		for i, tv := range popped {
 			m.Printf("-vs[%d/%d] %v\n", i, n, tv)
 		}
 	}
-	m.NumValues -= n
-	return m.Values[m.NumValues : m.NumValues+n]
+	return popped
 }
 
 // Like PopValues(), but copies the values onto given slice.
@@ -1811,17 +1789,17 @@ func (m *Machine) PopResults() {
 			m.PopValue()
 		}
 	} else {
-		m.NumValues -= m.NumResults
+		m.Values = m.Values[:len(m.Values)-m.NumResults]
 	}
 	m.NumResults = 0
 }
 
 // Pops values with index start or greater.
 func (m *Machine) ReapValues(start int) []TypedValue {
-	end := m.NumValues
+	end := len(m.Values)
 	rs := make([]TypedValue, end-start)
 	copy(rs, m.Values[start:end])
-	m.NumValues = start
+	m.Values = m.Values[:start]
 	return rs
 }
 
@@ -1854,8 +1832,8 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 	fr := Frame{
 		Label:     label,
 		Source:    s,
-		NumOps:    m.NumOps,
-		NumValues: m.NumValues,
+		NumOps:    len(m.Ops),
+		NumValues: len(m.Values),
 		NumExprs:  len(m.Exprs),
 		NumStmts:  len(m.Stmts),
 		NumBlocks: len(m.Blocks),
@@ -1875,13 +1853,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if isDefer {
 		// defer frame calls do not get their args and func from the
 		// values stack (they were stored in fr.Defers).
-		numValues = m.NumValues
+		numValues = len(m.Values)
 	} else {
-		numValues = m.NumValues - cx.NumArgs - 1
+		numValues = len(m.Values) - cx.NumArgs - 1
 	}
 	fr := Frame{
 		Source:        cx,
-		NumOps:        m.NumOps,
+		NumOps:        len(m.Ops),
 		NumValues:     numValues,
 		NumExprs:      len(m.Exprs),
 		NumStmts:      len(m.Stmts),
@@ -2039,8 +2017,8 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// pop frames
 		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
 		// reset
-		m.NumOps = fr.NumOps
-		m.NumValues = fr.NumValues
+		m.Ops = m.Ops[:fr.NumOps]
+		m.Values = m.Values[:fr.NumValues]
 		m.Exprs = m.Exprs[:fr.NumExprs]
 		m.Stmts = m.Stmts[:fr.NumStmts]
 		m.Blocks = m.Blocks[:fr.NumBlocks]
@@ -2057,8 +2035,8 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
-	m.NumOps = fr.NumOps
-	m.NumValues = fr.NumValues
+	m.Ops = m.Ops[:fr.NumOps]
+	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
 	m.Blocks = m.Blocks[:fr.NumBlocks]
@@ -2075,14 +2053,14 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	rtypes := fr.Func.GetType(m.Store).Results
 	numRes := len(rtypes)
-	m.NumOps = fr.NumOps
+	m.Ops = m.Ops[:fr.NumOps]
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
 	m.Blocks = m.Blocks[:fr.NumBlocks]
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
-	resStart := m.NumValues - numRes
+	resStart := len(m.Values) - numRes
 	for i := range numRes {
 		res := m.Values[resStart+i]
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
@@ -2090,7 +2068,7 @@ func (m *Machine) PopFrameAndReturn() {
 		}
 		m.Values[fr.NumValues+i] = res
 	}
-	m.NumValues = fr.NumValues + numRes
+	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
 	m.Realm = fr.LastRealm
 	if m.Exception != nil {
@@ -2105,8 +2083,8 @@ func (m *Machine) PopFrameAndReturn() {
 
 func (m *Machine) PeekFrameAndContinueFor() {
 	fr := m.LastFrame()
-	m.NumOps = fr.NumOps + 1
-	m.NumValues = fr.NumValues
+	m.Ops = m.Ops[:fr.NumOps+1]
+	m.Values = m.Values[:fr.NumValues]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
@@ -2116,8 +2094,8 @@ func (m *Machine) PeekFrameAndContinueFor() {
 
 func (m *Machine) PeekFrameAndContinueRange() {
 	fr := m.LastFrame()
-	m.NumOps = fr.NumOps + 1
-	m.NumValues = fr.NumValues + 1
+	m.Ops = m.Ops[:fr.NumOps+1]
+	m.Values = m.Values[:fr.NumValues+1]
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
@@ -2316,9 +2294,9 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 // for testing.
 func (m *Machine) CheckEmpty() error {
 	found := ""
-	if m.NumOps > 0 {
+	if len(m.Ops) > 0 {
 		found = "op"
-	} else if m.NumValues > 0 {
+	} else if len(m.Values) > 0 {
 		found = "value"
 	} else if len(m.Exprs) > 0 {
 		found = "expr"
@@ -2434,7 +2412,7 @@ func (m *Machine) Println(args ...any) {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", m.NumOps)
+			s := prefix + strings.Repeat("|", len(m.Ops))
 			fmt.Println(append([]any{s}, args...)...)
 		}
 	}
@@ -2446,7 +2424,7 @@ func (m *Machine) Printf(format string, args ...any) {
 			_, file, line, _ := runtime.Caller(2) // get caller info
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", m.NumOps)
+			s := prefix + strings.Repeat("|", len(m.Ops))
 			fmt.Printf(s+" "+format, args...)
 		}
 	}
@@ -2459,7 +2437,7 @@ func (m *Machine) String() string {
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
-		vsLength         = m.NumValues * 32
+		vsLength         = len(m.Values) * 32
 		ssLength         = len(m.Stmts) * 32
 		xsLength         = len(m.Exprs) * 32
 		bsLength         = 1024
@@ -2471,8 +2449,8 @@ func (m *Machine) String() string {
 	var sb strings.Builder
 	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
-	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:m.NumOps], m.NumValues)
-	for i := m.NumValues - 1; i >= 0; i-- {
+	fmt.Fprintf(builder, "Machine:\n    Stage: %v\n    Op: %v\n    Values: (len: %d)\n", m.Stage, m.Ops[:len(m.Ops)], len(m.Values))
+	for i := len(m.Values) - 1; i >= 0; i-- {
 		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
 	builder.WriteString("    Exprs:\n")
