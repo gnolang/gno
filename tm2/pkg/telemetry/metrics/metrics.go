@@ -99,7 +99,7 @@ var (
 	WSRequestTime metric.Int64Histogram
 )
 
-func Init(config config.Config) error {
+func Init(config config.Config) (*sdkMetric.MeterProvider, error) {
 	var (
 		ctx = context.Background()
 		exp sdkMetric.Exporter
@@ -107,7 +107,7 @@ func Init(config config.Config) error {
 
 	u, err := url.Parse(config.ExporterEndpoint)
 	if err != nil {
-		return fmt.Errorf("error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
+		return nil, fmt.Errorf("error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
 	}
 
 	// Use oltp metric exporter with http/https or grpc
@@ -118,7 +118,7 @@ func Init(config config.Config) error {
 			otlpmetrichttp.WithEndpointURL(config.ExporterEndpoint),
 		)
 		if err != nil {
-			return fmt.Errorf("unable to create http metrics exporter, %w", err)
+			return nil, fmt.Errorf("unable to create http metrics exporter, %w", err)
 		}
 	default:
 		exp, err = otlpmetricgrpc.New(
@@ -127,7 +127,7 @@ func Init(config config.Config) error {
 			otlpmetricgrpc.WithInsecure(),
 		)
 		if err != nil {
-			return fmt.Errorf("unable to create grpc metrics exporter, %w", err)
+			return nil, fmt.Errorf("unable to create grpc metrics exporter, %w", err)
 		}
 	}
 
@@ -151,7 +151,7 @@ func Init(config config.Config) error {
 		metric.WithDescription("block build duration"),
 		metric.WithUnit("ms"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	// Networking //
@@ -159,7 +159,7 @@ func Init(config config.Config) error {
 		inboundPeersKey,
 		metric.WithDescription("inbound peer count"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 	// Initialize InboundPeers Gauge
 	InboundPeers.Record(ctx, 0)
@@ -168,7 +168,7 @@ func Init(config config.Config) error {
 		outboundPeersKey,
 		metric.WithDescription("outbound peer count"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	// Initialize OutboundPeers Gauge
@@ -179,14 +179,14 @@ func Init(config config.Config) error {
 		numMempoolTxsKey,
 		metric.WithDescription("valid mempool transaction count"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if NumCachedTxs, err = meter.Int64Histogram(
 		numCachedTxsKey,
 		metric.WithDescription("cached mempool transaction count"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	// Runtime //
@@ -194,21 +194,21 @@ func Init(config config.Config) error {
 		vmExecMsgKey,
 		metric.WithDescription("vm msg operation call frequency"),
 	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
+		return nil, fmt.Errorf("unable to create counter, %w", err)
 	}
 
 	if VMGasUsed, err = meter.Int64Histogram(
 		vmGasUsedKey,
 		metric.WithDescription("VM gas used"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if VMCPUCycles, err = meter.Int64Histogram(
 		vmCPUCyclesKey,
 		metric.WithDescription("VM CPU cycles"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	// Consensus //
@@ -216,14 +216,14 @@ func Init(config config.Config) error {
 		validatorCountKey,
 		metric.WithDescription("size of the active validator set"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if ValidatorsVotingPower, err = meter.Int64Histogram(
 		validatorVotingPowerKey,
 		metric.WithDescription("total voting power of the active validator set"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if BlockInterval, err = meter.Int64Histogram(
@@ -231,14 +231,14 @@ func Init(config config.Config) error {
 		metric.WithDescription("interval between 2 subsequent blocks"),
 		metric.WithUnit("s"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if BlockTxs, err = meter.Int64Histogram(
 		blockTxsKey,
 		metric.WithDescription("number of transactions within the latest block"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if BlockSizeBytes, err = meter.Int64Histogram(
@@ -246,7 +246,7 @@ func Init(config config.Config) error {
 		metric.WithDescription("size of the latest block in bytes"),
 		metric.WithUnit("B"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if BlockGasPriceAmount, err = meter.Int64Histogram(
@@ -254,7 +254,7 @@ func Init(config config.Config) error {
 		metric.WithDescription("block gas price"),
 		metric.WithUnit("token"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 	// RPC //
 
@@ -263,7 +263,7 @@ func Init(config config.Config) error {
 		metric.WithDescription("http request response time"),
 		metric.WithUnit("ms"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
 	if WSRequestTime, err = meter.Int64Histogram(
@@ -271,8 +271,8 @@ func Init(config config.Config) error {
 		metric.WithDescription("ws request response time"),
 		metric.WithUnit("ms"),
 	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
+		return nil, fmt.Errorf("unable to create histogram, %w", err)
 	}
 
-	return nil
+	return provider, nil
 }
