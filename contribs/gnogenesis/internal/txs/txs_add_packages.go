@@ -83,10 +83,11 @@ func execTxsAddPackages(
 	args []string,
 ) error {
 	var (
-		keyname = defaultAccount_Name
+		keyName = defaultAccount_Name
 		keybase keys.Keybase
 		pass    string
 	)
+
 	// Load the genesis
 	genesis, err := types.GenesisDocFromFile(cfg.txsCfg.GenesisPath)
 	if err != nil {
@@ -99,7 +100,7 @@ func execTxsAddPackages(
 	}
 
 	if cfg.keyName != "" {
-		keyname = cfg.keyName
+		keyName = cfg.keyName
 		keybase, err = keys.NewKeyBaseFromDir(cfg.gnoHome)
 		if err != nil {
 			return fmt.Errorf("unable to load keybase: %w", err)
@@ -116,7 +117,7 @@ func execTxsAddPackages(
 		}
 	}
 
-	info, err := keybase.GetByNameOrAddress(keyname)
+	info, err := keybase.GetByNameOrAddress(keyName)
 	if err != nil {
 		return fmt.Errorf("unable to find key in keybase: %w", err)
 	}
@@ -130,7 +131,7 @@ func execTxsAddPackages(
 			return fmt.Errorf("unable to load txs from directory, %w", err)
 		}
 
-		if err := signTxs(txs, keybase, genesis.ChainID, keyname, pass); err != nil {
+		if err := signTxs(txs, keybase, genesis.ChainID, keyName, pass); err != nil {
 			return fmt.Errorf("unable to sign txs, %w", err)
 		}
 

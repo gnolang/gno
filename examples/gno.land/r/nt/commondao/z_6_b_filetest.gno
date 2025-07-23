@@ -12,7 +12,7 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 func main() {
 	testing.SetRealm(std.NewUserRealm(owner))
 
-	cross(commondao.Execute)(404, 1)
+	commondao.Execute(cross, 404, 1)
 }
 
 // Error:

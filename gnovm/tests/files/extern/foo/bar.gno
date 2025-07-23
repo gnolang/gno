@@ -1,6 +1,6 @@
 package foo
 
-import "github.com/gnolang/gno/_test/foo/boo"
+import "filetests/extern/foo/boo"
 
 var (
 	Bar = "BARR"

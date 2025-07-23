@@ -26,4 +26,4 @@ func makeClosure(a int) (b int, c func(bool)) {
 // 1 2 0
 
 // TypeCheckError:
-// main/files/closure9.gno:8:2: declared and not used: b
+// main/closure9.gno:8:2: declared and not used: b

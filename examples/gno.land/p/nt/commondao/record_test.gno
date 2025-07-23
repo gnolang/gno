@@ -99,7 +99,7 @@ func TestVotingRecordAddVote(t *testing.T) {
 			urequire.Equal(t, record.Size(), len(tc.votes), "expect record size to match")
 
 			var i int
-			record.Iterate(0, record.Size(), func(v Vote) bool {
+			record.Iterate(0, record.Size(), false, func(v Vote) bool {
 				uassert.Equal(t, v.Address, tc.votes[i].Address)
 				uassert.Equal(t, string(v.Choice), string(tc.votes[i].Choice))
 				uassert.True(t, record.HasVoted(v.Address))

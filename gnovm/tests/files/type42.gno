@@ -10,7 +10,7 @@ func main() {
 
 // Output:
 // (1 main.A)
-// ("a" main[main/files/type42.gno:5:1].A)
+// ("a" main[main/type42.gno:5:1-9:2].A)
 
 // Preprocessed:
-// file{ package main; type A (const-type main.A); func main() { (const (println func(...interface {})))((const (1 main.A))); type A (const-type main[main/files/type42.gno:5:1].A); (const (println func(...interface {})))((const ("a" main[main/files/type42.gno:5:1].A))) } }
+// file{ package main; type A (const-type main.A); func main() { (const (println func(...interface {})))((const (1 main.A))); type A (const-type main[main/type42.gno:5:1-9:2].A); (const (println func(...interface {})))((const ("a" main[main/type42.gno:5:1-9:2].A))) } }

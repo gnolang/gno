@@ -122,8 +122,8 @@ func Render(path string) string {
 
 // Util
 
-func assertIsAdmin(address std.Address) {
-	if address != admin {
+func assertIsAdmin(address_XXX std.Address) {
+	if address_XXX != admin {
 		panic("restricted access")
 	}
 }

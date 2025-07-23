@@ -6,8 +6,8 @@ import (
 )
 
 func main() {
-	println(tests.Counter())
+	println(tests.Counter(cross))
 }
 
 // Error:
-// gno.land/p/demo/bar/files/import11.gno:5:2: pure package path "gno.land/p/demo/bar" cannot import realm path "gno.land/r/demo/tests"
+// gno.land/p/demo/bar/import11.gno:5:2-25: pure package path "gno.land/p/demo/bar" cannot import realm path "gno.land/r/demo/tests"

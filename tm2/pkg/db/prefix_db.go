@@ -31,7 +31,7 @@ func IteratePrefixStripped(db DB, prefix []byte) Iterator {
 }
 */
 
-//----------------------------------------
+// ----------------------------------------
 // prefixDB
 
 type PrefixDB struct {
@@ -181,11 +181,11 @@ func (pdb *PrefixDB) DeleteNoLockSync(key []byte) {
 */
 
 // Implements DB.
-func (pdb *PrefixDB) Close() {
+func (pdb *PrefixDB) Close() error {
 	pdb.mtx.Lock()
 	defer pdb.mtx.Unlock()
 
-	pdb.db.Close()
+	return pdb.db.Close()
 }
 
 // Implements DB.
@@ -212,7 +212,7 @@ func (pdb *PrefixDB) prefixed(key []byte) []byte {
 	return append(cp(pdb.prefix), key...)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // prefixBatch
 
 type prefixBatch struct {
@@ -249,7 +249,7 @@ func (pb prefixBatch) Close() {
 	pb.source.Close()
 }
 
-//----------------------------------------
+// ----------------------------------------
 // prefixIterator
 
 var _ Iterator = (*prefixIterator)(nil)
@@ -319,7 +319,7 @@ func (itr *prefixIterator) Close() {
 	itr.source.Close()
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 func stripPrefix(key []byte, prefix []byte) (stripped []byte) {
 	if len(key) < len(prefix) {

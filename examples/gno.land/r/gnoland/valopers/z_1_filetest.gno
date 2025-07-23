@@ -11,9 +11,7 @@ import (
 	"gno.land/r/gnoland/valopers"
 )
 
-var (
-	g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
-)
+var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 
 const (
 	validMoniker     = "test-1"
@@ -26,11 +24,11 @@ func init() {
 	testing.SetOriginCaller(g1user)
 
 	// Register a validator and add the proposal
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 }
 
 func main() {
-	println(cross(valopers.Render)(""))
+	println(valopers.Render(""))
 }
 
 // Output:

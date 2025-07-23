@@ -22,7 +22,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_f2.gno:20:2: operator += not defined on: InterfaceKind
+// main/add_assign_f2.gno:20:2-13: operator += not defined on: InterfaceKind
 
 // TypeCheckError:
-// main/files/types/add_assign_f2.gno:20:2: invalid operation: errCmp += r (mismatched types error and Error)
+// main/add_assign_f2.gno:20:2: invalid operation: errCmp += r (mismatched types error and Error)

@@ -68,6 +68,10 @@ func Red(args ...any) string {
 	return treatAll(ANSIFgRed, args...)
 }
 
+func RedBg(args ...any) string {
+	return treatAll(ANSIBgRed, args...)
+}
+
 func Green(args ...any) string {
 	return treatAll(ANSIFgGreen, args...)
 }

@@ -44,11 +44,10 @@ func NewGovDAO() *GovDAO {
 	//     XXX g.test = 1 fails, owned by gov/dao.
 	//
 	//
-	cross(func() {
-		crossing()
+	func(cur realm) {
 		// TODO: replace with future attach()
 		_govdao = d
-	})()
+	}(cross)
 
 	return d
 }
@@ -63,7 +62,14 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
 			std.CurrentRealm(), std.PreviousRealm()))
 	}
 
-	return std.OriginCaller(), nil
+	// Verify that the one creating the proposal is a member.
+	caller := std.OriginCaller()
+	mem, _ := getMembers(cross).GetMember(caller)
+	if mem == nil {
+		return caller, errors.New("only members can create new proposals")
+	}
+
+	return caller, nil
 }
 
 func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
@@ -80,9 +86,7 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 			tatv = []string{memberstore.T1, memberstore.T2}
 		}
 	}
-
-	pids := ufmt.Sprintf("%v", int(pid))
-	g.pss.Set(pids, newProposalStatus(tatv))
+	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
 func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
@@ -91,7 +95,7 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	}
 
 	caller := std.OriginCaller()
-	mem, tie := cross(getMembers)().GetMember(caller)
+	mem, tie := getMembers(cross).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
 	}
@@ -175,7 +179,6 @@ func (g *GovDAO) isValidCall() bool {
 		if isMsgRun {
 			return true
 		}
-
 	}
 
 	// case 2

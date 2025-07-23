@@ -1,23 +1,14 @@
 # Test for https://github.com/gnolang/gno/pull/1112
+loadpkg gno.land/r/demo/mapindex $WORK
 
 gnoland start
 
-# add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/mapindex -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
-
 # call map
-gnokey maketx call -pkgpath gno.land/r/demo/mapindex -func FindMapWithKey -args 3 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qeval --data "gno.land/r/demo/mapindex.FindMapWithKey(3)"
 stdout '"three" string'
 
 # XXX without patching realm.go, expected stdout is
 # stdout ' string'
-
-
--- gno.mod --
-module gno.land/r/demo/mapindex
-
 
 -- realm.gno --
 package mapindex
@@ -31,7 +22,5 @@ func init() {
 }
 
 func FindMapWithKey(k uint64) string {
-	crossing()
-
 	return mapus[k]
 }

@@ -16,7 +16,7 @@ stdout 'TX HASH:    '
 package cbee
 
 import (
-    "std"
+	"std"
 )
 
 const (
@@ -41,9 +41,7 @@ func (c *contractB) subBar() {
 	std.Emit(bar, "bar", "baz")
 }
 
-func Foo() {
-	crossing()
-
+func Foo(cur realm) {
 	a := &contractA{}
 	b := &contractB{}
 

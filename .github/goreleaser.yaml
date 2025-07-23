@@ -105,6 +105,17 @@ builds:
     goarch:
       - amd64
       - arm64
+  - id: tx-archive
+    dir: ./contribs/tx-archive/cmd
+    binary: tx-archive
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
 
 gomod:
   proxy: true
@@ -464,7 +475,7 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-amd64
       - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-arm64v8
 
- # gnodev
+  # gnodev
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Version }}
     image_templates:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Version }}-amd64

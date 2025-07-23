@@ -12,6 +12,10 @@ other functions creating a call stack beginning at origin with a user Account.
 A "P" Package is created when a Package is added to "gno.land/p/...". "P"
 Packages are immutable and cannot be modified by any message after creation.
 
+Ephemeral packages are created when users execute "gno.land/e/..." paths using
+`gnokey maketx run`. These are temporary, user-executed code that run in the
+user's realm context and are not stored on-chain.
+
 Realm and "P" Packages have an Account and Address derived from its package
 path. Users too have an Account and Address determined cryptographically from a
 BIP39 mnemonic phrase or secret.
@@ -62,7 +66,7 @@ declared in realm packages and functions declared in p packages. The `std`
 package contains functions that return the current realm, previous realm, and
 the origin caller's address.
 
-- `std.GetOrigCaller()` - returns the address of the original signer of the
+- `std.OriginCaller()` - returns the address of the original signer of the
   transaction
 - `std.PreviousRealm()` - returns the previous realm instance, which can be a user 
   realm or a smart contract realm
@@ -174,7 +178,7 @@ std.CurrentRealm() => Realm {
 
 See the [Gno Interrealm Specification](./gno-interrealm.md) for more
 information on language rules for interrealm (cross) safety including how and
-when to use the `cross()` and `crossing()` functions and more.
+when to use the `func fn(cur realm, ...)` function parameter and `fn(cross, ...)` parameter and more.
 
 For more information about realms and how they fit into the gno.land ecosystem,
 see the [Package Path Structure](./gno-packages.md#package-path-structure)

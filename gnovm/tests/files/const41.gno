@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/const41.gno:4:8: invalid constant type [0]string
+// main/const41.gno:4:8-33: invalid constant type [0]string
 
 // TypeCheckError:
-// main/files/const41.gno:4:10: invalid constant type [0]string
+// main/const41.gno:4:10: invalid constant type [0]string

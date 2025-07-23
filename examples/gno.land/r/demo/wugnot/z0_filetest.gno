@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/wugnot_test
-package wugnot_test
+// PKGPATH: gno.land/r/test
+package test
 
 import (
 	"fmt"
@@ -28,17 +28,17 @@ func main() {
 	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(coins)
 	std.NewBanker(std.BankerTypeRealmSend).SendCoins(addr1, addrc, coins)
-	cross(wugnot.Deposit)()
+	wugnot.Deposit(cross)
 	printBalances()
 
 	// withdraw of 4242ugnot to addr1
-	cross(wugnot.Withdraw)(4242)
+	wugnot.Withdraw(cross, 4242)
 	printBalances()
 }
 
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
-		wugnotBal := cross(wugnot.BalanceOf)(addr)
+		wugnotBal := wugnot.BalanceOf(addr)
 		testing.SetOriginCaller(addr)
 		robanker := std.NewBanker(std.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")

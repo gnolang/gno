@@ -95,7 +95,7 @@ func (s *staticAnalysis) staticAnalysisExpr(expr Expr) bool {
 		term := s.staticAnalysisBlockStmt(n.Body)
 		if !term {
 			ctx := s.pop().(*FuncLitContext)
-			s.errs = append(s.errs, fmt.Errorf("lambda at %v does not terminate", ctx.f.Loc))
+			s.errs = append(s.errs, fmt.Errorf("lambda at %v does not terminate", ctx.f.GetLocation()))
 		}
 		return false
 	case *NameExpr:

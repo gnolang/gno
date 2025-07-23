@@ -13,6 +13,7 @@ import (
 )
 
 // XXX: rework this part, this is the original method from previous gnoweb
+// handlerStatusJSON returns an http.Handler that serves status information as JSON.
 func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler {
 	const qpath = ".app/version"
 
@@ -73,4 +74,14 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(out)
 	})
+}
+
+// getChainID fetches the status endpoint and returns the "network" field
+func getChainID(cli *client.RPCClient) (string, error) {
+	status, err := cli.Status()
+	if err != nil {
+		return "", err
+	}
+
+	return status.NodeInfo.Network, nil
 }

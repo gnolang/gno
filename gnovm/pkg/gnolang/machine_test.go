@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -28,6 +29,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	store := NewStore(nil, baseStore, iavlStore)
 	m := NewMachine("std", store)
 	m.RunMemPackageWithOverrides(&std.MemPackage{
+		Type: MPStdlibProd,
 		Name: "std",
 		Path: "std",
 		Files: []*std.MemFile{
@@ -39,6 +41,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 			p = fmt.Sprint(recover())
 		}()
 		m.RunMemPackageWithOverrides(&std.MemPackage{
+			Type: MPStdlibProd,
 			Name: "std",
 			Path: "std",
 			Files: []*std.MemFile{
@@ -71,7 +74,16 @@ func TestMachineString(t *testing.T) {
 		{
 			"created with defaults",
 			NewMachineWithOptions(MachineOptions{}),
-			"Machine:\n    Stage: \n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
+			`Machine:
+    Stage: $
+    Op: []
+    Values: (len: 0)
+    Exprs:
+    Stmts:
+    Blocks:
+    Blocks (other):
+    Frames:
+`,
 		},
 		{
 			"created with store and defaults",
@@ -82,7 +94,16 @@ func TestMachineString(t *testing.T) {
 				store := NewStore(nil, baseStore, iavlStore)
 				return NewMachine("std", store)
 			}(),
-			"Machine:\n    Stage: \n    Op: []\n    Values: (len: 0)\n    Exprs:\n    Stmts:\n    Blocks:\n    Blocks (other):\n    Frames:\n",
+			`Machine:
+    Stage: $
+    Op: []
+    Values: (len: 0)
+    Exprs:
+    Stmts:
+    Blocks:
+    Blocks (other):
+    Frames:
+`,
 		},
 		{
 			"filled in",
@@ -101,13 +122,25 @@ func TestMachineString(t *testing.T) {
 				m.PushStmts(S(Call(X("Redecl"), 11)))
 				return m
 			}(),
-			"Machine:\n    Stage: \n    Op: [OpHalt]\n    Values: (len: 0)\n    Exprs:\n          #0 100\n    Stmts:\n          #0 Redecl<VPUverse(0)>(11)\n    Blocks:\n    Blocks (other):\n    Frames:\n",
+			`Machine:
+    Stage: $
+    Op: [OpHalt]
+    Values: (len: 0)
+    Exprs:
+          #0 100
+    Stmts:
+          #0 Redecl<VPInvalid(0)>(11)
+    Blocks:
+    Blocks (other):
+    Frames:
+`,
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.in.String()
+			tt.want = strings.ReplaceAll(tt.want, "$\n", "\n")
 			assert.Equal(t, tt.want, got)
 		})
 	}

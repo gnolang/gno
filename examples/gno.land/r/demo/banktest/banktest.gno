@@ -30,9 +30,7 @@ func addActivity(act *activity) {
 
 // Deposit will take the coins (to the realm's pkgaddr) if returnAmount is 0,
 // or return the specified return amount back to user.
-func Deposit(returnDenom string, returnAmount int64) string {
-	crossing()
-
+func Deposit(cur realm, returnDenom string, returnAmount int64) string {
 	std.AssertOriginCall()
 	caller := std.OriginCaller()
 	send := std.Coins{{returnDenom, returnAmount}}
@@ -56,16 +54,14 @@ func Deposit(returnDenom string, returnAmount int64) string {
 	}
 }
 
-func bankerAddr() std.Address {
-	crossing()
-
+func bankerAddr(cur realm) std.Address {
 	return std.CurrentRealm().Address()
 }
 
 func Render(path string) string {
 	// get realm coins.
 	banker := std.NewBanker(std.BankerTypeReadonly)
-	coins := banker.GetCoins(cross(bankerAddr)())
+	coins := banker.GetCoins(bankerAddr(cross))
 
 	// render
 	res := ""

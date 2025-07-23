@@ -3,7 +3,7 @@ package httptest
 import (
 	"bytes"
 
-	"github.com/gnolang/gno/_test/net/http"
+	"filetests/extern/net/http"
 )
 
 type ResponseRecorder struct {

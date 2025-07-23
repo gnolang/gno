@@ -21,7 +21,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0c2.gno:16:5: bigint overflows target kind
+// main/eql_0c2.gno:16:5-20: bigint overflows target kind
 
 // TypeCheckError:
-// main/files/types/eql_0c2.gno:16:17: 128 (untyped int constant) overflows int8
+// main/eql_0c2.gno:16:17: 128 (untyped int constant) overflows int8

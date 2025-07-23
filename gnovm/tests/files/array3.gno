@@ -11,4 +11,4 @@ func main() {
 // runtime error: index out of range [3] with length 3
 
 // TypeCheckError:
-// main/files/array3.gno:6:20: index 3 is out of bounds (>= 3)
+// main/array3.gno:6:20: index 3 is out of bounds (>= 3)

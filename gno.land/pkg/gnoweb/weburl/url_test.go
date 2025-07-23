@@ -337,7 +337,7 @@ func TestEncode(t *testing.T) {
 		Expected    string
 	}{
 		{
-			Name: "encode domain",
+			Name: "Encode domain",
 			GnoURL: GnoURL{
 				Domain: "gno.land",
 				Path:   "/r/demo/foo",
@@ -347,7 +347,7 @@ func TestEncode(t *testing.T) {
 		},
 
 		{
-			Name: "encode web query without escape",
+			Name: "Encode web query with NoEscape",
 			GnoURL: GnoURL{
 				Domain: "gno.land",
 				Path:   "/r/demo/foo",
@@ -357,7 +357,8 @@ func TestEncode(t *testing.T) {
 				},
 			},
 			EncodeFlags: EncodeWebQuery | EncodeNoEscape,
-			Expected:    "$fun$c=B$ ar&help",
+			// (still encoded; we always url-encode arguments after $ and ?)
+			Expected: "$fun%24c=B%24+ar&help",
 		},
 
 		{
@@ -578,4 +579,30 @@ func TestEncode(t *testing.T) {
 			assert.Equal(t, tc.Expected, result)
 		})
 	}
+}
+
+func TestGnoURL_Helpers(t *testing.T) {
+	gurl, err := Parse("/r/demo/users:p/foo%3d%24bar%26%3fbaz$func=foo?hey=1&a%2bb=b%2b&%26=%3d")
+	require.NoError(t, err)
+	assert.Equal(t, "p/foo=$bar&?baz", gurl.Args)
+	assert.Equal(t, url.Values{
+		"hey": {"1"},
+		"a+b": {"b+"},
+		"&":   {"="},
+	}, gurl.Query)
+
+	// EncodeArgs is used to pass the values to the render function in Gno.
+	// We are less restrictive about URLs in Gno, so it is only really important
+	// that ? in the path is encoded correctly, but we can pass in $ and other symbols
+	// regularly.
+	// The queries should always be encoded.
+	assert.Equal(t, "p/foo=$bar&%3Fbaz?%26=%3D&a%2Bb=b%2B&hey=1", gurl.EncodeArgs())
+	// EncodeURL, instead, should behave as the above but include the path.
+	// This should be used for display about the path to be used, but not used
+	// as an actual URL in <a> links.
+	assert.Equal(t, "/r/demo/users:p/foo=$bar&%3Fbaz?%26=%3D&a%2Bb=b%2B&hey=1", gurl.EncodeURL())
+	// EncodeWebURL is the representation meant to be used in links.
+	// WebQueries are included, and as such any webquery in the path should be escaped.
+	// The path is escaped too, except for / which is converted back for ease of reading.
+	assert.Equal(t, "/r/demo/users:p/foo=%24bar&%3Fbaz$func=foo?%26=%3D&a%2Bb=b%2B&hey=1", gurl.EncodeWebURL())
 }

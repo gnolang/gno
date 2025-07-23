@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	storeTypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var errInvalidConfigSetArgs = errors.New("invalid number of config set arguments provided")
@@ -149,6 +150,17 @@ func saveStringToValue(value string, dstValue reflect.Value) error {
 		val := parseEventStoreParams(value)
 
 		dstValue.Set(reflect.ValueOf(val))
+	case storeTypes.PruneStrategy:
+		var (
+			dstType = dstValue.Type()
+			val     = reflect.ValueOf(value)
+		)
+
+		if !val.CanConvert(dstType) {
+			return fmt.Errorf("unable to cast to type %q", dstType)
+		}
+
+		dstValue.Set(val.Convert(dstType))
 	default:
 		return fmt.Errorf("unsupported type, %s", dstValue.Type().Name())
 	}

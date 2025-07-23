@@ -35,9 +35,9 @@ status=KO`
 	}
 
 	// call Incr(), watchdog is OK.
-	cross(Incr)()
-	cross(Incr)()
-	cross(Incr)()
+	Incr(cross)
+	Incr(cross)
+	Incr(cross)
 	{
 		expected := `counter=3
 last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
@@ -78,13 +78,12 @@ func TestReset(t *testing.T) {
 	// Initial state check
 	initialCounter := counter
 	initialLastUpdate := lastUpdate
-	initialLastCaller := lastCaller
 	initialStatus := wd.Status()
 
 	// Call Incr to change the state
 	user := std.Address("g1user")
 	testing.SetRealm(std.NewUserRealm(user))
-	cross(Incr)()
+	Incr(cross)
 	uassert.True(t, counter > initialCounter, "counter should have increased after Incr")
 	uassert.True(t, lastUpdate.After(initialLastUpdate), "lastUpdate should have been updated after Incr")
 	uassert.Equal(t, user, lastCaller, "lastCaller mismatch")
@@ -93,7 +92,7 @@ func TestReset(t *testing.T) {
 	// Call Reset as the owner
 	ownerAddr := Ownable.Owner()
 	testing.SetRealm(std.NewUserRealm(ownerAddr)) // Simulate call from the owner
-	cross(Reset)()
+	Reset(cross)
 	uassert.Equal(t, 0, counter, "counter should be 0 after Reset")
 	uassert.Equal(t, ownerAddr, lastCaller, "lastCaller should be the owner address after Reset")
 	uassert.Equal(t, watchdogDuration.String(), wd.Duration.String(), "watchdog duration mismatch after Reset")

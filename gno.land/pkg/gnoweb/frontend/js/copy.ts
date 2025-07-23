@@ -1,105 +1,132 @@
 class Copy {
-  private DOM: {
-    el: HTMLElement | null;
-  };
-  private static FEEDBACK_DELAY = 750;
+	private DOM: {
+		el: HTMLElement | null;
+	};
+	private static FEEDBACK_DELAY = 750;
 
-  private btnClicked: HTMLElement | null = null;
-  private btnClickedIcons: HTMLElement[] = [];
-  private isAnimationRunning: boolean = false;
+	private btnClicked: HTMLElement | null = null;
+	private btnClickedIcons: HTMLElement[] = [];
+	private isAnimationRunning: boolean = false;
 
-  private static SELECTORS = {
-    button: ".js-copy-btn",
-    icon: `[data-copy-icon] > use`,
-    content: (id: string) => `[data-copy-content="${id}"]`,
-  };
+	private static SELECTORS = {
+		button: ".js-copy-btn",
+		icon: `[data-copy-icon] > use`,
+		content: (id: string) => `[data-copy-content="${id}"]`,
+	};
 
-  constructor() {
-    this.DOM = {
-      el: document.querySelector<HTMLElement>("main"),
-    };
+	constructor() {
+		this.DOM = {
+			el: document.querySelector<HTMLElement>("main"),
+		};
 
-    if (this.DOM.el) {
-      this.init();
-    } else {
-      console.warn("Copy: Main container not found.");
-    }
-  }
+		if (this.DOM.el) {
+			this.init();
+		} else {
+			console.warn("Copy: Main container not found.");
+		}
+	}
 
-  private init(): void {
-    this.bindEvents();
-  }
+	private init(): void {
+		this.bindEvents();
+	}
 
-  private bindEvents(): void {
-    this.DOM.el?.addEventListener("click", this.handleClick.bind(this));
-  }
+	private bindEvents(): void {
+		this.DOM.el?.addEventListener("click", this.handleClick.bind(this));
+	}
 
-  private handleClick(event: Event): void {
-    const target = event.target as HTMLElement;
-    const button = target.closest<HTMLElement>(Copy.SELECTORS.button);
+	private handleClick(event: Event): void {
+		const button = (event.target as HTMLElement).closest<HTMLElement>(
+			Copy.SELECTORS.button,
+		);
+		if (!button) return;
 
-    if (!button) return;
+		this.btnClicked = button;
+		this.btnClickedIcons = Array.from(
+			button.querySelectorAll<HTMLElement>(Copy.SELECTORS.icon),
+		);
 
-    this.btnClicked = button;
-    this.btnClickedIcons = Array.from(button.querySelectorAll<HTMLElement>(Copy.SELECTORS.icon));
+		const contentId = button.getAttribute("data-copy-btn");
+		if (!contentId) {
+			console.warn("Copy: No content ID found on the button.");
+			return;
+		}
 
-    const contentId = button.getAttribute("data-copy-btn");
-    if (!contentId) {
-      console.warn("Copy: No content ID found on the button.");
-      return;
-    }
+		const codeBlock = this.DOM.el?.querySelector<HTMLElement>(
+			Copy.SELECTORS.content(contentId),
+		);
+		if (codeBlock) {
+			const removeComments = button.hasAttribute("data-copy-remove-comments");
+			this.copyToClipboard(codeBlock, this.btnClickedIcons, removeComments);
+		} else {
+			console.warn(`Copy: No content found for ID "${contentId}".`);
+		}
+	}
 
-    const codeBlock = this.DOM.el?.querySelector<HTMLElement>(Copy.SELECTORS.content(contentId));
-    if (codeBlock) {
-      this.copyToClipboard(codeBlock, this.btnClickedIcons);
-    } else {
-      console.warn(`Copy: No content found for ID "${contentId}".`);
-    }
-  }
+	private sanitizeContent(
+		codeBlock: HTMLElement,
+		removeComments: boolean = false,
+	): string {
+		const html = codeBlock.innerHTML.replace(
+			/<span[^>]*class="chroma-ln"[^>]*>[\s\S]*?<\/span>/g,
+			"",
+		);
 
-  private sanitizeContent(codeBlock: HTMLElement): string {
-    const html = codeBlock.innerHTML.replace(/<span[^>]*class="chroma-ln"[^>]*>[\s\S]*?<\/span>/g, "");
+		const tempDiv = document.createElement("div");
+		tempDiv.innerHTML = html;
 
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = html;
+		let text = tempDiv.textContent?.trim() || "";
 
-    return tempDiv.textContent?.trim() || "";
-  }
+		if (removeComments) {
+			text = text
+				.split("\n")
+				.filter((line) => {
+					const trimmed = line.trim();
+					return trimmed && !trimmed.match(/^[#/*]/);
+				})
+				.join("\n");
+		}
 
-  private toggleIcons(icons: HTMLElement[]): void {
-    icons.forEach((icon) => {
-      icon.classList.toggle("hidden");
-    });
-  }
+		return text;
+	}
 
-  private showFeedback(icons: HTMLElement[]): void {
-    if (!this.btnClicked || this.isAnimationRunning === true) return;
+	private toggleIcons(icons: HTMLElement[]): void {
+		icons.forEach((icon) => {
+			icon.classList.toggle("hidden");
+		});
+	}
 
-    this.isAnimationRunning = true;
-    this.toggleIcons(icons);
-    window.setTimeout(() => {
-      this.toggleIcons(icons);
-      this.isAnimationRunning = false;
-    }, Copy.FEEDBACK_DELAY);
-  }
+	private showFeedback(icons: HTMLElement[]): void {
+		if (!this.btnClicked || this.isAnimationRunning === true) return;
 
-  private async copyToClipboard(codeBlock: HTMLElement, icons: HTMLElement[]): Promise<void> {
-    const sanitizedText = this.sanitizeContent(codeBlock);
+		this.isAnimationRunning = true;
+		this.toggleIcons(icons);
+		window.setTimeout(() => {
+			this.toggleIcons(icons);
+			this.isAnimationRunning = false;
+		}, Copy.FEEDBACK_DELAY);
+	}
 
-    if (!navigator.clipboard) {
-      console.error("Copy: Clipboard API is not supported in this browser.");
-      this.showFeedback(icons);
-      return;
-    }
+	private async copyToClipboard(
+		codeBlock: HTMLElement,
+		icons: HTMLElement[],
+		removeComments: boolean = false,
+	): Promise<void> {
+		const sanitizedText = this.sanitizeContent(codeBlock, removeComments);
 
-    try {
-      await navigator.clipboard.writeText(sanitizedText);
-      this.showFeedback(icons);
-    } catch (err) {
-      console.error("Copy: Error while copying text.", err);
-      this.showFeedback(icons);
-    }
-  }
+		if (!navigator.clipboard) {
+			console.error("Copy: Clipboard API is not supported in this browser.");
+			this.showFeedback(icons);
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(sanitizedText);
+			this.showFeedback(icons);
+		} catch (err) {
+			console.error("Copy: Error while copying text.", err);
+			this.showFeedback(icons);
+		}
+	}
 }
 
 export default () => new Copy();

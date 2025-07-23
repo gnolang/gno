@@ -16,10 +16,11 @@ import (
 type MakeCallCfg struct {
 	RootCfg *client.MakeTxCfg
 
-	Send     string
-	PkgPath  string
-	FuncName string
-	Args     commands.StringArr
+	Send       string
+	MaxDeposit string
+	PkgPath    string
+	FuncName   string
+	Args       commands.StringArr
 }
 
 func NewMakeCallCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
@@ -46,6 +47,13 @@ func (c *MakeCallCfg) RegisterFlags(fs *flag.FlagSet) {
 		"send",
 		"",
 		"send amount",
+	)
+
+	fs.StringVar(
+		&c.MaxDeposit,
+		"max-deposit",
+		"",
+		"max storage deposit",
 	)
 
 	fs.StringVar(
@@ -108,6 +116,12 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
+	// Parse deposit amount
+	deposit, err := std.ParseCoins(cfg.MaxDeposit)
+	if err != nil {
+		return errors.Wrap(err, "parsing storage deposit coins")
+	}
+
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -117,11 +131,12 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 
 	// construct msg & tx and marshal.
 	msg := vm.MsgCall{
-		Caller:  caller,
-		Send:    send,
-		PkgPath: cfg.PkgPath,
-		Func:    fnc,
-		Args:    cfg.Args,
+		Caller:     caller,
+		Send:       send,
+		MaxDeposit: deposit,
+		PkgPath:    cfg.PkgPath,
+		Func:       fnc,
+		Args:       cfg.Args,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

@@ -71,12 +71,13 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryRender = "qrender"
-	QueryFuncs  = "qfuncs"
-	QueryEval   = "qeval"
-	QueryFile   = "qfile"
-	QueryDoc    = "qdoc"
-	QueryPaths  = "qpaths"
+	QueryRender  = "qrender"
+	QueryFuncs   = "qfuncs"
+	QueryEval    = "qeval"
+	QueryFile    = "qfile"
+	QueryDoc     = "qdoc"
+	QueryPaths   = "qpaths"
+	QueryStorage = "qstorage"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -98,6 +99,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryDoc(ctx, req)
 	case QueryPaths:
 		res = vh.queryPaths(ctx, req)
+	case QueryStorage:
+		res = vh.queryStorage(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -237,6 +240,18 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 		return
 	}
 	res.Data = []byte(jsonDoc.JSON())
+	return
+}
+
+// queryStorage returns the storage size and deposit for a realm
+func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	pkgpath := string(req.Data)
+	result, err := vh.vm.QueryStorage(ctx, pkgpath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
 	return
 }
 

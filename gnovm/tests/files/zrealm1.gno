@@ -14,9 +14,7 @@ type InnerNode struct {
 	Right Node
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	key := "somekey"
 	root = InnerNode{
 		Key:   key,
@@ -27,7 +25,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](269)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -44,16 +42,17 @@ func main() {
 //     ],
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//         "LastObjectSize": "269",
 //         "ModTime": "0",
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
-//     @@ -1,9 +1,19 @@
-//      {
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](156)=
+//     @@ -2,9 +2,19 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "LastObjectSize": "190",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",

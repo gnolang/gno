@@ -97,7 +97,7 @@ func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
 	return override, overridden
 }
 
-func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
+func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
 	var (

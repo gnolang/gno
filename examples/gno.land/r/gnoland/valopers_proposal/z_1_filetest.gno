@@ -14,9 +14,7 @@ import (
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
-var (
-	g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
-)
+var g1user = testutils.TestAddress("g1user") // g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 
 const (
 	validMoniker     = "test-1"
@@ -30,11 +28,11 @@ func init() {
 	daoinit.InitWithUsers(g1user)
 
 	// Register a validator and add the proposal
-	cross(valopers.Register)(validMoniker, validDescription, validAddress, validPubKey)
+	valopers.Register(cross, validMoniker, validDescription, validAddress, validPubKey)
 
 	if err := revive(func() {
-		pr := cross(valopers_proposal.NewValidatorProposalRequest)(validAddress)
-		cross(dao.MustCreateProposal)(pr)
+		pr := valopers_proposal.NewValidatorProposalRequest(cross, validAddress)
+		dao.MustCreateProposal(cross, pr)
 	}); err != nil {
 		println("r: ", err)
 	} else {
@@ -43,35 +41,17 @@ func init() {
 }
 
 func main() {
-	println(cross(dao.Render)(""))
+	println(dao.Render(""))
 }
 
 // Output:
 // OK
-// # Active Proposals:
-// ## Proposal with id: 0
-// ### Title: Add valoper test-1 to the valset
+// # GovDAO Proposals
+// ### [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao:0)
+// Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 //
-// ### Proposed by: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
+// Status: ACTIVE
 //
-// Valoper profile: [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
+// Tiers eligible to vote: T1, T2, T3
 //
-// ## test-1
-// test-1's description
-//
-// - Address: g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h
-// - PubKey: gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p
-//
-// [Profile link](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
-//
-//
-//
-// ### Proposal Status:
-//
-// - **Proposal open for votes**
-// - Allowed tiers to vote: T1 T2 T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - [Go to votes list](/r/gov/dao:0/votes).
-//
-//
+// ---

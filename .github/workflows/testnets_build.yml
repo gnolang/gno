@@ -1,5 +1,5 @@
 # Build and Push Docker Images using Docker Bake
-name: Build and Push Images for Testntes
+name: Build and Push Images for Testnets
 
 on:
   push:

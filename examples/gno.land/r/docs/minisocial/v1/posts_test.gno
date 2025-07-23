@@ -9,14 +9,14 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-func TestCreatePostSingle(t *testing.T) {
+func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := cross(CreatePost)(text1)
+	err := CreatePost(cross, text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
@@ -27,7 +27,7 @@ func TestCreatePostSingle(t *testing.T) {
 	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
-func TestCreatePostMultiple(t *testing.T) {
+func TestCreatePostMultiple(cur realm, t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(testutils.TestAddress("alice")))
 
 	// Initialize a slice to hold the test posts and their authors
@@ -47,7 +47,7 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := cross(CreatePost)(p.text)
+		err := CreatePost(cross, p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 

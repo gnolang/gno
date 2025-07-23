@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_d28.gno:6:2: operator << not defined on: Float32Kind
+// main/shift_d28.gno:6:2-18: operator << not defined on: Float32Kind
 
 // TypeCheckError:
-// main/files/types/shift_d28.gno:6:10: invalid operation: shifted operand 1 (type float32) must be integer
+// main/shift_d28.gno:6:10: invalid operation: shifted operand 1 (type float32) must be integer

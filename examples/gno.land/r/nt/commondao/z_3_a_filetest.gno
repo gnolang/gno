@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -15,32 +14,27 @@ const (
 )
 
 var (
-	realm std.Realm
-	daoID uint64
+	daoID     uint64
+	realmAddr = std.DerivePkgAddr("gno.land/r/test")
 )
 
 func init() {
-	// Init `commondao_test` realm
-	realm = std.CurrentRealm()
-
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(std.NewUserRealm(owner))
-	cross(commondao.Invite)(user)
+	commondao.Invite(cross, user)
 
-	// Create a new DAO which gives ownership to `commondao_test`
+	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(std.NewUserRealm(user))
-	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 	daoID = commondao.New("Foo").ID()
 }
 
 func main() {
-	crossing()
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test"))
 
-	testing.SetRealm(std.NewCodeRealm(realm.PkgPath()))
+	commondao.TransferOwnership(cross, daoID, newRealm)
 
-	cross(commondao.TransferOwnership)(daoID, newRealm)
-
-	println(commondao.IsOwner(realm.Address(), daoID))
+	println(commondao.IsOwner(realmAddr, daoID))
 	println(commondao.IsOwner(newRealm, daoID))
 }
 

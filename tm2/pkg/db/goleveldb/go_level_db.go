@@ -106,8 +106,8 @@ func (db *GoLevelDB) DB() *leveldb.DB {
 }
 
 // Implements DB.
-func (db *GoLevelDB) Close() {
-	db.db.Close()
+func (db *GoLevelDB) Close() error {
+	return db.db.Close()
 }
 
 // Implements DB.

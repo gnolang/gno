@@ -1,0 +1,5 @@
+module = "gno.land/p/moul/ulist"
+gno = "0.9"
+
+[addpkg]
+  creator = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"

@@ -21,9 +21,7 @@ func init() {
 
 // ----above is initialized and persisted before main is executed.
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	r := GetFromMap()
 	println(r == 5)
 

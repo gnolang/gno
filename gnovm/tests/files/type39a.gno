@@ -21,7 +21,7 @@ func main() {
 }
 
 // Error:
-// main/files/type39a.gno:9:1: invalid receiver type main.FF (base type is interface type)
+// main/type39a.gno:9:1-11:2: invalid receiver type main.FF (base type is interface type)
 
 // TypeCheckError:
-// main/files/type39a.gno:9:9: invalid receiver type FF (pointer or interface type); main/files/type39a.gno:20:12: f.echo undefined (type foo has no field or method echo)
+// main/type39a.gno:9:9: invalid receiver type FF (pointer or interface type); main/type39a.gno:20:12: f.echo undefined (type foo has no field or method echo)

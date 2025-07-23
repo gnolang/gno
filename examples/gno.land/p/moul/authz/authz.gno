@@ -137,7 +137,7 @@ func (a *Authorizer) DoByCurrent(title string, action PrivilegedAction, args ...
 
 // DoByPrevious executes a privileged action by the previous realm.
 func (a *Authorizer) DoByPrevious(title string, action PrivilegedAction, args ...any) error {
-	previous := std.CurrentRealm()
+	previous := std.PreviousRealm()
 	caller := previous.Address()
 	return a.auth.Authorize(caller, title, action, args...)
 }

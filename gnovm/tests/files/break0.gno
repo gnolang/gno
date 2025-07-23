@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/break0.gno:4:2: break statement out of place
+// main/break0.gno:4:2-7: break statement out of place
 
 // TypeCheckError:
-// main/files/break0.gno:4:2: break not in for, switch, or select statement
+// main/break0.gno:4:2: break not in for, switch, or select statement

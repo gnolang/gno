@@ -17,7 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type runCfg struct {
+type runCmd struct {
 	verbose   bool
 	rootDir   string
 	expr      string
@@ -25,8 +25,8 @@ type runCfg struct {
 	debugAddr string
 }
 
-func newRunCmd(io commands.IO) *commands.Command {
-	cfg := &runCfg{}
+func newRunCmd(cio commands.IO) *commands.Command {
+	cfg := &runCmd{}
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -36,12 +36,12 @@ func newRunCmd(io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execRun(cfg, args, io)
+			return execRun(cfg, args, cio)
 		},
 	)
 }
 
-func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *runCmd) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
 		"v",
@@ -78,7 +78,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execRun(cfg *runCfg, args []string, io commands.IO) error {
+func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	if len(args) == 0 {
 		return flag.ErrHelp
 	}
@@ -87,13 +87,13 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	stdin := io.In()
-	stdout := io.Out()
-	stderr := io.Err()
+	stdin := cio.In()
+	stdout := cio.Out()
+	stderr := cio.Err()
 
 	// init store and machine
 	output := test.OutputWithError(stdout, stderr)
-	_, testStore := test.Store(
+	_, testStore := test.ProdStore(
 		cfg.rootDir, output)
 
 	if len(args) == 0 {
@@ -136,12 +136,12 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	return runExpr(m, cfg.expr)
 }
 
-func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
-	files := make([]*gno.FileNode, 0, len(fnames))
-	var hasError bool
-	for _, fname := range fnames {
-		if s, err := os.Stat(fname); err == nil && s.IsDir() {
-			subFns, err := listNonTestFiles(fname)
+func parseFiles(fpaths []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
+	files := make([]*gno.FileNode, 0, len(fpaths))
+	var didPanic bool
+	for _, fpath := range fpaths {
+		if s, err := os.Stat(fpath); err == nil && s.IsDir() {
+			subFns, err := listNonTestFiles(fpath)
 			if err != nil {
 				return nil, err
 			}
@@ -157,12 +157,13 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 			return nil, err
 		}
 
-		hasError = catchRuntimeError(fname, fname, stderr, func() {
-			files = append(files, gno.MustReadFile(fname))
+		dir, fname := filepath.Split(fpath)
+		didPanic = catchPanic(dir, fname, stderr, func() {
+			files = append(files, gno.MustReadFile(fpath))
 		})
 	}
 
-	if hasError {
+	if didPanic {
 		return nil, commands.ExitCodeError(1)
 	}
 	return files, nil

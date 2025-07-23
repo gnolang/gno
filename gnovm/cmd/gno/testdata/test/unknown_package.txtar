@@ -3,7 +3,8 @@
 ! gno test -v .
 
 ! stdout .+
-stderr 'contract.gno:3:8: unknown import path foobarbaz'
+# XXX catch and convert to gnoImportError
+stderr 'contract.gno:3:8: could not import foobarbaz \(unknown import path "foobarbaz"\) \(code=gnoImportError\)'
 
 -- contract.gno --
 package contract

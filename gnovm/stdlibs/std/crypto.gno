@@ -5,20 +5,10 @@ import (
 	"errors"
 )
 
-type Address string // NOTE: bech32
+type Address = address // NOTE: bech32
 
 // bech32AddrPrefix defines the Bech32 prefix of an address
 const bech32AddrPrefix = "g"
-
-func (a Address) String() string {
-	return string(a)
-}
-
-// IsValid checks if the address is valid bech32 encoded string
-func (a Address) IsValid() bool {
-	_, _, ok := DecodeBech32(a)
-	return ok
-}
 
 const RawAddressSize = 20
 
@@ -66,6 +56,15 @@ func derivePkgAddr(string) string
 // in which case the address is extracted from the path.
 func DerivePkgAddr(pkgPath string) Address {
 	addr := derivePkgAddr(pkgPath)
+	return Address(addr)
+}
+
+func deriveStorageDepositAddr(string) string
+
+// Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
+// in which case the address is extracted from the path.
+func DeriveStorageDepositAddr(pkgPath string) Address {
+	addr := deriveStorageDepositAddr(pkgPath)
 	return Address(addr)
 }
 

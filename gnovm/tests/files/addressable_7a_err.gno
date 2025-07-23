@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_7a_err.gno:8:2: getTypeOf() only supports *CallExpr with 1 result, got ([]int,[]string)
+// main/addressable_7a_err.gno:8:2-12: getTypeOf() only supports *CallExpr with 1 result, got ([]int,[]string)
 
 // TypeCheckError:
-// main/files/addressable_7a_err.gno:8:7: multiple-value foo() (value of type ([]int, []string)) in single-value context
+// main/addressable_7a_err.gno:8:7: multiple-value foo() (value of type ([]int, []string)) in single-value context

@@ -124,4 +124,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&tupleType{},
 	RefType{},
 	heapItemType{},
+
+	//----------------------------------------
+	// MemPackage related
+	MemPackageType(""),
+	MemPackageFilter(""),
 ))

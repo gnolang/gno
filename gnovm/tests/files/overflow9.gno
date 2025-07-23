@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/overflow9.gno:3:1: constant overflows
+// main/overflow9.gno:3:1-5:2: constant overflows
 
 // TypeCheckError:
-// main/files/overflow9.gno:4:13: int32(1) << 33 (constant 8589934592 of type int32) overflows int32
+// main/overflow9.gno:4:13: int32(1) << 33 (constant 8589934592 of type int32) overflows int32

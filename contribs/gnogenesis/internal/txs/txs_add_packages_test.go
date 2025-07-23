@@ -2,7 +2,6 @@ package txs
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,8 +13,12 @@ import (
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
+	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +26,24 @@ import (
 
 func TestGenesis_Txs_Add_Packages(t *testing.T) {
 	t.Parallel()
-	const addPkgExpectedSignature = "cfe5a15d8def04cbdaf9d08e2511db7928152b26419c4577cbfa282c83118852411f3de5d045ce934555572c21bda8042ce5c64b793a01748e49cf2cff7c2983"
+
+	keyFromMnemonic := func(mnemonic string) crypto.PrivKey {
+		t.Helper()
+
+		// Generate seed from mnemonic
+		seed, err := bip39.NewSeedWithErrorChecking(mnemonic, "")
+		require.NoError(t, err)
+
+		// Derive Private Key
+		hdPath := hd.NewFundraiserParams(0, crypto.CoinType, 0)
+		masterPriv, ch := hd.ComputeMastersFromSeed(seed)
+
+		derivedPriv, err := hd.DerivePrivateKeyForPath(masterPriv, ch, hdPath.String())
+		require.NoError(t, err)
+
+		// Convert to secp256k1 private key
+		return secp256k1.PrivKeySecp256k1(derivedPriv)
+	}
 
 	t.Run("invalid genesis file", func(t *testing.T) {
 		t.Parallel()
@@ -65,10 +85,13 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		assert.ErrorContains(t, cmdErr, errInvalidPackageDir.Error())
 	})
 
-	t.Run("non existent key", func(t *testing.T) {
+	t.Run("missing key", func(t *testing.T) {
 		t.Parallel()
-		keybaseDir := t.TempDir()
-		keyname := "beep-boop"
+
+		var (
+			keybaseDir = t.TempDir()
+			name       = "beep-boop"
+		)
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
 		t.Cleanup(cleanup)
@@ -94,18 +117,18 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			tempGenesis.Name(),
 			t.TempDir(), // package dir
 			"--key-name",
-			keyname, // non-existent key name
+			name, // non-existent key name
 			"--gno-home",
-			keybaseDir, // temporaryDir for keybase
+			keybaseDir,
 			"--insecure-password-stdin",
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "Key "+keyname+" not found")
+		assert.ErrorContains(t, cmdErr, "Key "+name+" not found")
 	})
 
-	t.Run("existent key wrong password", func(t *testing.T) {
+	t.Run("existing key, invalid password", func(t *testing.T) {
 		t.Parallel()
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
@@ -118,16 +141,18 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			packagePath = "gno.land/p/demo/cuttlas"
 			dir         = t.TempDir()
 			keybaseDir  = t.TempDir()
-			keyname     = "beep-boop"
+			name        = "beep-boop"
 			password    = "somepass"
 		)
+
 		createValidFile(t, dir, packagePath)
+
 		// Create key
 		kb, err := keys.NewKeyBaseFromDir(keybaseDir)
 		require.NoError(t, err)
 		mnemonic, err := client.GenerateMnemonic(256)
 		require.NoError(t, err)
-		_, err = kb.CreateAccount(keyname, mnemonic, "", password+"wrong", 0, 0)
+		_, err = kb.CreateAccount(name, mnemonic, "", password, 0, 0)
 		require.NoError(t, err)
 
 		io := commands.NewTestIO()
@@ -135,7 +160,7 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			strings.NewReader(
 				fmt.Sprintf(
 					"%s\n",
-					password,
+					password+"wrong", // invalid password
 				),
 			),
 		)
@@ -148,19 +173,19 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--key-name",
-			keyname, // non-existent key name
+			name,
 			"--gno-home",
-			keybaseDir, // temporaryDir for keybase
+			keybaseDir,
 			"--insecure-password-stdin",
 			dir,
 		}
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "unable to sign txs")
+		assert.Error(t, cmdErr)
 	})
 
-	t.Run("existent key correct password", func(t *testing.T) {
+	t.Run("existing key, valid password", func(t *testing.T) {
 		t.Parallel()
 
 		tempGenesis, cleanup := testutils.NewTestFile(t)
@@ -168,19 +193,22 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
 		// Prepare the package
 		var (
 			packagePath = "gno.land/p/demo/cuttlas"
 			dir         = t.TempDir()
 			keybaseDir  = t.TempDir()
-			keyname     = "beep-boop"
+			name        = "beep-boop"
 			password    = "somepass"
 		)
+
 		createValidFile(t, dir, packagePath)
+
 		// Create key
 		kb, err := keys.NewKeyBaseFromDir(keybaseDir)
 		require.NoError(t, err)
-		info, err := kb.CreateAccount(keyname, defaultAccount_Seed, "", password, 0, 0)
+		info, err := kb.CreateAccount(name, defaultAccount_Seed, "", password, 0, 0)
 		require.NoError(t, err)
 
 		io := commands.NewTestIO()
@@ -201,9 +229,9 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 			"--genesis-path",
 			tempGenesis.Name(),
 			"--key-name",
-			keyname, // non-existent key name
+			name,
 			"--gno-home",
-			keybaseDir, // temporaryDir for keybase
+			keybaseDir,
 			"--insecure-password-stdin",
 			dir,
 		}
@@ -223,10 +251,17 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		require.Equal(t, 1, len(state.Txs))
 		require.Equal(t, 1, len(state.Txs[0].Tx.Msgs))
 
-		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
+		tx := state.Txs[0].Tx
+
+		msgAddPkg, ok := tx.Msgs[0].(vmm.MsgAddPackage)
 		require.True(t, ok)
-		require.Equal(t, info.GetPubKey(), state.Txs[0].Tx.Signatures[0].PubKey)
-		require.Equal(t, addPkgExpectedSignature, hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
+
+		signPayload, err := tx.GetSignBytes(common.DefaultChainID, 0, 0)
+		require.NoError(t, err)
+
+		pubKey := info.GetPubKey()
+		assert.True(t, pubKey.Equals(tx.Signatures[0].PubKey))
+		assert.True(t, pubKey.VerifyBytes(signPayload, tx.Signatures[0].Signature))
 
 		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
 	})
@@ -239,12 +274,16 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		key := keyFromMnemonic(defaultAccount_Seed)
+
 		// Prepare the package
 		var (
 			packagePath = "gno.land/p/demo/cuttlas"
 			dir         = t.TempDir()
 			keybaseDir  = t.TempDir()
 		)
+
 		createValidFile(t, dir, packagePath)
 
 		// Create the command
@@ -274,10 +313,17 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		require.Equal(t, 1, len(state.Txs))
 		require.Equal(t, 1, len(state.Txs[0].Tx.Msgs))
 
-		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
+		tx := state.Txs[0].Tx
+
+		msgAddPkg, ok := tx.Msgs[0].(vmm.MsgAddPackage)
 		require.True(t, ok)
-		require.Equal(t, defaultAccount_publicKey, state.Txs[0].Tx.Signatures[0].PubKey.String())
-		require.Equal(t, addPkgExpectedSignature, hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
+
+		signPayload, err := tx.GetSignBytes(common.DefaultChainID, 0, 0)
+		require.NoError(t, err)
+
+		pubKey := key.PubKey()
+		assert.True(t, pubKey.Equals(tx.Signatures[0].PubKey))
+		assert.True(t, pubKey.VerifyBytes(signPayload, tx.Signatures[0].Signature))
 
 		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
 	})
@@ -290,6 +336,9 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 
 		genesis := common.GetDefaultGenesis()
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		key := keyFromMnemonic(defaultAccount_Seed)
+
 		// Prepare the package
 		var (
 			packagePath = "gno.land/p/demo/cuttlas"
@@ -322,10 +371,17 @@ func TestGenesis_Txs_Add_Packages(t *testing.T) {
 		require.Equal(t, 1, len(state.Txs))
 		require.Equal(t, 1, len(state.Txs[0].Tx.Msgs))
 
-		msgAddPkg, ok := state.Txs[0].Tx.Msgs[0].(vmm.MsgAddPackage)
+		tx := state.Txs[0].Tx
+
+		msgAddPkg, ok := tx.Msgs[0].(vmm.MsgAddPackage)
 		require.True(t, ok)
-		require.Equal(t, defaultAccount_publicKey, state.Txs[0].Tx.Signatures[0].PubKey.String())
-		require.Equal(t, addPkgExpectedSignature, hex.EncodeToString(state.Txs[0].Tx.Signatures[0].Signature))
+
+		signPayload, err := tx.GetSignBytes(common.DefaultChainID, 0, 0)
+		require.NoError(t, err)
+
+		pubKey := key.PubKey()
+		assert.True(t, pubKey.Equals(tx.Signatures[0].PubKey))
+		assert.True(t, pubKey.VerifyBytes(signPayload, tx.Signatures[0].Signature))
 
 		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
 	})

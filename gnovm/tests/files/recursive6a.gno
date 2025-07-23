@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/files/recursive6a.gno:3:6: invalid recursive type: SelfReferencing -> SelfReferencing
+// main/recursive6a.gno:3:6-5:2: invalid recursive type: SelfReferencing -> SelfReferencing
 
 // TypeCheckError:
-// main/files/recursive6a.gno:3:6: invalid recursive type: SelfReferencing refers to itself
+// main/recursive6a.gno:3:6: invalid recursive type: SelfReferencing refers to itself

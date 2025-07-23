@@ -1,0 +1,2 @@
+# treat everything inside public dir as binary
+public/** binary

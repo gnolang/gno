@@ -14,12 +14,12 @@ var bid boards.BoardID
 
 func init() {
 	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	cross(users.Register)("gnouser123")
+	users.Register(cross, "gnouser123")
 
-	bid = cross(boards.CreateBoard)("test_board")
-	cross(boards.CreateThread)(bid, "First Post (title)", "Body of the first post. (body)")
-	pid := cross(boards.CreateThread)(bid, "Second Post (title)", "Body of the second post. (body)")
-	cross(boards.CreateReply)(bid, pid, pid, "Reply of the second post")
+	bid = boards.CreateBoard(cross, "test_board")
+	boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
+	pid := boards.CreateThread(cross, bid, "Second Post (title)", "Body of the second post. (body)")
+	boards.CreateReply(cross, bid, pid, pid, "Reply of the second post")
 }
 
 func main() {

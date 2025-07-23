@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/files/overflow11.gno:3:1: constant overflows
+// main/overflow11.gno:3:1-5:2: constant overflows
 
 // TypeCheckError:
-// main/files/overflow11.gno:4:13: uint8(1) << 8 (constant 256 of type uint8) overflows uint8
+// main/overflow11.gno:4:13: uint8(1) << 8 (constant 256 of type uint8) overflows uint8

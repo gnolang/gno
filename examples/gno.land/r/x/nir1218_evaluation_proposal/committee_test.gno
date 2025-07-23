@@ -65,7 +65,7 @@ func TestCategoryEvaluationCriteria(t *testing.T) {
 		testing.SetOriginCaller(member)
 		approved := c.ApproveCategory(category, VoteYes)
 		if !approved {
-			value, exists := c.categories.Get(category)
+			value, _ := c.categories.Get(category)
 			gotCategory := value.(*Category)
 			t.Errorf("Approved First Committee category got %s expected %s", gotCategory.status, "Approved")
 		}

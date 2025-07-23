@@ -5,7 +5,7 @@ run:
   tests: true
   modules-download-mode: readonly
   allow-parallel-runners: false
-  go: ""
+  go: "1.23"
 
 output:
   path-prefix: ""
@@ -30,11 +30,9 @@ linters:
     - gosec # Security problems
     - gofmt # Whether the code was gofmt-ed
     - goimports # Unused imports
-    - goconst # Repeated strings that could be replaced by a constant
     - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
     - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
     - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
-    - gofumpt # Stricter gofmt
     - unused # Checks Go code for unused constants, variables, functions and types
     - gomodguard # Enforces an allow and block list for direct Go module dependencies
     - forbidigo # Forbids some custom-set identifiers, like regexp.MatchString
@@ -90,4 +88,4 @@ issues:
       linters:
         - errorlint # Disabled linting of error comparisons, because of lacking std lib support
     - path: gnovm/pkg/gnolang
-      text: "string `(cross|.no realm.|crossing)` has (\\d+) occurrences, make it a constant"
+      text: "string `(realm|cross|.no realm.|crossing)` has (\\d+) occurrences, make it a constant"

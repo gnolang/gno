@@ -21,8 +21,10 @@ func pushFuncFrame(m *gno.Machine, name gno.Name) {
 	fd.SetLocation(gno.Location{
 		PkgPath: pkgPath,
 		File:    fileName,
-		Line:    line, // fake unique line no
-		Column:  0,    // fake column
+		Span: gno.Span{ // fake unique span.
+			Pos: gno.Pos{Line: line, Column: 0},
+			End: gno.Pos{Line: line, Column: 100},
+		},
 	})
 	line++
 	fv := &gno.FuncValue{Name: name, PkgPath: m.Package.PkgPath, Source: fd}

@@ -7,7 +7,7 @@ type S = struct {
 func main() {}
 
 // Error:
-// main/files/recursive9d.gno:3:6: invalid recursive type: S -> S
+// main/recursive9d.gno:3:6-5:2: invalid recursive type: S -> S
 
 // TypeCheckError:
-// main/files/recursive9d.gno:3:6: invalid recursive type: S refers to itself
+// main/recursive9d.gno:3:6: invalid recursive type: S refers to itself

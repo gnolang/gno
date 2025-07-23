@@ -7,7 +7,7 @@ package strings_test
 import (
 	"io"
 	"strings"
-	"testing"
+	testing "testing/base"
 )
 
 func TestReader(t *testing.T) {

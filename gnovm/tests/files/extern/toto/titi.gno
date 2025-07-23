@@ -1,6 +1,6 @@
 package titi
 
-import quux "github.com/gnolang/gno/_test/bar"
+import quux "filetests/extern/bar"
 
 func Quux() string {
 	return quux.Quux()

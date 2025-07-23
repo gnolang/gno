@@ -16,12 +16,12 @@ var gid groups.GroupID
 func main() {
 	caller := std.OriginCaller()
 	testing.SetRealm(std.NewUserRealm(caller))
-	cross(users.Register)("gnouser123")
+	users.Register(cross, "gnouser123")
 
-	gid = cross(groups.CreateGroup)("test_group")
+	gid = groups.CreateGroup(cross, "test_group")
 
 	println(gid)
-	cross(groups.DeleteGroup)(20)
+	groups.DeleteGroup(cross, 20)
 	println(groups.Render(""))
 }
 

@@ -23,7 +23,7 @@ type ProposalStorage interface {
 	Size() int
 
 	// Iterate iterates proposals.
-	Iterate(offset, count int, fn func(*Proposal) bool) bool
+	Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool
 }
 
 // NewProposalStorage creates a new proposal storage.
@@ -68,14 +68,17 @@ func (s proposalStorage) Size() int {
 }
 
 // Iterate iterates proposals.
-func (s proposalStorage) Iterate(offset, count int, fn func(*Proposal) bool) bool {
+func (s proposalStorage) Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool {
 	if fn == nil {
 		return false
 	}
 
-	return s.storage.IterateByOffset(offset, count, func(_ string, v any) bool {
-		return fn(v.(*Proposal))
-	})
+	cb := func(_ string, v any) bool { return fn(v.(*Proposal)) }
+
+	if reverse {
+		return s.storage.ReverseIterateByOffset(offset, count, cb)
+	}
+	return s.storage.IterateByOffset(offset, count, cb)
 }
 
 func makeProposalKey(id uint64) string {

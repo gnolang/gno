@@ -1,24 +1,16 @@
-gnoland start
+loadpkg gno.land/r/demo/mapdelete $WORK
 
-# add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/mapdelete -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnoland start
 
 # delete map
 gnokey maketx call -pkgpath gno.land/r/demo/mapdelete -func DeleteMap -args 3 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # check deletion
-gnokey maketx call -pkgpath gno.land/r/demo/mapdelete -func GetMap -args 3 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+gnokey query vm/qeval --data "gno.land/r/demo/mapdelete.GetMap(3)"
 stdout 'false bool'
 # XXX without patching uverse.go, expected stdout is
 # stdout 'true bool'
-
-
-
--- gno.mod --
-module gno.land/r/demo/mapdelete
 
 -- realm.gno --
 package mapdelete
@@ -31,15 +23,11 @@ func init() {
 	mapus[9] = "nine"
 }
 
-func DeleteMap(k uint64) {
-	crossing()
-
+func DeleteMap(cur realm, k uint64) {
 	delete(mapus, k)
 }
 
 func GetMap(k uint64) bool {
-	crossing()
-
 	_, exist := mapus[k]
 	return exist
 }

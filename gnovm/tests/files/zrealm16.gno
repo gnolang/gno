@@ -29,15 +29,13 @@ func init() {
 	b[1] = &d
 }
 
-func main() {
-	crossing()
-
+func main(cur realm,) {
 	b[0].A = a2
 }
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:15]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:15](5)=
 //     @@ -13,7 +13,7 @@
 //                      "Base": {
 //                          "@type": "/gno.RefValue",
@@ -47,22 +45,23 @@ func main() {
 //                      },
 //                      "Index": "0",
 //                      "TV": null
-//     @@ -32,7 +32,7 @@
-//          ],
+//     @@ -33,7 +33,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:15",
+//              "LastObjectSize": "444",
 //     -        "ModTime": "0",
 //     +        "ModTime": "17",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
-//     @@ -1,9 +1,10 @@
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](7)=
+//     @@ -1,10 +1,11 @@
 //      {
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
-//     -        "ModTime": "0",
 //     +        "IsEscaped": true,
+//              "LastObjectSize": "333",
+//     -        "ModTime": "0",
 //     +        "ModTime": "17",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //     -        "RefCount": "1"
@@ -70,11 +69,11 @@ func main() {
 //          },
 //          "Value": {
 //              "T": {
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
-//     @@ -2,8 +2,8 @@
-//          "ObjectInfo": {
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](0)=
+//     @@ -3,8 +3,8 @@
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "IsEscaped": true,
+//              "LastObjectSize": "340",
 //     -        "ModTime": "15",
 //     -        "RefCount": "3"
 //     +        "ModTime": "17",

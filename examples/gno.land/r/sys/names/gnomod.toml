@@ -1,0 +1,5 @@
+module = "gno.land/r/sys/names"
+gno = "0.9"
+
+[addpkg]
+  creator = "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"

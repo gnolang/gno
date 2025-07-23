@@ -9,14 +9,14 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
-func TestCreatePostSingle(t *testing.T) {
+func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := cross(CreatePost)(text1)
+	err := CreatePost(cross, text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
@@ -27,7 +27,7 @@ func TestCreatePostSingle(t *testing.T) {
 	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
-func TestCreatePostMultiple(t *testing.T) {
+func TestCreatePostMultiple(cur realm, t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -45,7 +45,7 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(std.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := cross(CreatePost)(p.text)
+		err := CreatePost(cross, p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
@@ -61,25 +61,25 @@ func TestCreatePostMultiple(t *testing.T) {
 	}
 }
 
-func TestReset(t *testing.T) {
+func TestReset(cur realm, t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = cross(CreatePost)(text1)
+	_ = CreatePost(cross, text1)
 
 	got := Render("")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
 	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
-	cross(ResetPosts)()
+	ResetPosts(cross)
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	text2 := "Some other Text!!"
-	_ = cross(CreatePost)(text2)
+	_ = CreatePost(cross, text2)
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")

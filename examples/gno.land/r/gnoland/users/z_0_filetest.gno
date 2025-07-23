@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/users"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/init"
+	ini "gno.land/r/gov/dao/v3/init"
 )
 
 var (
@@ -17,22 +17,22 @@ var (
 func init() {
 	testing.SetRealm(std.NewUserRealm(alice))
 	c := std.OriginCaller()
-	init.InitWithUsers(c)
+	ini.InitWithUsers(c)
 
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
 
-	cross(dao.MustCreateProposal)(pReq)
+	dao.MustCreateProposal(cross, pReq)
 }
 
 func main() {
 	testing.SetRealm(std.NewUserRealm(alice))
 
-	cross(dao.MustVoteOnProposal)(dao.VoteRequest{
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
-	cross(dao.ExecuteProposal)(dao.ProposalID(0))
+	dao.ExecuteProposal(cross, dao.ProposalID(0))
 	println(users.Render(""))
 }
 

@@ -12,4 +12,4 @@ func getSlice() []int {
 // illegal assignment X expression type *gnolang.CallExpr
 
 // TypeCheckError:
-// main/files/addressable_2b_err.gno:4:7: invalid operation: cannot take address of getSlice() (value of type []int)
+// main/addressable_2b_err.gno:4:7: invalid operation: cannot take address of getSlice() (value of type []int)
