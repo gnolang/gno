@@ -217,6 +217,7 @@ func RunNodeProcess(ctx context.Context, cfg ProcessConfig, name string, args ..
 
 	address, err := waitForProcessReady(ctx, stdoutPipe, cfg.Stdout)
 	if err != nil {
+		cmd.Process.Kill() // kill process if it isn't ready yet
 		return nil, fmt.Errorf("waiting for readiness: %w", err)
 	}
 

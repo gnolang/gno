@@ -4,7 +4,7 @@
     [
       {
         "type": "category",
-        "label": "Use gno.land",
+        "label": "Use Gno.land",
         "items": [
           "users/discover-gnoland",
           "users/explore-with-gnoweb",
@@ -16,7 +16,7 @@
       },
       {
         "type": "category",
-        "label": "Build on gno.land",
+        "label": "Build on Gno.land",
         "items": [
           "builders/what-is-gnolang",
           "builders/anatomy-of-a-gno-package",
@@ -37,11 +37,14 @@
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/gno-stdlibs",
+          "resources/configuring-gno-projects",
           "resources/gno-testing",
+          "resources/realms",
           "resources/gno-interrealm",
           "resources/gno-memory-model",
           "resources/glossary",
           "resources/go-gno-compatibility",
+          "resources/gnoconnect",
           {
             "type": "link",
             "label": "Gno Examples",

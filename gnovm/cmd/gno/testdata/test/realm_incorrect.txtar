@@ -9,7 +9,7 @@ stderr '--- Expected'
 stderr '-xxxx'
 stderr '-xxx'
 stderr '\+finalizerealm\["gno.land/r/xx"\]'
-stderr '\+    @@ -1,11 \+1,12 @@'
+stderr '\+    @@ -2,11 \+2,12 @@'
 stderr 'x_filetest.gno failed'
 
 -- x_filetest.gno --

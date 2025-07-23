@@ -15,10 +15,10 @@ gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 100
 stdout 'edited'
 
 
--- admin/gno.mod --
-module gno.land/r/testing/admin
+-- admin/gnomod.toml --
+module = "gno.land/r/demo/admin"
 
-gno 0.9
+gno "0.9"
 -- admin/admin.gno --
 package admin
 
@@ -54,10 +54,10 @@ func ExecuteAction(cur realm, index int) {
 		panic(err)
 	}
 }
--- resource/gno.mod --
-module gno.land/r/testing/resource
+-- resource/gnomod.toml --
+module = "gno.land/r/demo/resource"
 
-gno 0.9
+gno "0.9"
 -- resource/resource.gno --
 package resource
 

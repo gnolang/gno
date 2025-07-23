@@ -224,6 +224,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Events = cmd.printEvents
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
+	cache := make(gno.TypeCheckCache, 64)
+
+	// test.ProdStore() is suitable for type-checking prod (non-test) files.
+	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
 
 	buildErrCount := 0
 	testErrCount := 0
@@ -231,7 +235,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		io.ErrPrintfln("FAIL")
 		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
 	}
-	tccache := gno.TypeCheckCache{}
 
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
@@ -239,15 +242,16 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Read and parse gno.mod directly.
-		fpath := filepath.Join(pkg.Dir, "gno.mod")
+		// Read and parse gnomod.toml directly.
+		fpath := filepath.Join(pkg.Dir, "gnomod.toml")
 		mod, err := gnomod.ParseFilepath(fpath)
 		if errors.Is(err, fs.ErrNotExist) {
 			if cmd.autoGnomod {
-				modstr := gno.GenGnoModLatest("gno.land/r/test")
-				mod, err = gnomod.ParseBytes("gno.mod", []byte(modstr))
+				modulePath, _ := determinePkgPath(nil, pkg.Dir, cmd.rootDir)
+				modstr := gno.GenGnoModLatest(modulePath)
+				mod, err = gnomod.ParseBytes("gnomod.toml", []byte(modstr))
 				if err != nil {
-					panic(fmt.Errorf("unexpected panic parsing default gno.mod bytes: %w", err))
+					panic(fmt.Errorf("unexpected panic parsing default gnomod.toml bytes: %w", err))
 				}
 				io.ErrPrintfln("auto-generated %q", fpath)
 				err = mod.WriteFile(fpath)
@@ -264,19 +268,18 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			io.ErrPrintfln("WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 		}
 
-		// Read MemPackage.
-		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath)
+		// Read MemPackage with all files.
+		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
 
-		// Lint/typecheck/format.
-		// (gno.mod will be read again).
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
-			if mod == nil || !mod.Draft {
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, opts.TestStore, gno.TypeCheckOptions{
-					ParseMode: gno.ParseModeAll,
-					Mode:      gno.TCLatestRelaxed,
-					Cache:     tccache,
+			if mod == nil || !mod.Ignore {
+				errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
+					Getter:     opts.TestStore,
+					TestGetter: opts.TestStore,
+					Mode:       gno.TCLatestRelaxed,
+					Cache:      cache,
 				})
 				if errs != nil {
 					didError = true
@@ -285,8 +288,10 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 					return
 				}
 			} else if cmd.verbose {
-				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
+				io.ErrPrintfln("%s: module is ignore, skipping type check", pkgPath)
 			}
+			///////////////////////////////////
+			// Run the tests found in the mpkg.
 			errs := test.Test(mpkg, pkg.Dir, opts)
 			if errs != nil {
 				didError = true
@@ -317,7 +322,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 func determinePkgPath(mod *gnomod.File, dir, rootDir string) (string, bool) {
 	if mod != nil {
-		return mod.Module.Mod.Path, true
+		return mod.Module, true
 	}
 	if pkgPath := pkgPathFromRootDir(dir, rootDir); pkgPath != "" {
 		return pkgPath, true

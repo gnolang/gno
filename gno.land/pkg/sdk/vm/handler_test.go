@@ -67,7 +67,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		// valid queries
 		{input: []byte(`gno.land/r/hello.Echo("hello")`), expectedResult: `("echo:hello" string)`},
 		{input: []byte(`gno.land/r/hello.caller()`), expectedResult: `("" .uverse.address)`}, // FIXME?
-		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(0 int64)`},
+		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(42 int64)`},
 		// {input: []byte(`gno.land/r/hello.time.RFC3339`), expectedResult: `test`}, // not working, but should we care?
 		{input: []byte(`gno.land/r/hello.PubString`), expectedResult: `("public string" string)`},
 		{input: []byte(`gno.land/r/hello.ConstString`), expectedResult: `("const string" string)`},
@@ -119,7 +119,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 			const pkgpath = "gno.land/r/hello"
 			// Create test package.
 			files := []*std.MemFile{
-				{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgpath)},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: `
 package hello
 
@@ -214,7 +214,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 			const pkgpath = "gno.land/r/hello"
 			// Create test package.
 			files := []*std.MemFile{
-				{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgpath)},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: `
 package hello
 
@@ -264,17 +264,24 @@ func TestVmHandlerQuery_File(t *testing.T) {
 		input               []byte
 		expectedResult      string
 		expectedResultMatch string
-		expectedErrorMatch  string
+		expectedError       error
 		expectedPanicMatch  string
+		expectedLogMatch    string
 		// XXX: expectedEvents
 	}{
 		// valid queries
 		{input: []byte(`gno.land/r/hello/hello.gno`), expectedResult: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 		{input: []byte(`gno.land/r/hello/README.md`), expectedResult: "# Hello"},
-		{input: []byte(`gno.land/r/hello/doesnotexist.gno`), expectedErrorMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
-		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\ngno.mod\nhello.gno"},
-		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `package "gno.land/r/doesnotexist" is not available`},
-		{input: []byte(`gno.land/r/doesnotexist/hello.gno`), expectedErrorMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`},
+		{input: []byte(`gno.land/r/hello/doesnotexist.gno`),
+			expectedError:    &InvalidFileError{},
+			expectedLogMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
+		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\ngnomod.toml\nhello.gno"},
+		{input: []byte(`gno.land/r/doesnotexist`),
+			expectedError:    &InvalidPackageError{},
+			expectedLogMatch: `package "gno.land/r/doesnotexist" is not available`},
+		{input: []byte(`gno.land/r/doesnotexist/hello.gno`),
+			expectedError:    &InvalidFileError{},
+			expectedLogMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`},
 	}
 
 	for _, tc := range tt {
@@ -295,7 +302,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 			// Create test package.
 			files := []*std.MemFile{
 				{Name: "README.md", Body: "# Hello"},
-				{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgpath)},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 			}
 			pkgPath := "gno.land/r/hello"
@@ -317,7 +324,8 @@ func TestVmHandlerQuery_File(t *testing.T) {
 				}
 			}()
 			res := vmHandler.Query(env.ctx, req)
-			if tc.expectedErrorMatch == "" {
+
+			if tc.expectedError == nil {
 				assert.True(t, res.IsOK(), "should not have error")
 				if tc.expectedResult != "" {
 					assert.Equal(t, string(res.Data), tc.expectedResult)
@@ -327,8 +335,11 @@ func TestVmHandlerQuery_File(t *testing.T) {
 				}
 			} else {
 				assert.False(t, res.IsOK(), "should have an error")
-				errmsg := res.Error.Error()
-				assert.Regexp(t, tc.expectedErrorMatch, errmsg)
+				assert.ErrorIs(t, res.Error, tc.expectedError)
+			}
+
+			if tc.expectedLogMatch != "" {
+				assert.Regexp(t, tc.expectedLogMatch, res.Log)
 			}
 		})
 	}
@@ -414,7 +425,7 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 			const pkgpath = "gno.land/r/hello"
 			// Create test package.
 			files := []*std.MemFile{
-				{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgpath)},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgpath)},
 				{Name: "hello.gno", Body: `
 // hello is a package for testing
 package hello

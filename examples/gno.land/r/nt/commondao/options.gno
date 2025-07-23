@@ -8,6 +8,9 @@ var defaultOptions = Options{
 	AllowExecution: true,
 }
 
+// Option configures DAO options within CommonDAO realm.
+type Option func(*Options)
+
 // Options configures DAO behavior within CommonDAO realm.
 // These options are only valid for the CommonDAO ream, dApps that
 // own a DAO can implement these features by themselves.
@@ -46,4 +49,39 @@ func (o *Options) SetAllowVoting(allow bool) {
 
 func (o *Options) SetAllowExecution(allow bool) {
 	o.AllowExecution = allow
+}
+
+// AllowListing configures DAO listing within CommonDAO realm.
+func AllowListing(allow bool) Option {
+	return func(o *Options) {
+		o.AllowListing = allow
+	}
+}
+
+// AllowRender configures DAO, proposals and votes rendering within CommonDAO.
+func AllowRender(allow bool) Option {
+	return func(o *Options) {
+		o.AllowRender = allow
+	}
+}
+
+// AllowChildren configures DAO support for SubDAOs.
+func AllowChildren(allow bool) Option {
+	return func(o *Options) {
+		o.AllowChildren = allow
+	}
+}
+
+// AllowVoting configures DAO support for voting through CommonDAO realm.
+func AllowVoting(allow bool) Option {
+	return func(o *Options) {
+		o.AllowVoting = allow
+	}
+}
+
+// AllowExecution configures DAO support for executing proposals through CommonDAO realm.
+func AllowExecution(allow bool) Option {
+	return func(o *Options) {
+		o.AllowExecution = allow
+	}
 }

@@ -187,9 +187,8 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 
 	tmconfig := tmcfg.TestConfig().SetRootDir(gnoroot)
 	tmconfig.Consensus.WALDisabled = true
-	tmconfig.Consensus.SkipTimeoutCommit = true
-	tmconfig.Consensus.CreateEmptyBlocks = true
-	tmconfig.Consensus.CreateEmptyBlocksInterval = time.Millisecond * 100
+	tmconfig.Consensus.SkipTimeoutCommit = false
+	tmconfig.Consensus.CreateEmptyBlocks = false
 	tmconfig.RPC.ListenAddress = defaultListner
 	tmconfig.P2P.ListenAddress = defaultListner
 	return tmconfig

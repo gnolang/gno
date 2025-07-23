@@ -16,10 +16,9 @@ stderr '--- PASS: TestHullo.*'
 
 stderr '=== RUN   ./examples/gno.land/p/demo/hello/z0_filetest.*'
 
--- examples/gno.land/p/demo/hello/gno.mod --
-module gno.land/p/demo/hello
-
-gno 0.9
+-- examples/gno.land/p/demo/hello/gnomod.toml --
+module = "gno.land/p/demo/hello"
+gno = "0.9"
 -- examples/gno.land/p/demo/hello/hello.gno --
 package hello
 

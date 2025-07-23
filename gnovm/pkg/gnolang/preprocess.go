@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	initFunc                  = "init"
 	blankIdentifier           = "_"
 	debugFind                 = false // toggle when debugging.
 	AttrPreprocessFuncLitExpr = "FuncLitExpr"
@@ -356,11 +355,6 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
-						// XXX NameExprTypeDefine in NameExpr?
-						// See known issues in README.nd:
-						// > Switch varnames cannot be
-						// captured as heap items.
-						// [test](../gnovm/tests/files/closure11_known.gno)
 						last.Reserve(false, &NameExpr{Name: ss.VarName}, ss, NSTypeSwitch, -1)
 					}
 				} else {
@@ -2377,8 +2371,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						findBranchLabel(last, n.Label)
 					}
 				case GOTO:
-					_, depth, index := findGotoLabel(last, n.Label)
-					n.Depth = depth
+					_, blockDepth, frameDepth, index := findGotoLabel(last, n.Label)
+					n.BlockDepth = blockDepth
+					n.FrameDepth = frameDepth
 					n.BodyIndex = index
 				case FALLTHROUGH:
 					swchC, ok := last.(*SwitchClauseStmt)
@@ -2573,6 +2568,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
+				if n.Name == blankIdentifier {
+					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
+					return n, TRANS_CONTINUE
+				}
 				// 'tmp' is a newly constructed type value, where
 				// any recursive references refer to the
 				// original type constructed by predefineRecursively()
@@ -2940,7 +2939,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
-					bn, _, _ := findGotoLabel(last, n.Label)
+					bn, _, _, _ := findGotoLabel(last, n.Label)
 					// already done in Preprocess:
 					// n.Depth = depth
 					// n.BodyIndex = index
@@ -3321,6 +3320,19 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			// type switch is a special cast that varName is
+			// defined in case clauses.
+			case *SwitchClauseStmt:
+				// parent switch statement.
+				ss := ns[len(ns)-1].(*SwitchStmt)
+				if ss.IsTypeSwitch && ss.VarName != "" {
+					// If the name is actually heap used:
+					if hasAttrHeapUse(n, ss.VarName) {
+						// Make record in static block.
+						// will be populated in ExpandWith().
+						n.SetIsHeapItem(ss.VarName)
+					}
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -3560,7 +3572,16 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
-		pv := pn.NewPackage() // temporary
+		// this used pn.NewPackage previously; however, that function
+		// additionally calls PrepareNewValues, which is not necessary in this
+		// context and incurs in very expensive allocations.
+		pv := &PackageValue{
+			Block: &Block{
+				Source: pn,
+			},
+			PkgName: pn.PkgName,
+			PkgPath: pn.PkgPath,
+		}
 		store = store.BeginTransaction(nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
@@ -3619,7 +3640,16 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// package values are already there that weren't
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
-			pv := pn.NewPackage() // temporary
+			pv := &PackageValue{
+				// this used pn.NewPackage previously; however, that function
+				// additionally calls PrepareNewValues, which is not necessary in this
+				// context and incurs in very expensive allocations.
+				Block: &Block{
+					Source: pn,
+				},
+				PkgName: pn.PkgName,
+				PkgPath: pn.PkgPath,
+			}
 			store = store.BeginTransaction(nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
@@ -3977,7 +4007,7 @@ func findBranchLabel(last BlockNode, label Name) (
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+	bn BlockNode, blockDepth uint8, frameDepth uint8, bodyIdx int,
 ) {
 	for {
 		switch cbn := last.(type) {
@@ -3999,7 +4029,7 @@ func findGotoLabel(last BlockNode, label Name) (
 					"cannot find GOTO label %q within current function",
 					label))
 			}
-		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
+		case *ForStmt, *RangeStmt, *SwitchClauseStmt:
 			body := cbn.GetBody()
 			_, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
@@ -4007,7 +4037,19 @@ func findGotoLabel(last BlockNode, label Name) (
 				return
 			} else {
 				last = skipFaux(cbn.GetParentNode(nil))
-				depth += 1
+				frameDepth += 1
+				blockDepth = 0 // reset
+			}
+		case *IfCaseStmt, *SelectCaseStmt, *BlockStmt:
+			body := cbn.GetBody()
+			_, bodyIdx = body.GetLabeledStmt(label)
+			if bodyIdx != -1 {
+				bn = cbn
+				return
+			} else {
+				last = skipFaux(cbn.GetParentNode(nil))
+				// NOTE: frameDepth may be zero or positive.
+				blockDepth += 1
 			}
 		default:
 			panic("unexpected block node")
@@ -4798,6 +4840,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			}
 		}
 	case *TypeDecl:
+		if d.Name == blankIdentifier {
+			return
+		}
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {

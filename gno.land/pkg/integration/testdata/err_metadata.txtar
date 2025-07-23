@@ -11,7 +11,7 @@ stderr '--= Error =--'
 stderr 'Data: invalid gno package; type check errors:'
 stderr 'gno.land/r/invalid/invalid.gno:.*:.*: expected operand, found .EOF.'
 stderr 'Msg Traces:'
-stderr '    0  .*/tm2/pkg/errors/errors.go:.* - deliver transaction failed: log:msg:0,success:false,log:--= Error =--'
+stderr '.*/tm2/pkg/errors/errors.go:.* - deliver transaction failed: log:msg:0,success:false,log:--= Error =--'
 stderr 'Data: vm.TypeCheckError{abciError:vm.abciError{}, Errors:..string{"gno.land/r/invalid/invalid.gno:.*:.*: expected operand, found .EOF."}}'
 stderr 'Msg Traces:'
 stderr 'Stack Trace:'
@@ -21,10 +21,10 @@ stderr '--= /Error =--'
 stderr ',events:..'
 stderr '--= /Error =--'
 
--- invalid/gno.mod --
-module gno.land/r/invalid
+-- invalid/gnomod.toml --
+module = "gno.land/r/invalid"
+gno = "0.9"
 
-gno 0.9
 -- invalid/invalid.gno --
 package invalid
 var Foo =

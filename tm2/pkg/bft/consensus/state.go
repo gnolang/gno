@@ -844,7 +844,7 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 	// we may need an empty "proof" block, and enterPropose immediately.
 	waitForTxs := cs.config.WaitForTxs() && round == 0 && !cs.needProofBlock(height)
 	if waitForTxs {
-		if cs.config.CreateEmptyBlocksInterval > 0 {
+		if cs.config.CreateEmptyBlocks && cs.config.CreateEmptyBlocksInterval > 0 {
 			cs.scheduleTimeout(cs.config.CreateEmptyBlocksInterval, height, round,
 				cstypes.RoundStepNewRound)
 		} else {

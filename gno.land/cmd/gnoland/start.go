@@ -442,7 +442,7 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 	// Since the cost can't be estimated upfront at this point, the balance
 	// set is an arbitrary value based on a "best guess" basis.
 	// There should be a larger discussion if genesis transactions should consume gas, at all
-	deployerBalance := int64(len(genesisTxs)) * 10_000_000 // ~10 GNOT per tx
+	deployerBalance := int64(len(genesisTxs)) * 50_000_000 // ~50 GNOT per tx
 	balances.Set(txSender, std.NewCoins(std.NewCoin("ugnot", deployerBalance)))
 
 	// Construct genesis AppState.

@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/crossrealm_test
-package crossrealm_test
+// PKGPATH: gno.land/r/crossrealm
+package crossrealm
 
 import (
 	"std"
@@ -29,4 +29,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/crossrealm_test/zrealm_crossrealm17b.gno:28:2-33: cannot cur-call to external realm function gno.land/r/demo/tests/crossrealm.crossrealm<VPBlock(2,1)>.CallFooerFooCur from gno.land/r/crossrealm_test
+// gno.land/r/crossrealm/zrealm_crossrealm17b.gno:28:2-33: cannot cur-call to external realm function gno.land/r/demo/tests/crossrealm.crossrealm<VPBlock(2,1)>.CallFooerFooCur from gno.land/r/crossrealm

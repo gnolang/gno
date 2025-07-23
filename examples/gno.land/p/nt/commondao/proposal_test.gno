@@ -1,13 +1,13 @@
 package commondao
 
 import (
+	"errors"
 	"std"
 	"testing"
 	"time"
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/moul/addrset"
 )
 
 func TestProposalNew(t *testing.T) {
@@ -271,7 +271,7 @@ func TestIsQuorumReached(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var members addrset.Set
+			members := NewMemberStorage()
 			for _, m := range tc.members {
 				members.Add(m)
 			}
@@ -281,7 +281,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(&members))
+			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(members))
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
@@ -292,18 +292,31 @@ func TestIsQuorumReached(t *testing.T) {
 	}
 }
 
+func TestMustValidate(t *testing.T) {
+	uassert.NotPanics(t, func() {
+		MustValidate(testPropDef{})
+	}, "expect validation to succeed")
+
+	uassert.PanicsWithMessage(t, "validable proposal definition is nil", func() {
+		MustValidate(nil)
+	}, "expect validation to panic with nil definition")
+
+	uassert.PanicsWithMessage(t, "boom!", func() {
+		MustValidate(testPropDef{validationErr: errors.New("boom!")})
+	}, "expect validation to panic")
+}
+
 type testPropDef struct {
-	votingPeriod                          time.Duration
-	tallyResult                           bool
-	validationErr, tallyErr, executionErr error
-	voteChoices                           []VoteChoice
+	votingPeriod            time.Duration
+	tallyResult             bool
+	validationErr, tallyErr error
+	voteChoices             []VoteChoice
 }
 
 func (testPropDef) Title() string                 { return "" }
 func (testPropDef) Body() string                  { return "" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
-func (d testPropDef) Execute() error              { return d.executionErr }
 
 func (d testPropDef) Tally(ReadonlyVotingRecord, MemberSet) (bool, error) {
 	return d.tallyResult, d.tallyErr
