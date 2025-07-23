@@ -125,6 +125,8 @@ func (m model) navView() string {
 	title := m.render.NewStyle().Bold(true).Render("Gno.Land")
 	if m.taskLoader.Active() {
 		title = loadingStyle(m.render).Render(m.taskLoader.View())
+	} else if m.devMode {
+		title = lipgloss.JoinHorizontal(lipgloss.Left, title, m.connectedView())
 	}
 
 	spaceWidth := m.width / 3 // left middle and right
@@ -136,12 +138,27 @@ func (m model) navView() string {
 			)),
 		m.render.PlaceHorizontal(spaceWidth, lipgloss.Center, title),
 		m.render.PlaceHorizontal(spaceWidth, lipgloss.Right,
-			m.zone.Mark("home_button", home)),
+			m.zone.Mark("home_button", home),
+		),
 	)
 }
 
 func (m model) headerView() string {
 	return lipgloss.JoinVertical(lipgloss.Left, m.navView(), m.urlView())
+}
+
+func (m model) connectedView() string {
+	s := m.render.NewStyle().Bold(true)
+	switch m.devClientStatus {
+	case ClientStatusConnected:
+		return s.Foreground(lipgloss.Color("#a6da95")).Render(" ● ")
+	case ClientStatusConnecting:
+		return s.Foreground(lipgloss.Color("#dd7878")).Render(" ○ ")
+	case ClientStatusDisconnected:
+		fallthrough
+	default:
+		return s.Foreground(lipgloss.Color("#eed49f")).Render(" ○ ")
+	}
 }
 
 func (m model) urlView() string {
