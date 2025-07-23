@@ -2,6 +2,9 @@ package gnolang
 
 import (
 	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Keeps track of in-memory allocations.
@@ -12,6 +15,7 @@ type Allocator struct {
 	maxBytes int64
 	bytes    int64
 	collect  func() (left int64, ok bool) // gc callback
+	gasMeter store.GasMeter
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -70,6 +74,8 @@ const (
 	allocTypedValue  = _allocTypedValue
 )
 
+const GasCostPerByte = 1 // gas cost per byte allocated
+
 func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
 		return nil
@@ -81,6 +87,10 @@ func NewAllocator(maxBytes int64) *Allocator {
 
 func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
 	alloc.collect = f
+}
+
+func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
+	alloc.gasMeter = gasMeter
 }
 
 func (alloc *Allocator) MemStats() string {
@@ -117,6 +127,11 @@ func (alloc *Allocator) Allocate(size int64) {
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
+	}
+
+	if alloc.gasMeter != nil {
+		gas := overflow.Mulp(size, GasCostPerByte)
+		alloc.gasMeter.ConsumeGas(gas, "Memory allocation")
 	}
 
 	alloc.bytes += size
