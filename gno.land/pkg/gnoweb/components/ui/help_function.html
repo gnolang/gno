@@ -33,21 +33,27 @@
             <button
               class="js-copy-btn mr-2 text-gray-400 hover:text-gray-600"
               aria-label="Copy Function"
-              data-copy-btn="func-{{ .Name }}"
+              data-copy-target="func-{{ .Name }}"
             >
               {{ template "ui/copy" }}
             </button>
           </span>
         </span>
-        <a
-          href="#func-{{ .Name }}"
-          class="text-300 text-gray-400 hover:text-gray-600"
-          title="Function anchor link"
-        >
+        <span class="flex gap-x-2 flex-none">
+        <button
+        class="js-copy-btn text-gray-400 hover:text-gray-600 leading-none flex items-top"
+        aria-label="Copy Function"
+        data-copy-txt="{{ $data.PkgFullPath }}$help&func={{ .Name }}"
+        title="Function anchor link"
+      >
           <svg class="w-5 h-5 shrink-0 inline-block" data-copy-icon>
             <use href="#ico-link"></use>
+            <use href="#ico-check" class="hidden text-green-600"></use>
+
           </svg>
-        </a>
+       </button>
+        <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" title="Function transaction link" class="flex items-top text-600 text-gray-400 hover:text-gray-600 font-sans leading-none">⚡︎</a>
+      </span>
       </div>
 
       {{ with .Doc }}
