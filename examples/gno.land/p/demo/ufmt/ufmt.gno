@@ -510,9 +510,9 @@ func writeFloat(p *printer, verb rune, arg any) {
 	var subBuf string
 	bits := 64
 	n := 0.
+
 	switch v := arg.(type) {
 	case float64:
-		bits = 64
 		n = v
 	case float32:
 		bits = 32
@@ -521,16 +521,21 @@ func writeFloat(p *printer, verb rune, arg any) {
 		p.buf.writeString(fallback(verb, v))
 		return
 	}
+
 	prec := p.meta.precision
 	if prec == -1 {
 		prec = 6
 	}
+
 	verbChar := byte(verb)
 	if verbChar == 'f' || verbChar == 'F' {
 		verbChar = 'f'
 	}
+	
 	if p.meta.flags&flagPlus != 0 && n >= 0. {
-		subBuf = "+" + subBuf
+		subBuf = "+"
+	} else if p.meta.flags&flagSpace != 0 && n >= 0. {
+		subBuf = " "
 	}
 	subBuf += strconv.FormatFloat(n, verbChar, prec, bits)
 	p.buf.writeString(subBuf)
@@ -574,6 +579,21 @@ func writeHex(p *printer, verb rune, arg any, big bool) {
 			}
 			subBuf += x
 		}
+	case float64:
+		prec := -1
+		if p.meta.precision >= 0 {
+			prec = p.meta.precision
+		}
+		s := strconv.FormatFloat(v, 'x', prec, 64)
+		if big {
+			s = strings.ToUpper(s)
+		}
+		if p.meta.flags&flagPlus != 0 && v >= 0 {
+			s = "+" + s
+		} else if p.meta.flags&flagSpace != 0 && v >= 0 {
+			s = " " + s
+		}
+		subBuf = s
 	default:
 		p.buf.writeString("(unhandled)")
 		return
