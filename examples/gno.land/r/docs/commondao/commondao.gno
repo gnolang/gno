@@ -3,7 +3,6 @@ package commondao
 import (
 	"std"
 	"strconv"
-	"strings"
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -31,8 +30,8 @@ var DAO = commondao.New(
 func Render(url string) string {
 	out := md.H1("A CommonDao Example")
 
-	if hidden := displayHidden(url); hidden != "" {
-		out += hidden
+	if url == "join" {
+		out += displayHidden()
 		return out
 	}
 
@@ -125,25 +124,15 @@ func displayDaoOverview() string {
 }
 
 // displayHidden checks if the URL contains the hidden parameter and displays a message if it does
-func displayHidden(url string) string {
-	if parseHidden(url) {
-		out := md.H2("You found the secret of this realm!")
+func displayHidden() string {
+	out := md.H2("You found the secret of this realm!")
 
-		out += md.Paragraph("Welld done on reading the documentation of the CommonDAO package!")
-		out += md.Paragraph("You can request to joins the DAO by clicking the button below:")
-		out += md.Link("Request to join the DAO", txlink.Call("CreateProposal",
-			"title", "Join the DAO",
-			"desc", "I want to join the DAO as a member.",
-		))
+	out += md.Paragraph("Welld done on reading the documentation of the CommonDAO package!")
+	out += md.Paragraph("You can request to joins the DAO by clicking the button below:")
+	out += md.Link("Request to join the DAO", txlink.Call("CreateProposal",
+		"title", "Join the DAO",
+		"desc", "I want to join the DAO as a member.",
+	))
 
-		return out
-	}
-	return ""
-}
-
-// Check if the URL contains the hidden parameter
-func parseHidden(url string) bool {
-	parts := strings.SplitAfter(url, ":")
-
-	return parts[0] == "join"
+	return out
 }
