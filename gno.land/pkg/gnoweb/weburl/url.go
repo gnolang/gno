@@ -147,6 +147,10 @@ func (gnoURL GnoURL) IsRealm() bool {
 	return strings.HasPrefix(gnoURL.Path, "/r/")
 }
 
+func (gnoURL GnoURL) IsUser() bool {
+	return strings.HasPrefix(gnoURL.Path, "/u/")
+}
+
 // IsFile checks if the URL path represents a file.
 func (gnoURL GnoURL) IsFile() bool {
 	return gnoURL.File != ""

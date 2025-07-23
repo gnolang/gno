@@ -1,0 +1,2 @@
+module = "gno.vm/t/integ/several_files_multiple_errors"
+gno = "0.9"

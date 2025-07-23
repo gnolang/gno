@@ -64,7 +64,7 @@ func TestNewAppWithOptions(t *testing.T) {
 						Body: "package demo; func Hello(cur realm) string { return `hello`; }",
 					},
 					{
-						Name: "gno.mod",
+						Name: "gnomod.toml",
 						Body: gnolang.GenGnoModLatest("gno.land/r/demo"),
 					},
 				})},
@@ -273,6 +273,20 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	return validators
 }
 
+// generateDummyKeys generates a slice of dummy private keys
+func generateDummyKeys(t *testing.T, count int) []crypto.PrivKey {
+	t.Helper()
+
+	keys := make([]crypto.PrivKey, 0, count)
+
+	for i := 0; i < count; i++ {
+		key := getDummyKey(t)
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
 func createAndSignTx(
 	t *testing.T,
 	msgs []std.Msg,
@@ -402,12 +416,12 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 							Body: body,
 						},
 						{
-							Name: "gno.mod",
+							Name: "gnomod.toml",
 							Body: gnolang.GenGnoModLatest(path),
 						},
 					},
 				},
-				Deposit: nil,
+				MaxDeposit: nil,
 			}
 
 			// Create the initial genesis tx
@@ -521,7 +535,11 @@ func TestEndBlocker(t *testing.T) {
 		eb := EndBlocker(c, nil, nil, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
-		res := eb(sdk.Context{}, abci.RequestEndBlock{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
 
 		// Verify the response was empty
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
@@ -561,7 +579,11 @@ func TestEndBlocker(t *testing.T) {
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
-		res := eb(sdk.Context{}, abci.RequestEndBlock{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
 
 		// Verify the response was empty
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
@@ -604,7 +626,11 @@ func TestEndBlocker(t *testing.T) {
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
-		res := eb(sdk.Context{}, abci.RequestEndBlock{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
 
 		// Verify the response was empty
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
@@ -672,7 +698,11 @@ func TestEndBlocker(t *testing.T) {
 		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
-		res := eb(sdk.Context{}, abci.RequestEndBlock{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
 
 		// Verify the response was not empty
 		require.Len(t, res.ValidatorUpdates, len(changes))
@@ -682,6 +712,191 @@ func TestEndBlocker(t *testing.T) {
 			assert.True(t, changes[index].PubKey.Equals(update.PubKey))
 			assert.Equal(t, changes[index].Power, update.Power)
 		}
+	})
+
+	t.Run("negative power filtered out", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			keys = generateDummyKeys(t, 2)
+
+			validUpdate = abci.ValidatorUpdate{
+				Address: keys[0].PubKey().Address(),
+				PubKey:  keys[0].PubKey(),
+				Power:   1,
+			}
+
+			invalidUpdate = abci.ValidatorUpdate{
+				Address: keys[1].PubKey().Address(),
+				PubKey:  keys[1].PubKey(),
+				Power:   -1, // Invalid negative power
+			}
+
+			updates = []abci.ValidatorUpdate{validUpdate, invalidUpdate}
+
+			mockEventSwitch = newCommonEvSwitch()
+
+			mockVMKeeper = &mockVMKeeper{
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+					require.Equal(t, valRealm, pkgPath)
+					require.NotEmpty(t, expr)
+
+					return constructVMResponse(updates), nil
+				},
+			}
+
+			vmEvents = []abci.Event{
+				gnostd.GnoEvent{
+					Type:    validatorAddedEvent,
+					PkgPath: valRealm,
+				},
+				gnostd.GnoEvent{
+					Type:    validatorAddedEvent,
+					PkgPath: valRealm,
+				},
+			}
+			txEvent = bft.EventTx{
+				Result: bft.TxResult{
+					Response: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Events: vmEvents,
+						},
+					},
+				},
+			}
+		)
+
+		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
+		mockEventSwitch.FireEvent(txEvent)
+
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
+		require.Len(t, res.ValidatorUpdates, 1)
+		assert.Equal(t, validUpdate.Address, res.ValidatorUpdates[0].Address)
+		assert.Equal(t, validUpdate.Power, res.ValidatorUpdates[0].Power)
+	})
+
+	t.Run("pubkey address mismatch filtered out", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			keys = generateDummyKeys(t, 3)
+
+			validUpdate = abci.ValidatorUpdate{
+				Address: keys[0].PubKey().Address(),
+				PubKey:  keys[0].PubKey(),
+				Power:   1,
+			}
+
+			invalidUpdate = abci.ValidatorUpdate{
+				Address: keys[1].PubKey().Address(), // Address from key1
+				PubKey:  keys[2].PubKey(),           // PubKey from key2 (mismatch)
+				Power:   1,
+			}
+
+			updates = []abci.ValidatorUpdate{validUpdate, invalidUpdate}
+
+			mockEventSwitch = newCommonEvSwitch()
+
+			mockVMKeeper = &mockVMKeeper{
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+					require.Equal(t, valRealm, pkgPath)
+					require.NotEmpty(t, expr)
+
+					return constructVMResponse(updates), nil
+				},
+			}
+
+			vmEvents = []abci.Event{
+				gnostd.GnoEvent{
+					Type:    validatorAddedEvent,
+					PkgPath: valRealm,
+				},
+				gnostd.GnoEvent{
+					Type:    validatorAddedEvent,
+					PkgPath: valRealm,
+				},
+			}
+			txEvent = bft.EventTx{
+				Result: bft.TxResult{
+					Response: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Events: vmEvents,
+						},
+					},
+				},
+			}
+		)
+
+		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
+		mockEventSwitch.FireEvent(txEvent)
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
+
+		// Verify only the valid update is returned
+		require.Len(t, res.ValidatorUpdates, 1)
+		assert.Equal(t, validUpdate.Address, res.ValidatorUpdates[0].Address)
+		assert.True(t, validUpdate.PubKey.Equals(res.ValidatorUpdates[0].PubKey))
+	})
+
+	t.Run("wrong pubkey type", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key1 = getDummyKey(t)
+
+			updates = []abci.ValidatorUpdate{
+				{
+					Address: key1.PubKey().Address(),
+					PubKey:  key1.PubKey(),
+					Power:   1,
+				}}
+
+			mockEventSwitch = newCommonEvSwitch()
+
+			mockVMKeeper = &mockVMKeeper{
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+					require.Equal(t, valRealm, pkgPath)
+					require.NotEmpty(t, expr)
+
+					return constructVMResponse(updates), nil
+				},
+			}
+			txEvent = bft.EventTx{
+				Result: bft.TxResult{
+					Response: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Events: []abci.Event{
+								gnostd.GnoEvent{
+									Type:    validatorAddedEvent,
+									PkgPath: valRealm,
+								},
+							},
+						},
+					},
+				},
+			}
+		)
+
+		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
+		mockEventSwitch.FireEvent(txEvent)
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"},
+			},
+		}), abci.RequestEndBlock{})
+
+		// Verify only the valid update is returned
+		require.Len(t, res.ValidatorUpdates, 0)
 	})
 }
 

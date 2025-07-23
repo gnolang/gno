@@ -28,7 +28,7 @@ func CreatePost(cur realm, text string) error {
 	return nil
 }
 
-func Render(cur realm, _ string) string {
+func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
 	// Create a clickable link to create a post
 	output += helplink.Func("Write a post!", "CreatePost", "text", "")

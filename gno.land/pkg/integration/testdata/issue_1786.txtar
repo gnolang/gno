@@ -40,10 +40,10 @@ stdout '9500 int64'
 gnokey query vm/qrender --data "gno.land/r/demo/wugnot:invalid"
 stdout 'data: 404'
 
--- gno.mod --
-module gno.land/r/demo/proxywugnot
+-- gnomod.toml --
+module = "issue_1786"
+gno = "0.9"
 
-gno 0.9
 -- realm.gno --
 package proxywugnot
 

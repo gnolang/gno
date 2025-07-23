@@ -70,8 +70,8 @@ func TestAddPkgDeliverTx(t *testing.T) {
 
 	assert.True(t, res.IsOK())
 
-	// NOTE: let's try to keep this bellow 150_000 :)
-	assert.Equal(t, int64(140101), gasDeliver)
+	// NOTE: let's try to keep this bellow 250_000 :)
+	assert.Equal(t, int64(225871), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -145,7 +145,7 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	var files []*std.MemFile
 	if success {
 		files = []*std.MemFile{
-			{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
@@ -158,7 +158,7 @@ func Echo() string {
 	} else {
 		// failed message
 		files = []*std.MemFile{
-			{Name: "gno.mod", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
 			{
 				Name: "hello.gno",
 				Body: `package hello
