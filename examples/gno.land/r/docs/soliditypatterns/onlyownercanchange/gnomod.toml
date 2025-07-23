@@ -1,0 +1,2 @@
+module = "gno.land/r/docs/soliditypatterns/onlyownercanchange"
+gno = "0.9"
