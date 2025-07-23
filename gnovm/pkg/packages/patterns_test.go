@@ -124,7 +124,7 @@ func TestDataExpandPatterns(t *testing.T) {
 
 	tcs := []struct {
 		name              string
-		workdir           string
+		workroot          string
 		patterns          []string
 		conf              *LoadConfig
 		res               []*pkgMatch
@@ -133,7 +133,7 @@ func TestDataExpandPatterns(t *testing.T) {
 	}{
 		{
 			name:     "workspace-1-root",
-			workdir:  localFromSlash("./testdata/workspace-1"),
+			workroot: localFromSlash("./testdata/workspace-1"),
 			patterns: []string{"."},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
@@ -142,7 +142,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-1-recursive",
-			workdir:  localFromSlash("./testdata/workspace-1"),
+			workroot: localFromSlash("./testdata/workspace-1"),
 			patterns: []string{"./..."},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
@@ -157,7 +157,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-1-abs-root",
-			workdir:  localFromSlash("./testdata/workspace-1"),
+			workroot: localFromSlash("./testdata/workspace-1"),
 			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
@@ -166,7 +166,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-1-abs-recursive",
-			workdir:  localFromSlash("./testdata/workspace-1"),
+			workroot: localFromSlash("./testdata/workspace-1"),
 			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
@@ -181,7 +181,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-2-root",
-			workdir:  localFromSlash("./testdata/workspace-2"),
+			workroot: localFromSlash("./testdata/workspace-2"),
 			patterns: []string{localFromSlash(".")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
@@ -190,7 +190,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-2-recursive",
-			workdir:  localFromSlash("./testdata/workspace-2"),
+			workroot: localFromSlash("./testdata/workspace-2"),
 			patterns: []string{localFromSlash("./...")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
@@ -205,7 +205,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-2-recursive-dup",
-			workdir:  localFromSlash("./testdata/workspace-2"),
+			workroot: localFromSlash("./testdata/workspace-2"),
 			patterns: []string{localFromSlash("./..."), localFromSlash("./bar")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
@@ -220,7 +220,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "stdlibs",
-			workdir:  localFromSlash("./testdata/workspace-empty"),
+			workroot: localFromSlash("./testdata/workspace-empty"),
 			patterns: []string{"strings", "math"},
 			res: []*pkgMatch{{
 				Dir:   StdlibDir(gnoRoot, "math"),
@@ -232,7 +232,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "remote",
-			workdir:  localFromSlash("./testdata/workspace-empty"),
+			workroot: localFromSlash("./testdata/workspace-empty"),
 			patterns: []string{"gno.example.com/test/strings", "gno.example.com/test/math"},
 			res: []*pkgMatch{{
 				Dir:   PackageDir("gno.example.com/test/math"),
@@ -244,50 +244,50 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:             "err-stdlibs-recursive",
-			workdir:          localFromSlash("./testdata/workspace-empty"), // XXX: allow to load stdlibs without a workspace
+			workroot:         localFromSlash("./testdata/workspace-empty"), // XXX: allow to load stdlibs without a workspace
 			patterns:         []string{"strings/..."},
 			errShouldContain: "recursive remote patterns are not supported",
 		},
 		{
 			name:             "err-outside-root",
-			workdir:          localFromSlash("./testdata/workspace-empty"),
+			workroot:         localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{".."},
 			errShouldContain: `pattern ".." is not rooted in current workspace`,
 		},
 		{
 			name:             "err-outside-root-abs",
-			workdir:          localFromSlash("./testdata/workspace-empty"),
+			workroot:         localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{filepath.Join(cwd, "..")},
 			errShouldContain: `is not rooted in current workspace`,
 		},
 		{
 			name:             "err-remote-recursive",
-			workdir:          localFromSlash("./testdata/workspace-empty"),
+			workroot:         localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{"gno.example.com/test/strings/..."},
 			errShouldContain: "recursive remote patterns are not supported",
 		},
 		{
 			name:             "err-recursive-noroot",
-			workdir:          localFromSlash("./testdata/workspace-empty"),
+			workroot:         localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{"./notexists/..."},
 			errShouldContain: "no such file or directory",
 		},
 		{
 			name:              "warn-recursive-nothing",
-			workdir:           localFromSlash("./testdata/workspace-1"),
+			workroot:          localFromSlash("./testdata/workspace-1"),
 			patterns:          []string{localFromSlash("./emptydir/...")},
 			warnShouldContain: fmt.Sprintf(`gno: warning: %q matched no packages`, localFromSlash("./emptydir/...")),
 		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.workdir != "" {
-				testChdir(t, tc.workdir)
-			}
-			rootDir, err := findLoaderRootDir()
+			require.NotEmpty(t, tc.workroot)
+			workroot, err := filepath.Abs(tc.workroot)
 			require.NoError(t, err)
+			testChdir(t, workroot)
+
 			warn := &strings.Builder{}
-			res, err := expandPatterns(gnoRoot, rootDir, warn, tc.patterns...)
+			res, err := expandPatterns(gnoRoot, workroot, warn, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {
