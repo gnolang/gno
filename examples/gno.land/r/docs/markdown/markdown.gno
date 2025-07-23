@@ -423,16 +423,45 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
      - ±name±: Unique identifier for the input (required)
      - ±type±: Type of input (optional, defaults to "text")
      - ±placeholder±: Hint text shown in the input (optional, defaults to "Enter value")
+     - ±description±: Description of the input as title (optional - can be used as title for group of one or multiple inputs)
    - Supported input types:
      - ±type="text"± (default): For text input
      - ±type="number"±: For numeric values only (with browser validation)
      - ±type="email"±: For email addresses (with basic browser validation)
      - ±type="tel"±: For phone numbers (no specific validation)
      - ±type="password"±: For password input (masked characters)
+     - ±type="radio"±: For single selection from a group (requires ±value± attribute)
+     - ±type="checkbox"±: For multiple selections (requires ±value± attribute)
+   - Additional attributes for radio/checkbox:
+     - ±value±: The value to submit when selected (required for radio/checkbox)
+     - ±checked±: Set to "true" to pre-select the option (optional)
    - Note: Input validation is handled by the browser's HTML5 validation
    - Any other type will default to "text"
    - Each input must have a unique name
    - Inputs are rendered with labels and proper styling
+
+3. **Textarea Fields**
+   - Created with ±<gno-textarea>± tag
+   - Required attributes:
+     - ±name±: Unique identifier for the textarea (required)
+     - ±placeholder±: Hint text shown in the textarea (optional, defaults to "Enter value")
+   - Optional attributes:
+     - ±rows±: Number of visible rows (2-10, defaults to 4)
+   - Perfect for longer text input like messages, descriptions, or comments
+   - Each textarea must have a unique name
+   - Textareas are rendered with labels and proper styling
+
+4. **Select Fields**
+   - Created with ±<gno-select>± tag (similar to radio buttons)
+   - Required attributes:
+     - ±name±: Unique identifier for the select group (required). Use underscores to separate words.
+     - ±value±: The value to submit and display text (required)
+   - Optional attributes:
+     - ±description±: Description of the select group (optional)
+     - ±selected±: Set to "true" to pre-select the option (optional)
+   - Multiple ±<gno-select>± elements with the same ±name± form a select group
+   - All options with the same ±name± form a group where only one can be selected
+   - The ±value± attribute serves both as the submitted value and the displayed text
 
 #### Example Use Cases
 
@@ -454,27 +483,146 @@ This form will submit to ±:user?username=value&age=value± on the same realm.
 2. Form with Query Parameters Only
 ±±±markdown
 <gno-form>
-  <gno-input name="recipient" type="text" placeholder="Enter recipient address" />
+  <gno-input name="recipient" type="text" placeholder="Enter recipient address" description="Recipient Information" />
   <gno-input name="email" type="email" placeholder="Your email" />
   <gno-input name="pswd" type="password" placeholder="Your password" />
 </gno-form>
 ±±±
 
 <gno-form>
-  <gno-input name="recipient" type="text" placeholder="Enter recipient address" />
+  <gno-input name="recipient" type="text" placeholder="Enter recipient address" description="Recipient Information" />
   <gno-input name="email" type="email" placeholder="Your email" />
   <gno-input name="pswd" type="password" placeholder="Your password" />
 </gno-form>
 
 This form will submit to ±?recipient=value&email=value&pswd=value± on the same realm.
 
+3. Form with Radio Buttons
+±±±markdown
+<gno-form>
+  <gno-input name="color" type="radio" value="blue" description="What is your favorite color?" />
+  <gno-input name="color" type="radio" value="red" />
+  <gno-input name="color" type="radio" value="green" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="color" type="radio" value="blue" description="What is your favorite color?" />
+  <gno-input name="color" type="radio" value="red" />
+  <gno-input name="color" type="radio" value="green" />
+</gno-form>
+
+Radio buttons allow users to select one option from a group. All radio buttons with the same ±name± form a group where only one can be selected.
+
+4. Form with Checkboxes
+±±±markdown
+<gno-form>
+  <gno-input name="interests" type="checkbox" value="coding" description="What do you like to do?"/>
+  <gno-input name="interests" type="checkbox" value="gaming" />
+  <gno-input name="interests" type="checkbox" value="reading" />
+  <gno-input name="newsletter" type="checkbox" value="subscribe" description="Subscribe to newsletter" placeholder="To get the latest news" checked="true" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="interests" type="checkbox" value="coding" description="What do you like to do?" />
+  <gno-input name="interests" type="checkbox" value="gaming" />
+  <gno-input name="interests" type="checkbox" value="reading" />
+  <gno-input name="newsletter" type="checkbox" value="subscribe" description="Subscribe to newsletter" placeholder="To get the latest news" checked="true" />
+</gno-form>
+
+Checkboxes allow users to select multiple options. Use ±checked="true"± to pre-select a checkbox.
+
+5. Form with Textarea
+±±±markdown
+<gno-form>
+  <gno-input name="message" type="text" placeholder="Subject" />
+  <gno-textarea name="content" placeholder="Enter your message here" rows="6" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="message" type="text" placeholder="Subject" />
+  <gno-textarea name="content" placeholder="Enter your message here" rows="6" />
+</gno-form>
+
+Textareas are perfect for longer text input. The ±rows± attribute controls the height (4-10 rows, default is 4).
+
+6. Form with Select Options
+±±±markdown
+<gno-form>
+  <gno-select name="country" value="United States" description="Select your country" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-select name="country" value="United States" description="Select your country" selected="true" />
+  <gno-select name="country" value="France" />
+  <gno-select name="country" value="Germany" />
+</gno-form>
+
+Select options work like radio buttons but with a more semantic meaning. All ±<gno-select>± elements with the same ±name± form a group where only one can be selected. Use ±selected="true"± to pre-select an option. The ±value± attribute serves both as the submitted value and the displayed text.
+
+7. Complex Form with Mixed Elements
+±±±markdown
+<gno-form path="contact">
+  <gno-input name="name" type="text" placeholder="Your full name" description="Your Information" />
+  <gno-input name="email" type="email" placeholder="Your email address" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  
+  <gno-input name="color" type="radio" value="blue" description="What is your favorite color?" />
+  <gno-input name="color" type="radio" value="red" />
+  <gno-input name="color" type="radio" value="green" />
+  
+  <gno-input name="interests" type="checkbox" value="tech" description="What do you like to do?" />
+  <gno-input name="interests" type="checkbox" value="sports" />
+  <gno-input name="interests" type="checkbox" value="music"/>
+  
+  <gno-select name="country" value="us" text="United States" description="Select your country" />
+  <gno-select name="country" value="fr" text="France" />
+  <gno-select name="country" value="de" text="Germany" />
+  
+  <gno-textarea name="message" placeholder="Tell us about yourself" rows="5" />
+</gno-form>
+±±±
+
+<gno-form path="contact">
+  <gno-input name="name" type="text" placeholder="Your full name" description="Your Information" />
+  <gno-input name="email" type="email" placeholder="Your email address" />
+  <gno-input name="age" type="number" placeholder="Your age" />
+  
+  <gno-input name="color" type="radio" value="blue" description="What is your favorite color?" />
+  <gno-input name="color" type="radio" value="red" />
+  <gno-input name="color" type="radio" value="green" />
+  
+  <gno-input name="interests" type="checkbox" value="tech" description="What do you like to do?" />
+  <gno-input name="interests" type="checkbox" value="sports" />
+  <gno-input name="interests" type="checkbox" value="music"/>
+  
+  <gno-select name="country" value="us" text="United States" description="Select your country" />
+  <gno-select name="country" value="fr" text="France" />
+  <gno-select name="country" value="de" text="Germany" />
+  
+  <gno-textarea name="message" placeholder="Tell us about yourself" rows="5" />
+</gno-form>
+
+This example shows how to combine all form element types in a single form.
+
 #### Important Rules
 
 1. **Validation Rules**:
    - Every ±<gno-input>± must have a ±name± attribute
-   - Duplicate attribute names are not allowed
+   - Every ±<gno-textarea>± must have a ±name± attribute
+   - Every ±<gno-select>± must have a ±name± and ±value± attribute
+   - Duplicate attribute names are not allowed (except for radio, checkbox, and select groups)
    - Forms must be properly closed
    - Nested forms will not render
+   - Radio and checkbox inputs must have a ±value± attribute
+   - The ±checked± attribute is only valid for radio and checkbox inputs
+   - The ±selected± attribute is only valid for ±<gno-select>± elements
+   - Textarea ±rows± attribute must be between 2 and 10 (defaults to 4 if invalid or not specified)
 
 2. **Security Features**:
    - Forms are processed on the realm where they are defined
