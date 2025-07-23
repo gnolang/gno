@@ -241,7 +241,21 @@ func discoverPkgsForLocalDeps(roots []string) map[string]string {
 				return nil
 			}
 			if d.IsDir() {
-				return nil
+				dir := filepath.Join(root, path)
+				if dir == root {
+					return nil
+				}
+				subwork := filepath.Join(dir, "gnowork.toml")
+				_, err := os.Stat(subwork)
+				switch {
+				case os.IsNotExist(err):
+					// not a sub-workspace, continue walking
+					return nil
+				case err != nil:
+					return fmt.Errorf("check that dir is not a subworkspace: %w", err)
+				default:
+					return fs.SkipDir
+				}
 			}
 
 			dir, base := filepath.Split(path)
@@ -274,21 +288,6 @@ func discoverPkgsForLocalDeps(roots []string) map[string]string {
 				byDir[dir] = pkgPath
 
 				return nil
-
-			case "gnowork.toml":
-				// stop if sub-workspace
-
-				if dir != root {
-					// if we found a pkg in this dir, ignore it
-					pkgPath, ok := byDir[dir]
-					if ok {
-						delete(byDir, dir)
-						delete(byPkgPath, pkgPath)
-					}
-
-					// skip subtree
-					return fs.SkipDir
-				}
 			}
 
 			return nil

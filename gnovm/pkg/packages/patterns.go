@@ -140,7 +140,21 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 		}
 
 		if d.IsDir() {
-			return nil
+			dir := filepath.Join(patternRoot, path)
+			if dir == workspaceRoot {
+				return nil
+			}
+			subwork := filepath.Join(dir, "gnowork.toml")
+			_, err := os.Stat(subwork)
+			switch {
+			case os.IsNotExist(err):
+				// not a sub-workspace, continue walking
+				return nil
+			case err != nil:
+				return fmt.Errorf("check that dir is not a subworkspace: %w", err)
+			default:
+				return fs.SkipDir
+			}
 		}
 
 		// get file's parent directory
@@ -152,12 +166,6 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 			// add directories that contain gnomods as package dirs
 			if !slices.Contains(pkgDirs, parentDir) {
 				pkgDirs = append(pkgDirs, parentDir)
-			}
-		case "gnowork.toml":
-			// ignore sub-tree if it's a sub-workspace
-			if parentDir != workspaceRoot {
-				pkgDirs = slices.DeleteFunc(pkgDirs, func(d string) bool { return d == parentDir })
-				return fs.SkipDir
 			}
 		}
 
