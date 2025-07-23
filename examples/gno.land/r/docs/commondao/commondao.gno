@@ -39,7 +39,7 @@ func Render(url string) string {
 	out += md.Paragraph("This realm is meant to demonstrate how to use the `[/p/nt/commondao](/p/nt/commondao)` pure package.")
 	out += md.Paragraph("The commondao package is meant to act as a DAO factory to use in any realms easily.")
 
-	out += md.Paragraph("In the source code, you'll find out how to create a basic DAO with where to look for more informations about more advanced options")
+	out += md.Paragraph("In the source code, you'll find out how to create a basic DAO and where to look for more informations about more advanced options")
 
 	out += displayDaoOverview()
 
