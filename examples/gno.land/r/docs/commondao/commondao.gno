@@ -17,17 +17,16 @@ const (
 	manfred  = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
 )
 
-// DAO is the instance of the CommonDAO used by this realm
-var DAO *commondao.CommonDAO
-
-func init() {
-	// Creation of the DAO with the given name
-	createDao("CommonDAO Documentation Realm")
-
-	// Adds two new members to the DAO
-	DAO.Members().Add(leon)
-	DAO.Members().Add(manfred)
-}
+// Creates a DAO with Active and Finished proposal storage
+// Also, it creates a member storage
+// Other options can be added, all of which can be found in 'p/nt/commondao/commondao_options'
+var DAO = commondao.New(
+	commondao.WithName("CommonDAO Documentation Realm"), // adds a name to the common DAO
+	commondao.WithDescription("An example DAO"),         // adds a description to the common DAO
+	commondao.WithMember(chaegnal),                      // adds the creator of the DAO to its member storage
+	commondao.WithMember(leon),
+	commondao.WithMember(manfred),
+)
 
 func Render(url string) string {
 	out := md.H1("A CommonDao Example")
@@ -45,18 +44,6 @@ func Render(url string) string {
 	out += displayDaoOverview()
 
 	return out
-}
-
-// createDao initializes a new DAO instance
-func createDao(title string) {
-	// Creates a DAO with Active and Finished proposal storage
-	// Also, it creates a member storage
-	// Other options can be added, all of which can be found in 'p/nt/commondao/commondao_options'
-	DAO = commondao.New(
-		commondao.WithName(title),                   // adds a name to the common DAO
-		commondao.WithMember(chaegnal),              // adds the creator of the DAO to its member storage
-		commondao.WithDescription("An example DAO"), // adds a description to the common DAO
-	)
 }
 
 func displayMembers() string {
