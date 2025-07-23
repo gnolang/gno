@@ -6,11 +6,13 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -375,6 +377,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
 		acc := cfg.acck.GetAccount(ctx, addr)
+		if acc == nil {
+			panic(fmt.Errorf("unrestricted address must be one of the genesis accounts: invalid account %q", addr))
+		}
+
 		accr := acc.(*GnoAccount)
 		accr.SetUnrestricted()
 		cfg.acck.SetAccount(ctx, acc)
@@ -489,6 +495,40 @@ func EndBlocker(
 
 			return abci.ResponseEndBlock{}
 		}
+
+		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
+
+		// Filter out the updates that are not valid
+		updates = slices.DeleteFunc(updates, func(u abci.ValidatorUpdate) bool {
+			// Make sure the power is valid
+			if u.Power < 0 {
+				app.Logger().Error(
+					"valset update invalid; voting power < 0",
+					"address", u.Address.String(),
+					"power", u.Power,
+				)
+
+				return true // delete it
+			}
+
+			// Make sure the public key matches the address
+			if u.PubKey.Address().Compare(u.Address) != 0 {
+				app.Logger().Error(
+					"valset update invalid; pubkey + address mismatch",
+					"address", u.Address.String(),
+					"pubkey", u.PubKey.String(),
+				)
+
+				return true // delete it
+			}
+
+			// Make sure the public key is an allowed consensus key type
+			if !slices.Contains(allowedKeyTypes, amino.GetTypeURL(u.PubKey)) {
+				return true // delete it
+			}
+
+			return false // keep it, update is valid
+		})
 
 		return abci.ResponseEndBlock{
 			ValidatorUpdates: updates,

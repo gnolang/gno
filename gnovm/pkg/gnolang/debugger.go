@@ -244,7 +244,7 @@ loop:
 	debugUpdateLocation(m)
 
 	// Keep track of exact locations when performing calls.
-	op := m.Ops[m.NumOps-1]
+	op := m.Ops[len(m.Ops)-1]
 	switch op {
 	case OpCall:
 		m.Debugger.call = append(m.Debugger.call, m.Debugger.loc)
@@ -858,7 +858,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
-		return x.GetPointerAtIndex(m.Alloc, m.Store, &index).Deref(), nil
+		return x.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &index).Deref(), nil
 	default:
 		err = fmt.Errorf("expression not supported: %v", n)
 	}

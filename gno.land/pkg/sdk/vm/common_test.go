@@ -57,6 +57,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	prmk.Register(authm.ModuleName, acck)
 	prmk.Register(bankm.ModuleName, bankk)
 	prmk.Register(ModuleName, vmk)
+	vmk.SetParams(ctx, DefaultParams())
 
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
