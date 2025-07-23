@@ -13,6 +13,10 @@ type OverviewData struct {
 	Doc         string
 	Files       []string
 	FileCounter int
+	Consts      []*doc.JSONValueDecl
+	Vars        []*doc.JSONValueDecl
+	Types       []*doc.JSONType
+	Dirs        []string
 }
 
 type overviewViewParams struct {

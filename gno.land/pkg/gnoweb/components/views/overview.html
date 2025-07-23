@@ -17,13 +17,68 @@
     <ul class="space-y-4">
       {{ range .Functions }}
       <li id="func-{{ .Name }}" class="border-b pb-2">
-        <div class="font-mono text-lg font-semibold">
-          func {{ .Name }}(
-            {{- range $i, $p := .Params }}{{ if $i }}, {{ end }}{{ $p.Name }} {{ $p.Type }}{{ end }}
-          ){{ if .Results }} → 
-            {{- range $i, $r := .Results }}{{ if $i }}, {{ end }}{{ $r.Type }}{{ end }}
-          {{ end }}
+        <h3 class="font-bold text-lg text-gray-900 mb-1">func {{ .Name }} <span class="text-green-700">¶</span></h3>
+        {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
+        <div class="flex items-center gap-2 mb-1">
+          <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0" id="sig-{{ .Name }}">{{ .Signature }}</pre>
+          <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="sig-{{ .Name }}">
+            {{ template "ui/copy" }}
+          </button>
+          <a href="{{ $.PkgPath }}$source&file={{ .File }}#L{{ .Line }}" class="ml-2 text-green-700 hover:underline font-mono text-xs px-2 py-1 border rounded bg-gray-50">View source</a>
         </div>
+      </li>
+      {{ end }}
+    </ul>
+  </div>
+  {{ end }}
+
+  <!-- Constants section -->
+  {{ if .Consts }}
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold mb-2">Constants</h2>
+    <ul>
+      {{ range .Consts }}
+      <li class="mb-2">
+        <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0" id="const-{{ .Signature }}">{{ .Signature }}</pre>
+        <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="const-{{ .Signature }}">
+          {{ template "ui/copy" }}
+        </button>
+        {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
+      </li>
+      {{ end }}
+    </ul>
+  </div>
+  {{ end }}
+
+  <!-- Variables section -->
+  {{ if .Vars }}
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold mb-2">Variables</h2>
+    <ul>
+      {{ range .Vars }}
+      <li class="mb-2">
+        <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0" id="var-{{ .Signature }}">{{ .Signature }}</pre>
+        <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="var-{{ .Signature }}">
+          {{ template "ui/copy" }}
+        </button>
+        {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
+      </li>
+      {{ end }}
+    </ul>
+  </div>
+  {{ end }}
+
+  <!-- Types section -->
+  {{ if .Types }}
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold mb-2">Types</h2>
+    <ul>
+      {{ range .Types }}
+      <li class="mb-2">
+        <pre class="font-mono text-sm bg-gray-100 rounded px-2 py-1 inline-block mb-0" id="type-{{ .Name }}">{{ .Signature }}</pre>
+        <button class="js-copy-btn text-gray-400 hover:text-gray-600" data-copy-btn="type-{{ .Name }}">
+          {{ template "ui/copy" }}
+        </button>
         {{ if .Doc }}<div class="text-gray-600 text-sm mt-1">{{ .Doc }}</div>{{ end }}
       </li>
       {{ end }}
@@ -47,6 +102,20 @@
           </span>
           <span class="text-gray-300">Open</span>
         </a>
+      </li>
+      {{ end }}
+    </ul>
+  </div>
+  {{ end }}
+
+  <!-- Directories section -->
+  {{ if .Dirs }}
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold mb-2">Directories</h2>
+    <ul>
+      {{ range .Dirs }}
+      <li>
+        <a href="{{ $.PkgPath }}/{{ . }}" class="text-green-700 hover:underline font-mono">{{ . }}</a>
       </li>
       {{ end }}
     </ul>

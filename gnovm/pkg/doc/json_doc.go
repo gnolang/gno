@@ -51,6 +51,8 @@ type JSONFunc struct {
 	Doc       string       `json:"doc"` // markdown
 	Params    []*JSONField `json:"params"`
 	Results   []*JSONField `json:"results"`
+	File      string       `json:"file"`
+	Line      int          `json:"line"`
 }
 
 type JSONType struct {
@@ -111,12 +113,18 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	}
 
 	for _, fun := range pkg.Funcs {
+		pos := fun.Decl.Pos()
+		position := d.pkgData.fset.Position(pos)
+		file := position.Filename
+		line := position.Line
 		jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 			Name:      fun.Name,
 			Signature: mustFormatNode(d.pkgData.fset, fun.Decl),
 			Doc:       string(pkg.Markdown(fun.Doc)),
 			Params:    d.extractJSONFields(fun.Decl.Type.Params),
 			Results:   d.extractJSONFields(fun.Decl.Type.Results),
+			File:      file,
+			Line:      line,
 		})
 	}
 

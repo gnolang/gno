@@ -511,10 +511,38 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 	jdoc, _ := h.Client.Doc(pkgPath)
 	var functions []*doc.JSONFunc
 	var docString string
+	var consts []*doc.JSONValueDecl
+	var vars []*doc.JSONValueDecl
+	var types []*doc.JSONType
+	var dirs []string
 	if jdoc != nil {
 		functions = jdoc.Funcs
 		docString = jdoc.PackageDoc
+		types = jdoc.Types
+		for _, v := range jdoc.Values {
+			if v.Const {
+				consts = append(consts, v)
+			} else {
+				vars = append(vars, v)
+			}
+		}
 	}
+	// List dirs
+	prefix := h.Static.Domain + pkgPath + "/"
+	limit := 1_000
+	paths, err := h.Client.ListPaths(prefix, limit)
+	if err != nil {
+		h.Logger.Warn("ListPaths failed", "pkgPath", pkgPath, "error", err)
+		paths = nil
+	}
+
+	for _, p := range paths {
+		dir := strings.TrimPrefix(p, pkgPath+"/")
+		if dir != "" && !strings.Contains(dir, "/") && dir != "." {
+			dirs = append(dirs, dir)
+		}
+	}
+	h.Logger.Debug("Dirs for overview", "pkgPath", pkgPath, "dirs", dirs)
 	return http.StatusOK, components.OverviewView(components.OverviewData{
 		PkgPath:     pkgPath,
 		Readme:      readmeComp,
@@ -522,6 +550,10 @@ func (h *HTTPHandler) getSourceOverviewView(pkgPath string, gnourl *weburl.GnoUR
 		Doc:         docString,
 		Files:       files,
 		FileCounter: len(files),
+		Consts:      consts,
+		Vars:        vars,
+		Types:       types,
+		Dirs:        dirs,
 	})
 }
 
@@ -579,7 +611,9 @@ func (h *HTTPHandler) GetPathsListView(gnourl *weburl.GnoURL, indexData *compone
 	const limit = 1_000 // XXX: implement pagination
 
 	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
+
 	paths, qerr := h.Client.ListPaths(prefix, limit)
+
 	if qerr != nil {
 		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
 	} else {
