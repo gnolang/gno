@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"unicode"
 )
 
 // buffer accumulates formatted output as a byte slice.
@@ -505,11 +506,18 @@ func writeInt(p *printer, verb rune, arg any) {
 	p.buf.writeString(subBuf)
 }
 
+func safeRepeat(s string, count int) string {
+	if count < 0 {
+		count = 0
+	}
+	return strings.Repeat(s, count)
+}
+
 // writeFloat handles floating-point formatting verbs
 func writeFloat(p *printer, verb rune, arg any) {
-	var subBuf string
+	var s string
+	var n float64
 	bits := 64
-	n := 0.
 
 	switch v := arg.(type) {
 	case float64:
@@ -527,18 +535,113 @@ func writeFloat(p *printer, verb rune, arg any) {
 		prec = 6
 	}
 
-	verbChar := byte(verb)
-	if verbChar == 'f' || verbChar == 'F' {
-		verbChar = 'f'
+	verbChar := unicode.ToLower(verb)
+
+	switch verbChar {
+	case 'g':
+		s = formatFloatCustom(n, prec, p.meta.flags&flagHashtag != 0)
+	default:
+		s = strconv.FormatFloat(n, byte(verbChar), prec, bits)
+		if prec == 0 && p.meta.flags&flagHashtag != 0 {
+			s += "."
+		}
 	}
-	
-	if p.meta.flags&flagPlus != 0 && n >= 0. {
-		subBuf = "+"
-	} else if p.meta.flags&flagSpace != 0 && n >= 0. {
-		subBuf = " "
+
+	if n >= 0 {
+		if p.meta.flags&flagPlus != 0 {
+			s = "+" + s
+		} else if p.meta.flags&flagSpace != 0 {
+			s = " " + s
+		}
 	}
-	subBuf += strconv.FormatFloat(n, verbChar, prec, bits)
-	p.buf.writeString(subBuf)
+
+	if unicode.IsUpper(verb) {
+		s = strings.ToUpper(s)
+	}
+
+	p.buf.writeString(s)
+}
+
+func formatFloatCustom(n float64, prec int, flagHashtag bool) string {
+	if n == 0 {
+        s := "0"
+        if flagHashtag {
+            s += "." + safeRepeat("0", prec)
+        }
+        return s
+    }
+
+    decExp := int(math.Floor(math.Log10(math.Abs(n))))
+    useExp := decExp < -4 || decExp >= prec
+
+    if !useExp {
+		intDigits := 0
+		absN := math.Abs(n)
+		if absN >= 1 {
+			intDigits = int(math.Floor(math.Log10(absN))) + 1
+		} else {
+			intDigits = 1
+		}
+
+		precAfterDot := prec - intDigits
+		if precAfterDot < 0 {
+			precAfterDot = 0
+		}
+
+		s := strconv.FormatFloat(n, 'f', precAfterDot, 64)
+
+		if !flagHashtag {
+			s = strings.TrimRight(s, "0")
+			s = strings.TrimRight(s, ".")
+		} else {
+			if !strings.Contains(s, ".") {
+				s += "." + safeRepeat("0", precAfterDot)
+			}
+		}
+		return s
+	}
+
+	norm := n / math.Pow(10, float64(decExp))
+	scale := math.Pow(10, float64(prec))
+	rounded := math.Round(norm*scale) / scale
+
+	if rounded >= 10 {
+		rounded /= 10
+		decExp++
+	}
+
+	intPart := int(rounded)
+	fracPart := rounded - float64(intPart)
+
+	intStr := strconv.Itoa(intPart)
+	fracStr := ""
+	fracVal := fracPart
+	for i := 0; i < prec-1; i++ {
+		fracVal *= 10
+		d := int(fracVal)
+		fracStr += string('0' + d)
+		fracVal -= float64(d)
+	}
+
+	s := intStr
+	if prec > 1 || flagHashtag {
+		s += "." + fracStr
+	}
+
+	expSign := "+"
+	expVal := decExp
+	if decExp < 0 {
+		expSign = "-"
+		expVal = -decExp
+	}
+	expStr := "e" + expSign
+	if expVal < 10 {
+		expStr += "0"
+	}
+	expStr += strconv.Itoa(expVal)
+
+	s += expStr
+	return s
 }
 
 // writeBool handles %t formatting
