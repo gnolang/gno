@@ -53,7 +53,7 @@
   </div>
   {{ end }}
 
-  {{ if (not .Readme) (not .Functions) (not .Files) }}
+  {{ if and (not .Readme) (not .Functions) (not .Files) }}
   <div class="text-gray-400 italic">No documentation, functions or files found in this package.</div>
   {{ end }}
 </article>
