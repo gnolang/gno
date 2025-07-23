@@ -49,7 +49,7 @@ type webCfg struct {
 	faucetURL        string
 	aliases          string
 	noDefaultAliases bool
-	assetsDir        string
+	noCache          bool
 	timeout          time.Duration
 	analytics        bool
 	json             bool
@@ -119,13 +119,6 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.assetsDir,
-		"assets-dir",
-		defaultWebOptions.assetsDir,
-		"if not empty, will be use as assets directory",
-	)
-
-	fs.StringVar(
 		&c.chainid,
 		"help-chainid",
 		defaultWebOptions.chainid,
@@ -182,6 +175,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.noCache,
+		"no-cache",
+		defaultWebOptions.noCache,
+		"disable assets caching",
+	)
+
+	fs.BoolVar(
 		&c.verbose,
 		"v",
 		defaultWebOptions.verbose,
@@ -223,7 +223,6 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
-	appcfg.AssetsDir = cfg.assetsDir
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}

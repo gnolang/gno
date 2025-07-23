@@ -25,7 +25,6 @@ jobs:
             run: |
               if make -qp | grep -q '^generate:'; then
                 make generate
-
                 if [ "$(git status -s)" != "" ]; then
                   echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
                   git status -s

@@ -20,7 +20,7 @@ stdout 'data: # GovDAO Proposals'
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_invalid_proposal.gno
 stdout OK!
 
-# call gov/dao render to check everything the proposal was created
+# call gov/dao render to check the proposal was created
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'Prop #0 - Member Promotion Proposal'
 stdout 'This is a proposal to promote g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r from \*\*T3\*\* to \*\*T2\*\*.'
