@@ -41,6 +41,9 @@ func (b Blog) Prefix() string {
 
 func NewBlog(title string, owner std.Address, opts ...Options) (*Blog, error) {
 	pkgPath := std.CurrentRealm().PkgPath()
+	if pkgPath == "" {
+		return nil, ErrEmptyPrefix
+	}
 	prefix := strings.Split(pkgPath, "gno.land")[1]
 	if prefix == "" {
 		return nil, ErrEmptyPrefix
