@@ -122,9 +122,10 @@ func parseNumber(runes []rune, start int, end int) (int, int, bool) {
 // Parse the printf flags, precisions... all formatting data, stored in "p.meta".
 //
 // Supported metadata:
-//  precision | number after the '.' character, mostly used in float precision ("%.2f", "%.3d", ...)
-//       flag | the flags are the characters before the flag ("%#x", "%+d", "%0f", ...)
-//    padding | the padding is the number you put after the flag ("%3d", "%5f", ...)
+//
+//	precision | number after the '.' character, mostly used in float precision ("%.2f", "%.3d", ...)
+//	     flag | the flags are the characters before the flag ("%#x", "%+d", "%0f", ...)
+//	  padding | the padding is the number you put after the flag ("%3d", "%5f", ...)
 func (p *printer) parse(runes []rune, index *int, end int) {
 	// Skip the '%' character that starts format specifiers
 	*index++
@@ -183,7 +184,7 @@ endParse:
 func (p *printer) resetMeta() {
 	p.meta = printerMeta{
 		precision: -1,
-		padding: -1,
+		padding:   -1,
 	}
 }
 
@@ -442,9 +443,9 @@ func writeChar(p *printer, verb rune, arg any) {
 // writeInt handles %d & %i formatting
 func writeInt(p *printer, verb rune, arg any) {
 	var (
-		subBuf string
-		num int64 = 0
-		unsigned = false
+		subBuf       string
+		num          int64 = 0
+		unsigned           = false
 		paddingCount int
 	)
 	switch v := arg.(type) {
