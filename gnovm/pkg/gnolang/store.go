@@ -287,18 +287,14 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			ds.current = ds.current[:len(ds.current)-1]
 		}()
 	}
-	// first, check cache.
+
 	oid := ObjectIDFromPkgPath(pkgPath)
-	if oo, exists := ds.cacheObjects[oid]; exists {
-		pv := oo.(*PackageValue)
+	// Get package from cache or baseStore
+	oo := ds.GetObjectSafe(oid)
+	if pv, ok := oo.(*PackageValue); ok {
 		return pv
 	}
-	// else, load package.
-	if ds.baseStore != nil {
-		if oo := ds.loadObjectSafe(oid); oo != nil {
-			return oo.(*PackageValue)
-		}
-	}
+
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
 		if pn, pv := ds.pkgGetter(pkgPath, ds); pv != nil {
