@@ -24,7 +24,6 @@ func TestPubkeyToAddress(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-
 		derivedAddress, err := Pubkey2Address(tc.inputKey)
 		if err != nil {
 			panic(err)
