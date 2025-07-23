@@ -707,10 +707,6 @@
 		@apply bg-light lg:bg-transparent;
 	}
 
-	.dev-mode .toc-nav {
-		text-align: center;
-	}
-
 	.main-header:has(#sidemenu-summary:checked) + main #sidebar #sidebar-summary,
 	.main-header:has(#sidemenu-source:checked) + main #sidebar #sidebar-source,
 	.main-header:has(#sidemenu-docs:checked) + main #sidebar #sidebar-docs,
