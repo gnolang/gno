@@ -194,7 +194,7 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
-	cfg.Consensus.PrivValidator.RootDir = root
+	cfg.Consensus.PrivValidator.RootDir = (filepath.Join(root, DefaultSecretsDir))
 
 	return cfg
 }
