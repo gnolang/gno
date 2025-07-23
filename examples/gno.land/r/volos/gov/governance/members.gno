@@ -19,7 +19,9 @@ func AddMember(cur realm, addr std.Address) {
 		if xvls.BalanceOf(addr) <= 0 {
 			panic(ErrNoXVLS)
 		}
+
 		volosGovernance.Members().Add(addr)
+
 		return nil
 	})
 }
@@ -30,7 +32,9 @@ func RemoveMember(cur realm, addr std.Address) {
 		if xvls.BalanceOf(addr) != 0 {
 			panic(ErrStillHasXVLS)
 		}
+
 		volosGovernance.Members().Remove(addr)
+
 		return nil
 	})
 }
@@ -41,6 +45,7 @@ func RemoveMember(cur realm, addr std.Address) {
 func KickMember(cur realm, addr std.Address) {
 	authorizer.DoByCurrent("kick_member", func() error {
 		volosGovernance.Members().Remove(addr)
+
 		return nil
 	})
 }

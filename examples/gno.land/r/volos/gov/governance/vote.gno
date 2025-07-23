@@ -5,6 +5,7 @@ package governance
 
 import (
 	"std"
+	"time"
 
 	"gno.land/p/nt/commondao"
 	"gno.land/r/volos/gov/xvls"
@@ -21,6 +22,13 @@ func Vote(cur realm, proposalID uint64, choice string, reason string) {
 	p := volosGovernance.GetProposal(proposalID)
 	if p == nil {
 		panic(commondao.ErrProposalNotFound)
+	}
+	if p.Status() != commondao.StatusActive {
+		panic(commondao.ErrProposalNotFound)
+	}
+
+	if time.Now().After(p.VotingDeadline()) {
+		panic(ErrVotingDeadlineNotMet)
 	}
 
 	if !p.IsVoteChoiceValid(commondao.VoteChoice(choice)) {

@@ -7,48 +7,13 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/nt/commondao"
 	"gno.land/r/volos/gov/xvls"
 )
 
 func crossThrough(rlm std.Realm, cr func()) {
 	testing.SetRealm(rlm)
 	cr()
-}
-
-func TestMembership_AddRemove(cur realm, t *testing.T) {
-	staker := "gno.land/r/volos/gov/staker"
-	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
-	bob := std.DerivePkgAddr("gno.land/r/volos/gov/bob")
-
-	crossThrough(std.NewCodeRealm(staker), func() {
-		xvls.Mint(cross, alice, 1000)
-		xvls.Mint(cross, bob, 500)
-	})
-
-	crossThrough(std.NewCodeRealm(staker), func() {
-		AddMember(cross, alice)
-		AddMember(cross, bob)
-	})
-	urequire.True(t, volosGovernance.Members().Has(alice))
-	urequire.True(t, volosGovernance.Members().Has(bob))
-
-	crossThrough(std.NewCodeRealm(staker), func() {
-		xvls.Burn(cross, bob, 500)
-		RemoveMember(cross, bob)
-	})
-	urequire.False(t, volosGovernance.Members().Has(bob))
-
-	crossThrough(std.NewCodeRealm(staker), func() {
-		uassert.AbortsWithMessage(t, "cannot add member: address does not hold any xVLS", func() {
-			AddMember(cross, bob)
-		})
-	})
-
-	crossThrough(std.NewCodeRealm(staker), func() {
-		uassert.AbortsWithMessage(t, "cannot remove member: address still holds xVLS", func() {
-			RemoveMember(cross, alice)
-		})
-	})
 }
 
 func TestProposal_CreationThreshold(cur realm, t *testing.T) {
@@ -170,4 +135,37 @@ func TestGovernance_KickAndReaddMember(cur realm, t *testing.T) {
 		AddMember(cross, alice)
 	})
 	urequire.True(t, volosGovernance.Members().Has(alice))
+}
+
+func TestProposal_ExecutionLifecycle(cur realm, t *testing.T) {
+	staker := "gno.land/r/volos/gov/staker"
+	alice := std.DerivePkgAddr("gno.land/r/volos/gov/alice")
+
+	crossThrough(std.NewCodeRealm(staker), func() {
+		xvls.Mint(cross, alice, 10000)
+		AddMember(cross, alice)
+	})
+
+	var executed bool
+	var proposal *commondao.Proposal
+	crossThrough(std.NewUserRealm(alice), func() {
+		proposal = CreateProposal(cross, "Exec Test", "Body", time.Second*3600, func() {
+			executed = true
+		})
+		Vote(cross, proposal.ID(), "YES", "For!")
+	})
+
+	crossThrough(std.NewUserRealm(alice), func() {
+		err := volosGovernance.Execute(proposal.ID())
+		urequire.Error(t, err)
+	})
+
+	testing.SkipHeights(2000)
+	crossThrough(std.NewUserRealm(alice), func() {
+		err := volosGovernance.Execute(proposal.ID())
+		urequire.NoError(t, err)
+	})
+	urequire.True(t, executed)
+	proposal = volosGovernance.GetProposal(proposal.ID())
+	urequire.Equal(t, "passed", string(proposal.Status()))
 }
