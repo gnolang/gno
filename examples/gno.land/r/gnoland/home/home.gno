@@ -71,7 +71,7 @@ the foundations of a fairer and freer world, join us today.
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Gno by Example](/r/docs)
+- [Gno by Example](/r/docs/home)
 - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 

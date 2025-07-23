@@ -32,6 +32,7 @@ func CallAssertOriginCall(cur realm) {
 }
 
 func CallIsOriginCall(cur realm) bool {
+	// XXX: consider return !std.PreviousRealm().IsCode()
 	return std.PreviousRealm().IsUser()
 }
 
