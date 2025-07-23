@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/backup"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/pelletier/go-toml"
 )
@@ -105,6 +106,11 @@ func ResetTestRoot(testName string) (*Config, string) {
 	osm.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0o644)
 
 	config := TestConfig().SetRootDir(rootDir)
+
+	if config.Backup == nil {
+		config.Backup = &backup.Config{}
+	}
+	config.Backup.ListenAddress = "unix://" + filepath.Join(rootDir, "backup.sock")
 
 	return config, genesisFilePath
 }
