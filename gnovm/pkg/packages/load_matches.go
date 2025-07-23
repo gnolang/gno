@@ -26,15 +26,21 @@ func loadMatches(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*p
 		}
 
 		pkg := loadSinglePkg(out, fetcher, pkgMatch.Dir, fset)
-		pkg.Errors = dedupErrors(pkg.Errors)
 		pkg.Match = pkgMatch.Match
 		pkgs = append(pkgs, pkg)
 	}
 	return pkgs, nil
 }
 
-func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, fset *token.FileSet) *Package {
-	pkg := &Package{
+func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, fset *token.FileSet) (pkg *Package) {
+	defer func() {
+		if pkg == nil {
+			return
+		}
+		pkg.Errors = dedupErrors(pkg.Errors)
+	}()
+
+	pkg = &Package{
 		Dir:          pkgDir,
 		Files:        FilesMap{},
 		Imports:      map[FileKind][]string{},
