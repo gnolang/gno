@@ -147,16 +147,12 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 		parentDir, base := filepath.Split(path)
 		parentDir = filepath.Join(patternRoot, parentDir)
 
-		// ignore file if it's containing directory is already marked as a package dir
-		if slices.Contains(pkgDirs, parentDir) {
-			return nil
-		}
-
 		switch base {
 		case "gnomod.toml", "gno.mod":
 			// add directories that contain gnomods as package dirs
-			pkgDirs = append(pkgDirs, parentDir)
-			return nil
+			if !slices.Contains(pkgDirs, parentDir) {
+				pkgDirs = append(pkgDirs, parentDir)
+			}
 		case "gnowork.toml":
 			// ignore sub-tree if it's a sub-workspace
 			if parentDir != workspaceRoot {

@@ -123,8 +123,8 @@ func TestDataExpandPatterns(t *testing.T) {
 	gnoRoot := gnoenv.RootDir()
 
 	tcs := []struct {
-		name string
-		// workdir          string
+		name              string
+		workdir           string
 		patterns          []string
 		conf              *LoadConfig
 		res               []*pkgMatch
@@ -133,28 +133,31 @@ func TestDataExpandPatterns(t *testing.T) {
 	}{
 		{
 			name:     "workspace-1-root",
-			patterns: []string{localFromSlash("./testdata/workspace-1")},
+			workdir:  localFromSlash("./testdata/workspace-1"),
+			patterns: []string{"."},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
-				Match: []string{localFromSlash("./testdata/workspace-1")},
+				Match: []string{"."},
 			}},
 		},
 		{
 			name:     "workspace-1-recursive",
-			patterns: []string{localFromSlash("./testdata/workspace-1/...")},
+			workdir:  localFromSlash("./testdata/workspace-1"),
+			patterns: []string{"./..."},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
-				Match: []string{localFromSlash("./testdata/workspace-1/...")},
+				Match: []string{"./..."},
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "emptygnomod"),
-				Match: []string{localFromSlash("./testdata/workspace-1/...")},
+				Match: []string{"./..."},
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1", "invalidpkg"),
-				Match: []string{localFromSlash("./testdata/workspace-1/...")},
+				Match: []string{"./..."},
 			}},
 		},
 		{
 			name:     "workspace-1-abs-root",
+			workdir:  localFromSlash("./testdata/workspace-1"),
 			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
@@ -163,6 +166,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-1-abs-recursive",
+			workdir:  localFromSlash("./testdata/workspace-1"),
 			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1", "...")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-1"),
@@ -177,42 +181,46 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "workspace-2-root",
-			patterns: []string{localFromSlash("./testdata/workspace-2")},
+			workdir:  localFromSlash("./testdata/workspace-2"),
+			patterns: []string{localFromSlash(".")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
-				Match: []string{localFromSlash("./testdata/workspace-2")},
+				Match: []string{localFromSlash(".")},
 			}},
 		},
 		{
 			name:     "workspace-2-recursive",
-			patterns: []string{localFromSlash("./testdata/workspace-2/...")},
+			workdir:  localFromSlash("./testdata/workspace-2"),
+			patterns: []string{localFromSlash("./...")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
+				Match: []string{localFromSlash("./...")},
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
+				Match: []string{localFromSlash("./...")},
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "foo"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
+				Match: []string{localFromSlash("./...")},
 			}},
 		},
 		{
 			name:     "workspace-2-recursive-dup",
-			patterns: []string{localFromSlash("./testdata/workspace-2/..."), localFromSlash("./testdata/workspace-2/bar")},
+			workdir:  localFromSlash("./testdata/workspace-2"),
+			patterns: []string{localFromSlash("./..."), localFromSlash("./bar")},
 			res: []*pkgMatch{{
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
+				Match: []string{localFromSlash("./...")},
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "bar"),
-				Match: []string{localFromSlash("./testdata/workspace-2/..."), localFromSlash("./testdata/workspace-2/bar")},
+				Match: []string{localFromSlash("./..."), localFromSlash("./bar")},
 			}, {
 				Dir:   filepath.Join(cwd, "testdata", "workspace-2", "foo"),
-				Match: []string{localFromSlash("./testdata/workspace-2/...")},
+				Match: []string{localFromSlash("./...")},
 			}},
 		},
 		{
 			name:     "stdlibs",
+			workdir:  localFromSlash("./testdata/workspace-empty"),
 			patterns: []string{"strings", "math"},
 			res: []*pkgMatch{{
 				Dir:   StdlibDir(gnoRoot, "math"),
@@ -224,6 +232,7 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:     "remote",
+			workdir:  localFromSlash("./testdata/workspace-empty"),
 			patterns: []string{"gno.example.com/test/strings", "gno.example.com/test/math"},
 			res: []*pkgMatch{{
 				Dir:   PackageDir("gno.example.com/test/math"),
@@ -235,39 +244,50 @@ func TestDataExpandPatterns(t *testing.T) {
 		},
 		{
 			name:             "err-stdlibs-recursive",
+			workdir:          localFromSlash("./testdata/workspace-empty"), // XXX: allow to load stdlibs without a workspace
 			patterns:         []string{"strings/..."},
 			errShouldContain: "recursive remote patterns are not supported",
 		},
 		{
 			name:             "err-outside-root",
+			workdir:          localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{".."},
 			errShouldContain: `pattern ".." is not rooted in current workspace`,
 		},
 		{
 			name:             "err-outside-root-abs",
+			workdir:          localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{filepath.Join(cwd, "..")},
 			errShouldContain: `is not rooted in current workspace`,
 		},
 		{
 			name:             "err-remote-recursive",
+			workdir:          localFromSlash("./testdata/workspace-empty"),
 			patterns:         []string{"gno.example.com/test/strings/..."},
 			errShouldContain: "recursive remote patterns are not supported",
 		},
 		{
 			name:             "err-recursive-noroot",
-			patterns:         []string{"./testdata/notexists/..."},
+			workdir:          localFromSlash("./testdata/workspace-empty"),
+			patterns:         []string{"./notexists/..."},
 			errShouldContain: "no such file or directory",
 		},
 		{
 			name:              "warn-recursive-nothing",
-			patterns:          []string{localFromSlash("./testdata/workspace-1/emptydir/...")},
-			warnShouldContain: fmt.Sprintf(`gno: warning: %q matched no packages`, localFromSlash("./testdata/workspace-1/emptydir/...")),
+			workdir:           localFromSlash("./testdata/workspace-1"),
+			patterns:          []string{localFromSlash("./emptydir/...")},
+			warnShouldContain: fmt.Sprintf(`gno: warning: %q matched no packages`, localFromSlash("./emptydir/...")),
 		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.workdir != "" {
+				testChdir(t, tc.workdir)
+			}
+			rootDir, err := findLoaderRootDir()
+			require.NoError(t, err)
 			warn := &strings.Builder{}
-			res, err := expandPatterns(gnoRoot, cwd, warn, tc.patterns...)
+			res, err := expandPatterns(gnoRoot, rootDir, warn, tc.patterns...)
 			if tc.errShouldContain == "" {
 				require.NoError(t, err)
 			} else {

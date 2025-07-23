@@ -219,6 +219,7 @@ func TestDataLoad(t *testing.T) {
 
 	workspace1Abs := filepath.Join(cwd, "testdata", "workspace-1")
 	workspace2Abs := filepath.Join(cwd, "testdata", "workspace-2")
+	workspace3Abs := filepath.Join(cwd, "testdata", "workspace-3")
 
 	tcs := []struct {
 		name             string
@@ -228,6 +229,7 @@ func TestDataLoad(t *testing.T) {
 		res              PkgList
 		errShouldContain string
 		outShouldContain string
+		deps             bool
 	}{
 		{
 			name:     "workspace-1-root",
@@ -393,6 +395,45 @@ func TestDataLoad(t *testing.T) {
 			}},
 		},
 		{
+			name:             "workspace-3-recursive", // this test that subworkspaces are properly ignored
+			workdir:          localFromSlash("./testdata/workspace-3"),
+			patterns:         []string{"./..."},
+			deps:             true,
+			outShouldContain: "gno: downloading gno.example.com/r/wspace3/subwork\ngno: downloading gno.example.com/r/wspace3/subwork/subworkpkg\n",
+			res: PkgList{{
+				Dir:        workspace3Abs,
+				Name:       "wspace3",
+				ImportPath: "gno.example.com/r/wspace3",
+				Match:      []string{"./..."},
+				Files: FilesMap{
+					FileKindOther:         []string{"gnomod.toml", "gnowork.toml"},
+					FileKindPackageSource: []string{"main.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindPackageSource: {
+						"gno.example.com/r/wspace3/subwork",
+						"gno.example.com/r/wspace3/subwork/subworkpkg",
+					},
+				},
+			}, {
+				Dir:        PackageDir("gno.example.com/r/wspace3/subwork"),
+				ImportPath: "gno.example.com/r/wspace3/subwork",
+				Files:      FilesMap{},
+				Errors: []*Error{{
+					Pos: PackageDir("gno.example.com/r/wspace3/subwork"),
+					Msg: "query files list for pkg \"gno.example.com/r/wspace3/subwork\": package \"gno.example.com/r/wspace3/subwork\" is not available",
+				}},
+			}, {
+				Dir:        PackageDir("gno.example.com/r/wspace3/subwork/subworkpkg"),
+				ImportPath: "gno.example.com/r/wspace3/subwork/subworkpkg",
+				Files:      FilesMap{},
+				Errors: []*Error{{
+					Pos: PackageDir("gno.example.com/r/wspace3/subwork/subworkpkg"),
+					Msg: "query files list for pkg \"gno.example.com/r/wspace3/subwork/subworkpkg\": package \"gno.example.com/r/wspace3/subwork/subworkpkg\" is not available",
+				}},
+			}},
+		},
+		{
 			name:     "stdlibs",
 			workdir:  localFromSlash("./testdata/workspace-empty"), // XXX: allow to load stdlibs without a workspace
 			patterns: []string{"math/bits"},
@@ -477,6 +518,7 @@ func TestDataLoad(t *testing.T) {
 
 			outBuf := &writeCloser{}
 			conf := LoadConfig{
+				Deps:    tc.deps,
 				Out:     outBuf,
 				Fetcher: examplespkgfetcher.New(testExamplesAbs),
 			}
@@ -495,7 +537,7 @@ func TestDataLoad(t *testing.T) {
 			if tc.outShouldContain != "" {
 				require.Contains(t, outBuf.String(), tc.outShouldContain)
 			} else {
-				require.Equal(t, outBuf.String(), "")
+				require.Equal(t, "", outBuf.String())
 			}
 
 			// normalize res
