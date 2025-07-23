@@ -77,7 +77,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
-	pkgs, err := loadMatches(conf.Out, conf.Fetcher, expanded, nil, conf.Fset)
+	pkgs, err := loadMatches(conf.Out, conf.Fetcher, expanded, conf.Fset)
 	if err != nil {
 		return nil, err
 	}

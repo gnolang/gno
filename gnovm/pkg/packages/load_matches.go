@@ -14,17 +14,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func loadMatches(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*pkgMatch, known PkgList, fset *token.FileSet) (PkgList, error) {
+func loadMatches(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*pkgMatch, fset *token.FileSet) (PkgList, error) {
 	if fset == nil {
 		fset = token.NewFileSet()
 	}
 
 	pkgs := make([]*Package, 0, len(matches))
 	for _, pkgMatch := range matches {
-		if known.GetByDir(pkgMatch.Dir) != nil {
-			continue
-		}
-
 		pkg := loadSinglePkg(out, fetcher, pkgMatch.Dir, fset)
 		pkg.Match = pkgMatch.Match
 		pkgs = append(pkgs, pkg)
