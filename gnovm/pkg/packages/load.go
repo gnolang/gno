@@ -72,8 +72,6 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		panic(fmt.Errorf("workspace root should be absolute at this point, got %q", conf.WorkspaceRoot))
 	}
 
-	localDeps := discoverPkgsForLocalDeps(append([]string{conf.WorkspaceRoot}, conf.ExtraWorkspaceRoots...))
-
 	expanded, err := expandPatterns(conf.GnoRoot, conf.WorkspaceRoot, conf.Out, patterns...)
 	if err != nil {
 		return nil, err
@@ -93,6 +91,8 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 	}
 
 	// load deps
+
+	localDeps := discoverPkgsForLocalDeps(append([]string{conf.WorkspaceRoot}, conf.ExtraWorkspaceRoots...))
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
