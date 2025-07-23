@@ -65,6 +65,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 			return nil, fmt.Errorf("failed to get absolute workspace root: %w", err)
 		}
 	}
+	conf.WorkspaceRoot = filepath.Clean(conf.WorkspaceRoot)
 
 	// sanity assert
 	if !filepath.IsAbs(conf.WorkspaceRoot) {
