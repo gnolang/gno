@@ -23,10 +23,10 @@ const (
 	tooltipInternalLink = "Cross package link"
 	tooltipTxLink       = "Transaction link"
 
-	// Icons for link types
-	iconExternalLink = "↗"
-	iconInternalLink = "↔"
-	iconTxLink       = "⚡︎"
+	// SVG icon ids for link types
+	iconExternalLink = "ico-external-link"
+	iconInternalLink = "ico-internal-link"
+	iconTxLink       = "ico-tx-link"
 
 	// CSS classes for link types
 	classLinkExternal = "link-external"
@@ -180,7 +180,7 @@ func writeHTMLTag(w util.BufWriter, tag string, attrs []attr) {
 // linkTypeInfo contains information about a link type.
 type linkTypeInfo struct {
 	tooltip string
-	icon    string
+	iconID  string
 	class   string
 }
 
@@ -223,10 +223,10 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	if n.LinkType != GnoLinkTypeExternal &&
 		n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") { // has help webquery
 		writeHTMLTag(w, "span", []attr{
-			{"class", classLinkTx + " js-tooltip tooltip font-sans"},
+			{"class", classLinkTx + " js-tooltip tooltip"},
 			{"data-tooltip", tooltipTxLink},
 		})
-		w.WriteString(iconTxLink)
+		w.WriteString(`<svg class="inline w-3 h-3 align-text-bottom"><use href="#` + iconTxLink + `"></use></svg>`)
 		w.WriteString("</span>")
 	}
 
@@ -234,10 +234,10 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	if n.LinkType != GnoLinkTypePackage {
 		if info, ok := linkTypes[n.LinkType]; ok {
 			writeHTMLTag(w, "span", []attr{
-				{"class", info.class + " js-tooltip tooltip font-sans"},
+				{"class", info.class + " js-tooltip tooltip"},
 				{"data-tooltip", info.tooltip},
 			})
-			w.WriteString(info.icon)
+			w.WriteString(`<svg class="w-3 h-3"><use href="#` + info.iconID + `"></use></svg>`)
 			w.WriteString("</span>")
 		}
 	}

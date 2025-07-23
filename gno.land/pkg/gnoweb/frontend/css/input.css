@@ -55,7 +55,7 @@
 	}
 
 	.realm-view a {
-		@apply relative inline-block text-green-600 font-medium hover:underline;
+		@apply relative inline text-green-600 font-medium hover:underline;
 	}
 
 	.realm-view h1,
@@ -137,7 +137,7 @@
 
 	.realm-view ul li,
 	.realm-view ol li {
-		@apply mb-2;
+		@apply mb-2 align-top;
 	}
 
 	.realm-view figure {
@@ -758,7 +758,6 @@
 	.tooltip {
 		--tooltip-left: 0;
 		--tooltip-right: initial;
-		@apply relative inline;
 	}
 
 	.tooltip::after {
@@ -856,7 +855,7 @@
 	}
 
 	.tooltip {
-		@apply inline align-text-top;
+		@apply relative inline-flex items-center justify-center align-middle rounded-full text-gray-400 w-4 h-4 border border-gray-400 mb-px;
 	}
 
 	/* link with image only shoud display the link badge on the image */
@@ -880,7 +879,7 @@
 	}
 
 	.realm-view a > span:first-of-type {
-		@apply ml-0.5;
+		margin-inline: 0.3em;
 	}
 
 	.field-content {
