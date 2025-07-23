@@ -330,15 +330,8 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 // NOTE: Does not consult pkgGetter, used only for
 // getting *PackageValue from store.
 func (ds *defaultStore) GetPackageFromStore(oid ObjectID) *PackageValue {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
-	}
-	oo := ds.GetObjectSafe(oid)
-	if oo == nil {
-		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
-	}
-	return oo.(*PackageValue)
+	obj := ds.GetObject(oid)
+	return obj.(*PackageValue)
 }
 
 // Used to set throwaway packages.
