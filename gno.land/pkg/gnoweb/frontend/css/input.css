@@ -878,8 +878,25 @@
 		@apply absolute bottom-1 left-6;
 	}
 
-	.realm-view a > span:first-of-type {
+	/* spacing between link badge */
+	.realm-view a > span {
+		margin-block-end: .1em;
+	}
+
+	.realm-view a > span:only-of-type {
 		margin-inline: 0.3em;
+	}
+
+	.realm-view a > span:has(+ span) {
+		margin-inline-start: 0.3em;
+	}
+
+	.realm-view a > span + span {
+		margin-inline-start: 0.2em;
+	}
+
+	.realm-view a > span:last-of-type {
+		margin-inline-end: 0.2em;
 	}
 
 	.field-content {
