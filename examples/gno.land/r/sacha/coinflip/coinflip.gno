@@ -3,7 +3,10 @@ package coinflip
 import (
 	"std"
 	"strconv"
+	"gno.land/r/sacha/config"
 )
+
+var denom string
 
 type Bet struct {
     Address string
@@ -12,6 +15,10 @@ type Bet struct {
 }
 
 var latestBets = []Bet{}
+
+func init() {
+	denom = "ugnot"
+}
 
 func flip(choice int) bool {
 	if choice != 0 && choice != 1 {
@@ -24,16 +31,16 @@ func flip(choice int) bool {
 }
 
 func checkMinBet(betCoins std.Coins) {
-	minBet := std.NewCoin("ugnot", 1)
+	minBet := std.NewCoin(denom, 1)
 
-	if betCoins.AmountOf("ugnot") < minBet.Amount {
+	if betCoins.AmountOf(denom) < minBet.Amount {
     	panic("mise trop faible")
 	}
 }
 
 func sendPrize(caller std.Address, amount int64) {
 	banker := std.NewBanker(std.BankerTypeOriginSend)
-	wonCoins := std.NewCoins(std.NewCoin("ugnot", amount))
+	wonCoins := std.NewCoins(std.NewCoin(denom, amount))
 
 	banker.SendCoins(std.CurrentRealm().Address(), caller, wonCoins)
 }
@@ -41,7 +48,7 @@ func sendPrize(caller std.Address, amount int64) {
 func betLogic(flipResult bool) {
 	caller := std.OriginCaller()
 	betCoins := std.OriginSend()
-	amount := betCoins.AmountOf("ugnot")
+	amount := betCoins.AmountOf(denom)
 
 	checkMinBet(betCoins)
 
@@ -73,11 +80,11 @@ func Tails(cur realm) {
 func GetLatestResults() string {
 	out := ""
 	for _, bet := range latestBets {
-		out += "- **" + bet.Address[:10] + "**: "
+		out += "- **" + bet.Address[:30] + "**: "
 		if bet.Result == true {
-		    out += "won " + strconv.Itoa(int(bet.Amount)) + "ugnot 📈"
+		    out += "won " + strconv.Itoa(int(bet.Amount)) + denom + " 📈"
 		} else {
-		    out += "lost " + strconv.Itoa(int(bet.Amount)) + "ugnot 📉"
+		    out += "lost " + strconv.Itoa(int(bet.Amount)) + denom + " 📉"
 		}
 		out += "\n"
 	}
@@ -88,6 +95,14 @@ func GetBalance(cur realm) string {
 	banker := std.NewBanker(std.BankerTypeReadonly)
 	coins := banker.GetCoins(std.CurrentRealm().Address())
 
-	std.Emit("Balance", coins.String(), strconv.Itoa(int(coins.AmountOf("ugnot"))))
+	std.Emit("Balance", coins.String(), strconv.Itoa(int(coins.AmountOf(denom))))
 	return coins.String()
+}
+
+func UpdateCoinUsed(cur realm, newCoinDenom string) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+		panic(config.ErrUnauthorized)
+	}
+
+	denom = newCoinDenom
 }
