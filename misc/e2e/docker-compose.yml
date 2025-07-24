@@ -11,7 +11,7 @@ services:
       - |
         gnoland config init
         gnoland config set rpc.laddr tcp://0.0.0.0:26657
-        gnoland start -lazy -chainid=test -skip-failing-genesis-txs
+        gnoland start -lazy -chainid=test
     networks:
       - gnotest
     healthcheck:

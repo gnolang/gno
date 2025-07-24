@@ -86,79 +86,104 @@ func prepareNodeRPC(t *testing.T, nodeDir string) {
 func TestStart_Lazy(t *testing.T) {
 	t.Parallel()
 
-	var (
-		nodeDir     = t.TempDir()
-		genesisFile = filepath.Join(nodeDir, "test_genesis.json")
-	)
-
-	// Prepare the config
-	prepareNodeRPC(t, nodeDir)
-
-	args := []string{
-		"start",
-		"--lazy",
-		"--skip-failing-genesis-txs",
-
-		// These two flags are tested together as they would otherwise
-		// pollute this directory (cmd/gnoland) if not set.
-		"--data-dir",
-		nodeDir,
-		"--genesis",
-		genesisFile,
+	tests := []struct {
+		name           string
+		additionalArgs []string
+	}{
+		{
+			name:           "with skip-failing-genesis-txs",
+			additionalArgs: []string{"--skip-failing-genesis-txs"},
+		},
+		{
+			name:           "without skip-failing-genesis-txs",
+			additionalArgs: []string{},
+		},
 	}
 
-	// Prepare the IO
-	mockOut := new(bytes.Buffer)
-	mockErr := new(bytes.Buffer)
-	io := commands.NewTestIO()
-	io.SetOut(commands.WriteNopCloser(mockOut))
-	io.SetErr(commands.WriteNopCloser(mockErr))
+	for _, tc := range tests {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	// Create and run the command
-	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelFn()
+			var (
+				nodeDir     = t.TempDir()
+				genesisFile = filepath.Join(nodeDir, "test_genesis.json")
+			)
 
-	// Set up the command ctx
-	g, gCtx := errgroup.WithContext(ctx)
+			// Prepare the config
+			prepareNodeRPC(t, nodeDir)
 
-	// Set up the retry ctx
-	rCtx, rCtxCancelFn := context.WithTimeout(gCtx, 5*time.Second)
-	defer rCtxCancelFn()
+			args := []string{
+				"start",
+				"--lazy",
+			}
 
-	// Start the node
-	g.Go(func() error {
-		err := newRootCmd(io).ParseAndRun(rCtx, args)
-		return err
-	})
+			// Add additional args
+			args = append(args, tc.additionalArgs...)
 
-	// This is a very janky way to verify the node has started.
-	// The alternative is to poll the node's RPC endpoints, but for some reason
-	// this introduces a lot of flakyness to the testing suite -- shocking!
-	// In an effort to keep this simple, and avoid randomly failing tests,
-	// we query the CLI output of the command
-	require.NoError(t, retryUntilTimeout(rCtx, func() bool {
-		return !strings.Contains(mockOut.String(), startGraphic)
-	}), g.Wait())
+			args = append(args,
+				// These two flags are tested together as they would otherwise
+				// pollute this directory (cmd/gnoland) if not set.
+				"--data-dir",
+				nodeDir,
+				"--genesis",
+				genesisFile,
+			)
 
-	cancelFn() // stop the node
-	require.NoError(t, g.Wait())
+			// Prepare the IO
+			mockOut := new(bytes.Buffer)
+			mockErr := new(bytes.Buffer)
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOut))
+			io.SetErr(commands.WriteNopCloser(mockErr))
 
-	// Make sure the genesis is generated
-	assert.FileExists(t, genesisFile)
+			// Create and run the command
+			ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancelFn()
 
-	// Make sure the config is generated (default)
-	assert.FileExists(t, constructConfigPath(nodeDir))
+			// Set up the command ctx
+			g, gCtx := errgroup.WithContext(ctx)
 
-	// Make sure the secrets are generated
-	var (
-		secretsPath        = constructSecretsPath(nodeDir)
-		validatorKeyPath   = filepath.Join(secretsPath, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(secretsPath, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(secretsPath, defaultNodeKeyName)
-	)
+			// Set up the retry ctx
+			rCtx, rCtxCancelFn := context.WithTimeout(gCtx, 5*time.Second)
+			defer rCtxCancelFn()
 
-	assert.DirExists(t, secretsPath)
-	assert.FileExists(t, validatorKeyPath)
-	assert.FileExists(t, validatorStatePath)
-	assert.FileExists(t, nodeKeyPath)
+			// Start the node
+			g.Go(func() error {
+				err := newRootCmd(io).ParseAndRun(rCtx, args)
+				return err
+			})
+
+			// This is a very janky way to verify the node has started.
+			// The alternative is to poll the node's RPC endpoints, but for some reason
+			// this introduces a lot of flakyness to the testing suite -- shocking!
+			// In an effort to keep this simple, and avoid randomly failing tests,
+			// we query the CLI output of the command
+			require.NoError(t, retryUntilTimeout(rCtx, func() bool {
+				return !strings.Contains(mockOut.String(), startGraphic)
+			}), g.Wait())
+
+			cancelFn() // stop the node
+			require.NoError(t, g.Wait())
+
+			// Make sure the genesis is generated
+			assert.FileExists(t, genesisFile)
+
+			// Make sure the config is generated (default)
+			assert.FileExists(t, constructConfigPath(nodeDir))
+
+			// Make sure the secrets are generated
+			var (
+				secretsPath        = constructSecretsPath(nodeDir)
+				validatorKeyPath   = filepath.Join(secretsPath, defaultValidatorKeyName)
+				validatorStatePath = filepath.Join(secretsPath, defaultValidatorStateName)
+				nodeKeyPath        = filepath.Join(secretsPath, defaultNodeKeyName)
+			)
+
+			assert.DirExists(t, secretsPath)
+			assert.FileExists(t, validatorKeyPath)
+			assert.FileExists(t, validatorStatePath)
+			assert.FileExists(t, nodeKeyPath)
+		})
+	}
 }
