@@ -42,6 +42,6 @@ func Vote(cur realm, proposalID uint64, choice string, reason string) {
 		Reason:  reason,
 		Context: xvls.BalanceOf(voter),
 	}
-	
+
 	p.VotingRecord().AddVote(vote)
 }
