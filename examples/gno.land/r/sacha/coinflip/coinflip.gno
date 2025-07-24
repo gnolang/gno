@@ -4,7 +4,12 @@ import (
 	"std"
 )
 
-var latestBets = map[string]bool{}
+type Bet struct {
+    Address string
+    Result bool
+}
+
+var latestBets = []Bet{}
 
 func flip(choice int) {
 	if choice != 0 && choice != 1 {
@@ -14,7 +19,7 @@ func flip(choice int) {
 	result := int(std.ChainHeight() % 2)
 	caller := std.OriginCaller().String()
 
-	latestBets[caller] = (result == choice)
+	latestBets = append([]Bet{{Address: caller, Result: result == choice}}, latestBets...)
 }
 
 func Heads(cur realm) {
@@ -27,9 +32,9 @@ func Tails(cur realm) {
 
 func GetLatestResults() string {
 	out := ""
-	for address, result := range latestBets {
-		out += "- **" + address + "**: "
-		if result == true {
+	for _, bet := range latestBets {
+		out += "- **" + bet.Address + "**: "
+		if bet.Result == true {
 		    out += "won"
 		} else {
 		    out += "lost"
