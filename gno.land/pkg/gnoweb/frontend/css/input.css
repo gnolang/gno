@@ -880,7 +880,7 @@
 
 	/* spacing between link badge */
 	.realm-view a > span {
-		margin-block-end: .1em;
+		margin-block-end: 0.1em;
 	}
 
 	.realm-view a > span:only-of-type {
