@@ -20,14 +20,17 @@ func renderGame() string {
 	out += md.Link("Heads", txlink.Call("Heads")) + " or "
 	out += md.Link("Tails", txlink.Call("Tails")) + " ?\n"
 
-	out += "### Latests Results:\n\n"
+	out += md.H3("Latests Results:\n\n")
 	out += GetLatestResults()
 
 	return out
 }
 
-func renderIllustration() string {
-	return md.Image("Coin Flip Illustration", "https://cdn.dribbble.com/userupload/23852777/file/original-7c6789feec78629e91335795a5baf105.gif")
+func renderRight() string {
+	out := md.Image("Coin Flip Illustration", "https://cdn.dribbble.com/userupload/23852777/file/original-7c6789feec78629e91335795a5baf105.gif")
+	out += "\n"
+	out += renderBalance()
+	return out
 }
 
 func renderFooter() string {
@@ -40,10 +43,17 @@ func renderFooter() string {
 	return out
 }
 
+func renderBalance() string {
+	out := md.H2("Realm balance: " + GetBalance(cross))
+	out += "\n"
+
+	return out
+}
+
 func Render(_ string) string {
 	out := md.Columns([]string{
 		renderGame(),
-		renderIllustration(),
+		renderRight(),
 	}, false)
 
 	out += renderFooter()
