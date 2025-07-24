@@ -136,10 +136,11 @@ type defaultStore struct {
 	iavlStore store.Store // for escaped object hashes
 
 	// transaction-scoped
-	cacheObjects map[ObjectID]Object            // this is a real cache, reset with every transaction.
-	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
-	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
-	alloc        *Allocator                     // for accounting for cached items
+	cacheObjects   map[ObjectID]Object            // this is a real cache, reset with every transaction.
+	cacheTypes     txlog.Map[TypeID, Type]        // this re-uses the parent store's.
+	cacheNodes     txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
+	cachePkgObjIDs objectIDCache                  // real cache of package ids from pkg paths
+	alloc          *Allocator                     // for accounting for cached items
 
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
@@ -275,6 +276,30 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 	ds.pkgGetter = pg
 }
 
+type objectIDCache struct {
+	paths   [8]string
+	ids     [8]ObjectID
+	visited [8]bool
+	hand    int
+}
+
+func (c *objectIDCache) objectIDFromPkgPath(path string) ObjectID {
+	for i, s := range c.paths {
+		if s == path {
+			c.visited[i] = true
+			return c.ids[i]
+		}
+	}
+	for ; c.visited[c.hand]; c.hand = (c.hand + 1) % len(c.paths) {
+		c.visited[c.hand] = false
+	}
+	id := ObjectIDFromPkgPath(path)
+	c.paths[c.hand] = path
+	c.ids[c.hand] = id
+	c.visited[c.hand] = true
+	return id
+}
+
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	// helper to detect circular imports
@@ -288,7 +313,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 		}()
 	}
 	// first, check cache.
-	oid := ObjectIDFromPkgPath(pkgPath)
+	oid := ds.cachePkgObjIDs.objectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		pv := oo.(*PackageValue)
 		return pv
@@ -343,7 +368,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 // NOTE: To check whether a mem package has been run, use GetMemPackage()
 // instead of implementing HasCachePackage().
 func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
-	oid := ObjectIDFromPkgPath(pv.PkgPath)
+	oid := ds.cachePkgObjIDs.objectIDFromPkgPath(pv.PkgPath)
 	if _, exists := ds.cacheObjects[oid]; exists {
 		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
 	}
@@ -359,7 +384,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 			bm.StopStore(size)
 		}()
 	}
-	oid := ObjectIDFromPkgPath(pkgPath)
+	oid := ds.cachePkgObjIDs.objectIDFromPkgPath(pkgPath)
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get([]byte(key))
 	if bz == nil {
@@ -392,7 +417,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 			bm.StopStore(size)
 		}()
 	}
-	oid := ObjectIDFromPkgPath(rlm.Path)
+	oid := ds.cachePkgObjIDs.objectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
 	gas := overflow.Mulp(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))

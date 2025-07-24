@@ -236,7 +236,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
-	if pv.TV.T == DataByteType {
+	if asPrimitive(pv.TV.T) == DataByteType {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
 		tv.SetUint8(dbv.GetByte())
@@ -2279,24 +2279,23 @@ type Block struct {
 	Source   BlockNode
 	Values   []TypedValue
 	Parent   Value
-	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+	Blank    TypedValue
+	bodyStmt bodyStmt // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
 // XXX pass allocator in for heap items.
 func NewBlock(source BlockNode, parent *Block) *Block {
-	numNames := source.GetNumNames()
-	values := make([]TypedValue, numNames)
+	sb := source.GetStaticBlock()
+	values := make([]TypedValue, sb.NumNames)
 	// Keep in sync with ExpandWith().
-	for i, isHeap := range source.GetHeapItems() {
-		if !isHeap {
-			continue
-		}
-		// Indicates must always be heap item.
-		values[i] = TypedValue{
-			T: heapItemType{},
-			V: &HeapItemValue{},
+	for i, isHeap := range sb.HeapItems {
+		if isHeap {
+			// Indicates must always be heap item.
+			values[i] = TypedValue{
+				T: heapItemType{},
+				V: &HeapItemValue{},
+			}
 		}
 	}
 	return &Block{

@@ -228,7 +228,7 @@ func (m *Machine) doOpEval() {
 			m.PushExpr(x.Left)
 			m.PushOp(OpEval)
 		default:
-			op := word2BinaryOp(x.Op)
+			op := word2BinaryOp[x.Op]
 			m.PushOp(op)
 			// alt: m.PushOp(OpBinary2)
 			// evaluate right
@@ -297,7 +297,7 @@ func (m *Machine) doOpEval() {
 		// evaluate x
 		m.PushForPointer(x.X)
 	case *UnaryExpr:
-		op := word2UnaryOp(x.Op)
+		op := word2UnaryOp[x.Op]
 		m.PushOp(op)
 		// evaluate x
 		m.PushExpr(x.X)

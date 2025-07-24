@@ -82,10 +82,18 @@ type MachineOptions struct {
 }
 
 const (
-	startingOpsCap = 1024
-	// sizeof(TypedValue) is 40 at time of writing; this ensures that the values
-	// slice occupies 1000 bytes by default.
-	startingValuesCap = 25
+	startingOpsCap    = 1024 // sizeof(Op) = 1, 1024
+	startingValuesCap = 25   // sizeof(TypedValue) = 40, 1000
+	startingExprsCap  = 32   // sizeof(Expr) = 16, 512
+	startingStmtsCap  = 32   // sizeof(Stmt) = 16, 512
+	startingBlocksCap = 64   // sizeof(Block) = 8, 512
+	startingFramesCap = 9    // sizeof(Frame) = 208, 1872
+
+	// These may fall out of date.
+	// This is the size of bytes that is allocated for each machine and that is
+	// reset with each machine iteration. Ensuring these are large enough
+	// for most machine executions ensures we don't waste too much time in
+	// allocation during proper exection.
 )
 
 // the machine constructor gets spammed
@@ -97,6 +105,10 @@ var machinePool = sync.Pool{
 		return &Machine{
 			Ops:    make([]Op, 0, startingOpsCap),
 			Values: make([]TypedValue, 0, startingValuesCap),
+			Exprs:  make([]Expr, 0, startingExprsCap),
+			Stmts:  make([]Stmt, 0, startingStmtsCap),
+			Blocks: make([]*Block, 0, startingBlocksCap),
+			Frames: make([]Frame, 0, startingFramesCap),
 		}
 	},
 }
@@ -161,10 +173,20 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 // package's constructors should be released.
 func (m *Machine) Release() {
 	// here we zero in the values for the next user
-	ops, values := m.Ops[:0:startingOpsCap], m.Values[:0:startingValuesCap]
-	clear(ops[:startingOpsCap])
-	clear(values[:startingValuesCap])
-	*m = Machine{Ops: ops, Values: values}
+	*m = Machine{
+		Ops:    m.Ops[:0:startingOpsCap],
+		Values: m.Values[:0:startingValuesCap],
+		Exprs:  m.Exprs[:0:startingExprsCap],
+		Stmts:  m.Stmts[:0:startingStmtsCap],
+		Blocks: m.Blocks[:0:startingBlocksCap],
+		Frames: m.Frames[:0:startingFramesCap],
+	}
+	clear(m.Ops[:startingOpsCap])
+	clear(m.Values[:startingValuesCap])
+	clear(m.Exprs[:startingExprsCap])
+	clear(m.Stmts[:startingStmtsCap])
+	clear(m.Blocks[:startingBlocksCap])
+	clear(m.Frames[:startingFramesCap])
 
 	machinePool.Put(m)
 }
@@ -175,9 +197,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	}
 	m.Package = pv
 	m.Realm = pv.GetRealm()
-	m.Blocks = []*Block{
-		pv.GetBlock(m.Store),
-	}
+	m.Blocks = append(m.Blocks[:0], pv.GetBlock(m.Store))
 }
 
 //----------------------------------------
@@ -506,7 +526,6 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		// with values copied over from each file's
 		// *FileNode.StaticBlock.
 		fb := m.Alloc.NewBlock(fn, pb)
-		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
@@ -2093,7 +2112,7 @@ func (m *Machine) PeekFrameAndContinueFor() {
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
-	ls.NextBodyIndex = ls.BodyLen
+	ls.NextBodyIndex = len(ls.Body)
 }
 
 func (m *Machine) PeekFrameAndContinueRange() {
@@ -2104,7 +2123,7 @@ func (m *Machine) PeekFrameAndContinueRange() {
 	m.Stmts = m.Stmts[:fr.NumStmts+1]
 	m.Blocks = m.Blocks[:fr.NumBlocks+1]
 	ls := m.PeekStmt(1).(*bodyStmt)
-	ls.NextBodyIndex = ls.BodyLen
+	ls.NextBodyIndex = len(ls.Body)
 }
 
 func (m *Machine) NumFrames() int {

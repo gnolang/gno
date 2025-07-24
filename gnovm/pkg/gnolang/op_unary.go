@@ -25,7 +25,7 @@ func (m *Machine) doOpUneg() {
 
 	// Switch on the base type.
 	// NOTE: this is faster than computing the kind of kv.T.
-	switch baseOf(xv.T) {
+	switch asPrimitive(baseOf(xv.T)) {
 	case IntType:
 		xv.SetInt(-xv.GetInt())
 	case Int8Type:
@@ -56,10 +56,6 @@ func (m *Machine) doOpUneg() {
 	case UntypedBigdecType:
 		bdv := xv.V.(BigdecValue)
 		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bdv.V)}
-	case nil:
-		// NOTE: for now only BigintValue is possible.
-		biv := xv.V.(BigintValue)
-		xv.V = BigintValue{V: new(big.Int).Neg(biv.V)}
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))
@@ -74,7 +70,7 @@ func (m *Machine) doOpUnot() {
 	xv := m.PeekValue(1)
 
 	// Switch on the base type.
-	switch baseOf(xv.T) {
+	switch asPrimitive(baseOf(xv.T)) {
 	case BoolType, UntypedBoolType:
 		xv.SetBool(!xv.GetBool())
 	default:
@@ -91,7 +87,7 @@ func (m *Machine) doOpUxor() {
 	xv := m.PeekValue(1)
 
 	// Switch on the base type.
-	switch baseOf(xv.T) {
+	switch asPrimitive(baseOf(xv.T)) {
 	case IntType:
 		xv.SetInt(^xv.GetInt())
 	case Int8Type:
