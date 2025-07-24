@@ -10,6 +10,8 @@ var (
 	story string
 	game [2]string
 	art string
+	githubUsername string
+	pocInnovationName string
 )
 
 func init() {
@@ -28,6 +30,8 @@ func init() {
 ⠀⠀⠀⠀⠈⠙⠻⢿⣿⣿⣿⣿⣶⣦⣤⣍⣉⠙⠛⠛⠛⠿⠃⢸⣿⣿⣿⣷⡀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⠿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣶⣾⣿⣿⣿⣿⣿⣧⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠙⠛⠻⠏⠀⠉⠻⢿⣿⣿⣿⣿⠿⠋⠀`
+	githubUsername = "dujardin09"
+	pocInnovationName = "PoCInnovation"
 }
 
 func renderStory() string {
@@ -69,8 +73,8 @@ func renderFooter() string {
 	out := md.HorizontalRule()
 	out += md.BulletList([]string{
 		md.Link("Home", "home"),
-		md.Link("GitHub: @dujardin09", "https://github.com/dujardin09"),
-		md.Link("PoC-Innovation", "https://github.com/PoCInnovation"),
+		md.Link("GitHub: @"+githubUsername, "https://github.com/"+githubUsername),
+		md.Link("PoC-Innovation", "https://github.com/"+pocInnovationName),
 	})
 	return out
 }
