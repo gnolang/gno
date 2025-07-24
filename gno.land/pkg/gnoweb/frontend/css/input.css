@@ -55,7 +55,7 @@
 	}
 
 	.realm-view a {
-		@apply relative inline-block text-green-600 font-medium hover:underline;
+		@apply relative inline-block text-green-600 font-medium hover:underline text-balance align-top;
 	}
 
 	.realm-view h1,
@@ -115,7 +115,7 @@
 	}
 
 	.realm-view strong {
-		@apply font-bold text-gray-900;
+		@apply font-bold;
 	}
 
 	.realm-view strong * {
@@ -758,7 +758,6 @@
 	.tooltip {
 		--tooltip-left: 0;
 		--tooltip-right: initial;
-		@apply relative inline;
 	}
 
 	.tooltip::after {
@@ -856,7 +855,7 @@
 	}
 
 	.tooltip {
-		@apply inline align-text-top;
+		@apply relative inline-flex items-center justify-center align-middle rounded-full text-gray-400 w-4 h-4 border border-gray-400 mb-px;
 	}
 
 	/* link with image only shoud display the link badge on the image */
@@ -869,18 +868,35 @@
 			:has(> :nth-child(4))
 		)
 		> .tooltip {
-		@apply absolute bottom-2 left-2 bg-light px-1 rounded-full ml-0;
+		@apply absolute bottom-2 left-2 bg-light rounded-full ml-0;
 	}
 	.realm-view
 		a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(
 			:has(> :nth-child(4))
 		)
 		> .tooltip:first-of-type {
-		@apply absolute bottom-1 left-6;
+		@apply absolute bottom-2 left-7;
 	}
 
-	.realm-view a > span:first-of-type {
-		@apply ml-0.5;
+	/* spacing between link badge */
+	.realm-view a > span {
+		margin-block-end: 0.1em;
+	}
+
+	.realm-view a .tooltip:only-of-type {
+		margin-inline: 0.3em;
+	}
+
+	.realm-view a .tooltip:has(+ span) {
+		margin-inline-start: 0.3em;
+	}
+
+	.realm-view a > .tooltip + .tooltip {
+		margin-inline-start: 0.2em;
+	}
+
+	.realm-view a > .tooltip:last-of-type {
+		margin-inline-end: 0.2em;
 	}
 
 	.field-content {
