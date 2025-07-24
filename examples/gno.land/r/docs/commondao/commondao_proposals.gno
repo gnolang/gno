@@ -76,11 +76,10 @@ func Vote(cur realm, vote bool, proposalID uint64, reason string) {
 
 	caller := std.PreviousRealm().Address()
 
-	if !DAO.Members().Has(caller) {
-		panic("must register to the DAO to vote") // Panics if the voter is not a member of the DAO
+	err := DAO.Vote(caller, proposalID, choice, reason) // logs in the user's voting choice on a specified proposal
+	if err != nil {
+		panic(err)
 	}
-
-	DAO.Vote(caller, proposalID, choice, reason) // logs in the user's voting choice on a specified proposal
 	ExecutionPassedProposals(cross)
 }
 
