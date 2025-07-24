@@ -187,7 +187,7 @@ type linkTypeInfo struct {
 // getLinkIcons returns all icons that should be displayed for a given link
 func getLinkIcons(n *GnoLink) []linkTypeInfo {
 	var icons []linkTypeInfo
-	
+
 	// Add type-specific icon (external/internal)
 	if n.LinkType != GnoLinkTypePackage {
 		switch n.LinkType {
@@ -197,12 +197,12 @@ func getLinkIcons(n *GnoLink) []linkTypeInfo {
 			icons = append(icons, linkTypeInfo{tooltipInternalLink, iconInternalLink, classLinkInternal})
 		}
 	}
-	
+
 	// Add Tx icon for non-external links with help webquery
 	if n.LinkType != GnoLinkTypeExternal && n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") {
 		icons = append(icons, linkTypeInfo{tooltipTxLink, iconTxLink, classLinkTx})
 	}
-	
+
 	return icons
 }
 
