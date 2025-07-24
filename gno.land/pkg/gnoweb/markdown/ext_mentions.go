@@ -29,7 +29,7 @@ var (
 	mentionAddressPattern = regexp.MustCompile(`^(?: |)(g1[0-9A-Za-z]{37,90})(?:[^@0-9A-Za-z]|$)`)
 )
 
-func (s *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
+func (p *mentionParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	current, before := rune(block.Peek()), block.PrecendingCharacter()
 
 	line, lineSegment := block.PeekLine()
@@ -106,7 +106,7 @@ var ExtMention = &mentionExtension{}
 // Extend registers the unified parser with high priority.
 func (e *mentionExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
-		parser.WithInlineParsers(util.Prioritized(NewMentionParser(), 0)),
+		parser.WithInlineParsers(util.Prioritized(NewMentionParser(), 500)),
 	)
 }
 
