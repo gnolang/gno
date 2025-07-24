@@ -9,32 +9,32 @@ import (
 
 // Proposal implements the commondao.Proposal interface
 // It contains anything useful to you in a proposal and defines how the proposal behaves
-type Proposal struct {
+type proposal struct {
 	TitleProp       string
 	DescriptionProp string
 	CallerProp      std.Address
 }
 
 // Title returns the title of the proposal
-func (p *Proposal) Title() string {
+func (p *proposal) Title() string {
 	return p.TitleProp
 }
 
 // Body returns the full description of the proposal
-func (p *Proposal) Body() string {
+func (p *proposal) Body() string {
 	return p.DescriptionProp
 }
 
 // VotingPeriod defines the length of time the proposal is open for voting
 // Another possible implementation would be to have a constructor
 // So that each proposal can implement its own duration and tally
-func (c *Proposal) VotingPeriod() time.Duration {
+func (c *proposal) VotingPeriod() time.Duration {
 	return 24 * time.Hour // Voting period is 24 hours here
 }
 
 // Tally determines whether the proposal passes based on voting results
 // There are multiple ways to tally votes, pick the one most suited to your use case
-func (c *Proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
+func (c *proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
 	yesCount := r.VoteCount(commondao.ChoiceYes)
 
 	memberCount := DAO.Members().Size()
@@ -44,7 +44,7 @@ func (c *Proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet
 }
 
 // Execute will execute what you decide once the proposal is considered passed
-func (p *Proposal) Execute(cur realm) error {
+func (p *proposal) Execute(cur realm) error {
 	return JoinDao(cross, p.CallerProp) //When the proposal is passed the creator of the proposal joins the DAO
 }
 
@@ -54,7 +54,7 @@ func CreateProposal(cur realm, title, desc string) {
 	caller := std.PreviousRealm().Address()
 
 	// Set the new proposal's title and description
-	prop := &Proposal{
+	prop := &proposal{
 		TitleProp:       title,
 		DescriptionProp: desc,
 		CallerProp:      caller,
