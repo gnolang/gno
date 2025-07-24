@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 
 	"gno.land/r/demo/art/gnoface"
@@ -21,12 +22,25 @@ var (
 	abtMe      [2]string
 )
 
-func Render(_ string) string {
+func Render(path string) string {
 	out := "# Leon's Homepage\n\n"
+
+	if path == "buttons" {
+		return renderButtonPage()
+	}
 
 	out += renderAboutMe()
 	out += renderArt()
 	out += config.Banner()
+	out += "\n\n"
+	out += svgbtn.Button(
+		1200,
+		50,
+		gnomeBodyColors[int(std.ChainHeight()+1)%len(gnomeBodyColors)],
+		"#ffffff",
+		"Support my work!",
+		"/r/leon/home$help&func=Donate&.send=1000000ugnot",
+	)
 
 	return out
 }
@@ -42,8 +56,8 @@ func init() {
 Hi, I'm Leon, a DevRel Engineer at gno.land. I am a tech enthusiast, 
 life-long learner, and sharer of knowledge.`,
 		`### Contributions
-My contributions to gno.land can mainly be found 
-[here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
+My contributions to Gno.land can mainly be found 
+[on GitHub](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn), and on [the chain](/u/leon).
 
 TODO import r/gh`,
 	}
@@ -65,6 +79,21 @@ func UpdateAboutMe(cur realm, col1, col2 string) {
 
 	abtMe[0] = col1
 	abtMe[1] = col2
+}
+
+func Donate(_ realm) string {
+	sent := std.OriginSend()
+	if len(sent) == 0 {
+		return ":c"
+	}
+
+	std.NewBanker(std.BankerTypeOriginSend).SendCoins(
+		std.CurrentRealm().Address(),
+		config.OwnableMain.Owner(),
+		sent,
+	) // wish this was prettier :)
+
+	return "Thanks for donating " + sent.String() + " <3"
 }
 
 func renderAboutMe() string {
@@ -127,6 +156,22 @@ func RenderSVGGnome() string { // exported for your pleasure :)
 	c.Append(body, head, beard, hat, leftEye, rightEye)
 
 	return c.Render("svg gnome")
+}
+
+func renderButtonPage() string {
+	out := "# Buttons Demo\n\n"
+
+	out += md.ColumnsN([]string{
+		svgbtn.PrimaryButton(140, 45, "Click Me", "/r/leon/home:click") + "\n\n",
+		svgbtn.DangerButton(140, 45, "Delete", "/delete") + "\n\n",
+		svgbtn.SuccessButton(140, 45, "Go Home", "/r/leon/home") + "\n\n",
+		svgbtn.SmallButton(100, 45, "Edit", "/edit") + "\n\n",
+		svgbtn.WideButton(200, 40, "Big Action", "/big") + "\n\n",
+		svgbtn.TextButton(100, 30, "More Info", "/r/leon/home:info") + "\n\n",
+		svgbtn.IconButton(100, 40, "Config", "/r/leon/config") + "\n\n",
+	}, 3, true)
+
+	return out
 }
 
 var gnomeBodyColors = []string{
