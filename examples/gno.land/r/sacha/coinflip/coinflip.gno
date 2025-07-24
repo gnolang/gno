@@ -2,8 +2,6 @@ package coinflip
 
 import (
 	"std"
-	"gno.land/p/moul/txlink"
-	"gno.land/p/moul/md"
 )
 
 var latestBets = map[string]bool{}
@@ -39,15 +37,4 @@ func GetLatestResults() string {
 		out += "\n"
 	}
 	return out;
-}
-
-func Render(_ string) string {
-	out := "# "
-	out += md.Link("Heads", txlink.Call("Heads")) + " or "
-	out += md.Link("Tails", txlink.Call("Tails")) + " ?\n"
-
-	out += "## Latests Results:\n\n"
-	out += GetLatestResults()
-
-	return out
 }
