@@ -4,14 +4,82 @@ import (
 	"gno.land/p/moul/md"
 )
 
-func Render(_ string) string {
-	out := "![banner](https://media.licdn.com/dms/image/v2/D4E16AQEoUC0tW-XFew/profile-displaybackgroundimage-shrink_350_1400/profile-displaybackgroundimage-shrink_350_1400/0/1715027502009?e=1756339200&v=beta&t=4-mxY-Zzq36GQFhzSoDJX9gcjxYfchbgAxBO5Gjfmqo)\n"
-	out += "# Sacha's Space 🏗️\n"
-	out += "In the quiet layers of gno.land, a gnome brushed against a line of forgotten code. No one saw him. No one knows what he changed. But sometimes, in the logs...\n\n\"gnonk.\"\n\nJust once. Then silence.\n";
+var (
+	banner string
+	title string
+	story string
+	game [2]string
+	art string
+)
 
-	out += "## "
-	out += md.Link("🪙 Flip a coin!", "coinflip")
-	out += "\n"
+func init() {
+	banner = "https://shorturl.at/yN9Mp"
+	story = "In the quiet layers of gno.land, a gnome brushed against a line of forgotten code. No one saw him. No one knows what he changed. But sometimes, in the logs...\n\n\"gnonk.\"\n\nJust once. Then silence."
+	title = "Sacha's Space 🏗️"
+	game[0] = "🪙 Flip a coin!"
+	game[1] = "coinflip"
+	art = `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣦⡀⠒⢶⣄⠀⠀⠀⠀⠀⠀⠀
+⠀⢰⣶⣷⣶⣶⣤⣄⠀⣠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣾⣿⡆⠀⠀⠀⠀⠀⠀
+⠀⢿⣿⣿⣿⣿⡟⢁⣄⠙⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀
+⠀⠘⣿⣿⣿⣿⣧⡈⠻⢷⣦⣄⡉⠛⠿⢿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠈⠻⣿⣿⣿⣿⣶⣄⡈⠙⠻⢷⣶⣤⣄⣈⡉⠛⠛⠛⠃⢠⣀⣀⡀⠀⠀⠀
+⠀⠀⠀⠀⠈⠙⠻⢿⣿⣿⣿⣿⣶⣦⣤⣍⣉⠙⠛⠛⠛⠿⠃⢸⣿⣿⣿⣷⡀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⠿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣶⣾⣿⣿⣿⣿⣿⣧⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠙⠛⠻⠏⠀⠉⠻⢿⣿⣿⣿⣿⠿⠋⠀`
+}
+
+func renderStory() string {
+	out := md.H2("📖 Story")
+	out += md.Paragraph(story)
+	return out
+}
+
+func renderGame() string {
+	out := md.H2("🎰 Game")
+	out += md.H3(md.Link(game[0], game[1]))
+	return out
+}
+
+func renderArt() string {
+	out := md.H2("🎨 Art")
+	out += md.CodeBlock(art)
+	return out
+}
+
+func renderBody() string {
+	return md.Columns([]string{
+		renderStory(),
+		renderGame(),
+		renderArt(),
+	}, false)
+}
+
+func renderTitle() string {
+	return md.H1(title)
+}
+
+func renderBanner() string {
+	out := md.Paragraph(md.Image("banner", banner))
+	return out
+}
+
+func renderFooter() string {
+	out := md.HorizontalRule()
+	out += md.BulletList([]string{
+		md.Link("Home", "home"),
+		md.Link("GitHub: @dujardin09", "https://github.com/dujardin09"),
+		md.Link("PoC-Innovation", "https://github.com/PoCInnovation"),
+	})
+	return out
+}
+
+func Render(_ string) string {
+	out := renderBanner()
+	out += renderTitle()
+	out += renderBody()
+	out += renderFooter()
 
 	return out
 }
