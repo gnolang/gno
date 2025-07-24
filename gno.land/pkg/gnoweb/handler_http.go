@@ -461,6 +461,7 @@ func (h *HTTPHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View)
 		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
 		Doc:       jdoc.PackageDoc,
+		Domain:    h.Static.Domain,
 	})
 }
 
