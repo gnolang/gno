@@ -14,13 +14,12 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer/group"))
 }
 
 // Verify the correct execution of voting on a proposal
 func main() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
 	group.CreateProposals(cross, "1", "test", "test", "", "", owner.String())

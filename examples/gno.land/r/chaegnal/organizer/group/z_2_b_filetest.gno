@@ -15,16 +15,15 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer/group"))
 }
 
 // Verify the error case when someone else than the owner tries to change ownership
 func main() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 	group.SwitchOwner(cross, "1", user.String(), user)
 }
 

@@ -15,23 +15,22 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer/group"))
 }
 
 // Test the error case when an admin tries to strip the owner of their admin power
 func main() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 	organizer.AskJoinFriendGroup(cross, 1)
 	group.AcceptAwaitingMember(cross, "1", owner.String(), std.Address(user))
 
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	group.MakeAdmin(cross, "1", owner.String(), user)
 
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 	group.RemoveAdminRank(cross, "1", user.String(), owner)
 }
 

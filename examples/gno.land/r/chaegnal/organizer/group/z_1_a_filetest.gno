@@ -10,12 +10,12 @@ import (
 )
 
 func init() {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer/group"))
 }
 
 // Test the correct deletion of a friend group by the owner
 func main() {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetRealm(std.NewUserRealm("Chaegnal"))
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
 	group.DeleteFriendGroup(cross, "1", "Chaegnal")

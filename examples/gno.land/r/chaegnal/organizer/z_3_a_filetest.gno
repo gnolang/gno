@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer"))
 }
 
@@ -22,7 +22,7 @@ func init() {
 func main() {
 	organizer.CreateFriendGroup(cross, "Chaegnal's Leave Ghhv")
 
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 	organizer.AskJoinFriendGroup(cross, 1)
 
 	group := organizer.GetGroupFromId("1")

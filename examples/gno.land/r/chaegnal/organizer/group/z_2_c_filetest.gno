@@ -15,21 +15,20 @@ var (
 )
 
 func init() {
-	testing.SetRealm(std.NewUserRealm(owner))
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/chaegnal/organizer/group"))
 }
 
 // Test the error case whe the chosen futur owner is not an admin
 func main() {
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
-	testing.SetOriginCaller(user)
+	testing.SetRealm(std.NewUserRealm(user))
 	organizer.AskJoinFriendGroup(cross, 1)
 
 	group.AcceptAwaitingMember(cross, "1", owner.String(), std.Address(user))
 
-	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewUserRealm(owner))
 	group.SwitchOwner(cross, "1", owner.String(), user)
 }
 

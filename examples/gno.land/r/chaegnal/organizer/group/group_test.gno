@@ -1,6 +1,7 @@
 package group
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/uassert"
@@ -39,7 +40,7 @@ func Test_ParseQueryKeyword(t *testing.T) {
 
 // Test getGroupFromUrl
 func Test_getGroupFromUrl_Success(t *testing.T) {
-	testing.SetOriginCaller("Chaegnal")
+	testing.SetRealm(std.NewUserRealm("Chaegnal"))
 	organizer.CreateFriendGroup(cross, "Chaegnal's group")
 
 	uassert.NotPanics(t, func() { getGroupFromUrl("http://test.com?groupId=1") })
