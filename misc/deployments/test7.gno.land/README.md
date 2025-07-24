@@ -113,7 +113,7 @@ To verify the checksum of the genesis balances sheet:
 
 ```shell
 shasum -a 256 genesis_balances.txt
-TODO  genesis_balances.txt
+2f7ec5981f40b83b7a250e16e5cd98f75a32762a53cafa2a1c8dc1b64a696984  genesis_balances.txt
 ```
 
 The `genesis_txs.jsonl` can be fetched locally by:
@@ -126,7 +126,7 @@ To verify the checksum of the genesis transaction sheet:
 
 ```shell
 shasum -a 256 genesis_txs.jsonl
-TODO  genesis_txs.jsonl
+2959098768070692de08c4894a9df580443fdf0ad6b2af76c1849208de69738e  genesis_txs.jsonl
 ```
 
 ### Reconstructing the genesis transactions
