@@ -5,9 +5,6 @@ services:
       dockerfile: Dockerfile
       target: gnoland
     container_name: e2e-gnoland
-    ports:
-      - "26656:26656"
-      - "26657:26657"
     entrypoint:
       - sh
       - -c
@@ -21,8 +18,8 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:26657/health"]
       interval: 5s
       timeout: 10s
-      retries: 30
-      start_period: 15s
+      retries: 60
+      start_period: 30s
 
   gnokey-test:
     build:

@@ -20,4 +20,6 @@ jobs:
     - name: Run E2E tests
       run: |
         cd misc/e2e
-        make test
+        docker compose version
+        docker compose build
+        docker compose up --abort-on-container-exit --exit-code-from gnokey-test
