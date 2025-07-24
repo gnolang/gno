@@ -1,6 +1,7 @@
 package commondao
 
 import (
+	"errors"
 	"std"
 	"time"
 
@@ -45,7 +46,13 @@ func (c *proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet
 
 // Execute will execute what you decide once the proposal is considered passed
 func (p *proposal) Execute(cur realm) error {
-	return JoinDao(cross, p.CallerProp) //When the proposal is passed the creator of the proposal joins the DAO
+	// Here the proposal executed is the addition of the creator of the proposal to the DAO
+	if DAO.Members().Has(p.CallerProp) {
+		return errors.New(p.CallerProp.String() + " is already a DAO member")
+	}
+
+	DAO.Members().Add(p.CallerProp)
+	return nil
 }
 
 // CreateProposal constructs and submits a new proposal to the DAO
