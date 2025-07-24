@@ -8,7 +8,7 @@ var (
 	banner string
 	title string
 	story string
-	game [2]string
+	game map[string]string
 	art string
 	githubUsername string
 	pocInnovationName string
@@ -18,8 +18,8 @@ func init() {
 	banner = "https://shorturl.at/yN9Mp"
 	story = "In the quiet layers of gno.land, a gnome brushed against a line of forgotten code. No one saw him. No one knows what he changed. But sometimes, in the logs...\n\n\"gnonk.\"\n\nJust once. Then silence."
 	title = "Sacha's Space 🏗️"
-	game[0] = "🪙 Flip a coin!"
-	game[1] = "coinflip"
+	game = make(map[string]string)
+	game["🪙 Flip a coin!"] = "coinflip"
 	art = `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣦⡀⠒⢶⣄⠀⠀⠀⠀⠀⠀⠀
@@ -42,7 +42,9 @@ func renderStory() string {
 
 func renderGame() string {
 	out := md.H2("🎰 Game")
-	out += md.H3(md.Link(game[0], game[1]))
+	for name, link := range game {
+		out += md.H3(md.Link(name, link))
+	}
 	return out
 }
 
