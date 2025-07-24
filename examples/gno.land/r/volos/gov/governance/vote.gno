@@ -23,6 +23,7 @@ func Vote(cur realm, proposalID uint64, choice string, reason string) {
 	if p == nil {
 		panic(commondao.ErrProposalNotFound)
 	}
+
 	if p.Status() != commondao.StatusActive {
 		panic(commondao.ErrProposalNotFound)
 	}
@@ -41,5 +42,6 @@ func Vote(cur realm, proposalID uint64, choice string, reason string) {
 		Reason:  reason,
 		Context: xvls.BalanceOf(voter),
 	}
+	
 	p.VotingRecord().AddVote(vote)
 }

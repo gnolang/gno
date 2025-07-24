@@ -43,6 +43,19 @@ func TestMembership_AddRemove(cur realm, t *testing.T) {
 			RemoveMember(cross, alice)
 		})
 	})
+
+	notStaker := "gno.land/r/volos/gov/notstaker"
+	crossThrough(std.NewCodeRealm(notStaker), func() {
+		uassert.AbortsWithMessage(t, "only staker can call this function", func() {
+			AddMember(cross, alice)
+		})
+	})
+
+	crossThrough(std.NewCodeRealm(notStaker), func() {
+		uassert.AbortsWithMessage(t, "only staker can call this function", func() {
+			RemoveMember(cross, alice)
+		})
+	})
 }
 
 func TestMembers_EdgeCases(cur realm, t *testing.T) {

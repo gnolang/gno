@@ -14,7 +14,12 @@ import (
 )
 
 // AddMember adds an address to the DAO's member set if they hold any xVLS. Panics if not.
+// Only the staker contract can add members because being a member is tied to holding xVLS.
 func AddMember(cur realm, addr std.Address) {
+	if std.PreviousRealm().PkgPath() != "gno.land/r/volos/gov/staker" {
+		panic(ErrNotStaker)
+	}
+
 	authorizer.DoByPrevious("add_member", func() error {
 		if xvls.BalanceOf(addr) <= 0 {
 			panic(ErrNoXVLS)
@@ -27,7 +32,12 @@ func AddMember(cur realm, addr std.Address) {
 }
 
 // RemoveMember removes an address from the DAO's member set if they have 0 xVLS. Panics if not.
+// Only the staker contract can remove members because being a member is tied to holding xVLS.
 func RemoveMember(cur realm, addr std.Address) {
+	if std.PreviousRealm().PkgPath() != "gno.land/r/volos/gov/staker" {
+		panic(ErrNotStaker)
+	}
+
 	authorizer.DoByPrevious("remove_member", func() error {
 		if xvls.BalanceOf(addr) != 0 {
 			panic(ErrStillHasXVLS)
