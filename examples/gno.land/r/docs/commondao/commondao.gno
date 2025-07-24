@@ -78,13 +78,13 @@ func displayActiveProposals() string {
 		voteYay := md.Link("Yay", txlink.Call("Vote",
 			"vote", "true",
 			"proposalID", strconv.FormatUint(p.ID(), 10),
-			"reason", "default",
+			"reason", "",
 		))
 
 		voteNay := md.Link("Nay", txlink.Call("Vote",
 			"vote", "false",
 			"proposalID", strconv.FormatUint(p.ID(), 10),
-			"reason", "default",
+			"reason", "",
 		))
 
 		table.Append([]string{
