@@ -35,12 +35,12 @@ func (c *Proposal) VotingPeriod() time.Duration {
 // Tally determines whether the proposal passes based on voting results
 // There are multiple ways to tally votes, pick the one most suited to your use case
 func (c *Proposal) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
-	choice, success := SelectChoiceByPlurality(record.Readonly()) // passes if there is a single Yes vote and the no votes are lower than the yes votes
-	if !success {
-		return false, nil
-	}
+	yesCount := r.VoteCount(commondao.ChoiceYes)
 
-	return choice == commondao.ChoiceYes, nil
+	memberCount := DAO.Members().Size()
+	fivePercent := (memberCount*5 + 99) / 100 // fivePercent calculate what is 5% of the DAO's member
+
+	return yesCount >= fivePercent, nil // The proposal is considered as "passed" as soon as 5% of members voted yes
 }
 
 // Execute will execute what you decide once the proposal is considered passed
