@@ -19,7 +19,7 @@ func init() {
 	story = "In the quiet layers of gno.land, a gnome brushed against a line of forgotten code. No one saw him. No one knows what he changed. But sometimes, in the logs...\n\n\"gnonk.\"\n\nJust once. Then silence."
 	title = "Sacha's Space 🏗️"
 	game = make(map[string]string)
-	game["🪙 Flip a coin!"] = "coinflip"
+	game["coinflip"] = "🪙 Flip a coin!"
 	art = `⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣦⡀⠒⢶⣄⠀⠀⠀⠀⠀⠀⠀
@@ -42,8 +42,8 @@ func renderStory() string {
 
 func renderGame() string {
 	out := md.H2("🎰 Game")
-	for name, link := range game {
-		out += md.H3(md.Link(name, link))
+	for name, title := range game {
+		out += md.H3(md.Link(title, name))
 	}
 	return out
 }
