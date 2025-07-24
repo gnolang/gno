@@ -20,7 +20,7 @@ const (
 	setHangoutFunc   = "SetHangoutTimeAndPlace"
 )
 
-type CallbackProposalDefinition struct {
+type callbackProposalDefinition struct {
 	GroupId      string
 	TitleValue   string
 	BodyValue    string
@@ -28,19 +28,19 @@ type CallbackProposalDefinition struct {
 	CallbackArgs []string
 }
 
-func (c *CallbackProposalDefinition) Title() string {
+func (c *callbackProposalDefinition) Title() string {
 	return c.TitleValue
 }
 
-func (c *CallbackProposalDefinition) Body() string {
+func (c *callbackProposalDefinition) Body() string {
 	return c.BodyValue
 }
 
-func (c *CallbackProposalDefinition) VotingPeriod() time.Duration {
+func (c *callbackProposalDefinition) VotingPeriod() time.Duration {
 	return 24 * time.Hour
 }
 
-func (c *CallbackProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
+func (c *callbackProposalDefinition) Tally(r commondao.ReadonlyVotingRecord, m commondao.MemberSet) (bool, error) {
 	yesCount := r.VoteCount(commondao.ChoiceYes)
 	noCount := r.VoteCount(commondao.ChoiceNo)
 	return yesCount > noCount, nil
@@ -58,7 +58,7 @@ func CreateProposals(cur realm, groupId, title, desc, callback, callbackArgsStr,
 	callbackArgsStr = strings.Trim(callbackArgsStr, "\"")
 	callbackArgs := strings.Split(callbackArgsStr, ",")
 
-	def := &CallbackProposalDefinition{
+	def := &callbackProposalDefinition{
 		GroupId:      groupId,
 		TitleValue:   title,
 		BodyValue:    desc,
@@ -106,7 +106,7 @@ func VoteOnProposal(cur realm, groupId, voteIdStr, voteStr, logged string) {
 
 // Execute defines the authorized callbacks for proposals
 // Execute start the execution of the desired callback
-func (p *CallbackProposalDefinition) Execute(cur realm) error {
+func (p *callbackProposalDefinition) Execute(cur realm) error {
 	group := organizer.GetGroupFromId(p.GroupId)
 
 	if len(p.CallbackArgs) < 2 {
