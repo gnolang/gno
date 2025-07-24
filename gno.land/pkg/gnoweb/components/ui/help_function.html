@@ -37,6 +37,13 @@
             >
               {{ template "ui/copy" }}
             </button>
+            {{- if .Crossing }}
+              <code class="font-mono px-2 bg-gray-50 text-gray-600 text-100">
+                <a target="_blank" href="https://github.com/gnolang/blog/blob/dev/moul/crossing/posts/2025-05-xx_crossing_manfred/README.md#understanding-cross-and-crossing">
+                  crossing
+                </a>
+              </code>
+            {{- end }}
           </span>
         </span>
         <span class="flex gap-x-2 flex-none">
