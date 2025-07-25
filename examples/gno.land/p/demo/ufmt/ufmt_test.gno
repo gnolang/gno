@@ -20,12 +20,28 @@ func TestSprintf(t *testing.T) {
 		values         []any
 		expectedOutput string
 	}{
+		// normal usage
 		{"hello %s!", []any{"planet"}, "hello planet!"},
 		{"hello %v!", []any{"planet"}, "hello planet!"},
 		{"hi %%%s!", []any{"worl%d"}, "hi %worl%d!"},
 		{"%s %c %d %t", []any{"foo", 'α', 421, true}, "foo α 421 true"},
 		{"string [%s]", []any{"foo"}, "string [foo]"},
+
+		// ints
 		{"int [%d]", []any{int(42)}, "int [42]"},
+		{"int [%03d]", []any{int(42)}, "int [042]"},
+		{"int [%010d]", []any{int(42)}, "int [0000000042]"},
+		{"int [% 10d]", []any{int(42)}, "int [        42]"},
+		{"hex [%x]", []any{int(42)}, "hex [2a]"},
+		{"hex [%X]", []any{int(42)}, "hex [2A]"},
+		{"hex [%02x]", []any{int(42)}, "hex [2a]"},
+		{"hex [%03x]", []any{int(42)}, "hex [02a]"},
+		{"hex [%#03x]", []any{int(42)}, "hex [0x02a]"},
+		{"hex [%#03X]", []any{int(42)}, "hex [0X02A]"},
+		{"hex [%#X]", []any{[]uint8{1, 2, 42}}, "hex [0X01022A]"},
+		{"hex [%x]", []any{[]uint8("hello")}, "hex [68656c6c6f]"},
+		{"hex [%x]", []any{[]uint8{0, 0}}, "hex [0000]"},
+		{"hex [%x]", []any{uint8(0)}, "hex [0]"},
 		{"int [%v]", []any{int(42)}, "int [42]"},
 		{"int8 [%d]", []any{int8(8)}, "int8 [8]"},
 		{"int8 [%v]", []any{int8(8)}, "int8 [8]"},
@@ -45,16 +61,28 @@ func TestSprintf(t *testing.T) {
 		{"uint32 [%v]", []any{uint32(32)}, "uint32 [32]"},
 		{"uint64 [%d]", []any{uint64(64)}, "uint64 [64]"},
 		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
-		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.41e+01]"},
-		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.41E+01]"},
+
+		// floats
+		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.410000e+01]"},
+		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.410000E+01]"},
 		{"float64 [%f]", []any{float64(64.1)}, "float64 [64.100000]"},
+		{"float64 [%.2f]", []any{float64(64.1)}, "float64 [64.10]"},
+		{"float32 [%.1f]", []any{float32(64.1)}, "float32 [64.1]"},
+		{"float64 [%.f]", []any{float64(64.1)}, "float64 [64]"},
+		{"float64 [%.0f]", []any{float64(64.1)}, "float64 [64]"},
+		{"float64 [%.1f]", []any{float64(64.1)}, "float64 [64.1]"},
 		{"float64 [%F]", []any{float64(64.1)}, "float64 [64.100000]"},
 		{"float64 [%g]", []any{float64(64.1)}, "float64 [64.1]"},
 		{"float64 [%G]", []any{float64(64.1)}, "float64 [64.1]"},
+		{"float64 [%.000001f]", []any{float64(64.1)}, "float64 [64.1]"},
+
+		// bool
 		{"bool [%t]", []any{true}, "bool [true]"},
 		{"bool [%v]", []any{true}, "bool [true]"},
 		{"bool [%t]", []any{false}, "bool [false]"},
 		{"bool [%v]", []any{false}, "bool [false]"},
+
+		// errros/special cases
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
 		{"stringer [%s]", []any{stringer{}}, "stringer [I'm a stringer]"},
@@ -124,16 +152,93 @@ func TestSprintf(t *testing.T) {
 		{"%5s", []any{""}, "     "},
 		{"%3s", []any{nil}, "%!s(<nil>)"},
 		{"%2s", []any{123}, "%!s(int=123)"},
+
+		// entering dangerous printf zone
+
+		// advanced int (from go/fmt)
+		{"%.d", []any{0}, ""},
+		{"%.0d", []any{0}, ""},
+		{"% d", []any{12345}, " 12345"},
+		{"%+d", []any{12345}, "+12345"},
+		{"%+d", []any{-12345}, "-12345"},
+		{"%#X", []any{0}, "0X0"},
+		{"%x", []any{0x12abcdef}, "12abcdef"},
+		{"%X", []any{0x12abcdef}, "12ABCDEF"},
+		{"%x", []any{^uint32(0)}, "ffffffff"},
+		{"%X", []any{^uint64(0)}, "FFFFFFFFFFFFFFFF"},
+		// {"%010d", []any{12345}, "0000012345"},
+		// {"%010d", []any{-12345}, "-000012345"}, // weird behaviors
+
+		// advanced float (from go/fmt)
+		{"========= ADVANCED FLOAT", []any{}, "========= ADVANCED FLOAT"},
+		{"%+.3e", []any{0.0}, "+0.000e+00"},
+		{"%+.3e", []any{1.0}, "+1.000e+00"},
+		{"%+.3x", []any{0.0}, "+0x0.000p+00"}, // [x]
+		{"%+.3x", []any{1.0}, "+0x1.000p+00"}, // [x]
+		{"%+.3f", []any{-1.0}, "-1.000"}, // [f]
+		{"%+.3F", []any{-1.0}, "-1.000"}, // [F]
+		{"%+.3F", []any{float32(-1.0)}, "-1.000"}, // [F]
+		{"% .3E", []any{-1.0}, "-1.000E+00"}, // [E]
+		{"% .3e", []any{1.0}, " 1.000e+00"}, // [e]
+		{"% .3X", []any{-1.0}, "-0X1.000P+00"}, // [X]
+		{"% .3x", []any{1.0}, " 0x1.000p+00"}, // [x]
+		{"%+.3g", []any{0.0}, "+0"}, // [g]
+		{"%+.3g", []any{1.0}, "+1"}, // [g]
+		{"%+.3g", []any{-1.0}, "-1"}, // [g]
+		{"% .3g", []any{-1.0}, "-1"}, // [g]
+		{"% .3g", []any{1.0}, " 1"}, // [g]
+
+		// Test sharp flag used with floats.
+		{"%#g", []any{1e-323}, "1.00000e-323"}, // [g]
+		{"%#g", []any{-1.0}, "-1.00000"}, // [g]
+		{"%#g", []any{1.1}, "1.10000"}, // [g]
+		{"%#g", []any{123456.0}, "123456."}, // [g]
+		{"%#g", []any{1234567.0}, "1.234567e+06"}, // [g]
+		{"%#g", []any{1230000.0}, "1.23000e+06"}, // [g]
+		{"%#g", []any{1000000.0}, "1.00000e+06"}, // [g]
+		{"%#.0f", []any{1.0}, "1."}, // [f]
+		{"%#.0e", []any{1.0}, "1.e+00"}, // [e]
+		{"%#.0x", []any{1.0}, "0x1.p+00"}, // [x]
+		{"%#.0g", []any{1.0}, "1."}, // [g]
+		{"%#.0g", []any{1100000.0}, "1.e+06"}, // [g]
+		{"%#.4f", []any{1.0}, "1.0000"}, // [f]
+		{"%#.4e", []any{1.0}, "1.0000e+00"}, // [e]
+		{"%#.4x", []any{1.0}, "0x1.0000p+00"}, // [x]
+		{"%#.4g", []any{1.0}, "1.000"}, // [g]
+		{"%#.4g", []any{100000.0}, "1.000e+05"}, // [g]
+		{"%#.4g", []any{1.234}, "1.234"}, // [g]
+		{"%#.4g", []any{0.1234}, "0.1234"}, // [g]
+		{"%#.4g", []any{1.23}, "1.230"}, // [g]
+		{"%#.4g", []any{0.123}, "0.1230"}, // [g]
+		{"%#.4g", []any{1.2}, "1.200"}, // [g]
+		{"%#.4g", []any{0.12}, "0.1200"}, // [g]
+		{"%#.4g", []any{10.2}, "10.20"}, // [g]
+		{"%#.4g", []any{0.0}, "0.000"}, // [g]
+		{"%#.4g", []any{0.012}, "0.01200"}, // [g]
+		{"%#.0f", []any{123.0}, "123."}, // [f]
+		{"%#.0e", []any{123.0}, "1.e+02"}, // [e]
+		{"%#.0x", []any{123.0}, "0x1.p+07"}, // [x]
+		{"%#.0g", []any{123.0}, "1.e+02"}, // [g]
+		{"%#.4f", []any{123.0}, "123.0000"}, // [f]
+		{"%#.4e", []any{123.0}, "1.2300e+02"}, // [e]
+		{"%#.4x", []any{123.0}, "0x1.ec00p+06"}, // [x]
+		{"%#.4g", []any{123.0}, "123.0"}, // [g]
+		{"%#.4g", []any{123000.0}, "1.230e+05"}, // [g]
 	}
 
+	nFails := 0
 	for _, tc := range cases {
 		name := fmt.Sprintf(tc.format, tc.values...)
 		t.Run(name, func(t *testing.T) {
 			got := Sprintf(tc.format, tc.values...)
 			if got != tc.expectedOutput {
+				nFails++
 				t.Errorf("got %q, want %q.", got, tc.expectedOutput)
 			}
 		})
+	}
+	if nFails != 0 {
+		t.Logf("=> (%d tests failed)", nFails)
 	}
 }
 
