@@ -77,10 +77,6 @@ func (v VolosProposalDefinition) Execute(cur realm) error {
 	return nil
 }
 
-func (v VolosProposalDefinition) Validate() error {
-	return nil
-}
-
 // CreateProposal checks the proposer's xVLS balance and, if sufficient, creates a commondao proposal.
 // The minimum xVLS required is set in governance.gno and can be changed via SetProposalThreshold.
 func CreateProposal(cur realm, title, body string, votingPeriod time.Duration, action func()) *commondao.Proposal {
