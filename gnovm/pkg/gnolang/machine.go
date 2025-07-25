@@ -93,7 +93,7 @@ const (
 	// This is the size of bytes that is allocated for each machine and that is
 	// reset with each machine iteration. Ensuring these are large enough
 	// for most machine executions ensures we don't waste too much time in
-	// allocation during proper exection.
+	// allocation during proper execution.
 )
 
 // the machine constructor gets spammed
