@@ -221,7 +221,7 @@ func TestList_DeleteRange(t *testing.T) {
 	}
 }
 
-func TestList_ReadOnlyTree(t *testing.T) {
+func TestList_Tree(t *testing.T) {
 	var l List
 	l.Append(1, 2, 3)
 
