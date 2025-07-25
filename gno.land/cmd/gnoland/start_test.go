@@ -221,6 +221,7 @@ func TestStart_Lazy(t *testing.T) {
 			require.Eventuallyf(t, func() bool {
 				var info *ctypes.ResultABCIInfo
 				if info, nerr = cli.ABCIInfo(); nerr != nil {
+					t.Logf("query infos: %v", nerr)
 					return false
 				}
 
