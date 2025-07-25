@@ -89,6 +89,7 @@ FROM        base AS gnoland
 COPY        --from=build-gno /gnoroot/build/gnoland /usr/bin/gnoland
 COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
 COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 EXPOSE      26656 26657
