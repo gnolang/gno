@@ -3,7 +3,6 @@ package commondao
 import (
 	"errors"
 	"std"
-	"time"
 
 	"gno.land/p/demo/avl/list"
 	"gno.land/p/demo/seqid"
@@ -19,21 +18,23 @@ var (
 	ErrProposalFailed       = errors.New("proposal failed to pass")
 	ErrProposalNotFound     = errors.New("proposal not found")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
+	ErrVotingDeadlinePassed = errors.New("voting deadline has passed")
 )
 
 // CommonDAO defines a DAO.
 type CommonDAO struct {
-	id                uint64
-	slug              string
-	name              string
-	description       string
-	parent            *CommonDAO
-	children          list.IList
-	members           MemberStorage
-	genID             seqid.ID
-	activeProposals   ProposalStorage
-	finishedProposals ProposalStorage
-	deleted           bool // Soft delete
+	id                         uint64
+	slug                       string
+	name                       string
+	description                string
+	parent                     *CommonDAO
+	children                   list.IList
+	members                    MemberStorage
+	genID                      seqid.ID
+	activeProposals            ProposalStorage
+	finishedProposals          ProposalStorage
+	deleted                    bool // Soft delete
+	disableVotingDeadlineCheck bool
 }
 
 // New creates a new common DAO.
@@ -177,6 +178,10 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, 
 		return ErrProposalNotFound
 	}
 
+	if !dao.disableVotingDeadlineCheck && p.HasVotingDeadlinePassed() {
+		return ErrVotingDeadlinePassed
+	}
+
 	if !p.IsVoteChoiceValid(c) {
 		return ErrInvalidVoteChoice
 	}
@@ -221,7 +226,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		return ErrStatusIsNotActive
 	}
 
-	if time.Now().Before(p.VotingDeadline()) {
+	if !dao.disableVotingDeadlineCheck && !p.HasVotingDeadlinePassed() {
 		return ErrVotingDeadlineNotMet
 	}
 
