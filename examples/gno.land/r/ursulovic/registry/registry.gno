@@ -26,7 +26,7 @@ func BackupAddress() std.Address {
 	return backupAddress
 }
 
-func SetMainAddress(addr std.Address) error {
+func SetMainAddress(_ realm, addr std.Address) error {
 	assertAuthorized()
 
 	if !addr.IsValid() {
@@ -37,7 +37,7 @@ func SetMainAddress(addr std.Address) error {
 	return nil
 }
 
-func SetBackupAddress(addr std.Address) error {
+func SetBackupAddress(_ realm, addr std.Address) error {
 	assertAuthorized()
 
 	if !addr.IsValid() {

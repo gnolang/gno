@@ -28,8 +28,8 @@ func (so SafeObject) Set(value string) {
 	so.privilegedData = value
 }
 
-// Set is a function only the admin can call
-func (so SafeObject) UpdateAdmiin(newAdmin std.Address) {
+// UpdateAdmin is a function only the admin can call
+func (so SafeObject) UpdateAdmin(newAdmin std.Address) {
 	if std.PreviousRealm().Address() != so.admin {
 		panic("caller is not authorized")
 	}

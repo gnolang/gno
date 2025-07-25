@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-// Iterate returns a SubDAO iterator.
+// NewIterator returns a SubDAO iterator.
 func NewIterator(rootID uint64, options ...IteratorOption) Iterator {
 	assertIsOwner(std.CurrentRealm().Address(), rootID)
 
