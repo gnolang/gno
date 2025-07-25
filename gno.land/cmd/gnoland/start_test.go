@@ -235,7 +235,7 @@ func TestStart_Lazy(t *testing.T) {
 				require.Greater(c, len(paths), 1, "query qpaths: no package has been loaded")
 			}, time.Until(deadline), time.Millisecond*500, "rpc: unable to call rpc vm/qpaths")
 
-			t.Logf("node: stoping - time left %s", time.Until(deadline))
+			t.Logf("node: stopping - time left %s", time.Until(deadline))
 
 			cancelFn() // stop the node
 			require.NoError(t, g.Wait())
