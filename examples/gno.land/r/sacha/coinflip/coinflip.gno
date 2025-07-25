@@ -32,11 +32,14 @@ func flip(choice int) bool {
 	return result == choice
 }
 
-func checkMinBet(betCoins std.Coins) {
+func checkBet(betCoins std.Coins) {
 	minBet := std.NewCoin(denom, 1)
 
 	if betCoins.AmountOf(denom) < minBet.Amount {
-    	panic("mise trop faible")
+    	panic("Bet too low")
+	}
+	if betCoins.AmountOf(denom) * 2 > GetRealmBalance(cross) {
+    	panic("Bet too high")
 	}
 }
 
@@ -52,7 +55,7 @@ func betLogic(flipResult bool) {
 	betCoins := std.OriginSend()
 	amount := betCoins.AmountOf(denom)
 
-	checkMinBet(betCoins)
+	checkBet(betCoins)
 
 	if flipResult == true {
 		amount *= 2
@@ -75,7 +78,7 @@ func Heads(cur realm) {
 func Tails(cur realm) {
 	std.AssertOriginCall()
 
-	flipResult := flip(1)
+	flipResult := flip(0)
 	betLogic(flipResult)
 }
 
@@ -93,7 +96,7 @@ func GetLatestResults() string {
 	return out;
 }
 
-func GetBalance(cur realm) int64 {
+func GetRealmBalance(cur realm) int64 {
 	banker := std.NewBanker(std.BankerTypeReadonly)
 	coins := banker.GetCoins(std.CurrentRealm().Address())
 	balance := coins.AmountOf(denom)
@@ -113,9 +116,8 @@ func CashOut(cur realm, amount int64) {
 	std.AssertOriginCall()
 
 	banker := std.NewBanker(std.BankerTypeRealmSend)
-	realmBalance := banker.GetCoins(std.CurrentRealm().Address()).AmountOf(denom);
 
-	if realmBalance < amount {
+	if GetRealmBalance(cur) < amount {
 		panic("insufficient balance")
 	}
 
