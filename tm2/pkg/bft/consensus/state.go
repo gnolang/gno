@@ -856,13 +856,24 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 }
 
 // needProofBlock returns true on the first height (so the genesis app hash is signed right away)
-// and where the last block (height-1) caused the app hash to change
+// and where the last block (height-1) contained actual transactions that changed state
 func (cs *ConsensusState) needProofBlock(height int64) bool {
 	if height == 1 {
 		return true
 	}
 
 	lastBlockMeta := cs.blockStore.LoadBlockMeta(height - 1)
+	if lastBlockMeta == nil {
+		panic(fmt.Sprintf("needProofBlock: last block meta for height %d not found", height-1))
+	}
+
+	// When CreateEmptyBlocks is disabled, we should only create proof blocks
+	// when there were actual transactions in the previous block that could
+	// have changed the app state
+	if !cs.config.CreateEmptyBlocks {
+		return lastBlockMeta.Header.NumTxs > 0
+	}
+
 	return !bytes.Equal(cs.state.AppHash, lastBlockMeta.Header.AppHash)
 }
 
