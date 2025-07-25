@@ -47,13 +47,13 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
             go build \
             -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot" \
-            -o /gnoroot/build/gnodev ./cmd/gnodev
+            -o /gnoroot/build/gnodev .
 # Gnobro build
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnodev-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gnodev-buildcache \
             go build \
             -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot" \
-            -o /gnoroot/build/gnobro ./cmd/gnobro
+            -o /gnoroot/build/gnobro .
 
 # Gnocontribs
 ## Gnogenesis
