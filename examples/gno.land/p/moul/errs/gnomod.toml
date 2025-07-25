@@ -1,5 +1,5 @@
 module = "gno.land/p/moul/errs"
 gno = "0.9"
 
-[upload_metadata]
-  uploader = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+[addpkg]
+  creator = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
